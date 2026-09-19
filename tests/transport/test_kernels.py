@@ -806,7 +806,7 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     """
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.transport.operators.scattering import ScatteringOperator
 
@@ -818,7 +818,7 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
     )
     space = sn_mesh.full_field_space
@@ -852,7 +852,7 @@ def test_energy_conformity_guard_three_rows():
        the refusal at ALL FOUR wired call sites, naming each operator
        (QA-F1: the guard BODY is single-sourced but the WIRING is
        per-site — three sites had no witness);
-    3. axes-LESS — a WRONG-ng bind on ``SNMesh(2g).full_field_space``
+    3. axes-LESS — a WRONG-ng bind on ``SNProblem(2g).full_field_space``
        MUST REFUSE since CS4c step 4 (⛔ this clause read "MUST
        CONSTRUCT: the declared inertness" until step 4 — the row's body
        records how the reach widened). The guard's reach is the
@@ -862,7 +862,7 @@ def test_energy_conformity_guard_three_rows():
        N2NOperator, F, and Λ/N2N-moment inherit the base without an
        energy end to check — where the pre-step census read 4 of 13.
        The guard stays INERT on axes-less composites (this row's
-       subject): ``SNMesh.full_field_space`` carries no EnergyAxis until
+       subject): ``SNProblem.full_field_space`` carries no EnergyAxis until
        CS2's axes, so a wrong-ng bind constructs, and the row keeps that
        fact asserted rather than assumed. Without this row the guard
        ships certified by a fixture family that reddens on demand while
@@ -870,7 +870,7 @@ def test_energy_conformity_guard_three_rows():
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
     carrier_2g = unit_cell_carrier({0: get_mixture("A", "2g")})
     carrier_4g = unit_cell_carrier({0: get_mixture("A", "4g")})
@@ -929,7 +929,7 @@ def test_energy_conformity_guard_three_rows():
         edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
     )
-    sn_2g = SNMesh(
+    sn_2g = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g")},
     )

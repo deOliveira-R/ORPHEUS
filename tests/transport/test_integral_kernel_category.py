@@ -65,7 +65,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
@@ -112,7 +112,7 @@ def fission_op():
     mat[3:, :] = 0
     mesh = _uniform_2d(nx, ny, 0.2, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
+    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod})
     return SNSolver(sn_mesh).sn_mesh.fission.isotropic_energy
 
 
@@ -136,7 +136,7 @@ def scattering_op():
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = Quadrature.lebedev(order=17)
     return SNSolver(
-        SNMesh(mesh, quad, {0: mix}, scattering_order=1),
+        SNProblem(mesh, quad, {0: mix}, scattering_order=1),
     ).sn_mesh.system.factors.scattering
 
 

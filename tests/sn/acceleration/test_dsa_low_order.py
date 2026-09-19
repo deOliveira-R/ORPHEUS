@@ -38,13 +38,13 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 
 pytestmark = pytest.mark.foundation
 
 
-def _slab(bc_left: str = "vacuum", bc_right: str = "vacuum") -> SNMesh:
+def _slab(bc_left: str = "vacuum", bc_right: str = "vacuum") -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups (the 3a tie
     fixture — mixtures carry real P1 data, so the (23c) D is exercised
     beyond the bare-P0 coincidence)."""
@@ -55,12 +55,12 @@ def _slab(bc_left: str = "vacuum", bc_right: str = "vacuum") -> SNMesh:
         bc_right=BC(bc_right),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(
+    return SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     )
 
 
-def _reference_inputs(sn_mesh: SNMesh):
+def _reference_inputs(sn_mesh: SNProblem):
     """The reference builder's per-group inputs, gathered the same way
     the production build gathers them (data path shared; the FORMULAS
     are what the tie discriminates)."""
@@ -145,7 +145,7 @@ class TestAdmissionTeeth:
         ids=["white", "albedo", "prescribed"],
     )
     def test_unsupported_boundary_refused(self, unadmitted):
-        """The albedo/white seam guard. SNMesh's own registry pre-refuses
+        """The albedo/white seam guard. SNProblem's own registry pre-refuses
         these laws today, so the guard is defense-in-depth for a future
         registry entry — exercised through a structural stub carrying
         the admission surface (geometry, scheme, per-face laws).
@@ -185,7 +185,7 @@ class TestAdmissionTeeth:
             bc_left=BC("vacuum"),
             bc_right=BC("vacuum"),
         )
-        sn_mesh = SNMesh(
+        sn_mesh = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},

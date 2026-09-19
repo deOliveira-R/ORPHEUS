@@ -18,7 +18,7 @@ and the second is the one that makes the fix worth having:
    installed on a constructed one is DISCARDED.**
    :func:`~orpheus.sn.solver.solve_sn_fixed_source` takes a raw geometry and
    calls ``_as_sn_mesh(...)``, which constructs a fresh
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`. Before the channel, the only
+   :class:`~orpheus.sn.problem.SNProblem`. Before the channel, the only
    way to install a non-tag-expressible law was to mutate a constructed mesh's
    already-resolved ``bc`` dict — and that mesh was not the one the solver used.
    ⟹ the law had to ride the **geometry**, which is what the public API already

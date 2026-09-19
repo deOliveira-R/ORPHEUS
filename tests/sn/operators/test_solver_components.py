@@ -18,7 +18,7 @@ import time
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
@@ -55,7 +55,7 @@ def solver_2g():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     solver = SNSolver(sn_mesh)
     return solver, materials, sn_mesh, quad
 
@@ -88,7 +88,7 @@ def solver_2g_n2n():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     solver = SNSolver(sn_mesh)
     return solver, materials, sn_mesh, quad
 
@@ -458,7 +458,7 @@ class TestQuadratureWeightConservation:
         # SO(3) moment cubature Lebedev (O_h, N=110 doe=17). Verified: relerr
         # 4.4e-16 ≤ rtol 1e-6; 0.36s → 0.12s.
         quad = Quadrature.level_symmetric(sn_order=4)
-        local_sn_mesh = SNMesh(mesh, quad, materials)
+        local_sn_mesh = SNProblem(mesh, quad, materials)
         solver = SNSolver(local_sn_mesh)
 
         Q = np.ones((solver.ng, 2, 2))
@@ -536,7 +536,7 @@ class TestAnisotropicScattering:
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
 
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix_p0_only}, scattering_order=1))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix_p0_only}, scattering_order=1))
         assert solver.scattering_order == 0, (
             f"Expected L=0 (clamped), got L={solver.scattering_order}"
         )
@@ -631,7 +631,7 @@ class TestAnisotropicScattering:
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=1))
 
         N = quad.N
         angular = AngularFlux(
@@ -690,7 +690,7 @@ def solver_421g():
 
     mesh = _uniform_2d(10, 10, 0.2, np.tile(np.array([2]*5 + [1] + [0]*4, dtype=int), (10, 1)).T)
     quad = Quadrature.lebedev(order=17)
-    solver = SNSolver(SNMesh(mesh, quad, materials))
+    solver = SNSolver(SNProblem(mesh, quad, materials))
     return solver, materials, mesh, quad
 
 

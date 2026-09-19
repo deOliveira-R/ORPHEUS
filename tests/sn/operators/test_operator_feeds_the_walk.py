@@ -39,7 +39,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -63,7 +63,7 @@ _MEMO_SLOTS = ("_geom_cache", "_pole_mirror_cache")  # _coll_cache retired at C3
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh() -> SNMesh:
+def _slab_mesh() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, _NX + 1),
         mat_ids=np.zeros(_NX, dtype=int),
@@ -71,10 +71,10 @@ def _slab_mesh() -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
+    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
 
 
-def _cylinder_mesh(n_phi: int) -> SNMesh:
+def _cylinder_mesh(n_phi: int) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.01, 2.0, _NX + 1),
         mat_ids=np.zeros(_NX, dtype=int),
@@ -83,10 +83,10 @@ def _cylinder_mesh(n_phi: int) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
-    return SNMesh(mesh, quad, placeholder_materials(ng=_NG))
+    return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
 
 
-def _sphere_mesh() -> SNMesh:
+def _sphere_mesh() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, _NX + 1),
         mat_ids=np.zeros(_NX, dtype=int),
@@ -94,15 +94,15 @@ def _sphere_mesh() -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
+    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
 
 
-def _het_sigma(sn: SNMesh) -> np.ndarray:
+def _het_sigma(sn: SNProblem) -> np.ndarray:
     rng = np.random.default_rng(20260828)
     return rng.uniform(0.4, 2.5, size=(sn.ng, *sn.spatial_shape))
 
 
-def _het_rhs(sn: SNMesh) -> TimedFullField:
+def _het_rhs(sn: SNProblem) -> TimedFullField:
     rhs = TimedFullField.zeros(
         interior=AngularFlux,
         boundary=AngularBoundaryFlux,
@@ -113,14 +113,14 @@ def _het_rhs(sn: SNMesh) -> TimedFullField:
     return rhs
 
 
-def _drive(sn: SNMesh, L: StreamingOperator) -> np.ndarray:
+def _drive(sn: SNProblem, L: StreamingOperator) -> np.ndarray:
     """``(L + C).solve(rhs)`` from THIS operator — no internal re-posing."""
     C = MultiplicationOperator.from_mesh(_het_sigma(sn), sn)
     psi = (L + C).solve(_het_rhs(sn))
     return np.asarray(psi.interior.values).copy()
 
 
-def _drop_memos(sn: SNMesh) -> None:
+def _drop_memos(sn: SNProblem) -> None:
     # The cached tables would mask a hub swap pre-carve; post-carve the
     # memo has moved off the mesh, but the drop stays so the gate's green
     # can never be "the cache answered" (verification plan §2.1).
@@ -156,7 +156,7 @@ class _MutantMM(MorelMontryAngularSweep):
         return MorelMontryAngularSweep.c_out_per_ordinate.fget(self) * 1.05  # type: ignore[attr-defined]
 
 
-def _mutant_closure(sn: SNMesh) -> _MutantMM:
+def _mutant_closure(sn: SNProblem) -> _MutantMM:
     assert sn.reduced is not None
     return _MutantMM(
         sn.reduced.angular, sn.reduced.redistribution_pairing,
@@ -172,7 +172,7 @@ _ROWS = [
 ]
 
 
-def _swap(sn: SNMesh, slot: str) -> None:
+def _swap(sn: SNProblem, slot: str) -> None:
     if slot == "scheme":
         sn.scheme = _MutantDD()
     else:

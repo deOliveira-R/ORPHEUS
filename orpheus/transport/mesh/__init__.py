@@ -8,7 +8,7 @@ axis machinery is pure coordinate geometry (it depends only on
 ``geometry`` + ``numerics``), and the XS field reads only mesh+materials
 data. :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
 mesh+materials carrier that every method-specific mesh subclasses (e.g.
-``SNMesh(MaterialMesh)``) — lands here in the same campaign.
+``SNProblem(MaterialMesh)``) — lands here in the same campaign.
 
 Layer (per ``tests/test_layer_imports.py``): L2 ``transport``. These
 modules import only ``geometry`` / ``numerics`` / ``data`` (and sibling

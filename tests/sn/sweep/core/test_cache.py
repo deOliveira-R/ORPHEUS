@@ -30,7 +30,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.spatial.scheme import UpstreamState
@@ -48,7 +48,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 def _trivial_materials(ng: int = 1) -> dict:
     """Build a minimal materials dict for ng-group geometry-only tests.
 
-    Issue #197 PR-TYPED-0: SNMesh requires ``materials``.  This helper
+    Issue #197 PR-TYPED-0: SNProblem requires ``materials``.  This helper
     provides a placeholder mixture for tests that exercise pure-
     geometry/cache structure and don't consume cross-section values.
     """
@@ -63,7 +63,7 @@ def _trivial_materials(ng: int = 1) -> dict:
     )}
 
 
-def _make_slab(nx: int = 10, N: int = 8) -> SNMesh:
+def _make_slab(nx: int = 10, N: int = 8) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -71,10 +71,10 @@ def _make_slab(nx: int = 10, N: int = 8) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(N)
-    return SNMesh(mesh, quad, _trivial_materials(ng=1))
+    return SNProblem(mesh, quad, _trivial_materials(ng=1))
 
 
-def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
+def _make_sphere(nx: int = 10, N: int = 8) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -83,7 +83,7 @@ def _make_sphere(nx: int = 10, N: int = 8) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(N)
-    return SNMesh(mesh, quad, _trivial_materials(ng=1))
+    return SNProblem(mesh, quad, _trivial_materials(ng=1))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -348,7 +348,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     solver = SNSolver(sn_mesh=sn_mesh)
 
     hub_b = sn_mesh.with_cross_sections(sn_mesh.mat_xs.total_cross_section * 2.0)
@@ -656,7 +656,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(16)
-    sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
+    sn_mesh = SNProblem(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled.
     # R-1 Step 4 A1: single per-ordinate source carrier.
     Q = AngularSourceSink.from_isotropic(np.ones((4, *sn_mesh.spatial_shape)), sn_mesh)
@@ -664,7 +664,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
     boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
-    # Warm-up — first call also caches inside SNMesh.
+    # Warm-up — first call also caches inside SNProblem.
     for _ in range(3):
         sweep_once(Q, sig_t, sn_mesh, boundary_flux)
 
@@ -732,7 +732,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())
@@ -908,7 +908,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     )
     quad = Quadrature.gauss_legendre(4)
     materials = placeholder_materials(ng=2)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
 
     counts = {"builds": 0}
     real = StreamingCoefficientCache.from_mesh_and_quad.__func__
@@ -989,7 +989,7 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
         edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
     )
-    sn2d = SNMesh(
+    sn2d = SNProblem(
         mesh2d, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2),
     )
     assert sn2d.reduced is None  # the witness's own premise
@@ -1014,7 +1014,7 @@ def test_two_sigmas_on_one_strategy_give_two_answers() -> None:
     mesh = Mesh1D(edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
                   bc_left=BC("vacuum"), bc_right=BC("vacuum"))
     quad = Quadrature.gauss_legendre(4)
-    hub = SNMesh(mesh, quad, placeholder_materials(ng=2))
+    hub = SNProblem(mesh, quad, placeholder_materials(ng=2))
     rep = default_for(hub, hub.scheme, hub.angular_closure)
     Q = np.ones((quad.N, hub.ng, *hub.spatial_shape))
     bf = AngularBoundaryFlux.zeros(hub.angular_trace)

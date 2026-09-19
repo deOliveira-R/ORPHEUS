@@ -601,7 +601,7 @@ class TestWhiteOrientationGuard:
     makes a size comparison Mode-12 blind.
 
     The guard is green by construction on the canonical
-    ``SNMesh.realize_boundary_law`` path (both encodings derive from the same
+    ``SNProblem.realize_boundary_law`` path (both encodings derive from the same
     face label); it bites on hand-built method spaces and on a mis-declared
     law — which is exactly where the tree's white fixtures live.
     """
@@ -1083,7 +1083,7 @@ class TestRealizerIdentity:
         assert SNBoundaryRealizer.method_name == "SN"
 
     def test_conforms_to_the_boundary_realizer_protocol(self):
-        # The Protocol the walker and ``SNMesh.realize_boundary_law``
+        # The Protocol the walker and ``SNProblem.realize_boundary_law``
         # dispatch through.
         assert isinstance(SNBoundaryRealizer(), BoundaryRealizer)
 
@@ -1185,7 +1185,7 @@ class TestVacuumTraceOrientationGuard:
     def test_faceless_space_carries_no_orientation_truth(self):
         r"""A method space with hand-supplied half-traces and NO face name has
         no independent orientation encoding — the guard cannot fire there
-        (documented escape; the canonical ``SNMesh.realize_boundary_law`` path
+        (documented escape; the canonical ``SNProblem.realize_boundary_law`` path
         always carries a face). The realize must succeed, wrong indices and
         all: the caller owns the claim.
 

@@ -886,7 +886,7 @@ Once the object is fixed and the splitting chosen, a method is located by
   ``realize_boundary_law`` per method, one generic
   ``resolve_boundary_conditions`` body), and the trace space is set by
   the *angular* representation — S\ :sub:`N`'s trace is angular
-  (``SNMesh.angular_trace``), diffusion's is scalar
+  (``SNProblem.angular_trace``), diffusion's is scalar
   (``DiffusionMesh.scalar_trace``) — **not** by how streaming is
   realized. Reflection, :term:`vacuum <vacuum boundary condition>` and
   :term:`albedo` *laws* are shared physics; what

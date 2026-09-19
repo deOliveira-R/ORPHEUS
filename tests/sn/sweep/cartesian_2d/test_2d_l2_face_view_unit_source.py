@@ -71,7 +71,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -86,7 +86,7 @@ pytestmark = pytest.mark.foundation
 # ── Mesh fixture: 4×4 vacuum-everywhere 2-D Cartesian, 1G pure streamer ─
 
 
-def _pure_streamer_2d_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
+def _pure_streamer_2d_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
     r"""4×4 vacuum-everywhere mesh; materials Σ_s = 0, νΣ_f = 0, Σ_t = 1.
 
     Pure-streamer config — every cell is a "transparent" absorber.
@@ -105,11 +105,11 @@ def _pure_streamer_2d_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "1g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "1g")})
 
 
 def _zero_state_with_unit_face(
-    mesh: SNMesh, face: str,
+    mesh: SNProblem, face: str,
 ) -> "object":
     r"""Build a ``TimedFullField`` whose only nonzero is a unit at ``face``.
 

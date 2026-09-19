@@ -112,7 +112,7 @@ took two passes at the closure:
   then-``solution_to_angular_flux*`` codec and the
   matvec helpers consumed the
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
-  the :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (Wave B Issue 7
+  the :class:`~orpheus.sn.problem.SNProblem` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via the
   realiser-routed 1-arg :meth:`apply` on the resolved
   :class:`~orpheus.numerics.operator.LinearOperator`. Vacuum,
@@ -196,7 +196,7 @@ The retired symbols are:
 * ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation)
 * ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`` (ABC)
 * The ``boundary_face_flux`` field on
-  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+  :class:`~orpheus.sn.problem.SNProblem`
 * The 21 foundation tests at
   :file:`tests/sn/sweep/test_boundary_face_flux.py`
 
@@ -250,7 +250,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      seed lives as a
      ``PsiHalfAngleSeed``
      strategy field on :class:`MorelMontryAngularSweep`, not as a
-     sibling Protocol on :class:`SNMesh`. The Legacy / Bailey
+     sibling Protocol on :class:`SNProblem`. The Legacy / Bailey
      closures have no ``psi_half_left`` variable to seed; a
      sibling Protocol would force every consumer to handle an
      irrelevant Protocol.
@@ -724,7 +724,7 @@ level.  (This was originally read as per-:math:`\mu`-level
 **false for a product quadrature**, where the seed is a live
 self-coupling and the cold solve was seed-lagged until the
 direct-seed fold.  Both regimes are historical since Q5.6.3:
-cylindrical ``SNMesh`` admission refuses every non-carrying rule, and
+cylindrical ``SNProblem`` admission refuses every non-carrying rule, and
 the fold was retired with its subjects — see
 :ref:`sn-direct-seed-r12a`.)  The sphere cascade has no equivalent dead-seed
 weight — a wrong seed propagates directly to a wrong fixed point.  Phase D's fix
@@ -802,9 +802,9 @@ architectures were considered:
   :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`.
   The abstraction stays local to the closure that consumes it.
 
-* **Option B (sibling Protocol on SNMesh, rejected)** — the seed
+* **Option B (sibling Protocol on SNProblem, rejected)** — the seed
   would be a separate Protocol attribute on
-  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, applied by the matvec
+  :class:`~orpheus.sn.problem.SNProblem`, applied by the matvec
   before calling the pole closure.  This would force every
   consumer (Legacy / BFF / M-M) to handle a Protocol that is a
   **no-op** for the non-M-M strategies, violating the
@@ -905,7 +905,7 @@ Phase D ships **two default flips** that activate the full
 canonical curvilinear closure path:
 
 #. The ``pole_angular_closure`` constructor argument of
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — realized onto the
+   :class:`~orpheus.sn.problem.SNProblem` — realized onto the
    like-named instance attribute — had its default
    flipped from
    ``LegacyTauSymmetricInterpolation``
@@ -914,7 +914,7 @@ canonical curvilinear closure path:
    :class:`MorelMontryAngularSweep`'s own constructor default for
    ``psi_half_seed`` is
    ``CarlsonInwardSweep``,
-   so the single :class:`SNMesh` flip activates the full Phase D
+   so the single :class:`SNProblem` flip activates the full Phase D
    fix (canonical M-M closure + canonical Carlson seed) without
    requiring downstream call sites to thread the new strategy
    explicitly.
@@ -1034,7 +1034,7 @@ solve.
    that blindness statement is unaffected by this correction.
 
    **Closure (Q5.6.3, ``1689faf4``).**  The fold this correction
-   documents was itself retired: cylindrical ``SNMesh`` admission now
+   documents was itself retired: cylindrical ``SNProblem`` admission now
    refuses every non-carrying rule
    (:func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`),
    so neither the dead-weight regime nor the live self-coupling the
@@ -1221,7 +1221,7 @@ The full Phase D footprint (per the closeout memo at
   build the
   ``CarlsonSweepContext``
   before calling ``pole_angular_closure``.
-* :mod:`orpheus.sn.mesh.augmented_mesh` — :class:`SNMesh` default flipped to
+* :mod:`orpheus.sn.problem` — :class:`SNProblem` default flipped to
   :class:`MorelMontryAngularSweep`.
 * :mod:`orpheus.sn.solver` — curvilinear default ``inner_solver``
   flipped to ``"krylov"``.
@@ -2156,7 +2156,7 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
       source rather than the falsified proxy, no opt-in), plus the
       inlined
       :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`
-      for non-carrying cylinder levels — a class no ``SNMesh``-admitted
+      for non-carrying cylinder levels — a class no ``SNProblem``-admitted
       cylinder has since Q5.6.3, leaving that inline unreachable
       through the mesh.  See
       :ref:`sn-direct-seed-strategy-zoo`.
@@ -2835,7 +2835,7 @@ oracle), ERR-058 deletes no correct machinery:
    :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`
    (now the SOLVE driver, on the **true** q½ source) and the inlined
    :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`
-   (non-carrying cylinder levels — unconstructible through ``SNMesh``
+   (non-carrying cylinder levels — unconstructible through ``SNProblem``
    since the Q5.6.3 admission).  The coupled-pole spatial seed row is
    unaffected.  See :ref:`sn-direct-seed-strategy-zoo`.
 

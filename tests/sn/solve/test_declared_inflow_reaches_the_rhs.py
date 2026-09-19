@@ -42,7 +42,7 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import _build_fixed_source_rhs
 from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -52,7 +52,7 @@ pytestmark = pytest.mark.l1
 _VALUE = 2.5
 
 
-def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNMesh:
+def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -60,16 +60,16 @@ def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _declare(sn: SNMesh, face: str, law) -> SNMesh:
+def _declare(sn: SNProblem, face: str, law) -> SNProblem:
     """Install a law the way the mesh's own resolve body does."""
     sn.bc[face] = sn.realize_boundary_law(law, face)
     return sn
 
 
-def _bulk(sn: SNMesh) -> np.ndarray:
+def _bulk(sn: SNProblem) -> np.ndarray:
     return np.zeros((sn.quad.N, sn.ng, *sn.spatial_shape))
 
 
@@ -240,7 +240,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _het_slab(n_ord: int = 8) -> SNMesh:
+def _het_slab(n_ord: int = 8) -> SNProblem:
     r"""Heterogeneous, 2G, asymmetric ``SigS``, scattering-active.
 
     NOT ``placeholder_materials``: ``SigS ≡ 0`` there, so a delivered inflow
@@ -260,13 +260,13 @@ def _het_slab(n_ord: int = 8) -> SNMesh:
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
         {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},
     )
 
 
-def _composite(sn: SNMesh, *, boundary_value: float = 0.0,
+def _composite(sn: SNProblem, *, boundary_value: float = 0.0,
                bulk_level: float = 1.0):
     r"""ONE bulk spelling for every leg of every row below — deliberately.
 
@@ -294,7 +294,7 @@ def _composite(sn: SNMesh, *, boundary_value: float = 0.0,
     )
 
 
-def _solve(sn: SNMesh, inner: str, **kw):
+def _solve(sn: SNProblem, inner: str, **kw):
     from orpheus.sn.solver import (
         SNSolver, _solve_fixed_source_krylov, _solve_fixed_source_si,
     )
@@ -320,7 +320,7 @@ def _solve(sn: SNMesh, inner: str, **kw):
     )
 
 
-def _gamma_minus(sol, sn: SNMesh, face: str) -> np.ndarray:
+def _gamma_minus(sol, sn: SNProblem, face: str) -> np.ndarray:
     """The converged INFLOW trace of ``face`` — the boundary law's own output."""
     rows = sn.angular_trace.inflow_indices_for_face(face)
     return np.asarray(sol.angular_flux.boundary.face_view(face))[rows]

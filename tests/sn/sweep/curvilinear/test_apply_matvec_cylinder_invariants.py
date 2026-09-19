@@ -55,7 +55,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
@@ -70,7 +70,7 @@ from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 # pre-Q5.6.3 full-product {2, 4}: n_phi=6 ≡ 2 (mod 4) places one BIT-EXACT
 # μ_r = 0 pure-azimuthal ordinate per level (the degenerate class that
 # survives the fold — the redistribution telescoping must hold through
-# it), while an all-tangential folded(n, 2) rule cannot build an SNMesh at
+# it), while an all-tangential folded(n, 2) rule cannot build an SNProblem at
 # all (`build_omega_dot_n` refuses a rule with no genuine μ_x cosine).
 @pytest.mark.parametrize("n_phi", [4, 6])
 def test_cylinder_apply_matvec_preserves_flat_psi(
@@ -96,7 +96,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
     sig_t = np.full((ng, nx), 2.0)  # (ng, nx) — rank-d

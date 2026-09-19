@@ -130,7 +130,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.space import FunctionSpace
     from orpheus.geometry.boundary import BoundaryTraceLaw
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.full_field import FullField
 
 __all__ = ["DSALowOrderSystem", "DSACorrection"]
@@ -157,7 +157,7 @@ class DSALowOrderSystem:
 
     Frozen and immutable — the system is a function of the mesh's
     geometry, data, quadrature, and boundary declarations alone, all of
-    which are construction-time constants of the ``SNMesh``.
+    which are construction-time constants of the ``SNProblem``.
     """
 
     #: ``(ng, K+1, K+1)`` assembled edge operators (kept for gates /
@@ -178,7 +178,7 @@ class DSALowOrderSystem:
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNMesh",
+        cls, sn_mesh: "SNProblem",
     ) -> "DSALowOrderSystem":
         r"""Build the per-group systems from the SN phase space.
 
@@ -608,7 +608,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNMesh",
+        cls, sn_mesh: "SNProblem",
     ) -> "DSACorrection":
         r"""Build the correction operator for an admitted SN phase space
         (admission — geometry, scheme, walls — and the

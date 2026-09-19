@@ -49,7 +49,7 @@ from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 

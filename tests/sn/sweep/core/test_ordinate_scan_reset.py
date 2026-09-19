@@ -285,14 +285,14 @@ class TestSICylinderResonance:
         folded rule.  REDS if a closure change (the 6.4 absorber
         retirement) makes it reachable — then a live reproducer is
         owed here again."""
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.sn.sweep.cache import (
             CollisionCache,
             StreamingCoefficientCache,
         )
 
         materials, mesh, quad = self._build()
-        probe = SNMesh(mesh, quad, materials)
+        probe = SNProblem(mesh, quad, materials)
         geom = StreamingCoefficientCache.from_mesh_and_quad(probe)
         mu = np.asarray(quad.mu_x)
         inward = np.flatnonzero(mu < 0)

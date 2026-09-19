@@ -112,7 +112,7 @@ class ScalarFlux(ScalarField):
     space : FunctionSpace
         The function space this flux lives on — the carrier's cached
         ``mesh.bulk_space`` (CS4b S5: construction is space-primary; SN
-        callers read it off their :class:`SNMesh`, diffusion / CP off
+        callers read it off their :class:`SNProblem`, diffusion / CP off
         the plain :class:`MaterialMesh`).
     Notes
     -----

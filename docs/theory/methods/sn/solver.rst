@@ -24,7 +24,7 @@ landed:
      - what reads it now
    * - ``SNSolver.fission_op``
      - the Problem hub (unit C2)
-     - :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+     - :attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`
        — the *composite*
        :class:`~orpheus.transport.operators.fission.FissionOperator` on
        the full field.
@@ -97,9 +97,9 @@ made it one object with two faces.
    the fixed-source entry each had their own, and the three disagreed on
    a live solve.  Since the consumers campaign's step 1 (ruling R-cc9;
    GitHub #459) the order is clamped ONCE on
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at construction, and
+   :class:`~orpheus.sn.problem.SNProblem` at construction, and
    ``SNSolver.__init__`` reads :attr:`sn_mesh.scattering_order
-   <orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`.  The
+   <orpheus.sn.problem.SNProblem.scattering_order>`.  The
    attribute ``SNSolver.scattering_order`` still exists and still means
    the same thing — it is now a **read**, not a second spelling.  The
    four entry
@@ -197,7 +197,7 @@ each of which mints the splitting VALUE its own schedule calls for.
 
    * The within-group system is built ONCE **per Problem** — it is the
      :func:`~functools.cached_property`
-     :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`,
+     :attr:`SNProblem.system <orpheus.sn.problem.SNProblem.system>`,
      and that property is the only call site of
      :func:`~orpheus.sn.coupled_system.build_within_group_system`.  It
      carries the posed loss :math:`A`, the bound leaves it is the signed
@@ -210,10 +210,10 @@ each of which mints the splitting VALUE its own schedule calls for.
      builds it **once** now (:ref:`sn-the-problem-poses-its-pencil`).
    * **The Problem's LAST step is its pencil** (since 2026-09-13 — the
      consumers campaign's step 2, unit C3b).
-     :attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>`
+     :attr:`SNProblem.pencil <orpheus.sn.problem.SNProblem.pencil>`
      is the :class:`~orpheus.numerics.pencil.OperatorPencil`
      :math:`(A, F)` on one space, and
-     :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` is the
+     :attr:`~orpheus.sn.problem.SNProblem.eigen_posing` is the
      :class:`~orpheus.numerics.posing.EigenPosing` over it with the
      :math:`k` map.  The pencil carries **no** inverse and **no**
      resolvent: how it is inverted is the Strategy's
@@ -229,7 +229,7 @@ each of which mints the splitting VALUE its own schedule calls for.
      commit.
    * **There is ONE** :math:`F` **per Problem, and it lives on the hub**
      (since 2026-09-13 — the consumers campaign's step 2).
-     :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+     :attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`
      is the composite :math:`F = \chi\otimes\nu\Sigma_f` on the full
      field; the forward k-outer applies its derived energy face
      ``F.isotropic_energy`` and the adjoint daggers the composite, so
@@ -1385,12 +1385,12 @@ single hub (a two-region 2-group slab, ``gauss_legendre(8)``):
    * - forward k-outer
      - :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
        (``SNSolver.__init__``)
-     - :attr:`SNMesh.bulk_space <orpheus.sn.mesh.augmented_mesh.SNMesh.bulk_space>`,
+     - :attr:`SNProblem.bulk_space <orpheus.sn.problem.SNProblem.bulk_space>`,
        :math:`(n_g, *\text{spatial})`
    * - adjoint, **seedless** mesh
      - :class:`~orpheus.transport.operators.fission.FissionOperator`
        (``_adjoint_posing_parts``)
-     - :attr:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`
+     - :attr:`SNProblem.full_field_space <orpheus.sn.problem.SNProblem.full_field_space>`
    * - adjoint, **carrying** mesh
      - an :class:`~orpheus.numerics.operator.OperatorProduct`
        (``_adjoint_posing_parts``, again)
@@ -1446,7 +1446,7 @@ itself onto the composite carrier is a later, principled re-baseline.
 The mechanism: one cached member, two faces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+:attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`
 is a :func:`~functools.cached_property` on the Problem hub, minted once
 through the tier-2 factory
 :meth:`FissionOperator.from_solver_data
@@ -1616,7 +1616,7 @@ design are deliberate.
 
 * **It counts, it does not name.**  What the hub's member is *called*
   was an open ruling when the anchor was written, so an assertion
-  naming ``SNMesh.fission`` would have been a guess wearing a contract.
+  naming ``SNProblem.fission`` would have been a guess wearing a contract.
   The invariant is *one mint per Problem*; the attribute name is not.
 * **The spy is keyed on the two ``classmethod`` factories**
   (``IsotropicFission.from_material_xs`` and
@@ -1693,7 +1693,7 @@ What is deferred, and why
        pin it empirically.
 
        ⚠ **Half discharged 2026-09-13.**  The pair IS reified —
-       :attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>`
+       :attr:`SNProblem.pencil <orpheus.sn.problem.SNProblem.pencil>`
        is an :class:`~orpheus.numerics.pencil.OperatorPencil` whose
        :attr:`~orpheus.numerics.pencil.OperatorPencil.H` daggers both
        ends — so the equality became **statable** as a property of the
@@ -1723,7 +1723,7 @@ What is deferred, and why
        the record itself.
 
        ✅ **DISCHARGED 2026-09-13** — the hub caches the record
-       (:attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`)
+       (:attr:`SNProblem.system <orpheus.sn.problem.SNProblem.system>`)
        and is the builder's only caller, so every production consumer
        reads ONE ``production`` object by identity.  The literal sentence
        above stays true and stops mattering: two *direct* builder calls
@@ -1828,9 +1828,9 @@ view:
 — one field, **always present**, with no ``None``-valued override and no
 ``is_overridden`` flag for a consumer to branch on.
 :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`
-returns a **new Problem** whose datum is replaced; ``SNMesh`` re-spells it
+returns a **new Problem** whose datum is replaced; ``SNProblem`` re-spells it
 through the same private body that serves
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.with_scattering_order`, so
+:meth:`~orpheus.sn.problem.SNProblem.with_scattering_order`, so
 the two Problem morphisms cannot drift apart.
 
 The datum is **normalised on the way in** — ``np.ascontiguousarray(…,
@@ -1855,7 +1855,7 @@ Where the datum lands in the two keys is the whole design:
    * - ``_contractibility_key``
      - **no**
      - *May two solutions' FIELDS be paired?*  The geometry, the material
-       assignment, the materials' content — and, on ``SNMesh``, the
+       assignment, the materials' content — and, on ``SNProblem``, the
        quadrature and the scheme type.  A σ-variant leaves it untouched,
        so
        :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
@@ -1865,7 +1865,7 @@ Where the datum lands in the two keys is the whole design:
    * - ``_identity_key``
      - **yes**
      - *Is this the SAME PROBLEM?*  The contractibility key plus
-       ``sigma_t_cell.tobytes()`` (and, on ``SNMesh``, the closure class
+       ``sigma_t_cell.tobytes()`` (and, on ``SNProblem``, the closure class
        and the clamped order).  A σ-variant compares ``!=`` and hashes
        differently, so a cache or a registry keyed on the Problem cannot
        serve one hub's table to the other by mistake.
@@ -2124,8 +2124,8 @@ indistinguishable, in its return value, from one that skipped it.
 The gauge is σ-free, and that is now stated across two Problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:attr:`SNMesh.loss_kernel_gauge
-<orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>` is a
+:attr:`SNProblem.loss_kernel_gauge
+<orpheus.sn.problem.SNProblem.loss_kernel_gauge>` is a
 :func:`~functools.cached_property` over :math:`\sigma`-free data, and
 the campaign pins that it stays so — otherwise a later "derive the gauge
 from the pencil" simplification would rebuild it on every
@@ -2195,7 +2195,7 @@ The step's own laws land in ``tests/sn/mesh/test_sigma_datum.py``, a
 ``foundation`` module.  Its two *identity* classes are parametrised over
 **both carrier tiers** — a bare
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and an
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, because the datum is
+:class:`~orpheus.sn.problem.SNProblem`, because the datum is
 declared at the data tier and the method mesh only extends the key: a
 σ-variant is a different Problem; it shares the phase space;
 re-declaring the same :math:`\sigma_t` is the *same* Problem; the stored
@@ -2379,7 +2379,7 @@ The chain, and where it stops
 
 .. code-block:: python
 
-   hub          = SNMesh.from_material_mesh(...)       # the Problem
+   hub          = SNProblem.from_material_mesh(...)       # the Problem
    record       = hub.system                           # posed: space, factors, loss, production
    pencil       = hub.pencil                           # OperatorPencil(record.loss, record.production)
    question     = hub.eigen_posing                     # EigenPosing(pencil, K_MAP)
@@ -2394,7 +2394,7 @@ The chain stops at the question.  It does **not** continue into a
 resolvent, an inverse, a splitting, a schedule or a tolerance — and that
 is gated rather than merely stated.
 ``tests/sn/architecture/test_posing.py`` walks every callable on
-``SNMesh(...) → .system → .pencil → .eigen_posing`` and asserts that none
+``SNProblem(...) → .system → .pencil → .eigen_posing`` and asserts that none
 of them accepts a Strategy token (``inner_solver``, ``inner_schedule``,
 ``max_iter``, ``max_inner``, ``tol``, ``inner_tol``, ``restart``,
 ``corrector``, ``preconditioner``, ``n_dof``, ``initial_guess``).  The
@@ -2638,8 +2638,8 @@ either one silently breaks the bit-identity the gate asserts:
   ``6`` are that gate's own :math:`\sum(A\psi)` and :math:`\sum(F\psi)`
   — the fact is not abstract, it is the row.)
 
-**2 —** :meth:`SNMesh.source_posing(q)
-<orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` **is a member.**
+**2 —** :meth:`SNProblem.source_posing(q)
+<orpheus.sn.problem.SNProblem.source_posing>` **is a member.**
 It returns ``SourcePosing(self.pencil.at(1.0), q)`` — **always**
 ``at(1)``, with no discrimination on the datum (RULED 2026-09-13, fork 2
 (a)).  On a non-fissile hub the production is the zero dyad, so the
@@ -2890,7 +2890,7 @@ keyed on invertibility would pass; only the spectral predicate refuses.
    Strategy side, because suppressing fission on a fissile deck is that
    entry's *modelling choice* and not a datum of the generating data
    (RULED 2026-09-14); the hub's own
-   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing` keeps
+   :meth:`~orpheus.sn.problem.SNProblem.source_posing` keeps
    naming the physical member at :math:`\sigma = 1`.  The suppression
    costs nothing to spell — ``[M]`` ``pencil.at(0.0) is pencil.lhs is
    system.loss`` by **object identity**, so "was fission suppressed?" is
@@ -3948,7 +3948,7 @@ while the fixed-source arms kept the whole trailing moment axis.  One
 member, two conventions, decided by which entry you called.  Storing the
 state whole makes the arm's own convention the *only* convention, and the
 cell-average reduction moves to where the scheme lives — the hub's
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.cell_average_moment`, which
+:meth:`~orpheus.sn.problem.SNProblem.cell_average_moment`, which
 the derived :math:`\phi` calls and which is the identity for DD/Step.
 
 .. warning::
@@ -4031,8 +4031,8 @@ the frame itself, and the rate-preservation theory that *forces* the flux
 weighting (rather than a plain volume average), live in
 :ref:`sn-spatial-homogenization` (:doc:`/theory/foundations/frame`). The returned
 ``MaterialMesh`` is re-promoted to a solvable phase space by
-:meth:`SNMesh.from_material_mesh
-<orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh>`, closing the
+:meth:`SNProblem.from_material_mesh
+<orpheus.sn.problem.SNProblem.from_material_mesh>`, closing the
 **solve → homogenize → re-solve** loop. The return type is
 **mesh-coupled** (geometry and materials born together) — the space half
 of the condense/homogenize asymmetry law

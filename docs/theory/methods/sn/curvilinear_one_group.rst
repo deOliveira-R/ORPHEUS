@@ -120,7 +120,7 @@ re-derived.
      ordinate-by-ordinate — the spatial face flux propagates to the
      next cell, the angular face flux to the next ordinate on the
      same cell.  The production walk is
-     :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` +
+     :meth:`~orpheus.sn.problem.SNProblem.dag_walk` +
      :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`,
      with the vectorized CumprodScan fast path.
    * The pole/axis is **intrinsic geometry** (a coordinate-system
@@ -742,7 +742,7 @@ rejected conventions are at
    shared* :math:`\eta`, *creating zero-width angular cells.  The
    resulting* :math:`\tau` *alternates between 0.5 (DD) and 1.0 (step)…
    This alternating pattern is correct."*  It described the **full-circle
-   product rule**, which is **inadmissible** at cylindrical ``SNMesh``
+   product rule**, which is **inadmissible** at cylindrical ``SNProblem``
    since Q5.6.3 and is now refused *by the partition producer itself* — a
    full-circle level carries :math:`\omega` of both signs (the σ_y double
    cover), so "the midpoint in :math:`\omega`" is undefined for it and
@@ -949,7 +949,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    provenance from the geometry-owned
    :attr:`~orpheus.transport.spatial.scheme.CellVisit.streaming_terms`), and the
    single production site
-   ``SNMesh._make_cell_visit`` — through which
+   ``SNProblem._make_cell_visit`` — through which
    ALL four ``dag_walk`` yield paths funnelled (Pattern 2, no per-site
    divergence) — stamps them from
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_in_per_ordinate`
@@ -1001,7 +1001,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    (``cell_balance_terms`` for the
    ``DD.update`` solve path; the geometry-side :math:`\tau` producer) were
    Step B3 / C.  See :mod:`orpheus.transport.spatial.scheme` for the CellVisit
-   fields and :mod:`orpheus.sn.mesh.augmented_mesh` for the production stamp.
+   fields and :mod:`orpheus.sn.problem` for the production stamp.
 
    B2 review fixes (finishing pass).  THREE follow-ups landed after the
    carve, all bit-identical (0-ULP):
@@ -1185,7 +1185,7 @@ The ``CellVisit`` packet — which the
 orchestrator already populates per cell and per ordinate — carried the
 angular-closure-owned numbers as plain ``float`` fields: ``c_in`` and
 ``c_out`` (added in B2) and then ``tau`` (B3).  They were stamped
-at exactly **one** production site, ``SNMesh._make_cell_visit``, through
+at exactly **one** production site, ``SNProblem._make_cell_visit``, through
 which all four ``dag_walk`` yield paths (slab, sphere, cylinder,
 cylindrical pure-azimuthal degenerate) funnelled — Pattern 2, no
 per-site divergence.  That site read the closure's per-global-ordinate
@@ -1338,7 +1338,7 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
 .. vv-status: dd-mm-angular-recurrence documented
 
 and read it from ``CellVisit.tau`` (stamped by
-``SNMesh._make_cell_visit`` from
+``SNProblem._make_cell_visit`` from
 :attr:`~orpheus.sn.angular.closure.AngularClosureBase.tau_per_ordinate`)
 rather than from ``visit.streaming_terms.tau_mm``.  That was the line
 the :math:`1.0` default protected.
@@ -1567,7 +1567,7 @@ dropped — confident that nothing live depended on them.
 See :mod:`orpheus.sn.angular.closure` for the
 ``tau_per_ordinate`` accessor and the three-constant cache,
 :mod:`orpheus.transport.spatial.scheme` for the ``CellVisit.tau`` field
-and ``SNMesh._make_cell_visit`` for the single production stamp (both
+and ``SNProblem._make_cell_visit`` for the single production stamp (both
 retired at P4.9a — :ref:`sn-p49a-closure-owns-the-march`), and
 :mod:`orpheus.sn.sweep.cache` for the scan split.
 
@@ -1923,7 +1923,7 @@ What moved, concretely
   single ``n_mask = 1`` conversion.
 * **The visit family.** ``CellVisit`` lost the closure stamp
   (``tau`` / ``c_in`` / ``c_out``) and with it the mesh-side
-  ``SNMesh._make_cell_visit``; ``UpstreamState`` lost
+  ``SNProblem._make_cell_visit``; ``UpstreamState`` lost
   ``angular_upstream``; ``CellResult`` lost ``outgoing_angular_state``.
   What the scheme receives instead are two keyword arguments carrying
   **assembled** contributions — ``angular_denom_term`` and
@@ -1961,7 +1961,7 @@ product* narrative on the theory page.  The campaign had three phases:
   :eq:`mm-weights`, the redistribution dome
   :eq:`alpha-recursion`) are two distinct, independently-selectable
   axes — a genuine tensor product, with separate injection points on
-  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (``scheme=`` for the
+  :class:`~orpheus.sn.problem.SNProblem` (``scheme=`` for the
   spatial closure, ``angular_closure=`` for the angular one; the two
   keywords were ``cell_update=`` and ``pole_angular_closure=`` when this
   phase landed).  Since P4.9b the *operator* is posed with both, and the
@@ -3575,7 +3575,7 @@ propagates to the next ordinate on the same cell.
 Implemented today by the unified walk, and since P4.9a by **two owners,
 one per axis**: the spatial face flux comes out of the per-cell
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` over
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` visits, while
+:meth:`~orpheus.sn.problem.SNProblem.dag_walk` visits, while
 the angular face flux is advanced by the closure's own
 :func:`~orpheus.sn.angular.closure.march_psi_half_step`, applied by the
 walk that composes them.  The vectorized
@@ -4362,7 +4362,7 @@ WDD recurrence walks the face flux along the DAG:
 .. vv-status: phase-c-wdd-recurrence documented
 
 evaluated cell-by-cell across the direction's DAG order yielded by
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` invoked with
+:meth:`~orpheus.sn.problem.SNProblem.dag_walk` invoked with
 ``direction_sign``. The
 per-cell streaming term consumes both the inflow and outflow face
 values along with the cell volume and face areas (Hébert §3.9.4
@@ -4467,7 +4467,7 @@ The new APIs
 
 Two new APIs surface what the existing infrastructure already knew:
 
-* :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`
+* :meth:`~orpheus.sn.problem.SNProblem.dag_walk`
   (``dag_walk(*, ordinate_idx=..., direction_sign=..., mu_level_idx=None)``)
   — Issue #196 Phase G
   Step 2.6 (Q3) canonicalised this as the **single iteration
@@ -4507,7 +4507,7 @@ What retires
 Phase A's
 ``BoundaryFaceFlux``
 Protocol — five symbols, the
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` field, and the 21 foundation
+:class:`~orpheus.sn.problem.SNProblem` field, and the 21 foundation
 tests — retires entirely. The architectural reasoning is "two paths
 to the same operator → unify after the second instance" (per the
 :doc:`/development` agent memory ``Unify after two instances``
@@ -4523,7 +4523,7 @@ algebraic extrapolation of cell centres. The retired symbols are:
 * ``orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`` (default strategy)
 * ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation strategy)
 * The ``boundary_face_flux`` constructor field +
-  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` attribute
+  :class:`~orpheus.sn.problem.SNProblem` attribute
 * The ``boundary_face_flux_closure`` keyword argument from
   ``transport_operator_matvec_spherical`` and ``_cylindrical`` (the
   matvec family since deleted — #197 / #280 campaigns)
@@ -4542,7 +4542,7 @@ Three additional simplifications shipped with the rewrite:
   determines them), but the WDD recurrence on flat :math:`\psi`
   requires the cell-centre to be consistent so the per-ordinate
   flat-flux invariant holds.
-* :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` no longer accepts the
+* :class:`~orpheus.sn.problem.SNProblem` no longer accepts the
   ``boundary_face_flux=`` keyword (a regression test pins the
   field retirement).
 * :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply` dispatch
@@ -4723,7 +4723,7 @@ way the spherical case does not — see the Gate 1.1 finding below
 (and its #280 Phase 2.5b correction: this is level-symmetric-only,
 NOT :math:`\alpha`-dome telescoping, and false for a product
 quadrature).  Historical mechanics: since Q5.6.3 a cylindrical
-``SNMesh`` refuses both of those rule classes at construction
+``SNProblem`` refuses both of those rule classes at construction
 (:ref:`sn-direct-seed-r12a`), so the tolerate-a-wrong-seed regime is
 unconstructible on the live tree.
 
@@ -4823,7 +4823,7 @@ three primitives**:
 
 #. The WDD diamond closure :eq:`phase-c-wdd-recurrence` per cell.
 #. The direction-keyed cell-visit DAG via
-   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` invoked with
+   :meth:`~orpheus.sn.problem.SNProblem.dag_walk` invoked with
    ``direction_sign=±1``.
 #. The BC trace law applied **once** at the boundary edge per
    :ref:`affine-bc-form`.
@@ -4860,7 +4860,7 @@ gate set lives in :file:`tests/sn/sweep/core/test_phase_c_gates.py`:
    of lines that read the varied knob, and nothing here varies).  What
    actually holds the two paths together is **single-sourcing**: both call
    :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
-   and :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`, so there is
+   and :meth:`~orpheus.sn.problem.SNProblem.dag_walk`, so there is
    no second closure to drift — the identity is prevented rather than
    detected (``coding-standards``: single-sourcing a duplicate demotes every
    gate that compared its copies, and that is the *correct* trade).  The
@@ -5432,7 +5432,7 @@ recurrence's half-angle face flux at the pole:
      ``(L+C).solve`` was seed-**lagged** until the #280 2.5b
      direct-seed fold.  See the ERR-026 crosstab correction note.
      Since Q5.6.3 (``1689faf4``) the whole regime is historical:
-     cylindrical ``SNMesh`` admission refuses every non-carrying
+     cylindrical ``SNProblem`` admission refuses every non-carrying
      rule (:ref:`sn-direct-seed-r12a`), and the 2.5b fold — whose
      only subjects were exactly these refused configurations — was
      retired with them.
@@ -5743,7 +5743,7 @@ sphere.
    diagonal, making it a single-pass direct inverse — resolved by the
    SAME forward substitution the sphere route (a) certifies, not by any
    telescoping.  The fold itself was **retired at Q5.6.3**
-   (``1689faf4``): cylindrical ``SNMesh`` admission now refuses every
+   (``1689faf4``): cylindrical ``SNProblem`` admission now refuses every
    non-carrying rule (:ref:`sn-direct-seed-r12a`), so the self-coupled
    seed the fold absorbed is unconstructible — every admitted cylinder
    level carries a genuine independent seed, resolved by the same
@@ -6364,7 +6364,7 @@ structural facts** about the level's march-start edge
 (:class:`~orpheus.sn.angular.closure.MarchStart`, produced by
 :func:`~orpheus.sn.angular.closure.march_start_structure_per_level`,
 read by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`)
+:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`)
 — each a bit-exact identity on the level's own realization, never a
 derived float:
 
@@ -6425,7 +6425,7 @@ quadratures:
    * - :math:`= 0`
      - cylinder **product** rules, NODE_ALIGNED **even**
        :math:`n_\varphi` (``on_edge_node``) — *refused at cylindrical*
-       ``SNMesh`` *admission since Q5.6.3*
+       ``SNProblem`` *admission since Q5.6.3*
      - the starting direction coincides with the first ordinate
        (:math:`\eta_0 = \eta_{1/2} = -\sin\theta` bit-exactly, the #229
        clamp fact) — the seed is a rank-duplicate of :math:`\psi_0`.
@@ -6433,7 +6433,7 @@ quadratures:
    * - :math:`= 1`
      - cylinder **level-symmetric** rules; product rules at **odd**
        :math:`n_\varphi` and **full STAGGERED** rules (``degenerate``)
-       — *refused at cylindrical* ``SNMesh`` *admission since Q5.6.3*
+       — *refused at cylindrical* ``SNProblem`` *admission since Q5.6.3*
      - duplicate-:math:`\eta` nodes collapse the midpoint edge onto
        :math:`\eta_0` — hemisphere partners on level-symmetric rules,
        the mirror pair straddling :math:`\varphi = \pi` on odd/staggered
@@ -6453,7 +6453,7 @@ quadratures:
        :math:`\approx 0.22 \to \tfrac15`).  **Carries.**
 
 **Since Q5.6.3 (``1689faf4``) the predicate is not only a classifier —
-it is the cylindrical admission law.**  ``SNMesh`` construction on a
+it is the cylindrical admission law.**  ``SNProblem`` construction on a
 cylindrical mesh calls
 :func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`
 (offender positions from
@@ -6474,7 +6474,7 @@ messages), not as constructible meshes; the 2-point angular-edge
 extrapolation
 (:meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`)
 that non-carrying cylinder levels used to inline is no longer reachable
-through any ``SNMesh``.  R12a **refines** the
+through any ``SNProblem``.  R12a **refines** the
 earlier R12 letter ("μ_start ∉ the level's μ-nodes"), whose claimed
 equivalence to :math:`\tau_{\rm raw} \ne 0` is empirically **false** on
 level-symmetric cylinder rules (μ_start ∉ nodes there, yet
@@ -6500,7 +6500,7 @@ clarifying fact about the whole ψ½ apparatus.
    Both were false at the time of writing** — refuted by the section's own
    closing paragraph and by the Q5.6 fold two screens earlier.  A
    :math:`\sigma_y`-**folded** product rule — the *only* cylinder family a
-   cylindrical :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` admits since
+   cylindrical :class:`~orpheus.sn.problem.SNProblem` admits since
    Q5.6.3 — carries an independent seed on **every** level, because folding
    turns the azimuthal circle into an arc, i.e. an interval, and puts the
    cylinder in exactly the sphere's position.  What is true, and what the
@@ -6530,7 +6530,7 @@ cosine :math:`\mu_z = \cos\theta`, the cylinder redistributes across the
 :math:`[0, 2\pi)` — a *periodic* domain.  The full-circle parent rule
 (:func:`~orpheus.numerics.quadrature.rules_product.product_mu_phi`;
 since Q5.6.3 the *parent* of the admitted cylinder family, no longer
-itself admissible on a cylindrical ``SNMesh``) is
+itself admissible on a cylindrical ``SNProblem``) is
 Gauss–Legendre in :math:`\mu_z` **×** the *periodic trapezoid* in
 :math:`\varphi`
 (:func:`~orpheus.numerics.quadrature.rules_circle.periodic_trapezoid`,
@@ -6595,7 +6595,7 @@ nodes (:math:`\tau_{{\rm raw},0} \approx 0.39\text{–}0.42`), and a
      - Edge-inclusive?
      - Seed?
    * - **Cylinder, full circle** (*the parent — refused at*
-       ``SNMesh`` *admission since Q5.6.3*)
+       ``SNProblem`` *admission since Q5.6.3*)
      - azimuth :math:`\varphi` — a **circle** (periodic)
      - equispaced (trapezoidal, spectral)
      - **yes** (even :math:`n_\varphi` hits :math:`\varphi=\pi`)
@@ -6759,10 +6759,10 @@ places, both correct on their own:
   non-carrying cylinder levels (where the R12a trichotomy makes it
   bit-identical to the retired default: :math:`t = 0` exact on product
   rules, dead seed weight on level-symmetric rules).  Since Q5.6.3 no
-  ``SNMesh``-admitted **cylinder** has a non-carrying level, so this inline
+  ``SNProblem``-admitted **cylinder** has a non-carrying level, so this inline
   is unreachable *on that chart*.  It is **not** dead code: the spherical
   arm calls no admission gate, so a :math:`\mu = -1`-noded (Gauss–Lobatto)
-  sphere rule builds a production ``SNMesh`` and reaches it — `[M]`
+  sphere rule builds a production ``SNProblem`` and reaches it — `[M]`
   2026-08-26, at 6 of 11 orders, over 75 reachable non-carrying levels
   (the census is recorded in ``_edge_seed_stencil``'s reachability note;
   the sphere-side interaction is `Issue #338

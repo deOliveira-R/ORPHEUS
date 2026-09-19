@@ -1,16 +1,16 @@
-r"""Tests for the SNMesh BC-resolution wiring (Wave 8 + C188.3 + C4 + #290 P7b).
+r"""Tests for the SNProblem BC-resolution wiring (Wave 8 + C188.3 + C4 + #290 P7b).
 
-The Wave-8 SNMesh routes BC resolution through
+The Wave-8 SNProblem routes BC resolution through
 :class:`SNBoundaryRealizer` for every supported mesh. C4 (#220) made
 the resolution surface dimension-generic: ONE loop over the face
-labels populates the face-name-keyed :attr:`SNMesh.bc` dict
+labels populates the face-name-keyed :attr:`SNProblem.bc` dict
 (``sn.bc["xmin"]`` …), whose keys equal
 ``boundary_face_layout.faces`` by construction (both derived from
 ``face_labels`` through the single-sourced
 :attr:`FaceLabel.face_name` crosswalk). Since #290 P7b that loop is
 the ONE shared ``TransportMethod`` body
 (:func:`orpheus.transport.method.resolve_boundary_conditions`), and
-``SNMesh.realize_boundary_law`` is the SN arm it dispatches. Each
+``SNProblem.realize_boundary_law`` is the SN arm it dispatches. Each
 entry is a :class:`_BoundBoundaryOperator` shim wrapping the 1-arg
 realized :class:`LinearOperator`. The pre-C4 named attributes
 (``bc_xmin`` … ``bc_ymax``, ``bc_left`` / ``bc_right`` aliases,
@@ -49,7 +49,7 @@ from orpheus.numerics.operator import (
     TensorProductOperator,
     ZeroMorphism,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests._harness.references import mirror_partner_indices
 from tests.sn._test_helpers import local_positions, placeholder_materials
@@ -119,7 +119,7 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
         bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["xmin"], _BoundBoundaryOperator)
     assert isinstance(sn.bc["xmin"].law, VacuumInflow)
 
@@ -154,7 +154,7 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["ymax"], _BoundBoundaryOperator)
     assert isinstance(sn.bc["ymax"].law, ReflectiveBoundary)
 
@@ -192,7 +192,7 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials())
     for face, axis, wrong_axis in (
         ("ymin", "y", "x"), ("ymax", "y", "x"), ("xmin", "x", "y"),
     ):
@@ -222,14 +222,14 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
 
 
 def test_2d_cartesian_construction_populates_trace(quad_2d):
-    """SNMesh on a Cartesian mesh populates the unified :attr:`_trace`.
+    """SNProblem on a Cartesian mesh populates the unified :attr:`_trace`.
     Carries the per-face inflow indices used by the realizer.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
     )
-    sn = SNMesh(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmin", "xmax", "ymin", "ymax")
     # xmin: inflow ordinates have mu_x > 0
@@ -256,7 +256,7 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
         mat_ids=np.zeros(8, dtype=int),
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    sn = SNMesh(mesh, quad_1d, placeholder_materials())
+    sn = SNProblem(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
@@ -285,21 +285,21 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     realized no-op ``ReflectiveBoundary(axis="y")`` pair no production
     code ever read) are retired, dict misses fail loud below.
     """
-    slab = SNMesh(
+    slab = SNProblem(
         Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
         quad_1d, placeholder_materials(),
     )
-    two_d = SNMesh(
+    two_d = SNProblem(
         Mesh2D(edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
                mat_map=np.zeros((4, 3), dtype=int)),
         quad_2d, placeholder_materials(),
     )
-    sphere = SNMesh(
+    sphere = SNProblem(
         Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
                coord=CoordSystem.SPHERICAL),
         quad_1d, placeholder_materials(),
     )
-    cylinder = SNMesh(
+    cylinder = SNProblem(
         Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
                coord=CoordSystem.CYLINDRICAL),
         Quadrature.folded_product(n_mu=4, n_phi=8), placeholder_materials(),
@@ -324,7 +324,7 @@ def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):
     ``@property`` reappearing would be a deprecation outliving its
     cycle).
     """
-    slab = SNMesh(
+    slab = SNProblem(
         Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
         quad_1d, placeholder_materials(),
     )
@@ -363,7 +363,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("vacuum"),
     )
-    sn = SNMesh(mesh, quad_1d, placeholder_materials())
+    sn = SNProblem(mesh, quad_1d, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg op — since B3.2 the honest
     # ``Γ₊ → Γ₋`` zero map (no tensor-product lift: there is no full-face
     # projector left to decompose).
@@ -418,7 +418,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    sn = SNMesh(mesh, quad, placeholder_materials())
+    sn = SNProblem(mesh, quad, placeholder_materials())
     # ONE boundary: no inner-face entry at the pole (the bc_left
     # declaration on the mesh is ignored — the axis is the pole
     # closure's regularity condition, always symmetric by geometry).
@@ -457,11 +457,11 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
 
 
 def test_registry_contains_only_vacuum_and_reflective():
-    """The SN registry pins exactly the kinds the legacy SNMesh
+    """The SN registry pins exactly the kinds the legacy SNProblem
     accepted today. Adding ``white`` / ``periodic`` / ``albedo`` etc.
     requires sweep-side wiring out of Wave 8 scope.
     """
-    assert set(SNMesh.BOUNDARY_OPERATOR_REGISTRY) == {"vacuum", "reflective"}
+    assert set(SNProblem.BOUNDARY_OPERATOR_REGISTRY) == {"vacuum", "reflective"}
 
 
 def test_unknown_bc_kind_raises_valueerror(quad_1d):
@@ -473,4 +473,4 @@ def test_unknown_bc_kind_raises_valueerror(quad_1d):
         bc_left=BC("periodic"),
     )
     with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-        SNMesh(mesh, quad_1d, placeholder_materials())
+        SNProblem(mesh, quad_1d, placeholder_materials())

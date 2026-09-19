@@ -149,7 +149,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
 
 pytestmark = pytest.mark.foundation
@@ -160,7 +160,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _two_region_2g(coord: CoordSystem, quad: Quadrature, *, nx: int) -> SNMesh:
+def _two_region_2g(coord: CoordSystem, quad: Quadrature, *, nx: int) -> SNProblem:
     """Fuel-like A inside r < 1, moderator-like B outside, vacuum at R = 2."""
     edges = np.linspace(0.0, 2.0, nx + 1)
     r_mid = 0.5 * (edges[:-1] + edges[1:])
@@ -171,10 +171,10 @@ def _two_region_2g(coord: CoordSystem, quad: Quadrature, *, nx: int) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    return SNMesh(mesh, quad, materials)
+    return SNProblem(mesh, quad, materials)
 
 
-def _cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12) -> SNMesh:
+def _cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12) -> SNProblem:
     return _two_region_2g(
         CoordSystem.CYLINDRICAL,
         Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi),
@@ -182,7 +182,7 @@ def _cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12) -> SNMesh:
     )
 
 
-def _sphere(n_ordinates: int, *, nx: int) -> SNMesh:
+def _sphere(n_ordinates: int, *, nx: int) -> SNProblem:
     return _two_region_2g(
         CoordSystem.SPHERICAL,
         Quadrature.gauss_legendre(n_ordinates),
@@ -199,7 +199,7 @@ class _Marched(NamedTuple):
     state: tuple
 
 
-def _march(sn: SNMesh) -> _Marched:
+def _march(sn: SNProblem) -> _Marched:
     """Solve, then drive the PRODUCTION recurrence — the one solve site.
 
     Fails loudly on a starved solve (#340) and on a seedless mesh: ``D``'s
@@ -237,7 +237,7 @@ def _march(sn: SNMesh) -> _Marched:
     return _Marched(closure, psi, rc.interior, state)
 
 
-def _solved_defect(sn: SNMesh) -> dict[int, np.ndarray]:
+def _solved_defect(sn: SNProblem) -> dict[int, np.ndarray]:
     """``{level: D_p}`` from a CONVERGED fixed-source solve."""
     m = _march(sn)
     return m.closure.angular_endpoint_defect_per_level(m.state, m.interior)

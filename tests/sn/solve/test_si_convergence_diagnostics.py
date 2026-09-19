@@ -28,7 +28,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import SNSolver, _within_group_si
@@ -63,7 +63,7 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {0: mat}, scattering_order=0)
+    sn_mesh = SNProblem(mesh, quad, {0: mat}, scattering_order=0)
     return SNSolver(sn_mesh, inner_solver="source_iteration")
 
 

@@ -54,7 +54,7 @@ from orpheus.geometry import BC
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import (
@@ -272,7 +272,7 @@ def _windowed_product_and_oracle_operands(
         if scattering_order is None
         else scattering_order
     )
-    solver = SNSolver(SNMesh(mesh, quad, materials, scattering_order=L))
+    solver = SNSolver(SNProblem(mesh, quad, materials, scattering_order=L))
 
     # The within-group forward + the scattering operator — the SAME
     # operators (and the SAME schedule dispatch) the windowed SI driver

@@ -68,7 +68,7 @@ from orpheus.numerics.operator import (
     OperatorSum,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -97,7 +97,7 @@ def _require(condition: bool, message: str) -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -106,10 +106,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNMesh:
+def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
     """The discriminating regime: nx ≠ ny, ng = 2.
 
     A transposed broadcast axis (the N-D generalisation's NEW risk —
@@ -127,10 +127,10 @@ def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNMesh:
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _random_state(sn_mesh: SNMesh, ng: int = 2, seed: int = 42) -> TimedFullField:
+def _random_state(sn_mesh: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
@@ -144,14 +144,14 @@ def _random_state(sn_mesh: SNMesh, ng: int = 2, seed: int = 42) -> TimedFullFiel
     )
 
 
-def _positive_sigma(sn_mesh: SNMesh, ng: int = 2, seed: int = 11) -> np.ndarray:
+def _positive_sigma(sn_mesh: SNProblem, ng: int = 2, seed: int = 11) -> np.ndarray:
     """Heterogeneous positive σ ``(ng, *spatial)``, bounded away from 0."""
     rng = np.random.default_rng(seed)
     return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
 def _multiplier(
-    sn_mesh: SNMesh, sigma: np.ndarray, *, plain: bool = False,
+    sn_mesh: SNProblem, sigma: np.ndarray, *, plain: bool = False,
 ) -> MultiplicationOperator:
     """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField),
     bound as production binds it — the mesh's composite, both ends — or,
@@ -523,7 +523,7 @@ class TestSpaceMetadataAndGuardJoin:
         OPERATOR's space resolves to ``full_field_space`` by identity, never
         to the scalar bulk.
 
-        The chain order is load-bearing: ``SNMesh.bulk_space`` is the
+        The chain order is load-bearing: ``SNProblem.bulk_space`` is the
         scalar ``(ng, *spatial)`` bulk, NOT the angular composite, so a
         flipped chain would silently re-space every SN multiplier. Until
         CS4b this was pinned with a poison on ``bulk_space`` ("the chain

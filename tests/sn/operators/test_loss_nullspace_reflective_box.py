@@ -137,8 +137,8 @@ def test_the_singularity_needs_TWO_closed_axis_pairs(label, bcs, expected):
 
     ✅ ``[M]`` **and that mutation is now ONE edit** — repaired 2026-08-15, in
     the commit that promoted this module. The criterion lives once, in
-    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axes`, and
-    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axis_pairs` is its
+    :attr:`~orpheus.sn.problem.SNProblem.reflective_axes`, and
+    :attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs` is its
     ``len``; :func:`~orpheus.sn.operators.loss_kernel_gauge._reflection_orbits`
     reads the same property. ``[M]`` widening that ONE body — ``all(faces)`` to
     ``any(faces)`` — now reddens **4 of 83** gates across this module, the gauge

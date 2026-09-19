@@ -53,7 +53,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import Vector
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
@@ -91,7 +91,7 @@ def _is_a(candidate: object, kind: type) -> bool:
     return isinstance(candidate, kind)
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -100,10 +100,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _timeless_full_field(m: SNMesh) -> FullField:
+def _timeless_full_field(m: SNProblem) -> FullField:
     """A plain timeless ``FullField`` (NOT a ``TimedFullField``)."""
     return FullField(
         interior=AngularFlux.zeros(m.angular_bulk_space),

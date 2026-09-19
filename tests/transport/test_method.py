@@ -7,7 +7,7 @@ each mesh where it calls the shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body.
 These are the RUNTIME twins of that static check:
 
-* **positive** — both witnesses (:class:`SNMesh`,
+* **positive** — both witnesses (:class:`SNProblem`,
   :class:`DiffusionMesh`) satisfy the runtime-checkable Protocol;
 * **negative** — the bare :class:`MaterialMesh` data carrier does NOT
   (it has the data block but none of the method surface: no
@@ -40,7 +40,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.method import TransportMethod
 
@@ -58,8 +58,8 @@ def _mesh1d(
     )
 
 
-def _sn_mesh(**bc_kwargs: "BC | None") -> SNMesh:
-    return SNMesh(
+def _sn_mesh(**bc_kwargs: "BC | None") -> SNProblem:
+    return SNProblem(
         _mesh1d(**bc_kwargs), Quadrature.gauss_legendre(4), _MATS,
     )
 
@@ -71,7 +71,7 @@ def _diffusion_mesh(**bc_kwargs: "BC | None") -> DiffusionMesh:
 class TestStructuralConformance:
     @pytest.mark.parametrize(
         "build", [_sn_mesh, _diffusion_mesh],
-        ids=["SNMesh", "DiffusionMesh"],
+        ids=["SNProblem", "DiffusionMesh"],
     )
     def test_method_mesh_satisfies_the_protocol(self, build):
         """Every method-mesh IS a TransportMethod — checked at runtime
@@ -93,13 +93,13 @@ class TestSharedResolveBody:
     def test_sn_unsupported_tag_refuses_naming_the_mesh_class(self):
         """The unsupported-tag refusal is the ONE generic body
         (``_law_from_tag``) serving both witnesses: through the SN
-        witness it names ``SNMesh`` and SN's own admission table.
+        witness it names ``SNProblem`` and SN's own admission table.
         (``albedo`` is admitted by diffusion but NOT by SN — the
         method-specific table drives the shared body.)"""
         with pytest.raises(
             ValueError,
             match=(
-                r"SNMesh does not support boundary condition 'albedo' "
+                r"SNProblem does not support boundary condition 'albedo' "
                 r"on face 'xmax'\. Supported: 'reflective', 'vacuum'\."
             ),
         ):

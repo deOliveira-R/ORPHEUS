@@ -26,7 +26,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, ANGULAR_RATE_UNITS
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
@@ -47,7 +47,7 @@ pytestmark = pytest.mark.foundation
 _NG, _NX = 2, 4
 
 
-def _mesh_1d(coord: CoordSystem, quad, *, nx: int = _NX, ng: int = _NG) -> SNMesh:
+def _mesh_1d(coord: CoordSystem, quad, *, nx: int = _NX, ng: int = _NG) -> SNProblem:
     edges = np.linspace(0.0, 1.0, nx + 1)
     mat_ids = np.zeros(nx, dtype=int)
     if coord is CoordSystem.CARTESIAN:
@@ -59,14 +59,14 @@ def _mesh_1d(coord: CoordSystem, quad, *, nx: int = _NX, ng: int = _NG) -> SNMes
         mesh = Mesh1D(
             edges=edges, mat_ids=mat_ids, coord=coord, bc_right=BC("reflective"),
         )
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere() -> SNMesh:
+def _sphere() -> SNProblem:
     return _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
 
 
-def _slab() -> SNMesh:
+def _slab() -> SNProblem:
     # Since Q5.6.3 the slab is the only admitted non-carrying 1-D geometry
     # (the file's former `_cyl_product` non-carrying fixture became
     # unconstructible at the admission flip; its refusal is gated in

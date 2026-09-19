@@ -140,7 +140,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.coupled_system import WithinGroupSystem
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 __all__ = [
     "LossTerm",
@@ -181,7 +181,7 @@ class LossTerm:
         return self.sign < 0
 
 
-def resolve_schedule(sn_mesh: "SNMesh", inner_schedule: str) -> "SweepSchedule":
+def resolve_schedule(sn_mesh: "SNProblem", inner_schedule: str) -> "SweepSchedule":
     r"""The ONE site where the entry-level ``inner_schedule`` string becomes
     the schedule object a :class:`Splitting` is labelled by.
 

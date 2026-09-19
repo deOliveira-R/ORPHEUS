@@ -54,7 +54,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import (
@@ -70,7 +70,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 # ── shared helpers (the probe's primitives) ──────────────────────────
 
 
-def _flux_zero(sn: SNMesh) -> TimedFullField:
+def _flux_zero(sn: SNProblem) -> TimedFullField:
     """The iterate template — a FLUX composite (NOT the source space).
 
     B.5.2 (``iteration.py:685``): the iterate ψ + the returned solution
@@ -83,7 +83,7 @@ def _flux_zero(sn: SNMesh) -> TimedFullField:
 
 
 def _prescribed_inflow_source(
-    sn: SNMesh, *, psi_in: float, face: str,
+    sn: SNProblem, *, psi_in: float, face: str,
 ) -> TimedFullField:
     """``q_ext`` = composite with the prescribed (isotropic) inflow on ``face``.
 
@@ -189,7 +189,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     else:  # pragma: no cover - guarded by parametrize
         raise AssertionError(config)
 
-    sn = SNMesh(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
+    sn = SNProblem(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
     system = build_within_group_system(
         sn, solver.sn_mesh.mat_xs,

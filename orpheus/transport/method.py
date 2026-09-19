@@ -3,7 +3,7 @@ r"""TransportMethod — the Protocol over the method-mesh layer.
 A **method-mesh** is a :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
 (the method-agnostic mesh + materials DATA) augmented with one
 transport method's BEHAVIOR. Two exist:
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (quadrature + sweep
+:class:`~orpheus.sn.problem.SNProblem` (quadrature + sweep
 machinery + angular trace) and
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (scalar trace
 + realized boundary laws). :class:`TransportMethod` is the structural
@@ -22,7 +22,7 @@ existed** (the defer-until-≥2 rule). Its two recorded witnesses:
    :mod:`orpheus.transport.mesh.material_mesh`'s docstring promised
    "a method-specific mesh IS a MaterialMesh that adds behavior,
    conforming structurally to a future ``TransportMethod`` Protocol";
-2. the **boundary-realizer seam** — ``SNMesh._resolve_bcs`` and
+2. the **boundary-realizer seam** — ``SNProblem._resolve_bcs`` and
    ``DiffusionMesh._resolve_bcs`` were twin loops (shape-identical
    after #290 P7a moved diffusion's resolution off the solver onto the
    phase space), each doing the same tag → law → realize walk with only
@@ -34,7 +34,7 @@ module is P7b — the mint, plus the twin-loop collapse.
 What the Protocol deliberately does NOT contain
 ===============================================
 
-* **Promotion classmethods.** ``SNMesh.from_material_mesh(mm,
+* **Promotion classmethods.** ``SNProblem.from_material_mesh(mm,
   quadrature, scheme=...)`` vs ``DiffusionMesh.from_material_mesh(mm)``
   — the signatures differ because the methods genuinely need different
   injections (SN has a quadrature; diffusion reads everything from the
@@ -45,7 +45,7 @@ What the Protocol deliberately does NOT contain
   face)`` — non-unifiable for the same reason. The per-method
   :meth:`~TransportMethod.realize_boundary_law` hook subsumes it: the
   method space is an implementation detail *inside* each arm.
-* **The trace spaces.** ``SNMesh.angular_trace`` (an
+* **The trace spaces.** ``SNProblem.angular_trace`` (an
   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
   and ``DiffusionMesh.scalar_trace`` (a
   :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`)
@@ -69,7 +69,7 @@ pyright verifies the mesh structurally satisfies
 type ``OpT`` (SN: the ``_BoundBoundaryOperator`` kind-tagged shim;
 diffusion: a bare :class:`~orpheus.numerics.operator.LinearOperator`).
 Future generic consumers (the DSA driver #2 is the named one — it holds
-an ``SNMesh`` and a promoted ``DiffusionMesh`` over the same carrier)
+an ``SNProblem`` and a promoted ``DiffusionMesh`` over the same carrier)
 type against the Protocol under ``TYPE_CHECKING``.
 
 The registry that this mint dissolved
@@ -171,7 +171,7 @@ class TransportMethod(Protocol[OpT_co]):
     yet (the shared resolve body never touches it). The anticipated
     first consumer ("the DSA driver, #2") did NOT materialize: the R4
     ruling (2026-07-26) wired consistent DSA through an SN-side
-    edge-centered low-order system consuming ``SNMesh`` directly —
+    edge-centered low-order system consuming ``SNProblem`` directly —
     no ``DiffusionMesh`` enters the accelerated loop, so no generic
     ``full_field_space`` read exists. The trigger stands for the NEXT
     genuinely method-generic consumer; do NOT convert the witnesses'
@@ -224,7 +224,7 @@ def resolve_boundary_conditions(
     r"""Resolve a method-mesh's per-axis BC declarations into realized operators.
 
     The ONE generic body behind every method-mesh's ``bc`` table
-    (#290 P7b — it replaced the twin ``SNMesh._resolve_bcs`` /
+    (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
     ``DiffusionMesh._resolve_bcs`` loops; a third spelling on the
     diffusion solver died at P7a). Per face label of ``method.axes``:
 

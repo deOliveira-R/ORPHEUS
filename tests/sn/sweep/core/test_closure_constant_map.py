@@ -47,7 +47,7 @@ from orpheus.sn.mesh.reduced_operator import (
     spherical_streaming,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import placeholder_materials
 from tests.sn.sweep.core._c_surrogate import (
     c_from_constants,
@@ -113,7 +113,7 @@ def test_sphere_closure_map_matches_inline():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
     op = spherical_streaming(mesh, quad)
     closure = sn_mesh.angular_closure
 
@@ -142,7 +142,7 @@ def test_multilevel_cylinder_closure_map_matches_inline():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
     op = cylindrical_streaming(mesh, quad)
     closure = sn_mesh.angular_closure
 
@@ -191,7 +191,7 @@ def test_slab_closure_map_is_neutral():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
     op = slab_streaming(mesh, quad)
     closure = sn_mesh.angular_closure
 

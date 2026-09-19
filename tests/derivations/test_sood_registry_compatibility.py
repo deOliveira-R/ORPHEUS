@@ -197,7 +197,7 @@ def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
 
     :meth:`Mesh1D.from_geometry` for SPH sets ``bc_left=None`` (the
     centreline at the coordinate origin is implicit reflective and is
-    interpreted by each solver's augmented mesh, e.g. ``SNMesh``
+    interpreted by each solver's augmented mesh, e.g. ``SNProblem``
     defaults ``None`` → ``BC.reflective``).
     """
     case = UA_1_0_SP_STUB
@@ -304,7 +304,7 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
     materials + mesh + a Gauss-Legendre quadrature without raising.
 
     Same structural-bridge gate as above. The mesh BCs are vacuum at
-    both ends; SN consumes them via :class:`SNMesh` boundary
+    both ends; SN consumes them via :class:`SNProblem` boundary
     handling.
     """
     import math

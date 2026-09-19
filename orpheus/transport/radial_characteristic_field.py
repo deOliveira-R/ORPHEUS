@@ -80,7 +80,7 @@ if TYPE_CHECKING:
 
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.source_sinks.angular_boundary_source_sink import (
         AngularBoundarySourceSink,
     )
@@ -141,7 +141,7 @@ class RadialCharacteristicField(
 
         Space-keyed since CS4b S5 (the mesh-keyed ``from_mesh`` retired with
         the sugar tier): the caller passes the carrier's cached
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_field_space`,
+        :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_field_space`,
         whose blocks ARE the split ψ½ spaces (``is``-shared with
         ``radial_characteristic_interior_space`` /
         ``radial_characteristic_boundary_space``). ``None`` — what a
@@ -247,7 +247,7 @@ class RadialCharacteristicField(
 
     @classmethod
     def source_from_angular(
-        cls, angular_source_values: "NDArray", mesh: "SNMesh",
+        cls, angular_source_values: "NDArray", mesh: "SNProblem",
         *, boundary_trace: "AngularBoundarySourceSink | None" = None,
     ) -> "RadialCharacteristicField | None":
         r"""Fold a per-ordinate volumetric source into its q½ composite.
@@ -327,7 +327,7 @@ class RadialCharacteristicField(
         angular_source_values : NDArray
             The per-ordinate source in principled 1-D ``(N, ng, nx)``
             layout (carrying meshes are 1-D curvilinear).
-        mesh : SNMesh
+        mesh : SNProblem
             The phase-space carrier (its
             ``radial_characteristic_field_space`` is the R12a presence
             predicate; its ``angular_closure.level_indices`` give each

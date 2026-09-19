@@ -2372,8 +2372,8 @@ why ``MaterialMesh`` exists as the middle type between a bare
 :class:`~orpheus.geometry.mesh.Mesh1D` and a method phase space: a
 homogenized model is *materials-and-geometry-together but not yet
 method-specific* — it has no quadrature until
-:meth:`SNMesh.from_material_mesh
-<orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh>` promotes it.)
+:meth:`SNProblem.from_material_mesh
+<orpheus.sn.problem.SNProblem.from_material_mesh>` promotes it.)
 
 Energy condensation is **mesh-decoupled**: a condensed cross-section set
 is just a coarser :class:`Mixture` — group-structure data that can be
@@ -2505,8 +2505,8 @@ the contract:
 
 The :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` data
 contract itself — the ``ng``-consistency check, the volume measure, the
-XS-field build, and the ``SNMesh(MaterialMesh)`` data/behavior split
-(including a bit-identity check that ``SNMesh``'s inherited data block
+XS-field build, and the ``SNProblem(MaterialMesh)`` data/behavior split
+(including a bit-identity check that ``SNProblem``'s inherited data block
 matches a standalone ``MaterialMesh``) — is gated separately by
 :mod:`tests.transport.test_material_mesh`.
 
@@ -4056,7 +4056,7 @@ consumers re-minting it from the integer :math:`L`:
      - ``self.frame.basis.space``
    * - ``MomentField._space_for_mesh_and_L``
      - the moment field's angular HEAD factor
-     - ``SNMesh.moment_space(L)`` — the hub, which reads
+     - ``SNProblem.moment_space(L)`` — the hub, which reads
        ``mesh.quad.angular_frame(L).basis.space``
    * - ``HarmonicMomentFlux.truncate``
      - the head of the truncated space
@@ -4067,8 +4067,8 @@ consumers re-minting it from the integer :math:`L`:
    made the moment field's angular *head* a read of the frame; it left the
    *product* — head :math:`\otimes` cell group — being re-minted on every
    call. Item 6.2b gives that product to the carrier:
-   :meth:`SNMesh.moment_space
-   <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>` is a cache keyed
+   :meth:`SNProblem.moment_space
+   <orpheus.sn.problem.SNProblem.moment_space>` is a cache keyed
    on ``(L, spatial_moments)`` holding **one object per key**, and the
    moment family is now entirely a set of CONSUMERS of it — the factories
    (``from_mesh_and_L``, ``zeros_for_mesh_and_L``), the ``space_on``
@@ -4531,8 +4531,8 @@ The field's head, and truncation inside the family
 
 A moment field is not built from a frame, it is built from a mesh and an
 order — so its space has to be *found*. It is found on the carrier:
-:meth:`SNMesh.moment_space
-<orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>`, behind a small
+:meth:`SNProblem.moment_space
+<orpheus.sn.problem.SNProblem.moment_space>`, behind a small
 ``_CarriesMomentSpace`` Protocol so that a bare material mesh, which owns
 no moment space (it has no quadrature, so there is no angular head to
 read), is refused with a message that says so instead of failing later on
@@ -4651,8 +4651,8 @@ What that changes, stated as the tree now reads:
 
 ⭐ **The two owners, and why "one space" is stated as ``==`` and not as
 ``is``.** The carrier's cached
-:meth:`SNMesh.moment_space
-<orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>` and the frame's
+:meth:`SNProblem.moment_space
+<orpheus.sn.problem.SNProblem.moment_space>` and the frame's
 :meth:`HarmonicFrame.moment_space_on
 <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`
 both build ``<head> ⊗ <cell axes>`` and both read the head off

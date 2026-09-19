@@ -842,7 +842,7 @@ moment-1 recovers :math:`d_1` exactly).
 
 The arm is **gated on** the PROBLEM's retained order,
 :attr:`sn_mesh.scattering_order
-<orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>` ``>= 1`` — the
+<orpheus.sn.problem.SNProblem.scattering_order>` ``>= 1`` — the
 *same* consistency-with-the-iterated-operator rule that gates the
 :math:`\sigma_{s1}` data row: consistency is with the discrete system
 being iterated, so the :math:`\ell = 1` gain enters the low-order

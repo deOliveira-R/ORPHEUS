@@ -135,7 +135,7 @@ def _krylov_power_iteration_kinf(
         _system_a_member,
         build_within_group_system,
     )
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.sn.solver import (
         SNSolver,
         _coupled_flux_state,
@@ -152,7 +152,7 @@ def _krylov_power_iteration_kinf(
         coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
     )
     quad = _quadrature_for(coord)
-    sn_mesh = SNMesh(mesh, quad, case.problem.materials, scattering_order=0)
+    sn_mesh = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
 
     solver = SNSolver(
         sn_mesh=sn_mesh,
@@ -324,7 +324,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.timed_full_field import TimedFullField
     from tests.sn._test_helpers import curvilinear_two_region_mesh
 
@@ -332,7 +332,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
         outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(n_cells, n_cells),
         coord=CoordSystem.SPHERICAL,
     )
-    sn = SNMesh(
+    sn = SNProblem(
         mesh, Quadrature.gauss_legendre(8),
         {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")},
     )
@@ -379,7 +379,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
 def _carrying_sphere_case(n_cells: int = 6):
     """Homogeneous FISSILE 2G reflective carrying sphere (the kinf case
     materials — fissile, so BOTH production drivers run on it)."""
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
     case = _get_continuous_case("2eg")
     mat_id = next(iter(case.problem.materials.keys()))
@@ -387,7 +387,7 @@ def _carrying_sphere_case(n_cells: int = 6):
         coord="sphere", n_cells=n_cells, length=2.0, mat_id=mat_id,
     )
     quad = _quadrature_for("sphere")
-    sn = SNMesh(mesh, quad, case.problem.materials)
+    sn = SNProblem(mesh, quad, case.problem.materials)
     return case.problem.materials, mesh, quad, sn
 
 

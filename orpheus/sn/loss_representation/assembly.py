@@ -23,7 +23,7 @@ reduction, #2/#200) all pose it at zero inflow. Scope: **Cartesian
 only** — a curvilinear ordinate couples its angular neighbor through the
 Morel–Montry closure (and the #282 lagged pole seed is precisely a
 walk-order back edge), so the per-ordinate block factorization does not
-exist there; :meth:`SNMesh.streaming`'s own Cartesian gate enforces this
+exist there; :meth:`SNProblem.streaming`'s own Cartesian gate enforces this
 honestly.
 
 The one-source mechanism: coefficient extraction BY KERNEL PROBING
@@ -34,7 +34,7 @@ fold, not LD's UBLD blocks. Every coefficient is extracted through the
 scheme's **production matvec kernel**
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
 — the same body ``apply`` runs, fed by the same
-:meth:`SNMesh.streaming` raw per-axis data), exploiting the scheme's
+:meth:`SNProblem.streaming` raw per-axis data), exploiting the scheme's
 declared linearity (``is_linear``): the residual and the face
 reconstruction are affine in ``(ψ̄, ψ_in, Q)``,
 
@@ -120,7 +120,7 @@ from orpheus.sn.loss_representation.sweep_schedule import _octant_sweep
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 
 if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 
 __all__ = [
@@ -129,7 +129,7 @@ __all__ = [
 ]
 
 
-def _ordinate_label(sn_mesh: "SNMesh", ordinate: int) -> OctantLabel:
+def _ordinate_label(sn_mesh: "SNProblem", ordinate: int) -> OctantLabel:
     r"""The in-plane octant label of one ordinate — through the SAME
     quadrature partition + projection the sweep schedule consumes
     (:func:`~orpheus.sn.loss_representation.sweep_schedule._octant_sweep`,
@@ -159,7 +159,7 @@ def _iter_cells_in_walk_order(
             yield cell, int(np.ravel_multi_index(cell, shape))
 
 
-def ordinate_walk_order(sn_mesh: "SNMesh", ordinate: int) -> np.ndarray:
+def ordinate_walk_order(sn_mesh: "SNProblem", ordinate: int) -> np.ndarray:
     r"""Flat bulk CELL indices in the ordinate's sweep (topological) order.
 
     The cell-level permutation of the walk-order triangularity claim:
@@ -274,7 +274,7 @@ def _probe_coefficient_blocks(
 
 
 def assemble_ordinate_blocks(
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     ordinate: int,
     *,
     include_collision: bool = True,
@@ -285,7 +285,7 @@ def assemble_ordinate_blocks(
     ----------
     sn_mesh :
         A CARTESIAN SN phase space (slab or 2-D; the
-        :meth:`SNMesh.streaming` accessor is the Cartesian gate) with a
+        :meth:`SNProblem.streaming` accessor is the Cartesian gate) with a
         LINEAR batched-kernel scheme (``is_linear`` — the extraction
         precondition; DD and LD both declare it). The scheme,
         quadrature, widths, and cross sections are all read from the

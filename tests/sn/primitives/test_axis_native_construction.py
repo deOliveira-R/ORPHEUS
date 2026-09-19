@@ -1,14 +1,14 @@
 r"""C5.1 axis-primary inversion gates (#225).
 
-``SNMesh.from_axes`` stores the caller's axes VERBATIM — the pre-C5.1
+``SNProblem.from_axes`` stores the caller's axes VERBATIM — the pre-C5.1
 implementation synthesized a legacy ``Mesh1D`` / ``Mesh2D`` from the
 axes and the constructor re-derived the axes from it (an
 axes → mesh → axes round-trip that silently reset custom endpoint
 labels). Both construction surfaces now funnel into ONE body
-(``SNMesh._init_core``) whose shape metadata derives from the axes.
+(``SNProblem._init_core``) whose shape metadata derives from the axes.
 
 The equivalence gates pin the d≤2 invariant the inversion must
-preserve: an SNMesh built from an axis tuple carries metadata
+preserve: an SNProblem built from an axis tuple carries metadata
 byte-identical (``np.testing.assert_array_equal`` — exact, not
 approximate) to one built from the equivalent legacy mesh. The
 ``np.diff(ax.edges)`` widths spelling is bitwise identical to the
@@ -30,7 +30,7 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.axis import AxisCoord, AxisMesh, RadialAxisMesh, coord_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 pytestmark = [pytest.mark.foundation]
 
@@ -64,7 +64,7 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
     mat_map = np.arange(4 * 7).reshape(4, 7) % 1  # zeros, but shaped
     quad = Quadrature.lebedev(17)
 
-    legacy = SNMesh(
+    legacy = SNProblem(
         Mesh2D(
             edges_x=edges_x, edges_y=edges_y, mat_map=mat_map,
             coord=CoordSystem.CARTESIAN,
@@ -73,7 +73,7 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
         ),
         quad, _MATERIALS,
     )
-    native = SNMesh.from_axes(
+    native = SNProblem.from_axes(
         (
             AxisMesh(edges=edges_x, bc_low=BC("vacuum"), bc_high=BC("vacuum")),
             AxisMesh(edges=edges_y, bc_low=BC("reflective"), bc_high=BC("vacuum")),
@@ -107,7 +107,7 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
     edges = np.linspace(0.0, 4.0, 9)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
-    legacy = SNMesh(
+    legacy = SNProblem(
         Mesh1D(
             edges=edges, mat_ids=np.zeros(8, dtype=int),
             coord=CoordSystem.CARTESIAN,
@@ -115,7 +115,7 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
         ),
         quad, _MATERIALS,
     )
-    native = SNMesh.from_axes(
+    native = SNProblem.from_axes(
         (AxisMesh(edges=edges, bc_low=BC("vacuum"), bc_high=BC("reflective")),),
         quad, _MATERIALS,
     )
@@ -139,7 +139,7 @@ def test_from_axes_stores_axes_verbatim() -> None:
         AxisMesh(edges=np.linspace(0.0, 1.0, 5)),
         AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
     )
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes, Quadrature.lebedev(17), _MATERIALS,
     )
     for supplied, stored in zip(axes, mesh.axes):
@@ -166,7 +166,7 @@ def test_from_axes_custom_labels_fail_loud() -> None:
         ),
     )
     with pytest.raises(ValueError, match="face name"):
-        SNMesh.from_axes(
+        SNProblem.from_axes(
             axes, Quadrature.gauss_legendre(n_ordinates=4), _MATERIALS,
         )
 
@@ -199,11 +199,11 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
     """
     edges = np.linspace(0.0, 1.0, 6)
     quad = make_quad()
-    native = SNMesh.from_axes(
+    native = SNProblem.from_axes(
         (RadialAxisMesh(edges=edges, coord=coord, bc_outer=BC("vacuum")),),
         quad, _MATERIALS,
     )
-    legacy = SNMesh(
+    legacy = SNProblem(
         Mesh1D(
             edges=edges, mat_ids=np.zeros(5, dtype=int), coord=sys,
             bc_left=None, bc_right=BC("vacuum"),
@@ -239,10 +239,10 @@ def _d3_axes() -> tuple:
 def test_from_axes_d3_constructs() -> None:
     """C5-G1 (the red-first sentinel, green since C5.5): 3-axis admission.
 
-    A 3-axis Cartesian SNMesh constructs through the SAME generic body
+    A 3-axis Cartesian SNProblem constructs through the SAME generic body
     as d≤2 — mesh-adapter-free from birth (``mesh is None``).
     """
-    m = SNMesh.from_axes(
+    m = SNProblem.from_axes(
         _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
     )
     np.testing.assert_equal(m.ndim, 3)
@@ -255,7 +255,7 @@ def test_from_axes_d3_constructs() -> None:
 
 def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
     """C5-G7: six faces on trace, layout, and the bc dict — one inventory."""
-    m = SNMesh.from_axes(
+    m = SNProblem.from_axes(
         _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
     )
     six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
@@ -274,7 +274,7 @@ def test_d3_volumes_cartesian_outer_product() -> None:
     the implementation's reduce-outer call): V[i,j,k] = Δx_i·Δy_j·Δz_k.
     """
     axes = _d3_axes()
-    m = SNMesh.from_axes(
+    m = SNProblem.from_axes(
         axes, Quadrature.level_symmetric(sn_order=4), _MATERIALS,
     )
     dx, dy, dz = (np.diff(ax.edges) for ax in axes)
@@ -289,7 +289,7 @@ def test_d3_volumes_cartesian_outer_product() -> None:
 
 def test_volume_measure_d3_integrates_to_total_volume() -> None:
     """C5-G12: ∫ 1 dV per group equals the box volume Lx·Ly·Lz (closed form)."""
-    m = SNMesh.from_axes(
+    m = SNProblem.from_axes(
         _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
     )
     ones = np.ones((int(np.prod(m.spatial_shape)), m.ng))
@@ -322,8 +322,8 @@ def test_coord_system_primitive() -> None:
 # ─── C5.2 — phantom-shim retirement + native volume_measure ─────────────
 
 
-def _slab_sn() -> SNMesh:
-    return SNMesh.from_axes(
+def _slab_sn() -> SNProblem:
+    return SNProblem.from_axes(
         (AxisMesh(edges=np.linspace(0.0, 4.0, 9)),),
         Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
     )
@@ -349,7 +349,7 @@ def test_c52_retired_shims_fail_loud() -> None:
 
 
 def test_volume_measure_d2_delegates_byte_identical() -> None:
-    """C5-G13: ``SNMesh.volume_measure`` ≡ the legacy dataclass's measure.
+    """C5-G13: ``SNProblem.volume_measure`` ≡ the legacy dataclass's measure.
 
     The SN-side consumers (keff production/absorption rates) now read
     ``sn_mesh.volume_measure``; while the mesh adapter is present the
@@ -358,7 +358,7 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
     """
     edges_x = np.linspace(0.0, 2.0, 5)
     edges_y = np.linspace(0.0, 3.0, 8)
-    sn = SNMesh.from_axes(
+    sn = SNProblem.from_axes(
         (AxisMesh(edges=edges_x), AxisMesh(edges=edges_y)),
         Quadrature.lebedev(17), _MATERIALS,
     )
@@ -373,12 +373,12 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
 
 
 def test_2d_cylindrical_mesh_refused_at_construction() -> None:
-    """A 2-D cylindrical Mesh2D cannot become an SNMesh (C5.3 pin, #225).
+    """A 2-D cylindrical Mesh2D cannot become an SNProblem (C5.3 pin, #225).
 
     Migrated from tests/numerics/test_trace_space.py
     ``test_2d_cylindrical_raises``: the trace space is geometry-blind
     now (it never sees a mesh), so the refusal lives where the geometry
-    enters — the axis conversion at SNMesh construction.
+    enters — the axis conversion at SNProblem construction.
     """
     mesh2d_cyl = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4),
@@ -387,14 +387,14 @@ def test_2d_cylindrical_mesh_refused_at_construction() -> None:
         coord=CoordSystem.CYLINDRICAL,
     )
     with pytest.raises(NotImplementedError, match="non-Cartesian"):
-        SNMesh(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS)
+        SNProblem(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS)
 
 
 def test_d2_trace_builds_for_every_constructible_geometry() -> None:
-    """C5-G8: trace is UNCONDITIONAL — every constructible SNMesh has one."""
+    """C5-G8: trace is UNCONDITIONAL — every constructible SNProblem has one."""
     slab = _slab_sn()
     np.testing.assert_equal(sorted(slab.angular_trace.layout.faces), ["xmax", "xmin"])
-    sphere = SNMesh.from_axes(
+    sphere = SNProblem.from_axes(
         (RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 4),
             coord=AxisCoord.RADIAL_SPHERICAL,

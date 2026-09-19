@@ -36,7 +36,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.operator import LinearOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -54,7 +54,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
+def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, length, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -63,10 +63,10 @@ def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=2))
+    return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
-def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
+def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -75,10 +75,10 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=2))
+    return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
-def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
+def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -87,11 +87,11 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials(ng=2))
+    return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
 def _random_state(
-    sn_mesh: SNMesh, ng: int = 2, seed: int = 42,
+    sn_mesh: SNProblem, ng: int = 2, seed: int = 42,
 ) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``.
 
@@ -112,7 +112,7 @@ def _random_state(
     )
 
 
-def _sigma_total(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
+def _sigma_total(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
     """Random per-cell per-group cross-section, bounded away from 0.
 
     PR-INDEX-3: ``(ng, *spatial)`` principled layout.
@@ -121,7 +121,7 @@ def _sigma_total(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
-def _sigma_removal(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
+def _sigma_removal(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
     """Synthetic σ_r — same shape, smaller magnitude. Handled identically."""
     rng = np.random.default_rng(seed=20260515)
     return 0.1 + 0.3 * rng.random((ng, *sn_mesh.spatial_shape))

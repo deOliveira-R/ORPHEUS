@@ -712,7 +712,7 @@ def test_a_quadrature_not_closed_under_a_mirror_is_REFUSED():
     #
     # ⚠ `reflective_axes` is read from the MESH, not recomputed here, and that
     # is deliberate: the criterion is single-sourced on
-    # `SNMesh.reflective_axes` (2026-08-15 — it used to be a twin inside this
+    # `SNProblem.reflective_axes` (2026-08-15 — it used to be a twin inside this
     # module). A surrogate must honour the contract it stands in for, so it
     # forwards the real mesh's answer rather than re-deriving one; the thing
     # this stub perturbs is the QUADRATURE, and nothing else.

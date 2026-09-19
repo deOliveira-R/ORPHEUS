@@ -315,35 +315,35 @@ class TestTheTwoHalvesOfTheInterlock:
     """``#:`` scanning and ``self.X: T`` resolution are one change, not two.
 
     ``orpheus/numerics/face_layout.py:89`` cites
-    ``:attr:`SNMesh.bc <…augmented_mesh.SNMesh.bc>``` from inside a ``#:``
-    attribute-comment block, and ``SNMesh`` sets ``self.bc: dict[...] = ...``
+    ``:attr:`SNProblem.bc <…augmented_mesh.SNProblem.bc>``` from inside a ``#:``
+    attribute-comment block, and ``SNProblem`` sets ``self.bc: dict[...] = ...``
     in ``__init__`` — which PEP 526 records **nowhere** at runtime. So widening
     the scanned surface without teaching the resolver about ``self`` annotations
     makes this citation the gate's first output, as a FALSE red whose natural
     "fix" is deleting a correct cross-reference.
     """
 
-    CITATION = "orpheus.sn.mesh.augmented_mesh.SNMesh.bc"
+    CITATION = "orpheus.sn.problem.SNProblem.bc"
 
     def test_the_attribute_comment_block_is_scanned_at_all(self) -> None:
         """Half one: ``ast`` discards comments, so this needs ``tokenize``."""
         path = REPO_ROOT / "orpheus" / "numerics" / "face_layout.py"
         carrying = [b for b in iter_text_blocks(path) if self.CITATION in b.text]
         assert carrying, (
-            "the `#:` block citing SNMesh.bc is not being scanned — "
+            "the `#:` block citing SNProblem.bc is not being scanned — "
             "168 roles of attribute-comment prose have gone un-gated again."
         )
         assert carrying[0].namespaces == ("orpheus.numerics.face_layout",)
 
     def test_a_self_annotation_resolves(self) -> None:
         """Half two, and the reason it cannot be left to ``getattr``."""
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
-        assert not hasattr(SNMesh, "bc"), (
+        assert not hasattr(SNProblem, "bc"), (
             "premise: `bc` is per-instance. If it became a class attribute, "
             "this interlock no longer exists and this class can retire."
         )
-        assert "bc" in _self_attributes(SNMesh)
+        assert "bc" in _self_attributes(SNProblem)
         assert resolve(self.CITATION) == (True, None)
 
     def test_disabling_half_two_MANUFACTURES_the_false_red(
@@ -368,14 +368,14 @@ class TestTheTwoHalvesOfTheInterlock:
 
     def test_a_name_never_annotated_on_self_is_not_invented(self) -> None:
         """The negative leg: the AST scan must not report everything present."""
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
-        assert "no_such_attribute_anywhere" not in _self_attributes(SNMesh)
+        assert "no_such_attribute_anywhere" not in _self_attributes(SNProblem)
 
     def test_an_UNANNOTATED_instance_attribute_also_resolves(self) -> None:
         """The second shape, and it was a latent false red until 2026-08-10.
 
-        ``SNMesh.mesh`` is assigned by ``MaterialMesh._init_data`` with **no**
+        ``SNProblem.mesh`` is assigned by ``MaterialMesh._init_data`` with **no**
         annotation, so neither ``getattr`` on the class nor a ``self.x: T`` scan
         can see it — yet it reads as a live ``Mesh2D`` on any instance. It was
         latent rather than active only because every citation of it happened to
@@ -386,11 +386,11 @@ class TestTheTwoHalvesOfTheInterlock:
         my class-level probe. The class-level probe was the wrong instrument —
         the same mistake, in the same campaign, for the third time.
         """
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
-        assert not hasattr(SNMesh, "mesh"), "premise: `mesh` is per-instance"
-        assert "mesh" in _self_attributes(SNMesh)
-        assert resolve("orpheus.sn.mesh.augmented_mesh.SNMesh.mesh") == (True, None)
+        assert not hasattr(SNProblem, "mesh"), "premise: `mesh` is per-instance"
+        assert "mesh" in _self_attributes(SNProblem)
+        assert resolve("orpheus.sn.problem.SNProblem.mesh") == (True, None)
 
 
 class TestTheTargetIsReadTheWaySphinxReadsIt:

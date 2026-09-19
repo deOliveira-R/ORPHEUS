@@ -56,7 +56,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import TensorProductOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -94,7 +94,7 @@ def _solver(groups):
     mat[3:, :] = 0  # moderator (no fission → asymmetric νΣf field)
     mesh = _uniform_2d(nx, ny, 0.2, mat)
     quad = Quadrature.lebedev(order=17)
-    return SNSolver(SNMesh(mesh, quad, {2: fuel, 0: mod}))
+    return SNSolver(SNProblem(mesh, quad, {2: fuel, 0: mod}))
 
 
 def _angular_F(solver):

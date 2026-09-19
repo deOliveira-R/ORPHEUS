@@ -68,7 +68,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, _adjoint_posing_parts, _as_sn_mesh
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -80,7 +80,7 @@ from orpheus.transport.source_sinks import AngularSourceSink
 pytestmark = pytest.mark.foundation
 
 
-def _slab_hub() -> SNMesh:
+def _slab_hub() -> SNProblem:
     """Fuel | moderator 2G slab, GL-8, reflective | vacuum — SEEDLESS.
 
     The seedless arm is the one the brief's ``stack @ restrict_bulk``
@@ -99,7 +99,7 @@ def _slab_hub() -> SNMesh:
     )
 
 
-def _sphere_hub() -> SNMesh:
+def _sphere_hub() -> SNProblem:
     """The CARRYING arm — a sphere, where the adjoint's ``F`` is the lift."""
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesh1D(
@@ -113,7 +113,7 @@ def _sphere_hub() -> SNMesh:
     )
 
 
-def _random_composite(hub: SNMesh, seed: int) -> "tuple[FullField, AngularFlux]":
+def _random_composite(hub: SNProblem, seed: int) -> "tuple[FullField, AngularFlux]":
     """The composite AND its interior, narrowed.
 
     ``FullField.interior`` is typed by the ``BulkField`` protocol, which
@@ -137,7 +137,7 @@ def _random_composite(hub: SNMesh, seed: int) -> "tuple[FullField, AngularFlux]"
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _count_fission_mints(hub: SNMesh) -> dict[str, int]:
+def _count_fission_mints(hub: SNProblem) -> dict[str, int]:
     """Mint census over ONE hub: build the forward solver, then pose the adjoint.
 
     Patched on the CLASS (both factories are ``classmethod``s), so every
@@ -320,7 +320,7 @@ class TestRuledOneFissionPerProblem:
     permanent gate on the COUNT — a second mint (the forward re-growing its
     own ``IsotropicFission``, the adjoint re-growing its own
     ``FissionOperator``) is the weld this step removed.  The hub's
-    :attr:`SNMesh.fission` is the one object; the forward reads its energy
+    :attr:`SNProblem.fission` is the one object; the forward reads its energy
     face, the adjoint daggers the composite (or the record's ``production``
     on a carrying mesh).
     """

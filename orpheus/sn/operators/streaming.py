@@ -98,7 +98,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
-    from ..mesh.augmented_mesh import SNMesh
+    from ..problem import SNProblem
     from ..angular.closure import AngularClosureBase
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from orpheus.numerics.frame import FrameBase
@@ -197,7 +197,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     spatial discretization (one cell-local closure per spatial scheme)
     and the bound angular closure (the ordinate march).  The production
     surface is :meth:`pose`, which reads BOTH off the hub
-    (:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — the save-state /
+    (:class:`~orpheus.sn.problem.SNProblem` — the save-state /
     data hub that owns the generator so SN and DSA stay consistent) — on
     that path the operator's slots ARE the hub's instances, by
     construction, which is why this constructor carries **no guards**.
@@ -214,7 +214,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The geometric substrate: quadrature, BCs (the face-name-keyed
         ``sn_mesh.bc`` dict), and (for curvilinear) the precomputed
         connection coefficients.  Transitional — the end state (rides
@@ -232,7 +232,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         on Cartesian).  Pure :math:`L` reads no :math:`\sigma`.
     """
 
-    sn_mesh: "SNMesh"
+    sn_mesh: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
 
@@ -243,7 +243,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     block_role = BlockRole.FULL
 
     @classmethod
-    def pose(cls, sn_mesh: "SNMesh") -> "StreamingOperator":
+    def pose(cls, sn_mesh: "SNProblem") -> "StreamingOperator":
         r"""Pose :math:`L` from the hub's own method objects (P4.9b).
 
         The INTERMEDIATE posing surface while the operator migrates to
@@ -287,7 +287,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 
         :math:`L` is the sole FULL operator — it couples bulk :math:`\leftrightarrow`
         boundary (seeds the sweep from the inflow trace, emits the outflow
-        trace). Advertising :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
+        trace). Advertising :attr:`~orpheus.sn.problem.SNProblem.full_field_space`
         is what lets :class:`~orpheus.numerics.operator.AdjointOperator`
         read the **block-diagonal G-adjoint metric** (bulk :math:`V\,w_n`
         :math:`\oplus` trace :math:`|\Omega\cdot\hat n|\,w_n`) for ``L.H`` —
@@ -339,7 +339,7 @@ class StreamingOperator(LinearOperator["FullField"]):
             and boundary
             (:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
             Operator and ``psi.interior.mesh`` MUST be the same
-            :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance.
+            :class:`~orpheus.sn.problem.SNProblem` instance.
 
         Returns
         -------
@@ -538,7 +538,7 @@ class StreamingCollisionOperator(
     * ``rhs.boundary`` — face source / BC inflow trace.  Typically
       zero for volumetric SI/Krylov sources (which carry no face
       contribution); the persistent reflective-BC state lives on the
-      :class:`SNMesh` and is handled inside the sweep.  It seeds the
+      :class:`SNProblem` and is handled inside the sweep.  It seeds the
       sweep's mutable boundary buffer (per-face copy).
 
     The curvilinear starting-direction :math:`\psi_{1/2}` is computed
@@ -667,8 +667,8 @@ class StreamingCollisionOperator(
         return self.loss_representation.bind_sigma(self.sigma)
 
     @property
-    def sn_mesh(self) -> "SNMesh":
-        """The shared :class:`SNMesh` (validated mesh-identity at init)."""
+    def sn_mesh(self) -> "SNProblem":
+        """The shared :class:`SNProblem` (validated mesh-identity at init)."""
         return self.streaming.sn_mesh
 
     @property

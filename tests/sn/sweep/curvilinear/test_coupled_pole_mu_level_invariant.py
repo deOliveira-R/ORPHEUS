@@ -101,11 +101,11 @@ def _seed_mirror(quad: Quadrature) -> np.ndarray:
 
 # Curvilinear-relevant cubatures.  Sphere/slab GL1D is single-level (the
 # intra-level leg is trivial; it still exercises the μ_x sign-flip leg).
-# The FOLDED rows are the family SNMesh(CYLINDRICAL) admits (Q5.6.3 —
+# The FOLDED rows are the family SNProblem(CYLINDRICAL) admits (Q5.6.3 —
 # the production pole seed derives its pairing on these); the
 # level-symmetric and full-product rows stay as QUADRATURE-level
 # multi-level instances of the σ_x-closure contract (these foundation
-# tests never build an SNMesh, and the rules remain constructible —
+# tests never build an SNProblem, and the rules remain constructible —
 # only the cylindrical admission refuses them).  The fold quotients by
 # σ_y, so σ_x-closure survives it by construction; these gates measure
 # that it does.
@@ -224,7 +224,7 @@ def test_a_sigma_x_unclosed_rule_refuses_through_the_public_funnel():
     in the direction cosines *and still involutive*.  Until Q5.6.3 the
     refusal was the coupled-pole seed's own (``_ensure_pole_mirror``,
     "cannot seed the r = 0 pole", derived at first use — G6.3 §7d.2);
-    since the admission flip this rule refuses EARLIER, at SNMesh
+    since the admission flip this rule refuses EARLIER, at SNProblem
     construction: its odd-n_φ NODE_ALIGNED levels start on an ordinate
     (the R12a facts), and every σ_x-unclosed SHIPPED family is also
     non-carrying, so admission subsumes the pairing refusal for every

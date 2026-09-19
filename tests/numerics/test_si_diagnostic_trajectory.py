@@ -109,7 +109,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import SNSolver, _within_group_si
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -215,7 +215,7 @@ def _build_solver() -> SNSolver:
         edges=np.linspace(0.0, _WIDTH, _NX + 1), mat_ids=mat_ids,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: _FUEL, 1: _MODERATOR},
      scattering_order=0)

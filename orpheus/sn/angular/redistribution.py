@@ -16,7 +16,7 @@ half-angle grid it interpolates on.
 outputs are functions of ``(quadrature, coord)`` alone — no cell, no mesh, no
 material enters — which is why the object can be built on the d≥2 Cartesian
 path with no mesh at all
-(:mod:`~orpheus.sn.mesh.augmented_mesh`, the ``else:`` arm).
+(:mod:`~orpheus.sn.problem`, the ``else:`` arm).
 
 **Why this is S**\ :sub:`N`\ **-specific, and therefore why it lives in**
 ``sn/``.  An angular redistribution term exists only where an angular unknown

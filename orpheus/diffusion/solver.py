@@ -88,7 +88,7 @@ resolved and REALIZED its per-face laws at construction — each face's
 :class:`~orpheus.geometry.mesh.BC` tag became a typed
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` and then the
 albedo operator :math:`J^- = \mathcal{A} J^+` in ``mesh.bc``
-(``SNMesh.bc`` parity; supported tags, ruling-3 semantics, and the
+(``SNProblem.bc`` parity; supported tags, ruling-3 semantics, and the
 deliberate ``"white"`` absence are documented on
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`). ``B`` reads
 ``mesh.bc``; a solver on a phase space with unresolved BCs is

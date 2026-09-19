@@ -88,7 +88,7 @@ class CrossSectionField(CoefficientRole, ScalarField):
         is a legitimate source, and so is a space minted with no carrier
         at all (the infinite-medium problem's fields are born on
         ``HomogeneousProblem.space`` since the CS4c coda); this leaf does
-        NOT narrow to ``SNMesh``.
+        NOT narrow to ``SNProblem``.
 
     Notes
     -----

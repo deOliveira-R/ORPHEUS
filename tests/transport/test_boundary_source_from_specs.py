@@ -41,14 +41,14 @@ import pytest
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l1
 
 
-def _slab(n_ord: int = 8, ng: int = 2, nx: int = 4) -> SNMesh:
+def _slab(n_ord: int = 8, ng: int = 2, nx: int = 4) -> SNProblem:
     """A two-face slab. ``ng = 2`` so the trailing-axis broadcast is exercised."""
     geom = StructuredGeometry(
         geometry="SLB",
@@ -57,7 +57,7 @@ def _slab(n_ord: int = 8, ng: int = 2, nx: int = 4) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 @pytest.mark.catches("ERR-047")

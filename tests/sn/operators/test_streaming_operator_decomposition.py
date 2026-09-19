@@ -77,7 +77,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
     )
@@ -110,8 +110,8 @@ def _l_apply(L, state, seed_leg, sn_mesh):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
-    """Build a small SNMesh for the requested geometry.
+def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNProblem:
+    """Build a small SNProblem for the requested geometry.
 
     Sized small (n_cells=5, n_ord=4) so the matvec runs in well under
     a second per geometry. The decomposition contract is size-independent.
@@ -145,7 +145,7 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 # ═══════════════════════════════════════════════════════════════════════

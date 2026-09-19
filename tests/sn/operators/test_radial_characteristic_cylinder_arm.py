@@ -48,7 +48,7 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
 )
@@ -72,7 +72,7 @@ def _mixture(c: float):
     )
 
 
-def _folded_cylinder(c: float = 0.0) -> tuple[SNMesh, Mesh1D]:
+def _folded_cylinder(c: float = 0.0) -> tuple[SNProblem, Mesh1D]:
     mesh = Mesh1D(
         edges=np.linspace(0.0, _RADIUS, _NX + 1),
         mat_ids=np.zeros(_NX, dtype=int),
@@ -80,7 +80,7 @@ def _folded_cylinder(c: float = 0.0) -> tuple[SNMesh, Mesh1D]:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, Quadrature.folded_product(4, 8), {0: _mixture(c)})
+    sn = SNProblem(mesh, Quadrature.folded_product(4, 8), {0: _mixture(c)})
     return sn, mesh
 
 

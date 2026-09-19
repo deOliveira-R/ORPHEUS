@@ -54,7 +54,7 @@ import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.radial_characteristic_field import (
@@ -90,7 +90,7 @@ def _sphere(edges: np.ndarray, ng: int = _NG):
     nx = edges.size - 1
     mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
                   coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(ng)})
 
 
 def _uniform_edges(nx: int) -> np.ndarray:

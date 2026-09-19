@@ -27,7 +27,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
@@ -50,10 +50,10 @@ def _build_2d_mesh(nx: int = 3, ny: int = 3) -> Mesh2D:
     )
 
 
-def _build_mesh(coord: str) -> SNMesh:
-    """The standard per-coordinate-system SNMesh builder."""
+def _build_mesh(coord: str) -> SNProblem:
+    """The standard per-coordinate-system SNProblem builder."""
     if coord == "cart2d":
-        return SNMesh(
+        return SNProblem(
             _build_2d_mesh(3, 4), Quadrature.level_symmetric(4),
             placeholder_materials(),
         )
@@ -73,7 +73,7 @@ def _build_mesh(coord: str) -> SNMesh:
         if coord in ("slab", "sphere")
         else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -92,15 +92,16 @@ class TestDagOwnership:
         sn = _build_mesh(coord)
         if hasattr(sn, "sweep_graphs"):
             pytest.fail(
-                f"{coord}: SNMesh still exposes `sweep_graphs` — the DAG "
+                f"{coord}: SNProblem still exposes `sweep_graphs` — the DAG "
                 "must be owned by the _DAGWavefront family (cached per "
                 "mesh shape), not the mesh (the curvilinear None-slot was "
                 "the illegal-state smell S6.4(c) closed)."
             )
 
-    def test_augmented_mesh_module_is_dag_free(self):
-        """[L0 structural] the SN augmented-mesh module (``augmented_mesh.py``,
-        formerly ``geometry.py``) no longer mentions the DAG substrate.
+    def test_problem_module_is_dag_free(self):
+        """[L0 structural] the SN Problem module (``orpheus/sn/problem.py`` — until
+        #412 ``sn/mesh/augmented_mesh.py``, before that ``geometry.py``) no longer
+        mentions the DAG substrate.
 
         Catches both the curvilinear ``= None`` slots and the Cartesian
         build site — any surviving mention means the ownership move is
@@ -108,11 +109,10 @@ class TestDagOwnership:
         """
         import inspect
 
-        from orpheus.sn.mesh import augmented_mesh
-
-        if "sweep_graphs" in inspect.getsource(augmented_mesh):
+        from orpheus.sn import problem
+        if "sweep_graphs" in inspect.getsource(problem):
             pytest.fail(
-                "augmented_mesh.py still mentions `sweep_graphs` — the DAG is "
+                "problem.py still mentions `sweep_graphs` — the DAG is "
                 "owned by _DAGWavefront via SweepDependencyGraph.for_shape; "
                 "the mesh must stay pure geometry."
             )
@@ -310,7 +310,7 @@ class TestForShapeTypeContract:
         """Quadrature-independence: the DAG family depends only on the
         shape — a Lebedev-quadrature mesh consumes the SAME 4 in-plane
         octant graphs (sign_z is dropped by the in-plane projection)."""
-        sn = SNMesh(
+        sn = SNProblem(
             _build_2d_mesh(4, 4), Quadrature.lebedev(5), placeholder_materials(),
         )
         graphs = MovingFrontierWindow.pose(sn).sweep_graphs

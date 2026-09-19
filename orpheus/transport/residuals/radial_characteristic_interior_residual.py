@@ -57,7 +57,7 @@ class RadialCharacteristicInteriorResidual(RadialCharacteristicInteriorField):
     space : RadialCharacteristicInteriorSpace
         The R12a-keyed interior space (canonically
         ``mesh.radial_characteristic_interior_space``).
-    mesh : SNMesh
+    mesh : SNProblem
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """
 

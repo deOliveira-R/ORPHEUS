@@ -25,7 +25,7 @@ now IS the modern module (family naming parity with sn/cp/homogeneous).
 """
 
 # #290 P7a -- the diffusion method-mesh (MaterialMesh + scalar trace +
-# realized boundary laws; the SNMesh sibling).
+# realized boundary laws; the SNProblem sibling).
 from .augmented_mesh import DiffusionMesh
 
 # #290 P5 — the modern k-eigenvalue solver on the operator algebra

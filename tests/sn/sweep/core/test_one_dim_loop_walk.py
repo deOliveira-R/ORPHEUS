@@ -29,7 +29,7 @@ import textwrap
 import numpy as np
 import pytest
 
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from tests.sn.operators.test_g_adjoint_reciprocity import (
     _make_cyl_product,
@@ -41,7 +41,7 @@ from tests.sn.operators.test_g_adjoint_reciprocity import (
 pytestmark = pytest.mark.foundation
 
 
-def _product_cylinder(ng: int = 1) -> SNMesh:
+def _product_cylinder(ng: int = 1) -> SNProblem:
     """The degenerate-class cylinder (φ = π/2, 3π/2 ⇒ |μ_x| ≈ 6e-17) —
     the reciprocity file's :func:`_make_cyl_product` builder, mesh only.
     The partition pin below needs a quadrature where all three direction

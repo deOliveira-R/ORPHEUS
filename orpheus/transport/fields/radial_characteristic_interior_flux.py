@@ -42,7 +42,7 @@ class RadialCharacteristicInteriorFlux(RadialCharacteristicInteriorField):
         The R12a-keyed interior space (canonically
         ``mesh.radial_characteristic_interior_space``) carrying the layout and
         the SPD ``G_sd = V_cell`` state metric.
-    mesh : SNMesh
+    mesh : SNProblem
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """
 

@@ -35,7 +35,7 @@ with the geometry redistribution fold ``(ΔA/w)/V·(α_{m+1/2}ψ_{m+1/2} −
 α_{m-1/2}ψ_{m-1/2})`` the test owns explicitly.
 
 C5 (2026-07-03) retired the unbound ``MorelMontryAngularSweep()`` legacy
-mode — construction tests bind to the tiny-sphere SNMesh helper (the
+mode — construction tests bind to the tiny-sphere SNProblem helper (the
 family's ``cls(sn_mesh)`` contract), and the hand-calc algebra tests
 call the pure module-level surface (no instance at all).
 """
@@ -537,7 +537,7 @@ class TestMintedScanConstants:
     def _mm_cylinder():
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.quadrature import Quadrature
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from tests.sn._test_helpers import placeholder_materials
 
         mesh = Mesh1D(
@@ -548,7 +548,7 @@ class TestMintedScanConstants:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=6)
-        sn = SNMesh(mesh, quad, placeholder_materials(ng=2))
+        sn = SNProblem(mesh, quad, placeholder_materials(ng=2))
         closure = sn.angular_closure
         assert isinstance(closure, MorelMontryAngularSweep)
         return closure
@@ -759,7 +759,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
     def test_G5_a_generator_less_axis_refuses_naming_the_closure(self, cls, name):
         """G5.2 (closure rows) — two-fragment refusal: the axis label AND
         the consumer's own class name; fires at CONSTRUCTION (the mint),
-        i.e. at ``SNMesh.__init__`` time on the production path."""
+        i.e. at ``SNProblem.__init__`` time on the production path."""
         from orpheus.numerics.axis import Axis, BasisKind
 
         sn = make_tiny_spherical_sn_mesh()

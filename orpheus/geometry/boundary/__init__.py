@@ -562,7 +562,7 @@ Cross-references
   the SN-side consumption: the shared
   :func:`~orpheus.transport.method.resolve_boundary_conditions` body
   walks the mesh axes' declarations and dispatches each parsed law
-  through ``SNMesh.realize_boundary_law`` →
+  through ``SNProblem.realize_boundary_law`` →
   :class:`SNBoundaryRealizer` to produce the resolved 1-arg
   :class:`~orpheus.numerics.operator.LinearOperator`.
 * :doc:`/theory/foundations/operator_algebra` § "Boundary conditions as

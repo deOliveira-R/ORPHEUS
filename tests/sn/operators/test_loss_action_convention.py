@@ -56,7 +56,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -73,7 +73,7 @@ pytestmark = [
 ]
 
 
-def _slab_2g(nx: int = 5) -> SNMesh:
+def _slab_2g(nx: int = 5) -> SNProblem:
     """1-D slab, reflective, 2G (CumprodScan → M_spatial._compute_LpC)."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, nx + 1),
@@ -81,10 +81,10 @@ def _slab_2g(nx: int = 5) -> SNMesh:
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 
-def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNMesh:
+def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNProblem:
     """2-D Cartesian, reflective, 2G, NON-SQUARE (the d=2 representation
     walk — ScanMarch default since S6.9)."""
     mesh = Mesh2D(
@@ -95,13 +95,13 @@ def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNMesh:
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
 
 
 _CASES = {"slab_2g": _slab_2g, "cart2d_2g": _cart2d_2g}
 
 
-def _zeros_state(sn: SNMesh) -> TimedFullField:
+def _zeros_state(sn: SNProblem) -> TimedFullField:
     return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
 
 

@@ -31,7 +31,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
@@ -55,25 +55,25 @@ pytestmark = pytest.mark.foundation
 _SIGNS = (-1, +1)
 
 
-def _mesh(coord: CoordSystem, **bc) -> SNMesh:
+def _mesh(coord: CoordSystem, **bc) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
         coord=coord, **bc,
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 
-def _sphere() -> SNMesh:
+def _sphere() -> SNProblem:
     return _mesh(CoordSystem.SPHERICAL, bc_right=BC("reflective"))
 
 
-def _slab() -> SNMesh:
+def _slab() -> SNProblem:
     return _mesh(
         CoordSystem.CARTESIAN, bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
 
 
-def _rand_composite(sn: SNMesh, seed: int) -> RadialCharacteristicField:
+def _rand_composite(sn: SNProblem, seed: int) -> RadialCharacteristicField:
     """A random ψ½ FLUX composite (4e native — built via ``from_flat`` over a
     zero flux composite; the retired unified-leaf bridge is gone)."""
     rng = np.random.default_rng(seed)
@@ -254,7 +254,7 @@ class TestPresence:
 
 
 class TestRadialCharacteristicFieldSpace:
-    r"""``SNMesh.radial_characteristic_field_space`` — System B's member space.
+    r"""``SNProblem.radial_characteristic_field_space`` — System B's member space.
 
     The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
     System A uses, instantiated over the two split ψ½ spaces. The identity

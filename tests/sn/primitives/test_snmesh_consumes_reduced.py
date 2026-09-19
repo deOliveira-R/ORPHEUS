@@ -1,4 +1,4 @@
-"""Foundation tests — SNMesh consumes ReducedStreamingOperator.
+"""Foundation tests — SNProblem consumes ReducedStreamingOperator.
 
 Round 1.1 of Wave D of the SN reshape campaign (Issue #159).
 Updated for Wave E Round 2 (Issue #164): the six curvature-specific
@@ -9,7 +9,7 @@ FD-operator API surface they were the only consumer of.  Only
 ``face_areas`` and ``delta_A`` retain a transitional deprecation-
 warning surface.
 
-Pins three software invariants on the post-refactor :class:`SNMesh`:
+Pins three software invariants on the post-refactor :class:`SNProblem`:
 
 1. ``self.reduced`` is a :class:`ReducedStreamingOperator` instance
    built from **this mesh** for slab / sphere / cylinder.
@@ -30,7 +30,7 @@ Pins three software invariants on the post-refactor :class:`SNMesh`:
    ``delta_A`` is its difference, computed once per operator.
 
    ⛔ Invariants 2 and 3 used to be about the transitional
-   ``SNMesh.face_areas`` / ``SNMesh.delta_A`` accessors — that they emit
+   ``SNProblem.face_areas`` / ``SNProblem.delta_A`` accessors — that they emit
    a :class:`DeprecationWarning` and route to ``self.reduced``.  Those
    shims retired at P4.1c (2026-08-27) with `[M]` **0 production
    readers**; every consumer was a test, and the tests were the ones
@@ -52,7 +52,7 @@ import pytest
 
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
@@ -62,34 +62,34 @@ from tests.sn._test_helpers import placeholder_materials
 # ---------------------------------------------------------------------------
 
 
-def _slab_mesh() -> SNMesh:
+def _slab_mesh() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CARTESIAN,
     )
     quad = Quadrature.gauss_legendre(4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _sphere_mesh() -> SNMesh:
+def _sphere_mesh() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _cylinder_mesh() -> SNMesh:
+def _cylinder_mesh() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.01, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 # ---------------------------------------------------------------------------
@@ -139,8 +139,8 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
 # 2. The spatial chart is DERIVED from the mesh — no copy, stable identity
 # ---------------------------------------------------------------------------
 #
-# ⛔ Sections 2 and 3 were four tests over the deprecated ``SNMesh.face_areas``
-# / ``SNMesh.delta_A`` accessors — two asserting they emit a
+# ⛔ Sections 2 and 3 were four tests over the deprecated ``SNProblem.face_areas``
+# / ``SNProblem.delta_A`` accessors — two asserting they emit a
 # ``DeprecationWarning``, two asserting they returned ``self.reduced``'s exact
 # array.  Those shims retired at P4.1c (2026-08-27) with `[M]` 0 production
 # readers, so the warning pair is API-smoke for a symbol that no longer exists

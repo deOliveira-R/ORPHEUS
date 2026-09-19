@@ -33,7 +33,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -69,7 +69,7 @@ def _mixture(sig_t: float, sig_s: float, ng: int = 2) -> Mixture:
 
 
 def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
-    """``A = L + C`` on a homogeneous curvilinear/slab mesh + its SNMesh."""
+    """``A = L + C`` on a homogeneous curvilinear/slab mesh + its SNProblem."""
     kw = (
         dict(bc_left=BC("vacuum"), bc_right=BC("vacuum"))
         if coord is CoordSystem.CARTESIAN else dict(bc_right=BC("vacuum"))
@@ -83,7 +83,7 @@ def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
         if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(4)
     )
-    sn = SNMesh(mesh, quad, {0: _mixture(sigma, 0.4 * sigma, ng=ng)})
+    sn = SNProblem(mesh, quad, {0: _mixture(sigma, 0.4 * sigma, ng=ng)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)],
         axis=0,
@@ -279,7 +279,7 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
         edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.SPHERICAL, **kw,
     )
-    sn = SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(0.8, 0.0)})
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(0.8, 0.0)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 0.8 * (1.0 + 0.3 * g)) for g in range(2)],
         axis=0,

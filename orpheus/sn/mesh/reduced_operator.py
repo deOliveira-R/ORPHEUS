@@ -94,9 +94,9 @@ argument and falsification conditions:
 
 Per Cardinal Rule 2 (architecture), this primitive **MUST NOT** be
 duplicated across solvers.  The historical home was a pair of in-line
-setup methods on :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+setup methods on :class:`~orpheus.sn.problem.SNProblem`
 (``_setup_spherical`` / ``_setup_cylindrical``); the migration has
-LANDED — those methods are gone and ``SNMesh.__init__`` now calls
+LANDED — those methods are gone and ``SNProblem.__init__`` now calls
 :func:`spherical_streaming` / :func:`cylindrical_streaming` here,
 storing the result as its ``reduced`` attribute.
 
@@ -109,10 +109,10 @@ implementations were live.
    That contract is **no longer independently gated**.  The
    factory-binding tests in ``tests/geometry/test_reduced_operator.py``
    compare this module's factory output against ``sn_mesh.reduced.*``
-   (and against the deprecated ``SNMesh.face_areas`` / ``delta_A``
+   (and against the deprecated ``SNProblem.face_areas`` / ``delta_A``
    read-throughs, which forward to the same object) — i.e. against
    the value this module itself produced, through the mesh
-   constructor.  They pin the WIRING (SNMesh really does bind to
+   constructor.  They pin the WIRING (SNProblem really does bind to
    these factories) and would redden if that wiring broke; they can
    no longer detect a change in the connection-coefficient math,
    because there is no second implementation left to disagree with.
@@ -178,8 +178,8 @@ The :math:`\alpha`-dome recursion (sphere) — Hébert (2009)
 See also
 ========
 
-* :class:`orpheus.sn.mesh.augmented_mesh.SNMesh` — the **only** constructor and
-  holder: ``SNMesh.__init__`` calls :func:`slab_streaming` /
+* :class:`orpheus.sn.problem.SNProblem` — the **only** constructor and
+  holder: ``SNProblem.__init__`` calls :func:`slab_streaming` /
   :func:`spherical_streaming` / :func:`cylindrical_streaming` and stores the
   result as its ``reduced`` attribute.  That is why this module sits in
   ``sn/mesh/``.
@@ -292,7 +292,7 @@ class ReducedStreamingOperator:
     Retiring it is what lets **L2 stop reaching through this bundle**:
     ``transport/radial_characteristic_field.py`` read
     ``mesh.reduced.coord`` for the single fact
-    ``coord is CYLINDRICAL``, which the ``SNMesh`` it already held
+    ``coord is CYLINDRICAL``, which the ``SNProblem`` it already held
     answers directly.  That was ``transport``'s only read of
     ``.reduced``; with it gone, this module has no L2 consumer left to
     break when it dissolves.
@@ -303,7 +303,7 @@ class ReducedStreamingOperator:
     **zero production readers**: the concept was spelled twice already —
     at the time by ``upstream_state.angular_upstream is None`` (the gate
     the DD and LD cell bodies then branched on; itself retired at P4.9a
-    for assembled angular arguments) and by ``SNMesh.is_cartesian``.
+    for assembled angular arguments) and by ``SNProblem.is_cartesian``.
     Their 12 test assertions each sat one line below an assertion on
     ``coord`` that already pinned the same fact.
     """
@@ -619,7 +619,7 @@ def spherical_streaming(
     Implements Hébert (2009) §3.9.4 Eqs. 3.423-3.424 (α-dome
     recursion, in the ORPHEUS factor-of-2-absorbed normalization),
     producing arrays bit-identical to the retired
-    ``SNMesh._setup_spherical`` it replaced.  It does **not** produce the
+    ``SNProblem._setup_spherical`` it replaced.  It does **not** produce the
     Morel--Montry angular weight :math:`\tau` — that moved to the angular
     closure at Issue #236 Step C (see the body comment below).
 
@@ -708,7 +708,7 @@ def cylindrical_streaming(
     level's azimuthal extent).
 
     Output is bit-identical to the retired
-    ``SNMesh._setup_cylindrical`` it replaced.
+    ``SNProblem._setup_cylindrical`` it replaced.
 
     Parameters
     ----------

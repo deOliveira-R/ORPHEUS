@@ -38,7 +38,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
@@ -59,20 +59,20 @@ pytestmark = pytest.mark.foundation
 _L1_ABS_BAND = 2.3e-16
 
 
-def _sn() -> SNMesh:
+def _sn() -> SNProblem:
     materials = {0: get_mixture("A", "2g")}
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 21), mat_ids=np.zeros(20, dtype=int),
         coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials)
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials)
 
 
-def _mat_xs(sn: SNMesh):
+def _mat_xs(sn: SNProblem):
     return sn.mat_xs
 
 
-def _state(sn: SNMesh, seed: int) -> FullField:
+def _state(sn: SNProblem, seed: int) -> FullField:
     rng = np.random.default_rng(seed)
     interior = sn.full_field_space.interior_space
     assert interior is not None
@@ -82,7 +82,7 @@ def _state(sn: SNMesh, seed: int) -> FullField:
     )
 
 
-def _cotangent(sn: SNMesh, seed: int) -> FullField:
+def _cotangent(sn: SNProblem, seed: int) -> FullField:
     rng = np.random.default_rng(seed)
     interior = sn.full_field_space.interior_space
     assert interior is not None
@@ -95,7 +95,7 @@ def _cotangent(sn: SNMesh, seed: int) -> FullField:
     )
 
 
-def _lifts(sn: SNMesh) -> dict[str, AngularLift]:
+def _lifts(sn: SNProblem) -> dict[str, AngularLift]:
     mat_xs = _mat_xs(sn)
     space = sn.full_field_space
     return {

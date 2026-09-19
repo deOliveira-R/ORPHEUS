@@ -84,7 +84,7 @@ class SNMethodSpace:
     Wave 8 adds ``mesh`` + ``trace`` -- both with ``None`` defaults so
     legacy construction paths are not forced to populate them. The
     canonical construction site is :meth:`for_face` (used by
-    ``SNMesh.realize_boundary_law``, the SN arm of the #290 P7b
+    ``SNProblem.realize_boundary_law``, the SN arm of the #290 P7b
     ``TransportMethod`` hook) which derives ``inflow_indices`` from
     ``trace`` and keeps the reference for any future consumer.
     """
@@ -136,11 +136,11 @@ class SNMethodSpace:
 
         If ``trace`` is provided, extract the inflow indices for
         ``face`` and store them. This is the standard construction
-        site inside ``SNMesh.realize_boundary_law`` (per face, driven
+        site inside ``SNProblem.realize_boundary_law`` (per face, driven
         by the shared
         :func:`~orpheus.transport.method.resolve_boundary_conditions`
         body) -- the trace space is built once per quadrature+layout
-        pair at ``SNMesh`` construction and passed through so per-face
+        pair at ``SNProblem`` construction and passed through so per-face
         indices are derived on demand.
 
         Parameters
@@ -148,7 +148,7 @@ class SNMethodSpace:
         mesh
             Spatial mesh — OPTIONAL metadata (C5.3, #225): nothing in
             the realizer chain reads it (inflow indices come from the
-            trace); an axis-native ``SNMesh`` with no legacy mesh
+            trace); an axis-native ``SNProblem`` with no legacy mesh
             adapter passes ``None``.
         quadrature
             Angular quadrature.

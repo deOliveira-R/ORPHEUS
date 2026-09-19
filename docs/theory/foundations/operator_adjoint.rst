@@ -258,7 +258,7 @@ discretizes :math:`\mathrm dV` and the **angular quadrature weight**
 :math:`w_n` discretizes :math:`\mathrm d\Omega`. The product
 :math:`V_i\,w_n` is therefore the diagonal phase-space measure
 :math:`\mathrm dV\,\mathrm d\Omega`. In code
-(:meth:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`)
+(:meth:`SNProblem.full_field_space <orpheus.sn.problem.SNProblem.full_field_space>`)
 it is built as
 
 .. code-block:: python
@@ -384,7 +384,7 @@ composite domain; P4.5 W-D gave the previously ``None``-spaced
 :math:`C`/:math:`S`/:math:`F` real spaces and de-SN-ified the name from
 ``"sn_full_field"``).
 The mesh exposes it as the cached property
-:meth:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`.
+:meth:`SNProblem.full_field_space <orpheus.sn.problem.SNProblem.full_field_space>`.
 
 **The wrapper is unchanged.** The whole apparatus plugs into the
 **pre-existing** :class:`~orpheus.numerics.operator.AdjointOperator`,
@@ -461,7 +461,7 @@ the bare / test constructor).
    ⭐ **Where it is MINTED moved again at the consumers campaign's step
    2 (2026-09-13), and the two halves above are now one object.**  The
    composite is minted ONCE per Problem, on the hub
-   (:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`),
+   (:attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`),
    and the eigen-:math:`M` posing *reads* it rather than building its
    own; the energy binding the k-outer consumes is that composite's own
    derived ``isotropic_energy`` face, not a separate mint.  So the two

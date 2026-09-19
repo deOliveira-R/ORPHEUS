@@ -38,7 +38,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.coupled_system import (
     CoupledOperator,
     CoupledSubstitutionOperator,
@@ -113,7 +113,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     structural identity of the decomposition (mechanism, not numerics).
     """
     mesh, quad, materials = _BUILDERS[case]()
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
 
     # Spy: wrap SourceIteration.__init__ to record the (resolvent, *gains)
     # operands, then delegate to the real __init__ so the solve still runs.

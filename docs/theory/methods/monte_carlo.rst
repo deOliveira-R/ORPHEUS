@@ -84,7 +84,7 @@ Solver Architecture
 The MC solver is structured as a modular pipeline with five layers
 (MT-20260406-008), following the same separation-of-concerns pattern as
 the CP (:class:`CPMesh` → :class:`CPSolver` → :func:`solve_cp`) and
-SN (:class:`SNMesh` → :class:`SNSolver` → :func:`solve_sn`) solvers.
+SN (:class:`SNProblem` → :class:`SNSolver` → :func:`solve_sn`) solvers.
 
 .. code-block:: text
 

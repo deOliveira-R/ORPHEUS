@@ -46,7 +46,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.operator import OperatorSum
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingCollisionOperator,
     StreamingOperator,
@@ -61,7 +61,7 @@ from orpheus.transport.radial_characteristic_field import RadialCharacteristicFi
 
 
 def _random_state(
-    sn_mesh: SNMesh, seed: int = 42, *, history_depth: int = 2,
+    sn_mesh: SNProblem, seed: int = 42, *, history_depth: int = 2,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` with random bulk values.
 
@@ -82,7 +82,7 @@ def _random_state(
 
 
 def _const_state(
-    sn_mesh: SNMesh, value: float = 1.0, *, history_depth: int = 2,
+    sn_mesh: SNProblem, value: float = 1.0, *, history_depth: int = 2,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
@@ -99,7 +99,7 @@ pytestmark = [pytest.mark.foundation]
 # ── Geometry fixtures ───────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
+def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -107,10 +107,10 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesh1D(
@@ -121,10 +121,10 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
+def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SPH",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -132,7 +132,7 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 # ── Dispatch via __add__ ────────────────────────────────────────────────
@@ -763,7 +763,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         from test_kinf_homogeneous import (  # type: ignore[import-not-found]
             _get_continuous_case, _homogeneous_mesh, _quadrature_for,
         )
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.sn.solver import SNSolver
 
         case = _get_continuous_case(ng_key)
@@ -772,7 +772,7 @@ class TestStreamingCollisionSolveBridgeRegression:
             coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
         )
         quad = _quadrature_for(coord)
-        sn_mesh = SNMesh(mesh, quad, case.problem.materials, scattering_order=0)
+        sn_mesh = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
         solver = SNSolver(
             sn_mesh=sn_mesh,
             max_inner=300, inner_tol=1e-12,

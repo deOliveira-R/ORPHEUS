@@ -1,4 +1,4 @@
-r"""``SNMesh.reflective_axis_pairs`` — the geometry half of the gauge predicate.
+r"""``SNProblem.reflective_axis_pairs`` — the geometry half of the gauge predicate.
 
 An undamped face mode (the closure half —
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
@@ -21,7 +21,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import _as_sn_mesh
 from orpheus.transport.mesh.axis import AxisMesh
 
@@ -30,13 +30,13 @@ _V = BC("vacuum")
 _EDGES = np.linspace(0.0, 1.0, 4)
 
 
-def _sn_mesh_2d(**boundary_conditions) -> SNMesh:
+def _sn_mesh_2d(**boundary_conditions) -> SNProblem:
     mesh = Mesh2D(
         edges_x=_EDGES, edges_y=_EDGES,
         mat_map=np.zeros((3, 3), dtype=int),
         **boundary_conditions,
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
     )
 
@@ -123,7 +123,7 @@ def test_a_BARE_mesh_is_all_reflective_and_the_predicate_sees_it():
     mesh = Mesh2D(
         edges_x=_EDGES, edges_y=_EDGES, mat_map=np.zeros((3, 3), dtype=int),
     )
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
     )
     assert sn_mesh.reflective_axis_pairs == sn_mesh.ndim == 2

@@ -120,7 +120,7 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
         from ``L``). Construction via
         :meth:`~orpheus.transport.fields._bases.MomentField.from_mesh_and_L`
         is the canonical path.
-    mesh : SNMesh
+    mesh : SNProblem
         The SN phase-space carrier.
     L : int
         Maximum harmonic order retained.

@@ -208,7 +208,7 @@ from orpheus.transport.radial_characteristic_field import (
 )
 
 if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.operators.fission import FissionOperator
     from orpheus.sn.operators.streaming import StreamingCollisionOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -224,7 +224,7 @@ __all__ = [
 
 
 def build_coupled_system(
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     mat_xs: "MaterialXSField",
 ) -> "tuple[CoupledOperator, CoupledSpace]":
     r"""Build the ψ½ coupled block operator and its space, aligned by construction.
@@ -250,7 +250,7 @@ def build_coupled_system(
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The augmented geometry — supplies both member spaces, the
         quadrature, and the R12a presence predicate
         (``radial_characteristic_field_space is not None``).
@@ -396,7 +396,7 @@ class SNLossFactors:
     at the hub's retained order, ``boundary`` the System-A trace boundary
     :math:`B_a` — the ONE operator the boundary-Gauss-Seidel schedule
     splits (RULING P1: gradings live on :math:`B_a`).
-    ``fission`` is the hub's ONE composite ``F`` (:attr:`SNMesh.fission` —
+    ``fission`` is the hub's ONE composite ``F`` (:attr:`SNProblem.fission` —
     a reference, never a second mint; R-cc6 (ii)), the leaf the pencil's
     right-hand side is posed from.  ``radial_characteristic`` is System B's
     quartet on a carrying mesh and ``None`` where System B does not exist
@@ -485,7 +485,7 @@ class WithinGroupSystem:
         return self.factors.is_coupled
 
 
-def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
+def _zero_full_field(sn_mesh: "SNProblem") -> "FullField":
     r"""The zero System-A state — the coupled space's zero-exemplar member.
 
     Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
@@ -508,7 +508,7 @@ def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
     )
 
 
-def _zero_full_field_dual(sn_mesh: "SNMesh") -> "FullField":
+def _zero_full_field_dual(sn_mesh: "SNProblem") -> "FullField":
     r"""The zero System-A COTANGENT — the dual seam's exemplar member.
 
     Source-role by construction (``AngularSourceSink`` bulk ⊕
@@ -532,7 +532,7 @@ def _zero_full_field_dual(sn_mesh: "SNMesh") -> "FullField":
 
 
 def build_streaming_collision(
-    sn_mesh: "SNMesh", mat_xs: "MaterialXSField",
+    sn_mesh: "SNProblem", mat_xs: "MaterialXSField",
 ) -> "StreamingCollisionOperator":
     r"""The fused within-group loss factor ``L + C`` — THE one LC spelling.
 
@@ -558,7 +558,7 @@ def build_streaming_collision(
 
 
 def build_within_group_system(
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     mat_xs: "MaterialXSField",
 ) -> "WithinGroupSystem":
     r"""Build the within-group system — the loss grid and the factors it
@@ -610,7 +610,7 @@ def build_within_group_system(
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The augmented geometry — supplies both member spaces, the
         quadrature, and the R12a presence predicate.
     mat_xs : MaterialXSField
@@ -625,7 +625,7 @@ def build_within_group_system(
     one of three disagreeing spellings.  The ``scattering_op=``/``n2n_op=``
     cache-seam keywords (a solver-held copy injected into every build) were
     retired at step 2 C3b: the hub builds this record ONCE
-    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.system`) and there is
+    (:attr:`~orpheus.sn.problem.SNProblem.system`) and there is
     nothing to inject.
     """
     full_field_space = sn_mesh.full_field_space

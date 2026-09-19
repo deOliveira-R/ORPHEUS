@@ -69,9 +69,9 @@ context from the prose's LOCATION, with zero configuration — the module from
 the file path, the class from the AST — and tries the same order Sphinx's
 Python domain does (``module.Class.target``, then ``module.target``, then the
 target as absolute). This works because **Python's ``import`` statement already
-IS the namespace declaration**: ``from orpheus.sn.mesh import SNMesh`` at module
-top means ``getattr(module, "SNMesh")`` succeeds, so a docstring saying
-``:class:`SNMesh``` names something that module can genuinely see.
+IS the namespace declaration**: ``from orpheus.sn.mesh import SNProblem`` at module
+top means ``getattr(module, "SNProblem")`` succeeds, so a docstring saying
+``:class:`SNProblem``` names something that module can genuinely see.
 
 Everything else is DECLINED rather than reported, and the declining is what
 keeps the gate credible: if the *head* of a relative target is not resolvable
@@ -362,14 +362,14 @@ def _self_attributes(klass: type) -> frozenset[str]:
         on the class *and* from every ``__annotations__`` in the MRO, while
         autodoc reads it from source and the xref resolves.
         Worked (2026-08-10): ``orpheus/numerics/face_layout.py:89`` cites
-        ``:attr:`SNMesh.bc``` and ``SNMesh`` sets ``self.bc: dict[...] = ...``.
+        ``:attr:`SNProblem.bc``` and ``SNProblem`` sets ``self.bc: dict[...] = ...``.
         That citation lives inside a ``#:`` block, so widening the scanned
         surface WITHOUT this function would have made the gate's very first
         output a false red.
 
     ``self.x = ...``
         Plain assignment, no annotation — invisible to the clause above too.
-        `[M]` 2026-08-10: ``SNMesh.mesh`` is set unannotated by
+        `[M]` 2026-08-10: ``SNProblem.mesh`` is set unannotated by
         ``MaterialMesh._init_data`` and reads as a live ``Mesh2D`` on any
         instance, yet ``resolve`` called it *missing*. It was latent rather
         than active only because every citation of it happened to be

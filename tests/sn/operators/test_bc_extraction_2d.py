@@ -58,7 +58,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -84,7 +84,7 @@ def _capturing(request) -> bool:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNMesh:
+def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNProblem:
     r"""All-reflective 2-D Cartesian mesh; mixture A 2g homogeneous.
 
     The canonical k_inf / reflective fixture: all-reflective + homogeneous ⇒
@@ -99,10 +99,10 @@ def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
-def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNMesh:
+def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNProblem:
     r"""Vacuum-on-all-faces 2-D Cartesian mesh; mixture A 2g homogeneous."""
     geom = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
@@ -112,10 +112,10 @@ def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
-def _sigt_2g(sn_mesh: SNMesh) -> np.ndarray:
+def _sigt_2g(sn_mesh: SNProblem) -> np.ndarray:
     """Per-cell per-group total cross-section field ``(ng, nx, ny)`` for mix A 2g."""
     mix = get_mixture("A", "2g")
     ng = mix.SigT.size
@@ -263,7 +263,7 @@ class TestStreamingEquilibrium2D:
     """
 
     def _build_flat_state(
-        self, sn_mesh: SNMesh, phi: np.ndarray, W: float,
+        self, sn_mesh: SNProblem, phi: np.ndarray, W: float,
     ) -> TimedFullField:
         """Flat ψ_n,g = φ_g/W everywhere, with a consistent uniform trace."""
         N = sn_mesh.quad.N
@@ -496,7 +496,7 @@ class TestBoundaryResidual2DResponds:
     ``ψ.inflow``, structurally independent of the outflow).
     """
 
-    def _perturbable_state(self, sn_mesh: SNMesh, seed: int) -> TimedFullField:
+    def _perturbable_state(self, sn_mesh: SNProblem, seed: int) -> TimedFullField:
         rng = np.random.default_rng(seed)
         state = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
@@ -507,7 +507,7 @@ class TestBoundaryResidual2DResponds:
         )
         return state
 
-    def _copy_state(self, src: TimedFullField, sn_mesh: SNMesh) -> TimedFullField:
+    def _copy_state(self, src: TimedFullField, sn_mesh: SNProblem) -> TimedFullField:
         dst = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
         )

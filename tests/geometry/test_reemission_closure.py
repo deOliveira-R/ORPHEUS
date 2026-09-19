@@ -570,7 +570,7 @@ class TestExactlyOneFactorIsNonTrivial:
     Scoping to tag-reachable laws would SILENTLY DROP the one row §12.4 wants
     flagged: ``_law_from_tag`` hard-codes ``albedo=1.0`` for reflective, so
     ``ReflectiveBoundary(α<1)`` is not tag-reachable. And "tag-reachable" is
-    method-dependent — ``AlbedoBoundary`` is absent from ``SNMesh``'s registry
+    method-dependent — ``AlbedoBoundary`` is absent from ``SNProblem``'s registry
     and present in the diffusion one — so the invariant's SCOPE would depend on
     which registry you consulted. The invariant is a property of the law
     ALGEBRA, not of a method's admission list.
@@ -1094,7 +1094,7 @@ class TestEquivalenceHoldsAtTheFactorReadingConsumers:
 
     .. note::
 
-       ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` does not admit ``albedo`` yet
+       ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` does not admit ``albedo`` yet
        (#189) and all four sites read ``sn_mesh.bc[face].law``, so this is a
        LATENT correction — it fires the day the law is registered. That is
        exactly why it needs a gate now: an unreachable predicate that is

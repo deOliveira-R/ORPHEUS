@@ -562,7 +562,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
 
     The per-face laws are read off the realized ``bc`` dict on
     :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (#290
-    P7a — ``SNMesh.bc`` parity). Law coverage ≡ face coverage holds BY
+    P7a — ``SNProblem.bc`` parity). Law coverage ≡ face coverage holds BY
     CONSTRUCTION: the mesh builds ``bc`` and the trace from the ONE
     ``face_labels`` inventory, so the pre-P7a coverage validation
     guarded a state that is no longer representable.

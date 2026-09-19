@@ -1,10 +1,10 @@
 r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
 
-:class:`SNMesh` is axis-primary (C5.1, #225): its canonical spatial
+:class:`SNProblem` is axis-primary (C5.1, #225): its canonical spatial
 representation is a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`, and it
 precomputes the coordinate-specific streaming stencil used by the
 transport sweep. Two construction surfaces funnel into one body — the
-axis-native :meth:`SNMesh.from_axes`, and the legacy
+axis-native :meth:`SNProblem.from_axes`, and the legacy
 :class:`~geometry.mesh.Mesh1D` / :class:`~geometry.mesh.Mesh2D`
 constructor (converted to axes once at the boundary).
 
@@ -46,9 +46,9 @@ from orpheus.transport.mesh.material_mesh import (
     InconsistentMaterialsError,
     MaterialMesh,
 )
-from ..boundary.realizer import SNBoundaryRealizer
-from .method_space import SNMethodSpace
-from .reduced_operator import (
+from .boundary.realizer import SNBoundaryRealizer
+from .mesh.method_space import SNMethodSpace
+from .mesh.reduced_operator import (
     ReducedStreamingOperator,
     cylindrical_streaming,
     slab_streaming,
@@ -57,7 +57,7 @@ from .reduced_operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference
-from ..angular.closure import (
+from .angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     AngularClosureBase,
@@ -98,14 +98,14 @@ if TYPE_CHECKING:
 # :mod:`orpheus.transport.mesh.material_mesh` (it is raised by
 # ``MaterialMesh.ng``, the method-agnostic group-consistency check) and is
 # re-exported here for the SN-side consumers / tests that import it from
-# ``orpheus.sn.mesh.augmented_mesh``.
+# ``orpheus.sn.problem``.
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SNMesh
+# SNProblem
 # ═══════════════════════════════════════════════════════════════════════
 
-class SNMesh(MaterialMesh):
+class SNProblem(MaterialMesh):
     """Augmented geometry for the discrete ordinates method.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is
@@ -140,7 +140,7 @@ class SNMesh(MaterialMesh):
         that consumes ``sn_mesh`` (L, C, S, F) reads materials from
         here, not from a parallel argument.  All materials must agree
         on ``ng`` — heterogeneous group structures are a
-        homogenization-step concern that must precede SNMesh
+        homogenization-step concern that must precede SNProblem
         construction.
 
     Attributes
@@ -259,7 +259,7 @@ class SNMesh(MaterialMesh):
         # / ``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
         # ``self._volumes`` / ``self._areas`` / ``self.nx`` / ``self.coord`` and
         # runs the materials-consistency validation.  ``materials`` is REQUIRED:
-        # SNMesh IS the SN phase space (mesh × quadrature × material group
+        # SNProblem IS the SN phase space (mesh × quadrature × material group
         # structure); without materials ``.ng`` is undefined (Pattern 4 —
         # illegal states unrepresentable).
         MaterialMesh._init_data(
@@ -311,7 +311,7 @@ class SNMesh(MaterialMesh):
         # (0, ≥1) separates. It enters the identity key (`_identity_key`).
         requested = int(scattering_order)
         if requested < 0:
-            raise ValueError(f"SNMesh: scattering_order must be >= 0; got {requested}")
+            raise ValueError(f"SNProblem: scattering_order must be >= 0; got {requested}")
         self.scattering_order: int = min(
             requested, min(len(m.SigS) - 1 for m in self.materials.values()),
         )
@@ -391,13 +391,13 @@ class SNMesh(MaterialMesh):
                 self._streaming_axes = None
 
         # ── Boundary trace + realized laws ──
-        # Build ONE unified trace space per SNMesh, keyed on the mesh's
+        # Build ONE unified trace space per SNProblem, keyed on the mesh's
         # TRUE boundary faces (``boundary_face_layout``): slab
         # ``xmin``/``xmax``, curvilinear ``xmax`` only (the pole at r=0
         # is the angular closure's regularity condition, not a BC
         # face), multi-D Cartesian all ``2·ndim`` faces. Inflow /
         # outflow are selectors over the signed Ω·n it carries.
-        # UNCONDITIONAL — every constructible SNMesh builds its trace
+        # UNCONDITIONAL — every constructible SNProblem builds its trace
         # (geometry-blind: quadrature + face names); built HERE, in the
         # construction body, as phase-space substrate — not inside BC
         # resolution.
@@ -467,7 +467,7 @@ class SNMesh(MaterialMesh):
     # The face loop, the reflective default, and the tag → law parse
     # live in the ONE shared TransportMethod body,
     # :func:`~orpheus.transport.method.resolve_boundary_conditions`
-    # (#290 P7b — it replaced the twin ``SNMesh._resolve_bcs`` /
+    # (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
     # ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely
     # SN-specific arm remains here:
 
@@ -524,7 +524,7 @@ class SNMesh(MaterialMesh):
     # / ``volume_measure`` / ``areas`` / ``ndim`` / ``spatial_shape`` —
     # plus the ``mat_xs`` cached field and the ``sigma_t_cell`` datum — are inherited from
     # :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
-    # method-agnostic data carrier).  SNMesh adds only the SN-method
+    # method-agnostic data carrier).  SNProblem adds only the SN-method
     # behavior (quadrature / streaming stencil / boundary trace / closures)
     # on top.
 
@@ -629,7 +629,7 @@ class SNMesh(MaterialMesh):
         streaming_axes = self._streaming_axes
         if streaming_axes is None:
             raise AttributeError(
-                "SNMesh.streaming(axis) is Cartesian-only; curvilinear meshes "
+                "SNProblem.streaming(axis) is Cartesian-only; curvilinear meshes "
                 "carry streaming in reduced.streaming_terms (the chain-scan "
                 "substrate), not the anti-hyperplane DAG."
             )
@@ -711,8 +711,8 @@ class SNMesh(MaterialMesh):
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
         sigma_t_cell: np.ndarray | None = None,
-    ) -> "SNMesh":
-        r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
+    ) -> "SNProblem":
+        r"""Build an :class:`SNProblem` from an axis tuple — the axis-native surface.
 
         C5.1 (axis-primary inversion, #225): the caller's axes ARE the
         mesh's axes — stored verbatim and never round-tripped through a
@@ -728,7 +728,7 @@ class SNMesh(MaterialMesh):
         :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name`, which fails loud
         on a custom label (C4 doctrine — overridable labels cannot
         silently desync the face-name crosswalk). Custom labels are for
-        standalone axis use, not SNMesh construction.
+        standalone axis use, not SNProblem construction.
 
         Parameters
         ----------
@@ -788,7 +788,7 @@ class SNMesh(MaterialMesh):
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
-    ) -> "SNMesh":
+    ) -> "SNProblem":
         r"""Promote a :class:`MaterialMesh` to a solvable SN phase space.
 
         The data/behavior join: a :class:`MaterialMesh` carries the
@@ -843,7 +843,7 @@ class SNMesh(MaterialMesh):
         )
         return obj
 
-    def with_scattering_order(self, scattering_order: int) -> "SNMesh":
+    def with_scattering_order(self, scattering_order: int) -> "SNProblem":
         r"""A NEW problem over the same generating data with another retained order.
 
         A Problem morphism, not a mutation (the hub is a save state): the
@@ -854,14 +854,14 @@ class SNMesh(MaterialMesh):
         """
         return self._respelled(scattering_order=scattering_order, sigma_t_cell=self.sigma_t_cell)
 
-    def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "SNMesh":
+    def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "SNProblem":
         """A NEW Problem over the same phase space with the per-cell
         :math:`\\sigma_t` datum replaced (O-5, 2026-09-13) — the same
         generating data at the same retained order, another identity.
         """
         return self._respelled(scattering_order=self.scattering_order, sigma_t_cell=sigma_t_cell)
 
-    def _respelled(self, *, scattering_order: int, sigma_t_cell: np.ndarray) -> "SNMesh":
+    def _respelled(self, *, scattering_order: int, sigma_t_cell: np.ndarray) -> "SNProblem":
         """The ONE re-spelling body behind the two morphisms."""
         closure_cls = type(self.angular_closure)
         if self.mesh is not None:
@@ -892,7 +892,7 @@ class SNMesh(MaterialMesh):
 
         ALWAYS non-``None`` (C5.3): the only mesh the pre-C5.3 gate
         excluded — a cylindrical :class:`~orpheus.geometry.mesh.Mesh2D`
-        — cannot become an SNMesh at all, so every constructible SNMesh
+        — cannot become an SNProblem at all, so every constructible SNProblem
         carries a trace.
         """
         return self._trace
@@ -918,7 +918,7 @@ class SNMesh(MaterialMesh):
         Since Q5.6.3 the cylindrical ADMISSION
         (:func:`~orpheus.sn.angular.closure.assert_carrying_quadrature`
         in ``_init_core``) refuses any cylinder rule with a
-        non-carrying level, so on a constructed cylindrical SNMesh
+        non-carrying level, so on a constructed cylindrical SNProblem
         this property is always the FULL level range; the non-carrying
         cylinder families above are the refusal battery's negatives,
         never live meshes.
@@ -1056,7 +1056,7 @@ class SNMesh(MaterialMesh):
 
         ⚠ Reads the *realized law*, not the tag a caller passed:
         ``resolve_boundary_conditions`` fills unset faces with
-        ``BC("reflective")``, so a bare ``SNMesh(mesh, quad, mats)`` is
+        ``BC("reflective")``, so a bare ``SNProblem(mesh, quad, mats)`` is
         all-reflective and this returns every axis.
         """
         from orpheus.geometry.boundary.reflective import ReflectiveBoundary
@@ -1127,7 +1127,7 @@ class SNMesh(MaterialMesh):
         coupled space.  Every solver entry reads THIS object — the two
         k-outer sites that rebuilt it per outer step now read it once — and
         every Strategy value (``Splitting.from_schedule``) is minted from it.
-        The chain ``SNMesh(...) → .system → .pencil`` admits no Strategy
+        The chain ``SNProblem(...) → .system → .pencil`` admits no Strategy
         token (the AC-a gate).  Lazy import: ``coupled_system`` imports this
         module at module scope.
         """

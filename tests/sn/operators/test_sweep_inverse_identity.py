@@ -38,7 +38,7 @@ from orpheus.transport.radial_characteristic_field import (
 )
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
@@ -66,8 +66,8 @@ def _mixtures():
     return {0: mix_a, 1: mix_b}
 
 
-def _mesh_slab(bc_left: str) -> SNMesh:
-    return SNMesh(
+def _mesh_slab(bc_left: str) -> SNProblem:
+    return SNProblem(
         Mesh1D(
             edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0, 6.0, 8.0]),
             mat_ids=np.array([0, 1, 1, 0, 1, 0]),
@@ -79,7 +79,7 @@ def _mesh_slab(bc_left: str) -> SNMesh:
     )
 
 
-def _mesh_cyl() -> SNMesh:
+def _mesh_cyl() -> SNProblem:
     # The #280 MANDATORY cylinder config, re-posed at the 6.3 flip onto
     # the admitted family: ``folded_product(4, 6)`` — the staggered
     # parent at n_φ ≡ 2 (mod 4) places φ = π/2 exactly, and the
@@ -88,7 +88,7 @@ def _mesh_cyl() -> SNMesh:
     # ordinates AND (like every admitted cylinder rule) a live ψ½
     # System B.  xmax-only trace layout — exercises the restore's
     # per-face membership loop on the curvilinear face set.
-    return SNMesh(
+    return SNProblem(
         Mesh1D(
             edges=np.array([0.0, 0.3, 0.8, 1.0]),
             mat_ids=np.array([0, 1, 0]),
@@ -101,13 +101,13 @@ def _mesh_cyl() -> SNMesh:
     )
 
 
-def _mesh_sphere() -> SNMesh:
+def _mesh_sphere() -> SNProblem:
     # The carrying SPHERE row — GL-4, one seed level; the same coupled
     # round-trip as the cylinder row.  The sphere's seed-carrying
     # inverse reciprocity was explicitly deferred pre-6.3 (the "#29
     # domain" note in test_loss_transpose_solve.G3); ERR-078's fix
     # covers both curvilinear arms, so both are gated here.
-    return SNMesh(
+    return SNProblem(
         Mesh1D(
             edges=np.array([0.0, 0.3, 0.8, 1.0]),
             mat_ids=np.array([0, 1, 0]),
@@ -158,7 +158,7 @@ def _lc_pair(geom: str):
     return sn_mesh, lc, lc.inverse()
 
 
-def _zero_source_composite(sn_mesh: SNMesh) -> FullField:
+def _zero_source_composite(sn_mesh: SNProblem) -> FullField:
     """A zero SOURCE-role System-A carrier for the coupled arm's rhs.
 
     Role-honest member algebra: a solve's rhs is a SOURCE, and the
@@ -176,7 +176,7 @@ def _zero_source_composite(sn_mesh: SNMesh) -> FullField:
     )
 
 
-def _random_state(sn_mesh: SNMesh, lc, seed: int):
+def _random_state(sn_mesh: SNProblem, lc, seed: int):
     """A random rhs in ``lc``'s domain — the bare composite, or the
     coupled (bulk ⊕ ψ½) SOURCE-role state with EVERY member block
     populated (randomized through the coupled ``from_flat``, so the
@@ -197,7 +197,7 @@ def _system_a(x):
     return x.systems[0] if isinstance(x, CoupledField) else x
 
 
-def _random_composite(sn_mesh: SNMesh, seed: int) -> FullField:
+def _random_composite(sn_mesh: SNProblem, seed: int) -> FullField:
     """Every block populated — bulk, inflow-trace, AND the outflow-trace
     rows the old sweep dropped — with shapes read off the mesh (so the
     same builder serves slab and the xmax-only curvilinear layout)."""

@@ -40,7 +40,7 @@ from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
 )
@@ -61,8 +61,8 @@ def _mesh1d() -> Mesh1D:
                   coord=CoordSystem.SPHERICAL)
 
 
-def _sphere() -> SNMesh:
-    return SNMesh(
+def _sphere() -> SNProblem:
+    return SNProblem(
         _mesh1d(), Quadrature.gauss_legendre(n_ordinates=4),
         dict(_MATERIALS),
     )

@@ -37,7 +37,7 @@ Construction
 ============
 
 The per-face boundary laws already live on the
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` in the face-name-keyed ``bc`` dict
+:class:`~orpheus.sn.problem.SNProblem` in the face-name-keyed ``bc`` dict
 (each entry a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
 ``B`` is the block composition over the mesh's true boundary faces: for each
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields._bases import (
         RadialCharacteristicBoundaryField,
     )
@@ -180,7 +180,7 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     )
 
 
-def _zero_bulk_source(mesh: "SNMesh"):
+def _zero_bulk_source(mesh: "SNProblem"):
     r"""The zero-bulk ``A_ss`` carrier ``B_a`` emits on the System-A composite.
 
     Sized from the MESH (not ``zeros_like`` the input) so the carrier is correct
@@ -324,7 +324,7 @@ class SNBoundaryOperator(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The augmented geometry — carries the per-face boundary laws
         (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
@@ -333,7 +333,7 @@ class SNBoundaryOperator(LinearOperator):
 
     block_role = BlockRole.BOUNDARY
 
-    def __init__(self, sn_mesh: "SNMesh") -> None:
+    def __init__(self, sn_mesh: "SNProblem") -> None:
         self.sn_mesh = sn_mesh
 
     @property
@@ -864,7 +864,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The augmented geometry (seed-carrying — 1-D curvilinear). Carries the
         outer-face law ``sn_mesh.bc["xmax"]`` and the ray space
         (the split ψ½ spaces; the mesh-identity invariant of
@@ -1108,7 +1108,7 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         self.schedule = schedule
 
     @property
-    def sn_mesh(self) -> "SNMesh":
+    def sn_mesh(self) -> "SNProblem":
         return self.inner.sn_mesh
 
     @property

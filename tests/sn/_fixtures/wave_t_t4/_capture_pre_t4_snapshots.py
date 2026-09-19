@@ -66,7 +66,7 @@ from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import BC
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingCollisionOperator,
     StreamingOperator,
@@ -133,7 +133,7 @@ def _mix_2g_p1_asymmetric() -> "make_mixture":
 
 def _slab_mesh(
     *, ng: int, bc_left: BC, bc_right: BC, nx: int = 20, N: int = 8,
-) -> SNMesh:
+) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     mesh = Mesh1D(
         edges=np.linspace(0.0, 4.0, nx + 1),
@@ -142,10 +142,10 @@ def _slab_mesh(
         bc_right=bc_right,
     )
     quad = Quadrature.gauss_legendre(N)
-    return SNMesh(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix})
 
 
-def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNMesh:
+def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     mesh = Mesh1D(
         edges=np.linspace(0.0, 4.0, nx + 1),
@@ -155,10 +155,10 @@ def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(N)
-    return SNMesh(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix})
 
 
-def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNMesh:
+def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNProblem:
     """Cylinder on the carrying folded family (μ-levels; LS until Q5.6.3)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     mesh = Mesh1D(
@@ -169,12 +169,12 @@ def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
-    return SNMesh(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix})
 
 
 def _cart2d_mesh(
     *, ng: int, bc_kind: str, nx: int = 6, ny: int = 6, sn_order: int = 4,
-) -> SNMesh:
+) -> SNProblem:
     """2-D Cartesian — exercises the 2-D representation ``loss_action`` path (the matvec walk that since S6.3 lives on the loss representation, off the operator; ScanMarch default since S6.9)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     bc = BC("reflective") if bc_kind == "specular" else BC("vacuum")
@@ -185,7 +185,7 @@ def _cart2d_mesh(
         bc_xmin=bc, bc_xmax=bc, bc_ymin=bc, bc_ymax=bc,
     )
     quad = Quadrature.level_symmetric(sn_order=sn_order)
-    return SNMesh(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ def _cart2d_mesh(
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
+def _make_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     """Build a TimedFullField with a deterministic random bulk ψ."""
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
@@ -211,7 +211,7 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     )
 
 
-def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
+def _make_sigma_t(sn_mesh: SNProblem) -> np.ndarray:
     """Per-group per-cell σ_t (the StreamingOperator constructor input).
 
     Layout ``(ng, nx, ny)`` under Issue #196 PR-INDEX-3.  Reads from
@@ -229,7 +229,7 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
     return sig_t
 
 
-def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, MultiplicationOperator]:
+def _build_L_C(sn_mesh: SNProblem) -> tuple[StreamingOperator, MultiplicationOperator]:
     """Build the leaf L (StreamingOperator) and C (MultiplicationOperator)."""
     sigma_t = _make_sigma_t(sn_mesh)
     L = StreamingOperator.pose(sn_mesh)          # pure σ-free streaming (#257 S8b)
@@ -242,7 +242,7 @@ def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, MultiplicationOperat
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _capture_apply(name: str, sn_mesh: SNMesh, *, seed: int,
+def _capture_apply(name: str, sn_mesh: SNProblem, *, seed: int,
                    snapshots: dict[str, np.ndarray]) -> None:
     """Capture the joint σ-free streaming action, bulk + boundary.
 
@@ -271,7 +271,7 @@ def _capture_apply(name: str, sn_mesh: SNMesh, *, seed: int,
     snapshots[f"seed_psi_{name}"] = state.interior.values.copy()
 
 
-def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
+def _capture_LpC_apply(name: str, sn_mesh: SNProblem, *, seed: int,
                        snapshots: dict[str, np.ndarray]) -> None:
     """Capture (L+C).apply(ψ) — the fused within-group matvec snapshot.
 
@@ -289,7 +289,7 @@ def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
     snapshots[f"{name}_LpC_apply_boundary"] = out.boundary.values.copy()
 
 
-def _capture_LpC_solve(name: str, sn_mesh: SNMesh, *, seed: int,
+def _capture_LpC_solve(name: str, sn_mesh: SNProblem, *, seed: int,
                        snapshots: dict[str, np.ndarray]) -> None:
     """Capture (L+C).solve(q) — verifies .solve path is UNTOUCHED by T.4.
 

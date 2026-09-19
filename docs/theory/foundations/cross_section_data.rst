@@ -607,7 +607,7 @@ The data layout per source group is:
    solve's order.  Both halves of that were settled at step 1 and step 2
    spent them unchanged.  (⚠ The clamp was the *solver's* until
    2026-09-12; it is now the PROBLEM's, applied once when
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is constructed —
+   :class:`~orpheus.sn.problem.SNProblem` is constructed —
    :ref:`sn-hub-retained-order`.  Which stack it reads is unchanged.)
 
 

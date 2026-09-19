@@ -15,7 +15,7 @@ from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
 from tests.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
@@ -51,7 +51,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(N)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -68,7 +68,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -85,7 +85,7 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -115,7 +115,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
@@ -146,7 +146,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
@@ -163,7 +163,7 @@ class TestSphericalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        sn_mesh = SNProblem(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()

@@ -76,7 +76,7 @@ def _trace(name: str, ng: int = 2) -> AngularTraceSpace:
     (ordinate) axis and is re-expanded across the trailing group axis on
     application, so a single-group fixture would leave that broadcast
     untested — and the broadcast is exactly what makes the space's shape
-    ownership work. Mirrors ``SNMesh.boundary_face_layout``'s slab arm.
+    ownership work. Mirrors ``SNProblem.boundary_face_layout``'s slab arm.
     """
     quad = _QUADRATURES[name]()
     layout = FaceLayout.from_named_shapes(

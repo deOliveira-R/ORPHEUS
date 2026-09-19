@@ -1,7 +1,7 @@
 r"""CS4c step 6 item 6.2b — the hub owns the harmonic-moment space.
 
-**What this file gates.** :meth:`SNMesh.moment_space
-<orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>` is the ONE producer of
+**What this file gates.** :meth:`SNProblem.moment_space
+<orpheus.sn.problem.SNProblem.moment_space>` is the ONE producer of
 the moment space on a carrier: a keyed cache over ``(L, spatial_moments)``
 whose every read returns the SAME object. The moment field family
 (``from_mesh_and_L`` / ``zeros_for_mesh_and_L`` / ``space_on``), the boundary

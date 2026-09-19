@@ -11,7 +11,7 @@ problem poses on ``HomogeneousProblem.space`` and builds no carrier — so
 the arms that served it (the SN promotion refusal, the ``areas`` "no faces
 at all" arm, the diffusion bounded-geometry refusal) had NO reachable
 input left and retired with it (memo H-1: `[M]` no producer of
-``mesh is None and ndim == 1`` exists — ``SNMesh.from_axes`` synthesizes
+``mesh is None and ndim == 1`` exists — ``SNProblem.from_axes`` synthesizes
 a legacy adapter at d≤2 and leaves ``mesh = None`` only at d≥3;
 ``MaterialMesh.__init__`` always carries a mesh).
 
@@ -42,7 +42,7 @@ from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from tests.sn._test_helpers import placeholder_materials
@@ -81,15 +81,15 @@ def _axes(*extents_and_cells: tuple[float, int]) -> tuple[AxisMesh, ...]:
     )
 
 
-def _sn_from_axes(axes: tuple[AxisMesh, ...]) -> SNMesh:
+def _sn_from_axes(axes: tuple[AxisMesh, ...]) -> SNProblem:
     quadrature = (
         Quadrature.gauss_legendre(4) if len(axes) == 1
         else Quadrature.level_symmetric(sn_order=4)
     )
-    return SNMesh.from_axes(axes, quadrature, placeholder_materials(ng=2))
+    return SNProblem.from_axes(axes, quadrature, placeholder_materials(ng=2))
 
 
-def _d3_sn() -> SNMesh:
+def _d3_sn() -> SNProblem:
     return _sn_from_axes(_axes((1.0, 2), (2.0, 3), (3.0, 2)))
 
 
@@ -99,7 +99,7 @@ class TestG71PromotionRefusal:
         solvable SN phase space. (Its negative leg — the mesh-less 1-cell
         carrier refused with a typed ``ValueError`` — retired with the
         carrier at the CS4c coda: nothing can be built for it to refuse.)"""
-        sn = SNMesh.from_material_mesh(
+        sn = SNProblem.from_material_mesh(
             _legacy_1d(), Quadrature.gauss_legendre(4),
         )
         if sn.ng != 2 or sn.spatial_shape != (5,):
@@ -177,7 +177,7 @@ class TestR1TheFactoryIsUnspellable:
         """The retirement is structural: the name is absent from every class in
         the carrier hierarchy (a subclass could not have inherited it either).
         Re-adding the factory anywhere in the hierarchy reddens this."""
-        for cls in (MaterialMesh, SNMesh, DiffusionMesh):
+        for cls in (MaterialMesh, SNProblem, DiffusionMesh):
             _require(
                 not hasattr(cls, "from_materials"),
                 f"{cls.__name__}.from_materials exists — the fabricated carrier's factory is back",

@@ -54,7 +54,7 @@ from orpheus.numerics.operator import (
     OperatorProduct,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -121,7 +121,7 @@ def solver_p1_het():
     mat[2:, :] = 1
     mesh = _uniform_2d(nx, ny, 0.4, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
+    sn_mesh = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
     return SNSolver(sn_mesh)
 
 

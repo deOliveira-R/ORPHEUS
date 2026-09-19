@@ -410,8 +410,8 @@ reach.
    :meth:`HarmonicFrame.moment_space_on
    <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`
    and in the SN carrier's content-equal field-side twin
-   :meth:`SNMesh.moment_space
-   <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>`, each of which
+   :meth:`SNProblem.moment_space
+   <orpheus.sn.problem.SNProblem.moment_space>`, each of which
    ALSO appended, for a widened angular space, a second ``*`` factor —
    the Euclidean, axes-less ``SpatialMomentSpace`` (contributing a
    ``None`` metric entry). Item **6.2c** axis-ifies the head; until then
@@ -447,7 +447,7 @@ reach.
    the frame simply keeps the angular space's own axes. `[M]` 2026-09-08,
    the same AST census over ``orpheus/**/*.py``: **two** production
    ``*`` sites remain — ``head * bulk`` at
-   ``sn/mesh/augmented_mesh.py:1313`` and ``self.basis_space *
+   ``sn/problem.py:1313`` and ``self.basis_space *
    FunctionSpace.of_axes(*axes[1:])`` at
    ``transport/frames/harmonic_frame.py:499``.
 
@@ -689,8 +689,8 @@ that preceded it and was never reconciled here.
 `[M]` re-measured 2026-09-07, by AST over ``orpheus/**/*.py``:
 :meth:`of_axes <orpheus.numerics.space.FunctionSpace.of_axes>` has
 **seven** production call sites, not one. And the ``False`` row now has
-a production occupant: :attr:`SNMesh.angular_trial_space
-<orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space>` appends the
+a production occupant: :attr:`SNProblem.angular_trial_space
+<orpheus.sn.problem.SNProblem.angular_trial_space>` appends the
 scheme-owned ``moment_axis`` — declared ``BasisKind.MODAL``, because a
 DG cell moment is an expansion coefficient — to an axis-built base
 whenever the bound scheme is multi-moment, and `[M]`
@@ -776,8 +776,8 @@ with a coordinate cone (:ref:`spaces-nodal-modal`), so the
 mis-declaration "a nodal basis carrying no nodes" is unspellable on this
 path. It was spellable on the literal path, and CS5 retired that path at
 **two** of the tree's three nodal mint sites — the angular factor of
-:attr:`SNMesh.angular_bulk_space
-<orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>` and the
+:attr:`SNProblem.angular_bulk_space
+<orpheus.sn.problem.SNProblem.angular_bulk_space>` and the
 rank-1 spatial factor of :attr:`MaterialMesh.bulk_space
 <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`. The
 third, the homogeneous pose's counting point, keeps its literal because
@@ -1092,8 +1092,8 @@ Three consequences follow, and each is separately load-bearing:
    the same way.
 #. **The three CS5 consumer re-points are bit-identical by
    construction.** `[M]`
-   :attr:`SNMesh.angular_bulk_space
-   <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>`'s
+   :attr:`SNProblem.angular_bulk_space
+   <orpheus.sn.problem.SNProblem.angular_bulk_space>`'s
    generator-minted angular axis compares equal to the literal
    ``Axis("angular", (quad.N,), weights=quad.weights, kind=NODAL)`` it
    replaced, and mints the same digest — so no snapshot, no cached
@@ -1163,12 +1163,12 @@ slab carrier (edges ``0|1|3|6``, ``gauss_legendre(4)``, 2 groups):
        — its one documented data path. `[M]` nodes are the cell centres
        ``[0.5, 2.0, 4.5]`` and weights the volumes ``[1.0, 2.0, 3.0]``,
        both hand-derivable from the edge list.
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+   * - :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
      - ``angular``
      - ``Quadrature``
      - the rule itself, so ``mu_x`` / ``eta`` / ``mu_z`` /
        ``level_indices`` answer through the space.
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+   * - :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space`
      - all three
      - as above
      - byte-identical to ``angular_bulk_space`` for a slopeless
@@ -3952,7 +3952,7 @@ with :meth:`FunctionSpace.of_axes
 <orpheus.numerics.space.FunctionSpace.of_axes>`; the weights are
 non-uniform on purpose so that no cancellation flatters a law. The
 :math:`S_N` fixture is the shipped carrier —
-``SNMesh(Mesh1D(edges=[0, 0.2, 0.5, 0.9, 1.6, 3.0], cartesian, vacuum),
+``SNProblem(Mesh1D(edges=[0, 0.2, 0.5, 0.9, 1.6, 3.0], cartesian, vacuum),
 Quadrature.gauss_legendre(4), 2 groups)`` — and the operators come from
 ``sn.angular_bulk_space.retraction("angular")`` / ``.section("angular")``.
 Inputs are ``numpy.random.default_rng(seed).standard_normal(shape)``.
@@ -4223,7 +4223,7 @@ taken.
      - **CS2.** ⚠ Re-measured 2026-08-24: the *bulk* half of this
        fence has fallen. Campaign 1 CS4b moved the angular family onto
        axis-built carrier mints, so `[M]` on a shipped 1-D
-       :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` the scalar bulk
+       :class:`~orpheus.sn.problem.SNProblem` the scalar bulk
        ``(energy, spatial)``, the angular bulk
        ``(angular, energy, spatial)`` and the scheme-widened
        ``angular_trial_space`` are ALL axis-built and all report
@@ -4633,8 +4633,8 @@ status.
        still raising
        (:ref:`spaces-generator-identity-exclusion`). **Two** of the
        tree's three nodal mint sites consume it, bit-identically:
-       :attr:`SNMesh.angular_bulk_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>`
+       :attr:`SNProblem.angular_bulk_space
+       <orpheus.sn.problem.SNProblem.angular_bulk_space>`
        collapses to ``self.quad.axis(...)``, and the rank-1 arm of
        :attr:`MaterialMesh.bulk_space
        <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
@@ -4660,8 +4660,8 @@ status.
      - **The space becomes the construction key, and it mints the
        collapse pair** (campaign 1, phase CS4b, steps S5–S7).
        *Construction goes space-primary* (S5): the carrier gains
-       :attr:`SNMesh.angular_trial_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space>`
+       :attr:`SNProblem.angular_trial_space
+       <orpheus.sn.problem.SNProblem.angular_trial_space>`
        (the scheme-widened angular mint), the composite allocators go
        space-keyed, and the mesh-keyed leaf **sugar tier is deleted** —
        every call site now names a space, not a carrier.

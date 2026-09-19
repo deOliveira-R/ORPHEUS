@@ -59,7 +59,7 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.boundary._errors import BoundaryError
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -73,7 +73,7 @@ pytestmark = [pytest.mark.foundation]
 # ── Fixtures: every geometry the SN boundary machinery reaches ────────
 
 
-def _sn_1d(geometry: str, bcs: tuple, nx: int = 4, ng: int = 2) -> SNMesh:
+def _sn_1d(geometry: str, bcs: tuple, nx: int = 4, ng: int = 2) -> SNProblem:
     geom = StructuredGeometry(
         geometry=geometry,
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -85,17 +85,17 @@ def _sn_1d(geometry: str, bcs: tuple, nx: int = 4, ng: int = 2) -> SNMesh:
         if geometry == "CYL"
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sn_2d(ng: int = 2) -> SNMesh:
+def _sn_2d(ng: int = 2) -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 5), edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((4, 3), dtype=int),   # (nx, ny) — deliberately nx != ny
         bc_xmin=BC.vacuum, bc_xmax=BC.reflective,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
 
 
 #: The bit-identity fixture set. Both laws SN admits × every geometry, and the
@@ -111,7 +111,7 @@ _FIXTURES = {
 }
 
 
-def _random_state(sn: SNMesh, seed: int = 11) -> TimedFullField:
+def _random_state(sn: SNProblem, seed: int = 11) -> TimedFullField:
     rng = np.random.default_rng(seed)
     z = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,

@@ -294,7 +294,7 @@ def test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition():
     question, and no epsilon appears below.
 
     ⚠ Note ``product(2, 8)`` is ALSO refused earlier, at cylindrical
-    ``SNMesh`` admission (``assert_carrying_quadrature``).  This row
+    ``SNProblem`` admission (``assert_carrying_quadrature``).  This row
     exercises the partition producer DIRECTLY, so it still pins the
     inner guard for any caller that reaches it without a mesh.
     """
@@ -538,7 +538,7 @@ def test_the_xi_odd_companion_fixture_is_INADMISSIBLE_since_the_63_flip():
     retire-with-tombstone"); it was missed because it is ``slow``-marked
     and the `-m "not slow"` ledger never selected it:
 
-    1. `[M]` its fixture is **inadmissible**: a cylindrical ``SNMesh``
+    1. `[M]` its fixture is **inadmissible**: a cylindrical ``SNProblem``
        refuses a full-circle rule at construction
        (``assert_carrying_quadrature``, the 6.3 flip), so the solve raises
        before any coefficient is computed.  ⚠ This has been RED in the

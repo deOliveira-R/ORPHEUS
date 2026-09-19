@@ -124,7 +124,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -170,8 +170,8 @@ def _build_sn_mesh(
     bc: str = "vacuum",
     n_cells: int = 5,
     n_ord: int = 4,
-) -> SNMesh:
-    """Small SNMesh; ``bc`` set on BOTH endpoints (slab) / outer (curv).
+) -> SNProblem:
+    """Small SNProblem; ``bc`` set on BOTH endpoints (slab) / outer (curv).
 
     Sized small (n_cells=5, n_ord=4) so each matvec runs well under a
     second.  The bit-identity / structural contracts are size-independent.
@@ -206,10 +206,10 @@ def _build_sn_mesh(
         quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     else:
         raise ValueError(geometry)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> TimedFullField:
+def _random_state(sn_mesh: SNProblem, seed: int, *, zero_boundary: bool = True) -> TimedFullField:
     """A fixed-seed random bulk ψ with a chosen boundary trace.
 
     ``zero_boundary=True`` is the canonical vacuum-matvec input: the
@@ -236,7 +236,7 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
     )
 
 
-def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "FullField":
+def _LpC_apply(sn_mesh: SNProblem, state: TimedFullField, sigma_t: np.ndarray) -> "FullField":
     """``(L + C).apply(state)`` via the public operator-algebra path.
 
     #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
@@ -462,7 +462,7 @@ class TestVacuumMatvecBitIdentity:
             bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         # A hard assertion, NOT a skip: if the mesh ever degenerates to
         # 1-D the row must go RED, because a silently-skipped 2-D gate
         # is exactly the defect this repair removes.

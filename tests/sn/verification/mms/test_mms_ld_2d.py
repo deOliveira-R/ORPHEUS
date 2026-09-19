@@ -48,7 +48,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     MovingFrontierWindow,
@@ -61,7 +61,7 @@ from tests.sn._test_helpers import volume_weighted_l2
 
 
 def _nonsquare_het_2g_mesh(nx: int = 5, ny: int = 4):
-    r"""A NON-SQUARE, vacuum, 2-group het SNMesh on a level-symmetric quad.
+    r"""A NON-SQUARE, vacuum, 2-group het SNProblem on a level-symmetric quad.
 
     NON-SQUARE (``nx ≠ ny``) is the x↔y-swap defence; ``level_symmetric``
     supplies genuine ``mu_y`` (#214-safe); vacuum edges keep the domain inflow
@@ -74,7 +74,7 @@ def _nonsquare_het_2g_mesh(nx: int = 5, ny: int = 4):
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("A", "2g")},
         scheme=LinearDiscontinuous(),
     )
@@ -326,7 +326,7 @@ def _ld_stress_l2_errors(case, n_cells):
     for nc in n_cells:
         mesh = case.build_mesh(nc)
         materials = case.build_materials(mesh)
-        sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+        sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
         rhs = build_nonvacuum_fixed_source(case, sn)
         result = solve_sn_fixed_source(
             materials, mesh, case.quadrature, rhs,
@@ -400,7 +400,7 @@ def test_ld_2d_stress_krylov_equals_si():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(16)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rhs = build_nonvacuum_fixed_source(case, sn)
     kw = dict(max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous())
 
@@ -448,7 +448,7 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(10)                       # coarse, NON-SQUARE (10×7)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     nx, ny = mesh.mat_map.shape
     ng = case.n_groups
     Q = case.external_source(mesh)                   # (N, ng, nx, ny)
@@ -701,7 +701,7 @@ def _solve_moment_resolved(case, nc, *, moment_source=None):
     ``nc`` and return ``(scalar_flux_values, mesh)`` — the WIDENED #247 path."""
     mesh = case.build_mesh(nc)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rhs = _moment_resolved_rhs(case, sn, mesh, moment_source=moment_source)
     result = solve_sn_fixed_source(
         materials, mesh, case.quadrature, rhs,
@@ -753,7 +753,7 @@ def test_ld_2d_external_slope_source_threaded_through_lift():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     Qm = _project_external_source(case, mesh)        # (N, ng, nx, ny, 4)
 
     lifted, per_axis = _lift_external_source_to_moments(Qm, sn)
@@ -833,7 +833,7 @@ def test_ld_2d_external_slope_source_improves_on_flat():
     phi_mom, mesh = _solve_moment_resolved(case, nc)
     # The flat (slope-zeroed) sibling — same boundary trace, same average source.
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rhs_flat = build_nonvacuum_fixed_source(case, sn)
     phi_flat = solve_sn_fixed_source(
         materials, mesh, case.quadrature, rhs_flat,
@@ -905,7 +905,7 @@ def test_ld_2d_external_slope_source_sign_mutation_reddens(slot, name):
     # nothing) — the flat scalar gate is correctly BLIND to the slope-source
     # sign, which is exactly why #247 adds the moment-resolved gate.
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     from orpheus.sn.solver import _lift_external_source_to_moments
     flat = case.external_source(mesh)
     flat_lift, _ = _lift_external_source_to_moments(flat, sn)
@@ -938,7 +938,7 @@ def test_ld_2d_scattering_slope_source_sign_mutation_reddens(monkeypatch):
     nc = 24
     mesh = case.build_mesh(nc)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rhs = build_nonvacuum_fixed_source(case, sn)
     kw = dict(max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous())
 
@@ -1285,7 +1285,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
 
     mesh = case.build_mesh(nc)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     bufs = _face_transverse_buffers(case, mesh)
     face_values = {}
     for face, (centre, slope) in bufs.items():
@@ -1346,7 +1346,7 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rep = default_for(sn, sn.scheme, sn.angular_closure)
 
     # A moment-resolved boundary inflow: per face, (N_oct, ng, n_t, 2) with
@@ -1428,7 +1428,7 @@ def test_ld_2d_boundary_scalar_inflow_no_op_negative_control():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rep = default_for(sn, sn.scheme, sn.angular_closure)
 
     bufs = _face_transverse_buffers(case, mesh)
@@ -1537,7 +1537,7 @@ def test_ld_2d_boundary_trace_rejects_wrong_transverse_width():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
-    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
     rep = default_for(sn, sn.scheme, sn.angular_closure)
 
     bufs = _face_transverse_buffers(case, mesh)

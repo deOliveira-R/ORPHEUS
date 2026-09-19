@@ -39,7 +39,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -106,7 +106,7 @@ def require_production_rate_functional():
 # ───────────────────────────────────────────────────────────────────────
 
 
-def slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """A 1-D slab, ``ng`` groups, ``nx`` cells, GL-4 quadrature."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
@@ -116,10 +116,10 @@ def slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNMesh:
+def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
     """The axis-discriminating regime: nx ≠ ny, ng = 2.
 
     A wrong contraction axis (group-vs-spatial variable-swap, mode #2)
@@ -135,7 +135,7 @@ def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNMesh:
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ def asymmetric_phi(ng: int, spatial_shape: tuple[int, ...]) -> np.ndarray:
     return np.stack(rows, axis=0)
 
 
-def cross_section_field(values: np.ndarray, sn_mesh: SNMesh) -> CrossSectionField:
+def cross_section_field(values: np.ndarray, sn_mesh: SNProblem) -> CrossSectionField:
     """Wrap raw ``(ng, *spatial)`` into a typed CrossSectionField."""
     return CrossSectionField(values=values, space=sn_mesh.bulk_space)
 

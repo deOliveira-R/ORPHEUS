@@ -42,7 +42,7 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
 from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
@@ -75,7 +75,7 @@ from orpheus.transport.material_field import TransferMaterialField
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
+def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -83,10 +83,10 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
+def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     # The seed-carrying geometry (R12a): the only mesh on which System B —
     # and therefore A_BB — exists.
     geom = StructuredGeometry(
@@ -96,7 +96,7 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 # ─────────────────────────────────────────────────────────────────────

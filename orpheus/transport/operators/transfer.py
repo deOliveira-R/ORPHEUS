@@ -527,7 +527,7 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
         :meth:`from_solver_data` extracts the role's channel and calls this.
 
         ``space`` is the composite
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
+        :attr:`~orpheus.sn.problem.SNProblem.full_field_space`
         the solver threads — MANDATORY since the flip (the ends are
         write-once fields; the OperatorSum guard validates every build).
         The quadrature is reached through the space's angular axis (the

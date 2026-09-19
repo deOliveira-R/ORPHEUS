@@ -65,7 +65,7 @@ import numpy as np
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -78,7 +78,7 @@ from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import SN_TESTS_ROOT, sweep_once
 
 
-def build_fixture() -> tuple[SNMesh, np.ndarray, np.ndarray]:
+def build_fixture() -> tuple[SNProblem, np.ndarray, np.ndarray]:
     """Replicate the ``solver_2g`` fixture + seeded source of the test."""
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
@@ -94,7 +94,7 @@ def build_fixture() -> tuple[SNMesh, np.ndarray, np.ndarray]:
         mat_map=mat,
     )
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
 
     # σ_t exactly as the test consumes it (solver.mat_xs.total_cross_section).
     from orpheus.sn.solver import SNSolver
@@ -109,7 +109,7 @@ def build_fixture() -> tuple[SNMesh, np.ndarray, np.ndarray]:
 
 
 def hand_sweep(
-    sn_mesh: SNMesh, sig_t: np.ndarray, Q: np.ndarray
+    sn_mesh: SNProblem, sig_t: np.ndarray, Q: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cell-loop 2-D DD sweep, vacuum inflow on every face.
 

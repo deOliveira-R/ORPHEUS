@@ -187,7 +187,7 @@ Both outgoing face fluxes are then updated from the DD closure:
    \psi^x_{\rm out} = 2\psi_{n,i,j} - \psi^x_{\rm in}, \qquad
    \psi^y_{\rm out} = 2\psi_{n,i,j} - \psi^y_{\rm in}
 
-These are precomputed by :class:`SNMesh` as ``streaming(0)[n, i]`` and
+These are precomputed by :class:`SNProblem` as ``streaming(0)[n, i]`` and
 ``streaming(1)[n, j]``, so the inner loop in
 :func:`_sweep_jacobi` reduces to a single vectorised division per
 diagonal.
@@ -488,7 +488,7 @@ by the DAG-consuming ``_DAGWavefront`` representation family:
    (``CumprodScan``, ``ScanMarch``) and curvilinear meshes simply
    never touch the accessor; curvilinear sweeps walk the cell graph
    differently (per-ordinate march; see
-   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`).
+   :meth:`~orpheus.sn.problem.SNProblem.dag_walk`).
 
 The closed-form precompute lives in
 :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.from_cartesian`
@@ -702,7 +702,7 @@ is structurally correct.
    descriptor; the realizer produces a strict 1-arg operator — see
    :ref:`bc-trace-law-descriptor-model`), and the per-attribute
    ``bc_<face>`` surface by C4 / #220 in favour of the
-   face-name-keyed :attr:`SNMesh.bc` dict
+   face-name-keyed :attr:`SNProblem.bc` dict
    (``sn_mesh.bc["xmin"].apply(psi)`` — see
    :ref:`bc-face-name-carve`). The blocks are preserved verbatim
    because they document the *L7-trap structure* the Wave-2 carve
@@ -2394,8 +2394,8 @@ at each call site was exactly the promised
    ``hasattr(AngularField, "from_mesh") is False`` — the mesh-keyed
    factory tier retired, and with it the ``spatial_moments=`` integer.
    The widening knob is now a **property choice** on the carrier:
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` is
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space` with
+   :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space` is
+   :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space` with
    the scheme's own MODAL
    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
    appended, and a call site widens by *reading that property instead of
@@ -4971,7 +4971,7 @@ a solution, and a converged solve returns whichever member the iteration
 happened to freeze — a function of the cold start and of the schedule,
 not of the problem.  That is not a corner case: :func:`~orpheus.sn.solver.solve_sn`
 has no ``boundary_condition`` parameter at all and a bare
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` resolves to all-reflective,
+:class:`~orpheus.sn.problem.SNProblem` resolves to all-reflective,
 so this **is** the standard :math:`\kinf` lattice.
 
 Three facts make it tractable rather than alarming, and this section is
@@ -5122,7 +5122,7 @@ proportional to :math:`n_g`; ``[M]`` an absorber and a fissile mixture
 on the same box give **bit-identical** residuals
 (:math:`2.799\times10^{-16}`), which is what makes the kernel a
 **Stratum-1** geometry-only object, cached once per mesh on
-:attr:`SNMesh.loss_kernel_gauge <orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>`
+:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
 and reused across every group, every outer and every eigenvalue iterate.
 
 Both counting laws, as theorems
@@ -5625,7 +5625,7 @@ What ships
 
    * - surface
      - what it is
-   * - :attr:`SNMesh.loss_kernel_gauge <orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>`
+   * - :attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
      - the cached projector.  On the mesh because the kernel is
        geometry-only; **zero blocks** on a non-singular configuration,
        so :meth:`gauge <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge.gauge>`

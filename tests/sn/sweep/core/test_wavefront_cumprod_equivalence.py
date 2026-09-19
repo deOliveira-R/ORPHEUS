@@ -76,7 +76,7 @@ from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -98,8 +98,8 @@ _NX_EQUIV = 12           # chain length for the per-sweep equivalence
 _LENGTH = 6.0            # slab thickness (cm)
 
 
-def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNMesh:
-    """Heterogeneous-capable slab SNMesh, mixture A, Gauss-Legendre S8."""
+def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNProblem:
+    """Heterogeneous-capable slab SNProblem, mixture A, Gauss-Legendre S8."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, _LENGTH, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -108,10 +108,10 @@ def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNMesh:
         bc_right=BC(bc),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNMesh(mesh, quad, {0: get_mixture("A", ng_key)})
+    return SNProblem(mesh, quad, {0: get_mixture("A", ng_key)})
 
 
-def _seeded_inflow(sn_mesh: SNMesh, rng: np.random.Generator) -> AngularBoundaryFlux:
+def _seeded_inflow(sn_mesh: SNProblem, rng: np.random.Generator) -> AngularBoundaryFlux:
     """A boundary flux with a random non-zero inflow trace on every face."""
     bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     for face in bf.layout.faces:

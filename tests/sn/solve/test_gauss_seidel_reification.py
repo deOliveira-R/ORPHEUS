@@ -48,7 +48,7 @@ from orpheus.sn.loss_representation.sweep_schedule import (
     SweepSchedule,
     reflective_faces,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.scheduled_invertible import (
     ScheduledInvertibleOperator,

@@ -59,7 +59,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -97,7 +97,7 @@ def _fail_unless_above(value, bound, msg):
 
 
 def _mixture(sig_t: float, sig_s: float, ng: int):
-    """Non-degenerate per-group mixture (only used to construct the SNMesh)."""
+    """Non-degenerate per-group mixture (only used to construct the SNProblem)."""
     st = np.array([sig_t * (1.0 + 0.4 * g) for g in range(ng)])
     ss = np.diag([sig_s * (1.0 + 0.4 * g) for g in range(ng)])
     return make_mixture(
@@ -107,7 +107,7 @@ def _mixture(sig_t: float, sig_s: float, ng: int):
 
 
 def _build_sphere(nx: int, ng: int, sigma: float):
-    """A seed-carrying sphere SNMesh (GL S4) + the loss composite ``A = L + C``.
+    """A seed-carrying sphere SNProblem (GL S4) + the loss composite ``A = L + C``.
 
     The collision σ_t (``sigma·(1+0.3g)``) differs per group from the mixture's
     (``sigma·(1+0.4g)``) so ``A`` is non-degenerate across the group axis — the
@@ -118,7 +118,7 @@ def _build_sphere(nx: int, ng: int, sigma: float):
         edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
         coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
     )
-    sn = SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)], axis=0)
     return sn, StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)

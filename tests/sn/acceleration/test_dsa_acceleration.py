@@ -135,7 +135,7 @@ class TestD6CorrectionVanishes:
 
     @pytest.mark.verifies("sn-dsa-correction-vanishes")
     def test_zero_displacement_maps_to_exact_zero(self):
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.angular_boundary_flux import (
             AngularBoundaryFlux,
@@ -148,7 +148,7 @@ class TestD6CorrectionVanishes:
             bc_left=BC("reflective"),
             bc_right=BC("vacuum"),
         )
-        sn_mesh = SNMesh(
+        sn_mesh = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},

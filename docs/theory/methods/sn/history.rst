@@ -166,7 +166,7 @@ them.  Trust ``git``, not this column.
        ``_exit_balance_defect``, ``_cell_average_angular`` and
        ``_average_moment_scalar`` are **deleted** (the moment-slot
        reducer moved onto the hub as :meth:`SNMesh.cell_average_moment
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.cell_average_moment>`).
+       <orpheus.sn.problem.SNProblem.cell_average_moment>`).
        **(6) Both adjoint arms pose the hub's ONE daggered question**
        (#467): ``KEigenvalue(hub.eigen_posing.H(), implicit.H, gain.H)``
        on the coupled carrier, the seedless Strategy pair lifted into the
@@ -212,7 +212,7 @@ them.  Trust ``git``, not this column.
        does.
        **(2) The Problem poses its source question.**
        :meth:`SNMesh.source_posing(q)
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` returns
+       <orpheus.sn.problem.SNProblem.source_posing>` returns
        ``SourcePosing(pencil.at(1), q)`` **always** (fork 2 (a)) — on a
        non-fissile hub the production is the zero dyad, so that member IS
        the pure transport operator in value and no datum is
@@ -321,9 +321,9 @@ them.  Trust ``git``, not this column.
        :math:`(M, q)` cell at all.
        **(3) What landed.**  ``orpheus/numerics/pencil.py`` and
        ``orpheus/numerics/posing.py``;
-       :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`
-       / :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil` /
-       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` as
+       :attr:`SNMesh.system <orpheus.sn.problem.SNProblem.system>`
+       / :attr:`~orpheus.sn.problem.SNProblem.pencil` /
+       :attr:`~orpheus.sn.problem.SNProblem.eigen_posing` as
        cached properties, with ``system`` the builder's ONE call site;
        :attr:`HomogeneousProblem.pencil
        <orpheus.homogeneous.solver.HomogeneousProblem.pencil>` and
@@ -481,10 +481,10 @@ them.  Trust ``git``, not this column.
        ONE hub found **three** spellings and **two** mints per solve: the
        forward k-outer's
        :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
-       on :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.bulk_space`, the
+       on :attr:`~orpheus.sn.problem.SNProblem.bulk_space`, the
        seedless adjoint's own
        :class:`~orpheus.transport.operators.fission.FissionOperator` on
-       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`,
+       :attr:`~orpheus.sn.problem.SNProblem.full_field_space`,
        and the carrying adjoint's
        :class:`~orpheus.numerics.operator.OperatorProduct` on the
        :class:`~orpheus.numerics.coupled_system.CoupledSpace`.  So
@@ -501,7 +501,7 @@ them.  Trust ``git``, not this column.
        full field, so a member posed on the bulk alone is not on its
        partner's space and cannot be paired with it by any object.
        **(3) What landed.**
-       :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+       :attr:`SNMesh.fission <orpheus.sn.problem.SNProblem.fission>`
        is a :func:`~functools.cached_property` minted once through
        :meth:`FissionOperator.from_solver_data
        <orpheus.transport.operators.fission.FissionOperator.from_solver_data>`;
@@ -640,7 +640,7 @@ them.  Trust ``git``, not this column.
        ``None is None`` made two 3-D problems with different cell counts
        *and* different extents compare **equal**, while at
        :math:`d \le 2` every same-data pair built by two
-       :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.from_axes` calls
+       :meth:`~orpheus.sn.problem.SNProblem.from_axes` calls
        compared **unequal** (a fresh adapter per call) — vacuous on one
        side, false on the other.  And the retained Legendre order had
        **three disagreeing spellings**: the solver's clamp, the adjoint
@@ -701,7 +701,7 @@ them.  Trust ``git``, not this column.
        ``DSACorrection.from_sn_mesh(…)`` /
        ``build_within_group_system(…)`` calls still pass
        ``scattering_order`` afterwards.
-       :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.with_scattering_order`
+       :meth:`~orpheus.sn.problem.SNProblem.with_scattering_order`
        is the Problem morphism that re-poses an existing hub without
        mutating it.
        Full account: :ref:`sn-hub-identity-two-predicates`,
@@ -748,7 +748,7 @@ them.  Trust ``git``, not this column.
        needed — the caller holding the pose had to pass ``space=``.
        **(3) What moved.**  Three edits, no new concept.  The carrier's
        :meth:`SNMesh.moment_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>` composes its
+       <orpheus.sn.problem.SNProblem.moment_space>` composes its
        cell group THROUGH the fields' composer, now public as
        :meth:`BulkField.compose_spatial_moments
        <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>`
@@ -810,7 +810,7 @@ them.  Trust ``git``, not this column.
        Parseval metric :math:`G^{-1}`, the inverse *discrete* Gram; the
        moment FIELD's space, the carrier's cached
        :meth:`SNMesh.moment_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>` and every
+       <orpheus.sn.problem.SNProblem.moment_space>` and every
        moment-domain operator END carried the basis's *continuum* Gram
        :math:`g_C = 4\pi/(2\ell+1)` (#429 tracker 2.5's "Landing A",
        2026-09-02).  They coexisted only because space identity was
@@ -1143,11 +1143,11 @@ them.  Trust ``git``, not this column.
        :math:`2\cdot\texttt{max\_inner} + 6` (18 / 30 / 54 at
        ``max_inner`` = 6 / 12 / 24).
        **(2) What landed.**  :meth:`SNMesh.moment_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>`: a cache
+       <orpheus.sn.problem.SNProblem.moment_space>`: a cache
        keyed on ``(L, spatial_moments)`` holding ONE
        :class:`~orpheus.numerics.space.FunctionSpace` per key, minted the
        way the carrier already mints
-       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+       :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
        — the angular head READ off the quadrature's frame at :math:`L`,
        the cell group the carrier's own
        :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
@@ -1835,7 +1835,7 @@ them.  Trust ``git``, not this column.
        hub, which stays the active-choice site).
        **(2) The hub keeps the generator** — the charter's original
        "``SNMesh`` sheds both" row is **revised by ruling**:
-       :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is the solve's
+       :class:`~orpheus.sn.problem.SNProblem` is the solve's
        save state / data hub, and a scheme is *shared machinery* (DSA and
        the S\ :sub:`N` sweep must read ONE generator) that also **induces
        the space** nodal-or-modal at mesh construction.  The 67 consumer
@@ -1891,7 +1891,7 @@ them.  Trust ``git``, not this column.
        CS4b, steps S1–S7).  Five consequences the S\ :sub:`N` solver sees
        directly.  **(1) The carrier mints, the leaves read** (S1/S2):
        :attr:`SNMesh.full_field_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`'s
+       <orpheus.sn.problem.SNProblem.full_field_space>`'s
        interior IS the carrier's axis-built angular mint rather than a
        parallel hand-spelled shape, and every field leaf sources its space
        from a cached carrier mint instead of naming one itself.
@@ -1913,7 +1913,7 @@ them.  Trust ``git``, not this column.
        the composite allocators take ``space=``, and the carrier grows the
        named replacement for the ``spatial_moments=`` integer:
        :attr:`SNMesh.angular_trial_space
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space>`, the
+       <orpheus.sn.problem.SNProblem.angular_trial_space>`, the
        scheme-widened angular mint, ``is``-shared at every width.  Two
        survivors are NOT sugar and stay by design —
        :meth:`MaterialXSField.from_mesh
@@ -2239,7 +2239,7 @@ them.  Trust ``git``, not this column.
        whether it leaves a zero-mean face mode undamped
        (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
        and the mesh is asked how many axis pairs close
-       (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axes`), so a
+       (:attr:`~orpheus.sn.problem.SNProblem.reflective_axes`), so a
        future scheme answers for itself with no edit.  The gauge fires at
        **all four public entries**, records its magnitude on the
        Solution (the flat ``IterationHistory`` view on this row's date;

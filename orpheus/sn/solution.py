@@ -113,7 +113,7 @@ from orpheus.numerics.outcome import (
 )
 
 if TYPE_CHECKING:
-    from .mesh.augmented_mesh import SNMesh
+    from .problem import SNProblem
     from .splitting import Splitting
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.transport.fields.angular_flux import AngularFlux
@@ -200,7 +200,7 @@ class SolutionBase(Generic[O]):
     cases; the artefacts were re-baselined with that ratio recorded, U2e).
     """
 
-    mesh: "SNMesh"
+    mesh: "SNProblem"
     outcome: O
     strategy: "Splitting"
     certificate: ExitCertificate
@@ -531,7 +531,7 @@ class Solution(SolutionBase[O]):
             The coarse mesh carrying the homogenized materials (one
             :class:`Mixture` per coarse cell, keyed by coarse-cell index).
             Promote to a solvable SN phase space with
-            :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh`.
+            :meth:`~orpheus.sn.problem.SNProblem.from_material_mesh`.
 
         Notes
         -----

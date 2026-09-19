@@ -106,7 +106,7 @@ def face_moment_count(per_axis: int, ndim: int) -> int:
     UBLD Linear-Discontinuous closure (d=2: ``2`` — ``[face-bar, face-slope]``).
     Single source of the "face is codimension-1" policy (the ``d-1`` exponent)
     shared by the trace producer
-    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`) and the interior
+    (:meth:`orpheus.sn.problem.SNProblem.boundary_face_layout`) and the interior
     face cochain (``orpheus.sn.loss_representation._LossRepresentation._n_face_moments``),
     which MUST agree on the face width or the capture↔shed seam mis-shapes (#251).
     The CELL count is the sibling :func:`cell_moment_count` (no ``-1``).

@@ -39,7 +39,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -58,8 +58,8 @@ from tests.sn.sweep.test_assembly_mode import (
 _RTOL = 1e-10
 
 
-def _slab() -> SNMesh:
-    return SNMesh(
+def _slab() -> SNProblem:
+    return SNProblem(
         Mesh1D(edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
                mat_ids=np.array([0, 1, 1, 0]),
                bc_left=BC("vacuum"), bc_right=BC("vacuum")),
@@ -68,8 +68,8 @@ def _slab() -> SNMesh:
     )
 
 
-def _sphere() -> SNMesh:
-    return SNMesh(
+def _sphere() -> SNProblem:
+    return SNProblem(
         Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
                mat_ids=np.array([0, 1, 0]),
                bc_left=BC("reflective"), bc_right=BC("vacuum"),
@@ -79,7 +79,7 @@ def _sphere() -> SNMesh:
     )
 
 
-def _cyl_degenerate() -> SNMesh:
+def _cyl_degenerate() -> SNProblem:
     # The MANDATORY cylinder config (#280 2.5b cyl reverse-scan), re-posed
     # at the 6.3 flip onto the admitted family: ``folded_product(4, 6)`` —
     # the staggered parent at n_φ ≡ 2 (mod 4) places φ = π/2 exactly, and
@@ -87,7 +87,7 @@ def _cyl_degenerate() -> SNMesh:
     # BIT-EXACT: one pure-azimuthal DEGENERATE ordinate per level, AND
     # (like every admitted cylinder rule) a LIVE seed-fold — both
     # cylinder-specific transpose terms active.
-    return SNMesh(
+    return SNProblem(
         Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
                mat_ids=np.array([0, 1, 0]),
                bc_left=BC("reflective"), bc_right=BC("vacuum"),
@@ -97,7 +97,7 @@ def _cyl_degenerate() -> SNMesh:
     )
 
 
-def _cyl_regular() -> SNMesh:
+def _cyl_regular() -> SNProblem:
     # The degenerate-free CONTROL: an n_φ ≡ 0 (mod 4) folded rule has 0
     # pure-azimuthal ordinates — it exercises only the multi-level bulk
     # M-M thread transpose + the seed-fold. ⚠ The pre-6.3 control
@@ -105,7 +105,7 @@ def _cyl_regular() -> SNMesh:
     # that dead-seed state is UNSPELLABLE in the admitted family — every
     # carrying rule's seed is live, so the Mode-7 discrimination
     # narrows to the degenerate axis (see G5).
-    return SNMesh(
+    return SNProblem(
         Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
                mat_ids=np.array([0, 1, 0]),
                bc_left=BC("reflective"), bc_right=BC("vacuum"),
@@ -115,14 +115,14 @@ def _cyl_regular() -> SNMesh:
     )
 
 
-def _ld_slab() -> SNMesh:
+def _ld_slab() -> SNProblem:
     # The #310 C2 row: LD slab on NON-UNIFORM heterogeneous 2G (the mass
     # diag(h, θh) varies cell-to-cell, so the AᵀM⁻¹ order is live).
     from orpheus.transport.spatial.linear_discontinuous import (
         LinearDiscontinuous,
     )
 
-    return SNMesh(
+    return SNProblem(
         Mesh1D(edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
                mat_ids=np.array([0, 1, 1, 0]),
                bc_left=BC("vacuum"), bc_right=BC("vacuum")),
@@ -139,7 +139,7 @@ _MESHES = {
 }
 
 
-def _loss(sn_mesh: SNMesh):
+def _loss(sn_mesh: SNProblem):
     mat_xs = sn_mesh.mat_xs
     return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
@@ -147,7 +147,7 @@ def _loss(sn_mesh: SNMesh):
     )
 
 
-def _fresh(sn_mesh: SNMesh) -> FullField:
+def _fresh(sn_mesh: SNProblem) -> FullField:
     # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
     # spatial_moments=1 is the byte-identical default).
     return FullField(
@@ -156,7 +156,7 @@ def _fresh(sn_mesh: SNMesh) -> FullField:
     )
 
 
-def _seed_cot(sn_mesh: SNMesh, values=None):
+def _seed_cot(sn_mesh: SNProblem, values=None):
     """The ray cotangent member for the transposed JOINT surfaces on a
     carrying mesh (step 6: the joint spelling is the grid — the cotangent
     is a CoupledField member, never a leg kwarg) — ``None`` seedless.
@@ -176,7 +176,7 @@ def _seed_cot(sn_mesh: SNMesh, values=None):
     return cot
 
 
-def _fresh_source(sn_mesh: SNMesh) -> FullField:
+def _fresh_source(sn_mesh: SNProblem) -> FullField:
     """A zero SOURCE-role composite — the codomain-side cotangent carrier
     the grid's transposed surfaces consume (role-honest member algebra)."""
     from orpheus.transport.source_sinks import (
@@ -414,7 +414,7 @@ def test_g5_mandatory_config_activates_cyl_terms():
     ``level_symmetric`` row) without reddening here.  Since the 6.3
     flip the seed axis is UNCONDITIONAL — every admitted cylinder rule
     carries a live seed, the dead-seed control state being unspellable
-    through SNMesh — so the control's discrimination narrows to the
+    through SNProblem — so the control's discrimination narrows to the
     degenerate axis, and the seed clause on BOTH rows pins the
     unconditional activation instead."""
     from orpheus.sn.loss_representation import _OneDimScanWalk

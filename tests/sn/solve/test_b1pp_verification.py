@@ -31,7 +31,7 @@ from scipy.sparse.linalg import LinearOperator as SciLinearOperator
 from scipy.sparse.linalg import gmres
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
@@ -53,7 +53,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_cylinder(nx: int, sn_order: int = 4) -> SNMesh:
+def _build_cylinder(nx: int, sn_order: int = 4) -> SNProblem:
     edges = np.linspace(0.01, 2.0, nx + 1)
     mesh = Mesh1D(
         edges=edges,
@@ -63,10 +63,10 @@ def _build_cylinder(nx: int, sn_order: int = 4) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _build_sphere(nx: int, n_ord: int = 8) -> SNMesh:
+def _build_sphere(nx: int, n_ord: int = 8) -> SNProblem:
     edges = np.linspace(0.0, 2.0, nx + 1)
     mesh = Mesh1D(
         edges=edges,
@@ -76,10 +76,10 @@ def _build_sphere(nx: int, n_ord: int = 8) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _build_slab(nx: int, n_ord: int = 8) -> SNMesh:
+def _build_slab(nx: int, n_ord: int = 8) -> SNProblem:
     edges = np.linspace(0.0, 2.0, nx + 1)
     mesh = Mesh1D(
         edges=edges,
@@ -89,7 +89,7 @@ def _build_slab(nx: int, n_ord: int = 8) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 _GEOMETRIES = [

@@ -90,7 +90,7 @@ if TYPE_CHECKING:
     )
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
-    from ..mesh.augmented_mesh import SNMesh
+    from ..problem import SNProblem
     from .boundary import SNBoundaryOperator
     from .sweep_operator import SweepOperator
 
@@ -167,8 +167,8 @@ class ScheduledInvertibleOperator(
         return self.lower.inner
 
     @property
-    def sn_mesh(self) -> "SNMesh":
-        """The shared :class:`SNMesh` (validated mesh-identity at init)."""
+    def sn_mesh(self) -> "SNProblem":
+        """The shared :class:`SNProblem` (validated mesh-identity at init)."""
         return self.invertible.sn_mesh
 
     @property

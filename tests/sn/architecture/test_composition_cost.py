@@ -170,7 +170,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation as _loss_representation
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.transport.spatial.diamond import DiamondDifference
 from tests.sn.architecture._config import (
@@ -363,7 +363,7 @@ def _ng_generic_materials(ng: int) -> "dict[int, Mixture]":
     }
 
 
-def _cart2d(nx: int, ny: int, *, ng: int = 2, sn_order: int = 4) -> SNMesh:
+def _cart2d(nx: int, ny: int, *, ng: int = 2, sn_order: int = 4) -> SNProblem:
     r"""2-D Cartesian: non-square, heterogeneous along x, non-uniform ``h``,
     mixed reflective/vacuum BC, ``level_symmetric`` (genuine ``mu_y``;
     avoids the #214 ``mu_y == 0`` GL rank mismatch AND the ERR-056
@@ -383,10 +383,10 @@ def _cart2d(nx: int, ny: int, *, ng: int = 2, sn_order: int = 4) -> SNMesh:
         bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
     )
     materials = _two_region_materials() if ng == 2 else _ng_generic_materials(ng)
-    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=sn_order), materials)
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=sn_order), materials)
 
 
-def _slab(nx: int, *, n_ord: int = 8) -> SNMesh:
+def _slab(nx: int, *, n_ord: int = 8) -> SNProblem:
     r"""1-D Cartesian slab: heterogeneous (2 regions), non-uniform ``h``,
     mixed reflective/vacuum BC, 2G, P1.
 
@@ -401,14 +401,14 @@ def _slab(nx: int, *, n_ord: int = 8) -> SNMesh:
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
         _two_region_materials(),
     )
 
 
 def _posed_apply(
-    sn_mesh: SNMesh, *, seed: int = 20260728,
+    sn_mesh: SNProblem, *, seed: int = 20260728,
 ) -> "tuple[LinearOperator, CoupledField]":
     r"""``(A, x)`` for the production posed loss on ``sn_mesh``.
 
@@ -472,7 +472,7 @@ def _count_calls(owner: Any, method_name: str) -> "Iterator[_CallCounter]":
         setattr(owner, method_name, original)
 
 
-def _leaf_calls_for_apply(sn_mesh: SNMesh, *, method: str = "residual_kernel_batch") -> int:
+def _leaf_calls_for_apply(sn_mesh: SNProblem, *, method: str = "residual_kernel_batch") -> int:
     """Entries into ``DiamondDifference.<method>`` during ONE ``A.apply(x)``.
 
     One un-counted warm-up apply first, so a lazily-built cache (the

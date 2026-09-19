@@ -174,7 +174,7 @@ def test_d3_absorber_exact_uniform_field_is_the_discrete_solution() -> None:
     mix = _absorber()
     q, W = _source(quad)
 
-    # A throwaway solve only to obtain a production SNMesh + a state template
+    # A throwaway solve only to obtain a production SNProblem + a state template
     # on the SAME instance (the operators enforce mesh identity).
     sol = solve_sn_fixed_source(
         {0: mix}, _axes(), quad, external_source=q,

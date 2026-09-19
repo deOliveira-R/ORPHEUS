@@ -12,7 +12,7 @@ DERIVED by requiring the quotient to be free (T25: staggered, even
 
 The factory's output is in the CARRYING class on every level
 (``march_start_structure_per_level``: no edge-node start, no η-tie) —
-the exact admissibility contract ``SNMesh(CYLINDRICAL)`` demands at the
+the exact admissibility contract ``SNProblem(CYLINDRICAL)`` demands at the
 wiring step, so this gate is the factory half of that handshake.
 
 The pole-map gate discharges the owed check from the plan's G/P

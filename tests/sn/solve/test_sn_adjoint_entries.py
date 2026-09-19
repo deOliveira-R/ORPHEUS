@@ -281,7 +281,7 @@ class TestSolveSnAdjointFixedSource:
         side is ALSO cross-checked against the hand volume sum
         ``Σ V·Σ_d·φ`` — pinning the entry's angle-flat dual lift.
         """
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.transport.source_sinks import (
             AngularBoundarySourceSink,
             AngularSourceSink,
@@ -314,7 +314,7 @@ class TestSolveSnAdjointFixedSource:
 
         # The pairings, on the SAME independent G.
         sn = adj.mesh
-        require(isinstance(sn, SNMesh), "entry must return its SNMesh.")
+        require(isinstance(sn, SNProblem), "entry must return its SNProblem.")
         q_composite = TimedFullField(
             interior=AngularSourceSink(values=q_per_ord, space=sn.angular_bulk_space),
             boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
@@ -326,7 +326,7 @@ class TestSolveSnAdjointFixedSource:
             _history=(), history_depth=2,
         )
         # ψ composites: the Solutions' angular members carry bulk + trace.
-        # NOTE the forward ran on ITS OWN SNMesh instance — rebuild the
+        # NOTE the forward ran on ITS OWN SNProblem instance — rebuild the
         # pairing on the adjoint's mesh via raw values (the meshes are
         # declaration-identical; g_inner reads values only).
         lhs = g_inner(adj.angular_flux, q_composite, sn)      # ⟨ψ*, q⟩_G

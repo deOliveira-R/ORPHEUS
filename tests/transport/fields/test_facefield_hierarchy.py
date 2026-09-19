@@ -55,7 +55,7 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _sphere_mesh():
-    r"""A sphere-GL SNMesh — carries ONE seed-carrying μ-level (a ψ½ block)
+    r"""A sphere-GL SNProblem — carries ONE seed-carrying μ-level (a ψ½ block)
     AND an angular boundary trace, so both codim-1 loci are constructible."""
     return make_tiny_spherical_sn_mesh()
 

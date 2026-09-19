@@ -122,7 +122,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -177,7 +177,7 @@ _INCREMENT_NULP = 32
 _PRESCRIBED = PrescribedInflow(source=ConstantInflowSource(value=_VALUE))
 
 
-def _slab(xmin=_PRESCRIBED, xmax=None) -> SNMesh:
+def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
     r"""Het 2G slab, GL-8. Default: ``PrescribedInflow`` at ``xmin``, reflective
     at ``xmax`` — the fixture every row below uses.
 
@@ -202,19 +202,19 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNMesh:
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},
     )
 
 
-def _zero_flux(sn: SNMesh) -> TimedFullField:
+def _zero_flux(sn: SNProblem) -> TimedFullField:
     return TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
     )
 
 
-def _random_flux(sn: SNMesh, seed: int) -> TimedFullField:
+def _random_flux(sn: SNProblem, seed: int) -> TimedFullField:
     """A random state on BOTH blocks — a trace-only or bulk-only probe would
     leave half of ``B``'s domain untouched."""
     rng = np.random.default_rng(seed)
@@ -320,7 +320,7 @@ def _assert_close_relative(got, want, scale: float, what: str) -> None:
     )
 
 
-def _full_matvec(sn: SNMesh):
+def _full_matvec(sn: SNProblem):
     """``A = (L + C) − S − B`` — the object the drivers actually consume.
 
     Built through :func:`build_within_group_system`, the single construction

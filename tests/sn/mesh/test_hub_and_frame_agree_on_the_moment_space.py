@@ -1,7 +1,7 @@
 r"""One moment space, two owners — the hub and the frame agree STRUCTURALLY
 (CS4c step 6 item 6.2c-ii; the memo's gates P5, P7 and P10).
 
-Since item 6.2b the carrier (:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`)
+Since item 6.2b the carrier (:class:`~orpheus.sn.problem.SNProblem`)
 owns the moment space and every moment field / admission guard on it holds
 ONE object per ``(L, width)``; since item 6.2c-ii the head it composes is the
 frame's Parseval-dressed ``basis_space`` (ruling R-6.2c-1), and the frame's

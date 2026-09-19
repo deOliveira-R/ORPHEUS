@@ -61,7 +61,7 @@ from numpy.typing import NDArray
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.geometry.boundary import WhiteBoundary
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     SNBoundaryOperator,
@@ -204,7 +204,7 @@ def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4,
     """
     mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
                   coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
 
 
 def _loss(sn, slope: float = 0.4):
@@ -616,7 +616,7 @@ class TestBoundaryUnweld:
         production boundary is ``B_a`` ALONE (the record's seedless
         ``(S, B_a)`` gains — DP-seedless). The ray of ``B_a``'s output stays
         ``None``."""
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -873,7 +873,7 @@ def _graded_sphere(nx: int, ng: int = 2, p: float = 1.5, R: float = 4.0,
     edges = R * (np.arange(nx + 1, dtype=float) / nx) ** p
     mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
                   coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)})
 
 
 def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
@@ -989,7 +989,7 @@ class TestA_BB_RadialBVP:
     member, and the slab is the non-carrying CONTROL (the constructor rejects
     it).  ⛔ "cylinder/slab are the non-carrying CONTROL" read here until
     2026-08-29 and is present-tense FALSE since the Q5.6.3 admission flip: a
-    cylindrical ``SNMesh`` admits only CARRYING (folded) rules, so the slab is
+    cylindrical ``SNProblem`` admits only CARRYING (folded) rules, so the slab is
     the only admitted non-carrying 1-D geometry.
 
     Runtime: gates raise via :func:`pytest.fail` / ``np.testing.assert_*`` (fire
@@ -1243,7 +1243,7 @@ class TestA_BB_RadialBVP:
 
         Positive control: a σ_t on THIS mesh constructs cleanly."""
         # Non-carrying CONTROL — the slab (the only admitted seedless geometry).
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -1516,7 +1516,7 @@ def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4
     """A seed-carrying FISSILE sphere (GL S4) — the F-arm carrier (non-vacuous emission)."""
     mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
                   coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
-    return SNMesh(mesh, Quadrature.gauss_legendre(4),
+    return SNProblem(mesh, Quadrature.gauss_legendre(4),
                   {0: _fissile_mixture(sigma, c * sigma, ng)})
 
 
@@ -1792,7 +1792,7 @@ class TestA_BA_SchurFold:
         is unspellable). The live claim: the fold spy counter stays 0.
         (Until Q5.6.3 an LS cylinder was the second control; a non-carrying
         cylinder is unconstructible since the admission flip.)"""
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -2260,7 +2260,7 @@ class TestCoupledLift:
             pytest.fail("the carrying record's gain grid carries no "
                         "RadialCharacteristicEmission at (B,A) — A_BA is not "
                         "wired as a block gain.")
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -2837,7 +2837,7 @@ class TestA_AB_SeedInjection:
         control — the sphere constructs. Mesh-identity (Pattern 4) —
         ``apply`` / ``apply_transpose`` refuse a field on a DIFFERENT
         sphere."""
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -3075,7 +3075,7 @@ class TestCoupledBuilder:
         if not (grid.n_rows == grid.n_cols == 2):
             pytest.fail(f"carrying sphere built {grid.n_rows}×{grid.n_cols}, "
                         f"expected 2×2.")
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -3083,7 +3083,7 @@ class TestCoupledBuilder:
         # Q5.6.3: the ADMITTED cylinder is folded = CARRYING, so its presence
         # row joins the sphere's 2x2 leg; the slab is the only admitted
         # 1x1 (non-carrying) geometry.
-        cyl_folded = SNMesh(
+        cyl_folded = SNProblem(
             Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
             Quadrature.folded_product(n_mu=4, n_phi=8),
@@ -3313,7 +3313,7 @@ class TestCoupledBuilder:
 # record's seedless arm is a pure re-package).
 
 
-def _het_vacuum_sphere(ng: int = 2) -> SNMesh:
+def _het_vacuum_sphere(ng: int = 2) -> SNProblem:
     r"""Heterogeneous VACUUM 2-region sphere — the Mode-9 configuration
     (vv-principles: never gate a splitting/driver re-pose on the reflective
     isotropic box; vacuum + heterogeneity break the degenerate coincidences)."""
@@ -3321,7 +3321,7 @@ def _het_vacuum_sphere(ng: int = 2) -> SNMesh:
         outers=(2.0, 4.0), mat_ids=(0, 1), n_cells=(3, 3),
         coord=CoordSystem.SPHERICAL, bc=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4),
+    return SNProblem(mesh, Quadrature.gauss_legendre(4),
                   {0: _mixture(1.0, 0.4, ng), 1: _mixture(0.5, 0.1, ng)})
 
 
@@ -3396,7 +3396,7 @@ class TestWithinGroupSystem:
         # (Reach S through N's (A,A) OperatorSum is internal; pin the seam by
         # rebuilding with injection and checking the seedless arm below.)
         # Seedless: the pure re-package.
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -3509,7 +3509,7 @@ class TestWithinGroupSystem:
         dissolved at d2: the fused 3-block spelling is unrepresentable, so a
         bypassing driver cannot even be CONSTRUCTED; the sentinel's teeth are
         now the type system plus this seedless control.)"""
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),
@@ -3714,7 +3714,7 @@ class TestWithinGroupSystem:
         re-package — the production slab SI converges BIT-IDENTICAL
         (array_equal) to the hand-built ``SourceIteration(L+C⁻¹, S, B_a)``
         on the same rhs. A drift here is a bug, never principled-equiv."""
-        slab = SNMesh(
+        slab = SNProblem(
             Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
                    coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
                    bc_left=BC("reflective")),

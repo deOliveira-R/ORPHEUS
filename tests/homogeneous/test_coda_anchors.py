@@ -298,7 +298,7 @@ class TestNoMaterialMeshIsBuiltOnTheHomogeneousPath:
 
     The spy wraps ``MaterialMesh._init_data`` — the ONE data-construction
     body EVERY surface funnels into (``MaterialMesh.__init__``,
-    ``SNMesh._init_core``, ``DiffusionMesh._init_core``; until C2 also the
+    ``SNProblem._init_core``, ``DiffusionMesh._init_core``; until C2 also the
     retired ``from_materials`` factory). That handle was chosen so it
     SURVIVED C2: a spy on the factory would have lost its subject with it
     and read a confident zero for the wrong reason.

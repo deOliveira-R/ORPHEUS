@@ -45,7 +45,7 @@ from orpheus.sn.loss_representation import (
     MovingFrontierWindow,
     ScanMarch,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -80,7 +80,7 @@ def _slab(scheme=None, ng: int = 2):
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng), scheme=scheme)
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), scheme=scheme)
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 0.5 * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -91,7 +91,7 @@ def _lc(sn, sig_t):
     return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
-def _ld2d_mesh() -> SNMesh:
+def _ld2d_mesh() -> SNProblem:
     """Small vacuum LD 2-D mesh — the last-flipped (#310 C5) surface's config."""
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
@@ -100,7 +100,7 @@ def _ld2d_mesh() -> SNMesh:
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=2),
         scheme=LinearDiscontinuous(),
     )

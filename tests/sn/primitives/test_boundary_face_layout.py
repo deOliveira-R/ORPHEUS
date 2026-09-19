@@ -1,4 +1,4 @@
-r"""L0 — :attr:`SNMesh.boundary_face_layout` foundation tests.
+r"""L0 — :attr:`SNProblem.boundary_face_layout` foundation tests.
 
 Pins the per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`
 provider that supplies the flat layout for post-D-G pure-Field
@@ -32,7 +32,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -45,7 +45,7 @@ pytestmark = [pytest.mark.foundation]
 # ───────────────────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -54,10 +54,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _spherical_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _spherical_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -66,17 +66,17 @@ def _spherical_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
+def _2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 # ───────────────────────────────────────────────────────────────────────

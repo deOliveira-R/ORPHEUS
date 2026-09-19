@@ -40,7 +40,7 @@ import pytest
 
 from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
@@ -57,9 +57,9 @@ def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
     stays on the scan too (both affine — no selection regression)."""
     case = build_1d_slab_mms_case()
     mesh = case.build_mesh(16)
-    ld_mesh = SNMesh(mesh, case.quadrature, case.materials,
+    ld_mesh = SNProblem(mesh, case.quadrature, case.materials,
                      scheme=LinearDiscontinuous())
-    dd_mesh = SNMesh(mesh, case.quadrature, case.materials)
+    dd_mesh = SNProblem(mesh, case.quadrature, case.materials)
     if not isinstance(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.angular_closure), CumprodScan):
         pytest.fail(
             "LD slab mesh routed to "
@@ -177,7 +177,7 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
         coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(8)
-    ld_mesh = SNMesh(mesh, quad, materials, scheme=LinearDiscontinuous())
+    ld_mesh = SNProblem(mesh, quad, materials, scheme=LinearDiscontinuous())
     N, ng = quad.N, ld_mesh.ng
 
     rng = np.random.default_rng(20260614)

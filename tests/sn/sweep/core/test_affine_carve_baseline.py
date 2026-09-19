@@ -87,7 +87,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import sweep_once
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -136,8 +136,8 @@ def _capturing(request) -> bool:
     return bool(request.config.getoption("--capture-baseline", default=False))
 
 
-def _build_sn_mesh(geometry: str) -> SNMesh:
-    """Small ≥2G SNMesh for slab / sphere / cylinder.
+def _build_sn_mesh(geometry: str) -> SNProblem:
+    """Small ≥2G SNProblem for slab / sphere / cylinder.
 
     Outer BC vacuum; the curvilinear inner edge (r=0) is the regularity
     pole, declared ``reflective`` per the project convention (NOT a BC —
@@ -191,7 +191,7 @@ def _build_sn_mesh(geometry: str) -> SNMesh:
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=6)
     else:  # pragma: no cover - guarded by parametrize
         raise ValueError(geometry)
-    return SNMesh(mesh, quad, mats)
+    return SNProblem(mesh, quad, mats)
 
 
 def _capture_or_assert(

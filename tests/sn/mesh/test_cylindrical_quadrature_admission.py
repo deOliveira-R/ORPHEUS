@@ -1,4 +1,4 @@
-r"""Cylindrical quadrature ADMISSION — ``SNMesh(CYLINDRICAL)`` constructs iff
+r"""Cylindrical quadrature ADMISSION — ``SNProblem(CYLINDRICAL)`` constructs iff
 every μ-level is CARRYING (Q5.6 step 6.3, the flip).
 
 The admission tier sits BETWEEN two older guards, and the three fire in a
@@ -20,7 +20,7 @@ fixed order on the constructor path:
 
 Admission is decided by STRUCTURE, not provenance: the facts are
 :func:`~orpheus.sn.angular.closure.march_start_structure_per_level`'s
-— the same producer ``SNMesh.radial_characteristic_levels`` reads.  The
+— the same producer ``SNProblem.radial_characteristic_levels`` reads.  The
 upstream quadrature-level classification battery is
 ``tests/sn/sweep/test_march_start_structure.py``; this module gates the
 MESH's consumption of it.
@@ -47,7 +47,7 @@ from orpheus.numerics.quadrature.rules_circle import (
 from orpheus.numerics.quadrature.rules_product import spherical_product
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.symmetry import SubgroupOfO3
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import (
     MarchStart,
     assert_carrying_quadrature,
@@ -76,8 +76,8 @@ def _cyl_mesh(nx: int = 4) -> Mesh1D:
     )
 
 
-def _build(quad: Quadrature) -> SNMesh:
-    return SNMesh(_cyl_mesh(), quad, placeholder_materials())
+def _build(quad: Quadrature) -> SNProblem:
+    return SNProblem(_cyl_mesh(), quad, placeholder_materials())
 
 
 def _full_product(n_mu: int, n_phi: int, shift) -> Quadrature:
@@ -151,7 +151,7 @@ def test_the_spherical_arm_is_untouched():
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials())
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials())
     if sn.radial_characteristic_levels != (0,):
         pytest.fail("sphere carrier moved — the admission guard leaked "
                     "outside the CYLINDRICAL arm.")

@@ -177,7 +177,7 @@ def test_the_tau_trichotomy_is_a_theorem_about_the_facts(
       ``test_tau_arc_wellposedness.py::test_the_cylinder_cannot_violate_P3_once_its_arc_is_MONOTONE``).
     * **full-circle products / level_symmetric** — REFUSED at the
       partition.  These are also inadmissible for a cylindrical
-      ``SNMesh`` since the 6.3 flip, so no production path loses a
+      ``SNProblem`` since the 6.3 flip, so no production path loses a
       claim.
     """
     quadlike = build()

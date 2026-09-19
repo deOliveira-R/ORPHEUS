@@ -86,7 +86,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularBoundarySourceSink
@@ -96,7 +96,7 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = [pytest.mark.foundation]
 
 
-def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
+def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
         geometry=geometry,
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -110,10 +110,10 @@ def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
         if geometry == "CYL"
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _random_state(sn: SNMesh, seed: int = 7) -> TimedFullField:
+def _random_state(sn: SNProblem, seed: int = 7) -> TimedFullField:
     rng = np.random.default_rng(seed)
     z = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
     return replace(
@@ -125,7 +125,7 @@ def _random_state(sn: SNMesh, seed: int = 7) -> TimedFullField:
     )
 
 
-# Geometry × BC cases reachable through SNMesh (1-D faces support only
+# Geometry × BC cases reachable through SNProblem (1-D faces support only
 # reflective / vacuum). Slab uses ASYMMETRIC BCs so the per-face wiring test
 # discriminates a face↔face swap.
 _CASES = {
@@ -141,8 +141,8 @@ _CASES = {
 }
 
 
-def _sn_2d(nx: int = 4, ny: int = 4, ng: int = 2) -> SNMesh:
-    r"""A 2-D reflective Cartesian ``SNMesh`` — RG-5's mandatory fixture.
+def _sn_2d(nx: int = 4, ny: int = 4, ng: int = 2) -> SNProblem:
+    r"""A 2-D reflective Cartesian ``SNProblem`` — RG-5's mandatory fixture.
 
     B3.2 introduced a NEW piece of index arithmetic on the schedule-split
     path: the requested rows are a subset of :math:`\Gamma_-`, so they must be
@@ -161,7 +161,7 @@ def _sn_2d(nx: int = 4, ny: int = 4, ng: int = 2) -> SNMesh:
         bc_xmin=BC.reflective, bc_xmax=BC.reflective,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
 
 
 def _gather(face_slot: np.ndarray, rows: np.ndarray) -> np.ndarray:
@@ -888,7 +888,7 @@ class TestFaceRestrictedReflect:
     """
 
     @staticmethod
-    def _full_inflow_mask(sn: SNMesh):
+    def _full_inflow_mask(sn: SNProblem):
         from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
 
         return SNBoundaryOperator(sn).split(
@@ -896,7 +896,7 @@ class TestFaceRestrictedReflect:
         ).upper
 
     @staticmethod
-    def _inflow_zeroed(sn: SNMesh, boundary: AngularBoundaryFlux) -> AngularBoundaryFlux:
+    def _inflow_zeroed(sn: SNProblem, boundary: AngularBoundaryFlux) -> AngularBoundaryFlux:
         """A copy whose INFLOW rows are zero and whose OUTFLOW rows (the
         reflect's input) are the original's — the additive reflect then reads
         as the assignment."""
@@ -986,14 +986,14 @@ class TestPeriodicReadsThePartnerFace:
     periodic face returned its own outflow as its inflow (MEASURED 98 %
     relative against the partner-face reference).
 
-    Periodic is not in ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` (#189), so
+    Periodic is not in ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` (#189), so
     ``BC("periodic")`` refuses at parse and the law is installed through the
     method's own ``realize_boundary_law`` hook — the same production arm the
     tag path would reach, one step later.
     """
 
     @staticmethod
-    def _periodic_slab(nx: int = 4, ng: int = 1) -> SNMesh:
+    def _periodic_slab(nx: int = 4, ng: int = 1) -> SNProblem:
         sn = _sn("SLB", (BC.vacuum, BC.vacuum), nx=nx, ng=ng)
         law = PeriodicBoundary(axis="x")
         for face in ("xmin", "xmax"):

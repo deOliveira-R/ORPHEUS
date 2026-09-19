@@ -35,7 +35,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -67,7 +67,7 @@ def test_sweep_ng2_layout_shapes():
     nx = 10
     mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNMesh(mesh, quad, {0: mix})
+    sn_mesh = SNProblem(mesh, quad, {0: mix})
 
     # Principled rank-d inputs: sig_t (ng, nx), isotropic scalar source
     # (ng, nx). A producer/consumer drift to the obsolete (nx, ng) layout
@@ -106,7 +106,7 @@ def test_sweep_ng2_per_group_distinct():
     nx = 4
     mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNMesh(mesh, quad, {0: mix})
+    sn_mesh = SNProblem(mesh, quad, {0: mix})
 
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))

@@ -28,7 +28,7 @@ from orpheus.numerics.quadrature import Quadrature
 
 # ─────────────────────────────────────────────────────────────────────
 # Helpers — build the (mesh, quadrature, layout) triple the unified
-# AngularTraceSpace consumes. Layouts mirror SNMesh.boundary_face_layout:
+# AngularTraceSpace consumes. Layouts mirror SNProblem.boundary_face_layout:
 # slab xmin/xmax, curvilinear xmax-only, 2-D xmin/xmax/ymin/ymax.
 # ─────────────────────────────────────────────────────────────────────
 
@@ -274,7 +274,7 @@ def test_curvilinear_xmax_matches_cartesian_xmax():
 
 # C5.3 (#225): the former ``test_2d_cylindrical_raises`` retired WITH the
 # gate it pinned — AngularTraceSpace is geometry-blind (it never sees a mesh), so
-# the 2-D-cylindrical refusal lives where the geometry enters: SNMesh
+# the 2-D-cylindrical refusal lives where the geometry enters: SNProblem
 # construction (``axes_from_legacy_mesh`` raises NotImplementedError for
 # 2-D non-Cartesian; pinned in
 # tests/sn/primitives/test_axis_native_construction.py).

@@ -461,7 +461,7 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     """B10 — ``(ng, *spatial)`` with cell-volume weights; and DISTINCT
     from the method mesh's angular composite.
 
-    ``bulk_space`` is inherited by ``SNMesh``/``DiffusionMesh``, so the
+    ``bulk_space`` is inherited by ``SNProblem``/``DiffusionMesh``, so the
     uniform formula must be honest on EVERY member (the seed of CS2's
     single scalar-bulk mint). The second half
     (``mesh.bulk_space != mesh.full_field_space``) is what makes D7's
@@ -565,7 +565,7 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     permanent truth.
     """
     from orpheus.numerics.quadrature.directional import Quadrature
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.mesh.axis import AxisMesh
     from tests.sn._test_helpers import placeholder_materials
 
@@ -573,7 +573,7 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
         AxisMesh(edges=np.linspace(0.0, ext, n + 1))
         for ext, n in zip((1.0, 2.0, 3.0), (2, 3, 2))
     )
-    sn = SNMesh.from_axes(
+    sn = SNProblem.from_axes(
         axes, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2)
     )
     sp_ax = sn.bulk_space.axis("spatial")

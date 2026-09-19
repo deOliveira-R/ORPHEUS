@@ -97,7 +97,7 @@ described in :ref:`boundary-conditions`:
 parameter to ``"vacuum"`` and the internal helper
 ``_apply_default_bcs`` stamps :attr:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>`
 onto every face of the mesh that lacks an explicit BC declaration.
-:class:`SNMesh` then resolves these to the ``"vacuum"`` kind string,
+:class:`SNProblem` then resolves these to the ``"vacuum"`` kind string,
 which the sweep reads directly.  In the 1-D cumprod path, the
 recurrence starts from zero; in the 2-D wavefront path, the
 reflective-partner copy is skipped, leaving incoming-face angular
@@ -110,7 +110,7 @@ reflection step itself).
    Before the BC infrastructure was introduced, the then-production
    ``transport_sweep`` entry accepted a ``boundary_condition: str``
    parameter directly.  That parameter has been removed --- BCs now flow
-   through the mesh → SNMesh resolution path.  The description above
+   through the mesh → SNProblem resolution path.  The description above
    reflects the current implementation.
 
 **Measured convergence.**  With
@@ -1351,7 +1351,7 @@ an unclamped recurrence divides by zero there.  Both halves of that
 reason have since dissolved, in two steps:
 
 * **Q5.6.3 (2026-08-08)** made the full-circle rule classes
-  *unrepresentable* — a cylindrical ``SNMesh`` now refuses any rule with a
+  *unrepresentable* — a cylindrical ``SNProblem`` now refuses any rule with a
   non-carrying μ-level, so the :math:`\tau = 0` trigger is unreachable
   through any mesh.
 * **Q5.6.4 (2026-08-11)** retired the absorber itself, after finding that
@@ -1497,7 +1497,7 @@ leaves the floor **flat** (`[M]` 1.90e-2, 1.91e-2, 1.91e-2 at
 
 .. note:: **Configuration, 2026-08-11.**  The rule the table above was
    measured on — the full-circle ``NODE_ALIGNED`` product — is
-   **refused at cylindrical** ``SNMesh`` **admission since Q5.6.3**, so
+   **refused at cylindrical** ``SNProblem`` **admission since Q5.6.3**, so
    the numbers are correct history for a fixture that no longer ships.
    The floor moved twice since:
 
@@ -2003,7 +2003,7 @@ Open research paths (research-tag, not production-blocking)
    Q5.6.4 did that with a 1-D :math:`\omega`-march by fixing the cell
    partition (:eq:`angular-cell-partition`).  (b) The duplicate-azimuthal
    rule classes it describes are **inadmissible** at cylindrical
-   ``SNMesh`` since Q5.6.3; the shipped ``folded_product`` is a σ_y
+   ``SNProblem`` since Q5.6.3; the shipped ``folded_product`` is a σ_y
    quotient whose levels are monotone half-circle arcs, so the residual
    floor to be lifted is the one measured on *that* fixture
    (`[M]` 3.538e-3 → 6.782e-4 at :math:`n_\varphi` 8→16), not the
@@ -2214,7 +2214,7 @@ see the honest-scope note below.
      (**#251**).  The boundary trace ``mesh.angular_trace`` carries the
      :math:`2^{d-1}` transverse face-moments per face per ordinate per group
      (a moment-resolved slot ``(N, ng, *face_shape, 2^{d-1})`` minted by
-     :attr:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`, appending the
+     :attr:`orpheus.sn.problem.SNProblem.boundary_face_layout`, appending the
      single-source :func:`orpheus.numerics.moment_layout.face_moment_tail`),
      so a moment-resolved prescribed inflow can carry the along-face
      (transverse) Legendre slope, the sweep outflow STORES the
@@ -2253,7 +2253,7 @@ see the honest-scope note below.
    typed-union bulk widening, the Mode-10 structural-teeth design, and the
    M1–M4 mutation table — is the subsection :ref:`ld-cartesian-2d-legA`
    immediately below.  The full Leg B narrative — the
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` moment-tail
+   :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` moment-tail
    storage lever, the ``_inflow_to_moments`` rank-discriminated pass-through,
    the four outflow capture-collapse DROP sites, the
    ``prescribed_inflow`` scalar-or-moment producer, the transverse
@@ -2698,7 +2698,7 @@ single attribute on the mesh.
 The trace's per-face slot shape is owned not by the
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` itself but by the
 :class:`~orpheus.numerics.face_layout.FaceLayout` it is built from, and that
-layout is minted by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`.
+layout is minted by :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`.
 The widening is therefore ONE site: append the scheme's per-face transverse
 moment tail to each slot,
 
@@ -2713,7 +2713,7 @@ moment tail to each slot,
 
 .. (vv-status rationale) representational: the boundary-trace per-face slot
 .. SHAPE (the codimension-1 :math:`2^{d-1}` transverse-moment tail appended by
-.. ``SNMesh.boundary_face_layout``). A storage-layout identity; its
+.. ``SNProblem.boundary_face_layout``). A storage-layout identity; its
 .. verifiable content — the live slot shapes (LD ``(24,2,6,2)`` vs DD
 .. ``(24,2,6)``) and the DD/Step byte-identical negative control — is pinned
 .. by the FOUNDATION LD gates in the (owned) ``test_mms_ld_2d.py`` /
@@ -2761,7 +2761,7 @@ Three properties make this the clean lever:
   1-D prescribed-inflow MMS is byte-identical not by coincidence but because the
   exponent :math:`d-1` vanishes.
 
-The scheme is reachable: ``SNMesh`` sets ``self.scheme`` before it builds the
+The scheme is reachable: ``SNProblem`` sets ``self.scheme`` before it builds the
 trace, so ``boundary_face_layout`` can read ``self.scheme.spatial_basis_per_axis``
 to compute the tail.  Verified live: with LD the face slots are
 :math:`(24, 2, 6, 2)` / :math:`(24, 2, 8, 2)` (the trailing ``2`` is the
@@ -3146,7 +3146,7 @@ Sources and gates
 ^^^^^^^^^^^^^^^^^
 
 The production change spans three files: the storage lever in
-:attr:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (appending
+:attr:`orpheus.sn.problem.SNProblem.boundary_face_layout` (appending
 :func:`~orpheus.numerics.moment_layout.face_moment_tail`); the inflow lift
 :meth:`_LossRepresentation._inflow_to_moments`, the oracle seed
 :meth:`FullFieldWavefront._octant_face_cochain`, and the four outflow
@@ -3284,7 +3284,7 @@ ansatz, no sibling case).
 now gates on
 :func:`~orpheus.numerics.moment_layout.face_moment_count` — the SAME
 single-source primitive
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` keys the slot width on:
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` keys the slot width on:
 
 * When ``face_moment_count == 1`` (DD/Step) it builds the SCALAR per-face trace
   ``(N, ng, n_t)`` by cell-CENTRE evaluation of :math:`(A + \mu_x B + \mu_y
@@ -3397,7 +3397,7 @@ discretization scheme's own
 :meth:`moment_axis
 <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`
 (minted by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` since
+:attr:`~orpheus.sn.problem.SNProblem.angular_trial_space` since
 CS4b S5; it was a trailing ``SpatialMomentSpace`` *factor* until CS4c step
 6 item 6.2c-iii retired that class, 2026-09-08), rather than a distinct
 field type.  The criterion and its trigger live in the
@@ -3419,7 +3419,7 @@ whose ``_check_partner`` adds nothing beyond class identity would be a vacuous
 naming leaf — type-theatrics by the project's own "if the type hint does not
 prevent a bug by construction it is theatrics" standard.  So the moment rides as
 a PROPERTY (the flat face buffer already holds the moment tail via
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`), and the
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`), and the
 first-class ``SpatialMomentField`` type is DEFERRED to the collocation
 trigger (nodal-DG / Lagrange-FEM, where a
 nodal point-value basis coexists with the modal coefficients and a Vandermonde
@@ -3622,13 +3622,13 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
 .. code-block:: python
 
    from orpheus.sn import solve_sn_fixed_source
-   from orpheus.sn.mesh.augmented_mesh import SNMesh
+   from orpheus.sn.problem import SNProblem
    from orpheus.transport.source_sinks import (
        AngularSourceSink, AngularBoundarySourceSink,
    )
    from orpheus.transport.timed_full_field import TimedFullField
 
-   sn = SNMesh(mesh, quadrature, materials)
+   sn = SNProblem(mesh, quadrature, materials)
 
    # Bulk volumetric source, per-ordinate density (N, ng, *spatial).
    # The space is the carrier's cached mint: read ``angular_trial_space``

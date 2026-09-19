@@ -37,7 +37,7 @@ Solver
 Geometry
 --------
 
-.. automodule:: orpheus.sn.mesh.augmented_mesh
+.. automodule:: orpheus.sn.problem
    :members:
    :undoc-members:
    :show-inheritance:
@@ -91,7 +91,7 @@ excluded, because it is derived rather than generating.  Before that the
 generated comparison raised ``ValueError`` over its arrays and the type
 was unhashable.  A quadrature is a generating datum of every S\ :sub:`N`
 problem, so it must be comparable by content for
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` to be a save state
+:class:`~orpheus.sn.problem.SNProblem` to be a save state
 (:ref:`sn-hub-identity-two-predicates`); it remains a **mutable**
 dataclass, so ``axis.generator``'s arrays are a live reference and the
 factor measure of record is the axis's own read-only ``weights`` copy
@@ -197,7 +197,7 @@ tabulated: :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` asks
 the spatial closure whether it leaves a face mode undamped
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
 and asks the mesh how many reflective axis pairs close
-(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axis_pairs`), so a
+(:attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs`), so a
 discretization added tomorrow answers for itself — and "switch to a closure
 without the undamped mode" is a real remedy at the root rather than a
 coincidence.

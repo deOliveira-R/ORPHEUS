@@ -26,7 +26,7 @@ live in sibling modules
 (:mod:`~orpheus.transport.spatial.diamond`,
 :mod:`~orpheus.transport.spatial.linear_discontinuous`); the sweep consumes
 whichever one the mesh selected, via per-visit :class:`CellVisit` packets
-from :meth:`SNMesh.dag_walk` that pre-resolve the sweep direction so the
+from :meth:`SNProblem.dag_walk` that pre-resolve the sweep direction so the
 strategy sees no sign-of-:math:`\mu` branching.  The strategy-pattern
 rationale and the geometry-blind closure algebra are documented in
 ``docs/theory/methods/sn/index.rst`` and
@@ -189,7 +189,7 @@ class StreamingTerms:
     **all three factories** so that a downstream
     :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` strategy
     receives a self-contained per-cell, per-direction packet and need
-    not reach back into ``SNMesh`` or the ``Quadrature``.  Every
+    not reach back into ``SNProblem`` or the ``Quadrature``.  Every
     surviving curvature field is populated for **every** geometry
     (Step 2.5; slab carries neutral values) as a required ``float``
     (Pattern 4), so cell-update strategies consume the same packet
@@ -250,7 +250,7 @@ class StreamingTerms:
     on the streaming-terms packet so that the
     :class:`~orpheus.transport.spatial.scheme.DiscretizationScheme` cell-update
     contract receives :math:`V_i` directly without needing access to
-    the underlying ``SNMesh``.
+    the underlying ``SNProblem``.
     """
 
     abs_mu: float
@@ -304,7 +304,7 @@ class CellVisit:
     / ``tau`` stamp left with the un-weld (the closure owns them; the
     mesh no longer copies closure data onto visits).  SN's mesh is the
     producer today
-    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`); any other
+    (:meth:`orpheus.sn.problem.SNProblem.dag_walk`); any other
     cell-graph transport method may stamp the same packet.  MoC is
     deliberately **not** such a consumer (its per-ray traversal has a
     different mathematical structure — fiber bundles / solution
@@ -314,7 +314,7 @@ class CellVisit:
     Attributes
     ----------
     cell_idx : int
-        Spatial cell index in the SNMesh.  The cell update reads
+        Spatial cell index in the SNProblem.  The cell update reads
         ``total_xs[cell_idx]`` and ``source[cell_idx]`` at the call
         site (the strategy itself does not see ``cell_idx``).
     streaming_terms : StreamingTerms
@@ -428,7 +428,7 @@ class CellResult:
 # ═══════════════════════════════════════════════════════════════════════
 # Face-transmission damping — the gauge-freedom half that belongs to the
 # CLOSURE (the other half is the boundary set; see
-# ``SNMesh.reflective_axis_pairs``)
+# ``SNProblem.reflective_axis_pairs``)
 # ═══════════════════════════════════════════════════════════════════════
 
 class FaceModeDamping(Enum):
@@ -1135,7 +1135,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         :math:`+1`, so an undamped mode returns to itself and the
         assembled loss operator :math:`A = L + C - S - B` acquires a null
         space.  That — together with the boundary set
-        (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axis_pairs`)
+        (:attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs`)
         — is the gauge freedom the :class:`LossKernelGauge` fixes.
 
         `[M]` 2026-08-14, on both probe cells:

@@ -500,7 +500,7 @@ from the SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one
 ⭐ **And that builder now has exactly one CALLER**, which is a stronger
 statement than "one construction site".  Since 2026-09-13 it is invoked
 only by the :func:`~functools.cached_property`
-:attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`, so
+:attr:`SNProblem.system <orpheus.sn.problem.SNProblem.system>`, so
 a Problem's joint system is built once and every consumer reads THAT
 object: ``[M]`` a counting spy over one forward eigenvalue solve read the
 outer-iteration count before the change and reads **1** after it

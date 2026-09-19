@@ -56,7 +56,7 @@ Key Facts
   mixture **and from nothing else**.
   :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` reads
   the hub and computes; it constructs no data of its own. (CS4c coda,
-  ruling R-c1, 2026-09-08 — the hub is ``SNMesh``'s analogue on the
+  ruling R-c1, 2026-09-08 — the hub is ``SNProblem``'s analogue on the
   infinite path; see :ref:`homogeneous-development-history`.)
 - **Nothing is fabricated on the path.** There is no carrier, no
   ``[0, 1]`` edges, no invented node and no coordinate system: the
@@ -1243,7 +1243,7 @@ is minted from it and from nothing else.
       :math:`S_N`-promotion refusal and the diffusion bounded-geometry
       refusal.  Each had become **input-less**: `[M]` the carrier hierarchy
       has exactly one producer of ``mesh = None``
-      (``SNMesh.from_axes``, above :math:`d = 2`) and every other
+      (``SNProblem.from_axes``, above :math:`d = 2`) and every other
       constructor requires a mesh, so with the homogeneous path no
       longer building one there is no mesh-less :math:`d \leq 2`
       carrier left for those arms to receive.  ``mesh is None``
@@ -2393,7 +2393,7 @@ hash, and ``git`` outranks this column.
        and R-c2, the user, 2026-09-08).  Two commits, in that order.
 
        **(1) The hub.**  Ruled verbatim (R-c1): *"The homogeneous
-       problem needs a hub, just like the function SNMesh (future
+       problem needs a hub, just like the function SNProblem (future
        SNProblem) currently fulfills, to act as the place the consumed
        objects live (and a save state)."*
        :class:`~orpheus.homogeneous.solver.HomogeneousProblem` is that
@@ -2441,11 +2441,11 @@ hash, and ``git`` outranks this column.
        **input-less**, and the argument is a closure rather than a
        census, which is what makes it durable: `[M]` the whole carrier
        hierarchy has exactly **one** producer of ``mesh = None`` —
-       :meth:`SNMesh.from_axes
-       <orpheus.sn.mesh.augmented_mesh.SNMesh.from_axes>`, which
+       :meth:`SNProblem.from_axes
+       <orpheus.sn.problem.SNProblem.from_axes>`, which
        synthesises a legacy adapter when ``len(axes) <= 2`` and returns
        ``None`` only above that — while every other constructor
-       (``MaterialMesh.__init__``, ``SNMesh.__init__``,
+       (``MaterialMesh.__init__``, ``SNProblem.__init__``,
        ``DiffusionMesh.__init__``) takes a mesh as a *required*
        argument.  So once the homogeneous path stopped building one, no
        producer of a mesh-less :math:`d \leq 2` carrier existed at all,
@@ -2459,7 +2459,7 @@ hash, and ``git`` outranks this column.
        positive control and every :math:`d \leq 2` construction path.
        A companion gate makes the retirement *unspellable* rather than
        merely done (``not hasattr(cls, "from_materials")`` over
-       ``MaterialMesh`` / ``SNMesh`` / ``DiffusionMesh``); the homonym
+       ``MaterialMesh`` / ``SNProblem`` / ``DiffusionMesh``); the homonym
        :meth:`EnergyAxis.from_materials
        <orpheus.numerics.axis.EnergyAxis.from_materials>` — a different
        object, and the one energy-arm rule both spellings of the pose
@@ -2481,7 +2481,7 @@ hash, and ``git`` outranks this column.
        ⚠ **Interim home, stated.** The hub lives in the solver module.
        Carving it into a standalone ``Problem`` module with a thin
        ``Problem → Solution`` solver is the consumers campaign's work,
-       alongside the same split for ``SNMesh`` → ``SNProblem``; the
+       alongside the same split for ``SNProblem`` → ``SNProblem``; the
        ruling names that as the long-term shape.
      - —
      - ``5caad3d6`` (the hub), ``39e7f32f`` (the retirement)

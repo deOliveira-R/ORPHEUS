@@ -1847,7 +1847,7 @@ carrier on both arms**, which is what lets the entries drive the hub's
 own daggered question (below).  ⭐ Since 2026-09-13 it **mints nothing**: :math:`F` is the
 record's :attr:`factors.fission
 <orpheus.sn.coupled_system.SNLossFactors.fission>`, which *is* the hub's
-one :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+one :attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`
 by identity, and on a carrying mesh it is that same operator **posed**
 on the coupled carrier by the builder
 (:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`; the
@@ -1860,7 +1860,7 @@ of an operator the forward solve had never held
 (:ref:`sn-one-fission-per-problem`).
 Its ONLY argument is the hub: the retained Legendre order
 comes off :attr:`sn_mesh.scattering_order
-<orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`, so the
+<orpheus.sn.problem.SNProblem.scattering_order>`, so the
 adjoint is posed at exactly the order the forward problem retains.  It
 does not enumerate those gain members: it mints a
 :class:`~orpheus.sn.splitting.Splitting` from the record's factors and
@@ -2040,7 +2040,7 @@ rather than a physics error:
      - ``system.production`` — the same :math:`F` **posed** on the
        coupled carrier
 
-The hub's :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil`, by
+The hub's :attr:`~orpheus.sn.problem.SNProblem.pencil`, by
 contrast, is the **coupled-space** object on *both* arms: ``[M]`` on a
 seedless two-region slab ``system.space`` is a ONE-system
 ``CoupledSpace`` and ``pencil.rhs`` is a ``CoupledOperator`` on it, while

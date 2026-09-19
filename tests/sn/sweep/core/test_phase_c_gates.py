@@ -60,7 +60,7 @@ from orpheus.geometry.boundary import (
     SelfPairedDeck,
     VacuumInflow,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
@@ -91,8 +91,8 @@ def _make_spherical_sn_mesh(
     quad_name: str = "gl4",
     bc_outer: BC | None = None,
     pole_closure=None,
-) -> tuple[SNMesh, np.ndarray]:
-    """Build a homogeneous-material spherical SNMesh + sig_t array.
+) -> tuple[SNProblem, np.ndarray]:
+    """Build a homogeneous-material spherical SNProblem + sig_t array.
 
     Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx) under the rank-d layout.
     """
@@ -109,7 +109,7 @@ def _make_spherical_sn_mesh(
         coord=CoordSystem.SPHERICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 
@@ -120,8 +120,8 @@ def _make_cylindrical_sn_mesh(
     quad_name: str = "folded_4x8",
     bc_outer: BC | None = None,
     pole_closure=None,
-) -> tuple[SNMesh, np.ndarray]:
-    """Build a homogeneous-material cylindrical SNMesh + sig_t array.
+) -> tuple[SNProblem, np.ndarray]:
+    """Build a homogeneous-material cylindrical SNProblem + sig_t array.
 
     6.3 flip: the admitted cylinder family is the σ_y fold; the retired
     ``ls4``/``prod_2x4`` arms (the latter caller-less) named rules the
@@ -137,13 +137,13 @@ def _make_cylindrical_sn_mesh(
         coord=CoordSystem.CYLINDRICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 
 
 def _build_composite(
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
     bulk_values: np.ndarray,
     boundary_values: np.ndarray | None = None,
     *,
@@ -153,7 +153,7 @@ def _build_composite(
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The mesh defining the typed shape ``(N, ng, *spatial)`` on bulk
         and the boundary flat layout.
     bulk_values : np.ndarray
@@ -212,12 +212,12 @@ def _build_composite(
     return CoupledField(systems=(psi_a, radial_characteristic))
 
 
-def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
+def _random_bulk(sn_mesh: SNProblem, rng: np.random.Generator) -> np.ndarray:
     """Random ``(N, ng, *spatial)`` bulk values for the mesh."""
     return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
 
 
-def _joint_op(sn_mesh: SNMesh, op):
+def _joint_op(sn_mesh: SNProblem, op):
     """The JOINT operator for the mesh (step 5): the honest triangular ``M``
     grid on a carrying mesh (the numerics substitution — the fused
     ``CoupledInvertibleOperator`` bridge deleted at 5d), ``op`` itself on a
@@ -302,7 +302,7 @@ def test_apply_linearity_under_sweep_frame(geom):
 
 
 def _flat_psi_composite(
-    sn_mesh: SNMesh, ng: int = 1,
+    sn_mesh: SNProblem, ng: int = 1,
 ) -> TimedFullField:
     """Build a per-ordinate flat (constant in space) ψ as a TimedFullField.
 
@@ -513,7 +513,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     matvec and the sweep consume:
 
     * The same per-direction cell ordering
-      (``SNMesh.dag_walk(direction_sign=...)``).
+      (``SNProblem.dag_walk(direction_sign=...)``).
     * The same WDD diamond closure ``ψ_face_out = 2·ψ_cell -
       ψ_face_in`` per cell.
     * The same BC trace law at the boundary.
@@ -587,7 +587,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
@@ -679,7 +679,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
 
 
 def _outflow_at_boundary_for_sphere_from_bulk(
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
     psi_bulk: np.ndarray,
 ) -> np.ndarray:
     r"""Independently reconstruct the WDD-propagated outflow face value.

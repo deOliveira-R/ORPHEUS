@@ -65,7 +65,7 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.spaces.moment_head import MomentHead
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.frames import HarmonicFrame
 from tests.sn.architecture.test_monomorphic_leaves import _two_region_fissile
@@ -180,13 +180,13 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
 
     This is the fork's own gate (``plan-authoring`` §2: a ruling must be
     visible in the test, not implied by a green).  The hub's moment space
-    (:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`) binds the
+    (:meth:`~orpheus.sn.problem.SNProblem.moment_space`) binds the
     frame's Parseval-dressed head (ruling R-6.2c-1, item 6.2c-ii) — an
     axis-built head whose single axis carries the reciprocal of the discrete
     Gram's diagonal, ``(2ℓ+1)/4π`` on this degree-exact sphere rule, in the
     live slots and 0 in the ``|m| > ℓ`` padding; the frame is its generator.
     """
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
     )
     space = sn_mesh.moment_space(_L)
@@ -278,7 +278,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     a deterministic vector, so the pin's discriminating power is a measurement
     inside the test rather than a claim in its docstring (``vv`` #19).
     """
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
     )
     dressed_space = sn_mesh.moment_space(_L)

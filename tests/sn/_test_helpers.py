@@ -1,11 +1,11 @@
 """Shared test helpers for the SN test suite.
 
 Issue #197 PR-TYPED-0 introduced ``materials`` as a REQUIRED parameter
-on :class:`SNMesh`.  Many geometry-only tests don't consume cross-
+on :class:`SNProblem`.  Many geometry-only tests don't consume cross-
 section values — they exercise sweep DAGs, BC realisation,
 quadrature, cache structure, etc.  ``placeholder_materials`` provides
 a minimal-but-valid :class:`Mixture` dict that those tests can hand
-to :class:`SNMesh` so the construction succeeds without inviting any
+to :class:`SNProblem` so the construction succeeds without inviting any
 real cross-section semantics into the test.
 
 Issue #197 PR-TYPED-2 introduced :class:`AngularBoundaryFlux` as the typed
@@ -13,7 +13,7 @@ replacement for the stringly-typed ``psi_bc: dict``.  Test fixtures
 that previously passed ``{}`` to :func:`transport_sweep` should now
 build a zero-initialised :class:`AngularBoundaryFlux` via
 ``AngularBoundaryFlux.zeros(sn_mesh.angular_trace)`` (or :func:`make_boundary_flux_zero`
-below for non-SNMesh callers).
+below for non-SNProblem callers).
 
 Tests that DO need realistic cross sections continue to use
 ``orpheus.derivations.common.xs_library.get_mixture`` etc. — this
@@ -34,7 +34,7 @@ from orpheus.sn import solve_sn_fixed_source
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -144,7 +144,7 @@ def stamp_capability_marker(items, conftest_file: str, capability: str) -> None:
 def placeholder_materials(
     ng: int = 1, mat_ids: tuple[int, ...] = (0,),
 ) -> dict:
-    """Build a placeholder ``{mat_id: Mixture}`` dict for SNMesh tests.
+    """Build a placeholder ``{mat_id: Mixture}`` dict for SNProblem tests.
 
     Parameters
     ----------
@@ -160,7 +160,7 @@ def placeholder_materials(
     -------
     dict[int, Mixture]
         Each entry has ``SigT = ones(ng)`` and all other cross sections
-        zero.  Suitable for SNMesh tests that don't compute physical
+        zero.  Suitable for SNProblem tests that don't compute physical
         quantities from the materials.
     """
     from orpheus.data.macro_xs.mixture import Mixture
@@ -419,10 +419,10 @@ def curvilinear_two_region_mesh(
     ))
 
 
-def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNMesh":
+def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNProblem":
     """Minimal bound-closure host: an ``n_cells``-cell reflective sphere.
 
-    The cheapest SNMesh satisfying the angular-closure family's
+    The cheapest SNProblem satisfying the angular-closure family's
     ``cls(sn_mesh)`` construction contract (C5, 2026-07-03, retired the
     unbound ``MorelMontryAngularSweep()`` legacy mode) — for foundation
     tests of strategy construction, registry ``create``, repr, and seed
@@ -431,17 +431,17 @@ def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNMesh"
     """
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
     mesh = curvilinear_homogeneous_mesh(
         n_cells, 1.0, coord=CoordSystem.SPHERICAL,
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(sn_order), placeholder_materials(),
     )
 
 
-def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
+def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNProblem":
     """2-D Cartesian, reflective, 2G, NON-SQUARE (the x↔y-swap moat).
 
     The discriminating config for structural operator/representation
@@ -452,7 +452,7 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
     """
     from orpheus.geometry import BC, CoordSystem, Mesh2D
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1),
@@ -462,10 +462,10 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
 
 
-def random_radial_characteristic_field(sn: "SNMesh", rng):
+def random_radial_characteristic_field(sn: "SNProblem", rng):
     """A random ψ½ FLUX composite whose per-slot values reproduce the retired
     unified leaf's single-buffer draw BIT-IDENTICALLY (``None`` on non-carrying).
 
@@ -498,7 +498,7 @@ def random_radial_characteristic_field(sn: "SNMesh", rng):
     return comp
 
 
-def het_operands(sn: "SNMesh"):
+def het_operands(sn: "SNProblem"):
     """Heterogeneous σ_t + a non-flat random state (≥2G, non-degenerate).
 
     Returns ``(sig_t, psi, seed)``: a random per-group per-cell total
@@ -531,7 +531,7 @@ def het_operands(sn: "SNMesh"):
 
 
 def legacy_proxy_matvec(
-    psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
+    psi_view: "np.ndarray", sn_mesh: "SNProblem", sigma_t: "np.ndarray",
     *, bc_outer=None, angular_closure=None,
 ) -> "np.ndarray":
     """Call :func:`_transport_operator_matvec_unified` with the
@@ -690,7 +690,7 @@ def _LC_matvec(
     return joint.systems[0]
 
 
-def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
+def make_boundary_flux_zero(sn_mesh: "SNProblem") -> "AngularBoundaryFlux":
     """Build a zero-initialised :class:`AngularBoundaryFlux` for ``sn_mesh``.
 
     Issue #197 PR-TYPED-2 — typed replacement for ``psi_bc = {}``.
@@ -704,7 +704,7 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
     return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
 
 
-def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
+def make_scalar_flux_zero(sn_mesh: "SNProblem") -> "ScalarFlux":
     """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
     return ScalarFlux.zeros(sn_mesh.bulk_space)
 
@@ -850,7 +850,7 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
     return values, scalar
 
 
-def joint_m_grid(sn_mesh: "SNMesh", LC):
+def joint_m_grid(sn_mesh: "SNProblem", LC):
     """The step-5 joint ``M`` — the honest upper-triangular grid
     ``[[LC, Seeding], [None, march]]`` over the given (possibly variant)
     ``L + C`` — returning ``(grid, space)``.
@@ -890,7 +890,7 @@ def joint_m_grid(sn_mesh: "SNMesh", LC):
 # (anti-R1) — never re-spell them locally, import from here.
 
 
-def g_bulk_measure(sn: "SNMesh") -> np.ndarray:
+def g_bulk_measure(sn: "SNProblem") -> np.ndarray:
     r"""G_bulk = V_cell · w_n [⊗ moment mass] — built from raw mesh data.
 
     On a multi-moment closure (LD) the bulk field carries the trailing
@@ -929,7 +929,7 @@ def g_bulk_measure(sn: "SNMesh") -> np.ndarray:
 
 
 def g_trace_cosine_weight(
-    sn: "SNMesh", face_idx: int, *, with_cosine: bool,
+    sn: "SNProblem", face_idx: int, *, with_cosine: bool,
 ) -> np.ndarray:
     r"""Per-ordinate trace weight for a face: ``|Ω·n|·w_n`` (true) or ``w_n`` (wrong)."""
     w_n = np.asarray(sn.quad.weights, dtype=float)
@@ -938,7 +938,7 @@ def g_trace_cosine_weight(
     return w_n  # the L11 wrong metric: drops |Ω·n|
 
 
-def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNMesh", *,
+def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNProblem", *,
             with_cosine: bool = True) -> float:
     r"""``⟨a,b⟩_G = Σ_bulk a·b·(V·w_n) + Σ_trace a·b·(|Ω·n|·w_n)``.
 
@@ -963,7 +963,7 @@ def g_inner(a: "TimedFullField", b: "TimedFullField", sn: "SNMesh", *,
     return bulk + trace
 
 
-def g_coupled_diagonal(sn: "SNMesh") -> np.ndarray:
+def g_coupled_diagonal(sn: "SNProblem") -> np.ndarray:
     r"""The COUPLED G-metric diagonal from raw mesh data, in flat order.
 
     The full solution metric of a carrying (System-B) mesh, as ONE flat
@@ -1246,7 +1246,7 @@ def rc_march(sn_mesh, total_cross_section):
     )
 
 
-def reflect_outflow_into_inflow(boundary_flux, sn_mesh: "SNMesh") -> None:
+def reflect_outflow_into_inflow(boundary_flux, sn_mesh: "SNProblem") -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
     coupling, externalised for a BARE sweep (Wave O #208 O.4a.2).

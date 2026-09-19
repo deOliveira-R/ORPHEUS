@@ -55,7 +55,7 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -165,7 +165,7 @@ def _two_region_materials() -> dict[int, Mixture]:
 
 # ── meshes ───────────────────────────────────────────────────────────────
 
-def cart2d_seedless() -> SNMesh:
+def cart2d_seedless() -> SNProblem:
     r"""2-D Cartesian, NON-SQUARE, heterogeneous 2G, P1, MIXED BC, S4 LS.
 
     **This is the only geometry on which R7 is observable.**  The boundary
@@ -190,12 +190,12 @@ def cart2d_seedless() -> SNMesh:
         bc_xmin=BC("reflective"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.level_symmetric(sn_order=4), _two_region_materials(),
     )
 
 
-def sphere_carrying() -> SNMesh:
+def sphere_carrying() -> SNProblem:
     r"""1-D spherical, heterogeneous 2G, P1, mixed BC — the CARRYING arm.
 
     A seed-carrying mesh (System B exists), so ``build_within_group_system``
@@ -210,12 +210,12 @@ def sphere_carrying() -> SNMesh:
         coord=CoordSystem.SPHERICAL,
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(),
     )
 
 
-def slab_seedless() -> SNMesh:
+def slab_seedless() -> SNProblem:
     """1-D Cartesian slab — the R7 **trap** control (G-S falls back to Jacobi)."""
     n = 8
     mesh = Mesh1D(
@@ -224,12 +224,12 @@ def slab_seedless() -> SNMesh:
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(),
     )
 
 
-def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNMesh:
+def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNProblem:
     r"""Homogeneous 2G slab, **P0 self-scatter ONLY**, VACUUM both faces.
 
     The σ_r-fold fixture.  Every channel except within-group :math:`P_0` is
@@ -249,12 +249,12 @@ def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNMesh
     )
     scatter = [[c * sig_t, 0.0], [0.0, c * sig_t]]
     mats = {0: anisotropic_mixture([sig_t, sig_t], scatter)}
-    return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=8), mats)
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), mats)
 
 
 # ── the posed record ─────────────────────────────────────────────────────
 
-def record_for(sn_mesh: SNMesh, *, scattering_order: int | None = None) -> "WithinGroupSystem":
+def record_for(sn_mesh: SNProblem, *, scattering_order: int | None = None) -> "WithinGroupSystem":
     """The posed within-group record — the ONE construction site.
 
     The retained order is the HUB's datum (R-cc9, 2026-09-12): ``None`` poses
@@ -315,7 +315,7 @@ def system_a(state: CoupledField) -> FullField:
 # ── the splitting law ────────────────────────────────────────────────────
 
 def splitting_for(
-    sn_mesh: SNMesh, schedule: str = "jacobi", *,
+    sn_mesh: SNProblem, schedule: str = "jacobi", *,
     scattering_order: int | None = None,
 ) -> "Splitting":
     """The Strategy VALUE for ``sn_mesh`` under ``schedule`` — the record
@@ -379,7 +379,7 @@ def reconstruction_residual(
 
 
 def sigma_s0_times_identity(
-    sn_mesh: SNMesh, scattering: "ScatteringOperator",
+    sn_mesh: SNProblem, scattering: "ScatteringOperator",
 ) -> "MultiplicationOperator":
     r"""The σ_r fold's WRONG operator: :math:`\Sigma_{s0}^{g\to g}\,\mathbb{1}`.
 

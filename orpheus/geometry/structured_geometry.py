@@ -39,7 +39,7 @@ In the project's two-role solver split:
 The geometry → mesh transition is the single explicit point where
 discretization information enters the pipeline. Above it: pure
 geometry + materials. Below it: solver-specific augmented meshes
-(``CPMesh``, ``SNMesh``) built by each solver.
+(``CPMesh``, ``SNProblem``) built by each solver.
 
 Geometry kinds and orbit-space classification
 ---------------------------------------------

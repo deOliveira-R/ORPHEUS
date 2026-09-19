@@ -80,7 +80,7 @@ Selection is a single source of truth
    UI cannot build one.
 
 The compatibility signal is the genuine criterion — the coordinate system
-(:attr:`SNMesh.is_cartesian`) and the dimensionality (:attr:`SNMesh.ndim`)
+(:attr:`SNProblem.is_cartesian`) and the dimensionality (:attr:`SNProblem.ndim`)
 — NOT the ``sweep_graphs is None`` substrate proxy.
 
 Carve history
@@ -190,7 +190,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
     from ..angular.closure import AngularClosureBase
-    from ..mesh.augmented_mesh import SNMesh
+    from ..problem import SNProblem
     from ..operators.streaming import StreamingOperator
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from .sweep_schedule import OctantSweep, OctantSweepGroup
@@ -226,7 +226,7 @@ class IncompatibleRepresentation(ValueError):
 
 
 def _curvilinear_capability(
-    mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
 ) -> Compatibility:
     r"""The (scheme × geometry) curvilinear-capability gate — single source.
 
@@ -451,7 +451,7 @@ class LossRepresentation(Protocol):
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         """Whether this strategy can sweep ``mesh`` with ``spatial_closure``.
 
@@ -491,12 +491,12 @@ class _GeometryIntern:
 
     def __init__(self) -> None:
         self._by_content: "WeakValueDictionary[tuple[tuple, type[AngularClosureBase]], StreamingCoefficientCache]" = WeakValueDictionary()
-        self._by_hub: "WeakKeyDictionary[SNMesh, dict[type[AngularClosureBase], StreamingCoefficientCache]]" = WeakKeyDictionary()
+        self._by_hub: "WeakKeyDictionary[SNProblem, dict[type[AngularClosureBase], StreamingCoefficientCache]]" = WeakKeyDictionary()
 
-    def lookup(self, mesh: "SNMesh", closure_cls: "type[AngularClosureBase]") -> "StreamingCoefficientCache | None":
+    def lookup(self, mesh: "SNProblem", closure_cls: "type[AngularClosureBase]") -> "StreamingCoefficientCache | None":
         return self._by_content.get((mesh._contractibility_key, closure_cls))
 
-    def hold(self, mesh: "SNMesh", closure_cls: "type[AngularClosureBase]", cache: StreamingCoefficientCache) -> None:
+    def hold(self, mesh: "SNProblem", closure_cls: "type[AngularClosureBase]", cache: StreamingCoefficientCache) -> None:
         self._by_content[(mesh._contractibility_key, closure_cls)] = cache
         self._by_hub.setdefault(mesh, {})[closure_cls] = cache
 
@@ -513,7 +513,7 @@ _GEOM_CACHE_INTERN = _GeometryIntern()
 
 
 def geometry_cache_for(
-    mesh: "SNMesh", angular_closure: "AngularClosureBase",
+    mesh: "SNProblem", angular_closure: "AngularClosureBase",
 ) -> StreamingCoefficientCache:
     """The lazily-resolved, hub-interned geometry table (Stratum 1).
 
@@ -590,14 +590,14 @@ class _LossRepresentation:
     """Base for every concrete strategy: the mesh + the two closures + the guard.
 
     A frozen dataclass carrying the state every strategy needs — the
-    :class:`SNMesh` (the geometric substrate) and, since P4.9b step 2, the
+    :class:`SNProblem` (the geometric substrate) and, since P4.9b step 2, the
     TWO CLOSURES the posed operator holds: the walk consumes the closure
     pair it is HANDED, never the hub's attributes (the keystone route gate
     ``tests/sn/operators/test_operator_feeds_the_walk.py`` pins it; the
     read-set gate bounds the residual hub route to the two space facts).
     """
 
-    mesh: "SNMesh"
+    mesh: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
 
@@ -607,7 +607,7 @@ class _LossRepresentation:
         return RawSigmaStratum(np.asarray(sig_t))
 
     @classmethod
-    def pose(cls, mesh: "SNMesh") -> "_LossRepresentation":
+    def pose(cls, mesh: "SNProblem") -> "_LossRepresentation":
         """Pose from the hub's own objects — the test-side intermediate.
 
         Production hands the pair explicitly (the posed operator's
@@ -619,7 +619,7 @@ class _LossRepresentation:
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         """The selection predicate — every concrete strategy implements it.
 
@@ -715,7 +715,7 @@ class _LossRepresentation:
         bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  Reads
         the multi-moment face-cochain width from the single-source
         :func:`~orpheus.numerics.moment_layout.face_moment_count` (shared with the
-        trace producer :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`)."""
+        trace producer :meth:`~orpheus.sn.problem.SNProblem.boundary_face_layout`)."""
         return face_moment_count(self.spatial_closure.spatial_basis_per_axis, self.mesh.ndim)
 
     def _moment_frame_signs(
@@ -1140,7 +1140,7 @@ class _OctantWalk:
     test flips xfail → xpass); (d) folds the full-field oracle.
     """
 
-    mesh: "SNMesh"
+    mesh: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
 
@@ -1545,7 +1545,7 @@ class CumprodScan(_LossRepresentation):
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         if not mesh.is_1d:
             return Compatibility(False, "requires a 1-D mesh")
@@ -1681,7 +1681,7 @@ class _DAGWavefront(_LossRepresentation):
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         return Compatibility(
             mesh.is_cartesian and mesh.ndim == 2,
@@ -2032,7 +2032,7 @@ class FullFieldWavefront(_DAGWavefront):
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         # Override the _DAGWavefront family's d=2-only predicate: the spine is
         # the genuine d-generic oracle (it walks the per-octant DAG for any
@@ -2423,7 +2423,7 @@ class ScanMarch(_LossRepresentation):
     kernels unpack d=2 today, so ``supports`` tells the truth (C3.6:
     construct general, SELECT NARROW) and a d≥3 Cartesian mesh
     (constructible since C5.5/#225 via the mesh-less
-    ``SNMesh.from_axes``) falls through ``default_for`` to the genuinely
+    ``SNProblem.from_axes``) falls through ``default_for`` to the genuinely
     d-generic :class:`FullFieldWavefront` spine instead of misrouting
     here (pinned LIVE by ``TestD3SupportsMatrix``; the d≥3 kernel
     generalization is #227).  Widen this predicate WITH the kernel generalization,
@@ -2440,7 +2440,7 @@ class ScanMarch(_LossRepresentation):
 
     @classmethod
     def supports(
-        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+        cls, mesh: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
     ) -> Compatibility:
         # The 1-D arm reads ``is_affine_scannable`` (single-axis prefix
         # scannability — LD's 1-D scan IS valid here).  The d≥2 arm reads the
@@ -2897,7 +2897,7 @@ LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
 
 
 def default_for(
-    mesh: "SNMesh",
+    mesh: "SNProblem",
     spatial_closure: "DiscretizationSchemeBase",
     angular_closure: "AngularClosureBase",
 ) -> LossRepresentation:
@@ -2923,7 +2923,7 @@ def default_for(
         reason.  Otherwise unreachable for a constructible mesh whose scheme is
         geometry-capable (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian
         mesh → ``ScanMarch``; a d≥3 Cartesian mesh — axis-native via
-        ``SNMesh.from_axes`` since C5.5 (#225) — → ``FullFieldWavefront``, the
+        ``SNProblem.from_axes`` since C5.5 (#225) — → ``FullFieldWavefront``, the
         never-stuck any-d spine).
     """
     # #236 ST2: reject a (scheme × geometry) pairing the scheme has no closure
@@ -3058,7 +3058,7 @@ class _OneDimScanWalk:
     coherence axis each frame shares — the #280 shape.
     """
 
-    mesh: "SNMesh"
+    mesh: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
 
@@ -3464,7 +3464,7 @@ class _OneDimScanWalk:
                     # Cartesian has no Morel–Montry angular redistribution
                     # thread (the curvilinear arm below carries it).
                     # NOTE(#240): ``leg.abs_mu / V[i]`` re-derives the raw ``g``
-                    # that ``SNMesh.streaming(0)`` already produces — a Pattern-2
+                    # that ``SNProblem.streaming(0)`` already produces — a Pattern-2
                     # dup; single-sourcing it (``streaming(0)[leg.ordinates, i]``)
                     # is a deferred follow-up pending a widths-vs-volumes bit-id
                     # check.
@@ -4388,7 +4388,7 @@ class _OneDimScanWalk:
             #
             # Per-level seed dispatch — the iterate plays NO role: every
             # ADMITTED curvilinear level is CARRYING (R12a; the Q5.6.3
-            # cylindrical admission refuses non-carrying rules at SNMesh
+            # cylindrical admission refuses non-carrying rules at SNProblem
             # construction), and the ψ½ legs are solved DIRECTLY, up
             # front (before the level loop), by System B's NAMED
             # resolvent ``A_BB.solve`` — the Hébert (3.434)-(3.435) DD
@@ -4999,7 +4999,7 @@ class _OneDimScanWalk:
 def _sweep_scheduled(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",
@@ -5144,7 +5144,7 @@ def _sweep_scheduled(
 def _sweep_jacobi(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",

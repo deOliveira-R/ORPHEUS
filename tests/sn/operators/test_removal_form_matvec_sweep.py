@@ -104,7 +104,7 @@ from orpheus.geometry import (
     BC, CoordSystem, Mesh1D, Mesh2D, Region, RegionMesh, StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import (
     StreamingCollisionOperator,
@@ -133,7 +133,7 @@ pytestmark = [
 # ── Geometry builders ───────────────────────────────────────────────────
 
 
-def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNMesh:
+def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -141,10 +141,10 @@ def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNMes
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
+def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
         geometry="SPH",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -158,12 +158,12 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
     # outside [0, 1]), consumed SILENTLY by the unclamped sphere closure;
     # the equivalence claims here never saw it because both spellings
     # share the τ.  Caught by the Q5.5 [0, 1] guard; issue #336 tracks
-    # the refuse-or-reduce design for SNMesh(SPH) + non-μ-line rules.
+    # the refuse-or-reduce design for SNProblem(SPH) + non-μ-line rules.
     quad = Quadrature.gauss_legendre(4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
+def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
         geometry="CYL",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -171,10 +171,10 @@ def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SNMesh:
+def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SNProblem:
     """NON-SQUARE 2-D Cartesian, ``level_symmetric`` (genuine mu_y — avoids the
     #214 ``mu_y==0`` GL rank-mismatch). Non-square is the x↔y-swap catcher."""
     mesh = Mesh2D(
@@ -184,7 +184,7 @@ def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SN
         coord=CoordSystem.CARTESIAN,
         bc_xmin=BC(bc), bc_xmax=BC(bc), bc_ymin=BC(bc), bc_ymax=BC(bc),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=ng))
 
 
 # Removal-form value gates: slab+sphere+cyl+2D, all ≥2G, vacuum (single solve,
@@ -197,7 +197,7 @@ _REMOVAL_CASES = {
 }
 
 
-def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
+def _removal_sigmas(sn: SNProblem, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
     r"""Heterogeneous σ_t and a TRUE removal σ_r = σ_t − Σ_s0 > 0.
 
     σ_r is built as a numpy array directly (independent of the mesh's
@@ -223,7 +223,7 @@ def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
     return sig_t, sig_r
 
 
-def _random_state(sn: SNMesh, *, seed: int) -> TimedFullField:
+def _random_state(sn: SNProblem, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng([seed, 7])
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)

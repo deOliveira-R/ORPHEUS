@@ -3,7 +3,7 @@ r"""S1 gates for the carrier's angular-bulk space mint (campaign 1 CS4b).
 G1.1–G1.5 of the CS4b verification plan
 (``scratch/cs4b_verification_plan.md`` §11, step S1) plus the scheme-side
 ``moment_axis`` admission pair. The step is provably behaviour-neutral —
-nothing consumes :attr:`SNMesh.angular_bulk_space` yet — so every gate here
+nothing consumes :attr:`SNProblem.angular_bulk_space` yet — so every gate here
 is either a RECORD of the mint's content, a LAW comparing it against the
 SHIPPED dense composite interior (the §6c witness that exists today), or an
 ADMISSION with both legs (vv #11).
@@ -42,7 +42,7 @@ from orpheus.transport.mesh.axis import AxisCoord, AxisMesh, RadialAxisMesh
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.spatial.diamond import DiamondDifference
@@ -55,7 +55,7 @@ _EDGES = np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])
 _NG = 2
 
 
-def _slab(*, scheme=None, ng: int = _NG) -> SNMesh:
+def _slab(*, scheme=None, ng: int = _NG) -> SNProblem:
     mesh = Mesh1D(
         edges=_EDGES,
         mat_ids=np.zeros(_EDGES.size - 1, dtype=int),
@@ -64,7 +64,7 @@ def _slab(*, scheme=None, ng: int = _NG) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     kwargs = {} if scheme is None else {"scheme": scheme}
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), **kwargs
     )
 
@@ -191,7 +191,7 @@ class TestG14GramEquivalenceLD:
         """The unification claim on the LD arm: the composite's interior
         IS the cached trial mint (CS4b S5 upgraded this from ``==`` to
         ``is`` — the widening composition moved from an inline
-        ``of_axes`` here into :attr:`SNMesh.angular_trial_space`, so the
+        ``of_axes`` here into :attr:`SNProblem.angular_trial_space`, so the
         composite, the trial property, and every LD allocation share ONE
         instance), and that mint equals the moment-widened product of
         the cached base."""
@@ -285,7 +285,7 @@ class TestMomentAxisAdmission:
     # than hand back the slab's diagonal.
     #
     # ⭐ §6c — THE WITNESS IS CONSTRUCTIBLE, and that is the point of this
-    # class of gate.  Before the guard, `SNMesh(Mesh1D(coord=SPHERICAL),
+    # class of gate.  Before the guard, `SNProblem(Mesh1D(coord=SPHERICAL),
     # gauss_legendre(4), ..., scheme=LinearDiscontinuous())` BUILT, and its
     # moment weights measured [1., 0.33333333] -- bit-identical to a slab's,
     # on both the sphere AND the cylinder.  The wrong value was being
@@ -374,7 +374,7 @@ class TestMomentAxisAdmission:
 
 
 class TestAngularTrialSpace:
-    """``SNMesh.angular_trial_space`` — the ONE widening mint (CS4b S5).
+    """``SNProblem.angular_trial_space`` — the ONE widening mint (CS4b S5).
 
     The property replaces the retired ``spatial_moments=`` factory int:
     a call site widens by SELECTING this mint instead of threading the

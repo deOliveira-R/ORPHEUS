@@ -37,7 +37,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -51,7 +51,7 @@ pytestmark = pytest.mark.foundation
 # ─── geometry fixtures (slab / sphere / cylinder, reflective box) ──────────
 
 
-def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNMesh:
+def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNProblem:
     if geometry == "SPH":
         mesh = Mesh1D(
             edges=np.linspace(0.0, 2.0, n_cells + 1),
@@ -78,10 +78,10 @@ def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNMesh
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
+def _random_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     from dataclasses import replace
 
     state = TimedFullField.zeros(
@@ -97,7 +97,7 @@ def _random_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     return state
 
 
-def _het_sigma(sn_mesh: SNMesh, *, base: float) -> np.ndarray:
+def _het_sigma(sn_mesh: SNProblem, *, base: float) -> np.ndarray:
     """Heterogeneous ≥2G σ_t (group-scaled, spatially graded) of shape (ng, *spatial).
 
     The mesh's placeholder materials are 1G; the σ-freedom property is per-cell-

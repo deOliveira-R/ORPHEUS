@@ -78,7 +78,7 @@ from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
-from .mesh.augmented_mesh import SNMesh
+from .problem import SNProblem
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .sweep.cache import CollisionCache, StreamingCoefficientCache
 from orpheus.numerics.moment_layout import (
@@ -159,18 +159,18 @@ def _as_sn_mesh(
     *,
     scheme: "DiscretizationSchemeBase | None" = None,
     scattering_order: int = 0,
-) -> "SNMesh":
-    r"""Normalize the entry-surface geometry declaration into an SNMesh.
+) -> "SNProblem":
+    r"""Normalize the entry-surface geometry declaration into an SNProblem.
 
     The single inbound seam for both ``solve_sn`` entries (C5.5,
     #225): ``geometry`` is a legacy :class:`Mesh1D` / :class:`Mesh2D`
     (the d≤2 user-facing declaration) or an axis tuple — the
     axis-native surface and the ONLY 3-D entry
-    (:meth:`SNMesh.from_axes`). ``boundary_condition`` (the
+    (:meth:`SNProblem.from_axes`). ``boundary_condition`` (the
     fixed-source vacuum convention) fills faces only when the
     declaration carries no explicit BC, on either representation;
     ``None`` (the eigenvalue entry) leaves the declaration verbatim —
-    unset faces then resolve to the SNMesh-level reflective default
+    unset faces then resolve to the SNProblem-level reflective default
     (the infinite-lattice eigenvalue convention). ``mat_map`` is the
     axes-entry material-assignment channel (shape ``spatial_shape``;
     defaults to single-material id 0) — a legacy mesh carries its own
@@ -185,11 +185,11 @@ def _as_sn_mesh(
                 "Mesh1D/Mesh2D carries its own mat_ids/mat_map — "
                 "declare the assignment on the mesh."
             )
-        return SNMesh(
+        return SNProblem(
             geometry, quadrature, materials, scheme=scheme,
             scattering_order=scattering_order,
         )
-    return SNMesh.from_axes(
+    return SNProblem.from_axes(
         geometry, quadrature, materials, mat_map=mat_map, scheme=scheme,
         scattering_order=scattering_order,
     )
@@ -475,7 +475,7 @@ class ConvergenceCertificateError(RuntimeError):
 _CERTIFICATE_SAFETY = 10.0
 
 
-def _residual_is_expressible(sn_mesh: "SNMesh") -> bool:
+def _residual_is_expressible(sn_mesh: "SNProblem") -> bool:
     r"""Can this mesh's iterate be turned into a typed equation residual?
 
     ``False`` for a **moment-tailed (LD) scheme**: the residual mint
@@ -541,7 +541,7 @@ def _angular_moment_values(
 
 
 def _balance_projection(
-    field: "FullField | TimedFullField | CoupledField", *, sn_mesh: "SNMesh",
+    field: "FullField | TimedFullField | CoupledField", *, sn_mesh: "SNProblem",
 ) -> np.ndarray:
     r"""Project a per-ordinate field onto the per-group BALANCE functional.
 
@@ -589,7 +589,7 @@ def _balance_evidence(
     residual: "FullField | TimedFullField | CoupledField",
     source: "FullField | TimedFullField | CoupledField",
     *,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     record: IterationRecord,
 ) -> Evidence:
     r"""The returned state's RELATIVE per-group balance defect, as evidence.
@@ -641,7 +641,7 @@ def _balance_evidence(
     return Measured(float(np.linalg.norm(np.asarray(defect_rate))) / denominator)
 
 
-def _gauge_evidence(correction: float | None, *, sn_mesh: "SNMesh") -> Evidence:
+def _gauge_evidence(correction: float | None, *, sn_mesh: "SNProblem") -> Evidence:
     r"""The kernel-gauge displacement :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert`
     as evidence: :class:`Measured` when the trace was projected, else the REASON
     nothing was — no kernel freedom on this configuration, or a closure the
@@ -669,7 +669,7 @@ def _rayleigh_gap_evidence(outcome: "EigenOutcome | SourceOutcome") -> Evidence:
 def _exit_certificate(
     outcome: "EigenOutcome | SourceOutcome",
     *,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     record: IterationRecord,
     gauge_correction: float | None,
     admissibility: Evidence,
@@ -760,7 +760,7 @@ _TraceCarrier = TypeVar("_TraceCarrier", "FullField", "TimedFullField")
 def _exit_gauge_trace(
     psi: _TraceCarrier,
     *,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
 ) -> "tuple[_TraceCarrier, float | None]":
     r"""Return the CANONICAL member of the returned trace's solution manifold.
 
@@ -830,7 +830,7 @@ def _certify_within_group_exit(
     psi: "TimedFullField | CoupledField",
     q_ext: "FullField | CoupledField",
     *,
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
     record: IterationRecord,
     where: str,
 ) -> None:
@@ -977,7 +977,7 @@ def _within_group_krylov(
 
 def _maybe_window(
     sweep: "SweepOperator", scattering_op: "ScatteringOperator",
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
 ) -> "tuple[WindowedSweep | SweepOperator, bool]":
     r"""Phase 5a — compose the 2-D Cartesian angular-windowing product over
     ``sweep`` (the inverse operator ``A.inverse()``), else passthrough.
@@ -1132,7 +1132,7 @@ def _radial_characteristic_fission_seed(
 
 
 def _coupled_flux_state(
-    psi_a: "TimedFullField", sn_mesh: "SNMesh",
+    psi_a: "TimedFullField", sn_mesh: "SNProblem",
 ) -> "CoupledField":
     r"""Pair a System-A FLUX iterate with a zero System-B flux composite.
 
@@ -1148,7 +1148,7 @@ def _coupled_flux_state(
 
 def _coupled_source_state(
     q_a: "FullField", q_half: "RadialCharacteristicField | None",
-    sn_mesh: "SNMesh", *, context: str,
+    sn_mesh: "SNProblem", *, context: str,
 ) -> "CoupledField":
     r"""Pair a System-A SOURCE composite with its q½ System-B member.
 
@@ -1202,7 +1202,7 @@ class InnerSolve(NamedTuple):
 
 
 def _eigenvalue_driver_source(
-    fission_source: np.ndarray, sn_mesh: SNMesh, *, context: str,
+    fission_source: np.ndarray, sn_mesh: SNProblem, *, context: str,
 ) -> "TimedFullField | CoupledField":
     r"""The eigenvalue solve's ``q_ext`` for ONE within-group solve: the
     fission source :math:`F\phi/k` lifted to the per-ordinate composite,
@@ -1259,7 +1259,7 @@ def _eigenvalue_driver_source(
 
 def _within_group_si(
     splitting: "Splitting",
-    sn_mesh: "SNMesh", *, max_iter: int, tol: float,
+    sn_mesh: "SNProblem", *, max_iter: int, tol: float,
     corrector: "LinearOperator | None" = None,
     extra_gains: "tuple[LinearOperator, ...]" = (),
 ) -> "tuple[SourceIteration[Any], SupportsInverse[Any, Any], tuple[LinearOperator, ...], bool]":
@@ -1399,7 +1399,7 @@ class SNSolver:
 
     Parameters
     ----------
-    sn_mesh : SNMesh — augmented geometry (wraps Mesh1D or Mesh2D with
+    sn_mesh : SNProblem — augmented geometry (wraps Mesh1D or Mesh2D with
         precomputed streaming stencil + materials dict + ``ng``).
         Issue #197 PR-TYPED-0: ``sn_mesh.materials`` IS the single
         source of truth for cross sections and group count; the
@@ -1418,7 +1418,7 @@ class SNSolver:
 
     def __init__(
         self,
-        sn_mesh: SNMesh,
+        sn_mesh: SNProblem,
         inner_solver: str = "source_iteration",
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
@@ -2353,10 +2353,10 @@ def solve_sn(
     t_start = time.perf_counter()
 
     # Build augmented geometry (precomputes streaming stencil).
-    # Issue #197 PR-TYPED-0: materials now lives on SNMesh — the
+    # Issue #197 PR-TYPED-0: materials now lives on SNProblem — the
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
     # legacy mesh or an axis tuple (the only 3-D entry); unset faces
-    # resolve to the SNMesh reflective default (eigenvalue convention).
+    # resolve to the SNProblem reflective default (eigenvalue convention).
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
@@ -2565,7 +2565,7 @@ SolutionT = TypeVar("SolutionT", bound=SolutionBase)
 
 def _package_solution(
     cls: "type[SolutionT]",
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
     *,
     outcome: "EigenOutcome | SourceOutcome",
     strategy: "Splitting",
@@ -2604,7 +2604,7 @@ def _package_solution(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _adjoint_posing_parts(sn_mesh: SNMesh):
+def _adjoint_posing_parts(sn_mesh: SNProblem):
     r"""Shared build for the adjoint entries: the daggerable parts.
 
     Returns ``(implicit_operator, gain, production, template, splitting)`` — the invertible
@@ -2995,7 +2995,7 @@ def solve_sn_adjoint_fixed_source(
 
 def _build_fixed_source_rhs(
     external_source: "np.ndarray | TimedFullField | CoupledField",
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
 ) -> "TimedFullField | CoupledField":
     r"""Normalize the external source into the driver RHS.
 
@@ -3188,7 +3188,7 @@ def _build_fixed_source_rhs(
 
 
 def _lift_external_source_to_moments(
-    bulk_values: "np.ndarray", sn_mesh: SNMesh,
+    bulk_values: "np.ndarray", sn_mesh: SNProblem,
 ) -> "tuple[np.ndarray, int]":
     r"""Lift / thread an external source onto the ``2^d`` cell-moment vector,
     returning ``(lifted, per_axis)``.
@@ -3551,7 +3551,7 @@ def solve_sn_multiplying_source(
 
     The ``(M, q)`` cell of the pencil articulation (consumers campaign step 2,
     plan §3.5 / §5.1, RULED 2026-09-13): the Problem poses
-    :meth:`SNMesh.source_posing` — the pencil's member at the physical
+    :meth:`SNProblem.source_posing` — the pencil's member at the physical
     :math:`\sigma = 1` with the external source — and the Strategy lowers it
     as the fixed-source iteration with the production as ONE MORE explicit
     gain (the fission term lagged: :math:`M\psi_{n+1} = N\psi_n + F\psi_n + q`).
@@ -3628,7 +3628,7 @@ def solve_sn_multiplying_source(
 
 def _solve_fixed_source_si(
     solver: SNSolver,
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
     q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,
@@ -3778,7 +3778,7 @@ def _solve_fixed_source_si(
         )
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
     # (The former mesh / quadrature / materials parameters retired in C4 —
-    # Solution never consumed them; the typed fluxes carry the SNMesh
+    # Solution never consumed them; the typed fluxes carry the SNProblem
     # reference, which transitively exposes those handles via
     # ``.mesh.{mesh, quad, materials}``.)
     # ``Solution.angular_flux`` must carry the FULL per-ordinate angular flux.
@@ -3855,7 +3855,7 @@ def _solve_fixed_source_si(
 
 def _solve_fixed_source_krylov(
     solver: SNSolver,
-    sn_mesh: SNMesh,
+    sn_mesh: SNProblem,
     q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,

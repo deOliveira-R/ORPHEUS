@@ -18,7 +18,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import LinearOperator
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -51,7 +51,7 @@ def solver_2g():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     return SNSolver(sn_mesh)
 
 
@@ -203,7 +203,7 @@ class TestRank1EnergyStructure:
         nx, ny = 3, 3
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix}))
 
         c = 1.5
         # PR-INDEX-4: principled (ng, nx, ny).

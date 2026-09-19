@@ -143,7 +143,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
     from orpheus.transport.radial_characteristic_field import (
@@ -769,7 +769,7 @@ class RadialCharacteristicSeeding(
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
         the ray carrier (the domain), the M-M closure ``angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
@@ -786,7 +786,7 @@ class RadialCharacteristicSeeding(
     # off-diagonal block, so it spans both systems (campaign step 4a).
     system_role = SystemRole.COUPLED
 
-    def __init__(self, sn_mesh: "SNMesh") -> None:
+    def __init__(self, sn_mesh: "SNProblem") -> None:
         space = sn_mesh.radial_characteristic_interior_space
         if space is None:
             raise ValueError(
@@ -981,7 +981,7 @@ class RadialCharacteristicSeeding(
 
         The input composite, this operator's ``angular_closure``, and
         the ``volumes`` must all agree with ONE
-        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`'s content, so the
+        :class:`~orpheus.sn.problem.SNProblem`'s content, so the
         seed legs, the M-M coefficients, and the ``/V`` scaling cannot
         desync. Compared per BLOCK (the composite's own ``==`` is
         name+shape and cannot see blocks).

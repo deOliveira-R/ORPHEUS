@@ -1,7 +1,7 @@
 r"""The realized boundary law — a realized operator PAIRED with its descriptor.
 
 After Issue #188 (curvilinear trace support) every
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` BC routes through
+:class:`~orpheus.sn.problem.SNProblem` BC routes through
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator`. After Issue #186
 (B3 + β2) the descriptor model removed the last 2-arg call sites
@@ -46,7 +46,7 @@ The original Wave-8/9 implementation carried an optional
 AngularQuadrature and forwarded ``inner.apply(psi, bound_quad)`` to
 a legacy 2-arg :class:`BoundaryTraceLaw` body. That mode existed
 ONLY because Wave 2 deferred curvilinear trace support, which forced
-:class:`SNMesh._resolve_bcs` to bypass the realizer for spherical /
+:class:`SNProblem._resolve_bcs` to bypass the realizer for spherical /
 cylindrical meshes. Issue #188 lifted that deferral;
 Issue #176 dropped the bound-quadrature mode; Issue #186 then
 dropped the ``*_extra, **_kw`` swallow on :meth:`apply` since the
@@ -57,7 +57,7 @@ Internal — not re-exported
 ==========================
 
 This module is internal to the SN-side wiring at
-``SNMesh.realize_boundary_law`` (the SN arm of the #290 P7b
+``SNProblem.realize_boundary_law`` (the SN arm of the #290 P7b
 ``TransportMethod`` hook). It is NOT re-exported from
 :mod:`orpheus.geometry.boundary` because no consumer outside that
 construction site should wrap operators in this shim.

@@ -2,14 +2,14 @@ r"""Foundation pins for the :class:`Axis1D` primitive (R-1 Phase A C1).
 
 F0.1 — :class:`AxisMesh` endpoints are ``("min", "max")``.
 F0.2 — :class:`RadialAxisMesh` endpoints are ``("outer",)``.
-F0.3 — :meth:`SNMesh.from_axes` 2-D shape + 4 face labels.
+F0.3 — :meth:`SNProblem.from_axes` 2-D shape + 4 face labels.
 F0.4 — Spherical/cylindrical 1-D mesh has 1 face label (the pole is NOT a face).
 F0.5 — :func:`face_shape` derivation matches per-axis cell counts.
 F0.6 — :func:`face_outflow_ordinates` mask matches the inline expression at
        the 5+ legacy sites (``np.where(sign * mu_axis > 1e-15)[0]``).
 F0.7 — Synthetic 3-D admission: ``(AxisMesh(5), AxisMesh(7), AxisMesh(9))``
-       produces 6 face labels via the pure shape functions (no SNMesh).
-F0.8 — :attr:`SNMesh.n_unknowns_flat` matches manual computation across
+       produces 6 face labels via the pure shape functions (no SNProblem).
+F0.8 — :attr:`SNProblem.n_unknowns_flat` matches manual computation across
        slab, sphere, 2-D Cartesian, and synthetic 3-D.
 """
 
@@ -31,7 +31,7 @@ from orpheus.transport.mesh.axis import (
     n_unknowns_flat,
     spatial_shape,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -135,12 +135,12 @@ def test_f0_2_radial_axismesh_rejects_cartesian_coord() -> None:
 
 
 def test_f0_3_from_axes_2d_cartesian_shape_and_face_labels() -> None:
-    """SNMesh.from_axes 2-D Cart: shape (nx, ny) + 4 face labels."""
+    """SNProblem.from_axes 2-D Cart: shape (nx, ny) + 4 face labels."""
     axes = (
         AxisMesh(edges=np.linspace(0.0, 1.0, 11)),  # n=10
         AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
     )
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes,
         quadrature=_level_symmetric_quad_2d(order=4),
         materials={0: _one_group_mixture()},
@@ -163,7 +163,7 @@ def test_f0_3_from_axes_2d_cartesian_shape_and_face_labels() -> None:
     (AxisCoord.RADIAL_CYLINDRICAL, lambda: Quadrature.folded_product(n_mu=2, n_phi=4)),
 ])
 def test_f0_4_solid_radial_mesh_has_one_face_label(coord, make_quad) -> None:
-    """Sphere / cylinder SNMesh has exactly 1 face label (``outer``).
+    """Sphere / cylinder SNProblem has exactly 1 face label (``outer``).
 
     Sphere uses the polar GL quadrature; cylinder requires a level-
     structured quadrature (the folded product family) because the
@@ -176,7 +176,7 @@ def test_f0_4_solid_radial_mesh_has_one_face_label(coord, make_quad) -> None:
             bc_outer=BC("vacuum"),
         ),
     )
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes,
         quadrature=make_quad(),
         materials={0: _one_group_mixture()},
@@ -193,7 +193,7 @@ def test_f0_4_slab_1d_has_two_face_labels() -> None:
     """1-D Cartesian slab has 2 face labels (``min``, ``max``)."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 16),
                      bc_low=BC("vacuum"), bc_high=BC("vacuum")),)
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes,
         quadrature=Quadrature.gauss_legendre(n_ordinates=8),
         materials={0: _one_group_mixture()},
@@ -291,7 +291,7 @@ def test_f0_7_synthetic_3d_admission_six_face_labels() -> None:
     C1 ships the pure shape functions in ``orpheus.transport.mesh.axis``; no
     ``Mesh3D`` dataclass exists yet (D9 of the ultraplan). The 3-D
     admission gate exercises these functions on a synthetic axis tuple
-    without instantiating an :class:`SNMesh` — that lands in a
+    without instantiating an :class:`SNProblem` — that lands in a
     followup once :class:`Mesh3D` is in tree.
     """
     axes = (
@@ -374,7 +374,7 @@ def test_f0_8_n_unknowns_flat_slab() -> None:
     """Slab 1-D: n_cells + outflow at min + outflow at max."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11)),)  # n=10
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
     N, ng = quad.N, 1
@@ -393,7 +393,7 @@ def test_f0_8_n_unknowns_flat_sphere() -> None:
         bc_outer=BC("vacuum"),
     ),)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
     N, ng = quad.N, 1
@@ -409,7 +409,7 @@ def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
         AxisMesh(edges=np.linspace(0.0, 1.0, 8)),  # n=7
     )
     quad = _level_symmetric_quad_2d(order=4)
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
     N, ng = quad.N, 1
@@ -426,7 +426,7 @@ def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
 
 
 def test_f0_8_n_unknowns_flat_synthetic_3d() -> None:
-    """Synthetic 3-D (no SNMesh): n_unknowns_flat from pure function.
+    """Synthetic 3-D (no SNProblem): n_unknowns_flat from pure function.
 
     LS4 already exposes ``mu_z`` as a concrete-class attribute (the
     Protocol declaration catches up in C2), so axis-2 outflow IS

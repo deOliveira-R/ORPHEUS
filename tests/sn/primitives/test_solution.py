@@ -34,7 +34,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.convergence import (
     IterationBudget,
     IterationRecord,
@@ -68,8 +68,8 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 pytestmark = pytest.mark.foundation
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
-    """Build a small slab :class:`SNMesh` for unit testing."""
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+    """Build a small slab :class:`SNProblem` for unit testing."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -78,10 +78,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """GL(8) sibling — the ANGULAR-only discriminator: the (energy,
     spatial) marginal is identical, so only the ψ gate can refuse it."""
     mesh = Mesh1D(
@@ -91,7 +91,7 @@ def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8),
         placeholder_materials(ng=ng),
     )
@@ -110,7 +110,7 @@ def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
 _W4 = float(np.sum(Quadrature.gauss_legendre(n_ordinates=4).weights))  # ∫ 1 dΩ on the GL-4 rule
 
 
-def _state(sn_mesh: SNMesh, fill: float = 1.0) -> CoupledField:
+def _state(sn_mesh: SNProblem, fill: float = 1.0) -> CoupledField:
     """The returned state WHOLE: the one-system coupled field over the hub's full field."""
     member = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
     member.interior.values[:] = fill
@@ -123,7 +123,7 @@ def _member(state: CoupledField) -> TimedFullField:
     return cast(TimedFullField, state.systems[0])
 
 
-def _state_with_scalar(sn_mesh: SNMesh, phi_values: np.ndarray) -> CoupledField:
+def _state_with_scalar(sn_mesh: SNProblem, phi_values: np.ndarray) -> CoupledField:
     """A state whose derived scalar flux ∫ψ dΩ reproduces ``phi_values`` (ψ uniform in angle)."""
     state = _state(sn_mesh, 0.0)
     _member(state).interior.values[:] = (np.asarray(phi_values, dtype=float) / _W4)[None]
@@ -156,25 +156,25 @@ def _certificate() -> ExitCertificate:
     )
 
 
-def _strategy(sn_mesh: SNMesh) -> Splitting:
+def _strategy(sn_mesh: SNProblem) -> Splitting:
     return Splitting.from_schedule(sn_mesh.system, resolve_schedule(sn_mesh, "jacobi"))
 
 
-def _eigen(sn_mesh: SNMesh, state: CoupledField | None = None, *, lam: float = 1.0, trajectory: tuple[float, ...] = ()) -> EigenOutcome:
+def _eigen(sn_mesh: SNProblem, state: CoupledField | None = None, *, lam: float = 1.0, trajectory: tuple[float, ...] = ()) -> EigenOutcome:
     return EigenOutcome(
         posing=sn_mesh.eigen_posing, state=_state(sn_mesh) if state is None else state,
         lam=lam, trajectory=trajectory or (lam,), gauge=ScaleGauge(lambda s: 1.0, 1.0),
     )
 
 
-def _source(sn_mesh: SNMesh, state: CoupledField | None = None) -> SourceOutcome:
+def _source(sn_mesh: SNProblem, state: CoupledField | None = None) -> SourceOutcome:
     return SourceOutcome(
         posing=SourcePosing(sn_mesh.pencil.at(0.0), sn_mesh.system.space.zeros()),
         state=_state(sn_mesh) if state is None else state, gauge=sn_mesh.loss_kernel_gauge,
     )
 
 
-def _solution(sn_mesh: SNMesh, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
+def _solution(sn_mesh: SNProblem, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
     return cls(
         mesh=sn_mesh, outcome=outcome, strategy=_strategy(sn_mesh),
         certificate=_certificate(), record=_record() if record is None else record,
@@ -412,7 +412,7 @@ class TestSolutionCompare:
             sol_a.compare(sol_b)
 
     def test_compare_accepts_sibling_snmesh_over_same_constituents(self) -> None:
-        """Two SNMesh wrappers over the same constituents realize ONE phase
+        """Two SNProblem wrappers over the same constituents realize ONE phase
         space (content identity) — ``compare`` must accept, and so must the
         state-on-domain law (the state's space equals the sibling's by content)."""
         geometry = Mesh1D(
@@ -421,8 +421,8 @@ class TestSolutionCompare:
         )
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         materials = placeholder_materials(ng=2)
-        m1 = SNMesh(geometry, quad, materials)
-        m2 = SNMesh(geometry, quad, materials)
+        m1 = SNProblem(geometry, quad, materials)
+        m2 = SNProblem(geometry, quad, materials)
         assert m1 is not m2 and m1.same_phase_space(m2)
         sol_a = _solution(m1, _source(m1))
         sol_b = _solution(m2, _source(m2))

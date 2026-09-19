@@ -44,7 +44,7 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -86,7 +86,7 @@ pytestmark = [pytest.mark.foundation]
 # ───────────────────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SLB",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -94,10 +94,10 @@ def _slab_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
+def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNProblem:
     geom = StructuredGeometry(
         geometry="SPH",
         regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
@@ -105,13 +105,13 @@ def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNMesh:
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 GEOMETRIES = [("slab", _slab_mesh), ("sphere", _sphere_mesh)]
 
 
-def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
+def _random_state(sn: SNProblem, seed: int) -> TimedFullField:
     """Build a :class:`TimedFullField` with non-trivial bulk + boundary.
 
     Bulk values + boundary face values are independently sampled from

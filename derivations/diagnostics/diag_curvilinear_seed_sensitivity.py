@@ -30,7 +30,7 @@ from orpheus.geometry import (
     BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -48,7 +48,7 @@ def _slab(nx=6, n_ord=4, ng=2, bc="vacuum"):
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _sphere(nx=6, ng=2, bc="vacuum"):
@@ -59,7 +59,7 @@ def _sphere(nx=6, ng=2, bc="vacuum"):
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _cyl(nx=6, ng=2, bc="vacuum"):
@@ -70,7 +70,7 @@ def _cyl(nx=6, ng=2, bc="vacuum"):
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _removal_sigmas(sn, *, seed):

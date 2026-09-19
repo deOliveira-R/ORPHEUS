@@ -162,7 +162,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.sn.loss_representation import MovingFrontierWindow
@@ -209,7 +209,7 @@ compared — the four face views — and nothing more.
 """
 
 # ═══════════════════════════════════════════════════════════════════
-# Setup helpers — small Cartesian SNMesh factory
+# Setup helpers — small Cartesian SNProblem factory
 # ═══════════════════════════════════════════════════════════════════
 #
 # Inheritance: the BC / Mesh2D / quadrature primitives are the same
@@ -267,8 +267,8 @@ def _build_sn_mesh(
     quadrature: str = "LS4",
     n_materials: int = 1,
     ng: int = 1,
-) -> SNMesh:
-    """Build a 3×3 Cartesian SNMesh wired for the 2-D wavefront sweep."""
+) -> SNProblem:
+    """Build a 3×3 Cartesian SNProblem wired for the 2-D wavefront sweep."""
     mesh = _build_2d_mesh(
         nx, ny,
         bc_xmin=bc_xmin, bc_xmax=bc_xmax,
@@ -287,14 +287,14 @@ def _build_sn_mesh(
         quad = Quadrature.lebedev(order=5)                  # N = 14
     else:
         raise ValueError(f"Unknown quadrature kind: {quadrature}")
-    return SNMesh(
+    return SNProblem(
         mesh, quad,
         placeholder_materials(ng=ng, mat_ids=tuple(range(n_materials))),
     )
 
 
 def _build_sig_t(
-    sn_mesh: SNMesh, materials: dict, ng: int,
+    sn_mesh: SNProblem, materials: dict, ng: int,
 ) -> np.ndarray:
     """Build the per-cell per-group ``sig_t`` array from a materials dict.
 
@@ -312,7 +312,7 @@ def _build_sig_t(
     return sig_t
 
 
-def _empty_boundary_flux(sn_mesh: SNMesh) -> "AngularBoundaryFlux":
+def _empty_boundary_flux(sn_mesh: SNProblem) -> "AngularBoundaryFlux":
     """Fresh zero :class:`AngularBoundaryFlux`; the sweep populates buffers on first call.
 
     Issue #197 PR-TYPED-2 — typed replacement for the legacy
@@ -413,7 +413,7 @@ class OctantEquivalenceCase:
     """The vv-principles AI failure mode # (1-7) this row gates against."""
 
     builder: Callable[[], "OctantEquivalenceInputs"]
-    """Builder closure producing the SNMesh + Q + Q_aniso + boundary_flux."""
+    """Builder closure producing the SNProblem + Q + Q_aniso + boundary_flux."""
 
     nulp: int = 64
     """Tolerance budget — see file docstring."""
@@ -454,7 +454,7 @@ class OctantEquivalenceInputs:
     (the public typed contract lives at the ``(L+C)`` operator surface).
     """
 
-    sn_mesh: SNMesh
+    sn_mesh: SNProblem
     Q: np.ndarray                          # (ng, nx, ny) — isotropic source
     sig_t: np.ndarray                      # (ng, nx, ny)
     boundary_flux: "AngularBoundaryFlux"         # mutable — sweep mutates BC buffers
@@ -731,7 +731,7 @@ class _ClosedFormAnchorInputs:
     Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` storage.
     """
 
-    sn_mesh: SNMesh
+    sn_mesh: SNProblem
     Q: np.ndarray              # (ng, nx, ny)
     materials: dict
     expected_phi: np.ndarray   # (ng, nx, ny) — the analytical Q/Σ_t

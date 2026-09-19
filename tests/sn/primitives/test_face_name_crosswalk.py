@@ -3,7 +3,7 @@ r"""L0 pins for the ``FaceLabel.face_name`` crosswalk (C4, issue #220).
 ``FaceLabel.face_name`` is the SINGLE-SOURCED rendering of the
 structural face identity ``(axis_index, endpoint)`` into the
 ``"{axis}{min|max}"`` string world that ``FaceLayout``, the trace
-space, ``SNMesh.bc``, and the sweep schedule all key on. Before C4
+space, ``SNProblem.bc``, and the sweep schedule all key on. Before C4
 the crosswalk was implicit: ``boundary_face_layout`` hand-listed the
 names per geometry, and the curvilinear ``"outer" → "xmax"``
 translation was duplicated at two sites. These pins fix the rendering

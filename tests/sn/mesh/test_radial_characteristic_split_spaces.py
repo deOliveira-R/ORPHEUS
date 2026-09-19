@@ -38,7 +38,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicInteriorSpace as Interior,
     _RadialCharacteristicSubSpace,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -60,7 +60,7 @@ def _legs(levels: tuple[int, ...]) -> list[tuple[int, int]]:
 # ── Mesh builders (replicated from test_radial_characteristic_carrier) ──
 
 
-def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
+def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
     edges = np.linspace(0.0, 1.0, nx + 1)
     mat_ids = np.zeros(nx, dtype=int)
     # Cartesian gets a reflective LEFT edge too; curvilinear leaves the r = 0
@@ -74,15 +74,15 @@ def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
         mesh = Mesh1D(
             edges=edges, mat_ids=mat_ids, coord=coord, bc_right=BC("reflective"),
         )
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere() -> SNMesh:
+def _sphere() -> SNProblem:
     """Sphere-GL: τ_raw,0 ≈ 0.42 ∈ (0, 1) — the CARRYING instance (1 level)."""
     return _mesh_1d(CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4))
 
 
-def _cyl_folded() -> SNMesh:
+def _cyl_folded() -> SNProblem:
     """Cylinder on the admitted folded family — carrying on EVERY level.
 
     (Until Q5.6.3 this file held the two non-carrying cylinder fixtures;
@@ -93,7 +93,7 @@ def _cyl_folded() -> SNMesh:
     )
 
 
-def _slab() -> SNMesh:
+def _slab() -> SNProblem:
     """Cartesian: never carries."""
     return _mesh_1d(CoordSystem.CARTESIAN, Quadrature.gauss_legendre(4))
 
@@ -226,7 +226,7 @@ class TestMetricPartition:
     # ``_radial_characteristic_legs``, so no cross-space drift is spellable).
 
 
-# ── G-C2: mesh presence = ray-carrying (the new SNMesh properties) ──
+# ── G-C2: mesh presence = ray-carrying (the new SNProblem properties) ──
 
 
 class TestMeshPresence:

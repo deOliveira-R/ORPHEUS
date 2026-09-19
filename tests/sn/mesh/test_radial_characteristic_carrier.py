@@ -59,7 +59,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicInteriorSpace,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
@@ -77,7 +77,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
+def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
     kwargs = {"bc_right": BC("reflective")}
     if coord is CoordSystem.CARTESIAN:
         kwargs["bc_left"] = BC("reflective")
@@ -87,17 +87,17 @@ def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
         coord=coord,
         **kwargs,
     )
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere(ng: int = 2, nx: int = 4) -> SNMesh:
+def _sphere(ng: int = 2, nx: int = 4) -> SNProblem:
     """Sphere-GL: τ_raw,0 ≈ 0.42 ∈ (0,1) — the CARRYING instance (1 level)."""
     return _mesh_1d(
         CoordSystem.SPHERICAL, Quadrature.gauss_legendre(4), nx=nx, ng=ng,
     )
 
 
-def _cyl_folded() -> SNMesh:
+def _cyl_folded() -> SNProblem:
     """Cylinder on the admitted folded family — CARRYING on every level.
 
     Until Q5.6.3 this file held two NON-carrying cylinder fixtures
@@ -112,7 +112,7 @@ def _cyl_folded() -> SNMesh:
     )
 
 
-def _slab() -> SNMesh:
+def _slab() -> SNProblem:
     return _mesh_1d(CoordSystem.CARTESIAN, Quadrature.gauss_legendre(4))
 
 

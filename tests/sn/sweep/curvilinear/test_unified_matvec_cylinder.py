@@ -50,7 +50,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import (
@@ -64,7 +64,7 @@ from tests.sn._test_helpers import (
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_cyl(n_cells: int, quad, edges=None) -> SNMesh:
+def _build_cyl(n_cells: int, quad, edges=None) -> SNProblem:
     """Build a homogeneous reflective cylinder mesh."""
     if edges is None:
         edges = np.linspace(0.1, 1.0, n_cells + 1)
@@ -75,10 +75,10 @@ def _build_cyl(n_cells: int, quad, edges=None) -> SNMesh:
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNMesh) -> np.ndarray:
+def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNProblem) -> np.ndarray:
     """Make psi_view BC-consistent at the outer face (incoming ordinates)."""
     quad = sn_mesh.quad
     incoming_mask = quad.mu_x < -1e-15
@@ -92,7 +92,7 @@ def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNMesh) -> np.ndarray:
 
 
 def _extract_at_unknown_slots(
-    field_4d: np.ndarray, sn_mesh: SNMesh,
+    field_4d: np.ndarray, sn_mesh: SNProblem,
 ) -> np.ndarray:
     """Gather field_4d at the curvilinear equation-bearing slots → (ng, n_eq).
 
@@ -115,7 +115,7 @@ def _extract_at_unknown_slots(
 
 
 def _hand_reference_cyl_matvec(
-    psi_view: np.ndarray, sn_mesh: SNMesh, sigma_t: np.ndarray,
+    psi_view: np.ndarray, sn_mesh: SNProblem, sigma_t: np.ndarray,
 ) -> np.ndarray:
     r"""Per-ordinate explicit matvec — the structurally-independent L0 reference.
 

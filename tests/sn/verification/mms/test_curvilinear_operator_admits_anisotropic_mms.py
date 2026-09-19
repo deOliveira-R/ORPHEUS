@@ -54,7 +54,7 @@ import pytest
 from orpheus.derivations.continuous.mms.sn import (
     build_spherical_anisotropic_mms_case,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -71,7 +71,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
     ``residual = (L+C)ψ_ref − hand_continuous_q``.
     """
     mesh = case.build_mesh(nc)
-    sn_mesh = SNMesh(mesh, case.quadrature, case.materials)
+    sn_mesh = SNProblem(mesh, case.quadrature, case.materials)
 
     r = mesh.centers                                   # (nx,)
     mu = case.quadrature.mu_x                           # (N,)

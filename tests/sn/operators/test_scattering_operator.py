@@ -28,7 +28,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import LinearOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.scattering import ScatteringOperator
@@ -126,7 +126,7 @@ def solver_2g_p0():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     solver = SNSolver(sn_mesh)
     return solver
 
@@ -162,7 +162,7 @@ def solver_2g_p0_n2n():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     return SNSolver(sn_mesh)
 
 
@@ -367,7 +367,7 @@ class TestAnisotropicScatteringExtraction:
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
+        return SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=1))
 
     def test_l0_binding_is_isotropic_and_selects_no_redistribution(self, solver_2g_p0):
         """L=0 ⟹ the binding is isotropic and no ℓ ≥ 1 body is selected —
@@ -648,7 +648,7 @@ class TestP0AlgebraicIdentities:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix}))
         op = solver.sn_mesh.system.factors.scattering
 
         phi = np.ones((solver.ng, nx, ny))
@@ -683,7 +683,7 @@ class TestP0AlgebraicIdentities:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix}))
         op = solver.sn_mesh.system.factors.scattering
 
         np.random.seed(31)
@@ -735,7 +735,7 @@ def solver_2g_p1_n2n():
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = Quadrature.lebedev(order=17)
-    return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
+    return SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=1))
 
 
 class TestFoldablePart:
@@ -1031,7 +1031,7 @@ class TestAlgebraicIdentity:
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
+        solver = SNSolver(SNProblem(mesh, quad, {0: mix}))
         op = solver.sn_mesh.system.factors.scattering
 
         N = solver.sn_mesh.quad.N
@@ -1107,7 +1107,7 @@ def _synthetic_p0(self_base, p0, extra_moments=()):
         edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((2, 2), dtype=int),
     )
-    sn = SNMesh(mesh, Quadrature.lebedev(order=17), mat_xs.materials)
+    sn = SNProblem(mesh, Quadrature.lebedev(order=17), mat_xs.materials)
     return ScatteringOperator.from_solver_data(
         mat_xs=mat_xs,
         scattering_order=len(extra_moments),
@@ -1601,7 +1601,7 @@ class TestAnisoMomentSourcePath:
         nx, ny = 3, 2
         mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver_p3 = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=3))
+        solver_p3 = SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=3))
         op_p3 = solver_p3.sn_mesh.system.factors.scattering
 
         rng = np.random.default_rng(20260530 + 2)

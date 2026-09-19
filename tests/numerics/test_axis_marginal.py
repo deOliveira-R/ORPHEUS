@@ -41,7 +41,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -62,14 +62,14 @@ def _product() -> FunctionSpace:
     )
 
 
-def _sn() -> SNMesh:
+def _sn() -> SNProblem:
     mesh = Mesh1D(
         edges=np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0]),
         mat_ids=np.zeros(5, dtype=int),
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 
 def _rand(shape, seed):
@@ -446,7 +446,7 @@ class TestFrameInduction:
         the kernel), not the inequality — a future numpy that closes
         the gap tightens silently, which is the correct direction."""
         from orpheus.geometry import BC, CoordSystem, Mesh1D
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         mesh = Mesh1D(
             edges=np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0]),
@@ -454,7 +454,7 @@ class TestFrameInduction:
             coord=CoordSystem.CARTESIAN,
             bc_left=BC("vacuum"), bc_right=BC("vacuum"),
         )
-        sn = SNMesh(
+        sn = SNProblem(
             mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2),
         )
         E = sn.angular_bulk_space.section("angular")

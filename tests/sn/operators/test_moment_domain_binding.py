@@ -59,7 +59,7 @@ from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -87,7 +87,7 @@ def require(condition: bool, message: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def sn_mesh() -> SNMesh:
+def sn_mesh() -> SNProblem:
     """The ``2d_2g_p1_aniso`` mesh — mirrors ``_cartesian_2d_p1_aniso_het_si``."""
     mat = np.zeros((_NX, _NY), dtype=int)
     mat[:4, :] = 2                       # fuel (id 2) | moderator (id 0)
@@ -98,7 +98,7 @@ def sn_mesh() -> SNMesh:
         bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    return SNMesh(
+    return SNProblem(
         mesh,
         Quadrature.level_symmetric(sn_order=4),
         {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")},
@@ -477,7 +477,7 @@ class TestAdmission:
             "codomain-keyed one.",
         )
 
-        other = SNMesh(
+        other = SNProblem(
             sn_mesh.mesh, Quadrature.level_symmetric(sn_order=6),
             sn_mesh.materials,
         )
@@ -526,7 +526,7 @@ class TestAdmission:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _sn_mesh_with_n2n() -> SNMesh:
+def _sn_mesh_with_n2n() -> SNProblem:
     r"""The fixture's geometry over a 2-group mixture that CARRIES an (n,2n)
     channel (``sig_2`` non-zero) — mixture A/B have none, so on the module
     fixture ``N2N`` is honestly the zero morphism (`[M]` ``is_isotropic``
@@ -550,7 +550,7 @@ def _sn_mesh_with_n2n() -> SNMesh:
         bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L)
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L)
 
 
 class TestTheOtherLifts:

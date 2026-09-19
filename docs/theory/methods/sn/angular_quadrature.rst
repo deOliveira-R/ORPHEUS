@@ -126,7 +126,7 @@ rather than of a sort algorithm.
 .. warning::
 
    Having the level structure is **necessary but not sufficient** for
-   cylindrical use.  Since Q5.6.3 a cylindrical ``SNMesh`` admits only
+   cylindrical use.  Since Q5.6.3 a cylindrical ``SNProblem`` admits only
    **carrying** rules (the R12a march-start predicate,
    :ref:`sn-direct-seed-r12a`), and *every* Level-Symmetric level is
    non-carrying: the :math:`|\mu_z|` grouping puts the hemisphere pair
@@ -344,7 +344,7 @@ and equispaced points in :math:`\varphi` (azimuthal).  Each :math:`\mu`
 level has the same number of azimuthal points, giving a clean level
 structure — the **parent** of the cylindrical production family (its
 :math:`\sigma_y` quotient below; the full-circle rule itself is refused
-at cylindrical ``SNMesh`` admission since Q5.6.3, because every level's
+at cylindrical ``SNProblem`` admission since Q5.6.3, because every level's
 march start is an edge node or a mirror tie —
 :ref:`sn-direct-seed-r12a`).  Weights:
 
@@ -366,7 +366,7 @@ Built by :meth:`Quadrature.product(n_mu, n_phi)
 Folded Product (the σ_y quotient — the cylindrical production family)
 ---------------------------------------------------------------------
 
-The rule a cylindrical ``SNMesh`` actually admits (Q5.6.3):
+The rule a cylindrical ``SNProblem`` actually admits (Q5.6.3):
 the :math:`\sigma_y` **quotient** of the staggered full-circle product.
 The 1-D cylindrical transport problem is invariant under
 :math:`\mu_y \to -\mu_y`, so the physical angular domain is the

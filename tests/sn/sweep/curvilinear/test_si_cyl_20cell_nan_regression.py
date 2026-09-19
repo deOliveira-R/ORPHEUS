@@ -15,7 +15,7 @@ carries that node today; dr = 0.1, Σ_t = 1.0 of mixture A group 1)
 tail of the chain.
 
 REACHABILITY TODAY (Q5.6.3, measured 2026-08-08): on the folded
-family ``SNMesh(CYLINDRICAL)`` admits, the pole-cell resonance is
+family ``SNProblem(CYLINDRICAL)`` admits, the pole-cell resonance is
 UNREACHABLE at physical cross sections — the per-ordinate resonant
 ``Σ_t*`` solves ≤ 0 for every inward ordinate at every probed
 (order, mesh).  The reachability tripwire lives in

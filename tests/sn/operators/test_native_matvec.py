@@ -78,7 +78,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
@@ -96,7 +96,7 @@ pytestmark = pytest.mark.foundation
 # ── Mesh fixtures ────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNMesh:
+def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D slab with vacuum BCs + GL N=4."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, length, nx + 1),
@@ -106,10 +106,10 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
+def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D sphere with reflective inner / vacuum outer + GL N=4."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, radius, nx + 1),
@@ -119,10 +119,10 @@ def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
+def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D cylinder with reflective inner / vacuum outer + the folded rule."""
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
@@ -132,7 +132,7 @@ def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 GEOMETRIES = [
@@ -142,7 +142,7 @@ GEOMETRIES = [
 ]
 
 
-def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
+def _zero_flux(sn_mesh: SNProblem) -> TimedFullField:
     """Construct a zero :class:`TimedFullField` on ``sn_mesh``."""
     # #282 route (a): pass the seed leaf UNIFORMLY — the R12a predicate
     # allocates the present-but-ZERO ψ½ block iff the mesh carries levels
@@ -152,7 +152,7 @@ def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
     )
 
 
-def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
+def _uniform_flux(sn_mesh: SNProblem, value: float = 1.0) -> TimedFullField:
     """Construct a uniform-ψ :class:`TimedFullField` with face state matching.
 
     The boundary face state is set to ``value`` on every face the geometry
@@ -249,7 +249,7 @@ class TestUniformFluxSigmaT:
         )
 
 
-def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNMesh:
+def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNProblem:
     """Reflective slab (homogeneous infinite slab) — flat-flux invariant
     needs reflective BC so the outflow at the boundary reflects back as
     inflow, nulling the net streaming on uniform ψ."""
@@ -261,10 +261,10 @@ def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNMesh:
+def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNProblem:
     """Reflective outer sphere — uniform ψ flat-flux invariant requires
     the outer BC to reflect the outflow back as inflow (so the net
     radial streaming on uniform ψ cancels).  Pole at r=0 always
@@ -277,10 +277,10 @@ def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNMesh:
+def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNProblem:
     """Reflective outer cylinder — same flat-flux logic as sphere."""
     mesh = Mesh1D(
         edges=np.linspace(0.01, radius, nx + 1),
@@ -290,7 +290,7 @@ def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 # ── Pin 3: linearity ────────────────────────────────────────────────
@@ -547,7 +547,7 @@ class TestTwoDCartesianRaises:
         # with non-zero mu_y. The 1-D gauss_legendre set has mu_y=0 for
         # every ordinate, which the trace-space guard correctly rejects.
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         result = _LC_matvec(psi, sigma_t, sn_mesh=sn_mesh)

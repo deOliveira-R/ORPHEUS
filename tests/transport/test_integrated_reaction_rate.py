@@ -31,7 +31,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.functional import Functional
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
@@ -41,7 +41,7 @@ from tests.transport._functional_helpers import cross_section_field, require, sl
 pytestmark = pytest.mark.foundation
 
 
-def _non_uniform_slab(ng: int) -> SNMesh:
+def _non_uniform_slab(ng: int) -> SNProblem:
     """A 1-D slab with NON-UNIFORM cell widths → distinct cell volumes.
 
     A uniform mesh makes the per-cell ``V`` a constant that the ratio/sum can't
@@ -53,9 +53,9 @@ def _non_uniform_slab(ng: int) -> SNMesh:
         edges=edges, mat_ids=np.zeros(4, dtype=int), coord=CoordSystem.CARTESIAN,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng))
 
-def _stretched_nonuniform_slab(ng: int) -> SNMesh:
+def _stretched_nonuniform_slab(ng: int) -> SNProblem:
     """The non-uniform slab at doubled width — same shape, different cell
     volumes (the F2 content discriminator)."""
     edges = 2.0 * np.array([0.0, 0.1, 0.3, 0.6, 1.0])
@@ -63,7 +63,7 @@ def _stretched_nonuniform_slab(ng: int) -> SNMesh:
         edges=edges, mat_ids=np.zeros(4, dtype=int),
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         placeholder_materials(ng=ng),
     )
@@ -267,7 +267,7 @@ class TestN2NActivationInProductionRate:
             edges_x=np.linspace(0.0, 0.8, 5), edges_y=np.linspace(0.0, 0.6, 4),
             mat_map=np.zeros((4, 3), dtype=int),
         )
-        solver = SNSolver(SNMesh(mesh, Quadrature.lebedev(order=17), {0: mat}))
+        solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}))
         ng = solver.ng
         nx, ny = solver.sn_mesh.spatial_shape
         flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))

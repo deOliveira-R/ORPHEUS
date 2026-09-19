@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.numerics.quadrature import Quadrature
@@ -36,8 +36,8 @@ pytestmark = pytest.mark.foundation
 # ── Fixtures ─────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
-    """Build a small slab :class:`SNMesh` for unit testing."""
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+    """Build a small slab :class:`SNProblem` for unit testing."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -46,10 +46,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesh1D(
@@ -60,10 +60,10 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _head_shape(mesh: SNMesh, L: int) -> tuple[int, ...]:
+def _head_shape(mesh: SNProblem, L: int) -> tuple[int, ...]:
     r"""The angular HEAD's own axes for this mesh at order :math:`L`.
 
     ⭐ **Read off the FRAME, never spelled** (#429 tracker 2.5). Two families
@@ -86,22 +86,22 @@ def _head_shape(mesh: SNMesh, L: int) -> tuple[int, ...]:
     return _head_of(mesh, L).shape
 
 
-def _head_of(mesh: SNMesh, L: int) -> MomentHead:
+def _head_of(mesh: SNProblem, L: int) -> MomentHead:
     """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
     head = mesh.quad.angular_frame(L).basis_space   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
     assert isinstance(head, MomentHead)
     return head
 
 
-def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
-    """Build a small 2-D Cartesian :class:`SNMesh`."""
+def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
+    """Build a small 2-D Cartesian :class:`SNProblem`."""
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -580,7 +580,7 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
         solver = SNSolver(sn_mesh)
         op = solver.sn_mesh.system.factors.scattering
 
@@ -617,7 +617,7 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
         solver = SNSolver(sn_mesh)
         op = solver.sn_mesh.system.factors.scattering
 
@@ -659,7 +659,7 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
         solver = SNSolver(sn_mesh)
         op = solver.sn_mesh.system.factors.scattering
 
@@ -706,7 +706,7 @@ class TestZerosForMeshAndL:
         # Independent allocations.
         assert phi1.values is not phi2.values
         phi1.values.flags.writeable
-        # One space identity — the carrier's cached mint (SNMesh.moment_space,
+        # One space identity — the carrier's cached mint (SNProblem.moment_space,
         # CS4c step 6 item 6.2b): the SAME object, not merely content-equal.
         assert phi1.space == phi2.space
         assert phi1.space is phi2.space

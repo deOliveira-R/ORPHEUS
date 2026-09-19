@@ -935,7 +935,7 @@ precomputed conductance / closure attributes and the production einsum
 kernels; for the SN block, the scheme's own production matvec kernel
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
 (the identical body ``apply`` runs, fed by the same
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.streaming` raw per-axis
+:meth:`~orpheus.sn.problem.SNProblem.streaming` raw per-axis
 data). The consequence is that a sign flip *anywhere* in the shared
 kernel algebra moves solve, apply, AND assemble **together** — the
 one-source teeth (:ref:`loss-rep-assembly-verification`) bite by
@@ -1138,7 +1138,7 @@ Morel–Montry half-angle closure, and the lagged :math:`\psi_{1/2}` pole
 seed is precisely a **walk-order back edge**: the seed row reads
 *later*-ordinate columns, so no cell ordering makes the block triangular.
 The mesh enforces the scope honestly —
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.streaming` is the Cartesian
+:meth:`~orpheus.sn.problem.SNProblem.streaming` is the Cartesian
 gate the assembler consumes.
 
 Rather than hide the obstruction, 2b **characterised it positively**: a
@@ -1214,7 +1214,7 @@ The four representations — four schedules of one operator
 
 A :class:`~orpheus.sn.loss_representation.LossRepresentation` is a
 stateless frozen dataclass (its only field is the
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` it was selected for). Each is a
+:class:`~orpheus.sn.problem.SNProblem` it was selected for). Each is a
 distinct **schedule** over the same lower-triangular
 :math:`(L+C)` — a different topological linearisation of the identical
 cell dependencies. They are *algorithms*, not operators.
@@ -1916,9 +1916,9 @@ handed**:
    test-side construction that used to pass a bare mesh.
 
 The compatibility signal is the *genuine* criterion — the coordinate
-system (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_cartesian`, i.e.
+system (:attr:`~orpheus.sn.problem.SNProblem.is_cartesian`, i.e.
 ``curvature is None``), the dimensionality
-(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.ndim`), **and the cell-update
+(:attr:`~orpheus.sn.problem.SNProblem.ndim`), **and the cell-update
 scheme's capability traits** — **not** the ``sweep_graphs is None``
 substrate proxy that the pre-carve code keyed on. The two scan
 representations read a *scheme* trait, not just geometry:
@@ -2298,7 +2298,7 @@ bare ``assert`` — vv-principles failure Mode 8). Two test files carry them:
     refusal gate that only ever refuses validates the raising, not the
     invariant);
   - ``test_scan_march_refuses_2d_ld_real_mesh`` — on a real
-    ``SNMesh(Mesh2D, LS-S4, scheme=LinearDiscontinuous())``,
+    ``SNProblem(Mesh2D, LS-S4, scheme=LinearDiscontinuous())``,
     ``ScanMarch.supports(...).ok is False`` (the CONFIRMED-LIVE misroute,
     now closed);
   - ``test_2d_ld_default_for_routes_to_wavefront`` —
@@ -2493,7 +2493,7 @@ The four faces are ``{forward, transpose} × {solve, apply}``:
 
 The reverse-DAG transpose is verified against the *same* per-ordinate
 cell DAG the forward walks
-(:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk_cell_indices`):
+(:meth:`~orpheus.sn.problem.SNProblem.dag_walk_cell_indices`):
 the adjoint walks ``dag_walk_cell_indices(direction_sign=s)`` and then
 ``reversed(cells)``. This is the **discrete Euclidean transpose**, NOT
 :math:`\mu`-reversal and NOT the continuous adjoint (see the warning
@@ -2949,7 +2949,7 @@ from the bulk:
   per geometry — sphere-GL carries one block; a σ_y-folded cylinder
   rule carries one per level; full-circle and level-symmetric cylinder
   rules and every Cartesian mesh carry none (and since Q5.6.3 the two
-  non-carrying cylinder classes are refused at ``SNMesh`` admission,
+  non-carrying cylinder classes are refused at ``SNProblem`` admission,
   so every *constructible* curvilinear mesh carries on every level).
 
 The clean-bulk consequence is the load-bearing architecture.  The bulk
@@ -3044,7 +3044,7 @@ rather than a forced one.
    structure, reified* — the mesh enumerates its blocks (bulk always;
    spatial trace always; angular trace iff :math:`\tau_{\rm raw} \in (0,1)`
    on that level) and the composite mirrors it, via a ``PhaseSpaceCarrier``
-   protocol in ``transport`` that ``SNMesh`` (in ``sn``) satisfies — sn →
+   protocol in ``transport`` that ``SNProblem`` (in ``sn``) satisfies — sn →
    transport, never the reverse.  The B.2d eviction already made presence
    **unconstructable-by-design** (a live-ray ``ψ_A`` is a type error); what
    ``PhaseSpaceCarrier`` would add is building the carrier *from* the
@@ -3116,7 +3116,7 @@ the block, the grid's ``solve`` for the joint march; the eigenvalue
 finalize re-routed onto ``build_within_group_system`` at 6a).
 
 The mesh remains the single authority on presence
-(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`);
+(:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`);
 what changed at step 6 is that nothing *checks* against it anymore —
 the type system carries the biconditional.
 

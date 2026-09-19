@@ -35,7 +35,7 @@ import numpy as np
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     MovingFrontierWindow,
@@ -62,7 +62,7 @@ def build(nx, ny, lvl, ng):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")})
+    sn = SNProblem(mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")})
     rng = np.random.default_rng(7)
     N = sn.quad.N
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))

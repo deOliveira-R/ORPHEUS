@@ -30,7 +30,7 @@ from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import FullFieldSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.coupled_system import build_within_group_system
@@ -63,7 +63,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
         sn_mesh, solver.sn_mesh.mat_xs,
@@ -99,7 +99,7 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad, {0: fuel})
+    sn_mesh = SNProblem(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
     shape = (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
     a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
@@ -206,7 +206,7 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(
         sn_mesh, inner_solver="source_iteration",
     )
@@ -354,7 +354,7 @@ def _tiny_sphere_2g(nx: int = 5):
         edges=np.linspace(0.0, 2.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
         coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), {0: fuel})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: fuel})
 
 
 @pytest.mark.foundation

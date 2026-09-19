@@ -144,7 +144,7 @@ class MCMesh:
     """Augmented geometry for Monte Carlo delta-tracking.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and provides point-wise material
-    lookup, following the same pattern as ``CPMesh`` and ``SNMesh``.
+    lookup, following the same pattern as ``CPMesh`` and ``SNProblem``.
 
     Supported coordinate systems:
 

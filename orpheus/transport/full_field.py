@@ -301,8 +301,8 @@ class Composite(Generic[Interior, Boundary]):
         checks bookkeeping instead of physics. ``from_blocks`` derives
         the name from member content (the of_axes rule), so this property
         compares ``==`` (content) with the carrier's cached mint
-        (``SNMesh.full_field_space`` / ``DiffusionMesh.full_field_space``
-        / ``SNMesh.radial_characteristic_field_space``) whenever the
+        (``SNProblem.full_field_space`` / ``DiffusionMesh.full_field_space``
+        / ``SNProblem.radial_characteristic_field_space``) whenever the
         blocks ride carrier-minted spaces — which post-S2a they always
         do. Not ``is``: the wrapper is minted per composite (cached per
         instance); the MEMBERS are the carrier's cached objects.

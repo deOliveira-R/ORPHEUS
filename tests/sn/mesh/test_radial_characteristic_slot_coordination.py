@@ -11,7 +11,7 @@ solve) passes ``p_idx`` — the enumerate POSITION — to
 member of ``self.levels``. This is **correct, not a coincidence**:
 
 * the space's ``levels`` are level POSITIONS (``enumerate(raw)`` in
-  :meth:`SNMesh.radial_characteristic_levels`), the same coordinate that keys the
+  :meth:`SNProblem.radial_characteristic_levels`), the same coordinate that keys the
   space slots AND indexes ``level_ordinates_list[p_idx]`` in the sweep;
 * the gate ``seed_levels = frozenset(mesh.radial_characteristic_levels)`` and the
   space ``for_levels(mesh.radial_characteristic_levels)`` read the SAME tuple, so
@@ -56,7 +56,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -69,7 +69,7 @@ def _require(cond: bool, msg: str) -> None:
         raise AssertionError(msg)
 
 
-def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
+def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
     edges = np.linspace(0.0, 1.0, nx + 1)
     mat_ids = np.zeros(nx, dtype=int)
     # Cartesian carries a left (inner) BC; curvilinear's inner edge is the pole
@@ -81,10 +81,10 @@ def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNMesh:
     else:
         mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=coord,
                       bc_right=BC("reflective"))
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _n_angular_levels(sn: SNMesh) -> int:
+def _n_angular_levels(sn: SNProblem) -> int:
     """The count of angular levels the sweep iterates (its ``levels`` variable).
 
     Mirrors loss_representation ~L3971-3979: sphere is the single-level ``[None]``
@@ -115,7 +115,7 @@ _CYL_FOLDED = [("cyl_folded_%dx%d" % (m, p), CoordSystem.CYLINDRICAL,
                 lambda sn: tuple(range(len(sn.quad.level_indices))))
                for m, p in ((2, 4), (4, 8), (4, 6), (6, 12))]
 # The pre-flip dead-seed families (full products, level-symmetric) held
-# ``()`` rows here until the Q5.6.3 admission flip made their SNMesh
+# ``()`` rows here until the Q5.6.3 admission flip made their SNProblem
 # construction REFUSE outright — their negatives now live one tier up,
 # in ``test_cylindrical_quadrature_admission.py`` (single source: the
 # refusal module owns "which rules are refused and why"; this battery

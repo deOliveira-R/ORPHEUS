@@ -226,7 +226,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 __all__ = [
     "GAUGE_ESCALATION_FLAG",
@@ -350,7 +350,7 @@ class GaugeFreedom:
             )
 
 
-def gauge_freedom(sn_mesh: "SNMesh") -> GaugeFreedom:
+def gauge_freedom(sn_mesh: "SNProblem") -> GaugeFreedom:
     r"""Does this configuration admit gauge freedom in :math:`\ker A`?
 
     .. math::
@@ -454,7 +454,7 @@ def _damping_alternatives(ndim: int) -> str:
 
 
 def warn_if_gauge_freedom(
-    sn_mesh: "SNMesh", correction: Evidence, *, where: str,
+    sn_mesh: "SNProblem", correction: Evidence, *, where: str,
 ) -> None:
     r"""Say that the trace was repaired, or that the closure was unclassifiable.
 
@@ -565,7 +565,7 @@ def _anova_dimension(cells: tuple[int, ...]) -> int:
     )
 
 
-def predicted_kernel_dimension(sn_mesh: "SNMesh") -> int:
+def predicted_kernel_dimension(sn_mesh: "SNProblem") -> int:
     r"""``dim ker A`` from the counting law — **without building any vector**.
 
     The structurally independent check on :class:`LossKernelGauge`: this walks
@@ -603,7 +603,7 @@ def predicted_kernel_dimension(sn_mesh: "SNMesh") -> int:
 # ─────────────────────────────────────────────────────────────────────
 # The ordinate orbits under the reflection group
 # ─────────────────────────────────────────────────────────────────────
-def _direction_cosines(sn_mesh: "SNMesh") -> NDArray:
+def _direction_cosines(sn_mesh: "SNProblem") -> NDArray:
     """``(N, 3)`` direction cosines, one row per ordinate."""
     quad = sn_mesh.quad
     return np.stack(
@@ -615,7 +615,7 @@ def _direction_cosines(sn_mesh: "SNMesh") -> NDArray:
 
 
 def _reflection_orbits(
-    sn_mesh: "SNMesh",
+    sn_mesh: "SNProblem",
 ) -> tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]:
     r"""Orbits of ordinates under :math:`\langle R_a : a \text{ reflective}\rangle`.
 
@@ -873,7 +873,7 @@ class _FacePlacement:
 
 
 def _block_support(
-    sn_mesh: "SNMesh", orbit: tuple[int, ...],
+    sn_mesh: "SNProblem", orbit: tuple[int, ...],
     group: int, active: tuple[int, ...],
 ) -> tuple[NDArray, tuple[_FacePlacement, ...]]:
     r"""The block's trace DOFs, sorted, plus where each face writes into them.
@@ -942,7 +942,7 @@ def _block_support(
 
 
 def _transverse_factors(
-    sn_mesh: "SNMesh", axis: int,
+    sn_mesh: "SNProblem", axis: int,
 ) -> tuple[NDArray, NDArray]:
     r"""``((-1)^{sum_{c != a} i_c}, A_a(i_perp))`` on the transverse grid.
 
@@ -964,7 +964,7 @@ def _transverse_factors(
 
 
 def _build_block_table(
-    sn_mesh: "SNMesh", orbit: tuple[int, ...],
+    sn_mesh: "SNProblem", orbit: tuple[int, ...],
     group: int, active: tuple[int, ...], trace_metric: NDArray,
 ) -> tuple[NDArray, NDArray]:
     r"""``(sorted DOF indices, G-orthonormal table)`` for one block.
@@ -1156,7 +1156,7 @@ class LossKernelGauge(LinearOperator):
 
     # ── construction ──────────────────────────────────────────────────
     @classmethod
-    def for_mesh(cls, sn_mesh: "SNMesh") -> "LossKernelGauge":
+    def for_mesh(cls, sn_mesh: "SNProblem") -> "LossKernelGauge":
         """Build the gauge for a mesh — **zero blocks when there is nothing to fix**.
 
         A zero-block gauge is the honest answer to a non-singular configuration,

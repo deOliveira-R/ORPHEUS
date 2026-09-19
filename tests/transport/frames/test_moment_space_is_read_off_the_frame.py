@@ -72,7 +72,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.transport.operators.fission import FissionOperator
@@ -165,12 +165,12 @@ class _ForeignTruncatedBasis(Basis):
         return replace(self._parent().space, name=_MUTANT_NAME)
 
 
-def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNMesh:
+def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=n_ord), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=n_ord), placeholder_materials(ng=ng))
 
 
 def _mat_xs(nx: int = 4):
@@ -190,7 +190,7 @@ def _inner_factor_domain_name(kernel: OperatorProduct) -> str:
     return domain.name
 
 
-def _bind_foreign(sn: SNMesh, L: int) -> HarmonicFrame:
+def _bind_foreign(sn: SNProblem, L: int) -> HarmonicFrame:
     """Install the foreign basis as the quadrature's frame at ``L`` through
     the production chain's own cache — so ``HarmonicFrame.for_space`` (the
     ONE spelling every consumer uses) hands the foreign frame out."""

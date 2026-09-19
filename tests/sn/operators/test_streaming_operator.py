@@ -51,7 +51,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.operator import LinearOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
@@ -72,7 +72,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNProblem:
     """Slab Mesh1D + GL N=4 quadrature, vacuum BCs.
 
     R-1 Step 4 Step G0 — ``ng`` matches ``_sig_t_uniform`` default so
@@ -88,10 +88,10 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesh1D(
@@ -102,10 +102,10 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
+def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
     """Spherical Mesh1D + GL N=4, reflective inner / vacuum outer.
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
@@ -118,10 +118,10 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
+def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
     """Cylindrical Mesh1D + folded(4,8) quadrature (LS4 until Q5.6.3).
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
@@ -134,16 +134,16 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2,
+def _sig_t_uniform(sn_mesh: SNProblem, ng: int = 2,
                    value: float = 0.5) -> np.ndarray:
     """σ_t uniform across cells / groups (``(ng, *spatial)``)."""
     return value * np.ones((ng, *sn_mesh.spatial_shape))
 
 
-def _sig_t_heterogeneous(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
+def _sig_t_heterogeneous(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
     """σ_t heterogeneous — different value per (cell, group)."""
     rng = np.random.default_rng(seed=20260514)
     return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
@@ -513,7 +513,7 @@ class TestCompositeInvariants:
             mat_map=np.zeros((3, 3), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials(ng=2))
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator.pose(sn_mesh)
 
@@ -607,7 +607,7 @@ PRE_T4_SNAPSHOTS_PATH = (
 )
 
 
-def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNMesh:
+def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNProblem:
     """Reconstruct the slab fixture used by the T.4a snapshot script.
 
     Mirrors `tests/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py`'s
@@ -648,10 +648,10 @@ def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNMesh:
         bc_right=bc_right,
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNMesh(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix})
 
 
-def _sigma_t_from_mat_map(sn_mesh: SNMesh) -> np.ndarray:
+def _sigma_t_from_mat_map(sn_mesh: SNProblem) -> np.ndarray:
     """Build per-(g, *cell) σ_t from sn_mesh.mat_map (matches the T.4a script)."""
     ng = sn_mesh.ng
     sig_t = np.empty((ng, *sn_mesh.spatial_shape), dtype=float)
@@ -712,7 +712,7 @@ class TestT4bPreT4RegressionSnapshot:
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 
-    def _capture_arm(self, sn_mesh: SNMesh, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    def _capture_arm(self, sn_mesh: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
         """Re-run StreamingOperator.apply on the snapshot fixture; return
         (bulk, boundary) values.
         """
@@ -749,7 +749,7 @@ class TestT4bPreT4RegressionSnapshot:
             out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
-    def _assert_arm(self, snapshots, *, tag: str, mesh: SNMesh, seed: int) -> None:
+    def _assert_arm(self, snapshots, *, tag: str, mesh: SNProblem, seed: int) -> None:
         """Re-run the slab matvec arm: BULK principled-equivalent, BOUNDARY strict.
 
         The BULK residual rides the ÷V ``residual_kernel_batch`` kernel, which
@@ -954,7 +954,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 
-    def _capture_arm(self, sn_mesh: SNMesh, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    def _capture_arm(self, sn_mesh: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
         from dataclasses import replace
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).

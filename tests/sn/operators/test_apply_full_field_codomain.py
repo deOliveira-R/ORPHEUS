@@ -55,7 +55,7 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -108,7 +108,7 @@ def _solver_for(coord: str, ng_key: str) -> tuple[SNSolver, object]:
     return solver, case
 
 
-def _timed_random_state(sn_mesh: SNMesh, *, history_depth: int, seed: int) -> TimedFullField:
+def _timed_random_state(sn_mesh: SNProblem, *, history_depth: int, seed: int) -> TimedFullField:
     """A timed iterate with random bulk — the comonad the driver carries."""
     state = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,

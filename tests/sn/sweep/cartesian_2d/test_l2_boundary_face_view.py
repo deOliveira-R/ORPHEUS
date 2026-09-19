@@ -35,7 +35,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
@@ -45,7 +45,7 @@ pytestmark = pytest.mark.foundation
 # ── Mesh fixtures spanning every supported layout ───────────────────────
 
 
-def _slab_mesh() -> SNMesh:
+def _slab_mesh() -> SNProblem:
     geom = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
@@ -54,10 +54,10 @@ def _slab_mesh() -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(geom, quad, placeholder_materials(ng=2))
+    return SNProblem(geom, quad, placeholder_materials(ng=2))
 
 
-def _spherical_mesh() -> SNMesh:
+def _spherical_mesh() -> SNProblem:
     geom = Mesh1D(
         edges=np.linspace(0.0, 1.0, 5),
         mat_ids=np.zeros(4, dtype=int),
@@ -66,10 +66,10 @@ def _spherical_mesh() -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(geom, quad, placeholder_materials(ng=2))
+    return SNProblem(geom, quad, placeholder_materials(ng=2))
 
 
-def _cartesian_2d_mesh() -> SNMesh:
+def _cartesian_2d_mesh() -> SNProblem:
     geom = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4),
         edges_y=np.linspace(0.0, 1.0, 4),
@@ -80,7 +80,7 @@ def _cartesian_2d_mesh() -> SNMesh:
         bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, placeholder_materials(ng=2))
+    return SNProblem(geom, quad, placeholder_materials(ng=2))
 
 
 GEOMETRY_FACE_TABLE = [

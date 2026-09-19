@@ -85,7 +85,7 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -158,7 +158,7 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
 
 def _iso_source(m, mesh, quad, mats):
     """Uniform iso scalar source -> per-ordinate (N, ng, *spatial) array."""
-    sn = SNMesh(mesh, quad, mats)
+    sn = SNProblem(mesh, quad, mats)
     return AngularSourceSink.from_isotropic(
         np.ones((m.ng, *sn.spatial_shape)), sn
     ).values

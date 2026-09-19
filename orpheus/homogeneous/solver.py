@@ -189,12 +189,12 @@ class HomogeneousProblem:
     r"""The infinite-medium problem — the HUB the homogeneous family's consumed objects live on.
 
     Ruled at the CS4c coda (R-c1, the user, 2026-09-08): *"The homogeneous
-    problem needs a hub, just like the function SNMesh (future SNProblem)
+    problem needs a hub, just like the function SNProblem (future SNProblem)
     currently fulfills, to act as the place the consumed objects live (and
     a save state)."* This is that hub, minted in the solver module for now;
     the carve into a standalone ``HomogeneousProblem`` module with a thin
     Problem → Solution solver is the consumers campaign's, alongside
-    ``SNMesh`` → ``SNProblem`` (plan §22.5).
+    ``SNProblem`` → ``SNProblem`` (plan §22.5).
 
     **What it determines, from its generating datum alone.** A
     :class:`~orpheus.data.macro_xs.mixture.Mixture` is the whole physics
@@ -254,7 +254,7 @@ class HomogeneousProblem:
         identity — so a problem over a saved-and-reloaded mixture compares
         equal and can key a registry. The SN hub's identity is the same
         definition over its generating data (`MaterialMesh._identity_key`,
-        extended by `SNMesh`); GitHub #459. (Until 2026-09-12 an interim tier
+        extended by `SNProblem`); GitHub #459. (Until 2026-09-12 an interim tier
         compared the mixture OBJECT, because ``Mixture`` had no content
         equality and the dataclass default raised.)"""
         if type(other) is not type(self):

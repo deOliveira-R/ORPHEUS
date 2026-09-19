@@ -24,7 +24,7 @@ of the cross-section data leaked through every consumer:
 
 The single source of truth is :class:`MaterialXSField`, a typed wrapper
 over the per-material :class:`~orpheus.data.macro_xs.mixture.Mixture`
-dict plus the spatial distribution carried by the :class:`SNMesh`'s
+dict plus the spatial distribution carried by the :class:`SNProblem`'s
 ``mat_map``.  Two access modes:
 
 * **Per-cell views** (``total_cross_section``, ``absorption_cross_section``,
@@ -58,7 +58,7 @@ Composability framing (the user's three operations):
 
 Storage discipline (``coding-elegance`` Pattern 7 — normalise at
 definition site): the per-material :class:`Mixture` dict + the
-:class:`SNMesh` ARE the source of truth.  The lazy per-cell views
+:class:`SNProblem` ARE the source of truth.  The lazy per-cell views
 are cached but content-derived from the frozen inputs; they cannot
 diverge from the source data.
 
@@ -101,12 +101,12 @@ if TYPE_CHECKING:
     # ``mesh`` is typed against ``MaterialMesh`` (the method-agnostic
     # mesh+materials carrier): MaterialXSField reads ONLY MaterialMesh data
     # (``materials`` / ``mat_map`` / ``ng`` / ``spatial_shape``) — never the
-    # quadrature/trace an ``SNMesh`` adds. This is the #267 ``MaterialXSField``
+    # quadrature/trace an ``SNProblem`` adds. This is the #267 ``MaterialXSField``
     # slice: the field is a STANDALONE dataclass (not a ``BulkField`` subclass),
     # so it retypes independently of the full typed-field-hierarchy split (the
     # bulk-data vs quad/trace-dependent ``AngularField``/``AngularBoundaryField`` base
     # split remains the #267 back-half). The MaterialMesh dependency is the
-    # method-agnostic carrier: any MaterialMesh (an SNMesh, a DiffusionMesh,
+    # method-agnostic carrier: any MaterialMesh (an SNProblem, a DiffusionMesh,
     # a bare carrier) is admitted. The infinite-medium problem builds none
     # since the CS4c coda — its fields are born on ``HomogeneousProblem.space``
     # (until then a mesh-less single-region carrier was admitted here, #276).
@@ -142,7 +142,7 @@ class MaterialXSField:
         The mesh+materials carrier — supplies ``materials``, ``mat_map``,
         ``ng``, ``spatial_shape``.  A method-agnostic
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (NOT an
-        ``SNMesh``): this field reads no quadrature/trace, so any carrier
+        ``SNProblem``): this field reads no quadrature/trace, so any carrier
         in the hierarchy is admitted (the infinite-medium problem no
         longer builds one — CS4c coda, 2026-09-08).
 
@@ -203,7 +203,7 @@ class MaterialXSField:
         (``mesh.materials`` / ``mesh.mat_map`` / ``mesh.ng`` /
         ``mesh.spatial_shape``), so it accepts any
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
-        meshed SN :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (a
+        meshed SN :class:`~orpheus.sn.problem.SNProblem` (a
         ``MaterialMesh`` subclass), a ``DiffusionMesh``, or a bare carrier
         (until the CS4c coda also the retired mesh-less single-region
         carrier of the 0-D homogeneous medium, #276).  The parameter is

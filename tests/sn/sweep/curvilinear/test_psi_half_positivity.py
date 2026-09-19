@@ -101,7 +101,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 pytestmark = pytest.mark.foundation
@@ -131,7 +131,7 @@ def _heterogeneous_2g_cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12):
     )
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    return SNMesh(mesh, quad, materials)
+    return SNProblem(mesh, quad, materials)
 
 
 def _converged_flux(sn):

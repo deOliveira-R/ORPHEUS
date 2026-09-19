@@ -9,7 +9,7 @@ of ``ordinate_permutation`` (the coupled-pole seed, the BC realizer, the
 MMS parity gate) relies on: the σ_y pairing is the ξ-mirror involution with
 η/μ_z held and weights equal, and on a slab GL rule it is the identity.
 These are quadrature-level claims — the full-product rules remain
-constructible as rules; only cylindrical SNMesh admission refuses them.
+constructible as rules; only cylindrical SNProblem admission refuses them.
 
 TOMBSTONE — the #326 defect gates (retired at the Q5.6.3 admission flip)
 ------------------------------------------------------------------------
@@ -35,7 +35,7 @@ which only one member of each pair exists and the symmetry holds by
 construction" — is exactly ``Quadrature.folded_product``, which Q5.6.3
 made the ONLY admitted cylindrical family.  On the folded arc the η-tie is
 UNSPELLABLE (η is injective per level), so the defect's configurations
-refuse at SNMesh construction and the three ``xfail(strict=True)`` defect
+refuse at SNProblem construction and the three ``xfail(strict=True)`` defect
 rows resolved by REFUSAL, not repair.
 
 Retired with their subjects (all built P(4,8)/P(2,n_φ)/LS4 cylinder
@@ -87,7 +87,7 @@ def _mirror_pairing(quad: Quadrature, axis: str) -> np.ndarray:
 def test_y_mirror_pairing_is_the_xi_mirror_involution(n_phi):
     """The σ_y pairing really pairs ``(eta, xi)`` with ``(eta, -xi)``.
 
-    Quadrature-level control (no SNMesh — full-product rules remain
+    Quadrature-level control (no SNProblem — full-product rules remain
     constructible as rules).  Consumers: the coupled-pole seed's pairing
     derivation and the MMS parity gate's fold-to-parent lookup.
     """

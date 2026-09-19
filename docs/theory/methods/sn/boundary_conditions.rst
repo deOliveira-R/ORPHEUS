@@ -31,8 +31,8 @@ When a face is left as ``None``, the solver applies its own default
 eigenvalue convention).
 
 **Stage 2 --- Solver resolution via the BC realizer.**
-:class:`SNMesh` owns a class-level
-:attr:`~SNMesh.BOUNDARY_OPERATOR_REGISTRY` mapping kind strings to
+:class:`SNProblem` owns a class-level
+:attr:`~SNProblem.BOUNDARY_OPERATOR_REGISTRY` mapping kind strings to
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` **subclasses**
 (post Wave 8 of the trace-law refactor in
 ``.claude/plans/transient-giggling-cake.md``)::
@@ -45,7 +45,7 @@ eigenvalue convention).
 The registry values are the law classes themselves, not factory
 functions. The pre-refactor ``_sn_vacuum_boundary_operator`` /
 ``_sn_reflective_boundary_operator`` factories were retired; their
-job is now done by :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>`, which dispatches
+job is now done by :meth:`SNProblem.realize_boundary_law <orpheus.sn.problem.SNProblem.realize_boundary_law>`, which dispatches
 through :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
 **uniformly** for every supported mesh (1-D Cartesian, 1-D
 spherical, 1-D cylindrical, 2-D Cartesian) — see
@@ -56,7 +56,7 @@ in the trace space — then named ``InflowTraceSpace``, now the unified
 Cartesian-vs-curvilinear bypass into a single realizer-routed
 path; details at :ref:`bc-curvilinear-realizer-unification`.
 
-During ``SNMesh.__init__``, each face's :class:`~geometry.mesh.BC`
+During ``SNProblem.__init__``, each face's :class:`~geometry.mesh.BC`
 is looked up in the registry.  If the kind is not found, a
 ``ValueError`` lists the supported kinds.  For curvilinear
 geometries (spherical, cylindrical), only ``"reflective"`` and
@@ -90,7 +90,7 @@ as. Its ``kind`` tag now reads that law's registry key, so the
 comparison continues to evaluate True iff the underlying law is
 :class:`VacuumInflow`. (C4 / #220 re-keyed this surface from the
 per-attribute ``sn_mesh.bc_left`` to the face-name-keyed
-:attr:`SNMesh.bc` dict — see :ref:`bc-face-name-carve`.)
+:attr:`SNProblem.bc` dict — see :ref:`bc-face-name-carve`.)
 See :ref:`bc-tensor-decompositions` below
 for the operator-algebra view and
 :ref:`theory-boundary-conditions` for the full trace-law /
@@ -112,7 +112,7 @@ mesh declares (defaulting to reflective on all faces).
    Before this infrastructure existed, the SN solver hardcoded
    reflective BCs on all faces and the then-production ``transport_sweep``
    entry accepted a ``boundary_condition: str`` parameter.  That parameter
-   has been removed --- BCs now flow exclusively through the mesh → SNMesh
+   has been removed --- BCs now flow exclusively through the mesh → SNProblem
    resolution path described above.
 
 Supported Types
@@ -153,7 +153,7 @@ the two approaches.
    returned boundary trace is one member of a solution manifold.  This
    is the DEFAULT for :func:`~orpheus.sn.solver.solve_sn`, which has no
    ``boundary_condition`` parameter, and for any bare
-   :class:`SNMesh`.  Nothing a user normally checks reveals it — every
+   :class:`SNProblem`.  Nothing a user normally checks reveals it — every
    mirror-even functional is blind by theorem — and the solver projects
    the trace onto the canonical member and says so.  ⚠ ``_apply_default_bcs``
    fills only when **all** faces are ``None``, so a *partial* declaration
@@ -184,7 +184,7 @@ choice for fixed-source MMS verification on finite slabs (see
 Boundary conditions as tensor decompositions
 ---------------------------------------------
 
-The boundary conditions used by :class:`SNMesh` are concrete instances
+The boundary conditions used by :class:`SNProblem` are concrete instances
 of a more general tensor-decomposed framing, defined in
 :mod:`orpheus.geometry.boundary`. A boundary condition is a linear
 operator :math:`B` mapping the outgoing angular flux at a face to the
@@ -472,7 +472,7 @@ element rather than a second mirror. New BCs are one
 SN BC resolution table
 ----------------------
 
-The :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` dispatch is summarized below.
+The :meth:`SNProblem.realize_boundary_law <orpheus.sn.problem.SNProblem.realize_boundary_law>` dispatch is summarized below.
 Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`
 kind string to (a) the resolved :class:`BoundaryTraceLaw`
 subclass and (b) the :class:`SNBoundaryRealizer.realize` output
@@ -611,12 +611,12 @@ at :ref:`bc-sweep-cycle`.
    tree — so read the *declared spaces*, never the output shape. Full
    derivation at :ref:`bc-domain-narrowing`.
 
-The :meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>` dispatch constructs the resolved
+The :meth:`SNProblem.realize_boundary_law <orpheus.sn.problem.SNProblem.realize_boundary_law>` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`
 where the ``method_space`` is built by
 :meth:`SNMethodSpace.for_face` carrying the precomputed unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (built
-once at :class:`SNMesh` construction for every supported mesh).
+once at :class:`SNProblem` construction for every supported mesh).
 The reflective branch derives its reflection axis from the face's
 own :class:`~orpheus.transport.mesh.axis.FaceLabel` —
 ``AXIS_NAMES[label.axis_index]`` — so the partner is correct at any
@@ -630,15 +630,15 @@ shim pairs the result back with the law it was realized from; its
 .. note::
 
    **The 1-D y-face placeholders were retired in C4 / #220.** Pre-C4,
-   a slab :class:`SNMesh` carried a pair of realized no-op
+   a slab :class:`SNProblem` carried a pair of realized no-op
    ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
    ``bc_ymax`` so cross-dimensional code could read them without
    coord-system gating — but **no production code ever read them**
    (a 1-D mesh's ``trace.layout.faces`` is ``("xmin", "xmax")``).
    C4 makes them unrepresentable: a slab has no y-axis in its
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.axes` tuple, so
+   :attr:`~orpheus.sn.problem.SNProblem.axes` tuple, so
    :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label and
-   :attr:`SNMesh.bc` has no y-entry — ``slab.bc["ymin"]`` is a
+   :attr:`SNProblem.bc` has no y-entry — ``slab.bc["ymin"]`` is a
    :class:`KeyError`, not a no-op. See
    :ref:`bc-face-name-carve-what-retired` for the full retirement
    record (the pre-C4 "why the placeholders were once safe"
@@ -677,6 +677,6 @@ This means the curvilinear sweep does not need an explicit boundary
 condition at :math:`r = 0` --- the geometry handles it naturally.
 Curvilinear sweeps currently only support reflective BCs on the outer
 face; this is enforced by the validation in
-:meth:`SNMesh.realize_boundary_law <orpheus.sn.mesh.augmented_mesh.SNMesh.realize_boundary_law>`.
+:meth:`SNProblem.realize_boundary_law <orpheus.sn.problem.SNProblem.realize_boundary_law>`.
 
 

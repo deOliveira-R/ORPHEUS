@@ -393,7 +393,7 @@ class MultiplicationOperator(BoundOperator):
             else CrossSectionField(values=np.asarray(sigma), space=mesh.bulk_space)
         )
         # The space defaults to the mesh's own, most-structured-first (CS1):
-        # a method mesh's composite ``full_field_space`` wins (SNMesh /
+        # a method mesh's composite ``full_field_space`` wins (SNProblem /
         # DiffusionMesh short-circuit here, untouched), else the carrier's
         # axis-built ``bulk_space`` (every MaterialMesh carries one). Since
         # CS4a K2 this bulk_space arm has NO production caller — the

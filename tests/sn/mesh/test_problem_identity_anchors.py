@@ -59,7 +59,7 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import IdentityAngularClosure
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solution import Solution, SolutionBase
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
@@ -101,9 +101,9 @@ def _axes(d: int, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(None, None)):
 
 
 def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(None, None),
-         quad=None, mats=None, scheme=None, mat_map=None) -> SNMesh:
+         quad=None, mats=None, scheme=None, mat_map=None) -> SNProblem:
     """A hub over the SHARED quadrature and materials — the spatial leg isolated."""
-    return SNMesh.from_axes(
+    return SNProblem.from_axes(
         _axes(d, cells, extents, bc),
         _SHARED_QUAD if quad is None else quad,
         _SHARED_MATS if mats is None else mats,
@@ -112,7 +112,7 @@ def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(None, None
     )
 
 
-def _hub_independent(d: int = 3, **kw) -> SNMesh:
+def _hub_independent(d: int = 3, **kw) -> SNProblem:
     """A hub sharing NOTHING by identity — the honest CONTENT positive control.
 
     A content key that silently fell back to identity would pass a positive
@@ -137,7 +137,7 @@ _SPHERE_MESH = Mesh1D(edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=
 _SPHERE_QUAD = Quadrature.gauss_legendre(4)
 
 
-def _sphere(closure=None) -> SNMesh:
+def _sphere(closure=None) -> SNProblem:
     """A SPHERICAL hub — the only chart where the closure override CONSTRUCTS.
 
     ``[M]`` 2026-09-12: a slab REFUSES ``MorelMontryAngularSweep``
@@ -145,13 +145,13 @@ def _sphere(closure=None) -> SNMesh:
     CYLINDRICAL …``), so the closure witness must be built the other way
     round — a sphere carrying the Cartesian ``IdentityAngularClosure``.
     """
-    return SNMesh(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure)
+    return SNProblem(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure)
 
 
 class TestTheClosureExclusionSurvives:
     r"""R-cc8 keeps the contractibility ruling FOR ``same_phase_space``.
 
-    The predicate's own docstring (``augmented_mesh.py:571-577``) and
+    The predicate's own docstring (``problem.py:571-577``) and
     ``docs/theory/methods/sn/index.rst:849-856`` say *"do not strengthen
     that predicate by adding the closure"* — and R-cc8 agrees, for the
     CONTRACTIBILITY predicate. This class is the gate that makes a
@@ -182,7 +182,7 @@ class TestCrossClassComparisonIsAlreadySafe:
 
     ⛔ I shipped this as an ``xfail`` row and the harness refuted it:
     ``[M]`` 2026-09-12 it ``XPASS(strict)``-ed on the unmodified tree.
-    ``SNMesh`` inherits ``object.__eq__``, so a foreign comparison is
+    ``SNProblem`` inherits ``object.__eq__``, so a foreign comparison is
     ``False`` and never raises.
 
     ⟹ not a gap the carve closes but a REGRESSION PIN on the hand-written
@@ -191,7 +191,7 @@ class TestCrossClassComparisonIsAlreadySafe:
     INCLUDES ``mesh`` (``solution.py:346/667/1082``, no hand-written
     ``__eq__``): a hub whose ``__eq__`` raises on a foreign operand would
     surface at a ``Solution == Solution`` call site that never mentions
-    ``SNMesh``.
+    ``SNProblem``.
     """
 
     def test_comparison_across_classes_never_raises(self) -> None:
@@ -259,8 +259,8 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         and ``condense(adjoint=…)`` must proceed.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNMesh(mesh, quad, mats, scattering_order=0) 
-        b = SNMesh(mesh, quad, mats, scattering_order=3) 
+        a = SNProblem(mesh, quad, mats, scattering_order=0) 
+        b = SNProblem(mesh, quad, mats, scattering_order=3) 
         _require(a.scattering_order != b.scattering_order,
                  "activation: the two hubs must retain DIFFERENT orders")
         _require(a.same_phase_space(b), "R-cc8: the order does not move the field layout")
@@ -303,8 +303,8 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         the row cannot decay into one.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNMesh(mesh, quad, mats, scattering_order=0) 
-        b = SNMesh(mesh, quad, mats, scattering_order=3) 
+        a = SNProblem(mesh, quad, mats, scattering_order=0) 
+        b = SNProblem(mesh, quad, mats, scattering_order=3) 
         _require(a.scattering_order == 0, "activation: the P0 hub retains 0") 
         _require(b.scattering_order == 1, "activation: P3 CLAMPS to 1 on this library")
         _require(not (a == b), "R-cc4: two retained orders are two problems")
@@ -319,7 +319,7 @@ class TestProblemIdentityIsEveryGeneratingDatum:
 
         ⚠ The non-vacuity guard is load-bearing and it is what makes this a
         gate: ``[M]`` 2026-09-12 the row PASSES on the unmodified tree
-        without it, because ``SNMesh.__eq__`` is ``object.__eq__`` and no
+        without it, because ``SNProblem.__eq__`` is ``object.__eq__`` and no
         pair is ever ``==``, so the implication holds over an empty set. I
         shipped it that way once and the harness reported ``XPASS(strict)``.
         """
@@ -364,7 +364,7 @@ class TestTheHubOwnsTheClampedOrder:
             min(len(m.SigS) for m in mats.values()) - 1 == 1,
             "activation: this expectation table assumes a P1 library",
         )
-        hub = SNMesh(mesh, quad, mats, scattering_order=requested)
+        hub = SNProblem(mesh, quad, mats, scattering_order=requested)
         _require(hub.scattering_order == retained,
                  f"request {requested} must retain {retained}")
 
@@ -439,7 +439,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
     """
 
     @staticmethod
-    def _count_builds(a: SNMesh, b: SNMesh, rounds: int = 3) -> int:
+    def _count_builds(a: SNProblem, b: SNProblem, rounds: int = 3) -> int:
         import orpheus.sn.loss_representation as loss_representation
 
         loss_representation._GEOM_CACHE_INTERN.clear()
@@ -447,7 +447,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         cache_cls = loss_representation.StreamingCoefficientCache
         original = cache_cls.from_mesh_and_quad
 
-        def _spy(mesh: SNMesh):  # noqa: ANN202
+        def _spy(mesh: SNProblem):  # noqa: ANN202
             builds.append(id(mesh))
             return original(mesh)
 
@@ -471,7 +471,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         read 2 — one table per hub under identity keys; the rejected instance
         validation would have read 6, the ping-pong.)"""
         mats, mesh, quad = _slab_two_region()
-        a, b = SNMesh(mesh, quad, mats), SNMesh(mesh, quad, mats)
+        a, b = SNProblem(mesh, quad, mats), SNProblem(mesh, quad, mats)
         _require(a is not b and a == b, "activation: two distinct, content-equal, live hubs")
         _require(
             self._count_builds(a, b) == 1,
@@ -486,7 +486,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         row exists to make impossible.
         """
         mats, mesh, quad = _slab_two_region()
-        a, b = SNMesh(mesh, quad, mats), SNMesh(mesh, quad, mats)
+        a, b = SNProblem(mesh, quad, mats), SNProblem(mesh, quad, mats)
         _require(a == b, "activation: the two hubs must be content-equal after the carve")
         builds = self._count_builds(a, b)
         _require(

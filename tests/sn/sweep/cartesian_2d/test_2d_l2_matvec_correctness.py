@@ -47,7 +47,7 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -56,7 +56,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 # ── Mesh builders ────────────────────────────────────────────────────────
 
 
-def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNMesh:
+def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNProblem:
     r"""All-reflective 2-D Cartesian mesh; 2g mixture A homogeneous.
 
     The canonical k_inf fixture: all-reflective + homogeneous ⇒
@@ -72,10 +72,10 @@ def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymax=BC("reflective"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
-def _vacuum_xy_2d_with_scatter(nx: int = 4, ny: int = 4) -> SNMesh:
+def _vacuum_xy_2d_with_scatter(nx: int = 4, ny: int = 4) -> SNProblem:
     r"""Vacuum-on-all-faces 2-D mesh with nonzero scattering.
 
     Eigenvalue problem doesn't make sense here (no fission),
@@ -94,10 +94,10 @@ def _vacuum_xy_2d_with_scatter(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
-def _slab_homogeneous_2g(nx: int = 4) -> SNMesh:
+def _slab_homogeneous_2g(nx: int = 4) -> SNProblem:
     r"""1-D slab counterpart for the 2-D-reflective-y reduction test."""
     geom = StructuredGeometry(
         geometry="SLB",
@@ -108,10 +108,10 @@ def _slab_homogeneous_2g(nx: int = 4) -> SNMesh:
         geom, region_meshes=(RegionMesh(n_cells=nx),),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(mesh, quad, {0: get_mixture("A", "2g")})
 
 
-def _reflective_y_2d_for_1d_reduction(nx: int = 4, ny: int = 2) -> SNMesh:
+def _reflective_y_2d_for_1d_reduction(nx: int = 4, ny: int = 2) -> SNProblem:
     r"""2-D mesh with reflective y, reflective x — should reduce to 1-D slab.
 
     Under all-reflective with y-direction homogeneous geometry +
@@ -130,7 +130,7 @@ def _reflective_y_2d_for_1d_reduction(nx: int = 4, ny: int = 2) -> SNMesh:
         bc_ymax=BC("reflective"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
 # ── Test 2.1: 2-D Krylov recovers k_inf (homogeneous reflective) ────────

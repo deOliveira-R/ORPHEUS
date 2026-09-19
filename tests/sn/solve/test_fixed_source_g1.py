@@ -69,7 +69,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -145,7 +145,7 @@ class TestExternalSourcePerOrdContract:
         self, coord_builder, coord_name,
     ) -> None:
         mesh, quad = coord_builder(nx=6)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         # Random per-ord source.
         rng = np.random.default_rng(seed=42)
         external_source = rng.standard_normal(
@@ -239,7 +239,7 @@ class TestHomogeneousReflectiveFixedPoint:
     ) -> None:
         mesh, quad = coord_builder(nx=8)
         materials = placeholder_materials()  # SigT = 1.0 by default
-        sn_mesh = SNMesh(mesh, quad, materials)
+        sn_mesh = SNProblem(mesh, quad, materials)
         sum_w = float(quad.weights.sum())
         # Iso scalar source -> projected per-ord density.
         q_iso = 0.5
@@ -285,7 +285,7 @@ class TestReturnTypeContract:
     @pytest.mark.verifies("transport-cartesian")
     def test_solution_angular_flux_carries_boundary(self) -> None:
         mesh, quad = _sphere_reflective(nx=6)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         src = AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         )

@@ -209,7 +209,7 @@ class TestAlphaRedistribution:
     The resulting dome must be non-negative with α[0] = α[M] = 0.
     """
 
-    # Q5.6.3: the folded family SNMesh(CYLINDRICAL) admits.  Splits chosen
+    # Q5.6.3: the folded family SNProblem(CYLINDRICAL) admits.  Splits chosen
     # for level-structure diversity (4×4, 8×8, 8×2, 6×6 angles/level), and
     # folded(4,6) puts the surviving bit-exact μ_r = 0 degenerate ordinate
     # (parent n_φ ≡ 2 mod 4) inside the dome.
@@ -223,14 +223,14 @@ class TestAlphaRedistribution:
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -246,14 +246,14 @@ class TestAlphaRedistribution:
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -267,14 +267,14 @@ class TestAlphaRedistribution:
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         quad = Quadrature.gauss_legendre(8)
         mesh = Mesh1D(
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.SPHERICAL,
         )
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -310,7 +310,7 @@ class TestL0TermVerification:
             RegionMesh,
             StructuredGeometry,
         )
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(8)
@@ -329,7 +329,7 @@ class TestL0TermVerification:
             ),
             region_meshes=(RegionMesh(n_cells=10),),
         )
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         reduced = sn.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         dA = reduced.delta_A
@@ -372,7 +372,7 @@ class TestL0TermVerification:
             RegionMesh,
             StructuredGeometry,
         )
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
         tag = {
             CoordSystem.SPHERICAL: "SPH",
@@ -390,7 +390,7 @@ class TestL0TermVerification:
             quad = Quadrature.gauss_legendre(4)
         else:
             quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
 
         edges = mesh.edges
         if coord == CoordSystem.SPHERICAL:

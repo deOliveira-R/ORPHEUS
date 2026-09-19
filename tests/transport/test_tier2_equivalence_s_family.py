@@ -19,7 +19,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import SphericalHarmonicSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel, TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
@@ -60,7 +60,7 @@ def _sn(mat_xs):
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials)
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials)
 
 
 def _fields_equal(a, b):

@@ -182,7 +182,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
     """G4 ⭐ — the done-when's core, verbatim: ``mu_x`` / ``eta`` / ``mu_z``
     / ``level_indices`` are reachable from a SPACE, with no quadrature in
     the caller's hand. A numerics-layer gate because the CONTRACT is
-    numerics-layer — it builds a ``FunctionSpace``, not an ``SNMesh``.
+    numerics-layer — it builds a ``FunctionSpace``, not an ``SNProblem``.
 
     ⚠ ``eta`` rows are CONTRACT rows, not re-point coverage: [M] ``eta``
     has no solve-time consumer outside the mesh (verification plan R6).

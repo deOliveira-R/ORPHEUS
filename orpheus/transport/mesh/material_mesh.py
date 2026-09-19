@@ -5,7 +5,7 @@ was missing.  Between the geometry :class:`~orpheus.geometry.mesh.Mesh1D`
 / :class:`~orpheus.geometry.mesh.Mesh2D` (which carry material *ids* but
 no :class:`~orpheus.data.macro_xs.mixture.Mixture` cross sections) and a
 method-specific phase space such as
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + materials + *quadrature* +
+:class:`~orpheus.sn.problem.SNProblem` (mesh + materials + *quadrature* +
 sweep machinery) there was no carrier for *just* mesh + materials.
 
 The abstraction axis is **data vs behavior**:
@@ -17,7 +17,7 @@ The abstraction axis is **data vs behavior**:
 * The **method layer** (angular quadrature + sweep/streaming stencil +
   boundary trace + closures) is *behavior*.  A method-specific mesh
   **is a** :class:`MaterialMesh` that adds that behavior:
-  ``SNMesh(MaterialMesh)`` (quadrature + sweep machinery + angular
+  ``SNProblem(MaterialMesh)`` (quadrature + sweep machinery + angular
   trace) and ``DiffusionMesh(MaterialMesh)`` (scalar trace + realized
   boundary laws; #290 P7a), each conforming **structurally** to the
   :class:`~orpheus.transport.method.TransportMethod` Protocol (minted
@@ -31,7 +31,7 @@ fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse
 produce a homogenized
 :class:`MaterialMesh` (flux·volume-weighted collapse), which a transport
 method can then *promote* back to a solvable phase space
-(:meth:`SNMesh.from_material_mesh`).
+(:meth:`SNProblem.from_material_mesh`).
 
 Layer (``tests/test_layer_imports.py``): L2 ``transport``.  It imports
 only ``geometry`` (legacy mesh shapes), ``numerics`` (the volume
@@ -194,11 +194,11 @@ class MaterialMesh:
     ) -> None:
         r"""The ONE data-construction body both surfaces funnel into.
 
-        Subclasses (``SNMesh``) call this from their own ``_init_core``
+        Subclasses (``SNProblem``) call this from their own ``_init_core``
         to populate the method-agnostic data block, then layer their
         behavior (quadrature, sweep stencil, boundary trace) on top.
         Every line here is bit-for-bit the data block formerly inlined
-        in ``SNMesh._init_core`` (C5.1) — the split is a pure
+        in ``SNProblem._init_core`` (C5.1) — the split is a pure
         relocation, not a semantic change.
         """
         # ``materials`` is REQUIRED: a MaterialMesh without materials has
@@ -289,7 +289,7 @@ class MaterialMesh:
 
     # NOTE: a GENERAL axis-native ``MaterialMesh.from_axes`` (arbitrary
     # cell count / coordinate system) is still intentionally NOT provided.
-    # ``SNMesh.from_axes`` already exists with a different
+    # ``SNProblem.from_axes`` already exists with a different
     # (quadrature-bearing) signature, so a base ``from_axes`` here would be
     # an incompatible override; and the base class has no axis-native
     # consumer today — the infinite-medium problem poses on its own space
@@ -308,7 +308,7 @@ class MaterialMesh:
     #
     # * ``_contractibility_key`` — may two solutions' FIELDS be paired? The
     #   geometry (every axis: edges, boundary-law tags, labels, chart), the
-    #   material assignment and the materials' CONTENT. ``SNMesh`` extends it
+    #   material assignment and the materials' CONTENT. ``SNProblem`` extends it
     #   with the quadrature and the scheme TYPE; ``same_phase_space`` compares
     #   it. This is what ``Solution.compare`` / ``homogenize`` / ``condense``
     #   ask, and it deliberately EXCLUDES the angular closure and the
@@ -327,7 +327,7 @@ class MaterialMesh:
     # ``mat_map`` no consumer writes). `[M]` a live key costs ~1 ms per call on
     # 421-group data and the SN geometry cache reads a problem's hash 6–10×
     # per solve, which is why caching is a design constraint, not a nicety.
-    # ⚠ Until 2026-09-12 ``SNMesh.is_same_phase_space`` compared CONSTITUENT
+    # ⚠ Until 2026-09-12 ``SNProblem.is_same_phase_space`` compared CONSTITUENT
     # identity (``mesh is``, ``quad is``, per-Mixture ``is``): vacuous at d≥3
     # (``None is None`` — different 3-D problems compared equal) and false for
     # every same-data pair built by two ``from_axes`` calls (GitHub #459).
@@ -386,7 +386,7 @@ class MaterialMesh:
         :meth:`same_phase_space` holds and fields pair — with another
         identity (the datum enters :attr:`_identity_key`).  The base spelling
         covers a legacy-mesh-built hub; subclasses re-spell it through their
-        own constructors (:meth:`SNMesh.with_cross_sections`).
+        own constructors (:meth:`SNProblem.with_cross_sections`).
         """
         if self.mesh is None:
             raise NotImplementedError(
@@ -415,7 +415,7 @@ class MaterialMesh:
 
         Contractibility by CONTENT (R-cc8, 2026-09-12): the geometry, the
         material assignment and the materials' content — and, on an
-        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, the quadrature and
+        :class:`~orpheus.sn.problem.SNProblem`, the quadrature and
         the scheme TYPE. Two hubs built from equal data pair whatever objects
         they were built from. It deliberately EXCLUDES the angular closure
         (a solve-time sweep strategy near the pole changes neither the field
@@ -555,11 +555,11 @@ class MaterialMesh:
           invisible to ``.H`` (a scalar metric commutes with every
           operator — the F2 measurement); identity is the only
           instrument that carries it.
-        * **A meshed carrier** (``SNMesh``/``DiffusionMesh`` inherit this)
+        * **A meshed carrier** (``SNProblem``/``DiffusionMesh`` inherit this)
           gets the honest scalar bulk ``(ng, *spatial)`` with cell-volume
           weights — the seed of CS2's single scalar-bulk mint. It is NOT
-          the angular composite: ``SNMesh.bulk_space`` and
-          ``SNMesh.full_field_space`` are different spaces with different
+          the angular composite: ``SNProblem.bulk_space`` and
+          ``SNProblem.full_field_space`` are different spaces with different
           jobs.
 
         **The energy arm** reads only materials REACHABLE from ``mat_map``

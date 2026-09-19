@@ -678,7 +678,7 @@ def _checked_angular_average(
     rather than sizes, because ``|Γ₊| == |Γ₋|`` on every quadrature in the tree
     makes a size comparison Mode-12 blind.
 
-    On the canonical ``SNMesh.realize_boundary_law`` path both encodings derive
+    On the canonical ``SNProblem.realize_boundary_law`` path both encodings derive
     from the same face label, so the guard is green by construction; it bites
     on hand-built method spaces and on a mis-declared law.
 
@@ -822,7 +822,7 @@ class SNBoundaryRealizer:
                 raise BoundaryError(
                     "SNBoundaryRealizer cannot realize "
                     "VacuumInflow without inflow_indices in "
-                    "method_space. Wave 8's SNMesh wiring populates "
+                    "method_space. Wave 8's SNProblem wiring populates "
                     "this from "
                     "AngularTraceSpace.inflow_indices_for_face. For "
                     "now, supply inflow_indices explicitly via "
@@ -837,7 +837,7 @@ class SNBoundaryRealizer:
             # OUTGOING set of this face). Cross-check against the
             # signed projection the face name alone implies via the
             # single face→normal primitive. On the canonical
-            # SNMesh.realize_boundary_law path both encodings derive
+            # SNProblem.realize_boundary_law path both encodings derive
             # from the trace space, so the guard is green by
             # construction; it bites on hand-built method spaces —
             # exactly where the annotation swap lives. A method space
@@ -1155,6 +1155,6 @@ class SNBoundaryRealizer:
 # the walker moved to its method-blind home,
 # :func:`orpheus.geometry.boundary.realize_recursively` — the leaf
 # realizer is now a REQUIRED argument (``SNBoundaryRealizer()`` for the
-# SN path). Single BCs never routed through it: ``SNMesh``'s
+# SN path). Single BCs never routed through it: ``SNProblem``'s
 # ``realize_boundary_law`` arm (the ``TransportMethod`` hook) calls
 # ``SNBoundaryRealizer().realize`` directly.

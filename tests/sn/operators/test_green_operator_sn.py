@@ -63,7 +63,7 @@ from orpheus.numerics.operator import (
     ScaledOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -94,7 +94,7 @@ def _mix(sig_t, p0):
     return m
 
 
-def _het_scattering_slab() -> SNMesh:
+def _het_scattering_slab() -> SNProblem:
     """Two-material 2G VACUUM slab, GL-4 — het σ_t AND het asymmetric SigS."""
     geom = StructuredGeometry(
         geometry="SLB",
@@ -107,7 +107,7 @@ def _het_scattering_slab() -> SNMesh:
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=3), RegionMesh(n_cells=3)),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: _mix([1.0, 1.5], [[0.38, 0.10], [0.05, 0.60]]),
          1: _mix([1.2, 1.8], [[0.55, 0.03], [0.12, 0.40]])},
@@ -127,7 +127,7 @@ def _operators():
     return sn, lc, S, lc - S
 
 
-def _flux_zeros(sn: SNMesh) -> TimedFullField:
+def _flux_zeros(sn: SNProblem) -> TimedFullField:
     """The flux-typed cold start (the production warm-start convention)."""
     return TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space)
 

@@ -3,13 +3,13 @@ r"""Shared test surrogate for the Morel--Montry weighted-diamond constants.
 Issue #236 Phase 2 B2 (Fix 3 — dedup) — ``DiamondDifference.residual``
 reads the angular-closure constants off ``CellVisit.c_in`` / ``c_out``
 and the angular weight off ``CellVisit.tau``, all sourced in PRODUCTION
-from ``SNMesh.angular_closure`` (via ``SNMesh._make_cell_visit`` and
+from ``SNProblem.angular_closure`` (via ``SNProblem._make_cell_visit`` and
 the closure's ``c_{in,out}_per_ordinate`` / ``tau_per_ordinate``
 accessors).
 
 The diamond / cell-balance round-trip tests build a ``CellVisit`` from a
 bare ``ReducedStreamingOperator`` or a synthetic ``StreamingTerms`` with
-NO ``SNMesh`` / closure in scope, so they must stamp the fixture visit
+NO ``SNProblem`` / closure in scope, so they must stamp the fixture visit
 with the SAME constants the closure would.  This surrogate is the ONE
 hand-transcribed recompute of that formula:
 
@@ -91,7 +91,7 @@ Two entry points:
 
 This is the surrogate the diamond / cell-balance fixtures stamp visits
 with, and the production-stamp catcher ``test_cell_visit_c_stamp.py``
-cross-checks against the live ``SNMesh._make_cell_visit`` stamp.
+cross-checks against the live ``SNProblem._make_cell_visit`` stamp.
 Unify-after-two-instances (coding-elegance Pattern 2): ONE shared helper,
 all consumers import it.
 """

@@ -89,7 +89,7 @@ class ScalarBoundaryFlux(ScalarBoundaryField):
     mesh : DiffusionMesh
         The diffusion phase space the trace belongs to (the family's
         covariant narrowing, #290 P7a — a boundary trace is method
-        behavior; for DSA an :class:`SNMesh` promotes via
+        behavior; for DSA an :class:`SNProblem` promotes via
         ``DiffusionMesh.from_material_mesh``).
 
     Notes

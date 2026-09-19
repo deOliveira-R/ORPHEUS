@@ -45,7 +45,7 @@ import pytest
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -59,31 +59,31 @@ _MOMENT_L = 1
 _LEAVES = ["angular", "scalar", "moment", "boundary"]
 
 
-def _mesh() -> SNMesh:
+def _mesh() -> SNProblem:
     m = Mesh1D(
         edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
+    return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
 
 
-def _stretched_mesh() -> SNMesh:
+def _stretched_mesh() -> SNProblem:
     """Doubled width, same shape — the cell VOLUMES differ, so the carrier
     mints an UNEQUAL space (the F2 content discriminator)."""
     m = Mesh1D(
         edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
+    return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
 
 
 @pytest.fixture
-def mesh() -> SNMesh:
+def mesh() -> SNProblem:
     return _mesh()
 
 
 @pytest.fixture
-def mesh2() -> SNMesh:
+def mesh2() -> SNProblem:
     return _mesh()  # distinct instance, structurally identical
 
 
@@ -92,12 +92,12 @@ def rng() -> np.random.Generator:
     return np.random.default_rng(208)
 
 
-def _moment_shape(m: SNMesh, L: int) -> tuple[int, ...]:
+def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
     return (*m.quad.angular_frame(L).basis.space.shape, m.ng, *m.spatial_shape)
 
 
-def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
+def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
     if leaf == "angular":
         return AngularFlux(values=rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
@@ -119,7 +119,7 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
     raise ValueError(leaf)
 
 
-def _zeros_like_flux(leaf: str, m: SNMesh) -> Field:
+def _zeros_like_flux(leaf: str, m: SNProblem) -> Field:
     """The zero flux of the leaf — a legal, freely-constructed origin."""
     if leaf == "angular":
         return AngularFlux.zeros(m.angular_bulk_space)

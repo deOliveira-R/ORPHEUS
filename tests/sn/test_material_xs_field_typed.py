@@ -21,7 +21,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import CROSS_SECTION_UNITS
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -30,7 +30,7 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = [pytest.mark.foundation]
 
 
-def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNMesh]:
+def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNProblem]:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -39,7 +39,7 @@ def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNMesh]:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sn_mesh = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     return MaterialXSField.from_mesh(sn_mesh), sn_mesh
 
 

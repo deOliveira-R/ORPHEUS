@@ -19,7 +19,7 @@ from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
 from tests.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
@@ -199,7 +199,7 @@ class TestCylinderMultiGroupMultiRegion:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        sn_mesh = SNProblem(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -256,7 +256,7 @@ class TestCylinderMultiGroupMultiRegion:
             coord=CoordSystem.CYLINDRICAL,
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNMesh(mesh, quad, materials)
+        sn_mesh = SNProblem(mesh, quad, materials)
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -445,7 +445,7 @@ class TestMultiGroupMultiRegionSpherical:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        sn_mesh = SNProblem(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -498,7 +498,7 @@ class TestMultiGroupMultiRegionSpherical:
             coord=CoordSystem.SPHERICAL,
         )
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, materials)
+        sn_mesh = SNProblem(mesh, quad, materials)
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -530,7 +530,7 @@ class TestMultiGroupMultiRegionSpherical:
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)

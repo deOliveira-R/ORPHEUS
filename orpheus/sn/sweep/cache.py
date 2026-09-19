@@ -8,7 +8,7 @@ from the hot path:
 * :class:`StreamingCoefficientCache` — Stratum 1, geometry+quadrature only.  Built
   once at :class:`~orpheus.sn.solver.SNSolver` construction.  No ``ng`` axis;
   invariant under cross-section rebinds, BC changes, every outer / inner /
-  Picard iteration.  Lifetime = ``SNMesh`` × ``Quadrature``.
+  Picard iteration.  Lifetime = ``SNProblem`` × ``Quadrature``.
 
 * :class:`CollisionCache` — Stratum 2, geometry × :math:`\Sigma_t`.  Built
   when :math:`\Sigma_t` is bound.  Lifetime = constant-:math:`\Sigma_t` epoch
@@ -122,7 +122,7 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..angular.closure import AngularClosureBase
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
 
@@ -134,7 +134,7 @@ if TYPE_CHECKING:  # pragma: no cover
 @dataclass(frozen=True, slots=True, weakref_slot=True)
 class StreamingCoefficientCache:
     r"""The Σ\ :sub:`t`\ -free half of the DD scan coefficients, built ONCE per
-    ``SNMesh`` × ``Quadrature``.
+    ``SNProblem`` × ``Quadrature``.
 
     Carries the chain-ordered spatial quantities that enter the DD
     coefficients :math:`(a, b)` of the per-ordinate spatial scan, plus the
@@ -249,9 +249,9 @@ class StreamingCoefficientCache:
     @classmethod
     def from_mesh_and_quad(
         cls,
-        sn_mesh: "SNMesh",
+        sn_mesh: "SNProblem",
     ) -> "StreamingCoefficientCache":
-        r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
+        r"""Populate Stratum 1 from one :class:`SNProblem` + its quadrature.
 
         Takes NO closure (P4b, 2026-08-29): with the angular-closure block
         shed, every field is derived from the mesh and its quadrature
@@ -474,7 +474,7 @@ class CollisionCache:
         scheme (Issue #236 §2): this method delegates their three numpy
         ops to :meth:`scheme.affine_scan_coefficients
         <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients>`
-        so the cache reflects whichever spatial closure ``SNMesh`` selected
+        so the cache reflects whichever spatial closure ``SNProblem`` selected
         — the cache keeps storage + lifetime; the scheme owns the math
         (Cardinal Rule 2 / Pattern 2, single source of truth).  This cache
         feeds the DAG-free scan schedules (``CumprodScan`` / ``ScanMarch``),

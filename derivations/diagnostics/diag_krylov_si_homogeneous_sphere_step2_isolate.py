@@ -60,11 +60,11 @@ def _manual_outer(
     optional warm-start cache.  Returns (keff, n_outer, keff_history,
     inner_iter_counts).
     """
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.sn.solver import SNSolver
 
     materials, mesh, quad = _build_problem()
-    sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
+    sn_mesh = SNProblem(mesh, quad, materials, scattering_order=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         solver = SNSolver(

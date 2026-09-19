@@ -1,6 +1,6 @@
 """AC-a — no Strategy token reaches the Problem chain (consumers campaign step 2, C3b).
 
-The chain ``SNMesh(...) → .system → .pencil → .eigen_posing`` is the PROBLEM's:
+The chain ``SNProblem(...) → .system → .pencil → .eigen_posing`` is the PROBLEM's:
 its members are determined by the generating data alone, so no callable on it
 may accept a Strategy token (``_STRATEGY_TOKENS`` — the solver-choice vocabulary
 of ``campaign_verification_plan.md`` §AC-a).  Non-tautological only since C3b
@@ -14,7 +14,7 @@ import inspect
 import pytest
 
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 pytestmark = pytest.mark.foundation
 
@@ -33,15 +33,15 @@ def _chain() -> list[tuple[str, object]]:
     """The callables on the Problem chain — a LIST, so a renamed member cannot
     silently empty the loop."""
     members = [
-        ("SNMesh.__init__", SNMesh.__init__),
-        ("SNMesh.from_axes", SNMesh.from_axes),
-        ("SNMesh.from_material_mesh", SNMesh.from_material_mesh),
-        ("SNMesh.with_scattering_order", SNMesh.with_scattering_order),
-        ("SNMesh.with_cross_sections", SNMesh.with_cross_sections),
+        ("SNProblem.__init__", SNProblem.__init__),
+        ("SNProblem.from_axes", SNProblem.from_axes),
+        ("SNProblem.from_material_mesh", SNProblem.from_material_mesh),
+        ("SNProblem.with_scattering_order", SNProblem.with_scattering_order),
+        ("SNProblem.with_cross_sections", SNProblem.with_cross_sections),
         ("build_within_group_system", build_within_group_system),
-        ("SNMesh.system", SNMesh.__dict__["system"].func),
-        ("SNMesh.pencil", SNMesh.__dict__["pencil"].func),
-        ("SNMesh.eigen_posing", SNMesh.__dict__["eigen_posing"].func),
+        ("SNProblem.system", SNProblem.__dict__["system"].func),
+        ("SNProblem.pencil", SNProblem.__dict__["pencil"].func),
+        ("SNProblem.eigen_posing", SNProblem.__dict__["eigen_posing"].func),
     ]
     return members
 

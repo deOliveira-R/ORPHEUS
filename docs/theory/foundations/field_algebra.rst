@@ -779,7 +779,7 @@ refused. `[M]` 2026-09-08, on the 33 shipped (rule, :math:`L`) frames:
 ``has_coordinate_cone`` is ``False`` on 33 of 33 (previously ``None`` on
 33 of 33). ⚠ The ``None`` arm has NOT retired — it is still the honest
 answer for every axes-less legacy space, the SN
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
+:attr:`~orpheus.sn.problem.SNProblem.full_field_space`
 composite among them (`[M]` 2026-09-08: ``None``).
 ⛔ This sentence also named *"a WIDENED moment product, whose axes-less*
 ``SpatialMomentSpace`` *tail keeps the whole product axes-less until item
@@ -953,7 +953,7 @@ edge arrays, and a third whose second cell edge moved:
 
 Three readings, and each is a design decision made visible:
 
-- **A twin carrier is the same fiber.** Two ``SNMesh`` objects built
+- **A twin carrier is the same fiber.** Two ``SNProblem`` objects built
   from equal inputs describe one problem, and their fields now mix.
   Under the old rule they refused — a false negative that forced
   callers to thread one carrier object through code that only needed
@@ -975,7 +975,7 @@ Three readings, and each is a design decision made visible:
    **CS5 (2026-08-29) put a distinct object INSIDE the twin row's
    spaces, and the row did not move — by design.** Since campaign-1
    phase CS5 the angular axis of
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+   :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
    carries its own :class:`~orpheus.numerics.quadrature.directional.Quadrature`
    as an :attr:`~orpheus.numerics.axis.Axis.generator`, and two twin
    carriers hold **different rule instances** (`[M]` ``a.quad is not

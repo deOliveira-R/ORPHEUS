@@ -174,7 +174,7 @@ These objects have **no group axis at all** — their arrays are shaped
 by quadrature and mesh, and no cross section enters their
 construction:
 
-* **The walk itself.**  ``SNMesh.dag_walk`` yields the per-(:term:`ordinate`,
+* **The walk itself.**  ``SNProblem.dag_walk`` yields the per-(:term:`ordinate`,
   cell) visit sequence — the direction-keyed topological order the
   sweep follows — as
   :class:`~orpheus.transport.spatial.scheme.CellVisit` packets

@@ -63,7 +63,7 @@ from scipy.sparse import csr_matrix
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 
@@ -93,7 +93,7 @@ def solver_p1_het():
     chain ``R∘Λ∘M`` exercises ℓ≥1 with a genuinely heterogeneous,
     asymmetric ``SigS`` (H2 + Mode 6). Returns the SOLVER (the operator is
     ``solver.scattering_op``) so the typed :class:`AngularFlux` is built on
-    the solver's own :class:`SNMesh`, exactly like the existing
+    the solver's own :class:`SNProblem`, exactly like the existing
     ``test_scattering_operator.py`` fixtures.
     """
     p0_a = np.array([[0.38, 0.10], [0.05, 0.90]])
@@ -119,7 +119,7 @@ def solver_p1_het():
     mat[2:, :] = 1
     mesh = _uniform_2d(nx, ny, 0.4, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
+    sn_mesh = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
     return SNSolver(sn_mesh)
 
 

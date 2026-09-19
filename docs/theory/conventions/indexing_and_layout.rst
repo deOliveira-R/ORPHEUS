@@ -76,12 +76,12 @@ this page, this page is correct.
    rank-generic layout ``(N, ng, *spatial_shape)``.  At :math:`d = 1`,
    ``spatial_shape == (nx,)`` (written ``(N, ng, nx, ny)`` with the
    trailing ``ny = 1`` singleton preserved, **never** a phantom second
-   axis — see below).  At :math:`d = 3` an axis-native :class:`SNMesh`
+   axis — see below).  At :math:`d = 3` an axis-native :class:`SNProblem`
    (:ref:`sn-axis-primary-c5`) produces ``(N, ng, nx, ny, nz)``.
    Energy-first / spatial-last and ordinate-first hold at every rank;
    only the **length** of the spatial tail changes.  Every field /
    cross-section / scattering read since C5.2 keys on the rank-generic
-   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape`, **not** on a
+   :attr:`~orpheus.sn.problem.SNProblem.spatial_shape`, **not** on a
    hard-coded ``(nx, ny)`` pair (an ``(nx, ny)``-keyed read silently
    truncates a 3-D tensor — the live :math:`d = 3` landmine C5.2
    retired; see :ref:`sn-c5-phantom-retirement`).  The :math:`d \le 2`
@@ -382,7 +382,7 @@ view rather than re-deriving it, so the layout has exactly one producer.
      — the ``@pytest.mark.verifies("sn-cell-flatten-roundtrip")`` witness,
      parametrised over both carrier tiers
      (:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and
-     :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`).  It asserts the
+     :class:`~orpheus.sn.problem.SNProblem`).  It asserts the
      stored datum is ``array_equal`` to
      ``assemble_cell_xs(materials, mat_map).sig_t.T.reshape(ng, *spatial)``
      **and** that the field's ``total_cross_section`` view reads it;
@@ -1214,7 +1214,7 @@ scale through the same algebra.
    * - :math:`L`
      - :class:`~orpheus.sn.operators.streaming.StreamingOperator`
      - Streaming :math:`\Omega \cdot \nabla\psi`; per-ordinate
-       sweep over :func:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`,
+       sweep over :func:`~orpheus.sn.problem.SNProblem.dag_walk`,
        fold over :meth:`DiscretizationScheme.residual`
    * - :math:`C`
      - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
@@ -1555,12 +1555,12 @@ Zero-field allocation is SPACE-keyed: the carrier mints, the leaf allocates
 ---------------------------------------------------------------------------
 
 .. note:: **Correction (2026-08-10, Issue #346).**  This section was
-   headed *"Factory methods (SNMesh)"* and stated that
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` carries
+   headed *"Factory methods (SNProblem)"* and stated that
+   :class:`~orpheus.sn.problem.SNProblem` carries
    ``zeros_angular_flux`` / ``zeros_scalar_flux`` /
    ``zeros_boundary_flux``.  It does not, and the capability was not
    renamed — it **changed owner**.  ``[M]``
-   ``[n for n in dir(SNMesh) if "zero" in n.lower()] == []``.
+   ``[n for n in dir(SNProblem) if "zero" in n.lower()] == []``.
 
 .. note:: **Second correction (2026-08-24, campaign 1 CS4b S5).**  The
    ownership has moved once more, and this section carried the middle
@@ -1607,14 +1607,14 @@ mix and only a genuinely different space refuses):
    * - Carrier mint
      - Families that live there
      - What it is
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+   * - :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
      - :class:`AngularFlux`, :class:`~orpheus.transport.source_sinks.AngularSourceSink`,
        the angular residual
      - the per-ordinate bulk phase space, the ordered axis product
        :math:`V_\Omega \otimes V_E \otimes V_r` with the quadrature
        measure :math:`w_n` on the ordinate axis and the cell volumes on
        the spatial axis
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+   * - :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space`
      - the same angular leaves, when the caller wants the **scheme's**
        within-cell basis
      - :attr:`angular_bulk_space` extended by the scheme's MODAL moment
@@ -1625,7 +1625,7 @@ mix and only a genuinely different space refuses):
      - the scalar bulk :math:`V_E \otimes V_r` — literally
        :attr:`angular_bulk_space` minus axis 0, which is why the angular
        retract cannot disagree with it on the shared factors
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trace`
+   * - :attr:`~orpheus.sn.problem.SNProblem.angular_trace`
      - :class:`AngularBoundaryFlux`,
        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
      - the FLAT per-face trace buffer under the
@@ -1636,8 +1636,8 @@ mix and only a genuinely different space refuses):
      - the diffusion partial-current trace, under the face-AREA metric.
        A bare ``MaterialMesh`` has none — a scalar trace is diffusion
        *behaviour*, not method-agnostic *data* (#290 P7a)
-   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_interior_space`
-       / :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_boundary_space`
+   * - :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_interior_space`
+       / :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_boundary_space`
      - the :math:`\psi_{1/2}` starting-direction leaves (System B)
      - the split ``cells`` and ``corner`` ray spaces, keyed by
        ``(level, sign)``.  Both are ``None`` on a carrier whose
@@ -1703,7 +1703,7 @@ moment factor MODAL and carrying the scheme's mass
 The trial mint — construct general, select narrow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space` is
+:attr:`~orpheus.sn.problem.SNProblem.angular_trial_space` is
 the scheme-widened sibling of :attr:`angular_bulk_space`: the same
 product with the bound scheme's within-cell spatial-moment factor
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`,
@@ -1795,7 +1795,7 @@ System B's :math:`\psi_{1/2}` composite is the presence-gated case.
 and its source-role sibling
 :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_zeros`
 take the carrier's
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_field_space`,
+:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_field_space`,
 which is ``None`` exactly where no :math:`\mu`-level consumes an
 independent starting direction — and ``None`` is REFUSED with the R12a
 diagnosis (*"System B is absent on this carrier…"*) rather than
@@ -1908,7 +1908,7 @@ than a different construction path:
 * ``ScalarSourceSink.zeros(mesh.bulk_space)`` → ``(ng, *spatial)`` zeros.
 * ``AngularSourceSink.zeros(sn.angular_bulk_space)`` →
   ``(N, ng, *spatial)`` zeros; read
-  :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+  :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space`
   instead when the source carries the scheme's within-cell moments (the
   LD slope source :math:`\hat Q`).
 * ``AngularBoundarySourceSink.zeros(sn.angular_trace)`` → the flat
@@ -1916,7 +1916,7 @@ than a different construction path:
   (:ref:`bc-affine-channel-where-q-travels`).
 
 The ownership of this allocator has moved **twice** — off
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` onto the leaf at #346
+:class:`~orpheus.sn.problem.SNProblem` onto the leaf at #346
 (as ``zeros_on(mesh)``), then off the mesh key onto the space key at
 CS4b S5.  The reasoning for both steps, and the measured shapes, are in
 :ref:`theory-sn-typed-fields`; only the *key* changed at the second
@@ -2127,12 +2127,12 @@ The dataclasses on first landing are:
    @dataclass(frozen=True, slots=True)
    class AngularFlux:
        values: np.ndarray   # (N, ng, nx, ny) — principled
-       sn_mesh: "SNMesh"    # by-reference
+       sn_mesh: "SNProblem"    # by-reference
 
    @dataclass(frozen=True, slots=True)
    class ScalarFlux:
        values: np.ndarray   # (ng, nx, ny) — principled
-       sn_mesh: "SNMesh"
+       sn_mesh: "SNProblem"
 
 The dataclasses land on the principled foundation laid by
 PR-INDEX-5; the principled-layout :ref:`sn-field-vocabulary`

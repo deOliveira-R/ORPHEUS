@@ -44,7 +44,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields._bases import BulkField
 from orpheus.transport.frames import HarmonicFrame
@@ -54,32 +54,32 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = pytest.mark.foundation
 
 
-def _ld_2d() -> SNMesh:
+def _ld_2d() -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((3, 2), dtype=int), coord=CoordSystem.CARTESIAN,
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
 
 
-def _ld_1d() -> SNMesh:
+def _ld_1d() -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 6), mat_ids=np.zeros(5, dtype=int), coord=CoordSystem.CARTESIAN,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
 
 
-def _dd_2d() -> SNMesh:
+def _dd_2d() -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((3, 2), dtype=int), coord=CoordSystem.CARTESIAN,
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=DiamondDifference())
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=DiamondDifference())
 
 
 _LD = {"ld_2d": _ld_2d, "ld_1d": _ld_1d}

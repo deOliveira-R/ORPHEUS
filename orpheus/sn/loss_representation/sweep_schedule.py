@@ -90,7 +90,7 @@ from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasurePartition
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 
 __all__ = ["OctantSweep", "OctantSweepGroup", "SweepSchedule"]
@@ -220,7 +220,7 @@ class SweepSchedule:
         )
         return cls(groups=groups, kind="gauss_seidel")
 
-    def lower_inflow_rows(self, sn_mesh: "SNMesh") -> dict[str, np.ndarray]:
+    def lower_inflow_rows(self, sn_mesh: "SNProblem") -> dict[str, np.ndarray]:
         r"""Per-face inflow ordinate rows that read the CURRENT iterate under
         this schedule — the row support of the strictly-lower boundary part
         :math:`B_{\rm lower}` in the splitting
@@ -307,7 +307,7 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
     )
 
 
-def reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
+def reflective_faces(sn_mesh: "SNProblem") -> frozenset[str]:
     """The mesh's SPECULAR-reflective boundary faces.
 
     The question is *does this face's law RELABEL ordinates?* — a specular

@@ -69,7 +69,7 @@ from orpheus.sn.loss_representation.assembly import (
     assemble_ordinate_blocks,
     ordinate_walk_order,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -89,19 +89,19 @@ _RTOL = 1e-11   # L16: sparse-order ≠ apply-order ⇒ never 0-ULP (measured ~6
 # ── Fixtures: het, non-uniform h, ≥2G, vacuum (zero-inflow posing) ─────
 
 
-def _slab_mesh() -> SNMesh:
+def _slab_mesh() -> SNProblem:
     mesh1d = Mesh1D(
         edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),       # non-uniform
         mat_ids=np.array([0, 1, 1, 0]),                  # heterogeneous
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(
+    return SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
 
 
-def _cartesian_2d_mesh() -> SNMesh:
+def _cartesian_2d_mesh() -> SNProblem:
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),     # non-uniform
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
@@ -110,7 +110,7 @@ def _cartesian_2d_mesh() -> SNMesh:
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(
+    return SNProblem(
         geom, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
 
@@ -118,7 +118,7 @@ def _cartesian_2d_mesh() -> SNMesh:
 _MESH_BUILDERS = {"slab": _slab_mesh, "cartesian_2d": _cartesian_2d_mesh}
 
 
-def _loss(sn_mesh: SNMesh):
+def _loss(sn_mesh: SNProblem):
     """The production within-group resolvent ``L + C`` (the solver's own
     spelling — StreamingOperator + M[σ_t] on the composite space)."""
     mat_xs = sn_mesh.mat_xs
@@ -128,7 +128,7 @@ def _loss(sn_mesh: SNMesh):
     )
 
 
-def _bulk_impulse_state(sn_mesh: SNMesh, n: int, g: int, x: np.ndarray):
+def _bulk_impulse_state(sn_mesh: SNProblem, n: int, g: int, x: np.ndarray):
     """A composite that is ``x`` on bulk row (n, g) and zero elsewhere."""
     state = FullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
@@ -137,7 +137,7 @@ def _bulk_impulse_state(sn_mesh: SNMesh, n: int, g: int, x: np.ndarray):
     return state
 
 
-def _bulk_source(sn_mesh: SNMesh, n: int, g: int, q: np.ndarray):
+def _bulk_source(sn_mesh: SNProblem, n: int, g: int, q: np.ndarray):
     """A source composite with ``q`` on bulk row (n, g), zero trace —
     the #284 source subspace the sweep inverts exactly."""
     rhs = FullField(
@@ -363,7 +363,7 @@ def test_teeth_shared_kernel_sign_flip_moves_all_three_modes(monkeypatch):
 # ── Scope guards ───────────────────────────────────────────────────────
 
 
-def _ld_mesh(geometry: str) -> SNMesh:
+def _ld_mesh(geometry: str) -> SNProblem:
     """LD fixtures — het, non-uniform h, ≥2G (the DD fixtures' twins,
     with the bilinear closure selected)."""
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
@@ -374,7 +374,7 @@ def _ld_mesh(geometry: str) -> SNMesh:
             bc_left=BC("vacuum"), bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=4)
-        return SNMesh(mesh1d, quad, materials, scheme=LinearDiscontinuous())
+        return SNProblem(mesh1d, quad, materials, scheme=LinearDiscontinuous())
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
@@ -383,7 +383,7 @@ def _ld_mesh(geometry: str) -> SNMesh:
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(geom, quad, materials, scheme=LinearDiscontinuous())
+    return SNProblem(geom, quad, materials, scheme=LinearDiscontinuous())
 
 
 def _block_upper_mask(n_cells: int, cm: int, order: np.ndarray) -> np.ndarray:
@@ -515,7 +515,7 @@ def test_curvilinear_refuses_the_cartesian_walk():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNMesh(mesh1d, quad, {0: get_mixture("A", "2g")})
+    sn_mesh = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")})
     with pytest.raises(AttributeError, match="Cartesian-only"):
         assemble_ordinate_blocks(sn_mesh, 0)
 
@@ -533,7 +533,7 @@ def test_curvilinear_refuses_the_cartesian_walk():
 # relaxes, the RED characterization).
 
 
-def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
+def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
     r"""The one-group AUGMENTED matrix of the production matvec by column
     probes — the ψ½ seed DOFs stacked BEFORE the ordinate DOFs.
 
@@ -628,7 +628,7 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     return np.array(columns).T
 
 
-def _augmented_sweep_order(sn_mesh: SNMesh) -> np.ndarray:
+def _augmented_sweep_order(sn_mesh: SNProblem) -> np.ndarray:
     """The augmented walk order: seed DOFs first (their march order, as
     stacked by the probe), then the ordinate-bulk DOFs in increasing μ
     (cells marching WITH each ordinate's direction — inward for μ<0)."""
@@ -695,7 +695,7 @@ def test_282_augmented_walk_order_is_triangular(coord):
         if coord is CoordSystem.SPHERICAL
         else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
     M = _probe_augmented_matrix_one_group(sn_mesh, g=0)
@@ -731,7 +731,7 @@ def test_282_teeth_coupling_direction_swap_reds():
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
         coord=CoordSystem.SPHERICAL,
     )
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         mesh1d, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )

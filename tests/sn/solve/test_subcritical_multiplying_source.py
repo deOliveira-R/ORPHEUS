@@ -86,9 +86,9 @@ def test_a_supercritical_hub_is_REFUSED_at_the_driver() -> None:
 def test_the_composition_is_the_loss_minus_the_production() -> None:
     """``SourcePosing(pencil.at(1), q).operator.apply(x) == loss.apply(x) − production.apply(x)``
     bit-identically on a typed coupled state."""
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     mats, mesh, quad = _slab(2.0)
-    hub = SNMesh(mesh, quad, mats)
+    hub = SNProblem(mesh, quad, mats)
     rec = hub.system
     rng = np.random.default_rng(0)
     x = rec.space.zeros()

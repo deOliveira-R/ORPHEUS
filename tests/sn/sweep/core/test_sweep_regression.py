@@ -1,4 +1,4 @@
-"""Regression tests for the SN sweep + SNMesh stencil.
+"""Regression tests for the SN sweep + SNProblem stencil.
 
 These tests cover bugs and edge cases found during the geometry
 migration (2026-04-04).  Each test targets a specific failure mode.
@@ -30,7 +30,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
@@ -45,7 +45,7 @@ from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import sweep_once
 from tests.sn._test_helpers import placeholder_materials
 
-pytestmark = pytest.mark.l0  # SN sweep + SNMesh stencil regressions
+pytestmark = pytest.mark.l0  # SN sweep + SNProblem stencil regressions
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -77,7 +77,7 @@ class TestScatteringConvergence:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
+        sn_mesh = SNProblem(mesh, quad, {0: mix})
         solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
 
         # One outer iteration: flux must remain bounded
@@ -93,11 +93,11 @@ class TestScatteringConvergence:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SNMesh stencil and shape tests
+# SNProblem stencil and shape tests
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestSNMesh:
-    """Tests for the SNMesh augmented geometry."""
+class TestSNProblem:
+    """Tests for the SNProblem augmented geometry."""
 
     def test_stencil_values_cartesian(self):
         """streaming(0)[n,i] is the RAW down-face streaming |μ_x[n]| / dx[i]
@@ -106,7 +106,7 @@ class TestSNMesh:
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         for n in range(quad.N):
             for i in range(sn_mesh.nx):
@@ -129,7 +129,7 @@ class TestSNMesh:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         for a, widths in enumerate((mesh.dx, mesh.dy)):
             np.testing.assert_array_equal(
                 sn_mesh.streaming(a),
@@ -144,7 +144,7 @@ class TestSNMesh:
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((2, 2), dtype=int),
         )
-        sn_mesh = SNMesh(
+        sn_mesh = SNProblem(
             mesh, Quadrature.lebedev(order=5), placeholder_materials(),
         )
         with pytest.raises(IndexError, match="out of range for ndim=2"):
@@ -165,7 +165,7 @@ class TestSNMesh:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = 0.5  # scalar for simplicity
         for n in range(quad.N):
@@ -176,10 +176,10 @@ class TestSNMesh:
                     np.testing.assert_allclose(new, old, rtol=1e-14)
 
     def test_mesh1d_shapes(self):
-        """SNMesh from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
+        """SNProblem from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         assert sn_mesh.nx == 5
         assert sn_mesh.spatial_shape == (5,)
@@ -188,14 +188,14 @@ class TestSNMesh:
         assert sn_mesh.is_1d is True
 
     def test_mesh2d_shapes(self):
-        """SNMesh from Mesh2D preserves shapes."""
+        """SNProblem from Mesh2D preserves shapes."""
         mesh = Mesh2D(
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 3
         assert sn_mesh.spatial_shape[1] == 2
@@ -211,16 +211,16 @@ class TestSNMesh:
                       coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.gauss_legendre(4)
         with pytest.raises(ValueError, match="level structure"):
-            SNMesh(mesh, quad, placeholder_materials())
+            SNProblem(mesh, quad, placeholder_materials())
 
     def test_spherical_setup(self):
-        """Spherical SNMesh must precompute face areas and α coefficients."""
+        """Spherical SNProblem must precompute face areas and α coefficients."""
         from orpheus.geometry import CoordSystem
 
         mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
         assert sn_mesh.coord is CoordSystem.SPHERICAL
         reduced = sn_mesh.reduced
@@ -270,7 +270,7 @@ class TestSNMesh:
         # 1D with GL
         mesh_1d = _homogeneous_slab_mesh(10, 1.0, mat_id=0)
         quad_gl = Quadrature.gauss_legendre(8)
-        solver_1d = SNSolver(SNMesh(mesh_1d, quad_gl, {0: mix}), max_inner=500, inner_tol=1e-10)
+        solver_1d = SNSolver(SNProblem(mesh_1d, quad_gl, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_1d.initial_flux_distribution()
         keff_1d = 1.0
         for _ in range(50):
@@ -287,7 +287,7 @@ class TestSNMesh:
             mat_map=np.zeros((10, 1), dtype=int),
         )
         quad_2d = Quadrature.product(n_mu=8, n_phi=4)
-        solver_2d = SNSolver(SNMesh(mesh_2d, quad_2d, {0: mix}), max_inner=500, inner_tol=1e-10)
+        solver_2d = SNSolver(SNProblem(mesh_2d, quad_2d, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_2d.initial_flux_distribution()
         keff_2d = 1.0
         for _ in range(50):

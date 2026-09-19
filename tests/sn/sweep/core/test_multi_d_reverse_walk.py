@@ -100,7 +100,7 @@ from orpheus.sn.loss_representation.sweep_graph import (
 )
 from orpheus.sn.loss_representation import _ApplyOperands
 from orpheus.sn.loss_representation.sweep_schedule import _octant_sweep
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
@@ -119,7 +119,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _cart2d_probe_mesh() -> SNMesh:
+def _cart2d_probe_mesh() -> SNProblem:
     """Small rectangular (nx=3 ≠ ny=2) NON-UNIFORM 2-material cart2d mesh —
     the dense-probe config.  Rectangular + non-uniform h + het σ makes
     ``A ≠ Aᵀ`` observable (L16: a square-uniform-symmetric config is
@@ -131,13 +131,13 @@ def _cart2d_probe_mesh() -> SNMesh:
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         geom, Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
 
 
-def _cart2d_square_uniform_mesh() -> SNMesh:
+def _cart2d_square_uniform_mesh() -> SNProblem:
     """Square (3×3) UNIFORM mesh for the axis-conjugation tooth — the config
     on which the x↔y swap is a symmetry of the GEOMETRY (the quadrature's S2
     ordinates have ``μ_x = μ_y`` exactly), isolating what the mutation
@@ -149,12 +149,12 @@ def _cart2d_square_uniform_mesh() -> SNMesh:
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         geom, Quadrature.level_symmetric(2), {0: get_mixture("A", "2g")},
     )
 
 
-def _het_sigma(sn: SNMesh, rng: np.random.Generator) -> np.ndarray:
+def _het_sigma(sn: SNProblem, rng: np.random.Generator) -> np.ndarray:
     """Heterogeneous (space × group) positive σ_t for the rep-level calls."""
     return 0.4 + rng.random((2, *sn.spatial_shape))
 
@@ -165,7 +165,7 @@ def _het_sigma(sn: SNMesh, rng: np.random.Generator) -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _zero_composite(sn: SNMesh) -> FullField:
+def _zero_composite(sn: SNProblem) -> FullField:
     # Scheme-aware: a multi-moment closure (LD) carries the (…, 2^d) bulk
     # tail, selected by the mesh's own per-axis basis size; the boundary
     # auto-sizes from the moment-resolved trace layout.  per_axis == 1
@@ -182,7 +182,7 @@ def _flatten(field, faces: tuple[str, ...]) -> np.ndarray:
     return np.concatenate(parts)
 
 
-def _basis_size(sn: SNMesh, faces: tuple[str, ...]) -> int:
+def _basis_size(sn: SNProblem, faces: tuple[str, ...]) -> int:
     z = _zero_composite(sn)
     n = int(np.asarray(z.interior.values).size)
     for f in faces:
@@ -190,7 +190,7 @@ def _basis_size(sn: SNMesh, faces: tuple[str, ...]) -> int:
     return n
 
 
-def _basis_composites(sn: SNMesh, faces: tuple[str, ...]):
+def _basis_composites(sn: SNProblem, faces: tuple[str, ...]):
     """Unit composites in the SAME DOF order ``_flatten`` reads."""
     z = _zero_composite(sn)
     bulk_shape = np.asarray(z.interior.values).shape
@@ -215,7 +215,7 @@ def _pairing(a, b, faces: tuple[str, ...]) -> float:
     return tot
 
 
-def _pairing_defect(sn: SNMesh, rep, sig: np.ndarray, rng) -> float:
+def _pairing_defect(sn: SNProblem, rep, sig: np.ndarray, rng) -> float:
     """Relative defect of ``⟨Fx, w⟩ − ⟨x, Fᵀw⟩`` on random full composites."""
     faces = tuple(sn.angular_trace.face_names)
     x = _random_composite(sn, rng)
@@ -225,7 +225,7 @@ def _pairing_defect(sn: SNMesh, rep, sig: np.ndarray, rng) -> float:
     return abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1e-300)
 
 
-def _probe_dense(sn: SNMesh, sig: np.ndarray, action) -> np.ndarray:
+def _probe_dense(sn: SNProblem, sig: np.ndarray, action) -> np.ndarray:
     """Column-probe ONE direction's dense matrix over the FULL composite
     basis (bulk ⊕ trace) — the shared dense-object artifact.  ``action`` is
     a rep's ``loss_action`` or ``loss_action_transpose`` bound method."""
@@ -237,7 +237,7 @@ def _probe_dense(sn: SNMesh, sig: np.ndarray, action) -> np.ndarray:
     return M
 
 
-def _assert_dense_mt_pins_object(sn: SNMesh, rep, sig: np.ndarray, label: str):
+def _assert_dense_mt_pins_object(sn: SNProblem, rep, sig: np.ndarray, label: str):
     """The ONE dense-``Mᵀ`` object pin — ``M_rev == M_fwdᵀ`` as a MATRIX,
     plus the anti-vacuous asymmetry check.  Shared by the d=2 DD gate, the
     d=3 gate, and the LD-2D gate (one spelling of the pin; Mode-12: a
@@ -513,7 +513,7 @@ def test_assembled_mt_2d_per_ordinate_block():
     assembled by forward-kernel unit probes and transposed by scipy CSR.
     σ is the mesh's own material field — the SAME source the assembly
     reads."""
-    sn = SNMesh(
+    sn = SNProblem(
         Mesh2D(
             edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
             edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
@@ -751,7 +751,7 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
     from orpheus.transport.mesh.axis import AxisMesh
 
     rng = np.random.default_rng(20260808)
-    sn = SNMesh.from_axes(
+    sn = SNProblem.from_axes(
         (
             AxisMesh(edges=np.array([0.0, 0.6, 1.0])),             # nx=2
             AxisMesh(edges=np.array([0.0, 0.4, 1.1, 2.0])),        # ny=3
@@ -782,7 +782,7 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _ld2d_probe_mesh() -> SNMesh:
+def _ld2d_probe_mesh() -> SNProblem:
     """LD sibling of the DD probe config: rectangular (nx=3 ≠ ny=2)
     NON-UNIFORM 2-material vacuum mesh, LinearDiscontinuous — the bulk
     carries the ``(…, 4)`` ``[avg, ŷ, x̂, x̂ŷ]`` Kronecker tail (axis-0
@@ -795,14 +795,14 @@ def _ld2d_probe_mesh() -> SNMesh:
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         geom, Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         scheme=LinearDiscontinuous(),
     )
 
 
-def _ld2d_reflective_mesh() -> SNMesh:
+def _ld2d_reflective_mesh() -> SNProblem:
     """Reflective nonsquare non-uniform LD sibling — the boundary-cotangent
     algebra live on the MOMENT-RESOLVED trace (reflection threads the
     transverse face-slope; its transpose must too)."""
@@ -813,7 +813,7 @@ def _ld2d_reflective_mesh() -> SNMesh:
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(
+    return SNProblem(
         geom, Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         scheme=LinearDiscontinuous(),

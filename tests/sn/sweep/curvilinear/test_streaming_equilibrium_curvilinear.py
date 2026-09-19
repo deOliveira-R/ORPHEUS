@@ -209,7 +209,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
 
     Cylindrical analog of the spherical test above.  Uses the folded
     product quadrature (GL polar levels × the σ_y-quotiented staggered
-    azimuthal arc) — the carrying family SNMesh(CYLINDRICAL) admits,
+    azimuthal arc) — the carrying family SNProblem(CYLINDRICAL) admits,
     with the M-M per-level azimuthal redistribution sweep marching the
     ψ½ system directly (Q5.6.3).
 

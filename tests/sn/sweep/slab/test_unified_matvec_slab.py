@@ -53,7 +53,7 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
@@ -64,7 +64,7 @@ from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNMesh:
+def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, n_cells + 1),
         mat_ids=np.zeros(n_cells, dtype=int),
@@ -73,7 +73,7 @@ def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNMesh:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
 @pytest.mark.l0

@@ -126,7 +126,7 @@ stays green". Both halves needed correcting against the tree:
      ``C``'s reciprocity.
    * ``B`` with a specular law is a signed **permutation** of the trace that
      maps :math:`\mu \to -\mu`, preserving both :math:`|\Omega\cdot n|` and
-     :math:`w_n` — so it commutes with the trace metric. ``SNMesh`` accepts
+     :math:`w_n` — so it commutes with the trace metric. ``SNProblem`` accepts
      only ``reflective``/``vacuum`` face laws (MEASURED: ``white`` raises
      ``ValueError``), and the vacuum law is the zero map, which commutes with
      everything. So there is no *reachable* config either.
@@ -211,7 +211,7 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics import operator as _operator_module
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -317,19 +317,19 @@ _NONUNIFORM_EDGES = np.array([0.0, 0.12, 0.35, 0.80, 1.30, 2.00])
 _TWO_REGION_IDS = np.array([0, 0, 1, 1, 1])
 
 
-def _slab() -> SNMesh:
+def _slab() -> SNProblem:
     """1-D Cartesian, non-uniform ``h``, mixed reflective/vacuum, GL S4."""
     mesh = Mesh1D(
         edges=_NONUNIFORM_EDGES, mat_ids=_TWO_REGION_IDS,
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(),
     )
 
 
-def _sphere() -> SNMesh:
+def _sphere() -> SNProblem:
     r"""1-D spherical — **the load-bearing G1.4 leg**.
 
     ``V_cell`` spans 3.36e3 (MEASURED) and ``gauss_legendre(4)`` weights are
@@ -346,12 +346,12 @@ def _sphere() -> SNMesh:
         edges=_NONUNIFORM_EDGES, mat_ids=_TWO_REGION_IDS,
         coord=CoordSystem.SPHERICAL, bc_right=BC("reflective"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(),
     )
 
 
-def _cylinder() -> SNMesh:
+def _cylinder() -> SNProblem:
     r"""1-D cylindrical, ``product(n_mu=4, n_phi=8)``.
 
     The second curvilinear leg, on a DIFFERENT quadrature family, so the
@@ -362,12 +362,12 @@ def _cylinder() -> SNMesh:
         edges=_NONUNIFORM_EDGES, mat_ids=_TWO_REGION_IDS,
         coord=CoordSystem.CYLINDRICAL, bc_right=BC("reflective"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.folded_product(n_mu=4, n_phi=8), _two_region_fissile(),
     )
 
 
-def _cart2d() -> SNMesh:
+def _cart2d() -> SNProblem:
     """2-D Cartesian, NON-SQUARE and non-uniform on both axes, mixed BC.
 
     ``nx != ny`` with unequal spacings is the ``x↔y``-swap catcher;
@@ -383,12 +383,12 @@ def _cart2d() -> SNMesh:
         bc_xmin=BC("reflective"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.level_symmetric(sn_order=4), _two_region_fissile(),
     )
 
 
-def _flat_metric_slab() -> SNMesh:
+def _flat_metric_slab() -> SNProblem:
     r"""The CONFIG-BLINDNESS control: a **globally constant** metric.
 
     Reciprocity is blind to the metric exactly when :math:`G = c\,\mathbb{1}`,
@@ -416,7 +416,7 @@ def _flat_metric_slab() -> SNMesh:
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("reflective"), bc_right=BC("reflective"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=2), _two_region_fissile(),
     )
 
@@ -445,7 +445,7 @@ _LEAVES = ("L", "C", "S", "F", "B")
 #: an anonymous build (an optional space defaulting to ``None``) — each
 #: flip converts its row from strict-xfail to a permanent refusal floor
 #: (``C``/``F`` flipped; ``S`` at step 3, 2026-08-30). ``L`` and ``B`` derive
-#: their space from the ``SNMesh`` they are handed and were never
+#: their space from the ``SNProblem`` they are handed and were never
 #: anonymous-capable — pinned by
 #: :func:`test_mesh_derived_leaves_carry_no_anonymous_construction_surface`.
 _ANONYMOUS_CAPABLE = ("C", "S", "F")
@@ -463,7 +463,7 @@ _ANONYMOUS_CAPABLE = ("C", "S", "F")
 _METRIC_CONSTRAINED = ("L", "S", "F")
 
 
-def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
+def _leaf_set(sn_mesh: SNProblem) -> "dict[str, LinearOperator]":
     r"""The five production leaves, built exactly as the SN solver builds them.
 
     ``L``/``C`` mirror ``build_streaming_collision``
@@ -492,7 +492,7 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
     }
 
 
-def _random_composite(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
+def _random_composite(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     """Fixed-seed random state, filled in BULK **and** TRACE.
 
     A flat ψ nulls the streaming coupling and a zero trace nulls ``B``; both
@@ -514,7 +514,7 @@ class _AlienCarrier:
     """A carrier no leaf's arrow accepts, and that is all it is."""
 
 
-def _wrong_carrier(kind: str, sn_mesh: SNMesh) -> object:
+def _wrong_carrier(kind: str, sn_mesh: SNProblem) -> object:
     """The two wrong carriers G1.3 probes.
 
     ``alien`` is a bare object — the minimal statement of "not my domain".
@@ -533,7 +533,7 @@ def _wrong_carrier(kind: str, sn_mesh: SNMesh) -> object:
 # ═════════════════════════════════════════════════════════════════════════
 
 def _reciprocity_residual(
-    op: "LinearOperator", sn_mesh: SNMesh, x: TimedFullField, y: TimedFullField,
+    op: "LinearOperator", sn_mesh: SNProblem, x: TimedFullField, y: TimedFullField,
 ) -> "tuple[float, float]":
     r"""``(relative defect, |⟨Ax,y⟩_G|)`` for the G-adjoint identity.
 
@@ -594,7 +594,7 @@ def _double_the_adjoint(self, y):
 _TRUE_ADJOINT_APPLY = _operator_module.AdjointOperator.apply
 
 
-def _assert_metric_is_constant(sn_mesh: SNMesh) -> float:
+def _assert_metric_is_constant(sn_mesh: SNProblem) -> float:
     """Precondition of the blindness leg: the metric IS one number.
 
     Reddens if the control fixture ever stops being flat — which would make
@@ -1214,7 +1214,7 @@ def test_mesh_derived_leaves_carry_no_anonymous_construction_surface(leaf):
     GREEN today, and it is the **scope control** for
     :func:`test_leaf_without_a_space_refuses_construction`. Without it, that
     test's ``{C, S, F}`` parametrisation reads as an arbitrary list; with it,
-    the list is *complete* — the other two take an ``SNMesh`` and derive
+    the list is *complete* — the other two take an ``SNProblem`` and derive
     their space from it, so there is no anonymous surface to refuse.
 
     It has real teeth: adding an optional ``space=None`` parameter to
@@ -1233,7 +1233,7 @@ def test_mesh_derived_leaves_carry_no_anonymous_construction_surface(leaf):
         pytest.fail(
             f"{constructor.__name__}.__init__ grew an optional space "
             f"parameter {optional_space} — a leaf that derives its space from "
-            f"its SNMesh now admits an ANONYMOUS construction, which is the "
+            f"its SNProblem now admits an ANONYMOUS construction, which is the "
             f"R2 `.H`-degrades-silently surface (see "
             f"test_leaf_without_a_space_refuses_construction)."
         )

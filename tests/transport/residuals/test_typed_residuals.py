@@ -33,7 +33,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -52,8 +52,8 @@ pytestmark = pytest.mark.foundation
 # ── Fixtures ─────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
-    """Build a small slab :class:`SNMesh` for unit testing."""
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+    """Build a small slab :class:`SNProblem` for unit testing."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -62,10 +62,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesh1D(
@@ -76,25 +76,25 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
-    """Build a small 2-D Cartesian :class:`SNMesh`."""
+def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
+    """Build a small 2-D Cartesian :class:`SNProblem`."""
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _ang_shape(m: SNMesh) -> tuple[int, ...]:
+def _ang_shape(m: SNProblem) -> tuple[int, ...]:
     return (m.quad.N, m.ng, *m.spatial_shape)
 
 
-def _sca_shape(m: SNMesh) -> tuple[int, ...]:
+def _sca_shape(m: SNProblem) -> tuple[int, ...]:
     return (m.ng, *m.spatial_shape)
 
 

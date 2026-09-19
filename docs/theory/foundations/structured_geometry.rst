@@ -483,7 +483,7 @@ achieves).
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
    reading the single partition producer
    :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`.
-   ⛔ This note said that producer was called *"by* :class:`SNMesh`
+   ⛔ This note said that producer was called *"by* :class:`SNProblem`
    *against the quadrature and its own* ``self.coord``\ *"* until
    2026-08-29.  `[M]` its one production caller is
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`'s
@@ -514,7 +514,7 @@ ordinates outside, consumed SILENTLY by the *unclamped* sphere closure
 until the guard landed — seven operator-equivalence tests ran exactly
 this configuration and stayed green because both compared spellings share
 the :math:`\tau` (the Mode-12 annihilation).  Issue #336 tracks the
-refuse-or-reduce design for ``SNMesh`` on a spherical mesh with a
+refuse-or-reduce design for ``SNProblem`` on a spherical mesh with a
 non-μ-line rule.  The closed endpoints are legal march starts — ``0`` is
 an edge-node start and ``1`` an η-degenerate tie
 (:func:`~orpheus.sn.angular.closure.march_start_structure_per_level`).
@@ -839,7 +839,7 @@ absolute primary direction cosine :math:`|\mu|` (sphere) /
 are populated by all three factories, so a downstream sweep cell update
 — see :doc:`/theory/methods/sn/index`, "Cell update strategies (the
 strategy contract)" — receives a self-contained per-cell,
-per-direction packet and need not reach back into ``SNMesh``.
+per-direction packet and need not reach back into ``SNProblem``.
 
 .. warning:: ⛔ **Two claims in this paragraph were retired, and the
    second is the one that matters.**
@@ -893,7 +893,7 @@ Sweep-direction resolution lives in the SN module:
 SN-specific per-visit packet that composes the geometric
 :class:`StreamingTerms` together with the sweep-resolved
 ``face_area_downstream``.  The SN sweep iterates
-:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`, which encodes
+:meth:`~orpheus.sn.problem.SNProblem.dag_walk`, which encodes
 the inward / outward branching, the cylindrical per-level
 traversal, and the pure-azimuthal degenerate handling — yielding
 one :class:`CellVisit` per cell in DAG-topological order.  The
@@ -913,7 +913,7 @@ Bit-identical contract — and what it pins TODAY
 
 When the lift landed, the factories were required to produce arrays
 bit-identical to the historical inline implementations
-``SNMesh._setup_spherical`` and ``SNMesh._setup_cylindrical``.  Hash
+``SNProblem._setup_spherical`` and ``SNProblem._setup_cylindrical``.  Hash
 equality — :func:`numpy.array_equal`, never ``np.allclose`` — was
 enforced at test time by ``tests/geometry/test_reduced_operator.py``
 (``foundation``-tagged), so the two paths had to share every
@@ -925,15 +925,15 @@ unaffected because the two paths computed the same data.
    accordingly.**
 
    The two legacy setup methods no longer exist (see
-   :ref:`snmesh-as-router` below).  ``SNMesh.__init__`` now calls
+   :ref:`snmesh-as-router` below).  ``SNProblem.__init__`` now calls
    :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming` /
    :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
    itself, so the surviving hash-equality legs compare a fresh factory
    call against ``sn_mesh.reduced`` — *the value that same factory
    produced*, routed through the mesh constructor.
 
-   ⛔ This paragraph used to add *"and the two ``SNMesh.face_areas`` /
-   ``SNMesh.delta_A`` legs are deprecated read-throughs to that same
+   ⛔ This paragraph used to add *"and the two ``SNProblem.face_areas`` /
+   ``SNProblem.delta_A`` legs are deprecated read-throughs to that same
    object"*.  Those accessors **retired at P4.1c** (2026-08-27) — `[M]`
    11 readers, **0** of them in ``orpheus/``, and every one of the
    tests that read them existed to verify the shims themselves.  The
@@ -1004,26 +1004,26 @@ of duplicating the curvature math.
 
 .. _snmesh-as-router:
 
-SNMesh as router
+SNProblem as router
 ----------------
 
-After Round 1.1 of Wave D of the SN reshape campaign, :class:`SNMesh`
+After Round 1.1 of Wave D of the SN reshape campaign, :class:`SNProblem`
 **routes** to :class:`ReducedStreamingOperator` rather than computing
-the connection coefficients itself.  The :meth:`SNMesh.__init__`
+the connection coefficients itself.  The :meth:`SNProblem.__init__`
 ladder calls :func:`slab_streaming` / :func:`spherical_streaming` /
 :func:`cylindrical_streaming` directly; the historical
-``SNMesh._setup_spherical`` and ``SNMesh._setup_cylindrical`` methods
+``SNProblem._setup_spherical`` and ``SNProblem._setup_cylindrical`` methods
 no longer exist.  ``self.reduced`` is the new canonical accessor
 every downstream consumer should bind to::
 
     sn_mesh.reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx)
 
 returns the per-(cell, direction) packet a sweep cell update needs —
-no more reaching into ``SNMesh`` for a half-dozen separate arrays.
+no more reaching into ``SNProblem`` for a half-dozen separate arrays.
 
 That migration has since **completed**.  Of the eight legacy attribute
 names the lift originally re-exposed as :class:`DeprecationWarning`
-``@property`` accessors, only **two** survive on :class:`SNMesh` today
+``@property`` accessors, only **two** survive on :class:`SNProblem` today
 — ``face_areas`` and ``delta_A``, still read-throughs to the matching
 field on ``self.reduced``.  The other six (``alpha_half``,
 ``redist_dAw``, ``alpha_per_level``, ``redist_dAw_per_level``,
@@ -1036,7 +1036,7 @@ two ``tau_mm`` names have no ``self.reduced`` field left to route to at
 all — τ is closure-owned now, not a factory output (see the
 :ref:`τ-ownership note <tau-ownership-note>` above).
 
-The Cartesian path is unchanged: ``SNMesh._setup_cartesian`` still
+The Cartesian path is unchanged: ``SNProblem._setup_cartesian`` still
 populates the :math:`2|\mu|/\Delta x` and :math:`2|\mu_y|/\Delta y`
 streaming stencils used by the DD-denominator precomputation in the
 Cartesian sweep (these are SN-specific and not represented in
@@ -1301,13 +1301,13 @@ Migration roadmap
 This primitive is the foundation for several follow-on issues in the
 SN reshape campaign (``.claude/plans/sn_reshape.md``):
 
-* **Issue 10 (Wave D Round 1.1) — DONE**: :class:`SNMesh` consumes
+* **Issue 10 (Wave D Round 1.1) — DONE**: :class:`SNProblem` consumes
   :class:`ReducedStreamingOperator` via the dispatch ladder above.
-  The connection-coefficient math no longer lives in :class:`SNMesh`.
+  The connection-coefficient math no longer lives in :class:`SNProblem`.
 * **SN operator algebra (Depth B, 2026-05)** —
   :class:`~orpheus.sn.operators.streaming.StreamingOperator` /
   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` consume the
-  primitive (as ``SNMesh.reduced``) through the loss-representation walk:
+  primitive (as ``SNProblem.reduced``) through the loss-representation walk:
   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads the
   connection coefficients off ``self.mesh.coord`` inside the walk.
   (Depth B consumed them through the per-geometry

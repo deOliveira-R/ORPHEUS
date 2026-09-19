@@ -301,9 +301,9 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
        so the string compare must miss partial reflectors. **Measured, that is
        wrong** — production never reads ``law.kind``:
 
-       * ``SNMesh.realize_boundary_law`` returns
+       * ``SNProblem.realize_boundary_law`` returns
          ``_BoundBoundaryOperator(realized, kind=law.key)``
-         (``sn/mesh/augmented_mesh.py:435``) — it stores the **registry key**,
+         (``sn/problem.py:435``) — it stores the **registry key**,
        * and ``ReflectiveBoundary.key`` is ``"reflective"`` for **every**
          albedo, including 0.7.
 

@@ -32,7 +32,7 @@ from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.operator import InverseMetricOperator
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 _REFLECTIVE = BC("reflective")
 
@@ -46,7 +46,7 @@ def _trace_space(quadrature: Quadrature):
         bc_xmin=_REFLECTIVE, bc_xmax=_REFLECTIVE,
         bc_ymin=_REFLECTIVE, bc_ymax=_REFLECTIVE,
     )
-    sn_mesh = SNMesh(mesh, quadrature, {0: get_mixture("B", "2g")})
+    sn_mesh = SNProblem(mesh, quadrature, {0: get_mixture("B", "2g")})
     space = sn_mesh.full_field_space.trace_space
     assert space is not None, "a 2-D box always has a boundary-trace space"
     return space

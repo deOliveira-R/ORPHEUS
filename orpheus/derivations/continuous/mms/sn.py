@@ -2018,7 +2018,7 @@ def build_spherical_mms_case(
 
 # ═══════════════════════════════════════════════════════════════════════
 # Phase 3.4 — 1D Cylindrical MMS (1-group, σ_y-folded product quadrature
-# since Q5.6's 6.3 flip — SNMesh(CYLINDRICAL) admits exactly the
+# since Q5.6's 6.3 flip — SNProblem(CYLINDRICAL) admits exactly the
 # carrying rules, so the case builders default to folded_product)
 # ═══════════════════════════════════════════════════════════════════════
 

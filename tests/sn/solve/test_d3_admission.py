@@ -1,6 +1,6 @@
 r"""C5.5 (#225) — d=3 end-to-end value gates through the production entries.
 
-The 3-axis SNMesh runs on the d-generic ``FullFieldWavefront`` oracle
+The 3-axis SNProblem runs on the d-generic ``FullFieldWavefront`` oracle
 spine from day one. These gates are the acceptance criteria for the
 admission, each driven through the production ``solve_sn`` /
 ``solve_sn_fixed_source`` entry (C5-G17 — the axes tuple IS the 3-D
@@ -51,7 +51,7 @@ from orpheus.sn.solver import (
     solve_sn,
     solve_sn_fixed_source,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 
 def _d3_axes(extents=(1.0, 2.0, 3.0), cells=(3, 4, 5), bcs=None):
@@ -76,7 +76,7 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
 
     Closed-form reference: ``case.k_inf`` (matrix eigenvalue, never
     touches the sweep). All-reflective with no explicit BCs — the
-    SNMesh reflective default — on every surface. Cell counts are
+    SNProblem reflective default — on every surface. Cell counts are
     deliberately small AND asymmetric (k_inf is mesh-independent, so
     the asymmetry is free Mode-2 insurance).
     """
@@ -301,7 +301,7 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     """
     quad = Quadrature.level_symmetric(sn_order=4)
     mats = {0: get_mixture("A", "2g")}
-    sn = SNMesh.from_axes(_d3_axes(), quad, mats)
+    sn = SNProblem.from_axes(_d3_axes(), quad, mats)
 
     base = object()
     scattering_stub = type(

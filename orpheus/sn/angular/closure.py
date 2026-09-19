@@ -183,7 +183,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from orpheus.numerics.axis import Axis
     from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
 
-    from ..mesh.augmented_mesh import SNMesh
+    from ..problem import SNProblem
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -263,7 +263,7 @@ class AngularClosureBase(RegistryMixin, ABC):
       space factor at construction (the P4-remainder binding — the mints
       recover the quadrature THROUGH the axis, ``generator_as``, instead
       of through the retired ``AngularRedistribution.quadrature``
-      courier), and the SNMesh default-closure dispatch instantiates
+      courier), and the SNProblem default-closure dispatch instantiates
       through this signature
       (``default_angular_closure_class(coord)(angular, pairing, angular_axis)``).
       Concretes may widen (an optional mesh, extra keyword strategy slots).
@@ -392,7 +392,7 @@ class AngularClosureBase(RegistryMixin, ABC):
         able to choose differently.
 
         Every concrete strategy is constructible as
-        ``cls(angular, pairing, angular_axis)``; the SNMesh
+        ``cls(angular, pairing, angular_axis)``; the SNProblem
         default-closure dispatch
         (``default_angular_closure_class(coord)(angular, pairing, angular_axis)``)
         instantiates through this signature.  Concretes may WIDEN it with
@@ -938,7 +938,7 @@ def march_start_structure_per_level(
 
     The integer re-pose of the seed-presence predicate (T26): the
     consumer
-    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`)
+    (:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`)
     reads these two structural facts directly instead of deciding a
     structural question on the raw M-M float. The former encoding —
     ``τ_raw,0 ∈ (0,1)`` exclusive — is now a *theorem about the edge
@@ -1003,7 +1003,7 @@ def non_carrying_levels(starts: tuple[MarchStart, ...]) -> tuple[int, ...]:
 def assert_carrying_quadrature(quad: Any, coord: CoordSystem) -> None:
     r"""Raise unless EVERY mu-level of ``quad`` is carrying on ``coord``.
 
-    The cylindrical ``SNMesh`` admission (Q5.6 step 6.3): the
+    The cylindrical ``SNProblem`` admission (Q5.6 step 6.3): the
     Morel--Montry azimuthal march is posed with an independent
     :math:`\psi_{1/2}` seed per level (route (a) — the
     :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`
@@ -1014,7 +1014,7 @@ def assert_carrying_quadrature(quad: Any, coord: CoordSystem) -> None:
 
     Admission is decided by STRUCTURE, not provenance: the facts come
     from :func:`march_start_structure_per_level` — the same producer
-    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`
+    :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`
     reads — so a hand-built rule with carrying march starts is admitted
     with no ``folded_by`` tag, and a tagged quotient with a node on the
     mirror is refused.
@@ -1046,7 +1046,7 @@ def assert_carrying_quadrature(quad: Any, coord: CoordSystem) -> None:
             "the (1 - tau_0) thread weight vanishes and the seed is dead)"
         )
     raise ValueError(
-        f"A cylindrical SNMesh admits only a quadrature whose every "
+        f"A cylindrical SNProblem admits only a quadrature whose every "
         f"mu-level is CARRYING (the R12a march-start predicate): level "
         f"{p} is non-carrying - it {' AND '.join(reasons)}. Use "
         f"Quadrature.folded_product(n_mu, n_phi) (the sigma_y quotient "
@@ -1227,7 +1227,7 @@ def angular_cell_edges_per_level(
                     f"arc twice (omega of both signs — the sigma_y double "
                     f"cover). Use Quadrature.folded_product(n_mu, n_phi), "
                     f"or any rule whose levels are monotone half-circle "
-                    f"arcs. A cylindrical SNMesh already refuses this rule "
+                    f"arcs. A cylindrical SNProblem already refuses this rule "
                     f"at admission (assert_carrying_quadrature)."
                 )
             edge_omega = np.empty(M + 1)
@@ -1558,7 +1558,7 @@ class MorelMontryAngularSweep(
     module docstring's References and its warning.
 
     The Phase-B default for the curvilinear FD operator's angular
-    redistribution.  Bound to an SNMesh at construction: all M-M coefficients
+    redistribution.  Bound to an SNProblem at construction: all M-M coefficients
     (α-dome, ΔA/w, τ, c_in, c_out, level partition) are precomputed
     eagerly from the mesh's
     :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`, and
@@ -1612,7 +1612,7 @@ class MorelMontryAngularSweep(
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         The mesh + quadrature + materials bundle this strategy binds to
         (REQUIRED — the family's ``cls(sn_mesh)`` construction contract).
         M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition,
@@ -1855,7 +1855,7 @@ class MorelMontryAngularSweep(
         # admits.  But that gate has ONE call site, inside
         # `case CoordSystem.CYLINDRICAL`; the SPHERE arm calls no admission
         # gate at all, and a Gauss-Lobatto polar rule builds a production
-        # SNMesh(SPHERICAL) and reaches this line at 6 of 11 orders.
+        # SNProblem(SPHERICAL) and reaches this line at 6 of 11 orders.
         # Retirement is off the table: it is the only seed path a
         # mu = -1-noded sphere rule has.
         #
@@ -2197,7 +2197,7 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
 
     Parameters
     ----------
-    sn_mesh : SNMesh
+    sn_mesh : SNProblem
         Bound to the mesh so consumers have one uniform construction
         pattern.  Identity reads only the ordinate count off the angular
         factor's measure to size its zero-contribution returns; the
@@ -2315,7 +2315,7 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[AngularClosureBas
     """Return the default angular-closure CLASS for a coordinate system.
 
     PR-TYPED-6.5 Phase 2.9.  The factory dispatch (instantiation with
-    ``sn_mesh``) is the caller's job — typically ``SNMesh.__init__``
+    ``sn_mesh``) is the caller's job — typically ``SNProblem.__init__``
     after the ``match mesh.coord:`` block resolves geometry data.
 
     * ``CARTESIAN``    → :class:`IdentityAngularClosure`

@@ -1272,7 +1272,7 @@ older entries classify against.
       under the
       :class:`~orpheus.sn.angular.closure.AngularClosureBase`
       ABC that replaced the ``PoleAngularClosure`` Protocol; ``SNMesh``
-      lives at :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`; and
+      lives at :class:`~orpheus.sn.problem.SNProblem`; and
       ``SNStreamingOperator`` was re-layered rather than renamed, its
       streaming and collision halves now separate leaves of the SN
       operator algebra
@@ -5979,7 +5979,7 @@ older entries classify against.
    existed.
 
    **Why it survived.** One real fence, misread as two. ``prescribed_inflow`` is not a
-   registered ``BC`` kind (``sn/mesh/augmented_mesh.py``, #189), so no production driver
+   registered ``BC`` kind (``sn/problem.py``, #189), so no production driver
    can install the law and only tests construct it — and **no test ran a full solve
    with a declared law.** The gates that existed stopped at
    ``_build_fixed_source_rhs``: they correctly verified the RHS receives ``q`` and were
@@ -7805,7 +7805,7 @@ older entries classify against.
    the CONTENT of its generating data — one definition at
    :meth:`MaterialMesh._identity_key
    <orpheus.transport.mesh.material_mesh.MaterialMesh>` extended by
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — and the pairing
+   :class:`~orpheus.sn.problem.SNProblem` — and the pairing
    question is a SEPARATE predicate,
    :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
    (contractibility by content); the retained scattering order is a
@@ -7843,7 +7843,7 @@ older entries classify against.
    ``hash``, so a content key could not have been written without first
    making the data VALUES (frozen, read-only arrays, cached keys).
 
-   **Module:** ``orpheus/sn/mesh/augmented_mesh.py`` (the predicate; the
+   **Module:** ``orpheus/sn/problem.py`` (the predicate; the
    order's new home), ``orpheus/transport/mesh/material_mesh.py`` (the ONE
    definition), ``orpheus/data/macro_xs/mixture.py`` (the leaf),
    ``orpheus/numerics/quadrature/directional.py``, ``orpheus/sn/solver.py``

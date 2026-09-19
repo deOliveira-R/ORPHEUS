@@ -49,7 +49,7 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, _as_sn_mesh
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
@@ -135,7 +135,7 @@ def _d3_vacuum_sn_mesh():
     axes = tuple(
         AxisMesh(edges=e, bc_low=vac, bc_high=vac) for e in _D3_EDGES
     )
-    return SNMesh.from_axes(
+    return SNProblem.from_axes(
         axes, Quadrature.level_symmetric(sn_order=4),
         {0: get_mixture("A", "2g")},
     )
@@ -322,7 +322,7 @@ class TestFaceAreaObjectPin:
             AxisMesh(edges=_D3_EDGES[0], bc_low=vac, bc_high=vac),
             AxisMesh(edges=_D3_EDGES[1], bc_low=vac, bc_high=vac),
         )
-        sn = SNMesh.from_axes(
+        sn = SNProblem.from_axes(
             axes, Quadrature.level_symmetric(sn_order=4),
             {0: get_mixture("A", "2g")},
         )

@@ -722,7 +722,7 @@ class TestR3UnspentIsMeasuredOnTheSolver:
         self, _cylinder_solution
     ) -> None:
         r"""⛔ **The ``sigma_y`` half of ``D_1h`` is UN-WITNESSABLE on the solver
-        path, by construction.**  `[M]` 2026-09-03 a cylindrical ``SNMesh`` admits
+        path, by construction.**  `[M]` 2026-09-03 a cylindrical ``SNProblem`` admits
         only CARRYING quadratures (``assert_carrying_quadrature``): **15 of 15**
         ``folded_product`` rules pass, **0 of 20** ``product`` / ``lebedev`` /
         ``level_symmetric`` rules do.  Every admissible rule IS the ``sigma_y``

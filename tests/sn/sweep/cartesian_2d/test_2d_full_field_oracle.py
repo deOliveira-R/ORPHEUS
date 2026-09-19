@@ -33,7 +33,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -58,7 +58,7 @@ def _build_mesh(nx, ny, lvl, ng, bc):
         coord=CoordSystem.CARTESIAN,
         bc_xmin=BC(bc), bc_xmax=BC(bc), bc_ymin=BC(bc), bc_ymax=BC(bc),
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")})
+    return SNProblem(mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")})
 
 
 def _random_sig_t(rng, ng, nx, ny):

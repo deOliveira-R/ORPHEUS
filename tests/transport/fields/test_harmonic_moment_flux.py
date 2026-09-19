@@ -35,7 +35,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.spatial import LinearDiscontinuous
 from tests.sn._test_helpers import placeholder_materials
@@ -54,7 +54,7 @@ _L, _NG, _NX = 2, 2, 5
 _FAMILIES: tuple[str, ...] = ("flat", "rectangular")
 
 
-def _sn(family: str = "flat") -> SNMesh:
+def _sn(family: str = "flat") -> SNProblem:
     """The 1-D mesh, with the quadrature that induces the requested angular head.
 
     ``"flat"``    — ``gauss_legendre(4)``: its measure lives on
@@ -79,17 +79,17 @@ def _sn(family: str = "flat") -> SNMesh:
     # angular side's rule since CS4b S4), so a widened request on a DD
     # carrier is refused rather than given a Euclidean tail. Width-1 rows
     # are scheme-blind (no tail).
-    return SNMesh(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous())
+    return SNProblem(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous())
 
 
-def _head(sn: SNMesh, L: int = _L) -> MomentHead:
+def _head(sn: SNProblem, L: int = _L) -> MomentHead:
     """The angular head this mesh's frame induces — the single source of the layout (the frame's Parseval-dressed head, item 6.2c-ii)."""
     head = sn.quad.angular_frame(L).basis_space
     assert isinstance(head, MomentHead)
     return head
 
 
-def _field(sn: SNMesh, spatial_moments: int, seed: int) -> HarmonicMomentFlux:
+def _field(sn: SNProblem, spatial_moments: int, seed: int) -> HarmonicMomentFlux:
     tail = (spatial_moments,) if spatial_moments > 1 else ()
     values = np.random.default_rng(seed).standard_normal(
         (*_head(sn).shape, _NG, _NX, *tail)
@@ -107,7 +107,7 @@ class TestTruncate:
     @pytest.mark.parametrize("sm", [1, 2])
     def test_truncate_matches_the_factory_mint_at_both_widths(self, sm, family):
         """The truncated field's space content-equals the carrier's OWN
-        mint at (mesh, L_new, spatial_moments) — ``SNMesh.moment_space``
+        mint at (mesh, L_new, spatial_moments) — ``SNProblem.moment_space``
         since CS4c step 6 item 6.2b, the cached object the factory reads
         — the single-source done-when of the space-derived rebuild. The sm=2 row is #399's
         FLIPPED witness (pre-S6.1 it raised the widened defer; pre-S4 it

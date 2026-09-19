@@ -54,7 +54,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_sphere_nonvacuum_mms_case,
 )
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 from tests.sn._test_helpers import volume_weighted_l2
 
@@ -81,7 +81,7 @@ def _solve(case, n_cells: int, *, g: int = 0):
         if hasattr(case, "build_materials")
         else case.materials
     )
-    sn = SNMesh(mesh, case.quadrature, materials)
+    sn = SNProblem(mesh, case.quadrature, materials)
     result = solve_sn_fixed_source(
         materials, mesh, case.quadrature, build_nonvacuum_fixed_source(case, sn),
         max_inner=1000, inner_tol=1e-13,

@@ -28,7 +28,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import loss_representation as sweep_module
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import sweep_once
@@ -44,7 +44,7 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
+    sn_mesh = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
     Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), sn_mesh)
@@ -60,7 +60,7 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
         bc_left=BC("reflective"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
+    sn_mesh = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
     Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), sn_mesh)

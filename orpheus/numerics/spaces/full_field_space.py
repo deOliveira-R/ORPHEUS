@@ -278,7 +278,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             raise RuntimeError(
                 "FullFieldSpace has no block spaces; build it via "
                 "FullFieldSpace.from_blocks(interior_space, trace_space) (or "
-                "SNMesh.full_field_space), not the bare dataclass constructor."
+                "SNProblem.full_field_space), not the bare dataclass constructor."
             )
         return self.interior_space, self.trace_space
 

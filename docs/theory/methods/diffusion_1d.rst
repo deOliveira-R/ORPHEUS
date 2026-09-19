@@ -491,7 +491,7 @@ agnostic mesh + materials **data**) augmented with the diffusion method's
 **behaviour** — the scalar trace, the composite carrier
 ``full_field_space``, and the per-face boundary laws **realized at
 construction**. It is the structural sibling of
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + :term:`quadrature` +
+:class:`~orpheus.sn.problem.SNProblem` (mesh + :term:`quadrature` +
 :term:`sweep` machinery + angular trace): one method-agnostic data carrier, one
 method layer per transport method. Every admission gate (1-D, bounded
 geometry, supported BC tags) fires at construction — an operator built
@@ -584,9 +584,9 @@ composite, invertible by the explicit
 whose low-order correction :math:`\to 0` at convergence (so DSA is
 correctness-safe *by construction*, changing only the iteration rate).
 The construction path is direct: an
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` promotes straight to a
+:class:`~orpheus.sn.problem.SNProblem` promotes straight to a
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
-(``DiffusionMesh.from_material_mesh(sn_mesh)`` — an SNMesh *is a*
+(``DiffusionMesh.from_material_mesh(sn_mesh)`` — an SNProblem *is a*
 MaterialMesh), so :math:`A_{\rm diff}` assembles over the **same** axes,
 materials, and BC declarations as the SN sweep it accelerates. The
 SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`
@@ -1494,7 +1494,7 @@ issues for finer granularity.
      - **The** :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
        **method-mesh** — reclaimed the scalar trace and composite
        carrier off ``MaterialMesh`` onto a diffusion method-mesh (the
-       ``SNMesh`` sibling), realizing boundary laws at construction and
+       ``SNProblem`` sibling), realizing boundary laws at construction and
        restoring the data/behaviour axis (a ``MaterialMesh`` does not
        know what a trace is).
      - ``738e355``

@@ -1,9 +1,9 @@
-r"""SNMesh materials parameter — Issue #197 PR-TYPED-0 acceptance tests.
+r"""SNProblem materials parameter — Issue #197 PR-TYPED-0 acceptance tests.
 
 Pins the §F mechanism criteria for the PR:
 
-* Criterion 2: ``SNMesh(mesh, quad)`` without ``materials`` raises TypeError.
-* Criterion 3: ``SNMesh.ng`` property exists + returns the uniform ng.
+* Criterion 2: ``SNProblem(mesh, quad)`` without ``materials`` raises TypeError.
+* Criterion 3: ``SNProblem.ng`` property exists + returns the uniform ng.
 * Criterion 4: heterogeneous-``ng`` materials raise InconsistentMaterialsError.
 * Criterion 5: ``mat_map`` referencing a missing material id raises ValueError.
 * Plus: empty materials dict raises ValueError; ``.materials`` accessor
@@ -17,7 +17,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D
-from orpheus.sn.mesh.augmented_mesh import InconsistentMaterialsError, SNMesh
+from orpheus.sn.problem import InconsistentMaterialsError, SNProblem
 from orpheus.numerics.quadrature import Quadrature
 
 pytestmark = pytest.mark.foundation
@@ -45,21 +45,21 @@ def _slab_mesh(mat_ids=None) -> Mesh1D:
 
 
 def test_materials_required_positional_arg() -> None:
-    """Criterion 2: SNMesh(mesh, quad) without materials raises TypeError."""
+    """Criterion 2: SNProblem(mesh, quad) without materials raises TypeError."""
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     with pytest.raises(TypeError, match="materials"):
-        SNMesh(mesh, quad)
+        SNProblem(mesh, quad)
 
 
 def test_ng_property_returns_uniform_ng() -> None:
-    """Criterion 3: SNMesh.ng returns the materials' uniform ng."""
+    """Criterion 3: SNProblem.ng returns the materials' uniform ng."""
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNMesh(mesh, quad, {0: _mix(ng=2)})
+    sn_mesh = SNProblem(mesh, quad, {0: _mix(ng=2)})
     assert sn_mesh.ng == 2
 
-    sn_mesh4 = SNMesh(mesh, quad, {0: _mix(ng=4)})
+    sn_mesh4 = SNProblem(mesh, quad, {0: _mix(ng=4)})
     assert sn_mesh4.ng == 4
 
 
@@ -69,7 +69,7 @@ def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2), 1: _mix(ng=4)}
     with pytest.raises(InconsistentMaterialsError, match="uniform ng"):
-        SNMesh(mesh, quad, materials)
+        SNProblem(mesh, quad, materials)
 
 
 def test_missing_material_id_raises_value_error() -> None:
@@ -78,14 +78,14 @@ def test_missing_material_id_raises_value_error() -> None:
     quad = Quadrature.gauss_legendre(4)
     # Only id 0 is present; id 1 used in mat_ids triggers the validation.
     with pytest.raises(ValueError, match=r"material ids \[1\]"):
-        SNMesh(mesh, quad, {0: _mix(ng=2)})
+        SNProblem(mesh, quad, {0: _mix(ng=2)})
 
 
 def test_empty_materials_raises_value_error() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     with pytest.raises(ValueError, match="non-empty materials"):
-        SNMesh(mesh, quad, {})
+        SNProblem(mesh, quad, {})
 
 
 def test_materials_attribute_is_dict_passed() -> None:
@@ -93,7 +93,7 @@ def test_materials_attribute_is_dict_passed() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2)}
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     # Un-weld arc (R20/R21): parsed into the stage-1 declaration at the
     # boundary — entries identical, the mapping itself no longer aliased.
     from orpheus.data.materials import Materials

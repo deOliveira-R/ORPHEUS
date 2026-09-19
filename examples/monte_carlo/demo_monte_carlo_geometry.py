@@ -3,7 +3,7 @@
 
 Demonstrates the MCMesh augmented geometry, which wraps a base Mesh1D
 (from :meth:`Mesh1D.from_geometry`) and provides point-wise material
-lookup for delta-tracking — the same pattern used by CPMesh and SNMesh.
+lookup for delta-tracking — the same pattern used by CPMesh and SNProblem.
 
 Two cases:
   1. Cylindrical pin cell via StructuredGeometry.wigner_seitz_pin_cell

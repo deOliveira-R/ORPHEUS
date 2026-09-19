@@ -1,7 +1,7 @@
 """Factory-binding + packet-plumbing tests for the reduced streaming operator.
 What this file pins
 -------------------
-The **wiring**: that :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+The **wiring**: that :class:`~orpheus.sn.problem.SNProblem`
 builds ``self.reduced`` by calling this module's chart factories
 (:func:`slab_streaming`, :func:`spherical_streaming`,
 :func:`cylindrical_streaming`) with the caller's mesh and quadrature —
@@ -15,11 +15,11 @@ What this file is blind to — MEASURED, 2026-08-03
 -------------------------------------------------
 The connection-coefficient **math**.  The file's original claim — the
 factories are bit-identical to the legacy in-line
-``SNMesh._setup_spherical`` / ``._setup_cylindrical`` — was a genuine
+``SNProblem._setup_spherical`` / ``._setup_cylindrical`` — was a genuine
 two-implementation gate *while both were live*.  Those methods were
-retired at the Wave-B carve (#159), and ``SNMesh.__init__`` now calls
+retired at the Wave-B carve (#159), and ``SNProblem.__init__`` now calls
 these very factories, so the comparison silently became
-``factory(mesh, quad) == SNMesh(mesh, quad).reduced``: the SAME
+``factory(mesh, quad) == SNProblem(mesh, quad).reduced``: the SAME
 producer on both sides.  Measured by replacing every array the
 factories emit with deterministic garbage (in-process rebind of all
 12 module bindings, so both call sites receive the SAME wrong values,
@@ -29,7 +29,7 @@ exactly as a real sign flip in ``reduced_operator.py`` would):
 * 29 gates in ``tests/sn/primitives/test_quadrature.py`` +
   ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py`` redden in
   the same run (the positive control, ``vv-principles`` anti-#17);
-* garbaging only the ``SNMesh``-side binding reddens exactly the 15
+* garbaging only the ``SNProblem``-side binding reddens exactly the 15
   factory-binding cases below — which is the claim they honestly carry.
 
 ``face_areas`` is not merely equal but the *same object* on both sides
@@ -97,7 +97,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.mesh.reduced_operator import (
     ReducedStreamingOperator,
     cylindrical_streaming,
@@ -147,15 +147,15 @@ def _cylindrical_mesh() -> Mesh1D:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Factory-binding tests — SNMesh routes to THIS module's factories
+# Factory-binding tests — SNProblem routes to THIS module's factories
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestSNMeshBindsSphericalFactory:
-    """Sphere: ``SNMesh.reduced`` is what :func:`spherical_streaming` built.
+class TestSNProblemBindsSphericalFactory:
+    """Sphere: ``SNProblem.reduced`` is what :func:`spherical_streaming` built.
 
     The claim is **routing**, not math: re-running the factory on the
-    same ``(mesh, quadrature)`` reproduces every array ``SNMesh`` holds,
-    so ``SNMesh`` cannot have grown a private second implementation.  A
+    same ``(mesh, quadrature)`` reproduces every array ``SNProblem`` holds,
+    so ``SNProblem`` cannot have grown a private second implementation.  A
     change to the connection-coefficient math moves BOTH sides and is
     invisible here by construction — see the module docstring for the
     measurement and for where the math is actually pinned.
@@ -165,13 +165,13 @@ class TestSNMeshBindsSphericalFactory:
     def pair(self):
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         return sn_mesh, reduced
 
     @pytest.mark.foundation
     def test_face_areas_read_through_is_the_factory_value(self, pair):
-        """The deprecated ``SNMesh.face_areas`` lands on the factory array.
+        """The deprecated ``SNProblem.face_areas`` lands on the factory array.
 
         Note both sides are the SAME ``Mesh1D.areas`` object, so this
         leg cannot see a change in how face areas are computed — only a
@@ -185,14 +185,14 @@ class TestSNMeshBindsSphericalFactory:
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
-        """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
+        """The deprecated ``SNProblem.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert reduced.delta_A is not None
         assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
     @pytest.mark.foundation
     def test_angular_factor_is_the_factory_value(self, pair):
-        """The ANGULAR factor on ``SNMesh`` came from this module's producer.
+        """The ANGULAR factor on ``SNProblem`` came from this module's producer.
 
         Successor of ``test_alpha_half_is_the_factory_value`` and
         ``test_redist_dAw_is_the_factory_value`` (2026-08-26 un-weld).  The
@@ -222,7 +222,7 @@ class TestSNMeshBindsSphericalFactory:
         """The routing claim is not an artefact of one quadrature order."""
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(N)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         snm_reduced = sn_mesh.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = spherical_streaming(mesh, quad)
@@ -233,14 +233,14 @@ class TestSNMeshBindsSphericalFactory:
         assert np.array_equal(reduced.delta_A, snm_reduced.delta_A)
 
 
-class TestSNMeshBindsCylindricalFactory:
-    """Cylinder: ``SNMesh.reduced`` is what :func:`cylindrical_streaming` built.
+class TestSNProblemBindsCylindricalFactory:
+    """Cylinder: ``SNProblem.reduced`` is what :func:`cylindrical_streaming` built.
 
-    Routing claim only — see :class:`TestSNMeshBindsSphericalFactory`
+    Routing claim only — see :class:`TestSNProblemBindsSphericalFactory`
     and the module docstring.
 
     **Why ``folded_product`` and not ``product``** (Q5.6): a cylindrical
-    :class:`SNMesh` admits only a rule whose every μ-level is CARRYING
+    :class:`SNProblem` admits only a rule whose every μ-level is CARRYING
     (``assert_carrying_quadrature``, the R12a march-start predicate).  An
     unquotiented ``product`` rule puts an ordinate at ξ = 0 on the most
     inward node of level 0, so the seed slot is a rank-duplicate of ψ₀ and
@@ -256,19 +256,19 @@ class TestSNMeshBindsCylindricalFactory:
     def pair(self):
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
         return sn_mesh, reduced
 
     @pytest.mark.foundation
     def test_face_areas_read_through_is_the_factory_value(self, pair):
-        """The deprecated ``SNMesh.face_areas`` lands on the factory array."""
+        """The deprecated ``SNProblem.face_areas`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert np.array_equal(reduced.face_areas, sn_mesh.reduced.face_areas)
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
-        """The deprecated ``SNMesh.delta_A`` lands on the factory array."""
+        """The deprecated ``SNProblem.delta_A`` lands on the factory array."""
         sn_mesh, reduced = pair
         assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
 
@@ -301,7 +301,7 @@ class TestSNMeshBindsCylindricalFactory:
         """The routing claim is not an artefact of one quadrature shape."""
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
         snm_reduced = sn_mesh.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = cylindrical_streaming(mesh, quad)
@@ -516,7 +516,7 @@ class TestStreamingTermsVolumeAndAbsMu:
     These are the two new fields added in Wave C Round 1 (Issue #157)
     so that downstream cell-update strategies receive a self-contained
     per-cell, per-direction packet without reaching back into
-    ``SNMesh`` or the ``Quadrature``.
+    ``SNProblem`` or the ``Quadrature``.
     """
 
     @pytest.mark.foundation
@@ -809,9 +809,9 @@ class TestP4RemTheProducerBindsTheAxis:
             mat_ids=np.zeros(4, dtype=int),
             coord=coord,
         )
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
 
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         r = sn.reduced
         assert r is not None
         assert r.angular_axis == sn.angular_bulk_space.axis("angular")
@@ -829,14 +829,14 @@ class TestP4RemTheProducerBindsTheAxis:
         arm's premise (``reduced is None``) is asserted as its own row.
         """
         from tests.sn._test_helpers import placeholder_materials
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.transport.mesh.axis import AxisMesh
 
         axes = tuple(
             AxisMesh(edges=np.linspace(0.0, ext, n + 1))
             for ext, n in zip((1.0, 2.0), (2, 3))
         )
-        sn = SNMesh.from_axes(
+        sn = SNProblem.from_axes(
             axes, Quadrature.level_symmetric(sn_order=4),
             placeholder_materials(ng=2),
         )

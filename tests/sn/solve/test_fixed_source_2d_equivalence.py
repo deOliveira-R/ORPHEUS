@@ -43,7 +43,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -80,7 +80,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
     # so the swap is exact. Verified: relerr 1.05e-12 ≤ rtol 1e-10.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = placeholder_materials(ng=2)  # Σ_t = 1, Σ_s = 0, ≥2G
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
     sum_w = float(quad.weights.sum())
 
     q_iso = 0.5
@@ -140,7 +140,7 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
     # (within rtol 1e-6 / atol 1e-8). 6.4s → ~1.4s.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNProblem(mesh, quad, materials)
 
     Q_iso = np.ones((sn_mesh.ng, *sn_mesh.spatial_shape))
     src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)

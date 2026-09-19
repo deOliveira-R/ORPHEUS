@@ -33,7 +33,7 @@ from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 from orpheus.transport.fields._bases import BulkField
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -62,7 +62,7 @@ def _mesh_2d(scheme):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2),
         scheme=scheme,
     )
@@ -75,7 +75,7 @@ def _mesh_1d(scheme):
         coord=CoordSystem.CARTESIAN,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2),
         scheme=scheme,
     )

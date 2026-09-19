@@ -18,7 +18,7 @@ This module declares the per-axis primitive used to build that product:
 The dim-agnostic shape primitives are exposed as **pure functions on
 axis tuples** — :func:`spatial_shape`, :func:`face_labels`,
 :func:`face_shape`, :func:`face_outflow_ordinates`,
-:func:`n_unknowns_flat`. The :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` class
+:func:`n_unknowns_flat`. The :class:`~orpheus.sn.problem.SNProblem` class
 delegates to these so 3-D admission gates can exercise the shape
 algebra on a synthetic axis tuple without instantiating a full SN
 phase space — no ``Mesh3D`` exists today, and the pure-function form
@@ -68,7 +68,7 @@ class AxisCoord(StrEnum):
 # ═══════════════════════════════════════════════════════════════════════
 
 #: Spatial axis names, positional-by-axis — the same axis order as
-#: :attr:`SNMesh.axes`, ``OctantLabel.signs``, and the per-axis kernel
+#: :attr:`SNProblem.axes`, ``OctantLabel.signs``, and the per-axis kernel
 #: tuples. Re-exported from its C5.3 home
 #: :data:`orpheus.numerics.face_layout.AXIS_NAMES` (moved down so the
 #: geometry-blind trace space shares the crosswalk without an sn-ward
@@ -98,7 +98,7 @@ class FaceLabel:
 
     This dataclass is the load-bearing key for every dim-agnostic
     boundary-keyed lookup in the SN module: ``AngularBoundaryFlux.face_buffers``
-    (C4), ``SNMesh.bc`` (C4), the outflow-ordinate mask cache (C1),
+    (C4), ``SNProblem.bc`` (C4), the outflow-ordinate mask cache (C1),
     and the sweep DAG's face-trace state (C5). It exists so that all
     those consumers share ONE definition of "which face" rather than
     each rolling its own ad-hoc identifier (Pattern 2 — single source
@@ -107,7 +107,7 @@ class FaceLabel:
     Parameters
     ----------
     axis_index : int
-        Position of the axis in :attr:`SNMesh.axes`.
+        Position of the axis in :attr:`SNProblem.axes`.
     endpoint : str
         Endpoint label on that axis (``"min"``, ``"max"``, ``"outer"``).
     """
@@ -125,7 +125,7 @@ class FaceLabel:
         The single-sourced crosswalk from the structural identity
         ``(axis_index, endpoint)`` to the string key that
         :class:`~orpheus.numerics.face_layout.FaceLayout`, the trace
-        space, :attr:`SNMesh.bc`, and the sweep schedule all share:
+        space, :attr:`SNProblem.bc`, and the sweep schedule all share:
         axis name from :data:`AXIS_NAMES`, endpoint suffix from
         :data:`_ENDPOINT_SUFFIX` (``"outer"`` renders as ``max`` — a
         solid radial axis's outer surface IS its ``max`` face).
@@ -461,7 +461,7 @@ def n_unknowns_flat(
     Parameters
     ----------
     axes : tuple of Axis1D
-        The axis tuple (i.e. :attr:`SNMesh.axes`).
+        The axis tuple (i.e. :attr:`SNProblem.axes`).
     quad : Quadrature
         Angular quadrature; needed for the per-face outflow mask.
     ng : int
@@ -527,8 +527,8 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 
     Wraps the legacy mesh's per-axis edge arrays + BC declarations in
     :class:`AxisMesh` / :class:`RadialAxisMesh` so the
-    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` constructor can expose
-    :attr:`SNMesh.axes` regardless of which constructor surface the
+    :class:`~orpheus.sn.problem.SNProblem` constructor can expose
+    :attr:`SNProblem.axes` regardless of which constructor surface the
     caller used.
 
     Mesh1D mapping (per coordinate system):
@@ -612,7 +612,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Axis-tuple → legacy-mesh ADAPTER builder (for SNMesh.from_axes)
+# Axis-tuple → legacy-mesh ADAPTER builder (for SNProblem.from_axes)
 # ═══════════════════════════════════════════════════════════════════════
 
 def legacy_mesh_from_axes(
@@ -622,9 +622,9 @@ def legacy_mesh_from_axes(
     r"""Build the legacy :class:`Mesh1D` / :class:`Mesh2D` ADAPTER for an axis tuple.
 
     C5.1 (#225): this is NO LONGER a round-trip source — the axes an
-    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` carries are the caller's
-    objects verbatim. :meth:`SNMesh.from_axes` calls this builder only
-    to synthesize the d≤2 ``SNMesh.mesh`` adapter for the consumers
+    :class:`~orpheus.sn.problem.SNProblem` carries are the caller's
+    objects verbatim. :meth:`SNProblem.from_axes` calls this builder only
+    to synthesize the d≤2 ``SNProblem.mesh`` adapter for the consumers
     still reading through it (1-D reduced streaming construction,
     trace build, realizer metadata) — each dissolves across C5.2–C5.5,
     and this builder narrows/retires with them.
@@ -648,7 +648,7 @@ def legacy_mesh_from_axes(
         mat_map = np.zeros(shape, dtype=int)
     else:
         mat_map = np.asarray(mat_map, dtype=int)
-        # NOTE: SNMesh._init_core re-validates this shape — it is the
+        # NOTE: SNProblem._init_core re-validates this shape — it is the
         # SURVIVING guard when this adapter builder retires with the
         # legacy mesh consumers (C5.2-C5.5); do not delete the
         # _init_core copy as "redundant" with this one.
@@ -714,6 +714,6 @@ def legacy_mesh_from_axes(
         f"legacy_mesh_from_axes: the legacy mesh ADAPTER is genuinely "
         f"d≤2 (Mesh1D / Mesh2D are the d≤2 user-facing dataclasses); "
         f"{len(axes)}-axis meshes are mesh-adapter-free by design — "
-        f"construct via SNMesh.from_axes (C5.5, #225), which passes "
+        f"construct via SNProblem.from_axes (C5.5, #225), which passes "
         f"mesh=None at d≥3 and never calls this builder."
     )

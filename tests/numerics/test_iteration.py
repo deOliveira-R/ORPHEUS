@@ -614,7 +614,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         warnings.simplefilter("ignore", DeprecationWarning)
 
         from orpheus.transport.operators.fission import FissionOperator
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.transport.operators.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn
@@ -651,7 +651,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # :class:`StreamingCollisionOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
     # ``solver.scattering_op`` / ``solver.sn_mesh.fission.isotropic_energy`` / ``solver.mat_xs``.
-    sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
+    sn_mesh = SNProblem(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn_mesh)
     # The canonical S, F operators built directly from solver state.
     S = solver.sn_mesh.system.factors.scattering
@@ -804,7 +804,7 @@ def _sn_composite_triple():
     """
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.coupled_system import build_within_group_system
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.sn.solver import SNSolver, solve_sn
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.full_field import FullField
@@ -824,7 +824,7 @@ def _sn_composite_triple():
     if ref.outcome.keff is None:  # explicit narrow — fires under -O (Mode 8)
         pytest.fail("solve_sn returned no eigenvalue — the reference leg "
                     "of the A4 activation fixture is broken.")
-    sn = SNMesh(mesh, quad, materials, scattering_order=0)
+    sn = SNProblem(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn)
     system = build_within_group_system(
         sn, solver.sn_mesh.mat_xs,

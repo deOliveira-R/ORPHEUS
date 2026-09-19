@@ -66,7 +66,7 @@ spherical-harmonic factor is the frame's OWN F-0-dressed
 rides into the product codomain with a single source: the frame's codomain IS
 the SH factor. Since CS4c step 6 item 6.2c-ii (ruling R-6.2c-1) the
 carrier's own cached moment space —
-:meth:`SNMesh.moment_space <orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space>`,
+:meth:`SNProblem.moment_space <orpheus.sn.problem.SNProblem.moment_space>`,
 the object every moment field and admission guard on that carrier holds —
 reads the SAME dressed head, so the derived product is STRUCTURALLY equal
 to it (one space, two owners, ruling O-5); until then the admission seam
@@ -466,7 +466,7 @@ class HarmonicFrame(GalerkinFrame):
         the Parseval metric rides into the product), the cell group is the
         angular space's own energy/spatial axes (the same instances the
         carrier's mints share, so the product is structurally EQUAL to the
-        carrier's cached ``SNMesh.moment_space(L, width)`` — the object the
+        carrier's cached ``SNProblem.moment_space(L, width)`` — the object the
         moment fields hold since CS4c step 6 item 6.2b, reading the same
         frame's dressed head since 6.2c-ii and composing the same
         scheme-owned spatial-moment axis since 6.2c-iii) — the widened

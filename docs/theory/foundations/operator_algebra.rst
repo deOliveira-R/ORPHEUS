@@ -96,7 +96,7 @@ diffusion's, or a page whose fixtures carry
    there is no second assembly to drift against.  Since 2026-09-13 the
    claim is stronger than "one spelling": the builder has exactly ONE
    call site, the :func:`~functools.cached_property`
-   :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`,
+   :attr:`SNProblem.system <orpheus.sn.problem.SNProblem.system>`,
    so there is no second *build* either — ``[M]`` a counting spy over one
    forward eigenvalue solve read the outer-iteration count before that
    change and reads **1** after it
@@ -349,7 +349,7 @@ Key Facts
 
      ⭐ **The operand is the Problem's, not the solver's** (since
      2026-09-13 — the consumers campaign's step 2). It reads
-     :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`,
+     :attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`,
      the ONE composite :math:`F` the hub mints, at its derived energy
      face; the adjoint entry daggers the *same* object. Until then the
      forward solver held its own ``fission_op`` — an
@@ -5594,9 +5594,9 @@ inclusion, which stay within the same family and return the same tower).
 Clause 1 fails: no non-canonical dual coexists.  So
 the spatial moment rides as a property — a trailing AXIS on the bulk
 leaf's SPACE (minted by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`, the
+:attr:`~orpheus.sn.problem.SNProblem.angular_trial_space`, the
 scheme-widened sibling of
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`; before
+:attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`; before
 CS4b S5 the same factor was composed on by an explicit
 ``spatial_moments=`` factory argument through
 :meth:`BulkField.compose_spatial_moments
@@ -5604,7 +5604,7 @@ CS4b S5 the same factor was composed on by an explicit
 which is the one composer every widened space rides — the angular and
 scalar mints, and, since CS4c step 6 item 6.2c-iii, the carrier's
 harmonic-moment product too), and the flat face-buffer moment tail minted by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` on
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` on
 the boundary — rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
 partner-check added nothing beyond class identity would be the vacuous naming
 leaf the criterion warns against; the transverse boundary moment is therefore a
@@ -5872,8 +5872,8 @@ shared quadrature, with ``mu_x`` as the
 direction cosine along that axis — and 2-D / 3-D Cartesian add the
 ``y`` / ``z`` faces from the same convention. The 2-D cylindrical
 (axisymmetric :math:`(r, z)`) case never reaches the factory: such a
-:class:`Mesh2D` cannot become an :class:`SNMesh` (no 2-D cylindrical SN
-sweep exists), so the refusal lives at the :class:`SNMesh` construction
+:class:`Mesh2D` cannot become an :class:`SNProblem` (no 2-D cylindrical SN
+sweep exists), so the refusal lives at the :class:`SNProblem` construction
 surface, not the trace factory. See :ref:`sn-c5-geometry-blind-trace`.
 
 The two trace spaces and the
@@ -6063,9 +6063,9 @@ The four layers
        :math:`\mu \to k` / :math:`\alpha`; the source-driven sibling is
        :class:`~orpheus.numerics.posing.SourcePosing`.  2b is the hub
        member that mints it —
-       :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`
-       → :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil` →
-       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` for
+       :attr:`SNProblem.system <orpheus.sn.problem.SNProblem.system>`
+       → :attr:`~orpheus.sn.problem.SNProblem.pencil` →
+       :attr:`~orpheus.sn.problem.SNProblem.eigen_posing` for
        S\ :sub:`N`, and
        :attr:`HomogeneousProblem.pencil <orpheus.homogeneous.solver.HomogeneousProblem.pencil>`
        → :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing`
@@ -6225,9 +6225,9 @@ types, with **zero** ``Optional`` fields:
 
 A Problem's LAST step is its layer-1 object, and its layer-2 members are
 the questions its own generating data fixes.  The S\ :sub:`N` hub poses
-:attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>` over
+:attr:`SNProblem.pencil <orpheus.sn.problem.SNProblem.pencil>` over
 its own record and
-:attr:`SNMesh.eigen_posing <orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing>`
+:attr:`SNProblem.eigen_posing <orpheus.sn.problem.SNProblem.eigen_posing>`
 over that pencil; the infinite-medium hub poses
 :attr:`HomogeneousProblem.pencil <orpheus.homogeneous.solver.HomogeneousProblem.pencil>`
 and
@@ -6443,8 +6443,8 @@ composition over a **family** can.
 
 ⭐ **And since 2026-09-14 the fourth cell has a production witness**, so
 the argument above is no longer only an argument.  S\ :sub:`N` poses it
-through :meth:`SNMesh.source_posing
-<orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` and solves it
+through :meth:`SNProblem.source_posing
+<orpheus.sn.problem.SNProblem.source_posing>` and solves it
 through :func:`~orpheus.sn.solver.solve_sn_multiplying_source` — a fixed
 source in a multiplying medium, lowered by lagging the production as one
 more explicit gain.  Two properties of that entry are the cell's
@@ -6766,17 +6766,17 @@ the protocol is undefined.
    * - hub
      - member
      - what it holds
-   * - :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
-     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.system`
+   * - :class:`~orpheus.sn.problem.SNProblem`
+     - :attr:`~orpheus.sn.problem.SNProblem.system`
      - the posed record — ``(space, factors, loss, production)`` — built
        ONCE per hub through
        :func:`~orpheus.sn.coupled_system.build_within_group_system`, the
        builder's one call site
    * -
-     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil`
+     - :attr:`~orpheus.sn.problem.SNProblem.pencil`
      - ``OperatorPencil(system.loss, system.production)``
    * -
-     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing`
+     - :attr:`~orpheus.sn.problem.SNProblem.eigen_posing`
      - ``EigenPosing(pencil, K_MAP)``
    * - :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
      - :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.pencil`
@@ -6817,7 +6817,7 @@ The gates, and what each one can see:
    * - ``tests/sn/architecture/test_posing.py``
      - AC-a — no Strategy token (``inner_solver``, ``inner_schedule``,
        ``max_iter``, ``tol``, …) appears on any callable of the chain
-       ``SNMesh(...) → .system → .pencil → .eigen_posing``, over a chain
+       ``SNProblem(...) → .system → .pencil → .eigen_posing``, over a chain
        held as an explicit LIST of nine callables so a rename cannot
        silently empty the loop; plus the identity half — two content-equal
        hubs pose equal records, and each hub's members are its own
@@ -8331,7 +8331,7 @@ the cheapest tell.
        the visit family goes purely spatial (``UpstreamState`` loses
        ``angular_upstream``, ``CellResult`` loses
        ``outgoing_angular_state``, ``CellVisit`` loses the closure stamp
-       and with it ``SNMesh._make_cell_visit``); the closure **mints**
+       and with it ``SNProblem._make_cell_visit``); the closure **mints**
        its own scan constants instead of the cache deriving them; and
        Linear-Discontinuous's curvilinear refusal is re-keyed from a
        retired field's presence onto two value signals, which is a

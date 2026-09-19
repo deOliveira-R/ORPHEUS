@@ -13,7 +13,7 @@ CONSTRUCTION before a 3-axis mesh exists.
 Scope boundary (vv Mode 7 — declare what the ansatz nulls): the duck-typed
 pins prove the schedule's STRUCTURE (labels, face sets, reflect-group
 assignment) cheaply at the four reads the schedule makes. Since C5.5
-(#225) a d=3 ``SNMesh`` IS constructible (mesh-less ``from_axes``):
+(#225) a d=3 ``SNProblem`` IS constructible (mesh-less ``from_axes``):
 ``test_gs_d3_schedule_from_real_mesh`` below pins the order-INVARIANT
 facts live, and the d=3 flux-VALUE claim lands in
 ``tests/sn/solve/test_d3_admission.py`` (the Mode-9 G-S≡Jacobi box).
@@ -226,7 +226,7 @@ def test_gs_d3_schedule_from_real_mesh():
     from orpheus.geometry import BC
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.transport.mesh.axis import AxisMesh
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
     refl, vac = BC("reflective"), BC("vacuum")
     mix = make_mixture(
@@ -234,7 +234,7 @@ def test_gs_d3_schedule_from_real_mesh():
         sig_f=np.array([0.0]), nu=np.array([0.0]),
         chi=np.zeros(1), sig_s=np.array([[0.5]]),  # non-fissile ⇒ null χ (S10a guard)
     )
-    mesh = SNMesh.from_axes(
+    mesh = SNProblem.from_axes(
         (
             AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=refl, bc_high=refl),
             AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=vac, bc_high=vac),

@@ -38,7 +38,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.angular_flux import AngularFlux
 
@@ -160,7 +160,7 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     SCHEME-level ``is_multi_moment``, not a field-level query.
 
     Build a bare width-1 field (``space=ld_sn_mesh.angular_bulk_space`` —
-    NOT the ``angular_trial_space`` widened mint) on an LD ``SNMesh`` and
+    NOT the ``angular_trial_space`` widened mint) on an LD ``SNProblem`` and
     assert the field does NOT carry the spatial-moment axis even though the
     mesh's scheme IS multi-moment — widening is the CALLER's selection, by
     property choice since CS4b S5.
@@ -175,14 +175,14 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    ld_sn_mesh = SNMesh(
+    ld_sn_mesh = SNProblem(
         mesh, quad, placeholder_materials(ng=2), scheme=LinearDiscontinuous(),
     )
     # Premise: the mesh's scheme IS multi-moment — the field's False is NOT a
     # trivial DD-mesh result; it documents the provenance discipline.
     _require(
         ld_sn_mesh.scheme.is_multi_moment is True,
-        "premise broken: the SNMesh scheme must be LD (multi-moment)",
+        "premise broken: the SNProblem scheme must be LD (multi-moment)",
     )
     # Bare field — NO spatial_moments=, the construct-general default 1.
     values = np.zeros((quad.N, ld_sn_mesh.ng, nx))

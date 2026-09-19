@@ -35,7 +35,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.operators.multiplication_operator import (
@@ -50,7 +50,7 @@ _NG = 2
 _N_CELLS = 8
 
 
-def _cylinder_mesh(n_phi: int) -> SNMesh:
+def _cylinder_mesh(n_phi: int) -> SNProblem:
     """Cylinder fixture; ``n_phi ≡ 2 (mod 4)`` activates the per-cell path."""
     mesh = Mesh1D(
         edges=np.linspace(0.01, 2.0, _N_CELLS + 1),
@@ -60,10 +60,10 @@ def _cylinder_mesh(n_phi: int) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
-    return SNMesh(mesh, quad, placeholder_materials(ng=_NG))
+    return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
 
 
-def _run_one_sweep(sn_mesh: SNMesh) -> None:
+def _run_one_sweep(sn_mesh: SNProblem) -> None:
     rng = np.random.default_rng(20260828)
     sig_t = rng.uniform(0.3, 3.0, size=(_NG, *sn_mesh.spatial_shape))
     q_values = rng.standard_normal((sn_mesh.quad.N, _NG, *sn_mesh.spatial_shape))
@@ -72,7 +72,7 @@ def _run_one_sweep(sn_mesh: SNMesh) -> None:
     sweep_once(source, sig_t, sn_mesh, boundary)
 
 
-def _run_one_matvec(sn_mesh: SNMesh) -> None:
+def _run_one_matvec(sn_mesh: SNProblem) -> None:
     sig_t, psi, seed = het_operands(sn_mesh)
     L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)

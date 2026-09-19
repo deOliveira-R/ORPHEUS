@@ -157,7 +157,7 @@ if TYPE_CHECKING:
 
     from orpheus.geometry.boundary._source import InflowSourceSpec
 
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 
 __all__ = ["AngularBoundarySourceSink"]
@@ -177,7 +177,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (canonically ``mesh.angular_trace``), carrying the per-geometry
         :class:`~orpheus.numerics.face_layout.FaceLayout`.
-    mesh : SNMesh
+    mesh : SNProblem
         The SN phase-space carrier (cross-mesh-arithmetic guard).
 
     Notes
@@ -211,7 +211,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def prescribed_inflow(
         cls,
-        mesh: "SNMesh",
+        mesh: "SNProblem",
         face_values: "Mapping[str, NDArray]",
     ) -> "AngularBoundarySourceSink":
         r"""Build a prescribed-inflow source :math:`q` from per-face values.
@@ -250,7 +250,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
         Parameters
         ----------
-        mesh : SNMesh
+        mesh : SNProblem
             The SN phase-space carrier; ``mesh.angular_trace`` supplies the
             :class:`~orpheus.numerics.face_layout.FaceLayout` and the
             per-face inflow ordinate index sets
@@ -323,7 +323,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def from_specs(
         cls,
-        mesh: "SNMesh",
+        mesh: "SNProblem",
         face_specs: "Mapping[str, InflowSourceSpec]",
     ) -> "AngularBoundarySourceSink":
         r"""Materialise lazy :class:`InflowSourceSpec` **recipes** onto the trace.
@@ -358,7 +358,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
         Parameters
         ----------
-        mesh : SNMesh
+        mesh : SNProblem
             The SN phase-space carrier; ``mesh.angular_trace`` supplies the
             layout and the per-face inflow ordinate index sets.
         face_specs : Mapping[str, InflowSourceSpec]
@@ -423,7 +423,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         return cls.prescribed_inflow(mesh, face_values)
 
     @classmethod
-    def from_mesh_laws(cls, mesh: "SNMesh") -> "AngularBoundarySourceSink":
+    def from_mesh_laws(cls, mesh: "SNProblem") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
         Reads each face's realized law (``mesh.bc[face].law``) and materialises

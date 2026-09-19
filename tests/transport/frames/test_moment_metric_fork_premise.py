@@ -16,7 +16,7 @@ spaces existed in the tree and carried DIFFERENT metrics:
 =========================================  =========================  ===================
 object                                     head factor                metric on the head
 =========================================  =========================  ===================
-``SNMesh.moment_space(L, w)`` (6.2b)       ``frame.basis.space``      CONTINUUM ``4π/(2ℓ+1)``
+``SNProblem.moment_space(L, w)`` (6.2b)       ``frame.basis.space``      CONTINUUM ``4π/(2ℓ+1)``
 ``HarmonicFrame.moment_space_on(space)``   ``frame.basis_space``      PARSEVAL ``1/diag(G)``
                                                                       (or ``G⁺``, DENSE rows)
 =========================================  =========================  ===================

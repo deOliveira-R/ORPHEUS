@@ -53,7 +53,7 @@ from orpheus.geometry import (
     Mesh1D,
     Mesh2D,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
@@ -75,8 +75,8 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 # Mesh fixtures
 # ═══════════════════════════════════════════════════════════════════════
 
-def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNMesh:
-    """Slab SNMesh with vacuum BCs and Gauss-Legendre 1D quadrature."""
+def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNProblem:
+    """Slab SNProblem with vacuum BCs and Gauss-Legendre 1D quadrature."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, length, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -85,11 +85,11 @@ def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
-    """Spherical SNMesh with reflective inner / vacuum outer BCs."""
+def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
+    """Spherical SNProblem with reflective inner / vacuum outer BCs."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -98,11 +98,11 @@ def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
-    """Cylindrical SNMesh with reflective inner / vacuum outer BCs."""
+def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
+    """Cylindrical SNProblem with reflective inner / vacuum outer BCs."""
     mesh = Mesh1D(
         edges=np.linspace(0.0, radius, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -111,11 +111,11 @@ def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
-    """2-D Cartesian SNMesh with vacuum BCs and Level-Symmetric S4."""
+def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
+    """2-D Cartesian SNProblem with vacuum BCs and Level-Symmetric S4."""
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
@@ -126,11 +126,11 @@ def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
         bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNMesh:
-    """2-D Cartesian SNMesh carrying a Linear-Discontinuous scheme.
+def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNProblem:
+    """2-D Cartesian SNProblem carrying a Linear-Discontinuous scheme.
 
     NON-SQUARE by default (``nx=4, ny=3``) — an x↔y blindness defence (a
     square box can hide an axis swap).  Level-Symmetric S4 supplies genuine
@@ -148,7 +148,7 @@ def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNMesh:
         bc_ymax=BC("vacuum"),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(),
+    return SNProblem(mesh, quad, placeholder_materials(),
                   scheme=LinearDiscontinuous())
 
 
@@ -241,7 +241,7 @@ class TestHonestCurvilinearSchemeSelection:
     """
 
     @staticmethod
-    def _curvilinear_mesh(coord: CoordSystem, *, scheme=None) -> SNMesh:
+    def _curvilinear_mesh(coord: CoordSystem, *, scheme=None) -> SNProblem:
         # Cylinder needs a genuine azimuthal quadrature; sphere is polar-only.
         quad = (
             Quadrature.gauss_legendre(n_ordinates=8)
@@ -256,7 +256,7 @@ class TestHonestCurvilinearSchemeSelection:
             bc_right=BC("vacuum"),
         )
         kwargs = {} if scheme is None else {"scheme": scheme}
-        return SNMesh(mesh, quad, placeholder_materials(), **kwargs)
+        return SNProblem(mesh, quad, placeholder_materials(), **kwargs)
 
     @pytest.mark.foundation
     @pytest.mark.parametrize(
@@ -318,7 +318,7 @@ class TestHonestCurvilinearSchemeSelection:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sn_mesh = SNMesh(
+        sn_mesh = SNProblem(
             mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
         )
         strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
@@ -337,7 +337,7 @@ class TestD3SupportsMatrix:
     scannable), so the PREDICATE pins stay duck-typed (the fake supplies
     an affine-scannable scheme; these pins document the dimensional
     narrowing at the predicate level). Since
-    C5.5 (#225) a 3-axis ``SNMesh`` is constructible via
+    C5.5 (#225) a 3-axis ``SNProblem`` is constructible via
     ``from_axes``, so the SELECTION pin (G-c3) runs the LIVE
     ``default_for`` on a real mesh — it must route d=3 to the
     d-generic ``FullFieldWavefront`` spine, NOT misroute into
@@ -406,7 +406,7 @@ class TestD3SupportsMatrix:
         from orpheus.derivations.common.xs_library import make_mixture
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.transport.mesh.axis import AxisMesh
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.sn.loss_representation import (
             FullFieldWavefront,
             default_for,
@@ -416,7 +416,7 @@ class TestD3SupportsMatrix:
             sig_f=np.array([0.0]), nu=np.array([0.0]),
             chi=np.zeros(1), sig_s=np.array([[0.5]]),  # non-fissile ⇒ null χ (S10a guard)
         )
-        mesh = SNMesh.from_axes(
+        mesh = SNProblem.from_axes(
             (
                 AxisMesh(edges=np.linspace(0.0, 1.0, 3)),
                 AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
@@ -483,7 +483,7 @@ class TestD3SupportsMatrix:
 
     @pytest.mark.foundation
     def test_scan_march_refuses_2d_ld_real_mesh(self):
-        """D5-0 negative (real mesh): a 2-D Cartesian LD ``SNMesh`` (bilinear
+        """D5-0 negative (real mesh): a 2-D Cartesian LD ``SNProblem`` (bilinear
         slope coupling) must NOT select ScanMarch — its row-march kernel runs
         inline DD, silently dropping LD's slope.  This is the CONFIRMED-LIVE
         misroute (``default_for(2-D LD) == ScanMarch`` pre-D5-0)."""
@@ -694,7 +694,7 @@ class TestSweepEntryDelegatesToStrategy:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestDefaultDiscretizationScheme:
-    """``SNMesh.scheme`` defaults to :class:`DiamondDifference`.
+    """``SNProblem.scheme`` defaults to :class:`DiamondDifference`.
 
     The default is what guarantees bit-identity with the pre-Wave-D
     sweep — DD's per-cell math is a bit-identical extraction of the
@@ -724,7 +724,7 @@ class TestDefaultDiscretizationScheme:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(), scheme=custom)
+        sn_mesh = SNProblem(mesh, quad, placeholder_materials(), scheme=custom)
         if sn_mesh.scheme is not custom:
             pytest.fail("explicit scheme was not stored on the mesh")
 

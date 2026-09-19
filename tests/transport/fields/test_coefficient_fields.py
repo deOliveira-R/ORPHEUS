@@ -40,7 +40,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import CROSS_SECTION_UNITS
 from orpheus.numerics.vector import Vector
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields._coefficient_role import CoefficientRole
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -49,7 +49,7 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -58,10 +58,10 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesh1D(
@@ -72,10 +72,10 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sigma(mesh: SNMesh, fill: float) -> CrossSectionField:
+def _sigma(mesh: SNProblem, fill: float) -> CrossSectionField:
     return CrossSectionField(values=np.full((mesh.ng, *mesh.spatial_shape), fill), space=mesh.bulk_space)
 
 

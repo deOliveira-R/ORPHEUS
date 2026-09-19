@@ -70,7 +70,7 @@ from orpheus.transport.fields._bases import AngularField
 from orpheus.transport.fields.angular_flux import AngularFlux
 
 if TYPE_CHECKING:
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
 
 
 __all__ = ["AngularSourceSink"]
@@ -138,7 +138,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
 
     @classmethod
     def from_isotropic(
-        cls, iso_values: NDArray, mesh: "SNMesh",
+        cls, iso_values: NDArray, mesh: "SNProblem",
     ) -> "AngularSourceSink":
         r"""Project an iso scalar source :math:`Q(\vec r, g)` to per-ordinate.
 
@@ -161,7 +161,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         ----------
         iso_values : NDArray
             Iso scalar source, shape ``(ng, nx, ny)``.
-        mesh : SNMesh
+        mesh : SNProblem
             Phase-space carrier.
 
         Returns

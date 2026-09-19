@@ -38,7 +38,7 @@ from scipy.sparse import csr_matrix
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
@@ -82,7 +82,7 @@ _P0_B = np.array([[0.55, 0.03], [0.12, 0.40]]); _P1_B = np.array([[0.06, 0.02], 
 def solver_p1_het():
     nx, ny = 4, 3
     mat = np.zeros((nx, ny), dtype=int); mat[:2, :] = 0; mat[2:, :] = 1
-    sn_mesh = SNMesh(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
+    sn_mesh = SNProblem(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
                      {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)}, scattering_order=1)
     return SNSolver(sn_mesh)
 
@@ -93,7 +93,7 @@ def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
     from orpheus.transport.spatial import LinearDiscontinuous
 
     mat = np.zeros((nx, ny), dtype=int); mat[nx // 2:, :] = 1
-    sn_mesh = SNMesh(
+    sn_mesh = SNProblem(
         _uniform_2d(nx, ny, 0.1, mat), Quadrature.product(n_mu=4, n_phi=4),
         {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)},
         scheme=LinearDiscontinuous(),

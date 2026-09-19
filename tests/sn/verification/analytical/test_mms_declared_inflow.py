@@ -53,7 +53,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from tests.sn._test_helpers import volume_weighted_l2
 
@@ -101,7 +101,7 @@ class _ManufacturedFaceInflow:
     old ``evaluate(shape)`` signature cost: recognise a rank-1 realize-time
     probe by its rank, return a deliberately non-zero value into it so the
     ERR-047 certification would not be skipped, and be rebuilt per face from a
-    throwaway probe ``SNMesh`` just to learn the row order.
+    throwaway probe ``SNProblem`` just to learn the row order.
     """
 
     def __init__(self, *, case, x_face: float) -> None:
@@ -148,7 +148,7 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     r"""Build → declare → solve, entirely through public surfaces.
 
     ⭐ **P6 deleted a step here.** This used to build a throwaway probe
-    ``SNMesh`` first, purely so the spec could be handed the inflow row order —
+    ``SNProblem`` first, purely so the spec could be handed the inflow row order —
     "a spec that received the trace would not need the probe", as the note then
     said. It receives the trace now, so the probe is gone and the fixture is
     build → declare → solve with nothing in front of it.
@@ -162,7 +162,7 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     }
 
     # ⭐ THE DECLARATION. A law object is a legal geometry-level declaration
-    # since `985497b5`; `solve_sn_fixed_source` rebuilds the SNMesh from this
+    # since `985497b5`; `solve_sn_fixed_source` rebuilds the SNProblem from this
     # mesh and `resolve_boundary_conditions` reads the law straight off it.
     mesh = replace(
         mesh0,
@@ -176,7 +176,7 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
         case.materials, mesh, case.quadrature, case.external_source(mesh),
         inner_solver=inner, max_inner=1000, inner_tol=1e-13,
     )
-    return SNMesh(mesh, case.quadrature, case.materials), solution, specs
+    return SNProblem(mesh, case.quadrature, case.materials), solution, specs
 
 
 def _gamma_minus(solution, sn, face: str) -> np.ndarray:
@@ -262,7 +262,7 @@ def test_the_declared_trace_actually_varies_in_both_axes() -> None:
     coincided, the group axis would be equally undiscriminating.
     """
     case = build_slab_2g_nonvacuum_mms_case()
-    sn = SNMesh(case.build_mesh(20), case.quadrature, case.materials)
+    sn = SNProblem(case.build_mesh(20), case.quadrature, case.materials)
     for face, x_face in _faces(case):
         want = _expected_trace(case, sn, face, x_face)
         spread = float(np.max(want[:, 0]) - np.min(want[:, 0]))
@@ -378,10 +378,10 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
         bc_left=PrescribedInflow(source=specs["xmin"]),
         bc_right=PrescribedInflow(source=specs["xmax"]),
     )
-    sn = SNMesh(mesh, case.quadrature, case.materials)
+    sn = SNProblem(mesh, case.quadrature, case.materials)
 
     declared = AngularBoundarySourceSink.from_mesh_laws(sn)
-    supplied = case.prescribed_inflow(SNMesh(mesh0, case.quadrature, case.materials))
+    supplied = case.prescribed_inflow(SNProblem(mesh0, case.quadrature, case.materials))
 
     for face, _ in _faces(case):
         rows = np.asarray(sn.angular_trace.inflow_indices_for_face(face))
@@ -430,7 +430,7 @@ def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
     spec = _face_spec(case, "xmin", 0.0)
 
     mesh = replace(mesh0, bc_left=PrescribedInflow(source=spec))
-    sn = SNMesh(mesh, case.quadrature, case.materials)
+    sn = SNProblem(mesh, case.quadrature, case.materials)
     q = AngularBoundarySourceSink.from_mesh_laws(sn)
 
     gamma_minus = sn.angular_trace.inflow_space("xmin")

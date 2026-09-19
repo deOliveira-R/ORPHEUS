@@ -1,7 +1,7 @@
 r"""The homogeneous problem's HUB — :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
 (CS4c coda C1, ruling R-c1, 2026-09-08; the verification plan's §3.1 gates H1–H4, H6).
 
-*"The homogeneous problem needs a hub, just like the function SNMesh (future
+*"The homogeneous problem needs a hub, just like the function SNProblem (future
 SNProblem) currently fulfills, to act as the place the consumed objects live
 (and a save state)."* — the user's ruling. Four claims no value gate can
 make, each gated here:

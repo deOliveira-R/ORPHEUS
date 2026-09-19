@@ -141,7 +141,7 @@ cell-average :term:`angular flux`:
 This is the simplest balance equation: no :math:`\alpha` redistribution
 and no :math:`\Delta A` factor, because slab geometry has no curvature.
 The streaming coefficient :math:`2|\mu|/\Delta x` is precomputed by
-:class:`SNMesh` as ``streaming(0)[n, i]``.
+:class:`SNProblem` as ``streaming(0)[n, i]``.
 
 The closure choice is a **dial, not a commitment**: Step
 (:math:`w \to 1`, positivity-preserving, :math:`O(h)`), Diamond

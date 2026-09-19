@@ -25,7 +25,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicReconstruction,
@@ -53,7 +53,7 @@ from tests.sn._test_helpers import placeholder_materials
 pytestmark = pytest.mark.foundation
 
 
-def _slab(*, width: float = 1.0, nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab(*, width: float = 1.0, nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, width, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -61,12 +61,12 @@ def _slab(*, width: float = 1.0, nx: int = 4, ng: int = 2) -> SNMesh:
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
     )
 
 
-def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNMesh:
+def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNProblem:
     """Seed-carrying sphere; ``power != 1`` grades the radii (the ray-content
     discriminator — same shape, different Δr, different ray metric)."""
     radii = 4.0 * (np.arange(nx + 1) / nx) ** power
@@ -76,12 +76,12 @@ def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNMesh:
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
     )
 
 
-def _composite(sn: SNMesh) -> FullField:
+def _composite(sn: SNProblem) -> FullField:
     return FullField(
         interior=AngularFlux.zeros(sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),

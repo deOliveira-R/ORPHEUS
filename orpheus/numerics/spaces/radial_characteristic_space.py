@@ -42,7 +42,7 @@ R12a refines the R12 letter ("μ_start ∉ the level's μ-nodes"), whose
 claimed equivalence to ``τ_raw ≠ 0`` is empirically false on
 level-symmetric cylinder rules (μ_start ∉ nodes there, yet the seed is
 dead). The predicate is evaluated by
-:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.radial_characteristic_levels`;
+:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`;
 this space is deliberately quadrature-blind (pure layout + metric).
 
 Layout — one flat backing buffer, shaped views (R13)

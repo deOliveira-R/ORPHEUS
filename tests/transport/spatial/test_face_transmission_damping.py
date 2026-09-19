@@ -1,7 +1,7 @@
 r"""``face_transmission_spectrum`` — is a closure's face mode UNDAMPED?
 
 The closure half of the gauge-freedom predicate (#344).  The geometry
-half is ``SNMesh.reflective_axis_pairs``; together they decide whether
+half is ``SNProblem.reflective_axis_pairs``; together they decide whether
 the assembled loss operator :math:`A = L + C - S - B` has a null space,
 and therefore whether the returned boundary trace needs gauge-fixing.
 

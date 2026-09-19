@@ -48,7 +48,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -103,8 +103,8 @@ def _mat_xs(sig_s=_SIGS, sig2=_SIG2):
 
 def _solver(sig_s=_SIGS, sig2=_SIG2, order=_L):
     mat_xs = _mat_xs(sig_s=sig_s, sig2=sig2)
-    sn = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, scattering_order=order)
-    # SNMesh re-derives its own mat_xs field; use the SOLVER path so the
+    sn = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, scattering_order=order)
+    # SNProblem re-derives its own mat_xs field; use the SOLVER path so the
     # operator pair is the production mint (injection-consistent).
     return SNSolver(sn), sn
 
@@ -370,7 +370,7 @@ class TestAdmission:
         refused at construction — the CS4c step-4 harmonization kept the
         frame's ordinates as OPERATIVE state, and this is what enforces it."""
         solver, _ = _solver()
-        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=2), solver.sn_mesh.mat_xs.materials)
+        other = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=2), solver.sn_mesh.mat_xs.materials)
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
@@ -385,7 +385,7 @@ class TestAdmission:
         scalar P0 half broadcasts against the wrong ordinate count inside the
         shared combine. Both faces are admitted now."""
         solver, _ = _solver()
-        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.sn_mesh.mat_xs.materials)
+        other = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.sn_mesh.mat_xs.materials)
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)

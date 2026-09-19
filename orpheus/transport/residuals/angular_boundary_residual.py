@@ -95,7 +95,7 @@ class AngularBoundaryResidual(AngularBoundaryField):
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (canonically ``mesh.angular_trace``), carrying the per-geometry
         :class:`~orpheus.numerics.face_layout.FaceLayout`.
-    mesh : SNMesh
+    mesh : SNProblem
         The SN phase-space carrier (cross-mesh-arithmetic guard).
 
     Notes

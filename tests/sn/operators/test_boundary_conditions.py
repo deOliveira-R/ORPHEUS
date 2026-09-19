@@ -1,7 +1,7 @@
 """Tests for the SN boundary condition infrastructure.
 
 Verifies the BOUNDARY_OPERATOR_REGISTRY pattern: declaration on geometry, resolution at
-SNMesh construction, and correct behavior in sweeps.
+SNProblem construction, and correct behavior in sweeps.
 """
 
 from __future__ import annotations
@@ -11,12 +11,12 @@ import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 
 # SN boundary-condition infrastructure: structural invariants of the
-# SNMesh BC wiring (no theory-page :label:). Foundation, not a physics
+# SNProblem BC wiring (no theory-page :label:). Foundation, not a physics
 # equation gate. (Was a V&V orphan before the taxonomy reorg forced a
 # marker — see .claude/plans/archive/sn_test_taxonomy.md.)
 pytestmark = pytest.mark.foundation
@@ -40,17 +40,17 @@ class TestSNBCRegistry:
     """BOUNDARY_OPERATOR_REGISTRY is the single source of truth: resolves, validates, advertises."""
 
     def test_registry_keys(self):
-        assert "vacuum" in SNMesh.BOUNDARY_OPERATOR_REGISTRY
-        assert "reflective" in SNMesh.BOUNDARY_OPERATOR_REGISTRY
+        assert "vacuum" in SNProblem.BOUNDARY_OPERATOR_REGISTRY
+        assert "reflective" in SNProblem.BOUNDARY_OPERATOR_REGISTRY
 
     def test_registry_docstrings(self):
         """Every factory has a docstring (used as description for UI query)."""
-        for kind, factory in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items():
+        for kind, factory in SNProblem.BOUNDARY_OPERATOR_REGISTRY.items():
             assert factory.__doc__ is not None, f"BC factory '{kind}' has no docstring"
 
     def test_registry_programmatic_query(self):
         """Descriptions are queryable via factory docstrings."""
-        descriptions = {k: v.__doc__ for k, v in SNMesh.BOUNDARY_OPERATOR_REGISTRY.items()}
+        descriptions = {k: v.__doc__ for k, v in SNProblem.BOUNDARY_OPERATOR_REGISTRY.items()}
         assert "vacuum" in descriptions
         assert "reflective" in descriptions
 
@@ -60,11 +60,11 @@ class TestSNBCRegistry:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestSNBCResolution:
-    """BC resolution at SNMesh construction time."""
+    """BC resolution at SNProblem construction time."""
 
     def test_default_is_reflective(self, slab_mesh, quad):
         """None on mesh resolves to 'reflective' (eigenvalue default)."""
-        sn = SNMesh(slab_mesh, quad, placeholder_materials())
+        sn = SNProblem(slab_mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
 
@@ -73,7 +73,7 @@ class TestSNBCResolution:
             edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
             bc_left=BC.vacuum, bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, VacuumInflow)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
@@ -82,7 +82,7 @@ class TestSNBCResolution:
             edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
             bc_left=BC.reflective, bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
@@ -92,7 +92,7 @@ class TestSNBCResolution:
             bc_left=BC("white"),
         )
         with pytest.raises(ValueError, match="does not support.*'white'"):
-            SNMesh(mesh, quad, placeholder_materials())
+            SNProblem(mesh, quad, placeholder_materials())
 
     def test_error_lists_supported(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -100,7 +100,7 @@ class TestSNBCResolution:
             bc_left=BC("periodic"),
         )
         with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-            SNMesh(mesh, quad, placeholder_materials())
+            SNProblem(mesh, quad, placeholder_materials())
 
     def test_2d_mesh_resolution(self):
         """2-D Cartesian BC resolution. Needs a genuine-2-D quadrature:
@@ -116,7 +116,7 @@ class TestSNBCResolution:
             bc_xmin=BC.reflective, bc_xmax=BC.vacuum,
             bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
         assert isinstance(sn.bc["ymin"].law, ReflectiveBoundary)
@@ -132,7 +132,7 @@ class TestSNBCResolution:
             coord=CoordSystem.SPHERICAL,
             bc_right=BC.vacuum,
         )
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
 

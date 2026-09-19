@@ -2,19 +2,19 @@ r"""MaterialMesh — the method-agnostic mesh + materials data carrier.
 
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is the
 "mesh + materials" middle type between geometry ``Mesh1D`` (material
-*ids*, no cross sections) and ``SNMesh`` (mesh + materials + quadrature +
+*ids*, no cross sections) and ``SNProblem`` (mesh + materials + quadrature +
 sweep machinery).  These tests pin its **intrinsic data contract** (the
 ``coding-elegance`` standard: a type ships a test of its defining
-invariants) and the **data/behavior split** with ``SNMesh(MaterialMesh)``:
+invariants) and the **data/behavior split** with ``SNProblem(MaterialMesh)``:
 
 * the carrier holds mesh + materials and exposes the method-agnostic data
   accessors (``ng`` / ``volumes`` / ``volume_measure`` / ``ndim`` /
   ``spatial_shape`` / ``mat_map`` / ``material_xs_field``);
 * ``ng`` consistency is enforced at construction;
-* ``SNMesh`` **is-a** ``MaterialMesh`` (Liskov) — every carrier accessor
-  works on an ``SNMesh``, and its data block is bit-identical to a
+* ``SNProblem`` **is-a** ``MaterialMesh`` (Liskov) — every carrier accessor
+  works on an ``SNProblem``, and its data block is bit-identical to a
   standalone ``MaterialMesh`` built from the same inputs;
-* ``SNMesh.from_material_mesh`` promotes a carrier to a solvable phase
+* ``SNProblem.from_material_mesh`` promotes a carrier to a solvable phase
   space (the homogenization re-solve path).
 """
 
@@ -32,7 +32,7 @@ from orpheus.transport.mesh import (
     MaterialMesh,
     MaterialXSField,
 )
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 
 pytestmark = pytest.mark.foundation
 
@@ -118,18 +118,18 @@ def test_missing_material_id_raises():
         MaterialMesh(mesh, {0: _mix([1.0, 1.0], ng=2)})
 
 
-# ── Liskov: SNMesh IS-A MaterialMesh ──────────────────────────────────
+# ── Liskov: SNProblem IS-A MaterialMesh ──────────────────────────────────
 
 def test_snmesh_is_a_material_mesh():
-    assert issubclass(SNMesh, MaterialMesh)
+    assert issubclass(SNProblem, MaterialMesh)
 
 
 def test_snmesh_data_block_bit_identical_to_standalone_carrier():
-    """An SNMesh's inherited data block matches a standalone MaterialMesh
+    """An SNProblem's inherited data block matches a standalone MaterialMesh
     built from the same mesh + materials (the split is bit-identical)."""
     mesh, mats = _two_material_mesh()
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    snm = SNMesh(mesh, quad, mats)
+    snm = SNProblem(mesh, quad, mats)
     mm = MaterialMesh(mesh, mats)
     assert snm.ng == mm.ng
     assert snm.ndim == mm.ndim
@@ -139,7 +139,7 @@ def test_snmesh_data_block_bit_identical_to_standalone_carrier():
     np.testing.assert_array_equal(
         snm.volume_measure.weights, mm.volume_measure.weights,
     )
-    # Every carrier accessor is callable on the SNMesh (substitutability).
+    # Every carrier accessor is callable on the SNProblem (substitutability).
     assert isinstance(snm.mat_xs, MaterialXSField)
 
 
@@ -149,8 +149,8 @@ def test_from_material_mesh_round_trips_to_solvable_snmesh():
     mesh, mats = _two_material_mesh()
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     mm = MaterialMesh(mesh, mats)
-    snm = SNMesh.from_material_mesh(mm, quad)
-    assert isinstance(snm, SNMesh)
+    snm = SNProblem.from_material_mesh(mm, quad)
+    assert isinstance(snm, SNProblem)
     # carries the carrier's data verbatim …
     np.testing.assert_array_equal(snm.mat_map, mm.mat_map)
     np.testing.assert_array_equal(snm.volumes, mm.volumes)

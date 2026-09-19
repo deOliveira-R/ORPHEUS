@@ -264,7 +264,7 @@ def _bite_fingerprint() -> str:
 
         from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
         from orpheus.numerics.quadrature import Quadrature
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.sn.operators.boundary import SNBoundaryOperator
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.fields.angular_flux import AngularFlux
@@ -277,7 +277,7 @@ def _bite_fingerprint() -> str:
             bcs=(BC.vacuum, BC.reflective),
         )
         mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=4),))
-        sn = SNMesh(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1))
+        sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1))
         z = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )

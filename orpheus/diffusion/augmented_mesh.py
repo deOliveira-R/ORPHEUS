@@ -21,7 +21,7 @@ method's BEHAVIOR —
   honestly-named ``"zero_flux"`` law).
 
 It is the structural sibling of
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + materials +
+:class:`~orpheus.sn.problem.SNProblem` (mesh + materials +
 quadrature + sweep machinery): ONE method-agnostic data carrier, one
 method layer per transport method. The two method-meshes are the
 witnesses of the :class:`~orpheus.transport.method.TransportMethod`
@@ -39,7 +39,7 @@ layer (quadrature, stencil, **boundary trace**, closures) is
 parked ``scalar_trace`` + the scalar composite on :class:`MaterialMesh`
 itself — same file, opposite claims. P7a resolves the contradiction by
 minting THIS class and reclaiming both members: **MaterialMesh does not
-know what a trace is** (:class:`SNMesh` knows angular traces;
+know what a trace is** (:class:`SNProblem` knows angular traces;
 :class:`DiffusionMesh` knows scalar traces). The type-vs-property rule
 is satisfied honestly: two non-isomorphic augmentations of the same
 data carrier (quadrature machinery vs trace + realized BCs), real
@@ -52,7 +52,7 @@ exactly its boundary faces.
 Construction semantics
 ======================
 
-Construction mirrors ``SNMesh._init_core`` order: the method-agnostic
+Construction mirrors ``SNProblem._init_core`` order: the method-agnostic
 data block first (:meth:`MaterialMesh._init_data` — bit-identical), then
 the method layer's admission gates (1-D only today — slab / cylinder /
 sphere through the mesh's own areas + volumes), then
@@ -63,11 +63,11 @@ bad phase space are action-at-a-distance otherwise.
 The promotion classmethod :meth:`from_material_mesh` takes **no extra
 parameters**: the boundary conditions come from the axes' own ``BC``
 tags, already part of the data carrier. Contrast
-``SNMesh.from_material_mesh(mm, quadrature, scheme=...)`` — an honest
+``SNProblem.from_material_mesh(mm, quadrature, scheme=...)`` — an honest
 asymmetry (diffusion has no quadrature to inject); the promotion
 signatures do not unify and should not.
 
-Because :class:`SNMesh` *is a* :class:`MaterialMesh`, an SN phase space
+Because :class:`SNProblem` *is a* :class:`MaterialMesh`, an SN phase space
 promotes directly — ``DiffusionMesh.from_material_mesh(sn_mesh)``
 builds the diffusion phase space over the SAME axes / materials /
 mat_map, realizing the diffusion reading of the same physical BC tags.
@@ -146,14 +146,14 @@ class DiffusionMesh(MaterialMesh):
         The per-face ``(J⁺, J⁻)`` boundary-trace space (face-AREA
         metric; a curvilinear pole is not a face and never appears).
     bc : dict[str, LinearOperator]
-        Per-face REALIZED boundary laws (``SNMesh.bc`` parity), keyed
+        Per-face REALIZED boundary laws (``SNProblem.bc`` parity), keyed
         by face name — the albedo operators :math:`J^- = \mathcal{A}
         J^+`. Built from the SAME ``face_labels`` inventory as the
         trace, so law coverage ≡ face coverage by construction.
     """
 
     #: BC-tag → boundary-law class — the diffusion method's registry
-    #: (the ``SNMesh.BOUNDARY_OPERATOR_REGISTRY`` precedent). ``"white"``
+    #: (the ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` precedent). ``"white"``
     #: is deliberately absent: at the P1 level white coincides with
     #: reflective (the P3 realizer's coincidence note) — declare
     #: ``reflective`` or ``albedo``.
@@ -192,7 +192,7 @@ class DiffusionMesh(MaterialMesh):
         sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         r"""The ONE construction body both surfaces funnel into
-        (``SNMesh._init_core`` parity).
+        (``SNProblem._init_core`` parity).
 
         Data block first, then the diffusion method layer: admission
         gates → trace → realized boundary laws.
@@ -259,7 +259,7 @@ class DiffusionMesh(MaterialMesh):
         r"""Promote a :class:`MaterialMesh` to a solvable diffusion phase space.
 
         The diffusion arm of the data/behavior join
-        (``SNMesh.from_material_mesh`` parity) — and the natural
+        (``SNProblem.from_material_mesh`` parity) — and the natural
         consumer of cross-section homogenization: a homogenized
         :class:`MaterialMesh` promotes here to re-solve the coarsened
         problem in diffusion theory. NO extra parameters: the boundary
@@ -269,7 +269,7 @@ class DiffusionMesh(MaterialMesh):
         pass through verbatim; ``_init_core`` re-derives the data block
         bit-identically from them.
 
-        An :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` promotes
+        An :class:`~orpheus.sn.problem.SNProblem` promotes
         directly (it IS a MaterialMesh) — the DSA construction path
         (#2): the diffusion operator family assembles on the promoted
         mesh, sharing geometry and BC declarations with the SN sweep.
@@ -292,7 +292,7 @@ class DiffusionMesh(MaterialMesh):
     # Dirichlet idealization :math:`\mathcal{A} = -1`) live in the ONE
     # shared TransportMethod body,
     # :func:`~orpheus.transport.method.resolve_boundary_conditions`
-    # (#290 P7b — it replaced the twin ``SNMesh._resolve_bcs`` /
+    # (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
     # ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely
     # diffusion-specific arm remains here:
 
@@ -326,7 +326,7 @@ class DiffusionMesh(MaterialMesh):
         r"""The scalar boundary-trace space — per-face ``(J⁺, J⁻)`` pairs.
 
         Built once at construction from the mesh's own axis data
-        (``SNMesh.angular_trace`` locus parity, quadrature-free):
+        (``SNProblem.angular_trace`` locus parity, quadrature-free):
         the face inventory from
         :func:`~orpheus.transport.mesh.axis.face_labels`, each face's
         surface measure from :attr:`~MaterialMesh.areas` as the trace
@@ -345,8 +345,8 @@ class DiffusionMesh(MaterialMesh):
         composite whose bulk is a
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and
         whose boundary is the ``(J⁺, J⁻)`` scalar trace. The exact
-        mirror of :attr:`SNMesh.full_field_space
-        <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>` with
+        mirror of :attr:`SNProblem.full_field_space
+        <orpheus.sn.problem.SNProblem.full_field_space>` with
         the angular measure integrated out — the block-diagonal Hilbert
         metric :math:`G` is
 

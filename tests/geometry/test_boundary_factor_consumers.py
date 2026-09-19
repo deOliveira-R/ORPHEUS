@@ -52,7 +52,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSALowOrderSystem
 from orpheus.sn.loss_representation.sweep_schedule import reflective_faces
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 def _bb(mesh):
     """B_b from a carrying mesh — the un-weld assembly read, spelled once."""
     return RadialCharacteristicBoundaryOperator(
@@ -123,7 +123,7 @@ def _live_diffusion_albedo(law: BoundaryTraceLaw) -> object:
 #: **``calls_production`` is load-bearing, not decoration.** Two of the four
 #: live sides invoke the production reader directly, so a bug inside it reddens
 #: the row. The other two — the sweep schedule and the DSA admission — need a
-#: whole ``SNMesh`` to reach production, which cannot be built for the five
+#: whole ``SNProblem`` to reach production, which cannot be built for the five
 #: laws SN does not admit; their live side is the predicate EXPRESSION, so the
 #: row proves the expression is equivalent but NOT that production evaluates
 #: it. What ties those two to production is
@@ -191,7 +191,7 @@ class TestTagEquivalence:
                 "this row CALLS the production reader, so the bug may be in it"
                 if calls_production else
                 "this row checks the predicate EXPRESSION only (production "
-                "needs an SNMesh) — if the expression is right, look at "
+                "needs an SNProblem) — if the expression is right, look at "
                 "TestSpecMutationsPropagate for the production wiring"
             )
             pytest.fail(
@@ -227,11 +227,11 @@ class TestTagEquivalence:
         assert retired == ["VacuumInflow"]
         assert live == ["PrescribedInflow", "VacuumInflow"]
         # And the reachability claim the decision rests on.
-        assert set(SNMesh.BOUNDARY_OPERATOR_REGISTRY) == {"reflective", "vacuum"}
+        assert set(SNProblem.BOUNDARY_OPERATOR_REGISTRY) == {"reflective", "vacuum"}
 
 
-def _slab(left: str, right: str) -> SNMesh:
-    return SNMesh(
+def _slab(left: str, right: str) -> SNProblem:
+    return SNProblem(
         Mesh1D(
             edges=np.linspace(0.0, 1.0, 5),
             mat_ids=np.zeros(4, dtype=int),
@@ -244,8 +244,8 @@ def _slab(left: str, right: str) -> SNMesh:
     )
 
 
-def _sphere(outer: str) -> SNMesh:
-    return SNMesh(
+def _sphere(outer: str) -> SNProblem:
+    return SNProblem(
         Mesh1D(
             edges=np.linspace(0.0, 1.0, 5),
             mat_ids=np.zeros(4, dtype=int),

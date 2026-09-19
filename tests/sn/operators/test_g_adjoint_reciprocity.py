@@ -69,7 +69,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -141,7 +141,7 @@ def _make_slab(
         bc_left=bc_left,
         bc_right=bc_right,
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     # Per-group-varying σ_t so the 2g row is non-degenerate in the group axis
     # (exercises the G_bulk broadcast over ng); rank-d (ng, *spatial).
     sig_t = np.stack(
@@ -158,7 +158,7 @@ def _make_sphere(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
         coord=CoordSystem.SPHERICAL,
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -182,7 +182,7 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
         coord=CoordSystem.CYLINDRICAL,
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.full((ng, nx), sigma)
     return sn, sig_t
 
@@ -215,7 +215,7 @@ def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0
         coord=CoordSystem.CYLINDRICAL,
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -243,7 +243,7 @@ def _make_ld_slab(ng: int = 2, sigma: float = 0.5):
         bc_left=BC("reflective"),
         bc_right=BC("reflective"),
     )
-    sn = SNMesh(mesh, quad, placeholder_materials(ng=ng),
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng),
                 scheme=LinearDiscontinuous())
     nx = sn.spatial_shape[0]
     space_factor = 1.0 + 0.3 * np.arange(nx) / nx        # spatially het
@@ -304,7 +304,7 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    sn = SNMesh(
+    sn = SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=ng),
         scheme=LinearDiscontinuous(),
     )
@@ -374,7 +374,7 @@ _BUILDERS = {
 
 
 def _random_composite(
-    sn: SNMesh, rng: np.random.Generator,
+    sn: SNProblem, rng: np.random.Generator,
 ) -> TimedFullField:
     r"""Random NON-FLAT 2-block composite (bulk + boundary both random).
 
@@ -409,7 +409,7 @@ def _random_composite(
     )
 
 
-def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
+def _loss_operator(sn: SNProblem, sig_t: np.ndarray):
     r"""The within-group loss ``A = L + C - B`` (the boundary sibling ``-B`` live)."""
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
@@ -770,7 +770,7 @@ def _full_loss_case(
     else:
         mixtures = {0: _mix_4g(_P0_4G_A), 1: _mix_4g(_P0_4G_B)}
         order = 0
-    sn = SNMesh(mesh, quad, mixtures, scattering_order=order)
+    sn = SNProblem(mesh, quad, mixtures, scattering_order=order)
     S = SNSolver(sn).sn_mesh.system.factors.scattering
     sig_t = np.asarray(
         sn.mat_xs.total_cross_section_field.values, dtype=float
@@ -812,7 +812,7 @@ def _full_loss_case_cart2d():
         0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
         1: _mix_2g(_P0_2G_B, _P1_2G_B, np.array([[0.0, 0.02], [0.02, 0.0]])),
     }
-    sn = SNMesh(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
+    sn = SNProblem(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
     S = SNSolver(sn).sn_mesh.system.factors.scattering
     sig_t = np.asarray(
         sn.mat_xs.total_cross_section_field.values, dtype=float
@@ -841,7 +841,7 @@ _FULL_LOSS_BUILDERS = {
 
 
 def _one_hot_group_composite(
-    sn: SNMesh, rng: np.random.Generator, g: int,
+    sn: SNProblem, rng: np.random.Generator, g: int,
 ) -> TimedFullField:
     r"""A composite supported ONLY in group ``g`` (bulk random, trace zero).
 

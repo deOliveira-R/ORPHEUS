@@ -27,7 +27,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -47,7 +47,7 @@ def _mesh(
     n_ord: int = 4,
     ng: int = 2,
     bc_left: str = "vacuum",
-) -> SNMesh:
+) -> SNProblem:
     mesh = Mesh1D(
         edges=edges,
         mat_ids=np.zeros(edges.size - 1, dtype=int),
@@ -55,7 +55,7 @@ def _mesh(
         bc_left=BC(bc_left),
         bc_right=BC("vacuum"),
     )
-    return SNMesh(
+    return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ord), placeholder_materials(ng=ng)
     )
 

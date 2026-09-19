@@ -31,14 +31,14 @@ provides the *locus + family* axes as ABCs; the *role* leaves
      │   ├─ ScalarField (ABC)     + the carrier's cached space via _space_for_mesh (space_on)
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
-     │   └─ MomentField (ABC)     + L + the carrier's cached space via SNMesh.moment_space(L, width) (space_on)
+     │   └─ MomentField (ABC)     + L + the carrier's cached space via SNProblem.moment_space(L, width) (space_on)
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
      └─ FaceField[K] (ABC)        codim-1 (faces/edges): flat single-buffer + FaceLayout[K]
          │                        slice-views + layout guards + space_on via _face_space_of. STRUCTURE only — the metric descends PER LEAF
          │                        (spatial |Ω·n̂|·w; pole V_cell), never on this ABC (ERR-067).
          ├─ BoundaryField (ABC, FaceField[str])   SPATIAL faces (keyed by name) + from_face_arrays;
          │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
-         │   ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace (mesh.angular_trace)
+         │   ├─ AngularBoundaryField (ABC)   mesh: SNProblem + AngularTraceSpace (mesh.angular_trace)
          │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
          │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
          │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
@@ -117,7 +117,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.problem import SNProblem
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
@@ -367,7 +367,7 @@ class BulkField(RolePair, Field):
           ``<angular head> * cell_group`` — until CS4c step 6 item 6.2c
           axis-ifies the angular head factor): NOT composed here. Since
           item 6.2b the carrier composes that product's tail itself —
-          :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`
+          :meth:`~orpheus.sn.problem.SNProblem.moment_space`
           appends a
           tail THROUGH this composer since item 6.2c-iii (the scheme's own
           mass-weighted axis — one spelling of the factor; until then it
@@ -432,7 +432,7 @@ class BulkField(RolePair, Field):
             return FunctionSpace.of_axes(*space.axes, axis)
         # Every bulk space that carries a tail is axis-built — the angular
         # and scalar mints since CS4b, the harmonic-moment product since
-        # CS4c step 6 item 6.2c-ii; the carrier's ``SNMesh.moment_space``
+        # CS4c step 6 item 6.2c-ii; the carrier's ``SNProblem.moment_space``
         # composes its tail THROUGH this composer since item 6.2c-iii (one
         # spelling of the tail: the scheme's axis) — so an axes-less input
         # here is a caller error, not a case.
@@ -528,7 +528,7 @@ class BulkField(RolePair, Field):
         carrier-cached reads); :class:`MomentField` keys on ``(mesh, L,
         width)`` instead and overrides :meth:`space_on` directly — since
         CS4c step 6 item 6.2b also a carrier-cached read
-        (:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`).
+        (:meth:`~orpheus.sn.problem.SNProblem.moment_space`).
         """
         raise NotImplementedError(
             f"{cls.__name__} declares no per-mesh space mint — instantiate "
@@ -584,7 +584,7 @@ class AngularField(BulkField):
     The storage base for the angular role leaves (``AngularFlux``,
     ``AngularSourceSink``, ``AngularResidual``). The family shares ONE
     space — the carrier's cached
-    :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+    :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
     (campaign 1 CS4b: role is class identity, never space identity; the
     class arm of :meth:`~orpheus.numerics.field.Field._check_partner` is
     the sole role gate). Abstract — instantiate a concrete leaf.
@@ -592,14 +592,14 @@ class AngularField(BulkField):
 
     @classmethod
     def _space_for_mesh(  # type: ignore[override] — the family narrows its
-        # carrier (SNMesh), the same #267 covariant-override doctrine as the
+        # carrier (SNProblem), the same #267 covariant-override doctrine as the
         # ``mesh`` field above; every caller passes this family's carrier.
-        cls, mesh: "SNMesh", *, spatial_moments: int = 1,
+        cls, mesh: "SNProblem", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh``.
 
         Reads the carrier's cached, axis-built
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+        :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
         (campaign 1 CS4b — the carrier is the ONE mint; every angular
         leaf on one carrier shares the SAME space instance, carrying the
         physical Hilbert metric ``w_n × V_cell`` per axis). The private
@@ -705,7 +705,7 @@ class ScalarField(BulkField):
 @runtime_checkable
 class _CarriesMomentSpace(Protocol):
     """A carrier that OWNS its harmonic-moment spaces — the SN hub's surface
-    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`, CS4c step 6
+    (:meth:`orpheus.sn.problem.SNProblem.moment_space`, CS4c step 6
     item 6.2b): one cached space per ``(L, spatial_moments)``, the angular
     head READ off the carrier's quadrature frame (#429 tracker 2.5), the
     cell group its own ``bulk_space``."""
@@ -737,7 +737,7 @@ class MomentField(BulkField):
     A moment field is a moment field on the spherical-harmonic ⊗
     scalar-bulk phase space, keyed on the truncation order ``L``; its
     space is the CARRIER's cached
-    :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space` at
+    :meth:`~orpheus.sn.problem.SNProblem.moment_space` at
     ``(L, width)`` — a TensorProductSpace whose angular head is read off
     the carrier's quadrature frame and whose cell-group factor IS the
     carrier's cached
@@ -839,13 +839,13 @@ class MomentField(BulkField):
 
     @classmethod
     def from_mesh_and_L(
-        cls, values: NDArray, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
+        cls, values: NDArray, mesh: "SNProblem", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct from raw values + mesh + L on the carrier's own
         moment space.
 
         The space is READ off the carrier —
-        :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`
+        :meth:`~orpheus.sn.problem.SNProblem.moment_space`
         (CS4c step 6 item 6.2b): ``<angular head> * mesh.bulk_space``, the
         angular head read off the carrier's quadrature frame at ``L``
         (``mesh.quad.angular_frame(L).basis_space`` — the frame's
@@ -880,7 +880,7 @@ class MomentField(BulkField):
         r"""The moment family's space for ``(mesh, L, width)`` — READ off the
         carrier, which owns it (CS4c step 6 item 6.2b, 2026-09-07).
 
-        The carrier's :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.moment_space`
+        The carrier's :meth:`~orpheus.sn.problem.SNProblem.moment_space`
         is a keyed cache: every read of one ``(carrier, L, width)`` returns
         the SAME object, so the factory (:meth:`from_mesh_and_L`), the
         admission-guard reference (:meth:`space_on`) and the sweep's
@@ -897,9 +897,9 @@ class MomentField(BulkField):
         if not isinstance(mesh, _CarriesMomentSpace):
             raise TypeError(
                 f"a moment field's space is READ off the SN carrier that "
-                f"owns it (SNMesh.moment_space), and {type(mesh).__name__} "
+                f"owns it (SNProblem.moment_space), and {type(mesh).__name__} "
                 f"carries no quadrature and owns no moment space; build the "
-                f"moment field on the SN phase-space carrier (an SNMesh)."
+                f"moment field on the SN phase-space carrier (an SNProblem)."
             )
         return mesh.moment_space(L, spatial_moments=spatial_moments)
 
@@ -912,7 +912,7 @@ class MomentField(BulkField):
 
     @classmethod
     def zeros_for_mesh_and_L(
-        cls, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
+        cls, mesh: "SNProblem", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
 
@@ -1126,7 +1126,7 @@ class BoundaryField(FaceField[str]):
     P2.5 axis-coherence ruling — family-qualified, uniform role tokens):
 
     * :class:`AngularBoundaryField` — the ANGULAR family (``mesh`` narrowed to
-      :class:`SNMesh`, space to the quadrature-coupled
+      :class:`SNProblem`, space to the quadrature-coupled
       :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
     * :class:`ScalarBoundaryField` — the SCALAR family (``mesh`` narrowed to
       :class:`DiffusionMesh`, space to
@@ -1181,7 +1181,7 @@ class AngularBoundaryField(BoundaryField):
     r"""Angular boundary-trace storage base — the SN family of the
     :class:`BoundaryField` locus.
 
-    Carries what is ANGULAR about the locus: the :class:`SNMesh`
+    Carries what is ANGULAR about the locus: the :class:`SNProblem`
     binding (covariant narrowing of the base ``mesh: MaterialMesh``)
     and the space narrowing to the unified quadrature-coupled
     :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (the
@@ -1193,7 +1193,7 @@ class AngularBoundaryField(BoundaryField):
     """
 
     # The static twin of the __post_init__ isinstance gate below (the
-    # ``mesh: SNMesh`` covariant-narrowing idiom): an angular boundary
+    # ``mesh: SNProblem`` covariant-narrowing idiom): an angular boundary
     # field's space IS the quadrature-coupled AngularTraceSpace, so
     # consumers of its atoms (``omega_dot_n``, the face layout, the
     # partial-current metric) type-check without re-narrowing.
@@ -1240,10 +1240,10 @@ class ScalarBoundaryField(BoundaryField):
     (per-face partial-current pairs under the face-AREA metric), the
     :class:`DiffusionMesh` binding (covariant narrowing of the base
     ``mesh: MaterialMesh`` — the exact :class:`AngularBoundaryField` /
-    ``SNMesh`` discipline; #290 P7a), and the trace-space source
+    ``SNProblem`` discipline; #290 P7a), and the trace-space source
     ``mesh.scalar_trace``. A scalar trace lives on the DIFFUSION phase
     space — when DSA (#2) restricts an SN solve, the SN mesh promotes
-    (``DiffusionMesh.from_material_mesh(sn_mesh)`` — an ``SNMesh`` IS a
+    (``DiffusionMesh.from_material_mesh(sn_mesh)`` — an ``SNProblem`` IS a
     ``MaterialMesh``) and :math:`A_{\rm diff}`'s fields bind to the
     promoted mesh. The concrete role leaves are
     :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
@@ -1317,7 +1317,7 @@ class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
     :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace`
     (SPD ``G_sd = V_cell`` state metric). A :class:`FaceField` **sibling** of the
     boundary locus :class:`RadialCharacteristicBoundaryField`, NOT a child (like
-    :class:`BulkField` vs :class:`BoundaryField`). ``mesh`` is :class:`SNMesh` and
+    :class:`BulkField` vs :class:`BoundaryField`). ``mesh`` is :class:`SNProblem` and
     the space source is the R12a-keyed ``mesh.radial_characteristic_interior_space``
     — construction on a non-carrying mesh is unrepresentable (the factory raises;
     the composite spells absence as ``None``). The concrete role leaves are
@@ -1380,7 +1380,7 @@ class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
     :class:`~orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace`
     (``G = V(r = R)`` corner gauge). A :class:`FaceField` **sibling** of the
     interior locus :class:`RadialCharacteristicInteriorField`, NOT a child.
-    ``mesh`` is :class:`SNMesh` and the space source is the R12a-keyed
+    ``mesh`` is :class:`SNProblem` and the space source is the R12a-keyed
     ``mesh.radial_characteristic_boundary_space``. The concrete role leaves are
     ``RadialCharacteristicBoundaryFlux`` (state — same-class signed differences
     carry the iterate increment since campaign 1 CS3, 2026-08-19, when the

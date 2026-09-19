@@ -38,7 +38,7 @@ from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames import (
@@ -58,7 +58,7 @@ pytestmark = pytest.mark.foundation
 _L = 2
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, nx + 1),
         mat_ids=np.zeros(nx, dtype=int),
@@ -67,34 +67,34 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
+def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNMesh(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _frame(m: SNMesh, L: int = _L) -> HarmonicFrame:
+def _frame(m: SNProblem, L: int = _L) -> HarmonicFrame:
     return HarmonicFrame.from_galerkin(m.quad.angular_frame(L))
 
 
-def _angular_values(m: SNMesh, seed: int) -> np.ndarray:
+def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
     return rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
 
 
-def _head(m: SNMesh, L: int = _L):
+def _head(m: SNProblem, L: int = _L):
     """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
     return m.quad.angular_frame(L).basis.space
 
 
-def _moment_values(m: SNMesh, seed: int, L: int = _L) -> np.ndarray:
+def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
     r"""Random moment values in the HEAD's own layout.
 
     ⛔ RE-KEYED 2026-09-02 (#429). This built ``(L+1, 2L+1, …)``
@@ -257,7 +257,7 @@ class TestMint:
             bc_left=BC("vacuum"),
             bc_right=BC("vacuum"),
         )
-        m = SNMesh(
+        m = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),
             placeholder_materials(ng=2),

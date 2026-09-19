@@ -239,7 +239,7 @@ def test_shim_remains_hashable():
 def test_shim_is_not_re_exported_from_package():
     """The shim is internal to the SN-side wiring — it MUST NOT appear
     in :mod:`orpheus.geometry.boundary`'s public surface, since no
-    consumer outside ``SNMesh.realize_boundary_law`` has a legitimate
+    consumer outside ``SNProblem.realize_boundary_law`` has a legitimate
     reason to wrap operators in it. Pinning the lack of re-export
     prevents accidental promotion to public API.
     """
@@ -276,18 +276,18 @@ def test_constructor_signature_is_inner_plus_law():
 # Issue #188 / C188.3 — curvilinear realizer wiring
 # ═══════════════════════════════════════════════════════════════════════
 #
-# These tests pin the SNMesh-side production behaviour: a 1-D curvilinear
+# These tests pin the SNProblem-side production behaviour: a 1-D curvilinear
 # mesh routes its BCs through SNBoundaryRealizer just like Cartesian, and
 # the 1-D y-face placeholders are realized through SNMethodSpace.minimal.
 
 
 class Test188WiringContracts:
-    """Curvilinear ``SNMesh.realize_boundary_law`` + 1-D y-placeholder
+    """Curvilinear ``SNProblem.realize_boundary_law`` + 1-D y-placeholder
     contracts (the per-face arm was named ``_resolve_one`` until the
     #290 P7b ``TransportMethod`` carve)."""
 
     def test_curvilinear_realize_boundary_law_routes_through_realizer(self):
-        """A 1-D spherical :class:`SNMesh` has exactly ONE boundary —
+        """A 1-D spherical :class:`SNProblem` has exactly ONE boundary —
         the outer radius (``xmax`` / ``bc_right``) — realized through
         :class:`SNBoundaryRealizer` to a 1-arg operator. The pole r=0
         is the angular closure's regularity condition, NOT a BC face,
@@ -302,7 +302,7 @@ class Test188WiringContracts:
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.operator import ZeroMorphism
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
 
         mesh = Mesh1D(
@@ -313,7 +313,7 @@ class Test188WiringContracts:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(8)
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
 
         # ONE boundary: the unified trace carries only the outer face.
         assert sn._trace is not None
@@ -374,7 +374,7 @@ class Test188WiringContracts:
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.operator import TensorProductOperator
-        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
         from tests.sn._test_helpers import local_positions
 
@@ -386,7 +386,7 @@ class Test188WiringContracts:
             bc_right=BC("reflective"),
         )
         quad = Quadrature.gauss_legendre(4)
-        sn = SNMesh(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials())
 
         discriminating = 0
         for face in ("xmin", "xmax"):

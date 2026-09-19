@@ -100,7 +100,7 @@ Coord-system coverage
 =====================
 
 The face → outward-normal table is keyed on the **layout's** face
-names (``SNMesh.boundary_face_layout``), which is the single source of
+names (``SNProblem.boundary_face_layout``), which is the single source of
 truth for "which faces exist":
 
 * **Mesh1D slab** — two faces ``xmin`` / ``xmax``; outward normals
@@ -114,7 +114,7 @@ truth for "which faces exist":
   ``left/right`` pair): a solid sphere has exactly one boundary.
 * **Mesh2D Cartesian** — four faces ``xmin`` / ``xmax`` / ``ymin`` /
   ``ymax``; a 3-axis Cartesian mesh (C5.5, #225) all six. 2-D
-  cylindrical ``(r, z)`` has no SN sweep and cannot become an SNMesh
+  cylindrical ``(r, z)`` has no SN sweep and cannot become an SNProblem
   (refused at the axis conversion during construction — since C5.3 the
   trace itself is geometry-blind and never sees a mesh).
 
@@ -241,7 +241,7 @@ def build_omega_dot_n(
     and the face NAMES (the axis-aligned outward normals are implied by
     the ``"{axis}{min|max}"`` convention). The former ``mesh``
     parameter was gate-only: its curvilinear-``Mesh2D`` refusal is
-    unreachable (such a mesh cannot become an ``SNMesh`` — the axis
+    unreachable (such a mesh cannot become an ``SNProblem`` — the axis
     conversion at construction refuses it), and the isinstance check
     carried no data.
 
@@ -432,7 +432,7 @@ class AngularTraceSpace(FunctionSpace):
             ``mu_z`` (when applicable).
         layout : FaceLayout
             The boundary face layout (canonically
-            :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` —
+            :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` —
             the single source of truth for which faces exist and their
             flat packing). Its ordered faces drive the
             :attr:`omega_dot_n` rows; its ``total_size`` sets the space

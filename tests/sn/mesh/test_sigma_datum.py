@@ -28,7 +28,7 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry.mesh import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 pytestmark = pytest.mark.foundation
@@ -56,11 +56,11 @@ def _bare() -> MaterialMesh:
     return MaterialMesh(_mesh(), _mats())
 
 
-def _sn() -> SNMesh:
-    return SNMesh(_mesh(), Quadrature.gauss_legendre(4), _mats())
+def _sn() -> SNProblem:
+    return SNProblem(_mesh(), Quadrature.gauss_legendre(4), _mats())
 
 
-_TIERS = pytest.mark.parametrize("build", [_bare, _sn], ids=["MaterialMesh", "SNMesh"])
+_TIERS = pytest.mark.parametrize("build", [_bare, _sn], ids=["MaterialMesh", "SNProblem"])
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -265,7 +265,7 @@ class TestLawTheGeometryInternUnderSigmaVariants:
             if name == "__weakref__":
                 continue
             value = getattr(table, name)
-            _require(value is not hub and not isinstance(value, (SNMesh, Mesh1D)),
+            _require(value is not hub and not isinstance(value, (SNProblem, Mesh1D)),
                      f"the interned table must hold no hub reference (field {name!r})")
 
     def test_law_the_interned_table_dies_with_its_last_holder(self) -> None:

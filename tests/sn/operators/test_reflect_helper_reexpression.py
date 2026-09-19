@@ -43,7 +43,7 @@ cart2d      ``array_equal``, max|Δ| 0.0    **differs, max|Δ| 2.592e+00**
 
 **Fixture scope, stated rather than left to inference (``vv`` #20).**  The
 four ledger meshes span {slab, sphere, cylinder, cart2d} × {reflective,
-vacuum}, which is the whole law family reachable here: `[M]` ``SNMesh``
+vacuum}, which is the whole law family reachable here: `[M]` ``SNProblem``
 accepts only reflective/vacuum face laws, so white / albedo are structurally
 ABSENT from this surface (they are constructed on ``B_b`` directly), and the
 helper's own docstring records that `[M]` **0** of its consumer sites ever
