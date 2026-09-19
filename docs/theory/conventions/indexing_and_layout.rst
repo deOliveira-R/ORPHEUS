@@ -1107,8 +1107,9 @@ The :class:`~orpheus.sn.solution.SolutionBase` carrier holds **exactly
 five members** — the pair (Problem, posing), the Strategy that produced
 it, and the records:
 
-- :attr:`~orpheus.sn.solution.SolutionBase.mesh` — the Problem (the hub),
-  the base point every other member is relative to;
+- :attr:`~orpheus.sn.solution.SolutionBase.problem` — the Problem (the
+  hub), the base point every other member is relative to.  ⛔ This member
+  was spelled ``mesh`` until #412 (2026-09-18);
 - :attr:`~orpheus.sn.solution.SolutionBase.outcome` — the kind-typed
   answer, FUSED with the question it answered, the returned STATE and the
   gauge that picked the representative.  **The kind IS this member's
@@ -1135,7 +1136,7 @@ Solution.  Three guards retired with them, each because the structure now
 says what the guard said:
 
 - the ray member's presence is the state's **arity** — no biconditional
-  against the mesh's ``R12a`` predicate to keep honest;
+  against the Problem's ``R12a`` predicate to keep honest;
 - ``scalar_flux`` is one quantity in one representation — no
   marginal-axes check to keep two copies agreeing;
 - ``__post_init__`` enforces ONE law, the **state-on-domain law**: the
@@ -1593,7 +1594,7 @@ the space already *is* the layout.
 The carrier's cached mints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-What a call site reads instead of passing a mesh is one of the carrier's
+What a call site reads instead of passing the Problem is one of the carrier's
 **cached** space properties.  Each is minted once per carrier and shared
 by reference, so every field on one carrier holds the *same* space
 instance (a cheap identity; the operator-admission guards themselves
@@ -1740,19 +1741,19 @@ mis-weight the slope degrees of freedom: ``.H`` becomes a WRONG adjoint
 on the slope rows, and reciprocity goes Mode-12 blind to a slope-row
 transpose.
 
-Why the key is the space and not the mesh
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Why the key is the space and not the Problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The original argument for moving the allocator off the mesh
+The original argument for moving the allocator off the hub
 (:ref:`sn-c5-phantom-retirement`, the C5.2 rank-honesty carve) was that
-a mesh-side ``zeros_angular_flux`` has to know the *storage layout of
-every leaf type*, so each new leaf grows another method on the mesh.
+a hub-side ``zeros_angular_flux`` has to know the *storage layout of
+every leaf type*, so each new leaf grows another method on the hub.
 Keying on the space finishes that inversion rather than reversing it,
 and it removes the residual duplication the mesh-keyed sugar still
 carried:
 
 * **The derivation ran twice.**  ``Leaf.zeros_on(mesh)`` re-derived the
-  leaf's space from the mesh on every call, while the carrier was
+  leaf's space from the hub on every call, while the carrier was
   already caching exactly that space for the operators to bind against.
   Two routes to one object is the Pattern-2 smell; now there is one, and
   a field's space is ``is``-identical to the operator's domain instead of

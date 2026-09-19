@@ -1353,7 +1353,7 @@ reason have since dissolved, in two steps:
 * **Q5.6.3 (2026-08-08)** made the full-circle rule classes
   *unrepresentable* — a cylindrical ``SNProblem`` now refuses any rule with a
   non-carrying μ-level, so the :math:`\tau = 0` trigger is unreachable
-  through any mesh.
+  through any Problem.
 * **Q5.6.4 (2026-08-11)** retired the absorber itself, after finding that
   the thing it was compensating for was not a singularity at all but a
   **wrong angular cell partition**: the cylinder's edges were taken at the
@@ -2693,7 +2693,7 @@ per-cell :math:`2^d`-moment axis (the S3 unified moment matvec), so widening the
 external source meant relaxing a single lift's input contract.  Leg B has no
 such carrier — *the boundary trace is scalar-per-face end-to-end*.  A new place
 must be found to STORE the transverse face-moments, and the elegant answer is a
-single attribute on the mesh.
+single attribute on the Problem.
 
 The trace's per-face slot shape is owned not by the
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` itself but by the
@@ -3611,10 +3611,10 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    prescribed inflow**. Its leaf values are re-homed onto the solve's
    own ``problem``: the trace / grid layout is deterministic from
    ``(mesh, quadrature, materials)``, so this is an exact values-copy
-   onto the solve's mesh instance. The within-group operators are built
-   on ``problem`` and their matvec entries admit an operand only when
-   its interior space agrees in CONTENT with the one that mesh mints
-   (campaign 1 CS4b S3 re-keyed this from mesh-OBJECT identity, so a
+   onto the solve's own Problem instance. The within-group operators are
+   built on ``problem`` and their matvec entries admit an operand only when
+   its interior space agrees in CONTENT with the one that Problem mints
+   (campaign 1 CS4b S3 re-keyed this from hub-OBJECT identity, so a
    twin carrier built from equal inputs would now be admitted); the
    unconditional re-home is what makes the route correct without the
    caller having to reason about that.

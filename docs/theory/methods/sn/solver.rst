@@ -84,7 +84,7 @@ the fission channel became *two bindings of one datum*
 (:ref:`sn-fission-binding-adjoint`) and every consumer was re-pointed at
 the one it actually feeds — the k-outer hands bare
 :math:`(n_g, *\text{spatial})` scalar arrays, so it wants the energy
-binding on the mesh's **bulk** space, while the eigen-:math:`M` posing
+binding on the Problem's **bulk** space, while the eigen-:math:`M` posing
 wants the composite.  Step 4 gave each consumer the right *binding* and
 left each minting its own *object*; step 2 of the consumers campaign
 made it one object with two faces.
@@ -1035,14 +1035,14 @@ Two refusals make the restriction structural rather than conventional:
 * The schedule string becomes a schedule object at exactly one site,
   :func:`~orpheus.sn.splitting.resolve_schedule`, and that site carries
   the geometry gate.  ``"gauss_seidel"`` yields a sequenced schedule
-  only when the mesh ``is_cartesian and not is_1d``; on 1-D or
-  curvilinear meshes it falls back to Jacobi.  The gate reads the
+  only when the Problem ``is_cartesian and not is_1d``; on 1-D or
+  curvilinear geometries it falls back to Jacobi.  The gate reads the
   genuine condition: before #225 C5.4 it read the proxy ``reduced is
   None``, which happened to be equivalent on 2-D Cartesian and was not
   the property being tested.
 * Handing a sequenced schedule to a carrying system
   :meth:`~orpheus.sn.splitting.Splitting.from_schedule` **raises** rather
-  than silently re-labelling.  A carrying mesh's boundary is the
+  than silently re-labelling.  A carrying Problem's boundary is the
   :math:`B_a + B_b` composite, and the ruling that the octant grading
   lives on :math:`B_a` and only there would be violated by splitting it.
   ``resolve_schedule`` never produces that combination, so the refusal
@@ -2343,7 +2343,7 @@ accident.
 
 ⚠ **One sibling memo survives, and it is not the same object.**
 ``_pole_mirror_cache`` — the :math:`r = 0` coupled-pole mirror pairing —
-is still a mesh attribute.  It is :math:`\sigma`-**free** (it is derived
+is still a hub attribute.  It is :math:`\sigma`-**free** (it is derived
 from the quadrature's mirror motion), so it carries none of the
 staleness this seam removes, and it is out of this unit's scope.  The
 route gate's ``_MEMO_SLOTS`` tuple in
@@ -3926,7 +3926,7 @@ three separate guards retire, and each retirement is the same move —
    * - the guard that retired
      - what says it now
    * - a hand-written biconditional asserting the ray member's presence
-       matches the mesh's ``R12a`` predicate
+       matches the Problem's ``R12a`` predicate
      - the state's **ARITY**.  ``radial_characteristic`` is ``None``
        exactly when the state has one system; there is nothing to keep
        in sync

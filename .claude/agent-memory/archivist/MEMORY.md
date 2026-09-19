@@ -43,6 +43,9 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
 file. `git log --oneline -- docs/` is the real index.
 
+- **#412 the rename's PROSE half** — "renamed everywhere" is a claim about a PREDICATE, and
+  `:noindex:` means the xref never resolved anyway (2026-09-18; 19 `.rst`, +360/−174;
+  uncommitted on `refactor/consumers-rename-412`) → L-112
 - **Consumers step 3 U6** — a carve can corrupt a HISTORY claim in the code, and the docs are
   the half that's right (2026-09-17; 5 `.rst`, +350/−42; uncommitted on
   `refactor/consumers-step3-u6`) → L-111

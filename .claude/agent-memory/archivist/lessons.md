@@ -15,6 +15,24 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ "RENAMED EVERYWHERE" IS A CLAIM ABOUT A *PREDICATE* — read the slot in the live
+  tree before re-wording it.** The brief said the hub spelling `sn_mesh` → `problem`
+  everywhere; that licensed the wrong inference that every slot HOLDING the hub is now
+  `problem`. `[M]` by AST: **24** `mesh`-spelled `SNProblem` params/fields survive in **6**
+  modules (15 in `sn/loss_representation` — `supports(mesh, spatial_closure)`,
+  `default_for(mesh, …)`), plus both DSA `from_sn_mesh` factories. A page quoting
+  `supports(mesh, …)` quotes the LIVE signature; "fixing" it would have been wrong AND read
+  as the careful half. ⟹ publish the residue with its count and predicate (one `.. note::`
+  + a history sub-block) so the next pass cannot mistake live for stale. → L-112
+- **⭐ A DEAD-XREF LIST TAKEN DURING A RENAME IS NOT A RENAME FINDING until you re-run it
+  against the PRE-rename tree.** `[M]` 7 dead roles found, **1** rename-caused
+  (`SolutionBase.mesh`); the other 6 are `:attr:` on INSTANCE attributes and
+  `git show <pre>:<file>` shows the identical dead role at the same site. Reporting all 7
+  as breakage is a false accusation. → L-112
+- **⭐ MINE THE COMMIT MESSAGES FOR `[M]` NUMBERS — and RE-SUM them.** The three rename
+  commits carry exact censuses; my first transcription wrote "467 import paths (457+4+6+1)"
+  = 468. Prefer listing the parts to inventing a total the source never stated. → L-112
+
 - **⭐⭐ A CARVE CAN CORRUPT A HISTORY CLAIM IN THE **CODE**, AND THE DOCS ARE THE HALF
   THAT'S RIGHT.** U6's name-keyed sweep rewrote `convergence.py`'s *"its closing advice was
   the literal string ``solution.history.fully_converged``"* → `…record.…`, hitting the one
@@ -1553,6 +1571,20 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⛔⛔ `:noindex:` ON AN `automodule` MINTS NO CROSS-REFERENCE TARGET — so the role
+  renders PLAIN TEXT at every severity.** `[M]` 2026-09-18, two-sided control in the built
+  HTML: `orpheus.sn.problem` (noindex) yields **0** `id=` anchors while
+  `orpheus.sn.operators.boundary` (same page, no noindex) yields them normally. Corpus-wide:
+  **24** noindex automodules, **1081** python-domain roles pointing into them
+  (`sn.loss_representation` 233, `sn.problem` 202, `sn.solver` 191, `sn.operators.streaming`
+  136). REPORT it — flipping `:noindex:` risks duplicate-object warnings and is an
+  architectural decision. → L-112
+- **⭐⭐ A LENGTH-CHANGING RENAME BREAKS SECTION UNDERLINES — scan, don't wait for the
+  build.** `SNMesh` → `SNProblem` is **+3** code points; `[M]` exactly 2 titles tree-wide
+  were left short. 12 lines of Python (code points, underline at col 0, single repeated
+  marker) finds them with no build. ⚠ Fix with the file's OWN marker char — my first patch
+  used `~` where the file had `-`; only the assertion caught it. → L-112
+
 - **⛔⛔ THE PROJECT XREF GATE IS STILL BLIND TO A DEAD `:class:`/`:attr:`/`:meth:` AT A
   DOTTED `orpheus.*` TARGET — the 2026-08-24 "appears repaired" note is REFUTED.** `[M]`
   2026-09-17 in-process: `judge('orpheus.sn.solution.IterationHistory', role='class')` →
@@ -2664,6 +2696,23 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   `== sorted(...)`. Free, and the only thing that sees the mistake. → L-076
 
 ## 6. Match the doc SHAPE to the event class
+
+- **⭐⭐ A NAMING PASS ADJUDICATES SENTENCES, NEVER WORDS — and the cheap filter is a
+  SHAPE regex.** `grep -i mesh` over one chapter returns ~1100 hits; a hub-SHAPED regex
+  (`the/a/its/every …(augmented )?(SN )?mesh`, `mesh's`, `mesh-{side,bound,keyed,time,
+  attribute,free,object,identity,lifetime}`, `mesh layer`, `augmented mesh`) cuts it to
+  ~135 to read in context. `[M]` 152 hub-meaning tokens re-worded, 64 re-added in new
+  explanatory prose, ~70 candidates deliberately KEPT. The five keep-classes a blanket
+  replace corrupts: genuinely geometric · a live API literal (`zeros_on(mesh)`,
+  `supports(mesh, …)`) · a RETIRED TIER'S NAME (that thing no longer exists, so it is
+  history) · a QUOTATION of an archived plan row · a CROSS-METHOD tier only half-affected
+  (`method-mesh layer` / `DiffusionMesh` stay — add a ⚠ instead of renaming). → L-112
+- **⭐ WHEN A RENAME IS RULED ON A DOC'S OWN ARGUMENT, THE DOC OWES A TOMBSTONE.** The page
+  said *"`SNMesh` is a **misnomer** … it is the solve's save state and data hub"* and #412
+  acted on it. Silently rewriting destroys the record that the docs called it first: keep
+  the ruling word for word, re-point its subject, and add a `.. note::` naming what the
+  paragraph used to open with. ⚠ Spell the retired name as a `` `` literal `` `` — a
+  `:class:` role on it would be a fresh dead ref. → L-112
 
 - **⭐ AN ERR FOR A DEFECT OF *SILENCE* EARNS ITS ENTRY; A DEFECT OF *ABSENCE* DOES NOT — the
   discriminator is "can it be re-introduced and reddened?"** U2 produced three candidates.

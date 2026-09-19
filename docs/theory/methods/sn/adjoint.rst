@@ -499,7 +499,7 @@ measure (:eq:`g-adjoint-block-metric`):
 the bulk volume·weight block :math:`V_{\rm cell}\,w_n`, the
 partial-current trace block :math:`|\Omega\cdot\hat n_f|\,w_n` (with a
 pseudo-inverse on the singular grazing-ordinate trace), and — on a
-carrying (sphere) mesh — the System-B ray block :math:`G_{\rm sd} =
+carrying (sphere) Problem — the System-B ray block :math:`G_{\rm sd} =
 V_{\rm cell}`.  The sweep itself carries **no metric code**: the metric
 enters only at the space boundary, so the same ``.H`` wrapper serves a
 flat spherical-harmonic metric and a composite ``FullField`` metric
@@ -1848,7 +1848,7 @@ own daggered question (below).  ⭐ Since 2026-09-13 it **mints nothing**: :math
 record's :attr:`factors.fission
 <orpheus.sn.coupled_system.SNLossFactors.fission>`, which *is* the hub's
 one :attr:`SNProblem.fission <orpheus.sn.problem.SNProblem.fission>`
-by identity, and on a carrying mesh it is that same operator **posed**
+by identity, and on a carrying Problem it is that same operator **posed**
 on the coupled carrier by the builder
 (:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`; the
 coupled section below).  Until then this function built its own
@@ -2073,7 +2073,7 @@ one of its consumers could use.
 The coupled (sphere) posing
 ---------------------------
 
-On a carrying mesh — the sphere, whose half-angle starting-direction
+On a carrying Problem — the sphere, whose half-angle starting-direction
 seed is first-class System-B state — the posing is a 2×2 block operator
 over System A (the transport bulk ⊕ trace) and System B (the
 radial-characteristic ray).  The gain is the builder's own coupled gain
@@ -2200,9 +2200,9 @@ P1.2 reciprocity gate: the entries duality row cross-checks the
 detector side against the hand volume sum :math:`\sum V\,\Sigma_d\,
 \varphi`, pinning the angle-flat lift as exactly the adjoint of the
 extraction.  (The daggered **coupled** fixed-source arm — a carrying
-mesh with System B — is a typed, loud refusal at #276 A4: it has no
+Problem with System B — is a typed, loud refusal at #276 A4: it has no
 consumer or gate yet and lands with its first consumer rather than
-shipping unexercised.  The eigenvalue entry covers carrying meshes.)
+shipping unexercised.  The eigenvalue entry covers carrying Problems.)
 
 .. _sn-adjoint-carrier:
 
@@ -2486,10 +2486,10 @@ its consumers are unblocked:
 The **honest deferral ledger.**  Two arms are callable-but-deferred by
 design, each a typed refusal rather than an unexercised path:
 
-* the daggered **coupled fixed-source** arm (a carrying mesh with
+* the daggered **coupled fixed-source** arm (a carrying Problem with
   System B) refuses loud in
   :func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` — no consumer
-  or gate yet; the eigenvalue entry covers carrying meshes;
+  or gate yet; the eigenvalue entry covers carrying Problems;
 * the Gauss–Seidel **schedule-reverse** transpose (#310 R7) has no
   consumer, so a
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`

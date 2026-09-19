@@ -1475,7 +1475,7 @@ sets have nothing to hand each other.
       declared spaces rather than its output shape, found them.
 
 **Four of the seven laws are narrowed today; two remain.** B3.2
-narrowed the two laws SN reaches from a mesh — ``vacuum`` and
+narrowed the two laws SN reaches from a Problem — ``vacuum`` and
 ``reflective`` — and measured the remainder then as *six* realizer rows
 across four law kinds. **B3.4a** took two of those kinds:
 
@@ -1897,7 +1897,7 @@ realized through :meth:`SNProblem.realize_boundary_law
    prescribed inflow is installed by constructing the law and calling
    :meth:`SNProblem.realize_boundary_law
    <orpheus.sn.problem.SNProblem.realize_boundary_law>` for
-   the face, which is what the mesh's own resolve body does — a ``BC``
+   the face, which is what the Problem's own resolve body does — a ``BC``
    tag cannot express this law (see the warning below). The bulk source
    is a spatially uniform isotropic
    :math:`Q = 1` through
@@ -1939,7 +1939,7 @@ Where :math:`q` travels instead — the composite source
 
 The typed :math:`q` is
 :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` —
-the *eager, whole-boundary, mesh-bound* snapshot of the inflow,
+the *eager, whole-boundary, hub-bound* snapshot of the inflow,
 packed into the unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 flat layout (one flat vector of ``layout.total_size`` values, with
@@ -5086,7 +5086,7 @@ The :class:`~orpheus.geometry.mesh.BC` dataclass is a thin wrapper
 mesh is method-agnostic.
 
 Step 2 — law resolution (in ``SNProblem.__init__``)
-------------------------------------------------
+---------------------------------------------------
 
 When :class:`~orpheus.sn.problem.SNProblem` is constructed against the
 mesh, the shared
@@ -5117,10 +5117,10 @@ The per-face
 :meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`
 calls share **one** unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` for the whole
-mesh, built once and stored on ``self._trace``. The factory is the
+Problem, built once and stored on ``self._trace``. The factory is the
 geometry-blind :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`
-— it takes the angular quadrature and the mesh's
+— it takes the angular quadrature and the Problem's
 :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` (a
 :class:`~orpheus.numerics.face_layout.FaceLayout`, the single source of
 truth for which faces exist and how they pack into one flat buffer), and
@@ -6937,7 +6937,7 @@ Curvilinear realizer unification
 ================================
 
 The pre-cleanup architecture carried a **Cartesian / curvilinear
-split** at the mesh-side resolver then named ``SNProblem._resolve_one``
+split** at the hub-side resolver then named ``SNProblem._resolve_one``
 (retired at #290 P7b — the shipped hook is
 :meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`):
 the slab and 2-D Cartesian
@@ -7378,7 +7378,7 @@ very desync the carve removes):
   ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
   ``bc_ymax``, routed through :meth:`SNMethodSpace.minimal` so
   cross-dimensional code could read them without coord-system
-  gating. **No production code ever read them**: a 1-D mesh's
+  gating. **No production code ever read them**: a 1-D Problem's
   ``trace.layout.faces`` is ``("xmin", "xmax")``, so the generic
   consumers (which iterate the trace layout) never asked for a
   y-face. The placeholders were a uniformity affordance with no
@@ -7548,7 +7548,7 @@ The campaign's keystone insight, surfaced by the C5 elegance audit, was
 that the d=3 admission could not be a clean *extension* until a
 pre-existing **data-flow inversion** in the constructor was repaired. C5
 is therefore sequenced *clean before extend*: C5.1–C5.4 invert and
-de-phantom the mesh layer, and only then C5.5 admits d=3 as a
+de-phantom the hub, and only then C5.5 admits d=3 as a
 one-line gate removal.
 
 .. _sn-c5-lossy-roundtrip:
@@ -7655,8 +7655,8 @@ not ``mesh.coord``.
 After C5.1, the ``mesh`` attribute of
 :class:`~orpheus.sn.problem.SNProblem` is **inbound provenance
 only** — it records *which legacy mesh the caller passed, if any*. It is
-``None`` when the mesh was built from axes at :math:`d \ge 3` (no legacy
-mesh exists to record; ``augmented_mesh.py`` spells the branch
+``None`` when the Problem was built from axes at :math:`d \ge 3` (no legacy
+mesh exists to record; ``problem.py`` spells the branch
 ``legacy_mesh_from_axes(axes, mat_map=mat_map) if len(axes) <= 2 else
 None``). It is written here as a literal rather than an ``:attr:`` role
 because the base ``MaterialMesh`` sets it on the *instance* with no

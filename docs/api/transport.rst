@@ -15,10 +15,16 @@ The TransportMethod Protocol
 
 The structural Protocol over the **method-mesh layer** (#290 P7b):
 ``SNProblem`` and ``DiffusionMesh`` conform without importing it, and the
-ONE shared ``resolve_boundary_conditions`` body turns each mesh's
+ONE shared ``resolve_boundary_conditions`` body turns each conformer's
 per-axis :class:`~orpheus.geometry.mesh.BC` declarations into realized
 boundary operators through the per-method ``realize_boundary_law``
-hook. The module docstring carries the full design record (the
+hook.  ⚠ The layer keeps the name *method-mesh*, and only half of it is
+still a mesh: #412 (2026-09-18) renamed the SN conformer ``SNMesh`` →
+``SNProblem`` on the ruling that the SN hub had outgrown "a mesh
+carrying a method's machinery", while ``DiffusionMesh`` (a genuinely
+mesh-shaped hub) keeps its name and its module
+:mod:`orpheus.diffusion.augmented_mesh`. The module docstring carries the
+full design record (the
 two-witness genesis, the instance-surface-only ruling, and the
 realizer-registry dissolution rationale); the boundary-architecture
 narrative lives at :doc:`/theory/foundations/boundary_conditions`.

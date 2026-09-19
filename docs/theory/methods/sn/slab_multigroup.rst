@@ -8,7 +8,7 @@ This chapter broadens exactly one axis of :doc:`slab_one_group`:
 things one group could not express: group-to-group scattering transfer
 (including the P\ :sub:`N` anisotropy expansion), fission with its
 emission spectrum :math:`\chi`, and the :math:`k`-eigenvalue problem
-that fission poses. Everything else — the mesh, the :term:`quadrature`, the
+that fission poses. Everything else — the Problem, the :term:`quadrature`, the
 cell balance and its closure, the :term:`sweep`, source iteration and its
 Krylov alternative — is **reused unchanged**: the group axis couples
 the transport equations *only through their sources*, so each group's
@@ -718,7 +718,7 @@ The normalization chain in the code ensures consistent scaling:
 1. **Fission source** (:meth:`SNSolver.compute_fission_source`):
    :math:`Q_f = \chi \cdot (\nSigf{} \cdot \phi) / k` --- raw,
    un-normalised.  Since CS4c step 4 this is a thin delegator to the
-   fission **energy** binding's ``apply`` (the dyad bound at the mesh's
+   fission **energy** binding's ``apply`` (the dyad bound at the Problem's
    scalar bulk space); the :math:`1/k` stays here.
 
 2. **Scattering source** — the collision gain applied to the iterate,

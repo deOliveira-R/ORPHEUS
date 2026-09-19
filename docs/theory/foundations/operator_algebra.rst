@@ -491,7 +491,7 @@ Key Facts
   :math:`M = \bigl[\begin{smallmatrix} L+C & \text{Seeding} \\ \mathbf 0
   & A_{BB}\end{smallmatrix}\bigr]` solves block-triangular (System B
   first), the emission gain rides :math:`N` (lagged). Presence is
-  **structural** (R12a — System B exists iff the mesh carries a ray; a
+  **structural** (R12a — System B exists iff the Problem carries a ray; a
   mismatched composite is unconstructable). The stop is the ρ-honest
   free-identity residual with a driver-level lag-death
   :class:`~orpheus.sn.solver.ConvergenceCertificateError`. See
@@ -790,7 +790,7 @@ The plain binding is the energy operators' and the multiplier's
 (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`,
 :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`,
 :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
-and a mesh-free
+and a hub-free
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`);
 the composite binding is the angular gains' and of the composite
 multiplier. A consumer that holds a composite and wants an energy
@@ -2347,7 +2347,7 @@ partition with its type-system table is set out in
    bound spaces already carry, and no consumer wants a second copy of
    it. They are plain
    :class:`~orpheus.numerics.operator.LinearOperator`\ s born bound,
-   minted by the SPACE rather than by a mesh or a materials record.
+   minted by the SPACE rather than by a Problem or a materials record.
    Their admission is not an operator-algebra question at all — it is
    the collapse doctrine's — which is why the pair is developed on
    :doc:`/theory/foundations/spaces` (:ref:`spaces-collapse-pair`) and
@@ -6654,7 +6654,7 @@ opaque-pair admission above, granted on the caller's word and said in the
 docstring rather than spelled as a flag.
 
 The witness is the defect the campaign removed.  Before step 2, S\
-:sub:`N`'s forward :math:`F` lived on the mesh's bulk space while the
+:sub:`N`'s forward :math:`F` lived on the hub's bulk space while the
 loss lived on the coupled space, so there was no pair to construct:
 ``[M]`` ``OperatorPencil(record.loss, hub.fission)`` raises the ends law,
 and the two spaces have **equal shape** (both ``(160,)`` on the slab
@@ -7541,10 +7541,10 @@ the mapping from this page's types to the objects that fill them.
 
 **The state, whole.**  ``outcome.state`` is the returned iterate as one
 :class:`~orpheus.numerics.coupled_system.CoupledField`: the one-system
-coupled field on a seedless mesh, the two-system one on a carrying
-(ray-bearing) mesh.  Every entry stores it the same way, through one
+coupled field on a seedless Problem, the two-system one on a carrying
+(ray-bearing) Problem.  Every entry stores it the same way, through one
 constructor, so the state's **arity** answers "is there a
-:math:`\psi_{1/2}` member?" and no biconditional against the mesh is
+:math:`\psi_{1/2}` member?" and no biconditional against the Problem is
 needed to keep an optional field honest.  That is also what makes the
 state-on-domain law spellable as a single check: the state lives on the
 Problem's coupled space, which is the space the recorded question is
@@ -8335,7 +8335,7 @@ the cheapest tell.
        its own scan constants instead of the cache deriving them; and
        Linear-Discontinuous's curvilinear refusal is re-keyed from a
        retired field's presence onto two value signals, which is a
-       guard reachable without a mesh.  The two arithmetic forms of the
+       guard reachable without a Problem.  The two arithmetic forms of the
        march are welded by gate rather than unified by spelling — `[M]`
        they agree bitwise on only :math:`46`–:math:`51\,\%` of inputs
        (:math:`\max|\Delta| = 1.776\times10^{-15}`), and on
@@ -8346,9 +8346,9 @@ the cheapest tell.
        is **posed** with both closures — three required fields, no
        defaults and no guards, with a ``pose`` classmethod reading the
        hub — so the walk consumes what it was handed instead of reaching
-       back into the mesh, and the fused scan table becomes the solution
+       back into the hub, and the fused scan table becomes the solution
        strategy's lazily-resolved artifact rather than the operator's or
-       the mesh's.  See :ref:`sn-p49b-operator-poses-with-closures` and
+       the hub's.  See :ref:`sn-p49b-operator-poses-with-closures` and
        the S\ :sub:`N` :doc:`/theory/methods/sn/history` entry.
      - #407
      - merged to ``main`` (branch
@@ -8367,7 +8367,7 @@ the cheapest tell.
        :class:`~orpheus.numerics.coupled_system.CoupledOperator`
        machinery; :func:`~orpheus.sn.coupled_system.build_within_group_system`
        is the one production spelling, and System B's presence is
-       **structural** (it exists iff the mesh carries a ray). See
+       **structural** (it exists iff the Problem carries a ray). See
        :ref:`coupled-block-operator`.
      - #280 / #282
      - ``main`` (``6732778a``)

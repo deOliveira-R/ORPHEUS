@@ -383,7 +383,7 @@ operand — :math:`L`, :math:`C`, :math:`S`, :math:`N_{2n}` and :math:`B`
 composite domain; P4.5 W-D gave the previously ``None``-spaced
 :math:`C`/:math:`S`/:math:`F` real spaces and de-SN-ified the name from
 ``"sn_full_field"``).
-The mesh exposes it as the cached property
+The Problem exposes it as the cached property
 :meth:`SNProblem.full_field_space <orpheus.sn.problem.SNProblem.full_field_space>`.
 
 **The wrapper is unchanged.** The whole apparatus plugs into the
@@ -451,7 +451,7 @@ the bare / test constructor).
    :math:`(n_g, *\text{spatial})` scalar arrays, so it consumes the
    fission **energy** binding
    :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
-   on the mesh's *scalar bulk* space instead.  That is the binding-arity
+   on the Problem's *scalar bulk* space instead.  That is the binding-arity
    table made honest rather than a weakening: an operator's ends now
    name the space its consumer actually feeds it, and reading "every
    fission operator in the tree carries ``full_field_space``" off this

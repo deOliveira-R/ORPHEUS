@@ -74,13 +74,14 @@ means "use the solver's default," which varies by method (e.g.
 reflective for SN eigenvalue, white for CP).
 
 The geometry module makes **no assumptions** about what a given
-``kind`` means physically. Semantics are resolved by each method's
-augmented mesh (``SNProblem``, ``DiffusionMesh``, and the future
+``kind`` means physically. Semantics are resolved by each method's own
+hub (``SNProblem`` — the SN **Problem**, ``SNMesh`` until #412,
+2026-09-18 — ``DiffusionMesh``, and the future
 ``CPMesh`` / ``MOCMesh`` / ``MCMesh``) at construction time via a
 class-level ``BOUNDARY_OPERATOR_REGISTRY: dict[str,
 type[BoundaryTraceLaw]]`` mapping kind strings to typed boundary
 LAWS, whose realized per-face operators land in the face-name-keyed
-``bc`` dict each method-mesh carries (``SNProblem.bc`` /
+``bc`` dict each hub carries (``SNProblem.bc`` /
 ``DiffusionMesh.bc`` — #290 P7a moved the diffusion resolution off
 the solver onto the phase space, the SN pattern). The realization
 translates the abstract declaration into method-specific operator

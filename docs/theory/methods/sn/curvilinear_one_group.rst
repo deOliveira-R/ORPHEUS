@@ -937,8 +937,8 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    The architectural crux: :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
    is deliberately STATELESS — it reads only the
    :class:`~orpheus.transport.spatial.scheme.CellVisit` packet + the
-   :class:`~orpheus.transport.spatial.scheme.UpstreamState`, never the mesh or
-   the angular closure.  So the closure-owned :math:`c` cannot reach
+   :class:`~orpheus.transport.spatial.scheme.UpstreamState`, never the Problem
+   or the angular closure.  So the closure-owned :math:`c` cannot reach
    ``DD.residual`` by coupling DD to the closure object (that would break
    the spatial :math:`\otimes` angular separation — the SPATIAL scheme
    must not see the ANGULAR closure's type).  Instead the constants travel
@@ -981,7 +981,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    ⛔ **Both halves of that sentence have since moved, and the
    B2-era spellings are kept only as history.**  The attribute is
    ``angular_closure`` (P4.9b dropped "pole" from the family), and the
-   matvec no longer reads it off the mesh **at all**: the walk consumes
+   matvec no longer reads it off the hub **at all**: the walk consumes
    the closure pair the operator was **posed** with, so the hub route
    carries only two space facts.  See
    :ref:`sn-p49b-operator-poses-with-closures`.  What survives verbatim
@@ -1013,7 +1013,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      re-ran the full :math:`(N,)` per-level :math:`\to` global gather on
      EVERY access, so the per-visit stamp made the visit-producing loop
      :math:`O(N^2\,n_x)`.  The gather is a pure permutation of immutable
-     per-level data, so it is now computed ONCE in each mesh-bound
+     per-level data, so it is now computed ONCE in each hub-bound
      ``__init__`` (shared
      :meth:`~orpheus.sn.angular.closure.AngularClosureBase._build_per_ordinate_cache`,
      called by both ``MorelMontryAngularSweep`` and
@@ -1134,7 +1134,7 @@ serve structural-typing and nominal-inheritance consumers alike;
 Issue #236 Phase 2 B2 retyped every consumer onto the ABC and Issue
 #248 deleted the now-orphaned Protocol, so the ABC is the single
 declaration site.)  The gather itself is a pure permutation
-of the immutable per-level data, hoisted once into each mesh-bound
+of the immutable per-level data, hoisted once into each hub-bound
 ``__init__`` via the shared
 :meth:`~orpheus.sn.angular.closure.AngularClosureBase._build_per_ordinate_cache`
 (renamed from ``_build_c_per_ordinate_cache`` now that it gathers three
@@ -1155,7 +1155,7 @@ the load-bearing architectural fact of the SN sweep.
 spatial discretization scheme**.  It reads only the per-cell
 :class:`~orpheus.transport.spatial.scheme.CellVisit` packet and the
 sweep-resolved :class:`~orpheus.transport.spatial.scheme.UpstreamState`; it
-never sees the mesh, the quadrature, or the angular closure.  The whole
+never sees the Problem, the quadrature, or the angular closure.  The whole
 point of the spatial :math:`\otimes` angular product is that the
 spatial scheme is interchangeable (diamond difference, linear
 discontinuous, ...) without knowing *which* angular treatment sits on
@@ -1536,7 +1536,7 @@ Step C) cannot silently break them:
 
   ⛔ **The stamp is retired (P4.9a, 2026-08-28) and the catcher was
   re-derived, not deleted.**  The ordinate-map hazard it existed for did
-  not disappear — it moved one producer up.  With the mesh no longer
+  not disappear — it moved one producer up.  With the hub no longer
   copying closure data onto visits, a wrong per-level :math:`\to` global
   gather *inside the closure's own construction* would now reach every
   consumer of the :math:`(N,)` accessors: the cache populator, the walk's
@@ -1699,7 +1699,7 @@ reference.  Migrate-then-delete preserved the floor:
    The legacy ``__call__``-argument ``tau_mm`` on the unbound
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
    path (``MorelMontryAngularSweep(problem=None)``, where :math:`\tau` was
-   passed as a runtime argument because the closure is not mesh-bound) was
+   passed as a runtime argument because the closure is not hub-bound) was
    a **separate surface** that **survived Step C** unchanged — it was the
    closure's own runtime parameter, not the geometry-side field the carve
    retired.  It was subsequently retired under
@@ -1922,7 +1922,7 @@ What moved, concretely
   which the per-cell solve and apply directions now reach through a
   single ``n_mask = 1`` conversion.
 * **The visit family.** ``CellVisit`` lost the closure stamp
-  (``tau`` / ``c_in`` / ``c_out``) and with it the mesh-side
+  (``tau`` / ``c_in`` / ``c_out``) and with it the hub-side
   ``SNProblem._make_cell_visit``; ``UpstreamState`` lost
   ``angular_upstream``; ``CellResult`` lost ``outgoing_angular_state``.
   What the scheme receives instead are two keyword arguments carrying
@@ -3716,7 +3716,7 @@ flat-flux invariance, and asymptotic accuracy:
      batch kernel that writes the **seed** line and loops the step,
      delegating the body so the delegation is bit-neutral;
      ``compute_psi_half_per_level`` is its public exposure and
-     ``MorelMontryAngularSweep._psi_half_grid_for_level`` the mesh-bound
+     ``MorelMontryAngularSweep._psi_half_grid_for_level`` the hub-bound
      wrapper that reads :math:`\tau_n` from the strategy;
      ``AngularClosureBase.advance_psi_half`` is the per-cell entry the
      degenerate cylindrical-axis path uses.  ⛔ Before these declarations
@@ -5983,7 +5983,7 @@ threaded through the within-group 2×2 loss grid (blocks :math:`A_{AA}`,
 splitting built by
 :func:`~orpheus.sn.coupled_system.build_within_group_system`; the grid
 algebra is on :doc:`/theory/foundations/operator_algebra`).  The transitional 2.5d interim —
-ψ½ as an **optional third block** on ``FullField`` with a mesh-keyed
+ψ½ as an **optional third block** on ``FullField`` with a hub-keyed
 *mixed-presence law* and runtime presence pins — is **retired**: a
 live-ray :math:`\psi_A` is now **unrepresentable** (the type system is the
 guard, not a runtime branch), so the B.2c dead-slot double-count hazard
@@ -5993,7 +5993,7 @@ the **honest two-system sum** — no dead padding — which is why the ERR-053
 ``restart`` sizing (:ref:`sn-direct-seed-gotchas`) reads the true count off the
 coupled ravel.  The converged ψ½ state is returned as
 :attr:`Solution.radial_characteristic <orpheus.sn.solution.Solution.radial_characteristic>`
-— System B's **own typed member**, ``None`` exactly when the mesh carries
+— System B's **own typed member**, ``None`` exactly when the Problem carries
 no seed level (presence validated as a **biconditional** at construction)
 — while :attr:`Solution.angular_flux <orpheus.sn.solution.Solution.angular_flux>`
 stays the honest 2-block System-A composite.

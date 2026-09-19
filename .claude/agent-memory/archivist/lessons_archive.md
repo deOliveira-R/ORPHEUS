@@ -13554,3 +13554,161 @@ on the retired property, and six per-member diff counts with their predicate) ·
 approaches 5 (the view's two lives, the unreachable `| None`, the `_is_outer` rationale and
 the retired advice string all kept as dated history) · Code traceability 5 · Derivation
 source 3 (no `derivations/` script applies — type architecture, not algebra).
+
+---
+
+## L-112 — #412, the rename's PROSE half: SNMesh → SNProblem (2026-09-18)
+
+**Task.** A three-pass mechanical rename had landed (class, module path,
+`sn_mesh` spelling, `Solution.mesh`, `_as_sn_mesh`). I held `docs/` only and owed
+the half no script can do: re-word the sentences that SAY "mesh" while MEANING
+the hub, leave "mesh" where it means cells/faces/spacing/`Mesh1D`/`MaterialMesh`,
+add the history row, re-key the package-layout prose.
+
+### 1. ⭐⭐ A +3-CHARACTER RENAME BREAKS SECTION UNDERLINES, AND ONLY A SCAN FINDS IT
+
+`SNMesh` → `SNProblem` is **+3 code points**. Any section title containing the
+old name got longer while its underline did not. `[M]` exactly **2** titles
+tree-wide were left short (`Step 2 — law resolution (in ``SNProblem.__init__``)`
+51/48; `SNProblem as router` 19/16) — both introduced by the mechanical pass,
+both a Sphinx `Title underline too short` warning waiting for the build.
+
+⟹ **After ANY identifier rename that changes length, run a corpus-wide
+underline scan** (`len(title) > len(underline)`, code points not bytes, underline
+must start at col 0 and be a single repeated marker char). It is 12 lines of
+Python, it needs no build, and it is the one defect class a docs agent can hand
+the main agent pre-solved. ⚠ And note WHICH marker char: my first fix used `~`
+where the file had `-`; the assertion caught it, a blind `replace` would not have.
+
+### 2. ⛔⛔ THE PARAMETER KEPT THE OLD SPELLING — "renamed everywhere" is a
+CLAIM about a PREDICATE, and the brief's predicate was `sn_mesh`, not `mesh`
+
+The brief said *"the hub's parameter/local/attribute spelling `sn_mesh` is
+`problem` everywhere"*. True — and it licensed a wrong inference I nearly wrote
+into three pages: that every slot holding a Problem is now spelled `problem`.
+`[M]` by AST over `orpheus/`: **24** `mesh`-spelled `SNProblem` parameters and
+fields survive across **6** modules — **15** in `sn/loss_representation`
+(`supports(mesh, spatial_closure)`, `default_for(mesh, …)`,
+`_LossRepresentation.mesh`), plus the transport field bases (3), the two angular
+source-sinks (4), the radial-characteristic field (1), the SN boundary operator
+(1) — and both DSA factories keep the name `from_sn_mesh`.
+
+So a page quoting `supports(mesh, spatial_closure)` is quoting the **LIVE**
+signature. Had I "fixed" it to `supports(problem, …)` the doc would have been
+wrong *and* would have read as the careful half of the pass.
+
+⟹ **Before re-wording a signature or attribute, read it in the live tree.** And
+when a rename leaves a systematic residue, **publish the residue with its count
+and its predicate** — I put one `.. note::` in `loss_representation.rst` plus a
+`(4) The residue` block in the history row, so the next reader cannot mistake the
+live spelling for staleness. A residue that is *stated* costs nothing; a residue
+that is *silent* gets "fixed" by the next pass.
+
+### 3. ⭐ THE DEAD-XREF SET SPLITS INTO RENAME-CAUSED AND PRE-EXISTING — and
+only `git show <pre-rename>:<file>` tells them apart
+
+My probe (own import probe + a LIVE and a RETIRED control, per L-111) found **7**
+dead fully-qualified roles. Exactly **one** was rename-caused
+(`SolutionBase.mesh`, the field now `problem`). The other 6 are `:attr:` roles on
+INSTANCE attributes (`SNProblem.axes` / `axis_widths` / `coord` /
+`scattering_order`, `MaterialMesh.sigma_t_cell`) that autodoc mints no target
+for. `[M]` `git show 53e8d33d~1:docs/.../index.rst` carries
+`:attr:`SNMesh.mesh <orpheus.sn.mesh.augmented_mesh.SNMesh.mesh>`` at the SAME
+site — equally dead before. ⟹ **a dead-ref list produced during a rename is not
+a rename finding until you re-run it against the pre-rename tree.** Reporting all
+7 as "the rename broke these" would have been a false accusation.
+
+⭐ The one I DID fix beyond the rename: `index.rst` carried
+`:attr:`SNProblem.mesh <…>`` while the SAME page (and
+`foundations/boundary_conditions.rst`) explicitly says *"a literal, not an
+`:attr:` role: the base `MaterialMesh` sets it on the instance, so there is no
+autodoc target"*. A page contradicting its own documented convention is a
+Cardinal-Rule-1 defect independent of the rename — fix those on sight.
+
+### 4. ⛔⛔ `:noindex:` ON AN `automodule` MINTS NO CROSS-REFERENCE TARGET —
+`[M]` 1081 python-domain roles corpus-wide point into such modules
+
+Chasing the "dead" instance attributes I checked the built HTML and found the
+stronger fact: `docs/api/discrete_ordinates.rst`'s `automodule:: orpheus.sn.problem`
+carries `:noindex:`, so the page mints **zero** `id=` anchors for it — while
+`orpheus.sn.operators.boundary` (no `:noindex:`, same page) mints them normally.
+Two-sided control, conclusive. `[M]` **24** automodules carry `:noindex:` and
+**1081** roles across `docs/` point into them (`sn.loss_representation` 233,
+`sn.problem` 202, `sn.solver` 191, `sn.operators.streaming` 136, …). Every one of
+those renders as plain text, silently, at every severity.
+
+⟹ this is why an ARCHIVIST's acceptance evidence can never be "the build is
+clean". It is also a large, fixable, pre-existing finding — but changing it is an
+architectural docs decision (it risks duplicate-object warnings), so REPORT, do
+not unilaterally flip.
+
+### 5. ⭐ THE ADJUDICATION UNIT IS THE SENTENCE, AND THE CHEAP FILTER IS A
+HUB-SHAPED REGEX, NOT THE WORD
+
+`grep -i mesh` over the scope returns ~1100 hits — unusable. A regex for the
+*hub-shaped* phrasings (`the/a/its/every …(augmented )?(SN )?mesh`, `mesh's`,
+`mesh-{side,bound,keyed,time,attribute,free,object,identity,lifetime}`,
+`mesh layer`, `augmented mesh`) cut it to ~135 candidates, each read in context.
+`[M]` outcome: **152** hub-meaning mesh-word tokens re-worded, **64** re-added in
+new explanatory prose that legitimately uses the word, and ~**70** hub-SHAPED
+candidates adjudicated GEOMETRIC or LITERAL and deliberately left.
+
+The five keep-classes, all of which a blanket replace would have corrupted:
+1. **genuinely geometric** — "mesh spacings", "z is not a mesh axis", "refine the
+   mesh", "a 3×N mesh reports a spurious current" (a PARITY property of the grid).
+2. **a live API literal** — `zeros_on(mesh)`, `from_mesh`, `mesh.sweep_graphs`,
+   `supports(mesh, spatial_closure)`.
+3. **a retired tier's NAME** — "the mesh-keyed sugar tier", "mesh-OBJECT
+   identity": these name a thing that no longer exists, so they are history.
+4. **a quotation** — `(*"the mesh sheds both"*)` quoting an archived charter row.
+5. **the cross-method tier** — "the method-mesh layer", `DiffusionMesh`: the
+   diffusion half is STILL a mesh, so the shared name survives the SN rename.
+   ⟹ I added a ⚠ at `api/transport.rst` saying so, rather than renaming a tier
+   that is only half-affected.
+
+### 6. ⭐ WHEN A RENAME IS RULED ON A DOC'S OWN ARGUMENT, THE DOC OWES A
+TOMBSTONE, NOT A SILENT EDIT
+
+`index.rst` §P4.9b opened with *"`SNMesh` is a **misnomer**. It is not only a
+mesh: it is the solve's save state and data hub"* — the exact argument #412
+acted on. Silently rewriting it to "The hub is not a mesh" destroys the record
+that the docs called it first. I kept the ruling word for word, re-pointed its
+subject, and put a `.. note::` above it saying *this paragraph used to open
+"`SNMesh` is a misnomer" — and #412 acted on it*. A reader now sees the argument
+AND that it was load-bearing. ⚠ Spell the old name as a `` `` literal `` `` in
+such a tombstone: `:class:`SNMesh`` would be a fresh dead role.
+
+### 7. ⭐ THE ROW YOU WRITE BESIDE IS THE ROW THAT IS STALE (L-111, confirmed)
+
+Adding the 2026-09-18 row to `history.rst` I ran the adjacent cell's own contract:
+`[M]` `git merge-base --is-ancestor 71612439 main` → YES, and the branch
+`refactor/consumers-step3-u6` is gone — so the neighbour's *Where* cell
+(*"branch … (hash at the merge)"*) was present-tense-false. Reconciled in the same
+edit. This is now two passes in a row where the neighbouring Where cell was the
+defect; treat it as part of the row-insertion ritual, not as a bonus check.
+
+### 8. ⭐ MINE THE COMMIT MESSAGES FOR THE `[M]` NUMBERS — they are the
+canonical measured record and they close arithmetically
+
+The three rename commits carry exact censuses (1660 identifier sites; 457/4/6/1
+import paths; 3222 sites in 147 files = 186 + 49 + 2253 + 597 + 131 + 6). I
+transcribed them into the history row and **checked the arithmetic**: my first
+draft wrote "467 import paths (457 + 4 + 6 + 1)" — which is 468. Caught by adding
+it up. ⟹ a relayed census must be re-summed, not re-typed; and prefer listing the
+parts to inventing a total the source never stated.
+
+### Quality self-assessment (Directive 3)
+
+| dimension | score | note |
+|---|---|---|
+| Derivation depth | n/a | naming/architecture pass, no math |
+| Cross-references | 5 | own import probe with 2-sided controls; 10/10 new refs resolve; 1 rename-caused dead ref fixed + 1 self-contradicting role |
+| Numerical evidence | 5 | every count `[M]` (24 residue slots by AST, 1081 noindex roles, 2 short underlines, 152/64 re-wordings) |
+| Failed approaches | 4 | the `supports(mesh, …)` near-miss and the pre-existing-vs-caused split are both recorded in-corpus |
+| Code traceability | 5 | every claim re-verified against the live tree (`dataclasses.fields`, `inspect.signature`, `from_axes`'s `else None`) |
+| Derivation source | n/a | |
+
+**Weakest dimension this pass: failed approaches (4)** — I adjudicated ~70
+candidates as geometric and recorded the five keep-CLASSES but not the per-site
+reasoning; a future pass re-litigates the borderline ones (`mesh-coupled`,
+`method-mesh layer`) from scratch.

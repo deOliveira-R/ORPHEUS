@@ -930,7 +930,7 @@ unaffected because the two paths computed the same data.
    :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
    itself, so the surviving hash-equality legs compare a fresh factory
    call against ``problem.reduced`` — *the value that same factory
-   produced*, routed through the mesh constructor.
+   produced*, routed through the Problem's constructor.
 
    ⛔ This paragraph used to add *"and the two ``SNProblem.face_areas`` /
    ``SNProblem.delta_A`` legs are deprecated read-throughs to that same
@@ -1005,7 +1005,7 @@ of duplicating the curvature math.
 .. _snmesh-as-router:
 
 SNProblem as router
-----------------
+-------------------
 
 After Round 1.1 of Wave D of the SN reshape campaign, :class:`SNProblem`
 **routes** to :class:`ReducedStreamingOperator` rather than computing
@@ -1254,7 +1254,8 @@ operator and factories; ``transport/spatial/scheme.py`` —
 ``StreamingTerms``, beside the contract that consumes it;
 ``sn/angular/redistribution.py`` — the :math:`\alpha` cluster and
 ``AngularMeasure``).  The rest: in ``orpheus/sn/``,
-``angular/__init__.py``, ``angular/closure.py``, ``mesh/augmented_mesh.py``,
+``angular/__init__.py``, ``angular/closure.py``, ``problem.py``
+(``mesh/augmented_mesh.py`` until #412, 2026-09-18),
 ``operators/radial_characteristic.py``, ``solver.py`` and
 ``sweep/cache.py``; in ``orpheus/transport/spatial/``, ``__init__.py``,
 ``cell_balance.py``, ``diamond.py`` and ``linear_discontinuous.py``; and

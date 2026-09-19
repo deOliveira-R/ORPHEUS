@@ -11,7 +11,7 @@ final state of issue #222 (the *sweep-strategy carve* + the S6
 operator/representation re-layering, complete 2026-06-11 at the
 Fork-B2 default flip): one lower-triangular operator, several
 *algorithms* that realise it, a single source of truth for which
-algorithm a mesh gets, and the L21 theorem that makes "matvec is the
+algorithm a Problem gets, and the L21 theorem that makes "matvec is the
 same operator as the sweep" a type fact rather than a coincidence.
 
 It deliberately does **not** re-derive the cell-level mathematics.
@@ -76,7 +76,8 @@ Key Facts
 
    * **The four representations**
      (:mod:`orpheus.sn.loss_representation`), each a stateless frozen
-     ``@dataclass`` carrying only the mesh:
+     ``@dataclass`` carrying only the Problem (in a field still spelled
+     ``mesh`` — see the note in :ref:`loss-rep-selection`):
 
      - :class:`~orpheus.sn.loss_representation.CumprodScan` — the 1-D
        Blelloch parallel-prefix scan (slab + sphere + cylinder via one
@@ -1137,7 +1138,7 @@ A curvilinear ordinate couples its angular neighbour through the
 Morel–Montry half-angle closure, and the lagged :math:`\psi_{1/2}` pole
 seed is precisely a **walk-order back edge**: the seed row reads
 *later*-ordinate columns, so no cell ordering makes the block triangular.
-The mesh enforces the scope honestly —
+The Problem enforces the scope honestly —
 :meth:`~orpheus.sn.problem.SNProblem.streaming` is the Cartesian
 gate the assembler consumes.
 
@@ -1298,7 +1299,7 @@ first-order linear scan* — **marched over the transverse axes**:
    admissibility surface, not a runtime branch: the :math:`d = 1` row is
    the :math:`s_y = 0` degeneration handled by the same body, and
    :meth:`~orpheus.sn.loss_representation.ScanMarch.supports` is what
-   refuses a mesh the schedule does not cover — so an inadmissible
+   refuses a Problem the schedule does not cover — so an inadmissible
    ``(representation, mesh)`` pairing is unrepresentable rather than
    mis-executed.
 
@@ -1833,8 +1834,8 @@ Selection: one predicate, three consumers
 
 Applicability is a **declared, queryable capability** — "make illegal
 states unrepresentable" applied to method selection. Each representation
-answers one classmethod, over the mesh **and the spatial closure it was
-handed**:
+answers one classmethod, over the Problem **and the spatial closure it
+was handed**:
 
 .. code-block:: python
 
@@ -1893,6 +1894,20 @@ handed**:
        def supports(cls, mesh, spatial_closure):
            return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
+.. note:: **The first parameter is the Problem — the slot is still
+   spelled** ``mesh``\ **.**
+
+   #412 (2026-09-18) renamed the hub class ``SNMesh`` →
+   :class:`~orpheus.sn.problem.SNProblem` and the ``sn_mesh`` spelling →
+   ``problem``; it did **not** rename this family's parameter, so
+   ``supports(mesh, spatial_closure)``, ``default_for(mesh, ...)`` and
+   ``_LossRepresentation.mesh`` all take and hold an ``SNProblem``.
+   ``[M]`` 2026-09-18, by AST over ``orpheus/``: **24** ``mesh``-spelled
+   ``SNProblem`` parameters and fields across six modules, **15** of them
+   in :mod:`orpheus.sn.loss_representation`.  Every signature and
+   attribute spelling quoted on this page is therefore the live one, and
+   is *not* a stale reading of the rename.
+
 .. note:: **The closure is an ARGUMENT, not a mesh read (P4.9b,
    2026-08-28).**
 
@@ -1945,7 +1960,7 @@ reactor physics.
    :func:`~orpheus.sn.loss_representation.default_for` returns the
    **first** entry in the ordered registry
    :data:`~orpheus.sn.loss_representation.LOSS_REPRESENTATIONS` whose
-   ``supports`` admits the mesh, falling back to the oracle so it is
+   ``supports`` admits the Problem, falling back to the oracle so it is
    never stuck:
 
    .. list-table:: ``default_for`` outcomes (first-supports-match) — **facewise scheme (DD / Step)**
@@ -2029,7 +2044,7 @@ reactor physics.
    pairing. Combined with the frozen-dataclass immutability, the
    ``(representation, mesh, closure)`` triple is *correct by
    construction* — and since P4.9b the closure it validates is the one
-   the strategy will actually sweep with, not whichever one the mesh
+   the strategy will actually sweep with, not whichever one the Problem
    happens to carry.
 
 That ``supports`` predicate **is** the ``is_1d`` / ``curvature``
@@ -2283,8 +2298,8 @@ genuine scheme property a second consumer can ask of a scheme in isolation.
 Verification — the routing-honesty gates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Because D5-0 is a *routing* change (it alters which representation a mesh
-selects, not any computed value), its gates are **selection** and
+Because D5-0 is a *routing* change (it alters which representation a
+Problem selects, not any computed value), its gates are **selection** and
 **refusal** assertions, all ``foundation``-tagged (software-structure
 invariants, no theory ``:label:``) and ``-O``-safe (``pytest.fail``, never
 bare ``assert`` — vv-principles failure Mode 8). Two test files carry them:
@@ -2408,7 +2423,7 @@ beneath the walk (storage walk / level operation / pure kernel pair) is
 documented at :ref:`sweep-dispatch-relayering`; the graph layer
 (:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`,
 per-shape ``lru_cache`` of immutable ``MappingProxyType`` octant→DAG
-maps) is family-owned, so the mesh stays pure geometry.
+maps) is family-owned, so the graph never lands on the hub.
 
 One instance (S6.5)
 -------------------
@@ -2948,9 +2963,9 @@ from the bulk:
   the earlier :math:`\tau_{\rm raw} \in (0,1)` float encoding), **not**
   per geometry — sphere-GL carries one block; a σ_y-folded cylinder
   rule carries one per level; full-circle and level-symmetric cylinder
-  rules and every Cartesian mesh carry none (and since Q5.6.3 the two
+  rules and every Cartesian Problem carry none (and since Q5.6.3 the two
   non-carrying cylinder classes are refused at ``SNProblem`` admission,
-  so every *constructible* curvilinear mesh carries on every level).
+  so every *constructible* curvilinear Problem carries on every level).
 
 The clean-bulk consequence is the load-bearing architecture.  The bulk
 :math:`V_{\rm bulk}` is what homogenization, condensation, and moment
@@ -2988,8 +3003,8 @@ rather than a forced one.
    presence-mismatched carrier is a *type error*, not a runtime-checked
    ``Optional`` (the six-signature protocol below replaces the old
    presence-reconciling guards).  What is **not** built is the
-   ``PhaseSpaceCarrier`` protocol that would let the mesh *enumerate* its
-   phase-space blocks and the composite mirror them automatically.  The
+   ``PhaseSpaceCarrier`` protocol that would let the Problem *enumerate*
+   its phase-space blocks and the composite mirror them automatically.  The
    durable synthesis is ``.claude/plans/archive/facefield_codim1_design.md`` (§5),
    read against the ERR-067 metric correction.
 
@@ -3039,17 +3054,17 @@ rather than a forced one.
    :math:`V_{\rm cell}`), exactly as the bulk's metric is its own per-leaf
    :math:`V\,w`.
 
-   **Mesh-enumerated blocks (still planned).**  The remaining, unbuilt
-   half: the composite's block list would be *the mesh's phase-space DOF
-   structure, reified* — the mesh enumerates its blocks (bulk always;
+   **Problem-enumerated blocks (still planned).**  The remaining, unbuilt
+   half: the composite's block list would be *the Problem's phase-space DOF
+   structure, reified* — the Problem enumerates its blocks (bulk always;
    spatial trace always; angular trace iff :math:`\tau_{\rm raw} \in (0,1)`
    on that level) and the composite mirrors it, via a ``PhaseSpaceCarrier``
    protocol in ``transport`` that ``SNProblem`` (in ``sn``) satisfies — sn →
    transport, never the reverse.  The B.2d eviction already made presence
    **unconstructable-by-design** (a live-ray ``ψ_A`` is a type error); what
    ``PhaseSpaceCarrier`` would add is building the carrier *from* the
-   mesh's DOF enumeration directly, rather than the mesh and the composite
-   agreeing by separate construction.
+   Problem's DOF enumeration directly, rather than the Problem and the
+   composite agreeing by separate construction.
 
 .. _sn-loss-rep-ray-decoupled-block:
 
@@ -3063,7 +3078,7 @@ nothing to reconcile.  Step 6 (#34) completed the collapse: the walk's
 **explicit leaf-kwarg channel is gone**.  Every walk surface — ``sweep``
 / ``sweep_transpose`` / ``loss_action`` / ``loss_action_transpose`` and
 the operator entries over them — is the ray-decoupled :math:`(A,A)`
-diagonal block, on every mesh, with **no seed parameters at all**:
+diagonal block, on every Problem, with **no seed parameters at all**:
 
 * the **matvec** substitutes a ZERO seed into the Morel–Montry thread
   (bit-identical to the retired dead-slot arithmetic — the closure reads
@@ -3089,11 +3104,11 @@ The JOINT system has exactly ONE spelling: the within-group M grid
 (System B's :meth:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator.solve`
 first, then the walk's bare sweep on
 :math:`q_A - \text{Seeding}\,\psi_B`), and its transposed twins mirror.
-**Presence is structural**: the grid is 2×2 exactly when the mesh
+**Presence is structural**: the grid is 2×2 exactly when the Problem
 carries a ray (R12a — the builder's P2 shape), a seedless grid is the
 plain ``(L+C)``, and a "joint call" on the wrong geometry is not a
 guarded runtime error but an *unspellable program* — the
-``RadialCharacteristic*`` constructors refuse seedless meshes and the
+``RadialCharacteristic*`` constructors refuse seedless Problems and the
 carriers cannot be built there.
 
 The retired estate (step 6): the two kwarg pairs
@@ -3109,13 +3124,13 @@ consumed by ``A_BB``); the walk's in-solve System-B engine (the up-front
 ``A_BB.solve`` + per-level seed read) and its transposed sibling (the
 ``seed_cot`` augmentation + ``A_BB.solve_transpose``); and the
 operator-free module-level ``transport_sweep`` wrapper, whose
-carrying-mesh self-derivation existed precisely to feed the fused joint
+carrying-Problem self-derivation existed precisely to feed the fused joint
 channel — its callers route the typed surfaces
 (:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve` for
 the block, the grid's ``solve`` for the joint march; the eigenvalue
 finalize re-routed onto ``build_within_group_system`` at 6a).
 
-The mesh remains the single authority on presence
+The Problem remains the single authority on presence
 (:attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_levels`);
 what changed at step 6 is that nothing *checks* against it anymore —
 the type system carries the biconditional.

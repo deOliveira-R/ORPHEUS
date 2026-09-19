@@ -3,7 +3,8 @@ Discrete Ordinates Solvers
 
 Reference for the :mod:`orpheus.sn` package — the discrete-ordinates
 (S\ :sub:`N`) transport solvers. Two execution paths share the same
-quadrature and geometry layer:
+**Problem** — :class:`~orpheus.sn.problem.SNProblem`, the hub that carries
+the geometry, the quadrature and the posed operators a solve consumes:
 
 * **Source iteration** via diamond-difference sweeps
   (:mod:`~orpheus.sn.loss_representation` — the loss representations +
@@ -34,8 +35,20 @@ Solver
    :show-inheritance:
    :noindex:
 
-Geometry
---------
+The Problem
+-----------
+
+:class:`~orpheus.sn.problem.SNProblem` is the S\ :sub:`N` **data hub** — a
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` augmented with
+everything a solve consumes: the quadrature, the boundary laws, the angular
+closure, the discretization scheme, :math:`\sigma` as a datum, the posed
+operators, the pencil, the posings, the loss-kernel gauge and the identity
+keys.  ⛔ Until #412 (2026-09-18) the class was ``SNMesh`` and lived in
+``orpheus/sn/mesh/augmented_mesh.py``; the surviving
+:mod:`orpheus.sn.mesh` package now holds only the mesh machinery the Problem
+consumes — ``method_space`` and ``reduced_operator``.  It is **not** the
+diffusion family's :mod:`orpheus.diffusion.augmented_mesh`, which keeps that
+name and is a different hub.
 
 .. automodule:: orpheus.sn.problem
    :members:
@@ -130,7 +143,7 @@ There is **no packed-vector codec**: the ``EquationMap`` /
 that once enumerated which ``(ordinate, cell)`` pairs are unknowns was
 retired in 2026-05 once the typed contract landed at every operator
 leaf. The equivalent information is now read straight off the
-quadrature and the mesh (the ordinate sign mask), and the flat view
+quadrature and the Problem (the ordinate sign mask), and the flat view
 scipy's Krylov drivers need is produced by the carrier's inherited
 :meth:`~orpheus.transport.full_field.Composite.to_flat` /
 :meth:`~orpheus.transport.full_field.Composite.from_flat` pair.
@@ -196,7 +209,7 @@ no eigensolve and no SVD of :math:`A`. Its applicability is *derived*, never
 tabulated: :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` asks
 the spatial closure whether it leaves a face mode undamped
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
-and asks the mesh how many reflective axis pairs close
+and asks the Problem how many reflective axis pairs close
 (:attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs`), so a
 discretization added tomorrow answers for itself — and "switch to a closure
 without the undamped mode" is a real remedy at the root rather than a

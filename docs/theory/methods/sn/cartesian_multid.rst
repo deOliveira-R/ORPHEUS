@@ -340,7 +340,7 @@ transport DAG / direction sweep ordering" primitive** as it lives in
 shipped architecture replaces the legacy per-ordinate ``for n in
 range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_jacobi` with
 a per-octant batched dispatch, lifting the per-call ``_diag_cache``
-build to mesh-time work, and isolating the per-cell DD algebra in the
+build to Problem-construction work, and isolating the per-cell DD algebra in the
 discretization's pure kernel pair
 (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`
 / :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch`)
@@ -373,7 +373,7 @@ The primitives
 --------------
 
 The architecture is a small set of frozen, individually unit-tested
-primitives plus a mesh-time precompute step.
+primitives plus a precompute step taken when the Problem is built.
 
 .. list-table::
    :header-rows: 1
@@ -390,7 +390,7 @@ primitives plus a mesh-time precompute step.
        Hashable; used as the key in the per-shape graph family
        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`
        (owned by the ``_DAGWavefront`` representation family since
-       S6.4(c) — historically a mesh attribute).  An all-zero
+       S6.4(c) — historically a hub attribute).  An all-zero
        signature denotes the pure-:math:`z` degenerate octant — no
        graph is built for it
        (:attr:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel.streams` is
@@ -473,19 +473,19 @@ by the DAG-consuming ``_DAGWavefront`` representation family:
 
 #. *Wave 2 / C2.4* lifted the per-call ``_diag_cache`` build that
    previously lived inside the 2-D wavefront sweep (rebuilt once per
-   sweep call) to **mesh-construction** time — a measurable but
+   sweep call) to **Problem-construction** time — a measurable but
    second-order saving on the 421-group benchmark; the structurally
    important effect was making the graphs named, inspectable state.
-#. *S6.4(c)* moved ownership **off the mesh onto the representation
-   family**: the mesh is pure geometry, and only the two DAG-walking
-   representations (the window + the full-field oracle) ever mention
-   the substrate.  This retired the curvilinear
-   ``mesh.sweep_graphs = None`` slot — an illegal state (a mesh
+#. *S6.4(c)* moved ownership **off the hub onto the representation
+   family**: the DAG is not the Problem's to own, and only the two
+   DAG-walking representations (the window + the full-field oracle) ever
+   mention the substrate.  This retired the curvilinear
+   ``mesh.sweep_graphs = None`` slot — an illegal state (a hub
    carrying a "no DAG here" marker for a structure it never owned) —
-   and replaced mesh-lifetime caching with per-SHAPE caching, so
-   same-shape meshes share one graph family (the graphs carry no
-   mesh-identity information).  DAG-free representations
-   (``CumprodScan``, ``ScanMarch``) and curvilinear meshes simply
+   and replaced hub-lifetime caching with per-SHAPE caching, so
+   same-shape Problems share one graph family (the graphs carry no
+   hub-identity information).  DAG-free representations
+   (``CumprodScan``, ``ScanMarch``) and curvilinear Problems simply
    never touch the accessor; curvilinear sweeps walk the cell graph
    differently (per-ordinate march; see
    :meth:`~orpheus.sn.problem.SNProblem.dag_walk`).
@@ -1725,10 +1725,10 @@ cell/group space,
 .. note::
 
    **The first factor is named for this chapter's setting, not by
-   construction.** A :math:`d \ge 2` Cartesian mesh carries a full-sphere
+   construction.** A :math:`d \ge 2` Cartesian Problem carries a full-sphere
    angular rule, so the angular head genuinely *is* a
    :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`. In general
-   the head is *the coefficient space of the basis the mesh's quadrature
+   the head is *the coefficient space of the basis the Problem's quadrature
    bound at* :math:`L`, READ off the frame
    (:eq:`moment-space-read-off-the-frame`,
    :ref:`frame-moment-space-single-home`) — the σ-even restriction on a
@@ -4076,7 +4076,7 @@ retired ``bc.apply``-inside-the-sweep read the **live** boundary
 buffer mid-sweep (intra-sweep Gauss-Seidel), whereas the bare sweep
 with a fully-lagged external :math:`B` is **inter-sweep Jacobi** —
 same converged fixed point, slower SI rate.  Phase 3 recovers the
-intra-sweep reflective coupling through a polymorphic, mesh-time
+intra-sweep reflective coupling through a polymorphic, Problem-time
 :class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule` without
 re-entangling the bare sweep with the BC.  Jacobi and Gauss-Seidel
 are the **same** uniform sweep-and-reflect loop — there is *no*
@@ -4122,8 +4122,8 @@ specular partner keep the lagged seed (the cyclic :math:`B_{\rm
 upper}` back-edges — a both-faces-reflective axis is a 2-cycle, so
 one pass is only *partial* G-S); octants swept **after** read the
 fresh value (the order-respecting :math:`B_{\rm lower}` edges).  The
-schedule is a **mesh-time derived object** — it depends only on the
-quadrature's octant partition and the mesh's reflective-face set,
+schedule is a **Problem-time derived object** — it depends only on the
+quadrature's octant partition and the Problem's reflective-face set,
 not on fluxes, sources, or iteration state — so it is built once and
 reused across every SI iterate (the same lifetime contract as
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
@@ -5626,7 +5626,7 @@ What ships
    * - surface
      - what it is
    * - :attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
-     - the cached projector.  On the mesh because the kernel is
+     - the cached projector.  On the hub because the kernel is
        geometry-only; **zero blocks** on a non-singular configuration,
        so :meth:`gauge <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge.gauge>`
        is the identity and no consumer needs a ``None`` branch
@@ -5634,7 +5634,7 @@ What ships
      - a **three-state** verdict — present / absent / **UNDETERMINED** —
        with a sentence naming the deciding conjunct.  Both conjuncts are
        *derived*: the closure is asked whether it leaves a face mode
-       undamped, the mesh is asked how many reflective axis pairs close
+       undamped, the Problem is asked how many reflective axis pairs close
    * - :class:`~orpheus.sn.operators.loss_kernel_gauge.GaugeFreedomWarning`
      - fires when the trace was **repaired**, or when the closure could
        not be classified.  Deliberately **not** a

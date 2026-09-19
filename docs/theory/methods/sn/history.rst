@@ -42,6 +42,97 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-18
+     - **The hub is the Problem, not a mesh** — the S\ :sub:`N` data hub
+       is renamed and re-homed, closing the consumers campaign.
+       The class ``SNMesh`` is
+       :class:`~orpheus.sn.problem.SNProblem` and it lives at
+       :mod:`orpheus.sn.problem`; the package ``orpheus/sn/mesh/`` keeps
+       ``method_space.py`` and ``reduced_operator.py``, the mesh machinery
+       the Problem *consumes*, and its package docstring says where the
+       Problem went.
+       **(1) Why the name had to move.**  "Augmented mesh" is the
+       cross-method name for a mesh that carries a method's discretization
+       machinery, and it was accurate while the object was a
+       :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` plus a
+       quadrature and a streaming stencil.  The consumers campaign made it
+       the owner of everything a solve consumes — the boundary laws, the
+       angular closure, the discretization scheme (the stage-2 generator
+       that induces the spaces), :math:`\sigma` as a datum
+       (:ref:`sn-sigma-is-a-problem-datum`), the posed operators
+       (:attr:`~orpheus.sn.problem.SNProblem.system`,
+       :attr:`~orpheus.sn.problem.SNProblem.fission`), the pencil and the
+       posings (:ref:`sn-the-problem-poses-its-pencil`), the loss-kernel
+       gauge and the identity keys.  A Solution is the pair (Problem,
+       posing) plus the Strategy that produced it — so the hub is the
+       **Problem**, and the theory pages had been calling it a misnomer
+       since P4.9b (:ref:`sn-p49b-operator-poses-with-closures`).
+       **(2) The four spellings**, ruled by the user 2026-09-18:
+       ``SNProblem`` (the class); ``orpheus/sn/problem.py`` (the module);
+       ``problem`` (every parameter, local and attribute that used to be
+       spelled ``sn_mesh`` — ``SNSolver.problem``, and
+       ``solve_sn(materials, mesh, quadrature, …)`` building
+       ``problem = _as_problem(mesh, …)``); ``Solution.problem`` (the
+       carrier's first field — ``dataclasses.fields(SolutionBase)`` now
+       reads ``problem, outcome, strategy, certificate, record``); and
+       ``orpheus.sn.solver._as_problem`` for the entry-surface
+       normaliser formerly named ``_as_sn_mesh``.
+       ⭐ ``mesh`` did **not** disappear: it is the *geometric* mesh the
+       public entries take (``Mesh1D`` / ``Mesh2D``), and
+       ``SNProblem.mesh`` is the Problem's own geometric mesh — inbound
+       provenance, ``None`` on an axis-native :math:`d \ge 3` Problem.
+       (A literal, not an ``:attr:`` role: the base ``MaterialMesh`` sets
+       it on the instance, so autodoc mints no target.)
+       **(3) Three name-only passes, bit-identical by construction.**
+       Pass 1 moved the module by ``git mv`` and re-spelled the class at
+       ``[M]`` 1660 identifier sites in ``.py`` and every import path
+       (457 dotted, 4 slash-form, 6 package-relative — the
+       relative-import landmine of 2026-08-31 — and one by-attribute); pass 2 re-spelled
+       the hub's own slot at ``[M]`` 3222 sites in 147 files (186
+       parameters, 49 keyword arguments, 2253 name reads/stores, 597
+       ``.sn_mesh`` attributes, 137 string/docstring sites), the
+       pre-flight having measured **0** scopes binding both ``sn_mesh``
+       and ``problem`` and **0** pre-existing ``.problem`` attributes in
+       ``orpheus/sn`` — no collision, no shadowing; pass 3 re-keyed the
+       Solution field and the helper.  Each pass's gate ``[M]``: a cold
+       import in a fresh interpreter, ``pyright`` 0 on ``orpheus/sn``,
+       ROOT 437 / 5 (the layer-import, fresh-interpreter and
+       docstring-xref gates), and the hub subset green; the wide tree and
+       the 13-tree gate on the branch tip.
+       ⛔ **The diffusion homonym was left alone, deliberately.**
+       :mod:`orpheus.diffusion.augmented_mesh` is the *diffusion* family's
+       own hub and keeps both its name and its module (``[M]`` 40 sites);
+       every replacement was anchored on the full S\ :sub:`N` path, never
+       on the bare module name.  The cross-method tier the two conform to
+       is still called the **method-mesh layer**
+       (:doc:`/api/transport`) — only half of it is still a mesh.
+       **(4) The residue, stated so it is not read as staleness.**  The
+       rename moved the ``SNMesh`` class name and the ``sn_mesh``
+       spelling; it did **not** rename every slot that happens to hold a
+       Problem.  ``[M]`` 2026-09-18, by AST over ``orpheus/``: **24**
+       ``mesh``-spelled ``SNProblem`` parameters and fields survive across
+       six modules — **15** of them in
+       :mod:`orpheus.sn.loss_representation` (``supports(mesh,
+       spatial_closure)``, ``default_for(mesh, …)``,
+       ``_LossRepresentation.mesh``), the other nine on the transport
+       field bases (3), the two angular source-sinks (4), the
+       radial-characteristic field (1) and the SN boundary operator (1) —
+       and the two DSA factories keep the name ``from_sn_mesh``.  Every
+       signature and attribute this book quotes with ``mesh`` in it is
+       therefore the **live** spelling, not a stale reading
+       (:ref:`loss-rep-selection`).
+       **(5) The prose pass.**  The mechanical half re-spelled
+       identifiers, import paths and the ``sn_mesh`` parameter across
+       ``docs/``; the prose half re-worded the sentences that *said*
+       "mesh" while meaning the hub, leaving "mesh" wherever it means
+       cells, faces, spacing, ``Mesh1D`` or ``MaterialMesh``.  The two
+       **dated ledgers** — this page and
+       :doc:`/theory/verification/error_catalog` — keep the spelling that
+       was current on each row's date, exactly as this page's preamble
+       requires; only their cross-reference *targets* moved.
+     - #412
+     - branch ``refactor/consumers-rename-412`` (``53e8d33d`` +
+       ``763b1b9e`` + ``bb3efbcd``; hash at the merge)
    * - 2026-09-17
      - **The convergence diagnostics are asked of the object that owns
        them** (the consumers campaign, step 3, unit U6).
@@ -104,7 +195,9 @@ them.  Trust ``git``, not this column.
        ``dominance_ratio`` rows in ``tests/numerics/test_outcome.py``.
        Full account: :ref:`sn-the-record-answers-for-its-own-level`.
      - #461
-     - branch ``refactor/consumers-step3-u6`` (hash at the merge)
+     - ``71612439`` (branch ``refactor/consumers-step3-u6``, ff-merged to
+       ``main`` 2026-09-17; the branch is gone — ``[M]``
+       ``git merge-base --is-ancestor 71612439 main``)
    * - 2026-09-17
      - **The Solution carries its posing** (the consumers campaign,
        step 3, units U1 + U2): a solve's answer is FUSED with the

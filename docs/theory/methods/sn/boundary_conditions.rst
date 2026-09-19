@@ -7,9 +7,13 @@ Infrastructure
 --------------
 
 Boundary conditions are declared on the **geometry mesh** and resolved
-by the **solver's augmented mesh** at construction time.  This two-stage
+by the **SN Problem** (:class:`~orpheus.sn.problem.SNProblem`) at its
+construction time.  This two-stage
 design separates physics intent (what condition to apply) from solver
-mechanics (how to enforce it in the :term:`sweep`).
+mechanics (how to enforce it in the :term:`sweep`).  ⛔ Until #412
+(2026-09-18) stage 2's object was called the *solver's augmented mesh*
+(the class was ``SNMesh``); it is the Problem, and resolving the boundary
+laws is one of the things it owns.
 
 **Stage 1 --- Geometry declaration.**
 :class:`~geometry.mesh.Mesh1D` carries ``bc_left: BC | None`` and
@@ -634,7 +638,7 @@ shim pairs the result back with the law it was realized from; its
    ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
    ``bc_ymax`` so cross-dimensional code could read them without
    coord-system gating — but **no production code ever read them**
-   (a 1-D mesh's ``trace.layout.faces`` is ``("xmin", "xmax")``).
+   (a 1-D Problem's ``trace.layout.faces`` is ``("xmin", "xmax")``).
    C4 makes them unrepresentable: a slab has no y-axis in its
    :attr:`~orpheus.sn.problem.SNProblem.axes` tuple, so
    :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label and

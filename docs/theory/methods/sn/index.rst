@@ -43,7 +43,7 @@ Discrete Ordinates Method (S\ :sub:`N`)
         source_posing: "SNProblem.source_posing(q) — the AFFINE question over this Problem: SourcePosing(pencil.at(1), q), i.e. (A - F)psi = q, since C3b-2 (2026-09-14, fork 2 (a)). ALWAYS at(1): on a non-fissile hub the production is the zero dyad, so the member IS the pure transport operator in value and there is no discrimination on the datum. A bare (seedless) full-field source is LIFTED into the one-system coupled state, because the pencil's ends are the coupled space and SourcePosing's ends law refuses the unlifted pair. Admissibility (rho(A^-1 F) < 1) is a spectral fact the DRIVER certifies with the hub's k-solve — a Problem-side object never solves. The (M, q) cell's production entry is solve_sn_multiplying_source. Canonical: ref sn-subcritical-multiplying-source"
       strategy:                        # solver-owned; NOT members of the posed record
         sigma_stratum: "StreamingCollisionOperator.sigma_stratum — sigma bound ONCE for this operator's walks (C3b-2, 2026-09-14, fork 1 (ii)): a cached_property returning loss_representation.bind_sigma(self.sigma). Two realizations, one per walk kind — RawSigmaStratum(sig_t) for the multi-D wavefronts (which read sigma inside the cell update) and ScanStratum(geom, coll, sig_t) for the 1-D Blelloch scan (which marches a precomputed chain, so binding sigma means building Stratum 2 against the interned Stratum 1). Every sweep/sweep_transpose consumes it, so a walk can never serve a stale sigma; the retired hub memo _coll_cache could ([M] two sigma on one strategy returned the SAME array). This member is also the geometry table's strong holder, which retired SNSolver.geom_cache/coll_cache. Canonical: ref sn-sigma-bound-once-at-the-operator"
-        splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying mesh) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
+        splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying Problem) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
         schedule: "the inner_schedule string becomes a SweepSchedule at ONE site, orpheus.sn.splitting.resolve_schedule, which carries the geometry gate (is_cartesian and not is_1d); nothing downstream of it reads the string"
       key_types: [AngularFlux, SNProblem, HarmonicMomentFlux, SweepDependencyGraph]
       entry_points:                    # qualnames; Nexus links via implements edges
@@ -174,7 +174,8 @@ representation, two applications (``solve`` vs residual).  Both the 1-D scan
 (:meth:`~orpheus.sn.loss_representation.CumprodScan.sweep`) and the 2-D
 wavefront sweep
 (:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`,
-per-octant batched dispatch over a mesh-time-precomputed DAG) are **bare**:
+per-octant batched dispatch over a DAG precomputed when the Problem is
+built) are **bare**:
 the reflective coupling :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}`
 rides as a sibling :math:`-B` source term rather than a re-applied boundary
 condition (:ref:`bare-sweep-extraction`, and the canonical algebra
@@ -225,13 +226,46 @@ Architecture
    **hand-authored**.  See :doc:`/api/numerics` for the live
    operator-protocol surface and :doc:`/theory/foundations/operator_algebra` for the algebra.
 
-Two-Layer Mesh Pattern
-----------------------
+Two layers: the geometry mesh and the Problem
+---------------------------------------------
 
 The S\ :sub:`N` solver follows the same two-layer pattern as the CP
-solver.  This pattern (base :class:`~geometry.mesh.Mesh1D` + augmented
-mesh) is shared with :ref:`theory-collision-probability` and
-:ref:`theory-method-of-characteristics`.
+solver: a base :class:`~geometry.mesh.Mesh1D` carrying pure geometry,
+and a second object that augments it with the method's own machinery.
+The pattern is shared with :ref:`theory-collision-probability` and
+:ref:`theory-method-of-characteristics`; what differs is how far the
+second layer has grown.
+
+.. note:: **Where the S**\ :sub:`N` **second layer parted from the
+   pattern (#412, 2026-09-18).**
+
+   The cross-method name for the second layer is the **augmented mesh**
+   — a mesh that carries a method's discretization machinery — and it is
+   still accurate for the families whose second layer is a quadrature
+   plus a stencil (the diffusion hub is
+   :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, unchanged).
+   The S\ :sub:`N` one outgrew it: it owns the boundary laws, the angular
+   closure, the discretization scheme, :math:`\sigma` as a datum, the
+   posed operators, the pencil, the posings, the loss-kernel gauge and
+   the identity keys — everything a solve consumes — so it is the
+   **Problem**, and it is named one.  The package layout follows the
+   ruling:
+
+   * :mod:`orpheus.sn.problem` — :class:`~orpheus.sn.problem.SNProblem`,
+     at the package top, because the Problem is not a member of the mesh
+     layer.
+   * :mod:`orpheus.sn.mesh` — the mesh machinery the Problem *consumes*:
+     :mod:`~orpheus.sn.mesh.method_space`
+     (:class:`~orpheus.sn.mesh.method_space.SNMethodSpace`, the
+     realizer's argument) and :mod:`~orpheus.sn.mesh.reduced_operator`
+     (:class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
+     and the three ``*_streaming`` factories).  ``augmented_mesh.py`` is
+     gone from this package.
+
+   ⛔ :mod:`orpheus.diffusion.augmented_mesh` is a **different module of
+   the same old name** and was deliberately untouched; never re-point an
+   S\ :sub:`N` reference at it.  Full row:
+   :ref:`sn-development-history`.
 
 1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` or
    :class:`~geometry.mesh.Mesh2D` stores cell edges, material IDs,
@@ -243,16 +277,20 @@ mesh) is shared with :ref:`theory-collision-probability` and
    --- for the SN solver, that default is reflective.
    See :ref:`boundary-conditions` for details.
 
-2. **Augmented geometry** --- :class:`SNProblem` pairs the spatial mesh
+2. **The Problem** --- :class:`SNProblem` pairs the spatial mesh
    with an angular :term:`quadrature`, precomputing the coordinate-specific
-   streaming stencil.  Its **primary representation is the per-axis
+   streaming stencil.  ⛔ Until #412 (2026-09-18) this step was called
+   *augmented geometry* and the class was ``SNMesh``: "augmented mesh" is
+   the cross-method name for a mesh carrying a method's machinery, and the
+   S\ :sub:`N` hub outgrew it — it is the **Problem**, the save state
+   every consumer reads (:ref:`sn-p49b-operator-poses-with-closures`).
    tuple** :attr:`SNProblem.axes <orpheus.sn.problem.SNProblem.axes>` (the SN phase space factors as a tensor
    product of per-axis 1-D meshes): a legacy ``Mesh1D`` / ``Mesh2D`` is
    converted to axes **once** at the inbound boundary, and
    :meth:`SNProblem.from_axes` stores the caller's tuple verbatim. After
-   C5 (:ref:`sn-axis-primary-c5`) the ``mesh`` attribute is *inbound
-   provenance only* — ``None`` for an axis-native :math:`d \ge 3` mesh,
-   which carries no legacy mesh at all.  (A literal, not an ``:attr:``
+   C5 (:ref:`sn-axis-primary-c5`) the ``mesh`` attribute — the Problem's
+   *geometric* mesh — is *inbound provenance only*: ``None`` for an
+   axis-native :math:`d \ge 3` Problem, which carries no legacy mesh at all.
    role: the base ``MaterialMesh`` sets it on the instance, so there is
    no autodoc target to link.)  It also **resolves boundary
    conditions**: each ``BC`` tag
@@ -325,14 +363,14 @@ owner and left the SN *walk* applying it.  That is one level short of the
 destination: the walk was still reaching into
 :class:`~orpheus.sn.problem.SNProblem` at apply time for both
 method objects, so an operator you had already built could still change
-its mind about *how* it discretises if somebody rebound a mesh attribute
+its mind about *how* it discretises if somebody rebound a hub attribute
 underneath it.  P4.9b (2026-08-28) closes that: the streaming operator
 is **posed** with the two closures it will use, and from then on it
 computes from its own fields.
 
 The subsection is the sequel to P4.9a and states the four things a
 reader needs in order not to undo it: what the operator now takes, why
-the mesh nevertheless *keeps* the generator, why the constructor carries
+the Problem nevertheless *keeps* the generator, why the constructor carries
 no consistency guards, and where the performance weld went.
 
 The three fields, and the absence of a default
@@ -345,7 +383,7 @@ dataclass with three **required** fields and no defaults:
 
    @dataclass
    class StreamingOperator(LinearOperator["FullField"]):
-       problem: "SNProblem"                                # the geometric substrate
+       problem: "SNProblem"                             # the Problem it is posed on
        spatial_closure: "DiscretizationSchemeBase"      # required, no default
        angular_closure: "AngularClosureBase"            # required, no default
 
@@ -381,34 +419,42 @@ discretise space and (for the curvilinear ones) a way to discretise
 angle; **none of them needs an**
 :class:`~orpheus.sn.problem.SNProblem`.  The recorded end state
 is therefore the cross-method constructor ``(domain, codomain,
-spatial-discretization[, angular-discretization])`` with the mesh
+spatial-discretization[, angular-discretization])`` with the ``problem``
 argument gone, and ``pose`` retires with the migration that reaches it.
-Until then the mesh field is a **declared transitional weld**: the
+Until then the ``problem`` field is a **declared transitional weld**: the
 representation and the walk still read geometry, boundary conditions and
 connection coefficients off it, and the operator's ``domain`` /
 ``codomain`` are still derived from
 ``problem.full_field_space``.
 
-.. note:: **Why the mesh field was kept rather than replaced by the
-   literal four-argument shape now.**
+.. note:: **Why the** ``problem`` **field was kept rather than replaced by
+   the literal four-argument shape now.**
 
-   Passing ``(domain, codomain)`` *alongside* a mesh would make a
+   Passing ``(domain, codomain)`` *alongside* the Problem would make a
    mismatch between them **spellable** — a Pattern-4 inversion, since the
-   spaces are today derived from that very mesh.  One object that
+   spaces are today derived from that very Problem.  One object that
    answers both questions cannot disagree with itself.  The four-argument
    shape becomes reachable when the representation stops needing the
-   mesh, which is a different campaign's work.
+   Problem, which is a different campaign's work.
 
 Why the hub keeps the generator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The obvious next move — *the operator has the scheme now, so take it off
-the mesh* — is **wrong**, and the reason is worth stating plainly
+the hub* — is **wrong**, and the reason is worth stating plainly
 because the charter originally said to do it.
 
-:class:`~orpheus.sn.problem.SNProblem` is a **misnomer**.  It is
-not only a mesh: it is the solve's **save state and data hub**, the
-object you would dump to disk to reproduce a run.  It keeps the
+.. note:: **This paragraph used to open** *"*\ ``SNMesh`` *is a misnomer"*
+   **— and #412 acted on it (2026-09-18).**  The class is now
+   :class:`~orpheus.sn.problem.SNProblem` and lives at
+   :mod:`orpheus.sn.problem`; the ruling below is unchanged word for word,
+   and the name no longer argues against it.  The surviving
+   :mod:`orpheus.sn.mesh` package holds the mesh machinery the Problem
+   *consumes* — the method space and the reduced streaming operators.  See
+   the 2026-09-18 row of :ref:`sn-development-history`.
+
+The hub is **not a mesh**.  It is the solve's **save state and data hub**,
+the object you would dump to disk to reproduce a run.  It keeps the
 discretization scheme *not because it needs one to be a mesh*, but
 because a scheme is **shared machinery**, and two independent consumers
 must be given the same one:
@@ -420,12 +466,12 @@ must be given the same one:
    solve read the *same* object; with the generator distributed to each
    operator, keeping them equal becomes a runtime obligation somebody
    has to remember.
-#. **Space induction.**  The scheme co-determines the mesh's **spaces**:
+#. **Space induction.**  The scheme co-determines the Problem's **spaces**:
    whether the spatial representation is nodal or modal, and hence the
    shape of the spatial axis itself.  A multi-moment scheme such as
    Linear-Discontinuous gives the angular trial space a moment tail;
    ``full_field_space`` — the operator's own domain and codomain — is
-   built through that.  The generator is consumed at mesh construction
+   built through that.  The generator is consumed at Problem construction
    *by the space*, which is upstream of any operator posed on it.
 
 So the ruling is a **partition**, not a move.  Method-flavoured
@@ -512,11 +558,11 @@ first thing a reader will want to do.
        bit-identically inert on the slab — where the identity closure
        IS the default.  The walk's own family dispatch refuses it.
    * - 4
-     - cross-hub smuggling — mesh A's closure into mesh B's operator at
+     - cross-hub smuggling — Problem A's closure into Problem B's operator at
        equal ordinate count
      - **The one genuinely silent arm.**  Wrong pairing, plausible-
        looking answers.  It requires two hubs and a deliberate crossing,
-       and guarding it would require the closure to remember its mesh —
+       and guarding it would require the closure to remember its Problem —
        re-welding exactly what the closure's un-binding achieved.
 
 .. warning:: **A refuted sentence, kept so it is not re-derived.**
@@ -577,7 +623,7 @@ The keystone: a hub mutation after posing must be inert
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The phase's actual claim is a **route** claim — *the walk's
-method-flavoured needs come from the operator, not from the mesh* — and a
+method-flavoured needs come from the operator, not from the Problem* — and a
 route claim cannot be gated by asserting an output value (``vv``
 anti-pattern #26: a function that does the work and throws it away is
 indistinguishable, in its return value, from one that skipped it).  It
@@ -660,7 +706,7 @@ route gate anyone writes:
   swap — post-carve it would still read the mutant and the gate would
   stay red for a reason unrelated to the carve.  The gate builds and
   drives ``(L + C).solve`` itself.
-* **The memos mask the swap.**  Without dropping the mesh-attribute
+* **The memos mask the swap.**  Without dropping the hub-attribute
   memos, the cached table survives the swap and the gate passes *because
   of the cache*.  Hence the gate's activation leg, which proves the
   mutant object is consulted at all on the pre-swap route — otherwise
@@ -805,7 +851,7 @@ Three properties follow, and each was a criterion:
 #. **The operator stays pure algebra** — nothing is parked on it, so its
    equality and its lifetime stay simple.
 #. **The hub stops accumulating computation** — the ``_geom_cache``
-   mesh-attribute memo is retired, so a save state is not also a cache.
+   hub-attribute memo is retired, so a save state is not also a cache.
    The hub does *hold* what it used (it is a weak KEY in the intern's
    second map, not a carrier of a table), which is the distinction that
    keeps the count at one: ``[M]`` a weak-valued intern with **nothing**
@@ -828,7 +874,7 @@ Three properties follow, and each was a criterion:
    (:ref:`sn-sigma-bound-once-at-the-operator`).  That stratum is also
    the geometry table's **strong holder**, which retired
    ``SNSolver.geom_cache`` / ``SNSolver.coll_cache`` in the same commit.
-   ``_pole_mirror_cache`` survives as a mesh attribute; it is
+   ``_pole_mirror_cache`` survives as a hub attribute; it is
    :math:`\sigma`-free, so it carries none of the staleness this
    removed.
 
@@ -953,8 +999,9 @@ scheme type).  It was answering two different questions at once, and
 answering both badly:
 
 * **vacuous at** :math:`d \ge 3` — an axis-native hub keeps
-  :attr:`SNProblem.mesh <orpheus.sn.problem.SNProblem.mesh>`
-  ``= None`` as its legacy-adapter slot, so ``a.mesh is b.mesh``
+  ``SNProblem.mesh`` (a literal, not an ``:attr:`` role — the base
+  ``MaterialMesh`` sets it on the *instance*, so autodoc mints no
+  target) ``= None`` as its legacy-adapter slot, so ``a.mesh is b.mesh``
   reduced to ``None is None`` and two 3-D problems with different cell
   counts *and* different extents compared **equal**;
 * **false for every same-data pair built by two**
@@ -1031,7 +1078,7 @@ is the ORDINATE carrier at every order on both arms — 1-D
 windowed ``TimedFullField(24, 2, 4, 4)`` at both — so no field layout
 moves with the truncation order.  And `[M]` 2026-09-12 an explicit
 ``angular_closure=`` override is passed at **three** construction sites
-outside the hub's own forwarding plumbing — two single-mesh sweep gates
+outside the hub's own forwarding plumbing — two single-Problem sweep gates
 and the identity anchors' sphere pair — and **no** site anywhere pairs
 two ``Solution``\ s built over different closures, so a closure-aware
 pairing predicate would have no witness at all
@@ -1176,7 +1223,7 @@ Quadrature Dispatch
 The geometry-and-quadrature dispatch is a first-class polymorphism:
 :func:`~orpheus.sn.loss_representation.default_for` selects the
 :class:`~orpheus.sn.loss_representation.LossRepresentation` whose declared
-``supports`` predicate matches the mesh — the 1-D chain scan
+``supports`` predicate admits the Problem — the 1-D chain scan
 (:class:`~orpheus.sn.loss_representation.CumprodScan`, any geometry) or the
 multi-D anti-hyperplane wavefront — and the operator then calls it
 branchlessly.  (This replaced the pre-carve procedural branch on the
@@ -1347,7 +1394,7 @@ state:
    the slab case.  P4.9a moved the march to its owner (see
    :ref:`sn-p49a-closure-owns-the-march`), which left the two slots with
    nothing to carry, and with them went ``CellVisit``'s closure stamp
-   (``tau`` / ``c_in`` / ``c_out``) and the mesh-side
+   (``tau`` / ``c_in`` / ``c_out``) and the hub-side
    ``SNProblem._make_cell_visit`` that wrote it.
 
    What replaces them is *not* a renamed slot but a different kind of
@@ -2037,17 +2084,22 @@ to the Cartesian path.
    curvilinear refusal was re-keyed onto **value** signals — unequal
    face areas, or a non-neutral assembled angular contribution — which
    is a stronger guard, because it is reachable by calling the scheme
-   directly and cannot be dodged by a mesh that forgets to populate a
+   directly and cannot be dodged by a Problem that forgets to populate a
    field (see :ref:`sn-p49a-closure-owns-the-march`).
    Strategy selection today is
    :func:`~orpheus.sn.loss_representation.default_for`, which picks the
    first :data:`~orpheus.sn.loss_representation.LOSS_REPRESENTATIONS`
-   entry whose ``supports`` admits the mesh **and the handed spatial
+   entry whose ``supports`` admits the Problem **and the handed spatial
    closure**, keyed on ``is_1d`` **and** ``is_cartesian`` — neither
    alone is a sufficient discriminator.  Since P4.9b the predicate's
    signature is ``supports(mesh, spatial_closure)``: selection consumes
    the closure the operator was posed with, never ``mesh.scheme``
-   (:ref:`sn-p49b-operator-poses-with-closures`).
+   (:ref:`sn-p49b-operator-poses-with-closures`).  ⚠ That first parameter
+   is an :class:`~orpheus.sn.problem.SNProblem`; #412 renamed the class and
+   the ``sn_mesh`` spelling but left this family's slot spelled ``mesh``
+   (``[M]`` 2026-09-18, 24 ``mesh``-spelled ``SNProblem`` parameters and
+   fields across six modules — ``loss_representation`` holds 15 of them),
+   so the signature above is the live one and is *not* a stale reading.
 
 Why this mattered:
 
@@ -2073,8 +2125,8 @@ Cell update strategy parameter
 The curvilinear sweep dispatches per-cell to
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.update`.
 Both closures come from the walk's **own fields** — the pair it was
-handed when the operator was posed — never from the mesh
-(:ref:`sn-p49b-operator-poses-with-closures`); the mesh supplies the
+handed when the operator was posed — never from the Problem
+(:ref:`sn-p49b-operator-poses-with-closures`); the Problem supplies the
 geometry the walk traverses:
 
 .. code-block:: python

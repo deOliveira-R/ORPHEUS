@@ -2158,7 +2158,7 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
       :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`
       for non-carrying cylinder levels — a class no ``SNProblem``-admitted
       cylinder has since Q5.6.3, leaving that inline unreachable
-      through the mesh.  See
+      through the Problem.  See
       :ref:`sn-direct-seed-strategy-zoo`.
 
    The **anisotropic** curvilinear MMS gates improved :math:`\sim 50\times`
