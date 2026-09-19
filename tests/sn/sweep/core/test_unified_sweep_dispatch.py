@@ -742,8 +742,9 @@ class TestOneDimScanWalkFrame:
         """[foundation] The frame resolves from its new home and is a frozen
         three-field dataclass (mirrors ``_OctantWalk``).
 
-        P4.9b widened the frame from the mesh-only holder to
-        ``(mesh, spatial_closure, angular_closure)`` — the walk worker
+        P4.9b widened the frame from the hub-only holder to
+        ``(problem, spatial_closure, angular_closure)`` (the first field spelled
+        ``mesh`` until #412) — the walk worker
         consumes the pair it is HANDED by the representation (which is
         handed it by the posed operator), never the hub's attributes.
         The exact-field-list assertion keeps its anti-creep teeth.
@@ -755,9 +756,9 @@ class TestOneDimScanWalkFrame:
         if not dataclasses.is_dataclass(_OneDimScanWalk):
             pytest.fail("_OneDimScanWalk must be a dataclass (mirror _OctantWalk)")
         names = [f.name for f in dataclasses.fields(_OneDimScanWalk)]
-        if names != ["mesh", "spatial_closure", "angular_closure"]:
+        if names != ["problem", "spatial_closure", "angular_closure"]:
             pytest.fail(
-                f"_OneDimScanWalk fields must be exactly ['mesh', "
+                f"_OneDimScanWalk fields must be exactly ['problem', "
                 f"'spatial_closure', 'angular_closure'] (the frozen frame "
                 f"holding the substrate + the HANDED pair, like "
                 f"_OctantWalk); got {names}"
