@@ -589,3 +589,53 @@ Sweep: `gh issue list` open (200) + closed (300) on ORPHEUS, open (all) + closed
 **Draft inventory** (`scratch/_harness_eval/`): `plan-authoring.core.md`, `coding-standards.core.md`, `MEMORY.index.core.md`, `vv-principles.core.md`, `coding-elegance.core.md`, `subagent-handoff.core.md`, `lessons.index.md`, `session-start.txt.proposed`, `plan-checklist.md`, `worklog_2026-09-05.md` (the chronological record with the full root-assignment tables §9–§10 and the Fable/Opus reconciliation §8b).
 
 **Growth and line counts.** plan-authoring 1 022 lines (143 chars/line); lessons.md 2 475; vv-principles 1 788; subagent-handoff 733; coding-elegance 681; coding-standards 451; process-discipline 185; CLAUDE.md 182; nexus-tools 131; delegation 70; MEMORY.md 63.
+
+---
+
+# ⏸ COMPACTION POINT #1 — 2026-09-20. P1 LANDED, UNMERGED; next session REVIEWS before merge
+
+**Read this section first after compaction.** Then Part VIII (what landed, sizes, gates), then Part VII (the rulings). Do not re-litigate a ruling; every open question 1–24 is ruled.
+
+## Where things stand
+
+| item | state | how to verify |
+|---|---|---|
+| P1 commit | `[LANDED 72006892]` on `docs/development-substrate`, 62 files, +9 881 / −7 211 | `git log -1 --stat 72006892`; `git merge-base --is-ancestor 72006892 main` is FALSE until merged |
+| tree | clean except untracked `scratch/` (a `git clean` destroys the drafts, the gate scripts, the MEMORY.md backup) | `git status --porcelain \| grep -v '^?? scratch/'` → empty |
+| generator | 18 targets, 0 problems, 0 drift | `.venv/bin/python -m tools.docs.generate_harness --check` |
+| docs build | 0 warnings, rc 0 (second run; first had 31, all repaired) | `.venv/bin/python -m sphinx -W --keep-going -q -b html docs docs/_build/html` (≈10 min; run detached, log to `scratch/_harness_eval/`) |
+| Nexus | `dead_references` 0 of 66 on the rebuilt graph | `mcp__nexus__dead_references` |
+| tests | 421 passed: `tests/test_error_catalogue_reconciles.py test_docstring_xrefs.py test_elegance_debt_is_tagged.py test_layer_imports.py` under `python -O` | same command; the change touches no `orpheus/`, so the full gate is not owed by this commit |
+| MEMORY.md | re-indexed 17.6 → 8.8 KB; backup `scratch/_harness_eval/backup/MEMORY.md.20260920` | outside git |
+| this session's harness | still runs on the OLD rules/CLAUDE.md snapshot (session-start snapshot); the generated cores are live only from the next session; skill and AGENT.md edits ARE live now | `reference_harness_context_snapshot_timing` |
+
+## The review charter for the post-compaction session (before merge)
+
+The user's instruction: review the work, run tests and reviews, and merge only when satisfied with the quality; then compact again and restart. Reviews are dispatched by the parent (H2.1), in parallel where independent; every brief carries the return contract (word cap; files carry the detail; `NEEDS:`).
+
+1. **Fidelity of the cores to the rulings** — read, do not delegate: `docs/development/rules/{instrument-doctrine,articulation,workflows}.md` (written by the main agent from K1/K2/H1–H4; nobody else has read them) and `docs/development/workflows.md`, `harness.md`, the nine `agents/*.md`. Check each against Part VII's rulings verbatim (roles, invariants, depth 3, parent-review independence, the return contract, ASCII markers). Fix in the SOURCE and regenerate.
+2. **Fidelity of the distilled cores to their originals** — dispatch `qa` on `docs/development/rules/plan-authoring.md` vs `git show main:.claude/rules/plan-authoring.md`, and on `skills/vv-principles.md` vs `git show main:.claude/skills/vv-principles/SKILL.md`: does every clause / anti-pattern / mode survive with its imperative, check and tell? Are any two merged that catch different failures? The agents' own appendices (110 mechanisms; 36 + 6 items) are the claimed denominators; qa recounts. Same for `coding-standards` and `coding-elegance` at lower priority (their agents reported no post-draft deltas).
+3. **Verbatim-move audit of the evidence pages** — one `general-purpose` agent with a script: for each evidence page, every non-heading, non-`**Surprise.**/**Clause.**/Clause:` line must appear in the corresponding `main` original (allowing the documented normalisations: `\|` → `|`, un-quoted `>`, the one soft-wrapped paragraph in `test-design-modes.md`, the one link-to-code-span in Mode 12). Report `k of N` lines matched per page.
+4. **The generator** — dispatch `elegance-enforcer` on `tools/docs/generate_harness.py` + the manifest (a 200-line tool: link re-pointing, slugging, agent-block insertion, `--check`); and `qa` for a mutation check: break a heading in an evidence page → `--check` must report the dead link; edit a generated file by hand → `--check` must report drift; push a core over budget → must fail.
+5. **The eleven repointed citations** (Part VIII) — read each in context (`git show 72006892 -- docs/theory/…`): does the new target say what the sentence claims? Two now point at the `vv-principles` skill page for "Bit-identity", "1-group degeneracy", "Structural independence" — confirm those sections exist on the page (they do at `skills/vv-principles.md` §§ "Bit-identity vs principled-equivalence", "1-group degeneracy", "The three pillars") and that `theory/verification/principles.rst` is not the better target (it is the corpus doctrine page; if so, repoint there instead).
+6. **Agent frontmatter matrix** — re-print it (the script in the session worklog; or `grep -A20 '^tools:' .claude/agents/*/AGENT.md`) and confirm against H5: Agent on the six Key agents; `omitClaudeMd: true` on the three Support agents; `instrument-doctrine` preloaded by qa, test-architect, numerics-investigator, archivist; no `subagent-handoff-protocol` anywhere (`grep -rn subagent-handoff-protocol .claude docs/development` → only the History paragraph in `workflows.md`).
+7. **Support-agent briefs** — the three `omitClaudeMd` agents see NO project rule. The brief template (`docs/development/workflows.md` § The brief) carries the rules; but NOTHING yet makes a Key agent include them. P1b item: a "Support briefs" paragraph in each Key agent's role block. Decide whether that must land BEFORE merge (recommendation: yes, it is ten lines per agent and the exposure is real — an explorer census brief without the ugrep hazard).
+8. **Then the gates again**: generator `--check`; `sphinx -W`; `dead_references`; the four test modules; and `git diff main --stat` read in full (§ the `git add -A` rule: the staged set was explicit, 62 paths; confirm nothing under `scratch/` is in the commit: `git show --stat 72006892 \| grep scratch` → empty).
+9. **Merge**: `git checkout main && git merge --ff-only docs/development-substrate`, delete the branch, push; then `gh` comment on #308 with the hash; file J5 (umbrella) and the two nexus issues (J4, J6). Then compact and RESTART so the generated cores load; run G1/G2 in that fresh session (`/context`; the haiku probe with `scratch/_harness_eval/probe_questions.md`).
+
+## Status deltas this compaction records (Part II statuses are otherwise unchanged)
+
+IMPLEMENTED @ `72006892`: A1 (tier 1 ≈ 26.8K + memory, tier 2 ≈ 28.7K — the three untouched rules and CLAUDE.md remain the second pass), A3 (vv-principles, coding-elegance; not yet numerical-bug-signatures / algebra-of-record), A4, A5, A6, C5 (settings fix only), D1, D3 (word caps + delegation sentence in the role blocks), E1, H1, H2, H4 (the rule + the page + the role blocks), H5, I1, I2, I6 (as amended), J1–J3, K1, K2, K4 (cores), K7, K8. NOT YET: A7, A8, B1–B4, B5 (the plan floor checklist is still `scratch/_harness_eval/plan-checklist.md` — move it to `docs/development/` in P1b), B6, C1–C4, C6, D2 (session-start.txt carries no Fable-only nudges yet), D4, D5, G1–G7 (acceptance: fresh session), I3, I5, I7, I8, J4–J6, K3, K5, K6.
+
+## Durable lessons from this session (for the evidence page at P1b, not for a rule)
+
+- The harness's agent REGISTRY is fixed at session start; a new agent directory is invisible until a fresh session (a headless `claude -p` session sees it). AGENT.md CONTENT loads fresh per dispatch.
+- A sub-agent that emits one Bash call of more than ~10K output tokens is killed by the stream watchdog; chunked writes of ≤ 5 KB per call are the working shape (five agents, zero kills, after two kills the day before).
+- `git mv` of a page breaks its relative `:doc:` links (now resolved from the new directory) and every `:doc:` citation of its old name; both are `-W` reds, both mechanical.
+- MyST under `-W`: a `###` directly under `#` is an error (`myst.header`); docutils refuses any line over 10 000 characters — a verbatim single-line paragraph needs a content-neutral soft wrap.
+- `Write(<path>)` in `settings.json` `permissions.allow` is inert; only `Edit(<path>)` rules match file-editing tools (the harness now says so at startup).
+- The three warning classes were found by the build, not by any pre-check — the docs build IS the anchor checker, which is what I6/I3 predicted.
+
+## Resume surface
+
+This section → Part VIII → Part VII. Memory: `project_harness_context_budget.md`. Branch `docs/development-substrate` @ `72006892`. Scratch (untracked): `scratch/_harness_eval/` (drafts, `p1_spec.md`, `p1_gate.sh`, `probe_questions.md`, `p1_commit_msg.txt`, `backup/`, `worklog_2026-09-05.md`).
