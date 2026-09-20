@@ -18,7 +18,7 @@ budget_tokens = 9600
 [[rule]]
 source = "docs/development/rules/coding-standards.md"
 target = ".claude/rules/coding-standards.md"
-budget_tokens = 5000
+budget_tokens = 5300
 
 [[rule]]
 source = "docs/development/rules/instrument-doctrine.md"
@@ -54,7 +54,7 @@ budget_tokens = 2200
 [[index]]
 source = "docs/development/lessons.md"
 target = ".claude/lessons.md"
-budget_tokens = 3200
+budget_tokens = 3400
 
 [[agent]]
 source = "docs/development/agents/archivist.md"

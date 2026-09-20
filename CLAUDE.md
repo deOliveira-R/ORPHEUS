@@ -149,11 +149,11 @@ the SKILL.
 - **Verify before done**: run tests, compare expected vs actual
 - **Demand elegance**: is there a simpler way? No hacky fixes.
 - **Fix root causes**: trace bugs to root cause, not symptoms
-- **Code style**: Pythonic (dataclasses, type hints, scipy). No 1:1 MATLAB copy. Never transcribe values manually.
+- **Code style**: Pythonic (dataclasses, type hints, scipy). No 1:1 MATLAB copy. Never transcribe values manually: load or compute every value programmatically; reference eigenvalues live in `derivations/`.
 
 ## Git Workflow
 
-See `docs/development.rst` for the full workflow. Quick version:
+See `docs/development/git_workflow.rst` for the full workflow. Quick version:
 
 - **`main` is always green** — never commit directly. Always branch.
 - **Branch naming**: `<type>/<topic>` where type ∈ `feature|fix|docs|refactor|test|chore`

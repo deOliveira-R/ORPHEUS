@@ -96,7 +96,7 @@ is the only way to state a denominator you can trust.
 ⭐ **Validate the filter against a POSITIVE CONTROL before trusting a negative.**
 One line — assert the pattern finds a member you already know exists. Without it,
 a broken filter and a clean tree print the same thing, and the broken one reads
-as *"nothing to do"*. See `.claude/lessons.md` L61 (six false negatives in one
+as *"nothing to do"*. See [L61](../../docs/development/evidence/lessons.md#l61-unvalidated-filter-clean) (six false negatives in one
 session, two distinct mechanisms: this one, and zsh eating quotes/backticks out
 of double-quoted patterns — that second one at least prints `(eval): bad math
 expression` on a channel nobody reads).
@@ -114,8 +114,10 @@ expression` on a channel nobody reads).
   otherwise the agent improvises silently, and its report cannot be told apart from a
   grep-derived one.
   This is the most common cause of an agent silently avoiding the graph.
-- **Stale graph:** rebuild Sphinx first (`sphinx-build docs docs/_build/html`); the MCP
-  server auto-reloads.
+- **Stale graph:** the trigger is a query that returns an unexpected result — zero
+  changes on a file you just edited, an old module name, a symbol you know exists
+  reported missing — and any file move or rename means assume it. Rebuild Sphinx
+  first (`sphinx-build docs docs/_build/html`); the MCP server auto-reloads.
 - **Git worktrees (L22 hazard):** the session's MCP server was launched against the MAIN
   checkout's graph, so every query answers from the wrong branch until you switch. Build
   Sphinx inside the worktree, then `mcp__nexus__use_workspace(<worktree root>)`;

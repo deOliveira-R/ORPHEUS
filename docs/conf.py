@@ -83,7 +83,9 @@ exclude_patterns = ['_build', '_generated', '**/*.inc.rst', 'Thumbs.db', '.DS_St
 # cores use (`file.md#heading-slug`); a broken one fails `-W`.
 source_suffix = {'.rst': 'restructuredtext', '.md': 'markdown'}
 myst_enable_extensions = ['colon_fence']
-from tools.docs.generate_harness import HEADING_ANCHOR_LEVELS  # one definition: the generator checks links against the same cap
+# One definition of the anchor-level cap, owned by the generator because it must check
+# links against it and cannot import conf.py without executing the whole Sphinx config.
+from tools.docs.generate_harness import HEADING_ANCHOR_LEVELS
 myst_heading_anchors = HEADING_ANCHOR_LEVELS
 
 # -- Options for HTML output -------------------------------------------

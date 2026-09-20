@@ -13,7 +13,8 @@ The order of sections is load-bearing. Structural independence
 
 ## §1 Structural independence — verification fails when test and code share an error source
 
-The L11 lesson: a verification test proves correctness only if it
+Structural independence (lesson L11, now `vv-principles` #7; body at
+`docs/development/evidence/lessons.md#l11-structural-independence`): a verification test proves correctness only if it
 exercises a different mathematical path than the code. When test and
 code share an upstream identity, an integrand, or a primitive, an
 error in that shared element is invisible to the test. Both sides

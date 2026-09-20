@@ -205,7 +205,7 @@ reason it stays at the consumer. Seven axes: per-ordinate vs iso scalar
 (`/sum_w`); `/W` normalisation; μ sign; packed vs typed layout; normal vs
 adjoint (`.H` propagation, `apply_transpose`); signed vs unsigned lethargy;
 group ordering. [M] R-1 Step 4 session 1: ~3x debug time (three convention
-bugs, ≥1 h each) against a 15-minute table (lessons L17, L18).
+bugs, ≥1 h each) against a 15-minute table ([L17](../evidence/lessons.md#l17-convention-crosswalk-first), [L18](../evidence/lessons.md#l18-pattern-seven-producer)).
 [case](../evidence/coding-elegance.md#convention-crosswalk-case)
 
 ---

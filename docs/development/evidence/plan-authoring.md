@@ -4,8 +4,9 @@ The surprise log and the founding cases of `rules/plan-authoring.md`, moved here
 
 ## Phase entry template
 
-The shape a phase entry takes, from the original rule (2026-08-05): the goal, the
-means labelled and dated as a hypothesis, and a done-when that is a predicate.
+The shape a phase entry takes — an example written 2026-08-05 in the original rule:
+the goal, the means labelled and dated as a hypothesis, and a done-when that is a
+predicate.
 
 ```markdown
 ### P6 — a directional inflow is expressible without smuggling
@@ -188,7 +189,7 @@ One entry per row of the original table, in table order. **Surprise** is the row
 
 **Surprise.** Two Track-0 items were sized in LINES — *"1 line"*, *"2 lines"* — from a review that had correctly diagnosed each mechanism. Both were wrong the same way: each defect was a **duplication**, and the reported site was merely the copy that happened to be wrong. 0.2's "make `_unparse_attribute` return `None`" was really "retire it — `_dotted_name`, 360 lines above in the same file, already does" (−28 lines). 0.3's "apply `py_type_map` on the xref path" was really "the map is local to one producer — hoist it". ⭐ A line-count estimate silently asserts the defect has ONE site; when the defect IS the second site, the estimate is not merely low, it points at the wrong repair — landing it verbatim would have left both twins alive. Caught only because the pointer carried its own §4 caution (*"reported as a one-line fix; verify that before believing it"*), so the loop worked and cost nothing.
 
-**Clause.** §4 (a relayed SIZE is a measurement and needs its fixture like any other) + [[lessons-L57]]
+**Clause.** §4 (a relayed SIZE is a measurement and needs its fixture like any other) + [L57](lessons.md#l57-invisible-twin-bug)
 
 ### 2026-08-16 done when predicate
 
@@ -282,7 +283,7 @@ One entry per row of the original table, in table order. **Surprise** is the row
 
 ### 2026-08-26 gram rename size
 
-**Surprise.** ⚠ **REPEAT of §2's FILTER clause, MINE, in a pre-audit I wrote the same day to PREVENT this.** P3's §6b table sized a rename at *"9 lines / 5 files"*. `[M]` 9 counts the **identifier**; the *word* naming the same object appears **70** times across 7 files — the guard, the `gram` parameter in 3 signatures, the `cls(angular, gram)` constructor contract, the `_gram` field, two message strings, a test class. 7× low, and the error is not the size: renaming the property alone leaves the concept spelled **two ways**, which is strictly worse than either extreme. ⭐ The pre-audit was rigorous *about the wrong predicate* — it ran three validated filters (qualified, string-form, attribute-access) over the SYMBOL, so its thoroughness certified the wrong denominator. Same shape as [[lessons-L57]] (a line-count silently asserts the defect has ONE site). ⚠ Aggravator: a blanket concept-replace would have corrupted `pro`**`gram`**`s` — substring 71 vs word-bounded 70 — and **493** repo-wide hits are legitimate Grams elsewhere, so the concept ALSO needs meaning-triage, not just a wider net. ⟹ a rename row's size must name its predicate: *"9 occurrences of the IDENTIFIER; concept not yet counted"* is honest, *"9 lines"* is not.
+**Surprise.** ⚠ **REPEAT of §2's FILTER clause, MINE, in a pre-audit I wrote the same day to PREVENT this.** P3's §6b table sized a rename at *"9 lines / 5 files"*. `[M]` 9 counts the **identifier**; the *word* naming the same object appears **70** times across 7 files — the guard, the `gram` parameter in 3 signatures, the `cls(angular, gram)` constructor contract, the `_gram` field, two message strings, a test class. 7× low, and the error is not the size: renaming the property alone leaves the concept spelled **two ways**, which is strictly worse than either extreme. ⭐ The pre-audit was rigorous *about the wrong predicate* — it ran three validated filters (qualified, string-form, attribute-access) over the SYMBOL, so its thoroughness certified the wrong denominator. Same shape as [L57](lessons.md#l57-invisible-twin-bug) (a line-count silently asserts the defect has ONE site). ⚠ Aggravator: a blanket concept-replace would have corrupted `pro`**`gram`**`s` — substring 71 vs word-bounded 70 — and **493** repo-wide hits are legitimate Grams elsewhere, so the concept ALSO needs meaning-triage, not just a wider net. ⟹ a rename row's size must name its predicate: *"9 occurrences of the IDENTIFIER; concept not yet counted"* is honest, *"9 lines"* is not.
 
 **Clause.** §2 (quantifier/FILTER — no new clause; the row is the measurement, and it says a validated filter over the wrong predicate is still the wrong answer)
 

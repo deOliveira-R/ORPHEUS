@@ -105,6 +105,7 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 - [issue_226_inverse_as_operator_rulings.md](issue_226_inverse_as_operator_rulings.md) —
   inverse family: delegation-not-reciprocal for value leaves; keystone FORCES
   `solve=inner.apply`; the wrap-delegate twin collapses at the 3rd sibling (Green/Matrix).
+- [pyright_ratchet_harness_invariant.md](pyright_ratchet_harness_invariant.md) — harness SOFTWARE-INVARIANT review bar: dual-direction ratchet = illegal-slack-state unrepresentable; version-hint-not-skip beats skip-on-mismatch; single-source the COUNTING not just the data; the total==0 retirement trigger. Carries a `[M]` CORRECTION: a bare `assert` in a collected test module DOES fire under `-O`.
 - [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — #226 carrier-generic
   C2→C4: covariant-leg keystone principled; `default=` per variance (invariant `Any` vs
   covariant-leg-type); the ratchet baseline must land WITH the carve (approval condition).

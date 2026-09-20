@@ -177,7 +177,7 @@ three instances. Four checks, each catching a different failure:
   return only tests or nothing) AND a docstring conceding its own irrelevance
   ("not used in production", "diagnostic only"). A
   *fuller-view oracle* with a permanent equivalence test consuming it is not
-  zero-consumer ([coding-standards](../../../docs/development/rules/coding-standards.md), the
+  zero-consumer ([coding-standards](../../rules/coding-standards.md), the
   fuller-view-oracle exception).
 
 [case](../../../docs/development/evidence/coding-elegance.md#pattern-6-defer-abstraction)
@@ -205,7 +205,7 @@ reason it stays at the consumer. Seven axes: per-ordinate vs iso scalar
 (`/sum_w`); `/W` normalisation; μ sign; packed vs typed layout; normal vs
 adjoint (`.H` propagation, `apply_transpose`); signed vs unsigned lethargy;
 group ordering. [M] R-1 Step 4 session 1: ~3x debug time (three convention
-bugs, ≥1 h each) against a 15-minute table (lessons L17, L18).
+bugs, ≥1 h each) against a 15-minute table ([L17](../../../docs/development/evidence/lessons.md#l17-convention-crosswalk-first), [L18](../../../docs/development/evidence/lessons.md#l18-pattern-seven-producer)).
 [case](../../../docs/development/evidence/coding-elegance.md#convention-crosswalk-case)
 
 ---
@@ -373,7 +373,7 @@ its ERR cross-cites.
     [case](../../../docs/development/evidence/coding-elegance.md#ap20-docstring-open-codes)
 
 > **Floor vs ceiling.** #11 and #12 are the *diagnostic* framing of rules stated
-> prescriptively in [coding-standards](../../../docs/development/rules/coding-standards.md); kept here
+> prescriptively in [coding-standards](../../rules/coding-standards.md); kept here
 > as recognition signals, not a second copy.
 
 ---

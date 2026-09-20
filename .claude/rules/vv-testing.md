@@ -34,7 +34,7 @@ one that IS exact.
    they're optimised for moment integration in transport, not arbitrary SH products).
 2. If none exists, implement what's needed rather than weakening the assertion.
 3. Investigate WHY a failure exceeds the FP-non-associativity bound — usually it's a
-   mathematical issue, not a numerical one. (`vv-principles` L11: cross-checks must be
+   mathematical issue, not a numerical one. (`vv-principles` #7 and its structural-independence section: cross-checks must be
    structurally independent; prefer a bit-identical unit-vector cross-check over a merely
    procedurally-independent loop-vs-einsum comparison.)
 

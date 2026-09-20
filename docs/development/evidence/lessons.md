@@ -599,7 +599,7 @@ go" — retirement is mandatory; superseded code = noise) + this lesson
 
 ## L21 sweep matvec strategy
 
-Archived — mechanism superseded; index line retired 2026-09-20.
+Archived — mechanism superseded; index line retired 2026-09-20. [REMEDIED 2026-09-20: the body's own banner says the principle stands and L23 cites it; the index line is restored.]
 
 **L21: Sweep and matvec are different applications of the same operator — share ONE strategy**
 
@@ -700,7 +700,7 @@ fixed-point.  Every operator-algebra carve that ships new sweep paths
 must reuse the existing `.apply`-side machinery for whatever's shared
 (seed strategies, BC realisers, angular closures).
 
-Cross-reference: `[[lessons-L18]]` (Pattern 7 producer-side — same
+Cross-reference: [L18](#l18-pattern-seven-producer) (Pattern 7 producer-side — same
 spirit: single canonical site for the convention, not duplicated at
 consumers); commit `c93355c` evidence (net **−35 LOC** while
 strengthening invariants); CLAUDE.md Cardinal Rule 2 (architecture is
@@ -749,7 +749,7 @@ the mechanical symptom (a verbatim sweep copy diverged 0.137 for reflective).
    the `session_briefing` workspace block warns on graph↔checkout
    branch mismatch.
 
-Cross-reference: `[[lessons-L12]]` (sub-agent fabrication — the failure mode I
+Cross-reference: [L12](#l12-fabricated-closeout-numbers) (sub-agent fabrication — the failure mode I
 wrongly attributed here); the dispatched explorer was correct.
 
 ## L23 redundant layer claim
@@ -800,7 +800,7 @@ RESOLVENT (method-specific inverse). Generalise only after ≥2 instances exist
 (the `coding-elegance` skill, Pattern 6 "unify after two instances") — document the
 other posing rows as seams, don't build them.
 
-Cross-reference: `[[lessons-L21]]` (sweep/matvec = one operator, two
+Cross-reference: [L21](#l21-sweep-matvec-strategy) (sweep/matvec = one operator, two
 applications — same "reduce strategies, don't add alternatives" spirit);
 Cardinal Rule 2 (single source of truth = collapse the loop, keep the general
 layer); commits `650032e`+`7603c8e` (net structural reduction).
@@ -852,7 +852,7 @@ red" about to be deferred, run + characterise it (the classes above); (3) for an
 fix / re-enable," grep the guarding tests. The 15-min audit beats both executing a moot
 tripwire and deferring a one-line fix.
 
-Cross-reference: `[[lessons-L23]]` (the R5 "redundant"-is-a-layer-claim — same spirit:
+Cross-reference: [L23](#l23-redundant-layer-claim) (the R5 "redundant"-is-a-layer-claim — same spirit:
 trace the premise before acting on a plan's verb); `.claude/rules/process-discipline.md`
 ("bias toward completion": "no consumer" / "pre-existing red" often means "not yet characterised — look closer");
 commits `deb1ce3` (precond_safety test-bug fix) + `33dd5ff` (b1pp stale-expectation +
@@ -882,9 +882,11 @@ occurrence in THIS file is the same concept" premise must be VERIFIED by reading
 not assumed from the file's primary purpose — the same token names a method on THIS class
 AND a method on a collaborator class in the same file's prose.
 
-Cross-reference: `[[lessons-L17]]` (crosswalk before carve — same "verify the convention at
+Cross-reference: [L17](#l17-convention-crosswalk-first) (crosswalk before carve — same "verify the convention at
 each site" spirit); the S6.2→S6.3 corruption (3 docstring spots in `loss_representation.py`,
 fixed in the S6.3 commit).
+
+Addendum 2026-09-20: the index line extends L25 tree-wide — the file that documents a rename holds the counterexample, because it is the only place the old name legitimately appears (plan-authoring surprise log, 2026-09-01).
 
 ## L26 pytest rewrites asserts
 
@@ -975,7 +977,7 @@ that is, by policy, NOT in git — so the usual "git can undo it" safety net doe
 3. **Generalises** to any uncommitted-by-policy state: `docs/_build/` (regenerated, low stakes),
    but especially the instruction-architecture-managed `.claude/skills/*` accumulators.
 
-Cross-reference: `[[lessons-L12]]` (paste-back — here it was the ONLY backup); the standing
+Cross-reference: [L12](#l12-fabricated-closeout-numbers) (paste-back — here it was the ONLY backup); the standing
 forbidden-to-commit set (`.claude/skills/*`).
 
 ## L29 reanchor same strength
@@ -1003,8 +1005,8 @@ surviving handle. (4) Mutation-verify the re-anchored check still REDS on a real
 `test_mismatched_mesh_rejected` still fires). A guard checking a weaker property is never a substitute for a
 stronger invariant — "redundant with X" is false whenever X is strictly weaker.
 
-Cross-reference: `[[lessons-L24]]` (re-characterise sub-steps when the ground moves — same "don't mechanically
-assume redundancy" spirit); `[[lessons-L23]]` ("redundant" is a layer claim — check binding-generality before
+Cross-reference: [L24](#l24-replan-at-pickup) (re-characterise sub-steps when the ground moves — same "don't mechanically
+assume redundancy" spirit); [L23](#l23-redundant-layer-claim) ("redundant" is a layer claim — check binding-generality before
 retiring); the independent-challenge discipline (dispatch an adversarial reviewer for your own
 about-to-relax-an-invariant reasoning — it caught this).
 
@@ -1033,7 +1035,7 @@ contradicts the plan's "uniform fold," STOP and reshape — don't force it (here
 and routed only SN; the other four deferred as bespoke, #270). A structural reviewer judges the plan; only
 reading the code judges the fit.
 
-Cross-reference: `[[lessons-L24]]` (re-characterise sub-steps when the ground moves — same spirit, here
+Cross-reference: [L24](#l24-replan-at-pickup) (re-characterise sub-steps when the ground moves — same spirit, here
 triggered by reading the bodies); the test-architect "read all five `compute_keff` bodies first" reshaping is
 the concrete instance.
 
@@ -1056,8 +1058,8 @@ attribution. Before writing a root-cause into a docstring/commit (Cardinal Rule 
 and the tracking issue — never transcribe a sub-agent's "because commit X" verbatim. Same session, the same
 `trust git` reflex caught origin/main sitting 64 commits behind a "ff-merged to main" memory claim.
 
-Cross-reference: `[[lessons-L12]]` (sub-agent closeouts — here honest-but-incomplete forensics, NOT
-fabrication); `[[lessons-L11]]` (verify, don't trust); `.claude/rules/process-discipline.md` (trust git,
+Cross-reference: [L12](#l12-fabricated-closeout-numbers) (sub-agent closeouts — here honest-but-incomplete forensics, NOT
+fabrication); [L11](#l11-structural-independence) (verify, don't trust); `.claude/rules/process-discipline.md` (trust git,
 not frozen memory).
 
 ## L32 dedup lowest layer
@@ -1091,8 +1093,8 @@ invariant slice (mechanics), not the per-verb-varying slice (the weighting/axis)
 cross-method coarsening verb (CP region-averaging, MoC FSR-merging, GEC rank>0) that assembles a shared
 container from a higher and a lower layer.
 
-Cross-reference: `[[lessons-L29]]` (don't relax an invariant to a weaker downstream check — same "scrutinize
-the tempting simplification" spirit); `[[lessons-L24]]` (re-characterise a plan's verb when the ground —
+Cross-reference: [L29](#l29-reanchor-same-strength) (don't relax an invariant to a weaker downstream check — same "scrutinize
+the tempting simplification" spirit); [L24](#l24-replan-at-pickup) (re-characterise a plan's verb when the ground —
 here the layering — contradicts it); `.claude/rules/coding-standards.md` ("clean before extending" — the
 assembler is the single generic body both verbs extend through).
 
@@ -1134,8 +1136,8 @@ never do, in a session where `vv-principles` was preloaded.
 > string is a claim under L12 — it needs the same paste-back discipline as a sub-agent closeout.
 > (Recovery: amend while unpushed so the false claim never becomes history.)
 
-Cross-reference: `[[lessons-L12]]` (sub-agent closeouts fabricate at the summarization boundary —
-here the fabricator was the main agent); `[[lessons-L31]]` (verdict vs attribution — same "verify
+Cross-reference: [L12](#l12-fabricated-closeout-numbers) (sub-agent closeouts fabricate at the summarization boundary —
+here the fabricator was the main agent); [L31](#l31-verdict-versus-attribution) (verdict vs attribution — same "verify
 before transcribing" reflex); `.claude/rules/process-discipline.md` (trust git, not a frozen claim
 — generalizes: trust CODE, not a frozen doc). Evidence: `275a753a`, `018ecb7b`, `0ca0d378`;
 `.claude/plans/archive/documentation_corpus_architecture.md` §3.6 (the 12 MUST-NOT claims exist so the next
@@ -1209,8 +1211,8 @@ sweep**; the build will not do it for you.
 > `foundations/frame`) needs the **historical alias** in the map — the current-name map alone
 > silently misses every pointer that predates the first hop.
 
-Cross-reference: `[[lessons-L20]]` (retirement requires a dependency audit — this is the audit's
-blind spot); `[[lessons-L33]]` (a doc is a claim, not evidence — here the *rule* was the wrong
+Cross-reference: [L20](#l20-retirement-dependency-audit) (retirement requires a dependency audit — this is the audit's
+blind spot); [L33](#l33-corpus-is-adversary) (a doc is a claim, not evidence — here the *rule* was the wrong
 claim, and measurement settled it); `.claude/rules/coding-standards.md` (corrected in `08e58ee6`);
 `.claude/plans/archive/documentation_corpus_architecture.md` §7.1.
 
@@ -1258,8 +1260,8 @@ found the Block-2 falsehoods post-hoc, then folded the bidirectional+bystander g
 Block-3 brief and the archivist executed it cleanly — **put the three-way grep in the brief, or
 run it yourself before committing.**
 
-Cross-reference: `[[lessons-L34]]` (which reference class the build gates — this is its prose
-corollary: even a GATED role leaves ungated prose); `[[lessons-L33]]` (the corpus is an
+Cross-reference: [L34](#l34-path-segments-grep) (which reference class the build gates — this is its prose
+corollary: even a GATED role leaves ungated prose); [L33](#l33-corpus-is-adversary) (the corpus is an
 adversary that MISINFORMS — a move is a mechanical way to mint fresh misinformation);
 `.claude/plans/archive/documentation_corpus_architecture.md` §7.2.
 
@@ -1267,7 +1269,7 @@ adversary that MISINFORMS — a move is a mechanical way to mint fresh misinform
 
 **L36 — Moving a label between files: the incremental Sphinx build raises a PHANTOM `duplicate label` — force `-E` for the gate (2026-07-16)**
 
-[[lessons-L35]] is about the PROSE a label move falsifies; this is about the BUILD TOOL itself
+[L35](#l35-moved-block-prose) is about the PROSE a label move falsifies; this is about the BUILD TOOL itself
 lying *during* the move. When a `.. _label:` moves from page A to page B, an INCREMENTAL
 `sphinx-build -W` (reusing the saved `docs/_build/doctrees` environment) can raise
 `WARNING: duplicate label <x>, other instance in <A>` — even though A no longer contains it.
@@ -1287,7 +1289,7 @@ Worked (ch3 `angular_quadrature` extraction): the `--keep-going` incremental bui
 phantom `duplicate label quadrature-types`; `grep -c` proved it 0-in-source / 1-tree-wide;
 `-E -W` came back "build succeeded", 0 warnings.
 
-Cross-reference: `[[lessons-L35]]` (the prose corollary), `[[lessons-L34]]` (which reference
+Cross-reference: [L35](#l35-moved-block-prose) (the prose corollary), [L34](#l34-path-segments-grep) (which reference
 class the build gates); `.claude/plans/archive/sn_split_catalog.md` (the Phase-C build-gate section).
 
 ## L37 frozen sources gate
@@ -1320,7 +1322,7 @@ only).
 
 **L38 — A deliberate mutation in the SHARED working tree is indistinguishable from a production bug to a parallel agent (2026-08-10)**
 
-[[lessons-L37]] says Python sources are FROZEN while a long gate runs, and bounds
+[L37](#l37-frozen-sources-gate) says Python sources are FROZEN while a long gate runs, and bounds
 which work is safe. This is its multi-agent twin, and it bites in the opposite
 direction: not "my edit false-reds a running test" but **"my edit makes a parallel
 agent report a defect that does not exist."**
@@ -1361,9 +1363,9 @@ get wrong.
 re-measurement of the flipped guard (`130 passed`) independently reproduced mine.
 That is luck, not a mitigation.
 
-Cross-reference: `[[lessons-L37]]` (the single-agent form — edits under a running
-gate); `[[lessons-L22]]` (you and a sub-agent read different trees — same
-"confirm you share ground truth before accusing" reflex); `[[lessons-L12]]`
+Cross-reference: [L37](#l37-frozen-sources-gate) (the single-agent form — edits under a running
+gate); [L22](#l22-worktree-not-main) (you and a sub-agent read different trees — same
+"confirm you share ground truth before accusing" reflex); [L12](#l12-fabricated-closeout-numbers)
 (sub-agent fabrication — here the agent was RIGHT to doubt itself, and the
 discipline that saved it was verification, not caution);
 `.claude/rules/process-discipline.md` (mutation-testing an uncommitted file:
@@ -1414,7 +1416,7 @@ Three things make this worth its own entry rather than a footnote:
 
 Cross-reference: `vv-principles` #17 (verify the instrument on a known positive
 before trusting a negative — here the instrument was the *reasoning*, and the
-known positive was a mesh class the partner never reached); `[[lessons-L30]]`
+known positive was a mesh class the partner never reached); [L30](#l30-same-operation-fold)
 (same data, different operation — its sibling: same call, different states).
 
 ## L40 blind stopping criterion
@@ -1493,7 +1495,7 @@ hypothesis is wrong" rather than "your probe is blind".
 
 ## L42 probe assert stripped
 
-Absorbed into coding-standards (the bare-assert clause) — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes).
+Absorbed into coding-standards (the bare-assert clause) — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes). [REMEDIED 2026-09-20: the carrier is vv-principles Mode 8 class (1) and the surviving index line L26; the coding-standards bare-assert clause ranges over orpheus/ only.]
 
 **L42 — `python -O script.py` strips the probe's OWN assertions; the canonical `-O` is safe only inside pytest (2026-08-11)**
 
@@ -1576,7 +1578,7 @@ of the three failures announced itself.
 
 | # | mechanism | what it printed | what was true |
 |---|---|---|---|
-| 1 | ran the standalone probe under `python -O` | `7/7 identical` + `both versions SILENT` | three `assert`s absent from the bytecode, incl. the entire silence claim (→ [[lessons-L42]]) |
+| 1 | ran the standalone probe under `python -O` | `7/7 identical` + `both versions SILENT` | three `assert`s absent from the bytecode, incl. the entire silence claim (→ [L42](#l42-probe-assert-stripped)) |
 | 2 | `except Exception: print(...); continue` in the site loop | `all sites: exactly one warning, attributed OUTSIDE orpheus/` | **3 of 7 sites raised in their fixture and were never measured** — the skip did not reach the failure list |
 | 3 | mutation anchored on the bare token `"stacklevel=3"` | `41 passed` for both attribution mutants ⟹ "the gates are blind" | `.replace(…, 1)` hit the **docstring**, which documents `stacklevel=3` four times; the code was never mutated |
 
@@ -1611,7 +1613,7 @@ that output is indistinguishable from success, the probe has no negative leg
 and its green is worth nothing. In all three cases above the answer was "it
 would print exactly what it just printed".
 
-Sibling of [[lessons-L38]] (a mutation in a shared tree is indistinguishable
+Sibling of [L38](#l38-shared-tree-mutation) (a mutation in a shared tree is indistinguishable
 from a production bug) — both are about the *evidence pipeline* failing while
 the code under test is fine.
 
@@ -1896,7 +1898,7 @@ design decision built on it. Both promoted gates from this campaign now carry
 an explicit "what this CANNOT do" paragraph naming the type.
 
 Companion to `vv-principles` #24 (which supplies the four checks an instrument
-must pass to be a ranker at all) and to [[lessons-L49]] (reference-limited).
+must pass to be a ranker at all) and to [L49](#l49-reference-limited-instrument) (reference-limited).
 
 ## L52 truncation order accuracy
 
@@ -2025,7 +2027,7 @@ absence of *anything* is not evidence at all.
 
 Cross-reference: `vv-principles` #17 (the harness lies before the code does, and
 in the safe-looking direction) — this is that principle applied one step
-earlier, to whether the harness ran; `[[lessons-L12]]` (paste-back — a verbatim
+earlier, to whether the harness ran; [L12](#l12-fabricated-closeout-numbers) (paste-back — a verbatim
 summary line makes a zero-collection run visible where a paraphrase hides it).
 
 ## L55 census by spelling
@@ -2034,7 +2036,7 @@ Absorbed into plan-authoring section 2 (the FILTER/VIEWPORT clause) — index li
 
 **L55 — A census is only as wide as its SPELLING; for a code construct, use a parser (2026-08-15)**
 
-[[lessons-L54]] is about an instrument that never RAN. This is the next
+[L54](#l54-instrument-never-ran) is about an instrument that never RAN. This is the next
 failure along: the instrument runs, matches, and reports a confident
 number — while structurally unable to see one of the forms it is
 censusing. **Three instances in one session, all mine, all reporting the
@@ -2056,7 +2058,7 @@ form reddens it.
 ⚠ And the reason this is not merely "grep harder": **the failure direction
 is always flattering.** A census that misses a form reports FEWER
 offenders, i.e. "you are done". Same shape as
-[[lessons-L44]]'s three disarmed instruments and `vv-principles` #17 — ask
+[L44](#l44-instrument-disarms-itself)'s three disarmed instruments and `vv-principles` #17 — ask
 of any census *"what would this print if it matched nothing, and is that
 distinguishable from success?"*
 
@@ -2097,10 +2099,10 @@ separate naming.
   `grep -rln` (file list, no bodies) or pipe through `wc -l` first; reserve
   `head` for *reading* hits, never for *counting* them.
 
-Cross-reference: [[lessons-L54]] (the instrument never ran — this is the
-instrument running half-blind); [[lessons-L25]] (`replace_all` is safe only
+Cross-reference: [L54](#l54-instrument-never-ran) (the instrument never ran — this is the
+instrument running half-blind); [L25](#l25-replace-all-concept) (`replace_all` is safe only
 if every occurrence is the target concept — case 2 is its dual: safe on what
-it matched, and it did not match everything); [[lessons-L56]] (what the
+it matched, and it did not match everything); [L56](#l56-nothing-found-ambiguity) (what the
 half-blind census then FAILS to notice, because the broken consumer went
 quiet instead of loud).
 
@@ -2108,7 +2110,7 @@ quiet instead of loud).
 
 **L56 — "nothing found" and "I looked in the wrong place" must not print the same thing (2026-08-16)**
 
-[[lessons-L55]] is about a search that cannot see part of what it looks
+[L55](#l55-census-by-spelling) is about a search that cannot see part of what it looks
 for. This is its consumer-side twin: the search is fine, the **reader of
 its result** cannot tell an empty answer from a broken one — so a
 misconfiguration is delivered as a fact.
@@ -2158,7 +2160,7 @@ of to a gate.
 ⟹ **The question to ask of any consumer that can return empty:** *what
 does this print when its input is misconfigured, and is that
 distinguishable from success?* If not, it is not an instrument. This is
-also the standing form of [[lessons-L54]] (the instrument that never ran)
+also the standing form of [L54](#l54-instrument-never-ran) (the instrument that never ran)
 — there the run was missing, here the *reason* is.
 
 Cross-reference: nexus #59 (the same defect surveyed across `callers` and
@@ -2277,13 +2279,13 @@ checked only by someone who already suspects it; a write checks itself.
 defect and it recurs: **one directory name carried two scopes** — `.nexus/`
 as a *project's* settings and `.nexus/` as the *machine's* state. No walk can
 tell those apart, so the search had to be BOUNDED (at `$HOME`, and at a
-checkout) rather than made smarter. Sibling of [[lessons-L46]] (two objects
+checkout) rather than made smarter. Sibling of [L46](#l46-two-objects-letter) (two objects
 sharing a letter): when one name spans two scopes, the fix is a boundary, not
 a better lookup.
 
 Cross-reference: `coding-elegance` Pattern 2 (single source of truth) — this is
 its *diagnostic* direction, running from a bug report back to the duplication
-rather than from duplication forward to a predicted bug; `[[lessons-L56]]`
+rather than from duplication forward to a predicted bug; [L56](#l56-nothing-found-ambiguity)
 (a defect that reports in the reassuring direction); `.claude/rules/coding-standards.md`
 (retirement as a first-class deliverable). Landed nexus `3e137ff`, the
 follow-up spelling commit, and `c51672c` (the store move + the two bounds).
@@ -2336,7 +2338,7 @@ whole point of skipping.
 `to_json(json.loads(x)) == x` for anything `to_json` produced, so equality
 cannot see a needless round-trip. `is` can.
 
-Sibling of `[[lessons-L54]]` (an instrument that never RAN reports in the safe
+Sibling of [L54](#l54-instrument-never-ran) (an instrument that never RAN reports in the safe
 direction) — there the instrument was dead, here it was alive and pointed at
 the wrong thing, and both fail green. Promoted to `vv-principles` **#26**,
 which is where the review-time form lives; it is #19's discrimination rule
@@ -2383,7 +2385,7 @@ Cross-reference: `vv-principles` #24(d)/(e) (configuration includes what
 the fixture cannot see), #17 (per-arm granularity, which is how these
 surfaced), #13's refinement-ladder disguise — `8/16/32/64` is the same
 defect wearing arithmetic, a single congruence class the author never
-had a reason to break. Sibling of [[lessons-L57]]: there the *defect*
+had a reason to break. Sibling of [L57](#l57-invisible-twin-bug): there the *defect*
 hides where the wrong answer is invisible, here the *gap* hides where the
 fixture is uniform. Landed nexus `7db466d` / `c497ddb`.
 
@@ -2455,7 +2457,7 @@ a neighbouring claim it never tested.
 Cross-reference: `vv-principles` #17 (verify the instrument on a known
 positive), #19 (a positive reading cannot discriminate loaded from
 blind), Mode 12 (ask what the functional annihilates — here, what the
-signature *could* record). Sibling of [[lessons-L58]]: there a promise
+signature *could* record). Sibling of [L58](#l58-promise-not-gated): there a promise
 about what code did NOT do could not be gated by what it returns; here a
 claim about what mathematics does NOT depend on could not be gated by
 what an API accepts. Charter §5d.8; memo
@@ -2554,7 +2556,7 @@ string-form clause (P1 ran the check for `mu_start`, then failed to run it for
 Cross-reference: `plan-authoring` §2 (the FILTER and VIEWPORT clauses — never
 `head` an enumeration, never trust an unvalidated pattern), `vv-principles` #17
 (validate the instrument on a known positive), `coding-standards` (a symbol grep
-cannot see a name inside a string). Sibling of [[lessons-L56]] — there,
+cannot see a name inside a string). Sibling of [L56](#l56-nothing-found-ambiguity) — there,
 "nothing found" and "looked in the wrong place" printed the same thing; here,
 "pattern matched nothing" and "pattern never ran" do.
 
@@ -2562,7 +2564,7 @@ cannot see a name inside a string). Sibling of [[lessons-L56]] — there,
 
 **L62 — A positive control drawn from the TREE validates a filter only for shapes the tree already exhibits (2026-08-27)**
 
-`vv-principles` #17 and [[lessons-L61]] establish the rule: validate a filter
+`vv-principles` #17 and [L61](#l61-unvalidated-filter-clean) establish the rule: validate a filter
 against a positive control before trusting a negative. This is the boundary of
 that rule, and it was found by a census that ran the control correctly and was
 still wrong twice.
@@ -2611,9 +2613,9 @@ IS an area) — a cell volume. The decisive witness was a shipped gate asserting
 `region_areas.sum() == pitch**2`: the regions PARTITION the domain, and a sum of
 surface differences telescopes to `A_out − A_in`, never to a domain measure.
 
-Cross-reference: [[lessons-L61]] (an unvalidated filter and a clean tree print
+Cross-reference: [L61](#l61-unvalidated-filter-clean) (an unvalidated filter and a clean tree print
 the same thing — this is its boundary case, where the filter IS validated and
-the validation is vacuous); [[lessons-L55]] (a census is only as wide as its
+the validation is vacuous); [L55](#l55-census-by-spelling) (a census is only as wide as its
 spelling); `vv-principles` #17.
 
 ## L63 sphinx build deadlock
@@ -2645,7 +2647,7 @@ with more than one cause; the sphinx pair is the one this session could prove.
 
 Cross-reference: `.claude/rules/nexus-tools.md` (the graph rebuilds on every
 `sphinx-build`, the server auto-reloads — two writers on one DB is the hazard
-this row measures); [[lessons-L37]] (no source edits under a running gate — the
+this row measures); [L37](#l37-frozen-sources-gate) (no source edits under a running gate — the
 same exclusivity, for the build).
 
 ## L64 two rewriters double wrap

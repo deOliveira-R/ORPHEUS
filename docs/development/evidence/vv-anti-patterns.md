@@ -92,7 +92,7 @@ is history and keeps its original glyphs and its original list numbering.
     invariant produced the expected failure. The test was
     self-referential: the broken Y was constructed precisely to make
     the wrong assertion succeed at raising. The
-    structural-independence requirement (L11) applies to ALL test
+    structural-independence requirement ([L11](lessons.md#l11-structural-independence)) applies to ALL test
     design, not just numerical cross-checks.
 
 ## AP12 neutral proxy
@@ -451,6 +451,12 @@ is history and keeps its original glyphs and its original list numbering.
     > there — the reference tree must not read the SUT's constant — but
     > escaping by a filter gap, not a named exclusion). Its control names its
     > synthetic function `n2n_source_assembly`, so it never exercised the net.
+
+### 2026-09-20 the prescribed repair
+
+**Surprise.** A mutation battery on `tools/docs/generate_harness.py --check` (arm 4b, `scratch/_harness_eval/review/qa_generator_mutation.md`): deleting the role-block markers from an `AGENT.md` made `--check` red with a DRIFT message prescribing a regeneration; applying that regeneration inserted a SECOND role block, and `--check` then read green. The detector's own remedy converged on a wrong state it blessed.
+
+**Clause.** #17 (i): a gate whose message names a fix owes an arm that APPLIES the fix and re-runs the gate. Rider on #17 (a), same battery: the budget key was mutated on a rule entry and caught, and on an agent entry and ignored — a config option is mutated once per CONSUMER kind.
 
 ## AP18 breaks structure
 

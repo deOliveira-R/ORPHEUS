@@ -1,6 +1,6 @@
 # Workflows — roles, invariants, and the routes work takes
 
-Routing guidance, not a fence: the seven workflows below are the routes work
+Routing guidance, not a restriction: the seven workflows below are the routes work
 usually takes; an agent dispatches whenever the reason is worthwhile. The full
 phase descriptions, the brief template and the return contract are in
 [workflows](../workflows.md).
@@ -43,8 +43,9 @@ phase descriptions, the brief template and the return contract are in
   page, changelog; `sphinx -W` and `dead_references` clean). P5 close-out:
   issues, retirement audit, commit.
 - **W2 Wrong answer** — P1 **numerics-investigator** (the probe cascade; may
-  call test-architect for the permanent test). P2 the fix. P3 **qa** (the fix,
-  plus a mutation that re-introduces the defect). P4 **archivist** (the ERR
+  call test-architect for the permanent test). P2 the fix. P3 **qa** and
+  **elegance-enforcer** in parallel, dispatched by the parent (qa with a mutation
+  that re-introduces the defect). P4 **archivist** (the ERR
   entry). P5 close-out.
 - **W3 Surgical carve** — the main agent writes with the user steering;
   explorer for the blast set; **test-architect** for gates and re-baselines;
@@ -64,5 +65,6 @@ phase descriptions, the brief template and the return contract are in
 Nested dispatch works to three layers; a sub-agent's `tools:` allowlist decides
 whether it holds `Agent`. Sub-agents carry `SendMessage` and can address named
 siblings; a finished agent resumes on message with its full history. A dispatch
-inherits CLAUDE.md, every rule file and the memory index (≈71K tokens) unless
-the agent sets `omitClaudeMd: true`.
+inherits CLAUDE.md, every rule file and the memory index (`[M]` 2026-09-20 ≈29.5K
+tokens after this restructure, ≈71K before it) unless the agent sets
+`omitClaudeMd: true`.

@@ -5,7 +5,7 @@ the four invariants and the seven workflows as one-liners. This page carries
 what an agent needs when it is inside one: the phases in detail, the brief
 template, and the return contract. It replaces the retired
 `subagent-handoff-protocol` skill, which was written for a harness in which a
-sub-agent could not dispatch another; since at least Claude Code 2.1.259 (measured; see History) a sub-agent
+sub-agent could not dispatch another; since at least Claude Code 2.1.261 (measured; see History) a sub-agent
 can, up to three layers deep, so inter-agent coordination is a tool grant, not
 a relay protocol. The relay's block formats survive only as the `NEEDS:` return
 contract below.
@@ -17,7 +17,7 @@ contract below.
 | P0 context | orchestrator | explorer; literature-researcher when the formulation is published | the theory page's Key Facts read; the Nexus briefing run | — |
 | P1 verification design | **test-architect** | explorer | a spec whose every gate names the input in today's tree that it rejects (its first red) | redesign before P2 |
 | P2 build | **method-implementer**, or the main agent for a surgical carve | explorer, literature-researcher, numerics-investigator when a probe is needed; cross-domain-attacker after the first pass | scope suite green; the spec's gates land with the code | the implementer fixes; a second probe is a new dispatch, not a re-brief |
-| P3 review, in parallel | **qa** and **elegance-enforcer**, dispatched by the orchestrator on the artefact | explorer | qa: term-level correctness, coverage, mutation; elegance: structure, three-leg verdicts | any red resumes the implementer by name with the findings |
+| P3 review, in parallel | **qa** and **elegance-enforcer**, dispatched by the parent on the artefact | explorer | qa: term-level correctness, coverage, mutation; elegance: structure, every violation with its three legs (what, which pattern, the remedy) | any red resumes the implementer by name with the findings |
 | P4 documentation | **archivist** | explorer | theory page, derivations, changelog; `sphinx -W` clean; `dead_references` 0 | archivist iterates |
 | P5 close-out | orchestrator | — | issues closed or filed; retirement audit run; one commit per landed unit | — |
 
@@ -26,8 +26,10 @@ contract below.
 **numerics-investigator** runs the probe cascade (drop one complication at a
 time to the minimal reproducer); it may call test-architect for the permanent
 test and literature-researcher for the reference formulation. The fix lands
-(implementer or main agent). **qa** reviews the fix with a mutation that
-re-introduces the defect and requires a red. **archivist** writes the ERR entry
+(implementer or main agent). **qa** and **elegance-enforcer** review the fix in
+parallel, dispatched by the parent: qa with a mutation that re-introduces the
+defect and requires a red; the enforcer because a fix is where a patch replaces
+the structural repair. **archivist** writes the ERR entry
 and the theory-page note. Close-out as W1.
 
 ## W3 — Surgical carve
@@ -102,7 +104,7 @@ agent that does not (Support) asks in `NEEDS:`.
 Until 2026-09 the `subagent-handoff-protocol` skill (retired 2026-09-20) carried
 a relay protocol built on the belief that "subagents cannot spawn other
 subagents" was an Anthropic platform constraint. Measured 2026-09-05 and again
-2026-09-20 (Claude Code 2.1.259 and 2.1.278): a depth-1 agent spawned a depth-2
+2026-09-20 (Claude Code 2.1.261 and 2.1.278): a depth-1 agent spawned a depth-2
 agent which spawned a depth-3 agent that answered; the depth-3 agent had no
 `Agent` tool, exactly the documented cap. The constraint was this project's own
 `tools:` allowlists. The plan that made the change is

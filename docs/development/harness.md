@@ -4,8 +4,9 @@ ORPHEUS is developed by a user steering Claude Code agents. The knowledge those
 agents work from lives in this section of the docs; the `.claude/` directory is
 one harness's **generated** view of it. This page records what loads into an
 agent's context, what it costs, and the procedure for adding a rule, a skill or
-an agent. Numbers are `[M]` from the 2026-09 evaluation
-(`.claude/plans/harness_context_budget.md`, Parts I and VII).
+an agent. Measured numbers are marked `[M]` (the 2026-09 evaluation,
+`.claude/plans/harness_context_budget.md`, Parts I, VII and VIII); a budget is a
+budget, not a measurement.
 
 ## What loads, and what it costs
 
@@ -43,8 +44,10 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 
 ## Adding or changing
 
-- **A rule**: write `docs/development/rules/<name>.md` (imperative + `check:` +
-  `tell:` + a link to its evidence), add a `[[rule]]` entry with a
+- **A rule**: write `docs/development/rules/<name>.md` (an imperative with its
+  `check:` and `tell:` wherever it names a failure; a link to its evidence once a
+  founding case exists, since a rule distilled from analysis rather than from a
+  surprise starts without one), add a `[[rule]]` entry with a
   `budget_tokens` to the manifest, add the page to `index.rst`, run the
   generator. A rule is always-on for every Key agent and the main agent: it
   earns that only if it applies to every artefact an agent writes.
@@ -59,7 +62,9 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 - **Distilling a page into a core**: every clause keeps its imperative, its
   `check:` and its `tell:`; a clause's check must reach every mechanism its text
   names, so two mechanisms one check cannot reach are two clauses; a count in an
-  appendix states its convention and is re-run after the edit.
+  appendix states its convention and is re-run after the edit. A lesson retires
+  only when a clause carries each of its body's own numbered rules, matched by
+  its check and never by its title.
 - **A surprise, a lesson, a founding case**: append to the evidence page as a
   `###` heading (date + words) and link it from the clause it instances; a
   mechanism that recurs is a signal for a tool, not a paragraph.

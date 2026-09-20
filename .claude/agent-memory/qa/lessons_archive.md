@@ -5397,3 +5397,164 @@ regeneration leaves the block duplicated with `--check` green)* — and finding 
 as a rider on #17(a): *mutate a config option once per CONSUMER kind, not once.*
 
 **Report** `scratch/_harness_eval/review/qa_generator_mutation.md`.
+
+
+## L-083 A RETIREMENT NOTE IS A CARRIER CLAIM, and it is checked against the
+carrier's CHECK, not its topic — W4-P3 lessons retirement, 2026-09-20
+
+**Context.** 64 main-agent lessons became a 44-line index + a 64-body evidence
+page; 20 index lines retired under the ruling *"a rule is a lesson that has been
+distilled and lifted — the rule stays, the lesson goes."* Each retired body
+carries a one-line note naming its carrier ("Absorbed into vv-principles
+NEVER-26"). The claim was 18 absorbed + 1 physics fact + 1 archived.
+
+**The arithmetic was exact and the carriers were mostly real: 12 of 20 FULL,
+8 PARTIAL, 0 total losses.** The finding is entirely in the PARTIALs, and they
+share one shape.
+
+⭐ **A lesson is a BUNDLE of operational rules; a rule clause distils ONE of
+them, and the note is written from the lesson's TITLE.** L61's title is "an
+unvalidated FILTER and a clean tree print the same thing" — so the note named
+the ugrep clause and the FILTER clause, both of which carry it. But L61's body
+holds THREE mechanisms, and (b) is `git commit -m "…\`x\`…"` having its
+backticks command-substituted by zsh, silently deleting words from a permanent
+artefact; remedy `-F -` with a QUOTED heredoc plus a `git log -1 --format=%B`
+read-back. 0 hits for `-F -` / `<<'MSG'` / `--format=%B` anywhere in the
+always-on corpus. The body says the exposure "is not occasional — it is every
+commit." Same shape at L20 (3 retirement surfaces, the third has no clause),
+L27 (3 rules, rule 2 has none), L34 (4 mechanisms, 2 carried), L55 (4, 3
+carried), L8 (remedy carried, TRIGGER not), L4 (imperative carried, CHECK not).
+
+⟹ **Check a retirement note by counting the lesson's own numbered rules /
+`⟹` / `**The rule**` statements and demanding a clause per rule.** The note
+names one carrier because the title names one topic. ≈14 distinct operational
+mechanisms sat inside 8 partials.
+
+⭐⭐ **The dual, and it is nastier: L21's note says "Archived — mechanism
+superseded" while the body's own banner ends "**What still holds** (and is why
+this lesson stays): …".** A body that already carries a `[REFUTED]`-class banner
+has ALREADY been triaged by its author, and the disposition read the banner's
+headline and stopped — `plan-authoring` READ-THE-END-FIRST, committed against a
+document by its own maintainer. Surviving L23 still cites `[[lessons-L21]]` for
+exactly the principle the note calls superseded.
+
+⭐ **And a protection can be DEGRADED by a restructure with every line still
+true.** L15's body carries "⛔ `SweepCoefficientCache` is the REJECTED name and
+must never be reused", justified by "**and this file is loaded at every session
+start**". After the carve the always-on file is the 48-line index, which does not
+carry the banner. The index line is a FAITHFUL summary of the body's diagnostic
+question and the prohibition is simply gone. ⟹ when a hot file is split into
+index + cold archive, grep the archive for self-references to the hot file's
+LOADING ("loaded at every session", "read at the START") — each is a premise the
+split falsifies, and none is a summary error.
+
+**Pointer census mechanics.** 461 raw `L<n>` tokens over 101 files; the filter
+needed THREE discriminations before a number meant anything: (i) V&V levels
+L0–L4 are not lessons; (ii) `numerical-bug-signatures` "lessons L10/L9" names
+the **numerics-investigator's own** memory (which has `## L9`/`## L10`/`## L11`
+matching verbatim) — a brief-supplied "known stale pointer" that was a FALSE
+POSITIVE; (iii) "`vv-principles` L11" names a skill that has no item L11, so the
+pointer dangles under BOTH readings. Result: 9 stale sites / 7 targets, 5 of them
+new.
+
+**Two positive controls FAILED first, both silently.** (1) a control phrase
+line-WRAPPED in the source ("the sweep and\nthe matvec") — `re.finditer` over
+raw text returned 0 and I nearly published "L21's mechanism has no carrier";
+normalise `\s+` to a space before any prose census. (2) a control string that
+omitted the `**` emphasis markers around `NEVER`. ⟹ **for a PROSE corpus the
+positive control must be a phrase you have READ ON SCREEN, pasted, and it must
+still be normalised** — a remembered phrase carries neither the wrapping nor the
+markup.
+
+**Verdict.** 20 of 20 retired lines identified; 12 fully carried; 8 partial with
+~14 unstated mechanisms; 0 bodies lost (all 64 verbatim on the evidence page);
+44 of 44 index lines faithful; 44 of 44 anchors resolve (0 collisions,
+`myst_heading_anchors = 4`, page in a toctree, and the generator's own `relink`
+already gates missing headings). Report:
+`scratch/_harness_eval/review/qa_lessons_retirement.md`.
+
+⚠ **OWED to `vv-principles` §Anti-patterns** (the brief forbade tracked-file
+edits): the *retirement-note-is-a-carrier-claim* rationale — **NEVER** credit a
+"absorbed into <rule>" disposition from the lesson's TITLE — **instead** count
+the source's own numbered rules / `⟹` statements and require one clause per
+rule, each matching the CHECK and not merely the topic. **tell:** a note naming
+one carrier for a body with three `⟹` paragraphs.
+
+---
+
+## L-084 — a RESTORATION is a retirement in reverse: the compact form inherits
+the original's hedges, its checks, AND its body's scope — W4-P3 restoration
+review, 2026-09-20
+
+**Context.** `0d376e4f` restored, in compact form, 30 items the first fidelity
+review found missing from two distilled cores (`vv-principles`,
+`plan-authoring`) plus `instrument-doctrine` X2 and the lessons index. Verdict:
+**23 of 30 fully faithful**, 1 lost a discriminating step, 0 invented a number.
+Report `scratch/_harness_eval/review/qa_restorations.md`.
+
+**Finding 1 — the one lost check, and its shape.** Mode 11's restored surrogate
+clause dropped TWO things, both discriminating: the qualifier *"a surrogate
+**that recomputes the production formula**"* (the property that MAKES it blind —
+without it the compact condemns any surrogate) and the two-sided mutation
+experiment *"mutate the consumer, they red; mutate the stamp, they stay green"*
+(the CHECK). Everything else survived. ⟹ **when compressing, the sentence most
+likely to be cut is the one that says WHY the failure happens — and it is
+usually the one carrying the check.** A compressed clause that states a
+conclusion without its experiment is recognition-only.
+
+**Finding 2 — a compression's inventions are HEDGES, not numbers.** Every number
+in the batch was arithmetically exact (`nine` classes, `nine` checks, `seven`
+failures, `five` disguises, `Total 110`). All four "inventions" were modal:
+*"usually a different question"* → *"is"*; *"can carry that comment's scope"* →
+*"carries"*; a nine-class lede gained *"each green on every input"*, which the
+original's own text contradicts for two classes (a strict xfail XPASSes; a
+decayed marker reds on the fixture it was written for); and a template's lead-in
+re-attributed the example's `as of` date to the RULE. ⟹ **audit a compression
+for dropped modals and for added universals in the LEDE**, not for changed
+numbers — numbers get re-checked, hedges do not.
+
+**Finding 3 — a new clause repaired in the SAME commit leaves no reachable
+evidence.** Both new `#17` riders ((a)'s *per CONSUMER kind*, (i)'s *prescribed
+repair*) are internally consistent and both founding defects were FIXED by the
+same commit (`generate_harness.py:118`/`:170-171` and `:182-185` at `0d376e4f`).
+Neither has an evidence entry (`evidence/vv-anti-patterns.md` untouched), and
+(i)'s `[M] 2026-09-20` names no tool, command, file or count. ⟹ **a rule written
+from a defect the same commit repairs is the case most likely to ship without
+its measurement**, because the writer can still see the defect and the tree no
+longer can. Same commit that adds the rule adds the `###` evidence entry and
+marks it `[REMEDIED @<hash>]`.
+
+**Finding 4 — an index line and its own `[body]` can be repaired apart.**
+`lessons` L25's index line was extended to the tree-wide form + the
+documenting-file counterexample; its `[body]` target
+(`evidence/lessons.md:861-884`) still carries only the single-file S6.2 case and
+neither new mechanism. The evidence for the extension sits on a DIFFERENT
+evidence page the line does not link. ⟹ **when an index line gains a mechanism,
+grep its own `[body]`/`[case]` target for that mechanism** — a `[REMEDIED]`
+stamped on the surprise ROW does not reach the BODY.
+
+**Finding 5 — a published census total can be INERT across a commit that grows
+the corpus.** `[M]` my script over `rules/plan-authoring.md`: actual count at
+`9818b5ec` = **108** while the appendix published **110** (§6d over by 1, §10
+over by 1); the two restorations raised the actual to exactly **110**, so the
+published number is now RIGHT and UNCHANGED. A reader diffing the appendices
+sees no movement. §10's silent `10 → 9` correction carries no `[REMEDIED]`.
+⟹ **when re-measuring a published count, state the actual-before beside the
+total**, or the metric cannot show its own change (`plan-authoring` §10 shape).
+
+**Finding 6 — the positive.** The rewritten appendix's stated CONVENTION is
+REPRODUCIBLE: an independent script written from the convention text alone
+reproduced **13 of 13 per-section rows and Total 110 exactly**. What made it
+reproducible was naming the three ambiguities the earlier text left open (§7's
+numbered items, §6b's header exclusion, intro paragraphs) and stating the
+measurement date. Two restored Mode-8 classes ((3) signature-tautological, (4)
+`--runxfail`) also repaired two dangling theory-page citations that named them.
+`generate_harness --check` → `18 targets, 0 problems, 0 drifted`; 179 of 179
+links resolve.
+
+**Method note.** The efficient path for a semantic-mapping fidelity review is to
+read the FIRST review's loss list (it already quotes the original) and then
+verify each quote against the original file, rather than re-reading both corpora
+whole. Table rows in the original are single 13 000-character lines: split by
+sentence into a scratchpad file (`re.sub(r'(?<=[.;]) ', '\n', row)`) before
+reading.

@@ -100,6 +100,18 @@ that writes the working tree is irrecoverable for untracked state.
 > which is precisely why reading the staged set matters rather than trusting a rule of
 > thumb about what `scratch/` is for.
 
+## A commit message with backticks is written with `-F`, never `-m`
+
+zsh command-substitutes the backticks inside a double-quoted `-m "…"` argument, so
+`` `x` `` becomes the output of running `x` — usually nothing — and the words vanish
+from a permanent artefact with no diagnostic. This project's prose puts backticks in
+nearly every commit message, so the exposure is every commit.
+
+- check: write the message to a file, or `git commit -F -` from a QUOTED heredoc
+  (`<<'MSG'`), then read it back with `git log -1 --format=%B` before pushing.
+- tell: a subject line missing the word that was a code span.
+  ([L61](../../docs/development/evidence/lessons.md#l61-unvalidated-filter-clean), mechanism (b).)
+
 ## Mutation-testing an uncommitted file — never `git checkout` to revert
 
 To prove a gate's teeth bite you mutate production code, run the gate (expect RED), then
@@ -109,7 +121,7 @@ state.
 
 - Revert a mutation by **monkeypatching in-process** (cleanest), or copy the file to a tmp
   path and mutate the copy. Reserve `git checkout`/`restore` for files you have **not** touched.
-- Same data-loss family as the `.claude/*` checkout hazard (lessons L28): a `git checkout` on
+- Same data-loss family as the `.claude/*` checkout hazard ([L28](../../docs/development/evidence/lessons.md#l28-git-checkout-destroys)): a `git checkout` on
   any path carrying uncommitted state is irrecoverable.
 - ⭐ **The restore must be CRASH-safe, not merely exception-safe — a `finally` is not
   enough.** A battery that mutates, runs, and restores in a `try/finally` is safe against a

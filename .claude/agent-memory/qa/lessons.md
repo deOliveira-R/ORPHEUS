@@ -206,6 +206,29 @@ the shipped config. → L-080
 
 ---
 
+**A23. A RETIREMENT/ABSORPTION NOTE is a carrier claim — check it against the
+carrier's CHECK, not its topic, and count the SOURCE's own rules.** A lesson is
+a BUNDLE (3-4 numbered rules / `⟹` paragraphs); the note is written from the
+TITLE, so it names the one clause the title's topic matches and the other
+mechanisms go unnamed and uncarried. `[M]` 20 retired lessons: 12 FULL, 8
+PARTIAL, ~14 unstated mechanisms — L61's commit-message backtick-substitution
+(`-F -` + quoted heredoc, `%B` read-back; "every commit" exposure) had 0 hits
+tree-wide. Duals: a note reading "mechanism superseded" on a body whose own
+banner ends *"what still holds … is why this lesson stays"* (READ-THE-END-FIRST,
+by the maintainer); and a PROTECTION degraded with every line still true — a
+⛔ banned-name banner justified by *"this file is loaded at every session
+start"* survives into a COLD archive while the hot file becomes an index. ⟹
+grep a split archive for self-references to the hot file's LOADING. → L-083
+
+**A24. For a PROSE census the positive control must be a phrase PASTED from
+screen AND `\s+`-normalised.** `[M]` two controls failed silently in one
+session: one line-WRAPPED in the source (nearly published "no carrier exists"),
+one missing its `**` emphasis markers. A remembered phrase carries neither the
+wrapping nor the markup. Companion discriminations before an `L<n>`/`#<n>` count
+means anything: V&V levels are not lessons; "<agent> lessons L9" names THAT
+agent's memory; "`<skill>` L11" names a skill with no item L11, so it dangles
+under both readings. → L-083
+
 **A20. When auditing FIDELITY of a rewrite, the denominator's predicate may
 assume a structure the SOURCE does not have.** Failure: a brief asked to count
 "every bold-tagged clause and every numbered §6b inventory item" of the original
@@ -588,6 +611,47 @@ under ONE mechanical check — the check reaches one and the prose credits both.
 **check:** for every mechanism the text names, point at the line of the check that
 would find it. **tell:** a clause whose imperative says "X plus Y" and whose check
 mentions only X."* → `lessons_archive.md L-081`
+
+**E11. Audit a COMPRESSION for dropped MODALS and added LEDE-universals, not for
+changed numbers.** `[M]` over 30 restored items: every number exact (`nine`
+classes, `nine` checks, `seven` failures, `five` disguises, `Total 110`), and all
+four defects were modal — *"usually a different question"* → *"is"*, *"can carry
+that scope"* → *"carries"*, a lede gaining *"each green on every input"* that the
+source contradicts twice, a template lead-in re-attributing the example's `as of`
+date to the RULE. Numbers get re-checked by the next reader; hedges do not.
+→ `lessons_archive.md L-084` finding 2
+
+**E12. When a compression drops ONE sentence, it is the one saying WHY — and
+that is usually the CHECK.** Mode 11's restored surrogate clause kept the
+conclusion (*pins the consumer, blind to the producer*) and lost both the
+qualifier that makes it true (*a surrogate **that recomputes the production
+formula***) and the experiment that decides it (*mutate the consumer → red;
+mutate the stamp → green*). check: for every compressed clause ask *what
+experiment would I run?* — if the text does not say, the clause is
+recognition-only. → `L-084` finding 1
+
+**E13. An index line and its own `[body]` target are repaired SEPARATELY.**
+`lessons` L25's index gained the tree-wide form + the documenting-file
+counterexample; its `[body]` still carries only the single-file case, and the
+evidence sits on a page the line does not link. A `[REMEDIED]` stamped on the
+surprise ROW does not reach the BODY. check: grep the `[body]`/`[case]` target
+for every mechanism the index line names. → `L-084` finding 4
+
+**E14. A rule written from a defect the SAME commit repairs ships without its
+measurement.** Both new `#17` riders' founding defects were fixed in the commit
+that added the rules; neither has an evidence entry and (i)'s `[M] 2026-09-20`
+names no tool, command, file or count. The writer can still see the defect; the
+tree no longer can. check: the commit adding the rule adds the `###` evidence
+entry and marks it `[REMEDIED @<hash>]`. → `L-084` finding 3
+
+**E15. A published census total can be INERT across a commit that GROWS the
+corpus** — state the actual-before beside it. `[M]` actual 108 while the appendix
+published 110 (two rows over by one); two restorations raised the actual to 110,
+so the number is now right and UNCHANGED, and a reader diffing the appendices
+sees nothing added. ⭐ The mirror, and the win: a count becomes reproducible when
+its CONVENTION names the ambiguities it resolves — naming three (§7's numbered
+items, §6b's header exclusion, intro paragraphs) let an independent script
+reproduce 13 of 13 rows exactly. → `L-084` findings 5-6
 
 ## F. Claim-scope — the claim is broader than the evidence
 

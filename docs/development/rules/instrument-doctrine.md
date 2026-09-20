@@ -6,7 +6,8 @@ statements below apply to every artefact an agent writes — an issue, a commit
 message, a brief, a plan, a report — which is why they are always-on. The
 procedures for meeting them are the `instrument-doctrine` skill; the
 domain-specific instances live in `plan-authoring`, `coding-standards`,
-`vv-principles` and `coding-elegance`, which cite these statements by ID.
+`vv-principles` and `coding-elegance`; the skill's Pointers section maps each
+instance to its statement.
 
 ## X1. An instrument is evidence only if some realizable state changes its reading
 
@@ -19,7 +20,7 @@ would make it read differently and show that the input exists in the tree today.
   require a red.
 - tell: a gate green before and after the change; a canary whose carved path
   executes zero times; a metric that moves the wrong way while the work
-  succeeds; a docstring prophecy standing in for a witness.
+  succeeds; a docstring's claim standing in for a witness.
 
 ## X2. Every claim carries its population and its instrument
 

@@ -282,7 +282,7 @@ Apply to these convention axes:
 
 **Empirical evidence**: R-1 Step 4 session 1 ate ~3× debug time (three convention bugs × ≥1h each) because the carve crossed three subsystem boundaries (Krylov ↔ scattering ↔ sweep) with no crosswalk. The 15-minute crosswalk would have caught each at design time.
 
-Cross-reference: `[[lessons-L17]]` (the durable version of this lesson), `[[lessons-L18]]` (the Pattern 7 corollary applied to producer-side fix).
+Cross-reference: `[L17](lessons.md#l17-convention-crosswalk-first)` (the durable version of this lesson), `[L18](lessons.md#l18-pattern-seven-producer)` (the Pattern 7 corollary applied to producer-side fix).
 
 
 ## Anti-patterns verbatim
