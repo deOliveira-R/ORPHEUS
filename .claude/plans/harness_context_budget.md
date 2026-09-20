@@ -778,3 +778,45 @@ The harness's asymmetry is the method: rules and CLAUDE.md are a SESSION-START s
 What NOT to do: judge adherence from one session impressionistically; run full-vs-core on one prompt once per arm (indistinguishable from run-to-run variance — the reason K5 replaced the A/B); merge before T4–T6 have numbers.
 
 Rollback at any step: `git checkout main` (old substrate loads at the next restart); the old MEMORY.md is `scratch/_harness_eval/backup/MEMORY.md.20260920`.
+
+
+---
+
+# ⏸ COMPACTION POINT #2 — 2026-09-20. First pass MERGED (main @ 68c98103); a bounded review before T8
+
+**Where things stand.** The transition protocol T1–T7 is executed; each step's record is a section of COMPACTION POINT #1 ("T1 and T2 executed" through "T7 executed"). `main` = `origin/main` = `68c98103`; the branch `docs/development-substrate` is deleted. The queue is GitHub #477; its first item, K3, is a joint session with the user. The user ruled (2026-09-20) that a review of this session's work happens after compaction and before T8.
+
+| step | commits | record |
+|---|---|---|
+| T1 review, T2 hook | `0d376e4f`, `cc3744ef`, `a5545ced`, `6e628230` | "T1 and T2 executed" and its second pass |
+| T3 restart, T4 measurements | `a515cb56` | "T4 executed" |
+| T5 the planted task | `df3e0f31` | "T5 executed" |
+| T6 the recall test | `87f14835` | "T6 executed" |
+| T7 issues and merge | `68c98103` (the ff tip) | "T7 executed"; sphinxcontrib-nexus#94, #95; ORPHEUS #477; the #308 comment |
+
+## The review charter for the post-compaction session (before T8)
+
+Four items; the first three are independent and are dispatched in parallel, each brief written to the template (`docs/development/workflows.md` § The brief) with a word cap and `NEEDS:`; every finding is fixed in `docs/development/` and regenerated, landed on a branch and ff-merged; the outcome is appended here as "Review executed".
+
+1. **Re-score T6 independently.** A reader with no memory of this session scores the four findings files in `scratch/_harness_eval/t6/` (`{old_qa,new_qa,old_fable,new_fable}_findings.md`) against `rubric.md`, cell by cell, quoting the evidence line, and states its own k of 9 per arm (F-1 stays excluded, contaminated on both substrates). The instrument is the rubric's rule: the same test or site AND the same mechanism. Compare with `scoreboard.md` and the plan's table; a disagreement is recorded as two readings, never averaged. The model must not be the one that scored (Fable did): the Opus-pinned qa, or a sonnet `general-purpose` reader with the rubric as its schema.
+2. **qa on the T5 diff as it sits on `main`** (`git show df3e0f31`, 34 files): the qa's second pass left six residues R1–R6 (`scratch/_harness_eval/t5/qa_support_briefs.md` § Confirmation) that the orchestrator closed without a third round — confirm or refute each closure; one mutation on `SLACK_MAX` (a budget set far above its size must redden `--check`); the one-definition census re-run (same predicate, same tree, the positive control `delegation.md` § "Briefing a literature pull").
+3. **Accuracy of the outward artefacts** against the tree: sphinxcontrib-nexus #94 and #95, ORPHEUS #477, and the 2026-09-20 comment on #308 — every number, path and claim; a wrong one is edited in place on GitHub (`gh issue edit` / comment edit) and the correction noted here.
+4. **The scoreboard's glyphs.** The T6 tables (plan and `scratch/_harness_eval/t6/scoreboard.md`) use check, cross and half glyphs; the articulation rule's vocabulary is ASCII markers with one meaning each. Rule: keep them (one meaning each, inside a table) or replace with `yes` / `no` / `half`, and apply the ruling to both copies.
+
+Not to redo: T4 (reproducible from the probe transcripts under `~/.claude/projects/-Users-rodrigo-git-nuclear-ORPHEUS/{c03a470c…,bb6438d4…}/subagents/`), the merge (ancestry verified), the slack check's founding mutation (recorded in "T5 executed"). Do not re-run the T6 arms: one draw per cell was the ruling, and a second draw is a different experiment (K5's variance caveat), not a review.
+
+## Durable facts from T5–T7 (for the harness page or the evidence page at P1b, where not already there)
+
+- Print mode terminates background sub-agents at 600 s unless `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` (`[M]` both qa arms cut on the first attempt).
+- The shared venv installs `orpheus` editable through a meta_path finder, so any worktree's tests import the MAIN checkout's package; the wrapper archived in `scratch/_harness_eval/t6/` drops the finder and puts the worktree first (`[M]` `orpheus.__file__` per worktree).
+- The `InstructionsLoaded` hook fires per session start and per compact (9 files each), never per sub-agent dispatch (`[M]` 0 events after four dispatches) — on the plan at "T4 executed".
+- A recall test is contaminated by any always-on rule that carries a fixture finding's mechanism: pick fixtures whose findings did not become rules, or exclude those findings and say so (T6: F-1, both substrates).
+- `omitClaudeMd` keeps the agent's own memory index and its preloaded skills — on the harness page ("a claim about what a dispatch receives is measured by dispatching").
+- `/context`'s "Memory files" figure over-reads the block by 36 % against the API tokenizer; the keep − omit probe is the instrument — at "T4 executed".
+- The T6 side-finding on `TestBitIdenticalExtractionP0` is an item in #477, to verify on `main` before filing.
+
+## Resume surface
+
+Memory: `project_harness_context_budget.md` (state MERGED; resume pointer here). GitHub: #477 (the queue), #308 (the design), sphinxcontrib-nexus#94 and #95. This section → the charter above → "Review executed" appended here → K3 with the user. Scratch (untracked, `scratch/_harness_eval/`): `t5/` (the qa report with its Confirmation section, three Sphinx logs), `t6/` (brief, rubric, scoreboard, the four findings files and reports, the mutation plugins per arm), `review/` (the T1 reports), `instructions_loaded.log`, `probe_questions.md`, `t4_headless_probe.out`.
+
+What NOT to do: hand-edit a GENERATED file (edit `docs/development/`, regenerate); commit on `main` directly (branch, ff-merge, push, delete); `git add -A`; judge adherence impressionistically; merge the review's fixes before its own gates ran (`generate_harness --check`, `test_harness_generated` under `-O`, `sphinx -E -W` when a docs page changed, `dead_references`).
