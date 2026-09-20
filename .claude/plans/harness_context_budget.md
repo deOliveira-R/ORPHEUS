@@ -598,7 +598,7 @@ Sweep: `gh issue list` open (200) + closed (300) on ORPHEUS, open (all) + closed
 
 **The order of work after compaction is the Transition and evaluation protocol (T1–T8) at the end of this section: T1 (the review charter) and T2 (the `InstructionsLoaded` hook) happen in the post-compaction session; T3 is the restart ON THE BRANCH; T4–T6 measure; T7 merges; T8 resumes the queue.**
 
-**[LANDED 2026-09-20] T1 and T2 are DONE — the record is the section "T1 and T2 executed" at the end of this compaction point. The next step is T3: compact, then restart ON THE BRANCH `docs/development-substrate` (unmerged) and run T4.**
+**[LANDED 0d376e4f] T1 and T2 are DONE — the record is the section "T1 and T2 executed" at the end of this compaction point. The next step is T3: compact, then restart ON THE BRANCH `docs/development-substrate` (unmerged) and run T4.**
 
 ## Where things stand
 
