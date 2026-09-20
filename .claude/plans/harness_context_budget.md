@@ -596,6 +596,8 @@ Sweep: `gh issue list` open (200) + closed (300) on ORPHEUS, open (all) + closed
 
 **Read this section first after compaction.** Then Part VIII (what landed, sizes, gates), then Part VII (the rulings). Do not re-litigate a ruling; every open question 1–24 is ruled.
 
+**The order of work after compaction is the Transition and evaluation protocol (T1–T8) at the end of this section: T1 (the review charter) and T2 (the `InstructionsLoaded` hook) happen in the post-compaction session; T3 is the restart ON THE BRANCH; T4–T6 measure; T7 merges; T8 resumes the queue.**
+
 ## Where things stand
 
 | item | state | how to verify |
@@ -621,7 +623,7 @@ The user's instruction: review the work, run tests and reviews, and merge only w
 6. **Agent frontmatter matrix** — re-print it (the script in the session worklog; or `grep -A20 '^tools:' .claude/agents/*/AGENT.md`) and confirm against H5: Agent on the six Key agents; `omitClaudeMd: true` on the three Support agents; `instrument-doctrine` preloaded by qa, test-architect, numerics-investigator, archivist; no `subagent-handoff-protocol` anywhere (`grep -rn subagent-handoff-protocol .claude docs/development` → only the History paragraph in `workflows.md`).
 7. **Support-agent briefs** — the three `omitClaudeMd` agents see NO project rule. The brief template (`docs/development/workflows.md` § The brief) carries the rules; but NOTHING yet makes a Key agent include them. P1b item: a "Support briefs" paragraph in each Key agent's role block. Decide whether that must land BEFORE merge (recommendation: yes, it is ten lines per agent and the exposure is real — an explorer census brief without the ugrep hazard).
 8. **Then the gates again**: generator `--check`; `sphinx -W`; `dead_references`; the four test modules; and `git diff main --stat` read in full (§ the `git add -A` rule: the staged set was explicit, 62 paths; confirm nothing under `scratch/` is in the commit: `git show --stat 72006892 \| grep scratch` → empty).
-9. **Merge**: `git checkout main && git merge --ff-only docs/development-substrate`, delete the branch, push; then `gh` comment on #308 with the hash; file J5 (umbrella) and the two nexus issues (J4, J6). Then compact and RESTART so the generated cores load; run G1/G2 in that fresh session (`/context`; the haiku probe with `scratch/_harness_eval/probe_questions.md`).
+9. **Do NOT merge yet** — the merge is T7 of the Transition and evaluation protocol below, after the fresh-session measurements T4–T6 on the unmerged branch. After step 8 is green: T2 (the hook), then compact, then restart ON THE BRANCH.
 
 ## Status deltas this compaction records (Part II statuses are otherwise unchanged)
 
@@ -639,3 +641,22 @@ IMPLEMENTED @ `72006892`: A1 (tier 1 ≈ 26.8K + memory, tier 2 ≈ 28.7K — th
 ## Resume surface
 
 This section → Part VIII → Part VII. Memory: `project_harness_context_budget.md`. Branch `docs/development-substrate` @ `72006892`. Scratch (untracked): `scratch/_harness_eval/` (drafts, `p1_spec.md`, `p1_gate.sh`, `probe_questions.md`, `p1_commit_msg.txt`, `backup/`, `worklog_2026-09-05.md`).
+
+## Transition and evaluation protocol (ruled 2026-09-20; execute in this order)
+
+The harness's asymmetry is the method: rules and CLAUDE.md are a SESSION-START snapshot, skills and AGENT.md load fresh per invocation or dispatch, and rules are read from the WORKING TREE, not from `main`. So the transition is staged, and the new substrate is evaluated on the branch before anything is merged.
+
+| step | session | what | instrument, and what it must read |
+|---|---|---|---|
+| T1 | this one, after compaction | run the review charter above. Its dispatches already run on the NEW skill cores and role blocks (live per dispatch) — that is half the change under real load, pre-merge | qa / elegance-enforcer / general-purpose returns honour the return contract (word cap, `NEEDS:`); any finding fixed in the SOURCE, regenerated, gates re-run |
+| T2 | this one | add the `InstructionsLoaded` hook to `.claude/settings.json` (logs every instruction file the harness injects, and why — `code.claude.com/docs/en/hooks#instructionsloaded`), writing to `scratch/_harness_eval/instructions_loaded.log` | the first new-substrate session logs itself: main agent + one dispatch per role (Key with rules; Support with `omitClaudeMd`) |
+| T3 | — | compact; RESTART ON THE BRANCH `docs/development-substrate` (unmerged) | the new rules load from the working tree; `main` stays the rollback |
+| T4 | fresh, on the branch | `/context` → memory-files block; the haiku probe (`scratch/_harness_eval/probe_questions.md`, zero tools) → first-turn usage from its transcript; read the hook log | targets: memory files ≤ 25K (was ≈65K); dispatch floor ≤ 75K for a Key-shaped agent (was 113K), ≈36.5K for Support; the log names exactly the generated files and no retired one |
+| T5 | fresh, on the branch | one SMALL real task under the new rules — P1b's support-brief paragraphs in the six Key role blocks (ten lines each) — done by the main agent with one Key dispatch and one Support dispatch | contracts honoured; the explorer dispatch gets a census brief with a PLANTED positive control (a known member the filter must find) — does the Support brief carry enough rule for it to validate its filter? Surprises logged by root |
+| T6 | headless, both arms | the recall test (K5): one past qa review whose findings a landed fix confirmed (candidate: the #426 review round, `f52877db`; or any `scratch/*qa_report*.md` with a landed fix); check out the pre-fix commit's diff; run the SAME review brief from two `claude -p` sessions — one launched in a `git worktree` at `main` (old substrate; L22: build the graph there or brief the agent to grep), one on the branch — and score each against the known finding set | `k of N` findings reproduced per arm, on both models where the agent is Opus-pinned; a denominator, not an impression. Report both numbers with the fixture |
+| T7 | fresh, on the branch | merge: `git checkout main && git merge --ff-only docs/development-substrate`; push; delete the branch; comment #308 with the hash; file J5 (umbrella) + J4/J6 (nexus) | `git merge-base --is-ancestor` true; CI read after the push (process-discipline: baseline a red CI before adding to it) |
+| T8 | fresh, on `main` | resume the campaign queue (P1b → skills split → tools/hooks → root layer); the surprise log tagged by root on the first two campaigns is the ongoing detector | surprises per root; a recurring root is a TOOL, not a paragraph |
+
+What NOT to do: judge adherence from one session impressionistically; run full-vs-core on one prompt once per arm (indistinguishable from run-to-run variance — the reason K5 replaced the A/B); merge before T4–T6 have numbers.
+
+Rollback at any step: `git checkout main` (old substrate loads at the next restart); the old MEMORY.md is `scratch/_harness_eval/backup/MEMORY.md.20260920`.
