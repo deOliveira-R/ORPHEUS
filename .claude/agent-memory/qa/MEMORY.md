@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (~760 lines). Behavioral rules
+- **[lessons.md](lessons.md)** — the HOT digest (**1023 lines** at 2026-09-20 — ⛔ OVER the distillation trigger by 2.5x; distil BEFORE the next append). Behavioral rules
   only: one imperative rule + its failure→correction core + a
   `→ lessons_archive.md L-0NN` pointer. Nine sections: **A** mutation mechanics,
   **B** structural blindness, **C** structural independence, **D**
@@ -12,8 +12,8 @@ Two files, read at different times. Do **not** summarize lesson content here.
   **G** doc-correctness, **H** mechanics/environment, **I** the map of what is
   already in `vv-principles`/`numerical-bug-signatures` (point, don't restate).
   **Read this before every review.**
-- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~4800 lines,
-  L-001..L-076, append-ordered). War stories, evidence, `file:line`, measured
+- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~5700 lines,
+  L-001..L-086, append-ordered). War stories, evidence, `file:line`, measured
   tables, verdicts. **Open only the specific `L-0NN` a digest rule points at** —
   never read it whole (it is ~60K tokens).
 
@@ -46,6 +46,12 @@ Five dispatches, all READ-ONLY, all reports under `scratch/_harness_eval/review/
 - **W4-P3 LESSONS RETIREMENT claim** -> `qa_lessons_retirement.md`. Retired set
   EXACTLY 20, 18/1/1 exact; 12 of 20 carried, 8 PARTIAL, 0 losses; 44/44 anchors
   resolve; 9 stale pointers / 7 targets. L-083 / **A23**,**A24**.
+- **W4-P3 T5 RESIDUE re-review** (`df3e0f31` @ HEAD `ae381c4b`) -> `scratch/_harness_eval/review2/qa_t5_closures.md`.
+  R1 (both arms MUTATION-proven), R2, R3, R4, R6 **CLOSED**; R5 closed on the pointer,
+  **R5′ open** (`explorer.md:3`'s gloss names 2 of the clause's 4 requirements, staled by
+  its own commit). 2 new: an evidence paraphrase dropped "in a code fence"; `rules/
+  workflows.md:70`'s `[M]` "≈29.5K" (from `a5545ced`) matches no recorded instrument
+  while its "≈71K" half is keep−omit exactly. Census 85/37, unchanged. L-086 / **E16**,**E17**.
 - **T5 SUPPORT-BRIEF paragraphs** (W4, uncommitted) -> `scratch/_harness_eval/t5/qa_support_briefs.md`.
   12 findings; the headline REFUTED by a zero-tool explorer probe: a Support agent
   keeps its OWN memory index and skills, only the PROJECT index is dropped. After
@@ -104,6 +110,8 @@ closes; each drop-in text is at the cited digest rule or lesson.
 | two mechanisms under ONE check are two clauses | **E10** |
 | a retirement note is a CARRIER claim | **A23** / L-083 |
 | #17 (i) *prescribed repair* + (a)'s *per CONSUMER kind* | ✅ LANDED @`0d376e4f` — but with **no evidence entry**, and (i)'s `[M]` carries no configuration (L-084) |
+| a POINTER that glosses its target asserts the target's SCOPE (harness page / `instrument-doctrine` X4, **not** vv-principles per the 2026-09-20 ruling) | L-086 / **E16** |
+| a before/after `[M]` pair states ONE instrument for both halves (`plan-authoring` §4, the temporal twin of RATIO-NEEDS-ITS-POPULATIONS) | L-086 / D2 |
 
 ## 3. Durable reference (topic files)
 

@@ -5604,3 +5604,88 @@ false for 4 of its 8 rule+skill rows (plan-authoring 9437/9600, vv-principles
 10798/11000, coding-elegance 8655/9000, instrument-doctrine 1994/2200 against
 a stated "next hundred above the measured size"), and `--check` asserts only
 `size <= budget`, so nothing reddens.
+
+## L-086 — a POINTER that also SUMMARISES its target is a second definition, and it goes stale in the commit that extends the first (2026-09-20, T5 residue review, `main` @ `ae381c4b`)
+
+**Context.** W4-P3 re-review of the six residues R1–R6 that `df3e0f31` closed without a
+further qa round. Five closed clean; the interesting failure was in the one whose repair
+looked most complete.
+
+**The shape.** The ruling was "the three Support role blocks POINT at the template's
+'Rules that apply to you' line instead of restating it". All three were rewritten to point.
+Two of the three also kept a qualifier characterising the clause they now cite:
+
+- `explorer.md:3` — "…, whose census clause **is** the ugrep silent-zero hazard and a
+  positive control per shape."
+- `literature-researcher.md:3` — "…, whose literature clause **is** the `delegation`
+  rule's § 'Briefing a literature pull' in full."
+
+The second is safe: it reproduces the template's own clause word for word, so it cannot
+disagree without the template being edited to disagree with itself. The first is not:
+the census clause has FOUR requirements (the ugrep remedy; a control per shape; every
+count states predicate/tree/exclusions; a completeness claim re-run in Python), and the
+qualifier names two. **The same commit that repaired R5 (point, don't restate) also
+repaired R4 by ADDING the fourth requirement — so the surviving qualifier was made stale
+by its own commit.** Nothing is false in isolation; the copula ("whose X clause IS …") is
+the claim that decays.
+
+**The same mechanism, found twice more in the same review:**
+
+- `evidence/lessons.md:171-175`, L12's body: the repair repointed the citation from the
+  retired template's "Test pin" section to the current return contract and, in doing so,
+  paraphrased the demand as "pastes the pytest summary line verbatim" — dropping "in a
+  code fence", which the retired text HAD carried and which the template, the index line
+  and item 1 of the same section all still require. The repair lost the clause it was
+  repairing the pointer to.
+- `rules/workflows.md:70` (`a5545ced`, adjacent): "`[M]` 2026-09-20 ≈29.5K tokens after
+  this restructure, ≈71K before it" — the *before* half is the keep−omit API-tokenizer
+  figure exactly (70 966); the *after* half matches neither recorded instrument
+  (keep−omit 30 655 ≈ 30.7K; chars/3.6 30.1K; stamp-stripped ≈29.8K). A before/after pair
+  stating one marker and two instruments.
+
+**Why a pointer feels exempt.** A restatement is recognisable — it repeats content. A
+pointer plus a gloss reads as *navigation*, and navigation feels like it carries no
+claim. It does: "whose X clause is Y" asserts the SCOPE of the target, which is exactly
+the thing a later edit to the target changes. The one-definition ruling bites on scope
+claims as hard as on content copies.
+
+**Verdict and repair.** R1 CLOSED on both halves and both halves MUTATION-PROVEN (below);
+R2, R3, R4, R6 CLOSED; R5 closed on the pointer with R5′ open. Repair is one word —
+"whose census clause **opens with** …" — or drop the qualifier as
+`cross-domain-attacker.md:3` does, which is the only one of the three with no gloss and
+the only one that cannot go stale.
+
+**The SLACK_MAX mutation, both arms.** `SLACK_MAX = 400` in
+`tools/docs/generate_harness.py:62`; the assertion appears TWICE — `render_text` (163-164)
+for rule/skill/index targets and `render_agent` (179-180) for role blocks, both as an
+`elif` on the over-budget branch, so a budget is reported over-budget or over-slack and
+never both.
+
+- Arm A (text path), `articulation` 800 → 8000 on the real manifest, copy-aside first:
+  `--check` rc 1 with `PROBLEM: .claude/rules/articulation.md: budget 8000 is 7292 tokens
+  above ≈708, more than SLACK_MAX 400; lower it` and `18 targets, 1 problems, 0 drifted`;
+  `python -O -m pytest tests/test_harness_generated.py` → `1 failed … in 0.70s`. Restored
+  by `cp`, both green (`0 problems, 0 drifted`; `1 passed`).
+- Arm B (agent path), explorer role block 300 → 8000, mutated **in-process** by handing
+  `render_agent` a copied entry dict — no tracked file touched at all. Control leg
+  (shipped 300) 0 problems; mutated leg 1 problem, worded "role block budget …". This is
+  the cheap way to give the second arm of a two-arm guard its own witness when the brief
+  licenses only one file mutation: mutate the FUNCTION's input, not the file.
+
+**Per-entry margins `[M]` (18 of 18 within SLACK_MAX):** min 59 (`literature-researcher`),
+max **345** (`coding-elegance`, 55 from the ceiling). Direction worth knowing: this guard
+reddens on **deletion** — shrink `coding-elegance` by 56 tokens and `--check` reds with no
+budget edit of its own. That is the guard working, and it is the case an author least
+expects.
+
+**Census.** Same predicate as the pre-repair run (`/brief/i` over `CLAUDE.md`,
+`.claude/rules/**`, `.claude/skills/**`, `docs/development/**`; exclusions
+`.claude/plans/`, `.claude/hooks/`, `.claude/agent-memory/`, `tools/`), run in Python,
+positive control `delegation.md` asserted three ways (in population, in hits, heading
+line matched). **85 files, 37 hit, 128 lines** — identical to the pre-repair counts, the
+expected reading for a repair that rewrites lines rather than adding files. Triaged by
+MEANING into 7 roles; 12 sites point cleanly, 2 point-and-gloss, 10 are the SOURCE of a
+clause the template cites, ~19 are incidental (`session_briefing`, `file_brief`,
+"briefly", "debrief").
+
+Report: `scratch/_harness_eval/review2/qa_t5_closures.md`.

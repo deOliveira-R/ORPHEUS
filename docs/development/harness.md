@@ -68,6 +68,12 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 - **A surprise, a lesson, a founding case**: append to the evidence page as a
   `###` heading (date + words) and link it from the clause it instances; a
   mechanism that recurs is a signal for a tool, not a paragraph.
+- **A pointer to a definition does not restate any part of it.** A gloss beside
+  a link ("whose census clause is X and Y") asserts the target's scope, reads
+  as navigation so nobody audits it, and goes stale when the target grows
+  (`[M]` 2026-09-20: the explorer role block named two of the census clause's
+  four requirements, staled by the commit that added the fourth). Point, and
+  let the definition speak.
 - **A plan** stays in `.claude/plans/` (transient: executed, triaged, archived);
   its close-out record moves here.
 

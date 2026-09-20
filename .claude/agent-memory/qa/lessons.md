@@ -664,6 +664,24 @@ its CONVENTION names the ambiguities it resolves — naming three (§7's numbere
 items, §6b's header exclusion, intro paragraphs) let an independent script
 reproduce 13 of 13 rows exactly. → `L-084` findings 5-6
 
+**E16. A POINTER that also SUMMARISES its target is a second definition.** "Points
+at X, whose census clause IS A and B" asserts X's SCOPE, which is what a later edit
+to X changes — and a gloss reads as navigation, so nobody audits it. `[M]` the
+commit that ruled "point, don't restate" repaired the pointer AND added a fourth
+requirement to the clause; the surviving two-of-four gloss was staled by its own
+commit. check: for every cross-reference you write, ask whether the sentence would
+still be true if the target GREW; a pointer with no gloss cannot go stale. Two more
+in the same review: a repointed evidence item paraphrased the template's demand and
+dropped "in a code fence"; a before/after `[M]` pair took its *before* from one
+instrument and its *after* from another. → `L-086`
+
+**E17. A two-arm guard gets its second witness IN-PROCESS when the brief licenses
+one file mutation.** Hand the rendering function a copied entry dict with the bad
+value instead of editing the file: control leg silent, mutated leg fires, no tracked
+file touched, no restore to get wrong. `[M]` `render_agent` on a 300→8000 copy
+reddened with its own distinct wording while `render_text`'s arm was proven on the
+real file. → `L-086`
+
 ## F. Claim-scope — the claim is broader than the evidence
 
 **F1. A "behavior-neutral" claim holds only for the ONE contract it was proven

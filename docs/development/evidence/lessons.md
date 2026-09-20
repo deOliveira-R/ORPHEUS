@@ -170,7 +170,8 @@ Mitigations, in order of leverage:
    "verify, then trust the next claim less".
 3. **Briefs require it.** The brief template's return contract
    ([workflows § The brief](../workflows.md#the-brief)) demands the
-   paste-back: a verification claim pastes the pytest summary line verbatim.
+   paste-back: a verification claim pastes the pytest summary line verbatim,
+   in a code fence.
    [REMEDIED 2026-09-20] this item cited a "Test pin" section of the retired
    `subagent-handoff-protocol` template; the demand now lives in the current
    template's return-contract line.
