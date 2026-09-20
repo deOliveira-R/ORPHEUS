@@ -847,3 +847,38 @@ The four charter items ran as ruled: items 1–3 dispatched in parallel (an Opus
 | gates | generator `--check`: 18 targets, 0 problems, 0 drifted; `tests/test_harness_generated.py`: 1 passed under `-O`; `sphinx -E -W --keep-going`: rc 0, 0 warnings (`scratch/_harness_eval/review2/sphinx.log`; the build regenerated the harness copies byte-identical and rebuilt the graph); `dead_references`: 0 of 66 | — |
 
 Durable facts from the review: an instrument built by truncation states its cut beside the file (the rubric's 560-character cut went unrecorded for one full scoring pass); the slack guard reddens on deletion as well as growth, so a shrinking core owes its budget a re-set in the same commit; a `[M]` before/after pair names ONE instrument for both halves (D2 was a chars/3.6 reading beside a keep − omit reading under one marker); a paste-ready correction from a reviewer is still verified against the plan's own row before it is published (the 36 519 → 44 167 pair was checked at plan T4 before nexus #94 was edited).
+
+---
+
+# ⏸ COMPACTION POINT #3 — 2026-09-20. Review EXECUTED and landed (main @ 912952da); next is T8, opening with K3 as a joint session
+
+**Where things stand.** T1–T7 are executed and merged (the "T<n> executed" sections of COMPACTION POINT #1); the post-compaction review charter is executed and landed (COMPACTION POINT #2 § "Review executed"). `main` = `origin/main` = `912952da`; no branch open; one worktree (the main checkout); the tracked tree clean. The queue is GitHub #477, whose counts now state their predicates (corrected by the review). The next step is T8 (the protocol table's last row): resume the campaign queue on `main`, K3 first, a joint session with the user.
+
+| step | commits | record |
+|---|---|---|
+| T1 review, T2 hook | `0d376e4f`, `cc3744ef`, `a5545ced`, `6e628230` | CP#1 "T1 and T2 executed" and its second pass |
+| T3 restart, T4 measurements | `a515cb56` | CP#1 "T4 executed" |
+| T5 the planted task | `df3e0f31` | CP#1 "T5 executed" |
+| T6 the recall test | `87f14835` | CP#1 "T6 executed" (two readings since the review) |
+| T7 issues and merge | `68c98103` (the ff tip of the first pass) | CP#1 "T7 executed" |
+| the review charter | `ae381c4b` (ruled), `912952da` (executed) | CP#2 "Review executed" |
+
+## T8 opens with K3 — what the fresh session needs
+
+**K3 as ruled** (Part VII, ruling "extra 2"; the proposal at "K3. CLAUDE.md → rules + an on-boarding file", status PROPOSED, skeleton only): the Cardinal Rules become rules; CLAUDE.md becomes an on-boarding page crafted WITH the user — what ORPHEUS is and for whom, the architecture map, the direction of development, how a session starts, where the rules and workflows are (a generated index) — target ≤ 1.5K tokens. The content of that page is the user's to shape: the session's first move is to put the proposed split and a skeleton in front of the user, never to write the page alone.
+
+**Measured facts K3 acts on** (`[M]` 2026-09-20, CP#1 "T4 executed"): the memory-files target ≤ 25K is missed by 5.7K on the API tokenizer, entirely the four files P1 left untouched — CLAUDE.md, process-discipline, nexus-tools, delegation: 36 992 chars ≈ 10.5K tokens together (per file at P1 time, chars/3.6: 2.7K / 3.3K / 2.5K / 1.3K); a Key dispatch pays all four. The three hand-maintained rules come under generation with the split, and their 21 decorative glyphs (the set ⭐ ⚠ ⛔ ⟹: process-discipline 10, nexus-tools 11) go then per K4; `vv-testing` is path-scoped and not in K3's list. Two CLAUDE.md passages are already pointers that the split absorbs: the "Project rules" list (it names every rule file: the generated index K3 wants) and the Support-briefs sentence at line ~101 (it points at the brief template).
+
+**Mechanics** (`docs/development/harness.md` § Adding or changing): a new rule is `docs/development/rules/<name>.md` + a `[[rule]]` manifest entry with `budget_tokens` (a round figure above the measured size, never more than `SLACK_MAX` = 400 above it, set in the same commit as the text) + the page in `index.rst`; the generator writes `.claude/rules/<name>.md`; `tests/test_harness_generated.py` reads `--check`. `[R]` the manifest validation requires every target under `.claude/` (CP#1 "T1 and T2 executed", step 4), so CLAUDE.md itself cannot be a generated target without one deliberate exception in the generator; the alternative is a short hand-maintained CLAUDE.md that points at a generated index. That choice is K3's first decision and is put to the user.
+
+**Opening moves for the K3 session:** (1) read this section, then the K3 proposal (Part VII) and `docs/development/harness.md`; (2) `gh issue view 477` for the queue; (3) re-measure the four files (`wc -c` / 3.6 for a working figure; the keep − omit probe, CP#1 "T4 executed", if a number is to be published — the review changed none of the four, so the T4 figures stand today); (4) put the split and a skeleton of the on-boarding page to the user (`AskUserQuestion`); the user rules the content and the CLAUDE.md-as-target question; (5) branch `docs/k3-onboarding`; sources under `docs/development/`; regenerate; gates (`--check`, the test under `-O`, `sphinx -E -W`, `dead_references`); ff-merge, push, delete.
+
+## Owed to a docs page and not yet there (P1b housekeeping, with K3 or right after)
+
+Four lists of durable facts live only in this plan, which is transient: CP#1 § "Durable lessons from this session" (six bullets: the agent registry is fixed at session start; the ≈10K-output stream watchdog; `git mv` breaks `:doc:` links; MyST `-W` refuses `###` under `#` and lines over 10 000 chars; `Write(<path>)` is inert in `permissions.allow`; the build is the anchor checker); the closing line of CP#1 "T1 and T2 executed" (an instrument with no reader; a clause's check reaches every mechanism its text names; `git -C`; the prescribed-repair arm); CP#2 § "Durable facts from T5–T7" (seven bullets; the `omitClaudeMd` one is on the harness page already); CP#2 § "Review executed", last paragraph (four: a truncated instrument states its cut; the slack guard reddens on deletion; one instrument per `[M]` pair; a reviewer's paste-ready correction is verified against the plan's row first). Their home is `docs/development/harness.md` § "What loads, and what it costs" or an entry on the evidence page. Also in #477 from the review: the T6 side-finding on `TestBitIdenticalExtractionP0` (verify on `main` before filing).
+
+## Resume surface
+
+Memory: `project_harness_context_budget.md` (state REVIEWED; resume pointer here) and its index line. GitHub: #477 (the queue), #308 (the design; two dated 2026-09-20 comments, the second supersedes the first), sphinxcontrib-nexus#94 and #95 (both corrected 2026-09-20). Scratch (untracked, `scratch/_harness_eval/`): `review2/` (the three review reports, the before/after bodies of the five GitHub edits, `sphinx.log`), `t6/` (`rubric_full.md`, the second reading appended to `scoreboard.md`), `t5/`, `review/`, `instructions_loaded.log`. No worktree, no open branch.
+
+What NOT to do: hand-edit a GENERATED file (edit `docs/development/`, regenerate); commit on `main` directly (branch, ff-merge, push, delete); `git add -A` (`scratch/` is untracked and large); write the on-boarding page's content without the user; re-run T4 or T6 (recorded; T6 carries two readings at one draw per cell by ruling); read a count in this plan as current without its date (every `[M]` here is 2026-09-20 or earlier; the tree moves).
