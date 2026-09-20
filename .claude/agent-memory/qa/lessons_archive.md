@@ -5249,3 +5249,151 @@ Landed in `vv-principles` #13 as the fourth disguise.
    `admit_composite` (`lift.py:182-202`) checks interior space **and** trace
    space **and** carrier class — strictly stronger. Production reaches
    `_redistribute_ordinates` only through `apply`. No refutation.
+
+---
+
+## L-081 — a DISTILLATION's own census is an instrument, and an over-by-one bucket localises what it dropped (2026-09-20, W4-P3 harness substrate)
+
+**Subject.** Verifying "every clause of the original survives in the core" for
+`plan-authoring` (1034 → 153 lines) and `coding-standards` (480 → 88), branch
+`docs/development-substrate` @ `72006892`. READ-ONLY; report at
+`scratch/_harness_eval/review/qa_fidelity_rules.md`.
+
+**Result.** plan-authoring 61 of 67 body mechanisms full, 2 partial, 4 lost;
+coding-standards 49 of 49, 0 lost. 94 of 94 surprise-log rows preserved on the
+evidence page (date multiset identical). 108 of 108 `[case]` links resolve,
+`myst_heading_anchors = 4` confirmed in `docs/conf.py:86` so they resolve in HTML
+too, all four pages in a toctree.
+
+**The move worth keeping — the FOSSIL COUNT.** The core carries its own appendix
+census ("§1 12; §2 29; … §6d 7; §10 10; Total 110"). Recounted per bucket by
+script, three rows disagreed (§6b 21 vs 20, §6d 6 vs 7, §10 9 vs 10) and the total
+landed at 109. Chasing the conventions showed 110 is reachable only by mixing three
+mutually inconsistent ones (§3's two-sentence intro counts 1 while §6d's and §10's
+count 2). **But the §6d row was over by exactly ONE, and §6d is exactly where a
+mechanism was lost** — the original's *"run one AST pass for the package-to-package
+edge counts; an edge whose count is 0 today is a claim you are about to falsify"*.
+`[R]` The economical reading: the appendix was counted against a draft that still
+carried it. An over-by-one bucket in a self-census is a POINTER at the dropped item,
+and it is cheaper than reading both documents for the same answer.
+
+**The unsafe merge.** §6b spelling (12) names TWO mechanisms — *"a shape minted
+independently by consumers (`Space.from_L(L)`) plus `isinstance` doors on the
+producer's type"* — under ONE `check:` (*"grep the shape's CONSTRUCTOR, not the
+index"*), which finds the first and structurally cannot find the second. The
+original (log row 2026-09-02) had stated them as *"two more spellings"*. Three other
+merges join different failures SAFELY, and the discriminator is mechanical: the
+clause is safe iff its `check:` reaches every mechanism its text names.
+
+**The four losses, each `[M]` 0 hits tree-wide in `docs/development/rules|skills/`,
+`.claude/rules/`:** (1) the preamble's distillation obligation (*"clauses that have
+stopped catching anything should merge or retire… or the file becomes a hot surface
+that costs more to read than the surprises cost to hit"*) — replaced in the same
+sentence position by a DIFFERENT rule (*"a mechanism that keeps recurring is a signal
+for a TOOL"*: repetition⟹automate, not staleness⟹retire); (2) §1's fenced phase
+TEMPLATE (the evidence migration's own predicate took *"the `> [M]` blockquotes"*, and
+a code fence is not a blockquote); (3) §2's INHERITED-SCOPE rider (*"a plan row
+summarised from a code comment can carry that comment's scope while dropping the
+sentence that limited it"*); (4) the §6d AST edge census above — whose loss leaves
+`RELATIVE-IMPORTS` prescribing how to FIX a census the core never mandates.
+
+**Two one-token check defects in surviving clauses.** `gh issue --search` (core) for
+`gh issue list --search` (original) — not a runnable command. And `:meth:` dropped
+from coding-standards A.2's silent-xref role list (`grep -c ":meth:"`: original 1,
+core 0) — the single most likely dead role after a method retirement.
+
+**The repair the restructure earned.** The original's *"the retirement audit's blast
+radius is THREE searches"* had items (1) and (2) at lines 257/260 and item (3) at
+line **351**, buried in the last sentence of a paragraph that itself breaks out of the
+bullet list. The core's A/B/C/D/E/F block with 23 numbered items puts them adjacent.
+A distillation can be MORE faithful than its source; say so when it is.
+
+**Absorbed, not lost (named, per the brief's convention).** Two-filter completeness
+→ **X2** (`skills/instrument-doctrine.md:64`); a pytest number's `-m` filter is
+configuration → **X2**; coding-standards' `vv-principles` #22 pointer → **X4**.
+
+**⚠ OWED and NOT landed** (brief forbade tracked-file edits): the `vv-principles`
+§Anti-patterns item for the unsafe-merge rationale — drop-in below in digest **E9**.
+
+---
+
+## L-082 — the REPAIR a gate prescribes is the next arm: a drift checker with real teeth whose own fix converges on a green, wrong fixed point (2026-09-20, W1-P3 harness generator)
+
+**Subject.** `tools/docs/generate_harness.py --check` (branch
+`docs/development-substrate`, worktree HEAD `9818b5ec`), claimed to exit 1 on
+(a) a source link to a missing heading, (b) drift between a generated
+`.claude/` file and its `docs/development/` source, (c) a core over
+`budget_tokens`. 13 arms in a throwaway detached worktree, verdicts read from
+`scratch/_harness_eval/review/mut_arm<k>.log`.
+
+**All three claimed arms have teeth** — named messages, exit 1, and the drift
+comparison is byte-exact (a single appended `\n` reds it). The findings are
+entirely in what surrounds them.
+
+**1. The novel mechanic — `arm k+1 = the repair the message prescribes.**
+Deleting the `BEGIN`/`END` role-block markers from an `AGENT.md` reds `--check`
+(`DRIFT: … differs from its source (run the generator)`). Running the generator,
+exactly as the message says, re-inserts a *marked* block after the front matter
+and leaves the now-unmarked orphan copy below it: the role block appears **2×**,
+and the next `--check` prints `0 problems, 0 drifted`, exit 0. So the detector
+is real and the **repair path converges on a green fixed point carrying a
+duplicated always-on role block**. Nothing in `vv-principles` #17's nine checks
+reaches this: every one of them asks whether the gate can RED. This asks what
+the tree looks like *after* someone believes the gate and obeys it. ⟹ **For any
+gate whose message prescribes a fix, make the fix the next arm and re-run the
+gate.** A gate that reds once and then blesses the wrong state is worse than one
+that never red — it has spent its alarm.
+
+**2. A manifest with KINDS needs the guard mutated per KIND.** `budget_tokens`
+is read by `render_text` (kinds `rule`/`skill`/`index`) and never by
+`render_agent` (kind `agent`). `[M]` `budget_tokens = 1` on the `qa` agent entry
+→ exit 0, 0 problems. `[M]` 0 of 9 agent entries carry one. This is vv#17(a)
+granularity displaced from a guard's *arms* to a config schema's *consumers*: an
+option the TOML parser happily accepts and only some renderers read, so the
+always-on nine role blocks are unbudgeted in a tool whose stated purpose is
+budgeting always-on context. ⟹ **Enumerate the kinds/branches that consume an
+option and mutate the option once per consumer, not once.**
+
+**3. A generator asserts source→target and nobody asserts target→source.**
+`[M]` deleting the `articulation` `[[rule]]` entry from the manifest leaves
+`.claude/rules/articulation.md` (2564 B, ≈708 always-on tokens) on disk, and
+`--check` says `17 targets, 0 problems, 0 drifted`, exit 0. A retired source
+page's harness copy survives as an unowned, unbudgeted, permanently-stale rule
+every dispatch still pays for. Same shape as `coding-standards` §Retire-as-you-go
+with the *copy* as the survivor.
+
+**4. Latent-vs-present, stated with its denominator.** The link check matches
+only `\]\(([^)\s#]+\.md)(#[^)]*)?\)`, so a `.rst`, a `.py` or a same-file
+`](#anchor)` is never resolved — `[M]` three such dead links survive a fully
+green run. But `[M]` a filter-validated census (246 raw `](` = 246 matched, 0
+unmatched) over all 18 source pages finds **246 of 246 links are
+`.md`-with-optional-anchor**: 0 uncovered links today. Report it as LATENT.
+Likewise the slugger: `myst_slug` strips to `[a-z0-9\-_]` while MyST's real
+`mdit_py_plugins.anchors.index.slugify` preserves Unicode word chars, and
+`myst_heading_anchors = 4` caps anchors at h4 while `_HEADING` accepts h1–h6 —
+`[M]` 0 disagreements over the 403 headings in the 25 reachable files, but a
+synthetic positive control proves the class (`"μ sign convention"` → generator
+`-sign-convention`, MyST `μ-sign-convention`). In a corpus whose prose is full
+of `μ τ ψ α`, the first Greek-bearing HEADING yields a false GREEN. ⟹ **Two
+spellings of one quantity (X4): the differential is the instrument, and a
+synthetic control is how you report a real class with an empty present
+population honestly.**
+
+**5. The gate has no reader.** `[M]` no `.github/workflows/`, no
+`.pre-commit-config.yaml`, no test invokes `--check`; the plan's "`--check` in
+CI" (`harness_context_budget.md:538`, `:607`) is present-tense-false. The only
+automatic invocation is `docs/conf.py`'s `_GENERATORS` row running the **write**
+path, which *silently repairs* drift. Dead links and over-budget cores do
+surface (write path exits 1, the hook logs a Sphinx warning, `-W` promotes it),
+but **drift has no automatic reader at all**.
+
+**Owed, not landed** (the brief forbade touching the main checkout; a parallel
+elegance-enforcer was editing it): finding 1 as a tenth check on
+`vv-principles` #17 — *(i) the PRESCRIBED REPAIR — a gate whose message names a
+fix owes an arm that APPLIES the fix and re-runs the gate; a detector whose
+repair converges on a green wrong state has spent its alarm ([M] 2026-09-20:
+deleting an `AGENT.md` role-block marker reds `--check`, and the prescribed
+regeneration leaves the block duplicated with `--check` green)* — and finding 2
+as a rider on #17(a): *mutate a config option once per CONSUMER kind, not once.*
+
+**Report** `scratch/_harness_eval/review/qa_generator_mutation.md`.

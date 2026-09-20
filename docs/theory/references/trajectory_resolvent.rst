@@ -2353,7 +2353,8 @@ in Issue #168 Phase C — prior to Phase 1b the cylinder MR snapshot
 had no structurally-independent reference. The Phase 1b solver
 IS that reference. Sphere already shipped a multi-region extension
 (:ref:`peierls-greens-multiregion`); per the project's
-:doc:`/development/skills/coding-elegance` "Unify after two instances", cylinder is
+:doc:`/development/skills/coding-elegance` Pattern 6 ("defer abstraction
+until you have evidence": unify after the second instance), cylinder is
 the second instance and unification of the segmentation helpers is
 deferred until a third geometry (slab MR? hollow sphere MR?) lands.
 
@@ -2633,7 +2634,7 @@ inv_s_in_plane`` at line 913 of the oracle) because the same
 ``seg_len_3D`` factor multiplies both the τ accumulator and the
 source-line integral :math:`B` — coupling them through a single
 named intermediate keeps the implementation principled per
-:doc:`/development/skills/vv-principles` § Bit-identity.
+:ref:`bit-identity vs principled equivalence <verification-principled-equivalence>`.
 
 **Cumulative τ at quadrature points.** Inside each segment the
 quadrature scheme evaluates the source integrand at intermediate
@@ -2847,7 +2848,8 @@ Foundation gate:
      - :math:`\sim 3\!\times\!10^{-12}`
 
 The K=3 / K=5 1G drift at FP noise (machine ULP × K × n_traj_quad
-floor per :doc:`/development/skills/vv-principles` § Bit-identity criterion 3) confirms
+floor per :ref:`bit-identity vs principled equivalence <verification-principled-equivalence>`,
+criterion 3) confirms
 the segmentation produces the same FP reduction tree as the
 homogeneous code path up to associativity. The 2G case is loose
 by three orders relative to 1G because the power iteration runs
@@ -2883,9 +2885,9 @@ library line:
 Agreement at the converged critical radius is therefore evidence
 that **both** frameworks converge to the same physical answer —
 the structurally-independent ground that the V&V framework
-demands (see
-:doc:`/development/skills/vv-principles` § "Structural independence applies above the
-trusted-library line"). This defends against ERR-032-class
+demands (see :ref:`structural independence <verification-structural-independence>`;
+the ``algebra-of-record`` skill § "Structural independence applies ABOVE
+the trusted-library line" draws that line). This defends against ERR-032-class
 catastrophes where two derivations agree because they share an
 upstream identity (e.g. two cylinder Fredholm solvers using the
 same Bickley-Naylor convention would agree without proving
@@ -2975,7 +2977,7 @@ asymmetric :math:`\Sigma_{s,01}=0.3,\,\Sigma_{s,10}=0.1` (downscatter
 3× upscatter) is the load-bearing anti-Mode-#6 probe.
 
 **The 1-group-degeneracy rule (≥2G mandatory).** Per
-:doc:`/development/skills/vv-principles` § "1-group degeneracy", a 1G eigenvalue test
+:ref:`1-group degeneracy <verification-1g-degeneracy>`, a 1G eigenvalue test
 is flux-shape independent (:math:`k_\infty = \nu\Sigma_f/\Sigma_a`
 is computable from XS alone, with no transport equation). 1G
 cannot detect any error in the spatial, angular, or scattering
@@ -3245,9 +3247,10 @@ Branch-2 uses ``numpy`` + ``scipy.interpolate.CubicSpline`` +
 ``numpy.polynomial.legendre.leggauss`` + ``numpy.linalg.eigvals``.
 The shared library calls (``np.exp``, ``np.sqrt``, scipy
 interpolation, GL nodes) are all trusted-library primitives
-validated independently of either branch (per
-:doc:`/development/skills/vv-principles` § "Structural independence applies above the
-trusted-library line"). Agreement at machine precision is therefore
+validated independently of either branch (per the ``algebra-of-record``
+skill § "Structural independence applies ABOVE the trusted-library line";
+the root principle is :ref:`structural independence <verification-structural-independence>`).
+Agreement at machine precision is therefore
 load-bearing evidence that the Branch-2 implementation faithfully
 realises the Branch-1 symbolic algebra.
 
@@ -3269,7 +3272,7 @@ in :func:`test_mr_branch_1_branch_2_algebraic_ancestor` and
 ``xs["sig_t"][0]``). No ERR-NNN catalog entries opened.
 
 This is consistent with the algebra-of-record discipline (see
-the ``algebra-of-record`` skill § "Why this design"): the Branch-1 SymPy
+the ``algebra-of-record`` skill § "The bifurcation pattern"): the Branch-1 SymPy
 identities (V_α1_cyl_mr, V_α1_cyl_mr.b, V_α1_cyl_mr.q) were
 derived **first**; their algebraic invariants — piecewise-:math:`\tau`
 reducibility, 3D Jacobian factoring, two-region constant-source
@@ -3281,7 +3284,8 @@ materialise because the implementation mirrored sphere MR's
 verified pattern verbatim — sphere MR being the **first working
 instance** of the multi-region segmentation oracle, cylinder MR
 the **second**. Per
-:doc:`/development/skills/coding-elegance` § "Unify after two instances", the segmentation
+:doc:`/development/skills/coding-elegance` Pattern 6, unify after the second
+instance, the segmentation
 helpers + chi/SigS broadcast machinery remain duplicated between
 sphere and cylinder oracles; promotion to a shared
 ``common/multi_region_*`` module awaits a third consumer (slab MR?

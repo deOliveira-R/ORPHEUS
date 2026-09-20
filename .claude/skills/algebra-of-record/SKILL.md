@@ -542,9 +542,10 @@ implementation, which is wrong:
 
 **Discipline**: method-implementer produces stubs; archivist
 expands stubs. Both reference the same SymPy module as the
-algebra-of-record. The transition from stub to rich narrative happens
-via a `DISPATCH_REQUEST` to the archivist (see
-`subagent-handoff-protocol`).
+algebra-of-record. The transition from stub to rich narrative is the
+documentation phase of workflow W1: the orchestrator dispatches the
+archivist after review (`docs/development/workflows.md`); an implementer
+that needs it sooner names it in its `NEEDS:` block.
 
 ---
 
@@ -656,9 +657,9 @@ naming the offending package + row index.
   The SymPy module is the canonical source. Your narrative narrates
   it; it doesn't compete with it.
 - **NEVER edit the SymPy module yourself.** If you find an algebra
-  error while expanding the stub, return to the user with a
-  `DISPATCH_REQUEST` for the method-implementer (or numerics-investigator
-  if no method-implementer is available) to fix the SymPy.
+  error while expanding the stub, return to the parent with a
+  `NEEDS:` entry naming the SymPy fix for the method-implementer (or
+  numerics-investigator if no method-implementer is available).
 
 ### For test-architects
 
@@ -757,10 +758,9 @@ The discipline inherits this lesson: **for problems where 1A and
 - **V&V principles**: `.claude/skills/vv-principles/SKILL.md`
   — three pillars, structural independence, two-step semi-analytical
   ladder, MMS operational rules.
-- **Sub-agent orchestration**: `.claude/skills/subagent-handoff-protocol/SKILL.md`
-  — how method-implementer dispatches archivist for the rich
-  narrative, how augmentation lets the main agent harvest related
-  context during dispatch.
+- **Sub-agent orchestration**: `docs/development/workflows.md` — the phases,
+  the brief template, the `NEEDS:` return contract; the roles and invariants
+  are the always-on `workflows` rule.
 - **Numerical bug signatures**:
   `.claude/skills/numerical-bug-signatures/SKILL.md` — the
   recognition catalogue for "Branch 1 / Branch 2 disagreement"

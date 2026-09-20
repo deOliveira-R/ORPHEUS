@@ -19,9 +19,10 @@ phase descriptions, the brief template and the return contract are in
    any agent it needs, including qa; the parent still dispatches its own qa and
    elegance-enforcer on the result. Independence is guaranteed at the parent,
    where it is cheap.
-2. **Depth 3 is the ceiling, 2 the norm** — orchestrator → key → support. The
-   harness default (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) is 3; Support
-   allowlists omit `Agent`.
+2. **Depth 3 is the ceiling, 2 the norm**: the orchestrator dispatches a Key
+   agent, which dispatches a Support agent. The harness default
+   (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) is 3; Support allowlists omit
+   `Agent`.
 3. **Continuity by name.** The test-architect that wrote a verification spec is
    resumed (`SendMessage`) at review time to confirm its gates landed; the
    implementer is resumed with the review findings. No re-briefing.
@@ -32,17 +33,19 @@ phase descriptions, the brief template and the return contract are in
 
 ## The workflows
 
-- **W1 Build a capability** — explorer (+ literature-researcher for a published
-  formulation) → **test-architect** (spec + gates naming their first red) →
-  **method-implementer**, or the main agent for a surgical carve; supports
-  explorer, literature-researcher; cross-domain-attacker after the first pass →
-  review in parallel, dispatched by the parent: **qa** + **elegance-enforcer**;
-  any red resumes the implementer → **archivist** (theory page, changelog;
-  `sphinx -W` and `dead_references` clean) → close-out (issues, retirement
-  audit, commit).
-- **W2 Wrong answer** — **numerics-investigator** (probe cascade; may call
-  test-architect for the permanent test) → fix → **qa** (fix + mutation) →
-  **archivist** (ERR entry) → close-out.
+- **W1 Build a capability** — P0 context: explorer, plus literature-researcher
+  for a published formulation. P1 verification design: **test-architect** (a
+  spec whose every gate names its first red). P2 build: **method-implementer**,
+  or the main agent for a surgical carve; supports explorer,
+  literature-researcher, cross-domain-attacker after the first pass. P3 review,
+  in parallel, dispatched by the parent: **qa** and **elegance-enforcer**; any
+  red resumes the implementer by name. P4 documentation: **archivist** (theory
+  page, changelog; `sphinx -W` and `dead_references` clean). P5 close-out:
+  issues, retirement audit, commit.
+- **W2 Wrong answer** — P1 **numerics-investigator** (the probe cascade; may
+  call test-architect for the permanent test). P2 the fix. P3 **qa** (the fix,
+  plus a mutation that re-introduces the defect). P4 **archivist** (the ERR
+  entry). P5 close-out.
 - **W3 Surgical carve** — the main agent writes with the user steering;
   explorer for the blast set; **test-architect** for gates and re-baselines;
   review as W1; **archivist** for the changelog.

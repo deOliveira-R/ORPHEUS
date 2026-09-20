@@ -24,6 +24,53 @@ meta-lesson once, list its instances); never truncate.
 
 ## 2. Active / in-flight state
 
+**Harness substrate W1-P3 — `generate_harness --check` MUTATION, 2026-09-20.** ⏹
+**DELIVERED** (branch `docs/development-substrate`, worktree HEAD `9818b5ec`;
+READ-ONLY — all 13 arms in a throwaway detached worktree, removed after; the only
+main-checkout writes are under `scratch/_harness_eval/review/`). Report
+`scratch/_harness_eval/review/qa_generator_mutation.md`, per-arm logs
+`mut_arm<k>.log`. **Verdict: all THREE claimed arms have teeth** — dead heading
+link, drift (byte-exact: one appended `\n` reds it), over-budget core — each
+named, each exit 1, against a green positive control (`18 targets, 0 problems,
+0 drifted`). Seven findings, none a false claim about the three arms: **F2** the
+repair the DRIFT message prescribes leaves an `AGENT.md` role block duplicated
+**2x** with `--check` then GREEN (a green wrong fixed point); **F1**
+`budget_tokens` is silently ignored on the `[[agent]]` kind (`= 1` → exit 0), so
+the nine always-on role blocks are unbudgetable; **F4** a retired manifest entry
+orphans its ≈708-token always-on `.claude/rules/*.md` with exit 0; **F5** nothing
+runs `--check` (no CI dir, no pre-commit, no test — the plan's "`--check` in CI"
+is present-tense-false; the Sphinx hook runs the WRITE path and silently repairs
+drift); **F3/F7** two LATENT gaps with honest denominators (`.rst`/`.py`/same-file
+anchors uncovered but `[M]` 246 of 246 links are the covered class; the slugger
+diverges from MyST on Unicode word chars but `[M]` 0 of 403 headings today);
+**F6** problems keyed on `src.name`, which collides. Lesson **L-082**, digest
+**A21** / **A22**.
+⚠ **TWO skill items OWED and NOT landed** (the brief confined me to the worktree
+and a parallel elegance-enforcer was editing the main tree): `vv-principles` #17
+gains a tenth check *(i) the PRESCRIBED REPAIR* and a rider on #17(a) *mutate a
+config option once per CONSUMER kind*. Drop-in text in L-082 §owed.
+
+**Harness substrate W4-P3 — rule-core DISTILLATION fidelity, 2026-09-20.** ⏹
+**DELIVERED** (branch `docs/development-substrate` @ `72006892`; READ-ONLY — the
+four judged files untouched; only `scratch/_harness_eval/review/` written). Report
+`scratch/_harness_eval/review/qa_fidelity_rules.md`. **Verdict: `coding-standards`
+49 of 49 mechanisms, 0 lost; `plan-authoring` 61 of 67 full, 2 partial, 4 LOST.**
+94 of 94 surprise-log rows preserved on the evidence page (date multiset identical);
+**108 of 108 `[case]` links resolve**, `myst_heading_anchors = 4` (`docs/conf.py:86`)
+so they resolve in HTML too, all four pages in a toctree. The claim's second half —
+*"nothing was merged that catches a different failure"* — is **FALSE**: 4 such merges,
+**1 unsafe** (`§6b` spelling 12: two mechanisms, one check that reaches one). The
+core's own appendix census (**110**) is **not reproducible** — 108 or 111 depending
+on the intro convention, and the **§6d row is over by exactly the one mechanism the
+distillation lost** (the AST package-edge census). Two one-token check defects:
+`gh issue --search` (needs `list`), and `:meth:` dropped from coding-standards A.2's
+xref role list. ⭐ The restructure also REPAIRS a source defect: the original's
+three-search checklist had item (3) 95 lines from items (1)/(2), inside an unrelated
+paragraph. Lesson **L-081**, digest **A20** / **E9** / **E10**.
+⚠ **ONE skill item OWED and NOT landed** (brief forbade tracked-file edits): the
+`vv-principles` §Anti-patterns entry for the two-mechanisms-one-check rationale —
+drop-in text is in digest **E10**.
+
 **#428 four-solver (n,2n) census — 2026-09-03.** ⏹ **DELIVERED** (HEAD
 `8707c53a`, branch `fix/n2n-anisotropy`; READ-ONLY — `git status --porcelain
 -- orpheus/ tests/ docs/` empty throughout, revert proven by gate-green-again

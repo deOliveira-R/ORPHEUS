@@ -11,7 +11,7 @@ an agent. Numbers are `[M]` from the 2026-09 evaluation
 
 | block | who pays | before (2026-09-04) | after this restructure |
 |---|---|---|---|
-| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in `tools/docs/harness_manifest.toml` (rule cores ≈17K + the untouched rules ≈7K + memory ≈2.3K) |
+| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in `tools/docs/harness_manifest.toml` (rule cores ≈17K + the untouched rules ≈7K + CLAUDE.md ≈2.7K + memory ≈2.5K) |
 | the session-start batch (`.claude/hooks/session-start.txt`): skill cores, the lessons index, the Nexus briefing | main agent only | ≈125K | ≈30K |
 | a Support agent with `omitClaudeMd: true` | explorer, literature-researcher, cross-domain-attacker, haiku categorisers | ≈107K per dispatch (haiku, zero tools) | ≈36.5K — the harness-fixed block only (tool schemas, skill index, roster) |
 
@@ -24,7 +24,7 @@ remain, since the harness loads them eagerly.
 ```
 docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
         │  tools/docs/generate_harness.py  (a `_GENERATORS` row in docs/conf.py;
-        │  `--check` in CI: drift, budget, dead heading links)
+        │  `--check`, read by `tests/test_harness_generated.py`: drift, budget, dead links, orphans)
         ▼
 .claude/rules/*.md   .claude/skills/*/SKILL.md   .claude/lessons.md   AGENT.md role blocks   (GENERATED, committed)
 ```
@@ -32,6 +32,8 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 - Evidence pages (`evidence/*.md`) have no `.claude/` copy: an agent reads them
   on demand when a core's link names them; the link target is the heading's
   MyST anchor, and a broken one fails the docs build.
+- The lessons index (`.claude/lessons.md`) is rendered like a rule but is not
+  auto-loaded; the session-start batch reads it.
 - Harness-specific text is added by the generator, never written in the docs:
   the `!cat` line that injects the error-catalogue index into `vv-principles`,
   the `GENERATED` stamp, the AGENT.md markers.
@@ -54,6 +56,10 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
   return contract), an `[[agent]]` entry, the page in `agents/index.rst`; the
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
   omits `Agent`), the memory scope and `omitClaudeMd`.
+- **Distilling a page into a core**: every clause keeps its imperative, its
+  `check:` and its `tell:`; a clause's check must reach every mechanism its text
+  names, so two mechanisms one check cannot reach are two clauses; a count in an
+  appendix states its convention and is re-run after the edit.
 - **A surprise, a lesson, a founding case**: append to the evidence page as a
   `###` heading (date + words) and link it from the clause it instances; a
   mechanism that recurs is a signal for a tool, not a paragraph.

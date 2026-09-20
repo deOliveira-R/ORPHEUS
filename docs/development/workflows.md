@@ -5,7 +5,7 @@ the four invariants and the seven workflows as one-liners. This page carries
 what an agent needs when it is inside one: the phases in detail, the brief
 template, and the return contract. It replaces the retired
 `subagent-handoff-protocol` skill, which was written for a harness in which a
-sub-agent could not dispatch another; since Claude Code 2.1.2xx a sub-agent
+sub-agent could not dispatch another; since at least Claude Code 2.1.259 (measured; see History) a sub-agent
 can, up to three layers deep, so inter-agent coordination is a tool grant, not
 a relay protocol. The relay's block formats survive only as the `NEEDS:` return
 contract below.

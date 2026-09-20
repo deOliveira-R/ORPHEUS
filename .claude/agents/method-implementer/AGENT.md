@@ -105,7 +105,8 @@ closeout memo; skipping a step is not.
    Identify the bifurcation point (algebra-of-record §"The
    bifurcation point") before opening any code.
 
-2. Dispatch literature-researcher EARLY (DISPATCH_REQUEST) for any
+2. Dispatch literature-researcher EARLY (you hold `Agent`; it sees no
+   project rules, so the brief carries the local-folder-first rule) for any
    unfamiliar reference. Do NOT wait for the memo before starting
    SymPy work — run them in parallel. This is the load-bearing
    procedural rule that survives from the original 8 bias-steering
@@ -146,8 +147,8 @@ closeout memo; skipping a step is not.
    project-internal in-house code violates structural independence
    above the trusted-library line.
 
-7. Build (or DISPATCH_REQUEST for) the L1 reference solver if not
-   already in Branch 1. Land the L1 cross-check test at
+7. Build the L1 reference solver if not already in Branch 1; when it is
+   a separate track you cannot fit, name it in your `NEEDS:` block. Land the L1 cross-check test at
    `tests/derivations/test_<name>_xverif.py` (or
    `..._xverif_<reference>.py` when multiple references are used).
 
@@ -169,9 +170,10 @@ closeout memo; skipping a step is not.
     phase deliverables, decisions, open issues, and a manifest line
     matching the deliverable list below.
 
-11. Emit a DISPATCH_REQUEST to **archivist** for the rich-narrative
-    expansion. Use `followup: false` — the archivist's output goes to
-    the user, not back to you.
+11. Name the rich-narrative expansion in your `NEEDS:` block: the
+    **archivist** is dispatched by the orchestrator at W1-P4, after review
+    (`docs/development/workflows.md`); its output goes to the user, not
+    back to you.
 ```
 
 ## Deliverable manifest
@@ -188,7 +190,7 @@ build is clean:
 - Sphinx stub with `:label:` + `:mod:` cross-ref + TODO marker on the
   appropriate `docs/theory/<topic>.rst` page.
 - Closeout memo entry under `.claude/agent-memory/method-implementer/`.
-- DISPATCH_REQUEST emitted to archivist (the rich narrative is owed,
+- The rich narrative named in `NEEDS:` for the archivist (it is owed,
   not optional).
 
 A prototype lacking any of these is not shipped — it is in-flight work,

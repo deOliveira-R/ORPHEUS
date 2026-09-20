@@ -49,6 +49,7 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [generator_tool_review_rulings.md](generator_tool_review_rulings.md) — ⭐⭐ reviewing a GENERATOR / `--check` tool: the five probes (does the check have a READER; does it re-derive what a venv library owns; is the stated DIRECTION asserted by any line; arm-activation counts; orphan census both ways) + the ruling that a `kind` string discriminated ONCE is not anti-#4.
 - [ends_select_the_body_rulings.md](ends_select_the_body_rulings.md) — ⭐⭐ CS4c step 5
   (per-call carrier dispatch → ONE construction-selected body): the **four probes** any
   dispatch→admission carve owes — does the new admission see the ROLE (space is SHARED

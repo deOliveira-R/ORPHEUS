@@ -63,7 +63,10 @@ relative imports, CamelCase, a string-form `getattr("name")`). (4) State every
 exclusion in the claim: a file, a package, a directory, the definition site.
 (5) For a completeness claim, run a SECOND, independently vocabularied filter;
 one validates the other. (6) Report `k of N <predicate>`; list several counts
-only with their separate predicates and trees.
+only with their separate predicates and trees. (7) Verify the DECODER as well as
+the filter: a production predicate reused as a detector inherits its other
+meanings; enumerate every state it maps to True and give each state its own
+control.
 
 **Configuration, for a number.** Fixture, settings, what the fixture is blind
 to (its kernel and regime), the `-m` filter of a pytest count, the exclusion

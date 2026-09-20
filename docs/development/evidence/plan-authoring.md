@@ -2,6 +2,22 @@
 
 The surprise log and the founding cases of `rules/plan-authoring.md`, moved here verbatim (glyphs and all; it is history). Each entry is one `###` heading — the heading is the anchor the rule links to. A new surprise is appended to the log as a `### <date> <two or three words>` entry.
 
+## Phase entry template
+
+The shape a phase entry takes, from the original rule (2026-08-05): the goal, the
+means labelled and dated as a hypothesis, and a done-when that is a predicate.
+
+```markdown
+### P6 — a directional inflow is expressible without smuggling
+**Goal.** A user can declare `q(Ω)` on a face without the source having to
+carry trace knowledge through its constructor.
+**Proposed means** (as of 2026-08-05, NOT verified): promote the MMS's
+hand-rolled spec into production.
+**Done when:** the MMS source is an ordinary user-written source, and
+`tests/.../test_mms_declared_inflow.py` builds it with no per-face
+`mu_inflow=` argument.
+```
+
 ## Surprise log
 
 One entry per row of the original table, in table order. **Surprise** is the row's second cell, **Clause** its third.
@@ -430,7 +446,7 @@ One entry per row of the original table, in table order. **Surprise** is the row
 
 **Surprise.** ⚠ **`lessons` L25 at TREE scale, and the file it corrupted is the one that documents the rename.** L25 says a file-internal `replace_all` is safe only if every occurrence is the target concept. A vocabulary retirement made the same move tree-wide (6 constants, 17 files, AST-rewritten imports + regex-renamed identifiers) and corrupted **history prose in the module that defines the replacements**: `# was SPACE_INTERVAL_M11` became `# was COSINE_INTERVAL`, i.e. the record of *what each new name replaced* was overwritten with the new name. Caught by reading the diff; no test could — prose has no gate, and the identifiers were all correct. ⟹ **the file most likely to hold the counterexample to a rename is the one that documents the rename**, because it is the only place the OLD name legitimately appears in the new world. Read that file's diff by hand, always.
 
-**Clause.** `lessons` L25 (extended from file-internal to tree-wide; no new plan clause)
+**Clause.** `lessons` L25 (extended from file-internal to tree-wide; no new plan clause) [REMEDIED 2026-09-20: the index line of L25 carries the tree-wide form only from this date; until then the row claimed an extension the tree did not have]
 
 ### 2026-09-02 file exclusion ball
 

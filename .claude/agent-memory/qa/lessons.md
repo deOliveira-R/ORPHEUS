@@ -206,6 +206,39 @@ the shipped config. → L-080
 
 ---
 
+**A20. When auditing FIDELITY of a rewrite, the denominator's predicate may
+assume a structure the SOURCE does not have.** Failure: a brief asked to count
+"every bold-tagged clause and every numbered §6b inventory item" of the original
+— the original had NEITHER (bold tags, `check:`/`tell:` and the 13-item inventory
+are all inventions of the rewrite). Correction: state the predicate you actually
+counted ("every rule-bearing unit: a sentence or bullet a reader must DO or
+CHECK"), say in the report that the briefed one was unanswerable, and re-pose the
+answerable question — here *"did the source's prescribed mechanical CHECK survive
+in executable form?"*, which is what localised all four losses.
+→ `lessons_archive.md L-081`
+
+**A21. `arm k+1` = the REPAIR the gate's own message prescribes.** [NOT in the
+skills — OWED to `vv-principles` #17 as a tenth check] #17's nine checks all ask
+whether a gate can RED; none asks what the tree looks like after someone BELIEVES
+it. `[M]` deleting the `BEGIN`/`END` role-block markers from an `AGENT.md` reds
+`generate_harness --check` (`DRIFT … run the generator`); running the generator,
+exactly as told, re-inserts a marked block and leaves the unmarked orphan below
+it — role block **2x**, next `--check` green, exit 0. A detector whose repair
+converges on a green WRONG state has spent its alarm. Rider, OWED as #17(a):
+**mutate a config option once per CONSUMER kind** — `budget_tokens` is read by
+`render_text` (3 kinds) and never by `render_agent`, so `budget_tokens = 1` on
+an agent entry exits 0 and the nine always-on role blocks are unbudgetable.
+→ L-082
+
+**A22. A generator asserts source→target; ask who asserts target→source.**
+`[M]` deleting a manifest entry leaves its generated `.claude/rules/*.md`
+(≈708 always-on tokens) on disk with `--check` reporting `0 problems, 0
+drifted`. Companion, for reporting a real blind spot with an EMPTY present
+population: call it LATENT, give the census denominator (`[M]` 246 of 246 links
+are the covered class), and prove the class with a SYNTHETIC positive control
+instead of a tree witness (`"μ sign convention"` → generator `-sign-convention`
+vs MyST `μ-sign-convention`; 0 of 403 real headings diverge today). → L-082
+
 ## B. Where a gate is structurally blind (ORPHEUS shapes)
 
 **B1. Mutate the SHARED source, not the dead-for-this-path method.** SWEEP and
@@ -532,6 +565,29 @@ existence; a `slow`-only catcher is an ERR whose real not-slow coverage is
 **zero** and should be said so in the audit. → L-079
 
 ---
+
+**E9. A DISTILLED document's own CENSUS is an instrument, and an over-by-one
+bucket LOCALISES what the distillation dropped.** Failure: a 1034→153-line rule
+core carried "§1 12; §2 29; … §6d 7; §10 10; Total 110". Recounted by script:
+109, three rows off; 110 is reachable only by mixing three inconsistent intro
+conventions. Correction: recount PER BUCKET, never the total — the §6d row was
+over by exactly one and §6d is exactly where a mechanism was lost (the AST
+package-edge census). An over-count is a pointer at the dropped item and is
+cheaper than diffing both documents. Then: is the total reproducible from ONE
+stated convention? → `lessons_archive.md L-081`
+
+**E10. A merged clause is SAFE iff its `check:` reaches every mechanism its own
+text NAMES.** Failure: `§6b` spelling (12) named "a shape minted independently by
+consumers **plus** `isinstance` doors on the producer's type" under one check
+("grep the shape's CONSTRUCTOR") which structurally cannot find the doors; the
+source had stated them as *two* spellings. Three sibling merges joined different
+failures safely because each named mechanism appeared in the check or the tell.
+⚠ **OWED to `vv-principles` §Anti-patterns** (tracked-file edits were forbidden),
+drop-in: *"**NEVER** accept a clause/marker/docstring that names TWO mechanisms
+under ONE mechanical check — the check reaches one and the prose credits both.
+**check:** for every mechanism the text names, point at the line of the check that
+would find it. **tell:** a clause whose imperative says "X plus Y" and whose check
+mentions only X."* → `lessons_archive.md L-081`
 
 ## F. Claim-scope — the claim is broader than the evidence
 
