@@ -91,24 +91,14 @@ Project sub-agents live in `.claude/agents/`, each with preloaded
 skills and persistent project-scoped memory. Use them — the built-in
 Explore agent is denied.
 
-**The agent table** (which agent does what, preloaded skills, when to
-proactively invoke) lives in the `subagent-handoff-protocol` skill,
-NOT in this file. MUST load that skill at session start (see Session
-Start Protocol below). It is the canonical reference for both:
-
-- **Choosing which sub-agent to dispatch** (you, the main agent,
-  picking the right specialist for a task).
-- **How to respond when a sub-agent returns a `DISPATCH_REQUEST`
-  block** (sub-agents cannot dispatch other sub-agents — see Anthropic
-  Claude Code docs constraint; you bridge between them via the
-  protocol the skill defines).
-
-You MAY append a `MAIN_AGENT_AUGMENTATION` sub-block to a sub-agent's
-brief before dispatching, asking the dispatched agent for additional
-information that benefits from your wider session context. NEVER
-modify the requesting sub-agent's original brief content. Sub-agents
-have depth, you have breadth — the protocol formalizes how the
-system harvests both.
+**Roles and routes** (which agent owns which phase, which agents are Support,
+the four invariants, the seven workflows) live in `.claude/rules/workflows.md`
+(always-on) and in full in `docs/development/workflows.md`. Sub-agents CAN
+dispatch sub-agents (up to three layers; an agent's `tools:` allowlist decides
+whether it holds `Agent`): Key agents spawn Support agents freely, Support
+agents never spawn, and the parent's review is independent of any review a
+child ran. A Support agent is launched without the project rules
+(`omitClaudeMd`), so its brief carries the two or three rules that apply.
 
 **After every sub-agent invocation**: review the output with full
 session context before committing. Sub-agents lack conversation
@@ -119,7 +109,10 @@ history.
 ## Project rules (`.claude/rules/`)
 
 Detailed behavioral rules live in `.claude/rules/` — in-repo, instruction-authority,
-auto-loaded (always, or on-demand when a file's `paths:` frontmatter matches). They are the
+auto-loaded (always, or on-demand when a file's `paths:` frontmatter matches). The rule
+cores marked GENERATED are written from `docs/development/rules/` by
+`tools/docs/generate_harness.py` — edit the docs page, never the copy; their founding
+cases live in `docs/development/evidence/`. They are the
 **floor**: preemptive minimum standards every contributor (main agent + all sub-agents)
 follows by default. The **ceiling** — bringing code into *excellence* territory — is the
 on-demand `coding-elegance` skill (Cardinal Rule 2). A behavior phrased "always do this
@@ -139,6 +132,14 @@ the SKILL.
   refuted premises edited in place, never dropped; numbers carry their configuration.
   (Companion to Cardinal Rule 4. Written after a plan's own phase title misled the agent
   that wrote it, three compactions later.)
+- **`instrument-doctrine.md`** — four statements every claim is held to: an instrument
+  must be able to fail; every claim carries its population and instrument; prose is not
+  enforcement; one definition per quantity. (The procedures are the `instrument-doctrine`
+  skill.)
+- **`articulation.md`** — lossless disassembly is the writing standard; no mannered prose;
+  the ASCII marker vocabulary (`[M]`, `[R]`, `[HYPOTHESIS]`, `[REFUTED …]`, `[LANDED …]`).
+- **`workflows.md`** — roles (Orchestrator / Key / Support), the four dispatch invariants,
+  the seven workflows. (Companion to Cardinal Rule 5.)
 - **`vv-testing.md`** (path-scoped `tests/**`) — canonical `python -O -m pytest`; never relax
   a tolerance for an inexact method; the `tests/_harness/` tagging/linking registry.
 

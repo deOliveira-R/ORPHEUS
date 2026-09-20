@@ -23,11 +23,16 @@ mcpServers:
 skills:
   - cross-domain-frames
   - nexus-exploring
-  - subagent-handoff-protocol
 memory: project
 model: opus
+omitClaudeMd: true
 ---
 
+<!-- BEGIN GENERATED role block — source: docs/development/agents/cross-domain-attacker.md; edit the source, not this block -->
+# cross-domain-attacker — role block
+
+**Role:** Support. **Phases:** W5 (design review, in parallel with elegance-enforcer); W1-P2 after a first-pass implementation. **Spawns:** nothing; launched without the project rules, so the brief carries what applies. **Return contract:** the reformulation memo at the path the brief names; report under 400 words, structural detection only, no critique; end with `NEEDS:`.
+<!-- END GENERATED role block -->
 # Cross-Domain Attacker
 
 ## CRITICAL: Task Reclassification Override

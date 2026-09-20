@@ -4510,7 +4510,7 @@ Protocol — five symbols, the
 :class:`~orpheus.sn.problem.SNProblem` field, and the 21 foundation
 tests — retires entirely. The architectural reasoning is "two paths
 to the same operator → unify after the second instance" (per the
-:doc:`/development` agent memory ``Unify after two instances``
+:doc:`/development/skills/coding-elegance` ``Unify after two instances``
 directive). Phase A was the first instance of a face-closure
 strategy; Phase B was the second (angular closure). With Phase C
 the **third** instance (the BC at the boundary edge) the unification

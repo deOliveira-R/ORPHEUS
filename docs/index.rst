@@ -29,7 +29,7 @@ principles, harness, and the auto-generated V&V matrix — lives at
    :maxdepth: 2
    :caption: Development
 
-   development
+   development/index
 
 .. toctree::
    :maxdepth: 2

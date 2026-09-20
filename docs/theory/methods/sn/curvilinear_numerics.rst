@@ -87,7 +87,7 @@ The curvilinear sweep's one-directional WDD closure
 \psi_{n-1/2})/\tau_{mm}` is preserved bit-identically by
 :class:`DiamondDifference` (Wave C extracted it from the
 inlined sweep verbatim).  ERR-026 (catalogued in
-:doc:`/development` and the V&V matrix at
+:doc:`/theory/verification/error_catalog` and the V&V matrix at
 :doc:`/theory/verification/matrix`) lives in this closure: the
 solver's source-iteration path converges to a non-flat
 fixed point even though the matrix-free ``apply`` path with
@@ -559,7 +559,7 @@ consistent flat source — **the hypothesis holds**.
 
 This trace establishes the Phase D fix as a **closed-form
 analytical reference** in the
-:doc:`algebra-of-record </development>` State-1A pillar sense: the
+``algebra-of-record`` State-1A pillar sense: the
 identity :math:`(L \cdot \psi_{\text{flat}})_{n,i,g} = \Sigma_t
 \cdot \psi_{n,i,g}` is verifiable by exact algebra on the discrete
 operator, no numerical quadrature required.  The L0 foundation test

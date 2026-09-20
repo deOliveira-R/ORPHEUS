@@ -1,0 +1,115 @@
+---
+name: instrument-doctrine
+description: PROACTIVELY load when building, judging or citing evidence — a gate, a metric, a census, a canary, a mutation battery, a ratio, a timing. Procedures for the four always-on statements of the instrument-doctrine rule (X1 an instrument must be able to fail; X2 every claim carries its population and instrument; X3 prose is not enforcement; X4 one definition per quantity). Preloaded by qa, test-architect, numerics-investigator and archivist; vv-principles cites it.
+---
+
+# Instrument doctrine — the procedures
+
+The rule (`instrument-doctrine`, always-on) states four things every claim is
+held to. This skill is how to meet them. Each procedure ends in a number with
+its predicate, or in a red, never in an adjective.
+
+## X1 — prove the instrument can fail
+
+**Positive control, before any battery.** Include one mutation that MUST redden
+many gates; read an all-blind verdict as *the harness is broken* until the
+control reddens. Mutate INSIDE the object's algebraic class (a mutation that
+also breaks linearity, symmetry, positivity or a shape contract reddens for the
+wrong reason). The verdict is a per-arm TABLE — a multi-arm guard is N claims,
+and an arm that reddens nothing is a guard with no witness.
+
+**Stabiliser enumeration, at gate design time.** Write down the functional the
+gate measures and the group of errors it is invariant under: spectra are blind
+to similarity and transpose; balance and telescoping sums to any per-term error
+that cancels; normalised shapes to global scaling; trace and determinant to
+similarity. Intersect with the threat model. A threat inside the stabiliser is
+designed-green: gate the object, not the functional.
+
+**Activation count, for a canary or an acceptance artefact.** Instrument the
+carved path (a counter or a file write — not a bare `assert`, not a print) and
+run the artefact: zero executions means the artefact passes under success and
+failure alike, whatever its name. Ask the inverse question too: *if the
+campaign fully failed, would this artefact move?*
+
+**Full-success reading, for a metric adopted as a target.** Read the metric's
+implementation and answer *"if this campaign fully succeeds, what does it
+print?"* — for the named target AND every other instrument that will read the
+result. Three shapes fail it: a proxy the work removes; a population the work
+empties (the score over "the ones still broken" degrades as you fix the easy
+ones); a predicate ranging over a set the design is forbidden to touch
+(designed-red — intersect the tell's hits with the UNTOUCHED set).
+
+**A repair with no gate.** A fix that makes a defect unspellable feels to need
+no test, and its pinning gate is green either way. Mutate every repair you
+believe is structural; re-measure the repaired module's own suite separately,
+to tell *no witness* from *not measured*.
+
+**Execution evidence.** A gate is evidence only if it RUNS under the canonical
+invocation: check the asserting statement survives `python -O` (pytest rewrites
+collected test modules; a bare `assert` in a helper or a generator is
+compiled out), check the marker set is not deselected by `-m "not slow"`, and
+for a re-routed path check with a counting spy that the gate still reaches the
+changed line.
+
+## X2 — state the population and the instrument
+
+**The census protocol.** (1) Write the predicate before counting: what the
+numerator counts, over which tree (`orpheus/`, `tests/`, `docs/` — `tests/` is
+usually the majority and usually unranged). (2) A membership question is
+parsed — `ast` for code, the doctree for docs — never a line window, a regex
+that can land inside a nested literal, or `| head`. (3) Validate the filter
+against a POSITIVE CONTROL: one known member of every shape (uppercase labels,
+relative imports, CamelCase, a string-form `getattr("name")`). (4) State every
+exclusion in the claim: a file, a package, a directory, the definition site.
+(5) For a completeness claim, run a SECOND, independently vocabularied filter;
+one validates the other. (6) Report `k of N <predicate>`; list several counts
+only with their separate predicates and trees.
+
+**Configuration, for a number.** Fixture, settings, what the fixture is blind
+to (its kernel and regime), the `-m` filter of a pytest count, the exclusion
+list of a census. A relayed number travels with all of it or does not travel.
+
+**Draw-stable statistics.** A seed, a wall-clock timing and a hand-typed
+prediction are all draws. Sweep seeds before writing "bit-exact"; time with
+the min of ≥15 interleaved repeats and say so; compare a transcribed
+prediction with a scale-free statistic (alignment, relative residual, rank),
+never component-wise to the digits you typed. Pin gates on the absolute
+statistic that is stable across draws.
+
+**Ratios.** State both legs' populations side by side; if they differ, there is
+no ratio. A positive control validates the instrument, not the comparison.
+
+**Predicted-then-measured.** Explain every unit of a gap before publishing the
+explanation; a registry-driven gate gains rows from corpus surfaces the
+arithmetic never modelled.
+
+## X3 — replace prose with an assertion
+
+For every claim in a docstring, marker, label, table header or plan row, find
+the line that fails if the claim is false. A `verifies`/`catches` marker is a
+claim until a coverage capture or a mutation adjudicates it. A docstring
+naming a shape, a bijection, a compatibility law or a primitive that the body
+does not assert or call is a single-source divergence: assert it, return the
+structure (a permutation makes its own bijectivity assertable; a `bool` does
+not), or delete the claim. A plan row in a rule's vocabulary carries the
+rule's `[M]`, not its phrase.
+
+## X4 — find the shared upstream
+
+Ask independence per axis: the DERIVATION axis (no shared identity, integrand
+or closed form) and the INPUT axis (no shared constructed object handed to both
+sides). Compare two "independent" implementations by α-normalised AST; an
+α-equivalent pair is one implementation under two names, and its agreement is
+a tautology. Before retiring a duplicate, name the mechanism that kept the
+copies equal and grep the shortest distinctive fragment of its message for a
+witness; if none exists, write it in the same commit — the retirement created
+the exposure.
+
+## Pointers
+
+- Rule: `instrument-doctrine` (always-on). Instances: `vv-principles`
+  anti-patterns #11, #12, #17–#20, #22–#24, #26, #31, #34; `plan-authoring`
+  §2, §6c, §8, §10; `coding-standards` retirement audit.
+- Evidence: [V&V anti-patterns](../evidence/vv-anti-patterns.md),
+  [test-design modes](../evidence/test-design-modes.md),
+  [plan-authoring evidence](../evidence/plan-authoring.md).

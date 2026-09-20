@@ -66,6 +66,7 @@ docs = [
     "sphinxcontrib-nexus>=0.16",
     "sphinxcontrib-bibtex>=2.6",  # central refs.bib -> Nexus citation nodes (#231 D)
     "sphinx-design>=0.6",         # dropdowns/cards for machine header + gotchas (#231)
+    "myst-parser>=5",             # docs/development/**.md — harness-independent source of .claude/ cores
     "sympy>=1.13",
 ]
 dev = [

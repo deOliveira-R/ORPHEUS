@@ -2,8 +2,8 @@
 
 Companion to CLAUDE.md **Cardinal Rule 5** (proactively delegate to sub-agents). Rule 5
 establishes *that* and *why* you delegate; this rule covers the posture and the exceptions.
-The dispatch *mechanics* (DISPATCH_REQUEST/RESULT bridging) live in the
-`subagent-handoff-protocol` skill.
+The roles, the dispatch invariants and the workflows live in `.claude/rules/workflows.md`;
+the brief template and the `NEEDS:` return contract in `docs/development/workflows.md`.
 
 ## Dispatch freely — don't ask permission
 

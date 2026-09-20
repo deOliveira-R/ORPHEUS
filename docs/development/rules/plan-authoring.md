@@ -1,0 +1,153 @@
+# Plan authoring — what a plan owes its own future author
+
+A plan is a note to **you, after your context is gone**, read by someone with your authority and none of your memory. That reader cannot tell a decision from a placeholder or a measurement from a plausible number unless the plan marks the difference.
+
+**Living document.** The measure of this rule is the SURPRISE: a session, reading a plan in good faith, believed something the tree contradicts. The surprise log lives in [the evidence page](../evidence/plan-authoring.md#surprise-log). A new surprise is appended there as a `### <date> <two or three words>` entry, the plan is corrected in place per §3, and the clause here gains a link to the entry; a new clause only if the mechanism generalises past its campaign. A mechanism that keeps recurring is a signal for a TOOL, not for another paragraph. Target, falsifiable: surprises per campaign trending to zero. `check:` is the mechanical check, `tell:` how the failure looks.
+
+## §1 Goal stated separately from any proposed means
+
+- **TITLE-THE-OUTCOME** Title the outcome, never the edit. check: a title containing *move/promote/rename/extract* asks what the edit is FOR; title that. [case](../evidence/plan-authoring.md#2026-08-06-p6-title-outcome)
+- **MEANS-IS-HYPOTHESIS** Label and date every means proposed before the investigation; an unlabelled means reads as a decision.
+- **DONE-WHEN-IS-A-PREDICATE** One grep or one test run must answer it.
+- **DONE-WHEN-INHERITS-A-PREDICATE** A target built from a measured fraction counts the SAME predicate. tell: "1 of 40 APPLY it" became "40 of 40 SHOULD". [case](../evidence/plan-authoring.md#2026-08-16-done-when-predicate)
+- **SCHEDULED-DONE-WHEN** A done-when written when the phase was merely scheduled is a hypothesis. check: label it, or write the phase-opener re-measure obligation beside it. [case](../evidence/plan-authoring.md#2026-08-29-scheduled-done-when)
+- **NEW-MEMBER-DERIVATION** When a plan admits a NEW member to a family, re-run every derivation of its mechanism table on that member. [case](../evidence/plan-authoring.md#2026-09-04-mechanism-table-member)
+- **POINTER-ROT** Every resume pointer, task subject, "RESUMES AT" line and memory hook is copied forward verbatim. check: one grep per symbol the pointer names, before it ships. [case](../evidence/plan-authoring.md#2026-08-07-resume-pointer-transpose)
+- **DELIVERABLE-EXISTENCE** One existence-check per DELIVERABLE promised. tell: a deliverable is a CONCEPT with spelling variants, so a symbol grep clears it. [case](../evidence/plan-authoring.md#2026-08-07-flagship-gate-deliverable)
+- **ONE-LETTER-SYMBOL** For `α β λ σ τ φ ψ k` the mandated grep CERTIFIES the error: it returns hits for the meaning a recent campaign made salient. check: name the referent's INDEX and CO-OPERATOR, never its spelling. [case](../evidence/plan-authoring.md#2026-08-13-alpha-referent-structure)
+- **PRECEDENT** "Model it on X": the symbol exists; every property claimed of it may be false. check: read its first 30 lines and verify each adjective, then ask whether a better precedent already ships. [case](../evidence/plan-authoring.md#2026-08-14-subgroup-precedent-adjectives), [case](../evidence/plan-authoring.md#2026-08-14-precedent-null-basis)
+- **CHECKLIST-HALO** A verified existence-check on ONE clause lends unearned authority to the rest. tell: one clause carries `[M]`, its neighbours none.
+- **NAME-FREE-IS-NOT-NAME-GOOD** Before adopting a proposed NAME grep the PROSE corpus (`lessons.md`, `plans/`, `agent-memory/`, `gh issue --search`), not only code. tell: a hit inside a refutation; free because rejected. [case](../evidence/plan-authoring.md#2026-08-26-sweep-cache-name)
+
+## §2 Mark the epistemic status of every claim
+
+`[M]` measured, with the command or file:line; `[R]` reasoned; `[HYPOTHESIS]` proposed; `[REFUTED YYYY-MM-DD]` with what refuted it; `[LANDED <hash>]`; `[REMEDIED YYYY-MM-DD @<hash>]` a recorded defect repaired. **A bare number with no marker will be read as measured.**
+
+- **[M]-SCOPE** `[M]` certifies a measurement HAPPENED, not that it answers its sentence. check: ask what command produced it; unstated means unmarked. tell: a "so"/"therefore" with the measured half on one side. [case](../evidence/plan-authoring.md#2026-08-10-solve-sn-therefore)
+- **SHELF-LIFE** Split a compound `[M]` by what would falsify each half: a VALUE survives until the numerics move, a claim about the TREE'S BEHAVIOUR is repealed by any commit. check: measurement date <= any landing of its own campaign means re-run the tree half. [case](../evidence/plan-authoring.md#2026-08-13-issue-350-shelf-life)
+- **QUANTIFIER** Every universal ("every family", "none of the callers") carries its DENOMINATOR: `[M] 5 of 8 sites`. The unmeasured members are where the defect survives. [case](../evidence/plan-authoring.md#2026-08-11-h2-every-family)
+- **QUANTIFIER-AT-WRITE-UP** Run the check when PUBLISHING, not when measuring. check: how many did I look at, and is that number in the sentence? [case](../evidence/plan-authoring.md#2026-08-19-brief-method-claim)
+- **CONSTANT-DENOMINATOR** The denominator you are least likely to write is the one held FIXED across every row. check: what is the same in every row, and is my conclusion about that? [case](../evidence/plan-authoring.md#2026-08-15-constant-denominator-parity)
+- **PREDICATE** A fraction needs its FILTER: write what the numerator COUNTS. `10 of 56 methods take a project_root arg` is re-runnable; `56 methods / 10` is not. [case](../evidence/plan-authoring.md#2026-08-16-fraction-needs-filter)
+- **VALIDATE-THE-FILTER** Prove a pattern filter against a known member of EVERY shape expected before believing a zero. tell: a dropped member looks identical to an absent one. `grep` here is ugrep: an anchor inside an alternation silently matches nothing. [case](../evidence/plan-authoring.md#2026-08-19-filter-case-class)
+- **VIEWPORT** Never `head` an enumeration that feeds a decision, window structured source with `sed -n`, or regex a nested literal. check: MEMBERSHIP questions are parsed (AST), not grepped; read whole, or state `wc -l`. tell: two filters disagree. [case](../evidence/plan-authoring.md#2026-08-25-viewport-head-clip), [case](../evidence/plan-authoring.md#2026-08-27-two-filters-disagree)
+- **DENOMINATOR-THAT-IS-A-GATE** A guard named as the denominator bounds the arm it is CALLED on, not the question. check: `grep -c` its call sites first, and check the prescribed measurement is not TAUTOLOGICAL (its zero carries no information). [case](../evidence/plan-authoring.md#2026-08-26-carrying-quadrature-gate)
+- **STRUCTURAL-DENOMINATOR** For "the rebuild loses X" or "these are duplicates", enumerate against the TYPE (`dataclasses.fields(T)`), never against the concept you are chasing. [case](../evidence/plan-authoring.md#2026-09-01-field-list-denominator)
+- **EXCLUSION-IS-A-PREDICATE** A census's exclusion list is part of its predicate at every tier: a FILE hides in-module consumers [case](../evidence/plan-authoring.md#2026-09-02-file-exclusion-ball); a PACKAGE reads "0 production consumers" when they sit in the excluded tier [case](../evidence/plan-authoring.md#2026-09-04-package-exclusion-census); a DIRECTORY measures the issue's folder, not the goal's corpus [case](../evidence/plan-authoring.md#2026-09-07-directory-bounded-census). check: state the exclusion in the claim ("0 consumers outside `numerics/`"), or filter by LINE, and measure one level up.
+- **DEFINITION-FILE-ONLY** The inverse exclusion: a self-check whose whole population is the defining module certifies "the def plus one call". check: a self-check is a census and owes its population. [case](../evidence/plan-authoring.md#2026-09-05-definition-file-census)
+- **RESUME-BLOCK-M** An `[M]` count in a compaction point is a claim with a predicate: `[M] 6 direct call sites in <file>` was a one-file census. tell: the neighbouring `[R] check first` claims were checked for free; the `[M]` lied. [case](../evidence/plan-authoring.md#2026-09-05-compaction-point-exclusion)
+- **A-LIST-IS-N-CENSUSES** Counts listed in one breath imply a shared scope that never existed; each owes its predicate AND its tree (`tests/` is usually the unranged majority). tell: one number answers a neighbouring predicate the row never names. [case](../evidence/plan-authoring.md#2026-08-31-list-of-counts)
+- **CARVE-FORKS-THE-DENOMINATOR** When N classes share one body, "N surfaces" is two counts: BODIES (what a mutation battery covers) and ROLE x surface rows (what a decision is taken on). check: state both with their predicates and write the arithmetic that closes the delta. [case](../evidence/plan-authoring.md#2026-09-04-body-role-counts)
+- **RENAME-SIZE** A rename row names its predicate: "9 occurrences of the IDENTIFIER; concept not yet counted". Renaming only the identifier leaves the concept spelled two ways. check: word-bounded, then triage by MEANING. [case](../evidence/plan-authoring.md#2026-08-26-gram-rename-size)
+- **TABLE-ROWS-ARE-CLAIMS** A table headed by a property of the tree reads wholly as a survey of what IS. Mark an aspirational row IN the row (`[HYPOTHESIS] aspirational; [M] the tree has X`), never in prose. [case](../evidence/plan-authoring.md#2026-08-07-periodic-table-row)
+- **RE-DERIVE-FROM-THE-CONCEPT** A goal phrased against current code can be the exact inverse of the goal phrased against the concept the plan states; only the second says what to build.
+- **COLUMN-HEADER-IS-A-CLAIM** Structural vocabulary ("off-diag", "banded") asserts structure as surely as a number asserts a value, and can be wrong while every cell is right. [case](../evidence/plan-authoring.md#2026-08-29-column-header-claim)
+- **RATIO-NEEDS-ITS-POPULATIONS** Validating an INSTRUMENT does not validate a COMPARISON. check: state both legs' populations side by side before publishing a ratio; different means no ratio. [case](../evidence/plan-authoring.md#2026-08-31-ratio-populations-mubar)
+- **UNMARKED-ESTIMATE-IN-AN-ASK** An option offered for a user RULING is plan text: an `[M]`-flavoured adjective ("measured-cheap") with no measurement converts into a ruled-in defect. [case](../evidence/plan-authoring.md#2026-08-28-measured-cheap-adjective)
+- **DECLARED-NULL-IS-A-HYPOTHESIS** A battery arm predicted to redden nothing is a hypothesis until it runs; two "null" arms reddened 25 and 40 rows. check: mark predicted nulls `[R]` and run them. [case](../evidence/plan-authoring.md#2026-09-05-declared-null-arms)
+- **RULING-IS-NOT-ITS-EVIDENCE** A ruling and the number offered as its evidence keep different clocks; the displayed care makes the stale neighbour read as MORE trustworthy. [case](../evidence/plan-authoring.md#2026-08-14-ruling-evidence-clocks)
+- **A-BRIEF'S-METHOD-IS-A-CLAIM** A prescribed procedure asserts that its surface EXISTS on the recipient's corpus. check: state the sample it was validated on and what to do when it fails; ask whether sample and population share any member. [case](../evidence/plan-authoring.md#2026-08-19-brief-method-claim)
+- **PREDICTED-THEN-MEASURED** Explain every unit of a predicted-vs-measured gap; registry-driven gates gain params from corpus surfaces the arithmetic never modelled. tell: "+1, close enough". [case](../evidence/plan-authoring.md#2026-08-30-predicted-count-delta)
+- **RECONCILE-THEN-EXPLAIN** An explanation of a measured delta is a claim and owes its `[M]` before publication. check: per-tree diff against the previous gate log BEFORE the write-up. [case](../evidence/plan-authoring.md#2026-09-14-explained-before-reconciled)
+- **FIRST-FINDING-GATE-MAXIMUM** A gate that asserts `k_eff` before `scalar_flux` stops at its first red; a maximum read from its report covers only the cases it reached. check: a set maximum comes from a full comparison over the set. [case](../evidence/plan-authoring.md#2026-09-17-first-finding-maximum)
+- **CARRIED-COUNT** A count copied three sections deep without its predicate ("12 `.npz`", where the artefacts say 10). check: a count names what it counts; ask the artefacts. [case](../evidence/plan-authoring.md#2026-09-17-count-without-predicate)
+
+## §3 A refuted premise is edited in place, never silently dropped
+
+Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history stays; present-tense falsehood is a MUST-FIX.
+
+- **READ-THE-END-FIRST** §3 makes a document unsafe to read partially: errata cannot precede what they refute. check: grep a memo for `REFUTED`, `~~` and the U+26D4 stop sign before summarising; a banner outranks every earlier section it names. tell: a pointer that passes every TREE check and is false against its memo. [case](../evidence/plan-authoring.md#2026-08-13-task-67-memo)
+- **AMBIGUOUS-NAME** A permanent refutation banner on a NAME condemns every later design sharing it. check: disambiguate at the BANNER by the discriminating PROPERTY ("η-ordered, ties broken by the fiber"), never by old/new. [case](../evidence/plan-authoring.md#2026-08-13-fiber-banner-discriminator)
+- **REMEDIED-FACT** A fact can die by being FIXED, not refuted: it WAS true, so nothing prompts the edit and the falsehood is purely tense. check: the step repealing a recorded fact edits that fact's ROW in the same commit (`[REMEDIED YYYY-MM-DD @<hash>] by <step>`). tell: the fact's date precedes its own campaign's landings. [case](../evidence/plan-authoring.md#2026-08-13-max-inner-literals)
+
+## §4 Numbers carry their configuration
+
+- **ADOPT** Read a sub-agent's configuration before adopting its value; a number without its fixture is usable WRONGLY. [case](../evidence/plan-authoring.md#2026-08-06-bx-activation-value)
+- **RELAY** Relaying strips the configuration and substitutes YOUR authority. check: a relayed number travels with its configuration or it does not travel. [case](../evidence/plan-authoring.md#2026-08-12-psi-hat-seed)
+- **VERIFY** A failed reproduction is not a refutation until you know whose failure it is; report it inconclusive. check: verify the ARTEFACT (the committed gate), not the prose. [case](../evidence/plan-authoring.md#2026-08-12-diffusion-limit-reproduction)
+- **BLIND-SPOT-IS-CONFIGURATION** Configuration includes what the fixture CANNOT see: state its kernel and regime beside any `[M]` that ranks a design. tell: every marker honest, the fixture inside the SUT's own kernel. [case](../evidence/plan-authoring.md#2026-08-12-tau-kernel-fixture)
+- **DRAW** A stochastic measurement's configuration includes its RNG DRAW. check: identify the draw-STABLE statistic before pinning or relaying; a %/ULP figure without its seed is one draw. [case](../evidence/plan-authoring.md#2026-08-28-stochastic-draw-ulp)
+- **TIMING-IS-A-DRAW** A wall-clock timing IS stochastic; its configuration is the REPEAT PROTOCOL (how many, interleaved, min or mean). [case](../evidence/plan-authoring.md#2026-09-02-timing-is-draw)
+- **TRANSCRIPTION-PRECISION** A hand-typed k-digit prediction bounds ANY component-wise agreement at `10^-k`. check: publish a SCALE-FREE statistic (alignment, relative residual). [case](../evidence/plan-authoring.md#2026-08-31-transcription-precision-agreement)
+- **A-SIZE-IS-A-MEASUREMENT** A relayed line-count silently asserts the defect has ONE site; when the defect IS the second site it points at the wrong repair. check: verify a "one-line fix" before believing it. [case](../evidence/plan-authoring.md#2026-08-16-line-count-size)
+
+## §5 State the goal in the domain's terms, not the tree's
+
+"A boundary source is a function of direction, so it must be told the directions" survives refactors; "make `X.evaluate` take a space" dies with the code. Write the second under *proposed means*.
+
+- **PLACEMENT-IS-A-CONTRACT-ARGUMENT** An import or consumer census may only CORROBORATE a first-principles contract claim, never BE it. tell: a deliberate vanguard makes every not-yet-built consumer read as non-existent. [case](../evidence/plan-authoring.md#2026-08-28-import-census-vanguard)
+
+## §6 Sizing
+
+- **COMPACTION** Every >=4 phases, carrying the phase-to-commit table, corrections superseding older text, the measured red baseline and gate costs, and the durable lessons.
+- **NO-NEXT-POINTER** Never carry a hand-written `NEXT = <step>`; git and the task list hold it.
+- **BARE-#N** A plan's internal task numbers collide with real GitHub issue numbers; never write a bare `#N` for an internal step.
+
+### §6b A step boundary must not cut across a signature's call sites
+
+The unit of work is the **call-site set**. Enumerate every site and assign it to a step BEFORE fixing the decomposition; a step leaving any site on the old signature is half a step. When steps are fused this way, say so where the step is DEFINED, not only in the commit. [case](../evidence/plan-authoring.md#2026-08-06-evaluate-call-sites)
+
+- **STATE-THE-CENSUS-PREDICATE** "Complete" states its METHOD ("complete for literal-name calls"); a census-exact count over visible spellings otherwise reads as the population. [case](../evidence/plan-authoring.md#2026-08-29-census-predicate-spellings)
+- **MEMBERS SPELLED WITHOUT THE SYMBOL**, the measured inventory, each found by a red loop or by reading, never by a symbol grep: (1) a duck-typed test stub spelling the contract as a **kwarg**; (2) an **attribute read** (`self.p.frame`) in a file whose audit enumerated constructors only [case](../evidence/plan-authoring.md#2026-08-24-contract-members-unspelled); (3) a call through a **variable** ranging over a registry; (4) the changed class's **own internal call** (`type(self).supports(...)`); (5) a **monkeypatch surrogate** over a factory [case](../evidence/plan-authoring.md#2026-08-29-census-predicate-spellings); (6) **subclass constructors and forwarding factories**: walk `__subclasses__` at RUNTIME [case](../evidence/plan-authoring.md#2026-09-01-subclass-constructors-census); (7) the alias's **EXPANSION** (`Space = str`: an implementor annotated `-> str` is invisible by language rule) plus every **comparison partner** [case](../evidence/plan-authoring.md#2026-09-01-alias-expansion-spelling); (8) a **pre-strictness FIXTURE**, enumerated only by the consumers' red loop [case](../evidence/plan-authoring.md#2026-09-01-stricter-gate-fixtures); (9) a **literal keyed on the producer's output**; (10) a family with **two word orders** [case](../evidence/plan-authoring.md#2026-09-03-literal-keyed-producer); (11) a **homonym parameter** sharing the datum's spelling, the negative set of any name-keyed rewrite (`grep -rn 'def .*\bsig2\b'`) [case](../evidence/plan-authoring.md#2026-09-03-homonym-parameter-rewrite); (12) a **shape minted independently by consumers** (`Space.from_L(L)`) plus `isinstance` doors on the producer's type [case](../evidence/plan-authoring.md#2026-09-02-shape-minted-consumers); (13) a layout named by a **LETTER in an einsum subscript** [case](../evidence/plan-authoring.md#2026-09-02-einsum-subscript-layout); (14) to (17) below.
+- **POLYMORPHIC-MINT** After a core/role carve the roles inherit `__init__` and every classmethod, so they are minted by `cls(...)` and `type(self).<factory>(...)` INSIDE the core and their name appears at no call site. check: the construction set is `Name(` sites plus every polymorphic spelling inside the core's module. [case](../evidence/plan-authoring.md#2026-09-04-scattering-operator-mint)
+- **COUNTING-SPY** When a carve re-routes a production PATH rather than a symbol, a sentinel that `monkeypatch.setattr(Class, "method", counting)` and asserts `> 0` is a call site written as a string. check: grep `setattr\(.*"<method>"` and `spy|counting|calls\.append` across `tests/` for every method the old path called. [case](../evidence/plan-authoring.md#2026-09-08-counting-spy-string)
+- **METRIC-TWIN-ACCESSOR** When a step makes the metric part of a space's identity, an accessor returning a bound end re-dressed with another metric (`frame.gram`) mints no head and names no class. check: grep `replace(<end>, inner_product_weights=` and `metric=` on production spaces, not only the mints. [case](../evidence/plan-authoring.md#2026-09-08-metric-twin-accessor)
+- **HELPER-RETURNED-RECEIVER** A field-read census keys on the TYPE (the annotation of whatever produces the receiver), never on how a local is spelled; a helper-returned receiver reads the fields under a name the grep never saw. check: grep the helper's name and read what its callers do with the result. [case](../evidence/plan-authoring.md#2026-09-13-helper-returned-receiver)
+- **RENAME-BY-TYPE-FIRST** A rename's census is by the receiver's TYPE first (annotation, constructor, return), by spelling only to enumerate what the type census returned. Rider: a length-changing rename owes `.rst` an underline scan. [case](../evidence/plan-authoring.md#2026-09-18-rename-by-type)
+
+### §6c A step that adds a gate must land with the case it catches
+
+check, at design time: **what input, existing in the tree the moment this lands, does this gate reject?** "None; it arrives in a later step" means the two steps are one. A witness-less gate ships green, structurally unable to fail. [case](../evidence/plan-authoring.md#2026-08-14-q6-reference-axis)
+
+- **NOT-A-MUTATION-QUESTION** Mutating the SUT reddens the gate and CONFIRMS teeth, because the mutation manufactures the witness the registry lacks. The question is about the SHIPPED INPUTS.
+- **NAME-THE-FIRST-RED** "Done when a `GaussChebyshev1D` entry is REJECTED for slab with a stage-naming reason" is checkable; "done when the selector is reference-aware" is not.
+- **INERT-WITNESS** A gate's fixture must ACTIVATE the quantity the gate varies: a negative leg comparing a signed pairing against a squared norm cannot fail on any input. check: ask what the varied quantity READS on this input. [case](../evidence/plan-authoring.md#2026-09-05-inert-witness-gate)
+- **MIRROR, A FIX WITH NO WITNESS** A repair that makes a defect unspellable is the strongest kind and so feels to need no test. check: mutate every repair you believe is structural, and re-measure the repaired module's own suite separately. A plan's own prophecy is not a witness. [case](../evidence/plan-authoring.md#2026-09-01-fix-without-witness)
+
+### §6d A re-home must check the import edge it creates in both directions
+
+(1) Does the MOVER depend on its old home? (2) Does the OLD HOME depend on the MOVER? Enumerate the mover's **callers** and ask which package each lives in. A done-when naming one direction of a symmetric relation reads complete and is half a check.
+
+- **LINTER-FIRST** Grep the test tree for `FORBIDDEN_EDGES` / `layer` / `import-linter` before measuring; a declared contract outranks any count. Read the forbidden-edge table, the **tolerance** and the **whitelist** idiom; read the line that implements the tolerance, never its docstring. [case](../evidence/plan-authoring.md#2026-08-26-alpha-move-linter)
+- **INJECT-AND-RUN** Do not reason about Python's import machinery: the cycle is ORDER-DEPENDENT, so reasoning and a smoke test both fail in the reassuring direction.
+- **INTRA-FILE CALLERS** A caller sharing the mover's file imports nothing and becomes a forbidden edge only when the file splits. check: AST-enumerate every top-level symbol in the module that names the mover, and whether it moves too. [case](../evidence/plan-authoring.md#2026-08-28-streaming-factories-intrafile)
+- **RELATIVE-IMPORTS** An `ast.ImportFrom` with `level > 0` carries an UNQUALIFIED `.module`, so a `startswith("orpheus")` filter drops every relative import. check: resolve `level > 0` against the containing package; validate against a known relative import. [case](../evidence/plan-authoring.md#2026-08-31-relative-imports-census)
+- **VOCABULARY-ECHO** A row written in a rule's own words ("no new edge either way") reads as that rule having been APPLIED. check: cite the rule's MEASUREMENT (`[M] geometry -> transport = 0 -> 1, forbidden`), not its phrasing. tell: a rule's phrase with no `[M]` beside it. [case](../evidence/plan-authoring.md#2026-08-27-vocabulary-echo-row)
+
+## §7 Before resuming a plan, reconcile it against the tree
+
+1. `git merge-base --is-ancestor <hash> HEAD` for every claimed hash; an "unmerged / in-flight / forbidden to commit" note is a snapshot that lies forward. [case](../evidence/plan-authoring.md#2026-08-06-forbidden-commit-snapshot)
+2. Read the **implementing class's first line** before designing to a phase's prose; a scope read from prose gets refuted by the realization.
+3. Re-check every "blocked by / not possible" claim; the blocker may have been dissolved by a later phase of the same campaign. [case](../evidence/plan-authoring.md#2026-08-06-blocker-dissolved-later)
+
+## §8 An enabler step still has its own blast radius
+
+- **BRANCHED-ON-MEANS-INPUT** A field a consumer BRANCHES on is an input, not metadata. check: grep it against `is None` / `is not None` / `getattr(..., None)` and read what each hit DECIDES. [case](../evidence/plan-authoring.md#2026-08-06-adjoint-metric-binding)
+- **THE-DELIVERABLE-IS-A-GATE** An unmeasured behaviour change ships ungated; nobody gates a change they believe did not happen. Owe a test at the tier the change is observable.
+- **NOT-THE-SYMMETRIC-FIXTURE** The same 87 % was exactly 0.0 for the specular mirror, whose metric cancels by symmetry; a reflective-only measurement confirms "neutral" with a real number attached.
+- **EXISTENCE-IS-NOT-RELEVANCE** §8's grep is a WIRING check and cannot tell load-bearing from inert, so it yields a confident hazard with zero traffic. check: price every branch with a POSITIVE CONTROL stronger than your change; if it reddens nothing the honest deliverable is a WITNESS, not a warning. [case](../evidence/plan-authoring.md#2026-08-31-wiring-inert-branch)
+- **DUPLICATES-IS-A-UNIVERSAL** A bit-identity claim owes its denominator and is routinely asserted without ever being run (`coord` 3/3, `face_areas` 2/3). [case](../evidence/plan-authoring.md#2026-08-27-duplicates-universal-claim)
+
+## §9 Point at what the tree already tracks, never copy it
+
+- **(a) A MEASUREMENT THE TREE RE-MEASURES** Cite the gate's `file:line`; never copy its numbers; whoever re-measures edits the test, not your plan. check: for every number in a plan, ask whether a test asserts or prints it; keep a copy only as a historical claim, tensed and dated. [case](../evidence/plan-authoring.md#2026-08-11-issue-229-floor)
+- **(b) AN ISSUE NUMBER IS NOT SELF-DESCRIBING** Say "the floor measured in #229 (CLOSED)" versus "blocked on #229"; otherwise `gh issue view` returns CLOSED and reads as "already done".
+
+## §10 A metric adopted as a target must be able to move toward it
+
+**Ask when the target is adopted, before any work: if this campaign fully succeeds, what does this print?** Answer by reading the metric's implementation, not its name. Never resolve a failure here by re-baselining: a metric that cannot move toward the target is the wrong instrument.
+
+- **PROXY THE WORK REMOVES** The proxy holds today, so nobody notices it is a proxy. check: read what the metric KEYS ON; confirm that field is the one the work changes. [case](../evidence/plan-authoring.md#2026-08-17-nexus-82-f5)
+- **POPULATION THE WORK EMPTIES** A score over "the ones still broken" degrades by construction as you fix the easy ones. check: report how good the RULE is (over a FIXED population) separately from how much CORPUS is still affected.
+- **DESIGNED-RED** A tell whose predicate ranges wider than the design's scope is pinned at failure by its own non-goals. check: run the tell's own grep at design time, tree-wide, and intersect with the declared UNTOUCHED set. [case](../evidence/plan-authoring.md#2026-08-20-sigs-untouched-set)
+- **EVERY READER, NOT ONLY THE NAMED TARGET** Run the question against every instrument that will read the result; the named one has been thought about; the defect is elsewhere. [case](../evidence/plan-authoring.md#2026-08-18-every-reader-instrument)
+- **A CONVERSION NEEDS A CONSERVATION CHECK** Ask what the instrument would read if the conversion were maximally wrong in the way you fear: a warning count measures parser DISTRESS, not FIDELITY. check: content in equals content out, not an error count. [case](../evidence/plan-authoring.md#2026-08-17-conversion-warning-count)
+- **ACCEPTANCE ARTIFACTS** Inverted: if the campaign fully FAILED, would this artifact move? Activation, not name, qualifies a canary; count the calls into the carved path. [case](../evidence/plan-authoring.md#2026-08-28-canary-acceptance-artifact)
+- **EXPLANATORY CLAIMS** "X was hidden because P" goes VACUOUS when the same step makes P universal. check, at close-out: does P still separate the case it explains from the cases it does not? [case](../evidence/plan-authoring.md#2026-09-01-explanatory-claim-vacuous)
+- **A GATE'S INPUTS ARE PART OF THE COMMIT** Any path a test opens must resolve inside the tracked tree; an untracked INPUT looks like scratch to `git status`, so the gate is green on exactly one checkout. check: the landing review reads the tests' file READS, not only the staged file list. [case](../evidence/plan-authoring.md#2026-09-03-untracked-gate-input)
+
+## Appendix mechanism census
+
+Count the bold tags per section to audit. §1 12; §2 29; §3 4; §4 8; §5 2; §6 3; §6b 20 (2 plus the 13 spellings plus 5); §6c 5; §6d 7; §7 3; §8 5; §9 2; §10 10; a section's intro paragraphs count as its unnamed mechanisms. **Total 110**: 96 in the 2026-09-04 draft plus 14 from the log rows of 2026-09-04 to 2026-09-18: NEW-MEMBER-DERIVATION; CARVE-FORKS-THE-DENOMINATOR, DEFINITION-FILE-ONLY, RESUME-BLOCK-M, DECLARED-NULL-IS-A-HYPOTHESIS, RECONCILE-THEN-EXPLAIN, FIRST-FINDING-GATE-MAXIMUM, CARRIED-COUNT; POLYMORPHIC-MINT, COUNTING-SPY, METRIC-TWIN-ACCESSOR, HELPER-RETURNED-RECEIVER, RENAME-BY-TYPE-FIRST; INERT-WITNESS. Nothing is deleted: every founding case and log row is on the evidence page.
+
+**Merged as restatements**: rows the log itself marks "no new clause" or "REPEAT" are folded into the clause they restate.

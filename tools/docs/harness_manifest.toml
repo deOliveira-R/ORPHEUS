@@ -1,0 +1,83 @@
+# What `tools/docs/generate_harness.py` generates, from where, under what budget.
+#
+# The docs are the source; `.claude/` is one harness's generated view of them
+# (plan harness_context_budget.md, ruling 2026-09-19: "the flow is from docs
+# to .claude, never the opposite"). Every target below is committed, so the
+# harness reads it without a build, and `--check` in CI fails on drift.
+#
+# budget_tokens is chars / 3.6 — the always-on cost every dispatch pays for a
+# rule, the per-load cost for a skill. Exceeding it fails generation.
+
+[[rule]]
+source = "docs/development/rules/plan-authoring.md"
+target = ".claude/rules/plan-authoring.md"
+budget_tokens = 9000
+
+[[rule]]
+source = "docs/development/rules/coding-standards.md"
+target = ".claude/rules/coding-standards.md"
+budget_tokens = 5000
+
+[[rule]]
+source = "docs/development/rules/instrument-doctrine.md"
+target = ".claude/rules/instrument-doctrine.md"
+budget_tokens = 1100
+
+[[rule]]
+source = "docs/development/rules/articulation.md"
+target = ".claude/rules/articulation.md"
+budget_tokens = 800
+
+[[rule]]
+source = "docs/development/rules/workflows.md"
+target = ".claude/rules/workflows.md"
+budget_tokens = 1300
+
+[[skill]]
+source = "docs/development/skills/vv-principles.md"
+target = ".claude/skills/vv-principles/SKILL.md"
+budget_tokens = 9500
+inject_error_index = true
+
+[[skill]]
+source = "docs/development/skills/coding-elegance.md"
+target = ".claude/skills/coding-elegance/SKILL.md"
+budget_tokens = 9000
+
+[[skill]]
+source = "docs/development/skills/instrument-doctrine.md"
+target = ".claude/skills/instrument-doctrine/SKILL.md"
+budget_tokens = 2200
+
+[[index]]
+source = "docs/development/lessons.md"
+target = ".claude/lessons.md"
+budget_tokens = 3200
+
+[[agent]]
+source = "docs/development/agents/archivist.md"
+target = ".claude/agents/archivist/AGENT.md"
+[[agent]]
+source = "docs/development/agents/cross-domain-attacker.md"
+target = ".claude/agents/cross-domain-attacker/AGENT.md"
+[[agent]]
+source = "docs/development/agents/elegance-enforcer.md"
+target = ".claude/agents/elegance-enforcer/AGENT.md"
+[[agent]]
+source = "docs/development/agents/explorer.md"
+target = ".claude/agents/explorer/AGENT.md"
+[[agent]]
+source = "docs/development/agents/literature-researcher.md"
+target = ".claude/agents/literature-researcher/AGENT.md"
+[[agent]]
+source = "docs/development/agents/method-implementer.md"
+target = ".claude/agents/method-implementer/AGENT.md"
+[[agent]]
+source = "docs/development/agents/numerics-investigator.md"
+target = ".claude/agents/numerics-investigator/AGENT.md"
+[[agent]]
+source = "docs/development/agents/qa.md"
+target = ".claude/agents/qa/AGENT.md"
+[[agent]]
+source = "docs/development/agents/test-architect.md"
+target = ".claude/agents/test-architect/AGENT.md"

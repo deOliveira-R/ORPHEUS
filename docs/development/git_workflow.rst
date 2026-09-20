@@ -256,8 +256,8 @@ Quick command reference
 Related pages
 -------------
 
-- :doc:`theory/verification/harness` — V&V test harness conventions
-- :doc:`theory/verification/index` — the verification part, with the
+- :doc:`/theory/verification/harness` — V&V test harness conventions
+- :doc:`/theory/verification/index` — the verification part, with the
   auto-generated V&V matrix
 - ``CLAUDE.md`` — session-start protocol and cardinal rules
 - ``docs/theory/verification/error_catalog.rst`` — caught-bug publication artifact

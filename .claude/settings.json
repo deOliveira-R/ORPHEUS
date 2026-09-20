@@ -64,7 +64,6 @@
       "Bash(curl:*)",
       "Bash(kill:*)",
       "Bash(MPLBACKEND=Agg:*)",
-      "Write(.claude/agents/**)",
       "Edit(.claude/agents/**)",
       "WebSearch",
       "WebFetch(domain:github.com)",

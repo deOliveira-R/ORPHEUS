@@ -1,0 +1,247 @@
+---
+name: vv-principles
+description: PROACTIVELY use when reviewing claims of correctness, designing verification plans, or evaluating whether evidence supports a claim. Provides the V&V hierarchy (L0–L3 + foundation), the 6 AI failure modes catalogue, the reference hierarchy by structural independence, anti-patterns, and the hierarchical claim taxonomy. Preloaded by qa, test-architect, numerics-investigator, and archivist.
+---
+
+# V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns
+
+Every rule below is complete as stated; a `[case]` link opens its mechanism,
+founding case ([anti-patterns](../evidence/vv-anti-patterns.md),
+[test-design modes](../evidence/test-design-modes.md)). Corpus doctrine:
+`docs/theory/verification/principles.rst`. New failure modes land HERE first.
+
+---
+
+## Hierarchical claim taxonomy — verify the lower layers first
+
+```
+Eigenvalue claim   (k_eff, k_inf)   <- solver claim: iteration + normalisation + convergence test
+        ^ depends on
+Flux-shape claim   (ψ(r,μ,E), φ)    <- model claim: equation + boundary conditions
+        ^ depends on
+Convergence-order  (O(h^p), MMS)    <- math claim: pure; lowest dependency
+```
+
+- Convergence-order = **math** claim (MMS lives here). Flux-shape = **model**
+  claim (MMS reaches it when its source is structurally independent of the
+  code). Eigenvalue = **solver** claim — **MMS does NOT reach this layer**;
+  k needs a closed form or a structurally-independent semi-analytical reference.
+
+---
+
+## V&V level taxonomy — the ladder
+
+```
+VERIFICATION  "Are we solving the equations right?"
+  L0  Term verification      hand calc vs code, per term
+  L1  Equation verification  analytical solutions, MMS, convergence order
+  L2  Integration testing    multi-group + heterogeneous, self-convergence
+VALIDATION    "Are we solving the right equations?"
+  L3  Validation             experimental data (ICSBEP, IRPhE, SINBAD)
+INFORMATIONAL (parallel, NOT part of the ladder)
+  L4  Benchmarking           code-to-code — produces ZERO correctness info
+ORTHOGONAL
+  foundation                 software invariants, no theory-page :label:, so NO
+                             verifies(...) — EXCEPT the algebra-of-record Branch-1
+                             shape (a SymPy identity pinned against a :label:), where
+                             both coexist ([M] 2026-09-01: 65 tests; `.. vv-status:
+                             documented` EXCLUDES it).
+```
+
+- **Every L4 claim MUST name its L0–L3 backing.**
+- **L3 is sequenced, not aspirational** — it starts after L1 maturity.
+- **Necessity chain.** L1 without L0 = compensating errors. L2 without L1 =
+  masked components. L3 without L2 = accidental agreement. L4 without L0–L2 =
+  proves nothing.
+
+---
+
+## The three pillars of verification
+
+**NEVER** name a reference vaguely as "analytical" — identify its pillar; each
+has a different evidence boundary.
+
+| Pillar | Convergence-order | Flux-shape | Eigenvalue | Applies when |
+|---|:-:|:-:|:-:|---|
+| Closed-form | yes | yes (under assumptions) | yes | homogeneous, simple geometry |
+| **MMS** | yes | yes (any imposed shape) | **no** (source-driven) | any operator with a non-vanishing trial solution |
+| Semi-analytical | yes | yes | yes | no closed form |
+
+**MMS does not prove eigenvalues**: you imposed the solution and derived the
+source, so k is whatever you started with.
+
+**MMS operational rules.** The trial solution MUST NOT vanish under derivatives
+(trig/exponential, not polynomial); MUST be non-trivial at boundaries; MUST
+stress-test the method, NOT minimise source complexity; the source MUST be structurally independent of the
+code's primitives or MMS is a tautology.
+
+**Semi-analytical ladder** — (1) integrator correctness (assumed for
+scipy/mpmath; a verification requirement for a custom integrator); (2)
+reduction correctness — a wrong reduction is exact for the wrong equation,
+i.e. reference contamination. Canonical instance:
+`orpheus.derivations.continuous.peierls_nystrom`.
+
+**Structural independence (all three pillars).** The chain of trust MUST
+terminate in a structurally-independent ground; different code paths over the
+same integrand or identity are only *procedurally* independent. Cross-check
+from a different structural angle — a kernel check (row-sum, particle balance)
+AND a closed-form check (eigenvalue, asymptotic limit) — **NEVER** two
+derivations of one closed form.
+
+**Ancillary references — NEVER pillars.** Independent re-derivation (strong
+only if structurally independent); code-to-code L4 (never proves correctness);
+Monte Carlo (needs its own verification — a *consumer* of references, never a
+*source*).
+
+---
+
+## Bit-identity vs principled-equivalence
+
+Bit-identity is an **implementation** property: a strong gate while the
+implementation is unchanged, the WRONG gate when a refactor deliberately
+changes the FP reduction tree.
+
+**Accept a non-bit-exact change ONLY when ALL THREE hold; reject if any fails.**
+
+1. **Principled at every step** — each intermediate is a named, inspectable
+   domain quantity, not "whatever the reduction order produced" (`r_g = ∫Σ_g
+   φ_g dV` is principled; a `(N, ng)` array no consumer names is not).
+2. **Verified against a structurally-independent reference** — old-vs-new ULP
+   distance is necessary, **NEVER** sufficient (both can be wrong by the same
+   offset). No reachable independent reference means REJECTED.
+3. **Drift is FP-non-associativity, dimensionally explainable** — iterative:
+   `iterations × condition × ULP`; single-step: `reduction depth × ULP`. More
+   than that is an algorithmic change masquerading as FP noise.
+
+Then **narrow** the contract for the touched primitive only (`array_equal` to
+`assert_array_almost_equal_nulp(nulp=K)`), document all three, and preserve
+bit-identity elsewhere. **tell:** an API verb whose only purpose is to
+reproduce a legacy FP reduction tree.
+
+**NEVER** call an OFFLINE-isolated error "the floor" or "the improvement"
+until it survives three end-to-end checks: (1) end-to-end swap; (2)
+term-silent control (byte-identical where the term should not matter); (3)
+AMPLIFY — grow the term 3x/10x and require the converged answer to get
+strictly worse against an independent reference. **tell:** a matvec-sweep
+round-trip at 1e-16 offered as the floor (ERR-061).
+[case](../evidence/test-design-modes.md#bit-identity-worked-example)
+
+---
+
+## 1-group degeneracy — canonical statement
+
+**k = νΣ_f / Σ_a is flux-shape independent** — a 1-group eigenvalue test cannot
+detect any error in the spatial, angular or scattering operators.
+**Multi-group (≥2G) is MUST for any verification claim.** Canonical home of the
+retired "Cardinal Rule 6"; anti-pattern #3 is its operational form.
+
+---
+
+## Log every caught bug
+
+**MUST** log every bug caught as a new `.. error-entry::` in
+`docs/theory/verification/error_catalog.rst` carrying **ERR-NNN**, **failure
+mode** (1–6), **how it hid**, **which test catches it**
+(`@pytest.mark.catches("ERR-NNN")`) and a one-sentence **lesson**. **NEVER**
+close a numerical-bug investigation without an ERR entry. `nexus errors` lists
+entries uncaught-first.
+
+**A `catches(...)` marker is a COVERAGE CLAIM, not a topic tag.** **NEVER**
+attach it because the test lives in the same module/equation family — re-drop
+the exact documented bug and confirm THIS test (not merely *some* test) fails
+under the canonical `-O` invocation; if another test catches it and this one
+stays green, the marker belongs on the other test.
+[case](../evidence/test-design-modes.md#log-every-caught-bug-case)
+
+The generated catalogue index is injected at load time:
+
+<!-- harness: error_index -->
+
+---
+
+## The 6 AI failure modes — solver bugs (L0 is the only defense)
+
+Observable signatures of sub-word tokenizer co-location. Mechanism:
+`reference.md` §2.
+
+| # | Mode | Example | Detection (L0) |
+|---|---|---|---|
+| 1 | Sign flip | `(a−b)` vs `(b−a)` | heterogeneous keff diverges under refinement |
+| 2 | Variable swap | `mu_x`/`mu_y`; `SigS`/`SigS^T` | per-ordinate flat-flux residual; asymmetric 2G inputs |
+| 3 | Missing factor | missing `ΔA/w`, `2π`, volume | fixed-source flux spike at r=0 vs `Q/Σ_t` |
+| 4 | Wrong recursion | `α_{m+1/2}` index drift | per-ordinate flat-flux residual |
+| 5 | Index error | `face[i]` vs `face[i+1]` | non-uniform mesh moves keff |
+| 6 | Convention drift | definition site vs usage site disagree | 2G heterogeneous, asymmetric SigS — wrong group ratio |
+
+---
+
+## The 6 test-design failure modes — the test cannot SEE the solver bug
+
+Mechanically distinct from 1–6; the defense is **test review**, not L0.
+
+7. **MMS simplification bias** — the ansatz nulls the hardest term by design (isotropic-in-μ kills angular redistribution, ERR-026). **check:** every multi-dim test declares which terms its ansatz **activates** and which it **nulls**; a nulled term with an active ERR-NNN means redesign, and ship an angularly-non-trivial companion (`ψ = (A(r)+B(r)μ)/W`). **tell:** an isotropic-in-μ ansatz in a curvilinear / Pℓ context with no companion. [case](../evidence/test-design-modes.md#mode-7-mms-bias)
+8. **Compiled-out assertion** — `python -O` strips bare `assert`; the gate collects, passes, asserts nothing. **check:** pytest's rewriter protects a *collected* module, so the rule bites in a non-collected one (`_helper.py`, a generator, production code): rewrite as `raise` / `np.testing.assert_*`. **tell:** a tripwire that cannot trip — green under `-O`, never red. [case](../evidence/test-design-modes.md#mode-8-compiled-out)
+9. **Splitting/acceleration verified only in a degenerate (FP-coincident) regime** — the invariance is gated where the wrong formulation is accidentally exact. **check:** run the FP-invariance gate on a config that BREAKS the coincidence — anisotropic flux (vacuum/heterogeneous/streaming) AND, for angular-schedule changes, a diagonal cubature (`lebedev`/`level_symmetric`); assert against the UN-accelerated fixed point. **tell:** the invariance fixture is the reflective isotropic box or an axis-aligned product rule. [case](../evidence/test-design-modes.md#mode-9-degenerate-regime)
+10. **Activated-but-unconstrained term** — the term runs yet enters the measured quantity as higher-order-small forcing, so a sign error is absorbed below the floor. **check:** for every activated term carrying a sign/convention trap, MUTATION-verify it is also *constrained* — re-introduce the exact error and require RED; when the verification is structural-only, pair the honest-scope note with a prophylactic `.. warning::` in the theory page. **tell:** "activated" in the declaration, no red mutation on record. [case](../evidence/test-design-modes.md#mode-10-unconstrained-term)
+11. **Gate-never-executes-the-rewired-path** — the named twin is green AND its asserts fire, but its run never reaches the changed production line. **check:** sentinel-instrument that exact line (a file-write or counter — NOT a bare `assert`, NOT a print) and confirm the gate executes it before crediting it. **tell:** a slow twin named as evidence for a NEW reader with zero non-docstring callers. [case](../evidence/test-design-modes.md#mode-11-never-executes)
+12. **Invariant-functional gate** — the measured functional's invariance group CONTAINS the error class, so the gate is blind *identically-zero*, not sub-floor. **check:** at gate-DESIGN time, before any mutation, enumerate the functional's stabiliser (spectra: similarity + transpose; balance sums: cancelling per-term errors; normalised shapes: scaling; trace/det: similarity), intersect it with the threat model — for the WHOLE committed gate set, not one gate — and gate the OBJECT where a mutation sits inside the stabiliser (DESIGNED-GREEN). **tell:** a spectrum, balance sum or normalised shape credited against a factor-order or transpose mutation. [case](../evidence/test-design-modes.md#mode-12-invariant-functional)
+
+---
+
+## Anti-patterns to flag immediately
+
+Each is a redirect: **NEVER** X — **instead** Y; raise before any other review work.
+
+1. **NEVER** claim verification from L4 agreement alone — require an L0–L2 chain to a structurally-independent reference. **check:** name the L0–L3 backing. **tell:** "our two solvers agree to 1e-9". [case](../evidence/vv-anti-patterns.md#ap1-l4-alone)
+2. **NEVER** assert `np.allclose` against another solver in this codebase — match the claim to a reference at its level. **check:** which pillar is the right-hand side? **tell:** `allclose(solver_a, solver_b)`. [case](../evidence/vv-anti-patterns.md#ap2-allclose-solver)
+3. **NEVER** accept a 1-group eigenvalue test as solver evidence — demand ≥2 groups. **check:** the fixture's `ng`. **tell:** k asserted at `ng=1`. [case](../evidence/vv-anti-patterns.md#ap3-one-group)
+4. **NEVER** accept homogeneous-only verification — demand ≥1 heterogeneous, mesh-refined, multi-group case. **check:** does any fixture carry ≥2 materials? **tell:** flat flux nulls every redistribution and weight-cancellation term. [case](../evidence/vv-anti-patterns.md#ap4-homogeneous-only)
+5. **NEVER** read "convergence rate is correct" as "result is correct" — verify the converged-TO value. **check:** is there an absolute reference, or only a slope? **tell:** an order table with no value column; O(h²) to the wrong limit is still O(h²). [case](../evidence/vv-anti-patterns.md#ap5-rate-only)
+6. **NEVER** trust a reference not traced to a structurally-independent analytical/symbolic ground — treat it as **reference contamination** until the trace is shown. **check:** walk the provenance to a closed form. **tell:** MC vs MC; CP vs unverified MC; method-of-images converged to the wrong BC. [case](../evidence/vv-anti-patterns.md#ap6-untraced-reference)
+7. **NEVER** treat "two derivations agree" as proof — check *structural* independence. **check:** do both use the same upstream identity or integrand? **tell:** agreement at 1e-39 (ERR-032). [case](../evidence/vv-anti-patterns.md#ap7-derivations-agree)
+8. **NEVER** accept "particle balance holds" as L0 evidence — require the per-ordinate flat-flux residual. **check:** does the functional telescope? **tell:** a balance sum quoted as the residual. [case](../evidence/vv-anti-patterns.md#ap8-particle-balance)
+9. **NEVER** conflate validation with verification — state which screw is being turned. **check:** is the equation or the solution under test? **tell:** a wrong equation passes verification cleanly; only L3 catches it. [case](../evidence/vv-anti-patterns.md#ap9-validation-verification)
+10. **NEVER** accept "it produces reasonable numbers" — enumerate every term, isolate it, verify sign AND magnitude. **check:** per-term isolation. **tell:** sign-flipped small terms look reasonable. [case](../evidence/vv-anti-patterns.md#ap10-reasonable-numbers)
+11. **NEVER** test a contract-validation method (`assert_X`/`check_X`/`verify_X`) ONLY against a deliberately-broken instance — require ≥1 **positive** leg (correct instance, MUST NOT raise) AND ≥1 **negative** leg (MUST raise). **check:** count the legs. **tell:** only a `pytest.raises`; the broken input was built to make the WRONG invariant raise (ERR-051). [case](../evidence/vv-anti-patterns.md#ap11-negative-legs)
+12. **NEVER** credit a "behaviour-neutral field-zeroing / relabel / no-op retype" claim from a fast proxy — re-prove neutrality for EVERY consumer by a direct old-vs-new VALUE comparison. **check:** one `array_equal`/`nulp` per consumer contract. **tell:** "inert" proven for one contract and spent on many; a green snapshot pins the masked regime, not the claim (ERR-063). [case](../evidence/vv-anti-patterns.md#ap12-neutral-proxy)
+13. **NEVER** accept a finite "representative sample" of a group / parameter family / operator set as a check of the WHOLE — compute the object the sample GENERATES and compare it to the claimed one. **check:** do the listed elements generate the claimed group or a proper subgroup (ERR-072: four right angles generate `C_4`, not `SO(2)`)? **tells — four disguises:** a docstring pre-authorising the gap, so check the shipped rules one by one; a refinement ladder inside one congruence class (8/16/32/64 are all even), so include one odd, one prime, one non-power-of-two; a sample drawn from the stale claim's own neighbourhood, so check at a point the claim's text does not name; a TOLERANCE sweep on an iterative solver, which acts only through the iteration count it induces: report the count beside every row; rows with the same count are one measurement ([M] 2026-09-06, #448: four decades of `flux_tol` gave `n_outer = 10`; at 1e-11 it went to 12 and the deviation fell 49x). [case](../evidence/vv-anti-patterns.md#ap13-finite-sample)
+14. **NEVER** read "every element found a matching partner" as "the map is a bijection" — assert the STRUCTURE the docstring names, or weaken the docstring. **check:** is injectivity asserted? Prefer **returning** the structure: a returned permutation makes its own bijectivity assertable, a `bool` makes it unfalsifiable. **tell:** a nearest-neighbour/lookup loop documented as a permutation (ERR-073). [case](../evidence/vv-anti-patterns.md#ap14-not-bijection)
+15. **NEVER** ship a module exposing BOTH an order relation (`contains`/`refines`/`⊆`) AND a predicate that must respect it (`is_invariant`/`admits`) without gating the **compatibility law** `A ⊆ B and P(B,x) => P(A,x)` over every (edge × fixture) pair. **check:** one loop, no external reference — neither half can be wrong alone without it reddening. **tell:** two test families, none crossing. [case](../evidence/vv-anti-patterns.md#ap15-order-predicate)
+16. **NEVER** assert a property TIGHTER than the type's own construction invariant — split into two gates: the invariant the type *promises* and the constructors' better *realised* quality. **check:** compare the test's tolerance with the production guard's; if the test is tighter, one of the two numbers is wrong. **tell:** a latent false red that a future legal input will trip. [case](../evidence/vv-anti-patterns.md#ap16-tighter-invariant)
+17. **NEVER** run a mutation battery without a **POSITIVE CONTROL** — include a mutation that MUST redden many gates and read an all-blind verdict as *the harness is broken* until the control says otherwise. **checks — eight, each a distinct failure:** (a) *granularity* — a multi-arm guard is N claims: mutate each ARM, the verdict is a table, an arm reddening nothing is a guard with no witness; (b) *displacement* — a new guard preempting an old one makes the old gate red as a message mismatch: write the displaced guard its own witness at its own predicate, same commit; (c) *collection kill* — a mutation that makes production raise kills collection and pytest reports `FAILED = 0`: never call production in a `parametrize` argument list, run `--continue-on-collection-errors`, count `^ERROR` separately from `^FAILED`; (d) *hoisted guard* — after a Pattern-2 hoist the guard has as many arms as CALL SITES: mutate per site, and suspect the site whose operand expression differs from its siblings'; (e) *red set by IDENTITY* — red set == `grep -rln "<symbol>" tests/` means no consumer, the pins are a mirror (patch every rebinding site, `__init__` re-exports included); (f) *the control's own blindness* — a mutation inside the SUT's stabiliser is a null control, and the real stabiliser can exceed the declared group: measure it, pick the outsider outside THAT; an ordinary arm reddening more than your control is the effective control; (g) *staged filters* — a two-stage census (name-net then literal scan) needs a control per STAGE, named with the spelling you are LEAST sure the net catches; (h) *the AIM trap* — an arm that reddens MANY rows while its TARGET row stays green hit a different object than it was aimed at: read the red SET against the target row, never the count ([M] 2026-09-14, C3b-2: 25 rows red, the refusal leg green; re-armed on the named predicate, exactly 1 red). Read arm output from a FILE, never an inline `$(...)` capture. **tell:** every arm green with none expected to red; a red count reported without its target row. [case](../evidence/vv-anti-patterns.md#ap17-positive-control)
+18. **NEVER** credit a mutation's reds as coverage of a property when the mutation also breaks a STRUCTURAL law the object obeys (linearity, symmetry, positivity, conservation, a shape contract) — mutate INSIDE the object's algebraic class. **check:** ask of every red "by what mechanism does THIS gate see THIS property?"; size the reachable audience first with the Mode-12 stabiliser check. **tell:** a red count out of scale with the property's reach; end-to-end eigenvalue gates reddening for a bookkeeping claim. [case](../evidence/vv-anti-patterns.md#ap18-breaks-structure)
+19. **NEVER** cite a gate's POSITIVE reading as evidence that the gate is *loaded* on a structure — cite the reading under the DELIBERATELY-WRONG structure. **check:** if a wrong-structure control exists in the module, the new fixture belongs in its parametrize list. **tell:** "the metric-loaded partner: `[M]` residual 1.8e-15" — a number carrying zero information about loading. [case](../evidence/vv-anti-patterns.md#ap19-positive-reading)
+20. **NEVER** count the ROWS a new case multiplies into as new coverage — count the CASES; for each row name the body line that reads what the case varies. **check:** does the body touch the varied field? A row that cannot is Mode-12 annihilated, not under-tested. **tell:** a `+3 lines` diff, a closeout claiming "+6 rows of coverage". [case](../evidence/vv-anti-patterns.md#ap20-rows-cases)
+21. **NEVER** audit a negated claim with a LINE-based grep — search a WINDOW (subject within ±2 lines of the negation). **check:** re-run tree-wide after any correction pass, corrected file first; reconcile hits BY TENSE (past-tense history stays, a present-tense claim is a MUST-FIX); a finding about a CLAIM owes a site census over every spelling and file. **tell:** one file carrying both the stale claim and its correction. [case](../evidence/vv-anti-patterns.md#ap21-line-grep)
+22. **NEVER** read "neither side calls the other" as independence when both sides read the SAME object — ask per axis: *derivation* AND *input-resolution*. **check:** enumerate what each side READS per parametrised row — built by the test OR a cached production property of the SUT ([M] 2026-09-05, CS4c 5 F-3: the `[F]` row read the SUT's cached `isotropic_energy`; a 1e-7 perturbation left it green); mutate the shared resolution and confirm something reds. **tell:** an "independent routes" docstring beside a shared domain object. [case](../evidence/vv-anti-patterns.md#ap22-shared-object)
+23. **NEVER** size an A-vs-B **invariance** gate ("bit-identical when knob K varies") by the breadth of what it computes — enumerate the production lines that READ K and prove the fixture makes each discriminating. **check:** grep the K-readers; the control must be K-dependent — neuter the knob so A and B become one object and require the *activation* leg to red; name the rows that cannot see K. **tell:** a catastrophic mutation leaves the gate fully green — reads as a dead harness (#17), is the wrong control. [case](../evidence/vv-anti-patterns.md#ap23-invariance-sizing)
+24. **NEVER** let a metric ADJUDICATE between design candidates until it is validated against the mechanism it claims to measure. **checks — five:** (a) *basis* — are the trial modes allowed by the symmetry AND representable by the discretization? (a discrete moment on the actual rule off by O(1) means not represented); (b) *rank-correlation* — with ≥3 candidates tabulate the metric beside one column per mechanism; a metric correlated with A and anti-correlated with B cannot adjudicate B; a ranking explained by an undebated mechanism is the finding; (c) *cost-against-alternatives* — "X has the usual exposure to Y" is a comparison; if every candidate has Y and X the least, the caveat argues FOR X; (d) *zero-set* — solve `instrument = 0`; if the solution IS the incumbent the instrument measures distance-to-incumbent; an INTEGRATED functional admits signed cancellation — grade the un-integrated field; (e) *regime* — is the differentiating mechanism awake at this `c`, optical thickness, cells-per-mfp? (d) and (e) have OPPOSITE fixes. **tell:** a scoring rule restating the design's defining property. [case](../evidence/vv-anti-patterns.md#ap24-metric-adjudicates)
+25. **NEVER** accept "unaffected because X" for a null result when the change RETIRED MORE THAN ONE MECHANISM — null-check the artefact against each, name beside number. **check:** a conjunction in the commit subject = two mechanisms = two checks per artefact; a re-baseline's radius is every frozen REFERENCE reachable by the changed code — run the whole module tree and grep the non-`.npy` carriers (hash literals, inline expected values, prose naming the quadrature). **tell:** a welcome null result with one stated cause — a certificate of blindness. [case](../evidence/vv-anti-patterns.md#ap25-bundled-mechanisms)
+26. **NEVER** gate a claim about the PATH by asserting the OUTPUT — instrument the route. **check:** monkeypatch the cheapest observable on the skipped path (the parse, the subprocess, the `stat` — never a timing proxy) in the module's own namespace and assert the call list is empty; assert **identity**, not equality, when the promise is "unchanged"; gate BOTH sides of the branch. **tell:** a fast-path promise asserted with `==` on the return value. [case](../evidence/vv-anti-patterns.md#ap26-output-path)
+27. **NEVER** treat a retired type's leftover WORKAROUND IDIOM as stale prose to re-word — ask what error class the detour's FUNCTIONAL annihilates. **check:** model both functionals in pure arithmetic (ten lines, no SUT import) and evaluate on the credited error class; when a sweep claims to have fixed such a site, verify it moved the ASSERTION, not the prose (`git show <old>:<file>` vs the tree). **tell:** additivity spelled as an affine combination — exactly blind to an affine regression. [case](../evidence/vv-anti-patterns.md#ap27-workaround-idiom)
+28. **NEVER** design a guard against an operand's OPTIONAL METADATA without probing that field on a PRODUCTION instance. **check:** (a) construct the operand as the production call site does and print the field; (b) count construction sites by factory, write the live FRACTION into the guard's docstring, and with a non-zero inert fraction key the guard on what the object *always* carries; (c) *temporal twin* — a guard reading a defaulted `getattr(x, "f", None)` goes silently inert when `f` retires: the retirement audit greps the retiring name inside `getattr`/`hasattr` and re-keys each hit with a red witness. **tell:** the guard's fixture is hand-built with the simple constructor. [case](../evidence/vv-anti-patterns.md#ap28-optional-metadata)
+29. **NEVER** replace runtime dispatch with a construction-time KEY on the strength of a class-level inventory of ARMS — run a per-INSTANCE traffic census: instrument the boundary, log `(bound key, observed operand type)` over one real workload per family, with a positive control (headline number bit-identical instrumented vs not). **checks — six failures, all invisible statically:** (a) *wrong arm* (bound K₁, fed only C₂); (b) *non-determination* (one instance, two carrier families in one solve); (c) *asymmetric arrow* (typed in, bare out); (d) *NO arm* — a fused parent overrides the body and reads the child's *data*, so the key selects a body production never executes; zero applies is NOT zero consumers; (e) *kernel bypass* — a caller holding the kernel steps over a one-line delegating verb: grep the delegate's call sites before crediting a zero; (f) *arm-identical, body-different* — an early return inside the arm is invisible: instrument the BRANCHES and count BODIES EXECUTED, not arms dispatched (equal counts everywhere, or `self.apply(...)` inside an arm, means a re-dispatcher). A NOT-RUN row's explanation is a separate, unmeasured claim: discriminate "no consumer exists" from "this workload never reaches it" by naming the `if`/`is None` gating the consumer and adding ONE scenario on the other side. **tell:** a class-level arm inventory offered as the traffic evidence. [case](../evidence/vv-anti-patterns.md#ap29-traffic-census)
+30. **NEVER** credit an "X is not data of this operation" claim from the ARITHMETIC — check the CODOMAIN constructor: locality says nothing about minting the RESULT. **check:** grep the output constructor (`…from_mesh(v, mesh)`, `zeros_on(mesh)`) for the field claimed absent. **tell:** a locality argument with a `from_mesh` two lines below it. [case](../evidence/vv-anti-patterns.md#ap30-codomain-constructor)
+31. **NEVER** pin `np.array_equal` — or publish "bit-exact" — from a single draw's green reading: sweep seeds, or prove the float re-association exact. **check:** for a SHIPPED finite family probe EVERY member — a ladder is a *sample*; the member you skip holds the counterexample. **tell:** "BIT-EXACT" beside one seed; a broken-pattern ladder over an enumerable population. [case](../evidence/vv-anti-patterns.md#ap31-single-draw)
+32. **NEVER** rank scheme CANDIDATES by positivity properties alone — add a CONSISTENCY leg: sign-preservation and monotonicity are BOTH blind to a wrong limit. **check:** one line on the cell transmission — `sp.series(a - sp.exp(-t), t, 0, 2)`, equivalently `a'(0) == −1`; a candidate failing it converges cleanly to the wrong answer — **strike** it. **tell:** a candidate table with "positive?" and "monotone?" columns and no third. [case](../evidence/vv-anti-patterns.md#ap32-consistency-leg)
+33. **NEVER** let a fact recorded for ONE job be spent on ANOTHER — give each job its own field, named by the job. **check:** a field read by two predicates whose docstrings ask different questions. **tell:** the second reader cannot say why the first job's answer is also its answer. [case](../evidence/vv-anti-patterns.md#ap33-fact-twice)
+34. **NEVER** credit a "brute-force control" — or any second implementation offered as an oracle — on the strength of its NAME. **check:** compare the two ASTs after α-normalisation (rename every local to a placeholder); α-equivalent bodies are ONE implementation wearing two names, their agreement a tautology. **tell:** docstrings claiming "ONE closure" while one body inlines a character-for-character copy. [case](../evidence/vv-anti-patterns.md#ap34-brute-force)
+35. **NEVER** report a derived COMPARISON quantity by its unit name alone when the name is overloaded — write its definition beside it: `Δk·10⁵`, `Δk/k₀·10⁵` and `Δρ·10⁵ = (1/k₀ − 1/k)·10⁵` differ by `k₀`. **check:** does the fixture set span a range of the normalising quantity? Then emit all three columns. **tell:** one `pcm` figure quoted across fixtures with different `k₀`. [case](../evidence/vv-anti-patterns.md#ap35-overloaded-unit)
+36. **NEVER** read a `catches("ERR-NNN")` / `verifies(...)` marker as coverage without reading the test's OTHER markers — a catcher deselected by the canonical invocation is a gate that cannot RUN. The absent enforcer can be a TYPE CHECKER: `assert_type` pins under `tests/` when the only pyright gate runs `pyright orpheus/` ([M] 2026-09-05, #452). **check:** read the marker SET; say plainly when an ERR's `-m "not slow"` coverage is zero. **tell:** the catalogue reports the ERR covered, the test reds on re-introduction, and every merge-deciding run deselects it. [case](../evidence/vv-anti-patterns.md#ap36-deselected-catcher)
+
+---
+
+## Sign-pattern + magnitude fingerprint diagnostic
+
+Sign pattern + magnitude scaling form a 2-D fingerprint that pins the bug class
+before any debugger step — **read fingerprints before opening mpmath**;
+catalogue: the `numerical-bug-signatures` skill.
+
+---
+
+## Pointers
+
+- **Philosophy:** `reference.md`; worked case studies: `scripts/`
+  (`scripts/_template.md`), beside the generated skill.
+- **Adjacent skills:** `numerical-bug-signatures`, `probe-cascade`,
+  `nexus-verification`.
