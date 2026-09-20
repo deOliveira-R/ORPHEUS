@@ -71,11 +71,32 @@ Every brief carries, in this order:
 Workflow: W<n> — phase P<k>
 Artefacts from the previous phase: <paths>
 Ask: <one paragraph, self-contained; assume zero context from this session>
-Rules that apply to you: <only for Support agents, which see no project rules:
-  the two or three that matter — e.g. the ugrep silent-zero hazard for a
-  census; local-folder-first for literature>
+Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
+  project rule and no project memory index — only their AGENT.md, their own
+  agent memory and their preloaded skills — this line is the only place a
+  project rule reaches them; a `general-purpose` categoriser inherits the rules
+  and needs only its schema. Paste this line into the brief, filled in. Always:
+  never `git checkout` / `git restore` / `git stash` a path that carries
+  uncommitted edits (L28); whether the agent may edit tracked files at all (a
+  census is read-only); tests run as `python -O -m pytest`; if another agent
+  is editing the tree meanwhile, what, where and until when (L38); any
+  negative you assert about the tree ("X has no gate") marked `[R]` for the
+  agent to re-verify (L50). For a census: `grep` is ugrep and an anchor inside
+  an alternation group matches nothing, silently — use `\b…\b` or `-P` with a
+  lookbehind; name a POSITIVE CONTROL of each shape expected that the filter
+  must find before any zero is believed; every count states its predicate, its
+  tree and its exclusions, and a completeness claim is re-run in Python (`re` +
+  `pathlib.rglob`) so its denominator is stated. For literature: the `delegation` rule's section
+  "Briefing a literature pull", in full — `scratch/literature/` first, spelled
+  out, then the OCR sidecars; "not in the local folder" is a question to the
+  user, never a pivot. For a design review (cross-domain-attacker): the
+  artefact's path; the return is structural detection, no critique. If the
+  task depends on Nexus: what to do when it is missing (a sub-agent has no
+  `ToolSearch`). Any campaign pointer the agent needs, verbatim — it has no
+  project memory index.>
 Return contract: report under <N> words; the file(s) at <paths> carry the
-  detail; end with a NEEDS: block (see below), empty if nothing is missing.
+  detail; a verification claim pastes the pytest summary line verbatim, in a code fence (L12);
+  end with a NEEDS: block (see below), empty if nothing is missing.
 ```
 
 For an Opus-pinned agent the word cap is not optional: Opus 5 writes longer

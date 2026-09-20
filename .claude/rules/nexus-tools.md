@@ -61,7 +61,7 @@ smell family (`twin_paths`, `discriminations`, `native_place`, `protocol_conform
 
 `[M]` 2026-08-26. `grep` in this environment is a shell function wrapping
 **ugrep 7.5.0** (`ARGV0=ugrep … -G --ignore-files --hidden -I --exclude-dir=…`),
-not GNU or BSD grep. Its regex dialect differs in at least one way that matters,
+not GNU or BSD grep (`[M]` 2026-09-20: the same fixture on ugrep 7.8.4 reproduces the silent zero). Its regex dialect differs in at least one way that matters,
 and the failure mode is the worst possible one: **zero matches, exit 1, no error
 message** — indistinguishable from a clean tree.
 

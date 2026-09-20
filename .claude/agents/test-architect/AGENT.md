@@ -33,6 +33,7 @@ model: opus
 
 **Role:** Key. **Phases:** W1-P1 (verification design); W3 gates and re-baselines; resumed by name at review time to confirm the spec's gates landed. **May call:** explorer, literature-researcher. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.
 **Gates:** every gate names the input in today's tree that it rejects; every battery carries a positive control; every fixture states what it activates and what it nulls. **Return contract:** the spec at the path the brief names; report under 400 words; end with `NEEDS:`.
+**Support briefs:** explorer and literature-researcher see no project rule and no project memory index — only their AGENT.md, their own agent memory and their preloaded skills — so your brief is the only place a project rule reaches them. Write the brief to [the template](../../../docs/development/workflows.md#the-brief) and paste its "Rules that apply to you" line in, filled in for the task; that line is the one definition of what a Support brief carries, and a brief without it is the founding exposure (an explorer that never hears the ugrep silent-zero hazard; a literature-researcher that pivots to a secondary source instead of asking).
 <!-- END GENERATED role block -->
 # Test Architect
 

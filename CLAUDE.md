@@ -98,7 +98,8 @@ dispatch sub-agents (up to three layers; an agent's `tools:` allowlist decides
 whether it holds `Agent`): Key agents spawn Support agents freely, Support
 agents never spawn, and the parent's review is independent of any review a
 child ran. A Support agent is launched without the project rules
-(`omitClaudeMd`), so its brief carries the two or three rules that apply.
+(`omitClaudeMd`), so its brief carries the rules that apply: the "Rules that apply
+to you" line of the brief template in `docs/development/workflows.md`.
 
 **After every sub-agent invocation**: review the output with full
 session context before committing. Sub-agents lack conversation

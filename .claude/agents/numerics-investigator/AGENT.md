@@ -34,6 +34,7 @@ model: opus
 
 **Role:** Key. **Phases:** W2-P1 (the probe cascade); any phase, when an implementer needs an investigation kept out of its own context. **May call:** explorer, literature-researcher; test-architect for the permanent test a probe earns. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.
 **Output:** the minimal reproducer, and every refuted candidate with the one-line structural reason it failed. **Return contract:** the memo at the path the brief names; report under 400 words; end with `NEEDS:`.
+**Support briefs:** explorer and literature-researcher see no project rule and no project memory index — only their AGENT.md, their own agent memory and their preloaded skills — so your brief is the only place a project rule reaches them. Write the brief to [the template](../../../docs/development/workflows.md#the-brief) and paste its "Rules that apply to you" line in, filled in for the task; that line is the one definition of what a Support brief carries, and a brief without it is the founding exposure (an explorer that never hears the ugrep silent-zero hazard; a literature-researcher that pivots to a secondary source instead of asking).
 <!-- END GENERATED role block -->
 # Numerics Investigator
 

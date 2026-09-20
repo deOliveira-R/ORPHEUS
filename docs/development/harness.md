@@ -71,6 +71,18 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 - **A plan** stays in `.claude/plans/` (transient: executed, triaged, archived);
   its close-out record moves here.
 
+- **A claim about what a dispatch receives is measured by dispatching**, never
+  read off the frontmatter or a plan. `[M]` 2026-09-20: a zero-tool explorer
+  probe, asked what it held, showed that `omitClaudeMd` drops CLAUDE.md, the
+  rules and the PROJECT memory index but not the agent's own memory index or
+  its preloaded skills; six role blocks had said "no memory index" from
+  reading the F10 measurement, which had looked only at the project index.
+  The same probe fixture (haiku, one-line system prompt, no tools) carries no
+  role block, so a role-block change cannot move the T4 dispatch floor: a Key
+  dispatch costs the fixed harness block, the instruction files, its AGENT.md,
+  its preloaded skills and its own memory index, and each part is measured
+  by a probe that carries it.
+
 ## Session start
 
 `.claude/hooks/session-start.txt` (printed by a SessionStart hook after the

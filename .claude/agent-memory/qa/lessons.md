@@ -264,6 +264,17 @@ vs MyST `μ-sign-convention`; 0 of 403 real headings diverge today). → L-082
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)
 
+**B-DISPATCH. A claim about what a DISPATCH RECEIVES is measured by
+DISPATCHING — frontmatter, a plan ruling and a `keep - omit` token probe all
+read TRUE on a false one.** Six role blocks said a Support agent has "no memory
+index"; one zero-tool explorer dispatch, asked only what it held, showed it
+keeps its OWN agent memory index (~120-140 lines) and its preloaded skills --
+`omitClaudeMd` drops CLAUDE.md, the rules and the PROJECT index only. A
+DIFFERENCE instrument cannot name what sits in BOTH arms. Mirror, same fixture:
+a "dispatch floor" probe run with 0 tools carries no role block, so role-block
+growth cannot move it, and the only gate that objected was a budget the change
+then raised. Price each part with a probe that CARRIES it. -> L-085
+
 **B1. Mutate the SHARED source, not the dead-for-this-path method.** SWEEP and
 MATVEC share only precomputed coefficients: three apply-path mutations gave
 call-count 0 and identical error ladders (GREEN-BLIND on dead code). Instrument a

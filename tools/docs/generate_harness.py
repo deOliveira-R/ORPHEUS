@@ -59,6 +59,7 @@ from myst_parser.mdit_to_docutils.base import compute_unique_slug
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = REPO_ROOT / "tools" / "docs" / "harness_manifest.toml"
 HARNESS_DIR = REPO_ROOT / ".claude"
+SLACK_MAX = 400  # a budget more than this above the measured size lets growth in unreviewed
 CHARS_PER_TOKEN = 3.6  # [M] 2026-09-20: 3.51 and 3.53 chars/token on the API tokenizer, keep-minus-omit probe (plan, "T4 executed")
 HEADING_ANCHOR_LEVELS = 4  # docs/conf.py: myst_heading_anchors = this
 TEXT_KINDS = ("rule", "skill", "index")
@@ -159,6 +160,8 @@ def render_text(entry: dict, kind: str, problems: list[str], aliases: dict[Path,
     tokens = int(len(out) / CHARS_PER_TOKEN)
     if tokens > entry["budget_tokens"]:
         problems.append(f"{dst.relative_to(REPO_ROOT)}: ≈{tokens} tokens > budget {entry['budget_tokens']}")
+    elif entry["budget_tokens"] - tokens > SLACK_MAX:
+        problems.append(f"{dst.relative_to(REPO_ROOT)}: budget {entry['budget_tokens']} is {entry['budget_tokens'] - tokens} tokens above ≈{tokens}, more than SLACK_MAX {SLACK_MAX}; lower it")
     return dst, out
 
 
@@ -173,6 +176,8 @@ def render_agent(entry: dict, problems: list[str], aliases: dict[Path, Path]) ->
     tokens = int(len(generated) / CHARS_PER_TOKEN)
     if tokens > entry["budget_tokens"]:
         problems.append(f"{rel_dst}: role block ≈{tokens} tokens > budget {entry['budget_tokens']}")
+    elif entry["budget_tokens"] - tokens > SLACK_MAX:
+        problems.append(f"{rel_dst}: role block budget {entry['budget_tokens']} is {entry['budget_tokens'] - tokens} tokens above ≈{tokens}, more than SLACK_MAX {SLACK_MAX}; lower it")
     current = dst.read_text() if dst.exists() else ""
     i = current.find(BEGIN_PREFIX)
     if i >= 0:

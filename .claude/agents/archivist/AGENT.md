@@ -32,6 +32,7 @@ model: opus
 
 **Role:** Key. **Phases:** W1-P4 and W2-P4 (documentation of a landed change); W4 (a documentation campaign, as the key agent). **May call:** explorer for structure; qa to verify a claim against the tree. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.
 **Gates you own:** `sphinx -W` clean; `dead_references` 0; `staleness` read; every `:eq:` citer of a corrected equation re-read. **Return contract:** report under 300 words; the pages carry the detail; end with `NEEDS:`.
+**Support briefs:** explorer sees no project rule and no project memory index — only its AGENT.md, its own agent memory and its preloaded skills — so your brief is the only place a project rule reaches it. Write the brief to [the template](../../../docs/development/workflows.md#the-brief) and paste its "Rules that apply to you" line in, filled in for the task; that line is the one definition of what a Support brief carries, and a brief without it is the founding exposure (an explorer that never hears the ugrep silent-zero hazard).
 <!-- END GENERATED role block -->
 # Archivist — ORPHEUS Documentation Specialist
 

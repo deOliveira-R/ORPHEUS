@@ -46,6 +46,11 @@ Five dispatches, all READ-ONLY, all reports under `scratch/_harness_eval/review/
 - **W4-P3 LESSONS RETIREMENT claim** -> `qa_lessons_retirement.md`. Retired set
   EXACTLY 20, 18/1/1 exact; 12 of 20 carried, 8 PARTIAL, 0 losses; 44/44 anchors
   resolve; 9 stale pointers / 7 targets. L-083 / **A23**,**A24**.
+- **T5 SUPPORT-BRIEF paragraphs** (W4, uncommitted) -> `scratch/_harness_eval/t5/qa_support_briefs.md`.
+  12 findings; the headline REFUTED by a zero-tool explorer probe: a Support agent
+  keeps its OWN memory index and skills, only the PROJECT index is dropped. After
+  repair 11 closed, 1 half (the new "how a budget is set" comment is false for 4 of
+  8 rows). L-085 / **B-DISPATCH**.
 - **W4-P3(b) RESTORATION fidelity** (`0d376e4f`) -> `qa_restorations.md`.
   **23 of 30 faithful**, 1 lost a discriminating step (Mode 11's surrogate
   qualifier + its two-sided mutation check), **0 invented numbers** — all four
@@ -81,6 +86,9 @@ Five dispatches, all READ-ONLY, all reports under `scratch/_harness_eval/review/
 - **Q5.6.4 SN cylindrical τ** -> `scratch/q64_attempt2_qa_review.md`; five
   tree-carried findings. L-068.
 - L-001..L-062 SN campaigns: all merged to `main`.
+
+⛔ 2026-09-20 ruling: a HARNESS lesson is NOT a vv-principles item (it lives on
+`docs/development/harness.md`). Re-check each row below against that before landing.
 
 ### ⚠ Standing debt — `vv-principles` §Anti-patterns drop-ins NOT landed
 

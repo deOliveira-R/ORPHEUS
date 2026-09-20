@@ -12,7 +12,7 @@ phase descriptions, the brief template and the return contract are in
 |---|---|---|---|
 | **Orchestrator** | owns phase transitions, the review stage, user rulings, issues, commits | yes | the main agent |
 | **Key** | owns one phase of a workflow; calls Support agents freely, and any other Key agent when the reason is worthwhile (an implementer spawning a numerics-investigator keeps its own context clean) | yes | test-architect, method-implementer, numerics-investigator, archivist, qa, elegance-enforcer |
-| **Support** | answers one question from its brief and returns; never spawns; launched without the project rules (`omitClaudeMd`), so its brief is its only rule surface | no | explorer (available to any agent), literature-researcher, cross-domain-attacker, haiku categorisers (`general-purpose` with a fixed output schema) |
+| **Support** | answers one question from its brief and returns; never spawns; the three `omitClaudeMd` agents are launched without the project rules, so the brief is the only place a project rule reaches them | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
 
 ## Invariants
 
@@ -30,7 +30,9 @@ phase descriptions, the brief template and the return contract are in
 4. **Every brief carries** the workflow ID, the phase, the previous phase's
    artefact paths, and the return contract: a word cap (Opus runs long), files
    carry the detail, and a `NEEDS:` block for anything the agent could not
-   obtain.
+   obtain. A brief to one of the three `omitClaudeMd` agents also carries the rules
+   that apply to it (the template's "Rules that apply to you" line): it sees
+   no project rule.
 
 ## The workflows
 

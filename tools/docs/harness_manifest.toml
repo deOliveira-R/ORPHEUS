@@ -9,6 +9,14 @@
 # budget_tokens counts tokens as the generator estimates them (CHARS_PER_TOKEN in
 # generate_harness.py): the always-on cost every dispatch pays for a rule or an
 # agent's role block, the per-load cost for a skill. Exceeding it fails generation.
+#
+# How a budget is set: a round figure above the measured size after a review
+# pass, never more than SLACK_MAX (generate_harness.py) tokens above it — the
+# generator fails on more slack, so an over-generous budget cannot let growth
+# in unreviewed; an agent's role block takes one flat value per role (Key 500,
+# Support 300) inside the same slack. A raise is made in the same commit as the
+# text that needs it. The budget is a size gate, never a quality gate: the
+# review is.
 
 [[rule]]
 source = "docs/development/rules/plan-authoring.md"
@@ -33,7 +41,7 @@ budget_tokens = 800
 [[rule]]
 source = "docs/development/rules/workflows.md"
 target = ".claude/rules/workflows.md"
-budget_tokens = 1300
+budget_tokens = 1400
 
 [[skill]]
 source = "docs/development/skills/vv-principles.md"
@@ -59,7 +67,7 @@ budget_tokens = 3400
 [[agent]]
 source = "docs/development/agents/archivist.md"
 target = ".claude/agents/archivist/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500
 [[agent]]
 source = "docs/development/agents/cross-domain-attacker.md"
 target = ".claude/agents/cross-domain-attacker/AGENT.md"
@@ -67,7 +75,7 @@ budget_tokens = 300
 [[agent]]
 source = "docs/development/agents/elegance-enforcer.md"
 target = ".claude/agents/elegance-enforcer/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500
 [[agent]]
 source = "docs/development/agents/explorer.md"
 target = ".claude/agents/explorer/AGENT.md"
@@ -79,16 +87,16 @@ budget_tokens = 300
 [[agent]]
 source = "docs/development/agents/method-implementer.md"
 target = ".claude/agents/method-implementer/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500
 [[agent]]
 source = "docs/development/agents/numerics-investigator.md"
 target = ".claude/agents/numerics-investigator/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500
 [[agent]]
 source = "docs/development/agents/qa.md"
 target = ".claude/agents/qa/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500
 [[agent]]
 source = "docs/development/agents/test-architect.md"
 target = ".claude/agents/test-architect/AGENT.md"
-budget_tokens = 300
+budget_tokens = 500

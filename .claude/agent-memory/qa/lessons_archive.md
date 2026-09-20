@@ -5558,3 +5558,49 @@ verify each quote against the original file, rather than re-reading both corpora
 whole. Table rows in the original are single 13 000-character lines: split by
 sentence into a scratchpad file (`re.sub(r'(?<=[.;]) ', '\n', row)`) before
 reading.
+
+## L-085 — a claim about what a DISPATCH RECEIVES is measured by dispatching (2026-09-20, T5 Support-briefs review)
+
+**Context.** Six Key role blocks, their six generated copies and a brief
+template all asserted that a Support agent is launched with "no memory index",
+and used it as the REASON for an instruction ("hand every pointer over
+verbatim"). The claim traced cleanly to a plan ruling (K8) and to a real
+measurement (F10: `omitClaudeMd` drops ≈71K = CLAUDE.md + rules + MEMORY.md).
+Reading the frontmatter (`omitClaudeMd: true`) confirmed it. Every paper
+instrument agreed.
+
+**The probe.** One `explorer` dispatch, zero tools, briefed to answer only
+from its context at dispatch and to say so if it opened any file: (1)
+CLAUDE.md? no. (2) project rules? no. (3) project memory index? no. (4) **its
+OWN agent memory index? YES** — "# Explorer memory index … Behavioral lessons
+live in `lessons.md` (read FIRST each dispatch)", ~120–140 lines, ~30 topic
+files. (5) role block? yes. Unasked: both Nexus skills in full.
+Corroborated on disk: `.claude/agent-memory/explorer/MEMORY.md` 14 311 B, 59
+files; `memory: project` is set and `omitClaudeMd` does not repeal it.
+
+**Why every paper instrument missed it.** F10 measured the drop by a
+`keep − omit` token difference on a throwaway fixture. A difference can only
+name what CHANGED; the agent's own memory is in BOTH arms, so it is
+invisible to that instrument by construction — and the plan's prose then
+generalised "MEMORY.md" (the project index) to "memory index". Same shape as
+A9/A11: an instrument reused for a second question inherits the first
+question's blindness.
+
+**The mirror, same session.** The campaign's headline target — "dispatch
+floor ≤ 75K for a Key-shaped agent", measured 74 822 — uses that same fixture:
+"haiku, one-line system prompt, **0 tools**", i.e. no AGENT.md and no role
+block. The change under review grew every Key role block by +171…+219 tokens
+(measured against HEAD, `CHARS_PER_TOKEN = 3.6`). The floor cannot move. The
+only instrument that objected was the manifest's `budget_tokens`, and the
+change raised it 300 → 500 — the plan-authoring §10 shape (a target resolved
+by re-baselining), on the one gate left.
+
+**Verdicts.** 12 findings; F1 the refuted premise, F5 a universal false for
+one member of the role it quantified over (`general-purpose` categorisers are
+listed as Support but have no AGENT.md, so no `omitClaudeMd`; the plan's own
+T4 record shows that probe answering YES to CLAUDE.md). After the repair: 11
+closed, 1 half-closed — the repair's new "how a budget is set" sentence is
+false for 4 of its 8 rule+skill rows (plan-authoring 9437/9600, vv-principles
+10798/11000, coding-elegance 8655/9000, instrument-doctrine 1994/2200 against
+a stated "next hundred above the measured size"), and `--check` asserts only
+`size <= budget`, so nothing reddens.

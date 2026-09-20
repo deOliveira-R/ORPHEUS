@@ -587,6 +587,12 @@ One entry per row of the original table, in table order. **Surprise** is the row
 
 **Clause.** §6b (the 2026-09-13 row's family — no new clause; the row is the measurement that the type-first census does not transfer from a field read to a rename by being written down once)
 
+### 2026-09-20 omitClaudeMd memory index
+
+**Surprise.** Six role blocks and the brief template said a Support agent "sees no project rule and no memory index". The second half was false: `omitClaudeMd` drops CLAUDE.md, the rules and the PROJECT memory index (what the F10 probe had measured) and keeps the agent's own memory index and its preloaded skills. A qa review measured it by dispatching a zero-tool explorer and asking what it held; the sentence had been written from F10's number, which answered a different question.
+
+**Clause.** §2 [M]-SCOPE: `[M]` certifies that a measurement happened, not that it answers its sentence. The durable form is on the harness page: a claim about what a dispatch receives is measured by dispatching.
+
 ## Founding cases
 
 The `> [M]` blockquotes of the rule's sections, un-quoted, in file order. The first line names the clause each one founded.
