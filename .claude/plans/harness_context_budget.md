@@ -681,6 +681,8 @@ Also this pass: `git worktree remove` of the leftover `nexus-workspace-wiring` c
 
 Gates after the second pass: generator `--check` 0 problems / 0 drift; 422 passed under `-O` across the five harness-facing modules; `sphinx -E -W` and `dead_references` recorded in the landing commit. Sizes `[M]` chars/3.6: plan-authoring 9.4K, coding-standards 5.2K, workflows 1.3K, instrument-doctrine 1.0K, articulation 0.7K; vv-principles 10.9K, coding-elegance 8.7K, instrument-doctrine skill 2.0K, lessons 3.3K. Always-on block ≈27.8K plus memory ≈2.5K; session-start batch ≈30.4K. Budgets: plan-authoring 9600, coding-standards 5300, vv-principles 11000, lessons 3400.
 
+A third, narrow check (`qa_pass2_clauses.md`) read the second pass's own eight clauses and two index lines against their lesson bodies: 5 of 10 faithful at first; the other five were rewritten to the bodies' own words (item 24 defines a leaf as zero production callers and keeps the audit table at `.claude/plans/<plan>_dependency_audit.md`; VALIDATE-THE-FILTER carries L55's separator-anchored check; the staleness trigger is the body's two symptoms after a major move; Mode 11 keeps its "only catchers" scope and "structurally blind"; L15's ban is on the NAME), and `git_workflow.rst`'s published `git commit -m` recipe became the `-F` form.
+
 P1b items this pass adds: cite X1–X4 by ID from the domain cores; the 21 glyphs in the three untouched rules (K4 says retired) go when those rules come under generation; 46 `[[lessons-Lnn]]` wiki-links in `.claude/agent-memory/**` and `.claude/plans/**` are agent- and plan-owned (20 point at retired numbers) and are re-pointed by their owners.
 
 ## Transition and evaluation protocol (ruled 2026-09-20; execute in this order)

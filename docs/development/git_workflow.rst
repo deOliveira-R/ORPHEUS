@@ -229,9 +229,13 @@ Quick command reference
 
    git checkout main && git pull --ff-only && git checkout -b feature/<topic>
 
-**Commit with prefix**::
+**Commit with prefix** — through ``-F`` from a quoted heredoc, never ``-m``: zsh
+command-substitutes backticks inside ``-m "…"`` and the words vanish silently; read
+the message back with ``git log -1 --format=%B``::
 
-   git commit -m "feat(cp): add interface current method"
+   git commit -F - <<'MSG'
+   feat(cp): add interface current method
+   MSG
 
 **Merge and clean up**::
 

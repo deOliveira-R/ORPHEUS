@@ -82,7 +82,7 @@ Superseded code is noise that invites extending the wrong path. **Retirement is 
 
 **G. The retirement's own scope and order.**
 
-24. **Retire leaves first, in one commit.** Symbols that exist only to support the retirement target are part of the retirement: enumerate every helper whose callers all lie inside the retired set, retire the leaves, then the internal-only helpers, then the top symbol, in ONE commit whose body carries the audit table. tell: an orphaned helper surviving the delete; a retirement spread over commits with green in between. [case](../../docs/development/evidence/lessons.md#l20-retirement-dependency-audit)
+24. **Retire leaves first, in one commit.** Symbols that exist only to support the retirement target are part of the retirement: before the plan, write a dependency-audit table (rows the symbols, columns the three surfaces above) to `.claude/plans/<plan>_dependency_audit.md`; retire in its order — leaves first (zero production callers), then the helpers only the retired set called, then the top-level symbol — in ONE commit whose body references the table. tell: an orphaned helper surviving the delete; a retirement spread over commits with green in between. [case](../../docs/development/evidence/lessons.md#l20-retirement-dependency-audit)
 25. **A move's residues.** Read every tool that WRITES into the moved tree (a generator, a hook) before declaring the move complete; a path constant gets ONE home that every consumer, tests included, imports; archaeology on a moved tree is a per-FILE judgement (what does this text DO in this file), never a per-directory one. [case](../../docs/development/evidence/lessons.md#l34-path-segments-grep)
 
 ## The mirror — landing a deferred capability stales its DEFERRAL CONTRACT

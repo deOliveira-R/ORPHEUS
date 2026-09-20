@@ -115,9 +115,9 @@ expression` on a channel nobody reads).
   grep-derived one.
   This is the most common cause of an agent silently avoiding the graph.
 - **Stale graph:** the trigger is a query that returns an unexpected result — zero
-  changes on a file you just edited, an old module name, a symbol you know exists
-  reported missing — and any file move or rename means assume it. Rebuild Sphinx
-  first (`sphinx-build docs docs/_build/html`); the MCP server auto-reloads.
+  changes, an old module name — and after a major file move or restructuring,
+  assume it. Rebuild Sphinx first (`sphinx-build docs docs/_build/html`); the MCP
+  server auto-reloads.
 - **Git worktrees (L22 hazard):** the session's MCP server was launched against the MAIN
   checkout's graph, so every query answers from the wrong branch until you switch. Build
   Sphinx inside the worktree, then `mcp__nexus__use_workspace(<worktree root>)`;
