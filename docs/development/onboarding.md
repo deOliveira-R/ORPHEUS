@@ -1,4 +1,3 @@
-<!-- BEGIN GENERATED block — source: docs/development/onboarding.md; edit the source, not this block -->
 # ORPHEUS — start here
 
 ORPHEUS (Open Reactor Physics Educational University System) is a set of
@@ -16,7 +15,7 @@ documentation is the knowledge those agents work from.
 A module's home is the lowest-knowledge layer whose vocabulary suffices to
 define it, and imports flow only from more knowledge to less;
 `tests/test_layer_imports.py` enforces the layers (the criterion:
-[layering](docs/architecture/layering.rst)).
+[layering](../architecture/layering.rst)).
 
 | layer | packages | knows |
 |---|---|---|
@@ -68,7 +67,7 @@ records how the project is built; `docs/api/` is the reference.
   issues with `Closes #NN` in the body; `main` is always green and receives
   only `--ff-only` merges; delete the branch after merging. Never commit on
   `main` and never `git add -A`: a hook refuses both. The full workflow:
-  [git workflow](docs/development/git_workflow.rst).
+  [git workflow](git_workflow.rst).
 - A feature is done when the tests, the theory page and the Nexus graph agree
   (Rule 3).
 
@@ -80,6 +79,5 @@ dispatch (`vv-testing` only under `tests/**`); they are generated from
 `docs/development/evidence/`. Skills load on demand or per agent. The agents
 in `.claude/agents/`, their roles, the dispatch invariants and the seven
 workflows are the `workflows` rule, with the brief template in
-[workflows](docs/development/workflows.md). How to change a rule, a skill or an agent, and what
-each costs: [the harness page](docs/development/harness.md).
-<!-- END GENERATED block -->
+[workflows](workflows.md). How to change a rule, a skill or an agent, and what
+each costs: [the harness page](harness.md).

@@ -18,6 +18,10 @@ Mint a **type** iff (a) the concept has **two or more non-isomorphic realization
 - **An axis that changes the ARITHMETIC INTERFACE cannot be a phantom type parameter.** `Generic[Tag]` is erased at runtime and does not specialize dunders, so every instantiation shares ONE `__add__`; a torsor `A×V→A` that must forbid `A×A` and a vector `V×V→V` cannot share a body. Arithmetic or shape changes: a class; neither: a phantom parameter is allowed.
 - tell: an implementation that "passes" only by branching on a stored tag at runtime is stringly-typed dispatch; `replace(obj, tag=Other)` type-checks and walks through the gate the type was minted to be.
 
+## Values are loaded or computed, never typed
+
+Pythonic code: dataclasses, type hints, scipy. Every number a module or a test carries is produced programmatically: a reference eigenvalue or coefficient comes from the derivation that defines it (`derivations/`) or the data file that carries it, never from a table by hand. check: a literal with five or more significant digits outside `derivations/` names its source or is replaced by a call. tell: a literal that matches a published table; a test pinning a number whose only provenance is a comment.
+
 ## A bare `assert` in `orpheus/` is not a contract — the canonical runner strips it
 
 `python -O -m pytest` is canonical; `-O` sets `__debug__ = False` and removes every `assert` at compile time. A contract written as a bare `assert` **does not run in the suite that matters**, and the code ships accepting the input the assert refuses.

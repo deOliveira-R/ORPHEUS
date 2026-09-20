@@ -15,10 +15,14 @@ founding cases, the surprise log and the lesson bodies, read on demand when
 a core's link names them. See :doc:`harness` for what loads when and how to
 add a rule, a skill or an agent.
 
+New to the project, human or agent: :doc:`onboarding` first. It is the page
+the harness's ``CLAUDE.md`` is generated from.
+
 .. toctree::
    :maxdepth: 1
    :caption: Working with the repository
 
+   onboarding
    git_workflow
    harness
    workflows
@@ -28,6 +32,7 @@ add a rule, a skill or an agent.
    :maxdepth: 1
    :caption: Rule cores (always-on)
 
+   rules/cardinal
    rules/plan-authoring
    rules/coding-standards
    rules/instrument-doctrine

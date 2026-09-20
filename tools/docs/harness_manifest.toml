@@ -16,7 +16,13 @@
 # in unreviewed; an agent's role block takes one flat value per role (Key 500,
 # Support 300) inside the same slack. A raise is made in the same commit as the
 # text that needs it. The budget is a size gate, never a quality gate: the
-# review is.
+# review is. CLAUDE.md is the one target outside .claude/ (a [[block]]: its
+# on-boarding block, <= 1500 tokens by ruling, K3 2026-09-20).
+
+[[rule]]
+source = "docs/development/rules/cardinal.md"
+target = ".claude/rules/cardinal.md"
+budget_tokens = 1200
 
 [[rule]]
 source = "docs/development/rules/plan-authoring.md"
@@ -26,12 +32,12 @@ budget_tokens = 9600
 [[rule]]
 source = "docs/development/rules/coding-standards.md"
 target = ".claude/rules/coding-standards.md"
-budget_tokens = 5300
+budget_tokens = 5500
 
 [[rule]]
 source = "docs/development/rules/instrument-doctrine.md"
 target = ".claude/rules/instrument-doctrine.md"
-budget_tokens = 1100
+budget_tokens = 1200
 
 [[rule]]
 source = "docs/development/rules/articulation.md"
@@ -58,6 +64,11 @@ budget_tokens = 9000
 source = "docs/development/skills/instrument-doctrine.md"
 target = ".claude/skills/instrument-doctrine/SKILL.md"
 budget_tokens = 2200
+
+[[block]]
+source = "docs/development/onboarding.md"
+target = "CLAUDE.md"
+budget_tokens = 1500
 
 [[index]]
 source = "docs/development/lessons.md"
