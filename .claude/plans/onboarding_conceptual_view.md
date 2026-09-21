@@ -1,6 +1,6 @@
 # The onboarding page gains the conceptual view, and the harness gains the ontology duty — a living plan
 
-**Status: DRAFT, opened 2026-09-21 in the first exchange, before any edit.** This
+**Status: RULED POLISHED 2026-09-21 (R7); IMPLEMENTING.** Opened in the first exchange, before any edit. This
 plan is refined in place as the discussion runs (§3: a refuted premise is edited,
 never dropped). Implementation starts only when the user rules the plan polished.
 Every class name and every number below is `[R]` until the census of §5.2 marks
@@ -98,6 +98,98 @@ ranking; no new agent; no new always-on rule file.
   rule is a floor of checks and tells; this content has one check (ask "what
   is this, mathematically?" before writing) and belongs beside the
   operator-algebra lens it sharpens. **Recommendation: (a).**
+- **F3′ Where the ontology duty lives, weighed (R5).** The content has three
+  kinds: a DUTY (emerge the concepts in their correct form, proactively; the
+  maintainer is not a mathematician; the training corpus lacks examples), a
+  DISCIPLINE (right place, right shape; concepts fall out for free; a weld
+  recognised and unwelded; the standards so that mistakes are unspellable and
+  guards unnecessary) and an ORIENTATION (the main difficulty of the work).
+  Places weighed:
+  - (a) One CLAUDE.md section (§4.3 as drafted). For: always-on, first read,
+    sits beside the operator-algebra lens. Against: the onboarding page
+    ORIENTS; a duty stated as orientation carries less force than a cardinal
+    rule, whose violation is a session failure; and the cardinal page already
+    names "correctness of the concepts" as Rule 1's first sense without
+    saying what that costs.
+  - (b) Cardinal Rule 1 (the user's candidate). Rule 1 reads "correctness …
+    of the mathematics, the physics, the concepts, the code and the
+    documentation": the duty IS correctness of the concepts, and it belongs
+    where its rank is stated. Rule 1 outranks Rule 2, and the ontology is
+    upstream of the architecture (Rule 2's "a shared concept is a stop
+    signal" is a consequence of one definition per concept), so the rank is
+    right. Against: Rule 1's paragraph today is about defects and their root
+    cause; the DISCIPLINE clauses (welds, unspellable, guards) are Rule 2's
+    vocabulary and would make Rule 1 restate Rule 2.
+  - (c) Cardinal Rule 2 (architecture). The discipline clauses are what
+    architecture means here; today Rule 2 says only "shared code is a stop
+    signal" and "elegance is the ceiling". For: it gives Rule 2 its
+    definition. Against: the DUTY and the training-corpus reason are not
+    architecture.
+  - (d) A new rule file. Refuted as before: one check, no tells of its own
+    that `coding-elegance` does not hold.
+  - **Proposal: split by kind.** The DUTY goes to Cardinal Rule 1 as its
+    second paragraph, "Correctness of the concepts" (≈220 tokens): it is part
+    of your core duties to emerge the hard mathematical concepts in their
+    correct form, proactively, asking "what is this, mathematically?" before
+    being asked; the reason (a nuclear engineer steering, not a
+    mathematician; the corpus rare), and the two pointers (the concepts as
+    they stand: the conceptual view; how a concept is found when the ontology
+    is being searched: `plan-authoring` §0). The DISCIPLINE goes to Cardinal
+    Rule 2 as its definition of architecture (≈200 tokens): ontological
+    discipline, every concept in its right place with its right shape so the
+    derived ones fall out of the algebra (the adjoint is `♯ ∘ dual ∘ ♭`, never
+    a second implementation) and mistakes become unspellable, which is what
+    makes most guards unnecessary (a guard that remains is elegance debt); the
+    ONE definition of a weld (F5) lives here, and its tells in
+    `coding-elegance`. The ORIENTATION stays on CLAUDE.md as two sentences in
+    "The direction of development", replacing the welded-operation bullet
+    with a pointer to Rules 1 and 2 (≈80 tokens). Budget: cardinal ≈978 today
+    against 1 200 (`[M]` 2026-09-21, chars / 3.6; Rule 1 ≈128, Rule 2 ≈150) → ≈1 400, so its budget
+    rises to 1 600; CLAUDE.md's §4.3 shrinks from ≈570 to ≈80; the always-on
+    total is the same to within the estimate. Register: the cardinal page
+    already speaks in the imperative to the agent ("load it before writing",
+    "Do a task yourself only when"), so "your core duties" is in register
+    there and the onboarding page's impersonal register is untouched, which
+    settles F6 without a rewrite.
+- **F8 Effort is never a criterion — where the synthesis lives (R6).** The
+  user, 2026-09-21: *"You many times bring me a question of whether something
+  should be done or not by stating that one is lighter and touches fewer files
+  or needs less renaming, and another is heavier… this is never how we decide
+  in this repository. We only care about correctness and long-term alignment
+  with the code direction. Effort… is just a measure of how many sessions we
+  will work on this, but never weights on what path we will choose. We always
+  pick the path of principled correctness + ontological discipline + coding
+  elegance, no matter how much effort we need to put to achieve it. We need a
+  synthesis of this somewhere."* Two earlier statements of the same ruling
+  live only in the user memory (`feedback_build_the_machinery_operator_algebra.md`:
+  2026-08-21, CS4b's 632-call migration offered as a reason to keep the
+  factories, retracted; 2026-09-02, #429 1.9, "effort is never the tie-break",
+  the `SPHERE.quotient` refusal chosen over silent normalisation). This plan
+  repeated the pattern in F1 ("effort: one more page") and F2. Places weighed:
+  - (a) The cardinal page's preamble. The five rules ARE the ranked criteria
+    a ruling weighs; the synthesis is the statement of what is NOT among
+    them, and belongs where the ranking is stated. Always-on, every Key
+    dispatch. For: it is a law about deciding, and the cardinal page is the
+    project's decision law. Against: none found.
+  - (b) CLAUDE.md's direction section. Against: orientation, not law; and it
+    would restate the cardinal page.
+  - (c) `plan-authoring` only. Against: the habit shows up in AskUserQuestion
+    options and in review reports, not only in plans; path-scoped, so it would
+    load only when a plan file is open.
+  - **Proposal: the law in the cardinal preamble, the check in
+    `plan-authoring` §6 Sizing.** Preamble (≈90 tokens): *"These five are the
+    only weights a design ruling carries. Effort is not among them: how many
+    files a path touches, how many call sites it re-spells, how many sessions
+    it takes, is a measure of duration and never a reason to take or refuse a
+    path. When two paths differ in principle the more principled one is
+    taken, whatever its size, and its size is reported beside it as sizing
+    (`[R]` the user, 2026-08-21, 2026-09-02, 2026-09-21)."* `plan-authoring`
+    §6 gains **EFFORT-IS-SIZING** (≈70 tokens): options are compared on
+    correctness, alignment with the direction, ontological discipline and
+    elegance; effort is stated as sessions beside the chosen option. check:
+    an option whose reason is "lighter", "fewer files", "less renaming" or
+    "smaller diff". tell: the user asks which option is more principled. The
+    memory file gains one line pointing at the cardinal home.
 - **F4 Where the two-modes ruling lives.** The trigger ("open a living plan at
   the first exchange when the ontology is being searched") must be always-on,
   so it goes in CLAUDE.md's "How a session runs"; the living plan's FORM goes
@@ -261,6 +353,14 @@ marker from the first draft (§2).
 - tell: a plan written after the design was settled, which is a record, not a
   plan.
 
+### 4.5b Cardinal page and `plan-authoring`, per F3′ and F8 (drafts follow the user's ruling on both)
+
+`[PENDING R5 and F8 rulings]`: Rule 1's second paragraph "Correctness of the
+concepts" (the duty); Rule 2's definition of architecture as ontological
+discipline with the one definition of a weld (F5); the preamble's effort law;
+`plan-authoring` §6 **EFFORT-IS-SIZING**; the `coding-elegance` skill's weld
+tells. Cardinal budget 1 200 → 1 700 (`[R]` ≈978 + 220 + 200 + 90).
+
 ### 4.6 The corpus page `docs/architecture/conceptual_view.rst`
 
 Title: "The conceptual view: a Problem, a Solution, and the mathematics
@@ -361,6 +461,12 @@ S6 the qa recount; S7 commit on the branch, ff-merge, push, delete; S8 memory
 | # | ruling | date |
 |---|---|---|
 | R1 | The plan is opened before any edit; the discussion refines it. | 2026-09-21 (this plan's own premise, from ruling (2)) |
+| R2 | F1 (a): the full view is a new RST page `docs/architecture/conceptual_view.rst`; CLAUDE.md carries the compressed sections; the two duplicating paragraphs are trimmed; budget 3 200; the probe decides whether the 15K target moves. | 2026-09-21 |
+| R3 | F7: the reading order is identity; the two halves and the vocabulary; the architecture map; the ontology duty; the direction; how a session runs; where the rules are. | 2026-09-21 |
+| R4 | The corpus's four missing labels and three present-tense-false passages are fixed in this branch; the eight missing definitions are filed, one issue each, for the archivist. | 2026-09-21 |
+| R7 | *"Then go ahead with the implementation."* F3′ (the split by kind) and F8 (the effort law in the cardinal preamble, the check in plan-authoring §6) accepted as proposed; the plan is ruled polished; implementation opens with the cardinal page. | 2026-09-21 |
+| R6 | Effort is never a decision criterion; only correctness, long-term alignment with the direction, ontological discipline and elegance are; effort measures sessions. A synthesis goes into the harness (F8). | 2026-09-21 |
+| R5 | F3/F6 REOPENED by the user: *"A good place for this might also be in the Cardinal Rule 1 of correctness. Weight different places this should go and make a proposal."* The weighing is §3 F3′ below. | 2026-09-21 |
 
 ## §9 Sources
 
@@ -371,3 +477,22 @@ S6 the qa recount; S7 commit on the branch, ff-merge, push, delete; S8 memory
   the 37-term anchor table, 11 Development-history pages, the reading order,
   4 drift finds). All at `b4865b5e`, 2026-09-21. Untracked; the durable parts
   land on the corpus page.
+
+## §10 Executed — 2026-09-21 (branch `docs/onboarding-conceptual-view`)
+
+Landed in the working tree, before the gates ran (the commit hashes are added when they exist):
+
+- **S1** `docs/architecture/conceptual_view.rst` (new, label `architecture-conceptual-view`, 457 lines: nine sections, the 24-row concept table, the debt list) and its toctree entry in `docs/architecture/index.rst`. Every code name is a role; every concept ends in a `:ref:`/`:eq:` classified against `docs/` (`[M]` 2026-09-21: 58 labels checked for kind before writing, one grep per label) or in the word "owed" with the nearest page.
+- **S2** `docs/development/onboarding.md` rewritten in the R3 order with "The two halves", "The vocabulary" and "The ontology is the work" (the orientation only, per F3′), the two-modes bullet in "How a session runs", the two X4 trims (the theory reading order now points at `docs/theory/index.rst`; the "Where the rules…" section no longer restates the harness page); budget 1 500 → 3 000 (`--check` reads ≈2 692; 3 200 was refused as 508 above the estimate, SLACK_MAX 400).
+- **S3** `docs/development/rules/cardinal.md`: the preamble's effort law (F8); Rule 1's "Correctness of the concepts" paragraph (the duty, second person, in the page's register); Rule 2's "Architecture here is ontological discipline" paragraph with the ONE definition of a weld (F5); budget 1 200 → 1 700.
+- **S4** `docs/development/rules/plan-authoring.md`: §0 "A living plan, when the ontology is being searched" with tag LIVING-PLAN-OPENS-FIRST; §6 gains EFFORT-IS-SIZING; budget 8 100 → 8 500 (`--check` reads ≈8 333).
+- **S5** `docs/development/skills/coding-elegance.md`: "A weld is the failure to answer question 1" paragraph after the two questions, the tells, citing Cardinal Rule 2 for the definition.
+- **S6 (R4)** the four labels: `frame-discrete-frame-definition`, `discrete-measure-symmetry-groups`, `architecture-problem-and-solver`, `eigen-standard-form-and-resolvent` plus `eigen-resolvent-is-the-strategys`; the drift fixes: `spaces.rst` Riesz row and `frame.rst` CS4c note rewritten to the landed state (the legs are `RieszLowerOperator`/`RieszRaiseOperator`, `AdjointOperator` IS the composition); `layering.rst`'s important box, the "What fills each role today" intro, three rows and the closing paragraph rewritten to present tense (the pencil, the posings and the hubs exist); Γ± stated once: `trace-sign-predicate` retired from `boundary_conditions.rst` (its block, its vv-status line and its rationale comment), the page's one `:eq:` re-pointed at `trace-half-decomposition`, which keeps the two `implements::` directives.
+- **S7** docstrings: `orpheus/geometry/boundary/_base.py` (`BoundaryTraceLaw`: all three factors populated), `orpheus/numerics/space.py` (where the anticipated specialisations landed), `orpheus/transport/__init__.py` (no `transport.problems`; the posings and hubs). pyright on the three: `0 errors, 0 warnings, 0 informations` (`[M]`).
+- **Generated**: `python -m tools.harness` wrote 4 targets (CLAUDE.md, cardinal, plan-authoring, coding-elegance SKILL.md); `--check`: 24 targets, 0 problems, 0 drifted, generated always-on ≈13 341 tokens over 7 files (was ≈11 507); citations by ID: 243 resolved, 0 dangling (was 235); harness tests 48 passed under `-O`.
+- **Issues (R4, Rule 4)**: #478 Riesz legs, #479 basis, #480 bound operator, #481 half-trace, #482 hub, #483 weld (point the 21 pages at Cardinal Rule 2), #484 the adjoint multiplying-source posing question (`module:sn level:L1 type:improvement question`).
+- **Memory**: `feedback_build_the_machinery_operator_algebra.md` gains the pointer to the cardinal home of the effort law.
+
+- **The probe (F2, R2)** `[M]` 2026-09-21, session `85dd0f81`, the T4 fixture unchanged (throwaway `_probe-keep`/`_probe-omit`, haiku, headless `claude -p --model sonnet`, `scratch/_harness_eval/probe_questions.md` as each agent's prompt; artefacts `scratch/_harness_eval/conceptual_view/probe.{json,err,start}`; agents removed, `.claude/agents/` clean): **keep − omit = 52 009 − 36 438 = 15 571**; the attachment 55 741 chars in 8 files (CLAUDE.md 9 533, workflows 6 323, cardinal 5 594, articulation 2 426, instrument-doctrine 4 570, nexus-tools 8 155, process-discipline 10 155, MEMORY.md 8 985), /3.6 = 15 484, so the generator's estimate holds to 0.6 %. Against 13 872: +1 699, the ruled content (CLAUDE.md +4 643 chars, cardinal +1 897). The probe exceeds the ≤ 15K target by 571, so per R2 the target moves to ≤ 16K, recorded on the harness page with the number; the two X4 trims were taken and no further trim was ruled.
+
+Pending at this line: the qa recount (`scratch/_claude_md/qa_recount.md`), `sphinx -E -W`, `dead_references`, the harness-page numbers, the commits and the merge.

@@ -53,6 +53,19 @@ duplication; fewest elements. Clarify first, then compress. Here the principle
 has a sharper form: **the code is the math, character for character**.
 [lineage](../../../docs/development/evidence/coding-elegance.md#first-principle-code-as-notation)
 
+**A weld is the failure to answer question 1.** Cardinal Rule 2 defines it:
+several concepts mixed into one value or one inline computation, so that none
+can be named, typed, tested or reused on its own. The tells, each seen in this
+tree: a hand-rolled adjoint or transpose beside an operator that could be
+bound to its spaces; an `axis=` parameter on a mathematical object; an index
+remap (`to_local`) at a call site; a length stored where a codomain space
+belongs; an `Optional[Space] = None` default (it silently means "assume
+Euclidean"); an operation computed inline and never named as an operator; a
+cost-side datum (a traversal order, a fused table) on an answer-side object.
+Unwelding spells each concept as its own object and re-composes them in the
+algebra; a performance weld is allowed only lazily, at the strategy nearest
+the hot loop, never on the operator, the mesh or the hub.
+
 ---
 
 ## The Master Standard

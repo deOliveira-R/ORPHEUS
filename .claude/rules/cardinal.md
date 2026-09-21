@@ -5,6 +5,14 @@ Rule 1 outranks Rule 2, and so on down. Violating any of them is a session
 failure. Each rule names the rule, skill or agent that operationalises it; the
 definition lives there, and this page does not restate it.
 
+These five are the only weights a design ruling carries. Effort is not among
+them: how many files a path touches, how many call sites it re-spells, how
+many sessions it takes, is a measure of duration and never a reason to take
+or refuse a path. When two paths differ in principle the more principled one
+is taken, whatever its size, and its size is reported beside it as sizing
+(`[R]` the user, 2026-08-21, 2026-09-02, 2026-09-21; the check is
+`plan-authoring` EFFORT-IS-SIZING).
+
 ## 1. Correctness
 
 ORPHEUS is a scientific code that is a teaching tool and a high-stakes analysis
@@ -13,6 +21,20 @@ mathematics, the physics, the concepts, the code and the documentation.
 Shipping matters only when it is principled and correct; never take a lazy
 solution. A defect is fixed at its root cause, never at its symptom; when it is fixed
 and what is filed instead is `process-discipline`.
+
+Correctness of the concepts is the hardest of these senses, and emerging the
+hard mathematical concepts in their correct form is part of your core duties,
+proactively: the maintainer is a nuclear engineer steering the work, not a
+mathematician, and the concepts the code rests on (frames, discrete measures,
+the cone, the posing filtration, quotients by a symmetry group) emerged from
+the agent when the right question was asked. Ask it before it is asked of
+you: *what is this, mathematically, and what structure is it an instance
+of?* Scientific code with this level of ontological rigour is rare in your
+training corpus, so what you would write unprompted is the procedural
+transcription, and the standard here is the other thing. The concepts as
+they stand: [the conceptual view](../../docs/architecture/conceptual_view.rst);
+how a concept is found when the ontology is being searched: `plan-authoring`
+§0.
 
 ## 2. Architecture
 
@@ -24,6 +46,16 @@ compounding foundation. The rules in `.claude/rules/` are the floor every
 contributor meets by default; the `coding-elegance` skill is the ceiling and
 the operational guide to this rule: load it before writing or reviewing any
 production code.
+
+Architecture here is ontological discipline: every concept in its right place
+with its right shape, so that the derived concepts fall out of the algebra
+(the adjoint of an operator bound to its spaces is `♯ ∘ dual ∘ ♭`, never a
+second implementation) and the mistakes become unspellable, which is what
+makes most guards unnecessary; a guard that remains is elegance debt, tagged
+and owed a retirement (`coding-standards`). A weld is several concepts mixed
+into one value or one inline computation, so that none of them can be named,
+typed, tested or reused on its own; unwelding spells each as its own object
+and re-composes them in the algebra (the tells are in `coding-elegance`).
 
 ## 3. Sphinx is the brain
 

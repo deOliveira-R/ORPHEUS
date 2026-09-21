@@ -10,6 +10,12 @@ A plan is a note to **you, after your context is gone**, read by someone with yo
 
 **Living document.** The measure of this rule is the SURPRISE: a session, reading a plan in good faith, believed something the tree contradicts. The surprise log lives in [the evidence page](../../docs/development/evidence/plan-authoring.md#surprise-log). A new surprise is appended there as a `### <date> <two or three words>` entry, the plan is corrected in place per §3, and the clause here gains a link to the entry; a new clause only if the mechanism generalises past its campaign. A mechanism that keeps recurring is a signal for a tool, not for another paragraph (the [harness page](../../docs/development/harness.md)); a clause that has stopped catching anything merges or retires, or the file becomes a hot surface that costs more to read than the surprises cost to hit. Target, falsifiable: surprises per campaign trending to zero. `check:` is the mechanical check, `tell:` how the failure looks.
 
+## §0 A living plan, when the ontology is being searched
+
+A plan is opened at the first design exchange, not after the design settles, whenever the right objects are not yet named (the onboarding page, "How a session runs"; the duty is Cardinal Rule 1). It is refined in place as the discussion runs and carries from its first draft: the goal in the domain's terms (§1, §5); the candidate ontologies, each with what it makes unspellable and what it leaves welded; the refuted candidates with their structural reason (`process-discipline`); the rulings ledger, dated; and the condition under which implementation starts, which is the user's ruling that the plan is polished. Every claim carries its marker from the first draft (§2).
+
+- **LIVING-PLAN-OPENS-FIRST** check: a design discussion past its first exchange with no plan file open. tell: a plan written after the design was settled, which is a record, not a plan.
+
 ## §1 Goal stated separately from any proposed means
 
 - **TITLE-THE-OUTCOME** Title the outcome, never the edit. check: a title containing *move/promote/rename/extract* asks what the edit is FOR; title that. [case](../../docs/development/evidence/plan-authoring.md#2026-08-06-p6-title-outcome)
@@ -88,6 +94,7 @@ Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history
 - **COMPACTION** A plan of four or more phases carries a compaction point after every four, with the phase-to-commit table, the corrections that supersede older text, the measured red baseline with its gate costs, and the durable lessons.
 - **NO-NEXT-POINTER** Never carry a hand-written `NEXT = <step>`; git and the task list hold it.
 - **BARE-#N** A plan's internal task numbers collide with real GitHub issue numbers; never write a bare `#N` for an internal step.
+- **EFFORT-IS-SIZING** Options are compared on correctness, alignment with the direction, ontological discipline and elegance (the cardinal page's preamble); effort is stated as sessions beside the chosen option, never as a reason. check: an option whose reason is "lighter", "fewer files", "less renaming" or "smaller diff". tell: the user asks which option is more principled. `[R]` the user, 2026-08-21, 2026-09-02, 2026-09-21.
 
 ### §6b A step boundary must not cut across a signature's call sites
 
