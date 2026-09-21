@@ -130,7 +130,6 @@ from __future__ import annotations
 
 import pint
 from pint import Unit
-from pint.facets.plain import PlainUnit
 
 __all__ = [
     "UREG",
@@ -147,46 +146,35 @@ __all__ = [
 UREG = pint.UnitRegistry()
 
 
-def _as_unit(expression: PlainUnit) -> Unit:
-    """Narrow a registry-built unit expression to :class:`pint.Unit`.
-
-    pint's stubs type registry arithmetic (``UREG.cm**-2 / UREG.s``) as the
-    facet base :class:`~pint.facets.plain.PlainUnit`, but at runtime every
-    registry-built unit IS a :class:`pint.Unit` (verified on pint 0.25.3:
-    ``type(UREG.cm**-1) is pint.Unit`` even for a non-application registry).
-    This one runtime-checked boundary keeps the stub imprecision out of the
-    exported signatures (#258) — no casts, and a real guard against a future
-    pint changing the registry class story.
-    """
-    if not isinstance(expression, Unit):
-        raise TypeError(
-            f"registry expression built {type(expression).__name__}, "
-            f"expected pint.Unit — cross-registry construction?"
-        )
-    return expression
-
-# The four field dimensional-class signatures (built once, at import).
-# Operator precedence: ``**`` binds before ``/``, so each reads left-to-right
-# as the displayed unit.
+# The four field dimensional-class signatures (built once, at import), each
+# spelled as the registry parses the displayed unit. ``UREG.Unit(...)`` is
+# typed :class:`pint.Unit` by pint's stubs on 0.25 and 0.26 alike, where the
+# registry ARITHMETIC (``UREG.cm**-2 / UREG.s``) is typed as the facet base
+# ``PlainUnit`` on 0.25 and as ``PlainUnit | PlainQuantity`` on 0.26 (`[M]`
+# 2026-09-21, pyright 1.1.410: four errors on the CI runner's pint 0.26.1,
+# none on 0.25.3). At runtime the two spellings build the same
+# :class:`pint.Unit` (`[M]` both versions, all five signatures), so the
+# runtime narrowing guard the arithmetic spelling needed (#258, ``_as_unit``)
+# retired with it.
 
 #: ``1/(cm²·s·sr)`` — areal per-solid-angle flux density. Angular flux and
 #: every boundary-trace leaf (flux, source, residual are all flux-typed on
 #: the trace).
-ANGULAR_FLUX_UNITS: Unit = _as_unit(UREG.cm**-2 / UREG.s / UREG.sr)
+ANGULAR_FLUX_UNITS: Unit = UREG.Unit("1/(cm**2 * s * sr)")
 
 #: ``1/(cm²·s)`` — areal angle-integrated flux. Scalar flux and the harmonic
 #: moments (a moment is angle-integrated; the ``sr`` of ``dΩ`` cancels, and
 #: the ``ℓ=0`` moment IS the scalar flux — verified against the
 #: ``SphericalHarmonicSpace`` no-prefactor convention).
-SCALAR_FLUX_UNITS: Unit = _as_unit(UREG.cm**-2 / UREG.s)
+SCALAR_FLUX_UNITS: Unit = UREG.Unit("1/(cm**2 * s)")
 
 #: ``1/(cm³·s·sr)`` — volumetric per-solid-angle rate density. Per-ordinate
 #: sources and residuals (operator outputs / external drives).
-ANGULAR_RATE_UNITS: Unit = _as_unit(UREG.cm**-3 / UREG.s / UREG.sr)
+ANGULAR_RATE_UNITS: Unit = UREG.Unit("1/(cm**3 * s * sr)")
 
 #: ``1/(cm³·s)`` — volumetric angle-integrated rate density. Scalar sources
 #: and residuals.
-SCALAR_RATE_UNITS: Unit = _as_unit(UREG.cm**-3 / UREG.s)
+SCALAR_RATE_UNITS: Unit = UREG.Unit("1/(cm**3 * s)")
 
 # The coefficient signature (#257 — the multiplier-algebra coefficient).
 # NOT a state quantity (flux / rate density) but the cross-section COEFFICIENT
@@ -199,4 +187,4 @@ SCALAR_RATE_UNITS: Unit = _as_unit(UREG.cm**-3 / UREG.s)
 #: Multiplied into a flux it yields the matching rate density — the #208
 #: operator unit-gain ``ANGULAR_FLUX_UNITS × CROSS_SECTION_UNITS =
 #: ANGULAR_RATE_UNITS``.
-CROSS_SECTION_UNITS: Unit = _as_unit(UREG.cm**-1)
+CROSS_SECTION_UNITS: Unit = UREG.Unit("1/cm")
