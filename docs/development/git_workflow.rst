@@ -181,10 +181,18 @@ deterministic half of the project's acceptance, in this order:
    tests/test_harness_generated.py tests/test_layer_imports.py`` — the
    generator's own tests, the generated-tree gate and the layer contract
    (417 tests; [M] 2026-09-21: 6.4 s locally).
-3. ``npx pyright@1.1.410`` — the type gate. It reads ``pyproject.toml``'s
-   ``[tool.pyright]``, which names ``.venv``; the workflow installs into a
-   ``.venv`` of its own for that reason, so CI and a developer's machine read
-   one configuration.
+3. ``python -O -m pytest tests/test_pyright_ratchet.py`` — the type gate as
+   the #226 ratchet: pyright 1.1.410 (installed globally in the job) over
+   ``orpheus/``, its per-module error counts compared with the committed
+   baseline ``tests/_harness/pyright_baseline.json`` (0 errors). Pyright
+   reads ``pyproject.toml``'s ``[tool.pyright]``, which names ``.venv``; the
+   workflow installs into a ``.venv`` of its own for that reason, so CI and a
+   developer's machine read one configuration. The scope is ``orpheus/``
+   only: ``tests/`` and ``tools/`` are outside the gate today (about 1 400
+   pre-existing errors in ``tests/``, #226's burn-down), and a bare
+   ``pyright`` over the whole tree is not a gate anywhere (it walks
+   ``scratch/`` and every worktree; [M] 2026-09-06 it exhausts node's heap
+   locally, and [M] 2026-09-21 the first CI run read 1 674 errors from it).
 4. ``sphinx-build -E -W --keep-going docs docs/_build/html`` — the strict
    build, which also regenerates every generated file and the Nexus graph
    ([M] 2026-09-21: 77 s locally).
