@@ -8,7 +8,7 @@ family consumes THAT (datum consumption — recycling the vocabulary per
 the sharpening-order law), so a thirteenth literal home is unspellable
 without reddening this census.
 
-Predicate (AST — ⛔ never grep for this: `.claude/rules/nexus-tools.md`
+Predicate (AST — ⛔ never grep for this: `.claude/rules/code-search.md`
 records ugrep's silent-zero anchor hazard): every ``ast.Constant`` with
 value in ``{2, 2.0}`` (bool excluded) that is an operand of a
 ``BinOp(Mult)`` or the value of an ``AugAssign(Mult)``, inside a

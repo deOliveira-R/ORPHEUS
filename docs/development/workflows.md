@@ -103,7 +103,14 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   sidecars; "not in the local folder" is a question to the user, never a
   pivot; Zotero at 0 hits plus connection refused is down, not empty. For a
   design review (cross-domain-attacker): the artefact's path; the return is
-  structural detection, no critique. If the task depends on Nexus: what to do
+  structural detection, no critique. For a review (P3, qa): every gate the
+  plan promised, each with the plan's clause beside the path of the shipped
+  assertion, so the reviewer reads the clause against the assertion and not
+  only the assertion against the tree; a gate that ships fewer clauses than
+  its plan row promised is a finding even when the tree is clean (`[M]`
+  2026-09-20: a census gate shipped three of its row's four clauses and read
+  green; the record is `.claude/plans/harness_context_budget.md`, "T6
+  executed", finding F-8). If the task depends on Nexus: what to do
   when it is missing (a sub-agent has no `ToolSearch`). Any campaign pointer
   the agent needs, verbatim — it has no project memory index.>
 Return contract: report under <N> words; the file(s) at <paths> carry the
@@ -117,9 +124,9 @@ drift):
 
 <!-- BEGIN GENERATED brief rules — source: the harness.brief of every page under docs/development/rules/; edit the source, not this block -->
 - `articulation`: a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured.
+- `code-search`: `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 - `coding-standards`: tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
 - `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2).
-- `nexus-tools`: `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 - `process-discipline`: never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy.
 <!-- END GENERATED brief rules -->
 

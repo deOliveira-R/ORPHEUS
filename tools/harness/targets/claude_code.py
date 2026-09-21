@@ -15,10 +15,17 @@
   markers were placed by hand once (the file has no front matter to insert after).
 
 Always-on, what every session and every inheriting dispatch pays: the rules
-without ``paths`` and CLAUDE.md.
+without ``paths`` and CLAUDE.md, generated or installed. An **installed** file
+is one another tool wrote into ``.claude/`` and recorded in its manifest
+(``nexus setup`` and ``nexus-install-manifest.json`` today); Claude Code loads
+a rule by its location whoever wrote it, so an installed rule without
+``paths`` is always-on and the cost line counts it, while its drift instrument
+is the installer's own check, never this generator.
 """
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import assert_never
@@ -32,6 +39,8 @@ ERROR_INDEX_LINE = (
     '.venv/bin/python -m tools.verification.generate_error_index)"; exit 0`'
 )
 _ALL_KINDS = frozenset(Kind)
+MANIFESTS = ("nexus-install-manifest.json",)   # under .claude/: {"files": {"<relative path>": {"version": …}}}
+_PATHS_FRONT_MATTER = re.compile(r"\A---\n(?:(?!---\n).*\n)*?paths:")
 
 
 @dataclass(frozen=True)
@@ -95,6 +104,27 @@ class ClaudeCode:
                 return False
             case _:
                 assert_never(page.kind)
+
+    def installed(self) -> dict[Path, str]:
+        """Every file an installer wrote under ``.claude/`` and recorded: path → ``<installer> <version>``."""
+        found: dict[Path, str] = {}
+        for name in MANIFESTS:
+            manifest = self.harness_dir / name
+            if not manifest.exists():
+                continue
+            files = json.loads(manifest.read_text(encoding="utf-8")).get("files") or {}
+            installer = name.split("-", 1)[0]
+            for key, entry in files.items():
+                found[self.harness_dir / key] = f"{installer} {(entry or {}).get('version', '?')}"
+        return found
+
+    def installed_always_on(self) -> tuple[Path, ...]:
+        rules = self.harness_dir / "rules"
+        return tuple(sorted(
+            p for p in self.installed()
+            if p.parent == rules and p.suffix == ".md" and p.exists()
+            and not _PATHS_FRONT_MATTER.match(p.read_text(encoding="utf-8"))
+        ))
 
 
 def _paths_front_matter(paths: tuple[str, ...]) -> str:

@@ -27,3 +27,4 @@ class Harness(Protocol):
     def target(self, page: Page) -> Path: ...
     def render(self, page: Page, body: str) -> Rendered: ...   # body: the page's body, links already re-pointed at the target
     def always_on(self, page: Page) -> bool: ...              # loaded into every session and every inheriting dispatch
+    def installed_always_on(self) -> tuple[Path, ...]: ...    # always-on files another tool installed under the roots; no page produces them

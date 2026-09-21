@@ -923,7 +923,7 @@ During the #195/ERR-058 investigation, a diagnostic computed the
 per-ordinate residual was O(10). The M-M redistribution's α-dome
 telescopes under the angular weight sum REGARDLESS of the half-angle
 thread values, so a scalar residual cannot see a wrong angular closure
-— this is anti-pattern #8 ("particle balance holds" ≠ per-ordinate
+— this is `vv-principles` anti-pattern #8 ("particle balance holds" ≠ per-ordinate
 balance) instantiated inside a DIAGNOSTIC, where it mis-supported a
 "near-singular operator" hypothesis for a full investigation round
 (falsified only by a dense SVD: σ_min ≈ 0.9, plus an explicit
@@ -1589,7 +1589,7 @@ of the three failures announced itself.
 **The common shape, and it is not "be careful".** Each failure made the
 instrument report the *reassuring* verdict: (1) a check that cannot fail, (2) a
 gap that reads as coverage, (3) a blind gate that reads as a blind gate — which
-is the nastiest, because #3 would have been *acted on*: the honest response to
+is the nastiest, because the third would have been *acted on*: the honest response to
 "41 passed under a mutation" is to strengthen or delete the gate, and I would
 have weakened a gate that was already correct.
 
@@ -2231,7 +2231,7 @@ producers read it). Two instances in one file family in one afternoon is a
 statement about the module, not about luck.
 
 ⭐⭐ **A THIRD and FOURTH instance the same day, and the fourth carries the
-sharper rule.** #68's equation-namespace leak was again two sibling branches in
+sharper rule.** nexus #68's equation-namespace leak was again two sibling branches in
 ONE function with unequal discipline: the `:math:` branch guarded by a
 **blocklist** (reject `\`, `{`, `}`) three lines above a Python branch asking
 the opposite, stronger question (`_is_dotted_identifier` — *is this a
@@ -2535,7 +2535,7 @@ me twice: once checking whether the `gram → pairing` keeps had survived (shell
 said 0, Python found the 6 that were correctly kept), and once on a residual
 sweep. Both read as *"clean, nothing left"*.
 
-⟹ Recorded in `.claude/rules/nexus-tools.md` with the safe forms
+⟹ Recorded in `.claude/rules/code-search.md` with the safe forms
 (`\b…\b`, `-P` lookbehind, or no anchor). **For any COMPLETENESS claim, use
 Python.**
 
@@ -2649,7 +2649,7 @@ with more than one cause; the sphinx pair is the one this session could prove.
    finish its step yourself from the state on disk, which is what the
    re-key/docs work here needed.
 
-Cross-reference: `.claude/rules/nexus-tools.md` (the graph rebuilds on every
+Cross-reference: `.claude/rules/code-search.md` (the graph rebuilds on every
 `sphinx-build`, the server auto-reloads — two writers on one DB is the hazard
 this row measures); [L37](#l37-frozen-sources-gate) (no source edits under a running gate — the
 same exclusivity, for the build).

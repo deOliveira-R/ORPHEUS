@@ -52,19 +52,25 @@ user's signal, when routine refactor cycles resume.
    where it is cheap.
 2. **Depth 3 is the ceiling, 2 the norm**: the orchestrator dispatches a Key
    agent, which dispatches a Support agent. The harness default
-   (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) is 3; Support allowlists omit
-   `Agent`.
+   (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`) is 3, and a sub-agent's `tools:`
+   allowlist decides whether it holds `Agent`: the three project Support
+   allowlists omit it, and a `general-purpose` categoriser holds every tool
+   (measured to three layers: [the page's history](../workflows.md#history)).
 3. **Continuity by name.** The test-architect that wrote a verification spec is
    resumed (`SendMessage`) at review time to confirm its gates landed; the
-   implementer is resumed with the review findings. No re-briefing.
+   implementer is resumed with the review findings. No re-briefing: a finished
+   agent resumes on message with its full history, and a sub-agent addresses a
+   named sibling with `SendMessage` only when its `tools:` allowlist admits it
+   (measured: [the page's history](../workflows.md#history)).
 4. **Every brief carries** the workflow ID, the phase, the previous phase's
    artefact paths, and the return contract: a word cap (Opus runs long), files
    carry the detail, and a `NEEDS:` block for anything the agent could not
    obtain. A brief to one of the three `omitClaudeMd` agents also carries the rules
    that apply to it (the template's "Rules that apply to you" line):
    `omitClaudeMd` drops CLAUDE.md, every rule and the project memory index,
-   not the agent's own memory or its preloaded skills (measured on the
-   [harness page](../harness.md)).
+   not the agent's own memory or its preloaded skills (measured, with what a
+   dispatch inherits and what it costs, on the
+   [harness page](../harness.md#what-loads-and-what-it-costs)).
 
 ## The workflows
 
@@ -95,12 +101,3 @@ One routing line each; the phases, the gates and the return contract are on
 - **W7 Literature acquisition** — **literature-researcher**, the local folder
   first; "not in the local folder" is a question to the user, never a pivot.
   [W7](../workflows.md#w7--literature-acquisition)
-
-## Dispatch facts
-
-Nested dispatch works to three layers and a sub-agent's `tools:` allowlist
-decides whether it holds `Agent`; sub-agents address named siblings with
-`SendMessage`, and a finished agent resumes on message with its full history
-(measured: [the page's history](../workflows.md#history)). What a dispatch
-inherits and what it costs, measured by probe, is
-[the harness page](../harness.md#what-loads-and-what-it-costs).

@@ -22,7 +22,7 @@ catches):**
 * **positive control, inside the body** — a fixture string carrying the token
   WITHOUT an issue number is classified as a violation by the same predicate
   that scans the tree, so a broken predicate cannot read the tree as clean
-  (``nexus-tools``: validate a filter against a known member before trusting
+  (``code-search``: validate a filter against a known member before trusting
   its negative).
 
 Python ``re`` over ``pathlib.rglob``, never the shell (``grep`` here is

@@ -1,6 +1,6 @@
-# Nexus & code-exploration tools — evidence
+# Code search in ORPHEUS — evidence
 
-Founding cases of [the nexus-tools rule](../rules/nexus-tools.md), moved (2026-09-20, when the rule came under generation) from the dated paragraphs, the fixture table and the notes of the hand-maintained `.claude/rules/nexus-tools.md`. Each entry's first line names the clause it belongs to; the text below it is the original measurement, unchanged (its glyphs stay — it is history). The rule links here by heading anchor.
+Founding cases of [the code-search rule](../rules/code-search.md) (until 2026-09-21 the project's `nexus-tools` rule, whose generic routing table is now the bundled rule sphinxcontrib-nexus installs), moved (2026-09-20, when the rule came under generation) from the dated paragraphs, the fixture table and the notes of the hand-maintained `.claude/rules/nexus-tools.md`. Each entry's first line names the clause it belongs to; the text below it is the original measurement, unchanged (its glyphs stay — it is history). The rule links here by heading anchor.
 
 ## Cases
 

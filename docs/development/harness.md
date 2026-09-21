@@ -12,7 +12,7 @@ budget, not a measurement.
 
 | block | who pays | before (2026-09-04) | after this restructure |
 |---|---|---|---|
-| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; every always-on file is generated (`tests/test_harness_generated.py` fails on a hand-maintained rule), so the sum `python -m tools.harness --check` prints is the whole block but the memory index: six rule cores + CLAUDE.md ≈13.3K (`[M]` 2026-09-21 chars/3.6, after the conceptual-view campaign added the two halves, the vocabulary and the ontology duty to CLAUDE.md and the cardinal page; ≈11.5K after the re-evaluation the same day), with the memory index ≈2.5K on top. Three rules are path-scoped and load when a matching file is touched, in the main agent and in a sub-agent alike: `coding-standards` ≈2.0K under `orpheus/**`, `tests/**`, `derivations/**`, `tools/**`; `plan-authoring` ≈7.8K under `.claude/plans/**`; `vv-testing` ≈1.0K under `tests/**` (ruled 2026-09-21 at the diff review, after a first ruling had kept the two larger ones always-on). The keep − omit probe reads the whole block, memory index included, at **15 571** tokens (`[M]` 2026-09-21, haiku first turn on `docs/onboarding-conceptual-view` before its merge, session `85dd0f81`: keep 52 009 − omit 36 438, the attachment 55 741 chars in 8 files; 13 872 after the re-evaluation, session `5ba526f0`; 28 705 after K3b, 30 655 after P1, 70 966 before the restructure). The target is ≤ 16K by this probe, moved from ≤ 15K on 2026-09-21 by the ruling that let the probe decide once the conceptual view landed (the content outranks the round number, and the two X4 trims were already taken); a code session that also opens a plan pays ≈23.1K by the estimate
+| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; every always-on file is generated or installed (`tests/test_harness_generated.py` fails on a rule that is neither), so the sum `python -m tools.harness --check` prints is the whole block but the memory index: six rule cores + CLAUDE.md ≈13.3K (`[M]` 2026-09-21 chars/3.6, after the conceptual-view campaign added the two halves, the vocabulary and the ontology duty to CLAUDE.md and the cardinal page; ≈11.5K after the re-evaluation the same day), with the memory index ≈2.5K on top; one always-on rule is installed, not generated, the Nexus routing rule `nexus-tools` that `nexus setup` writes from the extension and records in `.claude/nexus-install-manifest.json` (`[M]` 2026-09-21: 5 826 chars ≈ 1 618 tokens), printed by `--check` beside the generated sum. Three rules are path-scoped and load when a matching file is touched, in the main agent and in a sub-agent alike: `coding-standards` ≈2.0K under `orpheus/**`, `tests/**`, `derivations/**`, `tools/**`; `plan-authoring` ≈7.8K under `.claude/plans/**`; `vv-testing` ≈1.0K under `tests/**` (ruled 2026-09-21 at the diff review, after a first ruling had kept the two larger ones always-on). The keep − omit probe reads the whole block, memory index included, at **15 571** tokens (`[M]` 2026-09-21, haiku first turn on `docs/onboarding-conceptual-view` before its merge, session `85dd0f81`: keep 52 009 − omit 36 438, the attachment 55 741 chars in 8 files; 13 872 after the re-evaluation, session `5ba526f0`; 28 705 after K3b, 30 655 after P1, 70 966 before the restructure). The target is ≤ 16K by this probe, moved from ≤ 15K on 2026-09-21 by the ruling that let the probe decide once the conceptual view landed (the content outranks the round number, and the two X4 trims were already taken); a code session that also opens a plan pays ≈23.1K by the estimate
 | the session-start batch (`.claude/hooks/session-start.txt`): skill cores, the lessons index, the Nexus briefing | main agent only | ≈125K | ≈30K |
 | a Support agent with `omitClaudeMd: true` | explorer, literature-researcher, cross-domain-attacker, haiku categorisers | ≈107K per dispatch (haiku, zero tools) | ≈36.5K — the harness-fixed block only (tool schemas, skill index, roster); `[M]` 2026-09-21 the omit arm reads 36 536 |
 
@@ -43,6 +43,20 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
 - An AGENT.md's header (tools, model, memory, `omitClaudeMd`) is
   harness-specific and hand-maintained; only the role block between the
   markers is generated.
+- Installed files: `nexus setup` writes the extension's own skills, hooks and
+  its always-on routing rule `nexus-tools` into `.claude/` and records each in
+  `.claude/nexus-install-manifest.json`. They are tracked, never generated and
+  never edited here: an edit is a fork upstream cannot update, and
+  `nexus setup --check` reports it as locally modified. The project's own
+  search and graph clauses are the `code-search` rule, generated like any other.
+- Two sources name `.claude/rules/` as where the rules live (the onboarding
+  page's "Where the rules are", the cardinal page's "the floor"). With one
+  harness the path is the reader's fact; when a second harness exists the
+  sources stop naming it and the generator writes it, as it writes the stamp
+  and the AGENT.md markers today (`[R]` ruled 2026-09-21; `[M]` the same day,
+  over the onboarding page and the rule and skill sources, `lessons.md`
+  excluded: 8 mentions of `.claude/` in 6 sources, the other 6 naming
+  directories no harness generates).
 
 ## Adding or changing
 

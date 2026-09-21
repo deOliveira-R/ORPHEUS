@@ -8,6 +8,7 @@ invariant with its positive controls.
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 
 import pytest
@@ -225,6 +226,33 @@ class Stub:
 
     def always_on(self, page: Page) -> bool:
         return False
+
+    def installed_always_on(self) -> tuple[pathlib.Path, ...]:
+        return ()
+
+
+def test_installed_rules_come_from_a_manifest_and_only_the_unscoped_ones_are_always_on(tmp_path: pathlib.Path) -> None:
+    """X1: an installed rule without ``paths`` moves the always-on count; one with ``paths``,
+    one the manifest never recorded, and a recorded file that is gone do not."""
+    cc = ClaudeCode(repo_root=tmp_path)
+    assert cc.installed() == {} and cc.installed_always_on() == (), "no manifest: nothing is installed"
+    rules = tmp_path / ".claude" / "rules"
+    write(rules / "routing.md", "# a routing rule\n")
+    write(rules / "scoped.md", "---\npaths:\n  - \"tests/**\"\n---\n\n# scoped\n")
+    write(rules / "hand.md", "# hand-written, recorded by nobody\n")
+    write(tmp_path / ".claude" / "skills" / "s" / "SKILL.md", "# a skill\n")
+    write(tmp_path / ".claude" / "nexus-install-manifest.json", json.dumps({"files": {
+        "rules/routing.md": {"version": "0.18.0"}, "rules/scoped.md": {"version": "0.18.0"},
+        "rules/gone.md": {"version": "0.18.0"}, "skills/s/SKILL.md": {"version": "0.18.0"}}}))
+    assert cc.installed()[rules / "routing.md"] == "nexus 0.18.0"
+    assert set(cc.installed()) == {rules / "routing.md", rules / "scoped.md", rules / "gone.md", tmp_path / ".claude" / "skills" / "s" / "SKILL.md"}
+    assert cc.installed_always_on() == (rules / "routing.md",)
+
+
+def test_the_real_tree_installs_exactly_the_nexus_routing_rule() -> None:
+    cc = ClaudeCode()
+    assert cc.installed_always_on() == (REPO_ROOT / ".claude" / "rules" / "nexus-tools.md",)
+    assert cc.installed()[REPO_ROOT / ".claude" / "rules" / "nexus-tools.md"].startswith("nexus ")
 
 
 def test_two_pages_on_one_target_is_a_problem_and_unrealised_kinds_are_skipped(tmp_path: pathlib.Path) -> None:

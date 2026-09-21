@@ -28,7 +28,7 @@ imports, CamelCase, a string-form `getattr("name")`); a staged filter (a name
 net, then a literal scan) needs a control per STAGE, named with the spelling
 you are least sure the net catches; a member the filter would find for the
 wrong reason is a null control. `grep` here is ugrep, and an anchor inside an
-alternation group matches nothing, silently (`nexus-tools`). The nine
+alternation group matches nothing, silently (`code-search`). The nine
 battery-specific checks are `vv-principles` #17; the nine classes of a gate
 that fires and cannot fail, `vv-principles` mode 8; the design-time question a
 plan asks of a new gate, `plan-authoring` §6c.

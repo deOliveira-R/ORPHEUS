@@ -154,7 +154,9 @@ kinds of development it implies are under "How a session runs".
 
 The rules in `.claude/rules/` load into every session and every Key-agent
 dispatch, some only when a path their front matter names is touched; they are
-generated from `docs/development/rules/`, with the founding cases in
+generated from `docs/development/rules/` (one, the routing rule
+`nexus-tools`, is installed by `nexus setup` from sphinxcontrib-nexus), with
+the founding cases in
 `docs/development/evidence/`. Skills load on demand or per agent. The agents,
 their roles, the dispatch invariants and the seven workflows are the
 `workflows` rule; how to change a rule, a skill or an agent, and what each

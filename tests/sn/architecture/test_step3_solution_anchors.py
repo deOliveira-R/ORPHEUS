@@ -292,7 +292,7 @@ class _PlantedSolution:
 class TestFilterTheScannersFindAPlantedMember:
     """THEOREM — green before AND after the carve.  Never delete.
 
-    ``nexus-tools``/``vv`` #17: a filter is validated against a known member
+    ``code-search``/``vv`` #17: a filter is validated against a known member
     before any of its negatives is believed.  The two ruled rows below report
     *"nothing found"*, and *nothing found* is exactly what a broken filter
     reports — these rows are what separate the two readings.
