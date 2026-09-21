@@ -37,5 +37,6 @@ silently.
 - check: show the text to a colleague with none of the task's context — if they
   would be confused, so will the model. For a plan: can every step be executed
   from the text alone, without asking the author?
-- tell: arrow chains; hyphen-stacked compounds; a label invented mid-session
-  used as if shared; a paragraph the reader must read twice.
+- tell: the reader meets an arrow chain, a compound stacked from hyphens, a
+  label invented mid-session and used as if it were shared, or a paragraph
+  that must be read twice.

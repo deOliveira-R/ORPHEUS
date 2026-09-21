@@ -57,7 +57,8 @@ records how the project is built; `docs/api/` is the reference.
 - `thermal_hydraulics` and `kinetics` may leave the repository; no
   architectural investment there until that is decided.
 - The lens on every design ruling: build the machinery and realise the
-  operator algebra; a welded, unnamed operation is a failure to do so.
+  operator algebra; an operation computed inline and never named as an
+  operator (welded into its caller) is a failure to do so.
 
 ## How a session runs
 

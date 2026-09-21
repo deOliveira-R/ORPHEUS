@@ -15,7 +15,7 @@ Minimum standards every contributor, main agent and sub-agents, follows by defau
 
 Before adding a capability to a class/module, run a cleanup pass on that layer first: collapse double paths, move concepts to their native place, delete dead shims, fix twin sources of truth. The capability then lands as a **no-op extension through the one generic body**, not a third arm grafted onto debt.
 
-- check: a plan proposing a capability extension inserts a **cleanup phase before** it; order findings into must-precede / independent-polish / explicit-WAIT; gate each cleanup substep bit-identical where possible.
+- check: a plan proposing a capability extension inserts a **cleanup phase before** it; order the findings into those that must precede the extension, those that are independent polish, and those that explicitly wait; gate each cleanup substep bit-identical where possible.
 - tell: the new arm needs a matching arm in the converter AND the constructor AND the gate. [case](../../docs/development/evidence/coding-standards.md#2026-06-11-from-axes-roundtrip)
 
 ## Type vs property — before minting a type

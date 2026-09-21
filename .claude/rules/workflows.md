@@ -29,8 +29,8 @@ before committing; the agent had none. The built-in Explore agent is denied;
 directly.** For operator-algebra carves, convention changes crossing three or
 more subsystems, and anything in the `refactor/sn-operator-algebra` family,
 `method-implementer` is NOT dispatched: the main agent writes the code with the
-user steering step by step and `AskUserQuestion` checkpoints. `[R]` user
-ruling 2026-05-20: the user's since-inception knowledge of the codebase
+user steering step by step and `AskUserQuestion` checkpoints. The reason (`[R]`, the user's
+ruling of 2026-05-20): the user's since-inception knowledge of the codebase
 corrects the implementation in real time, while `method-implementer` runs a
 brief to completion, so for surgical work the loss of turn-by-turn correction
 costs more than the parallelism gains. The constraint is on

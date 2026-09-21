@@ -22,14 +22,14 @@ A plan is a note to **you, after your context is gone**, read by someone with yo
 - **DELIVERABLE-EXISTENCE** One existence-check per DELIVERABLE promised. tell: a deliverable is a CONCEPT with spelling variants, so a symbol grep clears it. [case](../../docs/development/evidence/plan-authoring.md#2026-08-07-flagship-gate-deliverable)
 - **ONE-LETTER-SYMBOL** For `α β λ σ τ φ ψ k` the mandated grep CERTIFIES the error: it returns hits for the meaning a recent campaign made salient. check: name the referent's INDEX and CO-OPERATOR, never its spelling. [case](../../docs/development/evidence/plan-authoring.md#2026-08-13-alpha-referent-structure)
 - **PRECEDENT** "Model it on X": the symbol exists; every property claimed of it may be false. check: read its first 30 lines and verify each adjective, then ask whether a better precedent already ships. [case](../../docs/development/evidence/plan-authoring.md#2026-08-14-subgroup-precedent-adjectives), [case](../../docs/development/evidence/plan-authoring.md#2026-08-14-precedent-null-basis)
-- **CHECKLIST-HALO** A verified existence-check on ONE clause lends unearned authority to the rest. tell: one clause carries `[M]`, its neighbours none.
+- **CHECKLIST-HALO** One verified clause does not verify its neighbours, yet a checklist with one `[M]` reads as checked throughout. check: every clause that claims a fact carries its own marker. tell: one clause carries `[M]`, its neighbours none.
 - **NAME-FREE-IS-NOT-NAME-GOOD** Before adopting a proposed NAME grep the PROSE corpus (`lessons.md`, `plans/`, `agent-memory/`, `gh issue list --search`), not only code. tell: a hit inside a refutation; free because rejected. [case](../../docs/development/evidence/plan-authoring.md#2026-08-26-sweep-cache-name)
 
 ## §2 Mark the epistemic status of every claim
 
 The markers are `articulation` §5's (a bare number will be read as measured); in a plan `[M]` carries the command or `file:line`, `[REFUTED YYYY-MM-DD]` what refuted it, `[REMEDIED YYYY-MM-DD @<hash>]` the repairing step. The census clauses below are instances of X2 and cite it; the protocol that meets them, shape by shape, is the `instrument-doctrine` skill § X2.
 
-- **[M]-SCOPE** `[M]` certifies a measurement HAPPENED, not that it answers its sentence. check: ask what command produced it; unstated means unmarked. tell: a "so"/"therefore" with the measured half on one side. [case](../../docs/development/evidence/plan-authoring.md#2026-08-10-solve-sn-therefore), [case](../../docs/development/evidence/plan-authoring.md#2026-09-20-omitclaudemd-memory-index)
+- **[M]-SCOPE** `[M]` certifies that a measurement happened; it does not certify that the measurement answers the sentence it sits in. check: name the command that produced it, and mark only the half of the sentence that command answers. tell: a "so" or a "therefore" with the measured half on one side of it. [case](../../docs/development/evidence/plan-authoring.md#2026-08-10-solve-sn-therefore), [case](../../docs/development/evidence/plan-authoring.md#2026-09-20-omitclaudemd-memory-index)
 - **SHELF-LIFE** Split a compound `[M]` by what would falsify each half: a VALUE survives until the numerics move, a claim about the TREE'S BEHAVIOUR is repealed by any commit. check: measurement date <= any landing of its own campaign means re-run the tree half. [case](../../docs/development/evidence/plan-authoring.md#2026-08-13-issue-350-shelf-life)
 - **QUANTIFIER** Every universal ("every family", "none of the callers") carries its DENOMINATOR: `[M] 5 of 8 sites` (X2). The unmeasured members are where the defect survives. [case](../../docs/development/evidence/plan-authoring.md#2026-08-11-h2-every-family)
 - **QUANTIFIER-AT-WRITE-UP** Run the check when PUBLISHING, not when measuring (X2). check: how many did I look at, and is that number in the sentence? [case](../../docs/development/evidence/plan-authoring.md#2026-08-19-brief-method-claim)
@@ -85,7 +85,7 @@ Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history
 
 ## §6 Sizing
 
-- **COMPACTION** Every >=4 phases, carrying the phase-to-commit table, corrections superseding older text, the measured red baseline and gate costs, and the durable lessons.
+- **COMPACTION** A plan of four or more phases carries a compaction point after every four, with the phase-to-commit table, the corrections that supersede older text, the measured red baseline with its gate costs, and the durable lessons.
 - **NO-NEXT-POINTER** Never carry a hand-written `NEXT = <step>`; git and the task list hold it.
 - **BARE-#N** A plan's internal task numbers collide with real GitHub issue numbers; never write a bare `#N` for an internal step.
 
@@ -139,8 +139,8 @@ X1, asked at design time: **what input, existing in the tree the moment this lan
 
 **Ask when the target is adopted, before any work: if this campaign fully succeeds, what does this print?** Answer by reading the metric's implementation, not its name. Never resolve a failure here by re-baselining: a metric that cannot move toward the target is the wrong instrument.
 
-- **PROXY THE WORK REMOVES** The proxy holds today, so nobody notices it is a proxy. check: read what the metric KEYS ON; confirm that field is the one the work changes. [case](../../docs/development/evidence/plan-authoring.md#2026-08-17-nexus-82-f5)
-- **POPULATION THE WORK EMPTIES** A score over "the ones still broken" degrades by construction as you fix the easy ones. check: report how good the RULE is (over a FIXED population) separately from how much CORPUS is still affected.
+- **PROXY THE WORK REMOVES** A metric that stands in for the quantity (a proxy) holds today, so nobody notices it is a proxy until the work removes what it keyed on. check: read what the metric KEYS ON; confirm that field is the one the work changes. [case](../../docs/development/evidence/plan-authoring.md#2026-08-17-nexus-82-f5)
+- **POPULATION THE WORK EMPTIES** A score whose population is "the ones still broken" empties as the work fixes the easy ones, so it degrades by construction. check: report how good the RULE is (over a FIXED population) separately from how much CORPUS is still affected.
 - **DESIGNED-RED** A tell whose predicate ranges wider than the design's scope is pinned at failure by its own non-goals. check: run the tell's own grep at design time, tree-wide, and intersect with the declared UNTOUCHED set. [case](../../docs/development/evidence/plan-authoring.md#2026-08-20-sigs-untouched-set)
 - **EVERY READER, NOT ONLY THE NAMED TARGET** Run the question against every instrument that will read the result; the named one has been thought about; the defect is elsewhere. [case](../../docs/development/evidence/plan-authoring.md#2026-08-18-every-reader-instrument)
 - **A CONVERSION NEEDS A CONSERVATION CHECK** Ask what the instrument would read if the conversion were maximally wrong in the way you fear: a warning count measures parser DISTRESS, not FIDELITY. check: content in equals content out, not an error count. [case](../../docs/development/evidence/plan-authoring.md#2026-08-17-conversion-warning-count)
