@@ -17,6 +17,7 @@ tools:
 mcpServers:
   - nexus
 skills:
+  - retirement-audit
   - instrument-doctrine
   - nexus-verification
   - nexus-impact

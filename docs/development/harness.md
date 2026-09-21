@@ -110,7 +110,12 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   role block, so a role-block change cannot move the T4 dispatch floor: a Key
   dispatch costs the fixed harness block, the instruction files, its AGENT.md,
   its preloaded skills and its own memory index, and each part is measured
-  by a probe that carries it.
+  by a probe that carries it. `[M]` 2026-09-21: a project agent with an
+  explicit `tools:` allowlist holds no `Skill` tool, even when `Skill` is
+  listed (qa, method-implementer), while the built-in `general-purpose` agent
+  holds it and loads a skill on demand; so a project agent's skills are its
+  `skills:` preload only, and a rule that says "load skill X" reaches a Key
+  agent only through that list.
 
 ## Session start
 
