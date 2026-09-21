@@ -79,10 +79,8 @@ on greps like it.
 - check: for any completeness claim (a residual check, a "no consumers left"
   verdict, a done-when) re-run the pattern in Python (`re` + `pathlib.rglob`):
   the pattern is then unambiguous and the denominator can be stated (X2).
-- check: validate the filter against a POSITIVE CONTROL before trusting a
-  negative, one line asserting the pattern finds a member you already know
-  exists (X1). A broken filter and a clean tree print the same thing, and the
-  broken one reads as "nothing to do"
+- check: a positive control before any negative (X1): one line asserting the
+  pattern finds a member you already know exists
   ([L61](../../docs/development/evidence/lessons.md#l61-unvalidated-filter-clean): six false
   negatives in one session, two mechanisms — this one, and zsh eating quotes
   and backticks out of a double-quoted pattern, which at least prints

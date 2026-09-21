@@ -17,7 +17,8 @@ fix is the next code-touching action (`process-discipline`).
 ## 2. Architecture
 
 Shared code, or a shared CONCEPT, between two places is a stop signal:
-continuing duplicates, so reconsider the architecture before going further.
+continuing duplicates, so reconsider the architecture before going further (the same law for evidence:
+`instrument-doctrine` X4).
 Architecture outranks any immediate implementation gain because it is the
 compounding foundation. The rules in `.claude/rules/` are the floor every
 contributor meets by default; the `coding-elegance` skill is the ceiling and

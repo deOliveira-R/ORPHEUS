@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1200
+  budget_tokens: 1500
 ---
 
 # Instrument doctrine — four statements every claim is held to
@@ -19,14 +19,23 @@ instance to its statement.
 
 Before citing a gate, metric, canary or fix as evidence, name the input that
 would make it read differently and show that the input exists in the tree today.
+The same law read from the other side: a negative reading (a clean tree, a
+zero, an all-green battery) is evidence only after a POSITIVE CONTROL has made
+the same instrument read positive, because a broken instrument and a clean
+tree print the same thing, and the broken one reads as "nothing to do".
 
 - check: ask *"if the thing this guards were fully broken, what would it
   print?"* — answered by reading the implementation and counting activations,
-  never by its name. For a repair you believe is structural, mutate it and
-  require a red.
+  never by its name. A gate lands with the input, existing in the tree the
+  moment it lands, that it rejects (its first red); for a metric or an
+  acceptance artefact ask the inverse, *if the work fully failed, would this
+  reading move?* For a repair you believe is structural, mutate it and
+  require a red. Before believing a zero, name the known member the filter
+  found or the mutation the battery reddened on.
 - tell: a gate green before and after the change; a canary whose carved path
   executes zero times; a metric that moves the wrong way while the work
-  succeeds; a docstring's claim standing in for a witness.
+  succeeds; a docstring's claim standing in for a witness; a confident, empty
+  answer with no control beside it.
 
 ## X2. Every claim carries its population and its instrument
 
@@ -47,15 +56,18 @@ zero is believed.
 ## X3. Prose is not enforcement
 
 A docstring, a marker, a label, a table header, a column's vocabulary, a rule's
-phrase or a plan sentence asserts nothing the code or the gate does not.
-Assert the structure the prose names, or weaken the prose.
+phrase, a plan sentence or a gloss beside a link asserts nothing the code or
+the gate does not. Assert the structure the prose names, return it so that it
+asserts itself (a returned permutation makes its own bijectivity assertable; a
+`bool` does not), or weaken the prose.
 
 - check: for every claim in prose, find the line that would fail if the claim
   were false. A plan row written in a rule's own vocabulary is a summary of a
   check unless the row carries that check's `[M]`.
 - tell: "by construction", "tautological", "unaffected because X", "no new
   edge either way" with no measurement beside it; a `verifies` or `catches`
-  marker on a test the defect does not redden.
+  marker on a test the defect does not redden; a gloss that names part of its
+  link's target and goes stale when the target grows.
 
 ## X4. One definition per quantity
 
@@ -64,7 +76,11 @@ evidence, find the shared upstream — an identity, an integrand, an input
 object, an α-equivalent body, a single constant. Before retiring a duplicate,
 name the mechanism that made it redundant and that mechanism's witness.
 
-- check: independence is asked per axis, derivation and input; a "brute-force
-  control" is compared by α-normalised AST, not by its name.
+- check: independence is asked per axis, derivation and input; two bodies are
+  one implementation iff they agree as α-normalised ASTs (every local renamed
+  to a placeholder), whatever their names. The mechanism that keeps two copies
+  equal has a witness, a test that greps the shortest distinctive fragment of
+  its message; none means write one in the same commit as the retirement,
+  which created the exposure.
 - tell: `allclose(solver_a, solver_b)`; a gate whose two sides derive from one
   rule; a convention re-applied at N consumers.

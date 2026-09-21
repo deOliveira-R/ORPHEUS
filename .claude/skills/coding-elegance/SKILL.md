@@ -93,7 +93,7 @@ function the moment F appears; an unbounded explosion.
 
 **2 — Single source of truth (composition over duplication).** Every concept
 appears in exactly one place; two pieces of code computing the same mathematical
-quantity are a bug in waiting. **Trigger:** the moment you reach for copy-paste,
+quantity are a bug in waiting (X4 decides "the same": α-normalised ASTs, never names). **Trigger:** the moment you reach for copy-paste,
 OR write a parallel implementation "because the layout differs". **Signature:**
 "I just had to apply this fix in two places." **Domain example:** the sweep and
 the matvec both compose ONE `SNCellOperator` over `iter_cells_by_direction(±1)`,
@@ -188,7 +188,7 @@ axis conventions — are fixed at the ONE place the value is defined. The
 convention is a property of the PRODUCER; N consumers means N chances to drift,
 and a *future* consumer gets the bug for free. **Trigger:** you are about to
 depend on a sign / normalisation / ordering / axis convention, or you see the
-same convention applied at multiple call sites. **Domain example:**
+same convention applied at multiple call sites (X4's tell). **Domain example:**
 `lethargy_bin_widths(eg)` returning `np.abs(np.log(eg[1:]/eg[:-1]))` at the
 definition site — ERR-022 was a signed `Δu` re-derived at three consumers, one of
 which met a descending grid. Eliminates ERR-004/008/014/018/022/025/031 by
@@ -269,7 +269,7 @@ its ERR cross-cites.
 
 1. **NEVER** two implementations of one mathematical quantity — **instead**
    factor the common math into a primitive both consumers call. The "twin path"
-   is the load-bearing failure mode.
+   is the load-bearing failure mode (X4).
    [case](../../../docs/development/evidence/coding-elegance.md#ap1-twin-paths)
 2. **NEVER** procedural for-loops over a domain that has its own algebra —
    **instead** invoke the dunders. `psi = L.solve(q)` IS the math.
@@ -366,7 +366,7 @@ its ERR cross-cites.
 20. **NEVER** let a docstring NAME a primitive (a shape, a named quantity, a
     closed form) that the body then **open-codes by hand** — **instead** call the
     primitive the docstring names, or delete the claim. Two spellings of one
-    quantity, the prose looking like a verified contract while unenforced. **Special case:** a
+    quantity, the prose looking like a verified contract while unenforced (X3). **Special case:** a
     `.shape` / axis-order claim on a bare-ndarray return is #13 wearing a
     docstring — verify the ACTUAL shape at the seam or wrap the return in a typed
     carrier.

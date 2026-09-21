@@ -18,6 +18,18 @@ also breaks linearity, symmetry, positivity or a shape contract reddens for the
 wrong reason). The verdict is a per-arm TABLE — a multi-arm guard is N claims,
 and an arm that reddens nothing is a guard with no witness.
 
+**Positive control, for a filter.** A census grep, a name net or a regex over a
+tree is an instrument, and its zero obeys the same law: before believing it,
+show one known member of every shape it must find (uppercase labels, relative
+imports, CamelCase, a string-form `getattr("name")`); a staged filter (a name
+net, then a literal scan) needs a control per STAGE, named with the spelling
+you are least sure the net catches; a member the filter would find for the
+wrong reason is a null control. `grep` here is ugrep, and an anchor inside an
+alternation group matches nothing, silently (`nexus-tools`). The nine
+battery-specific checks are `vv-principles` #17; the nine classes of a gate
+that fires and cannot fail, `vv-principles` mode 8; the design-time question a
+plan asks of a new gate, `plan-authoring` §6c.
+
 **Stabiliser enumeration, at gate design time.** Write down the functional the
 gate measures and the group of errors it is invariant under: spectra are blind
 to similarity and transpose; balance and telescoping sums to any per-term error
@@ -58,8 +70,7 @@ numerator counts, over which tree (`orpheus/`, `tests/`, `docs/` — `tests/` is
 usually the majority and usually unranged). (2) A membership question is
 parsed — `ast` for code, the doctree for docs — never a line window, a regex
 that can land inside a nested literal, or `| head`. (3) Validate the filter
-against a POSITIVE CONTROL: one known member of every shape (uppercase labels,
-relative imports, CamelCase, a string-form `getattr("name")`). (4) State every
+with a positive control per shape and per stage (X1). (4) State every
 exclusion in the claim: a file, a package, a directory, the definition site.
 (5) For a completeness claim, run a SECOND, independently vocabularied filter;
 one validates the other. (6) Report `k of N <predicate>`; list several counts
@@ -67,6 +78,36 @@ only with their separate predicates and trees. (7) Verify the DECODER as well as
 the filter: a production predicate reused as a detector inherits its other
 meanings; enumerate every state it maps to True and give each state its own
 control.
+
+**The shapes a denominator hides in**, each a `plan-authoring` clause cited
+there by its tag. QUANTIFIER: a universal is `k of N <predicate>`; the
+unmeasured members are where the defect survives. QUANTIFIER-AT-WRITE-UP: run
+the check when publishing, not when measuring. CONSTANT-DENOMINATOR: the
+denominator least likely to be written is the one held fixed across every row;
+ask what is the same in every row and whether the conclusion is about that.
+PREDICATE: a fraction names what its numerator counts, or it is not
+re-runnable. DENOMINATOR-THAT-IS-A-GATE: a guard named as the denominator
+bounds the arm it is called on, not the question; `grep -c` its call sites,
+check the prescribed measurement is not tautological, and check that a scope
+inherited from a code comment did not drop the sentence that limited it.
+STRUCTURAL-DENOMINATOR: for "the rebuild loses X" or "these are duplicates",
+enumerate against the TYPE (`dataclasses.fields(T)`), never against the
+concept chased. EXCLUSION-IS-A-PREDICATE: an excluded file hides in-module
+consumers, an excluded package reads as "0 production consumers", an excluded
+directory measures the issue's folder and not the goal's corpus; state the
+exclusion in the claim or filter by line, and measure one level up.
+DEFINITION-FILE-ONLY: a self-check whose whole population is the defining
+module certifies "the def plus one call". RESUME-BLOCK-M: an `[M]` count in a
+compaction point is a claim with a predicate; a one-file census lies beside
+`[R]` neighbours that were checked for free. A-LIST-IS-N-CENSUSES: counts
+listed in one breath imply a shared scope that never existed; each owes its
+predicate and its tree. CARVE-FORKS-THE-DENOMINATOR: when N classes share one
+body, "N surfaces" is two counts, bodies and role × surface rows; state both
+and the arithmetic between them. RENAME-SIZE: a rename counts the identifier
+and, separately, the concept spelled without it; word-bounded, then triaged by
+meaning. STATE-THE-CENSUS-PREDICATE: "complete" states its method ("complete
+for literal-name calls"). DUPLICATES-IS-A-UNIVERSAL: a bit-identity claim owes
+its denominator and is routinely asserted without being run.
 
 **Configuration, for a number.** Fixture, settings, what the fixture is blind
 to (its kernel and regime), the `-m` filter of a pytest count, the exclusion
@@ -95,7 +136,9 @@ naming a shape, a bijection, a compatibility law or a primitive that the body
 does not assert or call is a single-source divergence: assert it, return the
 structure (a permutation makes its own bijectivity assertable; a `bool` does
 not), or delete the claim. A plan row in a rule's vocabulary carries the
-rule's `[M]`, not its phrase.
+rule's `[M]`, not its phrase. A gloss beside a link ("whose census clause is X
+and Y") asserts the target's scope, reads as navigation so nobody audits it,
+and goes stale when the target grows: point, and let the definition speak.
 
 ## X4 — find the shared upstream
 
@@ -110,9 +153,11 @@ the exposure.
 
 ## Pointers
 
-- Rule: `instrument-doctrine` (always-on). Instances: `vv-principles`
-  anti-patterns #11, #12, #17–#20, #22–#24, #26, #31, #34; `plan-authoring`
-  §2, §6c, §8, §10; `coding-standards` retirement audit.
+- Rule: `instrument-doctrine` (always-on). Instances, each citing its
+  statement by ID: `vv-principles` #7, #11–#14, #17–#20, #22–#24, #26, #31,
+  #34, #36 and test-design mode 8; `plan-authoring` §2, §6c, §8, §10;
+  `coding-standards` D.16, E.18 and the retirement audit; `coding-elegance`
+  Pattern 2, Pattern 7, anti-patterns #1 and #20; Cardinal Rule 2.
 - Evidence: [V&V anti-patterns](../../../docs/development/evidence/vv-anti-patterns.md),
   [test-design modes](../../../docs/development/evidence/test-design-modes.md),
   [plan-authoring evidence](../../../docs/development/evidence/plan-authoring.md).
