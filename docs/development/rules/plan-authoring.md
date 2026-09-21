@@ -2,6 +2,8 @@
 harness:
   kind: rule
   budget_tokens: 8100
+  paths:
+    - ".claude/plans/**"
 ---
 
 # Plan authoring — what a plan owes its own future author
