@@ -797,6 +797,8 @@ polar-azimuthal split.
    **left-endpoints**).
 
 
+.. _discrete-measure-symmetry-groups:
+
 Symmetry groups for quadrature invariance
 =========================================
 

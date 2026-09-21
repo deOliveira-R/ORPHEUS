@@ -140,29 +140,23 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     r"""Method-agnostic boundary law in the affine form
     :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`.
 
-    Three properties are declared for the affine form's factors,
-    but only ONE of them is real today:
+    Three properties carry the affine form's factors, and every
+    concrete law populates all three (campaign phase B1 minted the
+    typed factor objects; each property's docstring names its readers):
 
     * :attr:`source` -- the prescribed inflow :math:`q`, defaulting
-      to :class:`NoSource` (the homogeneous case). **Populated**
-      (:class:`~orpheus.geometry.boundary.PrescribedInflow`
-      overrides it) and **read** — by
-      :meth:`assert_source_is_placeable` here and by the
-      SN realizer's prescribed-inflow arm.
-    * :attr:`geometry_map` -- the geometric operator :math:`G` (a
-      permutation, pushforward, angular average, spatial wrap).
-      **Unpopulated**: every concrete law inherits the ``None``
-      below, and no production code reads it.
-    * :attr:`response_kernel` -- the scalar amplitude / kernel
-      :math:`R` (albedo, white-current scaling). **Unpopulated**
-      likewise — the realizers reach the same number through
-      ``law.albedo`` instead.
-
-    Campaign phase **B1** mints the typed ``G`` / ``R``
-    specification objects (Grand Report v3 §16A.2's
-    ``BoundaryGeometryMap`` / ``BoundaryResponseKernel``) and
-    populates the two empty properties across all seven laws; the
-    declarations are kept for that landing rather than retired.
+      to :class:`NoSource` (the homogeneous case);
+      :class:`~orpheus.geometry.boundary.PrescribedInflow` overrides
+      it, and :meth:`assert_source_is_placeable` here and the SN
+      realizer's prescribed-inflow arm read it.
+    * :attr:`geometry_map` -- the geometric operator :math:`G` as a
+      :class:`~orpheus.geometry.boundary._factors.BoundaryGeometryMap`
+      (a permutation, pushforward, angular average, spatial wrap),
+      read by the realizers, the sweep schedule and the DSA guard.
+    * :attr:`response_kernel` -- the amplitude / kernel :math:`R` as a
+      :class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel`
+      (albedo, white-current scaling), read by the realizers, the DSA
+      corrector and the boundary operator.
 
     The seven concrete subclasses are ``VacuumInflow``,
     ``ReflectiveBoundary``, ``WhiteBoundary``, ``AlbedoBoundary``,

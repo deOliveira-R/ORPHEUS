@@ -4117,23 +4117,11 @@ and :math:`S^d` is the unit sphere of directions. The boundary
 n(\mathbf{r})` at every regular point. For an angular flux
 :math:`\psi(\mathbf{r}, \Omega)` defined on the full phase space, the
 **boundary trace** splits naturally into two pieces by the sign of
-:math:`\Omega \cdot \hat n`:
-
-.. math::
-   :label: trace-sign-predicate
-
-   \Gamma_- \;=\; \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^d
-                  : \Omega \cdot \hat n(\mathbf{r}) < 0\},
-   \qquad
-   \Gamma_+ \;=\; \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^d
-                  : \Omega \cdot \hat n(\mathbf{r}) > 0\}.
-
-.. (vv-status rationale) Notation definition: the continuous inflow / outflow
-   trace half-spaces Γ_± by the sign of Ω·n. Its discrete realisation
-   :eq:`inflow-mask-discrete` is the tested form
-   (``tests/numerics/test_angular_trace_space.py`` selector gates). A
-   definitional predicate, not a solver claim.
-.. vv-status: trace-sign-predicate documented
+:math:`\Omega \cdot \hat n`, :math:`\Gamma_-` (inward) and
+:math:`\Gamma_+` (outward). The equation is stated once, as
+:eq:`trace-half-decomposition` on the operator-algebra page, where the
+two selectors that implement it are bound; this page carries its
+discrete realisation, :eq:`inflow-mask-discrete`.
 
 Points with :math:`\Omega \cdot \hat n = 0` are **tangential** —
 they belong to neither half. For axis-aligned ordinates on
@@ -4153,7 +4141,7 @@ tangential ordinates (:ref:`bc-narrowing-b34a`).
 In the discrete setting, the spatial boundary is a union of finite
 faces :math:`\{f_1, \ldots, f_F\}` and the angular variable is a
 finite ordinate set :math:`\{\Omega_n : n = 1, \ldots, N\}`. The
-sign predicate :eq:`trace-sign-predicate` then collapses to a
+sign predicate :eq:`trace-half-decomposition` then collapses to a
 **per-face boolean mask** of shape :math:`(F, N)`:
 
 .. math::

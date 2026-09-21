@@ -57,11 +57,15 @@ Method-facing structure:
 * :mod:`orpheus.transport.spatial` — method-generic spatial discretization
   schemes (the per-cell closure layer).
 
-Future contents (deferred to later parent-plan steps; NOT built — the
-names below are plan targets, not importable modules):
-
-* ``orpheus.transport.problems`` — Problem ABCs (P3.4): Criticality,
-  FixedSource, AlphaEigen, InitialValue.
+Not here, by the way the Problem side landed: there is no
+``orpheus.transport.problems`` package. The posed question is
+:class:`~orpheus.numerics.posing.EigenPosing` or
+:class:`~orpheus.numerics.posing.SourcePosing` over an
+:class:`~orpheus.numerics.pencil.OperatorPencil` (L1), and each method's
+hub mints them (:class:`~orpheus.sn.problem.SNProblem`,
+:class:`~orpheus.homogeneous.solver.HomogeneousProblem`); the α posing is
+stated (:data:`~orpheus.numerics.posing.ALPHA_MAP`) and not yet minted by
+any hub. The conceptual map is the architecture chapter's conceptual view.
 
 References
 ----------

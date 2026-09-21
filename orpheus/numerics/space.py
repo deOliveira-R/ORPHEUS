@@ -25,42 +25,34 @@ inner-product weights, so the adjoint identity
 becomes a non-trivial consistency check (see test
 ``tests/numerics/test_operator.py::test_hilbert_adjoint_weighted_identity``).
 
-Future direction (Grand Report v3 §5.3 + §6.1)
-==============================================
+Where the anticipated specialisations landed
+============================================
 
-The Grand Report v3 anticipates a richer Space ontology with these
-specialisations layered on top of :class:`FunctionSpace`:
+The Grand Report v3 (§5.3, §6.1) anticipated a richer Space ontology as
+subclasses layered on :class:`FunctionSpace`. It landed as AXES and as
+whole-boundary spaces instead, under the ruling that a space is the
+ordered product of its axes (:class:`~orpheus.numerics.axis.Axis`):
 
-* **MeshFunctionSpace** — functions on a structured mesh; carries a
-  reference to the :class:`~orpheus.geometry.mesh.Mesh1D` /
-  :class:`~orpheus.geometry.mesh.Mesh2D` instance.
-* **AngularTraceSpace** — functions on the boundary; the domain/range for
-  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`. ONE
-  whole-boundary space (see
-  :mod:`orpheus.numerics.spaces.angular_trace_space`); inflow / outflow are
-  selectors over its signed :math:`\Omega\cdot\hat n`, not directional
-  tags.
-* **RegionSpace** — region-piecewise constant fields (one value per
-  homogenised region); used by region-collapsed CP / homogenisation.
-* **EnergyGroupSpace** — multi-group flux space; tensored with a
-  spatial space to form the full state.
-* **DiscreteAngularSpace** — quadrature-tagged angular space carrying
-  invariance-group metadata and the underlying
-  :class:`~orpheus.numerics.measure.DiscreteMeasure`.
+* ``MeshFunctionSpace`` — the spatial axis, minted by the hub from the
+  cell volumes (``MaterialMesh.bulk_space``).
+* **AngularTraceSpace** — shipped as ONE whole-boundary space
+  (:mod:`orpheus.numerics.spaces.angular_trace_space`); inflow / outflow
+  are selectors over its signed :math:`\Omega\cdot\hat n`, not
+  directional tags.
+* ``RegionSpace`` — a coarser stage of the same filtration, reached by
+  the collapse pair (retraction and section), not by a class.
+* ``EnergyGroupSpace`` — :class:`~orpheus.numerics.axis.EnergyAxis`, a
+  one-dimensional mesh in energy.
+* ``DiscreteAngularSpace`` —
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.axis` on the
+  quadrature's measure, which carries the invariance group.
 
-And these compositional dunders:
-
-* ``S * T`` — tensor product; produces a :class:`FunctionSpace` whose
-  shape is the concatenation of factor shapes.
-* ``S + T`` — direct sum; concatenated dimension on a shared abstract
-  type tag.
-* ``S.dual()`` — dual space; for inner-product-bearing spaces this is
-  isomorphic to ``S`` itself but carries a covariance tag for
-  bra-ket-style composition checks.
-
-These are NOT shipped in 9.6 — the file is structured so they can be
-slotted in additively without disturbing the :class:`FunctionSpace`
-base.
+Of the compositional dunders anticipated with them, ``S * T`` (the tensor
+product, :class:`TensorProductSpace`) and ``S.dual()`` (the dual space,
+:class:`DualSpace`) ship on :class:`FunctionSpace`; the direct sum is not
+a dunder but the typed composites
+:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` and
+:class:`~orpheus.numerics.coupled_system.CoupledSpace`.
 
 References
 ----------

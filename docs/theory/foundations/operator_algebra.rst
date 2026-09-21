@@ -5938,6 +5938,8 @@ realized in commits ``650032e`` / ``7603c8e`` (2026-06-05).
      implementer that delegates its loop to it. **One loop.**
 
 
+.. _eigen-standard-form-and-resolvent:
+
 The standard form and its resolvent
 ------------------------------------
 
@@ -6604,6 +6606,8 @@ prompt-:math:`\alpha` problem, by contrast, IS degree 1: it is
 which is exactly the α-row of the posing table below and is why
 :data:`~orpheus.numerics.posing.ALPHA_MAP` is already written even though
 no solver consumes it yet.
+
+.. _eigen-resolvent-is-the-strategys:
 
 No inverse: the resolvent is the Strategy's composition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

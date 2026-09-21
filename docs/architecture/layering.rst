@@ -116,25 +116,29 @@ A few notes the table is too compact to capture:
   ``examples/`` are L4.
 
 
+.. _architecture-problem-and-solver:
+
 Problem and Solver are not a layer
 ----------------------------------
 
 .. important::
 
-   **The type names in the design table below are plan targets, not
-   importable modules.** ``Problem``, ``Solver``, ``Eigenproblem``,
-   ``PowerIteration``, ``Arnoldi``, ``TimeStepper``,
-   ``CriticalityProblem``, ``AlphaEigenproblem``, ``FixedSourceProblem``,
-   ``InitialValueProblem`` and ``SweepPreconditionedSolver`` are
-   **reserved, not yet implemented** — each is written as a literal
-   rather than a ``:class:`` role precisely because a live role would
-   assert a class the interpreter cannot produce. The status is the
-   code's own: :mod:`orpheus.transport`'s package docstring lists
-   ``orpheus.transport.problems`` (Criticality / FixedSource / AlphaEigen
-   / InitialValue) under *"Future contents … NOT built — the names below
-   are plan targets, not importable modules"*. What ORPHEUS ships in
-   each role is tabulated in :ref:`architecture-problem-solver-today`
-   immediately below.
+   **The type names in the design table below are the design's
+   vocabulary, not the tree's.** The Problem side has since been
+   reified under other names: the posed question is
+   :class:`~orpheus.numerics.posing.EigenPosing` or
+   :class:`~orpheus.numerics.posing.SourcePosing` over an
+   :class:`~orpheus.numerics.pencil.OperatorPencil`, and the Problem is
+   the per-method hub (:class:`~orpheus.sn.problem.SNProblem`,
+   :class:`~orpheus.homogeneous.solver.HomogeneousProblem`); the map of
+   the concepts is :ref:`architecture-conceptual-view`. ``Eigenproblem``,
+   ``Arnoldi``, ``TimeStepper``, ``CriticalityProblem``,
+   ``AlphaEigenproblem``, ``FixedSourceProblem``, ``InitialValueProblem``
+   and ``SweepPreconditionedSolver`` remain design names with no class of
+   that name, written as literals so that no role asserts a class the
+   interpreter cannot produce. What ORPHEUS ships in each role is
+   tabulated in :ref:`architecture-problem-solver-today` immediately
+   below.
 
 The ``Problem`` and ``Solver`` families are NOT layers. They
 are math-object families (like :class:`~orpheus.numerics.field.Field` and
@@ -172,10 +176,11 @@ appropriate vocabulary.
 What fills each role today
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The declarative/iterative split above is settled and load-bearing; what
-is *not* built is the reification of the Problem side into types. Every
-row below is a live cross-reference, so the table doubles as the gap
-measure — a row with no live role is a genuine hole.
+The declarative/iterative split above is settled and load-bearing, and
+the Problem side is reified since 2026-09: the pencil and the two posings
+are types in :mod:`orpheus.numerics`, and each method's hub mints them.
+Every row below is a live cross-reference, so the table doubles as the
+gap measure — a row with no live role is a genuine hole.
 
 .. list-table::
    :header-rows: 1
@@ -188,20 +193,27 @@ measure — a row with no live role is a genuine hole.
        :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol is
        the boundary, and
        :func:`~orpheus.numerics.eigenvalue.power_iteration` is the single
-       power-iteration loop in the codebase. The *problem* is not a
-       type — it is the pair of methods a solver exposes across that
-       Protocol.
+       power-iteration loop in the codebase. The *problem* is a type
+       since 2026-09: :class:`~orpheus.numerics.posing.EigenPosing`, a
+       pencil with a spectral map, minted by the hub; the loop consumes
+       the pair of methods a solver exposes across that Protocol.
    * - L2 ``CriticalityProblem``
      - :class:`~orpheus.numerics.iteration.KEigenvalue` — the
        operator-triple realization of that same boundary, carrying the
        k-posing :math:`A_{\rm loss} = A - S`, :math:`M = F`,
        :math:`k = \mu` (the full posing table is at
-       :ref:`eigenvalue-posing`).
+       :ref:`eigenvalue-posing`). The declarative type is
+       :class:`~orpheus.numerics.posing.EigenPosing` with
+       :data:`~orpheus.numerics.posing.K_MAP`, minted by
+       :attr:`~orpheus.sn.problem.SNProblem.eigen_posing` and by the
+       homogeneous hub.
    * - L2 ``FixedSourceProblem``
      - :class:`~orpheus.numerics.iteration.SourceIteration`, with
        :class:`~orpheus.numerics.iteration.KrylovAcceleration` as the
-       accelerated arm. Again a posing realized *as an iteration*, not as
-       a declarative type.
+       accelerated arm; the declarative type is
+       :class:`~orpheus.numerics.posing.SourcePosing`, minted by
+       :meth:`~orpheus.sn.problem.SNProblem.source_posing` as the pencil's
+       member at :math:`\sigma = 1`.
    * - L2 ``AlphaEigenproblem``
      - Not built. The :math:`\alpha`-eigenvalue row
        (:math:`A_{\rm loss} = L+C-S-N_{2n}-F-B`, :math:`M = 1/v`,
@@ -226,9 +238,11 @@ measure — a row with no live role is a genuine hole.
        :ref:`sn-acceleration`); TSA and JFNK are not built.
 
 Read the two tables together: the *vocabulary* of this section is
-settled, its *reification* is not, and the second table is where a
-future Problem-ABC step (``orpheus.transport.problems``) will find the
-concrete objects it has to wrap.
+settled, and its reification landed as the pencil, the posings and the
+per-method hubs rather than as an ``orpheus.transport.problems``
+package; what remains open (a shared Problem type over the three hubs,
+the diffusion hub's pencil, the α posing) is the debt list of
+:ref:`architecture-conceptual-view`.
 
 
 The import-linter test

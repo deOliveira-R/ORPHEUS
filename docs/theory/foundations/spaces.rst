@@ -4408,19 +4408,20 @@ taken.
        Expressible is not known
        (:ref:`spaces-metric-not-on-the-axis`).
    * - The Riesz legs (``riesz_lower`` / ``riesz_raise``)
-     - **CS4c.** P7's metric family is what those legs will wrap —
-       the metric arithmetic has one home, so retiring
-       ``AdjointOperator`` into
+     - **Landed after this table was written.** The legs are
+       space-minted operators,
+       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower` (♭,
+       applies :math:`G`) and
+       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise` (♯,
+       applies :math:`G^{+}`), realised by
+       :class:`~orpheus.numerics.operator.RieszLowerOperator` and
+       :class:`~orpheus.numerics.operator.RieszRaiseOperator`, and
+       :class:`~orpheus.numerics.operator.AdjointOperator` IS
        :math:`A^{*} = A.\mathrm{domain.riesz\_raise}\circ A.\mathrm{dual}()
-       \circ A.\mathrm{codomain.riesz\_lower}` needs no third spelling
-       of it. `[M]` neither method is defined anywhere in the tree
-       today (``hasattr`` is ``False`` on
-       :class:`~orpheus.numerics.space.FunctionSpace`,
-       :class:`~orpheus.numerics.space.DualSpace`,
-       :class:`~orpheus.numerics.space.TensorProductSpace` and
-       :class:`~orpheus.numerics.operator.LinearOperator`); the only
-       occurrence of either name is the metric module's own docstring,
-       naming the compatibility target.
+       \circ A.\mathrm{codomain.riesz\_lower}` — P7's metric family is
+       the one metric arithmetic they wrap, as this row anticipated, so
+       there is no third spelling of it. The landing is recorded in the
+       SN development history (the Riesz-legs entry).
 
 
 .. _spaces-development-history:

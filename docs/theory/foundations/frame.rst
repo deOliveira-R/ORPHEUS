@@ -335,6 +335,8 @@ Key Facts
   (:ref:`frame-moment-space-single-home`).
 
 
+.. _frame-discrete-frame-definition:
+
 The discrete frame — analysis, synthesis, and the frame operator
 ================================================================
 
@@ -909,28 +911,22 @@ proving *choice*.
 
 .. note::
 
-   **Recorded debt (CS4c) — the matrix-metric half is DISCHARGED; the
-   legs are not.** The note below stood from 2026-08-23 until campaign 1
-   P7 (2026-08-30), which landed the matrix metric it was waiting for
-   (:ref:`spaces-metric-object`). Two halves of the debt remain open and
-   are the compatibility target P7 deliberately built toward:
-
-   - the **legs themselves** —
-     :math:`\mathrm{riesz\_raise}` / :math:`\mathrm{riesz\_lower}`
-     becoming space-minted *operators* rather than elementwise
-     diagonals, at which point
-     :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ
-     A.\mathrm{dual}() \circ A.\mathrm{codomain.riesz\_lower}` is a
-     definition that a full matrix satisfies as easily as a diagonal;
-     and
-   - **retiring** ``AdjointOperator`` into that leg composition.
-
-   Both are still CS4c's, and neither method exists in the tree today.
-   What P7 changed is that they now have exactly one metric arithmetic
-   to wrap: the :class:`~orpheus.numerics.metric.HilbertMetric` family's
-   two faces are what the two legs will be, so the retirement needs no
-   third spelling of the metric. Tracked in
-   ``.claude/plans/frame_square_recarve.md`` (recorded debts).
+   **Recorded debt (CS4c) — DISCHARGED.** This note stood from
+   2026-08-23, first waiting for the matrix metric, which campaign 1 P7
+   (2026-08-30) landed (:ref:`spaces-metric-object`), then for the legs.
+   Both halves have landed since: the legs are space-minted operators,
+   :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower` (♭, applies
+   :math:`G`) and :attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise`
+   (♯, applies :math:`G^{+}`), realised by
+   :class:`~orpheus.numerics.operator.RieszLowerOperator` and
+   :class:`~orpheus.numerics.operator.RieszRaiseOperator`, and
+   :class:`~orpheus.numerics.operator.AdjointOperator` IS the composition
+   :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ A.\mathrm{dual}()
+   \circ A.\mathrm{codomain.riesz\_lower}`, which a full matrix metric
+   satisfies as easily as a diagonal because the
+   :class:`~orpheus.numerics.metric.HilbertMetric` family is the one
+   metric arithmetic the legs wrap. The landing is recorded in the SN
+   development history (the Riesz-legs entry).
 
 .. _frame-square-closure-section:
 
