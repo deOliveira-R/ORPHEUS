@@ -4,7 +4,7 @@
 An instrument is anything whose reading you cite as evidence: a test, a metric,
 a census, a canary, a mutation battery, a docstring, a plan row. The four
 statements below apply to every artefact an agent writes — an issue, a commit
-message, a brief, a plan, a report — which is why they are always-on. The
+message, a brief, a plan, a report. The
 procedures for meeting them are the `instrument-doctrine` skill; the
 domain-specific instances live in `plan-authoring`, `coding-standards`,
 `vv-principles` and `coding-elegance`; the skill's Pointers section maps each

@@ -2,7 +2,7 @@
 
 A link with an anchor is checked by the build; ``X2``, ``Cardinal Rule 4``,
 ``Pattern 7``, ```vv-principles` #17``, ``mode 8``, ``ERR-026``, ``L28``,
-``B.4`` and a plan-authoring tag such as ``VALIDATE-THE-FILTER`` are not, and
+``B.4`` (a retirement-audit item) and a plan-authoring tag such as ``VALIDATE-THE-FILTER`` are not, and
 the review of 2026-09-21 counted 89 of them over 12 files before the
 consolidation that made citing by ID the norm. Each registry below is parsed
 from the page that defines its IDs; every citation in the pages under check
@@ -45,14 +45,14 @@ class Registries:
     mode: frozenset[str]                    # vv-principles: the 12 failure modes
     err: frozenset[str]                     # error_catalog.rst: ERR-NNN
     lesson: frozenset[str]                  # evidence/lessons.md: Lnn
-    item: frozenset[str]                    # coding-standards: A.1 .. G.25
-    tag: frozenset[str]                     # plan-authoring: the bold tags
+    item: frozenset[str]                    # retirement-audit: A.1 .. G.25
+    tag: frozenset[str]                     # plan-authoring and retirement-audit: the bold tags
 
 
 def registries(root: Path = DOCS_DEV, catalog: Path = ERROR_CATALOG) -> Registries:
     rules, skills = root / "rules", root / "skills"
     ce, vv = _text(skills / "coding-elegance.md"), _text(skills / "vv-principles.md")
-    cs = _text(rules / "coding-standards.md")
+    cs = _text(skills / "retirement-audit.md")
     items: set[str] = set()
     section = ""
     for line in cs.splitlines():
@@ -72,7 +72,7 @@ def registries(root: Path = DOCS_DEV, catalog: Path = ERROR_CATALOG) -> Registri
         err=frozenset(re.findall(r"error-entry:: (ERR-\d+)", _text(catalog))) if catalog.exists() else frozenset(),
         lesson=frozenset(re.findall(r"(?m)^## (L\d+)\b", _text(root / "evidence" / "lessons.md"))),
         item=frozenset(items),
-        tag=frozenset(re.findall(r"(?m)^- \*\*([A-Z][A-Z'\[\]-]+(?: [A-Z][A-Z'-]+)*)\*\*", _text(rules / "plan-authoring.md"))),
+        tag=frozenset(re.findall(r"(?m)^- \*\*([A-Z][A-Z'\[\]-]+(?: [A-Z][A-Z'-]+)*)\*\*", _text(rules / "plan-authoring.md") + _text(skills / "retirement-audit.md"))),
     )
 
 
@@ -156,9 +156,9 @@ def check(root: Path = DOCS_DEV, pages: Iterable[Path] | None = None, catalog: P
             elif c.kind == "lesson":
                 ok, defined = c.id in reg.lesson, "evidence/lessons.md"
             elif c.kind == "item":
-                ok, defined = c.id in reg.item, "coding-standards"
+                ok, defined = c.id in reg.item, "retirement-audit"
             elif c.kind == "tag":
-                ok, defined = c.id in reg.tag, "plan-authoring"
+                ok, defined = c.id in reg.tag, "plan-authoring or retirement-audit"
             elif c.kind == "anti:None":
                 problems.append(f"{where}: cites #{c.id} with no page named before it in the paragraph (an anti-pattern needs `vv-principles` or `coding-elegance` beside it; an issue is never a bare #N)")
                 continue

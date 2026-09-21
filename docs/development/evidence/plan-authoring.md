@@ -1041,3 +1041,11 @@ and 8 sites in `orpheus/derivations/` — every one inside the assembly's own
 ⭐ The aggravator: naming an *instrument* makes a done-when read as more
 rigorous than a prose one, so the tell that cannot be met is the one nobody
 re-reads. The dual of `vv-principles` #17's designed-green harness.
+
+## Appendix mechanism census (2026-09-20; moved here from the rule 2026-09-21)
+
+Convention: one per bold tag; the numbered spellings of MEMBERS SPELLED WITHOUT THE SYMBOL count individually and their header does not; one per numbered item in §7; one per section-intro paragraph. Measured 2026-09-20 by that convention: §1 12; §2 29; §3 4; §4 8; §5 2; §6 3; §6b 21; §6c 5; §6d 7; §7 3; §8 5; §9 2; §10 9. **Total 110**. Fourteen clauses were promoted from surprise-log rows DATED 2026-09-04 to 2026-09-18: NEW-MEMBER-DERIVATION; CARVE-FORKS-THE-DENOMINATOR, DEFINITION-FILE-ONLY, RESUME-BLOCK-M, DECLARED-NULL-IS-A-HYPOTHESIS, RECONCILE-THEN-EXPLAIN, FIRST-FINDING-GATE-MAXIMUM, CARRIED-COUNT; POLYMORPHIC-MINT, COUNTING-SPY, METRIC-TWIN-ACCESSOR, HELPER-RETURNED-RECEIVER, RENAME-BY-TYPE-FIRST; INERT-WITNESS. The review of 2026-09-20 restored AST-EDGE-COUNTS and split spelling (12b). [REMEDIED 2026-09-20 @0d376e4f] the previous appendix claimed 110 with §6d 7 and §10 10 under no stated convention; by this convention the pre-review core counted 108 (§6d 6, §10 9). Nothing is deleted: every founding case and log row is on the evidence page.
+
+**Merged as restatements**: rows the log itself marks "no new clause" or "REPEAT" are folded into the clause they restate.
+
+[REMEDIED 2026-09-21] The rule no longer carries this census: §6b's inventory (the thirteen numbered spellings and the four clauses (14)–(17)) moved to the `retirement-audit` skill on 2026-09-21, and the count above is the rule as it stood on 2026-09-20.

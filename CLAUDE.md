@@ -75,7 +75,8 @@ records how the project is built; `docs/api/` is the reference.
 ## Where the rules, workflows and agents are
 
 The rules in `.claude/rules/` load into every session and every Key-agent
-dispatch (`vv-testing` only under `tests/**`); they are generated from
+dispatch, some only when a path their front matter names is touched; they are
+generated from
 `docs/development/rules/`, and the founding cases sit one link away in
 `docs/development/evidence/`. Skills load on demand or per agent. The agents
 in `.claude/agents/`, their roles, the dispatch invariants and the seven

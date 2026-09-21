@@ -49,6 +49,7 @@ the harness's ``CLAUDE.md`` is generated from.
    skills/vv-principles
    skills/coding-elegance
    skills/instrument-doctrine
+   skills/retirement-audit
 
 .. toctree::
    :maxdepth: 1

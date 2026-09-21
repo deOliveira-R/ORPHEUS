@@ -9,7 +9,7 @@ harness:
 
 # V&V test harness & test-execution standards
 
-Applies when working under `tests/`. The *why* behind these — the V&V
+The *why* behind these — the V&V
 hierarchy, the six AI failure modes, structural independence — is the
 `vv-principles` skill.
 

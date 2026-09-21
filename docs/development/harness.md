@@ -52,8 +52,13 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   surprise starts without one), declare `harness: {kind: rule, budget_tokens: N}`
   in its front matter (a round figure above the measured size, never more than
   400 above it: `tools/harness/budget.py`), add the page to `index.rst`, run the
-  generator. A rule is always-on for every Key agent and the main agent: it
-  earns that only if it applies to every artefact an agent writes. When a
+  generator. A rule with no `paths:` is always-on for every Key agent and the
+  main agent: it earns that only if it applies to every artefact an agent
+  writes. A rule whose every clause bites only under some paths declares them
+  (`paths:`), and loads when a matching file is touched, in the main agent and
+  in a sub-agent alike (`[M]` 2026-09-21: a haiku sub-agent that read
+  `tests/conftest.py` received `vv-testing` as a system reminder after the
+  read, none before). When a
   Support brief must carry one sentence of the rule (the three Support agents
   load no rule), that sentence is the block's `brief:`; `tools/harness/brief.py`
   assembles every rule's brief into the generated list on
@@ -62,7 +67,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
 - **A citation by ID is checked.** `--check` resolves every plain-text ID a
   core cites (X1–X4, Cardinal Rule N, Pattern N, `vv-principles` or
   `coding-elegance` #N, mode N, ERR-NNN, Lnn, a coding-standards item such as
-  B.4, a plan-authoring tag with two or more hyphens) against the page that
+  B.4 of the retirement-audit skill, a plan-authoring tag with two or more hyphens) against the page that
   defines it (`tools/harness/ids.py`), the way the build checks a link's anchor;
   a renamed or retired definition reddens at every site that still cites it.
   Not checked, so a clean run is read for what it is: a bare `#N` with no page

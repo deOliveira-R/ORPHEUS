@@ -8,7 +8,7 @@ pages). It runs as an MCP server (tool list: the `nexus-guide` skill); the
 graph rebuilds on every `sphinx-build` and the server auto-reloads when the DB
 changes (v0.4.3+). It answers relationship questions that text search cannot, because an
 import edge is not a string: the kinds grep misses are listed with their
-instruments in `coding-standards` A.2 ([case](../../docs/development/evidence/nexus-tools.md#2026-04-restructuring-grep-misses)). The
+instruments in `retirement-audit` A.2 ([case](../../docs/development/evidence/nexus-tools.md#2026-04-restructuring-grep-misses)). The
 `explorer` agent (Nexus skills preloaded) is the exploration delegate for
 open-ended, multi-file work. Founding cases: [the evidence page](../../docs/development/evidence/nexus-tools.md).
 
@@ -45,7 +45,7 @@ workflows (`nexus-exploring`, `nexus-impact`, `nexus-debugging`,
   `protocol_conformers`, `twin_paths`, `native_place`, `dead_references`
   respectively, not reading files until a pattern appears.
 - **Some checks are part of the job, not a request.** check: after any delete
-  or rename, `dead_references` before calling it done (`coding-standards` A.2
+  or rename, `dead_references` before calling it done (`retirement-audit` A.2
   and B.4: a dead docstring reference produces no build warning at any
   severity, so nothing else catches it). Before a release, and for any health
   check or onboarding review, sweep the smell family (`twin_paths`,

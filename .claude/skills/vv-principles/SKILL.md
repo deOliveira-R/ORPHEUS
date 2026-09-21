@@ -158,7 +158,7 @@ code; and the test's other markers, since a catcher deselected by
 tolerance or budget drifts without anyone touching it: re-drop the bug at
 review and after any change to those (mode 8(7)). A retired test takes its
 markers with it; the successor asserting the same invariant is re-tagged
-(`coding-standards` C.13).
+(`retirement-audit` C.13).
 [case](../../../docs/development/evidence/test-design-modes.md#log-every-caught-bug-case)
 
 The generated catalogue index is injected at load time:

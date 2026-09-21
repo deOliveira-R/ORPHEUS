@@ -25,6 +25,7 @@ tools:
 mcpServers:
   - nexus
 skills:
+  - retirement-audit
   - coding-elegance
 model: opus
 color: purple

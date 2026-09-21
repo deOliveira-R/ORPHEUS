@@ -24,6 +24,7 @@ tools:
 mcpServers:
   - nexus
 skills:
+  - retirement-audit
   - vv-principles
   - numerical-bug-signatures
   - cross-domain-frames
