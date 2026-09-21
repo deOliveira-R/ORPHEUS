@@ -1064,3 +1064,18 @@ Memory: `project_harness_context_budget.md` (state: K3b and the probe LANDED; th
 
 What NOT to do: rewrite any core before the user rules on scope, method and target (options 1–4); hand-edit a GENERATED file; call a census hit a duplicate without reading both sites; re-run T6 per file; distill for tokens alone; read a count in this section as current without its date; commit on `main`; `git add -A`.
 
+
+# Re-evaluation rulings — 2026-09-21 (`[R]` user, `AskUserQuestion` at the session opening; branch `docs/harness-reeval`)
+
+The six options of CP#5 were put to the user in two calls. The rulings, in the order asked:
+
+1. **Scope: rules + the three skill cores.** The 9 rule pages under `docs/development/rules/`, the on-boarding page (CLAUDE.md's source) and the three skill pages under `docs/development/skills/` (`vv-principles`, `coding-elegance`, `instrument-doctrine`): 13 source pages. `MEMORY.md` is read for duplicates against it and edited under the memory discipline, outside the generator. The role blocks, the hooks' text and the lessons index are out of scope.
+2. **Method: a W5 design review first.** elegance-enforcer reads the pages as code; cross-domain-attacker attacks the tiering and the definition/citation structure. Both read-only; memos under `scratch/_harness_eval/reeval/`. The rewrite executes the memos; a finding the user overrules is recorded with the reason.
+3. **Target: re-adopt from the design.** 25K stays the provisional ceiling; after the review the number is set from what a session needs before its first token, and published with the reasoning.
+4. **Order: duplicates, then re-tiering, then prose.** Each step re-measured with `--check`; the probe once at the end.
+5. **Recall: the second reader and the planted checks, AND one T6 run at the end** (≈ 250K tokens, one draw per cell).
+6. **Named candidates: none is retire-by-default.** User, verbatim: *"First let's focus on finding duplicates and seeing if we strengthen duplicates by merging and things like this. We would like to look first at things that become stronger as they are together, before we start looking for retirement candidates."* So the first pass is CONSOLIDATION: for each concept stated in two or more places, the merged definition must be STRONGER than any copy (it carries what every copy carried, and the copies become citations by ID). Retirement is a later pass, after consolidation is measured.
+7. **The CI clause: this repository gets a CI, at the END of the campaign, so the clause becomes true.** User, verbatim: *"Let's go with option 2 of giving it a CI, but let's do this at the end. So it will be true... in the end."* The clause is untouched meanwhile. `[HYPOTHESIS]` the CI runs the harness tests, pyright and `sphinx -W`; the full pytest gate (≥ 90 min, serial) stays local.
+8. Housekeeping, `[M]` 2026-09-21: the merged branch `refactor/operator-inverse-algebra` (tip `574cff81`, an ancestor of `main`, 1 517 commits behind) deleted locally and on origin.
+
+The steps on the branch, in the ruled order: **R1** the W5 review (two memos); **R2** consolidation (one definition per concept, citations by ID; `--check` after each family); **R3** re-tiering (`paths:`, on demand; `--check`); **R4** prose to the `articulation` standard, file by file; **R5** the gates (`--check`, the harness tests under `-O`, pyright, `sphinx -E -W`, `dead_references`), the second-reader recount, the planted checks, the probe, then T6 once; the target re-adopted and published in #477 and `harness.md`; **R6** the CI. Retirement candidates (CP#5 option 6) are a separate pass after R5, ruled then.
