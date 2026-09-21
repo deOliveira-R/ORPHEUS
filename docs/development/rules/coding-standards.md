@@ -2,11 +2,6 @@
 harness:
   kind: rule
   budget_tokens: 2200
-  paths:
-    - "orpheus/**"
-    - "tests/**"
-    - "derivations/**"
-    - "tools/**"
   brief: >-
     tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
 ---
