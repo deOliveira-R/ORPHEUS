@@ -81,7 +81,9 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
 - **An agent**: `docs/development/agents/<name>.md` (role, phases, supports,
   return contract) with its `harness:` block, the page in `agents/index.rst`; the
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
-  omits `Agent`), the memory scope and `omitClaudeMd`.
+  omits `Agent`; every Key agent lists `Skill`), the memory scope and
+  `omitClaudeMd`; an edit to `tools:` is live from the next harness start, an
+  edit to `skills:` or the role block from the next dispatch.
 - **Distilling a page into a core**: every clause keeps its imperative, its
   `check:` and its `tell:`; a clause's check must reach every mechanism its text
   names, so two mechanisms one check cannot reach are two clauses; a count in an
@@ -110,12 +112,13 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   role block, so a role-block change cannot move the T4 dispatch floor: a Key
   dispatch costs the fixed harness block, the instruction files, its AGENT.md,
   its preloaded skills and its own memory index, and each part is measured
-  by a probe that carries it. `[M]` 2026-09-21: a project agent with an
-  explicit `tools:` allowlist holds no `Skill` tool, even when `Skill` is
-  listed (qa, method-implementer), while the built-in `general-purpose` agent
-  holds it and loads a skill on demand; so a project agent's skills are its
-  `skills:` preload only, and a rule that says "load skill X" reaches a Key
-  agent only through that list.
+  by a probe that carries it. `[M]` 2026-09-21: an agent's `tools:` allowlist is
+  read when the harness starts, and its `skills:` list and role block at each
+  dispatch: qa and method-implementer, with `Skill` added to their lists, held
+  no `Skill` tool until Claude Code was restarted, then held it and loaded
+  `nexus-guide` on demand, while the `retirement-audit` preload added to qa's
+  `skills:` reached the next dispatch of the same session. Every Key agent
+  now lists `Skill`, so a rule that says "load skill X" reaches it.
 
 ## Session start
 

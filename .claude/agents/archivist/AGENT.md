@@ -8,6 +8,7 @@ description: >
   concise summaries — INCREDIBLY context-rich documentation). Manages
   GitHub Issues with module/level labels.
 tools:
+  - Skill
   - Read
   - Write
   - Edit

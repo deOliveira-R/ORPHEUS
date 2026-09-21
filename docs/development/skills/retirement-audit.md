@@ -1,6 +1,6 @@
 ---
 name: retirement-audit
-description: PROACTIVELY load before calling any delete, rename, re-home or retirement done — the three searches, the surfaces a symbol grep cannot reach, the migration of tests and markers, what a retirement silently does to the surviving gates, a rename's underline scan, the order of a retirement, and the census of members spelled without the symbol. Preloaded by every Key agent; the main agent loads it.
+description: PROACTIVELY load before calling any delete, rename, re-home or retirement done — the three searches, the surfaces a symbol grep cannot reach, the migration of tests and markers, what a retirement silently does to the surviving gates, a rename's underline scan, the order of a retirement, and the census of members spelled without the symbol. Preloaded by qa, archivist, method-implementer and elegance-enforcer; every other agent loads it with the Skill tool.
 harness:
   kind: skill
   budget_tokens: 5600

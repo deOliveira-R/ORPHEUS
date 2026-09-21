@@ -45,8 +45,8 @@ A runtime guard (`require_member`, `admit_composite`, a typed refusal on an alie
 Superseded code is noise that invites extending the wrong path. **Retirement is a first-class deliverable.** Every refactor introducing a better pattern MUST retire its predecessor; shims live **one merge cycle only**; never keep backward-compat unless the user explicitly authorizes it. The audit is its own numbered substep, with a `file:line` retirement list.
 
 - check: before calling any delete, rename or re-home done, run the numbered
-  audit of the `retirement-audit` skill (every Key agent holds it preloaded; the
-  main agent loads it, since a project agent cannot load a skill on demand): the three searches, the
+  audit of the `retirement-audit` skill (qa, archivist, method-implementer and
+  elegance-enforcer hold it preloaded; every other agent loads it): the three searches, the
   surfaces a symbol grep cannot reach, the migration of tests and markers, what
   the retirement does to the surviving gates. Its item B.4 has no other catcher:
   a dead docstring reference produces no build warning at any severity, and

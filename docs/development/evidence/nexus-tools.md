@@ -66,6 +66,8 @@ Nexus genuinely absent cannot recover; it must say so and fall back to `Bash` (g
 otherwise the agent improvises silently, and its report cannot be told apart from a
 grep-derived one. This is the most common cause of an agent silently avoiding the graph.
 
+`[M]` 2026-09-21, two dispatches (qa, method-implementer): no `ToolSearch`, corroborated; 40 `mcp__nexus__*` tools enumerated from the definitions, against the 45 above, and which half moved (the extension's version or the earlier count's predicate) is unmeasured.
+
 ### 2026-08-16 the briefing's silence
 
 Clause: Operational notes — `session_briefing` warns about indexed files, not the branch

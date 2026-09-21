@@ -158,6 +158,8 @@ and 2026-09-21 (2.1.278): a finished agent resumes on a message from its parent
 with its full history, so a reviewer is resumed by name rather than re-briefed;
 a sub-agent holds `SendMessage`, and addresses a named sibling with it, only
 when its `tools:` allowlist admits it (the `general-purpose` agent does, `qa`
-with its explicit list does not), and a sub-agent with an explicit list holds
-no `Skill` tool even when `Skill` is listed, so a project agent's skills are
-its `skills:` preload and nothing else.
+with its explicit list does not), and an agent's `tools:` allowlist is read when the harness starts, so an
+edit to it reaches a dispatch only after a restart (`[M]` 2026-09-21: qa and
+method-implementer, with `Skill` added to their lists, held no `Skill` tool
+until Claude Code was restarted, then held it and loaded a skill on demand),
+while an edit to `skills:` or to the role block reaches the next dispatch.
