@@ -1833,8 +1833,9 @@ copied straight from the traceback.
 A fresh checkout does not need the command: ``load_isotope`` calls the
 same per-isotope producer, ``convert_one``, for a file the store does not
 carry yet, so the first solve on a new machine (or a CI runner, where the
-``gates`` workflow caches the built store keyed on the tapes and the
-format) pays the conversion for the isotopes it touches and nothing
+``gates`` workflow caches the built store keyed on the tapes' Git LFS
+object ids and the store's sources, and pulls the tapes from LFS only on
+a miss) pays the conversion for the isotopes it touches and nothing
 else.  The command is for rebuilding files that EXIST — after a format
 bump or an ingest fix — because a present file is served as it is, and
 a stale one refuses rather than rebuilds.

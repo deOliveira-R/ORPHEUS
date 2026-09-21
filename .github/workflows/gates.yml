@@ -33,11 +33,21 @@ jobs:
         run: .venv/bin/python -m tools.harness --check
       - name: The generator, the generated tree and the layer contract, under -O
         run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/test_harness_generated.py tests/test_layer_imports.py -q
-      - name: The HDF5 cross-section store, cached; a miss is rebuilt by the loader on first use during the build
+      # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
+      # repository's Git LFS objects; the checkout above leaves their pointer
+      # files, whose text carries each tape's object id, so hashing them keys
+      # the cache on the tapes' content without fetching a byte. The built
+      # store is what the build reads; a miss pulls the tapes and the loader
+      # converts each isotope the build touches on first use.
+      - name: The HDF5 cross-section store, cached on the tapes' object ids and the store's sources
+        id: store
         uses: actions/cache@v4
         with:
           path: orpheus/data/micro_xs/*.h5
           key: micro-xs-h5-${{ hashFiles('orpheus/data/micro_xs/*.GXS', 'orpheus/data/micro_xs/gendf.py', 'orpheus/data/micro_xs/hdf5_io.py', 'orpheus/data/micro_xs/isotope.py', 'orpheus/data/micro_xs/convert_gxs_to_hdf5.py') }}
+      - name: On a store miss, fetch the tapes from LFS; the build then materialises the store
+        if: steps.store.outputs.cache-hit != 'true'
+        run: git lfs pull --include="orpheus/data/micro_xs/*.GXS"
       - name: "pyright as the #226 ratchet over orpheus/: tests/test_pyright_ratchet.py against the committed baseline"
         run: |
           npm install -g pyright@1.1.410

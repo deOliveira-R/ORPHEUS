@@ -195,7 +195,13 @@ deterministic half of the project's acceptance, in this order:
    locally, and [M] 2026-09-21 the first CI run read 1 674 errors from it).
 4. ``sphinx-build -E -W --keep-going docs docs/_build/html`` — the strict
    build, which also regenerates every generated file and the Nexus graph
-   ([M] 2026-09-21: 77 s locally).
+   ([M] 2026-09-21: 77 s locally). Two of its ``.. plot::`` directives solve
+   real-library mixes, so the build needs the HDF5 cross-section store: the
+   workflow restores it from a cache keyed on the GENDF tapes' Git LFS
+   object ids and the store's sources, and on a miss pulls the tapes from
+   LFS (411 MB, the repository's only LFS objects) and lets the loader
+   materialise each isotope on first use (the cross-section page,
+   "Conversion Script").
 5. ``git diff --exit-code`` — the build changed no tracked file, so every
    generated artefact committed to the tree was current.
 
