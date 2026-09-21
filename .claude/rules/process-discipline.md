@@ -136,6 +136,10 @@ CI that is ALREADY red cannot tell your regression from the inherited one:
 `failure` before your push and `failure` after are identical output, zero
 information (X1: a reading that cannot change carries nothing).
 
+- check: the instrument is the `gates` workflow: after `git push origin main`,
+  `gh run watch` (or `gh run list --branch main --limit 3`) and read the
+  conclusion; what it runs, and that the full pytest suite stays local, is
+  [the git workflow page](../../docs/development/git_workflow.rst), "Continuous integration".
 - check: on finding a red CI, establish the baseline before fixing or adding
   anything: read the last run from before your work and count what failed.
   Your contribution is then a subtraction, and both halves are reportable.

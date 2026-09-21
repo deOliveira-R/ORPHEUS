@@ -1,0 +1,41 @@
+# The cheap, deterministic half of the project's acceptance, on every push and
+# pull request. The full pytest suite stays local: it is serial and takes over
+# ninety minutes per tier. What each step reads, and how a session reads the
+# run after a push, is docs/development/git_workflow.rst, "Continuous
+# integration". The venv is created at `.venv` because pyproject.toml's
+# [tool.pyright] names it, so pyright here reads the same configuration as
+# pyright on a developer's machine.
+name: gates
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install into .venv, the venv pyproject.toml's [tool.pyright] names
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e '.[dev]'
+      - name: The harness view is generated and current
+        run: .venv/bin/python -m tools.harness --check
+      - name: The generator, the generated tree and the layer contract, under -O
+        run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/test_harness_generated.py tests/test_layer_imports.py -q
+      - name: pyright
+        run: npx --yes pyright@1.1.410
+      - name: Sphinx, strict; rebuilds every generated file and the Nexus graph
+        run: .venv/bin/sphinx-build -E -W --keep-going docs docs/_build/html
+      - name: The build changed no tracked file
+        run: git diff --exit-code --stat

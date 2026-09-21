@@ -28,9 +28,12 @@ Core principles
 
 3. **No ceremony without value.** We do NOT use Git Flow
    (develop/release/hotfix branches), pull requests, code review, or
-   protected branches. Those earn their keep in multi-developer teams
-   with CI gates. Solo AI-heavy development optimizes differently:
-   the feedback loop is *human-agent*, not *human-human*.
+   protected branches. Those earn their keep in multi-developer teams.
+   Solo AI-heavy development optimizes differently: the feedback loop
+   is *human-agent*, not *human-human*. The one automation kept is the
+   CI workflow (`Continuous integration`_ below), which runs the cheap
+   gates on every push so that "``main`` is always green" is a claim
+   someone reads.
 
 4. **Sphinx is the contract.** Documentation changes and code changes
    are one commit, not two PRs. A feature is not DONE until the
@@ -163,6 +166,48 @@ branch naturally provide.
    git push origin --delete <branch>
 
 
+Continuous integration
+----------------------
+
+One GitHub Actions workflow, ``.github/workflows/gates.yml``, runs on every
+push and every pull request (landed 2026-09-21). It is the cheap,
+deterministic half of the project's acceptance, in this order:
+
+1. ``python -m tools.harness --check`` — the harness view (``CLAUDE.md``,
+   ``.claude/``) is generated from ``docs/development/`` and current. A hand
+   edit inside a generated file, or a source edited without regeneration,
+   reds here.
+2. ``python -O -m pytest tests/tools/test_harness_generator.py
+   tests/test_harness_generated.py tests/test_layer_imports.py`` — the
+   generator's own tests, the generated-tree gate and the layer contract
+   (417 tests; [M] 2026-09-21: 6.4 s locally).
+3. ``npx pyright@1.1.410`` — the type gate. It reads ``pyproject.toml``'s
+   ``[tool.pyright]``, which names ``.venv``; the workflow installs into a
+   ``.venv`` of its own for that reason, so CI and a developer's machine read
+   one configuration.
+4. ``sphinx-build -E -W --keep-going docs docs/_build/html`` — the strict
+   build, which also regenerates every generated file and the Nexus graph
+   ([M] 2026-09-21: 77 s locally).
+5. ``git diff --exit-code`` — the build changed no tracked file, so every
+   generated artefact committed to the tree was current.
+
+The full pytest suite is NOT in CI. It is serial and takes over ninety
+minutes per tier, and it stays the local gate run before a merge (the
+canonical invocation is ``python -O -m pytest``). The workflow exists so
+that the ``process-discipline`` clause "after pushing, look at CI" has an
+instrument to read. After ``git push origin main``::
+
+   gh run list --branch main --limit 3
+   gh run watch            # follows the latest run to completion
+
+A red run on ``main`` is fixed before anything else lands, and a run that
+was already red before your push is baselined first (the rule's baseline
+clause). The workflow landed with its first red: a deliberate hand edit
+inside a generated rule, pushed on the workflow's branch and reverted, so
+that the green run after it is a baseline and not an untested instrument
+(instrument doctrine X1).
+
+
 Release tagging
 ---------------
 
@@ -211,9 +256,11 @@ When a Claude Code session starts a non-trivial task:
 4. **Branch** before the first edit: ``git checkout -b <type>/<topic>``.
 5. **Implement** — code + tests + docs + Sphinx, one commit per
    logical step.
-6. **Verify** — run ``pytest``, rebuild Sphinx, run
+6. **Verify** — run ``python -O -m pytest``, rebuild Sphinx strictly
+   (``sphinx-build -E -W --keep-going docs docs/_build/html``), run
    ``python -m tests._harness.audit``.
-7. **Merge** — ``git merge --ff-only`` to ``main``, push, delete branch.
+7. **Merge** — ``git merge --ff-only`` to ``main``, push, delete branch,
+   then read the CI run (``gh run watch``; `Continuous integration`_).
 8. **Close** linked issues via commit trailers or explicit
    ``gh issue close``.
 
@@ -252,9 +299,14 @@ the message back with ``git log -1 --format=%B``::
 
 **Verify before merge**::
 
-   pytest tests/ -q
-   sphinx-build -q docs docs/_build/html
+   python -O -m pytest tests/ -q
+   sphinx-build -E -W --keep-going docs docs/_build/html
    python -m tests._harness.audit
+
+**Read the CI after a push**::
+
+   gh run list --branch main --limit 3
+   gh run watch
 
 
 Related pages

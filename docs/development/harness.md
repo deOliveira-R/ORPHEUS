@@ -144,4 +144,7 @@ next dispatch.
 `/context` lists the loaded memory files and their size; the `InstructionsLoaded`
 hook logs which instruction files loaded and why; a zero-tool haiku probe
 dispatched with a fixed question set (`scratch/_harness_eval/probe_questions.md`)
-measures a dispatch's floor from its transcript's first-turn usage.
+measures a dispatch's floor from its transcript's first-turn usage. The `gates`
+workflow (`.github/workflows/gates.yml`) runs `--check`, the harness tests and
+the strict build on every push, so a hand edit inside a generated file reds in
+CI as well as locally ([the git workflow page](git_workflow.rst), "Continuous integration").
