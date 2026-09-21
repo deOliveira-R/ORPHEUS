@@ -22,6 +22,7 @@ import numpy as np
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.convergence import IterationRecord, warn_if_unconverged
+from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.eigenvalue import power_iteration
 
 from .geometry import MOCMesh
@@ -201,8 +202,13 @@ def solve_moc(
     # was Mode-12 BLIND to it, `[M]` φ machine-zero at sweep 4 while ψ_b was
     # still at 1e-3).  A starved MoC inner therefore looks fine in every
     # volume diagnostic, which is exactly the class this warning exists for.
-    # ``balance_defect=None`` explicitly — see the note at ``solve_cp``.
-    warn_if_unconverged(outcome.record, where="solve_moc", balance_defect=None)
+    # The clause is ``NotYet`` (#485), never ``None`` — see the note at
+    # ``solve_cp``; MoC's volume balance and its cyclic-track closure are both
+    # expressible on the returned iterate and neither is measured yet.
+    warn_if_unconverged(
+        outcome.record, where="solve_moc",
+        balance_defect=NotYet(485, "MoC measures neither its volume balance nor its cyclic-track closure on the returned iterate"),
+    )
 
     return MoCResult(
         keff=keff_history[-1],

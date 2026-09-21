@@ -47,6 +47,7 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
     IterationBudget,
     IterationRecord,
@@ -994,15 +995,23 @@ def solve_cp(
     # the warning to whoever called ``solve_cp`` — interposing a helper here
     # would silently re-blame ``orpheus`` itself.
     #
-    # No ``balance_defect``: CP computes no equation residual for the returned
-    # iterate yet, and the clause is ABSENT rather than "unavailable" (an empty
-    # clause cannot be misread as a measurement).  The concept is not
-    # SN-specific — CP's collision-probability balance is expressible — so
-    # this is a gap, not a boundary.
-    # ``balance_defect=None`` is passed EXPLICITLY, never defaulted: an omitted
-    # argument cannot be told apart from a forgotten one, and SN's five sites do
-    # have a number to pass.  Stated, so it is a claim rather than a silence.
-    warn_if_unconverged(outcome.record, where="solve_cp", balance_defect=None)
+    # No MEASURED ``balance_defect``: CP computes no equation residual for the
+    # returned iterate yet, and the clause is stated as OPEN WORK rather than
+    # "unavailable" — ``NotYet`` names the issue that makes it measurable
+    # (#485), and an ``Evidence`` that is not ``Measured`` renders as an ABSENT
+    # clause, never as a number (an empty clause cannot be misread as a
+    # measurement).  The concept is not SN-specific — CP's
+    # collision-probability balance is expressible — so this is a gap, not a
+    # boundary.
+    # The argument is passed EXPLICITLY, never defaulted: an omitted argument
+    # cannot be told apart from a forgotten one, and SN's five sites do have a
+    # number to pass.  Stated, so it is a claim rather than a silence.  The
+    # parameter has been an ``Evidence`` since ``bcd9c83c``; the ``None`` this
+    # site passed from then until #485 was a value outside the type.
+    warn_if_unconverged(
+        outcome.record, where="solve_cp",
+        balance_defect=NotYet(485, "CP measures no collision-probability balance on the returned iterate"),
+    )
 
     return CPResult(
         keff=keff, keff_history=keff_history, flux=phi,

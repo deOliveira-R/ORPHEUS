@@ -146,6 +146,7 @@ import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
+from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -478,15 +479,17 @@ def solve_diffusion_1d(
 
     # ⭐ #340 N4.7 — see the note at the identical call in
     # :func:`~orpheus.cp.solver.solve_cp` for why this sits directly in the
-    # entry and passes no ``balance_defect``.
+    # entry and why the ``balance_defect`` clause is STATED, never omitted.
     #
     # Diffusion's tree can only fail at the OUTER: its inner is an exact LU
     # resolvent, recorded with ``budget = 0`` (a DIRECT level, never
     # truncated).  So this warning is strictly about the power iteration —
     # which is also why ``max_outer`` is always the knob it names here.
-    # ``balance_defect=None`` explicitly — see the note at ``solve_cp``.
+    # The residual of the discrete pencil on the returned pair is expressible
+    # and not yet measured: the clause is ``NotYet`` (#485), never ``None``.
     warn_if_unconverged(
-        outcome.record, where="solve_diffusion_1d", balance_defect=None,
+        outcome.record, where="solve_diffusion_1d",
+        balance_defect=NotYet(485, "the diffusion pencil's residual on the returned pair is not measured"),
     )
 
     return DiffusionResult(
