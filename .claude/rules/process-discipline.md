@@ -46,6 +46,10 @@ snapshot lies forward.
   `git merge-base --is-ancestor <hash> HEAD`; ancestor means merged means done,
   not active. Never trust the frozen claim over git.
   [case](../../docs/development/evidence/process-discipline.md#2026-06-21-seven-campaigns-in-flight)
+- check, when resuming a plan: read the implementing class's first line before
+  designing to a phase's prose (a scope read from prose is refuted by the
+  realization), and re-check every "blocked by / not possible" claim, since a
+  later phase of the same campaign may have dissolved the blocker.
 - check, at merge time: a campaign note's terminal state is "merged @
   `<hash>`", the way a `Closes #NN` trailer closes an issue. After that it is
   archaeology: its lesson goes to an evidence page under

@@ -54,9 +54,8 @@ workflows (`nexus-exploring`, `nexus-impact`, `nexus-debugging`,
 
 ## `grep` here is ugrep, and an anchor inside an alternation group matches nothing, silently
 
-`grep` in this environment is a shell function wrapping **ugrep** (`[M]`
-2026-08-26 on 7.5.0; the same fixture reproduces on 7.8.4, `[M]` 2026-09-20),
-not GNU or BSD grep, and one construction fails in the worst possible way:
+`grep` in this environment is a shell function wrapping **ugrep**, not GNU or
+BSD grep, and one construction fails in the worst possible way:
 zero matches, exit 1, no message, indistinguishable from a clean tree. The
 failing construction is an anchor (`^` or `$`) INSIDE an alternation group:
 on a line containing `square Gram, while`, `grep -E '(^|[^a-z_])Gram'` returns
@@ -71,8 +70,7 @@ on greps like it.
   `^`/`$` inside a group. The mirror in `git grep -E`: there `\b` is the thing
   that does not exist (POSIX ERE has no word boundary), so
   `git grep -nE '\.(n_inner|n_outer)\b'` printed nothing over a tree with nine
-  such reads (`[M]` 2026-09-17,
-  [case](../../docs/development/evidence/nexus-tools.md#2026-09-17-git-grep-has-no-word-boundary)).
+  such reads ([case](../../docs/development/evidence/nexus-tools.md#2026-09-17-git-grep-has-no-word-boundary)).
 - check: for any completeness claim (a residual check, a "no consumers left"
   verdict, a done-when) re-run the pattern in Python (`re` + `pathlib.rglob`):
   the pattern is then unambiguous and the denominator can be stated (X2).
@@ -89,17 +87,14 @@ on greps like it.
 - **Deferred tools, and the escape hatch is main-agent-only.** If
   `mcp__nexus__*` surface as deferred, one `ToolSearch("select:mcp__nexus__<name>")`
   loads them; deferral is not unavailability. A sub-agent has no `ToolSearch`
-  (`[M]` 2026-08-19: a sub-agent probe reported 45 `mcp__nexus__*` tools loaded
-  eagerly and no `ToolSearch` at all,
-  [case](../../docs/development/evidence/nexus-tools.md#2026-08-19-a-sub-agent-has-no-toolsearch)),
+  ([case](../../docs/development/evidence/nexus-tools.md#2026-08-19-a-sub-agent-has-no-toolsearch)),
   so it cannot recover: it must say so and fall back to Bash (grep, or
   `python -c "from sphinxcontrib.nexus.export import load_sqlite"` against the
   graph DB). check: when a dispatch depends on Nexus, the brief says what to do
   if it is missing; otherwise the agent improvises silently and its report
   cannot be told from a grep-derived one. This is the most common cause of an
   agent silently avoiding the graph.
-- **The standalone `Grep` and `Glob` tools are gone** (`[M]` 2026-06-14,
-  re-measured 2026-08-19 on Opus: a sub-agent's tool list carries neither), so
+- **The standalone `Grep` and `Glob` tools are gone**, so
   text search is `grep`/`rg` through Bash for every agent, and this rule is
   positive routing guidance, not an override of a default bias
   ([case](../../docs/development/evidence/nexus-tools.md#2026-06-14-the-removed-grep-and-glob-tools)).
@@ -115,8 +110,5 @@ on greps like it.
 - **`session_briefing` warns when files the graph INDEXES have changed, not
   when the branch differs.** Reading the second into the first makes the
   warning look broken: an ordinary ff-merge-and-delete leaves the graph
-  describing the checkout exactly while the branch name has moved on (`[M]`
-  2026-08-16: 25 files differed from the build commit, 0 of them indexed, and
-  the briefing was right to stay quiet,
-  [case](../../docs/development/evidence/nexus-tools.md#2026-08-16-the-briefings-silence)).
+  describing the checkout exactly while the branch name has moved on ([case](../../docs/development/evidence/nexus-tools.md#2026-08-16-the-briefings-silence)).
   Silence means the indexed sources match, not "same branch".

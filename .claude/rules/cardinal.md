@@ -11,8 +11,8 @@ ORPHEUS is a scientific code that is a teaching tool and a high-stakes analysis
 tool at once, so correctness is the first requirement in every sense: of the
 mathematics, the physics, the concepts, the code and the documentation.
 Shipping matters only when it is principled and correct; never take a lazy
-solution. A defect is fixed at its root cause, never at its symptom, and the
-fix is the next code-touching action (`process-discipline`).
+solution. A defect is fixed at its root cause, never at its symptom; when it is fixed
+and what is filed instead is `process-discipline`.
 
 ## 2. Architecture
 
@@ -38,10 +38,9 @@ Before working in a module, read its documentation or dispatch the explorer
 agent to bring it; `docs/theory/` holds the theory behind each solver, each
 page opening with its Key Facts.
 
-- Before modifying a solver: dispatch **explorer** (theory pages and the Nexus
-  graph).
-- After modifying an equation: update the theory page and rebuild Sphinx.
-- Documentation tasks: the **archivist** agent.
+After an equation changes, its theory page is updated and Sphinx rebuilt; the
+agents that bring the documentation before a change (explorer) and write it
+after (archivist) are routed by the `workflows` rule.
 
 ## 4. GitHub issues are the plan and the log
 
@@ -51,21 +50,17 @@ implementation, debugging, review or analysis, find the issue that covers it or
 create one immediately, with a `module:` label and the full context a fresh
 session needs to pick it up. At session start, read the open issues; during
 work, file each finding as it appears; at session end, no TODO exists outside
-an issue. Labels: `module:sn`, `module:cp`, `module:moc`, `module:mc`,
-`module:diffusion`, `module:geometry`, `module:data`, `module:tests`,
-`module:docs`; `level:L0`, `level:L1`, `level:L2`; `type:bug`,
-`type:improvement`, `type:feature`. What is filed and what is fixed in the
+an issue. Every issue carries one label of each family, `module:`, `level:` and
+`type:`; the registry is `gh label list`. What is filed and what is fixed in the
 session: `process-discipline`.
 
 ## 5. Delegate to sub-agents
 
 Sub-agents give four benefits at once: parallel work, a clean context for the
 task, a preserved main context, and token efficiency; this is a deliberate
-bias. Dispatch liberally, and do a task yourself only when the whole of your
-context is what the task needs. Project agents live in `.claude/agents/`, each
-with preloaded skills and its own memory; the built-in Explore agent is denied.
-If an agent that does not exist would help, say so, so that one can be
-designed. The roles, the dispatch invariants and the workflows are the
-`workflows` rule, posture and exceptions included. After every
-dispatch, review the output with full session context before committing: the
-agent had none.
+bias, ranked below the four rules above. Do a task yourself only when the
+whole of your context is what the task needs. The posture (dispatch freely,
+never ask permission; the surgical-carve exception; every output reviewed with
+full session context before committing), the roles, the invariants and the
+workflows are the `workflows` rule. If an agent that does not exist would
+help, say so, so that one can be designed.

@@ -118,9 +118,9 @@ X1, asked at design time: **what input, existing in the tree the moment this lan
 
 ## §7 Before resuming a plan, reconcile it against the tree
 
-1. `git merge-base --is-ancestor <hash> HEAD` for every claimed hash; an "unmerged / in-flight / forbidden to commit" note is a snapshot that lies forward. [case](../../docs/development/evidence/plan-authoring.md#2026-08-06-forbidden-commit-snapshot)
-2. Read the **implementing class's first line** before designing to a phase's prose; a scope read from prose gets refuted by the realization.
-3. Re-check every "blocked by / not possible" claim; the blocker may have been dissolved by a later phase of the same campaign. [case](../../docs/development/evidence/plan-authoring.md#2026-08-06-blocker-dissolved-later)
+1. Merge status from git, never from a note (`process-discipline` § "Trust git for merge status"). [case](../../docs/development/evidence/plan-authoring.md#2026-08-06-forbidden-commit-snapshot)
+2. The implementing class's first line before designing to a phase's prose (same section).
+3. Every "blocked by / not possible" claim re-checked (same section). [case](../../docs/development/evidence/plan-authoring.md#2026-08-06-blocker-dissolved-later)
 
 ## §8 An enabler step still has its own blast radius
 

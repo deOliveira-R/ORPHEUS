@@ -71,8 +71,8 @@ records how the project is built; `docs/api/` is the reference.
 - Work on a branch `<type>/<topic>` (`feature|fix|docs|refactor|test|chore`);
   commits follow Conventional Commits (`<type>(<scope>): <summary>`) and close
   issues with `Closes #NN` in the body; `main` is always green and receives
-  only `--ff-only` merges; delete the branch after merging. Never commit on
-  `main` and never `git add -A`: a hook refuses both. The full workflow:
+  only `--ff-only` merges; delete the branch after merging. A hook refuses `git add -A` and a commit on `main`; the reason and the
+  riders are `process-discipline`. The full workflow:
   [git workflow](git_workflow.rst).
 - A feature is done when the tests, the theory page and the Nexus graph agree
   (Rule 3).

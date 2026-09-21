@@ -12,7 +12,7 @@ phase descriptions, the brief template and the return contract are in
 |---|---|---|---|
 | **Orchestrator** | owns phase transitions, the review stage, user rulings, issues, commits | yes | the main agent |
 | **Key** | owns one phase of a workflow; calls Support agents freely, and any other Key agent when the reason is worthwhile (an implementer spawning a numerics-investigator keeps its own context clean) | yes | test-architect, method-implementer, numerics-investigator, archivist, qa, elegance-enforcer |
-| **Support** | answers one question from its brief and returns; never spawns; the three `omitClaudeMd` agents are launched without the project rules, so the brief is the only place a project rule reaches them | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
+| **Support** | answers one question from its brief and returns; never spawns; its brief carries its rules (invariant 4) | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
 
 ## Posture
 
@@ -22,7 +22,8 @@ numerics-investigator, literature-researcher, qa, archivist, test-architect,
 ask "shall I dispatch X?", and independent investigations run in parallel: the
 user values momentum and parallelism, and the fleet's existence is already
 approved. Every agent's output is still reviewed with full session context
-before committing; the agent had none.
+before committing; the agent had none. The built-in Explore agent is denied;
+`explorer` is the project's.
 
 **Exception — surgical, high-correctness carves: the main agent writes
 directly.** For operator-algebra carves, convention changes crossing three or
@@ -55,44 +56,46 @@ user's signal, when routine refactor cycles resume.
    artefact paths, and the return contract: a word cap (Opus runs long), files
    carry the detail, and a `NEEDS:` block for anything the agent could not
    obtain. A brief to one of the three `omitClaudeMd` agents also carries the rules
-   that apply to it (the template's "Rules that apply to you" line): it sees
-   no project rule.
+   that apply to it (the template's "Rules that apply to you" line):
+   `omitClaudeMd` drops CLAUDE.md, every rule and the project memory index,
+   not the agent's own memory or its preloaded skills (measured on the
+   [harness page](../../docs/development/harness.md)).
 
 ## The workflows
 
-- **W1 Build a capability** — P0 context: explorer, plus literature-researcher
-  for a published formulation. P1 verification design: **test-architect** (a
-  spec whose every gate names its first red). P2 build: **method-implementer**,
-  or the main agent for a surgical carve; supports explorer,
-  literature-researcher, cross-domain-attacker after the first pass. P3 review,
-  in parallel, dispatched by the parent: **qa** and **elegance-enforcer**; any
-  red resumes the implementer by name. P4 documentation: **archivist** (theory
-  page, changelog; `sphinx -W` and `dead_references` clean). P5 close-out:
-  issues, retirement audit, commit.
-- **W2 Wrong answer** — P1 **numerics-investigator** (the probe cascade; may
-  call test-architect for the permanent test). P2 the fix. P3 **qa** and
-  **elegance-enforcer** in parallel, dispatched by the parent (qa with a mutation
-  that re-introduces the defect). P4 **archivist** (the ERR
-  entry). P5 close-out.
+One routing line each; the phases, the gates and the return contract are on
+[the workflows page](../../docs/development/workflows.md).
+
+- **W1 Build a capability** — a new solver, operator or method: context from
+  explorer (and literature-researcher for a published formulation), the
+  verification spec from **test-architect**, the build by
+  **method-implementer** or the main agent for a surgical carve, **qa** and
+  **elegance-enforcer** in parallel, **archivist**, close-out.
+  [W1](../../docs/development/workflows.md#w1--build-a-capability)
+- **W2 Wrong answer** — **numerics-investigator**'s probe cascade, the fix,
+  **qa** with a mutation that re-introduces the defect and
+  **elegance-enforcer** in parallel, **archivist** for the ERR entry.
+  [W2](../../docs/development/workflows.md#w2--wrong-answer)
 - **W3 Surgical carve** — the main agent writes with the user steering;
-  explorer for the blast set; **test-architect** for gates and re-baselines;
-  review as W1; **archivist** for the changelog.
-- **W4 Documentation campaign** — **archivist**; qa for claim verification;
+  explorer for the blast set, **test-architect** for gates and re-baselines,
+  review as W1. [W3](../../docs/development/workflows.md#w3--surgical-carve)
+- **W4 Documentation campaign** — **archivist**, qa for claim verification;
   gates `-W`, `dead_references`, `staleness`.
-- **W5 Design review** — **cross-domain-attacker** + **elegance-enforcer** on a
-  first-pass design; the output feeds W1's build phase.
+  [W4](../../docs/development/workflows.md#w4--documentation-campaign)
+- **W5 Design review** — **cross-domain-attacker** and **elegance-enforcer**
+  on a first-pass design; the output feeds W1's build.
+  [W5](../../docs/development/workflows.md#w5--design-review)
 - **W6 Tree-wide census** — haiku categorisers with a fixed output schema; the
-  orchestrator aggregates; no nesting.
-- **W7 Literature acquisition** — **literature-researcher**: the local folder
-  first, then OCR sidecars; "not in the local folder" is a question to the
-  user, never a pivot to a secondary source.
+  orchestrator aggregates; no nesting. [W6](../../docs/development/workflows.md#w6--tree-wide-census)
+- **W7 Literature acquisition** — **literature-researcher**, the local folder
+  first; "not in the local folder" is a question to the user, never a pivot.
+  [W7](../../docs/development/workflows.md#w7--literature-acquisition)
 
-## Dispatch facts (measured 2026-09-20, Claude Code 2.1.278)
+## Dispatch facts
 
-Nested dispatch works to three layers; a sub-agent's `tools:` allowlist decides
-whether it holds `Agent`. Sub-agents carry `SendMessage` and can address named
-siblings; a finished agent resumes on message with its full history. A dispatch
-inherits CLAUDE.md, every rule file and the memory index (`[M]` 2026-09-21, the
-keep − omit haiku probe at the first turn: 28 705 tokens with every rule
-generated, 70 966 before the restructure) unless the agent sets
-`omitClaudeMd: true`.
+Nested dispatch works to three layers and a sub-agent's `tools:` allowlist
+decides whether it holds `Agent`; sub-agents address named siblings with
+`SendMessage`, and a finished agent resumes on message with its full history
+(measured: [the page's history](../../docs/development/workflows.md#history)). What a dispatch
+inherits and what it costs, measured by probe, is
+[the harness page](../../docs/development/harness.md#what-loads-and-what-it-costs).
