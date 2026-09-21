@@ -11,3 +11,4 @@ package-to-layer assignment, and the import-linter test that enforces it.
    :maxdepth: 2
 
    layering
+   conceptual_view
