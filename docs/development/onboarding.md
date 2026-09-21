@@ -29,19 +29,21 @@ realizations and no shared type yet). Posing is a filtration: materials,
 geometry, mesh, state and the method head each commit one refinement of phase
 space, and every axis resolves at the head. The hub owns its spaces, its
 fields and its bound operators, and its last step is the operator pencil
-`(A, M)` with `at(σ) = A − σM`, from which the two questions are typed:
-`EigenPosing`, the homogeneous question `Aψ = μMψ` read through a spectral
-map, and `SourcePosing`, the affine question `Aψ = q`; a subcritical
+`(A, F)`, the loss and the fission production, with `at(σ) = A − σF`, from
+which the two questions are typed: `EigenPosing`, the homogeneous question
+`Aψ = μFψ` read through a spectral map, and `SourcePosing`, the affine question `Aψ = q`; a subcritical
 multiplying source is `SourcePosing(pencil.at(1), q)`, a composition, never a
 third type.
 
 **The Solution half answers.** The Strategy is a value and not the
 Problem's: `Splitting.from_schedule` labels each loss term implicit or
-explicit, so `A = M − N` with `M` and `N` derived through the algebra's own
-sums, and the resolvent is `M.inverse()` (the sweep, or the block
-back-substitution on a carrying mesh), which `SourceIteration` applies as
-`ψ ← M⁻¹(q + Nψ)` and `KrylovAcceleration` hands to GMRES as the matvec; one
-`power_iteration` is the outer loop for every family. Every level mints an
+explicit, so `A = M − N` (the splitting's `M`, the implicit part, and the
+lagged `N`) derived through the algebra's own sums, and the Strategy inverts
+only `M`: `M.inverse()` is the sweep, or the block back-substitution on a
+carrying mesh, which `SourceIteration` applies as `ψ ← M⁻¹(q + Nψ)` and
+`KrylovAcceleration` hands to GMRES as the matvec; one `power_iteration` is
+the outer loop for every iterative family, and the 0-D baseline solves its
+pencil directly. Every level mints an
 `IterationRecord` whose verdict is derived and never stored; a best-effort
 exit is legal and made audible, and a claimed convergence is re-measured
 before it is believed. The answer is fused with its question and its gauge
@@ -59,7 +61,8 @@ values, an operator is space → space, so the organising object is the space
 with labelled axes. On an axis: a discrete measure (weights on nodes; a
 quadrature is one), a basis (nodal or modal) and the frame pairing them,
 which induces the space's metric and mints the analysis and reconstruction
-faces together (a Galerkin frame promises `M* = R`); the scheme does the
+faces together (on a Galerkin frame the two faces are each other's adjoint
+up to one scalar); the scheme does the
 same for the spatial axis; both are stage-2 generators, read for their
 induced data and then forgotten. Between spaces: retraction and section
 along an axis (a split pair, `R∘E = id`; "embedding" is not an operator name
@@ -69,7 +72,7 @@ bulk ⊕ trace. The metric is an object, the Riesz legs ♭ and ♯ are operator
 the adjoint is `♯ ∘ dual ∘ ♭`, and there is no `.T`. Flux lives in the
 positive cone, a predicate. A symmetry group is realised, never tabulated;
 invariance is the measure's question; an orbit space is named by its
-stabiliser; the lift is the Reynolds projector. Each concept with its class
+stabiliser; the lift from an orbit space is the Reynolds projector. Each concept with its class
 and the theory page that defines it, and the list of what is still
 hand-rolled: [the conceptual view](../architecture/conceptual_view.rst).
 
@@ -105,8 +108,8 @@ keeping ontological discipline: the objects the code is made of, each in its
 correct form, its right place and its right shape, so that the derived
 concepts fall out of the algebra and the mistakes become unspellable.
 Emerging the concepts is part of the agent's core duties (Cardinal Rule 1);
-what the discipline means, and what a weld is, is Cardinal Rule 2. Two kinds
-of development follow, told apart by whether the ontology is known (below).
+what the discipline means, and what a weld is, is Cardinal Rule 2; the two
+kinds of development it implies are under "How a session runs".
 
 ## The direction of development
 

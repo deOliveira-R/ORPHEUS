@@ -13,8 +13,10 @@ the nearest page, rather than defined here.
 
 The tree it describes is ``main`` at ``b4865b5e`` (2026-09-21). Every
 class name is a live role, so a rename without an update here is a dead
-reference the Nexus graph reports; every count carries its command in
-the three memos the page was written from
+reference; the gate is the Nexus ``dead_references`` sweep, not the Sphinx
+build, which renders an unresolved role as plain text without a warning
+for the many modules here that no autodoc page renders. Every count
+carries its command in the three memos the page was written from
 (``scratch/_claude_md/explorer_{problem_side,solution_side,theory_map}.md``,
 untracked).
 
@@ -61,8 +63,10 @@ commits regions, identifications and boundary data; the mesh commits
 cells and the spatial measure; state fields put data on the cells; the
 method head commits the terminal refinement of every axis, and only
 there does every axis formally construct. Coarsening is the same chain
-walked backward: condensation and homogenisation are projections onto
-coarser stages of the same filtration (:ref:`spaces-collapse-pair`).
+walked backward: the collapse pair is the projection onto a coarser stage
+(:ref:`spaces-collapse-pair`), and homogenisation and condensation are its
+Petrov–Galerkin form (:ref:`sn-homogenization-petrov-galerkin-frame`,
+:ref:`sn-condensation-petrov-galerkin-frame`).
 
 In the tree the augmentation is two-staged, data then behaviour.
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is the
@@ -90,14 +94,15 @@ the SN angular bulk, trial, trace and full-field spaces, the moment space
 of the angular frame, :ref:`frame-moment-space-single-home`), its fields,
 and its bound operators, of which there is one fission operator per
 Problem (:ref:`sn-one-fission-per-problem`). Its last step is the
-**operator pencil** :math:`(A, M)` with :math:`A - \sigma M`
-(:ref:`the-operator-pencil`, :eq:`pencil-family`;
-:class:`~orpheus.numerics.pencil.OperatorPencil`), on one space, with no
-inverse and no resolvent of its own. The two questions are typed on the
+**operator pencil**, on a transport hub :math:`(A, F)`, the loss and the
+fission production, with the family :math:`A - \sigma F`
+(:ref:`the-operator-pencil`, :eq:`pencil-family`, where the general pencil
+is written :math:`(A, M)`; :class:`~orpheus.numerics.pencil.OperatorPencil`),
+on one space, with no inverse and no resolvent of its own. The two questions are typed on the
 pencil (:ref:`eigenvalue-posing`;
 :ref:`sn-the-problem-poses-its-pencil`):
 :class:`~orpheus.numerics.posing.EigenPosing` is the homogeneous question
-:math:`A\psi = \mu M\psi` read through a spectral map
+:math:`A\psi = \mu F\psi` read through a spectral map
 (:data:`~orpheus.numerics.posing.K_MAP`, :math:`k = 1/\mu`), whose
 unknown is a ray in the cone plus a scalar;
 :class:`~orpheus.numerics.posing.SourcePosing` is the affine question
@@ -150,13 +155,18 @@ site: the basis fixes the codomain, dressed with the frame's Parseval
 metric, the inverse discrete Gram (:ref:`frame-parseval-metric`,
 :eq:`frame-discrete-gram`), and the measure fixes the domain; it emits the
 **analysis** face :math:`M` (samples to coefficients) and the
-**reconstruction** face :math:`R` (coefficients to values), and
-:math:`R \circ M` is a projector (:eq:`galerkin-frame-idempotency`). The
+**reconstruction** face :math:`R` (coefficients to values), and the two
+close on coefficients, :math:`M R = c_V I` (:eq:`galerkin-frame-idempotency`),
+so :math:`R \circ M` is a projector up to the frame's scalar. The
 projection discipline is the type:
 :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` holds an explicit
 test basis (:eq:`petrov-galerkin-construction`),
-:class:`~orpheus.numerics.frame.GalerkinFrame` binds test to trial and
-so promises :math:`M^{*} = R` (:eq:`galerkin-construction`), and
+:class:`~orpheus.numerics.frame.GalerkinFrame` binds test to trial
+(:eq:`galerkin-construction`), and then the two faces are each other's
+adjoint up to one scalar, :math:`M^{*} = R/W` under the Parseval metric on
+a diagonal Gram (:ref:`frame-square-closure-section`; the bare
+:math:`M^{*} = R` needs an orthonormal basis, which the real harmonics
+are not), and
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` is the
 transport realisation minting carrier-typed faces. The spatial
 **scheme** (:ref:`discretization-closures`;
@@ -200,11 +210,12 @@ halves are selectors over the sign of :math:`\Omega \cdot \hat n`
 and "half-trace" names those halves without a definition of its own,
 owed. Along a system, the **system restriction** selects a member of a
 coupled field and its transpose is extension by zero
-(:ref:`carrier-grid-double-category`;
-:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`).
-Into the composite, the **lift** carries a bulk action onto
-:math:`\text{bulk} \oplus \text{trace}` by zero emission on the trace
-(:class:`~orpheus.transport.operators.lift.BulkLift`;
+(:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`; the
+corpus owes it a definition, and the coupled carrier itself is
+:ref:`carrier-grid-double-category`). Into the composite, the **lift**
+carries a bulk action onto :math:`\text{bulk} \oplus \text{trace}` by
+extension by zero on the trace (:ref:`cs4c-ends-select-the-body`;
+:class:`~orpheus.transport.operators.lift.BulkLift`;
 :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).
 
 A **boundary law** is a descriptor, not an operator: it carries the typed
@@ -266,7 +277,10 @@ disagree. An **orbit space** is named by its stabiliser, one spelling
 (:ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`,
 :ref:`manifold-quotient-map`; :class:`~orpheus.numerics.manifold.Quotient`,
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`), and the lift
-back is the Reynolds projector. **Descent** pulls a basis back along the
+from the orbit space back to the ambient measure is the Reynolds projector
+:math:`P_H`, the orbit barycentre, which is not a section
+(:ref:`manifold-lift`, :eq:`manifold-reynolds-projector`,
+:ref:`manifold-reynolds-projector-section`). **Descent** pulls a basis back along the
 quotient map (:ref:`manifold-descent`;
 :class:`~orpheus.numerics.basis.descent.Descent`). The group's exact role
 in posing: the orbit partition bounds how coarse an admissible pose may
@@ -284,18 +298,21 @@ The Problem poses; the Strategy labels; the driver applies. The
 schedule): it labels each loss term implicit or explicit, so
 :math:`A = M - N` with :math:`M` and :math:`N` derived through the
 algebra's own sums, and it certifies itself against the Problem by the
-law :math:`M - N = A`. The **resolvent** is ``M.inverse()``
-(:eq:`eigen-resolvent`, under :ref:`eigenvalue-posing`): the sweep
+law :math:`M - N = A` (this :math:`M` is the splitting's implicit part;
+the pencil's second member is written :math:`F` above). The Strategy
+inverts only the implicit part: ``implicit.inverse()`` is the sweep
 (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) or the block
 back-substitution on a carrying mesh
 (:class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`),
-which the driver only applies:
+and the driver only applies it:
 :class:`~orpheus.numerics.iteration.SourceIteration` runs
 :math:`\psi \leftarrow M^{-1}(q + N\psi)` with the residual stop, and
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` hands the matvec to
-GMRES. One outer loop serves every family:
-:func:`~orpheus.numerics.eigenvalue.power_iteration` over the
-:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol.
+GMRES. The eigen resolvent :math:`A^{-1}F` of :eq:`eigen-resolvent` is
+never formed; the iteration realises it. One outer loop serves every
+iterative family, :func:`~orpheus.numerics.eigenvalue.power_iteration` over
+the :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol; the
+0-D baseline solves its pencil directly.
 
 Every level records itself and nothing stores a verdict: each driver
 mints an :class:`~orpheus.numerics.convergence.IterationRecord` whose
@@ -352,7 +369,7 @@ The concept table
      - :class:`~orpheus.numerics.frame.FrameBase`, :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`, :class:`~orpheus.numerics.frame.GalerkinFrame`, :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`; :class:`~orpheus.numerics.projection.AnalysisOperator`, :class:`~orpheus.numerics.projection.ReconstructionOperator`
      - :ref:`galerkin-projection`, :eq:`galerkin-pair`, :eq:`galerkin-frame-idempotency`, :eq:`galerkin-construction`, :eq:`petrov-galerkin-construction`
    * - Gram; Parseval metric
-     - :meth:`~orpheus.numerics.frame.FrameBase.discrete_gram`
+     - :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
      - :ref:`frame-analysis-is-the-gram-section`, :eq:`frame-discrete-gram`, :ref:`frame-parseval-metric`
    * - Scheme
      - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`
@@ -365,10 +382,10 @@ The concept table
      - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`
    * - System restriction; coupled space
      - :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSpace`
-     - :ref:`carrier-grid-double-category`
+     - owed (the restriction); the carrier: :ref:`carrier-grid-double-category`
    * - Lift; full-field space
      - :class:`~orpheus.transport.operators.lift.BulkLift`, :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-     - :ref:`carrier-grid-double-category`
+     - :ref:`cs4c-ends-select-the-body`
    * - Boundary law; realizer
      - :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`, :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
      - :eq:`affine-bc-form`, :ref:`bc-realizer-layer`, :ref:`bc-method-realizability`
@@ -386,7 +403,7 @@ The concept table
      - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`
    * - Orbit space; quotient; descent
      - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
-     - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-descent`
+     - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
    * - Material mesh; method hubs
      - :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, :class:`~orpheus.sn.problem.SNProblem`, :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
      - :ref:`architecture-layering`; hub: :ref:`sn-p49b-operator-poses-with-closures`
@@ -418,8 +435,10 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
 ``b4865b5e``; the commands are in the memos named at the top.
 
 - **No shared Problem type.** Three hubs realise the concept
-  (``^class \w*Problem`` finds 3, one an exception) and no ``Problem``
-  ABC or Protocol exists; :class:`~orpheus.transport.method.TransportMethod`
+  (:class:`~orpheus.sn.problem.SNProblem`,
+  :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`,
+  :class:`~orpheus.homogeneous.solver.HomogeneousProblem`; only two are
+  named ``*Problem``) and no ``Problem`` ABC or Protocol exists; :class:`~orpheus.transport.method.TransportMethod`
   covers the two method-meshes only. The Problem → Solution carve, a
   standalone Problem module with a thin solver per family, is the
   consumers campaign's, and :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
@@ -428,8 +447,8 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   and ``def eigen_posing`` exist on 2 of 3 hubs, ``def source_posing`` on
   1; the diffusion solver assembles its loss, its fission and an exact LU
   resolvent itself. Its result, like the CP and MoC results, is not on
-  the Solution shape (per-family fields: Diffusion and CP carry a record
-  only, Homogeneous an outcome only, MoC neither).
+  the Solution shape (per-family fields: Diffusion, CP and MoC carry a
+  record only, Homogeneous an outcome only).
 - **The α posing is stated and not minted**:
   :data:`~orpheus.numerics.posing.ALPHA_MAP` is defined and no hub mints an
   α :class:`~orpheus.numerics.posing.EigenPosing`.
@@ -444,8 +463,10 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   :class:`~orpheus.numerics.operator.LinearOperator` subclasses with no
   ``apply_transpose`` (48 own one, 8 inherit one); there is no diffusion
   adjoint entry.
-- **Certificate members still ``NotYet``**: the carrying eigen exit's
-  balance, the daggered eigen exit, the linear-discontinuous residual.
+- **Certificate members the outcome module still lists as ``NotYet``**:
+  the carrying eigen exit's balance (#354, open) and the daggered eigen
+  exit (#353, open); the list also names the linear-discontinuous residual
+  (#310), whose issue is closed.
 - **Restriction siblings share no base** by ruling ("no consumer treats
   any restriction generically yet"); the rank-d spatial axis is
   generator-less (a gated contract); there is no ``Cone`` class, no
@@ -453,5 +474,6 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   debt.
 - **The one tagged guard**: ``ELEGANCE-DEBT[guard]`` occurs once under
   ``orpheus/`` (the full-field carrier, #457); ``# TODO`` once;
-  ``raise NotImplementedError`` 66 times in 24 files, the population a
+  ``raise NotImplementedError`` 66 times in 24 files under ``orpheus/``
+  excluding ``derivations/`` (112 in 35 with it), the population a
   retirement audit walks.
