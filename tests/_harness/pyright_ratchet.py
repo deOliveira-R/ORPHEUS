@@ -31,7 +31,6 @@ import json
 import shutil
 import subprocess
 import sys
-from collections import Counter
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -45,13 +44,17 @@ def find_pyright() -> str | None:
     return shutil.which("pyright")
 
 
-def collect_module_counts(pyright: str) -> tuple[dict[str, int], str]:
-    """Run pyright over ``orpheus/`` and bucket errors by top-level
-    subpackage. Returns ``(counts, pyright_version)``.
+def collect_module_diagnostics(pyright: str) -> tuple[dict[str, list[str]], str]:
+    """Run pyright over ``orpheus/`` and bucket its ERROR diagnostics by
+    top-level subpackage, each rendered as ``path:line:col message``.
+    Returns ``(diagnostics, pyright_version)``.
 
-    Buckets only diagnostics of severity ``error`` — warnings are not
-    ratcheted (they fluctuate with pyright releases far more than
-    errors do).
+    Only diagnostics of severity ``error`` are kept — warnings are not
+    ratcheted (they fluctuate with pyright releases far more than errors
+    do). The rendered lines are what a regression prints: a count that
+    moved names the errors behind it, so a red read on another machine
+    (a CI runner with newer stubs) can be acted on without re-running
+    pyright there.
     """
     proc = subprocess.run(
         [pyright, "--outputjson", "orpheus/"],
@@ -64,14 +67,28 @@ def collect_module_counts(pyright: str) -> tuple[dict[str, int], str]:
     # state during the burn-down; only refuse unparseable output.
     report = json.loads(proc.stdout)
 
-    counts: Counter[str] = Counter()
+    diagnostics: dict[str, list[str]] = {}
     for diag in report["generalDiagnostics"]:
         if diag.get("severity") != "error":
             continue
-        rel = Path(diag["file"]).resolve().relative_to(REPO_ROOT / "orpheus")
+        path = Path(diag["file"]).resolve()
+        rel = path.relative_to(REPO_ROOT / "orpheus")
         bucket = rel.parts[0] if len(rel.parts) > 1 else _ROOT_BUCKET
-        counts[bucket] += 1
-    return dict(sorted(counts.items())), report["version"]
+        start = diag["range"]["start"]
+        diagnostics.setdefault(bucket, []).append(
+            f"{path.relative_to(REPO_ROOT)}:{start['line'] + 1}:{start['character'] + 1} "
+            f"{diag['message'].splitlines()[0]}"
+        )
+    return dict(sorted(diagnostics.items())), report["version"]
+
+
+def collect_module_counts(pyright: str) -> tuple[dict[str, int], str]:
+    """The per-module ERROR counts, derived from
+    :func:`collect_module_diagnostics` (one pyright run, one definition of
+    what is counted). Returns ``(counts, pyright_version)``.
+    """
+    diagnostics, version = collect_module_diagnostics(pyright)
+    return {m: len(lines) for m, lines in diagnostics.items()}, version
 
 
 def read_baseline() -> tuple[dict[str, int], str]:

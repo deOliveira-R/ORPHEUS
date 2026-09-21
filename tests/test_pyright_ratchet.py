@@ -22,7 +22,7 @@ import pytest
 
 from tests._harness.pyright_ratchet import (
     UPDATE_CMD,
-    collect_module_counts,
+    collect_module_diagnostics,
     find_pyright,
     read_baseline,
 )
@@ -42,7 +42,8 @@ pytestmark = [
 def test_pyright_error_counts_never_increase():
     baseline, baseline_version = read_baseline()
     assert _PYRIGHT is not None
-    live, live_version = collect_module_counts(_PYRIGHT)
+    diagnostics, live_version = collect_module_diagnostics(_PYRIGHT)
+    live = {m: len(lines) for m, lines in diagnostics.items()}
 
     version_hint = (
         "" if live_version == baseline_version else
@@ -63,11 +64,18 @@ def test_pyright_error_counts_never_increase():
     improvements = {m: bn for m, bn in deltas.items() if bn[1] < bn[0]}
 
     if regressions:
+        # The errors behind the moved counts, so the red names its cause
+        # wherever it is read (a CI runner with newer stubs sees errors
+        # this machine does not; [M] 2026-09-21, pint 0.26 vs 0.25).
+        listed = "\n".join(
+            line for m in sorted(regressions) for line in diagnostics.get(m, [])
+        )
         pytest.fail(
             "pyright error count INCREASED (module: baseline -> now): "
             + ", ".join(f"{m}: {b} -> {n}" for m, (b, n) in sorted(regressions.items()))
             + ". Fix the new type errors; only re-baseline for a "
               "deliberate, justified trade." + version_hint
+            + "\n" + listed
         )
     if improvements:
         pytest.fail(
