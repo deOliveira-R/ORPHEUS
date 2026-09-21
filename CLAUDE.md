@@ -1,4 +1,4 @@
-<!-- BEGIN GENERATED block — source: docs/development/onboarding.md; edit the source, not this block -->
+<!-- BEGIN GENERATED on-boarding block — source: docs/development/onboarding.md; edit the source, not this block -->
 # ORPHEUS — start here
 
 ORPHEUS (Open Reactor Physics Educational University System) is a set of
@@ -82,4 +82,4 @@ in `.claude/agents/`, their roles, the dispatch invariants and the seven
 workflows are the `workflows` rule, with the brief template in
 [workflows](docs/development/workflows.md). How to change a rule, a skill or an agent, and what
 each costs: [the harness page](docs/development/harness.md).
-<!-- END GENERATED block -->
+<!-- END GENERATED on-boarding block -->

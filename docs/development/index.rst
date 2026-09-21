@@ -6,7 +6,7 @@ working knowledge: the rules every contributor follows, the lessons and
 founding cases behind them, the verification and elegance disciplines, the
 agent workflows, and the git workflow. The ``.claude/`` directory that the
 Claude Code harness reads is **generated from these pages** by
-``tools/docs/generate_harness.py`` and never edited by hand; any other
+``tools/harness`` and never edited by hand; any other
 harness (an API caller, a different agent runtime) reads the same pages.
 
 Pages under ``rules/`` and ``skills/`` are the *cores* — what loads into an

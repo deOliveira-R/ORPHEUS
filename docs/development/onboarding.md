@@ -1,3 +1,9 @@
+---
+harness:
+  kind: onboarding
+  budget_tokens: 1500
+---
+
 # ORPHEUS — start here
 
 ORPHEUS (Open Reactor Physics Educational University System) is a set of

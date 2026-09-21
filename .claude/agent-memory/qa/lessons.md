@@ -371,6 +371,21 @@ decisive; **(b)** verify a "we fixed it" sweep moved the **assertion**, not the
 prose — `git show <old>:<f>` vs working tree. A prose-only fix leaves the
 blindness wearing a corrected comment. → L-071
 
+**B16. When a MANIFEST becomes DISCOVERY, audit by asking "for which dropped
+check did the input stay REPRESENTABLE?" — not "which checks are gone".** Two
+survived that filter and were deleted anyway: a skill whose remaining front matter
+is empty (fatal for skill ONLY; `--check` green, the skill stops loading), and
+"target must lie under the harness dir" (demoted to a per-IMPLEMENTATION unit test,
+so a second `Harness` escapes silently — the Protocol seam is what makes that
+insufficient). Riders: a function parsing the SAME language twice inherits the
+first parse's error contract at the second site (an unguarded `yaml.safe_load` on a
+regex-stripped remainder crashed `sphinx-build`); an AST import census reading only
+`ImportFrom.module` MISSES `from . import X` — in the idiom the package already
+uses; a gate's population written as a hand-typed tuple silently excludes every
+future member. And a rename can MINT a summary line whose arithmetic is exact and
+whose LABEL names a population the tool cannot see (`always-on ≈20341` omitted
+7479 tokens of hand-maintained always-on rules, 27%). → L-087
+
 **B13. A published COMMAND is a separate claim from the API it wraps — gate the
 STRING.** [skill: Mode-8 EIGHTH class] `-W error::ConvergenceWarning` (4 doc
 sites incl. the runtime message) does NOT parse — an undotted `-W` category

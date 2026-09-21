@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 9600
+---
+
 # Plan authoring — what a plan owes its own future author
 
 A plan is a note to **you, after your context is gone**, read by someone with your authority and none of your memory. That reader cannot tell a decision from a placeholder or a measurement from a plausible number unless the plan marks the difference.

@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 5500
+---
+
 # Coding standards — the minimum-quality floor
 
 Minimum standards every contributor (main agent and sub-agents) follows by default: the **floor**; `coding-elegance` is the ceiling (Cardinal Rules 1, 2). Each clause carries `check:` (the mechanical check), `tell:` (how the failure looks) and, where one exists, a `[case]` link into [the evidence page](../evidence/coding-standards.md). `[M]` measured, `[R]` reasoned.

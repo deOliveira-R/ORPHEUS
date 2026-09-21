@@ -1,6 +1,9 @@
 ---
 name: coding-elegance
 description: PROACTIVELY load when writing or reviewing any production code, designing an API surface, choosing between abstractions, refactoring, or evaluating whether an implementation reads like the math/domain it claims to encode. This skill codifies what "elegance in coding" means — patterns to invoke, anti-patterns to flag, the prevention-by-construction argument for why elegant code has fewer bugs, and the elegance checklist used at code-write time. Preloaded by all sub-agents that produce code (method-implementer, numerics-investigator, qa, test-architect) and by the main agent when orchestrating implementation.
+harness:
+  kind: skill
+  budget_tokens: 9000
 ---
 
 # Coding Elegance core

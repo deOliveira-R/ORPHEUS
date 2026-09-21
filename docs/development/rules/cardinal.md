@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 1200
+---
+
 # Cardinal rules — five, in order of importance
 
 Rule 1 outranks Rule 2, and so on down. Violating any of them is a session

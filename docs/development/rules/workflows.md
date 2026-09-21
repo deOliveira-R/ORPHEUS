@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 1400
+---
+
 # Workflows — roles, invariants, and the routes work takes
 
 Routing guidance, not a restriction: the seven workflows below are the routes work

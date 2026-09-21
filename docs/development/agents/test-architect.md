@@ -1,3 +1,9 @@
+---
+harness:
+  kind: agent
+  budget_tokens: 500
+---
+
 # test-architect — role block
 
 **Role:** Key. **Phases:** W1-P1 (verification design); W3 gates and re-baselines; resumed by name at review time to confirm the spec's gates landed. **May call:** explorer, literature-researcher. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.

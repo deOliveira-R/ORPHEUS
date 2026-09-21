@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 1200
+---
+
 # Instrument doctrine — four statements every claim is held to
 
 An instrument is anything whose reading you cite as evidence: a test, a metric,

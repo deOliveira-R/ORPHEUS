@@ -1,3 +1,9 @@
+---
+harness:
+  kind: agent
+  budget_tokens: 500
+---
+
 # archivist — role block
 
 **Role:** Key. **Phases:** W1-P4 and W2-P4 (documentation of a landed change); W4 (a documentation campaign, as the key agent). **May call:** explorer for structure; qa to verify a claim against the tree. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.

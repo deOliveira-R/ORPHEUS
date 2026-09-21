@@ -33,6 +33,11 @@ before acting on any of it** (`process-discipline`; measured to have lied twice)
 
 Five dispatches, all READ-ONLY, all reports under `scratch/_harness_eval/review/`.
 
+- **W1-P3 `tools/harness/` package refactor** (`refactor/harness-generator`, uncommitted)
+  -> `scratch/_harness_eval/k3/qa_refactor.md`. All 8 claims CONFIRMED except the
+  always-on LABEL (REFUTED: 20341 omits 7479 of hand-maintained always-on rules).
+  14 findings; the two to act on are an unguarded second `yaml.safe_load` that crashes
+  `sphinx-build`, and a skill front matter allowed to be empty. L-087 / **B16**.
 - **W1-P3 generator MUTATION** -> `qa_generator_mutation.md`. All 3 claimed arms
   have teeth; 7 findings (the DRIFT message's own repair duplicates a role block
   then blesses it; `budget_tokens` ignored on `[[agent]]`; nothing runs `--check`).

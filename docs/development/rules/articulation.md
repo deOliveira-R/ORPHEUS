@@ -1,3 +1,9 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 800
+---
+
 # Articulation — the writing standard
 
 Articulate means: take a concept apart so that a reader with none of your

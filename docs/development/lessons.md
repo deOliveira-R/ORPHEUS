@@ -1,3 +1,9 @@
+---
+harness:
+  kind: index
+  budget_tokens: 3400
+---
+
 # Lessons — index
 
 One line per lesson: an imperative, its mechanical check, and a link to the verbatim body. A rule is a lesson that has been distilled and lifted, so a lesson whose mechanism a rule now states has no index line here (its body stays in the evidence page).

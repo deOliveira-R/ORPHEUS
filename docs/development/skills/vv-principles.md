@@ -2,6 +2,9 @@
 name: vv-principles
 description: PROACTIVELY use when reviewing claims of correctness, designing verification plans, or evaluating whether evidence supports a claim. Provides the V&V hierarchy (L0–L3 + foundation), the 6 AI failure modes catalogue, the reference hierarchy by structural independence, anti-patterns, and the hierarchical claim taxonomy. Preloaded by qa, test-architect, numerics-investigator, and archivist.
 allowed-tools: Bash
+harness:
+  kind: skill
+  budget_tokens: 11000
 ---
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns

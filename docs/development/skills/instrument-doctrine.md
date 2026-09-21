@@ -1,6 +1,9 @@
 ---
 name: instrument-doctrine
 description: PROACTIVELY load when building, judging or citing evidence — a gate, a metric, a census, a canary, a mutation battery, a ratio, a timing. Procedures for the four always-on statements of the instrument-doctrine rule (X1 an instrument must be able to fail; X2 every claim carries its population and instrument; X3 prose is not enforcement; X4 one definition per quantity). Preloaded by qa, test-architect, numerics-investigator and archivist; vv-principles cites it.
+harness:
+  kind: skill
+  budget_tokens: 2200
 ---
 
 # Instrument doctrine — the procedures

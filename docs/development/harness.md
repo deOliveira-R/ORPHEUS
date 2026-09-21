@@ -12,7 +12,7 @@ budget, not a measurement.
 
 | block | who pays | before (2026-09-04) | after this restructure |
 |---|---|---|---|
-| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in `tools/docs/harness_manifest.toml` (rule cores ≈17K + the untouched rules ≈7K + CLAUDE.md ≈2.7K + memory ≈2.5K) |
+| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; `python -m tools.harness --check` prints the generated always-on sum (six rule cores + CLAUDE.md ≈20.3K, `[M]` 2026-09-20 chars/3.6); the three hand-maintained rules ≈7.5K and the memory index ≈2.5K are on top of it |
 | the session-start batch (`.claude/hooks/session-start.txt`): skill cores, the lessons index, the Nexus briefing | main agent only | ≈125K | ≈30K |
 | a Support agent with `omitClaudeMd: true` | explorer, literature-researcher, cross-domain-attacker, haiku categorisers | ≈107K per dispatch (haiku, zero tools) | ≈36.5K — the harness-fixed block only (tool schemas, skill index, roster) |
 
@@ -23,11 +23,13 @@ remain, since the harness loads them eagerly.
 ## The one-way flow
 
 ```
-docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
-        │  tools/docs/generate_harness.py  (a `_GENERATORS` row in docs/conf.py;
-        │  `--check`, read by `tests/test_harness_generated.py`: drift, budget, dead links, orphans)
+docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SOURCE, MyST; each
+        │                                        declares `harness: {kind, budget_tokens}` in its front matter)
+        │  tools/harness/  (`python -m tools.harness`, a `_GENERATORS` row in docs/conf.py; `--check`, read by
+        │  `tests/test_harness_generated.py`: drift, budget, dead links, orphans. `targets/claude_code.py` is the
+        │  one harness; the other modules name none, and adding a harness is one module under `targets/`)
         ▼
-.claude/rules/*.md   .claude/skills/*/SKILL.md   .claude/lessons.md   AGENT.md role blocks   (GENERATED, committed)
+.claude/rules/*.md   .claude/skills/*/SKILL.md   .claude/lessons.md   AGENT.md role blocks   CLAUDE.md   (GENERATED, committed)
 ```
 
 - Evidence pages (`evidence/*.md`) have no `.claude/` copy: an agent reads them
@@ -47,16 +49,17 @@ docs/development/{rules,skills,agents}/*.md  +  lessons.md        (SOURCE, MyST)
 - **A rule**: write `docs/development/rules/<name>.md` (an imperative with its
   `check:` and `tell:` wherever it names a failure; a link to its evidence once a
   founding case exists, since a rule distilled from analysis rather than from a
-  surprise starts without one), add a `[[rule]]` entry with a
-  `budget_tokens` to the manifest, add the page to `index.rst`, run the
+  surprise starts without one), declare `harness: {kind: rule, budget_tokens: N}`
+  in its front matter (a round figure above the measured size, never more than
+  400 above it: `tools/harness/budget.py`), add the page to `index.rst`, run the
   generator. A rule is always-on for every Key agent and the main agent: it
   earns that only if it applies to every artefact an agent writes.
 - **A skill**: `docs/development/skills/<name>.md` with YAML front matter
-  (`name`, `description` — the harness reads them), a `[[skill]]` entry, the
-  page in `index.rst`; preload it from an agent's `skills:` list when that
+  (`name`, `description` — the harness reads them) and the `harness:` block
+  beside them, the page in `index.rst`; preload it from an agent's `skills:` list when that
   agent needs it at every dispatch.
 - **An agent**: `docs/development/agents/<name>.md` (role, phases, supports,
-  return contract), an `[[agent]]` entry, the page in `agents/index.rst`; the
+  return contract) with its `harness:` block, the page in `agents/index.rst`; the
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
   omits `Agent`), the memory scope and `omitClaudeMd`.
 - **Distilling a page into a core**: every clause keeps its imperative, its

@@ -5689,3 +5689,88 @@ clause the template cites, ~19 are incidental (`session_briefing`, `file_brief`,
 "briefly", "debrief").
 
 Report: `scratch/_harness_eval/review2/qa_t5_closures.md`.
+
+## L-087 — a manifest→discovery migration drops the check whose input became unrepresentable for every kind BUT ONE
+
+**Subject.** `tools/docs/generate_harness.py` (one module + a TOML manifest) became the
+package `tools/harness/` (`source`/`links`/`budget`/`render`/`pipeline` + a `Harness`
+Protocol under `targets/`). W1-P3, branch `refactor/harness-generator`, 2026-09-20.
+Report: `scratch/_harness_eval/k3/qa_refactor.md`.
+
+**The migration's own shape.** Discovery replaced a manifest, so several manifest checks
+became structurally impossible and were correctly deleted: "source exists" (pages come
+from `rglob`), "required keys present" (front-matter validation is stronger). The audit
+question is therefore *not* "which checks are gone" but **"for which check did the input
+stay REPRESENTABLE?"** Two survived that filter and were still deleted:
+
+- **"a skill source needs YAML front matter".** The new `read` strips the `harness:`
+  block and keeps the remainder; `front_matter == ""` is then *refused for every kind
+  except skill*, which is exactly the fatal one — the emitted `SKILL.md` loses
+  `name`/`description` and the skill silently stops loading, with `--check` green.
+  Measured by generating into a temp repo root: output was a bare stamp + body, 0 problems.
+- **"a target must lie under `.claude/`".** The harness now decides its own target, so the
+  check moved into a per-implementation unit test (`test_claude_code_targets_every_kind_
+  under_its_roots`). An `Escaping` harness written in 8 lines wrote outside its `roots`
+  with **0 problems**, and `orphans` can never reclaim the file. The Protocol seam is
+  precisely what makes a per-implementation test insufficient: the invariant
+  `target(page) ∈ roots` is the pipeline's, not any one harness's.
+
+**Three more, each a distinct mechanism.**
+
+1. **The second `safe_load` was unguarded.** `source.py:78` wraps `yaml.safe_load` in
+   `try/except yaml.YAMLError`; `:111` re-parses the *remainder* after a regex strip and
+   does not. Two realizable front matters raise out of `read` and abort `sphinx-build`
+   (the generator runs at `builder-inited`) with a traceback naming no file: a **blank
+   line inside the block** (`ScannerError`) and `harness: &h` **aliased later**
+   (`ComposerError`). The designed refusal ("could not be removed textually") does fire —
+   for a flow mapping with an *unindented* continuation. ⟹ when a function parses the
+   SAME language twice, the second parse inherits the first's error contract; grep the
+   parser's name inside the function and count `try:`.
+2. **An AST import detector that reads only `ImportFrom.module` misses `from . import X`.**
+   `node.module` is `None` there, so the test's `node.module or ""` yields `""` and the
+   predicate `"targets" in m and "base" not in m` is silent. The escape is not exotic:
+   `pipeline.py` already spells `from . import budget`. The alias names live in
+   `node.names`, unread. ⟹ an import census reads `ImportFrom.names` as well as `.module`,
+   and its positive control must be written in the idiom the module ALREADY uses.
+3. **The neutrality gate's population is a hand-written tuple.** `NEUTRAL = ("source.py",
+   …)` — six names. A new neutral module is unchecked and nothing says so. The honest
+   population is derived: every `*.py` in the package except `targets/*.py`,
+   `__init__.py`, `__main__.py`. Same family as the import control asserting
+   `any("targets" in m)` where the detector asserts `any("targets" in m and "base" not
+   in m)` — the control validates a WEAKER predicate than the thing it controls.
+
+**The summary line the rename minted.** `--check` now prints
+`always-on ≈20341 tokens over 7 files`. The arithmetic is exact (`int(len(text)/3.6)`
+over 6 generated rule cores + `CLAUDE.md`). The LABEL is not: `.claude/rules/` also holds
+three hand-maintained always-on rules (delegation 1275, nexus-tools 2665,
+process-discipline 3539 = **7479**), so the true always-on block is **27820** and the
+printed figure understates it by 27 %. "always-on" is a property of the HARNESS; the
+generator can only measure the pages it OWNS. And `docs/development/harness.md:15`, edited
+in the same commit, now says that printed sum is "(rule cores ≈17K + the untouched rules
+≈7K + CLAUDE.md ≈1.4K + memory ≈2.5K)" — attributing to the instrument a population it
+does not have, and carrying a stale ≈17K against a measured 18946.
+
+**Mutation mechanics that worked here.** Two in-process pytest plugins under
+`scratch/`, loaded with `PYTHONPATH=… -p <mod>`, no tracked file touched:
+(A) rebind `pipeline.OWN_MODULES` + recompile `_OURS` → exactly **1 red**, and the
+failure diff NAMED `.claude/rules/old.md`, so the aimed row is readable from the message.
+(B) to delete ONE `if` from a function, re-exec the module source with that statement
+removed and rebind the module attribute — but **register the new namespace in
+`sys.modules` first**, or `@dataclass` dies with `AttributeError: 'NoneType' object has
+no attribute '__dict__'` (Python 3.14 `dataclasses._is_type` looks the module up by
+`cls.__module__`). ⚠ The re-exec mints a **second copy of every class in the module**, so
+any test using `is` on an enum member reds as collateral. Read the aimed row, name the
+artefact, do not report the collateral as coverage.
+
+**Retirement residue.** `.claude/plans/harness_context_budget.md:554,:609,:623` still say
+"18 targets" (now 20) and offer `.venv/bin/python -m tools.docs.generate_harness --check`
+in a "how to verify" column — a runnable imperative against a deleted module. Everything
+else naming the old path (two agent memories, `lessons_archive`, `evidence/
+vv-anti-patterns.md:457`, the `vv-principles` #17(i) clause) is past-tense history and
+correctly stays. `pipeline.OWN_MODULES` deliberately keeps the old stamp name so a target
+dropped during the rename stays visible — mutation-proven above.
+
+**What was clean.** 10 whole-file targets differ from `main` by exactly 2 lines each,
+both the stamp; 10 block targets byte-identical; all 20 budgets carried over unchanged;
+every pinned message fragment resolves to exactly ONE production site; `matrix.rst`
+12149 → 12180 closes exactly on the new file's 31 tests.
