@@ -123,3 +123,44 @@ class TestAStaleStoreIsRefused:
             f.require_group("294K")
         with pytest.raises(ValueError, match=rf"format {H5_FORMAT + 1}.*needs format {H5_FORMAT}"):
             load_isotope_h5(path, 294)
+
+
+class TestMaterialisation:
+    """A file the store does not carry is built from its tape on first use — through
+    the ONE producer — and is then served without rebuilding.
+
+    The producer is replaced by a spy that writes a valid store file from an
+    isotope already loaded (a real conversion is 25–85 s per tape, `[M]`
+    2026-09-21), so the row pins the mechanism: absent → the producer is called
+    once with the store's directory → the load reads what it wrote → a second load
+    calls nothing. X1: with the spy's write removed, the loader would raise
+    ``FileNotFoundError`` at the reader (the store file never appears).
+    """
+
+    def test_a_missing_file_is_built_once_through_convert_one(self, tmp_path, monkeypatch):
+        import orpheus.data.micro_xs as store
+
+        source = load_isotope("BE009", 294)
+        calls: list[tuple[str, object]] = []
+
+        def spy(name: str, out_dir=None):
+            calls.append((name, out_dir))
+            path = tmp_path / f"{name}.h5"
+            with h5py.File(path, "w") as f:
+                save_isotope(source, f)
+            return path
+
+        monkeypatch.setattr(store, "_HDF5_DIR", tmp_path)
+        monkeypatch.setattr(store, "convert_one", spy)
+
+        first = store.load_isotope("BE009", 294)
+        assert calls == [("BE009", tmp_path)], (
+            f"the loader must build a missing file through convert_one exactly once, "
+            f"into the store's directory; it called {calls}"
+        )
+        np.testing.assert_array_equal(np.asarray(first.sigT), np.asarray(source.sigT))
+
+        second = store.load_isotope("BE009", 294)
+        assert len(calls) == 1, "a present file is served as it is, never rebuilt"
+        np.testing.assert_array_equal(np.asarray(second.sigT), np.asarray(source.sigT))
+

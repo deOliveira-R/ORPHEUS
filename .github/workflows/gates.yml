@@ -18,7 +18,7 @@ concurrency:
 jobs:
   gates:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -33,6 +33,11 @@ jobs:
         run: .venv/bin/python -m tools.harness --check
       - name: The generator, the generated tree and the layer contract, under -O
         run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/test_harness_generated.py tests/test_layer_imports.py -q
+      - name: The HDF5 cross-section store, cached; a miss is rebuilt by the loader on first use during the build
+        uses: actions/cache@v4
+        with:
+          path: orpheus/data/micro_xs/*.h5
+          key: micro-xs-h5-${{ hashFiles('orpheus/data/micro_xs/*.GXS', 'orpheus/data/micro_xs/gendf.py', 'orpheus/data/micro_xs/hdf5_io.py', 'orpheus/data/micro_xs/isotope.py', 'orpheus/data/micro_xs/convert_gxs_to_hdf5.py') }}
       - name: "pyright as the #226 ratchet over orpheus/: tests/test_pyright_ratchet.py against the committed baseline"
         run: |
           npm install -g pyright@1.1.410

@@ -759,8 +759,10 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
    **gitignored** (``.gitignore``: ``*.h5``) — a locally generated,
    never-committed artefact.  So a fix here reaches a given checkout only
    when ``orpheus/data/micro_xs/convert_gxs_to_hdf5.py`` is re-run there.
-   A fresh clone is safe (it must build the store anyway); an existing
-   one is not.
+   A fresh clone is safe: the loader materialises each missing file from
+   its tape on first use (since 2026-09-21, the CI landing).  An existing
+   store is not: a file that is present is served as it is, and only a
+   format bump makes it refuse.
 
    Since #426 step 1 the store carries a **format version**, and the two
    kinds of stale store are no longer alike — read
@@ -1805,7 +1807,10 @@ The ``load_isotope`` function provides a uniform API:
    # iso.eg — shape (422,), energy group boundaries in eV
 
 The loader reads from the HDF5 files in ``data/micro_xs/{name}.h5``,
-and refuses one written by an older layout
+materialises a missing one from its ``.GXS`` tape on first use (the same
+producer the whole-store rebuild below calls,
+:func:`~orpheus.data.micro_xs.convert_gxs_to_hdf5.convert_one`), and
+refuses one written by an older layout
 (:ref:`the format-version refusal <h5-store-format-refusal>`).
 
 
@@ -1824,6 +1829,15 @@ the run takes **7–8 minutes** and produces **438.5 MB**; before #426
 step 1 it was roughly half of each.  The command above is the one the
 loader's own refusal message prints, so a stale-store failure can be
 copied straight from the traceback.
+
+A fresh checkout does not need the command: ``load_isotope`` calls the
+same per-isotope producer, ``convert_one``, for a file the store does not
+carry yet, so the first solve on a new machine (or a CI runner, where the
+``gates`` workflow caches the built store keyed on the tapes and the
+format) pays the conversion for the isotopes it touches and nothing
+else.  The command is for rebuilding files that EXIST — after a format
+bump or an ingest fix — because a present file is served as it is, and
+a stale one refuses rather than rebuilds.
 
 
 Validation
