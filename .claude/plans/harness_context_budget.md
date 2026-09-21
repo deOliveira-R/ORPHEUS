@@ -1291,4 +1291,11 @@ Ruled 2026-09-21 (*"option 2 of giving it a CI, but let's do this at the end"*),
 
 Also landed on the branch, found by the runs: the three non-SN entries passed `None` where `warn_if_unconverged` takes an `Evidence` since `bcd9c83c` (the diffusion site was the one pyright error under the project's gate on `main`; CP and MoC the same defect inside pyright's `ignore` list) → `NotYet(485, …)` at each, #485 filed for the three residuals (`7b62252e`). Merge gate for that fix: `tests/cp tests/moc` under `-O` without the slow tier, 262 of 278 passed (16 slow deselected; one of them, `test_flux_convergence_2g_2r`, ran 41 min at 4.3 GB before it was stopped; the full tier is the per-tier local gate).
 
-**What the reading answers.** The workflow reds on the input it exists for (run 35591258188) and on nothing else on the merged tree (run 35589799145); every earlier red was a real difference between the runner and the maintainer's machine, each fixed at its root rather than pinned around (the pyright scope, the pint stubs, the store's provenance, the tapes' provenance). The green run on `main` after the ff-merge is the baseline the process-discipline clause reads; its number, and the branch's final green, are appended below.
+**What the reading answers.** The workflow reds on the input it exists for (run 35591258188) and on nothing else on the merged tree (run 35589799145); every earlier red was a real difference between the runner and the maintainer's machine, each fixed at its root rather than pinned around (the pyright scope, the pint stubs, the store's provenance, the tapes' provenance).
+
+| run | tip | result | what it read |
+|---|---|---|---|
+| 35591476333 | `ecb69871`, the branch's final tip (the drift removed, the six runs recorded) | **green**, 5 min 8 s | the store cache hit (`micro-xs-h5-6bf72dfc`), so the build ran without converting |
+| 35591996861 | `ecb69871` on `main` after the ff-merge | **green**, 10 min 2 s — **the baseline** the process-discipline clause reads | a cache MISS: an Actions cache saved on a feature branch is not visible from `main` (only from that branch and its children), so the first run on `main` rebuilt the store and saved the cache under `main`, where every later run and every branch off `main` finds it |
+
+CI is now an instrument that exists: `gh run list --branch main --limit 3` after a push. The merge-gate scope for the fix commits is stated above; the full per-tier suite remains local.
