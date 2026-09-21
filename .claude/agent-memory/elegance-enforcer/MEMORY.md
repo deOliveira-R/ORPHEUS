@@ -49,6 +49,7 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [harness_as_artefact_rulings.md](harness_as_artefact_rulings.md) — ⭐⭐ reviewing the PROSE harness (rules/skills/CLAUDE.md) as code under Pattern 2: the STATED-vs-CITED predicate, the FORCED COPY (a reader that cannot load the definition wants a generated include, not a citation), a preamble that promises not to restate and does, intra-file duplicates, boilerplate preambles; and the ruling NOT to collapse a genuine four-face law.
 - [generator_tool_review_rulings.md](generator_tool_review_rulings.md) — ⭐⭐ reviewing a GENERATOR / `--check` tool: the five probes (does the check have a READER; does it re-derive what a venv library owns; is the stated DIRECTION asserted by any line; arm-activation counts; orphan census both ways) + the ruling that a `kind` string discriminated ONCE is not anti-#4.
 - [ends_select_the_body_rulings.md](ends_select_the_body_rulings.md) — ⭐⭐ CS4c step 5
   (per-call carrier dispatch → ONE construction-selected body): the **four probes** any

@@ -87,6 +87,9 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [M/R frame pair](projection_reconstruction_frame_pair.md) — the M/R asymmetry was a half-applied refactor; 3 weight families = ONE convention datum.
 - [unified Frame API](unified_frame_api_design.md) — the 3 verbs (project_weighted / conjugate / analyze) + `is_galerkin = (test is basis)`.
 
+### Knowledge structure (the artefact is a DOCUMENT CORPUS, not mathematics)
+- [harness tiering](harness_knowledge_structure_tiering_frames.md) — ⭐⭐ NEW CLASS: a tier is a SHEAF SUPPORT (always-on = Γ(X)), so "restatement vs local instance" is settled by **write the restriction and diff**; 3NF gives one-home iff determined by the key ALONE; the tier criterion is PPV over the support, never a token budget; a 2nd generated view is a functor with ENVELOPE INVARIANCE. Open it before any rule/doc/prompt-corpus brief — it carries the base-space checklist and 9 UNEXPLORED reasons.
+
 ### Green's-function family / spatial closure / diffusion
 - [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
 - [trajectory foreign frames](trajectory_resolvent_foreign_frames.md) — the foreign-frame sweep behind that family (BIE / spectral / bundle verdicts).
