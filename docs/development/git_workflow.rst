@@ -217,9 +217,22 @@ instrument to read. After ``git push origin main``::
 A red run on ``main`` is fixed before anything else lands, and a run that
 was already red before your push is baselined first (the rule's baseline
 clause). The workflow landed with its first red: a deliberate hand edit
-inside a generated rule, pushed on the workflow's branch and reverted, so
+inside a generated rule, pushed on the workflow's branch and removed, so
 that the green run after it is a baseline and not an untested instrument
-(instrument doctrine X1).
+(instrument doctrine X1). The record, 2026-09-21, on ``chore/ci-gates``:
+run 35584292900 red at pyright (a bare run over the whole tree, 1 674
+errors; the step became the ratchet); 35586844023 red at the ratchet
+(``numerics: 0 -> 4``, pint 0.26 on the runner against 0.25 locally; the
+unit signatures re-spelled through the registry parser, the ratchet made
+to list its diagnostics); 35587900491 and 35589071056 red at the strict
+build (the HDF5 store absent, then the tapes present as LFS pointers; the
+loader materialises the store, the workflow caches it and pulls the tapes
+on a miss); 35589799145 the first green (15 min 37 s, the store built on
+a cache miss); 35591258188 the deliberate drift, red at the harness check
+with ``DRIFT: .claude/rules/cardinal.md differs from its source`` and
+every later step skipped. The green run on the merged tip of ``main`` is
+the baseline; the harness plan's R6 record carries the run numbers after
+these.
 
 
 Release tagging
