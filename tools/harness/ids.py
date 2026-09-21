@@ -10,11 +10,16 @@ must resolve, so a renamed or retired definition reddens ``--check`` at every
 site that still cites it.
 
 Not checked, stated so the zero is read for what it is: a bare ``#N`` with no
-page name before it in the same paragraph, outside the two pages that number
-their own anti-patterns (it reads as an issue number); ``L1``–``L4`` (they are
-also the V&V levels); a tag with fewer than two hyphens (indistinguishable
-from a word in capitals); the evidence pages (historical text cites retired
-numberings); anything inside a code span or a fence.
+page name before it in the same paragraph, outside the pages whose subject is
+a numbered list (the two that number their own anti-patterns, and the two
+evidence pages of ``vv-principles``' anti-patterns and test-design modes, which
+default to it) — it reads as an issue number, and a ``#N`` right after
+``task``, ``issue``, ``nexus`` or ``PR`` is one and is skipped; ``L1``–``L4``
+(they are also the V&V levels); a tag with fewer than two hyphens
+(indistinguishable from a word in capitals); anything inside a code span or a
+fence. The evidence pages are under check since 2026-09-21: historical text
+that cites a retired numbering is a dead citation for today's reader, and is
+re-pointed like any other.
 """
 from __future__ import annotations
 
@@ -26,7 +31,11 @@ from pathlib import Path
 from .source import DOCS_DEV, REPO_ROOT, rel
 
 ERROR_CATALOG = REPO_ROOT / "docs" / "theory" / "verification" / "error_catalog.rst"
-ANTI_PATTERN_PAGES = ("coding-elegance", "vv-principles")
+# A page whose subject is a numbered list resolves its bare `#N` there: the two pages that number their own
+# anti-patterns, and the two evidence pages whose every `#N` is one of vv-principles' anti-patterns or modes.
+DEFAULT_ANTI_PAGE = {"coding-elegance": "coding-elegance", "vv-principles": "vv-principles",
+                     "vv-anti-patterns": "vv-principles", "test-design-modes": "vv-principles"}
+_ISSUE_PREFIX = re.compile(r"(?i)\b(?:task|issue|nexus|PR) ?$")   # `task #51`, `nexus#85`: an issue or task number, never an anti-pattern
 _FENCE = re.compile(r"(?ms)^```.*?^```[ \t]*$")
 _CODE = re.compile(r"`[^`\n]*`")
 _ITEM = re.compile(r"(?m)^(\d+)\. \*\*")
@@ -78,7 +87,7 @@ def registries(root: Path = DOCS_DEV, catalog: Path = ERROR_CATALOG) -> Registri
 
 def pages_under_check(root: Path = DOCS_DEV) -> list[Path]:
     return sorted([*root.glob("rules/*.md"), *root.glob("skills/*.md"), *root.glob("agents/*.md"),
-                   root / "onboarding.md", root / "workflows.md", root / "harness.md"])
+                   *root.glob("evidence/*.md"), root / "onboarding.md", root / "workflows.md", root / "harness.md"])
 
 
 @dataclass(frozen=True)
@@ -109,7 +118,7 @@ def citations(text: str, page_name: str) -> list[Citation]:
     for m in re.finditer(r"\bPatterns? ?[- ]?(\d)\b((?:(?:,| and| ∩) (\d))*)", masked):
         for n in [m.group(1), *re.findall(r"\d", m.group(2))]:
             found.append(Citation("pattern", n, line_of(m.start())))
-    for m in re.finditer(r"\b[Mm]ode[- ](\d{1,2})\b", masked):
+    for m in re.finditer(r"\b[Mm]ode[- ]([1-9]\d?)\b", masked):   # modes are numbered from 1: `mode-0` is the Peierls normalisation sense (ERR-030), never a citation
         found.append(Citation("mode", m.group(1), line_of(m.start())))
     for m in re.finditer(r"\bERR-(\d{3})\b", masked):
         if not in_code(m.start()):
@@ -126,11 +135,11 @@ def citations(text: str, page_name: str) -> list[Citation]:
     # `#N`: the page's own anti-patterns, or those of the page named last in the same paragraph
     for para_m in re.finditer(r"(?s)[^\n](?:[^\n]|\n(?!\n))*", masked):
         para = para_m.group(0)
-        qualifier = page_name if page_name in ANTI_PATTERN_PAGES else None
-        for m in re.finditer(r"`(coding-elegance|vv-principles)`|(?<![\w#])#(\d{1,2})\b", para):
+        qualifier = DEFAULT_ANTI_PAGE.get(page_name)
+        for m in re.finditer(r"\b(coding-elegance|vv-principles)\b|(?<![\w#])#(\d{1,2})\b", para):
             if m.group(1):
                 qualifier = m.group(1)
-            elif not in_code(para_m.start() + m.start()):
+            elif not in_code(para_m.start() + m.start()) and not _ISSUE_PREFIX.search(para[:m.start()]):
                 found.append(Citation(f"anti:{qualifier}", m.group(2), line_of(para_m.start() + m.start())))
     return found
 

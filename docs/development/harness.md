@@ -84,10 +84,16 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   B.4 of the retirement-audit skill, a plan-authoring tag with two or more hyphens) against the page that
   defines it (`tools/harness/ids.py`), the way the build checks a link's anchor;
   a renamed or retired definition reddens at every site that still cites it.
-  Not checked, so a clean run is read for what it is: a bare `#N` with no page
-  named before it in the paragraph (it reads as an issue number and is a
-  problem in its own right), `L1`–`L4` (also the V&V levels), a tag with fewer
-  than two hyphens, and the evidence pages.
+  The evidence pages are under check too (since 2026-09-21: a citation to a
+  retired numbering is dead for today's reader, whatever the age of the
+  sentence around it; the first run over the eight pages found two, both
+  re-pointed). Not checked, so a clean run is read for what it is: a bare
+  `#N` with no page named before it in the paragraph (it reads as an issue
+  number and is a problem in its own right, except on a page whose subject is
+  the numbered list, where it resolves there, and after `task`, `issue`,
+  `nexus` or `PR`, where it is one), `L1`–`L4` (also the V&V levels), a tag
+  with fewer than two hyphens, and `mode-0` (ERR-030's normalisation sense;
+  modes are numbered from 1).
 - **A skill**: `docs/development/skills/<name>.md` with YAML front matter
   (`name`, `description` — the harness reads them) and the `harness:` block
   beside them, the page in `index.rst`; preload it from an agent's `skills:` list when that

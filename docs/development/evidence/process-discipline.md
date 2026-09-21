@@ -8,7 +8,7 @@ Founding cases of [the process-discipline rule](../rules/process-discipline.md),
 
 Clause: Bias toward completion
 
-B.3, 2026-06-01: `BoundaryResidual` had no "consumer" only because the SN matvec computed the
+2026-06-01: `BoundaryResidual` had no "consumer" only because the SN matvec computed the
 boundary defect but mistyped it.
 
 ### 2026-06-21 seven campaigns in flight

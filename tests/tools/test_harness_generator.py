@@ -456,3 +456,25 @@ def test_the_real_tree_has_no_dangling_citation() -> None:
 
     resolved, problems = ids.check()
     assert problems == [] and resolved > 200, (resolved, problems)
+
+
+# ------------------------------------------------------------ citations by ID
+
+def test_ids_check_reads_the_evidence_pages_with_the_three_decoder_rules(tmp_path: pathlib.Path) -> None:
+    """X1 for the evidence-page check (2026-09-21): a dangling audit item reddens; a `task #N`,
+    a `nexus#N`, a `mode-0` and a bare `#N` on a page whose subject is the anti-pattern list
+    do not; the same bare `#N` on any other page does until a page is named before it."""
+    from tools.harness import ids
+
+    reg = ids.registries()
+    item, anti = sorted(reg.item)[0], sorted(reg.anti["vv-principles"], key=int)[0]
+    assert any(p.parent.name == "evidence" for p in ids.pages_under_check()), "the evidence pages are under check"
+    on_anti_page = write(tmp_path / "vv-anti-patterns.md",
+                         f"A case.\n\nAnti-pattern #{anti} fired; task #51 and nexus#85 are issues, so is Task #7; "
+                         f"a mode-0 normalisation mismatch (ERR-030); item {item} applies; item G.99 does not.\n")
+    elsewhere = write(tmp_path / "some-case.md", f"Bare #{anti} here, `vv-principles` #{anti} there.\n")
+    resolved, problems = ids.check(pages=[on_anti_page, elsewhere])
+    assert resolved == 4, problems                      # the anti-pattern, ERR-030, the live item, the qualified #N
+    assert [p.split(":")[0].rsplit("/", 1)[-1] for p in problems] == ["vv-anti-patterns.md", "some-case.md"]
+    assert "G.99" in problems[0] and "with no page named" in problems[1]
+    assert not any(s in " ".join(problems) for s in ("#51", "#85", "#7", "mode 0", f"item {item}"))
