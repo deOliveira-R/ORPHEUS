@@ -14,26 +14,22 @@ inline imports, `TYPE_CHECKING` blocks, late imports inside functions, aliased i
 (`from numpy import linalg as la`), re-exports, and docstring references. Nexus captures
 all of these as graph edges.
 
-You have **freedom of tool choice** — route by what the question actually is:
+You have **freedom of tool choice** — route by what the question actually is, and
+**invoke the Nexus *skills*, not raw MCP tools**: each skill encodes the complete
+workflow and names its tools, and `nexus-guide` lists them all.
 
-| Question | Tool | Why |
+| Question | Route | Why |
 |---|---|---|
-| Callers / dependents / call chains / blast radius | Nexus `callers`, `impact`, `processes` | graph traversal; text can't follow edges |
-| Equation / citation traceability | Nexus `provenance_chain` | links code ↔ docs |
-| Verification coverage | Nexus `verification_audit` | maps equation → code → test |
-| Docs referencing symbols that no longer exist | Nexus `dead_references` | renders as plain text; no build warning |
-| Which tests must re-run after this change | Nexus `retest` (pass `run=`) | with a coverage capture it answers from what EXECUTED; the static cone alone has 12-15 % recall |
-| Does the test that CLAIMS to verify this actually run it | Nexus `verification_audit` (pass `run=`) | a `verifies` marker is authored and unfalsifiable until evidence adjudicates it |
-| Failing-test diagnosis | Nexus `trace_error` | walks the call graph to the suspect equation |
-| Safe rename / refactor | Nexus `rename`, `impact` | finds references by graph, not text |
-| "Who uses dependency X" (incl. aliased imports) | Nexus `graph_query` / `type_uses` | grep misses aliased / late / `TYPE_CHECKING` imports |
-| Structural smells (clones, dead code, missing types) | Nexus `twin_paths`, `dead_functions`, `discriminations`, `native_place`, `protocol_conformers` | whole-graph sweeps |
-| What actually RAN (hotspots, real dispatch) | Nexus `runtime_*` | dynamic overlay; static graph can't see it |
-| A file position (LSP result, stack trace) | Nexus `node_at` | position → graph node |
-| Literal text / regex / config values | `grep`/`rg` via **Bash** | finds raw strings |
-| TODO / FIXME / inline comments | `grep` via **Bash** | Nexus doesn't index comments |
-| Known file / known symbol body | **Read** (or `find` via Bash) | don't rediscover what you already know |
-| Unknown symbol location | either — Nexus `query` or `grep` | your call |
+| Callers, dependents, blast radius, call chains — "what breaks if I change X" | Nexus: `nexus-impact` | text cannot follow an edge |
+| "Who uses X", including aliased, late and `TYPE_CHECKING` imports | Nexus: `nexus-exploring` | grep misses exactly those |
+| A structural smell: clones (`twin_paths`), dead code (`dead_functions`), one tag branched on everywhere (`discriminations`), an implicit interface (`protocol_conformers`), a helper in the wrong module (`native_place`) | Nexus: `nexus-exploring` | whole-graph sweeps; the symptom names its tool |
+| The map of a codebase: its areas (`communities`, `god_nodes`), the few nodes holding areas together (`bridges`); how a subsystem works; what actually RAN | Nexus: `nexus-exploring` | hubs, bridges and the runtime overlay |
+| Docs ↔ code ↔ test traceability, verification coverage, doc drift, dead documentation references, which tests must re-run | Nexus: `nexus-verification` | with a coverage capture (`run=`) it answers from what EXECUTED |
+| A wrong answer, a failing test | Nexus: `nexus-debugging` | walks the call graph to the suspect equation |
+| A rename, an extraction, a retirement | Nexus: `nexus-refactoring` | references by graph, not by text |
+| Literal text, a regex, a config value, a TODO/FIXME or any comment | `grep`/`rg` via **Bash** | raw strings; Nexus does not index comments |
+| A file or a symbol body you already know | **Read** (or `find` via Bash) | don't rediscover what you already know |
+| Where an unknown symbol lives | either — Nexus `query` or `grep` | your call |
 
 Over-using Nexus where a plain `Read` or `grep` was correct is as much a misselection as
 grepping for a relationship question. Do not perform compliance theater.
@@ -42,18 +38,14 @@ grepping for a relationship question. Do not perform compliance theater.
 "two people built this separately", "things live in surprising places", "the docs feel
 out of date" are all graph questions — route them to `protocol_conformers` / `twin_paths`
 / `native_place` / `dead_references` respectively rather than reading files until a
-pattern appears.
+pattern appears (`nexus-exploring` carries the full table, "What the user actually says").
 
 **Some checks are part of the job, not a request.** After you delete or rename anything,
 run `dead_references` before calling it done — green tests do not cover prose, and a dead
 documentation reference produces no build warning at any severity, so nothing else will
-catch it. Before a release, and for any "health check" or onboarding review, sweep the
-smell family (`twin_paths`, `discriminations`, `native_place`, `protocol_conformers`,
-`dead_functions`) alongside `dead_references` and `staleness`.
-
-**Invoke the Nexus *skills*, not raw MCP tools** — they encode the complete workflows
-(`nexus-exploring`, `nexus-impact`, `nexus-debugging`, `nexus-refactoring`,
-`nexus-verification`, `nexus-elegance`, `nexus-guide`).
+catch it. Before a release, and for any "health check" or onboarding review, run the
+sweeps `nexus-exploring` lists under "Sweeps you run WITHOUT being asked" (the smell
+family, `dead_references` and `staleness`).
 
 **Operational notes**
 

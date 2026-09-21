@@ -147,7 +147,11 @@ chains). Bridge in BOTH directions:
 - A session inside a git worktree must query THAT worktree's graph:
   auto-alignment handles sessions launched there; after a mid-session
   EnterWorktree, call `use_workspace(<worktree name>)`. The
-  `session_briefing` workspace block warns on branch mismatch.
+  `session_briefing` workspace block reports the graph's provenance
+  (branch, commit, dirty) and warns when the INDEXED sources changed
+  since the build — not when the branch differs: an ff-merge-and-delete
+  moves the branch name and changes no indexed file, so silence there
+  means the indexed sources match.
 - Language-server identity errors mentioning `.claude.worktrees.*`
   module paths are wrong-rooted-server noise, not code bugs —
   discount them.
