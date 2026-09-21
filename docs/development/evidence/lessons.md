@@ -82,7 +82,7 @@ verified in seconds.
 
 ## L8 rebuild stale graph
 
-Absorbed into nexus-tools ("Stale graph: rebuild Sphinx first") — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes).
+Absorbed into `code-search` (the trigger and the rebuild command, since 2026-09-21) and the bundled `nexus-tools` rule (the remedy) — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes).
 
 **L8: Rebuild Sphinx if Nexus graph is stale**
 
@@ -93,7 +93,7 @@ rebuild after major file moves or restructuring.
 
 ## L9 explorer not explore
 
-Absorbed into nexus-tools (explorer is the exploration delegate) and Cardinal Rule 5 — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes).
+Absorbed into `code-search` (explorer is the exploration delegate; `nexus-tools` until 2026-09-21) and Cardinal Rule 5 — index line retired 2026-09-20 (ruling: the rule stays, the lesson goes).
 
 **L9: The explorer agent replaces built-in Explore**
 

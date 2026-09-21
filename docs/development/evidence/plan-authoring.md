@@ -593,6 +593,12 @@ One entry per row of the original table, in table order. **Surprise** is the row
 
 **Clause.** §2 [M]-SCOPE: `[M]` certifies that a measurement happened, not that it answers its sentence. The durable form is on the harness page: a claim about what a dispatch receives is measured by dispatching.
 
+### 2026-09-21 candidates carried stale
+
+**Surprise.** Compaction point 9 (CP#9) of the harness campaign listed four retirement candidates, "each needing its own ruling"; two of them (plan-authoring's appendix census, coding-standards' numbered audit) had been executed by the same campaign's step R3 (`63d758ca`) nine sections earlier, the same day. The list had been copied from CP#5 through CP#7 and CP#8 into CP#9 without re-reading the tree, and the session that resumed at CP#9 spent its first reads establishing what the plan should have said. Campaign: harness context budget (`.claude/plans/harness_context_budget.md`).
+
+**Clause.** §2 CARRIED-COUNT, read for a list: a list copied across compaction points is a claim about the tree at the date of the copy, and the check is the same, ask the artefacts (`git log`, the source pages) before writing the resume block; process-discipline's "trust git for merge status" is the same law for a campaign note.
+
 ## Founding cases
 
 The `> [M]` blockquotes of the rule's sections, un-quoted, in file order. The first line names the clause each one founded.

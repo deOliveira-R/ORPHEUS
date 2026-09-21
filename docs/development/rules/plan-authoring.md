@@ -64,7 +64,7 @@ The markers are `articulation` §5's (a bare number will be read as measured); i
 - **PREDICTED-THEN-MEASURED** Explain every unit of a predicted-vs-measured gap; registry-driven gates gain params from corpus surfaces the arithmetic never modelled. tell: "+1, close enough". [case](../evidence/plan-authoring.md#2026-08-30-predicted-count-delta)
 - **RECONCILE-THEN-EXPLAIN** An explanation of a measured delta is a claim and owes its `[M]` before publication. check: per-tree diff against the previous gate log BEFORE the write-up. [case](../evidence/plan-authoring.md#2026-09-14-explained-before-reconciled)
 - **FIRST-FINDING-GATE-MAXIMUM** A gate that asserts `k_eff` before `scalar_flux` stops at its first red; a maximum read from its report covers only the cases it reached. check: a set maximum comes from a full comparison over the set. [case](../evidence/plan-authoring.md#2026-09-17-first-finding-maximum)
-- **CARRIED-COUNT** A count copied three sections deep without its predicate ("12 `.npz`", where the artefacts say 10). check: a count names what it counts; ask the artefacts. [case](../evidence/plan-authoring.md#2026-09-17-count-without-predicate)
+- **CARRIED-COUNT** A count copied three sections deep without its predicate ("12 `.npz`", where the artefacts say 10). check: a count names what it counts; ask the artefacts. [case](../evidence/plan-authoring.md#2026-09-17-count-without-predicate) A list carried across compaction points is the same claim: a candidate list outlived its own execution by four points [case](../evidence/plan-authoring.md#2026-09-21-candidates-carried-stale)
 
 ## §3 A refuted premise is edited in place, never silently dropped
 
