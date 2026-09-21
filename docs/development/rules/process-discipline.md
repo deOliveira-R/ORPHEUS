@@ -2,6 +2,8 @@
 harness:
   kind: rule
   budget_tokens: 3000
+  brief: >-
+    never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy.
 ---
 
 # Process discipline — bugs, completion, and issue hygiene

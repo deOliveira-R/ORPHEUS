@@ -94,29 +94,34 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   project rule and no project memory index — only their AGENT.md, their own
   agent memory and their preloaded skills — this line is the only place a
   project rule reaches them; a `general-purpose` categoriser inherits the rules
-  and needs only its schema. Paste this line into the brief, filled in. Always:
-  never `git checkout` / `git restore` / `git stash` a path that carries
-  uncommitted edits (L28); whether the agent may edit tracked files at all (a
-  census is read-only); tests run as `python -O -m pytest`; if another agent
-  is editing the tree meanwhile, what, where and until when (L38); any
-  negative you assert about the tree ("X has no gate") marked `[R]` for the
-  agent to re-verify (L50). For a census: `grep` is ugrep and an anchor inside
-  an alternation group matches nothing, silently — use `\b…\b` or `-P` with a
-  lookbehind; name a POSITIVE CONTROL of each shape expected that the filter
-  must find before any zero is believed; every count states its predicate, its
-  tree and its exclusions, and a completeness claim is re-run in Python (`re` +
-  `pathlib.rglob`) so its denominator is stated. For literature: W7 above, in full — `scratch/literature/` first, spelled
-  out, then the OCR sidecars; "not in the local folder" is a question to the
-  user, never a pivot; Zotero at 0 hits plus connection refused is down, not
-  empty. For a design review (cross-domain-attacker): the
-  artefact's path; the return is structural detection, no critique. If the
-  task depends on Nexus: what to do when it is missing (a sub-agent has no
-  `ToolSearch`). Any campaign pointer the agent needs, verbatim — it has no
-  project memory index.>
+  and needs only its schema. Paste the generated list below, then the
+  task-specific items: whether the agent may edit tracked files at all (a
+  census is read-only); if another agent is editing the tree meanwhile, what,
+  where and until when (L38); any negative you assert about the tree ("X has
+  no gate") marked `[R]` for the agent to re-verify (L50). For literature: W7
+  above, in full — `scratch/literature/` first, spelled out, then the OCR
+  sidecars; "not in the local folder" is a question to the user, never a
+  pivot; Zotero at 0 hits plus connection refused is down, not empty. For a
+  design review (cross-domain-attacker): the artefact's path; the return is
+  structural detection, no critique. If the task depends on Nexus: what to do
+  when it is missing (a sub-agent has no `ToolSearch`). Any campaign pointer
+  the agent needs, verbatim — it has no project memory index.>
 Return contract: report under <N> words; the file(s) at <paths> carry the
   detail; a verification claim pastes the pytest summary line verbatim, in a code fence (L12);
   end with a NEEDS: block (see below), empty if nothing is missing.
 ```
+
+The generated list, one item per rule that declares a `brief:` in its
+`harness:` block (`tools/harness/brief.py` assembles it; a hand edit here is
+drift):
+
+<!-- BEGIN GENERATED brief rules — source: the harness.brief of every page under docs/development/rules/; edit the source, not this block -->
+- `articulation`: a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured.
+- `coding-standards`: tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
+- `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2).
+- `nexus-tools`: `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
+- `process-discipline`: never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy.
+<!-- END GENERATED brief rules -->
 
 For an Opus-pinned agent the word cap is not optional: Opus 5 writes longer
 responses and longer files by default, and every unbounded report lands in the

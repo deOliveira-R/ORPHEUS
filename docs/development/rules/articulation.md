@@ -2,6 +2,8 @@
 harness:
   kind: rule
   budget_tokens: 800
+  brief: >-
+    a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured.
 ---
 
 # Articulation — the writing standard

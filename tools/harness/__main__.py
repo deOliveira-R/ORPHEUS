@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import budget
+from . import brief, budget, ids
 from .pipeline import drift, generate, orphans
 from .source import DOCS_DEV, discover, rel
 from .targets import HARNESSES
@@ -42,6 +42,25 @@ def main(argv: list[str] | None = None) -> int:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(outputs[path].text, encoding="utf-8")
             print(f"harness {harness.name}: wrote {len(outputs)} targets ({len(drifted)} changed); {cost}")
+    # Plain-text citations by ID resolve against their registries, whatever the harness.
+    resolved, id_problems = ids.check()
+    for problem in id_problems:
+        print(f"PROBLEM: {problem}", file=err)
+    rc |= int(bool(id_problems))
+    if args.check:
+        print(f"citations by ID: {resolved} resolved, {len(id_problems)} dangling")
+    # The brief-rules block is a source-to-source derivation, the same for every harness.
+    text, problem = brief.render(pages)
+    if problem:
+        print(f"PROBLEM: {problem}", file=err)
+        rc = 1
+    elif text != brief.BRIEF_PAGE.read_text(encoding="utf-8"):
+        if args.check:
+            print(f"DRIFT: {rel(brief.BRIEF_PAGE)} differs from the rules' harness.brief (run the generator)")
+            rc = 1
+        elif not source_problems:
+            brief.BRIEF_PAGE.write_text(text, encoding="utf-8")
+            print(f"brief rules: wrote the block on {rel(brief.BRIEF_PAGE)}")
     return rc
 
 

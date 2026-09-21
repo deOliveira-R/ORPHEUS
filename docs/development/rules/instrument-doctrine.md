@@ -2,6 +2,8 @@
 harness:
   kind: rule
   budget_tokens: 1500
+  brief: >-
+    a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2).
 ---
 
 # Instrument doctrine — four statements every claim is held to

@@ -2,6 +2,8 @@
 harness:
   kind: rule
   budget_tokens: 5900
+  brief: >-
+    tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
 ---
 
 # Coding standards — the minimum-quality floor

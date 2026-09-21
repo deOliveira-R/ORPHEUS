@@ -8,6 +8,8 @@ A page under ``docs/development/`` that a harness renders declares itself in a
       kind: rule            # rule | skill | agent | index | onboarding
       budget_tokens: 1200
       paths: ["tests/**"]   # optional: a rule that loads only for these paths
+      brief: >-             # optional, rules only: the one sentence a brief carries
+        ...                 # to an agent that loads no rule (tools/harness/brief.py)
     ---
 
 Discovery is path-scoped, so an omission is a PROBLEM and never a silent
@@ -43,7 +45,7 @@ class Kind(StrEnum):
 
 KIND_DIRS = {"rules": Kind.RULE, "skills": Kind.SKILL, "agents": Kind.AGENT}
 TOP_LEVEL_KINDS = frozenset({Kind.INDEX, Kind.ONBOARDING})
-BLOCK_KEYS = frozenset({"kind", "budget_tokens", "paths"})
+BLOCK_KEYS = frozenset({"kind", "budget_tokens", "paths", "brief"})
 _FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.S)
 _BLOCK = re.compile(r"(?m)^harness:[^\n]*\n(?:[ \t]+[^\n]*\n|[ \t]*\n(?=[ \t]+\S))*")  # the key line, its indented continuation, blank lines inside
 
@@ -58,6 +60,7 @@ class Page:
     body: str
     budget_tokens: int
     paths: tuple[str, ...] = ()
+    brief: str | None = None   # rules only: what a brief to a rule-less agent says for this rule
 
 
 def rel(path: Path) -> str:
@@ -119,6 +122,11 @@ def read(path: Path, root: Path = DOCS_DEV) -> tuple[Page | None, list[str]]:
     paths = block.get("paths", [])
     if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths):
         return None, [f"{where}: harness.paths must be a list of strings"]
+    brief = block.get("brief")
+    if brief is not None and (not isinstance(brief, str) or not brief.strip()):
+        return None, [f"{where}: harness.brief must be a non-empty string"]
+    if brief is not None and kind is not Kind.RULE:
+        return None, [f"{where}: harness.brief is meaningful only on a rule"]
     remaining = _BLOCK.sub("", front_text)
     rest, problem = _load(remaining, where)
     if rest is None or rest != {k: v for k, v in meta.items() if k != "harness"}:
@@ -129,7 +137,7 @@ def read(path: Path, root: Path = DOCS_DEV) -> tuple[Page | None, list[str]]:
     if kind is Kind.SKILL and not {"name", "description"} <= set(rest):
         return None, [f"{where}: a skill source needs the Agent Skills front matter (name, description) beside its harness: block"]
     body = text[m.end():] if m else text
-    return Page(kind, path.stem, path, where, front_matter, body, budget, tuple(paths)), []
+    return Page(kind, path.stem, path, where, front_matter, body, budget, tuple(paths), brief.strip() if brief else None), []
 
 
 def discover(root: Path = DOCS_DEV) -> tuple[list[Page], list[str]]:

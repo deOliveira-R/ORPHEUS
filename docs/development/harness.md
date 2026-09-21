@@ -53,7 +53,22 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   in its front matter (a round figure above the measured size, never more than
   400 above it: `tools/harness/budget.py`), add the page to `index.rst`, run the
   generator. A rule is always-on for every Key agent and the main agent: it
-  earns that only if it applies to every artefact an agent writes.
+  earns that only if it applies to every artefact an agent writes. When a
+  Support brief must carry one sentence of the rule (the three Support agents
+  load no rule), that sentence is the block's `brief:`; `tools/harness/brief.py`
+  assembles every rule's brief into the generated list on
+  [the workflows page](workflows.md#the-brief), so the copy the brief template
+  needs is a build product and a hand edit to it is drift.
+- **A citation by ID is checked.** `--check` resolves every plain-text ID a
+  core cites (X1–X4, Cardinal Rule N, Pattern N, `vv-principles` or
+  `coding-elegance` #N, mode N, ERR-NNN, Lnn, a coding-standards item such as
+  B.4, a plan-authoring tag with two or more hyphens) against the page that
+  defines it (`tools/harness/ids.py`), the way the build checks a link's anchor;
+  a renamed or retired definition reddens at every site that still cites it.
+  Not checked, so a clean run is read for what it is: a bare `#N` with no page
+  named before it in the paragraph (it reads as an issue number and is a
+  problem in its own right), `L1`–`L4` (also the V&V levels), a tag with fewer
+  than two hyphens, and the evidence pages.
 - **A skill**: `docs/development/skills/<name>.md` with YAML front matter
   (`name`, `description` — the harness reads them) and the `harness:` block
   beside them, the page in `index.rst`; preload it from an agent's `skills:` list when that

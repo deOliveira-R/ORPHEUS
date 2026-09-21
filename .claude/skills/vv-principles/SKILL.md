@@ -133,7 +133,7 @@ round-trip at 1e-16 offered as the floor (ERR-061).
 **k = νΣ_f / Σ_a is flux-shape independent** — a 1-group eigenvalue test cannot
 detect any error in the spatial, angular or scattering operators.
 **Multi-group (≥2G) is MUST for any verification claim.** Canonical home of the
-retired "Cardinal Rule 6"; anti-pattern #3 is its operational form.
+retired sixth cardinal rule; anti-pattern #3 is its operational form.
 
 ---
 

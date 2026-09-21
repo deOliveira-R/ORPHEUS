@@ -158,7 +158,7 @@ the exposure.
 - Rule: `instrument-doctrine` (always-on). Instances, each citing its
   statement by ID: `vv-principles` #7, #11–#14, #17–#20, #22–#24, #26, #31,
   #34, #36 and test-design mode 8; `plan-authoring` §2, §6c, §8, §10;
-  `coding-standards` D.16, E.18 and the retirement audit; `coding-elegance`
+  `coding-standards` D.16, D.18 and the retirement audit; `coding-elegance`
   Pattern 2, Pattern 7, anti-patterns #1 and #20; Cardinal Rule 2.
 - Evidence: [V&V anti-patterns](../evidence/vv-anti-patterns.md),
   [test-design modes](../evidence/test-design-modes.md),

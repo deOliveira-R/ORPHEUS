@@ -325,3 +325,106 @@ def test_neutral_modules_name_no_harness_and_import_no_implementation() -> None:
     assert imports_an_implementation(PKG / "__main__.py"), "`from .targets import HARNESSES` is an implementation import"
     assert imports_an_implementation(PKG / "targets" / "__init__.py"), "`from .claude_code import ClaudeCode` is one"
     assert not imports_an_implementation(PKG / "pipeline.py"), "`from .targets.base import Harness` is the one allowed edge"
+
+
+# ------------------------------------------------------------ brief rules
+
+def test_brief_is_read_on_a_rule_and_refused_elsewhere(tmp_path: pathlib.Path) -> None:
+    from tools.harness import brief as brief_mod
+
+    root = tmp_path / "docs"
+    write(root / "rules" / "b.md", front("rule", extra="  brief: >-\n    second sentence,\n    folded.\n") + "# B\n")
+    write(root / "rules" / "a.md", front("rule", extra="  brief: one sentence.\n") + "# A\n")
+    write(root / "rules" / "c.md", front("rule") + "# C\n")
+    pages, problems = discover(root)
+    assert problems == []
+    assert {p.name: p.brief for p in pages} == {"a": "one sentence.", "b": "second sentence, folded.", "c": None}
+    block = brief_mod.assemble(pages)
+    assert block.label == brief_mod.LABEL
+    assert block.text == "- `a`: one sentence.\n- `b`: second sentence, folded."  # page-name order; a rule without a brief contributes nothing
+    write(root / "skills" / "s.md", SKILL_FRONT.replace("  budget_tokens: 400\n", "  budget_tokens: 400\n  brief: nope\n"))
+    _, problems = discover(root)
+    assert any("harness.brief is meaningful only on a rule" in p for p in problems)
+    write(root / "rules" / "d.md", front("rule", extra="  brief: ''\n") + "# D\n")
+    _, problems = discover(root)
+    assert any("harness.brief must be a non-empty string" in p for p in problems)
+
+
+def test_brief_block_is_spliced_and_a_hand_edit_inside_it_is_drift(tmp_path: pathlib.Path) -> None:
+    from tools.harness import brief as brief_mod
+
+    begin, end = markers(brief_mod.LABEL, brief_mod.SOURCE)
+    page_path = write(tmp_path / "workflows.md", f"# W\n\ntext\n\n{begin}\nstale\n{end}\n\ntail\n")
+    pages = [page(Kind.RULE, "r", path=tmp_path / "rules" / "r.md")]
+    pages = [Page(p.kind, p.name, p.path, p.rel, p.front_matter, p.body, p.budget_tokens, p.paths, "the sentence.") for p in pages]
+    text, problem = brief_mod.render(pages, page_path)
+    assert problem is None
+    assert f"{begin}\n- `r`: the sentence.\n{end}\n\ntail\n" in text and "stale" not in text and text.startswith("# W\n\ntext\n")
+    page_path.write_text(text, encoding="utf-8")
+    again, _ = brief_mod.render(pages, page_path)
+    assert again == text  # idempotent: no drift once written
+    page_path.write_text(text.replace("the sentence.", "an edit by hand."), encoding="utf-8")
+    fixed, _ = brief_mod.render(pages, page_path)
+    assert fixed == text  # the hand edit is drift: the generator restores the source's text
+
+
+def test_the_real_workflows_page_carries_the_brief_block_of_every_rule_that_declares_one() -> None:
+    from tools.harness import brief as brief_mod
+
+    pages, problems = discover()
+    assert problems == []
+    declared = sorted(p.name for p in pages if p.kind is Kind.RULE and p.brief)
+    assert declared, "no rule declares a brief: the block would be empty and the template would carry the copy by hand again"
+    text = brief_mod.BRIEF_PAGE.read_text(encoding="utf-8")
+    begin, end = markers(brief_mod.LABEL, brief_mod.SOURCE)
+    inside = text.split(begin, 1)[1].split(end, 1)[0]
+    assert [line.split("`")[1] for line in inside.strip().splitlines()] == declared
+
+
+# ---------------------------------------------------------- citations by ID
+
+def test_every_registry_reads_a_known_member_of_the_real_tree() -> None:
+    from tools.harness import ids
+
+    reg = ids.registries()
+    assert "X2" in reg.x and "4" in reg.cardinal and "7" in reg.pattern and "8" in reg.mode
+    assert "17" in reg.anti["vv-principles"] and "20" in reg.anti["coding-elegance"]
+    assert "ERR-026" in reg.err and "L28" in reg.lesson and "B.4" in reg.item and "D.18" in reg.item and "E.18" not in reg.item
+    assert "VALIDATE-THE-FILTER" in reg.tag and "A-LIST-IS-N-CENSUSES" in reg.tag
+
+
+def test_citations_are_found_outside_code_and_qualified_in_their_paragraph() -> None:
+    from tools.harness import ids
+
+    text = ("X2 and Cardinal Rules 1, 4 and 5; Pattern 7 and Patterns 2 ∩ 4; mode 8; ERR-026 and `catches(\"ERR-999\")`;\n"
+            "L28 but L1 and `L999`; B.4 and D.18; VALIDATE-THE-FILTER and A-LIST-IS-N-CENSUSES but ONE-HYPHEN.\n\n"
+            "`vv-principles` #17, #11–#14 and `coding-elegance` #20.\n\n#3 alone.\n\n```\nX9 ERR-999 in a fence\n```\n")
+    found = {(c.kind, c.id) for c in ids.citations(text, "some-page")}
+    assert found == {("x", "X2"), ("cardinal", "1"), ("cardinal", "4"), ("cardinal", "5"), ("pattern", "7"),
+                     ("pattern", "2"), ("pattern", "4"), ("mode", "8"), ("err", "ERR-026"), ("lesson", "L28"),
+                     ("item", "B.4"), ("item", "D.18"), ("tag", "VALIDATE-THE-FILTER"), ("tag", "A-LIST-IS-N-CENSUSES"),
+                     ("anti:vv-principles", "17"), ("anti:vv-principles", "11"), ("anti:vv-principles", "14"),
+                     ("anti:coding-elegance", "20"), ("anti:None", "3")}
+    own = {(c.kind, c.id) for c in ids.citations("#3 alone.", "vv-principles")}
+    assert own == {("anti:vv-principles", "3")}
+
+
+def test_a_dangling_citation_of_every_kind_is_a_problem(tmp_path: pathlib.Path) -> None:
+    from tools.harness import ids
+
+    seeded = write(tmp_path / "seeded.md", "X5. Cardinal Rule 6. Pattern 9. mode 13. ERR-999. L999. A.99. "
+                                           "NOT-A-TAG-AT-ALL. `vv-principles` #99. `coding-elegance` #99.\n\n#3 alone.\n")
+    control = write(tmp_path / "control.md", "X2, Cardinal Rule 4, Pattern 7, mode 8, ERR-026, L28, B.4, VALIDATE-THE-FILTER, `vv-principles` #17.\n")
+    resolved, problems = ids.check(pages=[seeded, control])
+    assert resolved == 9, problems
+    dangling = sorted(p.split(": ", 1)[1].split(",")[0] for p in problems)
+    assert dangling == sorted(["cites x X5", "cites cardinal 6", "cites pattern 9", "cites mode 13", "cites err ERR-999",
+                               "cites lesson L999", "cites item A.99", "cites tag NOT-A-TAG-AT-ALL",
+                               "cites anti 99", "cites anti 99", "cites #3 with no page named before it in the paragraph (an anti-pattern needs `vv-principles` or `coding-elegance` beside it; an issue is never a bare #N)"])
+
+
+def test_the_real_tree_has_no_dangling_citation() -> None:
+    from tools.harness import ids
+
+    resolved, problems = ids.check()
+    assert problems == [] and resolved > 200, (resolved, problems)
