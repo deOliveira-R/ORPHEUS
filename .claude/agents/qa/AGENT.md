@@ -8,7 +8,6 @@ description: >
   convention drift), and ensures claims are backed by evidence at the
   right V&V level.
 tools:
-  - Skill
   - Read
   - Grep
   - Glob

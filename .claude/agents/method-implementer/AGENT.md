@@ -14,7 +14,6 @@ description: >
   production), wires the L1 cross-check, and ships a Sphinx stub that
   the archivist later expands.
 tools:
-  - Skill
   - Read
   - Write
   - Edit

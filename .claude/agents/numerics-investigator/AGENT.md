@@ -8,7 +8,6 @@ description: >
   analysis, and per-component elimination. Diagnostic scripts that
   prove useful are promoted to permanent tests.
 tools:
-  - Skill
   - Read
   - Write
   - Edit

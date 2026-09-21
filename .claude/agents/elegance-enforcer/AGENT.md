@@ -17,7 +17,6 @@ description: >
   <example>Context: Main agent just finished writing a new feature inline (not via sub-agent). user: 'That looks good, let's commit.'
   assistant: 'Before committing, I'm going to use the Agent tool to launch the elegance-enforcer agent to review the new code against the coding-elegance discipline.' <commentary>Even main-agent-written code benefits from a fresh-context elegance review, because shipping pressure biases toward shortest paths. The elegance-enforcer has coding-elegance preloaded and the discipline to demand structural correctness.</commentary></example>
 tools:
-  - Skill
   - Read
   - Grep
   - Glob

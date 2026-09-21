@@ -81,7 +81,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
 - **An agent**: `docs/development/agents/<name>.md` (role, phases, supports,
   return contract) with its `harness:` block, the page in `agents/index.rst`; the
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
-  omits `Agent`; every Key agent lists `Skill`), the memory scope and
+  omits `Agent`; no agent lists `Skill`), the memory scope and
   `omitClaudeMd`; an edit to `tools:` is live from the next harness start, an
   edit to `skills:` or the role block from the next dispatch.
 - **Distilling a page into a core**: every clause keeps its imperative, its
@@ -117,8 +117,17 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   dispatch: qa and method-implementer, with `Skill` added to their lists, held
   no `Skill` tool until Claude Code was restarted, then held it and loaded
   `nexus-guide` on demand, while the `retirement-audit` preload added to qa's
-  `skills:` reached the next dispatch of the same session. Every Key agent
-  now lists `Skill`, so a rule that says "load skill X" reaches it.
+  `skills:` reached the next dispatch of the same session. No Key agent lists
+  `Skill` (ruling 2026-09-21: a preload is specific and reproducible per
+  dispatch, and the tool carries its own context cost), so a sub-agent's
+  skills are its `skills:` preload and a rule that says "load skill X"
+  reaches a sub-agent only through that list. The cost, `[M]` 2026-09-21 by
+  the two-arm probe (haiku, `omitClaudeMd`, `tools: [Read]` against
+  `tools: [Read, Skill]`, a fresh headless parent): listing `Skill` injects
+  the roster of every skill the environment holds with its description, 77
+  entries including every installed plugin's, for **2 613** first-turn tokens
+  (5 822 against 3 209); the roster is the environment's, not the project's,
+  so the cost grows with plugins the project never uses.
 
 ## Session start
 

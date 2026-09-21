@@ -7,7 +7,6 @@ description: >
   convergence rates, and which parameter regimes expose which failure
   modes. Creates test specifications and pytest implementations.
 tools:
-  - Skill
   - Read
   - Write
   - Edit
@@ -18,6 +17,7 @@ tools:
 mcpServers:
   - nexus
 skills:
+  - retirement-audit
   - instrument-doctrine
   - nexus-verification
   - nexus-impact
