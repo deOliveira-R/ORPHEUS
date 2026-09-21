@@ -57,9 +57,8 @@ believe is structural; re-measure the repaired module's own suite separately,
 to tell *no witness* from *not measured*.
 
 **Execution evidence.** A gate is evidence only if it RUNS under the canonical
-invocation: check the asserting statement survives `python -O` (pytest rewrites
-collected test modules; a bare `assert` in a helper or a generator is
-compiled out), check the marker set is not deselected by `-m "not slow"`, and
+invocation: check the asserting statement survives `python -O` (the scope is
+`coding-standards` § "A bare `assert`"), check the marker set is not deselected by `-m "not slow"`, and
 for a re-routed path check with a counting spy that the gate still reaches the
 changed line.
 

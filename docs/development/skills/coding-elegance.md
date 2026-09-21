@@ -297,7 +297,8 @@ its ERR cross-cites.
    [case](../evidence/coding-elegance.md#ap7-special-cases)
 8. **NEVER** validate inputs deep inside a function — **instead** parse at the
    boundary and trust the type. `def f(x: NonNegativeFloat)` is structural; an
-   inner `assert x >= 0` is procedural — and `python -O` strips it.
+   inner `assert x >= 0` is procedural, and `python -O` strips it
+   (`coding-standards` § "A bare `assert`").
    [case](../evidence/coding-elegance.md#ap8-deep-validation)
 9. **NEVER** write code you would have to comment to explain to a domain expert —
    **instead** name in the domain's vocabulary and let the code be the comment.
@@ -334,10 +335,9 @@ its ERR cross-cites.
     loop happens to visit cells in a good order".
     [case](../evidence/coding-elegance.md#ap16-sequential-ordering)
 17. **NEVER** loosen a test tolerance to paper over a known approximation gap —
-    **instead** document the gap in docstring AND test, pin the residual with a
-    structurally-independent reference proving it is approximation not bug, and
-    file the closure issue. The tolerance is a CONTRACT (ERR-036/038 both shipped
-    `tol=5e-2`).
+    **instead** treat the tolerance as the contract it is and repair per
+    `vv-testing` § "Never relax a tolerance to fit an inexact method"
+    (ERR-036/038 both shipped `tol=5e-2`).
     [case](../evidence/coding-elegance.md#ap17-loosened-tolerance)
 18. **NEVER** strand an iterative method's convergence data (contraction ratio
     `ρ`, a-posteriori `‖Δx‖/(1−ρ)`, Aitken Δ²) — **instead** home it on the
@@ -445,8 +445,8 @@ The checklist is fast — under a minute per file. The cost of running it is sma
   survives. [case](../evidence/coding-elegance.md#symmetry-in-math-and-in-code)
 - **Bugs cluster at corners, not the interior.** The bug-rich region is the
   boundary between regimes (boundary, pole, group coupling, angular coupling);
-  probe corners deliberately: the convenient MMS is isotropic-flat, the
-  bug-rich one angularly-varying with discontinuous σ_t.
+  probe corners deliberately (the convenient MMS nulls the term the bug lives
+  in: `vv-principles` mode 7).
   [case](../evidence/coding-elegance.md#bugs-cluster-at-corners)
 - **Cross-cutting concerns belong in the type system, not in coding
   discipline.** "Remember to apply the BC at every entry" is fragile;

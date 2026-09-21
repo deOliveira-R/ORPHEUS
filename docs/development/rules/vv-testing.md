@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1000
+  budget_tokens: 1300
   paths:
     - "tests/**"
     - "tests/_harness/**"
@@ -26,9 +26,10 @@ living under `assert` (`Field._check_partner`).
   reason=…)` with a companion `@pytest.mark.skipif(__debug__, …)`
   "strip-verified" test; any new test depending on a production-code `assert`
   carries this pair.
-- pytest's assertion rewriting still works under `-O` for `assert` inside test
-  files (AST-rewritten); only production-code (`orpheus/`) asserts are
-  stripped.
+- The scope of `-O` (a collected test module keeps its `assert`s; a helper, a
+  fixture, a `conftest`, a generator and production code lose them) is
+  `coding-standards` § "A bare `assert`"; outside a collected module assert
+  with `np.testing.assert_*` or a `raise`.
 
 ## Never relax a tolerance to fit an inexact method
 
@@ -47,6 +48,11 @@ assertion; implement or substitute one that IS exact.
    structurally independent (`vv-principles` #7 and its structural-independence
    section): prefer a bit-identical unit-vector cross-check over a merely
    procedurally-independent loop-vs-einsum comparison.
+4. A KNOWN approximation gap (a method inexact by design) is no reason to
+   loosen either: document the gap in the docstring AND the test, pin the
+   residual against a structurally-independent reference proving it is
+   approximation and not bug, and file the closure issue (ERR-036 and ERR-038
+   both shipped `tol=5e-2`).
 
 ## Tagging & linking (the `tests/_harness/` registry)
 
@@ -61,7 +67,8 @@ assertion; implement or substitute one that IS exact.
   :label:` in `docs/theory/`); Nexus writes a `tests` edge from the test node
   to the equation node.
 - **Link to a caught bug:** `@pytest.mark.catches("ERR-NNN")` for every
-  `error_catalog.rst` entry.
+  `error_catalog.rst` entry. Either marker is a coverage CLAIM with a shelf
+  life, adjudicated per `vv-principles` § "Log every caught bug".
 
 ## Trivial execution & audit
 

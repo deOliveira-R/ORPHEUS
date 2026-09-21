@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 5500
+  budget_tokens: 5900
 ---
 
 # Coding standards — the minimum-quality floor
@@ -29,9 +29,10 @@ Pythonic code: dataclasses, type hints, scipy. Every number a module or a test c
 
 ## A bare `assert` in `orpheus/` is not a contract — the canonical runner strips it
 
-`python -O -m pytest` is canonical; `-O` sets `__debug__ = False` and removes every `assert` at compile time. A contract written as a bare `assert` **does not run in the suite that matters**, and the code ships accepting the input the assert refuses.
+`python -O -m pytest` is canonical; `-O` sets `__debug__ = False` and removes every `assert` at compile time. The scope: pytest rewrites the `assert`s of a COLLECTED test module, so those survive; a bare `assert` anywhere else, in production code, a test helper, a fixture, a `conftest` or a generator, is compiled out. A contract written as a bare `assert` there **does not run in the suite that matters**: production ships accepting the input the assert refuses, and a helper's gate passes whatever it is given.
 
 - check: `grep -n "^\s*assert " orpheus/` and sort the hits. **Type-narrowing** (`assert x is not None` for pyright) may stay: it was never the guard. A **numerical / domain / admission contract** (a tolerance, an invariant, a shape law) **MUST be a real `raise`**, modelled on the nearest admission guard (`_assert_alpha_dome_closes`) so the vocabulary stays greppable.
+- check, in tests: an assertion outside a collected module is `np.testing.assert_*` or a `raise`; a test that exercises a production `assert` on purpose (a Layer-3 check) carries the `skipif` pair of `vv-testing`.
 - **Prove it, don't argue it.** Run the guard's own arithmetic on a deliberately-bad input under `python` and under `python -O`. tell: it returns instead of raising, so the contract is inert. [case](../evidence/coding-standards.md#2026-08-12-alpha-dome-assert)
 - **Converting one is a retirement** (the audit below); tests pin the **shortest distinctive fragment of the OLD assert's message**: grep that, not your new wording.
 - Cardinal Rule 2 first, then the guard: the founding recursion had **three copies**, which is why the contract could live on one arm only.
@@ -51,12 +52,12 @@ Superseded code is noise that invites extending the wrong path. **Retirement is 
 **A. The three searches — run all three, then retire.**
 
 1. **Graph callers.** check: `nexus impact` / `callers`; necessary, NOT sufficient. tell: `callers()==0` but live via a `cached_property`; class-name *bypass* consumers; direct constructors of a guarded type.
-2. **Text-grep the symbol across code, tests, AND `docs/`.** An unresolved Python-domain xref (`:func:`/`:class:`/`:meth:`/`:mod:`) renders as plain text with **no `-W` warning, and `-n` does NOT save you**: Sphinx nitpicks only what it RENDERS, and only ~45 modules are `automodule`'d; nothing under `tests/` renders. check: is the module rendered at all? If not, **grep is the only gate**. tell: an unchanged warning count (it proves nothing). [M] 2026-07-15: `:doc:`/`:ref:` DO warn; raw path strings never do (grep a segment-assembled path by its **last segment**). [case](../evidence/coding-standards.md#2026-07-15-sphinx-severity)
+2. **Text-grep the symbol across code, tests AND `docs/`, then read the surfaces a symbol grep cannot reach; each surface has one instrument.** Raw text and comments: `grep`. A rendered Python-domain xref (`:func:`/`:class:`/`:meth:`/`:mod:`): `sphinx -W`, but Sphinx nitpicks only what it RENDERS, only ~45 modules are `automodule`'d and nothing under `tests/` renders, so an unresolved xref elsewhere renders as plain text with no warning at any severity and `-n` does not save you. A docstring or a quoted annotation: `dead_references` only (item 4). `:doc:`/`:ref:`: they warn (`[M]` 2026-07-15). A path string assembled from segments: nothing warns; grep its **last segment**. An import edge, which is not a string: an inline or late import, a `TYPE_CHECKING` block, an alias (`from numpy import linalg as la`), a re-export: the Nexus graph (`nexus-tools`). check: is the module rendered at all? If not, **grep is the only gate**. tell: an unchanged warning count (it proves nothing). [case](../evidence/coding-standards.md#2026-07-15-sphinx-severity)
 3. **Direct constructors** of any guarded type. check: grep `T(`; a guard-at-source change reaches every `T(...)` caller, not just the factory path. tell: the factory path is guarded while `T(...)` callers are not.
 
 **B. Surfaces a symbol grep cannot reach.**
 
-4. **`dead_references` is the only instrument that reads the DOCSTRING surface.** check: run it before calling any retirement or re-home done, and after the fix. tell: a validated AST import audit returned **0** while 5 dead targets sat in docstrings; the filter pointed at the wrong SURFACE. [case](../evidence/coding-standards.md#2026-08-28-p44-dead-references)
+4. **`dead_references` reads the DOCSTRING surface, which nothing else does (A.2).** check: run it before calling any retirement or re-home done, and after the fix. tell: a validated AST import audit returned **0** while 5 dead targets sat in docstrings; the filter pointed at the wrong SURFACE. [case](../evidence/coding-standards.md#2026-08-28-p44-dead-references)
 5. **A math symbol has THREE spellings, and the NUMBER is a fourth**: ASCII identifier (`tau_raw`), Unicode prose (`τ_raw`), LaTeX role body (`\tau_{\rm raw}`). check: grep all three, then the number the claim carries (`tfrac15|tfrac45`). tell: a two-spelling sweep reports clean while a page still asserts the old figure. [case](../evidence/coding-standards.md#2026-08-11-tau-raw-spellings)
 6. **A name inside a STRING.** `\.name\b` and `name\s*[:=]` miss `getattr(x,"name",None)`, `hasattr`, `setattr`, `__getattr__` keys. check: `grep -rnE "['\"]<symbol>['\"]"` on every retired name, then read what each default MEANS. tell: nothing raises; the call returns the DEFAULT and every branch keyed on it flips. [case](../evidence/coding-standards.md#2026-08-26-curvature-getattr)
 7. **Grep the CONCEPT, not only the symbol.** A field is documented by NAME (greppable) and by PARAPHRASE (not): a column headed "Sweep-cycle flag" carries per-law values with no symbol in any cell. check: grep the hyphen/space variants too, then **triage every hit by MEANING**. tell: 7 exact hits beside 17 missed cells; 11 of 17 flagged pages false positives. [case](../evidence/coding-standards.md#2026-08-11-tau-raw-spellings)
