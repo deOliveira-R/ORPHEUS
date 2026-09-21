@@ -92,6 +92,7 @@ user's signal, when routine refactor cycles resume.
 Nested dispatch works to three layers; a sub-agent's `tools:` allowlist decides
 whether it holds `Agent`. Sub-agents carry `SendMessage` and can address named
 siblings; a finished agent resumes on message with its full history. A dispatch
-inherits CLAUDE.md, every rule file and the memory index (`[M]` 2026-09-20, the
-keep − omit haiku probe at the first turn: 30 655 tokens after this restructure,
-70 966 before it) unless the agent sets `omitClaudeMd: true`.
+inherits CLAUDE.md, every rule file and the memory index (`[M]` 2026-09-21, the
+keep − omit haiku probe at the first turn: 28 705 tokens with every rule
+generated, 70 966 before the restructure) unless the agent sets
+`omitClaudeMd: true`.
