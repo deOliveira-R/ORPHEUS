@@ -41,7 +41,7 @@ grep -n "ray effect" "scratch/literature_ocr/<stem>.md"   # → its '## p. N'
 # then: Read the PDF with pages=N to verify against the rendered page
 ```
 
-**Discipline (normative owner: `.claude/rules/delegation.md` + the
+**Discipline (normative owner: workflow W7 in `docs/development/workflows.md` + the
 literature-researcher Tier-0 block):** the scan is the SSOT — spot-verify
 load-bearing equations against the rendered page before they enter docs
 or code; paraphrase + page-cite, keep verbatim quotes short, SELECT from
@@ -570,4 +570,4 @@ All clients enforce throttling automatically.
 - **Map notation** to ORPHEUS conventions when reporting equations
 - **Phantom-citation guard**: a reference whose ONLY provenance is a prior note/memory is UNVERIFIED — resolve its DOI against a real database (CrossRef/OpenAlex/the journal) before relying on it; AI-suggested citations hallucinate
 - **Catalogue ≠ method-source**: a benchmark/catalogue paper that TABULATES results is not the source of the METHOD — trace the method to its original derivation paper, and classify a method by READING its derivation, not by which catalogue cites it
-- **Check the local literature folder FIRST** before any online search — see `.claude/rules/delegation.md` (`scratch/literature/`)
+- **Check the local literature folder FIRST** before any online search — see workflow W7 in `docs/development/workflows.md` (`scratch/literature/`)

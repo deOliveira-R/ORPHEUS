@@ -24,7 +24,7 @@ omitClaudeMd: true
 <!-- BEGIN GENERATED role block — source: docs/development/agents/literature-researcher.md; edit the source, not this block -->
 # literature-researcher — role block
 
-**Role:** Support. **Phases:** W7; W1-P0 and W1-P2 when a formulation is published. **Spawns:** nothing; launched without the project rules — the brief carries the "Rules that apply to you" line of [the template](../../../docs/development/workflows.md#the-brief), whose literature clause is the `delegation` rule's § "Briefing a literature pull" in full. **Method:** `scratch/literature/` first, then the OCR sidecars, then online; "not in the local folder" is a question to the user, never a pivot. Paraphrase and page-cite; write findings to the memo incrementally. **Return contract:** the memo at the path the brief names; report under 300 words; end with `NEEDS:`.
+**Role:** Support. **Phases:** W7; W1-P0 and W1-P2 when a formulation is published. **Spawns:** nothing; launched without the project rules — the brief carries the "Rules that apply to you" line of [the template](../../../docs/development/workflows.md#the-brief), whose literature clause is [W7](../../../docs/development/workflows.md#w7--literature-acquisition) in full. **Method:** `scratch/literature/` first, then the OCR sidecars, then online; "not in the local folder" is a question to the user, never a pivot. Paraphrase and page-cite; write findings to the memo incrementally. **Return contract:** the memo at the path the brief names; report under 300 words; end with `NEEDS:`.
 <!-- END GENERATED role block -->
 # Literature Researcher
 
@@ -198,7 +198,11 @@ instead.
 
 **When to fall back to Tier 2**:
 
-- Zero hits in Zotero → search OSTI/arXiv/OpenAlex in parallel.
+- Zero hits in Zotero on an item known to be present, together with
+  connection-refused on port 23119, means the server is DOWN, not that the
+  library lacks the paper: stop querying, record "Zotero down — no
+  annotations checked", and proceed on the local folder and Tier 2. A
+  genuine zero on a live server → search OSTI/arXiv/OpenAlex in parallel.
 - Paper in Zotero, need who-cites-it → OpenAlex or Semantic Scholar.
 - Paper in Zotero, metadata looks suspect → CrossRef `get_work(doi)`
   to confirm journal/volume/year.

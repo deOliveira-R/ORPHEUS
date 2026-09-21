@@ -60,8 +60,27 @@ schema, the predicate, the slice, the positive control. No nesting.
 ## W7 — Literature acquisition
 
 **literature-researcher**: `scratch/literature/` first, then the OCR sidecars
-(`scratch/literature_ocr/`), then online. "Not in the local folder" is a
-question to the user, never a unilateral pivot to a secondary source.
+(`scratch/literature_ocr/`), then online. The brief spells out the exact path
+and, when the paper is known to be local, is phrased as "extract equations from
+the local PDF at `<full path>`" rather than "find and acquire paper X": the
+first is unambiguous and cheap. The user maintains the folder actively and has
+every Nuclear Science & Engineering volume locally. "Not in the local folder"
+is the agent's FIRST response, as a question to the user ("acquire it, or
+will you add it?"), never a unilateral pivot to a secondary source: a pivot is a structural decision (a
+different math path, possibly a weaker verification claim) that needs the
+user's approval, not agent autonomy. The sidecar-first search, the scan as the
+source of truth for every load-bearing equation, the paraphrase-and-page-cite
+output discipline and the incremental write of the memo (the 2026-07-22
+content-filter deaths: two agents killed mid-generation lost everything,
+zero bytes written) are the agent's own procedure, carried by its AGENT.md,
+not by the brief.
+
+**Zotero liveness: 0 hits is not "empty".** A Zotero MCP server returning 0
+hits on a known-present item together with connection-refused on port 23119 is
+BROKEN, not a library that lacks the paper; the misreading is silent and burns
+turns on repeated 0-hit queries. Stop querying, record "Zotero down — no
+annotations checked", and proceed on the local folder and the web tier. This
+applies to any agent briefed to consult Zotero, not only literature-researcher.
 
 ## The brief
 
@@ -86,10 +105,10 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   lookbehind; name a POSITIVE CONTROL of each shape expected that the filter
   must find before any zero is believed; every count states its predicate, its
   tree and its exclusions, and a completeness claim is re-run in Python (`re` +
-  `pathlib.rglob`) so its denominator is stated. For literature: the `delegation` rule's section
-  "Briefing a literature pull", in full — `scratch/literature/` first, spelled
+  `pathlib.rglob`) so its denominator is stated. For literature: W7 above, in full — `scratch/literature/` first, spelled
   out, then the OCR sidecars; "not in the local folder" is a question to the
-  user, never a pivot. For a design review (cross-domain-attacker): the
+  user, never a pivot; Zotero at 0 hits plus connection refused is down, not
+  empty. For a design review (cross-domain-attacker): the
   artefact's path; the return is structural detection, no critique. If the
   task depends on Nexus: what to do when it is missing (a sub-agent has no
   `ToolSearch`). Any campaign pointer the agent needs, verbatim — it has no

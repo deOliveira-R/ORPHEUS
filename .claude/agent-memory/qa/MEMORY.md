@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (**1023 lines** at 2026-09-20 — ⛔ OVER the distillation trigger by 2.5x; distil BEFORE the next append). Behavioral rules
+- **[lessons.md](lessons.md)** — the HOT digest (**1051 lines** at 2026-09-20 — ⛔ OVER the distillation trigger by 2.6x; distil BEFORE the next append). Behavioral rules
   only: one imperative rule + its failure→correction core + a
   `→ lessons_archive.md L-0NN` pointer. Nine sections: **A** mutation mechanics,
   **B** structural blindness, **C** structural independence, **D**
@@ -12,8 +12,8 @@ Two files, read at different times. Do **not** summarize lesson content here.
   **G** doc-correctness, **H** mechanics/environment, **I** the map of what is
   already in `vv-principles`/`numerical-bug-signatures` (point, don't restate).
   **Read this before every review.**
-- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~5700 lines,
-  L-001..L-086, append-ordered). War stories, evidence, `file:line`, measured
+- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~5840 lines,
+  L-001..L-088, append-ordered). War stories, evidence, `file:line`, measured
   tables, verdicts. **Open only the specific `L-0NN` a digest rule points at** —
   never read it whole (it is ~60K tokens).
 
@@ -57,6 +57,14 @@ Five dispatches, all READ-ONLY, all reports under `scratch/_harness_eval/review/
   its own commit). 2 new: an evidence paraphrase dropped "in a code fence"; `rules/
   workflows.md:70`'s `[M]` "≈29.5K" (from `a5545ced`) matches no recorded instrument
   while its "≈71K" half is keep−omit exactly. Census 85/37, unchanged. L-086 / **E16**,**E17**.
+- **W4-P3 K3b RULE-GENERATION fidelity** (`docs/k3b-rules`, uncommitted)
+  -> `scratch/_harness_eval/k3/qa_k3b.md`. The three always-on rules brought under
+  generation and `delegation` retired into the workflows rule + W7. **82 of 82 clauses
+  KEPT, 0 LOST**; 23/23 links; the 4 generated rules body-identical to source. The finding
+  was not textual: the Zotero-liveness clause lost its always-on AUDIENCE and was absent
+  from the AGENT.md W7 names as its carrier, which held the opposite instruction.
+  **[REMEDIED @ the carrier]**, with the four dropped support details restored.
+  L-088 / **E18**.
 - **T5 SUPPORT-BRIEF paragraphs** (W4, uncommitted) -> `scratch/_harness_eval/t5/qa_support_briefs.md`.
   12 findings; the headline REFUTED by a zero-tool explorer probe: a Support agent
   keeps its OWN memory index and skills, only the PROJECT index is dropped. After

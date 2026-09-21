@@ -14,6 +14,30 @@ phase descriptions, the brief template and the return contract are in
 | **Key** | owns one phase of a workflow; calls Support agents freely, and any other Key agent when the reason is worthwhile (an implementer spawning a numerics-investigator keeps its own context clean) | yes | test-architect, method-implementer, numerics-investigator, archivist, qa, elegance-enforcer |
 | **Support** | answers one question from its brief and returns; never spawns; the three `omitClaudeMd` agents are launched without the project rules, so the brief is the only place a project rule reaches them | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
 
+## Posture
+
+Dispatch freely; never ask permission. Sub-agents (explorer,
+numerics-investigator, literature-researcher, qa, archivist, test-architect,
+…) are dispatched during investigation and implementation without pausing to
+ask "shall I dispatch X?", and independent investigations run in parallel: the
+user values momentum and parallelism, and the fleet's existence is already
+approved. Every agent's output is still reviewed with full session context
+before committing; the agent had none.
+
+**Exception — surgical, high-correctness carves: the main agent writes
+directly.** For operator-algebra carves, convention changes crossing three or
+more subsystems, and anything in the `refactor/sn-operator-algebra` family,
+`method-implementer` is NOT dispatched: the main agent writes the code with the
+user steering step by step and `AskUserQuestion` checkpoints. `[R]` user
+ruling 2026-05-20: the user's since-inception knowledge of the codebase
+corrects the implementation in real time, while `method-implementer` runs a
+brief to completion, so for surgical work the loss of turn-by-turn correction
+costs more than the parallelism gains. The constraint is on
+`method-implementer` alone (batch code production); test-architect, explorer,
+qa and archivist remain available and encouraged. Any "surgical" framing by
+the user selects this mode, and `method-implementer` re-enters scope at the
+user's signal, when routine refactor cycles resume.
+
 ## Invariants
 
 1. **The parent's review is independent of the child's.** A child may spawn

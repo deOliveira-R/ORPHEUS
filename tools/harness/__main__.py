@@ -27,8 +27,7 @@ def main(argv: list[str] | None = None) -> int:
         problems += orphans(harness, outputs)
         drifted = drift(outputs)
         always = [o for o in outputs.values() if harness.always_on(o.page)]
-        cost = (f"generated always-on ≈{sum(budget.tokens(o.text) for o in always)} tokens over {len(always)} files"
-                " (hand-maintained always-on files not counted)")
+        cost = f"generated always-on ≈{sum(budget.tokens(o.text) for o in always)} tokens over {len(always)} files"
         for problem in problems:
             print(f"PROBLEM: {problem}", file=err)
         if args.check:

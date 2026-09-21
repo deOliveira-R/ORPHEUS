@@ -1815,7 +1815,7 @@ REFERENCE rather than in the fixture or the functional.
 
 **L50 — Two parallel sub-agents: one reads the other's UNCOMMITTED output as established fact (2026-08-12)**
 
-Dispatching agents in parallel is the standing posture (`delegation`), and it is
+Dispatching agents in parallel is the standing posture (the `workflows` rule), and it is
 right. But agents share one working tree, and **an untracked file written by
 agent A is indistinguishable, to agent B, from a landed artefact** — same path,
 same content, same apparent authority. B has no way to ask "is this committed?"

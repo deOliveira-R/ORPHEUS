@@ -5774,3 +5774,67 @@ dropped during the rename stays visible — mutation-proven above.
 both the stamp; 10 block targets byte-identical; all 20 budgets carried over unchanged;
 every pinned message fragment resolves to exactly ONE production site; `matrix.rst`
 12149 → 12180 closes exactly on the new file's 31 tests.
+## L-088 — a clause RELOCATED out of the always-on tree changes its AUDIENCE, not its home (2026-09-20, W4-P3 K3b rule-generation review)
+
+**Subject.** K3b of the harness-context-budget campaign, branch `docs/k3b-rules`: the three
+hand-maintained always-on rules (`process-discipline`, `nexus-tools`, `vv-testing`) rewritten
+as `docs/development/rules/` sources under generation, and the fourth (`delegation`) RETIRED
+by splitting into a new "## Posture" section of the workflows rule and an expanded
+"## W7 — Literature acquisition" section of `docs/development/workflows.md`.
+Report: `scratch/_harness_eval/k3/qa_k3b.md`.
+
+**The distillation itself was clean, and that is the point.** 36 + 31 + 15 = 82 clauses over
+the three rewritten rules, **0 LOST**; the 16-row nexus routing table is 16 of 16 verbatim;
+11 dated `[M]` narratives moved to two new evidence pages as linked `###` entries; 23 of 23
+links resolve; the four generated `.claude/rules/*.md` are body-identical to their sources.
+A fidelity audit that only diffs TEXT would have returned clean. The defect was not in any
+clause's wording — it was in which FILE the clause now lives in.
+
+**The mechanism.** `.claude/rules/*.md` is loaded into every session and every Key-agent
+dispatch. `docs/development/workflows.md` is not: it is a page the always-on rule POINTS at.
+So moving a clause from the first to the second silently re-scopes it from "every agent,
+always" to "whoever follows the pointer, or whoever is handed the brief that quotes it".
+Four of delegation's five literature clauses survived that move intact, because they are
+instructions about how to WRITE a brief and the brief template carries them. The fifth —
+the Zotero-liveness clause — did not, because it was self-scoped to *any agent briefed to
+consult Zotero*, i.e. to the READER of the brief, not its author.
+
+**The measurement.** `grep -rn "Zotero\|23119" .claude/rules/` → **0 hits**, with the
+filter proven by the positive control `grep -rln "Zotero" .claude/ docs/development/`,
+which returns hits including the very AGENT.md the new W7 text names as the carrier. Then
+the second half, which is what makes this a finding rather than a note: the clause was
+absent from that AGENT.md too, whose line 201 carried the opposite instruction —
+`- Zero hits in Zotero → search OSTI/arXiv/OpenAlex in parallel.` — the exact misreading
+the retired clause existed to forbid. The relocation's own prose asserted the carrier:
+W7 says "The sidecar-first search, the scan as the source of truth …, the output discipline
+and the incremental write are the agent's own procedure, carried by its AGENT.md". That
+sentence is TRUE for those four OCR clauses (AGENT.md Tier 0 lines 47–67 carry all six) and
+FALSE for the fifth, and nothing in the text distinguishes them. A named carrier is a claim
+(X3), and it is checked one carrier at a time, not one sentence at a time.
+
+**The check this leaves.** For every clause a campaign moves OUT of `.claude/rules/`:
+(1) name the new carrier explicitly, per clause, never per section; (2) grep the always-on
+tree for the clause's most distinctive token, with a positive control proving the filter
+finds that token where it DOES live; (3) open the named carrier and confirm the clause is
+in it — and read its NEIGHBOURS, because a carrier that lacked the clause has usually been
+operating without it and carries something that contradicts it; (4) ask who the clause
+addresses — the brief's AUTHOR (the template can carry it) or the brief's READER (only the
+agent's own file or an always-on rule can).
+
+**Everything else this review found, for the record.** Two CHANGED in process-discipline:
+"its lesson goes to `lessons.md`" → the ambiguous "the evidence page"; and the section
+heading moved from the imperative "Never `git add -A`" to "enforced by a hook" — which I
+verified is TRUE (`git-guard.py` exists, is registered in `settings.json` PreToolUse/Bash,
+refuses `-A|--all|.` and a `main` commit) and which keeps the imperative as its `check:`.
+Three dropped details, each a support clause rather than a rule: `(v0.4.3+)` on the Nexus
+auto-reload claim; "the agent's FIRST RESPONSE must be" in the literature clause (the
+timing is what stops a run being spent before the question is asked); and "both dead agents
+lost everything — zero bytes written", which is the REASON incremental writes matter.
+Pointer census for `delegation` as a rule: 873 files, **0 hits**, positive control
+`.claude/plans/archive/typed_carrier_grid_carve.md:23`.
+
+**[REMEDIED 2026-09-20]** The carrier was repaired at the carrier: the literature-researcher
+AGENT.md Tier 1 line now states the liveness rule and keeps the parallel-search fallback for
+a genuine zero on a LIVE server — which is the right shape, because the two cases were never
+the same question. The `(v0.4.3+)` version, the first-response timing, the re-entry
+condition and the zero-bytes reason were restored in the sources.

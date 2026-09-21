@@ -38,6 +38,9 @@ the harness's ``CLAUDE.md`` is generated from.
    rules/instrument-doctrine
    rules/articulation
    rules/workflows
+   rules/process-discipline
+   rules/nexus-tools
+   rules/vv-testing
 
 .. toctree::
    :maxdepth: 1
@@ -59,6 +62,8 @@ the harness's ``CLAUDE.md`` is generated from.
 
    evidence/plan-authoring
    evidence/coding-standards
+   evidence/process-discipline
+   evidence/nexus-tools
    evidence/lessons
    evidence/vv-anti-patterns
    evidence/test-design-modes

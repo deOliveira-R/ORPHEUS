@@ -290,7 +290,7 @@ path. Zotero is Tier 1 after that; web databases are Tier 2.
 
 **Why:** reading a local PDF is unambiguous and cheap vs re-acquiring;
 pivoting to a *secondary* source is a structural decision needing user
-approval, not agent autonomy (codified in `.claude/rules/delegation.md`).
+approval, not agent autonomy (codified in workflow W7, `docs/development/workflows.md`).
 
 **How to apply:** if a requested paper is not in the local folder,
 report "not in local folder; acquire it, or will you add it?" — do NOT

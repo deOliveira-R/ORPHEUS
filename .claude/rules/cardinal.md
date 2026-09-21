@@ -65,6 +65,6 @@ context is what the task needs. Project agents live in `.claude/agents/`, each
 with preloaded skills and its own memory; the built-in Explore agent is denied.
 If an agent that does not exist would help, say so, so that one can be
 designed. The roles, the dispatch invariants and the workflows are the
-`workflows` rule; the posture and the exceptions are `delegation`. After every
+`workflows` rule, posture and exceptions included. After every
 dispatch, review the output with full session context before committing: the
 agent had none.

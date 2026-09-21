@@ -697,6 +697,19 @@ file touched, no restore to get wrong. `[M]` `render_agent` on a 300→8000 copy
 reddened with its own distinct wording while `render_text`'s arm was proven on the
 real file. → `L-086`
 
+**E18. RELOCATING a clause out of the always-on tree changes its AUDIENCE, not its
+home.** `.claude/rules/*.md` loads into every session and every dispatch; the docs page
+it points at does not. A fidelity audit that diffs TEXT returns clean — `[M]` 82 of 82
+clauses kept, 0 lost, 23 of 23 links live — while a clause addressed to the brief's
+READER (Zotero liveness: "any agent briefed to consult Zotero") lands where only the
+brief's AUTHOR looks. check, per clause and never per section: grep the always-on tree
+for its most distinctive token with a positive control proving the filter works
+(`Zotero\|23119` in `.claude/rules/` → 0; control → hits, one of them the named
+carrier); then OPEN the named carrier and read its NEIGHBOURS — a carrier that lacked the
+clause has been operating without it, and `AGENT.md:201` held the opposite instruction.
+A named carrier is a claim (X3), true for four sibling clauses and false for the fifth.
+→ `L-088`
+
 ## F. Claim-scope — the claim is broader than the evidence
 
 **F1. A "behavior-neutral" claim holds only for the ONE contract it was proven

@@ -12,7 +12,7 @@ budget, not a measurement.
 
 | block | who pays | before (2026-09-04) | after this restructure |
 |---|---|---|---|
-| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; `python -m tools.harness --check` prints the generated always-on sum (six rule cores + CLAUDE.md ≈20.3K, `[M]` 2026-09-20 chars/3.6); the three hand-maintained rules ≈7.5K and the memory index ≈2.5K are on top of it |
+| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; every always-on file is generated (`tests/test_harness_generated.py` fails on a hand-maintained rule), so the sum `python -m tools.harness --check` prints is the whole block but the memory index: eight rule cores + CLAUDE.md ≈26.1K (`[M]` 2026-09-20 chars/3.6, after K3b; `vv-testing` is path-scoped and outside it), with the memory index ≈2.6K on top |
 | the session-start batch (`.claude/hooks/session-start.txt`): skill cores, the lessons index, the Nexus briefing | main agent only | ≈125K | ≈30K |
 | a Support agent with `omitClaudeMd: true` | explorer, literature-researcher, cross-domain-attacker, haiku categorisers | ≈107K per dispatch (haiku, zero tools) | ≈36.5K — the harness-fixed block only (tool schemas, skill index, roster) |
 
