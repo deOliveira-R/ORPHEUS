@@ -30,8 +30,9 @@ silently.
 5. **Markers carry epistemic status, one meaning per spelling:** `[M]`
    measured, with the command or date; `[R]` reasoned, not yet measured;
    `[HYPOTHESIS]`; `[REFUTED YYYY-MM-DD]`; `[LANDED <hash>]`;
-   `[REMEDIED YYYY-MM-DD @<hash>]`. No decorative glyphs; if a glyph is used
-   anywhere, it has one meaning everywhere.
+   `[REMEDIED YYYY-MM-DD @<hash>]`. A bare number with no marker is read as
+   measured. No decorative glyphs; if a glyph is used anywhere, it has one
+   meaning everywhere.
 6. **The two hottest cases.** A *plan* is a message to yourself or a sub-agent
    after context is gone: `plan-authoring` governs its claims, this rule governs
    its prose. *Documentation* is the project's brain: maximal effort on

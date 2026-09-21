@@ -9,9 +9,8 @@ harness:
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns
 
-Every rule below is complete as stated; a `[case]` link opens its mechanism,
-founding case ([anti-patterns](../evidence/vv-anti-patterns.md),
-[test-design modes](../evidence/test-design-modes.md)). Corpus doctrine:
+Founding cases: [anti-patterns](../evidence/vv-anti-patterns.md),
+[test-design modes](../evidence/test-design-modes.md). Corpus doctrine:
 `docs/theory/verification/principles.rst`. New failure modes land HERE first.
 
 ---

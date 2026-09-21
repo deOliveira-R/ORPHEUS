@@ -7,10 +7,7 @@ harness:
 # Process discipline — bugs, completion, and issue hygiene
 
 Workflow rules that operationalise Cardinal Rules 1 (correctness) and 4 (GitHub
-issues are the plan and the log). Each clause carries `check:` (the mechanical
-check) and `tell:` (how the failure looks); a `[case]` link opens its founding
-case on [the evidence page](../evidence/process-discipline.md). `[M]` measured,
-`[R]` reasoned.
+issues are the plan and the log). Founding cases: [the evidence page](../evidence/process-discipline.md).
 
 ## Fix bugs immediately — never accumulate, never bury
 

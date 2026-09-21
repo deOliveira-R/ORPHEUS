@@ -12,8 +12,7 @@ inside functions, aliased imports (`from numpy import linalg as la`),
 re-exports and docstring references, all of which are graph edges
 ([case](../../docs/development/evidence/nexus-tools.md#2026-04-restructuring-grep-misses)). The
 `explorer` agent (Nexus skills preloaded) is the exploration delegate for
-open-ended, multi-file work. `[M]` measured, `[R]` reasoned; a `[case]` link
-opens the founding case on [the evidence page](../../docs/development/evidence/nexus-tools.md).
+open-ended, multi-file work. Founding cases: [the evidence page](../../docs/development/evidence/nexus-tools.md).
 
 ## Route by the question
 

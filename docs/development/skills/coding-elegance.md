@@ -8,7 +8,7 @@ harness:
 
 # Coding Elegance core
 
-Every rule below is complete as stated. The argument, the worked ORPHEUS cases
+The argument, the worked ORPHEUS cases
 and the long code contrasts live on the
 [evidence page](../evidence/coding-elegance.md), with its
 [examples 1-5](../evidence/coding-elegance.md#example-1-four-operator-unification);
