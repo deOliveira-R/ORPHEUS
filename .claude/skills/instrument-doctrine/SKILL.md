@@ -96,7 +96,8 @@ consumers, an excluded package reads as "0 production consumers", an excluded
 directory measures the issue's folder and not the goal's corpus; state the
 exclusion in the claim or filter by line, and measure one level up.
 DEFINITION-FILE-ONLY: a self-check whose whole population is the defining
-module certifies "the def plus one call". RESUME-BLOCK-M: an `[M]` count in a
+module certifies "the def plus one call"; a self-check is a census and owes
+its population. RESUME-BLOCK-M: an `[M]` count in a
 compaction point is a claim with a predicate; a one-file census lies beside
 `[R]` neighbours that were checked for free. A-LIST-IS-N-CENSUSES: counts
 listed in one breath imply a shared scope that never existed; each owes its

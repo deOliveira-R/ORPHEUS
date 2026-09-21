@@ -30,7 +30,7 @@ Mint a **type** iff (a) the concept has **two or more non-isomorphic realization
 
 Pythonic code: dataclasses, type hints, scipy. Every number a module or a test carries is produced programmatically: a reference eigenvalue or coefficient comes from the derivation that defines it (`derivations/`) or the data file that carries it, never from a table by hand. check: a literal with five or more significant digits outside `derivations/` names its source or is replaced by a call. tell: a literal that matches a published table; a test pinning a number whose only provenance is a comment.
 
-## A bare `assert` in `orpheus/` is not a contract — the canonical runner strips it
+## A bare `assert` outside a collected test module is not a contract — the canonical runner strips it
 
 `python -O -m pytest` is canonical; `-O` sets `__debug__ = False` and removes every `assert` at compile time. The scope: pytest rewrites the `assert`s of a COLLECTED test module, so those survive; a bare `assert` anywhere else, in production code, a test helper, a fixture, a `conftest` or a generator, is compiled out. A contract written as a bare `assert` there **does not run in the suite that matters**: production ships accepting the input the assert refuses, and a helper's gate passes whatever it is given.
 

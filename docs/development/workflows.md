@@ -153,4 +153,8 @@ subagents" was an Anthropic platform constraint. Measured 2026-09-05 and again
 agent which spawned a depth-3 agent that answered; the depth-3 agent had no
 `Agent` tool, exactly the documented cap. The constraint was this project's own
 `tools:` allowlists. The plan that made the change is
-`.claude/plans/harness_context_budget.md` (Groups E and H).
+`.claude/plans/harness_context_budget.md` (Groups E and H). Measured in the
+same runs (2026-09-20, 2.1.278): a sub-agent carries `SendMessage` and
+addresses a named sibling with it, and a finished agent resumes on a message
+with its full history, so a reviewer is resumed by name rather than
+re-briefed.
