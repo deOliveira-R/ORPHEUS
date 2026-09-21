@@ -710,6 +710,31 @@ clause has been operating without it, and `AGENT.md:201` held the opposite instr
 A named carrier is a claim (X3), true for four sibling clauses and false for the fifth.
 → `L-088`
 
+**E19. A fidelity recount keyed on the IMPERATIVE returns clean while a CHECK goes
+homeless.** Consolidation leaves the imperative at the citing site and moves its `check:`
+to the cited home, so both ends look populated and every identity-keyed instrument reads
+clean — `[M]` 323 of 323 clauses, 0 lost, while `plan-authoring` DEFINITION-FILE-ONLY's
+`check: a self-check is a census and owes its population` survives at NEITHER site.
+check: a clause is THREE resolutions — resolve imperative, check and tell separately,
+each AT THE TARGET the citation names. Three siblings: a `**check:**` re-laid-out INSIDE
+the last bullet narrows a nine-class check to one class with zero text deleted; a clause
+"deleted because X holds it" and one "deleted and pointed at X" are identical in a diff,
+so audit the decision table's promise per row; a count CREATED by a move ("seventeen
+spellings", `[M]` 19) is a new bare number inheriting the replaced text's arithmetic —
+count it from the MOVED text. And a HEADING outlives its body: the campaign's flagship
+scope repair left `coding-standards`' heading saying "in `orpheus/`", invisible because
+all five citations use the PREFIX § "A bare `assert`". → `L-089`
+
+**E20. A `skills:` preload is a claim about a TURN, not about a dispatch** (sharpens
+`B-DISPATCH`/`L-085`). `[M]` this qa dispatch held 7 of its 8 declared skills at turn 1;
+the absentee was the one generated ~11 min earlier, and it ARRIVED at turn 2 — a skill
+created mid-session is not in the index the first turn is built from. So a first-turn
+absence is **unadjudicated**, never "broken": state the freshness confound and discriminate
+with one dispatch from a FRESH session. Mirror: a tier move relocates a citation's
+AUDIENCE — an always-on rule citing an on-demand skill by item resolves for the four agents
+that preload it and not for the rest, which an ID registry resolving against the defining
+PAGE structurally cannot ask. → `L-089`
+
 ## F. Claim-scope — the claim is broader than the evidence
 
 **F1. A "behavior-neutral" claim holds only for the ONE contract it was proven

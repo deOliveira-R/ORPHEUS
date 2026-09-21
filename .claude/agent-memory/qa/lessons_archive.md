@@ -5838,3 +5838,99 @@ AGENT.md Tier 1 line now states the liveness rule and keeps the parallel-search 
 a genuine zero on a LIVE server — which is the right shape, because the two cases were never
 the same question. The `(v0.4.3+)` version, the first-response timing, the re-entry
 condition and the zero-bytes reason were restored in the sources.
+
+## L-089 — a fidelity recount keyed on the IMPERATIVE returns clean while a CHECK goes homeless; and a `skills:` preload is a claim about a TURN (2026-09-21, W4-P3 R5 second-reader recount, `docs/harness-reeval` @ `f5f2cf2d` vs `main` @ `17b31b11`)
+
+**Subject.** R5 of the harness re-evaluation: R2 consolidated every concept stated at two or
+more sites into one home with the others citing by ID; R3 moved three bodies to other tiers
+(the 25-item retirement audit and plan-authoring §6b's census into a new on-demand skill
+`docs/development/skills/retirement-audit.md`; `coding-standards` and `plan-authoring` became
+path-scoped; plan-authoring's appendix census to its evidence page); R4 rewrote thirteen
+sentences. Claim under test: **no clause was lost**. Report:
+`scratch/_harness_eval/reeval/qa_recount.md`. Verdict: CONFIRMED, **323 of 323, 0 LOST**,
+4 WEAKENED, 5 findings.
+
+**The method that produced a usable answer, and is reusable.** State the clause predicate
+BEFORE counting (here: a bold-tagged bullet, a top-level numbered item, or a `##`/`###`
+section whose intro states an imperative; `- check:`/`- tell:` continuations, tables and
+navigation paragraphs excluded because they are PARTS of a clause). Then two scripts, not
+reading: one extracts clause IDENTITIES per page, the other set-differences base against
+HEAD, so the base-only list IS the candidate-loss list and nothing depends on my attention.
+`[M]` base 323 → HEAD 324; base-only: 25 numbered audit items + 3 sections in
+`coding-standards`, 5 tags + §7's three items + the appendix in `plan-authoring`. Then one
+more script diffing the moved items TEXT against the new carrier: `[M]` 25 of 25 present,
+**21 byte-identical**, and §6b's census paragraph byte-identical from `"(1)"`. Establish once
+that reading sources equals reading `.claude/`: `[M]` 12 of 13 generated bodies byte-identical
+after stripping front matter, the stamp and link depth (the 13th declares its injected block).
+
+**⭐ The finding the identity recount CANNOT reach: an imperative survives, its check does
+not.** Consolidation moves a clause's CHECK to the cited home and leaves the imperative in
+place, so the clause is present at both ends and every identity-keyed instrument reads clean.
+`plan-authoring` DEFINITION-FILE-ONLY lost `check: a self-check is a census and owes its
+population` — the imperative stayed in the rule with `(X2)` appended, and the skill's X2
+shapes entry restates only the imperative. The check exists at NEITHER site. So a clause is
+three resolutions, not one: resolve the imperative, the check and the tell SEPARATELY, and
+resolve each AT THE TARGET the citation names, never at the citing site. Three sibling shapes
+the same pass found: (a) `vv-principles` mode 8's mode-level `**check:**` ended up inside
+bullet (9), reading as scoped to `pytest.xfail()` alone, while its `**tell:**` was correctly
+lifted to mode level — a LAYOUT change that narrows a nine-class check to one class, with zero
+text deleted; (b) `plan-authoring` VALIDATE-THE-FILTER's ugrep sentence was deleted and NO
+citation replaced it, though the decision table promised "cites" — so check the table's
+promise per row, because "deleted because X holds it" and "deleted and pointed at X" read
+identically in a diff; (c) `coding-standards` 18's check was delegated to X4, which DOES
+carry it — the good case, recorded so the bad ones are legible.
+
+**A COUNT created by a move is a new claim, and it inherits the old text's arithmetic.**
+`plan-authoring` §6b's new pointer says the skill's census holds "seventeen spellings".
+`[M]` it holds **19**: 14 numbered (1–13 plus 12b) and 5 tag clauses. 17 is the base
+paragraph's own broken arithmetic — it ends `"(14) to (17) below"` over FIVE bullets, and
+12b is an uncounted 14th. The retired appendix's own convention had it right at 21 for §6b
+(intro + 1 clause + 14 + 5). The pointer is a bare number, so `plan-authoring` §2 reads it as
+measured. check, whenever a move replaces a body with a summary: any cardinality in the
+summary is counted FROM THE MOVED TEXT, never from the sentence being replaced.
+
+**A HEADING is part of the clause, and it survives a body repair.** This campaign's flagship
+correction was `vv-testing`'s present-tense-false "only production-code (`orpheus/`) asserts
+are stripped" → the true scope at `coding-standards` § "A bare `assert`". That section's
+HEADING still reads *"A bare `assert` **in `orpheus/`** is not a contract"* two lines above a
+body that now names helpers, fixtures, `conftest`s and generators. Five sites cite it as
+§ "A bare `assert`", a PREFIX, so every citation resolves and nothing reddens. check: after
+repairing a scope claim, re-read the heading, the front-matter description and the citing
+spellings — a prefix citation is precisely what hides a heading that outlived its body.
+
+**⭐ A `skills:` preload is a claim about a TURN, not about a dispatch** — L-085 sharpened.
+`skills/retirement-audit.md`'s description asserts "Preloaded by qa, archivist,
+method-implementer and elegance-enforcer" and `.claude/agents/qa/AGENT.md` lists it FIRST.
+`[M]` 2026-09-21 04:04Z, this very dispatch: at turn 1 my preloaded skills were
+`instrument-doctrine, nexus-verification, nexus-impact, nexus-debugging, vv-principles,
+numerical-bug-signatures, coding-elegance` — 7 of the 8 declared, and the ONE absent was the
+newest (generated `SKILL.md` mtime 21:53:43, commit `63d758ca` 21:54:38, i.e. ~11 minutes
+before the dispatch, inside a session that had started earlier). `[M]` at turn 2, on the
+coordinator's message, `retirement-audit` ARRIVED as an injected skill block. So the wiring
+is sound and the claim was true-eventually and false-at-turn-1: a skill created mid-session
+is not in the index the first turn is built from. The honest verdict on such a reading is
+**unadjudicated**, never "broken" — and the discriminator is cheap: one dispatch from a FRESH
+session. The general form: a dispatch is not one observation, it is one per turn, and a
+freshness confound must be stated beside any first-turn absence.
+
+**A tier move relocates a citation's AUDIENCE (L-088 again, from the other end).** After R3,
+three always-on sites cite by item INTO the on-demand skill (`nexus-tools` A.2/B.4,
+`vv-principles` C.13, the instrument-doctrine skill's Pointers D.16/D.18, plus
+`coding-standards`' trigger). Four agents preload it; explorer, numerics-investigator,
+test-architect and the main agent do not, so for them those citations name text they do not
+hold. Not a loss and deliberate under the ruling — but a citation's resolvability is a
+function of the READER's tier, and that is the question an ID-registry check
+(`tools/harness/ids.py`, which resolves against the defining PAGE) structurally cannot ask.
+
+**Everything else, for the record.** All four planted positive controls classified MOVED
+(item 23 underline scan → F.23 byte-identical; POLYMORPHIC-MINT + 4 siblings → verbatim;
+the appendix → the evidence page under a `[REMEDIED 2026-09-21]` tense note, which is the
+model for a moved measurement; `vv-testing`'s `-O` bullet → corrected at `coding-standards`).
+Ten rejected candidates with structural reasons are in the report; the one worth carrying is
+that all five `[M]` parentheticals deleted from `nexus-tools` were ALREADY on its evidence
+page (`git diff --stat` over the range empty), so the deletion relocated nothing — check the
+target for prior presence before scoring a relocation as a move. Reworded-because-false, found
+independently: Cardinal Rule 4's label enumeration (`[M]` named 14 of 35; now `gh label list`,
+which is `plan-authoring` §9(a) — point at the tree's own register). A third-order residue:
+20 surprise-log rows key "**Clause.** §6b", and §6b now holds a pointer, so the log's
+attribution key no longer resolves to the text it was attributed to.

@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (**1051 lines** at 2026-09-20 — ⛔ OVER the distillation trigger by 2.6x; distil BEFORE the next append). Behavioral rules
+- **[lessons.md](lessons.md)** — the HOT digest (**1076 lines** at 2026-09-21 — ⛔ OVER the distillation trigger by 2.7x; distil BEFORE the next append). Behavioral rules
   only: one imperative rule + its failure→correction core + a
   `→ lessons_archive.md L-0NN` pointer. Nine sections: **A** mutation mechanics,
   **B** structural blindness, **C** structural independence, **D**
@@ -12,8 +12,8 @@ Two files, read at different times. Do **not** summarize lesson content here.
   **G** doc-correctness, **H** mechanics/environment, **I** the map of what is
   already in `vv-principles`/`numerical-bug-signatures` (point, don't restate).
   **Read this before every review.**
-- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~5840 lines,
-  L-001..L-088, append-ordered). War stories, evidence, `file:line`, measured
+- **[lessons_archive.md](lessons_archive.md)** — the COLD archive (~5940 lines,
+  L-001..L-089, append-ordered). War stories, evidence, `file:line`, measured
   tables, verdicts. **Open only the specific `L-0NN` a digest rule points at** —
   never read it whole (it is ~60K tokens).
 
@@ -28,6 +28,17 @@ meta-lesson once, list its instances); never truncate.
 lives in its report, the behaviour in its lesson, the tense in git.
 ⛔ **Every branch/hash/line below is a SNAPSHOT — reconcile with git and a grep
 before acting on any of it** (`process-discipline`; measured to have lied twice).
+
+### Harness RE-EVALUATION, 2026-09-21 (branch `docs/harness-reeval`)
+
+- **W4-P3 R5 second-reader RECOUNT** (`f5f2cf2d` vs `main` `17b31b11`) ->
+  `scratch/_harness_eval/reeval/qa_recount.md`. The claim "no clause was lost" across R2
+  consolidation, R3 re-tiering and R4 prose: **CONFIRMED, 323 of 323, 0 LOST** (25 of 25
+  audit items in the new `retirement-audit` skill, 21 byte-identical; §6b's census
+  byte-identical). 4 WEAKENED, 5 findings, 10 rejected candidates — all REPAIRED in-tree by
+  the parent. L-089 / **E19**,**E20**. ⭐ It also LANDED the gloss debt: "a gloss beside a
+  link asserts the target's scope" is now `instrument-doctrine` rule X3 (tell) AND skill X3
+  (remedy), so that row left the debt table.
 
 ### Harness substrate campaign, 2026-09-20 (branch `docs/development-substrate`)
 
@@ -123,7 +134,6 @@ closes; each drop-in text is at the cited digest rule or lesson.
 | two mechanisms under ONE check are two clauses | **E10** |
 | a retirement note is a CARRIER claim | **A23** / L-083 |
 | #17 (i) *prescribed repair* + (a)'s *per CONSUMER kind* | ✅ LANDED @`0d376e4f` — but with **no evidence entry**, and (i)'s `[M]` carries no configuration (L-084) |
-| a POINTER that glosses its target asserts the target's SCOPE (harness page / `instrument-doctrine` X4, **not** vv-principles per the 2026-09-20 ruling) | L-086 / **E16** |
 | a before/after `[M]` pair states ONE instrument for both halves (`plan-authoring` §4, the temporal twin of RATIO-NEEDS-ITS-POPULATIONS) | L-086 / D2 |
 
 ## 3. Durable reference (topic files)
