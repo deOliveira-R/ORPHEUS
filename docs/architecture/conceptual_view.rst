@@ -458,6 +458,20 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   survives on the entry signatures, resolved at one site. The SN outer
   iterate is a bare array; the 2-D angular window and the DSA corrector
   travel outside the Strategy.
+- **The adjoint fixed-source posing is spelled by hand, and no iteration
+  is derived from its posing** (#484). ``solve_sn_adjoint_fixed_source``
+  names its operator directly (``pencil.H.lhs``) where
+  :meth:`~orpheus.numerics.posing.SourcePosing.H` would dagger the
+  forward posing, so the σ = 0 member is spelled twice; every source
+  entry builds its iteration from the Splitting with the σ = 1 production
+  bolted on as an extra gain while the posing is only recorded, and the
+  convergence certificate reads the Splitting's residual, so a
+  posing-versus-iteration mismatch is a diagnostic, never a refusal; the
+  adjoint Strategy is a separate Jacobi mint daggered piecewise. That is
+  why a multiplying-source adjoint, ``source_posing(q).H(q*)`` with
+  ``F.H``, does not fall out today. The eigen pair is tied
+  (``eigen_posing.H()``, ``k† = k`` pinned) and the pure-transport pair is
+  witnessed by the duality gate.
 - **Adjoints the eager gate refuses**: the boundary Gauss–Seidel reverse
   scan, the linear-discontinuous transpose kernel, and 11 of 67 concrete
   :class:`~orpheus.numerics.operator.LinearOperator` subclasses with no
