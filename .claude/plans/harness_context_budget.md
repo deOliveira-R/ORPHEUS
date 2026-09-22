@@ -1479,3 +1479,37 @@ The close-out's owed item (1): the 39 agent-memory topic files the 2026-09-21 di
 **Owed, not done here.** The method-implementer's `issue_168_phase_d_closeout.md` still cites three dead paths (`docs/theory/discrete_ordinates.rst`, `docs/theory/boundary_conditions.rst`, `.claude/skills/vv-principles/error_catalog.md`); that memory was outside the six owners distilled and is left for its own pass. The archivist's question why the #425 pass never got an archive section, measured: both of its topic files landed in one docs commit (`2af8e451`, 2026-09-07) among nine commits touching the archivist's memory in two days, and the pass wrote topic files without the archive section its index's protocol asks for first. The cause is not recorded; L-114 now carries the pass.
 
 **Gates (`[M]` 2026-09-22, on the branch tip before the merge).** `sphinx -E -W --keep-going`: rc 0, 0 warnings; it regenerated the verification matrix for the two new gate arms (12 200 → 12 202 tests), amended into the gate commit (`71311734`). `tools.harness --check`: 24 targets, 0 problems, 0 drifted, 728 ID citations resolved. The widened CI step 2 locally: 444 passed. `dead_references` on the rebuilt graph: 0 dead of 66 checked, which covers the code-side edit only (a docstring); the memory retirements are outside the graph by the finding above, and their instrument was the two-spelling census plus the owners' own `git grep` after the deletions.
+
+# ⏸ COMPACTION POINT #13 — 2026-09-22. The harness campaign's owed track is landed through the issues that need no ruling; what remains waits on the user
+
+**Where things stand.** `main` = `origin/main` = `da51275f`; the tree is clean; every merge below passed CI (`[M]` `gh run list`: `7713a9b1` success, the last read before this point; `da51275f` watched at write time).
+
+**Landed since COMPACTION POINT #12, in order** (each commit's message carries its evidence):
+
+| unit | commits | closes |
+|---|---|---|
+| the uplift queue (this plan's "Uplift queue landed") | `b751657d`…`d3794a2f` | — |
+| the topic-file blast-radius audit (39 of 39 read; 24 retired, 15 salvaged then retired) | `39ec5fe2`…`436f3145` | — |
+| the catalogue's cited tests held to the tree (arms 5–6), its marker census parsed (arm 1 had read red on `main` since `399b285f`), three text ledgers joined CI | `a670cd69`, `71311734` | — |
+| the six foundation definitions (Riesz legs, basis, bound operator, half-trace, hub, weld) | `0588c449` | #478–#483 |
+| the frame pages: the SH frame is Parseval in its own metrics (`[M]` `M∘M^H = I`, `R = 4π M^H`), not "4π-tight"; the T/T* letters are Casazza–Lynch 2016's | `f6bb948c` | — |
+| ERR-020's multi-region gate | `716a1066` | #489 |
+| the system restriction defined | `5e2275fc` | #490 |
+| the SN adjoint's exactness on a singular trace metric measured and gated; the pages' mechanism corrected (the streaming read of the grazing slots is annihilated by an exactly-zero coefficient, not kept out by the selectors) | `7713a9b1` | #493 |
+| the system restriction's six laws gated on both members | `da51275f` | — |
+
+**Waiting on the user's rulings** (each carries its measurement in the issue; none is started without the ruling):
+
+- **#488** — the ψ½ march's hardcoded DD closure. Premise measured: DD is the only curvilinear-capable scheme (1 of 2), so no other scheme reaches the march; the surviving defect is DD's face closure spelled at 3 production sites outside the scheme (AST census). Options: carve a scheme-owned face-chain verb now (DD its one implementation, the three marches re-spelled, gated bit-identical), or fold into #158's curvilinear-LD arm. The curvilinear build is under the user's deferral.
+- **#484** — the adjoint fixed-source posing spelled by hand; the ontology is being searched, so it opens as its own living plan (`plan-authoring` §0) with the user.
+- **#491** — `AdjointOperator` open-codes the Riesz legs its docstrings name (the space's mints have 0 production callers, AST). An operator-algebra carve: surgical mode, the main agent writes with the user steering (the `workflows` rule's exception).
+- **#492** — `Basis.mass_matrix` (6 definitions, 0 production callers, 13 test sites) twins `FrameBase.discrete_gram`: which object owns the Gram.
+- **#494** — "tight" names two properties (frame theory's tight frame; a quadrature rule exact enough that binding is multiplicative): a naming ruling.
+- **#495** — the slab `uniform` mesh re-derives volumes from `linspace` edges, ULP-unequal where `equal-volume` on the same mesh is exact: one body or two methods.
+- **#496** — the Riesz legs do not re-class flux/source roles, so `r.H` on a flux member returns a mixed-role composite: a duality-typing ruling (#276 A4).
+
+**Owed after those, in order:** the CP#3–CP#5/CP#7 "Owed to a docs page" lists; the #477 queue; #487.
+
+**Durable lessons of this stretch** (each already in a rule, a skill or an issue; listed so the next session does not re-derive them): a file under `.claude/` is outside the Nexus graph, so its blast radius is a two-spelling text census including `.claude/scratch/` (`retirement-audit` item 4); a `verifies` marker lands only on a test the defect reddens, so candidate witnesses picked by topic are culled by a mutation (three of six were structural and stayed green); a reasoned exactness argument can be right in its conclusion and wrong in its mechanism, and only the mechanism says which gate to write (#493: the reciprocity rows were blind to the real fragility, a nonzero coefficient on the grazing rows, which only a structural gate sees).
+
+**Resume surface.** This point; `gh issue view` on each waiting issue; the main memory's `project_harness_context_budget.md`. What NOT to do: start a waiting issue without its ruling; treat a design question as settled because its measurement is posted.
