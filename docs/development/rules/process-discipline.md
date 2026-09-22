@@ -1,9 +1,9 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 3000
+  budget_tokens: 3500
   brief: >-
-    never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy.
+    never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy; a brief's framing is a claim, so take the count it presumes (branches, fibre, consumers by AST, fused attributes) before arguing its scope and report the smaller answer plainly; a rejected candidate carries its structural reason AND the question it was refuted for.
 ---
 
 # Process discipline — bugs, completion, and issue hygiene
@@ -154,6 +154,29 @@ information (X1: a reading that cannot change carries nothing).
 - tell: "it was already failing", true and exculpatory right up until it is
   your code.
 
+## Measure a brief's premise before arguing its scope
+
+A brief's framing is a claim about the tree, and the cheap measurement it
+presumes usually decides the answer. Four agents learned this separately
+(test-architect, archivist, explorer, cross-domain-attacker; `[M]` 2026-09-21,
+the memory distillation), which is the argument for the floor over four
+identity files.
+
+- check: before arguing a proposal's scope, take the count it presumes: the
+  runtime branches a proposed dispatcher would collapse; the fibre of a
+  proposed "problem → object" map; who CONSUMES the object a justification
+  names (an AST pass); the attributes of the object where a proposed split is
+  FUSED today; the inversions a chartered discriminating rule produces on the
+  tree's straddlers; whether a general-case derivation or an optimality
+  theorem on the target space already settles the whole table.
+- check: the measured answer is usually SMALLER than the proposal and
+  elsewhere (a call site, a widened return type, a verb on an existing type, a
+  gate with a refusal message, an oracle); report the collapse plainly and say
+  what survives at the smaller scale.
+- tell: N independent arguments for N rows of a table; a scope debated before
+  a single count is published; a deliverable sized to the proposal rather than
+  to the finding.
+
 ## A refuted candidate is first-class output — record the structural reason
 
 When an investigation rejects a hypothesis, frame, design or root-cause
@@ -167,6 +190,11 @@ cost, because the second attacker has less context on why it looked promising.
   (hypotheses eliminated in the probe cascade), explorer (paths that
   dead-ended), cross-domain-attacker (the UNEXPLORED block) and the main agent
   in any plan that narrows a design space each owe the list.
+- check: a refutation is relative to a QUESTION: write "refuted FOR
+  <question>; the FACT it establishes is <fact>", and a ⛔ banner reused from a
+  plan or a memory is checked against the question now asked (the symplectic
+  frame: refuted for a design question, decisive for a classification one; a
+  bare banner suppresses the second).
 - tell: "rejected" with no mechanism beside it.
 
 ## Don't file issues for what you'll fix this session

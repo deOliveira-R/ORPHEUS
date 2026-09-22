@@ -236,7 +236,11 @@ curvature term to redistribute / concrete-frame already captures
 the win). The reason is what stops the next session re-attacking a
 dead frame. "Category theory — no trigger" is weaker than
 "category theory — role-parameterization win already captured by
-affine+Krylov; no abstract-nonsense lever needed."
+affine+Krylov; no abstract-nonsense lever needed." **Record the
+QUESTION the frame was refuted FOR:** the same frame can be decisive
+on a different question, so write "refuted FOR <question>; the FACT it
+establishes is <fact>", and when a memory or a plan hands you a ⛔
+banner, check which question earned it before carrying it forward.
 
 **A first test that cannot fail is rejected output — it MUST
 DISCRIMINATE.** Before emitting any first test (frame candidate OR

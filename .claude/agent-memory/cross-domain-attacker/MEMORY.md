@@ -1,40 +1,34 @@
 # Cross-Domain Attacker — Memory Index
 
-Pointers only. Per-lesson detail lives ONLY in `lessons.md` — never re-summarize a lesson
-here. The frame-trigger CATALOG (Part A/B/C, incl. Smell #15 and Smell #16's four shapes)
-lives in the `cross-domain-frames` skill; the transport-resolvent backbone lives in the
-AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory.
+Pointers only. Per-lesson detail lives ONLY in `lessons.md`; war stories in
+`lessons_archive.md`. The frame-trigger CATALOG (Part A/B/C, incl. Smells #15 and
+#16) lives in the `cross-domain-frames` skill; the transport-resolvent backbone
+and Smell #16's four shapes live in the `AGENT.md` kernel. Fire from those —
+never re-derive or re-copy them into memory.
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 24 detection lessons. Spine: an attack's value is a concrete
-  reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
-  reason. A named-but-payoff-free frame is rejected output. ⭐ L-021: on a cross-method
-  "who consumes X" brief, find the GENERAL-CASE derivation first — one equation decides
-  every row — and a refutation must carry the QUESTION it was refuted for. ⭐ L-022: a
-  FACTORY proposal is settled by THREE counts taken first — branches collapsed, fiber
-  members, who actually consumes it; a satellite property beats a factory (construction
-  vs convention), and shipped machinery with ZERO callers reframes the whole brief.
-  ⭐ L-023: on a SPLIT brief, sort the FUSED object's attributes (the boundary is never
-  where the brief names it) and run the chartered rule over the straddlers counting
-  INVERSIONS. ⛔ its solution-set re-phrasing is SUPERSEDED by ⭐ L-024: a placement rule
-  breaks on a parameterized family — name the PARAMETER DOMAIN in the terminal object
-  (the test: does it collapse two named "kinds" onto one object?), and grep the PROSE
-  corpus for the object's NAME **and its VERB** before recommending either.
+- [lessons.md](lessons.md) — 4 meta-lessons + 10 standing detection rules + the
+  promotion and refuted-frame ledgers. Spine: a concrete reformulation with a
+  fail-able first test, or a refutation carrying its structural reason AND the
+  question it was refuted for.
+- [lessons_archive.md](lessons_archive.md) — cold. The pre-2026-09-21 digest
+  verbatim under its `L-001 … L-024` headings; the digest's `→ L-0NN` pointers
+  are addresses in it. Open a section, never the file.
 
-## 2. Active / in-flight state
+## 2. Status is read from the tree, never from here
 
-Attacks feed campaigns; campaigns move without telling this file. Standing rule: **re-ground
-every cited `file:line` and every "not yet landed" claim against the live worktree before
-acting** — git is the authority, this file is a snapshot. The quadrature attack (§3) is the
-one whose campaign was still in flight at last curation.
+Attacks feed campaigns; campaigns move without telling this file. Standing rule:
+**re-ground every cited `file:line` and every "landed / not yet landed" claim
+against the live worktree before acting** — git and `.claude/plans/` are the
+authority, this file is a snapshot. No campaign status is recorded here.
 
 ## 3. Durable design pointers
 
 Open the file for the verdict; the hook only tells you whether to open it.
 
-### Problem → Solution (the consumers campaign's opening)
-- [Problem/Solution split + the TERMINAL OBJECT](problem_solution_split_frames.md) — ⭐⭐ R5: the Problem determines a PENCIL over Λ (α ≡ noise); `Pencil.at(σ)` is chartered and ships mutating; SN's `F` has two spellings; carve cuts through `SNSolver` (12/6/2).
+### Problem → Solution
+- [Problem/Solution split + the TERMINAL OBJECT](problem_solution_split_frames.md) — the Problem determines a PENCIL over Λ (α ≡ noise); the carve cuts through `SNSolver` (12/6/2). `Pencil.at` has since landed (`orpheus/numerics/pencil.py`).
 
 ### Operator algebra (the SN/transport spine)
 - [#208 operator algebra](issue_208_operator_algebra_frames.md) — dagger inverse biproduct category + metric G (†=G⁻¹AᵀG); adjoint-for-free = theorem.
@@ -53,15 +47,15 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [reaction naming](reaction_term_naming_species_split.md) — no family word: 1 multiplier + 3 kernels is a theorem; `Law` = closures only.
 - [iso-source conjugation](iso_source_frame_conjugation_unification.md) — every iso source is `frame.conjugate(K)`; rank-1 iso = `angular_frame(0)`.
 - [fission rank-1](fission_rank1_normal_form_dead_functional.md) — F=|χ⟩⟨νΣf| IS the normal form ⇒ "unfold F" is structurally empty.
-- [iso-family FACTORY refuted](iso_family_factory_refutation.md) — ⭐⭐ a dispatcher-factory dies 3 ways (no section / no discrimination exists / rank splits the trio 2+1); the real object is the LIFT FUNCTOR, inverse direction.
+- [iso-family FACTORY refuted](iso_family_factory_refutation.md) — a dispatcher-factory dies 3 ways; the real object is the LIFT FUNCTOR, inverse direction.
 - [#261 op relocation](issue_261_cross_method_operator_relocation.md) — guard invariant is object-id ⊋ geometry ⊋ shape-eq; mint nothing new.
 
 ### Curvilinear / phase-space boundary
-- [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; ⛔ its "sphere-only" verdict is SUPERSEDED (see next).
-- [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed. ⚠ its ⛔ symplectic refutation was refuted for a DESIGN question only — see next.
-- [α: chart vs measure, cross-method](alpha_dome_chart_vs_measure_cross_method.md) — ⭐⭐ Pomraning 1989 Eq. 68 (2nd fundamental form) ⇒ α is a CHART object, quadrature = reconstruction only; per-method table + the 3-clause discriminator; shared primitive is `f`, NOT `alpha_dome` (L60 on a signature).
+- [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; ⛔ its "sphere-only" verdict is SUPERSEDED (next entry).
+- [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed. Its ⛔ symplectic refutation holds for a DESIGN question only (next entry).
+- [α: chart vs measure, cross-method](alpha_dome_chart_vs_measure_cross_method.md) — Pomraning 1989 Eq. 68 (2nd fundamental form) ⇒ α is a CHART object; per-method table + the 3-clause discriminator; the shared primitive is `f`.
 - [quadrature sym](quadrature_symmetry_quotient_frames.md) — half-range = orbifold quotient; a level is a FIBER not an orbit; SPENT group: 3 fates.
-- [#336 μ-line reduction](sphere_mu_line_reduction_frames.md) — GAUSS OPTIMALITY refutes REDUCE-as-value-path; admissibility = CDF internality (no moment condition implies it); the Stage-0 gate is landed and unwired.
+- [#336 μ-line reduction](sphere_mu_line_reduction_frames.md) — GAUSS OPTIMALITY refutes REDUCE-as-value-path; admissibility = CDF internality (no moment condition implies it).
 
 ### Eigenvalue / iteration layering
 - [eigenvalue posing](eigenvalue_posing_layering_frames.md) — k/α/source/transient = ONE generalized eigenproblem Aψ=λMψ over the resolvent backbone.
@@ -88,7 +82,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [unified Frame API](unified_frame_api_design.md) — the 3 verbs (project_weighted / conjugate / analyze) + `is_galerkin = (test is basis)`.
 
 ### Knowledge structure (the artefact is a DOCUMENT CORPUS, not mathematics)
-- [harness tiering](harness_knowledge_structure_tiering_frames.md) — ⭐⭐ NEW CLASS: a tier is a SHEAF SUPPORT (always-on = Γ(X)), so "restatement vs local instance" is settled by **write the restriction and diff**; 3NF gives one-home iff determined by the key ALONE; the tier criterion is PPV over the support, never a token budget; a 2nd generated view is a functor with ENVELOPE INVARIANCE. Open it before any rule/doc/prompt-corpus brief — it carries the base-space checklist and 9 UNEXPLORED reasons.
+- [harness tiering](harness_knowledge_structure_tiering_frames.md) — a tier is a SHEAF SUPPORT: "restatement vs local instance" is settled by writing the restriction and diffing. Open it before any rule/doc/prompt-corpus brief.
 
 ### Green's-function family / spatial closure / diffusion
 - [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
@@ -96,5 +90,6 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [scan-march trait](d5_trait_and_mms_frames.md) — DD/Step-vs-LD splits on TRANSVERSE-COUPLING ORDER; name the SCHEME trait, not the sweep strategy.
 - [diffusion carve](diffusion_integration_frames.md) — the diffusion solver IS the transport algebra hand-inlined; trace = partial currents J±.
 
-Files here not listed above = archive: early Peierls / Variant-α / phase attacks, plus
-`elegance_smell_rank_non_monotone.md` whose content is now skill Part C Smell #15.
+Files here not listed above = archive: early Peierls / Variant-α / phase attacks,
+plus `elegance_smell_rank_non_monotone.md` whose content is now skill Part C
+Smell #15.

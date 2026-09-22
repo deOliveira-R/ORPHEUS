@@ -146,3 +146,15 @@ The largest cut in every heavy agent was NOT compression — it was doctrine tha
 **So: when landing anything from this queue, delete the source lesson from the agent's
 memory in the SAME change.** Retiring the original is part of the promotion. Otherwise
 this file is just a recipe for regrowing what was cleaned up.
+
+---
+
+## Reconciled 2026-09-21 (the fleet-wide memory distillation, `.claude/plans/harness_context_budget.md`)
+
+- **`test-architect` A1** — LANDED as `AGENT.md` §1.5 item 1 ("construct and measure first", the digest's meta-lesson M1), and its general form as `process-discipline` "Measure a brief's premise before arguing its scope".
+- **`test-architect` A2** — RESOLVED by the rule: `instrument-doctrine` X1 (a positive control before any battery; an all-blind verdict is a broken instrument), on the always-on floor since 2026-08.
+- **`archivist` A2, A3** — A2 stays redundant with `coding-standards`; A3's imperative is the archivist digest's §3 first bullet, not promoted (conditional on a label edit, not identity-level).
+- **`cross-domain-attacker` A1, A2** — re-endorsed by the owner at four sightings (A1) and one more corollary (A2); still HELD for the user's review. Its new P1 (record the question a frame was refuted FOR) LANDED in `AGENT.md` and, as a check, in `process-discipline` "A refuted candidate".
+- **Smell 17** — still HELD; the owner resubmits it as a two-shape smell (shape (a) the `-> bool` body that builds the object; shape (b) a correct predicate wired only to the advisory path). `[M]` 2026-09-21 on shape (b)'s sighting: an AST pass over `orpheus/` finds `admits_domain` at its definition only, zero callers of either kind, so the sighting is "unconsumed", stronger than "advisory only". The user's call on Part C's bar stands.
+- **`elegance-enforcer` A1, A2** — untouched; that agent's digest (408 lines) was not in this pass.
+- **New, surfaced and HELD** (from the main-memory census): a "Naming" section of `coding-standards` (six high-signal checks and the greppability law, `feedback_high_signal_names.md`, `feedback_naming_consistency_greppable.md`); the four lossy-return-type checks as a `coding-elegance` Pattern 4 corollary (`feedback_lossy_return_type_is_the_root_cause.md`).
