@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (**726 lines** at 2026-09-21, from 1076).
+- **[lessons.md](lessons.md)** — the HOT digest (**623 lines**; 16 rules that restated a clause retired 2026-09-22 by the agent-definitions audit).
   Behavioral rules only: one imperative, the check that makes it decidable, and a
   `→ L-0NN` pointer. Ten sections: **A** mutation mechanics, **B** structural
   blindness, **C** structural independence, **D** re-baseline/bit-identity,
@@ -15,8 +15,9 @@ Two files, read at different times. Do **not** summarize lesson content here.
   append-ordered): war stories, evidence, `file:line`, measured tables. **Open
   only the `L-0NN` a digest rule points at** — never read it whole.
 
-Maintenance: a new lesson appends `L-0NN` to the archive AND lands a 2–5 line
-rule in the digest. Before appending, apply the per-line test to a neighbouring
+Maintenance: a new lesson names the clause it is not covered by (the workflows
+rule, invariant 6), appends `L-0NN` to the archive AND lands a 2–5 line rule in
+the digest. Before appending, apply the per-line test to a neighbouring
 rule: a rule that restates a clause of a preloaded skill or an always-on rule
 retires into §I, citing the clause. Sharpen in place; never truncate.
 
@@ -62,10 +63,6 @@ home is `docs/development/harness.md`, never `vv-principles` (ruled 2026-09-20).
 
 ## 4. Durable reference (topic files)
 
-- [field_role_typing_apply_sourcesink_contract.md](field_role_typing_apply_sourcesink_contract.md)
-  — the SN role contract (`.apply` = AngularSourceSink, `.solve` = AngularFlux),
-  the A2D-1 source-hash-pin update procedure, the affine-gate migration
-  playbook. Cited by `qa/AGENT.md` #10 — **durable**.
 - [phase1_moment_space_review.md](phase1_moment_space_review.md) — the ERR-039
   moment-space verification-of-record; cited from three files outside this
   memory — **durable**.

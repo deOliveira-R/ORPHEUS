@@ -26,14 +26,6 @@ arms that taxonomy does not name. The principle that a clean reading is a claim
 about the INSTRUMENT before it is a claim about the tree is `qa/AGENT.md` #12
 (2026-09-21); the instances stay here.
 
-**A1. Disable the OVERRIDE, not the value, when two paths are value-equal.** A
-specialised `apply` overriding an inherited leaf-sum can agree to ≤2 ULP, so only
-`array_equal` discriminates; rename the override away and every tooth must red. → L-024
-
-**A2. Revert PRODUCTION ONLY (keep the new tests) to prove a fix's negatives
-could have failed** — and require the red message to NAME the original bug, not
-just `AttributeError`. → L-027
-
 **A3. Mutate in-process; revert by RE-EDITING, never `git stash`/`checkout` on a
 path with uncommitted state.** Untracked files make `git diff` empty, so the
 revert proof is gate-green-again + zero mutation markers; a `-p <module>` plugin
@@ -67,17 +59,6 @@ difference turns "does an external pin exist?" from an argument into a LIST.**
 `[M]` old-τ vs HEAD over `tests/sn`: 7 red only at HEAD, **32 red only under
 old-τ** — the 32 named the analytic pins I had just concluded did not exist.
 Bite-check first: the target gates must FLIP, with a non-zero call count. → L-069
-
-**A11. Two duals of the positive control, both flattering.** (a) a NORMALISED
-fingerprint reused as a CHANGE detector inherits its deliberate blindnesses —
-nexus `body_shingles` is bit-identical under a tolerance change, an iteration-cap
-change and a re-baselined expected value, i.e. blind to every Mode-8-class-7
-decay cause, so a ledger on it reports every decayed marker FRESH: intersect the
-fingerprint's invariance group with the change class (Mode 12, asked of an
-INSTRUMENT). (b) a recall counter DOWNSTREAM of a filter cannot count what the
-filter dropped — `nodes: 0 / unresolved: 0`, exit 0, while a path filter had
-dropped all 339 keys (normalised, 2892 joined): demand a per-REASON drop
-breakdown, never a total. [skill: `instrument-doctrine` X1 since 2026-09-21] → L-070
 
 **A13-r. Split READS from WRITES before reading a field's test-hit count as
 coverage** (5 of 5 hits on `StreamingTerms.mu_start` were constructor kwargs);
@@ -157,9 +138,6 @@ only under `inner_solver="krylov"` (1600 / 0 kernel calls on an MMS solve); and 
 "fires under quadrature Q" claim is a 3-line probe
 (`count_nonzero(|mu_x|<1e-15)` → zero at every LS order). → L-016, L-018, L-021, L-033, L-036, L-059
 
-**B2. A round-trip / self-consistency test cannot pin a CONVENTION** — both arms
-carry the stale input. Recurs at every scale (1-D `s_axes`, d≥2 `|μ_axis|`). → L-018, L-023, L-031
-
 **B5. A fixture SYMMETRIC in the axis under test cannot see that axis.** Three
 ORPHEUS shapes: a SQUARE `nx==ny` mesh hides axis ORDERING (and the algebra-law
 suite is swap-invariant anyway, so the catcher is a broadcast oracle at `nx≠ny`);
@@ -167,18 +145,6 @@ a UNIFORM fixture makes a per-cell and a global-mean check indistinguishable, so
 one fixture must VARY along the non-reduced axis; two SAME-AXIS faces make
 `|Ω·n|` bit-identical and annihilate the packing gate's only knob-reader (`[M]`
 0/10 red, `changed=False` every call; a y-face moves it 0.963). → L-030, L-040, L-065
-
-**B6. An A-vs-B INVARIANCE gate's coverage is the set of production lines that
-READ the knob — grep them; it is usually ONE.** [skill: #23] The CATASTROPHIC
-positive control is INVALID here (an identity kernel leaves it correctly 10/10
-green); the control must be knob-dependent — neuter the knob and the ACTIVATION
-leg must red. Name the rows that structurally cannot see it so their green is not
-counted. → L-065
-
-**B7. A transpose/adjoint RECIPROCITY gate pins the RELATIONSHIP, not
-correctness** — green for ANY genuine `(S,Sᵀ)` pair, hence Mode-12 blind to a
-SYMMETRIC drop in both halves. Mutate BOTH ways and require the one-sided
-`A∘A⁻¹≡I` companion; never let it be deleted on "reciprocity covers it". → L-060
 
 **B9. A "the matrix says the operator is healthy" argument must cite a
 certificate for the EXACT gated BC** — a sibling-BC certificate plus "same
@@ -219,16 +185,6 @@ production call site is annotation-mediated: `nexus callers` → 0 and
 CO-EXECUTION, not co-constraint — a candidate list to mutation-verify. The ladder
 is CLAIMED 21 → EXERCISED 7 → ASSERTED ≤2 → MUTATION-VERIFIED 0, and **no edge
 quality separates rungs 2 and 3.** → L-070
-
-**B15. A retired type's WORKAROUND IDIOM outlives the type, and it is a COVERAGE
-question: ask what error class the detour's functional annihilates.** [skill:
-Mode 12, asked of the IDIOM] `[M]` 5 operator gates still checked linearity
-through the affine detour `op(ψ₁+λ(ψ₂−ψ₁)) = (1−λ)op(ψ₁)+λop(ψ₂)`; affine maps
-PRESERVE affine combinations, so it is exactly blind to an affine regression
-(`4.44e-16` at `q≠0`, bit-identical to its own `q=0` control, vs `1.29e+00` for
-direct additivity). Two moves: model both functionals in 10 lines of pure numpy
-when the SUT tree is under CONCURRENT edit — decisive, touching no file; and
-verify a "we fixed it" sweep moved the **assertion**, not the prose. → L-071
 
 **B16. When a MANIFEST becomes DISCOVERY, audit by asking "for which dropped
 check did the input stay REPRESENTABLE?" — not "which checks are gone".** Two
@@ -286,10 +242,6 @@ siblings. [skill: #22 owns the two axes] → L-064
 
 ## D. Re-baseline & bit-identity integrity
 
-**D1. Grep the WHOLE tree for the OLD literal, not the diff's touched files.** A
-cross-check against a derived value WILL break (a genuine miss); a
-self-consistency round-trip survives while feeding wrong physics (latent stale). → L-023, L-025
-
 **D2. Run the MASKING-CHECK on any loosened gate or regenerated baseline.**
 Loosened → re-run the untouched arms and confirm they STILL hard-fail ≫ the
 bound. Regenerated → OLD-snapshot-vs-NEW-code must hard-fail (load-bearing) AND
@@ -315,10 +267,6 @@ is `array_equal` at rank-2. → L-020, L-028, L-032
 **D7. When a carve preserves the COMPOSITE and not the leaf, prove byte-identity
 on the composite DIRECTLY** (both emitted against a read-only baseline worktree);
 a brief's "≤16 ULP" can understate leaf drift ~7×. Say which object is pinned. → L-049
-
-**D8. Prove a "verbatim relocation" by NORMALIZED AST-diff, not by re-running
-gates** (substitute into the old body, strip docstrings/imports/blanks,
-`difflib`): a true move reduces to the signature line plus the declared fork. → L-013
 
 **D9. For an ADDITIVE-only change, grep for ANY importer of the new module
 (excluding its own tests): empty ⟹ it cannot perturb a pre-existing outcome** —
@@ -348,18 +296,6 @@ directory for a commit that ALREADY made the decision** — the reds may be its
 REMAINDER, and the question is then completeness. `[M]` `39b46a31`'s universal
 "all 23 snapshots … the only two that changed" was scoped to ONE directory while
 7 further references had moved. [skill: #25 owns the per-mechanism null-check] → L-069
-
-**D15. A type/concept retirement's blast radius includes `.claude/agents/*/AGENT.md`,
-`.claude/skills/*/` and `.claude/agent-memory/*/`, and AGENT.md outranks a
-production docstring** — it loads FRESH per dispatch, so a stale brief is
-re-injected as CURRENT FACT into every future sub-agent and its output is
-indistinguishable from a correct one. `[M]` CS3-R: 3 of 12 survivors were agent
-briefs (one teaching a retired 4-role grid, one carrying an imperative its own
-source had already ⛔-corrected). Memory is the biggest and least-swept slice —
-**182 lines / ~20 files** vs **75** for skills+agents+rules combined. [skill:
-`retirement-audit` item 4 since 2026-09-21] → L-071
-
----
 
 ## E. Markers, levels, and the ORPHEUS audit surface
 
@@ -427,19 +363,6 @@ all four defects were modal. And when one sentence is dropped it is the one
 saying WHY, which is usually the CHECK: ask of every compressed clause *what
 experiment would I run?* — if the text does not say, it is recognition-only. → L-084
 
-**E10. A merged clause is SAFE iff its `check:` reaches every mechanism its own
-text NAMES** — point at the line of the check that would find each. `[M]` one
-clause named two spellings and shipped a check that can find only the first.
-[skill: `instrument-doctrine` X3 since 2026-09-21] → L-081
-
-**E9+E15. A distilled document's own CENSUS is an instrument: recount PER BUCKET
-and state the actual-before beside a published total.** An over-by-one bucket
-LOCALISES what the distillation dropped (cheaper than diffing both documents);
-and a published total can be INERT across a commit that grows the corpus (`[M]`
-actual 108 vs published 110, so two restorations left it right and UNCHANGED).
-⭐ A count becomes reproducible only when its CONVENTION names the ambiguities it
-resolves. → L-081, L-084
-
 **A20. The brief's denominator may assume a structure the SOURCE does not have**
 (a brief asked for "every bold-tagged clause" of an original that had none).
 State the predicate you actually counted, report that the briefed one was
@@ -454,11 +377,6 @@ every mechanism the index line names. → L-084
 **E14. A rule written from a defect the SAME commit repairs ships without its
 measurement** — the writer can still see the defect, the tree no longer can. The
 commit adding the rule adds its evidence entry, marked `[REMEDIED @<hash>]`. → L-084
-
-**E16. A POINTER that also SUMMARISES its target is a second definition**, and a
-gloss reads as navigation so nobody audits it. [skill: `instrument-doctrine` X3
-tell + skill X3, landed 2026-09-21] The residue landed: `plan-authoring` §4
-BEFORE-AND-AFTER-ONE-INSTRUMENT (2026-09-21). → L-086
 
 **E18. RELOCATING a clause out of the always-on tree changes its AUDIENCE, not
 its home** — a text-diff audit returns clean (`[M]` 82 of 82 clauses) while a
@@ -490,10 +408,6 @@ not transitively routed one level deeper, AND (c) in declared scope. → L-025
 **F6. A stress-ansatz mandated by the test-architect memo is a binding
 contract** — shipping the canonical `sin(πx/L)` 1G homogeneous case instead is a
 gate DOWNGRADE. Flag it even when all tests pass. → L-019
-
-**F7. "BC X is load-bearing because k = k_∞" is TRUE only for HOMOGENEOUS** — on
-a heterogeneous reflective sphere the flux is non-flat, so the term DOES move k
-(measured larger than vacuum). Check the config before accepting the argument. → L-012
 
 **F8. Check what the test HELPER tolerates before crediting an enforcement
 claim** — a `squeeze_density` helper made the suite agnostic to `keepdims`, so
@@ -538,13 +452,6 @@ READERS, grep only to enumerate candidates. Pair a dynamic `0` with a static
 no-other-path proof (no `**` splat / `asdict` / `replace`) or it is "not
 observed", not "none". → L-066
 
-**F17. A hardcoded status constant is a defect only if the producer ITERATES —
-triage one hop UP before a grep-driven sweep.** `[M]` of 7 hardcoded
-`converged=True`, 3 sat on direct `scipy.linalg.eig` / `np.linalg.solve`
-producers where `True` is honest, so a "fix every hardcode" pass mints FALSE
-HONESTY there. The lies and the facts are grep-identical — which is how the lies
-hid. Same shape for any `success`/`valid`/`exact` flag. → L-066
-
 **F20. In a multi-assembly review, read every RIVAL's self-attacks as a checklist
 against your target, then push one level past the argument each answers** — a
 self-attack marks the SEAM, not the depth, and the prepared defence is the tell
@@ -583,11 +490,6 @@ command, both claiming the step retired something it deliberately did not, one o
 them 146 lines from the same file's corrected twin (#21's aggravator). Also: a
 brief declaring "the known baseline reds" declares the reds of the batteries IT
 ran — widen the scope and reconcile against the PARENT commit before attributing. → L-055, L-065
-
-**G2-r. Reviewing a skill→Sphinx distillation, verify code-anchored specifics
-against CODE, never against the skill twin** (the source's stale specifics
-propagate verbatim), and grep the corpus for the spelling — the OUTLIER count is
-the bug. [skill: `retirement-audit` A.2 owns the xref-severity facts] → L-056
 
 **G3. Reviewing a results-compilation page:** a count DE-FREEZE is CERTIFIABLE
 (a live `--collect-only` proves the old literal lied); a doc RETITLE can beat the
@@ -629,16 +531,6 @@ pointer, open it when you are in that situation.
   `full_output=True` — with `disp` defaulted True a non-converged
   `brentq`/`root_scalar` RAISES, so the `converged=False` leg is an unreachable
   branch wearing an honest name. → L-066
-
-**H9. zsh does NOT word-split an unquoted `$VAR`; use an ARRAY and
-`"${VAR[@]}"`, always.** It has bitten twice, and the second time it manufactured
-a clean bill: `grep -rn "$pat" $TREES 2>/dev/null || echo "(0 hits)"` searched
-ONE nonexistent path across six trees and reported all-clean, because
-`2>/dev/null` ate the error and the `|| echo` laundered rc≠0 into a *finding*.
-⟹ on any census: never `2>/dev/null`, never `|| echo "(0 hits)"`, and run a
-positive control per tree BEFORE the sweep (`grep -rl <ubiquitous-token> <tree>`
-→ a file count). [skill: `instrument-doctrine` X1 owns the input-count clause;
-`code-search` carries the unquoted-`$var` and `=`-word traps since 2026-09-21] → L-062, L-071
 
 **H11. `full_output=True` does NOT make a scipy status readable — `disp=False`
 is the load-bearing half:** with `disp` defaulted True a non-converged
