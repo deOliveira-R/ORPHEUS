@@ -406,6 +406,13 @@ the offending factor.
   inconsistent. The "diverges with `h`" curve is an artefact of the
   cap, not the stencil.
 - **Discriminator (rules it out vs Signature 1):**
+  - ⚠ **A tolerance sweep is informative only if at least one swept tol is
+    LOOSER than the residual the capped run actually reaches.** Read
+    `history.converged` and `n_inner` against `max_inner` FIRST: a plateau at
+    exactly `max_iter − 1` is the whole diagnosis, and bit-identical answers
+    across four decades of `inner_tol` are then the CAP speaking, not the
+    discretization (`[M]` 2026-09: a gate red at 3.29e-10, bit-identical over
+    `inner_tol ∈ {1e-9 … 1e-15}`, with the residual at the cap 1.185e-09).
   - **Tighten `inner_tol`: the fixed point does NOT move.** If the
     converged answer is insensitive to `inner_tol` across decades,
     the inner solve was already converged → it IS a discretization

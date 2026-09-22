@@ -80,6 +80,27 @@ It narrows the search to specific equations and citations.
 
 Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
+## Before the cascade: what KIND of question is this?
+
+The cascade answers *"which component is wrong?"*. Not every dispatch asks
+that. Name the question first, because several kinds have a cheaper and
+stronger instrument than a solver run:
+
+- a **RATE** question is a spectrum question — build the iteration matrix and
+  eigen-solve it; never re-time the solver.
+- a **CONTRACT / arity** question ("must this widen?") is a theorem question —
+  ask what the defining conditions COMMUTE with.
+- a **KERNEL or counting** question is usually a closed form — a law independent
+  of a parameter the operator contains is combinatorial; derive it, do not fit it.
+- an **OWNERSHIP** question is answered by measuring the increment's structure,
+  not by what the quantity is called.
+- a **"can statistic X gate contract Y"** question is one number, the transfer
+  gain `|Δy|/X`, measured before any threshold.
+
+Only when the question really is "which component is wrong" does the cascade
+start at Step 1. The instances, with their measurements, are agent memory
+`lessons.md` (spine M1).
+
 ## Diagnostic Cascade
 
 Execute in order. Each step either identifies the broken component or

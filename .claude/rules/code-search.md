@@ -62,6 +62,14 @@ on greps like it.
   `$var`, and an unquoted word beginning with `=` (`echo ===`) is a command
   lookup that fails and aborts the whole compound, silently losing every grep
   sequenced after it: quote separators.
+- check, for a probe that reads another program's output or runs from
+  another tree: pytest's colour codes precede `FAILED`, so `grep -cE "^FAILED"`
+  reads 0 on a red run (pass `--color=no`, or drop the anchor); and `python -c`
+  puts the CWD at `sys.path[0]` ahead of `PYTHONPATH`, so a worktree probe run
+  from the main tree imports the MAIN tree and prints HEAD's values for every
+  commit (run a probe SCRIPT from outside the repository and print
+  `module.__file__` first). `[M]` 2026-09, a nine-commit bisect: both, both
+  flattering.
 - tell: a confident, empty, wrong answer.
 
 ## The harness's search tools

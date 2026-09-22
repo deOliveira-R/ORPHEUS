@@ -3,7 +3,7 @@ name: instrument-doctrine
 description: PROACTIVELY load when building, judging or citing evidence — a gate, a metric, a census, a canary, a mutation battery, a ratio, a timing. Procedures for the four always-on statements of the instrument-doctrine rule (X1 an instrument must be able to fail; X2 every claim carries its population and instrument; X3 prose is not enforcement; X4 one definition per quantity). Preloaded by qa, test-architect, numerics-investigator and archivist; vv-principles cites it.
 harness:
   kind: skill
-  budget_tokens: 3200
+  budget_tokens: 3300
 ---
 
 # Instrument doctrine — the procedures
@@ -64,6 +64,15 @@ invocation: check the asserting statement survives `python -O` (the scope is
 `coding-standards` § "A bare `assert`"), check the marker set is not deselected by `-m "not slow"`, and
 for a re-routed path check with a counting spy that the gate still reaches the
 changed line.
+
+**Transfer gain, before any threshold.** For "can statistic `X` gate quantity
+`y`?", measure `|Δy| / X` across configurations FIRST: a threshold on `X`
+bounds `|Δy|` only through that gain, so an unbounded gain means no constant
+exists and the threshold hunt is void. Report the gain's SPREAD and the two
+populations' overlap, never a candidate threshold (`[M]` 2026-08, #340 N5: a
+gain spread of 1.16e+05, populations overlapping 634×, and a zero-false-alarm
+threshold missing 15 of 16 corrupting cases). tell: a proposed threshold with a
+sensitivity table and no gain column.
 
 ## X2 — state the population and the instrument
 

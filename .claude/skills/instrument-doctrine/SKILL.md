@@ -62,6 +62,15 @@ invocation: check the asserting statement survives `python -O` (the scope is
 for a re-routed path check with a counting spy that the gate still reaches the
 changed line.
 
+**Transfer gain, before any threshold.** For "can statistic `X` gate quantity
+`y`?", measure `|Δy| / X` across configurations FIRST: a threshold on `X`
+bounds `|Δy|` only through that gain, so an unbounded gain means no constant
+exists and the threshold hunt is void. Report the gain's SPREAD and the two
+populations' overlap, never a candidate threshold (`[M]` 2026-08, #340 N5: a
+gain spread of 1.16e+05, populations overlapping 634×, and a zero-false-alarm
+threshold missing 15 of 16 corrupting cases). tell: a proposed threshold with a
+sensitivity table and no gain column.
+
 ## X2 — state the population and the instrument
 
 **The census protocol.** (1) Write the predicate before counting: what the

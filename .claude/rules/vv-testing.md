@@ -85,6 +85,22 @@ about the mathematics that nothing verifies, and the concept drifts silently.
   multiplier algebra: `M_f M_g = M_{fg}`, `M_1 = I`, `M_0 = 0`, `M_f.H = M_f`).
 - tell: a type whose only tests are its consumers'.
 
+## A hand-built mixture is gated on its own consistency identity
+
+A hand-built verification fixture prints and asserts the mixture's identity
+`σ_t == σ_c + σ_f + Σ_to SigS[0][g,:]` before any reference value is trusted:
+an inconsistent mixture gives the transport balance and the
+production/absorption balance two DIFFERENT answers, and two correct solvers
+then report different ones with no bug in either (`[M]` 2026-08, #340 N5: a
+brief's "benign pole" was 30 % off because `sig_s` was written `[to, from]`
+where the constructor reads `[from, to]`).
+
+- check: assert the identity in the fixture, and its companions in the same
+  line: a group with `φ ≡ 0` is a 1-group problem wearing a 2-group shape
+  (`vv-principles` #3); a negative `σ_c` is unphysical.
+- tell: a brief's reference value on a hand-built mixture, quoted but never
+  re-derived.
+
 ## Trivial execution & audit
 
 - `pytest -m l0` — term verification; `pytest -m "l1 and not slow"`;
