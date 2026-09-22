@@ -393,3 +393,19 @@ without re-deriving the refutation. → L-001
   overturned; run the two-question test the skill's A.1 row carries (canonical
   zero? physical superposition? two yeses ⇒ vector space + cone predicate) before
   applying it.
+- **Rayleigh–Ritz on a REDUCED variable** — the frame is sound and its smell is
+  promoted (Part C #15), but the OBVIOUS reformulation target is the wrong one.
+  Refuted FOR "is the F.4 white-BC closure secretly rank-1 Ritz on the boundary
+  trace?" (RH13, 2026-04-22): `R[1] ≈ 2e-4` against `k_eff = 1.4963`, because
+  the CP eigenproblem is SCHUR-REDUCED and the eliminated volume block is
+  load-bearing. The FACT it establishes, and the standing rule: **a Schur
+  complement is not self-adjoint in the reduced variable's inner product, so no
+  Rayleigh quotient exists on the reduced variable alone** — before claiming a
+  variational principle, ask which block was eliminated. The frame needs the
+  FULL (volume + trace) eigenproblem with a nested ladder
+  `V_n = V_{n-1} ⊕ µ·V_{n-1}`, Galerkin on the whole operator; the smell itself
+  survived and was doubly confirmed on both kernels by the anisotropic-BC scan
+  (`.claude/plans/archive/rank-n-closure-research-log.md`, RH13). Literature:
+  Courant & Hilbert 1953 Vol. I §VI (min-max); Case & Zweifel 1967 §6 and
+  Wendroff 1961 (Boltzmann variational theory). Salvaged 2026-09-22 from the
+  retired memo `elegance_smell_rank_non_monotone.md`.

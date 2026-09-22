@@ -74,7 +74,7 @@ scripts/validated_sn_sweep_frame_matvec.md with quantitative
 order-of-convergence evidence (Phase C Gate 3.1 / 3.2 MMS tests).
 
 Cross-link to:
-- elegance_smell_rank_non_monotone.md (Smell 15) — Smell 16 is a sibling.
+- `cross-domain-frames` Part C Smell #15 (rank-N non-monotone) — Smell 16 is a sibling.
 - variant_alpha_2surface_bie_frame.md — the rank-1/rank-2 boundary-
   scattering operator framing has the same shape (BC trace as the
   off-diagonal block of a resolvent).

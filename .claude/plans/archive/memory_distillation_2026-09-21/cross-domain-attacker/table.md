@@ -76,7 +76,7 @@ superseded by `projection_discipline_hierarchy_frames.md`). One is fully absorbe
 by the skill and is named as such in the index footer:
 `elegance_smell_rank_non_monotone.md` → Part C Smell #15 — a candidate for
 retirement ONLY after the retirement-audit blast radius (`docs/`, `.claude/plans/`,
-graph) is clean, which this dispatch cannot run.
+graph) is clean, which this dispatch cannot run. [REMEDIED 2026-09-22] the audit ran; SALVAGE-then-RETIRE, the falsified Ritz first test salvaged to `lessons.md` Part 4; the "graph node" premise was wrong — `.claude/` is outside the Nexus graph (`.nexus/config.toml` indexes `orpheus/` and `tests/` beside the docs).
 
 ## Part 4 — Counts (X2: the predicate and the denominator)
 

@@ -1589,7 +1589,7 @@ accident" — a structural conclusion that deserved an independent
 frame-level attack before being carved into production documentation.
 **Artifacts**:
 - `.claude/agent-memory/cross-domain-attacker/peierls_rank_n_frame_attack.md`
-- `.claude/agent-memory/cross-domain-attacker/elegance_smell_rank_non_monotone.md`
+- `.claude/agent-memory/cross-domain-attacker/elegance_smell_rank_non_monotone.md` (retired 2026-09-22; content in the `cross-domain-frames` skill, reference.md Part C Smell #15)
 - Cross-domain-frames skill updated with "rank-N non-monotone" elegance smell.
 
 **Outcome**: **6 frame candidates + 5 cross-method pollinations**
@@ -1754,7 +1754,7 @@ representation-theoretic explanation**; the barrier is fundamental."
 ## New elegance smell
 
 **Rank-N non-monotonicity**
-(`.claude/agent-memory/cross-domain-attacker/elegance_smell_rank_non_monotone.md`):
+(`cross-domain-frames` skill, reference.md Part C Smell #15; promoted 2026-04-30 from a memo retired 2026-09-22):
 when a supposedly-enriching basis sequence gives **worse** accuracy
 at higher rank, the variational principle has been abandoned.
 Rank-2 Marshak worse than rank-1 F.4 is a tell that the rank-N

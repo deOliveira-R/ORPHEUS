@@ -186,7 +186,7 @@ Symbol legend per item:
 - [ ] **J6. "Sphere = odd-mode slab + antisymmetric BC; one sign flip + one sin↔cos"** — Atalay 1997 confirms this (already in case_method); also confirmed in Siewert-Thomas 1986 for 2G F_N. Generalisable abstraction worth lifting once a third instance appears.
 - [ ] **J7. Three-pillar verification structure achieved on Sood `Ua-1-0-SP` and on bare-critical slab** — F_N (existing) vs Carlvik-Galerkin (Wave 2-C) vs Variant α (existing). When this triangulation passes at 1e-5 and disagrees at 0.5 %, the disagreement IS V&V information about the weakest pillar.
 - [ ] **J8. "Build new instance standalone first; only unify after ≥2 working instances"** — vindicated by ERR-035; already saved as `feedback_unify_after_two_instances.md`.
-- [ ] **J9. cross-domain-attacker `elegance_smell_rank_non_monotone.md`** — dangling memo; subject not actioned this session.
+- [x] **J9. rank-N non-monotone smell** — CLOSED 2026-09-22: promoted 2026-04-30 to `cross-domain-frames` Part C Smell #15 and shipped as a gate (`tests/cp/test_peierls_rank_n_protocol.py::test_protocol_catches_non_monotone`); the memo retired, its falsified Ritz test salvaged to `lessons.md` Part 4.
 - [ ] **J10. `phase5_continuous_mu_frames.md`** — cross-domain-attacker memo from earlier work; relates to abandoned `feature/peierls-specular-bc` (F7).
 
 ---

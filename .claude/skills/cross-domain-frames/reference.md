@@ -264,6 +264,13 @@ more smells fire, the cross-domain-attacker should probe.
     modes worsens the error. ORPHEUS precedent: rank-N closure
     investigation (Direction-C/Q failures, #121, #122 closed)
     where rank-1 F.4 gave 0.003% but rank-2 Marshak gave 1.36%.
+    First test (corrected; the boundary-trace-only version was
+    falsified as RH13, 2026-04-22, #126 closed): form the Rayleigh
+    quotient on the FULL eigenproblem, never on a Schur-reduced
+    variable, and build rank-(N+1) as a NESTED subspace
+    (`V_n = V_{n-1} ⊕ µ·V_{n-1}`); a Ritz method then cannot be
+    non-monotone, so a surviving non-monotonicity refutes the
+    variational reading rather than the truncation order.
 
 ---
 
@@ -361,3 +368,9 @@ rationale).
     2026-08-03 at one sighting, resubmitted as two shapes at the
     2026-09-21 distillation, landed by the user's ruling of
     2026-09-22.
+  - Smell #15 gains its first test, corrected: the Rayleigh quotient
+    on the FULL eigenproblem with a nested ladder, never on a
+    Schur-reduced variable (RH13, research log 2026-04-22, #126
+    closed). Justification: the memo that carried the boundary-trace
+    version retired under the blast-radius audit; the corrected test
+    is the only clause the skill lacked.

@@ -90,6 +90,4 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [scan-march trait](d5_trait_and_mms_frames.md) — DD/Step-vs-LD splits on TRANSVERSE-COUPLING ORDER; name the SCHEME trait, not the sweep strategy.
 - [diffusion carve](diffusion_integration_frames.md) — the diffusion solver IS the transport algebra hand-inlined; trace = partial currents J±.
 
-Files here not listed above = archive: early Peierls / Variant-α / phase attacks,
-plus `elegance_smell_rank_non_monotone.md` whose content is now skill Part C
-Smell #15.
+Files here not listed above = archive: early Peierls / Variant-α / phase attacks.
