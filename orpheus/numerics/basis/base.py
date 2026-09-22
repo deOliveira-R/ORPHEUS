@@ -62,7 +62,14 @@ References
 
 * Grand Report v3 §5.4 — Basis hierarchy.
 * Christensen, O. (2016). *An Introduction to Frames and Riesz Bases*, 2nd ed.
-  Birkhäuser — the analysis/synthesis operator pair this ABC is the trial side of.
+  Birkhäuser — the analysis/synthesis operator pair this ABC is the trial side of
+  (Christensen writes :math:`T` for SYNTHESIS and :math:`S = TT^*`; the letters here
+  are Casazza–Lynch's).
+* Casazza, P. G. and Lynch, R. G. (2016). A brief introduction to Hilbert space
+  frame theory and its applications. *Proc. Sympos. Appl. Math.* 73, 1–51, §4.1 —
+  the letters used here: analysis operator :math:`T`, synthesis operator
+  :math:`T^*`, frame operator :math:`S = T^*T` on the sampled space, Gram
+  operator :math:`TT^*` on the coefficients (doi:10.1090/psapm/073/00627).
 """
 
 from __future__ import annotations
@@ -280,7 +287,10 @@ class Basis(ABC):
     def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
         r"""Discrete Gram :math:`\sum_n w_n\, \phi_j(x_n)\, \phi_k(x_n)` over ``measure``.
 
-        The frame operator :math:`S = T^* T` in discrete form. Equals the
+        The GRAM operator :math:`TT^*` on the coefficient space, in discrete form
+        (the frame operator :math:`S = T^*T` acts on the sampled space instead;
+        the two share their nonzero spectrum, so frame bounds read off either
+        agree, but they are different objects). Equals the
         continuous Gram (the basis's intrinsic metric) when the quadrature is
         exact to the basis's degree; the residual is a quadrature-exactness
         diagnostic. (A one-off diagnostic, so it is naturally measure-based and

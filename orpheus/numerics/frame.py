@@ -83,8 +83,13 @@ References
 
 * Grand Report v3 §5.4 / §19 — bases and harmonic projection.
 * Christensen, O. (2016). *An Introduction to Frames and Riesz Bases*, 2nd ed. —
-  the analysis operator :math:`T`, synthesis operator :math:`T^*`, frame operator
-  :math:`S = T^*T`, and canonical dual.
+  the analysis and synthesis operators, the frame operator, and the canonical dual
+  (Christensen writes :math:`T` for synthesis and :math:`S = TT^*`).
+* Casazza, P. G. and Lynch, R. G. (2016). A brief introduction to Hilbert space
+  frame theory and its applications. *Proc. Sympos. Appl. Math.* 73, 1–51, §4.1 —
+  the letters used here: analysis operator :math:`T`, synthesis operator
+  :math:`T^*`, frame operator :math:`S = T^*T` on the sampled space, Gram
+  operator :math:`TT^*` on the coefficients (doi:10.1090/psapm/073/00627).
 * Brenner, S. C. and Scott, L. R. (2008). *The Mathematical Theory of Finite Element
   Methods*, 3rd ed. Springer. §3.4 — Galerkin vs Petrov-Galerkin (test vs trial space).
 """

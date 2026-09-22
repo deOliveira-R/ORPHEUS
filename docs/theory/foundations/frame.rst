@@ -238,7 +238,9 @@ Key Facts
   :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` of order
   :math:`L` bound to an :math:`S^2` cubature — is a
   :class:`~orpheus.numerics.frame.GalerkinFrame` (``test is trial``)
-  and a **4π-tight frame**. The forward (reaction-rate)
+  and, in the production spaces' own metrics, a **Parseval frame**
+  (:math:`M \circ M^{*} = I`, :ref:`frame-sh-tightness-measured`). The
+  forward (reaction-rate)
   **Petrov-Galerkin** consumers —
   :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
   (space) and
@@ -304,9 +306,15 @@ Key Facts
   convention of :math:`V`. For the SN spherical-harmonic frame on a
   Lebedev quadrature, :math:`c_V = 4\pi` — this is the **L1
   idempotency** identity :eq:`pi-r-equals-4pi-i` verified at multiple
-  :math:`L` against multiple Lebedev orders. (A 4π-tight frame is one
-  whose frame operator :math:`S = T^*T` is :math:`4\pi` times the
-  identity; the tightness constant IS this :math:`c_V`.)
+  :math:`L` against multiple Lebedev orders. ⛔ This bullet said until
+  2026-09-22 that the SH frame is *"4π-tight"*, with frame operator
+  :math:`S = T^*T = 4\pi I` and :math:`c_V` its tightness constant. That
+  is false in both metrics the frame can be read in: in the production
+  spaces' own metrics it is Parseval (:math:`M M^{*} = I`, bound 1), and
+  under a Euclidean coefficient metric it is not tight at all (bounds
+  :math:`4\pi/(2L+1)` and :math:`4\pi`). The :math:`4\pi` is the one
+  scalar by which the reconstruction face is the adjoint of the analysis
+  face, :math:`R = 4\pi M^{*}` (:ref:`frame-sh-tightness-measured`).
 
 - **The frame is the single source of the COEFFICIENT SPACE too, not
   only of the faces** (:ref:`frame-moment-space-single-home`, #429
@@ -341,9 +349,15 @@ The discrete frame — analysis, synthesis, and the frame operator
 ================================================================
 
 The :math:`(R, M)` pair is the language of **frame theory**
-(Christensen 2016, *An Introduction to Frames and Riesz Bases*). A
-discrete frame is a countable family :math:`\{e_k\}` in a Hilbert
-space :math:`V` for which two operators are defined:
+(Christensen 2016, *An Introduction to Frames and Riesz Bases*, 2nd
+ed.). A discrete frame is a countable family :math:`\{e_k\}` in a
+Hilbert space :math:`V` for which two operators are defined. ORPHEUS
+lets :math:`T` denote the analysis operator, as Casazza and Lynch do
+(:cite:`CasazzaLynch2016` §4.1); Christensen 2016 and Casazza's earlier
+survey ("The art of frame theory", *Taiwanese J. Math.* 4, 2000) use the
+opposite letters, with :math:`T` the synthesis operator and the frame
+operator written :math:`S = TT^{*}`. The two operators and :math:`S` are
+the same in both conventions; only the letter :math:`T` moves:
 
 * the **analysis operator** :math:`T : V \to W`,
   :math:`(T f)_k = \langle e_k, f \rangle_V` — it *analyses* a
@@ -354,16 +368,30 @@ space :math:`V` for which two operators are defined:
   factor.
 
 Their composition is the **frame operator**
-:math:`S = T^* T : V \to V`. A frame is **tight with constant
-:math:`c`** when :math:`S = c\,I` — the frame elements then behave
-like an orthonormal basis up to the scalar :math:`c`, and the
-inversion is trivial: :math:`f = c^{-1} T^* T f`.
+:math:`S = T^* T : V \to V`, which acts on the sampled space; the other
+order, :math:`T T^{*} : W \to W`, is the **Gram operator** on the
+coefficients. The two share their nonzero spectrum, so frame bounds read
+off either agree, but they are different objects on different spaces,
+and the :math:`K\times K` discrete Gram
+:math:`\sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)` is the matrix of the
+second, not the first, when the coefficients carry the Euclidean metric
+in which :math:`T^{*}` is the naked synthesis :math:`S_0` (the reading
+this section uses). A frame is **tight** with constant :math:`c` when :math:`S = c\,I`
+on :math:`V` (equivalently, :math:`T T^{*} = c\,I` on the span of the
+frame's coefficients); the frame elements then behave like an
+orthonormal basis up to the scalar :math:`c`, and the inversion is
+trivial: :math:`f = c^{-1} T^* T f`. **Tightness depends on the metrics**:
+:math:`T^{*}` is an adjoint, so the same family can be tight in one pair
+of inner products and not in another, and a statement of tightness must
+name the metrics it is made in (the SH frame is the worked case,
+:ref:`frame-sh-tightness-measured`).
 
 In the ORPHEUS algebra, the analysis operator IS the **analysis face**
 :math:`M = T` (measured against the test basis), and the
 **reconstruction** :math:`R` is the **canonical-dual synthesis** —
 :math:`T^*` weighted by the dual frame's Gram-inverse so that
-:math:`M R` recovers the band-limited identity (up to tightness). The
+:math:`M R` recovers the band-limited identity (up to the scalar
+:math:`c_V` below). The
 bare :math:`T^* = S_0` (the *naked synthesis*) is the shared
 :meth:`~orpheus.numerics.basis.Basis.synthesize` primitive on the
 :class:`~orpheus.numerics.basis.Basis`; the analysis face :math:`M`
@@ -385,9 +413,12 @@ splits as:
    \qquad
    M \, R \;=\; c_V \, I_W
 
-where :math:`c_V` is the frame's tightness constant
-(:math:`c_V = 1` in the fully-orthonormal case;
-:math:`c_V = 4\pi` for the no-prefactor real spherical harmonics).
+where :math:`c_V` is a normalisation scalar (:math:`c_V = 1` in the
+fully-orthonormal case; :math:`c_V = 4\pi` for the no-prefactor real
+spherical harmonics). It is **not** a tightness constant: on the SH
+frame it is the scalar of the adjoint relation :math:`R = 4\pi M^{*}`,
+and in the production metrics the same frame is Parseval, tight with
+bound 1 (:ref:`frame-sh-tightness-measured`).
 
 .. vv-status: galerkin-pair documented
 
@@ -925,7 +956,8 @@ proving *choice*.
    \circ A.\mathrm{codomain.riesz\_lower}`, which a full matrix metric
    satisfies as easily as a diagonal because the
    :class:`~orpheus.numerics.metric.HilbertMetric` family is the one
-   metric arithmetic the legs wrap. The landing is recorded in the SN
+   metric arithmetic the legs wrap. The legs are defined at
+   :ref:`spaces-riesz-legs`; the landing is recorded in the SN
    development history (the Riesz-legs entry).
 
 .. _frame-square-closure-section:
@@ -3668,8 +3700,9 @@ The Galerkin frame
 The **Galerkin** frame is the special case ``test is trial`` — the
 :class:`~orpheus.numerics.frame.GalerkinFrame` specialisation of the
 Petrov-Galerkin base above. It strengthens the base promise
-:math:`M R = I_W` (up to tightness) to the self-dual :math:`M^* = R`
-(under an orthonormal trial basis), and its canonical instance is the
+:math:`M R = c_V I_W` to the self-dual :math:`M^* = R` (under an
+orthonormal trial basis; :math:`M^* = R/W` on the spherical harmonics,
+:ref:`frame-square-closure-section`), and its canonical instance is the
 angular spherical-harmonic frame.
 
 .. _frame-galerkin-in-general:
@@ -3815,10 +3848,75 @@ weight) yields :math:`M R = 4\pi I` — the L1 identity that the
 test
 ``tests/numerics/test_spherical_harmonic_space.py``
 verifies at :math:`L = 2,\,3,\,4` (see :eq:`pi-r-equals-4pi-i` in
-:ref:`spherical-harmonics`). This :math:`4\pi` is precisely the
-frame's **tightness constant** :math:`c_V`: the frame operator
-:math:`S = T^*T` equals :math:`4\pi\,I`, so the spherical-harmonic
-frame is a 4π-tight frame.
+:ref:`spherical-harmonics`). This :math:`4\pi` is the frame's
+normalisation scalar :math:`c_V`, and it is **not** a tightness
+constant; the next subsection says what it is.
+
+.. _frame-sh-tightness-measured:
+
+Is the spherical-harmonic frame tight? It depends on the metric
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+⛔ **This page, and three others, said until 2026-09-22 that the
+spherical-harmonic frame is "4π-tight", with frame operator**
+:math:`S = T^*T = 4\pi I` **and** :math:`4\pi` **its tightness
+constant.** That is false. A tight frame has :math:`S = c\,I`, and
+:math:`T^{*}` is an adjoint, so whether a frame is tight, and with which
+constant, depends on the inner products on both sides. The SH frame has
+two readings, and in neither is it :math:`4\pi`-tight:
+
+.. list-table:: The spherical-harmonic Galerkin frame, read in two metrics
+   :header-rows: 1
+   :widths: 26 30 20 24
+
+   * - Coefficient metric
+     - Gram operator :math:`M M^{*}` on the coefficients
+     - Tight?
+     - :math:`M R`
+   * - Euclidean (:math:`\ell^2`, the frame-theory default, where
+       :math:`T^{*} = S_0` is the naked synthesis)
+     - :math:`\operatorname{diag}\bigl(4\pi/(2\ell+1)\bigr)`
+     - **no**: frame bounds :math:`4\pi/(2L+1)` and :math:`4\pi`
+     - :math:`4\pi I`
+   * - the production spaces' own (the dressed coefficient space's
+       Parseval metric :math:`G^{-1}`, so :math:`M^{*}` is ``M.H``)
+     - exactly :math:`I`
+     - **yes, Parseval** (bound 1)
+     - :math:`4\pi I`
+
+In the production metrics the Gram operator is
+:math:`M M^{*} = M\,(S_0\,G^{-1}) = G\,G^{-1} = I`, because the analysis
+face returns the Gram (:eq:`frame-analysis-is-the-gram`) and the
+coefficient space carries its inverse (:ref:`frame-parseval-metric`):
+**the SH frame is a Parseval frame**. The :math:`4\pi` of
+:math:`M R = 4\pi I` is then not a frame bound but the scalar of the
+frame square, :math:`R = W\,M^{*}` with :math:`W = \sum_n w_n = 4\pi`
+(:eq:`frame-square-closure-sh`), whence
+:math:`M R = W\,M M^{*} = 4\pi I`. The Euclidean row is the textbook
+reading, in which the frame elements are the sampled harmonics with
+norms :math:`\sqrt{4\pi/(2\ell+1)}`, unequal across :math:`\ell`, so
+the frame is not tight for :math:`L \ge 1`.
+
+`[M]` 2026-09-22 (``scratch/_definitions/tightness_probe.py``, ``scratch/_definitions/tightness_probe2.py``) on ``GalerkinFrame(SphericalHarmonicBasis(L), lebedev_sphere(13))`` at
+:math:`L = 1, 2, 3`, run from outside the repository: through the
+production adjoint ``M.H``, every eigenvalue of :math:`M \circ M^{*}` is
+:math:`1`, :math:`M R c / c = 4\pi` on every live coefficient, and
+:math:`R` equals :math:`4\pi` times ``M.H`` entry by entry; with the
+adjoint built by hand under a Euclidean coefficient metric, the Gram's
+distinct eigenvalues divided by :math:`4\pi` are :math:`\{1/3, 1\}`,
+:math:`\{1/5, 1/3, 1\}` and :math:`\{1/7, 1/5, 1/3, 1\}`, and the frame
+operator's nonzero spectrum equals the Gram's. The identity
+:eq:`pi-r-equals-4pi-i` is untouched by the correction; only its
+description changes.
+
+.. note::
+
+   A **different sense of "tight"** is used for quadrature rules on the
+   operator-algebra page (:ref:`scattering-binding-cs4c`, the tightness
+   gate ``tests/transport/frames/test_binding_tightness.py``): a rule is
+   called tight there when it is exact enough that binding is
+   multiplicative. That is a quadrature-exactness property, not a frame
+   bound, and the naming collision is issue #494.
 
 .. note::
 
@@ -3848,8 +3946,9 @@ orthogonal. Every term of the frame is named below: the analysis face
 moments), the reconstruction face :math:`R` (the :math:`(2\ell+1)`
 addition-theorem synthesis), the diagonal eigenvalue operator
 :math:`\Lambda` (the Legendre moments :math:`\Sigma_{s,\ell}`), and the
-tightness constant :math:`c_V = 4\pi` for which :math:`M R = 4\pi I`
-(:eq:`pi-r-equals-4pi-i`, derived in the
+normalisation scalar :math:`c_V = 4\pi` for which :math:`M R = 4\pi I`
+(:eq:`pi-r-equals-4pi-i`; the frame itself is Parseval in the production
+metrics, :ref:`frame-sh-tightness-measured`; derived in the
 :ref:`general treatment of the Galerkin frame <frame-galerkin-in-general>`
 above). The whole kernel is the spectral theorem
 :math:`S = R\circ\Lambda\circ M = U\Sigma U^*` written out.
@@ -3992,7 +4091,7 @@ are the origin of:
 
 So the entire numerical apparatus of the spherical-harmonic frame —
 the per-:math:`\ell` block structure, the :math:`(2\ell+1)` factor,
-the :math:`4\pi`-tightness — is the representation theory of
+the :math:`4\pi` of :math:`M R = 4\pi I` — is the representation theory of
 :math:`SO(3)` acting on a rotationally-invariant kernel. The frame is
 Galerkin **because** the eigenbasis of a self-adjoint (here
 :math:`SO(3)`-invariant) operator is orthogonal: ``test is trial`` is
@@ -6154,7 +6253,8 @@ Galerkin discipline's invariants on the spherical-harmonic
 :class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` /
 ``reconstruction`` faces:
 
-1. **Idempotency** (4π-tightness):
+1. **Idempotency** (the scalar :math:`c_V = 4\pi`, not a tightness
+   constant, :ref:`frame-sh-tightness-measured`):
    :math:`M R c = 4\pi c` on band-limited
    coefficient input, verified at :math:`L = 2,\,3,\,4` against
    Lebedev orders :math:`7,\,13,\,17`. See
@@ -6480,11 +6580,18 @@ References
   of Finite Element Methods*, 3rd ed. Springer. §3.4 (Galerkin /
   Petrov-Galerkin general framework — test vs trial space).
 * Christensen, O. (2016). *An Introduction to Frames and Riesz
-  Bases*, 2nd ed. Birkhäuser. (The analysis operator :math:`T`, the
-  synthesis operator :math:`T^*`, the frame operator
-  :math:`S = T^*T`, tight frames, and the canonical dual — the
-  harmonic-analysis foundation of the
-  :class:`~orpheus.numerics.frame.FrameBase` abstraction.)
+  Bases*, 2nd ed. Birkhäuser. (Frames, the analysis and synthesis
+  operators, the frame operator, tight frames, and the canonical dual —
+  the harmonic-analysis foundation of the
+  :class:`~orpheus.numerics.frame.FrameBase` abstraction. Christensen
+  writes :math:`T` for the synthesis operator and :math:`S = TT^*`;
+  this page uses the opposite letters, see Casazza & Lynch.)
+* Casazza, P. G. and Lynch, R. G. (2016). "A brief introduction to
+  Hilbert space frame theory and its applications". *Proc. Sympos.
+  Appl. Math.* 73, 1–51. AMS. doi:10.1090/psapm/073/00627
+  (:cite:`CasazzaLynch2016`). §4.1 (the letters this page uses:
+  analysis operator :math:`T`, synthesis operator :math:`T^*`, frame
+  operator :math:`S = T^*T`).
 * Bell, G. I. and Glasstone, S. (1970). *Nuclear Reactor Theory*.
   Van Nostrand Reinhold. §1.6 (spherical-harmonic moment
   projection in transport).

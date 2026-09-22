@@ -31,8 +31,8 @@ frame's two faces, NOT standalone operator classes.
 Key Facts
 =========
 
-- The convention is the **no-:math:`4\pi/(2\ell+1)`-prefactor** real
-  spherical harmonics (Lewis & Miller 1993, §4.7). The addition
+- The convention is the real spherical harmonics with **no prefactor**
+  :math:`4\pi/(2\ell+1)` (Lewis & Miller 1993, §4.7). The addition
   theorem in this convention reads
 
   .. (vv-status rationale) The addition-theorem identity is the
@@ -371,9 +371,16 @@ face** (``frame.analysis``, :math:`M = Y^*W`), :math:`R` is its
 **reconstruction face** (``frame.reconstruction``, with the
 :math:`(2\ell+1)` factor), and the :math:`4\pi` factor comes from
 the no-prefactor convention summing the :math:`4\pi/(2\ell+1)`
-orthogonality with the :math:`(2\ell+1)` reconstruction weight —
-i.e. the frame is **4π-tight** (frame operator :math:`S = T^*T =
-4\pi I`). The identity is verified at :math:`L=2,\,3,\,4` against
+orthogonality with the :math:`(2\ell+1)` reconstruction weight. ⛔
+Until 2026-09-22 this sentence went on *"i.e. the frame is 4π-tight
+(frame operator S = T*T = 4π I)"*, and that is false: in the production
+spaces' own metrics the frame is **Parseval** (:math:`\Pi\,\Pi^{*} = I`,
+tight with bound 1), and the :math:`4\pi` is the scalar of the adjoint
+relation :math:`R = 4\pi\,\Pi^{*}`; under a Euclidean coefficient metric
+it is not tight at all (`[M]` 2026-09-22,
+``scratch/_definitions/tightness_probe.py`` and
+``scratch/_definitions/tightness_probe2.py``;
+:ref:`frame-sh-tightness-measured`). The identity itself is verified at :math:`L=2,\,3,\,4` against
 Lebedev quadratures of order :math:`7,\,13,\,17` by the L1 test
 ``tests/numerics/test_spherical_harmonic_space.py``.
 
@@ -821,7 +828,11 @@ and measures the ratio it produces).
    (one home). The composition :math:`\Pi R = 4\pi I`
    (the addition-theorem composition, :eq:`pi-r-equals-4pi-i`)
    continues to hold on band-limited inputs and is the genuine
-   Galerkin-discipline identity for this SH frame — its 4π-tightness.
+   Galerkin-discipline identity for this SH frame. (This sentence
+   called it the frame's *"4π-tightness"* until 2026-09-22; the frame
+   is Parseval in the production metrics and the :math:`4\pi` is the
+   adjoint scalar :math:`R = 4\pi\,\Pi^{*}`,
+   :ref:`frame-sh-tightness-measured`.)
 
    **The F-0 chapter (2026-08-23).** ERR-039's endpoint gave each
    operator a typed construction path and left one question

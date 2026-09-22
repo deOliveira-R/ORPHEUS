@@ -3962,10 +3962,14 @@ The coisometry factoring of the windowed contract
    \text{analysis} \circ \text{reconstruction} \;=\; 4\pi\,\mathrm{I}
 
 under the no-prefactor SH convention (:ref:`spherical-harmonics`) — the
-addition-theorem tight-frame identity, pinned by
+addition-theorem identity, pinned by
 ``test_pi_R_is_4pi_identity_through_the_frame``. It is emphatically **not**
 :math:`\mathrm{I}`: asserting :math:`\Pi R = \mathrm{I}` was the ERR-051
-mistake — the coisometry carries the :math:`4\pi` frame constant, and a
+mistake — the coisometry carries the :math:`4\pi` adjoint scalar
+(:math:`R = 4\pi\,M^{*}` in the production metrics, where the frame is
+Parseval, :ref:`frame-sh-tightness-measured`; this sentence called it
+the addition-theorem "tight-frame identity" and the "frame constant"
+until 2026-09-22), and a
 test that hard-coded :math:`= \mathrm{I}` verified the *wrong* invariant.
 In the other order :math:`\text{reconstruction} \circ \text{analysis}
 \neq \mathrm{I}` (moments discard the ordinate-resolved angular content

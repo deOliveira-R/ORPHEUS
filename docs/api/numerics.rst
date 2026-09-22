@@ -347,9 +347,16 @@ discipline-type hierarchy, GitHub #268):
   headline consumers.
 * :class:`~orpheus.numerics.frame.GalerkinFrame` — the Galerkin
   specialisation (``test is trial``), which *strengthens* the base
-  promise to :math:`\Pi^* = R`. The angular spherical-harmonic
-  projection (``quadrature.angular_frame(L)``) is the canonical
-  pure-Galerkin frame; its SH case is a 4π-tight frame.
+  promise to :math:`\Pi^* = R` up to one scalar
+  (:math:`\Pi^* = R/W`, :math:`W = \sum_n w_n`, on the spherical
+  harmonics; :ref:`frame-square-closure-section`). The angular
+  spherical-harmonic projection (``quadrature.angular_frame(L)``) is
+  the canonical pure-Galerkin frame; in the production spaces' own
+  metrics it is a **Parseval** frame (:math:`\Pi\,\Pi^{*} = I`), and
+  the :math:`4\pi` of :math:`\Pi R = 4\pi I` is that adjoint scalar,
+  not a tightness constant (`[M]` 2026-09-22,
+  ``scratch/_definitions/tightness_probe2.py``;
+  :ref:`frame-sh-tightness-measured`).
 * :class:`~orpheus.numerics.basis.Basis` — the synthesis (trial)
   side ABC: tabulate, naked synthesis :math:`S_0`, the three
   weighted contractions, the discrete Gram, and the
