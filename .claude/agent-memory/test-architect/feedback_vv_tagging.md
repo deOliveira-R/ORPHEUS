@@ -32,4 +32,4 @@ orphans and will surface in every `session_briefing`.
   -m "l1 and not slow"` is the standard fast-gate.
 - xfail tests for features not yet implemented: `strict=True` with a
   `reason=` naming the API or Sphinx label that unlocks the test, paired
-  with a RECORD row (the test-architect definition, §2 "Not yet landed").
+  with a RECORD row (the test-architect definition, §3 "Not yet landed").
