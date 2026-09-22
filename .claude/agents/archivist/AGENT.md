@@ -171,16 +171,26 @@ Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
 Before finishing ANY documentation task:
 
+0. **Sequence the session so you build TWICE:** baseline `-E -W` → all edits →
+   all residual greps → the xref gate and your own import probe → the AST
+   doc-only proof → ONE verification build. The self-consistency pass over
+   prose YOU authored (universals, quotations, denominators, superlatives,
+   symbol collisions, aspirational rows) runs to exhaustion BEFORE the first
+   verification build, never interleaved with it; every build launched
+   before it does is wall-clock spent for nothing.
 1. **Build Sphinx**: `python -m sphinx -b html docs docs/_build/html`
-2. **Zero warnings**: if warnings appear, fix them before submitting
+2. **The warning SET is unchanged from a freshly-measured `-E` baseline**: the
+   gate is the set diff ("The build gate" below), never a count and never an
+   absolute zero.
 3. **Check cross-references with a GREP gate, not the build**: unresolvable
    `:func:`/`:class:`/`:meth:`/`:attr:` refs render as PLAIN TEXT with NO
    warning — `-W` will never catch a dead or stale code-xref. After any edit
    that touches, renames, or deletes a symbol, `grep -rn "<symbol>" docs/` and
    repoint every hit on correctness grounds. The warning count proves only
    "added nothing new"; it is BLIND to staleness. (Undefined `[Key]_`
-   citations and intra-doc dangling `:ref:` DO warn; cross-doc `:ref:`
-   renders plain-text.)
+   citations and EVERY dangling `:ref:` / `:doc:`, cross-doc included, DO
+   warn at default severity, `[M]` 2026-09-21, so both label classes are
+   rename-gated by the build; what is silent is the code-xref.)
 4. **Check equations**: all `.. math::` blocks must render correctly
 5. **Check labels**: all `:label:` must be unique, all `:eq:` references must resolve
 6. **Verify EVERY claim against the LIVE source this session — not the brief,
@@ -190,7 +200,14 @@ Before finishing ANY documentation task:
    ground-truth only in the code body; a verdict memo may record the
    RECOMMENDATION, not the OUTCOME that actually shipped. Read the live code
    before citing any convention, shape, design decision, or numerical result —
-   and confirm cited numerical results are reproducible. A dead/stale `:func:`
+   and confirm cited numerical results are reproducible: re-derive the
+   pass's numeric literals as a SET, in one script, at the END, because a
+   spot check finds neither of the two defects the set finds (a figure that
+   was invented; a figure that was real and answered a different question).
+   When two honest measurements disagree, do not adjudicate: find the
+   PREDICATE or the STATISTIC that makes both true and publish the
+   arithmetic, since an exact reconciliation proves the census complete and
+   names what it excluded. A dead/stale `:func:`
    is a Cardinal-Rule-1 correctness bug `-W` will never catch (see item 3).
 7. **No stale content**: remove/update any warnings about broken features if they're fixed
 8. **V&V vocabulary check**: any prose claiming a level (L0/L1/L2/L3/L4/foundation),
@@ -448,17 +465,23 @@ carry only their distinctive content.)
   worktree. (Several old notes claimed "capital-A" — that was the FS
   illusion; ignore it.)
 
-### Cross-ref reality (this project is NOT `-n` nitpicky)
+### Cross-ref reality (this project does not RUN `-n`, but `-n` sees the `.rst` corpus)
 
-- **Unresolvable `:func:`/`:class:`/`:meth:` refs render as PLAIN TEXT
-  with NO warning — and `-n` (nitpicky) does NOT save you either.**
-  `-W` will NOT catch a dead code-xref or a stale alias-xref, and
-  neither will a nitpicky build: Sphinx can only nitpick what it
-  RENDERS, so a docstring in an un-`automodule`'d module is invisible
-  at every severity, as is every file under `tests/`. That is the
-  MAJORITY case here — the doc source carries only ~45 live
-  `automodule` directives (2026-08-03), which is how a module
-  retirement left 22 dead refs no build of any severity could see.
+- **Unresolvable `:func:`/`:class:`/`:meth:`/`:attr:`/`:mod:` refs render
+  as PLAIN TEXT with NO warning at default severity — but `-n` DOES catch
+  them on an `.rst` page** (`[M]` 2026-09-21: 5 of 5 under `-n`, 0 of 5 by
+  default, live targets beside dead ones). `-W` will NOT catch a dead
+  code-xref or a stale alias-xref. What no severity can see is the surface
+  Sphinx never RENDERS: a docstring in an un-`automodule`'d module, and
+  every file under `tests/`, which is how a module retirement left 22 dead
+  refs no build could see. And `:noindex:` is a second plain-text
+  mechanism: it renders the docstring and mints no target. The population
+  is `grep -c '^\.\. automodule::' docs/**/*.rst` (excluding `_build`) and
+  the plain-text half is however many carry `:noindex:` in their option
+  block: read it, do not quote it (`[M]` 2026-09-21 it was 48 and 24;
+  re-measure before citing that pair). Run `-n` as a pre-edit-vs-post-edit
+  SET DIFF over the pages you touched; an absolute zero is unreachable
+  while the plain-text convention stands.
   Before concluding "`-n` would have caught this", check whether the
   module is rendered at all (`grep -c "docstring of <module>"` in a
   nitpick log; 0 means invisible). They are Cardinal-Rule-1 staleness bugs regardless — fix
@@ -470,11 +493,13 @@ carry only their distinctive content.)
   (distinct from code-xrefs). ALWAYS `grep '^\.\. \[Key\]'` before
   citing a reference, and before *adding* a `.. [Key]` (duplicate
   bib-entry across pages is its own warning class).
-- **Intra-doc dangling `:ref:` IS caught by `-W`; cross-doc dangling
-  renders plain-text.** When you introduce a `:ref:` to a not-yet-
-  existing section, create the labelled section in the SAME edit.
+- **A dangling `:ref:` or `:doc:` warns at default severity, cross-doc
+  included** (`[M]` 2026-09-21). When you introduce a `:ref:` to a not-yet-
+  existing section, create the labelled section in the SAME edit; the build
+  fails otherwise, it does not rot.
 - **`transport.*`, `numerics.spaces.*`, and module-level private
-  `_helpers` are NOT automodule'd anywhere** → their `:class:`/`:func:`
+  `_helpers` are NOT automodule'd anywhere** (a snapshot roster; re-derive
+  it before relying on it) → their `:class:`/`:func:`
   refs render plain-text by existing-page convention. Do NOT add an
   `automodule` for the 1–2 leaves you touched while the rest of the
   package stays plain — that is inconsistent half-surfacing. Surfacing

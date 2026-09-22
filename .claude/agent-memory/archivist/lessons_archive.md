@@ -13712,3 +13712,82 @@ parts to inventing a total the source never stated.
 candidates as geometric and recorded the five keep-CLASSES but not the per-site
 reasoning; a future pass re-litigates the borderline ones (`mesh-coupled`,
 `method-mesh layer`) from scratch.
+
+## L-113 — Two of my standing cross-reference beliefs were false, and one throwaway project refuted both (2026-09-21)
+
+**Context.** Written during the memory-distillation PROPOSE pass, not during a docs task. Two
+claims were about to be carried forward into the distilled digest on the strength of being repeated
+in several places — the digest, `AGENT.md`'s Quality Checklist item 3, and `AGENT.md`'s
+"Build-Gating & Cross-Ref Reality" section. That repetition is exactly the
+corroboration-is-not-independence trap (`instrument-doctrine` X4): three surfaces saying it are one
+surface, because one copied the others.
+
+**The claims.**
+
+1. *"A cross-doc dangling `:ref:` renders plain text at every severity"* — load-bearing, because
+   L-063 used it to KEEP a stale eq-label prefix rather than rename it ("that one had 8 cross-doc
+   `:ref:` citers, and a cross-doc dangling `:ref:` renders plain text at every severity —
+   renaming buys cosmetics and risks a silent break"), and L-076 used its absence to license a
+   rename ("L-063's silent-cross-doc-break caution did not bind"). A false premise was deciding
+   rename policy in both directions.
+2. *"`-n` (nitpicky) is NOT the missing gate — it saw ZERO of 22 dead refs"* (L-044), generalised in
+   `AGENT.md` to *"`-n` does not save you either"*.
+
+**The instrument.** A throwaway two-page Sphinx project, ~20 seconds, built with this repo's own
+venv (`.venv/bin/python -m sphinx -b html -E`), `extensions = []`, and **live targets sitting beside
+dead ones** so the reading is two-sided rather than a bare zero.
+
+Probe 1 — `index.rst` carries `.. _live-target:` on a real section and an intra-doc dangling
+`:ref:`; `other.rst` (in the toctree) carries a cross-doc live `:ref:`, a cross-doc dangling
+`:ref:` bare, a cross-doc dangling `:ref:` **with explicit text**, and a dangling `:doc:`.
+
+```
+index.rst:17: WARNING: undefined label: 'no-such-label-intra' [ref.ref]
+other.rst:6:  WARNING: undefined label: 'no-such-label-cross' [ref.ref]
+other.rst:8:  WARNING: undefined label: 'no-such-label-cross2' [ref.ref]
+other.rst:10: WARNING: unknown document: '/no-such-page' [ref.doc]
+build succeeded, 4 warnings.
+```
+
+Probe 2 — the same skeleton, with `other.rst` carrying one live cross-doc `:ref:` and five dead
+python-domain roles (`:class:`, `:func:`, `:meth:`, `:attr:`, `:mod:`, all at
+`orpheus.nowhere.*`), built twice:
+
+```
+default severity : build succeeded.                     (0 warnings — all five roles silent)
+with -n          : 5 × WARNING: py:<role> reference target not found … [ref.<role>]
+                   build succeeded, 5 warnings.
+```
+
+**What is refuted.**
+
+- **Claim 1 is FALSE.** A dangling `:ref:` warns at DEFAULT severity whether the target is in the
+  same document or another, and whether the role is bare or carries explicit text; the `[ref.ref]`
+  subtype is identical in all three cases. A dangling `:doc:` warns as `[ref.doc]`. So
+  `retirement-audit` A.2's *"`:doc:`/`:ref:`: they warn (`[M]` 2026-07-15)"* was right all along,
+  and my memory had carried a private contradiction of a skill I hold preloaded for over a month.
+  Consequence: **renaming a section anchor is build-gated for its `:ref:` citers exactly as an
+  eq-label is for its `:eq:` citers** (L-070 measured the second). The KEEP verdicts of L-063 and
+  L-072 survive — a stale NAME is not a false CLAIM, and many citers is still a cost — but the
+  *silence* argument must be struck from them, because a rename that misses a citer fails the build
+  instead of rotting quietly.
+- **Claim 2 is OVER-BROAD.** `-n` catches every dead python-domain role on an `.rst` page, which is
+  the class the project xref gate is blind to (L-111/L-082: `DEAD TARGETS: 0` certifies `:mod:` and
+  nothing else). L-044's measurement was correct for what it measured — refs in the DOCSTRINGS of
+  un-`automodule`'d modules, which Sphinx never renders and therefore cannot nitpick, plus
+  everything under `tests/`. The honest scope is the surface, not the flag.
+
+**Why the false belief survived so long.** The two instruments that could have caught it share the
+blindness: the project xref gate reports `DEAD TARGETS: 0` for exactly these roles, and the
+warning-count acceptance gate only proves "no NEW warning", so a corpus already carrying the
+plain-text convention never produced a `[ref.ref]` line anybody attributed to a `:ref:`. Nothing in
+a normal docs pass ever constructs the two-sided control.
+
+**The operational consequence, for the next pass.** `-n` is usable on the real corpus only as a
+pre-edit-vs-post-edit SET DIFF, never as an absolute zero: `[M]` 2026-09-21 the source carries **48**
+`automodule` directives of which **24** are `:noindex:`, so roles into those 24 modules are plain
+text by page convention and nitpick as "target not found" by design — L-112 counted **1 081** such
+roles on 2026-09-18 and that half is relayed, not re-run here. The set diff
+over the pages you touched is the reading that means something. Whether a corpus-wide `-n` set diff
+is cheap enough to become the standing acceptance gate for `.rst` pages is unmeasured (this pass
+was forbidden a corpus build) and is the open question.

@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1400
+  budget_tokens: 1500
   brief: >-
     `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 ---
@@ -58,6 +58,15 @@ on greps like it.
   negatives in one session, two mechanisms — this one, and zsh eating quotes
   and backticks out of a double-quoted pattern, which at least prints
   `(eval): bad math expression` on a channel nobody reads).
+- check: a probe is written to a FILE under a QUOTED heredoc (`<<'PY'`), its
+  paths passed by environment variable, a backtick spelled `chr(96)`, and each
+  pattern asserted against its own witness before it runs: an UNQUOTED heredoc
+  (`<<PY`, chosen so a path interpolates) runs command substitution on every
+  backtick pair in its body, so a pattern with backticks is silently rewritten
+  before the interpreter sees it (`[M]` 2026-09-21: four markup patterns
+  collapsed to "match any bold", 120 hits on clean prose; the same collapse
+  the other way prints a clean 0). zsh also does not word-split an unquoted
+  `$var`.
 - tell: a confident, empty, wrong answer.
 
 ## The harness's search tools

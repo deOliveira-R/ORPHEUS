@@ -4,7 +4,7 @@ description: PROACTIVELY use when reviewing claims of correctness, designing ver
 allowed-tools: Bash
 harness:
   kind: skill
-  budget_tokens: 11200
+  budget_tokens: 11500
 ---
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns
@@ -163,6 +163,8 @@ review and after any change to those (mode 8(7)). A retired test takes its
 markers with it; the successor asserting the same invariant is re-tagged
 (`retirement-audit` C.13).
 [case](../evidence/test-design-modes.md#log-every-caught-bug-case)
+
+**The same holds for PROSE.** A sentence claiming which gates pin a claim — in a theory page, a close-out, an issue comment or a report — is a coverage claim with the same shelf life as the marker and is adjudicated the same way: by a MUTATION that reddens the NAMED gates, never by topical adjacency. **check:** cite PER FIELD, not per topic, and re-run the mutation whenever the gate's fixture, tolerance or budget moves; the highest-risk moment is REPLACING a gate you just demoted, since the nearest-sounding sibling inherits neither its scope nor its teeth. **tell:** a prose citation of a gate whose docstring says "until <phase> this asserted X"; a claim of coverage written in the same pass that explained why the quantity moved elsewhere (`[M]` 2026-09-21, the archivist's archive: a τ gate credited for reduced-operator arrays it passes in 0.03 s under fully-garbaged factories, two screens after the note explaining that τ had left that operator).
 
 The generated catalogue index is injected at load time:
 

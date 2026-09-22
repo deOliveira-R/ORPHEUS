@@ -3,7 +3,7 @@ name: instrument-doctrine
 description: PROACTIVELY load when building, judging or citing evidence — a gate, a metric, a census, a canary, a mutation battery, a ratio, a timing. Procedures for the four always-on statements of the instrument-doctrine rule (X1 an instrument must be able to fail; X2 every claim carries its population and instrument; X3 prose is not enforcement; X4 one definition per quantity). Preloaded by qa, test-architect, numerics-investigator and archivist; vv-principles cites it.
 harness:
   kind: skill
-  budget_tokens: 3000
+  budget_tokens: 3200
 ---
 
 # Instrument doctrine — the procedures
@@ -31,7 +31,7 @@ wrong reason is a null control. `grep` here is ugrep, and an anchor inside an
 alternation group matches nothing, silently (`code-search`). The nine
 battery-specific checks are `vv-principles` #17; the nine classes of a gate
 that fires and cannot fail, `vv-principles` mode 8; the design-time question a
-plan asks of a new gate, `plan-authoring` §6c.
+plan asks of a new gate, `plan-authoring` §6c. A gate that ranges over a LIST also reports its INPUT COUNT beside its finding count, because a correct filter over an empty list and a correct filter over a clean tree print the same zero and the first is a broken harness: print `len(inputs)`, assert it non-zero, and assert one input resolves to an existing path (`[M]` 2026-09-21, twice in one session: an unsplit shell `$FILES` made an xref probe and a markup scan each read one nonexistent path and print a clean 0).
 
 **Stabiliser enumeration, at gate design time.** Write down the functional the
 gate measures and the group of errors it is invariant under: spectra are blind

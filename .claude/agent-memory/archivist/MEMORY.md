@@ -1,159 +1,113 @@
 # Archivist — Memory Index
 
-Slim index. Behavioral lessons live in `lessons.md` (read FIRST each
-dispatch). The mechanical build-gating / cross-ref / venv-worktree /
-close-out-arc procedure lives in `AGENT.md` ("Build-Gating & Cross-Ref
-Reality", "Close-Out Narrative Arc"). The V&V vocabulary lives in the
-`vv-principles` / `algebra-of-record` skills. This index holds only
-(1) the lessons pointer, (2) git-true active/doc-debt state, (3) durable
-doc-architecture reference. Campaign play-by-play is retired — its
-behavioral lesson is in `lessons.md`; its landed milestones are in the
-SN theory page's "Development history" section.
+An index, not a memory: one line per entry, each a pointer. Behavioural lessons live in
+`lessons.md` (read FIRST each dispatch) over `lessons_archive.md` (cold). Mechanical procedure —
+build-gating, cross-ref reality, venv/worktree facts, the 9-step close-out arc — is `AGENT.md`.
+V&V vocabulary is the `vv-principles` / `algebra-of-record` skills. Rules are cited by ID, never
+copied here.
+
+**Index disciplines**, each written after this file bloated by violating it: (1) a campaign's
+rulings live in its TOPIC FILE, never here; (2) no `NEXT = <step>` pointer (`plan-authoring` §6);
+(3) merge status comes from git, never from a frozen claim here (`process-discipline`); (4) a
+landed campaign is ONE line — name, terminal status, pointer — because its commits are in git,
+its lessons in the digest and its open items in GitHub; (5) a hook is ≤ 15 words: enough to decide
+relevance, never the content.
 
 ## 1. Lessons — a HOT digest over a COLD archive
 
-Same hot/cold split as this index: read the digest always, page the archive on
-demand. **Never re-summarize a lesson here or in the digest — each layer points
-down, it does not copy up.** Counts are deliberately NOT quoted (a frozen number
-rots; `grep -c '^## L-0'` answers it).
+Same hot/cold split as this index: read the digest always, page the archive on demand. **Never
+re-summarise a lesson upward** — each layer points down. Counts are deliberately not quoted
+(`grep -c '^- \*\*' lessons.md` answers it).
 
-- [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch** (one `Read`
-  fits it). Every lesson as one imperative rule + its failure→correction core, in
-  9 themes: (1) verify against the LIVE tree · (2) the build is blind, grep is the
-  gate · (3) a `:label:` is a V&V edge · (4) retirement & staleness · (5) page
-  surgery · (6) doc SHAPE per event class · (7) V&V vocabulary curation · (8)
-  code-prose rebalance · (9) gates & tooling. Each entry carries a `→ L-0NN`
-  pointer into the archive.
-- [lessons_archive.md](lessons_archive.md) — **COLD, load on demand** (~250 KB —
-  never open whole). One `## L-0NN` section per lesson: war stories, evidence
-  tables, `file:line` detail. Open ONLY the section a pointer sent you to; new
-  lessons are appended HERE first, then distilled into the digest.
+- [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch.** Every lesson as one
+  imperative plus its failure→correction core, in 9 themes: (1) the LIVE tree is ground truth ·
+  (2) the build is blind, grep is the gate · (3) a `:label:` is a V&V edge · (4) retirement &
+  staleness · (5) page surgery · (6) doc SHAPE per event class · (7) V&V vocabulary curation ·
+  (8) code-prose rebalance · (9) gates & tooling. Each entry carries a `→ L-0NN` pointer.
+- [lessons_archive.md](lessons_archive.md) — **COLD, load on demand** (~900 KB — never open
+  whole). One `## L-0NN` section per lesson with the war story, the `[M]` numbers and the
+  `file:line` detail. Open ONLY the section a pointer names; new lessons append HERE first, then
+  distil into the digest. Next free number: **L-114**.
 
-## 2. Active / doc-debt state — git-true
+## 2. Landed work — nothing owed
 
-⚠ **This list is a SNAPSHOT and it has frozen on landed work EIGHT times. Reconcile with
-git BEFORE reading it** — `git status --porcelain -- docs/`,
-`git merge-base --is-ancestor <hash> HEAD`, `git branch --list <branch>` (a vanished branch
-means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live in the
-"Development history" changelog at `docs/theory/methods/sn/history.rst` (⚠ NOT the pre-split
-`discrete_ordinates.rst`; orphaned July HTML survives in `_build`, so a stale-ref grep must
-`test -f` the SOURCE). Active track = **#231** (§3); main agent commits, I stage + gate.
+Every archivist pass through 2026-09-18 is **MERGED**. `[M]` 2026-09-21:
+`git status --porcelain -- docs/` = **0**; every hash this file used to call "uncommitted" is an
+ancestor of `main`; every `refactor/consumers-*` branch is gone; `gh issue view` reads **CLOSED**
+for #412 and #231; `nexus errors` reads **0 uncaught** with ERR-085 and ERR-086 both carrying
+catchers. There is no owed Sphinx pass and no owed marker.
 
-**ONE LINE per pass — outcome, date, scale, git-state, `→ L-NNN`. NOTHING else.** The lesson is
-in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
-file. `git log --oneline -- docs/` is the real index.
-
-- **#412 the rename's PROSE half** — "renamed everywhere" is a claim about a PREDICATE, and
-  `:noindex:` means the xref never resolved anyway (2026-09-18; 19 `.rst`, +360/−174;
-  uncommitted on `refactor/consumers-rename-412`) → L-112
-- **Consumers step 3 U6** — a carve can corrupt a HISTORY claim in the code, and the docs are
-  the half that's right (2026-09-17; 5 `.rst`, +350/−42; uncommitted on
-  `refactor/consumers-step3-u6`) → L-111
-- **Consumers step 3 U2** — a "the artefacts were re-baselined" claim is a `git status`
-  question, and the unchanged artefact is the better oracle (2026-09-17; 8 `.rst`, +1114/−241;
-  uncommitted on `refactor/consumers-step3`; **ERR-086 minted — its catcher is owed by the main
-  agent**, so `nexus errors` reads 1 uncaught until it lands) → L-110
-- **Consumers step 3 U1** — the ANSWER tier is not a fifth layer, and every literal is
-  re-derived before it ships (2026-09-17; 2 `.rst`, +805/−13; uncommitted on
-  `refactor/consumers-step3`) → L-109
-- **Consumers step 2 C3b-2** — a relayed `[M]` that will not reproduce is reconciled by its
-  STATISTIC, not adjudicated (2026-09-14; 11 `.rst`, +1286/−218; uncommitted on
-  `refactor/consumers-step2`; ERR-085 minted, catcher marker owed by the main agent) → L-108
-- **Consumers step 2 C3b-1** — a cross-method TYPE is documented where its PACKAGE lives, not
-  where the brief defaults (2026-09-13; 7 `.rst`, +1259/−91; uncommitted on
-  `refactor/consumers-step2`) → L-107
-- **Consumers step 2 C3a** — σ_t is a Problem DATUM; the brief's `vv-status: verified` would
-  have been a HARD audit error (2026-09-13; 6 `.rst`, +698/−54; uncommitted on
-  `refactor/consumers-step2`) → L-106
-- **Consumers step 2 C2** — ONE `F` per Problem, hub-owned (2026-09-13; 9 `.rst`, +642/−73;
-  ✅ `1ce64371` ff-merged to `main`) → L-105
-- **Consumers step 2 C1** — the splitting is a Strategy VALUE (2026-09-13; 13 `.rst`, +907;
-  ✅ `628997b1` on `main`) → L-104
-- **Consumers step 1** — a Problem's identity is its generating data's CONTENT (2026-09-12;
-  11 `.rst` + 5 plans, +541/−100; `deacd897`/`2c1667b0`/`7b4d2b78`) → L-103
-- **CS4c coda C3** — a HUB replaces a fabricated carrier (2026-09-08; 4 `.rst`, +513/−130) → L-102
-- **CS4c 6.2c-iii** — a class retires into an AXIS (2026-09-08; 7 `.rst`, +499/−145) → L-101
-- **CS4c 6.2c-i/-ii** — a ruling OVERTURNS a landed one (2026-09-08; 7 `.rst`, +1144/−152) → L-100
-- **CS4c 6.3/6.4/6.5** — a promoted helper's old name lives in a `code-block` (2026-09-07; 5 `.rst`) → L-99
-- **CS4c 6.2b** — the hub owns the moment space (2026-09-07; 3 `.rst`, +179/−14) → L-98
-- **CS4c 6.2a** — `*` stops densifying (2026-09-07; 3 `.rst`, +282/−51) → L-97
-- **CS4c 6.1** — the identity flip stated, not promised (2026-09-07; 6 `.rst`) → L-96
-- **#425** — the SN chapter, then the corpus outside it, state the algebra the tree COMPOSES
-  (2026-09-07; 13 + 17 `.rst`, +352/−157) → [[425-sn-chapter-within-group-algebra]],
-  [[425-outside-chapter]]
-- **#448** — a solver's RETURN is a claim; ERR-083 minted (2026-09-06; 16 `.rst`, `6379e9ab`) → L-95
-- **Everything older** — #428, #434, #432, #429 and every 2026-08-and-earlier pass back to the
-  Boundary/DSA work: [[lessons-L39]]…[[lessons-L94]], one `## L-0NN` section each, naming its own
-  commits. CODE-side reports are GitHub's; the corpus-wide RST-nested-markup finding is on **#379**.
-
-⚠ **ERR-026 history block — its branch `docs/err026-history-is-not-a-crossref` is gone
-locally and remotely, so the 2026-08-24 "still OPEN, unlanded" claim is void.**
-⛔⛔ **The "dotted-target blindness appears repaired" half of this note is REFUTED** (`[M]`
-2026-09-17, L-111): `judge('orpheus.sn.solution.IterationHistory', role='class'|'attr'|'meth')`
-reads **DECLINED** while a dead `mod` target reads DEAD — and the gate printed
-`DEAD TARGETS: 0` over `docs/` with FOUR dead `:class:` roles live. The old reading was two
-instruments that share the blindness agreeing, never a probe. **Acceptance evidence for a
-page is your OWN import probe, with a live AND a retired control.**
+- **Where the record lives:** landed SN milestones are the "Development history" changelog at
+  `docs/theory/methods/sn/history.rst` (⚠ NOT the pre-split `discrete_ordinates.rst`; orphaned
+  July HTML survives in `_build`, so a stale-ref grep must `test -f` the SOURCE). Commits are
+  `git log --oneline -- docs/`. Per-pass lessons are the digest, §1–§9, over archive sections
+  L-095…L-112 for the 2026-09 passes.
+- ⛔ **Two claims this section carried until 2026-09-21 were frozen and false, and both are the
+  index lying forward** (`process-discipline` "Trust git for merge status"): a list of nine
+  "uncommitted on branch X" passes, all merged; and "ERR-085/086 catchers owed by the main
+  agent", both landed. Do not re-introduce a per-pass status list here — `git status` answers it
+  in one command and cannot go stale.
+- ⛔ **The ERR-026 history-block entry is void**: its branch
+  `docs/err026-history-is-not-a-crossref` is gone locally and remotely, so the 2026-08-24 "still
+  OPEN, unlanded" claim says nothing.
+- ⛔ **The xref-gate blindness note moved into the digest** (§2b) — it is a lesson with a
+  measurement and two controls, not index state. Its rider is there too: acceptance evidence for
+  a page is your OWN import probe with a live AND a retired control.
 
 ## 3. Durable reference (reusable doc-architecture)
 
-Each entry is a ONE-LINE pointer; the full recipe lives in the linked `feedback_*.md`.
+One-line pointers; the recipe lives in the linked file. A reusable recipe earns a line; a campaign
+pass does not.
 
-- **Landed-milestone record:** `docs/theory/methods/sn/history.rst`. POINT here instead of
-  re-listing campaigns. (This line named the pre-split `discrete_ordinates.rst` until 2026-08-18,
-  contradicting §2 four lines up — an index can go stale against ITSELF.)
-- **Ontology-overturn rewrite** (a page whose THESIS was refuted): the recipe is
-  [[lessons-L63]] — argument-unit not symbol-unit, the 4-way eq-label fate rubric, the
-  unlabelled-history-equation trick, the two-sided illegal-states rule. Instance:
-  `field_algebra.rst` affine → cone (CS3).
-- [canonical-convention-page](feedback_canonical_convention_page.md) — 13-section anatomy
-  for a multi-PR migration's canonical theory page + keep/flip rubric (`index_convention.rst`).
-- [canonical-axis-convention SSOT section](feedback_canonical_axis_convention_ssot_section.md)
-  — SSOT section for an axis-flip enforced at a data-ingest boundary (`cross_section_data.rst`).
-- [double-category architecture insight](feedback_double_category_architecture_insight.md) —
-  documenting a categorical framing of a SHIPPED type system; impossibility as an
-  obstruction table. Instance: (Rep×Role) carrier grid (#268/#261).
-- [orientation-axis two-frames doc](feedback_orientation_axis_two_frames_doc.md) — 2×2-face
-  operator unification with ORIENTATION as the coherence axis (#280 P2.5e).
-- [carrier-grid-typed-seam-layering](feedback_carrier_grid_typed_seam_layering.md) — NxM typed
-  grid + seam one layer up; completing one path silently stales a sibling claim (Frame P4).
-- [capstone-architecture-page](feedback_capstone_architecture_page.md) — a NEW page for the
-  LAYER above per-method pages (cross-ref, don't duplicate). `loss_representations.rst`.
-- [capstone-completion-status-reaudit](feedback_capstone_completion_status_reaudit.md) — the
-  COMPLETION phase: re-audit ship-state claims; document an unbuilt sibling as a SEAM (P7).
-- [capstone-root-cause-ruling](feedback_capstone_root_cause_ruling.md) — retrofitting the
-  structural WHY (a theorem) behind a split the docs only ASSERTED (#268 `frame.rst`).
-- [operator-classes→frame-faces re-homing](feedback_operator_classes_to_frame_faces_rehoming.md)
-  — sweep when standalone operator classes retire into two FACES of one frame (#268 P1).
-- [operator-reification/retype doc pattern](feedback_operator_reification_retype_doc_pattern.md)
-  — reifying a duck-typed operator; block coisometry `= 4π·I`, never `= I` (#226 step 2).
-- [named-family-member theory section](feedback_named_family_member_theory_section.md) — a NEW
-  § for a named member of an invariant-keyed operator family (#226 step 4 GreenOperator).
-- [step-5b first-consumer close-the-loop](feedback_issue_138_step5b_first_consumer_closeloop.md)
-  — wiring the FIRST consumer of a verified-but-unwired type; → vv Mode 12 (#226 step 5b).
-- [consumption-mode + capability-axis](feedback_consumption_mode_and_capability_axis.md) — a
-  NEW consumption mode on an operator algebra (solve/apply/ASSEMBLE) (#272/#284/#282).
-- [algebra-of-record stub→narrative](feedback_stub_to_rich_narrative_expansion.md) —
-  SymPy-module-as-canonical-source; stub/expand separation (also lessons L5).
-- [solver-replacement campaign close-out](feedback_solver_replacement_campaign_closeout.md) —
-  a legacy island solver replaced by the operator-algebra family; LIVE/MOOT split (#290 P8).
-- [type-confinement docstring sync](feedback_type_confinement_docstring_sync.md) — code-final
-  sync when a carve confines a subtype to one role (P4.5 W-C).
-- [Petrov-Galerkin homogenization reframe](feedback_petrov_galerkin_homogenization_reframe.md)
-  — THE LIVE recipe: flux-weighting is a TEST weight, not a measure (#268 P3). Supersedes
-  [Galerkin-natural-metric](feedback_galerkin_natural_metric_reframe.md) (why-it-was-tried only).
-- [domain-op + L2-promotion + asymmetry-law](feedback_domain_op_l2_promotion_asymmetry_law.md)
-  — section shape for a domain OPERATION born from an L2 promotion (#267).
-- [orbit-space terminology sweep](feedback_orbit_space_terminology.md) — add-aside-then-bridge-then-sweep for a precise math term.
-- [auto-generated tables](feedback_autogen_tables.md) — registry-as-SSOT: metadata fn +
-  generator + `builder-inited` hook (also lessons L8).
-- [audit-then-edit partitions](feedback_audit_partition.md) — the KEEP/RELOCATE/TRIM/REMOVE
-  partition table for a read-only doc-cleanup audit.
-- [cross-solver unified-law doc architecture](feedback_cross_solver_unified_law_doc_architecture.md)
-  — ONE law spanning N solver families: canonical derivation + short sibling spellings (#259/#291).
-- **Doc-architecture redesign (#231, OPEN):** the standing target for any "modernize a theory
-  page" task — template, machine header, prose rebalancing, V&V slices, bibtex (spec in the
-  issue). Phase 1a–1c DONE; **Phase 2 code-prose rebalancing ACTIVE** — P2-A/B/C/D/G done
-  (maps in `.claude/plans/phase2_code_prose/`). Five file-classes calibrated:
-  teaching-operator = aggressive TWIN-cut; machinery/driver/mesh = small, COMMENTS dominate;
-  ABC = leanest; contract-heavy-operator = small. Main agent commits; I stage + gate.
+- **Ontology-overturn rewrite** — archive **L-063**: argument-unit, the 4-way eq-label fate rubric,
+  the unlabelled-history-equation trick, the two-sided illegal-states rule.
+- [canonical-convention page](feedback_canonical_convention_page.md) — 13-section anatomy + the
+  keep/flip rubric for a multi-PR migration.
+- [axis-convention SSOT section](feedback_canonical_axis_convention_ssot_section.md) — an axis flip
+  enforced at a data-ingest boundary.
+- [double-category insight](feedback_double_category_architecture_insight.md) — a categorical
+  framing of a shipped type system; impossibility as an obstruction table.
+- [orientation-axis two frames](feedback_orientation_axis_two_frames_doc.md) — 2×2-face operator
+  unification with ORIENTATION as the coherence axis.
+- [carrier-grid typed seam](feedback_carrier_grid_typed_seam_layering.md) — an N×M typed grid, seam
+  one layer up; one path completed stales its sibling.
+- [capstone architecture page](feedback_capstone_architecture_page.md) — a NEW page for the LAYER
+  above per-method pages: cross-ref, never duplicate.
+- [capstone completion re-audit](feedback_capstone_completion_status_reaudit.md) — re-audit
+  ship-state claims; document an unbuilt sibling as a SEAM.
+- [capstone root-cause ruling](feedback_capstone_root_cause_ruling.md) — retrofitting the structural
+  WHY behind a split the docs only ASSERTED.
+- [operator classes to frame faces](feedback_operator_classes_to_frame_faces_rehoming.md) — the
+  sweep when operator classes retire into two FACES of one frame.
+- [operator reification / retype](feedback_operator_reification_retype_doc_pattern.md) — reifying a
+  duck-typed operator; block coisometry `= 4π·I`, never `= I`.
+- [named family member](feedback_named_family_member_theory_section.md) — a NEW section for a named
+  member of an invariant-keyed operator family.
+- [first-consumer close-the-loop](feedback_issue_138_step5b_first_consumer_closeloop.md) — wiring
+  the FIRST consumer of a verified-but-unwired type.
+- [consumption mode + capability axis](feedback_consumption_mode_and_capability_axis.md) — a NEW
+  consumption mode on an operator algebra (solve / apply / ASSEMBLE).
+- [stub to rich narrative](feedback_stub_to_rich_narrative_expansion.md) — the SymPy module as
+  canonical source; the stub/expand separation.
+- [solver-replacement close-out](feedback_solver_replacement_campaign_closeout.md) — a legacy island
+  solver replaced by the operator algebra; the LIVE/MOOT split.
+- [type-confinement docstring sync](feedback_type_confinement_docstring_sync.md) — the code-final
+  sync when a carve confines a subtype to one role.
+- [Petrov-Galerkin reframe](feedback_petrov_galerkin_homogenization_reframe.md) — THE LIVE recipe:
+  flux-weighting is a TEST weight, not a measure. Supersedes
+  [Galerkin natural metric](feedback_galerkin_natural_metric_reframe.md) (why-it-was-tried only).
+- [domain op + L2 promotion](feedback_domain_op_l2_promotion_asymmetry_law.md) — the section shape
+  for a domain OPERATION born from an L2 promotion.
+- [orbit-space terminology](feedback_orbit_space_terminology.md) — add-aside, bridge, then sweep for
+  a precise mathematical term.
+- [auto-generated tables](feedback_autogen_tables.md) — registry-as-SSOT: metadata function,
+  generator, `builder-inited` hook.
+- [audit-then-edit partitions](feedback_audit_partition.md) — the KEEP/RELOCATE/TRIM/REMOVE table
+  for a read-only doc-cleanup audit.
+- [cross-solver unified law](feedback_cross_solver_unified_law_doc_architecture.md) — ONE law over N
+  solver families: canonical derivation plus short sibling spellings.
+- **Doc-architecture redesign — #231 is CLOSED** (`[M]` 2026-09-21, `gh issue view 231`). Its
+  template, machine header, prose-rebalancing, V&V-slice and bibtex conventions remain the standing
+  target for any "modernize a theory page" task; the Phase-2 maps are
+  `.claude/plans/phase2_code_prose/` and the five calibrated file-classes are digest §8. File a new
+  issue rather than reopening this one.
