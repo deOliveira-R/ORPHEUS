@@ -251,20 +251,9 @@ Records:
 
 ## L13: "Breaks only for LD / a spectator trailing axis" = a greedy `(Ellipsis, *idx)` index
 
-When a moment-tensor or einsum path is bit-identical for the single-moment case but DIVERGES or
-raises `IndexError` once a trailing spatial-moment axis (LD's `2^d` φ̂) — or any spectator
-broadcast axis — is present, the prime suspect is `cells = (Ellipsis, *idx)`. **`Ellipsis` is
-GREEDY from the front**: it absorbs the leading `(m, g, …)` axes, so `*idx` lands on the wrong
-ones.
-
-- Geometry-dependent symptom: `nx ≠ ny` → `IndexError`; square grid + asymmetric material map →
-  SILENT wrong value (`[M]` 43 % rel error).
-- Fix: pin the leading axes EXPLICITLY — `cells = (slice(None), slice(None), *idx)`.
-- **Non-LD tests are structurally BLIND** (with no trailing axis `Ellipsis ≡ (slice, slice)`), so
-  the gate must use `spatial_moments=2` on a RECTANGULAR flux; isolate by monkeypatching the verb
-  back, never by `git checkout` (`process-discipline`).
-- ORPHEUS instance: #276 A2 `0b3275d`, all four `MaterialXSField` moment-scatter verbs. This is
-  `vv-principles` failure mode #2 (axis swap) gated by a spectator-axis presence.
+→ now `numerical-bug-signatures` Signature 11 and ERR-087 (2026-09-22): the mechanism, the
+discriminator, the probe, the blind classes and the catching test are the skill's, which this
+agent preloads; this line is the pointer. Founding case #276 A2, `0b3275d`.
 
 ## L14: A curvilinear `(L+C).solve` is NOT uniformly a SweepOperator — the verdict is per (geometry × quadrature)
 

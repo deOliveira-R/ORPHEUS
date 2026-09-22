@@ -293,9 +293,13 @@ class TestIndependentReference:
             ref[:, ix, 0] += np.tensordot(s0, chi[:, ix, 0], axes=1)
         np.testing.assert_allclose(Q, ref, rtol=0, atol=1e-15)
 
+    @pytest.mark.catches("ERR-087")
     @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
     @pytest.mark.parametrize("skip_l0", [True, False], ids=["l>=1", "l>=0"])
     def test_moment_source(self, sm, skip_l0):
+        """ERR-087: the ``LD-2^d=4`` rows carry the trailing axis a greedy
+        ``(Ellipsis, *idx)`` mis-targets (an ``IndexError`` on this (6, 1)
+        grid); the scalar rows are the blind class and stay green on it."""
         sf, _, _ = _fields()
         mom = _moments(sm)
         out = sf.moment_source(mom, skip_l0=skip_l0, head=_head())

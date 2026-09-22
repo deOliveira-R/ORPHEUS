@@ -568,6 +568,56 @@ the offending factor.
 
 ---
 
+## Signature 11: Greedy-`Ellipsis` spectator axis (bit-identical scalar case, wrong under a trailing axis)
+
+- **Symptom:** A moment-tensor / einsum path is bit-identical for the
+  single-moment (scalar) case but raises `IndexError` on a rectangular
+  grid, or returns a SILENT wrong value on a small square grid with an
+  asymmetric material map, as soon as a trailing spectator axis (LD's
+  `2^d` spatial-moment axis, any broadcast axis) is present.
+- **Mechanism:** a per-cell fancy index spelled `cells = (Ellipsis, *idx)`.
+  `Ellipsis` is greedy from the FRONT: it expands to as many full slices
+  as the array has spare axes, so `*idx` lands on the LAST `k` axes, which
+  under a trailing axis are `(…, last-spatial, trailing)` instead of the
+  spatial axes. Rectangular grid: a cell index exceeds the axis it landed
+  on, `IndexError`. Small square grid (every x-index below `ny`, every
+  y-index below the trailing size): the gather succeeds on the wrong
+  cells, silently (`[M]` 43 % relative error, #276 A2).
+- **Discriminator:** the defect is gated by the PRESENCE of the spectator
+  axis, not by any value: the same call with the axis removed is
+  bit-identical to the correct spelling. A path that agrees to 0 ULP on
+  every scalar-moment fixture and diverges on the first LD fixture has
+  this signature until shown otherwise.
+- **Diagnostic probe:** run the same verb with a trailing axis
+  (`spatial_moments=2`, or the `sm=4` row of the material-field gates) on
+  a RECTANGULAR flux, `nx ≠ ny`; isolate by re-spelling the index to
+  `(Ellipsis, *idx)` on a COPY of the file and reading the red, never by
+  `git checkout` (`process-discipline`).
+- **Blind test classes:** every scalar-moment test, however
+  heterogeneous, multi-group or fine: with no trailing axis
+  `Ellipsis ≡ (slice, slice)` and the two spellings are bit-identical.
+  Conservation, eigenvalue and 0-ULP canaries on the scalar path all pass
+  on both.
+- **Fix:** pin every leading axis explicitly, and let the count be a
+  property of the tensor's HEAD, read off it, never a literal:
+  `cells = (slice(None),) * rank + tuple(idx)`
+  (`TransferMaterialField._moment_blocks`).
+- **Catching test:**
+  `tests/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]`
+  (`@pytest.mark.catches("ERR-087")`; `[M]` 2026-09-22, re-dropping the
+  greedy spelling under `python -O`: 4 failed — the two `LD-2^d=4` rows of
+  this test and the two of
+  `TestFlatAngularHead::test_moment_source_on_a_flat_head` — and the 11
+  scalar rows passed).
+- **Catalog entry:** ERR-087.
+- **Why it hides:** the fix commit (`0b3275d`, 2026-06-28) called the
+  defect "latent" and shipped it beside a feature, so no investigation
+  closed on it and no entry was written for fifteen weeks; the scalar
+  battery, the 0-ULP scattering canary included, could not have reddened
+  on it. Failure mode #2 (axis swap), gated by a spectator-axis presence.
+
+---
+
 ## Cross-cutting hygiene rules
 
 These rules are invariants implied by the signatures above. The QA
@@ -669,3 +719,4 @@ canon; signatures here are a derived view.
 | 8         | (uncatalogued) | —            | speculative — checked-`info` wrapper raising on `info != 0` + under-`maxiter` case that MUST raise   |
 | 9         | (uncatalogued) | —            | speculative — `‖Aψ − q‖`-based stop pinned by high-`c` (`c ≥ 0.99`) fixed-source vs `φ = Q/Σ_a`      |
 | 10        | (uncatalogued) | —            | speculative (triage) — sibling-pass discriminator + re-baseline vs structurally-independent reference|
+| 11        | ERR-087        | #2           | `tests/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]` |

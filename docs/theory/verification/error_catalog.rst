@@ -8115,3 +8115,75 @@ older entries classify against.
    inheritance, it must name the property inherited**: "it shares the
    exit path" is not "it warns", and the difference is the whole of this
    entry.
+
+.. error-entry:: ERR-087
+   :title: A per-material cell index spelled ``(Ellipsis, *idx)`` let ``Ellipsis`` absorb the leading axes greedily, so under a trailing spatial-moment axis the cell arrays landed on the last axes — bit-identical for every scalar-moment tensor, an ``IndexError`` on a rectangular grid, a silent wrong value on a small square one
+
+   **Status:** ✅ **FIXED 2026-06-28** (``0b3275d``, #276 A2) in the four
+   ``MaterialXSField`` moment-scatter verbs, which pinned the leading
+   axes explicitly, ``(slice(None), slice(None), *idx)``; the verbs
+   retired into the ONE per-material loop of
+   :class:`~orpheus.transport.material_field.TransferMaterialField`
+   (``_moment_blocks``) at step 3c (``81e9e7e1``, 2026-08-30), where the
+   count of leading axes is a property of the angular head, read off it:
+   ``(slice(None),) * rank + tuple(idx)``.  Catalogued 2026-09-22, fifteen
+   weeks after the fix, from the memory distillation's uplift queue: the
+   fix commit called the defect "latent" and shipped it beside a feature,
+   so no investigation closed on it and no entry was written.
+
+   **Date:** latent since the moment-scatter verbs were written; fixed
+   2026-06-28; catalogued 2026-09-22.
+   **Module:** ``transport`` (``material_field.py``,
+   ``TransferMaterialField._moment_blocks``; formerly
+   ``mesh/material_xs_field.py``'s ``apply_legendre_scattering_moments``,
+   its ``_transpose``, ``apply_n2n_moments`` and its ``_transpose``).
+   **Failure mode:** **#2 (variable/axis swap)**, gated by the PRESENCE
+   of a spectator axis rather than by any value.
+
+   **What happened.**  numpy expands ``Ellipsis`` to as many full slices
+   as the array has axes left over, counted from the FRONT, so in
+   ``x[(Ellipsis, ix, iy)]`` the two index arrays are applied to the LAST
+   two axes.  For a moments block ``(2ℓ+1, ng, nx, ny)`` those are the
+   spatial axes, the intended target.  Add the linear-discontinuous
+   scheme's trailing per-cell spatial-moment axis,
+   ``(2ℓ+1, ng, nx, ny, 2^d)``, and the last two axes are ``(ny, 2^d)``:
+   the x-cell array indexes the y axis and the y-cell array indexes the
+   moment axis.  On a rectangular grid some x-cell index exceeds ``ny``
+   and numpy raises; on a grid where every x-cell index is below ``ny``
+   and every y-cell index below ``2^d`` (a :math:`4 \times 4` grid under
+   2-D LD) the gather succeeds on the wrong cells and the verb returns a
+   wrong value in silence (``[M]`` 2026-06-28, the investigator's probe:
+   43 % relative error on an asymmetric two-material map).
+
+   **How it hid.**  Every scalar-moment test is structurally blind: with
+   no trailing axis ``Ellipsis`` expands to exactly the two spatial
+   slices, the two spellings are bit-identical, and the whole non-LD
+   battery — the 0-ULP scattering canary included — passed on both.  The
+   LD path that carries the axis was not yet routed through the frame
+   transpose when the verbs were written, so nothing exercised the
+   defective branch; it was found by READING, while building
+   ``full_scatter_kernel`` (#276 A2), not by a red.
+
+   **Caught by:**
+   ``tests/transport/test_material_field.py::TestIndependentReference::test_moment_source``
+   (``@pytest.mark.catches("ERR-087")``).  Its ``LD-2^d=4`` rows hand a
+   ``(L+1, 2L+1, ng, 6, 1, 4)`` moments tensor over the :math:`(6, 1)`
+   two-material grid, so the greedy spelling lands the x-cell array on the
+   y axis of size 1 and raises.  ``[M]`` 2026-09-22, re-dropping
+   ``cells = (Ellipsis, *idx)`` at ``_moment_blocks`` under ``python -O``:
+   **4 failed** (``IndexError: index 1 is out of bounds for axis 2 with
+   size 1`` — the two ``LD-2^d=4`` rows of this test and the two of
+   ``TestFlatAngularHead::test_moment_source_on_a_flat_head``), **11
+   passed** (every scalar row: the blind class, measured).  The transpose
+   verb rides the same ``_moment_blocks`` body, so the one catcher covers
+   both verbs.
+
+   **Lesson.**  ⭐ ``Ellipsis`` is greedy from the front and silent about
+   how many axes it took; a fancy index that must land on NAMED axes pins
+   every leading axis explicitly, and the number of leading axes is a
+   property of the tensor's HEAD, read off it, never a literal.  A test
+   battery whose tensors never carry the spectator axis certifies nothing
+   about the indexing under it: every verb's gate carries one
+   trailing-axis row (the ``sm`` parametrization here), and a fix commit
+   that calls a defect "latent" owes the catalogue its entry in the same
+   commit.  → numerical-bug-signatures Signature 11.
