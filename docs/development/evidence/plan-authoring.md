@@ -1060,6 +1060,12 @@ re-reads. The dual of `vv-principles` #17's designed-green harness.
 
 **Clause.** §7.4
 
+### 2026-09-21 always-on figure written before measured
+
+**Surprise.** A compaction-point record in the harness campaign (`.claude/plans/harness_context_budget.md`, owner pass 4 of the memory distillation) stated the always-on cost as `≈14 715` before the generator had been run; the measured value one command later was `≈14 789`. The sentence was committed, re-read, and corrected by an amend. A number typed into a record ahead of its instrument is a prediction wearing a measurement's marker.
+
+**Clause.** §2 [M]-SCOPE, RESUME-BLOCK-M
+
 ## Appendix mechanism census (2026-09-20; moved here from the rule 2026-09-21)
 
 Convention: one per bold tag; the numbered spellings of MEMBERS SPELLED WITHOUT THE SYMBOL count individually and their header does not; one per numbered item in §7; one per section-intro paragraph. Measured 2026-09-20 by that convention: §1 12; §2 29; §3 4; §4 8; §5 2; §6 3; §6b 21; §6c 5; §6d 7; §7 3; §8 5; §9 2; §10 9. **Total 110**. Fourteen clauses were promoted from surprise-log rows DATED 2026-09-04 to 2026-09-18: NEW-MEMBER-DERIVATION; CARVE-FORKS-THE-DENOMINATOR, DEFINITION-FILE-ONLY, RESUME-BLOCK-M, DECLARED-NULL-IS-A-HYPOTHESIS, RECONCILE-THEN-EXPLAIN, FIRST-FINDING-GATE-MAXIMUM, CARRIED-COUNT; POLYMORPHIC-MINT, COUNTING-SPY, METRIC-TWIN-ACCESSOR, HELPER-RETURNED-RECEIVER, RENAME-BY-TYPE-FIRST; INERT-WITNESS. The review of 2026-09-20 restored AST-EDGE-COUNTS and split spelling (12b). [REMEDIED 2026-09-20 @0d376e4f] the previous appendix claimed 110 with §6d 7 and §10 10 under no stated convention; by this convention the pre-review core counted 108 (§6d 6, §10 9). Nothing is deleted: every founding case and log row is on the evidence page.
