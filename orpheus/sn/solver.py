@@ -3194,9 +3194,10 @@ def _lift_external_source_to_moments(
     returning ``(lifted, per_axis)``.
 
     Single source of the external-source moment lift for the fixed-source path
-    (#240 D5b-S3 / #247 — the slope-SOURCE widening).  One production caller
-    (:func:`_build_fixed_source_rhs`); kept as a single-source helper so a future
-    eigenvalue external-source hook reuses the same lift/thread policy.
+    (#240 D5b-S3 / #247 — the slope-SOURCE widening).  Two production callers
+    (:func:`_build_fixed_source_rhs` and :func:`solve_sn_adjoint_fixed_source`);
+    kept as a single-source helper so a future eigenvalue external-source hook
+    reuses the same lift/thread policy.
     ``bulk_values`` is a typed union of TWO ndarray ranks, discriminated by RANK
     (NOT trailing-size —
     :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_flat_rank` against

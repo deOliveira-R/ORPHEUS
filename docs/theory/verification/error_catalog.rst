@@ -1202,7 +1202,7 @@ older entries classify against.
    tracks the blocked MMS verification.
 
    **L0 test that catches it (post-closure evidence):**
-   ``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere``
+   ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere``
    — parametrized over ``inner_solver ∈ {"source_iteration", "krylov"}``,
    ``n_cells ∈ {20, 40, 80}``, ``n_ord ∈ {8, 16}``.  Both inner solvers must
    reach the closed-form analytical streaming-equilibrium answer
@@ -1215,10 +1215,10 @@ older entries classify against.
    on both solvers — the cleanest possible evidence of ERR-026 closure).
 
    Additional ERR-026-tagged tests:
-   ``tests/sn/test_phase_c_gates.py``, ``tests/sn/test_phase_c_mms.py``,
-   ``tests/sn/spatial/test_psi_half_angle_seed.py``,
-   ``tests/sn/spatial/test_sweep_vs_apply_consistency.py``,
-   ``tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`` —
+   ``tests/sn/sweep/core/test_phase_c_gates.py``, ``tests/sn/test_phase_c_mms.py``,
+   ``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py``,
+   ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py``,
+   ``tests/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py`` —
    collectively the post-closure regression net.
 
    A cheaper L0 alternative — a direct unit test of the fixed-point
@@ -1459,7 +1459,7 @@ older entries classify against.
      α-telescoping).
    - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`` —
      xfail-strict, awaits Phase C spatial-closure alignment.
-   - ``tests/sn/test_mms_curvilinear.py`` (legacy isotropic ansatz) —
+   - ``tests/sn/verification/mms/test_mms_curvilinear.py`` (legacy isotropic ansatz) —
      fails with order ≈ 0 on the WDD sweep; awaits Phase C.
 
    What Wave H Phase C added (commits ``eae6f05``..., GH #168 Phase C):
@@ -1518,8 +1518,8 @@ older entries classify against.
 
    The four ``xfail-strict`` curvilinear MMS tripwires STAY xfail:
 
-   - ``tests/sn/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
-   - ``tests/sn/test_mms_curvilinear.py::test_sn_cylindrical_mms_converges_second_order``
+   - ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
+   - ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_cylindrical_mms_converges_second_order``
    - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_spherical_aniso_mms_converges_second_order``
    - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_cylindrical_aniso_mms_converges_second_order``
 
@@ -1625,8 +1625,8 @@ older entries classify against.
      Magnitude-manifestation of ERR-026 stays open: tracked as
      Issue #195.
 
-   Tests added or updated in Phase D (``tests/sn/spatial/test_psi_half_angle_seed.py``,
-   ``tests/sn/test_phase_c_gates.py``, ``tests/sn/test_snstreamingoperator.py``):
+   Tests added or updated in Phase D (``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py``,
+   ``tests/sn/sweep/core/test_phase_c_gates.py``, ``tests/sn/test_snstreamingoperator.py``):
 
    - ``test_psi_half_angle_seed.py`` (NEW) — 25 foundation + L0 + L1
      tests covering Protocol conformance, registry, immutability,
@@ -1738,9 +1738,9 @@ older entries classify against.
 
    NEW tests added:
 
-   - ``tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual``
+   - ``tests/sn/sweep/core/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual``
      — Gate 1.6, the DUAL of Phase D Gate 1.1 for the SI/sweep path.
-   - ``tests/sn/spatial/test_sweep_vs_apply_consistency.py`` — 57
+   - ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py`` — 57
      foundation tests pinning apply-vs-sweep Carlson seed equivalence.
 
    Phase F status: ERR-026 manifestation #6 (heterogeneous eigenvector
@@ -3935,7 +3935,7 @@ older entries classify against.
 
    **Status:** **CLOSED.** Two surgical patches landed in
    ``orpheus/sn/sweep.py::_sweep_1d_spherical`` and ``_sweep_1d_cylindrical``;
-   catching test ``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py``
+   catching test ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``
    (L0 streaming-equilibrium gauntlet, sphere + cylinder) ships
    green; 5 curvilinear regression snapshots regenerated under the
    corrected SI with three-pillar attestation; Phase E flux-shape
@@ -4018,7 +4018,7 @@ older entries classify against.
      point with no observable divergence.
 
    **Which test catches it:**
-   ``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`` —
+   ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py`` —
    26 parametrised cases (sphere/cylinder × {20,40,80} cells ×
    {4,8 or 8,16} ordinates × ``{source_iteration, krylov}``) +
    Pomraning pole isotropy gate (cv < 0.01).  Tagged
@@ -4132,7 +4132,7 @@ older entries classify against.
 
    **Which test catches it:**
 
-   - ``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder``
+   - ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder``
      — the canonical L0 streaming-equilibrium gauntlet (12 cases).
    - ``tests/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py``
      — Promoted from the numerics-investigator's diagnostic
@@ -4497,7 +4497,7 @@ older entries classify against.
 
    **Which test catches it:**
 
-   ``tests/sn/test_krylov_curvilinear_precond_safety.py`` (R-1 Step 4
+   ``tests/sn/solve/test_krylov_curvilinear_precond_safety.py`` (R-1 Step 4
    Phase 1.3 promotion from
    ``derivations/diagnostics/diag_r1_step_d_probe_b_identity_precond.py``).
    Two test functions, ``@pytest.mark.l1
@@ -4607,7 +4607,7 @@ older entries classify against.
 
    **Failure mode:** **#3 (missing factor)** — the textbook power-iteration formula ``ψ_{n+1} = (1/k_n) A^{-1} F ψ_n`` requires an explicit renormalisation step ``ψ_{n+1} /= ||ψ_{n+1}||`` to prevent the iterate from growing (supercritical, ``k > 1``) or decaying (subcritical, ``k < 1``) geometrically. The codebase's two implementations — ``orpheus.numerics.eigenvalue.power_iteration`` (legacy) and ``orpheus.numerics.iteration.KEigenvalue.solve`` (canonical going forward, per P3.4 of the moment-space + layering plan) — **both** omitted the renormalisation.
 
-   **Date discovered:** 2026-05-26 during pre-Phase-3 baseline verification. The failing test (``tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective``) was inherited unchanged from the ``refactor/sn-operator-algebra`` base; verified to fail identically there (commit 62994ad), confirming the bug pre-dates Phase 1.
+   **Date discovered:** 2026-05-26 during pre-Phase-3 baseline verification. The failing test (``tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective``) was inherited unchanged from the ``refactor/sn-operator-algebra`` base; verified to fail identically there (commit 62994ad), confirming the bug pre-dates Phase 1.
 
    **Module:** ``orpheus.numerics.eigenvalue.power_iteration`` (legacy, currently the ``solve_sn`` outer path) and ``orpheus.numerics.iteration.KEigenvalue.solve`` (canonical, will replace ``power_iteration`` in P3.4). Both have the same structural omission.
 
@@ -4632,7 +4632,7 @@ older entries classify against.
 
    The keff ratio ``(F·φ, φ) / (A·φ, φ)`` is scale-invariant in φ, so per-step renormalisation ``ψ /= ||ψ||`` preserves keff while keeping the iterate at unit norm — the textbook power-iteration form. Post-fix all paths converge to **keff = 1.6693** (slab is subcritically supercritical: k_inf=1.875 reduced by leakage to 1.67, still > 1), with **psi_max = 0.089** (well-conditioned, not denormalised), in **n_outer = 6** (not the 64-step cap), with **SI and Krylov agreeing** to 1e-9.
 
-   **How it hid.** Every existing L1 eigenvalue test in ``tests/sn/l1_analytical/test_kinf_homogeneous.py`` (and the in-suite ``test_invertible_operator.py`` regression matrix) uses **reflective** BCs. Reflective always gives ``keff = k_inf > 1``, where the flux grows but the iteration terminates before the growth blows up. The vacuum-eigenvalue path had **zero L1 coverage**; the only test exercising vacuum + power iteration was ``test_vacuum_keff_lower_than_reflective``, which has been failing on the base branch since at least the ``refactor/sn-operator-algebra`` cut (verified at commit 62994ad). The failure pre-existed Phase 1 — Phase 1 inherited and did not introduce it.
+   **How it hid.** Every existing L1 eigenvalue test in ``tests/sn/verification/analytical/test_kinf_homogeneous.py`` (and the in-suite ``test_invertible_operator.py`` regression matrix) uses **reflective** BCs. Reflective always gives ``keff = k_inf > 1``, where the flux grows but the iteration terminates before the growth blows up. The vacuum-eigenvalue path had **zero L1 coverage**; the only test exercising vacuum + power iteration was ``test_vacuum_keff_lower_than_reflective``, which has been failing on the base branch since at least the ``refactor/sn-operator-algebra`` cut (verified at commit 62994ad). The failure pre-existed Phase 1 — Phase 1 inherited and did not introduce it.
 
    Compounding the gap: ``solve_sn`` (``orpheus/sn/solver.py:992-996``) hardcodes ``IterationHistory(..., converged=True)`` regardless of the solver's actual ``converged()`` return value, masking the convergence-state defect from any caller that only inspects the history.
 
@@ -4658,11 +4658,11 @@ older entries classify against.
 
    **Lesson.** **Every BC type needs its own L1 eigenvalue test at multi-group.** "Reflective passes" does NOT generalise — reflective is the easy case for power iteration (flux growth is bounded by the small iteration count needed for ``k > 1`` cases); vacuum, white, and albedo BCs exercise the subcritical regime where the growth ratio is ``< 1`` and the iterate decays. Coverage by BC type is a separate axis from coverage by mesh / multigroup / scattering order. The moment-space + layering plan's P3.4 verification programme will install an ``L1`` test matrix indexed by ``(BC, geometry, group count)`` — that matrix would have caught ERR-052 the first time vacuum BCs were exercised on a multiplying medium.
 
-   **Secondary surface — Krylov inner-iteration budget.** The unit-production-rate normalisation alters the GMRES initial guess at each outer step (the previous un-normalised trajectory inherited a warmed-up subspace; the normalised trajectory does not). On ``sphere-2eg-krylov`` this raised the per-outer-iter GMRES count from ~50 to ~600 — and the L1 test ``_TIGHT_KW`` budget of ``max_inner=300`` was no longer sufficient. The inner solve was hitting the cap, returning an under-converged result, and the outer iteration accumulated ~2.4e-7 keff drift before claiming convergence. The fix was ``max_inner=300 → 1000`` in ``tests/sn/l1_analytical/test_kinf_homogeneous.py::_TIGHT_KW``, restoring FP-precision keff for all 28 ``(coord, ng, inner_solver)`` variants. Issue #200 (block-inverse preconditioner for Krylov on the typed AngularFlux algebra) tracks the longer-term reduction. The production ``solve_sn`` default (``max_inner=200``) is unaffected — this is purely an L1 verification budget for the tightest reference-comparison gate.
+   **Secondary surface — Krylov inner-iteration budget.** The unit-production-rate normalisation alters the GMRES initial guess at each outer step (the previous un-normalised trajectory inherited a warmed-up subspace; the normalised trajectory does not). On ``sphere-2eg-krylov`` this raised the per-outer-iter GMRES count from ~50 to ~600 — and the L1 test ``_TIGHT_KW`` budget of ``max_inner=300`` was no longer sufficient. The inner solve was hitting the cap, returning an under-converged result, and the outer iteration accumulated ~2.4e-7 keff drift before claiming convergence. The fix was ``max_inner=300 → 1000`` in ``tests/sn/verification/analytical/test_kinf_homogeneous.py::_TIGHT_KW``, restoring FP-precision keff for all 28 ``(coord, ng, inner_solver)`` variants. Issue #200 (block-inverse preconditioner for Krylov on the typed AngularFlux algebra) tracks the longer-term reduction. The production ``solve_sn`` default (``max_inner=200``) is unaffected — this is purely an L1 verification budget for the tightest reference-comparison gate.
 
    Secondary lesson: **``IterationHistory.converged=True`` was hardcoded** in ``orpheus/sn/solver.py:992-996``, decoupled from the solver's actual convergence flag. This is a latent bug worth a follow-up fix (low severity — the keff value is correct post-ERR-052; only the ``converged`` field is misleading). Tracked as P3.4 close-out work.
 
-   **Test reference:** ``tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective`` — tagged ``@pytest.mark.catches("ERR-052")``. Companion diagnostic: ``derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py`` runs the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirms SI/Krylov agreement post-fix. The diag script also documents a session-level gotcha — standalone scripts under ``derivations/diagnostics/`` must prepend the repo root to ``sys.path`` to load the worktree's ``orpheus``; otherwise the venv's ``pip install -e .`` silently resolves to the main checkout, giving stale-fix false-negatives.
+   **Test reference:** ``tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective`` — tagged ``@pytest.mark.catches("ERR-052")``. Companion diagnostic: ``derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py`` runs the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirms SI/Krylov agreement post-fix. The diag script also documents a session-level gotcha — standalone scripts under ``derivations/diagnostics/`` must prepend the repo root to ``sys.path`` to load the worktree's ``orpheus``; otherwise the venv's ``pip install -e .`` silently resolves to the main checkout, giving stale-fix false-negatives.
 
    → Probe path: see ``.claude/agent-memory/numerics-investigator/vacuum_bc_eigenvalue_divergence.md`` for the full hypothesis cascade.
 
@@ -4670,7 +4670,7 @@ older entries classify against.
    :title: Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate the Krylov subspace and consume the unconverged iterate as the inverse
 
 
-   **Status:** **CAUGHT 2026-05-28** during the D-H.1 (TimedFullField composite carrier) trunk migration close-out — surfaced by ``tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` failing in the post-Stage-4 envelope. The bug pre-dates D-H.1 entirely; verified to fail identically on commit ``9d02ade`` (the D-G consolidation, well before D-H.1b.1).
+   **Status:** **CAUGHT 2026-05-28** during the D-H.1 (TimedFullField composite carrier) trunk migration close-out — surfaced by ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` failing in the post-Stage-4 envelope. The bug pre-dates D-H.1 entirely; verified to fail identically on commit ``9d02ade`` (the D-G consolidation, well before D-H.1b.1).
 
    **Failure mode:** **#3 (missing factor)** + **#7 (test-design failure / MMS simplification bias)** in superposition. The structural defect is a SUBSPACE-DIMENSION undershoot at the GMRES call site; the test-coverage defect is that no existing L1 anchor probed a homogeneous-reflective Krylov-eigenvalue case at ``n_unknowns > 50`` with a strict ``keff_tol``. The two together let the bug ship under "all gates green" while quietly producing keff errors up to **47.3%** on curvilinear meshes.
 
@@ -4749,7 +4749,7 @@ older entries classify against.
 
    **How it hid.** Three reasons:
 
-   1. **L1 anchor uses tight ``inner_tol=1e-12`` AND a small mesh** (``tests/sn/test_krylov_curvilinear_precond_safety.py::test_identity_preconditioner_recovers_kinf``, n_cells=10). For n_cells=10, the natural subspace happens to fit within the 50-dimension clamp on the dominant eigenmode for this test's specific operator; the iteration coincidentally projects correctly. Mesh refinement past n_cells≈16 was not in the L1 matrix.
+   1. **L1 anchor uses tight ``inner_tol=1e-12`` AND a small mesh** (``tests/sn/solve/test_krylov_curvilinear_precond_safety.py::test_identity_preconditioner_recovers_kinf``, n_cells=10). For n_cells=10, the natural subspace happens to fit within the 50-dimension clamp on the dominant eigenmode for this test's specific operator; the iteration coincidentally projects correctly. Mesh refinement past n_cells≈16 was not in the L1 matrix.
 
    2. **The failing test (``test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere``) was a ``tests/sn/spatial/`` member**, and the spatial suite was excluded from the leaf envelope during D-H.1b/c (per L16, wall-clock constraint — full-suite execution was hitting 70 minutes). The bug had been failing on every base commit since ``refactor/sn-operator-algebra@62994ad`` was cut, but no agent had run the spatial suite in any prior session.
 
@@ -4810,9 +4810,9 @@ older entries classify against.
 
    **Lesson.** **Subspace-dimension caps are SILENT failure modes for iterative linear solvers.** Unlike tolerance caps (which fail with a residual signal), subspace truncation produces a structurally-wrong answer with no observable signal at the call site. The compounding bug (``_info`` discard) created a silent failure of a silent failure. The defense is twofold: (a) NEVER discard the convergence flag of a scipy iterative solver — promote it to at least a warning; (b) NEVER hardcode a subspace size below the natural problem dimension without an explicit MAX_INNER-shape verification gate.
 
-   **Secondary defense at the test level**: mesh-refinement convergence is the canonical structural signature for distinguishing tolerance defects from subspace-dimension defects. Tolerance defects produce uniform or monotone-decreasing error with refinement; subspace defects produce DIVERGING error with refinement (because the natural subspace grows past the cap). The new permanent regression test (``tests/sn/test_krylov_restart_signature.py``, promoted from ``diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py`` per the investigator's recommendation) pins this signature at L1.
+   **Secondary defense at the test level**: mesh-refinement convergence is the canonical structural signature for distinguishing tolerance defects from subspace-dimension defects. Tolerance defects produce uniform or monotone-decreasing error with refinement; subspace defects produce DIVERGING error with refinement (because the natural subspace grows past the cap). The new permanent regression test (``tests/sn/solve/test_krylov_restart_signature.py``, promoted from ``diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py`` per the investigator's recommendation) pins this signature at L1.
 
-   **Test reference:** ``tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under ``tests/sn/`` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms ``info`` discard at the kernel boundary. All three carry ``@pytest.mark.catches("ERR-053")``.
+   **Test reference:** ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under ``tests/sn/`` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms ``info`` discard at the kernel boundary. All three carry ``@pytest.mark.catches("ERR-053")``.
 
    → Probe path: ``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1,2,5,6}_*.py`` — **4** scripts, not the 8 this line claimed until 2026-08-09 (#347 audit: ``step3``, ``step4``, ``step7``, ``step8`` were never tracked; the bisection cascade's other rungs live only in the investigator's memo).
 
@@ -4850,7 +4850,7 @@ older entries classify against.
 
    **How it hid.**
 
-   1. **Existing scan-form tests cover the wrong regime.** ``tests/sn/spatial/test_ordinate_scan.py::test_ordinate_scan_small_attenuation`` uses ``a ∈ [0.05, 0.2]`` (positive, bounded away from 0). ``test_ordinate_scan_zero_attenuation`` uses ``a ≡ 1`` (the opposite limit). No existing test covers ``a ∋ 0`` — the exact pole-cell pathology.
+   1. **Existing scan-form tests cover the wrong regime.** ``tests/sn/sweep/core/test_ordinate_scan.py::test_ordinate_scan_small_attenuation`` uses ``a ∈ [0.05, 0.2]`` (positive, bounded away from 0). ``test_ordinate_scan_zero_attenuation`` uses ``a ≡ 1`` (the opposite limit). No existing test covers ``a ∋ 0`` — the exact pole-cell pathology.
 
    2. **The docstring acknowledged the regime but did not enforce it.** ``scan.py`` lines 126–135 explicitly noted "requires ``cumprod_a`` to stay finite and bounded away from zero ... For ``a → 0`` ... outside DD's normal operating envelope, consult the test catalog". The caveat lived in prose; no positive contract test pinned it. Anti-pattern #10 in ``vv-principles`` ("docstring caveat without enforcement").
 
@@ -4860,7 +4860,7 @@ older entries classify against.
 
    5. **Krylov bypassed the buggy code path entirely.** ``transport_operator_matvec_unified`` and the per-geometry matvec helpers in the then-extant ``orpheus/sn/operator.py`` did NOT import ``ordinate_scan``; only ``_sweep_1d_unified`` (the SI sweep path) did. ⛔ **That asymmetry no longer exists and MUST NOT be re-asserted** (#347 audit, 2026-08-09): Phase G / ``[[lessons-L21]]`` made the matvec and the sweep two applications of ONE operator, so both now reach the scan through ``loss_representation`` (``[M]`` ``'ordinate_scan' in orpheus.sn.loss_representation.__dict__`` is ``True``). The diagnostic that pinned the old invariant (``diag_si_cyl_20cell_nan_step5_root_cause.py::test_krylov_avoids_ordinate_scan_path``) was retired with it. The bug-class defence is now backend-level, not path-level — ``orpheus/sn/sweep/scan.py``'s division-free pair-monoid fallback protects *every* consumer.
 
-   **Which test catches it.** Permanent regression catcher: ``tests/sn/test_si_cyl_20cell_nan_regression.py``. Pre-fix this test FAILS on:
+   **Which test catches it.** Permanent regression catcher: ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``. Pre-fix this test FAILS on:
 
    * ``test_si_returns_finite_keff`` (SI returns NaN — the bug class signature).
    * ``test_ordinate_scan_at_a_zero_returns_finite_via_loop`` (the scan-form contract test, structurally independent of any solver).
@@ -4876,7 +4876,7 @@ older entries classify against.
 
    **Fix family.** Replace the Blelloch closed form with a numerically-stable Blelloch variant. Three viable options:
 
-   1. **Pair-monoid prefix scan.** Compose ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')`` via an explicit associative prefix scan. The existing ``tests/sn/spatial/test_ordinate_scan.py::test_pair_monoid_associativity`` already verifies the algebra. No division anywhere; vectorises across ``(K, ng)`` identically. **Preferred — cleanest path.**
+   1. **Pair-monoid prefix scan.** Compose ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')`` via an explicit associative prefix scan. The existing ``tests/sn/sweep/core/test_ordinate_scan.py::test_pair_monoid_associativity`` already verifies the algebra. No division anywhere; vectorises across ``(K, ng)`` identically. **Preferred — cleanest path.**
 
    2. **Fallback to explicit loop** at chain cells where ``|a| < ε``. Hybrid; loses the all-numpy uniformity.
 
@@ -4894,7 +4894,7 @@ older entries classify against.
 
    4. **Krylov-versus-SI structural divergence is a load-bearing cross-check.** When two solver paths share the same operator construction but differ in execution algorithm, agreement is information; disagreement at the SAME problem is a diagnostic localiser. Issue #209 was localised in <2 hours because Krylov-vs-SI disagreement was already in the user's empirical table.
 
-   **Test reference:** ``tests/sn/test_si_cyl_20cell_nan_regression.py`` (this commit), with ``@pytest.mark.catches("ERR-054")`` to be added when the fix lands.
+   **Test reference:** ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py`` (this commit), with ``@pytest.mark.catches("ERR-054")`` to be added when the fix lands.
 
    → Probe path: see ``derivations/diagnostics/diag_si_cyl_20cell_nan_step{1,5}_*.py`` for the cascade. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
 
@@ -4984,11 +4984,11 @@ older entries classify against.
 
    **The fix.** Dispatch on the TRUE failure condition: compute the closed form (under an ``np.errstate`` that suppresses the expected intermediate inf/NaN), and fall to the pair-monoid iff ``not np.all(np.isfinite(closed_form))``. This catches the exact reset AND the denormal underflow AND any cumsum overflow with one honest predicate, is bit-identical on every finite (i.e. all currently-passing) input, and costs one extra O(N) reduction over an array the closed form already materialised. ``orpheus/sn/spatial/scan.py``.
 
-   **Which test catches it.** ``tests/sn/spatial/test_ordinate_scan_reset.py::TestOrdinateScanDenormalUnderflow::test_denormal_cumprod_underflow_stays_finite`` (``@pytest.mark.catches("ERR-057")``) — drives the chain into the denormal band (with a ``pytest.fail`` precondition asserting ``cumprod[-1] ∈ (0, tiny)`` so the regime cannot pass vacuously, ``-O``-safe per Mode 8) and pins ``ordinate_scan`` finite + equal to the explicit serial loop. The bit-identity half stays pinned by ``::TestOrdinateScanReset::test_fast_path_bit_identical``.
+   **Which test catches it.** ``tests/sn/sweep/core/test_ordinate_scan_reset.py::TestOrdinateScanDenormalUnderflow::test_denormal_cumprod_underflow_stays_finite`` (``@pytest.mark.catches("ERR-057")``) — drives the chain into the denormal band (with a ``pytest.fail`` precondition asserting ``cumprod[-1] ∈ (0, tiny)`` so the regime cannot pass vacuously, ``-O``-safe per Mode 8) and pins ``ordinate_scan`` finite + equal to the explicit serial loop. The bit-identity half stays pinned by ``::TestOrdinateScanReset::test_fast_path_bit_identical``.
 
    **Lesson.** A conditioning guard must test the failure CONDITION, not a PROXY for one of its causes. ``cumprod == 0`` is a proxy for "the division ``b/cumprod`` will produce a non-finite result"; the proxy under-covered the denormal band where the divisor is nonzero but the quotient still overflows. When a fast path is gated by a fallback condition, gate on the fast path's actual output validity (``np.all(np.isfinite(result))``), not on a hand-enumerated subset of the inputs that would invalidate it — the enumeration is an open set and will miss a case. Generalises to every backend-dispatch-by-conditioning (MOC optical-depth ``exp`` underflow, CP escape-probability small-τ series cutoff, any cumprod/cumsum closed form vs its stable rearrangement).
 
-   **Test reference:** ``tests/sn/spatial/test_ordinate_scan_reset.py::TestOrdinateScanDenormalUnderflow::test_denormal_cumprod_underflow_stays_finite`` (``@pytest.mark.catches("ERR-057")``); bit-identity guard ``::TestOrdinateScanReset::test_fast_path_bit_identical``. Fixed in ``orpheus/sn/spatial/scan.py`` (issue #222, S5.0).
+   **Test reference:** ``tests/sn/sweep/core/test_ordinate_scan_reset.py::TestOrdinateScanDenormalUnderflow::test_denormal_cumprod_underflow_stays_finite`` (``@pytest.mark.catches("ERR-057")``); bit-identity guard ``::TestOrdinateScanReset::test_fast_path_bit_identical``. Fixed in ``orpheus/sn/spatial/scan.py`` (issue #222, S5.0).
 
 .. error-entry:: ERR-058
    :title: Curvilinear within-group closure SEEDS were self-referential / proxy-sourced: exact on flat ψ (every gate green), O(1)-wrong on every non-flat field — solution error floored mesh-independently
@@ -5087,7 +5087,7 @@ older entries classify against.
 
    **Fix.** ``return mu_axis * sp.Matrix(...)``. Mutation-verified ``-O``-safe: re-dropping the factor makes ``test_d2_exact_on_bilinear`` FAIL (returncode 1, via ``pytest.fail``) while the d=1 oracles stay GREEN.
 
-   **Which test catches it.** ``tests/sn/spatial/test_ld_ubld_symbolic.py::test_d2_exact_on_bilinear`` (Branch 1) + ``tests/sn/spatial/test_ld_ubld_primitive.py::test_d2_exact_on_bilinear`` (Branch 2 numpy), both ``@pytest.mark.foundation @pytest.mark.catches("ERR-060")``, Mode-8-safe (``pytest.fail``). NOTE: ``tests/sn/spatial/test_linear_discontinuous.py::test_d2_assembled_matrices_match_symbolic`` carried ``catches("ERR-060")`` but is BLIND to it (it checks ``assemble_ubld``'s A/M/G/F_out, which carry no inflow factor, and PASSES under the \|μ_axis\| drop). Only the exact-on-bilinear gates are genuine catchers (the marker on the A==A pin is a coverage-claim error to drop — qa L-031).
+   **Which test catches it.** ``tests/transport/spatial/test_ld_ubld_symbolic.py::test_d2_exact_on_bilinear`` (Branch 1) + ``tests/transport/spatial/test_ld_ubld_primitive.py::test_d2_exact_on_bilinear`` (Branch 2 numpy), both ``@pytest.mark.foundation @pytest.mark.catches("ERR-060")``, Mode-8-safe (``pytest.fail``). NOTE: ``tests/transport/spatial/test_linear_discontinuous.py::test_d2_assembled_matrices_match_symbolic`` carried ``catches("ERR-060")`` but is BLIND to it (it checks ``assemble_ubld``'s A/M/G/F_out, which carry no inflow factor, and PASSES under the \|μ_axis\| drop). Only the exact-on-bilinear gates are genuine catchers (the marker on the A==A pin is a coverage-claim error to drop — qa L-031).
 
    **Lesson.** A reduction oracle that builds its own reduced-case RHS inline is blind to the general assembler's higher-d terms — ship the exact-on-bilinear (d≥2) gate WITH the d=1 reduction oracle, never the d=1 reduction alone. The d=1-blind / d≥2-caught split is the H2 signature lifted to dimension. → numerical-bug-signatures Signature 4 family at the symbolic-derivation layer.
 
