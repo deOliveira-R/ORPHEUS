@@ -195,6 +195,11 @@ class Albedo:
 ```
 
 
+### Pattern 4 lossy return type
+
+**`[M]` 2026-08-08, #342.** Filed as "`solve_sn` hardcodes `converged=True`", a one-line bug. The cause was one hop up: `power_iteration` knew whether it had converged or exhausted `max_iter` and returned a bare triple, so five consumers reconstructed the fact five ways (one inferred it, one asserted `True`, three could not report convergence at all), one of them with a `<=`/`<` split disagreeing with the certificate's own gate, FP-unreachable and invisible to every test. The fix returned an outcome object carrying the status. Making that object NOT tuple-unpackable surfaced six further consumers, one a test helper mirroring the production chain verbatim, which a destructurable replacement would have left compiling while ignoring the new field; a gate asserts the old idiom raises. The optimistic default on the carrier went with it. Companions: the Pattern 2 sibling-package trigger; the V&V twin is `vv-testing` "defining laws" (a value gate that never asserts the producer's own status flag is asserting an arbitrary iterate). The user's ruling lived in the main agent's memory (`feedback_lossy_return_type_is_the_root_cause`) until this corollary landed on 2026-09-22.
+
+
 ## Pattern 5 primitive not product
 
 

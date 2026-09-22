@@ -152,7 +152,23 @@ constructor parameter of L (so "sweep without BC" is not a value);
 frozen type routes through `dataclasses.replace(...)`, which re-runs
 `__post_init__` so the invariant re-fires for free — a hand-written dunder that
 *restates* the invariant is a Pattern-2 duplicate of the law, and goes stale.
-[case](../../../docs/development/evidence/coding-elegance.md#pattern-4-illegal-states)
+**Corollary (the lossy return type is the root cause):** when a consumer
+hardcodes or infers a fact it ought to READ, the defect is the PRODUCER's
+return type one hop up; fixing the consumer's line treats a symptom and leaves
+every sibling consumer free to invent its own answer. Four checks: (1) triage
+upward — ask where the fact comes from and whether the producer already has
+it, and grep the producer's other callers first, since their count is the real
+blast radius; (2) return the fact, never document it (X3) — a comment telling
+callers to derive `len(history) < max_iter` is a spec every caller
+re-implements, wrong for a solve converging on its last allowed iteration;
+(3) make the replacement REFUSE the old idiom, or the retirement is cosmetic —
+an outcome object that is not tuple-unpackable surfaces every site that
+destructured the triple it replaced, paired with a gate asserting the old
+idiom raises; (4) kill the optimistic default — `field: bool = True` on the
+carrier, or "no data ⟹ assume fine" in an accessor, lies by omission, so the
+field is required or defaults to the pessimistic value.
+[case](../../../docs/development/evidence/coding-elegance.md#pattern-4-illegal-states);
+[the lossy-return case](../../../docs/development/evidence/coding-elegance.md#pattern-4-lossy-return-type)
 
 **5 — Build the right primitive, not the right product.** Decompose a complex
 behaviour into small composable primitives; the product is their composition.
