@@ -10904,3 +10904,486 @@ tripwire — and a principled re-read moves only the second. Name which one you 
   `solve_sn`** (that entry always builds an `SNSolver`, which IS a `ProductionRateSolver`).
   At the `power_iteration` tier it is: `[M]` k agrees to `1.03e-09` while the flux sums
   differ by a factor `0.408356`, and nothing on either answer records which ran.
+
+## L87 — Carve archetypes: where the load-bearing gate lives, by carve shape
+
+Moved out of the digest §6 on 2026-09-21. Read the ONE row whose shape matches
+the dispatch; the digest carries the index and the meta-rule.
+
+
+**Meta-rule: the keystone is decided by whether the carve INHERITS a verified
+predecessor.** Wrapping / re-expressing something verified ⟹ the keystone is
+bit-id INHERITANCE (necessary-NOT-sufficient, always paired with an independent
+value anchor). Nothing to inherit ⟹ the keystone must be structurally
+independent. Before accepting any BIT-IDENTITY acceptance line ask which
+REDUCTIONS the change reorders: zero ⟹ `array_equal` is honest; any ⟹ the line is
+arithmetically IMPOSSIBLE and must be re-scoped to a permutation reordering no
+addition. → `L37`
+
+- **Axis-transpose / mirror of a shipped reduction:** the implementer copies the
+  template, so the ONE rule that genuinely FLIPS is where the copy goes wrong —
+  diff the two production bodies and make the load-bearing mutation the
+  UN-flipped rule. → `L11`
+- **Fast path folded INTO a composed form:** principled-EQUIV (`rtol≈1e-14`),
+  never 0-ULP; the UNCHANGED sibling kernel MUST STAY `array_equal`. "The
+  transpose falls out free" reduces to the ONE missing leaf + a Mode-11 wrap;
+  Euclidean `Aᵀ` ≠ the metric adjoint `.H`. → `L12`
+- **Operator-taxonomy family.** ADDITIVE: keystone = `array_equal` inheritance +
+  the EXISTING closed-form anchor; the runtime query must be a derived
+  `@property`, never `isinstance(Protocol)` (`runtime_checkable` is
+  class-uniform) `L13`. FIRST ITERATIVE inverse: nothing to inherit ⟹ a dense-LU
+  anchor + the name-earning invariant, never old-vs-new ULP; once the composite
+  defines `solve := inverse().apply` the equivalence is a TAUTOLOGY; a
+  raise-on-non-converge gate must test the TRUE residual, not the increment
+  (`numerical-bug-signatures` Signature 9) `L14`. TERMINAL: the coexistence-era
+  faithfulness scaffold DELETES with the mechanism — design its permanent
+  structural-contract successor FIRST, migrate by mechanical RULE + a
+  completeness RE-GREP, retire ATOMICALLY `L15`.
+- **New consumption mode of a shipped algebra (`assemble()`):** the point is the
+  ONE-SOURCE proof — a sign flip in the SHARED coefficient source must red BOTH
+  the new gates AND the existing sweep/matvec suites; if only the new one reds a
+  twin path exists → STOP, fix, log ERR-NNN. Sparse-order ≠ apply-order ⟹ no gate
+  is 0-ULP. Never gate a derived SCALAR (`keff`) — Mode-12. → `L16`
+- **Relocation:** behaviour-free BY CONSTRUCTION ⟹ argue AGAINST a new snapshot;
+  the walls are the DriftWarning suites + Sphinx `-W` + `grep -rn "<old.path>"` =
+  ZERO. But a relocation moving BOTH the SUT and its reference leaves
+  self-referential `array_equal` canaries GREEN even if values shifted — the
+  genuine proof is a FROZEN pre-carve baseline. → `L16`, `L17`
+- **WRAP over an already-verified engine:** count-spy (EXACT expected count) +
+  bit-id reference; structural independence from the ENGINE's OWN closed form,
+  never a hand re-execution of its recurrence (ERR-032). An internal transform
+  you CANNOT monkeypatch is pinned by a spy on the call ARGS plus a non-vacuity
+  check. → `L21`
+- **UN-WELD (one closure hand-rolled at N sites → one source):** the centrepiece
+  is single-source ROUTING — a Mode-11 wrap-counter asserting BOTH consumers
+  enter it, counted EXACT, not `> 0`; a transpose hand-coded as a bare constant
+  needs its OWN single-source gate. ⭐⭐ Un-welding a composite into NAMED legs is
+  a COVERAGE opportunity: mutate per LEG (splitting a paired metric sandwich into
+  its two Riesz legs took a battery 9/20 → 20/20 red). ⛔ Dual: a
+  config-blindness control MUST keep the PAIRED mutation, and a stale
+  "constrained" list after such a split is silent coverage loss. → `L22`, `L67d`
+- **Correction→0 accelerator (DSA/TSA):** the property PARTITIONS the failure
+  surface and FP-invariance is structurally BLIND to the machinery half — it
+  catches exactly ONE of eight canonical errors. Draw the value/rate partition
+  table FIRST. → `L23`
+- **N-DOF separation:** hunt the WELD (one record spanning two stages) and gate it
+  by object `is`-identity across the strategy ladder, with the already-green arm
+  as CONTROL — no value gate can see it, because both splittings reconstruct the
+  same `A`. Enumerate the UNSPELLABLE states separately from the red ones. → `L24`
+- **DOMAIN NARROWING:** "will this gate go tautological?" has a THIRD answer — the
+  gate BREAKS (its reference expression feeds the narrowed operator the wrong
+  shape), so simulate at the REALIZER, not the call site; the teeth CHANGE even
+  when the assertion survives. The phase AFTER: a "cannot be posed on the narrowed
+  operator" gate is usually a RECIPROCITY gate in disguise — find the mirror
+  object the tree already builds before reaching for `xfail`. → `L29`, `L30`
+- **TYPE-COLLAPSE (N types → 1 parameterised type):** information moves from the
+  TYPE to a FIELD, so every `isinstance`/class-set gate over the collapsing family
+  stays green and stops discriminating — inventory them FIRST and re-pose each
+  onto the PARAMETER in the same commit. Free companion: `type(A().f) is
+  type(B().f)` (`is`, not `isinstance`). Prefer the guard that makes the blind
+  parameter UNSPELLABLE over one that needs a gate. → `L36`
+- **OPTIONAL→MANDATORY BINDING:** nothing on the forward path changes, so a bit-id
+  keystone is cheap and WORTHLESS — THREE wrong bindings (dropped, SWAPPED
+  `domain`↔`codomain`, collapsed-to-one-space) each produced ZERO new reds across
+  1668 tests. ⭐ **Design the battery around the SWAP**: it survives the extent
+  guard and the refusal flag and changes no arithmetic, so the ONLY catcher is an
+  `is`-identity row naming WHICH space is WHICH end. A sentinel encoding TWO
+  states (`domain=None` = "generic by mathematics" AND "nobody bothered") makes
+  the discriminating gate UNWRITABLE — say "this gate cannot exist; here is the
+  TYPE that makes it exist". → `L37`
+- **A binding added at a LEAF may not survive to the object the producer
+  RETURNS** — measure at the tier the CONSUMER sees; before crediting "the check
+  now fires", compose the object PRODUCTION hands out. An already-COMMITTED
+  sibling step probably has the identical hole (ship it as a `strict=True` xfail
+  naming the later step, not as scope creep). → `L38`
+- **ADMISSION / REFUSAL carve:** (a) if the input type carries a PROVENANCE field,
+  provenance-keyed admission is the cheapest wrong guard — kill it with a
+  two-sided pincer (a hand-assembled rule with the tag ABSENT whose arrays are
+  `array_equal` to the factory's MUST construct; a GENUINE quotient of the wrong
+  parent MUST refuse), each row asserting its own tag precondition in-test; (b)
+  the guard usually makes a production BRANCH unreachable — grep the predicate's
+  consumers for `if X: continue`; (c) the mesh-tier consequence of admission is
+  the single-source proof, a theorem only if guard and consumer read one producer.
+  → `L43b`, `L43d`, `L43g`
+- **RE-SOURCING (facts move from hand-passed arguments to a derived object): ⛔⛔
+  the blast radius is the READS, not the PARAMETERS, and a PARTIAL re-point is
+  WORSE than none.** `awk` the consumer's body for every read of the old source
+  before designing gates; ship the correction as a `line | read | today | must
+  become` table at the TOP of the plan; put BOTH partial mutations in the battery.
+  ⛔ Companion: existing fixtures can make the gate an `X == X` theorem by OBJECT
+  IDENTITY, so the keystone is a synthetic hand-built nested record plus ONE cheap
+  end-to-end solve for what the synthetic cannot see. → `L44a`, `L44b`, `L44c`
+- **DELIVERY-COUNT ("is this term applied, and how many times?"):** gate the
+  governing EQUATION evaluated on the CONVERGED answer, at the tier where the
+  posed system's rows ARE that equation (a trace / interface / boundary DOF) —
+  three distinguishable readings, ONE assertion, no reference solver, no
+  tolerance, mesh- and quadrature-independent. ⛔ "Superposition in `q`" is a
+  Mode-12 NON-CATCHER for a doubled source; the in-class mutation is `q + q` in
+  the SOURCE channel. → `L39`
+- **ONTOLOGY OVERTURN (a role TYPE retires into its base):** byte-identical BY
+  CONSTRUCTION, so the design problem is (a) proving it per CONSUMER rather than
+  arguing it, and (b) the gates the RETIRING type's consumers silently lose.
+  Enumerate consumers and find the existing wall; the retiring type's guards
+  usually have NO negative test; ask what ELSE the moved code did. → `L58a`,
+  `L58g`
+- **TYPE-ABSENCE / union restructure:** (1) ⛔⛔ `getattr(obj, "attr", default)`
+  SWALLOWS the `AttributeError` a refusing property raises, so every duck-typed
+  consumer degrades SILENTLY — the attribute set partitions into *may be absent*
+  and *must stay legal*, decided by the duck-typed READERS, not by the concept.
+  (2) ⛔ `eq=False` may be FORCED by the field types, not chosen. (3) ⭐⭐ Say
+  WHICH measure you are mutating: one field can feed two consumers with opposite
+  visibility. → `L60a`, `L60d`, `L60g`
+- **KERNEL/DATUM MINT + CONSTRUCTION BINDING:** (a) the "view over the existing
+  data" may be a WRITEABLE ALIAS with production reach ⟹ gate bit-identity
+  (`array_equal`), NEVER view-identity (`is`, which asserts the hazard as the
+  contract), plus a non-aliasing gate; (b) the honest REFERENCE is the ORIGINAL
+  sparse/authored source, not the cache; (c) "NO apply arm deleted" is a
+  BEHAVIOURAL matrix, not a grep (a `singledispatchmethod` registry-keyset gate is
+  blind to operators whose arms are `isinstance` chains); (d) a brief's "flip X
+  too if free" is a claim to MEASURE, and one gate DIES rather than flipping.
+  → `L61e`, `L61f`, `L61h`
+- **RENAME-A-FIELD-AND-MOVE-ITS-MEANING:** the re-spelling is free and the re-KEY
+  is the whole job — enumerate the cells whose ANSWER moves, freeze the pre-carve
+  table from a `git archive HEAD` shadow tree, ship the moved set as a RULED-MOVES
+  dict so an unruled move is a red with a name. ⛔ A sibling gate pinning a frozen
+  record INCLUDING message strings will red: split the value half from the wording
+  half, never re-freeze prose. → `L75`, `L75e`
+- **RETIRING A VERB WHOSE FAÇADE CALLS IT:** order the retirement by the CALL
+  GRAPH, not the plan's sentence — re-express the CONSUMER first, then retire both
+  in one commit. ⭐ Before minting a factory for a special case, evaluate the
+  existing parameterized factory at its DEGENERATE parameter. → `L79g`
+- **RETIRING A DEGENERATE FACTORY:** measure the migration target like-for-like
+  BEFORE classifying call sites — the measurement IS the migration plan. ⚠ Check
+  the NON-collision too (a sibling gate may discriminate by WIDTH, not mesh-ness).
+  → `L81f`
+- **GIVING A TYPE CONTENT `__eq__`/`__hash__`:** the blast radius is the
+  HASH-KEYED consumers and there is usually exactly ONE — find it first. Under a
+  simulated content hash two content-equal live meshes collapsed to one intern
+  entry and PING-PONGED (builds 2 → 6). ⚠ A frozen dataclass whose `__post_init__`
+  MUTATES a field cannot simply gain `frozen=True`; a `WeakKeyDictionary`'s
+  LIFETIME changes when the first of two equal keys dies. ⭐
+  `NotImplemented`-across-classes is usually ALREADY TRUE and is a
+  MUST-STAY-GREEN pin, not a gap. → `L82h`, `L82i`, `L82j`, `L84g`
+- **MAKING A PER-STEP BUILD A PER-PROBLEM ONE:** ⛔⛔ the obvious Problem morphism
+  may be UNWRITABLE over the generating data — "make X a morphism like Y" owes the
+  check that X's datum IS generating data. ⛔⛔ A CACHE-LIFETIME change is
+  invisible to every VALUE gate: the COUNT row is the only instrument and the
+  strong HOLDER is the precondition (1 build / 549 hits with a holder, 550 builds
+  / 0 hits without, `keff` bit-identical in both). Run `gc.get_referrers` during
+  the workload to NAME the holder, and insert an explicit `del` + `gc.collect()`
+  in any lifetime probe or a CPython refcount accident reads 1. → `L83i`, `L85a`,
+  `L85b`
+- **SINGLE-SOURCING TWO BODIES is a FUNCTIONAL-IDENTITY claim** — measure it
+  before believing it, and a near-miss is usually a better gate than the merge.
+  Two keff estimators agreed to rel 7.2e-10 at default tolerances and 6.6e-14 at
+  `keff_tol=1e-11`: the gap IS the convergence residual, so they are two
+  structurally independent functionals and the honest gate is a REFERENCE-class
+  band (`≤ 10·keff_tol`), never `array_equal`. → `L85e`
+- **⭐ PRE-carve dispatch AFTER a grounding pass: re-derive the CONSEQUENCE at
+  every enumerated site — do NOT re-verify the enumeration.** A grounding pass is
+  good at enumeration and skips per-site consequence, because that needs
+  simulating the carve. Cheapest form: per site write the one sentence *"after the
+  carve this site {keeps / gains / loses} X"* — the sentences that will not write
+  are the findings. → `L59f`
+- **⭐ A deferral recorded in PROSE can be a live, silent WRONG ANSWER with no
+  gate** — grep the deferral's own mechanism and RUN it before treating the step
+  as hygiene (four lines, no solver, showed two sweeps at different σ returning
+  `array_equal` while the honest answers differ by rel 3.57). The §6c witness was
+  free, RED today, and earned an ERR entry rather than a design note. → `L85h`
+- **⛔⛔ An `if __debug__: assert` that RE-DERIVES a datum is a live REFUSAL of the
+  capability a step adds — and it is stripped by the canonical runner**, so the
+  step's gates go green under `-O` and red under plain `python`. Run every
+  new-capability fixture under BOTH invocations before calling an assert "dead
+  cleanup" (`coding-standards` § "A bare `assert`", read in the other direction).
+  → `L85d`
+- **⭐ Before designing a seam migration, run the Mode-11 SPY census — the answer
+  can be ZERO, and that is a finding**: zero spies ⟹ nothing to migrate AND no
+  route claim about that path is gated today, which makes the new route gate
+  net-new coverage. And resolve which OBJECT a fork's option names by posing each
+  shipped chart and printing `type(x).__name__` — "the strategy" named two
+  objects and the private one has zero external call sites. → `L85i`, `L85j`
+- **⛔ A retirement's MEMO/SLOT inventory is a claim to COUNT, and the contract's
+  only witness usually dies with the slots** (one design named ONE mesh-attr memo;
+  the tree carried three). → `L64h`
+- **⛔ A "the reads re-plumb" done-when is DESIGNED-RED when the ruling puts a
+  third of them out of scope — partition by ATTRIBUTE and ship the partition as an
+  executable read-set gate** (wrap the hub's objects in a recording descriptor
+  after the pose, run one sweep + one matvec, assert the recorded attribute set ⊆
+  a declared allowlist). And a "no carrier dispatch" AST gate is LEXICAL: census
+  the HELPERS the verbs call and discriminate by the `isinstance` TARGET set, not
+  the location. → `L64c`, `L77b`
+- **⛔ A route gate whose SUBJECT is created by the step it gates cannot be a later
+  step** — that leaves an ungated interval and makes its §6c red-before
+  permanently untakeable; fuse them, and the pre-carve evidence that survives is
+  the SIMULATION. ⭐⭐ When a carve moves an INTERMEDIATE a later chart projects
+  away, model the new semantics as a MONKEYPATCH and re-run the campaign's own
+  behaviour capture BEFORE designing gates — the cheapest empirical Mode-12
+  stabiliser (0 of 9925 answers moved, which yielded three design constraints).
+  → `L66k`, `L73a`, `L73b`, `L79c`
+- **⛔ Retiring a helper breaks DECLARED provenance edges — compute the set
+  DIFFERENCE.** The retirement audit's FOURTH surface is the corpus's
+  `.. implements:: … :by:` declarations: one regex over `docs/theory/**/*.rst` for
+  `:by:` × the retiring names; re-POINT, never delete. ⚠ Sibling: a retired
+  `@pytest.mark.sentinel` is a lost capability-node canary, invisible to any
+  symbol grep. → `L63e`, `L78i`, `L78j`
+- **⛔⛔ When a carve's goal is to REVERSE an import edge, enumerate every name the
+  reversed-FROM module imports from the reversed-TO one — CONSTANTS included — and
+  inject-and-run on a shadow copy before designing one gate.** The survivor was
+  two AXIS constants read at 6 sites, killing 6 of 9 entry points, while `import
+  orpheus` alone stayed `rc=0` so a package-root smoke test reads green. A type
+  moves with the concept; a constant does not. ⚠ `plan-authoring` §6d on a
+  PERMITTED edge: legal ≠ free — price the edge, not the diff. → `L67j`, `L74a`
+- **⭐ Two of the surfaces a walk "reads off the mesh" can be base STATICMETHODS**
+  — re-plumbing them is value-inert BY CONSTRUCTION and only a structural read-set
+  gate can witness them. Resolve every mutation through the MRO: 4 of 9 surfaces
+  were off the concrete class, so a concrete-class battery bound 5 of 9 and
+  reported a confident partial zero. → `L64d`
+- **⭐ Price field-vs-property and per-operator memoisation at PLAN time; the
+  existing COUNT gate is blind to it** (one ruled operator-held table cost 16.8 %
+  of a 285 ms solve because the operator is built 6× per solve while the table is
+  built once; and a fresh-minting property makes `op.axis is op.axis` FALSE, a
+  latent false red). Pin the builder's call COUNT with the ruled number in the
+  message; a wall clock is a flaky proxy. → `L64b`, `L66h`
+- **⛔ Grep where a PARAMETER is READ before designing a mutation around it** — an
+  argument reaching only an f-string is not a lever. Bound an EXCLUSIVITY claim by
+  RUNNING the sibling module, not by reasoning, and put the measured table in the
+  docstring. → `L41f`, `L41g`
+- **⛔⛔ A type that spells two ACTIONS apart still has ONE method that conflates
+  them, and the sibling type's guard is what hides it.** When a plan says "call
+  `X.permutes(...)`", check WHICH action the method uses against the SEMANTIC
+  CLASS of the arguments the NEW consumer will pass — and gate on the OBSERVABLE
+  (two motions sharing a linear part ⟹ bit-identical output), never on the
+  spelling, so the gate survives whichever way the fix lands. → `L41a`
+- **⛔ An INTROSPECTING test adapter written to survive an unknown signature
+  INFLATES the battery once the signature lands** — `inspect.signature` runs at
+  test-module import, AFTER the plugin installs the mutation, so every `**kw`
+  wrapper `pytest.fail`s (55/60/55 reported, 23/11/27 true). Retiring the adapter
+  is both the elegance fix and the harness fix. → `L41e`
+- **Adjoint / metric gates:** a `.H` reciprocity gate is blind exactly when
+  `[G, A] = 0` — compute the COMMUTATOR at design time ("non-uniform mesh" is a
+  proxy, wrong both ways). Leaves commuting ALGEBRAICALLY need a second,
+  metric-agnostic mutation; reciprocity is a CONSISTENCY check, not a correctness
+  one (forward and transpose wrong the SAME way reciprocate at 1e-16) — pair with
+  an object-level SUPPORT gate. ⭐ A dual space carrying the PRIMAL's metric makes
+  a generic Riesz leg compute `G²`, so the natural double-Riesz involution gate is
+  a FALSE RED. → `L26`, `L33`, `L67e`
+- **Gating a REVERSE solve (`A.H.inverse() ≡ A.inverse().H`):** the keystone is a
+  FORWARD-only G-reciprocity — its arithmetic never calls the reverse path, so it
+  is structurally independent BY CONSTRUCTION. `b` MUST be bulk-only
+  source-carried (a random FULL `b` falsely reds even UNMUTATED). A predicate flip
+  MUST propagate to the capability-survival CONTRACT in the SAME landing. → `L19`
+- **Carrier augmentation (a new block/DOF):** PROVE the block is CONSUMED before
+  crediting any gate — zero its source and the solve MUST move. A carrier DOF's
+  Hilbert metric is set by its OPERATOR ROLE, not its angular-integration weight
+  (conflating them gives a ghost metric and a Mode-12 false-green). → `L18`
+- **Perf gate for composition-over-fusion:** the catcher is a leaf-kernel call
+  COUNT, not wall clock — and "must not scale with `n_cells`" is TOO COARSE:
+  tabulate arity against EVERY axis first. The regression it catches is EXACTLY
+  value-identical, and that measurement is what promotes the count to catcher. A
+  perf baseline is a (number, FIXTURE) PAIR: own the sizes, fingerprint them,
+  never source them from a shared `_config` correctness may retune. → `L24`, `L25`
+- **A measured number living in a COMMENT is not a gate** — when auditing a landed
+  carve, grep the measurement's NUMBER and ask whether any `assert` consumes it.
+  Same family: an agreement-between-two-siblings row is NOT an is-it-correct row,
+  so pair every "the two collapsed things agree" row with one naming the RIGHT
+  value; and a "not a live bug — it is fenced" claim is a HYPOTHESIS, so apply the
+  fence's own predicate to the object the CONSUMER holds. → `L39`
+- **When a step says "make X mandatory", find WHERE the optional default is
+  DECLARED** — on a shared base it is not scoped to your tier whatever the heading
+  says. A committed strict-xfail set is the todo list, but read it BY ARM. → `L37`
+- **An `A ≡ B` theorem holding BY SHARED BODY is designed-GREEN under a body bug**
+  — the design's own justification is why the gate cannot verify; it catches
+  ARGUMENT drift only, and the catcher is an independent-expression anchor written
+  from raw data. → `L31`
+- **⭐ An operator's σ-INDEPENDENCE can license a commit ORDER** — the ordering
+  argument becomes a measurement and earns its own THEOREM row (with a mutation
+  making the operator read σ, or the row is unwitnessed). And look for an existing
+  COUNT gate before writing an ordering argument. → `L84h`, `L84l`
+- **⭐ A `(operator, sign)` piece record makes a piece TRANSFER law-invariant
+  EXACTLY**, where a positional sign convention reads `2×|piece·x|` — when a plan
+  says "sum the pieces through the domain's own `−` dispatch", ask where the SIGN
+  lives before designing the transfer arm. → `L84k`
+- **⛔ When an identity key is a 1-tuple wrapping a base key, a new datum placed
+  only on the DERIVED class leaves the base class's `==` blind** (ERR-084's class,
+  one class down). Ship the row on the class that OWNS the new datum. → `L84m`
+- **⛔⛔ When an identity flip moves a space's identity from its NAME to its AXES,
+  every fact the NAME was carrying must be re-homed onto the axis — enumerate the
+  class's FIELDS, not the concept** (one field, WHICH `O(2)` axis a fold spent,
+  was carried only by the name, and `Axis._identity_key` excludes `generator` so
+  provenance cannot rescue it). Sibling: a GUARD can lose its SUBJECT to an
+  identity flip — grep every `axes is None` guard before an axis-building carve.
+  → `L80e`, `L80f`
+- **⭐ A BRANCH census is the honest retirement instrument** — 452 of 458
+  dense-slot hits were the one head, so "the branch dies" is FALSE, "its
+  production traffic goes to zero" is TRUE, and the residual 6 are the work item.
+  → `L80h`
+- **⛔ A "delete the twin" carve must ask which ARITHMETIC FORM the destination
+  spells, not just which module owns it** — a third live spelling sat outside the
+  done-when's grep scope, algebraically equal and 204 ULP away. ⭐ And a gate's
+  BUILDABILITY is a legitimate design constraint: say when a charter's
+  `is`-identity gate is unwritable unless the branch calls a closure METHOD.
+  → `L63b`
+- **⭐ The COURIER'S REMOVAL, not a gate, is what makes a partial re-point
+  unspellable** — delete the twin field and "did every read move?" becomes
+  structural; promote the `dataclasses.fields` name-set row (set EQUALITY, so a
+  re-addition also reds) from nicety to keystone-support. ⛔ A member whose only
+  read is a COUNT is a structural non-catcher for any same-N decoy; its
+  discriminator is a DIFFERENT-N axis. ⛔ And the silent mode of an object-held
+  axis is the WRONG LABEL — gate it with `op.axis == hub.space.axis(label)`,
+  `==` never `is`. → `L66a`, `L66b`, `L66e`
+- **⛔ A ruling that says "mirror verb X" can name a SHAPE and a SEMANTICS that NO
+  ONE SIGNATURE satisfies** — read where the precedent's REFERENCE VALUE comes
+  from, not just its adjectives (`plan-authoring` §1 PRECEDENT, one level in).
+  → `L79a`
+- **⛔⛔ A "re-point the consumer" carve is unlandable when the DISPATCH reads the
+  OPERANDS' state — census the factors, not the arm.** Print the DISPATCH
+  PREDICATE's inputs on a production instance and ship that reading as a PREMISE
+  row so the carve's flip is visible. → `L79b`
+- **⭐ A `__subclasses__` census must IMPORT every module of every package first**,
+  and its positive control is the member a package-`__init__`-only import drops.
+  Inserting a base ABOVE a gated class leaves `X.__subclasses__()` untouched — so
+  the role gate is genuinely unchanged AND the new base's population is
+  consequently UNGATED; that absence is the finding. → `L77g`
+- **⭐ Before minting a new test file, price the EXISTING file that already pays
+  your fixture's cost — the Pattern-2 answer and the cost answer coincide** (247.6
+  s per-row → 27.0 s module-fixture → NEGATIVE marginal cost merged into the file
+  that already calls the same builder twice). ⭐ And the cheapest anchor is a
+  PARAMETRIZE ROW on the harness that already has the right regime: land it BEFORE
+  the carve (else the snapshot inherits the new code) and ADD a member — never
+  retune a shared literal, which silently re-baselines the sibling row. → `L63f`,
+  `L76e`
+- **⛔ A carve moving code through a rank/branch DISPATCH owes a fixture list PER
+  ARM — and a fixture can be on the right chart and still never reach the arm
+  because a CLAMP took it out.** And a "bit-identical by design" step's denominator
+  is the set of PARAMETER VALUES the tree requests, not the set of files it
+  touches: no shipped library solve runs above P2, so an un-clamping lands with
+  ZERO witnesses over data that is not noise. → `L76b`, `L76f`
+- **⚠ A design delta arriving MID-DISPATCH is a re-key list, not a rewrite — and
+  the message-fragment gate is the one at risk.** When a refusal's ENFORCEMENT
+  SITE moves, pin the sentence the refusal exists to SAY (preserved by the move)
+  plus the ERROR TYPE and ordering (which the move can break), never the diagnosis
+  wording. → `L70f`
+- **⭐ "Retire this internal" is a §6b question about its SECOND consumer, and a
+  family that agrees on ONE parameter value hides it** — the suite was
+  2857-passing either way. → `L71e`
+- **⛔⛔ A field partition can hold on one ARM of the producer's branch and not the
+  other**, and a composite may not EXPOSE its factors (nested `OperatorSum`, only
+  `.a`/`.b`) ⟹ the split is not a field partition and the Problem must EXPOSE the
+  factors. And "adopt X's spelling" — check X on EVERY chart first: one posed `F`
+  was THREE different objects across charts, so a gate phrased "the forward F is
+  the adjoint's F_posed" is a false red on every slab. → `L83b`, `L83c`
+- **⛔⛔ The splitting choice is a TRACE-only fact — every bulk functional is a
+  provable non-catcher.** Ship the activation leg as `array_equal` on the bulk +
+  `> 1e-2` on the trace, so a lost blindness names WHICH claim died. And when the
+  §6c red-before ALREADY SHIPS as an inherited strict xfail, the carve DEMOTES it
+  (single-sourcing) — the plan owes the SUCCESSOR, not a re-derivation. → `L83d`,
+  `L83e`
+- **⭐⭐ A "constructed but NOT consumed" claim has a stronger spelling than a
+  per-field mutation: replace the WHOLE object with an alien one.** ⚠ State the
+  decoy's precondition RELATIVE to the real object, never against a literal; and
+  declare in the docstring that the row goes VACUOUS the moment the object stops
+  being built, so the carve DELETES it. → `L81b`
+- **⭐ A CONSTRUCTION SPY's handle must be the ONE construction body every factory
+  funnels into, and its completeness needs its own arm and its own RECORD row** (a
+  positive control; the RECORD of today's count; the ruled `count == 0` under
+  `xfail(strict=True)`). An obvious handle that DIES with the factory being
+  retired reads a confident zero for the wrong reason. → `L81d`
+- **⛔ MY OWN fixture can defeat MY OWN row: a helper re-deriving its constituents
+  per call breaks an `is`-tier predicate for a reason the row is not about.** When
+  a row isolates ONE leg of a conjunctive predicate, hold every OTHER leg fixed by
+  `is` (module-level shared constituents) and write the reason into the constant's
+  comment; a CONTENT positive control must do the OPPOSITE (share NOTHING by
+  `is`), so the two fixtures are two helpers, never one. → `L82f`
+- **⭐ To mutate ONE BLOCK of a function that reuses shared verbs, wrap the
+  module-level binding of whatever that block calls LAST BEFORE it and flip a
+  phase flag on return** — three lines, turning shared verbs into block-only
+  mutations so a PRE-carve battery can validate the gate set before the fix
+  exists. ⛔ The hook needs a CLOSE, not only an OPEN, or a gate running a SECOND
+  production entry after its solve has that oracle mutated too. Note what caught
+  it: the gate's own POSITIVE CONTROL. → `L78g`, `L78k`
+
+
+---
+
+## L88 — Verifying a pure-math PRIMITIVE (a group / algebra type): the long form
+
+Moved out of the digest §8 on 2026-09-21; the digest keeps the four
+most-reached-for rows and points here for the rest. The standing obligation is
+`vv-testing` § "A type that embodies a mathematical concept ships the test of
+its defining laws"; this section is how to meet it in ORPHEUS.
+
+`vv-testing` § "A type that embodies a mathematical concept ships the test of its
+defining laws" is the obligation; below is how to meet it here.
+
+- **The pillars differ from a solver's: no MMS row, no semi-analytical row.**
+  Every row is closed-form; the structurally independent grounds are SymPy under
+  an EXPLICIT unit parameterisation (imposing `Σnᵢ²=1` by `subs` after expansion
+  does NOT fire), an external implementation with a DIFFERENT ALGORITHM
+  (quaternion vs Rodrigues), the Lie definition `expm(θ(vuᵀ−uvᵀ))`
+  (dimension-generic, ~4e-14 ⟹ gate at 1e-12), published tables, and EXACT INTEGER
+  arithmetic — the last needs no reference at all and is the strongest class
+  available. → `L35a`
+- **⭐⭐ An independent construction of a finite group's ELEMENT SET is cheap and
+  is the keystone — but state where the independence STOPS.** 22 finite
+  realizations rebuilt in plain numpy from the definitions, 2.9 ms, agreement
+  22/22 at 1.2e-15. The reference SHARES the standard setting and must; what is
+  independent is the ALGORITHM, and writing that sentence is what makes it a
+  claim. → `L72c`
+- **The group-action HOMOMORPHISM `π(g∘h) = π(g)∘π(h)` is the deepest cheap gate**
+  — integers only, pinning composition order, the row-vs-column convention and `π`
+  vs `π⁻¹` at once. VACUOUS on an abelian fixture. A checker returning a `bool`
+  makes the law unaskable; returning the PERMUTATION makes it free (anti-#14).
+  → `L35b`
+- **An involution / order law is Mode-12 BLIND to the AFFINE part** — gate the
+  FIXED SET, never the order, for anything affine; and for any `(linear, affine)`
+  decomposition enumerate which laws factor through the linear part alone.
+  → `L35c`
+- **A `G`-preserved weighted point set has a `G`-FIXED centroid** (3-line proof;
+  48/48 seated elements preserve it, 1/48 unseated do) — that row converts "where
+  do we put the origin?" from a modelling choice into a computed fact. → `L35d`
+- **Bijectivity and the match WINDOW are INDEPENDENT failure modes** — a set
+  off-symmetry by 1e-9 certifies under a 1e-7 window with a perfectly injective π.
+  The window is a first-class correctness parameter: an explicit ARGUMENT (a
+  module constant makes the "window bites" gate signature-tautological),
+  defaulting to the set's minimum pairwise separation. → `L35e`
+- **⭐ When a shipped predicate rejects your test input, suspect the FIXTURE
+  first — and the repair may be the best gate in the file.** All three reds during
+  one authoring session were mine (a single Gram–Schmidt pass is not orthonormal
+  enough for a 1e-12 gate; use QR); chasing two others produced the row where
+  containment and normalisation are independent in BOTH directions, strictly
+  stronger than the committed version. → `L35f`, `L72i`
+- **⛔⛔ A coset search's INVERSE direction is a THEOREM, not a weak arm** —
+  `∃γ: γ⁻¹r ∈ K` and `∃γ: γr ∈ K` are the same claim because the existential
+  ranges over a GROUP. Compute a mutation's own stabiliser before shipping it, and
+  ship such arms as DECLARED-NULL with an INVERTED bite check (the mutant must
+  AGREE) and their denominators. → `L75a`
+- **⛔ A PRODUCT relation whose every SHIPPED row has a trivial factor has no
+  witness for the product at all** — census a new relation's shipped ARGUMENTS for
+  degenerate factors before crediting its new structure; the §6c witness is then
+  manufactured and mandatory. And a non-vacuity guard (`0 < trues < rows`) fires
+  on the member constant BY THEOREM: branch it and name the theorem, never weaken
+  it. → `L75b`, `L75d`
+- **⭐⭐ REUSABLE — the stabiliser-maximality gate for any orbit-space catalogue:**
+  `G ⊆ entry.by ⟺ every generic image of generic base points leaves
+  entry.orbit_coordinates unchanged`. RHS is what "these are the orbits" MEANS,
+  LHS is the lattice, so neither half can be wrong alone (`vv` anti-#15), and it
+  is the maximality claim in both directions. Ship it with a populated-both-ways
+  census and a non-vacuity companion. ⭐ A genuine MAXIMUM search is affordable
+  once vectorised and needs BOTH halves: MAXIMALITY and CORRECTNESS-with-a-
+  witnessed-growth. ⛔ Ration a lattice gate's denominator by MEASURED per-member
+  cost, name the exclusion, assert the census, and NAME the columns constant BY
+  THEOREM. → `L70c`, `L72e`, `L72h`
+- **⚠ A DERIVED `invariance_group` is a LOWER bound, so a lattice admission gate
+  can REFUSE a correct pairing** — check a derived-symmetry gate's predicate
+  against the SUT's TRUE stabiliser before shipping the refusal. And the
+  Gauss–Legendre DEAD-SLOT theorem: a `GL_n` rule's Legendre Gram is DIAGONAL and
+  exact for `L ≤ n−1` with a structurally dead slot at `ℓ = n` (the nodes ARE
+  `P_n`'s roots), so **no 1-D Gauss frame is dense AND full-rank** — a full-rank
+  dense witness must come from a NON-Gauss measure or a coarse SPHERE rule.
+  → `L69e`, `L69f`
+- **⛔ A `vv` anti-#13 negative control can be BLIND below a threshold parameter
+  value** — an isotypic probe's right-angle trap agreed EXACTLY at L = 1, 2, 3 and
+  first diverged at L = 4. Measure the control's own ACTIVATION threshold and put
+  a row above it. ⭐ Over a PADDED layout the denominator must be REAL slots. And a
+  value gate cannot always discriminate two accessors: only the REFUSAL leg
+  attributes the choice. → `L69c`, `L69g`

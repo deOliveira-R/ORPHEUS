@@ -118,22 +118,30 @@ Read the implementation (or specification) and enumerate:
 **CRITICAL**: before drafting the test matrix, **MUST** gate on
 `vv-principles`:
 
-1. **Claim layer.** For each test row, declare: convergence-order
+1. **Construct and measure first.** Before naming a claim layer or a
+   pillar, build the object the gate will assert on, print the field the
+   gate will read, evaluate the dispatch predicate on a PRODUCTION
+   instance (not a hand-built stand-in), and probe the FACE the consumer
+   actually reads, before reading the design further and before drafting
+   a single row of the matrix. A design read but not measured is a
+   hypothesis about what the gate will find, not a plan (promoted from
+   the lessons digest, meta-lesson M1, 2026-09-21).
+2. **Claim layer.** For each test row, declare: convergence-order
    claim, flux-shape claim, or eigenvalue claim. Lower layers MUST
    be verified before higher ones (see `vv-principles` §Hierarchical
    claim taxonomy).
-2. **Pillar.** For each claim, select the reference pillar —
+3. **Pillar.** For each claim, select the reference pillar —
    closed-form, MMS, or semi-analytical — and confirm the pillar
    can prove that layer. **MMS does NOT prove eigenvalues.** If a
    row pairs an eigenvalue claim with an MMS reference, redesign
    the row.
-3. **Structural independence.** Confirm the chain of trust
+4. **Structural independence.** Confirm the chain of trust
    terminates in a structurally-independent ground (NOT another
    ORPHEUS solver, NOT a procedurally-different derivation of the
    same identity). See `vv-principles` §1 (structural
    independence).
 
-If any of these three checks fails, the matrix is NOT ready to
+If any of these four checks fails, the matrix is NOT ready to
 write.
 
 ### 2. Select analytical references
