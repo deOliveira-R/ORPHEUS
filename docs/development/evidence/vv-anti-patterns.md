@@ -1,8 +1,9 @@
 # V&V anti-patterns — evidence
 
-The thirty-six anti-patterns of the `vv-principles` skill — each one's NEVER
-sentence, mechanism, CHECK sub-clauses and founding measurement — moved VERBATIM
-from `.claude/skills/vv-principles/SKILL.md` at commit `207d2b07` (2026-09-20).
+The anti-patterns of the `vv-principles` skill. The thirty-six that existed on
+2026-09-20 — each one's NEVER sentence, mechanism, CHECK sub-clauses and founding
+measurement — moved VERBATIM from `.claude/skills/vv-principles/SKILL.md` at
+commit `207d2b07`; later entries are appended in the same form, dated.
 The review-time instrument is [the core](../skills/vv-principles.md); every
 `[case]` link in its anti-pattern list lands on a heading of this page. Text here
 is history and keeps its original glyphs and its original list numbering.
@@ -1450,3 +1451,32 @@ is history and keeps its original glyphs and its original list numbering.
     > mutation ν₂ₙ: 2 → 1 the MC tree reads **39 passed / 0 red** at
     > `-m "not slow"`; the same test **FAILS in 84 s** run alone. Real teeth,
     > never engaged by the gate that matters.
+
+## AP37 reciprocity partner
+
+37. **NEVER let a transpose/adjoint RECIPROCITY gate stand in for the
+    one-sided identity gate.** `⟨A.solve q, p⟩ = ⟨q, A.solve_transpose p⟩`
+    pins the transpose RELATIONSHIP, not correctness: any genuine
+    `(S, Sᵀ)` pair satisfies it, so a regression that drops the SAME
+    completion from both halves leaves it green (the Mode-12 stabiliser of
+    the functional is every symmetric error). The battery is two-sided:
+    undo only the transpose half (must red) and drop both halves (stays
+    green, the finding). Only the one-sided round-trip `A ∘ A⁻¹ ≡ I` on a
+    random full-space vector catches the symmetric half; the two gates are
+    non-redundant partners, and neither retires on "the other covers it".
+
+    > `[M]` 2026-07-26, ERR-071. The composite sweep inverse `(L+C)⁻¹`
+    > dropped the rhs's outflow-trace rows, and its transpose dropped the
+    > same rows (the restore matrix `E_out` is a diagonal partial identity,
+    > so `(Aᵀ)⁻¹` needed the SAME one-site restore). Every physical rhs has
+    > those rows at zero, so the inverse was exact on every fixture and the
+    > full-composite reciprocity gates stayed green; the P1-DSA GMRES
+    > preconditioner built on it then stalled at an O(1) true residual with
+    > a machine-zero preconditioned residual (`‖M q‖/‖q‖ = 1.07e-15` on a
+    > pure outflow-row vector), and only the exit certificate refused.
+    > After the solve half was fixed, the reciprocity gates reddened the
+    > transpose half's absence, which is the one-sided arm; the round-trip
+    > gate reddens both.
+
+    Landed 2026-09-22 from the uplift queue of the 2026-08-03 distillation
+    (qa's proposal A4; its digest B7, archive L-060).

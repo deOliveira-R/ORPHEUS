@@ -10,11 +10,19 @@ the ones NOT applied on 2026-08-03, so they survive compaction.
 
 ---
 
-## A. `vv-principles` — BLOCKED, do not apply without checking the working tree
+## A. `vv-principles` — LANDED 2026-09-22 (the header below it is history)
 
-`.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` carry irrecoverable
-uncommitted state and are forbidden to commit. Every item below is queued for a session
-where that is resolved. **Read the live file first — some may already be there.**
+The skill is generated from `docs/development/skills/vv-principles.md` and committed; the
+"uncommitted state" this section was written against no longer exists. A1 landed as
+anti-pattern #36 (2026-09-05); A5 was resolved in `coding-standards`; A2, A3, A4 and A6
+landed 2026-09-22 as Mode 8 class (10), the "Log every caught bug" REASON half,
+anti-pattern #37 and anti-pattern #17 rider (j). The original header, kept as the record
+of why the section was blocked:
+
+> BLOCKED, do not apply without checking the working tree.
+> `.claude/skills/vv-principles/{SKILL.md,error_catalog.md}` carry irrecoverable
+> uncommitted state and are forbidden to commit. Every item below is queued for a session
+> where that is resolved. **Read the live file first — some may already be there.**
 
 ### ⚠ NUMBERING — #18 IS NOW TAKEN (updated 2026-08-03, later the same day)
 

@@ -4,7 +4,7 @@ description: PROACTIVELY use when reviewing claims of correctness, designing ver
 allowed-tools: Bash
 harness:
   kind: skill
-  budget_tokens: 12100
+  budget_tokens: 12700
 ---
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns
@@ -173,7 +173,14 @@ green the marker belongs on the other test; a coverage capture
 code; and the test's other markers, since a catcher deselected by
 `-m "not slow"` cannot run (#36). A genuine catcher DECAYS when its fixture,
 tolerance or budget drifts without anyone touching it: re-drop the bug at
-review and after any change to those (mode 8(7)). A retired test takes its
+review and after any change to those (mode 8(7)). The same decay hits a
+gate's REASON: when a phase falsifies a structural claim, the rows asserting
+it stay green on a now-special-case fixture while the argument that made them
+meaningful is false, and no mutation sees it because the gate is correctly
+green; grep the claim's WORDS in `tests/`, not only its symbols, and re-scope
+those rows in the same change (`[M]` 2026-09, L33: three rows asserting `B`
+block-diagonal over faces, all green on reflective-only fixtures after a wrap
+had made it block-structured). A retired test takes its
 markers with it; the successor asserting the same invariant is re-tagged
 (`retirement-audit` C.13).
 [case](../evidence/test-design-modes.md#log-every-caught-bug-case)
@@ -207,7 +214,7 @@ Observable signatures of sub-word tokenizer co-location. Mechanism:
 Mechanically distinct from 1–6; the defense is **test review**, not L0.
 
 7. **MMS simplification bias** — the ansatz nulls the hardest term by design (isotropic-in-μ kills angular redistribution, ERR-026). **check:** every multi-dim test declares which terms its ansatz **activates** and which it **nulls**; a nulled term with an active ERR-NNN means redesign, and ship an angularly-non-trivial companion (`ψ = (A(r)+B(r)μ)/W`). The same question applies to a closure SEED inside the operator: enumerate the field family each seed is EXACT on and put at least one gate outside it ([L27](../evidence/lessons.md#l27-per-ordinate-audit)). **tell:** an isotropic-in-μ ansatz in a curvilinear / Pℓ context with no companion. [case](../evidence/test-design-modes.md#mode-7-mms-bias)
-8. **A gate that fires but cannot fail** (X1) — nine classes, each reporting its expected mark while the defect it names goes unobserved.
+8. **A gate that fires but cannot fail** (X1) — ten classes, each reporting its expected mark while the defect it names goes unobserved.
     - (1) *compiled-out `assert`*: a bare `assert` outside a collected test module is stripped under `-O` (`coding-standards` § "A bare `assert`"); rewrite as `raise` / `np.testing.assert_*`.
     - (2) *tautological companion guard*: a predicate that is always true (`assert a != b or abs(a - b) == 0.0` is `P or ¬P`); ask what input makes it fail.
     - (3) *signature-tautological gate*: an invariance claim whose producer's signature never admits the knob; `inspect.signature` the producer chain first, and gate the signature itself (its falsifier check passes and gives false confidence).
@@ -217,6 +224,7 @@ Mechanically distinct from 1–6; the defense is **test review**, not L0.
     - (7) *decayed `catches` marker*: a claim with a shelf life (§ "Log every caught bug").
     - (8) *published invocation never gated*: for every recipe a doc publishes as a command, one gate must consume the STRING, not the API.
     - (9) *imperative `pytest.xfail()`*: raises at once, so the body never runs and the row reports `x` forever; grep `pytest\.xfail\(` and ask what event retires it.
+    - (10) *the no-op flip*: a strict xfail whose prescribed flip-edit makes it a character-for-character duplicate of the live flip-proof beside it is green before and after the landing and asserts nothing new; diff the xfail body against its own flip-proof after the documented edit — textually equal means ceremony — so the flip-edit must touch a statement whose VALUE the production change determines (`[M]` 2026-09, the test-architect's archive L33: the production step landed mid-session and the row stayed red byte-identically, 735/735).
 
    **check:** before believing a "gate is blind" verdict, verify the mutation actually BIT (installing `__post_init__` on a dataclass declared without one is a no-op), and verify the decoder (instrument-doctrine X2).
 
@@ -255,7 +263,7 @@ Each is a redirect: **NEVER** X — **instead** Y; raise before any other review
    **tell:** a nearest-neighbour/lookup loop documented as a permutation (ERR-073). [case](../evidence/vv-anti-patterns.md#ap14-not-bijection)
 15. **NEVER** ship a module exposing BOTH an order relation (`contains`/`refines`/`⊆`) AND a predicate that must respect it (`is_invariant`/`admits`) without gating the **compatibility law** `A ⊆ B and P(B,x) => P(A,x)` over every (edge × fixture) pair. **check:** one loop, no external reference — neither half can be wrong alone without it reddening. **tell:** two test families, none crossing. [case](../evidence/vv-anti-patterns.md#ap15-order-predicate)
 16. **NEVER** assert a property TIGHTER than the type's own construction invariant — split into two gates: the invariant the type *promises* and the constructors' better *realised* quality. **check:** compare the test's tolerance with the production guard's; if the test is tighter, one of the two numbers is wrong. **tell:** a latent false red that a future legal input will trip. [case](../evidence/vv-anti-patterns.md#ap16-tighter-invariant)
-17. **NEVER** run a mutation battery without a **POSITIVE CONTROL** (X1) — include a mutation that MUST redden many gates and read an all-blind verdict as *the harness is broken* until the control says otherwise. **checks — nine, each a distinct failure:**
+17. **NEVER** run a mutation battery without a **POSITIVE CONTROL** (X1) — include a mutation that MUST redden many gates and read an all-blind verdict as *the harness is broken* until the control says otherwise. **checks — ten, each a distinct failure:**
     - (a) *granularity* — a multi-arm guard is N claims: mutate each ARM (a config option once per CONSUMER kind), the verdict is a table, an arm reddening nothing is a guard with no witness
     - (b) *displacement* — a new guard preempting an old one makes the old gate red as a message mismatch: write the displaced guard its own witness at its own predicate, same commit
     - (c) *collection kill* — a mutation that makes production raise kills collection and pytest reports `FAILED = 0`: never call production in a `parametrize` argument list, run `--continue-on-collection-errors`, count `^ERROR` separately from `^FAILED`
@@ -265,6 +273,7 @@ Each is a redirect: **NEVER** X — **instead** Y; raise before any other review
     - (g) *staged filters* — a two-stage census (name-net then literal scan) needs a control per STAGE, named with the spelling you are LEAST sure the net catches
     - (h) *the AIM trap* — an arm that reddens MANY rows while its TARGET row stays green hit a different object than it was aimed at: read the red SET against the target row, never the count ([M] 2026-09-14, C3b-2: 25 rows red, the refusal leg green; re-armed on the named predicate, exactly 1 red)
     - (i) *the prescribed repair* — a gate whose message names a fix owes an arm that APPLIES the fix and re-runs the gate; a detector whose repair converges on a green wrong state has spent its alarm ([M] 2026-09-20, `tools/docs/generate_harness.py --check` arm 4b in `scratch/_harness_eval/review/qa_generator_mutation.md`: the DRIFT message prescribed a regeneration that duplicated a role block, then blessed it).
+    - (j) *the value-coincident twin* — when a specialised path and its twin agree to a few ULP (an `apply` override of an inherited leaf-sum, ≤ 2 ULP), any tolerance admits the override and the only discriminating tooth is `array_equal`: disable the OVERRIDE (rename it away), not the value, and require every tooth to red (`[M]` qa's archive L-024).
 
    Read arm output from a FILE, never an inline `$(...)` capture, and mutate in the process pytest runs — monkeypatching the PARENT while pytest re-imports a clean module in a CHILD reads GREEN for every mutation.
 
@@ -288,6 +297,7 @@ Each is a redirect: **NEVER** X — **instead** Y; raise before any other review
 34. **NEVER** credit a "brute-force control" — or any second implementation offered as an oracle — on the strength of its NAME (X4's decider). **check:** compare the two ASTs after α-normalisation (rename every local to a placeholder); α-equivalent bodies are ONE implementation wearing two names, their agreement a tautology. **tell:** docstrings claiming "ONE closure" while one body inlines a character-for-character copy. [case](../evidence/vv-anti-patterns.md#ap34-brute-force)
 35. **NEVER** report a derived COMPARISON quantity by its unit name alone when the name is overloaded — write its definition beside it: `Δk·10⁵`, `Δk/k₀·10⁵` and `Δρ·10⁵ = (1/k₀ − 1/k)·10⁵` differ by `k₀`. **check:** does the fixture set span a range of the normalising quantity? Then emit all three columns. Companion: two probes over the SAME production code cannot see a SHARED convention — a reproduction certifies the arithmetic, not the premises both inherit; close the premise against PHYSICS (strict upper-triangularity of an energy-losing transfer matrix; `|Σ_ℓ|/Σ_0 = |⟨P_ℓ(μ)⟩| ≤ 1`). **tell:** one `pcm` figure quoted across fixtures with different `k₀`. [case](../evidence/vv-anti-patterns.md#ap35-overloaded-unit)
 36. **NEVER** read a `catches("ERR-NNN")` / `verifies(...)` marker as coverage without reading the test's OTHER markers — a catcher deselected by the canonical invocation is a gate that cannot RUN (§ "Log every caught bug"). The absent enforcer can be a TYPE CHECKER: `assert_type` pins under `tests/` when the only pyright gate runs `pyright orpheus/` ([M] 2026-09-05, #452). **check:** read the marker SET; say plainly when an ERR's `-m "not slow"` coverage is zero. **tell:** the catalogue reports the ERR covered, the test reds on re-introduction, and every merge-deciding run deselects it. [case](../evidence/vv-anti-patterns.md#ap36-deselected-catcher)
+37. **NEVER** let a transpose/adjoint RECIPROCITY gate `⟨A.solve q, p⟩ = ⟨q, A.solve_transpose p⟩` stand in for the one-sided identity gate — it pins the transpose RELATIONSHIP, satisfied by any genuine `(S, Sᵀ)` pair, so it is Mode-12 blind to a SYMMETRIC regression dropping the same completion from both halves. **check:** the battery is two-sided — undo only the transpose half (must red) AND drop both halves (stays green; that is the finding); only the one-sided `A ∘ A⁻¹ ≡ I` gate on a random full-space vector catches the symmetric half, so the two gates are non-redundant partners and neither retires on "the other covers it". **tell:** a reciprocity gate offered as an inverse's correctness evidence (ERR-071: the composite sweep inverse and its transpose dropped the same outflow rows; reciprocity green, GMRES stalled). [case](../evidence/vv-anti-patterns.md#ap37-reciprocity-partner)
 
 ---
 
