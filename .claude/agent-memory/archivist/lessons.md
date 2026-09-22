@@ -36,8 +36,15 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
   silent on the ones that do not, which is the half that matters. → L-096, L-095, L-104
 - **A brief's named target can measure ZERO — run the FILE's own predicate before reporting
   "nothing to do".** A 0 on someone else's grep is not a clean file, and a phase that landed with
-  no docs pass leaves its rot for the next phase's sweep: budget for it. → L-102, L-072, L-075,
-  L-081, L-104
+  no docs pass leaves its rot for the next phase's sweep: budget for it. The mirror is as common:
+  a brief's asserted **zero** can measure FIVE, and a refuted zero RE-SHAPES the work — the job
+  stops being "teach the page a new concept" and becomes "make its definition agree with its own
+  body, and CITE the body". → L-102, L-072, L-075, L-081, L-104, L-114
+- **A brief's LoC target is an estimate that never subtracted what the brief also tells you to
+  PRESERVE.** Count the preserved tables first; the achievable delta is `section − tables − stub`,
+  and a shortfall against the headline is CORRECT — publish it with the clause that forced it
+  rather than cutting further to hit the number (`process-discipline` "Measure a brief's premise
+  before arguing its scope"). → L-114
 - **A brief can instruct a HARD audit error — read the scanner before obeying a `vv-status`
   instruction.** `documented` is the ONLY legal status (`tests/_harness/audit.py`, exit 2
   otherwise); what a new `verifies` marker earns is UN-SENTINELING, not an upgrade. → L-106
@@ -93,6 +100,11 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 - **A `[M]` whose denominator is a COMPUTED SET has a shelf life the FINDING does not** — say "the
   finding is unchanged and only the DENOMINATOR moved, because it is the size of a candidate set".
   → L-090, L-091
+- **When a chapter-wide UNIVERSAL you published turns out false, re-scope it to the PASS, where
+  the DIFF can check it.** *"This pass changed no measured value; every edit is an algebra
+  spelling"* is verifiable from the diff; *"every fixture in this chapter is Σ₂ₙ ≡ 0"* was false
+  (an adjoint page carried a nonzero ladder and two gates inject one). Publish the real census
+  beside it with its denominator AND the reason the denominator is complete. → L-114
 - **Don't assert a mechanism — MEASURE it.** "A flat vector broadcasts across the spatial axis" was
   true and useless; measured, it is an outer product, which buys three traps the hand-wave misses.
   → L-109
@@ -159,6 +171,14 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 - **Keep a refuted prediction — the refuted MECHANISM is the interesting half.** "The defect was
   correctly identified and the mechanism was not" is the durable sentence; a tense flip destroys it.
   → L-108, L-090, L-074
+- **When a fix OVERRIDES an artefact that still exists and will be read FIRST, the page is a
+  COUNTER-RECORD, not a report.** A literature memo's implementation note or a plan's pseudocode
+  survives the fix and outranks it in a future search, so give the correction its own named
+  subsection and carry the falsifying table VERBATIM (the no-op row, the pass, the redundant, the
+  degenerate-coincidence). Without the table the next session re-applies the wrong injection
+  point, because the surviving memo says so. The doc-side of `process-discipline`'s
+  "a refuted candidate is first-class output": the structural reason must be findable *before*
+  the artefact it refutes. → L-114
 - **A two-clause ruling may have an occupant for only one clause** — publish clause 1 as the ruling
   and clause 2 with the census showing it empty. → L-108
 - **A campaign day lands SIBLING steps, and each repeals a PREMISE elsewhere — grep the PREMISE and
@@ -235,9 +255,17 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   `catches("ERR-NNN")`; `ref.ref` *"A title or caption not found"* (a bare `:ref:` to an anchor
   above a paragraph, an admonition, or a **bold run-in heading**); a `:widths:`/column mismatch; a
   malformed `===` table (never hand-align one holding a `:math:` role — source length is not
-  rendered length); an italic run interrupted by a role. ⚠ `SyntaxWarning` and the nexus per-marker
-  lines carry no `WARNING:` prefix, so read the whole log and grep `CRITICAL:` too. → L-070, L-060,
-  L-002, L-027, L-040, L-054, L-055, L-048, L-095
+  rendered length); an italic run interrupted by a role; **an ORPHANED citation** — a `[Key]_`
+  defined but no longer referenced warns `Citation [Key] is not referenced. [ref.citation]`, so
+  the DELETION direction is gated where §9's `grep '^\.\. \[Key\]'` covers only the adding one
+  (a cut that removes the last citing section moves the citation to a surviving section on the
+  same topic, or deletes it when a sibling already carries its own); **and a TRAILING UNDERSCORE
+  in prose** — `Γ_-`, `S_-`, `X_+` are RST reference syntax and raise `ERROR: Unknown target
+  name`, on which `-W` exits 1 (the escaped `Γ\_-` and the no-trailing-`_` `V_bulk` are silent;
+  `[M]` all 7 corpus occurrences already sit inside a literal, a comment or a directive option).
+  ⚠ `SyntaxWarning` and the nexus per-marker
+  lines carry no `WARNING:` prefix, so read the whole log and grep `CRITICAL:` too. → L-114,
+  L-070, L-060, L-002, L-027, L-040, L-054, L-055, L-048, L-095
 
 ### 2b. The xref gate, and what acceptance actually is
 
@@ -285,8 +313,10 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   opening and floods (119–132 hits on clean files). → L-076, L-079, L-095, L-097, L-101, L-074
 - **Keep the pre-edit `-E` build and DIFF it per page — a rendered delta needs no provenance
   argument.** On a tombstone-heavy page take the multiset DIFFERENCE and read `added == removed` as
-  a CONTEXT SHIFT, not two events; a page-wide count indicts someone else's prose. ⚠ `nohup … &`
-  inside a background Bash call reports the SHELL's exit, not sphinx's. → L-072, L-088, L-089
+  a CONTEXT SHIFT, not two events; a page-wide count indicts someone else's prose. ⚠ A WRAPPER's
+  exit is not sphinx's, twice over: `nohup … &` inside a background Bash call reports the SHELL's,
+  and `python -m sphinx -W … | tee log` reports **tee's**, so a failing build reads as a pass —
+  redirect (`2>/tmp/log; echo $?`) rather than pipe. → L-072, L-088, L-089, L-114
 - **`<cite>` in the built HTML is the Markdown-port smoking gun — but count both spellings before
   "fixing" it**: `` `[M]` `` is this corpus's marker and renders `<cite>`, so normalising yours
   makes your text the inconsistent one. A port's warning count is a non-representative sample of
@@ -365,9 +395,16 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   landed-but-written-as-future ⟹ re-tense in place + one dated note, never delete the bullets (the
   costliest and least greppable — it reads as a plan, not a claim) · aspirational-but-refuted ⟹ ⛔
   *closed as NOT APPLICABLE* with the structural reason · an ADDRESS (an anchor or eq-label carrying
-  the retired word) ⟹ KEEP, and say why. `[M]` one sweep: 14 updated · 32 period-history · 9 address
+  the retired word) ⟹ KEEP, and say why. A SIXTH register is the genuine grey zone — present-tense
+  GRAMMAR over a historical SUBJECT — and its repair is neither: **date the spelling in place**
+  (*"the two-gain spelling here is Wave O's, which is what the cited captures were taken against;
+  `N_{2n}` joined at CS4c step 3 and rides this argument unchanged"*), which keeps the evidence
+  honest instead of retro-fitting a current member list onto a measurement that never saw it. And
+  the special-case-vs-history fork is CHECKABLE, not a judgement: read the composition site, or
+  read the fixture's constructor call, where the ABSENCE of a kwarg is the proof.
+  `[M]` one sweep: 14 updated · 32 period-history · 9 address
   · 3 genuine referent. The per-site ladder for a heavily-referenced entry point is the same
-  partition. → L-066, L-070, L-072, L-019
+  partition. → L-066, L-070, L-072, L-019, L-114
 - **A cross-reference inside HISTORY is a category error** — a role claims the symbol exists NOW at
   THAT path, so the surviving CLAIM licenses the role, not the surviving CLASS. Put the rule in the
   page as a head-of-block `.. note::` and corroborate by counting both spellings in the same file.
@@ -411,8 +448,16 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   `:ref:` renders the new title, so every citer improves for free); rename an anchor only when its
   name encodes a REFUTED concept, counting citers first and moving them in the SAME edit. A section
   corrected twice gets a SECOND dated note beside the first. A tombstone is prose you are authoring
-  NOW: it owes evidence, and may only assert what YOUR page controls. → L-007, L-015, L-040, L-063,
-  L-076, L-066, L-056, L-103
+  NOW: it owes evidence, and may only assert what YOUR page controls. ⭐ **A deeply-nested phase
+  chain has TWO reading paths and both need one**: a reader scanning the block's top-of-section
+  step summary meets the stale terminal claim ~700 lines before the deep tombstone renders, so
+  place a forward-pointer `.. note::` at the TOP of the phase block listing which terminal
+  decisions were reverted, BESIDE the inline tombstones. One close-out section does not catch a
+  scanning reader. → L-007, L-015, L-040, L-063, L-076, L-066, L-056, L-103, L-114
+- **A scope note is load-bearing only BESIDE the claim it scopes** — a correct explanation one
+  paragraph away is read by nobody who lands on the equation (twice a page already carried the
+  right note 2–6 lines below the site and it did not count). Moving it up is a genuine
+  improvement, not gate-gaming, and it is why an annotation window is specified in LINES. → L-114
 - **A CAPABILITY FLIP stales DEFERRAL CONTRACTS, and the blast radius is the WHOLE page.** Census
   with a ±3-line CO-OCCURRENCE window, never a line grep, and publish the PREDICATE, not the count
   (the co-occurrence count RISES when you succeed, because a correction names what it corrects).
@@ -522,6 +567,18 @@ One line per event class; the shape itself lives in the archive section named.
   claim and its guard note, and grep the corpus for the numbering (37 lines cited `Layer-1…4`,
   including an unrelated homonym). Prefer the page's own sub-lettering to a renumber, and give
   genuinely new objects their own H2 saying *these are not a fifth layer*. → L-109, L-104
+- **A COUNT-WORD names a SET, and adjacent pages mean different sets by one numeral** ("five
+  operators" `{L,C,S,B,F}` beside "four operators" `{L,C,S,B}`). Write the MEMBERS beside the
+  count, or rename to a countless form; then triage every count-word hit BY REFERENT — of 29
+  `(four|five|six)[- ](term|operator)` hits, most were a different four. ⭐ The nastiest member is
+  a number matching nothing on the page: **do not bump it — re-derive what it counts**, and drop
+  it if nothing does. → L-114, L-109
+- **When a pass changes an OPERATOR, grep its SPLITTING, its ITERATION MATRIX and its
+  PRECONDITIONER spelling too** — `ψ_{n+1} = (L+C)^{-1}(Sψ + Bψ + q)` carries no `L+C−S−B`
+  substring, so a spelling census is blind to it, and leaving it makes the page state a
+  five-member operator whose own splitting drops a term. Two more classes the census cannot see:
+  a SECTION HEADING naming the count, and a non-rendered machine-facing
+  `.. (vv-status rationale)` COMMENT restating the retired member list. → L-114
 - **An "X is arm-asymmetric BY DESIGN" argument that gets dissolved: keep the table, flip the verbs,
   add the price** — principled equivalence, never bit-identity. → L-110
 - **A LEDGER gaining a field splits across two pages by REGISTER** — theorem and admission grid on
@@ -578,10 +635,32 @@ One line per event class; the shape itself lives in the archive section named.
 - **An ONTOLOGY-OVERTURN changelog goes on the page whose THESIS moved**; on a blocked page,
   tombstone only the falsified HALF of its row. → L-063
 - **A correction sweep must not acquire a SECOND SUBJECT** — fix the claim you were sent for, REPORT
-  the neighbour with its proofs. → L-078
+  the neighbour with its proofs. The boundary: co-fix a neighbouring defect only where it sits
+  INSIDE a clause you are already rewriting; a standalone instance of the same family is flagged
+  for its own pass, with its sites listed. → L-078, L-114
+- **A page that says "the OTHER method does X instead" is the sentence nobody re-reads** — it lives
+  on page A and its truth lives in solver B, so neither method's maintainer revisits it (one such
+  had been retired by an ERR entry two months earlier and was still present tense). ⟹ open the
+  other solver's function AND grep the error catalogue for the term; the catalogue entry is where
+  a reversal is recorded. Repair: a `.. note::` keeping the retired sentence verbatim in quotes,
+  naming what retired it, and stating the surviving difference. → L-114
 - **Stub → rich narrative reads memo → production docstrings → tests → SymPy, in that order** — the
   docstrings are the verbatim prose seed, the memo carries the honest interim scope, and on an
   algebra error you dispatch rather than edit (`algebra-of-record`). → L-005
+- **An ARCHITECTURE pass has no Branch-1 SymPy, and its source ladder is the OTHER one:** rich CODE
+  docstrings (module / class / property) → the throwaway instruments in `derivations/diagnostics/`,
+  which you READ *and RUN* to confirm every cited number → the commit bodies, which carry the exact
+  ULP figures and the rationale, QUOTED → the cross-domain-attacker frame memos, where the hardest
+  "why" lives. These ARE the algebra of record there. Pull numerical bounds from the TEST FILES,
+  never from a brief's memo estimate. → L-114
+- **A campaign landing step after step into ONE page uses a shared 8-part peer `====` template:**
+  lead (commit chain · issue · date · one line placing the step against its predecessor) · Key
+  Facts, 5–7 bullets, always one honest-scope · labelled equations each with its `vv-status` · ONE
+  list-table that is the canonical at-a-glance index · the load-bearing rationale, usually a
+  rejected-alternative catalogue (the Cardinal-Rule-3 payload) · a numerical-evidence list-table ·
+  an honest-scope `.. warning::` framed as the attacker's ABSENCE, not a hedge · cross-refs to the
+  predecessors. The per-solver page gets Key-Facts bullets pointing here, never a second
+  derivation. → L-114
 - **Other event classes, one pointer each:** campaign capstone arc → L-039 · deepening a documented
   feature, a PLANNED-not-built admonition paired with a current-state subsection → L-014 · an
   EVICTION changes the CARRIER, not the physics → L-016 · a completed architecture earns ONE
@@ -614,6 +693,11 @@ match it VERBATIM, never paraphrase. → L-010
   → L-102
 - **Write the precise object: the Euclidean transpose `Aᵀ` is not the metric Hilbert adjoint
   `A† = G⁻¹AᵀG`**, whatever a campaign colloquially calls it. → L-010, L-034
+- **When the WHOLE point is that the obvious reading is WRONG, name the FORBIDDEN SENTENCE** in an
+  explicit `.. warning::`, verbatim, with the correct framing beside it. A future session quoting
+  the page for V&V reasoning meets the warning before the misreading. It is the page-level
+  analogue of `vv-principles`' *"NEVER write 'MMS verifies the eigenvalue'"*, and it beats a hedge
+  because it is greppable. → L-114
 - **Skill-uplift duty:** propose the `vv-principles` / `error_catalog` / `algebra-of-record` edit in
   your return whenever you meet a published-prose anti-pattern or evidence-boundary case the skill
   does not capture. The skill grows when you feed it back. → L-010
@@ -679,12 +763,30 @@ match it VERBATIM, never paraphrase. → L-010
 - **A LENGTH-CHANGING rename breaks section underlines — scan, don't wait for the build**
   (`retirement-audit` F.23): code points, underline at col 0, single repeated marker; fix with the
   FILE's own marker char and assert it. Title markers are file-local, so prefer COPYING a proven
-  underline to re-counting code points. → L-112, L-009, L-035
+  underline to re-counting code points. ⚠ Only a **too-SHORT** underline warns — an over-long one
+  is silent (`[M]` 2026-09-21, both in one build), so the scan has one direction that matters and
+  normalising an over-run is cosmetic: scope it to YOUR lines, never "fix" a pre-existing one.
+  ⛔⛔ And marker levels are assigned by **FIRST-APPEARANCE ORDER**, so introducing a marker the
+  file has never used EARLIER than an existing same-depth marker DEMOTES the existing one (a new
+  `"""` at line 3267 pushed the file's `'''` at 5865 from level 5 to 7) — and the resulting
+  `Inconsistent title style: skip from level 5 to 7` ERROR **points at the OLD section, not at
+  your edit**. Before adding a depth the file has never used, grep it for an existing marker at
+  that depth and REUSE it; reusing prophylactically works first try. → L-114, L-112, L-009, L-035
 - **Validate your OWN parser against a known-good member before believing its negatives**, and
   record
   this corpus's three standing self-check false positives — a `.. code-block:: rst` example carrying
   a duplicate eq-label, a legal EMPTY list-table cell (`^     -(\s|$)`), and a RELATIVE `:doc:`
-  docname — or every run re-litigates them. → L-081, L-089
+  docname — or every run re-litigates them. ⛔⛔ **The MIRROR is the costlier half: reproduce a
+  POSITIVE against the real builder before publishing or acting on it.** A permissive-shim
+  docutils parse is a genuine structural instrument (it catches `Unexpected indentation` and
+  `Bullet list ends without a blank line` that no hand-rolled check sees) but it FABRICATES markup
+  findings for every directive the shim replaced with a nested-parsing stub: `[M]` 2026-09-21, the
+  standing claim that a `list-table` cell's continuation line beginning `-` "is a bullet and
+  silently eats the role" does NOT reproduce under Sphinx — breaking a `:math:` before the operator
+  renders identically to breaking it after, no warning, no `<ul>`. The only shape that does break
+  is a continuation indented back to the CELL-MARKER column, and that is LOUD
+  (`ERROR: … uniform two-level bullet list expected … (3 vs 2)`). A shim finding is a LEAD.
+  → L-114, L-081, L-089
 - **⛔⛔ An UNQUOTED heredoc runs COMMAND SUBSTITUTION on every backtick pair inside it** — a
   `code-search` check since 2026-09-21 (a quoted heredoc to a FILE, paths by env var, `chr(96)`, a
   witness assert per pattern). The founding case: four markup patterns collapsed to "match any

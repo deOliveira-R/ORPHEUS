@@ -138,8 +138,10 @@ page cross-reference.
 
 ## Sphinx-build acceptance gate
 
-The acceptance gate is **baseline-warnings-unchanged** (per the
-`feedback_bc_trace_law_wave_12` rule), NOT count=0.  Run
+The acceptance gate is **baseline-unchanged** (`AGENT.md` § "The build
+gate"), NOT count=0 — and the gate is the WARNING/ERROR/CRITICAL **set**,
+freshly measured with `-E` each session, never a count and never a quoted
+baseline.  Run
 `sphinx-build` pre-edit + post-edit and verify the warning count is
 identical AND that no NEW warning text appears.  The new
 canonical-convention page must introduce ZERO new warnings.

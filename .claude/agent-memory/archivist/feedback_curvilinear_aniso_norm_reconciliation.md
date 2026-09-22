@@ -133,7 +133,10 @@ relied on cross-doc resolution for the migrated key; NO local entry needed.
 The .py/test docstrings are NOT automodule'd → their `[...]_` cites are
 NOT rendered (no undefined-citation warning), kept for human reading.
 
-Cross-ref: [[feedback_err058_success_closeout_supersedes_phase_chain]]
-(the #195 close-out this builds on), [[feedback_issue_196_eigenvalue_verification_closeout]]
-(the #196 sequel), [[feedback_retirement_docs]] (the retraction-tombstone
+Cross-ref: the ERR-058 / #195 close-out this builds on (#195 CLOSED; the
+record is `docs/theory/verification/error_catalog.rst` ERR-058 plus the SN
+curvilinear pages), the #196 sequel (#196 CLOSED; the record is
+:ref:`sn-issue-196-bit-identical-vs-floor` in
+`docs/theory/methods/sn/curvilinear_numerics.rst`),
+[[feedback_retirement_docs]] (the retraction-tombstone
 + flip-stale-narrative discipline used on the Phase C/D sections).

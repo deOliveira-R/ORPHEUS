@@ -648,6 +648,23 @@ naming the offending package + row index.
 - **NEVER share project-internal primitives between Branch 1 and
   Branch 2.** Sharing trusted-library primitives is fine; sharing
   in-house code creates ERR-032-style hidden dependencies.
+- **NEVER analogise a closure formula across geometries by parameter
+  substitution.** Substituting geometry B's chord length into
+  geometry A's closure is not a derivation — it is a guess wearing
+  A's authority, and it is exact on precisely the inputs that made A
+  look right. Derive B's closure from first principles via Branch 1
+  **on a non-uniform source and at an intermediate parameter** (at a
+  closed boundary a uniform source collapses the analogised and the
+  correct forms to the same `q/Σ_t`, so that test is structurally blind
+  to the substitution — `vv-principles` Mode 7), and cross-check
+  structurally-independently against the rank-N first-principles form.
+  Founding case **ERR-035** (`docs/theory/verification/error_catalog.rst`):
+  the symmetric slab closure was built by analogy with the sphere and
+  cylinder (`alpha_per_period = α²`) and coincided with the correct
+  rank-2 closure only at the corners `α ∈ {0, 1}`; at `α = 0.5` its
+  `k_eff` was off by about `1.3e-4` relative.
+  **tell:** a closure for geometry B whose derivation is one
+  substitution into A's formula.
 - **NEVER write the rich Sphinx narrative yourself.** Stub it and
   dispatch the archivist.
 

@@ -517,6 +517,16 @@ carry only their distinctive content.)
   `discrete_ordinates.rst` has `~~~~` and `^^^^`. Scan the file's
   first-appearance markers before picking a level, or you get
   "Inconsistent title style: skip from level N to N+2".
+  ⚠ **Levels are assigned by FIRST-APPEARANCE ORDER, so the error points at a
+  section you did not touch.** Introducing a marker the file has never used
+  EARLIER in the file than an existing same-depth marker DEMOTES the existing
+  one: a new `"""` at line 3267 pushed the file's `'''` at line 5865 from
+  level 5 to level 7, and the "skip from level 5 to 7" ERROR named lines
+  5865/5933 — the OLD sections, which are fine. Do not read it as "the old
+  section is broken". Before adding a depth the file has never used, grep it
+  for an existing marker at that depth and REUSE it; reusing prophylactically
+  works first try. (Only a too-SHORT underline warns — an over-long one is
+  silent, so normalising an over-run is cosmetic: scope it to your own lines.)
 - **Underline length is measured in CODE POINTS, not bytes.** An
   em-dash `—` is 1 code point but 3 bytes; size the underline with
   `len(title)` in python, not `wc -c`.

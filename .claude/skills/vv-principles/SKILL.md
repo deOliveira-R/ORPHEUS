@@ -118,6 +118,22 @@ Then **narrow** the contract for the touched primitive only (`array_equal` to
 bit-identity elsewhere. **tell:** an API verb whose only purpose is to
 reproduce a legacy FP reduction tree.
 
+**The ENTRY POINT decides which claim class is even available — ask it before
+writing "bit-identical".** A FIXED-SOURCE solve is one operator under one
+quadrature, so two inner solvers (`L.solve` versus Krylov-on-`apply`) run the
+same `L⁻¹` arithmetic and CAN be bit-identical. The same two inner solvers
+under an EIGENVALUE entry point are wrapped in power iteration, where they are
+two different iteration schemes converging to the same fixed point only to the
+inner tolerance: **floor-equivalent — the same physics, not the same
+arithmetic** — and calling that bit-identical is a category error, not a
+tolerance question. The distinction is structural, so it survives every
+re-baseline: it follows from the outer loop existing, not from any measured
+gap. **check:** name the entry point beside the claim, and for a fixture list
+spanning both, split the sentence. **tell:** one blanket "SI ≡ Krylov
+bit-identical on these ladders" over a fixture set whose members enter through
+different doors. The ruling of record is the SN curvilinear numerics page,
+label `sn-issue-196-bit-identical-vs-floor` (#196).
+
 **On any bit-identity red, print `max|a−b| / max|b|` BEFORE reading the nulp
 count**: the count is uninterpretable in both directions (`[M]` 2026-09:
 `1.04e+15` nulp was an 8 % difference over 216 of 216 elements; an

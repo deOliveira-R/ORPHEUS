@@ -75,7 +75,7 @@ Symbol legend per item:
 - [ ] **D4. singular_eigenfunction.rst — 5 archivist TODOs** (cylinder W-M derivation, Mitsis-WM Fredholm narrative). **CL**, S.
 - [ ] **D5. carlvik_galerkin.rst — 0 marker TODOs but stub-quality**. The Wave 2-C closeout shipped a Sphinx stub but rich narrative not written. **CL**, S.
 - [ ] **D6. peierls_nystrom.rst** — multiple deferred-phase notes referencing Phase 5+ (multi-region sphere annuli, 3-surface topologies). **CL** unless fronts re-prioritise. M.
-- [ ] **D7. peierls_greens.rst** — 4225 lines after archivist sweep, multi-region deferred notes still flag Phase 1b / Plan-2 / annulus-MR continuations. Audit for stale "future-tense will-deliver" wording per `feedback_phase2c_staleness_sweeps.md`. **CL**, S.
+- [ ] **D7. peierls_greens.rst** — 4225 lines after archivist sweep, multi-region deferred notes still flag Phase 1b / Plan-2 / annulus-MR continuations. Audit for stale "future-tense will-deliver" wording per the archivist's `lessons.md` §4 (capability-flip / deferral-contract staleness) — the page is now `docs/theory/references/trajectory_resolvent.rst`. **CL**, S.
 - [ ] **D8. Diffusion theory page (`docs/theory/diffusion.rst`) does not exist** — issue #35; blocks B9 cleanup. **CL**, M.
 - [ ] **D9. Fuel theory page (`docs/theory/fuel_behaviour.rst`) does not exist** — issue #40. **CL**, M.
 - [ ] **D10. TH module not in Sphinx autodoc** — issue #45. **CL**, S.

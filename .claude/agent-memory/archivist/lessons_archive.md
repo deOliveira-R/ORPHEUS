@@ -13791,3 +13791,233 @@ roles on 2026-09-18 and that half is relayed, not re-run here. The set diff
 over the pages you touched is the reading that means something. Whether a corpus-wide `-n` set diff
 is cheap enough to become the standing acceptance gate for `.rst` pages is unmeasured (this pass
 was forbidden a corpus build) and is the open question.
+
+---
+
+## L-114 — #425, the within-group-algebra spelling sweep across 32 theory pages (2026-09-07), recovered 2026-09-22
+
+**Provenance.** Distilled from `425_sn_chapter.md` and `425_outside_chapter.md`, the two
+session memos of the #425 pass, retired in the 2026-09-22 topic-file blast-radius audit. That
+audit found #425 was **the one archivist pass with no archive section** — this file ran
+L-099 → L-103 straight over 2026-09-07 — so until now these lessons existed only in two files
+the 2026-09-21 distillation had listed for deletion by name, unread. `[M]` 2026-09-22: `9ac5269e`
+is an ancestor of HEAD, branch `docs/425-within-group-algebra` no longer exists, and
+`gh issue view 425` reads CLOSED (*"37 SN-chapter sites still spell the within-group algebra as
+A = L+C−S−B (pre-§14.1 form)"*).
+
+**The task.** Make every page that states the GENERAL within-group algebra spell
+`A = L + C − S − N_{2n} − B`, and DECLARE THE SCOPE wherever a page legitimately keeps the
+four-term form. Two archivist instances ran concurrently: one on the 15 pages of
+`docs/theory/methods/sn/`, one on the 17 `docs/theory/**` pages outside it. Census instrument
+`scratch/_425/census.py`; outside the chapter, residual 81 → **2** (both history), five-term
+9 → **80**, 0 new eq-labels.
+
+**Why it is worth a section.** This is the corpus's reference example of a *spelling sweep*: a
+pass where the census is the population FLOOR and the adjudication is the entire job. Everything
+below generalises to any pass that changes a named operator, a convention or a count.
+
+### 1. The census is a floor — three classes sit outside any regex for the algebra
+
+A regex over `L + C - S - B` finds equations. It cannot find:
+
+- **The SPLITTING, the ITERATION MATRIX and the PRECONDITIONER.** `ψ_{n+1} = (L+C)^{-1}(Sψ + Bψ + q)`
+  and `M = (L+C)^{-1}(S+B)` carry no `L+C−S−B` substring at all, so the census is blind — and
+  leaving them makes the page state a five-member operator whose own splitting drops a term. The
+  correction was *verified, not inferred*: `[M]` the shipped splitting is
+  `explicit_gains=(S, N2N, B_a)` (`orpheus/sn/coupled_system.py:579`, unpacked at
+  `solver.py:1311`).
+- **A SECTION HEADING naming the count or the spelling** — `The four-operator within-group
+  equation` and `The (L + C − S − B)·ψ = (1/k)·F·ψ framing at the solver level`. Neither was a
+  `:ref:` target (`docs/conf.py` has no `autosectionlabel` — check that before renaming any
+  heading), so both were safe to rename, and both would otherwise have contradicted the equation
+  three lines below.
+- **A machine-facing `.. (vv-status rationale)` COMMENT.** Not rendered, so no build, no reader
+  and no HTML probe sees it, and it restated the retired member list verbatim underneath the
+  equation it annotates.
+
+⟹ when a pass changes an OPERATOR, grep its splitting, its iteration matrix and its
+preconditioner spelling; then grep the headings; then grep the non-rendered comments.
+
+### 2. A term COUNT in prose is the member-list claim, and its referent is usually ambiguous
+
+Nine sites outside the chapter stated the claim in words — *"the **five**-operator algebra"*,
+*"implemented by **five** leaf operators"*, *"the α-row needs a **sixth** leaf joining L, C, S, F,
+B"* — on four pages, **none** of them a census hit.
+
+The numerals also disagree with each other across adjacent pages: `index.rst` called the algebra
+"five operators" meaning `{L,C,S,B,F}`; `slab_one_group` called it "four operators" meaning
+`{L,C,S,B}`. Adding `N_{2n}` makes those six and five. Two different sets, one numeral.
+
+And the triage is not mechanical. `[M]` of 29 `(four|five|six)[- ](term|operator)` hits, MOST were
+a different four: ERR-039's four conflated operators, the CP/Peierls four-term second difference,
+a carrier grid's four leaf TYPES, "four operator-algebra questions", "seven
+operator-equivalence tests".
+
+⭐ The nastiest member: *"the **four operator families** occupy disjoint blocks"*, over a block
+matrix whose underbraces name **five** operators in **three** `BlockRole` groups. The number
+matched nothing on the page. **Do not bump such a number — re-derive what it counts** (the enum
+has three members, so the roles were named and the count dropped).
+
+⟹ when a count changes, write the MEMBERS beside it or rename to a countless form (`The
+within-group operator equation`); grep the count-word; triage every hit by REFERENT.
+
+### 3. Three chapter-wide universals published and retracted — scope the claim to the PASS
+
+Written into `index.rst`, `slab_one_group.rst` (twice) and `slab_multigroup.rst`: *"every fixture
+in this chapter is Σ₂ₙ ≡ 0, so no number moved."* **False.** `adjoint.rst` carries the
+Be-reflected fast-slab (n,2n) anisotropy ladder, and
+`tests/sn/eigenvalue/test_keff_estimator_gate.py` plus the finalize reconstruction gate INJECT a
+nonzero `Sig2`.
+
+The replacement is a census anyone can re-run:
+
+- `[M]` 2026-09-07: **12 of 12** `xs_library` mixtures (regions A–D × 1/2/4 groups, via
+  `orpheus.derivations.common.xs_library.get_mixture`) carry a `Sig2` with **zero** non-zeros.
+  The denominator is COMPLETE because `get_xs`'s docstring enumerates exactly `"A","B","C","D"` ×
+  `"1g","2g","4g"` — that sentence is what makes it a denominator rather than a sample.
+- `[M]` every MMS mixture mints `Sig2 = csr_matrix(np.zeros((ng, ng)))` — five sites in
+  `orpheus/derivations/continuous/mms/sn.py` (`:198, :460, :1030, :1889, :3455`), one commented
+  `# no (n,2n)`.
+- Every nonzero-`Sig2` fixture is injected on purpose, and each lives in a gate whose page
+  already spells `N_{2n}` out.
+
+⟹ **the honest claim is about the PASS, not the chapter**: *"this pass changed no measured value —
+every edit is an algebra spelling"*, which is checkable from the diff (verified: no numeral
+changed except `y = 1/2`, `1/k`, dates and issue numbers). A universal about a corpus needs a
+complete denominator; a universal about your own diff needs only the diff.
+
+### 4. Two concurrent instances cannot both build — three gates replace `sphinx -W`
+
+One build at a time, so `-W` was unavailable for the whole pass. What replaced it:
+
+- **A standalone `docutils` parse with permissive stubs.** Register every Sphinx directive as a
+  nested-parsing `Directive` (`option_spec=None`, returning `[]`), every role as a `GenericRole`
+  returning `nodes.literal`, then `publish_doctree(text, settings_overrides={"report_level": 2,
+  "halt_level": 6, "warning_stream": io.StringIO(), "file_insertion_enabled": False,
+  "strip_comments": True})` per file, and filter out `Unknown directive type|Unknown interpreted
+  text role|Duplicate .* target|Citation|Footnote|Hyperlink target|Undefined substitution`. What
+  survives the filter is structural and real. `[M]` it found exactly two defects, both mine, both
+  invisible to every other gate that ran (backtick parity, ref/eq resolution, table cell counts,
+  nested-markup scan): an `ERROR/3 Unexpected indentation` where an edit-then-revert cycle had
+  eaten the blank line between a paragraph and a following `.. (vv-status rationale)` comment (a
+  comment abutting prose is an ERROR, and the file *looks* fine), and a `WARNING/2 Bullet list
+  ends without a blank line; unexpected unindent` where replacement text put a continuation word
+  at column 0 inside an indented bullet. It is ~3 s for 17 files and it reads RST *as a parser*.
+  It reddened on its author's own two defects and went to 0 after the fix — its own positive
+  control.
+- **The cross-ref gate as a SET MEMBERSHIP test, not a build.** Harvest every `^\.\. _label:` and
+  every `:label:` across `docs/`, then check every `:eq:`/`:ref:` on your ADDED lines against the
+  set. It caught a dangling ``:ref:`sn-n2n-first-class` `` that had been invented (the real anchor
+  is `n2n-reactions`).
+- **The nested-markup gate needs a working mine-vs-pre discriminator.** The first attempt compared
+  the LINES OF THE BOLD RUN against `git show HEAD:`; the run's first line is a FRAGMENT (it
+  starts at the `**`), so everything read as new — 47 false positives. Compare the **full source
+  lines the run spans** (`txt[:m.start()].count("\n")` → slice `lines`). Corrected: 0 new bold
+  runs containing a role or a literal.
+
+⚠ **The shim's noise floor is per-corpus, and its POSITIVES need the same scepticism as its
+negatives.** Whitelist by MESSAGE CLASS, never by count, and diff against `git show HEAD:<file>`
+for anything you did not obviously cause: six list-table cell-count anomalies flagged in this pass
+were all present at HEAD, artefacts of the pass's own crude table parser, and only the HEAD
+comparison separated them. **This is the general hazard and it bit later**: the memo's own ⛔ item
+— *"a continuation line starting with `-`/`+`/`*` inside a table cell is a BULLET and silently
+eats the role"* — was **REFUTED on 2026-09-22** by a throwaway project with two-sided controls.
+Under Sphinx, breaking a `:math:` before the operator renders identically to breaking it after:
+no warning, no `<ul>`. The only shape that breaks is a continuation indented back to the
+CELL-MARKER column, and that is LOUD, not silent (`ERROR: … uniform two-level bullet list
+expected … (3 vs 2)` plus a start-string-without-end-string warning). The mechanism of the false
+finding is almost certainly the shim itself: `list-table` replaced by a nested-parsing stub parses
+the cell body as an ordinary body, where a line beginning `-` IS a bullet. ⟹ **a shim positive is
+a LEAD; reproduce it against the real builder before publishing it or acting on it.**
+
+### 5. Two instances on one corpus CONVERGED — and reading the sibling is worth the time
+
+`slab_one_group`'s `si-within-group-operator-eq` is cited by `docs/theory/verification/sn.rst`,
+the *other* instance's page, which repeats the display. One instance made the label five-term;
+independently, the other made its display five-term too. Reading the sibling's file before
+finishing turned an unverifiable coordination worry into corroboration for the pass's hardest
+verdict — the same for `docs/theory/methods/diffusion_1d.rst`, which carries exactly the split
+used here (four-term = the diffusion solver's own composition, five-term = the general algebra).
+Two independently-reasoned instances agreeing is evidence in the sense of `instrument-doctrine`
+X4; two instances copying one brief is not, so it matters that neither read the other first.
+
+### 6. A mechanical done-when forces an annotation-WINDOW discipline
+
+The done-when was *"an unannotated residual equal to exactly the listed HISTORY sites"*, with the
+annotation regex matching `N_{2n}` / `\Sigma_{2n} \equiv 0` / `(n,2n)-free` within **±3 lines**.
+Two traps:
+
+- **`IsotropicN2N` does not match `N_{2n}`.** Two sites sat inside prose saying "sums
+  IsotropicScattering with IsotropicN2N into the one S" and still read as unannotated. The fix was
+  also the better prose: *"that `S` **is** `S + N_{2n}`, so the four-term spelling is a statement
+  about the COMPOSITION, not about the member list."* (The general form is `retirement-audit` B.5:
+  a math symbol has an ASCII identifier spelling, a Unicode prose spelling and a LaTeX role-body
+  spelling — and a CLASS NAME is a fourth.)
+- **A YAML machine-header line** carried `Sigma_2n = 0`, matching no accepted spelling. Rewriting
+  it as `(n,2n)-free by construction` both annotated it and read better.
+
+⭐ And twice the page ALREADY carried the correct scope note — `coupled_block_operator.rst`
+explained the diffusion fusion perfectly, 2–6 lines below the site — and it did not count. **A
+scope note is load-bearing only BESIDE the claim it scopes**; a correct explanation one paragraph
+away is read by nobody who lands on the equation. Moving it up was a genuine improvement, not
+gate-gaming, and it is the reason an annotation window is specified in lines at all.
+
+### 7. The four-verdict rubric, and the fork it did not decide
+
+(i) general ⟹ five-term · (ii) declared Σ₂ₙ-free special case ⟹ keep + scope · (iii) history ⟹
+untouched · (iv) labelled equation ⟹ fix the equation, then read every `:eq:` citer.
+
+The (ii)-vs-(iii) call is the only hard one, and it is **checkable rather than a judgement**: does
+the method's composition site FUSE (read `diffusion/solver.py:248-254`), or is the fixture
+Σ₂ₙ-free (read the fixture's `make_mixture(...)` call — `sig_2` defaults to `None`, so the
+ABSENCE of the kwarg is the proof)? History is a dated changelog row, an ERR narrative, "an
+earlier version of this section", "that bypass is retired", "#331 recorded that" — 7 sites,
+listed.
+
+⚠ The genuine grey zone was the Wave-O boundary-extraction record: present-tense GRAMMAR,
+historical SUBJECT (its cited FP captures predate the operator). Resolved by **dating the spelling
+in place** — *"the two-gain spelling here is Wave O's, which is what the cited captures were taken
+against; `N_{2n}` joined at CS4c step 3 and rides this argument unchanged"* — which keeps the
+evidence honest instead of retro-fitting a member list onto a measurement that never saw it. This
+is a sixth register beside the five in the digest's §4 tense sort.
+
+**The fork the rubric did not decide.** `slab_one_group.rst` is the one-group slab chapter and its
+fixtures ARE Σ₂ₙ-free, so (ii) was available for all seven of its sites. (i) was chosen because
+three independent things said the sites are GENERAL: the page calls it *"the honest operator
+algebra of `operator_algebra.rst`"*; the labelled equation's own vv-status rationale says *"it
+names the operator algebra"*; and the label is cited from a page outside the chapter in a general
+fixed-source context. Recorded as a fork in the report, and later corroborated by §5.
+
+### 8. Two more findings from the outside-the-chapter half
+
+- **A DOC THAT QUOTES CODE is the highest-decay sentence on the page.** Three stale code quotes,
+  all `-W`-silent, all found only by reading the live function: `A_AA = LC - S - B_a`,
+  ``explicit_gains`` ``(S, B_a)``, and `KEigenvalue((L+C).H, (S+B).H, F.H)` — live:
+  `… - S - N2N - B_a`, `(S, N2N, B_a)`, `((L+C).H, (S+N2N+B).H, F.H)`. ⭐ The sharpest instance was
+  in `orpheus/` itself: `sn/coupled_system.py`'s docstring at `:502` spelled the loss
+  `A_AA = L+C−S−B_a` and, **in the same sentence**, the gain grid as `[[S+N2N+B_a, …]]` — four
+  members on one side, five on the other, 49 lines above the code that composes five. A doc can
+  contradict itself inside ONE SENTENCE, which is the short end of the digest's
+  "80–200 lines apart".
+- **A brief's asserted ZERO is a census, and the page contradicting itself is the stronger
+  finding.** Briefed: *"`operator_algebra.rst` … ZERO mentions of N_{2n}"*. `[M]` **five**
+  (`:788, :807, :3457, :3570, :3844`), including a correct, rich derivation of
+  `N_{2n} = R Λ_{2n} M / W` with the yield `y_S = 1, y_{2n} = 2` matching the live `ClassVar`
+  roles exactly. The page was not ignorant of the operator: its **definitional header, its Key
+  Facts and its vv-status rationale comments** were stale while its **body** was right — vv
+  anti-pattern #21's self-contradicting-file aggravator at page scale. That refuted zero RE-SHAPED
+  the work: not "teach the page a new concept" but "make the definition agree with the body, and
+  CITE the body" (``:ref:`scattering-binding-cs4c` ``). Always run the brief's own negative census
+  first.
+
+### 9. Two mechanical facts worth keeping
+
+- **A `:ref:` to a PARAGRAPH anchor needs explicit link text.** Single-sourcing a composition note
+  as `.. _operator-algebra-two-gains:` above a *paragraph* is the right Pattern-2 move — eleven
+  pages then point at one paragraph instead of restating it — but a bare ``:ref:`label` `` on a
+  non-title target is `ref.ref` *"A title or caption not found"*, a real `-W` failure. Write
+  ``:ref:`the two collision gains <operator-algebra-two-gains>` `` everywhere, from the first use.
+- **A section anchor costs ZERO equation labels**, and the reason is readable rather than
+  assumed: `tests/_harness/audit.py` builds `all_labels` from `.. math:: :label:` ONLY, so a
+  `.. _x:` anchor cannot move the documented-label gate. Verify that by reading the harness, not
+  by trusting that the namespaces are separate.

@@ -226,7 +226,6 @@ Wave H Phase A+B+C+D campaign: **COMPLETE** with ERR-026 narrowed-scope PARTIAL 
 - **Diagnostic script**: `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
 - **Step 3 closeout**: `.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md`
 - **Step 4b closeout**: `.claude/agent-memory/method-implementer/issue_168_phase_d_step4_closeout.md`
-- **Archivist feedback**: `.claude/agent-memory/archivist/feedback_phase_d_carlson_seed_narrative.md`
 - **Phase C closeout** (predecessor): `.claude/agent-memory/method-implementer/issue_168_phase_c_closeout.md`
 - **Sphinx narrative**: `docs/theory/discrete_ordinates.rst` (Phase D subsection) + `docs/theory/boundary_conditions.rst` §16A.3 extension
 - **ERR-026 catalog entry**: `.claude/skills/vv-principles/error_catalog.md:1082+`

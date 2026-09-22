@@ -8,7 +8,8 @@ metadata:
 Writing the S5.5 capstone for the SN loss-representation architecture
 (issue #222 sweep-strategy carve + S6 re-layering, COMPLETE). NEW page
 `docs/theory/loss_representations.rst`. Sibling of
-[[feedback_post_wave_cleanup_docs]] (close-out arc) but distinct: this
+the post-wave close-out arc (AGENT.md "Close-Out Narrative Arc"; its
+capability-flip variant is `lessons.md` §6 → L-076) but distinct: this
 is a CAPSTONE for a FINISHED multi-phase campaign, not a single
 follow-up close-out.
 

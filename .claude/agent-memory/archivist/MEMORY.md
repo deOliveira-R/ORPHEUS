@@ -27,7 +27,7 @@ re-summarise a lesson upward** — each layer points down. Counts are deliberate
 - [lessons_archive.md](lessons_archive.md) — **COLD, load on demand** (~900 KB — never open
   whole). One `## L-0NN` section per lesson with the war story, the `[M]` numbers and the
   `file:line` detail. Open ONLY the section a pointer names; new lessons append HERE first, then
-  distil into the digest. Next free number: **L-114**.
+  distil into the digest. Next free number: **L-115**.
 
 ## 2. Landed work — nothing owed
 
