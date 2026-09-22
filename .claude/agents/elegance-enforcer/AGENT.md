@@ -28,6 +28,7 @@ mcpServers:
 skills:
   - retirement-audit
   - coding-elegance
+  - nexus-elegance
 model: opus
 color: purple
 memory: project
