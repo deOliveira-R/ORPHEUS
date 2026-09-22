@@ -1448,3 +1448,34 @@ exist — they retired into `TransferMaterialField._moment_blocks` at step 3c (`
 correct as history and stale as a pointer; the ERR entry records both homes.
 
 **The queue file is now a record;** its "Landed 2026-09-22" section closes it.
+
+## Topic-file blast-radius audit landed (2026-09-22)
+
+The close-out's owed item (1): the 39 agent-memory topic files the 2026-09-21 distillation had judged archaeology BY NAME, never read. Branch `chore/blast-radius-audit`; one owner dispatch each, read-only on tracked files, proposals evaluated with session context and applied one commit per owner. Briefs, referrer censuses and proposals: `.claude/plans/archive/blast_radius_audit_2026-09-22/<owner>/`.
+
+| owner | read | RETIRE | SALVAGE → RETIRE | KEEP | commit | what was salvaged |
+|---|---:|---:|---:|---:|---|---|
+| qa | 2 | 2 | 0 | 0 | `39ec5fe2` | nothing: every lesson already in its archive L-037/L-038 |
+| numerics-investigator | 3 | 3 | 0 | 0 | `f3bb4039` | nothing: ERR-050, ERR-055 and the angular-windowing page carry them |
+| cross-domain-attacker | 1 | 0 | 1 | 0 | `24746434` | a falsified Rayleigh–Ritz first test (RH13) the memo still prescribed unbannered: the refuted-frame ledger bullet, and the corrected first test on `cross-domain-frames` Smell #15 |
+| explorer | 5 | 4 | 1 | 0 | `3433df32` | digest L-046: graph degree ranks connectivity, not canonicity |
+| archivist | 28 | 15 | 13 | 0 | `16696564` | archive L-114, the only record of the #425 pass (the archive had skipped 2026-09-07); eleven digest insertions, three of them re-measured with two-sided controls; the marker-ladder diagnostic in `AGENT.md`; uplifts to `vv-principles` (the entry point decides the claim class) and `algebra-of-record` (never analogise a closure across geometries, ERR-035) |
+| **total** | **39** | **24** | **15** | **0** | | |
+
+`[M]` 39 of 39 read in full; the by-name judgement was right about the FILE in 39 of 39 and wrong about the CONTENTS in 15, which carried something nowhere else in the corpus. Five of the retired files stated something false in the present tense (four archivist claims, one attacker test).
+
+**What the audit measured about its own method** (now `retirement-audit` item 4, `b0796175`, founding case "2026-09-22 memory file census" on the coding-standards evidence page):
+
+- Agent-memory files are NOT Nexus nodes: `.nexus/config.toml` indexes the docs, `orpheus/` and `tests/`, and `file_brief` on three memory files answered "not in the graph". The distillation standard's "graph node" premise was stale; the main-memory note carries it as `[REFUTED 2026-09-22]`.
+- The stem census missed the `[[hyphenated-slug]]` wikilink spelling (two referrers) and the tracked `.claude/scratch/` (two referrers, one an open tracker box). The orchestrator's and the archivist's censuses agreed exactly because both excluded every `scratch/`: agreement between instruments with a shared blind spot (X4).
+
+**Found on the way and fixed in-session.**
+
+- The error catalogue cited 30 of 99 test paths and 12 of 77 test names that no longer existed (the `sn/` re-layout): repaired at `cc51e027` (16 one-successor moves) and `a670cd69` (the rest, decided per citation from the `catches` markers, dated history where the gate retired). Scope gap filed as #489 (ERR-020's successors pin single-region curvilinear volumes only).
+- `tests/test_error_catalogue_reconciles.py` arm 1 had read RED on `main` since `399b285f` (2026-09-20): its marker census grepped `catches(...)` and counted a string inside a harness test fixture. Now an AST census (exactly the 87 declared ids). Arms 5 and 6 hold the catalogue's cited tests to the tree, with the red proof on `main`'s catalogue (69 unresolved) and a positive control (`84ec3a9d`).
+- CI step 2 now runs that file and two other pure-text ledgers (444 tests, `[M]` 9.9 s): the red had gone unseen because only the ninety-minute local suite ran it.
+- A docstring's caller count (`_lift_external_source_to_moments`, two production callers, not one) and issue #252's dead module path (edited in the issue body).
+
+**Owed, not done here.** The method-implementer's `issue_168_phase_d_closeout.md` still cites three dead paths (`docs/theory/discrete_ordinates.rst`, `docs/theory/boundary_conditions.rst`, `.claude/skills/vv-principles/error_catalog.md`); that memory was outside the six owners distilled and is left for its own pass. The archivist's question why the #425 pass never got an archive section, measured: both of its topic files landed in one docs commit (`2af8e451`, 2026-09-07) among nine commits touching the archivist's memory in two days, and the pass wrote topic files without the archive section its index's protocol asks for first. The cause is not recorded; L-114 now carries the pass.
+
+**Gates (`[M]` 2026-09-22, on the branch tip before the merge).** `sphinx -E -W --keep-going`: rc 0, 0 warnings; it regenerated the verification matrix for the two new gate arms (12 200 → 12 202 tests), amended into the gate commit (`71311734`). `tools.harness --check`: 24 targets, 0 problems, 0 drifted, 728 ID citations resolved. The widened CI step 2 locally: 444 passed. `dead_references` on the rebuilt graph: 0 dead of 66 checked, which covers the code-side edit only (a docstring); the memory retirements are outside the graph by the finding above, and their instrument was the two-spelling census plus the owners' own `git grep` after the deletions.
