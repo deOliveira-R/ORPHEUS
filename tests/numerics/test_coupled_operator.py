@@ -1314,7 +1314,7 @@ class TestCoupledSpaceZeros:
 # ═══════════════════════════════════════════════════════════════════════
 #
 # The tree's ONE restriction concept, coupled realization: a split pair
-# (embedding ι = rᵀ, retraction r) with r∘ι = id on the member, r = ι†
+# (extension by zero ι = rᵀ, restriction r) with r∘ι = id on the member, r = ι†
 # under the direct sum's block-diagonal metric, and P = ι∘r the projector
 # onto the member's copy. These are the type's DEFINING laws (the
 # intrinsic-property standard), tested at the values level on the toy

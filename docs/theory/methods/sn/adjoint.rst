@@ -2088,7 +2088,9 @@ a **composition**, not as a grid with holes:
 
 where :math:`r_{\rm bulk}` is the
 :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator` onto
-the System-A member and the :math:`(B,A)` block
+the System-A member (the system restriction, whose transpose is the
+extension by zero this section relies on:
+:ref:`coupled-block-system-restriction`) and the :math:`(B,A)` block
 :math:`A_{BA}^{\rm fis}` is the **fission ray fold** — the
 kernel-generic
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`

@@ -212,9 +212,12 @@ and one face's inflow or outflow half is a space of its own, a
 (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`).
 Along a system, the **system restriction** selects a member of a
 coupled field and its transpose is extension by zero
-(:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`; the
-corpus owes it a definition, and the coupled carrier itself is
-:ref:`carrier-grid-double-category`). Into the composite, the **lift**
+(:ref:`coupled-block-system-restriction`,
+:eq:`coupled-block-system-restriction-pair`;
+:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`), on
+the coupled space, the direct sum of the members
+(:ref:`coupled-block-n-general-machinery`;
+:class:`~orpheus.numerics.coupled_system.CoupledSpace`). Into the composite, the **lift**
 carries a bulk action onto :math:`\text{bulk} \oplus \text{trace}` by
 extension by zero on the trace (:ref:`cs4c-ends-select-the-body`;
 :class:`~orpheus.transport.operators.lift.BulkLift`;
@@ -388,7 +391,7 @@ The concept table
      - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`, :ref:`half-trace <bc-half-trace>`
    * - System restriction; coupled space
      - :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSpace`
-     - owed (the restriction); the carrier: :ref:`carrier-grid-double-category`
+     - :ref:`coupled-block-system-restriction`, :eq:`coupled-block-system-restriction-pair`, :eq:`coupled-block-system-restriction-laws`; the coupled space: :ref:`coupled-block-n-general-machinery`
    * - Lift; full-field space
      - :class:`~orpheus.transport.operators.lift.BulkLift`, :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      - :ref:`cs4c-ends-select-the-body`

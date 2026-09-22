@@ -1372,14 +1372,14 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     degenerate coupling).
 
     The coupled realization of the tree's ONE restriction concept — a
-    **split pair** ``(embedding e, retraction r)`` with ``r ∘ e = id`` on
+    **split pair** ``(extension by zero e, restriction r)`` with ``r ∘ e = id`` on
     the member, ``r = e†`` under the direct sum's block-diagonal metric,
     and ``P = e ∘ r`` the orthogonal projector onto the member's copy.
     :class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
     index-subset sibling (gather / scatter along an axis); this one
     selects a member SYSTEM of a :class:`CoupledField`. The
-    measure-weighted realization of the same pair (constant embedding /
-    w-average) lives with the frames. A shared family ABC is deliberately
+    measure-weighted realization of a split pair (the collapse pair: the
+    constant section and the w-average retraction) lives with the frames. A shared family ABC is deliberately
     NOT minted: no consumer treats "any restriction" generically yet —
     that consumer is the CS4c restriction verb, and the type-minting rule
     defers the base to it.
@@ -1490,9 +1490,9 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         arithmetic gate refused the sum (the same fact the retired
         per-site ``transpose_zero`` closure encoded via the then-named
         ``source_zeros_on``, today's ``source_zeros``). A primal-side
-        member EMBEDDING, should one
-        ever be needed, is a different verb (the future restriction
-        family's ``embed``), not this transpose."""
+        member extension, should one
+        ever be needed, is a different verb (a future primal-side
+        ``extend``), not this transpose."""
         if not isinstance(y, CoupledField):
             raise TypeError(
                 f"SystemRestrictionOperator.apply_transpose expects a "

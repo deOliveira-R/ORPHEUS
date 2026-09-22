@@ -1534,7 +1534,9 @@ block matrix with holes:
 
 where :math:`r_{\rm bulk}` is the
 :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator` onto
-System A and :math:`E_F` is the **fission ray fold** — the
+System A (the system restriction, defined with its transpose, extension by
+zero, at :ref:`coupled-block-system-restriction`) and :math:`E_F` is the
+**fission ray fold** — the
 kernel-generic
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
 carrying ``F.isotropic_energy``.

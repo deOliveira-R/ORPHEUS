@@ -392,6 +392,8 @@ structurally-different representations of one operator, not a tautology.
    is only that the posing is built at this one site instead of inside
    the adjoint entry (:ref:`sn-one-fission-per-problem`).
 
+.. _coupled-block-n-general-machinery:
+
 The N-general block machinery
 -----------------------------
 
@@ -457,6 +459,343 @@ adjoint Mode-12-closed: a hand-rolled "Euclidean block ``.H``" that skips
 the metric conjugation is the ERR-067 reopening (``vv-principles``
 Mode 12). The block ``.H`` inheriting the member metrics is the campaign's
 highest-value verification row.
+
+.. _coupled-block-system-restriction:
+
+The system restriction and extension by zero — one member's split pair
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A coupled field is a tuple of member fields, one per system. Two maps move
+one member into and out of it: the **system restriction** selects member
+:math:`i`, and its transpose, **extension by zero**, writes a member-:math:`i`
+field into a coupled field whose other members are zero. This subsection is
+the corpus's one definition of the pair; the conceptual view
+(:ref:`architecture-conceptual-view`) and the S\ :sub:`N` pages that pose the
+fission operator through it point here. It is defined beside the coupled
+space it acts on, and not beside the boundary's trace restriction
+(:ref:`bc-domain-narrowing`), because nothing about a system member is a
+boundary: the two pairs share a structure (below), not a subject.
+
+The subscripted :math:`r_i` is the code's spelling and the S\ :sub:`N`
+pages' (:math:`r_{\rm bulk}` is :math:`r_1`, System A); a bare :math:`r` on
+this page is the radial coordinate of the ψ½ two-point problem, and the
+subscript is what tells them apart.
+
+Every measurement in this subsection is taken on one fixture, the carrying
+arm of ``tests/sn/operators/test_step2_posed_fission_anchors.py``: a
+two-region sphere (edges ``np.linspace(0.01, 2.0, 9)``, mixtures A and B at
+2 groups, ``Quadrature.gauss_legendre(8)``, isotropic scattering), whose
+``problem.system.space`` couples System A, a ``FullField`` of 144 degrees
+of freedom, with System B, the ψ½ ray, of 36. A draw is a coupled field
+of standard-normal entries from ``np.random.default_rng(s)``, over 200
+consecutive seeds per reading; the probes are
+``scratch/_followups/sysres_probe*.py`` (untracked), run 2026-09-22.
+
+**The definition.** Let :math:`V = V_1 \oplus \cdots \oplus V_N` be the
+coupled space, carrying the block-diagonal metric
+:math:`G = \operatorname{diag}(G_1, \dots, G_N)` that
+:class:`~orpheus.numerics.coupled_system.CoupledSpace` applies member by
+member, each :math:`G_j` being the metric of the member space :math:`V_j`.
+For each member :math:`i`:
+
+.. (vv-status rationale) Definitional: it states what the one class
+   SystemRestrictionOperator applies (apply selects member i; apply_transpose
+   is the scatter, extension by zero). Not a solver claim: no flux, no
+   eigenvalue, no discretization error. Its defining behaviour is pinned by
+   the foundation tests of TestSystemRestriction in
+   tests/numerics/test_coupled_operator.py (member selection into the
+   1-member coupling, extension with the dual-role zeros, the Euclidean
+   pairing <r x, y> = <x, iota y>); foundation tests carry no verifies(...)
+   marker, so the label is sentineled.
+.. vv-status: coupled-block-system-restriction-pair documented
+
+.. math::
+   :label: coupled-block-system-restriction-pair
+
+   r_i : V \to V_i,\quad r_i\,(x_1, \dots, x_N) = x_i
+   \qquad\text{and}\qquad
+   \iota_i = r_i^{\mathsf T} : V_i \to V,\quad
+   \iota_i\,v = (0, \dots, 0, \underbrace{v}_{\text{slot } i}, 0, \dots, 0) .
+
+.. implements:: coupled-block-system-restriction-pair
+   :by: orpheus.numerics.coupled_system.SystemRestrictionOperator.apply
+
+   **Implemented by** the restriction's ``apply``, which returns member
+   :math:`i` of the coupled field as a one-member coupled field.
+
+.. implements:: coupled-block-system-restriction-pair
+   :by: orpheus.numerics.coupled_system.SystemRestrictionOperator.apply_transpose
+
+   **Implemented by** the restriction's ``apply_transpose``, the extension
+   by zero: the input written into slot :math:`i` of a fresh cotangent-side
+   zero of the whole coupled space.
+
+On the flat layout a coupled field packs (the member offsets
+:attr:`CoupledSpace.system_slices
+<orpheus.numerics.coupled_system.CoupledSpace.system_slices>`), :math:`r_i`
+is the gather over the contiguous index block :math:`S_i` of member
+:math:`i`, and :math:`\iota_i` is its scatter: the trace restriction pair
+:eq:`bc-trace-restriction-pair` with :math:`S = S_i`. `[M]` on the fixture,
+the production restriction and a
+:class:`~orpheus.numerics.operator.TraceRestrictionOperator` built on
+``system_slices[i]`` agree under ``np.array_equal`` in 200 of 200 draws, for
+both members and in both directions, while the gather over the block
+shifted by one row disagrees (``sysres_probe4.py``). What the coupled class
+adds over the flat gather is typing: its ends are coupled spaces and its
+values are member fields.
+
+**The laws.** The pair obeys the laws of a *biproduct*, the direct sum of an
+additive category, whose structure maps the category-theory literature
+calls projections (here :math:`r_i`) and injections (here
+:math:`\iota_i`); the corpus states the same laws for the face cochain at
+:eq:`wavefront-cochain-biproduct-laws`. The fourth law is what the metric
+adds:
+
+.. (vv-status rationale) Identities of the pair, not a solver claim, and
+   computed by nothing: no production code forms a sum of iota_i r_i or
+   compares r_i.H with iota_i, so the label carries a declared
+   no-implementation (below). Gated: the split law r_1 iota_1 = id and the
+   idempotence of iota_1 r_1 on the FIRST member (the code's system=0), by
+   the foundation tests of TestSystemRestriction
+   (tests/numerics/test_coupled_operator.py), on toy members. Measured and
+   NOT gated ([M] 2026-09-22, the fixture above, 200 draws): the cross law,
+   the completeness sum, the metric adjoint, the G-orthogonality of P_i
+   and every law on the second member.
+.. vv-status: coupled-block-system-restriction-laws documented
+
+.. math::
+   :label: coupled-block-system-restriction-laws
+
+   \begin{aligned}
+   r_i \circ \iota_i &= \mathrm{id}_{V_i},
+   &\qquad
+   r_j \circ \iota_i &= 0 \quad (j \neq i), \\
+   \sum_{i=1}^{N} \iota_i \circ r_i &= \mathrm{id}_{V},
+   &\qquad
+   r_i^{*} &= \iota_i \circ P_{\operatorname{range}(G_i)} .
+   \end{aligned}
+
+.. no-implementation:: coupled-block-system-restriction-laws
+   :kind: identity
+
+   **Nothing implements this**: the laws are consequences of the definition
+   :eq:`coupled-block-system-restriction-pair` and of the block-diagonal
+   metric, and no production code evaluates any of them as an identity.
+   Nothing forms the sum of the :math:`\iota_i r_i`, and the one production
+   use daggers a composition that contains the restriction as a whole
+   (`[M]` 2026-09-22, the hub's posed production's ``.H`` is an
+   :class:`~orpheus.numerics.operator.AdjointOperator` whose inner operator
+   is the composition, ``sysres_probe5.py``), so it applies
+   :math:`\iota_1 = r_1^{\mathsf T}` between the Riesz legs that sandwich
+   the composition's transpose and never forms :math:`r_1^{*}` on its own.
+
+The first three are read off the definition. The restriction :math:`r_j`
+reads slot :math:`j` of :math:`\iota_i v`, which holds :math:`v` when
+:math:`j = i` and zero otherwise. The composite :math:`\iota_i r_i x` keeps
+slot :math:`i` of :math:`x` and zeroes every other slot, so the sum over
+:math:`i` recovers each slot exactly once. The fourth follows from the
+adjoint's Riesz composition :eq:`spaces-adjoint-riesz-composition`,
+:math:`r_i^{*} = \sharp_V \circ r_i^{\mathsf T} \circ \flat_{V_i}`,
+applied to :math:`v \in V_i`:
+
+.. math::
+
+   r_i^{*}\,v
+   \;=\; G^{+}\,\bigl(0, \dots, 0, G_i\, v, 0, \dots, 0\bigr)
+   \;=\; \bigl(0, \dots, 0, G_i^{+} G_i\, v, 0, \dots, 0\bigr)
+   \;=\; \iota_i\bigl(P_{\operatorname{range}(G_i)}\, v\bigr) .
+
+The second step uses that the pseudo-inverse of a block-diagonal matrix is
+the block-diagonal matrix of the blocks' pseudo-inverses,
+:math:`G^{+} = \operatorname{diag}(G_1^{+}, \dots, G_N^{+})` (the four
+Penrose conditions hold block by block, and products and transposes of
+block-diagonal matrices are block-diagonal); the third is the Riesz round
+trip :eq:`spaces-riesz-round-trip`. On a member whose metric is nonsingular
+the projector is the identity, :math:`r_i^{*} = \iota_i`, and
+:math:`r_i\, r_i^{*} = \mathrm{id}_{V_i}`: the restriction is a
+coisometry, and **its adjoint is its extension by zero**. On a member
+whose metric has a kernel (a trace block with tangential ordinates, for
+instance) the two agree on the range of that metric and differ on its
+kernel, exactly as the Riesz round trip does.
+
+Two consequences follow. The composite :math:`P_i = \iota_i \circ r_i` is
+idempotent, :math:`P_i^2 = \iota_i (r_i \iota_i) r_i = P_i`, and
+self-adjoint in :math:`G`, because the metric is block-diagonal:
+
+.. math::
+
+   \langle P_i a, b\rangle_G
+   \;=\; \langle a_i, b_i\rangle_{G_i}
+   \;=\; \langle a, P_i b\rangle_G .
+
+So :math:`P_i` is the :math:`G`-orthogonal projector onto the copy of
+:math:`V_i` inside :math:`V`, the copies of different members are mutually
+orthogonal, :math:`\langle P_i a, (I - P_i) b\rangle_G = 0`, and
+:math:`\sum_i P_i = I` is the third law restated.
+
+`[M]` on the fixture, 200 draws per row, each law read on the flat values
+of the coupled fields. The first four rows were read on a source-role field
+and again on a flux-role field, with the same result; each control is a
+deliberately wrong reading that must fail
+(``sysres_probe.py``, ``sysres_probe6.py``, ``sysres_probe_controls.py``):
+
+.. list-table:: The laws of the system restriction, measured on the fixture
+   :header-rows: 1
+   :widths: 36 64
+
+   * - law
+     - reading
+   * - :math:`r_i \circ \iota_i = \mathrm{id}`
+     - bitwise equal in 200 of 200 draws, for :math:`i = 1` and
+       :math:`i = 2`, on a source-role member and on a flux-role member;
+       control: against a doubled member, 0 of 200
+   * - :math:`r_j \circ \iota_i = 0`, :math:`j \neq i`
+     - exact zeros in 200 of 200 draws, both off-diagonal pairs; control:
+       :math:`r_1 \circ \iota_1` reads all-zero in 0 of 200
+   * - :math:`\sum_i \iota_i \circ r_i = \mathrm{id}`
+     - bitwise equal in 200 of 200 draws; control: the sum with one term
+       only, 0 of 200
+   * - :math:`P_i^2 = P_i`
+     - bitwise equal in 200 of 200 draws, both members
+   * - :math:`\langle P_i a, (I - P_i) b\rangle_G = 0`
+     - largest absolute value ``0.0`` over 200 draws and both members, with
+       :math:`G` materialised column by column from
+       :meth:`CoupledSpace.apply_metric
+       <orpheus.numerics.coupled_system.CoupledSpace.apply_metric>` and its
+       off-member blocks exactly zero
+   * - :math:`r_i^{*} = \iota_i`
+     - both member metrics nonsingular (diagonal; smallest eigenvalue
+       :math:`7.3\times10^{-3}` for System A and :math:`7.3\times10^{-2}`
+       for System B); ``r.H`` against ``r.apply_transpose`` differs by at
+       most :math:`2.6\times10^{-16}` relative, and is bitwise equal in 0
+       of 200 draws for System A and 7 of 200 for System B: the round-off
+       of :math:`G_i^{+} G_i v`, not a different map
+
+**Why extension by zero, and why one class.** The first law makes
+:math:`\iota_i` a *section* of :math:`r_i`, a right inverse, in the sense
+:ref:`spaces-collapse-pair-naming` fixes. It is not the only one: every map
+:math:`s(v) = (A_1 v, \dots, v, \dots, A_N v)`, with :math:`v` in slot
+:math:`i` and arbitrary linear :math:`A_j : V_i \to V_j` in the other
+slots, satisfies :math:`r_i \circ s = \mathrm{id}`. The metric picks one out.
+Take :math:`a` with only member :math:`i` nonzero in
+:math:`\langle s\,r_i a, b\rangle_G = \langle a, s\,r_i b\rangle_G`: the left
+side is :math:`\langle a_i, b_i\rangle_{G_i} + \sum_{j \neq i} \langle A_j
+a_i, b_j\rangle_{G_j}` and the right side is :math:`\langle a_i,
+b_i\rangle_{G_i}`, so :math:`s \circ r_i` is :math:`G`-self-adjoint exactly
+when :math:`G_j A_j = 0` for every :math:`j \neq i` (the converse is the same
+computation read backwards). With nonsingular member
+metrics that forces :math:`A_j = 0`: extension by zero is the one section
+whose projector is orthogonal, and it is the restriction's adjoint.
+
+That is why the family carries one class and not two. Because the section
+is the transpose, :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`
+serves both arrows, ``apply`` the restriction and ``apply_transpose`` the
+extension by zero. The axis collapse pair (:ref:`spaces-collapse-pair`) is
+the contrasting kind: its retraction is not a coisometry,
+:math:`R\,R^{\dagger} = (\Sigma w)\,\mathrm{id}`, so its section
+:math:`E = R^{\dagger}/\Sigma w` differs from the adjoint by that scalar and
+is a class of its own,
+:class:`~orpheus.numerics.operator.AxisSectionOperator`. The trace
+restriction is the system restriction's kind, a gather whose scatter is its
+transpose.
+
+"Embedding" is not an operator name in this corpus
+(:ref:`spaces-collapse-pair-naming`), and the argument recorded there
+applies unchanged: every section :math:`s` of :math:`r_i` is injective, so
+"embedding" names a property all of them share and cannot pick out the one
+that is the restriction's adjoint. The pair is named by what each arrow
+does, restriction and extension by zero.
+
+**The class.** ``SystemRestrictionOperator(space, system=i)`` realizes the
+pair on a :class:`~orpheus.numerics.coupled_system.CoupledSpace` (the code
+counts members from 0, so the code's ``system=0`` is :math:`r_1`):
+
+- **Born bound, onto a one-member coupling.** Its domain is the whole
+  coupled space; its codomain is the one-member coupled space
+  ``CoupledSpace.from_systems([V_i])`` built at construction, not the
+  member space :math:`V_i` itself, so :math:`r_i x` is a one-member
+  :class:`~orpheus.numerics.coupled_system.CoupledField` and
+  :math:`\iota_i` consumes one. `[M]` on the fixture, for both members, the
+  codomain's single member is the parent's member-space object (an
+  ``is`` comparison) while the codomain compares unequal to that member
+  space, its name being ``coupled(<member name>)``. The codomain's zero
+  factories are derived from the parent's.
+- **Refusals.** ``apply`` refuses an argument that is not a coupled field
+  (``TypeError``) and a coupled field of the wrong arity (``ValueError``);
+  a member index outside :math:`0, \dots, N-1` is refused at construction
+  (``ValueError``, "out of range").
+- **The extension is the cotangent map.** ``apply_transpose`` mints the
+  zeros it extends with through the space's cotangent seam,
+  :meth:`CoupledSpace.dual_zeros
+  <orpheus.numerics.coupled_system.CoupledSpace.dual_zeros>`, so they carry
+  the source role, the dual of the flux role: a transpose consumes the
+  codomain's cotangent and emits the domain's. `[M]` on the fixture,
+  extending System A leaves System B as a
+  ``RadialCharacteristicInteriorSourceSink`` and
+  ``RadialCharacteristicBoundarySourceSink`` pair. On a coupled space built
+  without a dual factory, ``apply_transpose`` raises the space's
+  ``RuntimeError`` naming the missing "DUAL zero-element factory".
+- **The adjoint is not a method of its own.** ``r.H`` is the generic
+  :class:`~orpheus.numerics.operator.AdjointOperator`,
+  :math:`\sharp \circ \text{dual} \circ \flat` (:ref:`spaces-riesz-legs`),
+  with ``apply_transpose`` as its middle factor; the fourth law is its
+  theorem, and the table above its measurement.
+
+.. warning::
+
+   **The extension by zero is role-consistent only on a source-role
+   input.** Its other members are always source-role zeros, and the class
+   of those zeros is load-bearing, not incidental: the class docstring
+   records (`[M]` 2026-08-22) that extending with the flux-role zeros put a
+   flux-classed ray zero into the daggered fission chain, where the
+   cross-class arithmetic gate refused the sum. `[M]` on the fixture, on a
+   source-role coupled field :math:`y` everything composes, and the typed
+   sum :math:`\iota_1 r_1 y + \iota_2 r_2 y` equals :math:`y`. On a
+   flux-role coupled field :math:`x`, :math:`\iota_i r_i x` is a mixed-role
+   composite for both members (member :math:`i` flux-role, the other a
+   source-role zero), and so is ``r.H`` applied to :math:`r_1 x`; adding
+   :math:`x` to any of the three, or forming the typed sum
+   :math:`\iota_1 r_1 x + \iota_2 r_2 x`, is refused with a ``TypeError``
+   by the same gate. The laws hold on the flat values of a flux-role field
+   (the table above), but no extension by zero whose zeros carry the flux
+   role is built. Whether a Riesz leg should change the role class, so
+   that ``r.H`` on a flux-role member returns an all-flux composite, is
+   open as #496. The one production consumer never meets the flux-role
+   case: the daggered posed production applies the composition's transpose,
+   :math:`\iota_1 \circ \text{stack}^{\mathsf T}`, between its Riesz
+   legs, the stack's transpose already emits a source-role System-A member,
+   and `[M]` the hub's posed production's ``.H`` returns an all-source-role
+   coupled field on either role of input.
+
+**Where it is used.** `[M]` 2026-09-22, an AST census of call sites spelled
+``SystemRestrictionOperator(...)`` finds 1 in ``orpheus/`` (352 files
+parsed) and 3 in ``tests/`` (612 files), all 3 in
+``tests/numerics/test_coupled_operator.py``; the same census finds 6
+``CoupledOperator(...)`` call sites in ``orpheus/``. The production site is
+:func:`~orpheus.sn.coupled_system.build_within_group_system`, which poses
+the fission operator on a carrying mesh as the composition
+:eq:`sn-posed-production-carrying`, :math:`[\,[F], [E_F]\,] \circ r_1`. The
+reason is a physical fact recorded where the composition is read: fission
+annihilates the ray system, and an annihilated input is a restriction, not a
+zero block (:ref:`sn-adjoint-coupled-posing`). The restriction and that
+posing landed together (S4-amendment A2, 2026-08-22, ``6fc247fb``),
+replacing a :math:`2\times2` grid whose zero right-hand column carried two
+hand-written zero closures; the transpose of the composition,
+:math:`\iota_1 \circ [\,F^{\mathsf T}, E_F^{\mathsf T}\,]`, is where the
+extension by zero does its work.
+
+**What the gates pin, and what is only measured.** The 8 foundation tests
+of ``TestSystemRestriction`` in ``tests/numerics/test_coupled_operator.py``
+pin, on toy members: member selection into the one-member codomain; the
+split law :math:`r \circ \iota = \mathrm{id}`; extension with the dual-role
+zeros; the Euclidean pairing :math:`\langle r x, y\rangle = \langle x,
+\iota y\rangle`; the idempotence of :math:`\iota \circ r`; the two refusals
+(an unwired dual seam, a member index out of range); and
+``is_adjointable``. Every construction site among them restricts onto
+the first member, or refuses a third. The cross law, the completeness sum,
+the metric adjoint :math:`r_i^{*} = \iota_i`, the :math:`G`-orthogonality of
+:math:`P_i`, and every law on the second member are this subsection's
+measurements and are not gated.
 
 The two-system role lattice — :class:`SystemRole`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
