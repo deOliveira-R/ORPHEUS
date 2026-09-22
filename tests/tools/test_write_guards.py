@@ -93,9 +93,12 @@ def test_the_real_tree_is_guarded_where_it_is_generated_and_open_where_it_is_not
     qa = REPO_ROOT / ".claude" / "agents" / "qa" / "AGENT.md"
     assert run(GUARD, edit(rule, "Correctness"), REPO_ROOT)[0] == 2
     assert run(GUARD, edit(qa, "model: opus", "model: opus"), REPO_ROOT)[0] == 0
-    assert run(GUARD, edit(qa, "## Enforcement", "## x"), REPO_ROOT)[0] == 2
+    # the definition's own H1, which every rewrite keeps: an anchor on a section heading went stale once
+    heading = "\n# qa\n"
+    assert heading in qa.read_text(encoding="utf-8"), "the control's anchor is gone from the generated block"
+    assert run(GUARD, edit(qa, heading, "\n# qa (probe)\n"), REPO_ROOT)[0] == 2
     assert run(GUARD, edit(REPO_ROOT / ".claude" / "rules" / "nexus-tools.md", "Nexus"), REPO_ROOT)[0] == 2
-    assert run(GUARD, edit(REPO_ROOT / "docs" / "development" / "agents" / "qa.md", "## Enforcement"), REPO_ROOT)[0] == 0
+    assert run(GUARD, edit(REPO_ROOT / "docs" / "development" / "agents" / "qa.md", heading), REPO_ROOT)[0] == 0
 
 
 # ---------------------------------------------------------------- write-scope
