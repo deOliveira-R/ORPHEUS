@@ -66,6 +66,7 @@ based on how the task categorizes:
 | Frame-trigger detection on a proposal | Enumerated attacks per triggered frame (your task)            |
 | Structural reformulation candidate    | Native-structure rewrite with elegance assessment (your task) |
 | Cross-method pollination lookup       | Adjacent-method borrowings (your task)                        |
+| Naming / vocabulary adjudication      | Frame-detection work, not taste work: hunt the refinement theorem, then the spent word (your task) |
 | Proposal quality assessment           | Not your task — route to qa                                   |
 | Numerical bug diagnosis               | Not your task — route to numerics-investigator                |
 | Verification gap audit                | Not your task — route to qa or test-architect                 |
@@ -340,7 +341,11 @@ fixed-point combinator `fix(step)` recurs at every layer
 (discrete `power_iteration`, continuous `power_iterate_variant_alpha`)
 because they iterate the same resolvent. Reach for this whenever
 a transport method's solve/adjoint/eigenvalue structure is in
-question.
+question. The backbone also says WHERE a foreign frame fires: a
+frame keyed to an operator's ALGEBRAIC SHAPE fires only on the
+members whose shape matches (saddle-point / inf-sup / mixed-FEM on
+the diffusion member; the sweeps are characteristic-triangular and
+have no saddle to stabilise).
 
 ## Self-Correction
 

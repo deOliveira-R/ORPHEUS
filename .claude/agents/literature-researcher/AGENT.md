@@ -281,7 +281,10 @@ on any reference. The `research` skill carries the operational guards
   bibliography is UNVERIFIED until a real database (CrossRef /
   OpenAlex / OSTI / the journal) confirms author + year + DOI. Memos
   and docstrings drift and can manufacture false authority by
-  self-citation; AI-suggested citations hallucinate. Resolve the DOI,
+  self-citation; AI-suggested citations hallucinate. The error
+  COMPOUNDS silently: each forward reference to a phantom makes it
+  look more established, so every note that repeats it raises the
+  cost of the check nobody ran. Resolve the DOI,
   then use it. Flag any mismatch (wrong paper, wrong sub-field) to
   the user.
 - **Classify by the source body, not the citing context.** A

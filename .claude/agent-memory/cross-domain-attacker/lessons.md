@@ -90,6 +90,7 @@ The general form is `process-discipline` "Measure a brief's premise" since
    predicate is complete and correct but wired to the ADVISORY path only, so sort
    its callers into advisory vs CONSTRUCTIVE — zero constructive callers means
    the gate is a suggestion and the fix is a call site, not machinery. → L-013
+   · → now Smell #17 in `cross-domain-frames` Part C (2026-09-22)
 7. **"The gate accepts/rejects everything — pick a new formulation."** Tabulate
    `(argument, kind it has, kind the relation needs)` first. A
    cardinality/topology mismatch is never repaired by re-shaping the relation: a
@@ -221,7 +222,7 @@ the deprecation arrow the wrong way. (c) The backbone tells you WHERE a foreign
 frame fires: ask which MEMBER has the matching algebraic shape before pointing a
 frame at "transport" (saddle-point / inf-sup / mixed-FEM fires on the
 diffusion/low-order member only; the sweeps are characteristic-triangular and have
-no saddle to stabilize). → L-007 · pointer:
+no saddle to stabilize; (c) is now in `AGENT.md`'s backbone kernel, 2026-09-22). → L-007 · pointer:
 `dsa_saddle_point_mixed_fem_frames.md`
 
 **D3 — A change-of-basis frame's OWNER and its Galerkin-vs-PG discipline are
@@ -265,7 +266,7 @@ kind that excludes the others. → L-011 · pointer:
 `coupled_system_field_bc_frames.md`
 
 **D6 — A NAMING dispatch is frame-detection work: hunt the refinement theorem,
-then the spent word.** (a) Check the refinement invariant BEFORE looking for a
+then the spent word.** (→ now an `AGENT.md` task-type row, 2026-09-22; the procedure stays here.) (a) Check the refinement invariant BEFORE looking for a
 family word — a theorem can FORBID a uniform word (locality within the fiber
 splits one multiplier from three kernels), and then the honest output is species
 words on the leaves plus a genus word on the ABC, with the leaves biject-checked

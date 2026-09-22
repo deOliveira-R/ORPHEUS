@@ -206,6 +206,36 @@ more smells fire, the cross-domain-attacker should probe.
     face-flux match (Shape 1/2 — the seed/absorb bridge IS the
     discrete trace `ι*`, cells are diamond-derivatives of faces).
 
+17. **The primitive already exists and is not consumed.** Two
+    shapes, one payoff: a "build the machinery" proposal collapses
+    by an order of magnitude to a widened return type or a call
+    site. Name which shape fired.
+    - **Shape (a) — a `-> bool` predicate whose BODY builds the
+      object.** An `is_*` / `check_*` / `*_closure` whose body
+      constructs an index map, permutation, matching, partition or
+      certificate and returns `bool`. The capability is not
+      missing; its WITNESS is. Fix: widen the return type first
+      (return the permutation, the certificate); the hand-rolled
+      downstream re-implementations then delete themselves.
+      ORPHEUS #326: `_orbit_closure` computed the permutation and
+      returned `bool`, with two downstream re-implementations
+      (ERR-073).
+    - **Shape (b) — a correct, tested predicate wired only to the
+      ADVISORY path** (`select_*` / `recommend_*` / `default_*`)
+      while the type it guards is constructible directly. Sort the
+      callers into advisory vs CONSTRUCTIVE; zero constructive
+      callers means the gate is a suggestion and the fix is a call
+      site, not machinery. ORPHEUS #336:
+      `AngularSymmetry.admits_domain` — `[M]` 2026-09-21, an AST
+      pass over `orpheus/` finds it at its definition only, zero
+      callers of either kind, so the sighting is "unconsumed",
+      stronger than "advisory only".
+    Distinct from Smell #16 Shape 1 (that says "collapse two
+    paths"; this says "one path exists and its output is discarded
+    or unconsumed"). First test: list the predicate's callers and
+    classify each as constructive or advisory before proposing a
+    type.
+
 ### Semantic smells
 
 11. **"We had to add a stabilization term."** Usually indicates
@@ -320,3 +350,14 @@ rationale).
     `∂T/∂α = T²·K` (`compute_resolvent_T_grad_alpha` alongside
     `compute_resolvent_T`) gives gradient-free α-sensitivity / `dk/dα`
     with no AD pass.
+
+- 2026-09-22:
+  - Added Smell #17 (the primitive already exists and is not
+    consumed, two shapes) to Part C structural smells.
+    Justification: two in-tree sightings with one consequence and
+    different causes — #326 `_orbit_closure` (shape a, ERR-073) and
+    #336 `AngularSymmetry.admits_domain` (shape b, `[M]` 2026-09-21
+    zero callers of either kind); held in the uplift queue since
+    2026-08-03 at one sighting, resubmitted as two shapes at the
+    2026-09-21 distillation, landed by the user's ruling of
+    2026-09-22.
