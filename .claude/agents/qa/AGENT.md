@@ -88,7 +88,12 @@ Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 6. **Check conservation** to machine precision — necessary, never sufficient.
 7. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
 8. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
-9. **Check verification_coverage** — every equation should have status "verified".
+9. **Read `verification_coverage` for its PREDICATE, not its verdict.**
+   `verified` means only "some test edge exists", and most `implements` edges
+   are name-token guesses (`[M]` 2026-09: 351 of 692 "verified" equations
+   had no declared test); ask of any status what predicate sets it and what
+   its weakest admissible evidence is, and adjudicate with a coverage capture
+   (`run=`) or a mutation (`nexus-verification`, its three ⛔ blocks).
 10. **Behavior-neutral retype = role-type AND bit-identity, asserted
     separately.** When a PR claims a field/operator-output *role* change
     (e.g. `.apply` bulk `AngularFlux`→`AngularSourceSink`) is
@@ -116,6 +121,16 @@ Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
     its green status. (This is the standing stance behind the
     `vv-principles` `catches`-marker directive and Modes 8/10/11 — apply
     it to EVERY gate you cite as evidence.)
+12. **A clean reading is a claim about the INSTRUMENT before it is a claim
+    about the tree.** Whenever a census, a filter, a fingerprint, a counter or
+    a fidelity diff returns zero, name what it could not have seen and show one
+    known member it DID find. Three shapes recur and each reads as good news: a
+    filter that dropped its whole input (an unsplit `$VAR`, a path filter, a
+    two-stage net missing a spelling); a detector normalised for robustness,
+    hence blind to the change class it is now asked about; and an
+    identity-keyed diff over text, which cannot see a check that moved away
+    from the imperative it belongs to. State the population and the instrument
+    with every zero you publish (`instrument-doctrine` X1, X2).
 
 ## Error Catalog
 

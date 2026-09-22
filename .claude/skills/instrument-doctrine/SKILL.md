@@ -28,7 +28,7 @@ wrong reason is a null control. `grep` here is ugrep, and an anchor inside an
 alternation group matches nothing, silently (`code-search`). The nine
 battery-specific checks are `vv-principles` #17; the nine classes of a gate
 that fires and cannot fail, `vv-principles` mode 8; the design-time question a
-plan asks of a new gate, `plan-authoring` §6c. A gate that ranges over a LIST also reports its INPUT COUNT beside its finding count, because a correct filter over an empty list and a correct filter over a clean tree print the same zero and the first is a broken harness: print `len(inputs)`, assert it non-zero, and assert one input resolves to an existing path (`[M]` 2026-09-21, twice in one session: an unsplit shell `$FILES` made an xref probe and a markup scan each read one nonexistent path and print a clean 0).
+plan asks of a new gate, `plan-authoring` §6c. A gate that ranges over a LIST also reports its INPUT COUNT beside its finding count, because a correct filter over an empty list and a correct filter over a clean tree print the same zero and the first is a broken harness: print `len(inputs)`, assert it non-zero, and assert one input resolves to an existing path (`[M]` 2026-09-21, twice in one session: an unsplit shell `$FILES` made an xref probe and a markup scan each read one nonexistent path and print a clean 0). A counter DOWNSTREAM of a filter cannot count what the filter dropped, so a zero total is compatible with "nothing matched" and with "everything was discarded before the counter": require a per-reason drop breakdown between input and output (`[M]` 2026-09: `nodes: 0 / unresolved: 0`, exit 0, on a coverage report whose 339 file keys a path filter had dropped; normalised, 2 892 joined). And a relation whose rows are INFERRED, published under a DECLARED relation's name, is read for the predicate that sets its status before its number is quoted.
 
 **Stabiliser enumeration, at gate design time.** Write down the functional the
 gate measures and the group of errors it is invariant under: spectra are blind
@@ -147,7 +147,13 @@ structure (a permutation makes its own bijectivity assertable; a `bool` does
 not), or delete the claim. A plan row in a rule's vocabulary carries the
 rule's `[M]`, not its phrase. A gloss beside a link ("whose census clause is X
 and Y") asserts the target's scope, reads as navigation so nobody audits it,
-and goes stale when the target grows: point, and let the definition speak.
+and goes stale when the target grows: point, and let the definition speak. A
+clause, marker or docstring that names TWO mechanisms under ONE mechanical
+check credits both while the check reaches one: for every mechanism the text
+names, point at the line of the check that would find it (`[M]` 2026-09, a
+census clause naming a shape's constructor plus `isinstance` doors under the
+single check "grep the constructor"). tell: an imperative that says "X plus Y"
+whose check mentions only X.
 
 ## X4 — find the shared upstream
 

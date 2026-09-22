@@ -5934,3 +5934,43 @@ independently: Cardinal Rule 4's label enumeration (`[M]` named 14 of 35; now `g
 which is `plan-authoring` §9(a) — point at the tree's own register). A third-order residue:
 20 surprise-log rows key "**Clause.** §6b", and §6b now holds a pointer, so the log's
 attribution key no longer resolves to the text it was attributed to.
+
+## L-090 — a `grep -rl` FILE COUNT over a repo with build trees is an artifact count, and the inflation argues for the conclusion its author already reached (2026-08-20, CS4a design-assembly review)
+
+**Why this is a new section.** The rule (`H15` in the digest) has been carried
+since 2026-08-20 with no archive entry — the only digest rule without a pointer.
+This section is its war story, written at the distillation pass of 2026-09-21
+from the rule's own recorded measurements; no new measurement was taken here.
+
+**Subject.** One of three round-1 design assemblies for CS4a proposed NOT
+renaming a datum, and its sole quantitative blocker was a sentence of the form
+*"529 files reference the name"* — a number large enough that no reviewer
+re-derived it, and squarely in the direction that made "don't rename" look
+forced rather than argued.
+
+**The measurement.** `[M]` 503 of the 529 files sat in **eleven stale
+`docs/_build/html_*` trees** — gitignored, **0 tracked files** among them. The
+true radius was **26**: 15 `.py` + 11 `.rst`, independently confirmed as
+`11 + 15` by `git grep -l`, a second filter chosen for a different reason
+(tracked-only) rather than for agreement. The published figure was therefore
+**20×** high.
+
+**Why `--include` does not save you.** The instinct is `--include=*.py`, on the
+theory that a build tree holds only HTML. It does not: `docs/_build/` holds
+`.rst` sources as well as `.html`, and an `html_*` tree multiplied by eleven
+builds reproduces the whole corpus eleven times. The exclusion has to be by
+DIRECTORY.
+
+**The procedure this fixed into the digest.** On ANY file-count claim:
+(1) `--exclude-dir=_build --exclude-dir=__pycache__ --exclude-dir=.nexus`;
+(2) confirm with `git grep -l`, an independently-chosen filter, and reconcile
+the two numbers rather than reporting the one you like; (3) prove the excluded
+tree is genuinely untracked with `git check-ignore` plus
+`git ls-files <tree> | wc -l`. Read beside the digest's §F rules: a count with
+no stated exclusion is an unmarked claim, and `instrument-doctrine` X2 requires
+the exclusion to appear IN the sentence that carries the number.
+
+**The lesson.** A census whose denominator was never audited is an argument
+wearing a measurement's clothes. The direction of the error is the tell: an
+inflated radius always supports the cheaper decision, which is why it survives
+review — nobody re-runs a number that agrees with them.

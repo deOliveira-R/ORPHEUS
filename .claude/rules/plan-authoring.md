@@ -85,6 +85,7 @@ Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history
 - **TIMING-IS-A-DRAW** A wall-clock timing IS stochastic; its configuration is the REPEAT PROTOCOL (how many, interleaved, min or mean). [case](../../docs/development/evidence/plan-authoring.md#2026-09-02-timing-is-draw)
 - **TRANSCRIPTION-PRECISION** A hand-typed k-digit prediction bounds ANY component-wise agreement at `10^-k`. check: publish a SCALE-FREE statistic (alignment, relative residual). [case](../../docs/development/evidence/plan-authoring.md#2026-08-31-transcription-precision-agreement)
 - **A-SIZE-IS-A-MEASUREMENT** A relayed line-count silently asserts the defect has ONE site; when the defect IS the second site it points at the wrong repair. check: verify a "one-line fix" before believing it. [case](../../docs/development/evidence/plan-authoring.md#2026-08-16-line-count-size)
+- **BEFORE-AND-AFTER-ONE-INSTRUMENT** A before/after pair is a ratio in time: both halves are read with the SAME instrument, named beside them. check: name the command that produced each half; if they differ there is no delta. tell: a "≈29.5K → ≈14K" pair whose second half reproduces from a recorded run and whose first half matches no recorded instrument (`[M]` 2026-09-20, the workflows page's always-on figure).
 
 ## §5 State the goal in the domain's terms, not the tree's
 

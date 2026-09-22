@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 9600
+  budget_tokens: 9700
   brief: >-
     a cited precedent's adjectives are verified by reading it, at the layer (data or binder) that preserves arity; a proposed name is grepped in the prose corpus with the verb it would own; a step that adds a gate lands with the case it catches, an `⟺` checked in both directions and every symbol on a law's RHS checked against the datum's methods.
   paths:
@@ -89,6 +89,7 @@ Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history
 - **TIMING-IS-A-DRAW** A wall-clock timing IS stochastic; its configuration is the REPEAT PROTOCOL (how many, interleaved, min or mean). [case](../evidence/plan-authoring.md#2026-09-02-timing-is-draw)
 - **TRANSCRIPTION-PRECISION** A hand-typed k-digit prediction bounds ANY component-wise agreement at `10^-k`. check: publish a SCALE-FREE statistic (alignment, relative residual). [case](../evidence/plan-authoring.md#2026-08-31-transcription-precision-agreement)
 - **A-SIZE-IS-A-MEASUREMENT** A relayed line-count silently asserts the defect has ONE site; when the defect IS the second site it points at the wrong repair. check: verify a "one-line fix" before believing it. [case](../evidence/plan-authoring.md#2026-08-16-line-count-size)
+- **BEFORE-AND-AFTER-ONE-INSTRUMENT** A before/after pair is a ratio in time: both halves are read with the SAME instrument, named beside them. check: name the command that produced each half; if they differ there is no delta. tell: a "≈29.5K → ≈14K" pair whose second half reproduces from a recorded run and whose first half matches no recorded instrument (`[M]` 2026-09-20, the workflows page's always-on figure).
 
 ## §5 State the goal in the domain's terms, not the tree's
 
