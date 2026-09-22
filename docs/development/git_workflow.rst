@@ -181,9 +181,16 @@ deterministic half of the project's acceptance, in this order:
    edit inside a generated file, or a source edited without regeneration,
    reds here.
 2. ``python -O -m pytest tests/tools/test_harness_generator.py
-   tests/test_harness_generated.py tests/test_layer_imports.py`` — the
-   generator's own tests, the generated-tree gate and the layer contract
-   (417 tests; [M] 2026-09-21: 6.4 s locally).
+   tests/test_harness_generated.py tests/test_layer_imports.py
+   tests/test_error_catalogue_reconciles.py tests/test_elegance_debt_is_tagged.py
+   tests/test_vv_harness_audit.py`` — the generator's own tests, the
+   generated-tree gate, the layer contract, and the three text ledgers: the
+   error catalogue against its markers, its generated index and the tests its
+   entries cite; the elegance-debt tags; the V&V harness audit (444 tests;
+   [M] 2026-09-22: 9.9 s locally). The ledgers joined on 2026-09-22 because
+   the catalogue test had read red on ``main`` for two days with CI green:
+   a pure-text gate that only the ninety-minute local suite runs is a gate
+   nobody runs between campaigns.
 3. ``python -O -m pytest tests/test_pyright_ratchet.py`` — the type gate as
    the #226 ratchet: pyright 1.1.410 (installed globally in the job) over
    ``orpheus/``, its per-module error counts compared with the committed
