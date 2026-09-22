@@ -10,9 +10,9 @@ SKILL.md cites "lessons L10/L9" and "lesson L11" by number, and
 `derivations/diagnostics/diag_282_sphere_repose_convergence.py:23` cites "L14/L15". A retired
 entry keeps its number as a stub naming where its correction lives.
 
-## The spine — eight meta-lessons
+## The spine — three meta-lessons
 
-Read these eight every dispatch. Open an `L` entry when its instance is in front of you; open
+Read these three every dispatch. Open an `L` entry when its instance is in front of you; open
 `_archive/` only when a number needs checking.
 
 - **M1 — Ask what KIND of question this is before measuring; the answer is usually a THEOREM, a
@@ -28,18 +28,6 @@ Read these eight every dispatch. Open an `L` entry when its instance is in front
   sweep `N` at fixed fine mesh (L15a); every curvilinear MMS ansatz is ≤ linear-in-μ = the
   seed's exact regime, so the whole ladder is seed-blind (L14, L16·4). Enumerating the field
   family a closure is EXACT on, and gating outside it, is `vv-principles` Mode 7.
-- **M3 — "Converged but wrong" is the SOLVER far more often than the operator.** An unread
-  convergence flag reproduces the diverges-with-refinement fingerprint exactly (L10, L10b); a
-  hardcoded `restart` truncates the subspace and a grown Krylov composite must re-derive it
-  (L15b); the increment is ρ-blind (L11); the "hang" may be the fixture (L9); the iteration
-  budget is dimension-dependent (L10c). **Read `converged`/`n_inner` against `max_*` BEFORE any
-  tolerance sweep.**
-- **M4 — A degenerate fixture annihilates a whole bug class; name the invariant your fixture
-  shares with the class, then step outside it.** Flat ψ kills redistribution and routing (L2,
-  L6); a uniform MATERIAL field kills an O(1) source/sink swap (L8·1); no trailing moment axis
-  kills an axis-targeting bug (L13); a same-direction reduction kills a per-ordinate frame bug
-  (L7·1); an even-`n` ladder kills a parity-split mode (L23·8); a zero-valued block kills the
-  block's own rows (L17·2).
 - **M5 — My own instrument has been wrong FIRST, repeatedly, always in the flattering direction.
   Budget every probe for its control.** The varying knob was unreachable (L18); a grep of pytest
   output read zero failures through ANSI codes and `python -c` imported the main tree instead of
@@ -47,42 +35,16 @@ Read these eight every dispatch. Open an `L` entry when its instance is in front
   (L23·9); a docutils check reported no warnings on deliberately broken input (L27·6); a
   monkeypatch onto a `property` was a silent no-op (L26·8). This is `instrument-doctrine` X1
   applied to *analytic* instruments, and **each structural zero needs its OWN control.**
-- **M6 — When two of my own measurements contradict, one instrument is wrong FOR THE QUESTION;
-  find which directions it probes that production never supplies.** `‖MM⁻¹−I‖` full-space
-  against a forward-substitution SUBSPACE inverse (L23·10); a nulp count against the relative
-  error (L22·1); `‖Gv‖` against `‖Av‖` for a column dependency (L27·1); a signed projection
-  against an approximate weight, worse than no weight (L20·2); which decomposition the library
-  actually cuts on (L27·4).
-- **M7 — A published claim carries the scope of the analysis that produced it. Evaluate the
-  quantity, never the heuristic.** Read the paper's own stated approximation level before
-  assuming a code bug (L5); a rule of thumb carries the ORDER it was derived at and its safe
-  DIRECTION can invert (L25·5, L21·6); a signature is a consequence of a derivation's scope, not
-  evidence about the joint problem (`vv-principles` Mode 8(3)); a literature diagnostic
-  transfers only in its LEVEL-LOCAL form (L21·5); a docstring naming a theorem is a checkable
-  claim (L19·2); "lumping" names ≥3 disagreeing operations (L25·6); a wrong attribution picks
-  the wrong fix even when both fixes help (L4).
-- **M8 — The reference is the first suspect, and this project's own corpus can be the
-  contamination.** The theory page and the docstring documented the same wrong index (L8); a
-  single quadrature can fake a structural win, so demand the same SIGNED error across ≥2 (L3),
-  and a cross-family study carries a contamination guard (L16·3); a frozen reference goes stale
-  by MAGNITUDE CLASS and the failure message cannot say which side is wrong (L22); gate every
-  hand-built fixture on the mixture's own consistency identity before believing either side
-  (L20·5).
 
 ---
+
+_Retired 2026-09-22 by the agent-definitions audit, each restated by a clause or now carried by the definition: M3, M4, M6, M7, M8, L2, L8, L9, L12, L13. Numbers are not reused._
 
 ## L1: Run the diagnostic cascade in order — no skipping
 
 DUPLICATE: `AGENT.md` § Diagnostic Cascade ("Execute in order … Do NOT skip steps") and
 `probe-cascade` § Anti-patterns ("Don't skip probes"). Founding cost kept as the teeth: **six
 wrong hypotheses** were spent on cylindrical DD divergence by guessing before isolating.
-
-## L2: Curvilinear redistribution is the prime suspect
-
-DUPLICATE: `numerical-bug-signatures` Signature 1 (symptom, mechanism, per-ordinate probe,
-catching test, why it hides) and `AGENT.md` Step 5. Diverging-with-refinement keff in
-curvilinear geometry means the balance equation is wrong; the α-recursion and `ΔA/w` are where
-it lives.
 
 ## L3: A rank-N closure claim needs the SAME SIGNED error across ≥2 quadratures
 
@@ -161,33 +123,6 @@ involution at the producer–consumer seam.
   the bug is a CONVENTION between two correct pieces.** Record:
   `issue_240_d5b_s3_diffusion_limit.md`.
 
-## L8: The project's own theory page can be the contaminated reference
-
-ERR-063 (fission χ read at the SINK node where the SOURCE node belongs). The theory page's
-equation AND the solver's docstring math documented the SAME wrong index, so confirming the code
-against its own doc would have confirmed the bug. `vv-principles` #6 names reference
-contamination and all its tells are *solvers*; this is the sharpening: **our corpus is a
-reference too, and a doc plus its own docstring are ONE source, not two.** (`vv-principles`
-#6's check since 2026-09-21.)
-
-- Two independent grounds settled it: Hébert 2009 Eq. 3.57/3.58, and a sibling solver of a
-  DIFFERENT kernel family that already source-indexed χ.
-- **A masked O(1) bug needs a spatially VARYING field to surface** (M4 on a material field); the
-  discriminating probe MUTATES a causally-irrelevant region's value and asserts invariance.
-- **Grep every sibling ASSEMBLY module and classify each same-bug /
-  different-structure-correct — the correct sibling is often the structural ground you need.**
-  (A no-re-baseline claim needs a direct old-vs-new value comparison: `vv-principles` #12.)
-
-## L9: A reported "hang" may be FIXTURE cost — bound the solver directly FIRST
-
-#212: an "SN heterogeneous-keff non-convergence hang" was a fixture eagerly walking the whole
-reference registry into O(minutes) of adaptive-mpmath solves; the solver converged in ~0.3 s.
-**A timeout is not a convergence failure until the solver is bounded independently of its data
-fixtures.** On a timeout in a test consuming a registry-walk or auto-discovery fixture, FIRST
-bound the solver (tiny `max_outer`/`max_inner`, or bypass the fixture by calling the producing
-module's builder); if the solver is fast, reproduce the slow path on a fast proxy and bisect
-THAT, not the test. Record: `sn_keff_hang_was_eager_registry.md`.
-
 ## L10: "Error grows with refinement" + an unread library info-flag = an unconverged inner solve
 
 DUPLICATE of `numerical-bug-signatures` Signature 8 (symptom, mechanism, three discriminators,
@@ -235,25 +170,6 @@ the iteration record — `IterationRecord.increment_norms` / `.contraction_ratio
 `.true_error_estimate()` in `orpheus/numerics/convergence.py`, with `AngularResidual` in
 `orpheus/transport/residuals/angular_residual.py` carrying the per-ordinate balance map.
 Catalogue: `issue_208_flux_displacement_residual_typing_debug_value.md`.
-
-## L12: Measure a localized defect's ORDER at the cell, not in the norm
-
-DUPLICATE of the first two probes: `vv-principles` § Bit-identity carries "NEVER call an
-OFFLINE-isolated error 'the floor' until it survives (1) an end-to-end swap, (2) a term-silent
-control, (3) AMPLIFY", with the ERR-061 tell. The third probe is not there and is the one I keep
-re-needing: ⭐ **the first-cell / boundary-row ORDER is the mechanism oracle; the global L2 is
-not.** If the boundary cell is already O(h²) with the term off, the term cannot repair an O(h)
-deficiency that is not there — and a volume-weighted L2 DILUTES a localized defect (`√V ~ h^1.5`
-at the pole), so the order must be measured AT the cell (`vv-principles` #5's check since 2026-09-21).
-Records:
-`curvilinear_tau_clamp_vs_pole_floor.md`,
-`issue_257_s9_ld_boundary_slope_optical_verdict.md`.
-
-## L13: "Breaks only for LD / a spectator trailing axis" = a greedy `(Ellipsis, *idx)` index
-
-→ now `numerical-bug-signatures` Signature 11 and ERR-087 (2026-09-22): the mechanism, the
-discriminator, the probe, the blind classes and the catching test are the skill's, which this
-agent preloads; this line is the pointer. Founding case #276 A2, `0b3275d`.
 
 ## L14: A curvilinear `(L+C).solve` is NOT uniformly a SweepOperator — the verdict is per (geometry × quadrature)
 

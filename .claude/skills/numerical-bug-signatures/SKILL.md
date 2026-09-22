@@ -438,7 +438,7 @@ the offending factor.
   case that MUST raise. (When promoted, file the ERR-NNN and link the
   test path here.)
 - **Catalog entry:** Uncatalogued — pattern only (numerics-investigator
-  lessons L10/L9: "diverges with refinement + a discarded library
+  lesson L10: "diverges with refinement + a discarded library
   info-flag = an unconverged inner solve, not a discretization bug";
   bound the solver cost before declaring a hang).
 - **Why it hides:** It wears Signature 1's costume exactly — error

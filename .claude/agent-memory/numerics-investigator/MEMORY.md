@@ -6,12 +6,11 @@ topic files this index points to.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — **read the file, not this line.** Its top is a SPINE of eight
-  meta-lessons (M1 what KIND of question · M2 which LIMIT the claim is exact in · M3 converged
-  but wrong is the solver · M4 the degenerate fixture · M5 my instrument lied first · M6 two of
-  my measurements contradict · M7 a published claim carries its scope · M8 the reference is the
-  first suspect), then L1–L27, whose numbers are STABLE identifiers cited from
-  `numerical-bug-signatures` and from a diagnostic script.
+- [lessons.md](lessons.md) — **read the file, not this line.** Its top is a SPINE of three
+  meta-lessons (M1 what KIND of question · M2 which LIMIT the claim is exact in · M5 my
+  instrument lied first), then the L entries, whose numbers are STABLE identifiers cited from
+  `numerical-bug-signatures` and from a diagnostic script. Ten entries that a clause or the
+  definition now carries retired 2026-09-22 (M3, M4, M6, M7, M8, L2, L8, L9, L12, L13).
 - [_archive/](_archive/) — cold: the measured war stories, one file per campaign thread. Never
   loaded; opened when a number needs checking.
 
@@ -20,9 +19,6 @@ topic files this index points to.
 **None.** Every campaign this agent diagnosed is merged; verified against git and `gh`
 2026-09-21, including the four whose memory notes were stale (#326, #341, #344 and the
 #319/#235 Phase 0 all CLOSED or LANDED, with their gates promoted, not "awaiting promotion").
-
-> Merge status in memory goes STALE. ALWAYS reconcile any "open / owed / awaiting" note against
-> `git merge-base --is-ancestor <hash> HEAD` and `gh issue view <NN>` before acting.
 
 **Open, no active work** (pick up only if asked; breadcrumbs in §3): **#343** (the octant sweep
 ORDER is an unowned rate lever — the successor #341 left behind), **#319/#235** (later phases of
@@ -75,7 +71,7 @@ they exist on this machine only. The `_archive/` copies of their lessons are the
   [sn_keff_hang_was_eager_registry.md](sn_keff_hang_was_eager_registry.md) ·
   [issue_240_d5b_s3_diffusion_limit.md](issue_240_d5b_s3_diffusion_limit.md) ·
   [atalay_r099_paper_floor_2026_05_03.md](atalay_r099_paper_floor_2026_05_03.md) — the founding
-  cases behind L10, L9, L7, L5.
+  cases behind L10, the definition's hang-as-cost question, L7, L5.
 - Open rank-N / Peierls breadcrumbs: [direction_n_quadrature_baseline.md](direction_n_quadrature_baseline.md)
   (#123) · [frame_5_qmc_quadrature.md](frame_5_qmc_quadrature.md) (#128) ·
   [issue_100_class_b_mr_mg.md](issue_100_class_b_mr_mg.md) +
