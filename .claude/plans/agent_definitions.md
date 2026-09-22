@@ -219,6 +219,34 @@ Implementation started 2026-09-22 (R12). The order `[HYPOTHESIS]`:
    - The brief template defines "read-only" and states the memory scope (R2).
    - The pages the rewritten bodies will point to are written: the documentation page in the form Q3 settles, and the test-ladder clause in `vv-principles` (R7).
 3. **The §5.1 audit,** per agent, producing the class-(ii) gap lists. `[HYPOTHESIS]` dispatched after the restart, so that each audit dispatch also measures what the agent now holds (step 5's probe folded in): each agent classifies its own memory with a fixed schema (entry; class (i) restates a clause, naming it; (ii) a definition gap, with the definition sentence it implies; (iii) its own experience), writes the table under `scratch/_agent_defs/audit/<name>.md`, and reports its tool list, and whether a write outside its scope was refused, in the first line of its return.
+   `[LANDED 2026-09-22]` All nine audits returned; the tables are `scratch/_agent_defs/audit/<name>.md`, the orchestrator's reading of them `scratch/_agent_defs/audit/_orchestrator_notes.md`. Each dispatch doubled as the step-5 probe.
+
+   | agent | population | (i) restates | (ii) gap | (iii) own | (iv) stale | tools as intended | write probe |
+   |---|---:|---:|---:|---:|---:|---|---|
+   | archivist | 213 | 54 (+20 restating its own definition) | 21 → 18 sentences | 113 | 5 | yes | generated-guard REFUSED |
+   | cross-domain-attacker | 98 | 28 | 4 | 64 | 2 | yes; no zotero tool | write-scope REFUSED |
+   | elegance-enforcer | 62 | 19 | 10 | 33 | 8 | yes | write-scope REFUSED |
+   | explorer | 77 | 35 | 13 | 27 | 2 | yes | write-scope REFUSED |
+   | literature-researcher | 81 (93 rows) | 10 | 20 → 18 sentences | 57 | 6 | yes; no zotero tool | write-scope REFUSED |
+   | method-implementer | 29 | 15 | 1 (+2 index-wide) | 9 | 4 | yes | generated-guard REFUSED |
+   | numerics-investigator | 63 | 22 | 10 | 31 | 0 | yes | generated-guard REFUSED |
+   | qa | 159 | 67 | 7 | 78 | 7 | yes | write-scope REFUSED |
+   | test-architect | 170 | 60 | 28 → 17 sentences | 76 | 6 | yes | generated-guard REFUSED |
+
+   `[M]` 9 of 9 dispatches held Read, Write, Edit, Bash and SendMessage, and every Key agent Agent; none held Grep, Glob, ToolSearch or AskUserQuestion; 9 of 9 write probes were refused by the intended hook, and the main agent's own edit of a generated rule was refused too (2026-09-22). Population and class counts are each agent's own, over its own stated population.
+
+   **Cross-cutting findings, for the rewrite:**
+   - **The orchestrator's briefs abbreviated the generated rules list** (2 of 2 Support agents measured it: the explorer got 5 of 7 items with `instrument-doctrine` cut at X2; the attacker lost `process-discipline`'s premise clause). The template says paste the list; the rewrite makes the definitions of briefing agents say "verbatim", and the orchestrator pastes the generated list rather than retyping it.
+   - **Every "grow the skill yourself" directive contradicts the new guards** (qa's trigger into the generated `vv-principles`; the attacker's Growth Protocol into `cross-domain-frames`, refused by write-scope). The rewrite: an agent proposes a skill or rule edit in its return, naming the clause it extends; the orchestrator applies it.
+   - **No Zotero tool reaches a sub-agent** (2 of 2 agents that list the server; port 23119 refused). The literature tier routes around Zotero until it is measured working.
+   - **Path-scoped rules reach an `omitClaudeMd` agent on a Read** (the attacker, 2 of 2).
+   - **The write-scope hook sees Edit, Write and MultiEdit only**; `mcp__nexus__rename` (applied) and `ingest`/`runtime_ingest` write files (`[R]`, the explorer). Add them to the read-only agents' matcher at the rewrite.
+   - **Correctness defects inside definitions**, each fixed at its agent's rewrite: the literature-researcher's direction-cosine mapping is inverted for both sources it names; the numerics-investigator's Step 3 (uniform reflective box) is exactly singular for DD at d ≥ 2; the elegance-enforcer's institutional-knowledge #1 puts fission inside the loss operator and #5 is refuted on Python 3.14.3; the test-architect's `n_inner=None` gap and `strict=False` xfail are stale, and `pyproject.toml:33`'s "run sentinels WITHOUT -O" is wrong for collected tests; the archivist's `vv-status` line implies a value (`implemented`) that is not legal.
+   - **Identities narrower than the work**: the elegance-enforcer's largest workload is documentation, harness prose and generator tools, not code; qa's is prose artefacts in 9 of 19 reviews; the test-architect's is operator-algebra carves, not solvers; the method-implementer adds two readiness conditions to §5.4 (a plan built on an unmerged branch is refused; the implementer never changes git state in the shared tree).
+   - **Filed**: #497, the xref gate certifies `:mod:` targets only (a dead `:class:` target is DECLINED).
+   - **Held, outside this campaign**: the method-implementer's L-013 (a separability claim possibly refuted by `R = R_spatial ⊗ A_angular`) is re-measured before it moves anywhere.
+
+   **Questions for the user** (collected from the audits): (Q6) may the literature-researcher fetch a freely published primary standard (ENDF-102, the NJOY manual) directly, asking only for a paywalled paper or a secondary substitution? (Q7) is `~/Downloads/NSE/` (760 NSE volume zips) a sanctioned second tier-0 location beside `scratch/literature/`? (Q8) should the #231 page template get a home in `docs/development/`, or does the `documentation` rule's placement law suffice? (Q9) the memory retirements (classes (i) and (iv), and the archivist's 29 unindexed topic files) — apply them in each agent's rewrite commit?
 4. **The rewrite (§5.5),** one agent per commit, folding in D4, D5, D7, the gap list and the §5.2–§5.4 mandates, with the amendment census at 0.
 5. **Confirm by dispatching:** each agent is probed for what it received (tools, write scope, memory policy).
 
