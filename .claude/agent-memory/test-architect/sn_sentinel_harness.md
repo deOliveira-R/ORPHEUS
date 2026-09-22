@@ -13,19 +13,12 @@ Plan: `.claude/plans/sn_sentinel_harness.md`. Marker `@pytest.mark.sentinel`
 a flip localizes via the killed test's `cap()` + the DAG. Tripwire +
 localizer, NOT proof. `pytest -m sentinel` = 15 node-IDs, ~4.3 s, green.
 
-## CRITICAL hazard — `-O` strips bare `assert`
-The canonical ORPHEUS invocation `python -O -m pytest`
-([[feedback_default_test_mode_is_optimize]]) makes bare `assert`
-statements NO-OPs. Sentinels using bare `assert` (alpha-dome,
-keff homogeneous_exact) become tripwires that CANNOT trip under `-O`.
-**The sentinel gate MUST run WITHOUT `-O`.** `np.testing.assert_*` is a
-function call and DOES fire under `-O`; bare `assert` does NOT. The set
-mixes both, so `-O` is unsafe for the sentinel gate specifically.
-**Why:** a canary that can't die is worse than no canary (false green).
-**How to apply:** any always-on assert-based gate → drop `-O`; OR
-require `np.testing.assert_*` only. This is now **vv-principles Mode 8**
-(compiled-out assertion / runtime-mode strip) — the breadcrumb landed in
-the skill's failure-mode table; the skill is the canonical home.
+## The `-O` scope
+Sentinels run under the canonical `python -O -m pytest` like every gate. A bare
+`assert` in a COLLECTED test module survives `-O` (pytest rewrites it; `[M]`
+2026-09-22, 1 failed); one in a helper, a fixture or production code is
+stripped. The scope is `coding-standards`, "A bare `assert`", and `vv-principles`
+Mode 8(1).
 
 ## Mutation tool (S0 verdict)
 cosmic-ray 8.4.6 over mutmut on Py3.14.3. `local` distributor (NO xdist
@@ -34,7 +27,8 @@ cosmic-ray 8.4.6 over mutmut on Py3.14.3. `local` distributor (NO xdist
 capability node. Does NOT mutate strings. diamond.py FULL per-tier
 score = 99.7 % (373/374; lone survivor `-`→`//` in residual() = minor
 apply-direction gap). **GOTCHA: `local` leaves the last mutant on disk
-if killed → ALWAYS `git checkout -- <module>` after a run.** NEVER run
+if killed:** copy the module aside BEFORE the run and `diff -q` against the copy
+after it (`process-discipline`, "Mutation-testing an uncommitted file"). NEVER run
 sentinel-validation tests while a cosmic-ray exec mutates the same
 module (it reverts/re-applies concurrently → false green; cost me one
 contaminated run).

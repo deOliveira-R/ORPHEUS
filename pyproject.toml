@@ -30,8 +30,8 @@ test = [
     # is PER CAPABILITY TIER (see .claude/plans/archive/sn_test_taxonomy.md):
     # each tier dir runs single-process fast + light (e.g. operators =
     # 395 tests / 3s / 186 MB), and `pytest -m sentinel` is the
-    # seconds-fast always-on gate (run sentinels WITHOUT -O — vv Mode 8:
-    # -O strips bare asserts in non-rewritten helpers). NO whole-tree
+    # seconds-fast always-on gate, run under -O like every gate (a bare
+    # assert survives -O only in a collected test module). NO whole-tree
     # single-process run.
     #
     # xdist pin: 3.8.0 DEADLOCKS the scheduler on Python 3.14.3 (workers

@@ -30,8 +30,6 @@ orphans and will surface in every `session_briefing`.
   breaks noisily when the equation's code changes.
 - `@pytest.mark.slow` for tests that take >5 s. Use freely — `pytest
   -m "l1 and not slow"` is the standard fast-gate.
-- xfail tests for features not yet implemented: use
-  `strict=False` so the test naturally un-xfails when the feature
-  lands, rather than silently failing XPASS. Always include a
-  `reason=` string that points to the exact API or Sphinx label that
-  will unlock the test.
+- xfail tests for features not yet implemented: `strict=True` with a
+  `reason=` naming the API or Sphinx label that unlocks the test, paired
+  with a RECORD row (the test-architect definition, §2 "Not yet landed").
