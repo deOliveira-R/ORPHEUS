@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 8600
+  budget_tokens: 8900
   paths:
     - ".claude/plans/**"
 ---
@@ -93,7 +93,7 @@ Leave the original; put `[REFUTED YYYY-MM-DD] ...` beside it. Past-tense history
 
 ## §6 Sizing
 
-- **COMPACTION** A plan of four or more phases carries a compaction point after every four, with the phase-to-commit table, the corrections that supersede older text, the measured red baseline with its gate costs, and the durable lessons.
+- **COMPACTION** A plan of four or more phases carries a compaction point after every four, with the phase-to-commit table, the corrections that supersede older text, the measured red baseline with its gate costs, and the durable lessons. check: before the user is invited to `/compact`, everything is committed and the point is appended; after it, the session re-anchors from the plan and `git log`, never from the summary, re-reads only the next phase's files, and re-dispatches no agent for a question a memo already answers. `[R]` the user, 2026-07-03. [case](../evidence/plan-authoring.md#2026-07-03-compaction-protocol)
 - **NO-NEXT-POINTER** Never carry a hand-written `NEXT = <step>`; git and the task list hold it.
 - **BARE-#N** A plan's internal task numbers collide with real GitHub issue numbers; never write a bare `#N` for an internal step.
 - **EFFORT-IS-SIZING** Options are compared on correctness, alignment with the direction, ontological discipline and elegance (the cardinal page's preamble); effort is stated as sessions beside the chosen option, never as a reason. check: an option whose reason is "lighter", "fewer files", "less renaming" or "smaller diff". tell: the user asks which option is more principled. `[R]` the user, 2026-08-21, 2026-09-02, 2026-09-21.
@@ -130,6 +130,7 @@ X1, asked at design time: **what input, existing in the tree the moment this lan
 1. Merge status from git, never from a note (`process-discipline` § "Trust git for merge status"). [case](../evidence/plan-authoring.md#2026-08-06-forbidden-commit-snapshot)
 2. The implementing class's first line before designing to a phase's prose (same section).
 3. Every "blocked by / not possible" claim re-checked (same section). [case](../evidence/plan-authoring.md#2026-08-06-blocker-dissolved-later)
+4. A plan that consumes a subsystem another campaign rebuilt states that subsystem's capability against today's tree (the campaign, its merge hash, `file:line`) and its open gaps, each marked as biting the plan's scope or not, in the approval artefact itself and not only in a memo; the user's picture of a module and an agent's "it is done" are the same stale claim, checked the same way. [case](../evidence/plan-authoring.md#2026-07-26-dependency-readiness)
 
 ## §8 An enabler step still has its own blast radius
 

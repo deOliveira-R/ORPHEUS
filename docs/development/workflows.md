@@ -103,7 +103,25 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   sidecars; "not in the local folder" is a question to the user, never a
   pivot; Zotero at 0 hits plus connection refused is down, not empty. For a
   design review (cross-domain-attacker): the artefact's path; the return is
-  structural detection, no critique. For a review (P3, qa): every gate the
+  structural detection, no critique. For any review (qa, elegance-enforcer,
+  cross-domain-attacker on a design): two passes in order. First the
+  adversarial pass, no hedging: *how would I break this* (the input that makes
+  it silently wrong, the reassuring direction first) and *how would I make it
+  100× better* (a reframing of what the thing is for, not a tidier dataclass),
+  with reshaping proposed wherever there is a reason (future-proofing,
+  tightening, consolidating data and functions that share a context into
+  objects; "it works" and "the layering is sound" are not defences). Second,
+  written separately, the re-evaluation: each attack survives or is withdrawn
+  with the reason the design had, and "well-factored, do not touch" appears
+  only there, as a withdrawn attack. A second-pass verdict is never an input
+  to the first (`[M]` 2026-08-16: a brief that told the adversarial pass "not
+  the rearrangement you already rejected" could not reach the conclusion that
+  mattered, a 56-method class with one shared field and 28 methods calling no
+  sibling, a procedural module wearing a class; the same day the gentle
+  question "what is misplaced?" found a mis-typed field where "how would I
+  break this?" found, in one probe, a runtime overlay that never checks it is
+  bound to the graph it was captured against). `[R]` the user, 2026-08-16.
+  For a review (P3, qa): every gate the
   plan promised, each with the plan's clause beside the path of the shipped
   assertion, so the reviewer reads the clause against the assertion and not
   only the assertion against the tree; a gate that ships fewer clauses than

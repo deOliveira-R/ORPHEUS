@@ -1048,6 +1048,18 @@ and 8 sites in `orpheus/derivations/` — every one inside the assembly's own
 rigorous than a prose one, so the tell that cannot be met is the one nobody
 re-reads. The dual of `vv-principles` #17's designed-green harness.
 
+### 2026-07-03 compaction protocol
+
+**Surprise.** A compaction summary is lossy: a session resumed from one re-dispatched agents for questions the memos had already answered. The user asked for explicit compaction points in the plan (the issue #290 plan review), so that `/compact` runs with everything committed and the plan, never the summary, is the re-anchor. Carried as a main-memory note for eleven weeks; the check joined the rule on 2026-09-21.
+
+**Clause.** §6 COMPACTION
+
+### 2026-07-26 dependency readiness
+
+**Surprise.** A DSA plan was rejected at its checkpoint because it consumed the diffusion module without stating that module's state after issue #290 had rebuilt it; the user still pictured the earlier island ("2 groups, not operator algebra") and concluded a "develop diffusion first" phase was missing. The evidence was in the reconnaissance memo and not in the approval artefact. Carried as a main-memory note for eight weeks; the clause joined the rule on 2026-09-21.
+
+**Clause.** §7.4
+
 ## Appendix mechanism census (2026-09-20; moved here from the rule 2026-09-21)
 
 Convention: one per bold tag; the numbered spellings of MEMBERS SPELLED WITHOUT THE SYMBOL count individually and their header does not; one per numbered item in §7; one per section-intro paragraph. Measured 2026-09-20 by that convention: §1 12; §2 29; §3 4; §4 8; §5 2; §6 3; §6b 21; §6c 5; §6d 7; §7 3; §8 5; §9 2; §10 9. **Total 110**. Fourteen clauses were promoted from surprise-log rows DATED 2026-09-04 to 2026-09-18: NEW-MEMBER-DERIVATION; CARVE-FORKS-THE-DENOMINATOR, DEFINITION-FILE-ONLY, RESUME-BLOCK-M, DECLARED-NULL-IS-A-HYPOTHESIS, RECONCILE-THEN-EXPLAIN, FIRST-FINDING-GATE-MAXIMUM, CARRIED-COUNT; POLYMORPHIC-MINT, COUNTING-SPY, METRIC-TWIN-ACCESSOR, HELPER-RETURNED-RECEIVER, RENAME-BY-TYPE-FIRST; INERT-WITNESS. The review of 2026-09-20 restored AST-EDGE-COUNTS and split spelling (12b). [REMEDIED 2026-09-20 @0d376e4f] the previous appendix claimed 110 with §6d 7 and §10 10 under no stated convention; by this convention the pre-review core counted 108 (§6d 6, §10 9). Nothing is deleted: every founding case and log row is on the evidence page.

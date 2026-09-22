@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1900
+  budget_tokens: 2000
 ---
 
 # Workflows — roles, invariants, and the routes work takes
@@ -94,7 +94,10 @@ One routing line each; the phases, the gates and the return contract are on
   gates `-W`, `dead_references`, `staleness`.
   [W4](../workflows.md#w4--documentation-campaign)
 - **W5 Design review** — **cross-domain-attacker** and **elegance-enforcer**
-  on a first-pass design; the output feeds W1's build.
+  on a first-pass design; the output feeds W1's build. Every review's first
+  pass is adversarial (how would I break this; how would I make it 100×
+  better) and its re-evaluation a separate second pass; a second-pass verdict
+  never bounds the first ([the brief](../workflows.md#the-brief)).
   [W5](../workflows.md#w5--design-review)
 - **W6 Tree-wide census** — haiku categorisers with a fixed output schema; the
   orchestrator aggregates; no nesting. [W6](../workflows.md#w6--tree-wide-census)

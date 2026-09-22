@@ -97,6 +97,8 @@ This is a function named `solve_adjoint`. Adding F (fission) requires a new func
 **Allowed exception — same-role subspace injection.** Strict single-source composition still permits one implicit move: a *same-role* broadcast injection across storages, where a smaller space embeds in a larger one of the **same physical role** (`A ⊂ B`), may be left implicit rather than spelled as a named composition — the embedding is unambiguous and carries no convention to drift. Cross-*role* combinations stay explicitly named. (Narrow carve-out; it exists so an over-zealous reviewer does not reject a legitimate broadcast injection.)
 
 
+**The sibling-package census (2026-06, the isotropic-scattering mint).** Framed for SN alone, "mint an iso-frame or reuse" hid the question the user asked twice: is this the same concept living in N places? The `Σ_s0ᵀφ` group-transfer product was implemented six times (SN, CP, MoC, diffusion, homogeneous, MC); the right move was one energy operator on the scalar flux (`IsotropicScattering`, `IsotropicN2N`), not an SN-only `ConstantBasis` frame, which would have forked `R∘M` and been degenerate in two of the three models, and the transpose being chased through a "composable forward" was already free on `full_scatter_kernel.apply_transpose`. The trigger it added to Pattern 2 (2026-09-21): before minting for one method, grep the sibling method packages.
+
 ## Pattern 3 named intermediates
 
 

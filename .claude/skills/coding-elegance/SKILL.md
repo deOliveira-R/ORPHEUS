@@ -107,7 +107,10 @@ function the moment F appears; an unbounded explosion.
 **2 — Single source of truth (composition over duplication).** Every concept
 appears in exactly one place; two pieces of code computing the same mathematical
 quantity are a bug in waiting (X4 decides "the same": α-normalised ASTs, never names). **Trigger:** the moment you reach for copy-paste,
-OR write a parallel implementation "because the layout differs". **Signature:**
+OR write a parallel implementation "because the layout differs", OR mint for ONE
+method an operation the sibling method packages may already spell (grep
+`cp/ moc/ diffusion/ homogeneous/ mc/` first; improving the machinery that exists
+beats minting beside it). **Signature:**
 "I just had to apply this fix in two places." **Domain example:** the sweep and
 the matvec both compose ONE `SNCellOperator` over `iter_cells_by_direction(±1)`,
 so ERR-026 manifestation #7 (O(h) drift between them) dissolves by construction.

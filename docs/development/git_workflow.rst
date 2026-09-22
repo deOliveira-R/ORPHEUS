@@ -132,7 +132,10 @@ in the diff.
 
 - ``Closes #NN`` auto-closes the GitHub issue on merge
 - ``Co-Authored-By:`` lists AI co-authors when the work was
-  agent-generated
+  agent-generated; it names the model of the committing session, read
+  from that session's own environment, never copied from an older brief,
+  memory or directive (the user's ruling, 2026-07-03: a trailer written by
+  an earlier model was truthful for that model and is not for this one)
 
 
 Merging to ``main``

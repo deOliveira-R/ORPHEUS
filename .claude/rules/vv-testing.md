@@ -68,6 +68,23 @@ assertion; implement or substitute one that IS exact.
   `error_catalog.rst` entry. Either marker is a coverage CLAIM with a shelf
   life, adjudicated per `vv-principles` § "Log every caught bug".
 
+## A type that embodies a mathematical concept ships the test of its defining laws
+
+When a type or an operator embodies a mathematical concept (a cone, a
+probability simplex, a multiplier algebra, an affine torsor, a frame), its
+defining properties are enumerated and each is one gate that lands WITH the
+type, at L0 or L1: closure under the operations, the identities, the
+invariants, and one failing-input negative. A usage test or a round-trip
+asserts nothing about the concept: an untested law is a claim the code makes
+about the mathematics that nothing verifies, and the concept drifts silently.
+`[R]` the user, 2026-06-19, on `SpectrumField`'s `Σχ = 1` (issue #257).
+
+- check: for a new math-bearing type, list its laws before its first consumer
+  and write one gate per law (a cone: closed under `+` and under `λ ≥ 0`, with
+  `σ = 0` its origin; a simplex: `Σχ = 1` at construction plus the refusal; a
+  multiplier algebra: `M_f M_g = M_{fg}`, `M_1 = I`, `M_0 = 0`, `M_f.H = M_f`).
+- tell: a type whose only tests are its consumers'.
+
 ## Trivial execution & audit
 
 - `pytest -m l0` — term verification; `pytest -m "l1 and not slow"`;

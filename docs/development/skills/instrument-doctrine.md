@@ -147,7 +147,11 @@ and goes stale when the target grows: point, and let the definition speak.
 
 Ask independence per axis: the DERIVATION axis (no shared identity, integrand
 or closed form) and the INPUT axis (no shared constructed object handed to both
-sides). Compare two "independent" implementations by α-normalised AST; an
+sides). A verified primitive both sides call (one dense eigensolver, one
+integrator) is neither axis: the SUT and its oracle stay independent when they
+ASSEMBLE its inputs by different routes, and the primitive is trusted once it is
+pinned against a domain-free closed form (a matrix with chosen eigenpairs), never
+against an in-domain solver. Compare two "independent" implementations by α-normalised AST; an
 α-equivalent pair is one implementation under two names, and its agreement is
 a tautology. Before retiring a duplicate, name the mechanism that kept the
 copies equal and grep the shortest distinctive fragment of its message for a
