@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12214**
+Total tests collected: **12240**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1763, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9045, 74.1%
+   foundation, 9071, 74.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12108
+   explicit, 12134
    class-name, 46
    func-name, 0
    case, 33
@@ -358,7 +358,7 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
-   numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_descent, 0, 0, 0, 0, 20, 0
@@ -696,6 +696,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``keff-cycle``, 17
    ``roulette-conservation``, 17
    ``roulette-prob``, 17
+   ``coupled-block-system-restriction-laws``, 16
    ``discrete-measure-integrate``, 16
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15

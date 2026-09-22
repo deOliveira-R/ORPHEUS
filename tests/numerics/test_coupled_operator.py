@@ -1436,3 +1436,330 @@ class TestSystemRestriction:
     def test_is_adjointable(self) -> None:
         _, r = _restriction_pair()
         assert r.is_adjointable is True
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The system restriction's LAWS, on both members
+# (:eq:`coupled-block-system-restriction-laws`)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The page states four laws of the pair (r_i, ι_i = r_iᵀ) and two
+# consequences for P_i = ι_i ∘ r_i. Each gate below pins one of them on
+# BOTH members (``system=0`` and ``system=1``) of a two-member coupling
+# whose member metrics carry NON-unit, member-distinct weights. Three
+# fixtures:
+#
+# * ``rect`` — 3 ⊕ 2 degrees of freedom: the member offsets are live;
+# * ``square`` — 3 ⊕ 3: a restriction that reads the WRONG member is
+#   shape-legal here, so it reds on values rather than on a shape error;
+# * ``singular`` — 3 ⊕ 3 with a zero weight in member 1: the metric has a
+#   kernel, which is where the fourth law's projector P_range(G_i) is not
+#   the identity.
+#
+# Every input is cotangent-role on every member (the class the extension
+# mints), and every comparison is on the flat values. No row exercises or
+# asserts the member classes of an extension applied to a flux-role
+# input: that mixed-role result is the open design question #496, and a
+# gate must not bless it.
+#
+# Markers: the four gates that pin the four laws of the labelled equation
+# carry ``verifies("coupled-block-system-restriction-laws")``; the two
+# consequences (``P_i`` idempotent and ``G``-orthogonal) are derived in the
+# page's prose under no label of their own, so their gates carry none.
+# Every gate names, in its docstring, the mutation class it is blind to.
+
+_LAW_WEIGHTS = {
+    "rect": ((1.0, 2.0, 0.5), (3.0, 0.25)),
+    "square": ((1.0, 2.0, 0.5), (3.0, 0.25, 1.5)),
+    "singular": ((1.0, 2.0, 0.5), (3.0, 0.0, 1.5)),
+}
+#: The metric-free laws do not read a weight, so the singular fixture adds
+#: no case to them (count CASES, not rows).
+_METRIC_FREE = ("rect", "square")
+_SEEDS = range(20)
+#: The dual (cotangent-role) member classes, by member index.
+_DUAL_CLS = (_GammaField, _DeltaField)
+
+
+def _law_space(fixture: str) -> CoupledSpace:
+    wa, wb = (np.array(w) for w in _LAW_WEIGHTS[fixture])
+    member_a = _ToySpace(name="alpha", shape=(wa.size,), inner_product_weights=wa)
+    member_b = _ToySpace(name="beta", shape=(wb.size,), inner_product_weights=wb)
+    return CoupledSpace.from_systems(
+        (member_a, member_b),
+        zeros=lambda: CoupledField(
+            systems=(
+                _AlphaField(values=np.zeros(wa.size)),
+                _BetaField(values=np.zeros(wb.size)),
+            ),
+        ),
+        dual_zeros=lambda: CoupledField(
+            systems=(
+                _GammaField(values=np.zeros(wa.size)),
+                _DeltaField(values=np.zeros(wb.size)),
+            ),
+        ),
+    )
+
+
+def _sizes(fixture: str) -> tuple[int, int]:
+    wa, wb = _LAW_WEIGHTS[fixture]
+    return len(wa), len(wb)
+
+
+def _member(fixture: str, i: int, rng: np.random.Generator) -> CoupledField:
+    """A random cotangent-role field of member ``i`` (a 1-member coupling)."""
+    return CoupledField(
+        systems=(_DUAL_CLS[i](values=rng.standard_normal(_sizes(fixture)[i])),),
+    )
+
+
+def _whole(fixture: str, rng: np.random.Generator) -> CoupledField:
+    """A random cotangent-role field of the whole coupling."""
+    na, nb = _sizes(fixture)
+    return CoupledField(
+        systems=(
+            _GammaField(values=rng.standard_normal(na)),
+            _DeltaField(values=rng.standard_normal(nb)),
+        ),
+    )
+
+
+def _projector(r: SystemRestrictionOperator, x: CoupledField) -> np.ndarray:
+    """``P_i x = ι_i r_i x``, flat."""
+    return r.apply_transpose(r.apply(x)).to_flat()
+
+
+def _g_pairing(fixture: str, a: np.ndarray, b: np.ndarray) -> float:
+    """``⟨a, b⟩_G`` on flat coupled vectors, from the raw member weights —
+    independent of the production ``CoupledSpace.inner_product``."""
+    return float(np.sum(np.concatenate(_LAW_WEIGHTS[fixture]) * a * b))
+
+
+class TestSystemRestrictionLaws:
+    @pytest.mark.verifies("coupled-block-system-restriction-laws")
+    @pytest.mark.parametrize("system", [0, 1])
+    @pytest.mark.parametrize("fixture", _METRIC_FREE)
+    def test_split_law(self, fixture, system) -> None:
+        r"""``r_i ∘ ι_i = id`` on member ``i``, bitwise.
+
+        Reds when the extension or the restriction is not a split pair (an
+        extension that scales, a restriction that reads the wrong member).
+        **Stabiliser:** blind to an extension that also writes into ANOTHER
+        member, because every such section satisfies ``r_i ∘ s = id``
+        (the page's non-uniqueness argument); the cross law and the
+        G-orthogonality of ``P_i`` catch that.
+        """
+        r = SystemRestrictionOperator(_law_space(fixture), system=system)
+        for seed in _SEEDS:
+            v = _member(fixture, system, np.random.default_rng(seed))
+            back = r.apply(r.apply_transpose(v))
+            np.testing.assert_array_equal(
+                back.to_flat(), v.to_flat(),
+                err_msg=f"[{fixture}, system={system}, seed {seed}] "
+                        f"r_i ∘ ι_i != id",
+            )
+
+    @pytest.mark.verifies("coupled-block-system-restriction-laws")
+    @pytest.mark.parametrize("system", [0, 1])
+    @pytest.mark.parametrize("fixture", _METRIC_FREE)
+    def test_cross_law(self, fixture, system) -> None:
+        r"""``r_j ∘ ι_i = 0`` for ``j ≠ i``, exact zeros.
+
+        With the split law this is the whole definition of the extension:
+        ``ι_i v`` holds ``v`` in slot ``i`` and zero in every other slot.
+        Reds when the extension writes into another member, or when the
+        restriction reads the wrong one.
+        """
+        space = _law_space(fixture)
+        r_i = SystemRestrictionOperator(space, system=system)
+        r_j = SystemRestrictionOperator(space, system=1 - system)
+        for seed in _SEEDS:
+            v = _member(fixture, system, np.random.default_rng(seed))
+            other = r_j.apply(r_i.apply_transpose(v)).to_flat()
+            np.testing.assert_array_equal(
+                other, np.zeros(_sizes(fixture)[1 - system]),
+                err_msg=f"[{fixture}, i={system}, j={1 - system}, seed {seed}] "
+                        f"r_j ∘ ι_i != 0",
+            )
+
+    @pytest.mark.verifies("coupled-block-system-restriction-laws")
+    @pytest.mark.parametrize("fixture", _METRIC_FREE)
+    def test_completeness(self, fixture) -> None:
+        r"""``Σ_i ι_i ∘ r_i = id`` on the whole coupling, bitwise.
+
+        The sum is taken on the flat values (each term is exactly zero off
+        its own member, so the sum is exact). Reds when an extension writes
+        into another member (a slot counted twice) or a restriction reads
+        the wrong one (a slot moved).
+        """
+        space = _law_space(fixture)
+        restrictions = [SystemRestrictionOperator(space, system=i) for i in (0, 1)]
+        for seed in _SEEDS:
+            x = _whole(fixture, np.random.default_rng(seed))
+            total = sum(_projector(r, x) for r in restrictions)
+            np.testing.assert_array_equal(
+                total, x.to_flat(),
+                err_msg=f"[{fixture}, seed {seed}] Σ_i ι_i r_i != id",
+            )
+
+    @pytest.mark.parametrize("system", [0, 1])
+    @pytest.mark.parametrize("fixture", _METRIC_FREE)
+    def test_projector_is_idempotent(self, fixture, system) -> None:
+        r"""``P_i ∘ P_i = P_i`` for ``P_i = ι_i ∘ r_i``, bitwise.
+
+        Reds when the pair is not split (a scaled extension gives
+        ``P' = 2P``, ``P'² = 4P``). **Stabiliser:** like the split law it
+        is blind to an extension that also writes into another member
+        (``s ∘ r_i`` is idempotent for every section ``s``); that
+        projector is idempotent but not orthogonal, which
+        :meth:`test_projector_is_G_orthogonal` catches.
+        """
+        space = _law_space(fixture)
+        r = SystemRestrictionOperator(space, system=system)
+        for seed in _SEEDS:
+            x = _whole(fixture, np.random.default_rng(seed))
+            once = _projector(r, x)
+            twice = _projector(r, CoupledField.from_flat(once, x))
+            np.testing.assert_array_equal(
+                twice, once,
+                err_msg=f"[{fixture}, system={system}, seed {seed}] P² != P",
+            )
+
+    @pytest.mark.parametrize("system", [0, 1])
+    @pytest.mark.parametrize("fixture", list(_LAW_WEIGHTS))
+    def test_projector_is_G_orthogonal(self, fixture, system) -> None:
+        r"""``⟨P_i a, b⟩_G = ⟨a, P_i b⟩_G`` and ``⟨P_i a, (I − P_i) b⟩_G = 0``.
+
+        The pairing is built from the raw member weights, independently of
+        the production metric; a precondition pins the two equal (the
+        metric population). Both legs are bitwise: the orthogonality is
+        exactly ``0.0`` (every product has a zero factor), and the two
+        sides of the self-adjointness sum the same products in the same
+        order (off member ``i`` each product has a zero factor).
+
+        This is the row that pins WHICH section the extension is: an
+        extension ``s`` that also writes ``A_j v`` into member ``j``
+        leaves ``s ∘ r_i`` idempotent and split, and fails here, because
+        ``s ∘ r_i`` is ``G``-self-adjoint exactly when ``G_j A_j = 0``
+        (the page's argument). **Stabiliser:** a section whose extra write
+        lands only on the kernel of ``G_j`` is ``G``-orthogonal and passes
+        (on the ``singular`` fixture, a write into member 1's zero-weight
+        slot), and the cross law is its catcher.
+        """
+        space = _law_space(fixture)
+        r = SystemRestrictionOperator(space, system=system)
+        eps = np.finfo(float).eps
+        probe = _whole(fixture, np.random.default_rng(12345))
+        np.testing.assert_allclose(
+            space.inner_product(probe, probe),
+            _g_pairing(fixture, probe.to_flat(), probe.to_flat()),
+            rtol=4 * eps,
+            err_msg=f"[{fixture}] precondition: the production metric is not "
+                    f"the raw member weights",
+        )
+        for seed in _SEEDS:
+            rng = np.random.default_rng(seed)
+            a, b = _whole(fixture, rng), _whole(fixture, rng)
+            pa, pb = _projector(r, a), _projector(r, b)
+            left = _g_pairing(fixture, pa, b.to_flat())
+            right = _g_pairing(fixture, a.to_flat(), pb)
+            if left != right:
+                pytest.fail(
+                    f"[{fixture}, system={system}, seed {seed}] P_i is not "
+                    f"G-self-adjoint: ⟨P a, b⟩_G = {left!r}, "
+                    f"⟨a, P b⟩_G = {right!r}"
+                )
+            cross = _g_pairing(fixture, pa, b.to_flat() - pb)
+            if cross != 0.0:
+                pytest.fail(
+                    f"[{fixture}, system={system}, seed {seed}] "
+                    f"⟨P a, (I − P) b⟩_G = {cross!r}, not 0"
+                )
+
+    @pytest.mark.verifies("coupled-block-system-restriction-laws")
+    @pytest.mark.parametrize("system", [0, 1])
+    @pytest.mark.parametrize("fixture", list(_LAW_WEIGHTS))
+    def test_metric_adjoint_is_extension_on_the_metric_range(
+        self, fixture, system,
+    ) -> None:
+        r"""``r_i.H = ι_i ∘ P_range(G_i)``: the extension by zero where the
+        member metric is nonsingular, and its projection where it is not.
+
+        ``r_i.H`` is the production Hilbert adjoint ``♯_V ∘ r_iᵀ ∘ ♭_{V_i}``.
+        Two legs, each against a reference built outside it:
+
+        * **closed form** — ``r_i.H v`` equals ``apply_transpose`` of ``v``
+          with the member metric's zero-weight slots zeroed (``P_range``,
+          from the raw weights), at ``rtol = 4·eps``: ``G_i⁺(G_i v)`` rounds
+          at most three times (``[M]`` 2026-09-22, worst 0.75 eps over 200
+          draws);
+        * **reciprocity** — ``⟨r_i x, v⟩_{G_i} = ⟨x, r_i.H v⟩_G`` with both
+          pairings built from the raw weights, at ``4·eps`` of the sum of
+          the absolute products. This is the leg that ties ``r_i.H`` to
+          ``apply`` as well as to ``apply_transpose``: the closed-form leg
+          alone is invariant under any change of the extension that
+          commutes with the metric (a scaled extension gives
+          ``r_i.H = 2 ι_i`` against a reference of ``2 ι_i``).
+
+        **The row's own control, asserted first:** the Euclidean pairing
+        ``⟨r_i x, y⟩`` and the metric pairing ``⟨r_i x, y⟩_{G_i}`` differ,
+        so the member metric is not the identity and dropping one Riesz
+        leg moves ``r_i.H`` (by ``G_i`` or ``G_i⁻¹``).
+
+        **Stabiliser:** on a nonsingular member ``r_i.H = r_iᵀ`` is the law
+        itself, so an ``.H`` that drops BOTH legs (a Euclidean adjoint) is
+        green on the ``rect`` and ``square`` rows, on both legs; only the
+        ``singular`` row, ``system=1``, sees it, on the closed-form leg,
+        because there ``r_1.H`` projects out the zero-weight slot and
+        ``r_1ᵀ`` does not (the reciprocity leg cannot: that slot has zero
+        weight in both pairings). A Euclidean block adjoint on an operator
+        whose blocks do not commute with the metric is the M4 tooth's
+        (ERR-067 class), not this row's.
+        """
+        space = _law_space(fixture)
+        r = SystemRestrictionOperator(space, system=system)
+        weights = np.array(_LAW_WEIGHTS[fixture][system])
+        eps = np.finfo(float).eps
+
+        rng = np.random.default_rng(777)
+        x, y = _whole(fixture, rng), _member(fixture, system, rng)
+        rx = r.apply(x).to_flat()
+        euclidean = float(rx @ y.to_flat())
+        metric = float(np.sum(weights * rx * y.to_flat()))
+        if not abs(euclidean - metric) > 0.1 * abs(metric):
+            pytest.fail(
+                f"[{fixture}, system={system}] control: the Euclidean pairing "
+                f"{euclidean!r} and the metric pairing {metric!r} agree — the "
+                f"member metric is (near) the identity, so a dropped Riesz leg "
+                f"could not move r.H"
+            )
+
+        adjoint = r.H
+        n_a = _sizes(fixture)[0]
+        for seed in _SEEDS:
+            v = _member(fixture, system, np.random.default_rng(seed))
+            projected = CoupledField(
+                systems=(
+                    replace(v.systems[0], values=np.where(
+                        weights != 0.0, v.systems[0].values, 0.0,
+                    )),
+                ),
+            )
+            expected = r.apply_transpose(projected).to_flat()
+            got = adjoint.apply(v).to_flat()
+            np.testing.assert_allclose(
+                got, expected, rtol=4 * eps, atol=0.0,
+                err_msg=f"[{fixture}, system={system}, seed {seed}] "
+                        f"r_i.H != ι_i ∘ P_range(G_i) (member offset "
+                        f"{0 if system == 0 else n_a})",
+            )
+            x = _whole(fixture, np.random.default_rng(1000 + seed))
+            terms = weights * r.apply(x).to_flat() * v.to_flat()
+            lhs = float(np.sum(terms))
+            rhs = _g_pairing(fixture, x.to_flat(), got)
+            if not abs(lhs - rhs) <= 4 * eps * (float(np.sum(np.abs(terms))) + 1e-300):
+                pytest.fail(
+                    f"[{fixture}, system={system}, seed {seed}] G-reciprocity "
+                    f"broken: ⟨r x, v⟩_G_i = {lhs!r}, ⟨x, r.H v⟩_G = {rhs!r}"
+                )

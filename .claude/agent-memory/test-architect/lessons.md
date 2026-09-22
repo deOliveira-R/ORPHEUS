@@ -315,6 +315,14 @@ the carve and re-pose them in the SAME commit.
   `A[range, ker]`: writes into kernel rows and kernel→kernel maps are its
   stabiliser. → `L90`
 
+- **⛔ An "adjoint == closed form" gate whose reference is built from the SUT's
+  own transpose is invariant under every change of that transpose that commutes
+  with the metric** (a scaled extension: `r.H = 2ι` vs a reference `2ι`). Pair it
+  with a RECIPROCITY leg `⟨r x, v⟩ = ⟨x, r.H v⟩` against `apply`, from raw
+  weights. The two legs have complementary stabilisers (reciprocity is blind to
+  anything on the metric's kernel); only a singular member separates a Euclidean
+  `.H` from the metric one when the law says they coincide. → `L91`
+
 ## 2. Harness discipline — the instrument lies before the code does
 
 `vv` anti-#17's nine checks and `instrument-doctrine` X1 are the rule. Below:

@@ -11424,3 +11424,18 @@ defining laws" is the obligation; below is how to meet it here.
 - Per-leg teeth needed a TRANSPOSE-ONLY write arm (5 activations); a consistent
   forward+transpose write reds only the forward-row leg.
   Report: `scratch/_followups/err020_gate.md` §G1/G2.
+
+## L91 — the system-restriction laws gated on both members (2026-09-22; tests only)
+
+- Seven in-process arms over 34 rows: wrong-member restriction, extension with an
+  extra write, the same write on `ker G_j` only, scaled extension, ♭ dropped, ♯
+  dropped, both dropped. Split law + idempotence blind to the extra write (every
+  section is split and idempotent); G-orthogonality blind to a write on `ker G_j`;
+  the metric-adjoint closed form blind to the scaled extension until a reciprocity
+  leg was added; a Euclidean `.H` visible only on the singular member (r* = rᵀ is
+  the law on a nonsingular one).
+- A 3 ⊕ 2 fixture turns a wrong-member read into a SHAPE error; a same-size 3 ⊕ 3
+  fixture makes it a value red. Ship both.
+- The existing 8 tests had no `.H` row (M4–M6 all green) and their idempotence test
+  was blind to the wrong-member arm.
+  Report: `scratch/_followups/err020_gate.md` §System-restriction laws.

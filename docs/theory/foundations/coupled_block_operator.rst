@@ -557,10 +557,21 @@ adds:
    no-implementation (below). Gated: the split law r_1 iota_1 = id and the
    idempotence of iota_1 r_1 on the FIRST member (the code's system=0), by
    the foundation tests of TestSystemRestriction
-   (tests/numerics/test_coupled_operator.py), on toy members. Measured and
-   NOT gated ([M] 2026-09-22, the fixture above, 200 draws): the cross law,
-   the completeness sum, the metric adjoint, the G-orthogonality of P_i
-   and every law on the second member.
+   (tests/numerics/test_coupled_operator.py), on toy members. Since
+   2026-09-22 every law is gated on BOTH members (system=0 and system=1)
+   of toy members with non-unit weights: the four laws by
+   tests/numerics/test_coupled_operator.py::TestSystemRestrictionLaws
+   (test_split_law, test_cross_law, test_completeness,
+   test_metric_adjoint_is_extension_on_the_metric_range, each carrying
+   verifies(coupled-block-system-restriction-laws)), the last including a
+   member whose metric has a kernel, where r_i* = iota_i P_range(G_i)
+   differs from iota_i; the two consequences by
+   test_projector_is_idempotent and test_projector_is_G_orthogonal. Each
+   gate reddens under an in-process mutation of the law it names (a
+   wrong-member restriction, an extension writing into another member, a
+   scaled extension, a dropped Riesz leg), and its docstring names the
+   mutation class it is blind to. The 200-draw measurements on the
+   production sphere carrier ([M] 2026-09-22, the fixture above) agree.
 .. vv-status: coupled-block-system-restriction-laws documented
 
 .. math::
@@ -792,10 +803,15 @@ zeros; the Euclidean pairing :math:`\langle r x, y\rangle = \langle x,
 \iota y\rangle`; the idempotence of :math:`\iota \circ r`; the two refusals
 (an unwired dual seam, a member index out of range); and
 ``is_adjointable``. Every construction site among them restricts onto
-the first member, or refuses a third. The cross law, the completeness sum,
-the metric adjoint :math:`r_i^{*} = \iota_i`, the :math:`G`-orthogonality of
-:math:`P_i`, and every law on the second member are this subsection's
-measurements and are not gated.
+the first member, or refuses a third. The rest was measured and not gated
+until 2026-09-22; since then
+``tests/numerics/test_coupled_operator.py::TestSystemRestrictionLaws``
+gates, on both members, the cross law,
+the completeness sum, the metric adjoint in its full form
+:math:`r_i^{*} = \iota_i \circ P_{\operatorname{range}(G_i)}` (on a member
+with a singular metric it is not :math:`\iota_i`), the idempotence and the
+:math:`G`-orthogonality of :math:`P_i`, each red under a mutation of the law
+it names.
 
 The two-system role lattice — :class:`SystemRole`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
