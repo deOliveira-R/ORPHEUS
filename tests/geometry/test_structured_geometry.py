@@ -19,6 +19,7 @@ from orpheus.geometry import (
     Region,
     RegionMesh,
     StructuredGeometry,
+    compute_volumes_1d,
 )
 
 
@@ -274,6 +275,102 @@ class TestRegionMesh:
 # ─────────────────────────────────────────────────────────────────────
 
 
+# The power of ``r`` in the cell measure: ``V ∝ x_out - x_in`` with
+# ``x = r**p`` (slab p=1, cylinder p=2, sphere p=3).
+_MEASURE_POWER = {
+    CoordSystem.CARTESIAN: 1,
+    CoordSystem.CYLINDRICAL: 2,
+    CoordSystem.SPHERICAL: 3,
+}
+
+# The volume (per unit transverse area / height) of the region between
+# two radii: the closed form, written from geometry, not from the mesh.
+_MEASURE_PREFACTOR = {
+    CoordSystem.CARTESIAN: 1.0,
+    CoordSystem.CYLINDRICAL: np.pi,
+    CoordSystem.SPHERICAL: 4.0 / 3.0 * np.pi,
+}
+
+
+def _closed_form_region_volume(
+    coord: CoordSystem, inner: float, outer: float,
+) -> float:
+    p = _MEASURE_POWER[coord]
+    return _MEASURE_PREFACTOR[coord] * (outer**p - inner**p)
+
+
+def _assert_equal_volume_regions(
+    mesh: Mesh1D,
+    mat_ids: tuple[int, ...],
+    cells_per_region: tuple[int, ...],
+    radii: tuple[float, ...],
+) -> None:
+    """Per region: every cell volume EXACTLY equal, the total the closed form.
+
+    The ERR-020 invariant, asserted region by region. ``radii`` are the
+    region boundaries written by the caller from the geometry (never
+    read off ``mesh.edges``). Each region's slice is first asserted to
+    BE that region (its cells carry its material id), so a change of
+    cell ordering fails here rather than silently checking the wrong
+    cells.
+    """
+    np.testing.assert_equal(sum(cells_per_region), mesh.N)
+    start = 0
+    for k, (mat_id, n) in enumerate(zip(mat_ids, cells_per_region, strict=True)):
+        cells = slice(start, start + n)
+        np.testing.assert_array_equal(
+            mesh.mat_ids[cells], np.full(n, mat_id),
+            err_msg=f"region {k}: the cell slice is not the region",
+        )
+        volumes = mesh.volumes[cells]
+        np.testing.assert_array_equal(
+            volumes, np.full(n, volumes[0]),
+            err_msg=(
+                f"region {k} ({mesh.coord.name}, r in "
+                f"[{radii[k]}, {radii[k + 1]}]): equal-volume cells are "
+                f"not bit-identical — the volumes were re-derived from "
+                f"the edges (ERR-020 round trip)"
+            ),
+        )
+        np.testing.assert_allclose(
+            volumes.sum(),
+            _closed_form_region_volume(mesh.coord, radii[k], radii[k + 1]),
+            rtol=1e-14,
+            err_msg=f"region {k} ({mesh.coord.name}): total volume",
+        )
+        start += n
+
+
+# Three regions whose inner radius changes at every interface, meshed
+# with cell counts that are NOT powers of two. The counts matter for
+# the Cartesian row: on a power-of-two subdivision of these dyadic
+# thicknesses every edge is exact, so ``np.diff(edges)`` reproduces
+# ``(outer - inner) / n`` bit for bit and the round trip cannot show
+# ([M] 2026-09-22: counts (4, 8, 4) -> 0 of 16 cells differ under the
+# round trip; counts (5, 7, 11) -> 3 of 5, 3 of 7, 2 of 11).
+_THREE_REGION_MAT_IDS = (0, 1, 2)
+_THREE_REGION_THICKNESS = (0.5, 1.0, 0.5)
+_THREE_REGION_RADII = (0.0, 0.5, 1.5, 2.0)
+_THREE_REGION_CELLS = (5, 7, 11)
+
+
+def _three_region_mesh(geometry: str) -> Mesh1D:
+    """The three-region mesh, built the way production builds one."""
+    g = StructuredGeometry(
+        geometry=geometry,
+        regions=tuple(
+            Region(mat_id=m, outer_thickness_cm=t)
+            for m, t in zip(
+                _THREE_REGION_MAT_IDS, _THREE_REGION_THICKNESS, strict=True,
+            )
+        ),
+        bcs=(BC.vacuum, BC.vacuum) if geometry == "SLB" else (BC.reflective,),
+    )
+    return Mesh1D.from_geometry(g, region_meshes=tuple(
+        RegionMesh(n_cells=n) for n in _THREE_REGION_CELLS
+    ))
+
+
 class TestMesh1DFromGeometry:
     def test_single_region_sphere_equal_volume(self):
         g = StructuredGeometry(
@@ -331,7 +428,16 @@ class TestMesh1DFromGeometry:
             mesh.mat_ids, [1, 1, 0, 0, 0, 0, 1, 1],
         )
 
+    @pytest.mark.catches("ERR-020")
     def test_multi_region_cylinder_equal_volume(self):
+        """The production pin-cell mesh: equal volume within each region.
+
+        The Wigner-Seitz pin cell meshed 10 / 3 / 7 is the default mesh
+        of the CP and MoC solvers. Beyond its cell counts, material ids
+        and boundary conditions, the name's claim is asserted: within
+        each of the three regions the cell volumes are EXACTLY equal and
+        sum to the closed-form annulus volume (ERR-020, multi-region).
+        """
         g = StructuredGeometry.wigner_seitz_pin_cell(
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
@@ -351,6 +457,12 @@ class TestMesh1DFromGeometry:
         assert (mesh.mat_ids == 0).sum() == 7
         assert mesh.bc_right == BC("white")
         assert mesh.bc_left is None
+        _assert_equal_volume_regions(
+            mesh,
+            mat_ids=(2, 1, 0),
+            cells_per_region=(10, 3, 7),
+            radii=(0.0, 0.9, 1.1, r_cell),
+        )
 
     def test_length_mismatch_raises(self):
         g = StructuredGeometry(
@@ -402,3 +514,75 @@ class TestMesh1DFromGeometry:
         assert np.all(mesh.volumes == mesh.volumes[0])
         expected_total = (4.0 / 3.0) * np.pi * 3.0 ** 3
         np.testing.assert_allclose(mesh.volumes.sum(), expected_total, rtol=1e-14)
+
+    @pytest.mark.catches("ERR-020")
+    @pytest.mark.parametrize("geometry", ["SLB", "CYL", "SPH"])
+    def test_equal_volume_multi_region_invariant(self, geometry):
+        """Equal-volume cells are bit-identical within EACH of three regions.
+
+        A multi-region mesh puts a subdivision boundary at every region
+        interface, where the inner radius of the equal-volume
+        subdivision changes (issue #489). Per region the cell volumes
+        are asserted EXACTLY equal (``==``, not a tolerance) and their
+        sum equal to the closed-form region volume at ``rtol=1e-14``.
+
+        The two legs catch different defects. The equality leg catches
+        ERR-020 itself: volumes re-derived from the edges through the
+        ``sqrt``-then-square / ``cbrt``-then-cube round trip (and, on
+        the slab, through the rounding of the edge positions), which
+        leaves every region's total correct, since the differences
+        telescope. The total leg catches a per-cell volume that drops
+        the region's inner radius, ``V_cell = V(0, outer) / n``: exact
+        on the first region and on every single-region mesh, whose
+        inner radius is the origin, so only a region beyond the first
+        can witness it.
+        """
+        mesh = _three_region_mesh(geometry)
+        _assert_equal_volume_regions(
+            mesh,
+            mat_ids=_THREE_REGION_MAT_IDS,
+            cells_per_region=_THREE_REGION_CELLS,
+            radii=_THREE_REGION_RADII,
+        )
+
+    @pytest.mark.parametrize("geometry", ["SLB", "CYL", "SPH"])
+    def test_equal_volume_edges_bound_the_volumes(self, geometry):
+        """The equal-volume edges and the precomputed volumes are one mesh.
+
+        ``Mesh1D.from_geometry`` stores the equal-volume cell volumes
+        computed from the algebraic invariant (the ERR-020 fix), so the
+        volumes no longer read the edges, and no volume assertion can
+        see an error in the equal-volume RADIUS formula
+        ``r_k = (r_in^p + k/n (r_out^p - r_in^p))^(1/p)``. This row is
+        the witness that the two spellings of the mesh agree: the volume
+        each pair of edges bounds, re-derived through the round trip,
+        equals the stored volume to the round trip's own conditioning.
+
+        Tolerance, derived rather than chosen: a cell's re-derived
+        volume is a difference ``x_{k+1} - x_k`` of ``x = r^p`` values
+        each carrying O(eps) relative error, amplified by
+        ``x / Δx <= n x_out / (x_out - x_in)``. The measured worst case
+        is 3.3 of that unit over 36 configurations (three coordinate
+        systems, four thickness sets, three cell-count sets up to 1000
+        cells; [M] 2026-09-22), so a factor 8 leaves 2.4x headroom while
+        an O(1) error in the radius formula is red by orders of
+        magnitude.
+        """
+        mesh = _three_region_mesh(geometry)
+        p = _MEASURE_POWER[mesh.coord]
+        eps = np.finfo(float).eps
+        rederived = compute_volumes_1d(mesh.coord, mesh.edges)
+        start = 0
+        for k, n in enumerate(_THREE_REGION_CELLS):
+            cells = slice(start, start + n)
+            x_in = _THREE_REGION_RADII[k] ** p
+            x_out = _THREE_REGION_RADII[k + 1] ** p
+            np.testing.assert_allclose(
+                rederived[cells], mesh.volumes[cells],
+                rtol=8.0 * n * x_out / (x_out - x_in) * eps, atol=0.0,
+                err_msg=(
+                    f"region {k} ({mesh.coord.name}): the edges do not "
+                    f"bound the stored equal volumes"
+                ),
+            )
+            start += n

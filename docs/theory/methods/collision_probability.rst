@@ -2437,7 +2437,7 @@ discrepancy in ``BickleyTables``" (safety argument for the swap).
 Equal-Volume Mesh Subdivision
 -------------------------------
 
-:func:`~geometry.factories._subdivide_zone` creates equal-volume cells:
+:func:`~orpheus.geometry.factories._subdivide_zone` creates equal-volume cells:
 
 **Cartesian:** :math:`x_k = x_0 + k(x_N - x_0)/N`.
 
@@ -2452,10 +2452,16 @@ Equal-Volume Mesh Subdivision
 
 .. (vv-status rationale) definition: the closed-form equal-annular-volume
 .. radius for cylindrical zone subdivision. Its verifiable content — that
-.. every cell in the zone carries bit-identical volume — is pinned by the
-.. FOUNDATION invariant
-.. ``tests/geometry/test_structured_geometry.py::test_equal_volume_cylindrical_invariant``
-.. (catches ERR-020), which by design carries no ``verifies(...)``.
+.. the edges R_k bound cells of equal volume — is pinned by the FOUNDATION
+.. invariant
+.. ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. (its CYL row), which by design carries no ``verifies(...)``: the radius
+.. formula replaced by equally spaced radii reddens it and no volume-equality
+.. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
+.. ERR-020's invariant, stored from the algebraic invariant rather than read
+.. off these radii, so the gates that catch ERR-020
+.. (``test_equal_volume_cylindrical_invariant`` and its multi-region
+.. siblings) cannot see this formula.
 .. vv-status: equal-volume-radius-cylindrical documented
 
 For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
@@ -2470,9 +2476,17 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 
 .. (vv-status rationale) definition: the closed-form equal-shell-volume
 .. radius for spherical zone subdivision, the analogue of
-.. :eq:`equal-volume-radius-cylindrical`. Pinned by the FOUNDATION invariant
-.. ``tests/geometry/test_structured_geometry.py::test_equal_volume_spherical_invariant``
-.. (catches ERR-020), which by design carries no ``verifies(...)``.
+.. :eq:`equal-volume-radius-cylindrical`. Its verifiable content — that the
+.. edges R_k bound cells of equal volume — is pinned by the FOUNDATION
+.. invariant
+.. ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. (its SPH row), which by design carries no ``verifies(...)``: the radius
+.. formula replaced by equally spaced radii reddens it and no volume-equality
+.. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
+.. ERR-020's invariant, stored from the algebraic invariant rather than read
+.. off these radii, so the gates that catch ERR-020
+.. (``test_equal_volume_spherical_invariant`` and its multi-region siblings)
+.. cannot see this formula.
 .. vv-status: equal-volume-radius-spherical documented
 
 For :math:`R_0 = 0`: :math:`R_k = R_N(k/N)^{1/3}`.

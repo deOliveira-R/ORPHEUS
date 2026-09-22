@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**87 entries · 321 catching tests · 0 uncaught.**
+**87 entries · 323 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -52,7 +52,7 @@ None — every catalogued defect has at least one catching test.
 | ERR-017 | 1 | Wigner-Seitz pitch formula doubled in MC heterogeneous tests |
 | ERR-018 | 1 | Direction sampling uses uniform theta instead of isotropic |
 | ERR-019 | 1 | Missing 4π·sin(θ) weight factor in MOC scalar flux update |
-| ERR-020 | 2 | ULP-noisy cell volumes from cbrt → **3 round trip |
+| ERR-020 | 4 | ULP-noisy cell volumes from cbrt → **3 round trip |
 | ERR-021 | 2 | Degenerate ray tangent to pin-cell corner raises IndexError |
 | ERR-022 | 1 | Negative lethargy bin width flips flux-per-lethargy sign |
 | ERR-023 | 2 | MC solver silently ignores Sig2 (n,2n) reactions |

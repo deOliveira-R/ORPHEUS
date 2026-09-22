@@ -790,21 +790,48 @@ older entries classify against.
    edges.
 
    **Test that catches it:**
+   ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_multi_region_invariant``
+   (parametrised over ``SLB``, ``CYL`` and ``SPH``),
+   ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_multi_region_cylinder_equal_volume``
+   and
    ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
    (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-020")``).
-   Each builds a single-region mesh through ``Mesh1D.from_geometry`` and
-   asserts the cell volumes EXACTLY equal (``volumes == volumes[0]``, not a
-   tolerance) plus the total against the closed-form volume at
-   ``rtol=1e-14``.  These succeed the original gate,
+   Each builds its mesh through ``StructuredGeometry`` and
+   ``Mesh1D.from_geometry``, as production does, and asserts region by region
+   that the cell volumes are EXACTLY equal (``==``, not a tolerance) and sum to
+   the closed-form region volume at ``rtol=1e-14``. The multi-region meshes are
+   three regions with radii 0, 0.5, 1.5 and 2.0 cm meshed 5 / 7 / 11, and the
+   Wigner-Seitz pin cell that is the collision-probability and characteristics
+   solvers' default mesh, meshed 10 / 3 / 7: a subdivision boundary sits at
+   every region interface, where the inner radius of the round trip changes.
+   Re-introducing the defect in process under ``python -O`` (volumes re-derived
+   from the edges through ``compute_volumes_1d``) reddens all six rows, and
+   beside them only the untagged single-region sphere row that asserts the
+   same invariant, of the 733 tests under ``tests/geometry`` that pass
+   unmutated (4 skipped and 1 xfailed besides); re-introducing it only on the
+   regions that do not start at the origin reddens the four multi-region rows and
+   leaves both single-region rows green, because a single-region mesh has no
+   such region (2026-09-22, #489). The total leg is blind to this defect, since
+   the re-derived differences telescope; its own witness is a per-cell volume
+   that drops the region's inner radius, which only a region beyond the first
+   can show.
+
+   The slab row is meaningful although a slab volume involves no ``sqrt`` or
+   ``cbrt``: re-deriving it as ``np.diff(edges)`` subtracts two rounded edge
+   positions, the same volume-to-edge-to-volume round trip, and the pre-fix
+   code did so for every coordinate system. The rounding is invisible on a
+   power-of-two subdivision of these dyadic thicknesses (0 of 16 cells differ
+   at 4 / 8 / 4) and visible otherwise (3 of 5, 3 of 7 and 2 of 11 cells at
+   5 / 7 / 11), which is why the rows use cell counts that are not powers of
+   two.  The gate these succeed,
    ``TestZoneSubdivision::test_equal_volume_{single,multi}_zone`` over every
-   ``CoordSystem``, retired with its class on 2026-05-05 (``81b083be``)
-   when ``StructuredGeometry`` replaced the zone factories (``b5e85c2d``,
-   same day).  The successor's scope is NARROWER than the original's: it
-   pins the cylindrical and spherical single-region paths only.  No
-   surviving catcher asserts bit-equal volumes on a Cartesian mesh or
-   across several regions — ``test_multi_region_cylinder_equal_volume`` in
-   the same class checks cell counts, edges and material ids, not volumes,
-   despite its name.
+   ``CoordSystem``, was retired with its class on 2026-05-05 (``81b083be``)
+   when ``StructuredGeometry`` replaced the zone factories (``b5e85c2d``, same
+   day); it compared at ``rtol=1e-14``, which is why the cylindrical drift of
+   about 6.7e-15 passed it. Until #489 the successors were narrower than it:
+   they pinned the single-region curvilinear paths only, and
+   ``test_multi_region_cylinder_equal_volume`` checked cell counts, edges and
+   material ids but not volumes, despite its name.
 
    **Lesson:** Non-bijective float operations (``sqrt``, ``cbrt``, ``exp``,
    ``log``) do not survive a round trip, and invariants that *should* hold
