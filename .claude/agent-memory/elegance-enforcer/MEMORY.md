@@ -3,13 +3,13 @@
 Slim index (one line per entry; detail lives in the topic files). The pattern/
 anti-pattern CATALOG is the preloaded `coding-elegance` skill; the cross-cutting
 institutional SMELLS (twin-delivery plumbing, role-grid, fuller-view-oracle
-exception, tells-to-grep) are in AGENT.md §"Institutional knowledge". This index
+exception, tells-to-grep) are in the definition's "Recurring shapes". This index
 holds only (1) review-PROCESS lessons, (2) git-true active state, (3) durable
 design-review reference.
 
 ## 1. Lessons — a HOT digest + a COLD archive (read the digest each review)
 
-- [lessons.md](lessons.md) — the hot digest (~300 ln): L-001–L-019 as standalone
+- [lessons.md](lessons.md) — the hot digest (283 ln): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
   behavioral rules, grouped {standing review order · verify-before-you-flag ·
   grading · blast radius · elegance calls · doc-carve certification}. Read every
   dispatch. Lessons the `coding-elegance` skill has since absorbed (anti-#20 ⊃ L-001,
@@ -20,32 +20,9 @@ design-review reference.
   inventories, the 16 L-013 doc-carve sharpenings. Load ONLY when a digest entry's
   `→ archive L-NNN` pointer is the thing you need.
 
-## 2. Active / in-flight state
+## 2. Active state
 
-**None of my own MERGED-campaign work is active** (git-verified 2026-07-22): #257/
-#247/#251/#245/#246/#249/#240/#158/#208/#20/#206 + the whole #226 inverse-as-operator
-carve (steps 1–6, incl. step-6 `f4919b1`) are all in origin/main. Rulings in the
-#226 topic files below; lessons in the digest.
-
-Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
-- **CS4c step 5** `refactor/cs4c-step5-construction-selected-bodies` (UNCOMMITTED
-  production tree, reviewed 2026-09-05). Report → `scratch/cs4c_step5_elegance_report.md`
-  (0 blocking, 11 should-fix, 8 nits; 8 approval conditions). Rulings + the four
-  reusable probes in `ends_select_the_body_rulings.md`.
-- **#426 step 2** `feature/n2n-transfer-family` — review DELIVERED 2026-09-04 →
-  `scratch/_426_step2_elegance_review.md` (3 violations, 9 should-fix, 8 nits);
-  rulings in `transfer_family_carve_rulings.md`. ⚠ The branch has since ff-merged
-  (user memory: `7f889694`, #426 CLOSED 2026-09-04) — reconcile with git, this
-  entry's old "NOT in main" was the stale-snapshot failure the box below warns about.
-  The step-3 corpus pass was in flight while I reviewed — any `docs/` count is dirty-tree.
-- **#236** `feature/sn-spatial-angular-product` (tip `6409328`, NOT in main). My
-  Phase 1b/2/3 reviews COMPLETE + delivered; no pending work.
-- **#2 consistent-DSA** `feature/sn-dsa` (UNCOMMITTED working tree, reviewed
-  2026-07-26). Verdict → parent agent; rulings in `dsa_accelerator_rulings.md`.
-
-> Merge-status in memory goes STALE. ALWAYS reconcile "resume/pending X" against
-> `git merge-base --is-ancestor <hash> origin/main` before acting; never trust a
-> frozen "NOT pushed" (this index was rebuilt on that rule).
+None. Merge status comes from git, never from this index (`process-discipline`).
 
 ## 3. Durable reference (reusable design-review pointers)
 
@@ -141,5 +118,4 @@ Sibling-repo (`sphinxcontrib-nexus`) — kept because the invariants are reusabl
   out"; missing-stale-node-guard crash; orthogonal-capabilities-as-flat-fields not tagged-union.
 - [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace/worktree wiring;
   `_switch_workspace` single-source; the `q.knowledge_graph` SSOT accessor.
-- [nexus_elegance_diagnostics.md](nexus_elegance_diagnostics.md) — CLI/MCP structural-smell
   diagnostics mapped to my axes. NOT confirmed installed (2026-06-21) — verify before relying.

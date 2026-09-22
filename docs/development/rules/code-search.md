@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1700
+  budget_tokens: 1800
   brief: >-
     `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 ---
@@ -78,6 +78,7 @@ on greps like it.
   `module.__file__` first). `[M]` 2026-09, a nine-commit bisect: both, both
   flattering.
 - tell: a confident, empty, wrong answer.
+- check: a grep over `docs/` excludes the build tree, `docs/_build/` (untracked, several gigabytes, holding each page's old copy under `_sources/`), or it reports stale anchors and old paths as live hits: `grep -r --exclude-dir=_build`, or `git grep`, which reads only tracked files (`[M]` 2026-09-22: of the 130 files under `docs/` naming `SNProblem`, 93 are build output; the elegance-enforcer and the archivist met it independently).
 
 ## The harness's search tools
 
