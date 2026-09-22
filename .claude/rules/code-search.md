@@ -59,7 +59,9 @@ on greps like it.
   before the interpreter sees it (`[M]` 2026-09-21: four markup patterns
   collapsed to "match any bold", 120 hits on clean prose; the same collapse
   the other way prints a clean 0). zsh also does not word-split an unquoted
-  `$var`.
+  `$var`, and an unquoted word beginning with `=` (`echo ===`) is a command
+  lookup that fails and aborts the whole compound, silently losing every grep
+  sequenced after it: quote separators.
 - tell: a confident, empty, wrong answer.
 
 ## The harness's search tools

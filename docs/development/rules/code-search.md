@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1500
+  budget_tokens: 1550
   brief: >-
     `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 ---
@@ -66,7 +66,9 @@ on greps like it.
   before the interpreter sees it (`[M]` 2026-09-21: four markup patterns
   collapsed to "match any bold", 120 hits on clean prose; the same collapse
   the other way prints a clean 0). zsh also does not word-split an unquoted
-  `$var`.
+  `$var`, and an unquoted word beginning with `=` (`echo ===`) is a command
+  lookup that fails and aborts the whole compound, silently losing every grep
+  sequenced after it: quote separators.
 - tell: a confident, empty, wrong answer.
 
 ## The harness's search tools

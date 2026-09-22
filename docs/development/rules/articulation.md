@@ -3,7 +3,7 @@ harness:
   kind: rule
   budget_tokens: 800
   brief: >-
-    a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured.
+    a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured; `[M]` on an inherited claim certifies that some measurement answered some question, so a `[M]` on a negative (absent, discarded, no consumers) is re-measured against the question at hand before it is built on.
 ---
 
 # Articulation — the writing standard

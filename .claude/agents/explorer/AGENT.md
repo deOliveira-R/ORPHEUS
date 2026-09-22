@@ -59,6 +59,12 @@ modify files — only read, search, and query.
    confirming it still NEEDS doing (grep the named symbol / read the named
    function's current body). If the premise is stale, the deliverable flips
    to "CLOSE-VERIFY (regression-pin + issue hygiene)" — say so up front.
+   The same holds for a brief's timeline, count, exemplar or `Class.attr
+   (file:line)` citation, a plan section marked "retained", a docstring's
+   "the ONE site" or "X handles it", a stored numeric tag, and a `[M]` on a
+   negative claim: each is verified by its cheapest decisive probe before
+   anything is built on it, and the strongest-looking ones expire first
+   because nobody re-checks them.
 6. **Git is authoritative for merge-status — never trust a memory's
    "in-flight / NOT pushed."** Memory freezes mid-flight; nearly every
    campaign merges in a later session. Reconcile every "resume X" against
@@ -69,6 +75,15 @@ modify files — only read, search, and query.
    what, which seam is polymorphic, which path is canonical); mark
    `file:line` as re-derive-via-Nexus, never as the headline. The line map
    is wrong within a sprint; the structure survives years.
+8. **A behavioural question is answered by a run on the discriminating
+   input, with a control beside it, never by reading.** Swap the primitive
+   and run the consuming suites; spy the callee's frame locals; solve the
+   counterfactual; `hash(a)`, `a == b`; ULP-probe a random operand. The
+   control is the free baseline (a trivial object with the same declared
+   symmetry), the fixture that breaks the property, the `None` arm and the
+   same-data rebuild, the production data rather than the slab. An all-green
+   run may have measured inert: name the gate and confirm the path routes
+   through it.
 
 ## Thoroughness Levels
 
@@ -141,7 +156,7 @@ so you don't re-derive it. (Line numbers drift — find current ones via Nexus
   operator sum. `L` streaming, `C` collision (together the invertible resolvent
   `L+C` whose `.solve` IS the WDD sweep), `S` scattering, `F` fission, `B`
   boundary. The within-group operator factory is `build_within_group_system`
-  (`orpheus/sn/coupled_system.py:446`, returning a `WithinGroupSystem`;
+  (`orpheus/sn/coupled_system.py`, returning a `WithinGroupSystem`;
   successor of the retired `orpheus.sn.solver._within_group_triple`). The old `S+B`
   fold and `_reflect_outflow_into_inflow` driver shim are RETIRED — `B` is a
   first-class sibling. SI rhs = `q + Σ gains.apply(psi)`; Krylov matvec =
@@ -186,6 +201,13 @@ so you don't re-derive it. (Line numbers drift — find current ones via Nexus
   defer to the future d-generic walk (nd_foundation). When asked to "unify"
   sweep code, flag this scan-vs-wavefront distinction.
 
+- **Curvilinear 1-D.** The angular-redistribution block `A_BB` is
+  `RadialCharacteristicOperator` (`orpheus/sn/operators/`), which WRAPS the ψ½
+  starting-direction march; its `.solve` is the production caller of
+  `carlson_inward_sweep_from_source` (`sn/sweep/psi_half_angle_seed.py`). The
+  1-D walk executors (`_OneDimScanWalk`, `_loop_walk`, `_dag_legs`) live in
+  `sn/loss_representation/__init__.py`, beside the 2-D `sweep_graph`
+  (`[M]` 2026-09-21).
 - **Adjoint / metric.** `op.H` is the metric-correct G-adjoint `A†=G⁻¹AᵀG` over
   the `FullFieldSpace` (bulk⊕trace): `V` (cell volume) on the bulk block,
   `|Ω·n|·w_n` (partial-current metric, populated on `TraceSpace`) on the trace

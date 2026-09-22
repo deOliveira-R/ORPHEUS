@@ -3,7 +3,7 @@ harness:
   kind: rule
   budget_tokens: 1500
   brief: >-
-    a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2).
+    a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2); a membership or consumer question is answered by an AST pass, a line grep reported only as the prose column, since a public name's docstring fame reads as consumption.
 ---
 
 # Instrument doctrine — four statements every claim is held to

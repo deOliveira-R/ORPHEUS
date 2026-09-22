@@ -94,10 +94,16 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   project rule and no project memory index — only their AGENT.md, their own
   agent memory and their preloaded skills — this line is the only place a
   project rule reaches them; a `general-purpose` categoriser inherits the rules
-  and needs only its schema. Paste the generated list below, then the
-  task-specific items: whether the agent may edit tracked files at all (a
+  and needs only its schema. One fixed sentence precedes the list: *every
+  datum this brief states (a hash's date, a count, an exemplar's behaviour,
+  a `Class.attr (file:line)`) is a claim; verify it by one command before
+  building on it, and report the discrepancy as a finding.* Paste the
+  generated list below, then the task-specific items: whether the agent may edit tracked files at all (a
   census is read-only); if another agent is editing the tree meanwhile, what,
-  where and until when (L38); any negative you assert about the tree ("X has
+  where and until when (L38), and the agent then opens with `git status
+  --short` and `git diff --stat`, closes by re-running every search whose
+  emptiness is a finding, and tags every cited file as at HEAD or in flight;
+  any negative you assert about the tree ("X has
   no gate") marked `[R]` for the agent to re-verify (L50). For literature: W7
   above, in full — `scratch/literature/` first, spelled out, then the OCR
   sidecars; "not in the local folder" is a question to the user, never a
@@ -141,10 +147,10 @@ The generated list, one item per rule that declares a `brief:` in its
 drift):
 
 <!-- BEGIN GENERATED brief rules — source: the harness.brief of every page under docs/development/rules/; edit the source, not this block -->
-- `articulation`: a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured.
+- `articulation`: a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured; `[M]` on an inherited claim certifies that some measurement answered some question, so a `[M]` on a negative (absent, discarded, no consumers) is re-measured against the question at hand before it is built on.
 - `code-search`: `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 - `coding-standards`: tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
-- `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2).
+- `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2); a membership or consumer question is answered by an AST pass, a line grep reported only as the prose column, since a public name's docstring fame reads as consumption.
 - `process-discipline`: never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy.
 <!-- END GENERATED brief rules -->
 
