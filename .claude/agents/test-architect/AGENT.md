@@ -54,7 +54,7 @@ For every capability, name the regimes where the implementation is most likely t
 - **Parameter extremes**: a void (σ → 0), a pure absorber, strongly anisotropic scattering, many groups with upscatter, a near-critical system.
 - **The afterthought**: the configuration the plan never mentions (a non-uniform mesh, a one-cell region, the last ordinate, the first iteration).
 
-A regime a rung cannot yet pass goes into the spec as a challenge to the implementer, not out of it.
+A regime a rung cannot yet pass goes into the spec as a challenge to the implementer, not out of it. Design as qa will attack: with the implementation in hand, qa will drive a zero into every division, sweep every parameter, and reach every singular point. A boundary qa finds that the spec did not name is a boundary this spec missed.
 
 ## 3. Each row
 
