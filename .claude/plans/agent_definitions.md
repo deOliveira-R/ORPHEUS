@@ -1,8 +1,10 @@
-# Agent definitions a context-free dispatch can trust — current, single-sourced, and enforced where the harness can enforce
+# Agent definitions a context-free dispatch can trust — current, single-sourced, enforced where the harness can enforce, and each read as one refined mandate
 
 **Status: LIVING PLAN (`plan-authoring` §0), opened 2026-09-22 at the first exchange. No implementation until the user rules the plan polished.** The seven issues waiting at `harness_context_budget.md` ⏸ COMPACTION POINT #13 (#488, #484, #491, #492, #494, #495, #496) wait until this is done.
 
-**The instruction (the user, 2026-09-22, verbatim):** *"Before we tackle those I want to improve agent definitions."* and, after compaction, *"We want to review and improve agent definitions."* The review below is the first pass; the user has not yet said what they themselves want changed, so their own list is the first thing this plan asks for.
+**The instruction (the user, 2026-09-22, verbatim):** *"Before we tackle those I want to improve agent definitions."* and, after compaction, *"We want to review and improve agent definitions."* The review below (§3) is the first pass, by the orchestrator.
+
+**The user's answer (2026-09-22):** the review is endorsed as the foundation ("an excellent foundation before what I meant"); S3 is the shape; D6 is corrected (now measured, §3); and what the user meant is five further items (§5), which follow the S3 foundation. The rulings are in §7.
 
 ## 1. Goal, in the harness's own terms
 
@@ -67,6 +69,8 @@ Instruments: each of the nine AGENT.md files and role sources read in full; path
 
 The elegance-enforcer "Ask for clarification if the scope is ambiguous" and "ask the main agent before proceeding"; the method-implementer "report back to the user"; the literature-researcher "Before searching, clarify". A dispatched agent's only channel back is its return, and the return contract's `NEEDS:` block is that channel.
 
+`[REFUTED 2026-09-22 as stated, the user's correction]` The harness has a mid-dispatch channel. `[M]` 2026-09-22, a background `general-purpose` haiku probe holding `SendMessage`: it sent a message to `main` at 03:29:00, the orchestrator replied, and the reply reached the probe at its sixth tool call (03:29:06); it held no `AskUserQuestion` (the documentation: that tool is removed from every sub-agent). The facts that survive: (i) a sub-agent can reach the orchestrator mid-dispatch, never the user; (ii) a reply is delivered at the agent's next tool call, so an agent waiting for one must keep working; (iii) 9 of 9 of our allowlists omit `SendMessage` `[M]`, so for our agents the channel is closed by our own configuration, and the four "ask" instructions above name no mechanism the agent holds. Whether to open it, and for which agents, is question Q1 (§6).
+
 ### D7. Role identity disagrees with the role block
 
 The method-implementer body: "this agent BUILDS new code; numerics-investigator FIXES existing code." Its role block: "W1-P2 (build), W2 (the fix)", and W2 says "the fix lands (implementer or main agent)". The body's deliverable manifest is a Branch-1 SymPy module, a Branch-2 solver and an L1 cross-check, the shape of a published-formulation reference solver, while the project's builds this year were operator-algebra carves.
@@ -83,6 +87,7 @@ The archivist's front matter spells `name: Archivist`; its memory directory is `
 
 ### Also found, needing a measurement before anything relies on it
 
+- `[M]` 2026-09-22 (the D6 probe): a background sub-agent holding `SendMessage` messages `main` and receives the reply at its next tool call.
 - The documentation says a non-fork sub-agent never receives the main conversation's auto memory; the harness page records, `[M]` 2026-09-21, that the project memory index is inherited by every dispatch without `omitClaudeMd`. One of the two is out of date; re-measure by dispatching before a definition leans on either.
 - Harness features no agent uses (the documentation): per-agent `hooks`, `disallowedTools`, `effort`, `maxTurns`, `permissionMode`, `isolation: worktree`. `isolation: worktree` branches from the default branch, not the parent's HEAD, so it cannot review uncommitted work (refuted FOR mutating uncommitted work under review; the FACT: it isolates an agent that edits committed code).
 
@@ -107,21 +112,92 @@ Makes D2, D5 and the D4 restatements unspellable or checked; leaves domain judge
 
 **Refuted so far:** granting agents the `Skill` tool so preloads can shrink (refuted FOR context cost by the 2026-09-21 ruling: the roster costs 2 613 first-turn tokens per dispatch and grows with plugins the project never uses; the FACT: a preload is the only reproducible way a sub-agent receives a skill).
 
-## 5. Questions for the user
+## 5. The user's scope — five items that follow the S3 foundation (2026-09-22)
 
-1. **What did you want improved?** The review above is mine; your own list decides the scope.
-2. **Target shape:** S3 (recommended), S2, or S1.
-3. **Agent memory:** (a) an agent writes its own memory freely and the orchestrator reviews and commits it at close-out; (b) an agent never writes memory mid-dispatch and returns a `LESSONS:` block the orchestrator distills; (c) (a), with each lesson naming the rule clause that does not already cover it.
-4. **The method-implementer's identity:** the general W1-P2/W2 builder over the operator algebra (body rewritten to its role block), or the published-formulation reference-solver builder its body describes.
-5. **Preload criterion** (proposed `[R]`): a skill is preloaded when the role applies it at every dispatch; otherwise the brief names the page. Applied, it would review, for instance, `coding-elegance` in qa (the enforcer's axis) and `numerical-bug-signatures` in the test-architect.
+The user, on what they meant: *"any of these should happen only after your proposal, which as I said, is an excellent foundation."* Each item: the user's intent, what the tree holds today (measured), and the design sketch (a hypothesis until ruled).
 
-## 6. Rulings ledger
+### 5.1 Each agent's memory audited against its definition
 
-(none yet)
+**Intent (the user):** find where an agent's lessons and surprises exist *"because the role is not better specified"*, and solve them by improving the definition.
 
-## 7. Implementation starts when
+**Today:** nine memory directories (index and digest sizes in the CP#14 census). The 2026-09-21 distillation asked a different question of the same files: which lessons restate a RULE (those retired to the rules). This audit asks which lessons fill a gap in the agent's own DEFINITION.
 
-The user rules this plan polished. Before then: no edit to any AGENT.md, role source, hook or setting. The order, once ruled `[HYPOTHESIS]`: the measurements of §3's last block; the body move (S2) with D3 and D4 fixed as each body moves; the capability contract; the learning channel; then a probe dispatch of each agent confirming what it received.
+**Sketch `[HYPOTHESIS]`:** every memory entry is classed as (i) restates a rule or a skill: retire it (the distillation law); (ii) a gap in the definition, something the role should have told the agent before it had to learn it: fold it into the definition and retire the entry; (iii) experience local to this agent's work: keep it. The output per agent is the list of class-(ii) entries with the definition sentence each implies; it feeds the rewrite of §5.5. Who classifies: each agent on its own memory, with a fixed output schema, reviewed by the orchestrator (the agent knows why it wrote each entry; the orchestrator holds the definition's intent).
+
+### 5.2 The test-architect builds on the tests that exist, as a ladder by complexity
+
+**Intent (the user):** before designing, find the tests that already exist for the capability and order them by complexity ("this tests X, this other tests X and Y"), building a hierarchy until the full capability is tested; improve an existing test before creating a new one. *"Fewer tests that are well thought out, properly organized by difficulty, and build one upon another in a clearly structured way, are much superior to adding 10 half-thought, potentially vacuous tests."* The worked example, a boundary condition like the albedo: the foundations first (vacuum works; reflective works), then the edges (albedo 0 equals vacuum; albedo 1 equals reflective), then the interior (0 < α < 1).
+
+**Today:** the test-architect's body opens at "Identify the feature being verified" and designs a matrix from scratch; it has no survey step and no "extend before adding" rule. `[M]` 2026-09-22: no clause of `vv-testing`, `vv-principles` or `coding-standards` says to extend an existing test before adding one (one `grep -iE` over the three sources for existing-test, duplicate-test, test-hierarchy and builds-on phrasings: 0 hits there, while the same pattern hits 5 lines elsewhere in `docs/development/`, the positive control). The nearest doctrine is `vv-principles`' necessity chain (L1 without L0 is compensating errors), which orders V&V LEVELS, not the tests of one capability.
+
+**Sketch `[HYPOTHESIS]`:** the survey is the first step of every spec: the existing tests of the capability found by Nexus (the equations' `verifies` edges, the runtime exercisers of the touched symbols) and by grep, each placed on a ladder of rungs (foundation, edge, interior, composition), each rung naming the rungs it rests on; the spec's deliverable is the ladder with its gaps, each gap filled by improving a test when one sits on that rung and by a new test only when none does. An edge rung asserts equality to a foundation rung (albedo 0 against vacuum), a structurally independent reference by construction. The principle (a capability's tests form a ladder; a test not placed on it is a finding) may belong in `vv-principles` so that qa reviews against it too; the procedure belongs in the test-architect's definition (question Q2).
+
+### 5.3 The archivist writes the present; the past goes to the page's end, the future to issues and plans
+
+**Intent (the user):** documentation reflects the current state of the code. Older things go to the page's history section and its gotchas, or to a collapsible box showing something important that was first got wrong and how it was got right. *"The main documentation body should not mix past, present and future. It should be exclusively about the present. Past goes to auxiliary sections at the end of the page and future is the scope of GitHub issues and plans files."*
+
+**Today `[M]` 2026-09-22:**
+- The procedure exists: the theory-page template of #231 (its settled design, recorded in `.claude/plans/archive/sn_doc_architecture_231.md` §"The 9-section template") puts Gotchas at section 8 and History at section 9 as ONE collapsed changelog, and relocates narrative essays to issues. `sphinx_design` is loaded (`docs/conf.py`), and 10 theory pages already carry a Development history section.
+- The procedure has no home in `docs/development/`: its authority is an archived plan and an issue comment, so no agent definition can point at it.
+- The archivist's body teaches the opposite. Its "Close-Out Narrative Arc", which it calls its most-used playbook, keeps the motivation in the body with its tenses flipped, puts retraction tombstones above the content they retract, keeps falsified tables in the body, and lists a session trail. Its Directive 3 rubric scores "Failed approaches: full history with rationale" as excellent.
+
+**Sketch `[HYPOTHESIS]`:** the documentation procedure gets one source in `docs/development/` (a skill the archivist preloads, question Q3), stating the user's ruling with the template. The archivist's definition then carries only its method: how to rewrite a page to the present tense, and where each piece of the past goes. The options are the History changelog row, the Gotchas section, a collapsed "first got wrong" box at the content it concerns, or the issue that closed the work. The close-out narrative becomes an issue comment plus one History row.
+
+### 5.4 The method-implementer refuses a vague plan
+
+**Intent (the user):** if the implementer finds itself working around the plan or reading vague instructions, it refuses the implementation. A vague plan, typically one that needs more attention to ontology, is work for the orchestrator and the user together. *"The method implementer needs an excellent plan to not have surprises since it cannot directly communicate with me."* Implementing published formulations is useless if the foundation has not been laid, when that foundation needs significant ontological exploration and dialogue.
+
+**Today:** the body has no readiness check; its procedure starts from "Read the plan + cited literature" and its manifest assumes a published-formulation build (D7).
+
+**Sketch `[HYPOTHESIS]`:** the definition opens with a readiness test the plan must pass before any code:
+- every object the build creates or changes is named in the plan, with its home (module and layer);
+- every convention crossing a subsystem boundary is in a crosswalk;
+- the gates exist as a test-architect spec;
+- the done-when is a predicate;
+- no step leaves a choice open ("decide", "figure out", "as appropriate", "TBD", two candidate shapes);
+- the plan carries the user's ruling that it is polished (`plan-authoring` §0).
+
+A failure is returned as `REFUSED:` with the specific questions, and the same holds mid-build: the moment the agent would have to work around the plan, it stops and returns rather than improvise. An ontological question is never settled between the implementer and the orchestrator alone; it returns to the orchestrator and the user. The identity follows (ruling R3): a builder that executes a polished plan, of which a published formulation is one kind.
+
+### 5.5 Each definition rewritten to read as one refined mandate
+
+**Intent (the user):** no definition reads as the original plus amendments. The amendments are used to sharpen the definition itself, which then reads seamlessly as a refined version.
+
+**Today `[M]` 2026-09-22** (`scratch/_agent_defs/amend_tells.py`, a regex census of amendment phrasing: dates, "promoted from", "RE-POSED", "retired", "used to", "no longer", "sharpens", "does not contradict", case narratives; positive control the test-architect's "promoted from the lessons digest … 2026-09-21"; the counts are leads, each hit to be read): 9 of 9 bodies carry at least one tell, 45 in all (archivist 14, elegance-enforcer 11, explorer 8, cross-domain-attacker 5, test-architect 3, the other four 1 each).
+
+**Sketch `[HYPOTHESIS]`:** each body is rewritten once, from its role outward (identity, capability, method, return), with the S3 fixes, the §5.1 gaps and the §5.2–§5.4 mandates folded in. Dates, cases and narratives leave the definition for the evidence page, as the harness's distillation law already requires of rules ("every clause keeps its imperative, its `check:` and its `tell:`"). Done-when: the census reads 0 on every generated body, each surviving hit on a stated exception list.
+
+## 6. Open questions
+
+- **Q1. The mid-dispatch channel.** Grant `SendMessage` to the Key agents, so that a narrow question (scope, a path, a premise) goes to the orchestrator without ending the dispatch? `[R]` Recommended for the reviewers and the explorer's callers; for the method-implementer the channel carries only narrow questions, and an ontological gap still ends in `REFUSED:` (§5.4), since the user is reached only through the orchestrator. The cost: the sibling roster appears in the agent's context when another agent is named.
+- **Q2. Where the test ladder lives.** A `vv-principles` clause (the principle, so qa reviews against it) plus the procedure in the test-architect's definition (recommended), or the definition alone.
+- **Q3. Where the documentation procedure lives.** A new skill under `docs/development/skills/`, preloaded by the archivist, carrying the page template and the present-only ruling (recommended); or a clause in `articulation`, which every agent loads.
+- **Q4. The preload criterion** (carried from the first draft, `[R]`): a skill is preloaded when the role applies it at every dispatch; otherwise the brief names the page.
+- **Q5. Who writes the rewritten definitions.** The main agent (recommended: the definitions are the fleet's constitution and the whole session's context is what the task needs, Cardinal Rule 5's exception), each reviewed by the user before it lands.
+
+## 7. Rulings ledger
+
+- **R1** (the user, 2026-09-22): the review is endorsed as the foundation; the shape is **S3**.
+- **R2** (the user, 2026-09-22): agent memory is not option (b), because curating the agents' lessons mixes the orchestrator's role with curation; (a) or (c), the orchestrator's pick. **Picked: (c).** An agent writes its own memory, and each lesson names the rule or skill clause that does not already cover it (an `omitClaudeMd` agent reads `.claude/rules/` on demand to check); the orchestrator commits the memory diff at close-out and does not curate it. Why (c) over (a): it puts the "a rule already says this" check at the writer, where CP#14 observation 6 arose, and a lesson whose uncovered clause is the agent's own definition is marked at birth as a §5.1 class-(ii) gap. An agent's own memory is always inside its edit scope, whatever the brief says of the tree.
+- **R3** (the user, 2026-09-22): the method-implementer's first requirement is a well-specified plan; it refuses a vague one (§5.4). Its identity is a builder executing a polished plan, not a published-formulation specialist.
+- **R4** (the user, 2026-09-22): D6 is corrected; a sub-agent can reach the orchestrator before it returns (measured, §3).
+- **R5** (the user, 2026-09-22): the five items of §5 are the scope that follows the S3 foundation.
+
+## 8. Implementation order and its start condition
+
+Implementation starts when the user rules this plan polished. Until then, nothing changes in any AGENT.md, role source, hook or setting. The order `[HYPOTHESIS]`:
+
+1. **Measure.** Whether a Key dispatch receives the main memory index (§3's open conflict), by dispatching.
+2. **The S3 foundation.**
+   - The generator reads the whole body. The move is verbatim first, and `--check`'s first red on the moved bodies is its positive control; D3's dead references are then fixed so the move lands green.
+   - The front matter matches the mandates (tools; `SendMessage` per Q1; the archivist's name).
+   - A PreToolUse hook refuses writes to GENERATED files.
+   - Each agent's write scope is stated and enforced.
+   - The brief template defines "read-only" and states the memory scope (R2).
+   - The pages the rewritten bodies will point to are written: the documentation skill (Q3) and the test-ladder clause (Q2).
+3. **The §5.1 audit,** per agent, producing the class-(ii) gap lists.
+4. **The rewrite (§5.5),** one agent per commit, folding in D4, D5, D7, the gap list and the §5.2–§5.4 mandates, with the amendment census at 0.
+5. **Confirm by dispatching:** each agent is probed for what it received (tools, write scope, memory policy).
 
 ## Resume surface
 
