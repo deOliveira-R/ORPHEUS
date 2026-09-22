@@ -103,3 +103,15 @@ embedding anchors, so each stands alone in query vocabulary.
       An isotropic-return boundary: incident neutrons are re-emitted with a
       direction-independent distribution whose magnitude conserves the incident
       current. Used for approximate reflective symmetry on curved surfaces.
+
+   weld
+      A term of the project's architecture vocabulary, used across the theory
+      pages for code in which several concepts are fused. Its one definition is
+      Cardinal Rule 2, *Architecture* (:doc:`/development/rules/cardinal`), and
+      it is deliberately not restated here, so that this entry cannot drift from
+      the rule it points at; *to unweld* is the repair that rule names. The
+      tells a reviewer looks for, and the ruling on where a weld kept for speed
+      may live (the corpus's *performance weld*), are in the ``coding-elegance``
+      skill (:doc:`/development/skills/coding-elegance`). A *declared
+      transitional weld* is one a page names as a weld together with the
+      change that will retire it.

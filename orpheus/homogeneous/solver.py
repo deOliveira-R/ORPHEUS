@@ -189,12 +189,12 @@ class HomogeneousProblem:
     r"""The infinite-medium problem — the HUB the homogeneous family's consumed objects live on.
 
     Ruled at the CS4c coda (R-c1, the user, 2026-09-08): *"The homogeneous
-    problem needs a hub, just like the function SNProblem (future SNProblem)
+    problem needs a hub, just like the function SNMesh (future SNProblem)
     currently fulfills, to act as the place the consumed objects live (and
     a save state)."* This is that hub, minted in the solver module for now;
     the carve into a standalone ``HomogeneousProblem`` module with a thin
-    Problem → Solution solver is the consumers campaign's, alongside
-    ``SNProblem`` → ``SNProblem`` (plan §22.5).
+    Problem → Solution solver is the consumers campaign's, the sibling of
+    the ``SNMesh`` → ``SNProblem`` carve that landed at #412 (plan §22.5).
 
     **What it determines, from its generating datum alone.** A
     :class:`~orpheus.data.macro_xs.mixture.Mixture` is the whole physics

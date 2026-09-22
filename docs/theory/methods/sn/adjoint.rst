@@ -1678,7 +1678,7 @@ the rank-1 ``outer`` primitive (:meth:`RankOneOperator.apply_transpose
 re-derived — so *no line of fission code computes an adjoint*.  The
 metric Hilbert adjoint ``F.H`` then composes
 :math:`\sharp_V \circ F^{\mathsf T} \circ \flat_W` out of the bound
-spaces' own Riesz legs; nothing fission-specific appears on that path
+spaces' own Riesz legs (:ref:`spaces-riesz-legs`); nothing fission-specific appears on that path
 either.
 
 .. important::

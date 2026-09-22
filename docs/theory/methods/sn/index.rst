@@ -283,7 +283,9 @@ second layer has grown.
    *augmented geometry* and the class was ``SNMesh``: "augmented mesh" is
    the cross-method name for a mesh carrying a method's machinery, and the
    S\ :sub:`N` hub outgrew it — it is the **Problem**, the save state
-   every consumer reads (:ref:`sn-p49b-operator-poses-with-closures`).
+   every consumer reads (:ref:`sn-p49b-operator-poses-with-closures`; what
+   a hub is, for every method, is :ref:`the-problem-hub`).  Its **primary
+   representation is the per-axis
    tuple** :attr:`SNProblem.axes <orpheus.sn.problem.SNProblem.axes>` (the SN phase space factors as a tensor
    product of per-axis 1-D meshes): a legacy ``Mesh1D`` / ``Mesh2D`` is
    converted to axes **once** at the inbound boundary, and
@@ -291,6 +293,7 @@ second layer has grown.
    C5 (:ref:`sn-axis-primary-c5`) the ``mesh`` attribute — the Problem's
    *geometric* mesh — is *inbound provenance only*: ``None`` for an
    axis-native :math:`d \ge 3` Problem, which carries no legacy mesh at all.
+   (A literal, not an ``:attr:``
    role: the base ``MaterialMesh`` sets it on the instance, so there is
    no autodoc target to link.)  It also **resolves boundary
    conditions**: each ``BC`` tag
@@ -366,7 +369,10 @@ method objects, so an operator you had already built could still change
 its mind about *how* it discretises if somebody rebound a hub attribute
 underneath it.  P4.9b (2026-08-28) closes that: the streaming operator
 is **posed** with the two closures it will use, and from then on it
-computes from its own fields.
+computes from its own fields.  (The hub itself, and the three properties
+that make an object one rather than a helper, are defined for every
+method in the foundations: :ref:`the-problem-hub`.  This subsection is
+the S\ :sub:`N` case of its second property, the save state.)
 
 The subsection is the sequel to P4.9a and states the four things a
 reader needs in order not to undo it: what the operator now takes, why

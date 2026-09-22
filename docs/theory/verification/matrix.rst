@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1305, 10.7%
+   L0, 1308, 10.7%
    L1, 1763, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
    foundation, 9033, 74.0%
-   unmarked, 30, 0.2%
+   unmarked, 27, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12093
+   explicit, 12096
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 30
+   unmarked, 27
 
 Module × level grid
 -------------------
@@ -407,7 +407,7 @@ Module × level grid
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_registry, 0, 0, 0, 0, 107, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
-   numerics/test_riesz_legs, 0, 0, 0, 0, 0, 11
+   numerics/test_riesz_legs, 3, 0, 0, 0, 0, 8
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
@@ -873,6 +873,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-spherical-aniso-qext``, 2
    ``sn-mms-spherical-psi``, 2
    ``sn-mms-spherical-qext``, 2
+   ``spaces-adjoint-riesz-composition``, 2
    ``addition-theorem``, 1
    ``branching``, 1
    ``collision-estimator``, 1
@@ -945,6 +946,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-spherical-aniso-spatial-convergence``, 1
    ``sn-p1-cylinder-hand-ref``, 1
    ``sn-p1-sphere-hand-ref``, 1
+   ``spaces-riesz-lower-raise``, 1
    ``splitting``, 1
    ``splitting-weight-conservation``, 1
    ``virtual-collision-probability``, 1
@@ -960,7 +962,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **605** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **606** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1513,6 +1515,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``spaces-collapse-section``
 - ``spaces-legendre-pushforward-gram``
 - ``spaces-pseudo-inverse-parseval``
+- ``spaces-riesz-round-trip``
 - ``spatial-moment-append-policy``
 - ``spatial-moment-kronecker-order``
 - ``spatial-moment-space-size``
@@ -1596,7 +1599,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**30 tests** have no V&V level marker.
+**27 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1608,7 +1611,7 @@ taxonomy.
    :header: File, Unmarked tests
    :widths: 60, 10
 
-   ``tests/numerics/test_riesz_legs.py``, 11
+   ``tests/numerics/test_riesz_legs.py``, 8
    ``tests/numerics/test_frame.py``, 5
    ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
    ``tests/numerics/test_iteration_record.py``, 4

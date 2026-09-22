@@ -594,6 +594,123 @@ without an efficient inverse action simply report
 them at composition time (:ref:`capability-set-semantics`).
 
 
+.. _bound-operator:
+
+The bound operator — an arrow with its two spaces declared
+-----------------------------------------------------------
+
+A **bound operator** is a linear operator that carries, from its
+construction, the two function spaces it maps between: its **domain**
+:math:`V`, the space it consumes, and its **codomain** :math:`W`, the
+space it produces,
+
+.. math::
+
+   A : V \to W, \qquad V = \texttt{A.domain},\quad W = \texttt{A.codomain},
+
+each a :class:`~orpheus.numerics.space.FunctionSpace` with its own
+metric. An operator whose action is known but whose spaces are not is
+**unbound**. This section is the corpus's one definition of the term;
+"angular-bound" or "moment-bound" elsewhere means bound with that
+domain interior (:ref:`cs4c-ends-select-the-body`).
+
+**Binding is how a law or a kernel becomes an operator.** The objects
+the transport equation is made of are declared abstractly: a **law**, a
+theorem imposed on the solution (a boundary law, a conservation
+statement), or a **kernel**, a datum (a scattering matrix, a fission
+spectrum). Realising one for a method on concrete spaces makes it an
+operator bound to a domain and a codomain, and only then are its
+properties concrete: its adjoint, whether it composes with a neighbour,
+which body its action runs. The ruling that states this is the user's,
+of 2026-08-04, recorded as the principle of #330 (verbatim, first two
+sentences): *"Every operator, bulk or boundary, must know its domain,
+codomain and space. Without that binding the adjoint has to be
+hand-rolled instead of falling out for free from mathematical
+well-posedness."*
+
+**What the binding makes writable.** Three things follow from the two
+ends, and none of them can be spelled without them:
+
+#. **The adjoint is a composition, never a second implementation.** The
+   Hilbert adjoint of :math:`A : V \to W` is
+   :math:`A^{*} = \sharp_V \circ A^{\mathsf T} \circ \flat_W`
+   (:eq:`spaces-adjoint-riesz-composition`), and the two Riesz legs are
+   the metrics of the two ends (:ref:`spaces-riesz-legs`). ``A.H`` builds
+   those legs from ``A.domain`` and ``A.codomain`` at construction, so a
+   bound operator's adjoint falls out of its binding, while an unbound
+   operator has no Hilbert adjoint at all:
+   :class:`~orpheus.numerics.operator.AdjointOperator` refuses it with
+   :class:`~orpheus.numerics.operator.MissingAdjoint`. The one exemption
+   is the metric-free stratum, a pointwise multiplier and compositions of
+   such, whose Euclidean transpose is its Hilbert adjoint under every
+   diagonal metric (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`).
+#. **Composition is type-checked by the ends.** ``A @ B`` requires
+   ``A.domain == B.codomain`` and a sum requires its operands' ends to
+   agree, and both refuse a mismatch at construction with
+   :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`. Because space identity is
+   structural for an axis-built space (:ref:`spaces-the-axis`), two spaces
+   of one shape that differ in metric are different ends, and a
+   composition across them is refused rather than silently accepted. Both
+   checks are skipped for an operand whose end is ``None``, which is one
+   more thing an unbound operand silently switches off.
+#. **The ends select the body.** An operator bound on composite ends
+   admits exactly the full-field carrier and one bound on plain spaces
+   exactly the bare array, decided once at construction instead of
+   re-parsed at every call (:ref:`heteromorphic-apply-typing`, next).
+
+**What an optional space was, and what replaced it.** Until 2026-08-22
+an operator's ends were ``Optional[FunctionSpace]`` defaulting to
+``None``, and ``None`` silently meant "assume Euclidean": ``.H`` skipped
+both metric factors and returned the bare transpose under the adjoint's
+name. #330 measured the exposure at 26 of 54
+:class:`~orpheus.numerics.operator.LinearOperator` subclasses inheriting
+the ``None`` default (2026-08-04). Since the S4 amendment (2026-08-22)
+``domain`` and ``codomain`` are **abstract** on the base, so every class
+must answer, in one of four ways, recorded in the base's own docstring:
+**bind** (store the spaces at construction); **derive** (compute them
+from the operands, as the composers do); **the pointwise law**
+(:class:`~orpheus.numerics.operator.PointwiseOperator` members answer
+``None`` BY LAW, because they act on whatever space their operand is
+in); or a **documented Optional** naming the campaign that owns its
+flip, an arm the docstring records as empty since CS4c step 6 item 6.4
+(2026-09-07). `[M]` 2026-09-22, by AST over ``orpheus/`` excluding
+``derivations/``: 55 classes declare ``domain``, and 9 of them are not
+operators (the eight ``Basis`` classes and
+:class:`~orpheus.numerics.manifold.ManifoldMap`, whose ``domain`` is a
+manifold, a homonym); of the 46 operator-family classes, 18 annotate it
+non-``Optional`` and 28 annotate it ``Optional`` (the base itself,
+:class:`~orpheus.numerics.operator.PointwiseOperator`, nine composers and
+wrappers that derive their ends from operands, and 17 others). An
+annotation is the static half only; this census does not say how many of
+the 17 return ``None`` at run time, and #330, still open, owns the
+question (``scratch/_definitions/round2/domain_census2.py``, which
+separates the homonyms).
+
+**Where it is realised.** The contract is the two abstract properties of
+:class:`~orpheus.numerics.operator.LinearOperator`. The transport layer's
+concrete base is
+:class:`~orpheus.transport.operators.bound_operator.BoundOperator`, a
+dataclass whose two ends are **keyword-only, mandatory and write-once**:
+keyword-only so that both ends are NAMED at every exact-constructor site,
+which makes the domain/codomain swap (the ERR-002 / ERR-076 family, which
+type-checks and yields a well-formed *reversed* arrow only a reciprocity
+gate would catch) unspellable without a visible mistake; write-once so
+that ``op.domain = other`` cannot re-bind an arrow after construction
+(``dataclasses.replace`` builds a new binding and re-runs every
+admission). The base also supplies a per-end energy-extent admission,
+which the multiplication and isotropic-transfer bindings call (`[M]`
+2026-09-22: 3 call sites in 2 modules; the transfer, scattering,
+:math:`(n,2n)`, fission and lift bindings do not call it).
+`[M]` 2026-09-22, a runtime ``__subclasses__`` walk after importing every
+``orpheus.transport.operators`` module: 14 subclasses, among them
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+(:math:`C`), the transfer family behind :math:`S` and :math:`N_{2n}`, the
+fission bindings and the lifts
+(``scratch/_definitions/bound_probe.py``). The S\ :sub:`N` streaming
+operator is not yet one: its ends are derived from the Problem it is
+posed on, a recorded transitional state
+(:ref:`sn-p49b-operator-poses-with-closures`).
+
 .. _heteromorphic-apply-typing:
 
 Typing the heteromorphic ``apply`` — the ends select the body
@@ -610,8 +727,8 @@ mapped *each input carrier to a distinct output carrier*.
 
 **The current answer is that the question does not arise: the carrier is
 a consequence of the binding, decided once at construction.** A bound
-operator is an arrow between two declared spaces (:eq:`operator-apply`),
-and those two ends already say what its operand is — so an operator
+operator (:ref:`bound-operator`) is an arrow between two declared spaces
+(:eq:`operator-apply`), and those two ends already say what its operand is — so an operator
 constructed with composite ends admits exactly the
 :class:`~orpheus.transport.full_field.FullField` riding its bound
 interior, one bound on plain spaces admits exactly the bare array of its
@@ -3631,7 +3748,7 @@ which object is allowed to know what.
      - the
        :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
        base's contract: a bound operator is an arrow and an arrow has
-       two ends.  Naming both at every exact-ctor site is what makes
+       two ends (:ref:`bound-operator`).  Naming both at every exact-ctor site is what makes
        the domain/codomain **swap** — the ERR-002 / ERR-076
        transposition family, which type-checks and yields a well-formed
        *reversed* arrow — unspellable-silently.
@@ -6200,6 +6317,126 @@ or angular state — those live at Layers 1–3, *below* the boundary. This
 is the abstraction that makes a new problem type a posing-row addition
 rather than an engine rewrite.
 
+
+.. _the-problem-hub:
+
+The hub — the one object that owns what a Problem poses
+--------------------------------------------------------
+
+A **Problem** is the question its generating data fixes: the materials,
+the geometry, the mesh, the state fields and the method's own choices,
+committed stage by stage until every axis of phase space is resolved
+(the posing filtration, :ref:`architecture-conceptual-view`). A **hub**
+is the object that realises a Problem in the code: the one place where
+everything the Problem determines, and a solve or a domain operation
+later consumes, lives. It owns the Problem's **spaces**, its **fields**
+and its **bound operators** (:ref:`bound-operator`), and its last step is
+the **operator pencil** :math:`(A, F)` of the next section. This section
+is the corpus's one definition of the word, and the word is
+method-agnostic: the S\ :sub:`N` sub-book, the infinite-medium page and
+the diffusion page each describe one realisation of it.
+
+**Three realisations, and no shared type yet.**
+
+.. list-table:: The hubs in the tree
+   :header-rows: 1
+   :widths: 22 26 52
+
+   * - Hub
+     - Generating data
+     - What it owns
+   * - :class:`~orpheus.sn.problem.SNProblem`
+     - a material mesh, plus the quadrature, the spatial scheme, the
+       angular closure, the retained scattering order and the boundary
+       laws
+     - the bulk, trial, trace and full-field spaces and the moment space
+       of the angular frame; :math:`\sigma` as a datum
+       (:ref:`sn-sigma-is-a-problem-datum`); the posed within-group
+       record ``system``; the Problem's one fission operator
+       (:ref:`sn-one-fission-per-problem`); the pencil, the eigen posing
+       and ``source_posing(q)`` (:ref:`sn-the-problem-poses-its-pencil`);
+       the loss-kernel gauge; the identity keys
+   * - :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+     - a material mesh plus the boundary declarations
+     - the scalar trace space, the realised albedo laws and the
+       full-field space; it mints neither a pencil nor a posing, and the
+       diffusion solver assembles its loss, its fission and an exact
+       resolvent itself (recorded in the conceptual view's debt list)
+   * - :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
+     - one :class:`~orpheus.data.macro_xs.mixture.Mixture`
+     - the pose (the energy axis tensored with the quotient point), the
+       material and cross-section fields born on it, the bound operators
+       (collision, isotropic transfer, the loss :math:`C - K_{\rm iso}`
+       and the production dyad), the pencil and the eigen posing, and the
+       reaction-rate co-vectors
+
+`[M]` 2026-09-22, by AST over the three class bodies and a runtime walk
+of each class's MRO (``scratch/_definitions/hub_probe.py``,
+``scratch/_definitions/round2/hub_mro_probe.py``): ``SNProblem`` defines 17
+``cached_property`` members, two of which override the inherited
+identity keys, and keeps 3 of the 5 it inherits from
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, 20 in all;
+``DiffusionMesh`` defines 1 and inherits the 5, 6 in all; and
+``HomogeneousProblem`` defines 18 and has no base. ``pencil``
+and ``eigen_posing`` are defined on 2 of the 3 hubs and ``source_posing``
+on 1. There is no ``Problem`` base class or protocol:
+:class:`~orpheus.transport.method.TransportMethod` covers the two
+material-mesh hubs, and only for boundary-law resolution, and the
+homogeneous hub lives in its solver's module until the Problem is carved
+out with a thin solver beside it (the debt list of
+:ref:`architecture-conceptual-view`).
+
+**What makes an object a hub rather than a helper.** Three properties,
+each the answer to a defect the tree had:
+
+#. **It owns; it does not merely mint.** Every consumed object is a
+   per-instance ``cached_property``: minted once from the generating data
+   and then ``is``-identical on every read, so "the same object" means
+   ``is`` within the owner. A free function or a classmethod that mints
+   the same object is a helper, and a helper re-creates the seam the hub
+   closes, where each consumer re-derives its space and two derivations
+   can disagree: the S\ :sub:`N` angular moment space had eight homes
+   until #429 tracker 2.5 (2026-09-02), seven production mints beside the
+   frame that already carried it (:ref:`frame-moment-space-single-home`).
+#. **It is a save state.** Operators are **posed** on the hub and compute
+   from their own fields thereafter, so an operator already built cannot
+   change its discretisation because someone rebound a hub attribute
+   underneath it (:ref:`sn-p49b-operator-poses-with-closures`). What a
+   save state holds is the answer side: the posed objects. A cost-side
+   cache does not belong on it. The 1-D scan's :math:`\sigma`-bound
+   collision table was memoised on the hub and read back with no
+   :math:`\sigma` check, so a second :math:`\sigma` marched the first
+   one's table (ERR-085); it now binds :math:`\sigma` once, at the
+   operator that owns it (:ref:`sn-sigma-bound-once-at-the-operator`).
+   Likewise the splitting :math:`A = M - N` and the resolvent are the
+   Strategy's, not the hub's (:ref:`sn-splitting-is-a-strategy-value`).
+#. **Its identity is the content of its generating data.** Two hubs built
+   from equal data compare equal and hash equal whatever objects they
+   were built from (ruling R-cc3, 2026-09-12). A second, coarser key,
+   ``same_phase_space``, answers whether two hubs realise the same
+   discrete phase space, which is the condition for pairing fields from
+   two solutions (ruling R-cc8, the same day). Both replaced a predicate
+   that compared constituent objects by ``is``, which paired every two
+   3-D problems (``None is None``) and refused two same-data
+   ``from_axes`` builds at :math:`d \le 2` (#459).
+
+**Its last step is the pencil.** The pair :math:`(A, F)` on one space is
+the terminal object a hub mints, and the two questions of the next
+section are typed on it. The hub holds no inverse and no resolvent,
+because how the pencil is inverted is the Strategy's choice.
+
+**The ruling that names the concept** (the user, 2026-09-08, ruling
+R-c1 of the CS4c coda, verbatim): *"The homogeneous
+problem needs a hub, just like the function SNMesh (future SNProblem)
+currently fulfills, to act as the place the consumed objects live (and a
+save state). This might go into the homogeneous solver at the moment, but
+the long-term solution is probably to carve the solver to create the
+HomogeneousProblem object (and save state), leaving a thin solver that
+outputs an Homogeneous solution or whatever we decide that takes the
+problem and solves it."* ``SNMesh`` became
+:class:`~orpheus.sn.problem.SNProblem` at #412 (2026-09-18), whose title
+records the same reading: the class was a misnomer, "the SN save-state /
+data hub, not a mesh".
 
 .. _the-operator-pencil:
 

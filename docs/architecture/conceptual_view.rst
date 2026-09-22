@@ -39,7 +39,7 @@ measure, basis kind)* plus a ``generator`` slot that is provenance and
 deliberately excluded from identity (:ref:`spaces-axis-generator`), so
 metric differences imply space differences. Realising a law or a kernel
 means binding it to a space, a domain and a codomain
-(:ref:`operator-algebra`): that binding is what makes its properties
+(:ref:`bound-operator`): that binding is what makes its properties
 concrete, and it is why the adjoint below is a composition and not a
 second implementation.
 
@@ -88,7 +88,7 @@ one :class:`~orpheus.data.macro_xs.mixture.Mixture` on the energy axis
 alone. "Problem" is thus a concept with three realisations and no shared
 type, which is the first entry of the debt list below.
 
-The hub owns what is consumed: its spaces as cached mints
+The hub (:ref:`the-problem-hub`) owns what is consumed: its spaces as cached mints
 (:attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`,
 the SN angular bulk, trial, trace and full-field spaces, the moment space
 of the angular frame, :ref:`frame-moment-space-single-home`), its fields,
@@ -125,16 +125,16 @@ and quotient are its verbs (:class:`~orpheus.numerics.measure.DiscreteMeasure`).
 A quadrature wraps one such measure and mints the angular axis and the
 angular frame from it (:class:`~orpheus.numerics.quadrature.directional.Quadrature`).
 An axis is the measure's forgetful image: the weights are kept, the nodes
-dropped, and the axis is nodal; a **basis** mints modal axes
-(:class:`~orpheus.numerics.axis.HarmonicAxis`,
+dropped, and the axis is nodal; a **basis** of the harmonic family
+mints modal axes (:class:`~orpheus.numerics.axis.HarmonicAxis`,
 :class:`~orpheus.numerics.axis.LegendreAxis`;
 :ref:`spaces-moment-head-axis-built`). The energy axis is a
 one-dimensional mesh in energy whose one-cell limit persists
 (:ref:`spaces-counting-measure-theorem`, :ref:`spaces-energy-grid-is-a-mesh`;
-:class:`~orpheus.numerics.axis.EnergyAxis`). The corpus owes "basis" a
-definition; the nearest statement is the three-level picture on the
-manifold page (:ref:`manifold-three-levels`), and the class is
-:class:`~orpheus.numerics.basis.base.Basis`.
+:class:`~orpheus.numerics.axis.EnergyAxis`). A basis, the choice-free
+synthesis side of a frame, is defined at :ref:`spaces-basis`, within the
+three-level picture of the manifold page (:ref:`manifold-three-levels`);
+the class is :class:`~orpheus.numerics.basis.base.Basis`.
 
 The flux lives in the **positive cone**
 (:ref:`cone-ordered-vector-space`, :eq:`positive-cone-definition`). The
@@ -207,8 +207,10 @@ boundary trace is one whole-boundary space whose inflow and outflow
 halves are selectors over the sign of :math:`\Omega \cdot \hat n`
 (:ref:`bc-trace-structure`;
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`),
-and "half-trace" names those halves without a definition of its own,
-owed. Along a system, the **system restriction** selects a member of a
+and one face's inflow or outflow half is a space of its own, a
+:ref:`half-trace <bc-half-trace>`
+(:class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`).
+Along a system, the **system restriction** selects a member of a
 coupled field and its transpose is extension by zero
 (:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`; the
 corpus owes it a definition, and the coupled carrier itself is
@@ -239,10 +241,12 @@ pairing. The **Riesz legs** are first-class arrows: ♭ lowers,
 :math:`V \to V^{*}`, applying :math:`G`
 (:class:`~orpheus.numerics.operator.RieszLowerOperator`); ♯ raises,
 :math:`V^{*} \to V`, applying :math:`G^{+}`
-(:class:`~orpheus.numerics.operator.RieszRaiseOperator`); the corpus owes
-them a definition beside the metric object, and the SN development
-history records their landing. The **adjoint** (:ref:`g-adjoint`,
-:eq:`g-adjoint-definition`) is the three-factor composition
+(:class:`~orpheus.numerics.operator.RieszRaiseOperator`); they are
+defined beside the metric object (:ref:`spaces-riesz-legs`,
+:eq:`spaces-riesz-lower-raise`), and the SN development history records
+their landing. The **adjoint** (:ref:`g-adjoint`,
+:eq:`g-adjoint-definition`, :eq:`spaces-adjoint-riesz-composition`) is
+the three-factor composition
 :math:`A^{*} = \sharp_V \circ A^{\mathsf T} \circ \flat_W`, built at
 construction from the bound spaces
 (:class:`~orpheus.numerics.operator.AdjointOperator`, reached as ``A.H``);
@@ -254,9 +258,11 @@ propagate the transpose by law, sums, products, tensor products
 ``(A.H).inverse()`` is ``A.inverse().H`` as an object identity, so the
 adjoint sweep is the reverse scan reached through the sweep operator's
 transpose, and no driver module spells a transpose (0 of 24
-``apply_transpose`` call sites, 2026-09-21). "Bound operator" is used
-throughout and defined nowhere; the nearest sentence is on the operator
-algebra page, owed.
+``apply_transpose`` call sites, 2026-09-21). The adjoint needs both
+ends, which is why it exists only for a **bound operator**, one
+constructed with its domain and codomain declared
+(:ref:`bound-operator`), with one exemption: the metric-free pointwise
+stratum, whose transpose needs no metric.
 
 
 Symmetry and quotient
@@ -360,8 +366,8 @@ The concept table
      - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.numerics.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
    * - Basis
-     - :class:`~orpheus.numerics.basis.base.Basis`
-     - owed; nearest :ref:`manifold-three-levels`
+     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`
+     - :ref:`spaces-basis`, :ref:`manifold-three-levels`
    * - Cone
      - :meth:`~orpheus.numerics.field.Field.cone_violations`
      - :ref:`cone-ordered-vector-space`, :eq:`positive-cone-definition`, :ref:`cone-membership-is-a-predicate`
@@ -377,9 +383,9 @@ The concept table
    * - Retraction; section
      - :class:`~orpheus.numerics.operator.AxisRetractionOperator`, :class:`~orpheus.numerics.operator.AxisSectionOperator`
      - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`
-   * - Trace restriction; trace space
-     - :class:`~orpheus.numerics.operator.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
-     - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`
+   * - Trace restriction; trace space; half-trace
+     - :class:`~orpheus.numerics.operator.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
+     - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`, :ref:`half-trace <bc-half-trace>`
    * - System restriction; coupled space
      - :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSpace`
      - owed (the restriction); the carrier: :ref:`carrier-grid-double-category`
@@ -394,10 +400,13 @@ The concept table
      - :ref:`spaces-metric-object`
    * - Riesz legs
      - :class:`~orpheus.numerics.operator.RieszLowerOperator`, :class:`~orpheus.numerics.operator.RieszRaiseOperator`
-     - owed; the SN development history records the landing
+     - :ref:`spaces-riesz-legs`, :eq:`spaces-riesz-lower-raise`, :eq:`spaces-riesz-round-trip`
+   * - Bound operator
+     - :class:`~orpheus.numerics.operator.LinearOperator` (its ``domain`` and ``codomain``), :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
+     - :ref:`bound-operator`
    * - Adjoint; dual
      - :class:`~orpheus.numerics.operator.AdjointOperator`, :meth:`~orpheus.numerics.operator.LinearOperator.dual`
-     - :ref:`g-adjoint`, :eq:`g-adjoint-definition`, :ref:`spaces-metric-propagation`
+     - :ref:`g-adjoint`, :eq:`g-adjoint-definition`, :eq:`spaces-adjoint-riesz-composition`, :ref:`spaces-metric-propagation`
    * - Symmetry group; invariance
      - :class:`~orpheus.numerics.symmetry.SubgroupOfO3`, :mod:`orpheus.numerics.invariance`
      - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`
@@ -406,7 +415,7 @@ The concept table
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
    * - Material mesh; method hubs
      - :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, :class:`~orpheus.sn.problem.SNProblem`, :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
-     - :ref:`architecture-layering`; hub: :ref:`sn-p49b-operator-poses-with-closures`
+     - :ref:`architecture-layering`; hub: :ref:`the-problem-hub`
    * - Pencil; posings
      - :class:`~orpheus.numerics.pencil.OperatorPencil`, :class:`~orpheus.numerics.posing.EigenPosing`, :class:`~orpheus.numerics.posing.SourcePosing`
      - :ref:`the-operator-pencil`, :eq:`pencil-family`, :ref:`eigenvalue-posing`, :ref:`sn-the-problem-poses-its-pencil`
@@ -434,7 +443,7 @@ Anything hand-rolled in production is a debt that needs refinement; a
 guard is the same debt in another spelling. Measured 2026-09-21 on
 ``b4865b5e``; the commands are in the memos named at the top.
 
-- **No shared Problem type.** Three hubs realise the concept
+- **No shared Problem type.** Three hubs (:ref:`the-problem-hub`) realise the concept
   (:class:`~orpheus.sn.problem.SNProblem`,
   :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`,
   :class:`~orpheus.homogeneous.solver.HomogeneousProblem`; only two are
@@ -477,7 +486,8 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   :class:`~orpheus.numerics.operator.LinearOperator` subclasses with no
   ``apply_transpose`` (48 own one, 8 inherit one); there is no diffusion
   adjoint entry.
-- **Certificate members the outcome module still lists as ``NotYet``**:
+- **Certificate members still listed as not yet built** (the outcome
+  module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen
   exit (#353, open); the list also names the linear-discontinuous residual
   (#310), whose issue is closed.

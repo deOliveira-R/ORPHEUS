@@ -123,8 +123,8 @@ Key Facts
   pinned by a ``@pytest.mark.catches("ERR-NNN")`` decorator on the
   test that fires it.
 - **A realized SN law's DOMAIN is** :math:`\Gamma_+` **(campaign phase
-  B3.2).** It consumes the outflow half-trace and produces the inflow
-  half-trace — exactly the shape :eq:`affine-bc-form` states and the
+  B3.2).** It consumes the outflow :ref:`half-trace <bc-half-trace>`
+  and produces the inflow half-trace — exactly the shape :eq:`affine-bc-form` states and the
   diffusion arm always had. The consumer composes
   :math:`B_{\rm face} = \iota_- \circ \text{law} \circ \gamma_+`
   (transpose :math:`\iota_+ \circ \text{law}^{\mathsf T} \circ
@@ -1474,7 +1474,23 @@ sets have nothing to hand each other.
       anti-Mode-12 leg, which interrogates the emitted operator's
       declared spaces rather than its output shape, found them.
 
-**Four of the seven laws are narrowed today; two remain.** B3.2
+⛔ **This passage, down to the partial-constructor paragraph, records
+the state between B3.4a and B3.4b, and both of its deferrals have since
+landed as it predicted.** B3.4b (``943b37c1``, 2026-08-01) gave albedo
+the explicit re-emission closure carried in :math:`R` that the passage
+calls for, and made the closure-free spelling a refusal; B3.4c
+(``79b5affe``, the same day) built periodic's partner-face channel, and
+G6.3 step 7 (``c3bb7341``, 2026-08-07) derived its arrow
+:math:`\Gamma_+(f') \to \Gamma_-(f)`. Every law the realizer admits is
+narrowed, and the strict xfails that pinned the deferred rows are
+retired (``tests/sn/operators/test_b3_domain_narrowing.py``, `[M]`
+2026-09-22: 31 of 31 pass under ``python -O``). The first consequence
+below is moot for the same reason (a closure-free albedo cannot be
+built, so ``0.3·specular + 0.7·albedo`` cannot be spelled), and the
+second is re-measured in place. The design analysis is kept because it
+is why the two repairs took the shape they did.
+
+**Four of the seven laws were narrowed at B3.4a; two remained.** B3.2
 narrowed the two laws SN reaches from a Problem — ``vacuum`` and
 ``reflective`` — and measured the remainder then as *six* realizer rows
 across four law kinds. **B3.4a** took two of those kinds:
@@ -1489,7 +1505,7 @@ across four law kinds. **B3.4a** took two of those kinds:
   (:ref:`bc-affine-source-channel`), so the narrowing survives while the
   operator that carried it does not.
 
-What remains is **four rows across two law kinds** — ``albedo`` at
+What remained was **four rows across two law kinds** — ``albedo`` at
 *three* rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
 returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
 :class:`~orpheus.numerics.operator.IdentityOperator`, which are
@@ -1500,13 +1516,13 @@ not on plumbing: albedo is under-determined on an angular trace
 and its :math:`G = \mathrm{id}` supplies no crossing), so
 **B3.4b** must give it an explicit re-emission closure carried in
 :math:`R`; periodic's :math:`G` reads the PARTNER face's
-:math:`\Gamma_+`, which **B3.4c** builds (#183, #189). Measured on both:
-they silently accept a :math:`\Gamma_+` input and echo it back — i.e.
-:math:`\Gamma_+ \to \Gamma_+`, the wrong codomain, invisible to a shape
-check (vv Mode 12 again). All four are unreachable in production — the
-SN registry admits only ``{vacuum, reflective}`` — so the tree is
-green; they are pinned by strict xfails, each ``--runxfail``-verified
-to red for *its own* documented reason.
+:math:`\Gamma_+`, which **B3.4c** was to build (#183, #189). Measured on
+both then: they silently accepted a :math:`\Gamma_+` input and echoed it
+back — i.e. :math:`\Gamma_+ \to \Gamma_+`, the wrong codomain, invisible
+to a shape check (vv Mode 12 again). All four were unreachable in
+production — the SN registry admits only ``{vacuum, reflective}`` — so
+the tree was green; they were pinned by strict xfails, each
+``--runxfail``-verified to red for *its own* documented reason.
 
 Two consequences to carry meanwhile. First, a narrowed law **cannot
 honestly compose with an un-narrowed one**: the sum of a
@@ -1519,12 +1535,19 @@ sum of two narrowed leaves and is simply correct, while
 :math:`|\Gamma_+| = |\Gamma_-|` swallows the mismatch. The Mode-12
 lesson applies to the *algebra* as well as to the leaves.
 
-Second, ``SNMethodSpace.minimal`` is now a **partial constructor**: a
-quadrature alone cannot name a *face's* :math:`\Gamma_+`, so it no
-longer suffices for any of the four narrowed laws — only ``albedo`` and
-``periodic`` still realize from it, and precisely because they have not
-yet been narrowed. Face orientation is a structural demand of
-realization, not an implementation detail.
+Second, ``SNMethodSpace.minimal`` became a **partial constructor**: a
+quadrature alone cannot name a *face's* :math:`\Gamma_+`, so it stopped
+sufficing for each law as that law was narrowed. At B3.4a only
+``albedo`` and ``periodic`` still realized from it, precisely because
+they had not been narrowed. Now it realizes **none**: `[M]` 2026-09-22
+(``scratch/_definitions/round2/minimal_probe.py``), 0 of 10 law
+spellings realize on ``SNMethodSpace.minimal(gauss_legendre(8))`` — the
+eight narrowed ones refuse for want of the face's inflow or outflow
+indices (periodic for want of a face), and so do ``zero_flux`` and the
+closure-free ``albedo``, which a face method space refuses as well —
+while the same ten on a face method space realize 8. No production code calls it (0 of
+352 modules under ``orpheus/``); 6 test modules do. Face orientation is a
+structural demand of realization, not an implementation detail.
 
 
 .. _bc-narrowing-b34a:
@@ -4153,8 +4176,46 @@ sign predicate :eq:`trace-half-decomposition` then collapses to a
    \mathrm{outflow\_mask}[f, n]
    \;=\; \bigl(\Omega_n \cdot \hat n_f > +\epsilon\bigr).
 
-This mask is the discrete realization of :math:`\Gamma_\pm`. It is
-the load-bearing primitive that downstream consumers need:
+.. _bc-half-trace:
+
+**A half-trace is the restriction of the whole-boundary trace space to
+one face's inflow or outflow selector**: :math:`\Gamma_-(f)`, the rows of
+face :math:`f`'s ordinate slot with :math:`\Omega_n\cdot\hat n_f <
+-\epsilon`, or :math:`\Gamma_+(f)`, the rows with :math:`\Omega_n\cdot\hat
+n_f > +\epsilon`, each carrying the trace metric
+:math:`|\Omega_n\cdot\hat n_f|\,w_n` restricted to its own rows. It is a
+space in its own right,
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`,
+minted and cached by the whole-boundary space
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+(:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_space`,
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_space`),
+and this paragraph is the corpus's one definition of the term. A
+narrowed boundary law is an arrow from an outflow half-trace to the
+inflow half-trace of the face it is installed on,
+:math:`\Gamma_+(f') \to \Gamma_-(f)`, with :math:`f' = f` for every law
+except periodic, whose domain is its partner face's outflow half-trace.
+Every law the S\ :sub:`N` realizer admits is realised narrowed, and it
+refuses the two spellings it cannot type, ``zero_flux`` and a
+closure-free ``albedo`` (:ref:`bc-domain-narrowing`; `[M]` 2026-09-22 on
+a face method space, 8 of 10 law spellings realise and those 2 refuse,
+``scratch/_definitions/round2/minimal_probe.py``). Two half-traces do not
+make up the face: the tangential rows belong to neither, and `[M]` on an
+:math:`x` face they number 0 of 4, 8 of 16 and 12 of 110 ordinates on
+``gauss_legendre(4)``, ``product(4,4)`` and ``lebedev(17)``
+(``scratch/_definitions/tangential_probe.py``). Those rows are, on every
+shipped quadrature, exactly the kernel of the face's metric (the
+measurement is recorded on the class), so the whole face tier is the direct
+sum of its two half-traces only in the quotient by that kernel, and a
+half-trace, whose metric is strictly positive, can be the intermediate
+space of a factored boundary response where the whole face tier cannot.
+The face and the direction are part of a half-trace's identity (its name
+is ``angular_trace[<face>:<role>]``), because the two faces of a slab
+carry half-traces of equal size over different ordinates.
+
+The mask :eq:`inflow-mask-discrete` is the discrete realization of
+:math:`\Gamma_\pm`. It is the load-bearing primitive that downstream
+consumers need:
 
 * **The SN realizer reads BOTH masks**, one per half-trace: the
   inflow indices
@@ -4783,18 +4844,27 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        cross-checked against the installation face's :math:`\Gamma_+`
        (index SETS, not sizes) before construction.
      - ``ScaledOperator(α, <that TP>)``
-   * - :class:`AlbedoBoundary(α)` with α=0 — **not yet narrowed**
-     - :class:`~orpheus.numerics.operator.ZeroOperator` (bare, so an
-       endomorphism — it carries no space hooks)
-     -
-   * - :class:`AlbedoBoundary(α)` with α=1 — **not yet narrowed**
-     - :class:`~orpheus.numerics.operator.IdentityOperator` (an
-       endomorphism by definition)
-     -
-   * - :class:`AlbedoBoundary(α)` with α ∉ {0, 1} — **not yet
-       narrowed**
-     -
-     - ``ScaledOperator(α, IdentityOperator() & IdentityOperator())``
+   * - :class:`AlbedoBoundary(α, SpecularReturn(a))` — **narrowed**
+       (B3.4b)
+     - the reflective row's body (``_deck_kernel``, shared with
+       reflective and periodic), so the law is ``ReflectiveBoundary(a,
+       α)`` as a matrix; α = 0 gives the narrowed zero map
+     - ``ScaledOperator(α, <that TP>)``
+   * - :class:`AlbedoBoundary(α, IsotropicReturn(a, s))` — **narrowed**
+       (B3.4b)
+     - the white row's body (``_checked_angular_average``), so the law
+       is ``WhiteBoundary(a, s, α)`` as a matrix; α = 0 gives the
+       narrowed zero map
+     - ``ScaledOperator(α, <that TP>)``
+   * - :class:`AlbedoBoundary(α)`, closure-free — **refused**
+       (``BoundaryError``, B3.4b)
+     - — (:math:`R = \alpha I` is an endomorphism of :math:`\Gamma_+`
+       and :math:`G` supplies no crossing, so on an angular trace nothing
+       pairs an outgoing ordinate with an incoming one; until B3.4b the
+       arm returned the endomorphisms ``ZeroOperator`` /
+       ``IdentityOperator`` / ``α·(I & I)``. A scalar method needs no
+       closure, so the diffusion realizer takes the same object)
+     - —
    * - :class:`PeriodicBoundary` — **narrowed** (B3.4c); arrow derived
        (G6.3 step 7)
      - ``PermutationOperator(arange) & IdentityOperator()``, bound
@@ -4844,20 +4914,22 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
 
 .. note::
 
-   **Four of the seven laws are narrowed; the rows flagged not yet
-   narrowed are albedo and periodic.** Since campaign phase **B3.2** a
-   realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
-   (:ref:`bc-domain-narrowing`). B3.2 landed ``vacuum`` and
-   ``reflective``; **B3.4a** landed ``white`` and ``prescribed_inflow``
-   (:ref:`bc-narrowing-b34a`). The remaining rows still emit
-   full-:math:`N` endomorphisms, are unreachable in production, and are
-   pinned by strict xfails; each is blocked on a **design ruling** —
-   **B3.4b** must give albedo an explicit re-emission closure in
-   :math:`R` (its :math:`G` supplies no crossing), and **B3.4c** must
-   build periodic's partner-face :math:`G` (#183, #189). Note that a
-   shape assertion cannot tell the two typings apart —
+   **Every law the S**\ :sub:`N` **realizer admits is narrowed.** Since
+   campaign phase **B3.2** a realized SN law is typed
+   :math:`\Gamma_+ \to \Gamma_-` (:ref:`bc-domain-narrowing`). B3.2
+   landed ``vacuum`` and ``reflective``; **B3.4a** landed ``white`` and
+   ``prescribed_inflow`` (:ref:`bc-narrowing-b34a`); **B3.4b** completed
+   ``albedo`` with a re-emission closure and made the closure-free
+   spelling a refusal; **B3.4c** built periodic's partner-face channel
+   and G6.3 step 7 derived its arrow :math:`\Gamma_+(f') \to
+   \Gamma_-(f)`. The strict xfails that pinned the deferred rows are
+   retired (``tests/sn/operators/test_b3_domain_narrowing.py``). `[M]`
+   2026-09-22: on a face method space the two closure rows realize
+   ``array_equal`` to the reflective and white rows at α ∈ {0, 0.5, 1}
+   (``scratch/_definitions/round2/minimal_probe.py``). A shape assertion
+   still cannot tell the two typings apart, since
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
-   tree — so read the *declared spaces*, not the output shape.
+   tree, so read the *declared spaces*, not the output shape.
 
 The α = 1.0 fast paths return the **bare** primitive (no
 ``ScaledOperator`` wrap). This is load-bearing for bit-identity:
@@ -4924,11 +4996,18 @@ driven by the shared
 quadrature-only method space for unit tests that don't need mesh +
 face metadata. **Since B3.2** ``minimal`` is a *partial* constructor:
 a quadrature alone cannot name a particular face's :math:`\Gamma_+`,
-so it no longer suffices for a narrowed law. B3.4a widened that from
-two laws to four — only ``albedo`` and ``periodic`` still realize from
-a ``minimal`` space, and precisely because they are the two laws still
-awaiting narrowing. After B3.4b / B3.4c it will realize nothing at all
-— a retirement candidate, not a fixture.
+so it does not suffice for a narrowed law. B3.4a widened that from two
+laws to four, leaving ``albedo`` and ``periodic`` as the two that still
+realized from a ``minimal`` space because they awaited narrowing, and
+this paragraph predicted that after B3.4b / B3.4c it would realize
+nothing at all. It realizes nothing: `[M]` 2026-09-22, 0 of 10 law
+spellings on ``SNMethodSpace.minimal(gauss_legendre(8))``, against 8 of
+10 on a face method space
+(``scratch/_definitions/round2/minimal_probe.py``). What it still serves
+is the refusal side: 6 test modules construct it to assert that a law
+cannot be realized without face data, and no production code calls it.
+That makes it a retirement candidate whose remaining use is as a
+negative fixture.
 
 
 .. _bc-dual-registry:
@@ -6414,7 +6493,7 @@ There is **one** way to call a boundary law's ``apply``:
    law = ReflectiveBoundary(axis="x", albedo=0.5)
    # A NARROWED law needs a FACE: since B3.2 its domain is that face's
    # Γ₊, which a quadrature alone cannot name. ``SNMethodSpace.minimal``
-   # raises here — it survives only for the two laws still un-narrowed.
+   # raises here, and since every law is narrowed it realizes none.
    ms = SNMethodSpace.for_face(quadrature=quad, face="xmax", trace=trace)
    op = SNBoundaryRealizer().realize(law, ms)
    psi_in = op.apply(gamma_out.apply(psi_face))   # Γ₊-shaped argument
@@ -6615,6 +6694,11 @@ Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
       raise was an accident of white's shape check, not a guarantee of
       the algebra; until B3.4b / B3.4c land, a mixed tree containing
       albedo or periodic is unsound and shape-invisible (vv Mode 12).
+      ⛔ Both landed (B3.4b and B3.4c on 2026-08-01, periodic's arrow at
+      G6.3 step 7 on 2026-08-07), so the last clause is history: every
+      leaf the realizer builds is narrowed, and the closure-free albedo
+      that made this mix spellable is refused. The lesson above, that
+      the raise was never a safety property, stands.
 
 The specular rows are ``assert_array_equal`` and the choice is
 structural, not optimistic: a gather introduces no re-association and

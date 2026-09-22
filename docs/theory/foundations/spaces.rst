@@ -709,8 +709,8 @@ the harmonic family. Since ``of_axes`` is the only ROOT producer of an
 ``axes`` record (``*`` and :meth:`dual
 <orpheus.numerics.space.FunctionSpace.dual>` merely thread one through,
 so both need an axis-built ancestor), and the angular head declares no
-axes, every harmonic-moment space in the tree is still legacy
-(``axes is None``) and therefore takes the ``None`` arm — `[M]`
+axes, every harmonic-moment space in the tree was still legacy on that
+date (``axes is None``) and therefore took the ``None`` arm — `[M]`
 2026-09-07 the moment product's metric is a
 :class:`~orpheus.numerics.metric.FactoredMetric` while its ``axes`` is
 ``None``. Item **6.2a** did not move that: retiring the densifier
@@ -718,6 +718,250 @@ changed how a product carries its measure, not whether its factors
 declare axes. Item **6.2c** does, by minting the harmonic axis (this
 sentence said "CS2" until the 2026-09-07 ruling).
 
+
+⛔ **The last reading above is dated 2026-09-07, and item 6.2c-ii moved
+it the next day.** `[M]` 2026-09-22 (``scratch/_definitions/basis_space_probe.py``):
+``SphericalHarmonicBasis(L=2).space`` and ``LegendreBasis(L=2).space``
+are each axis-built with one ``MODAL`` head axis whose generator is the
+basis, and both read ``has_coordinate_cone`` ``False``. So does the
+production moment product the paragraph above was about: `[M]`
+2026-09-22 (``scratch/_definitions/round2/moment_space_probe.py``),
+``SNProblem.moment_space(1)`` is an axis-built ``TensorProductSpace``
+with axes (``MODAL``, ``NODAL``, ``NODAL``) and cone ``False`` on a
+slab, a sphere and a 2-D Cartesian problem, where each problem's
+all-nodal ``bulk_space`` reads ``True`` as the control. The harmonic
+family therefore takes the ``False`` arm today; the ``None`` arm is
+where the hand-named coefficient spaces still sit (the indicator
+family's, next section).
+
+.. _spaces-basis:
+
+The basis: the synthesis side of a frame, and what its coefficients are
+------------------------------------------------------------------------
+
+A **basis** is a finite family of functions
+:math:`\{\phi_k\}_{k=1}^{K}` on a manifold :math:`M`, carried together
+with the operations that turn a coefficient vector into function values.
+The manifold is what the functions **eat**
+(:attr:`Basis.domain <orpheus.numerics.basis.base.Basis.domain>`: a
+direction on :math:`S^2`, an orbit of a stabiliser, a point of a
+partitioned spatial or energy domain, an index); the coefficients live
+in :math:`\mathbb R^K`, the basis's **coefficient space**
+(:attr:`Basis.space <orpheus.numerics.basis.base.Basis.space>`). Those
+are two different levels of the three-level picture, the manifold and
+the coefficients, with the fields on the manifold between them
+(:ref:`manifold-three-levels`). This section is the corpus's one
+definition of the word; the abstract class is
+:class:`~orpheus.numerics.basis.base.Basis`.
+
+**What a basis computes.** Its central operation is the **naked
+synthesis**
+
+.. math::
+
+   S_0 : \mathbb R^{K} \to \mathbb R^{N},
+   \qquad
+   (S_0\,c)_n \;=\; \sum_{k=1}^{K} \phi_k(x_n)\, c_k ,
+
+the expansion evaluated at sample points :math:`x_n`, with no weights
+and no dual factor; frame theory calls it the synthesis operator,
+:math:`T^{*}` in the convention ORPHEUS follows, where :math:`T` is the
+analysis operator (:cite:`CasazzaLynch2016` §4.1; Christensen 2016,
+*An Introduction to Frames and Riesz Bases*, 2nd ed., calls the same
+operator :math:`T`; :ref:`frame-discrete-frame-definition`). A basis
+tabulates :math:`\Phi_{nk} = \phi_k(x_n)` once
+(:meth:`~orpheus.numerics.basis.base.Basis.evaluate`, the only method that
+takes points) and every other operation contracts that cached table, so
+the frame that holds the table never re-tabulates on the hot path. The
+four weighted contractions are each :math:`S_0` or its transpose times
+**one** diagonal family:
+
+.. list-table:: The basis's contractions (``basis/base.py``'s module docstring is the source)
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Verb
+     - Action
+     - Which weight, and why
+   * - ``analyze``
+     - :math:`M f = S_0^{\mathsf T}(w \odot f)`
+     - the **measure's** weights :math:`w_n`: analysis is the measured,
+       test side
+   * - ``analyze_transpose``
+     - :math:`M^{\mathsf T} c = w \odot S_0 c`
+     - the same :math:`w_n`; the representation transpose, NOT the
+       Hilbert adjoint
+   * - ``reconstruct``
+     - :math:`R c = S_0(d \odot c)`
+     - the basis's own **canonical-dual factor** :math:`d_k`
+       (:math:`2\ell + 1` for the real spherical harmonics); no measure
+   * - ``reconstruct_transpose``
+     - :math:`R^{\mathsf T} f = d \odot S_0^{\mathsf T} f`
+     - the same :math:`d_k`; measure-free, like ``reconstruct``
+
+The table is the conceptual unity, and the code keeps each row as its
+own fused contraction rather than ``weight ⊙ synthesize``: floating-point
+non-associativity would move the factored form at the ULP level, and the
+scattering kernel that consumes these rows is pinned at 0 ULP. The
+discrete Gram
+:math:`\sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)`
+(:meth:`~orpheus.numerics.basis.base.Basis.mass_matrix`) is the matrix
+of the **Gram operator** :math:`T T^{*}` on the :math:`K` coefficients,
+read with the Euclidean coefficient metric in which :math:`T^{*}` is the
+naked synthesis :math:`S_0`. It is not the frame operator
+:math:`S = T^{*} T`, which acts on the :math:`N` sample values; the two
+share their nonzero spectrum, so frame bounds read off either agree, but
+they are different objects (:ref:`frame-discrete-frame-definition`). It
+equals the continuum Gram when the
+quadrature is exact to the basis's degree, and the frame's
+:eq:`frame-discrete-gram` is the same object computed from the cached
+table.
+
+**The basis is choice-free; the frame makes the choice.** A basis knows
+its functions and their normalization convention and nothing about which
+points sample them. The :class:`~orpheus.numerics.measure.DiscreteMeasure`
+supplies the nodes, the weights and therefore the domain's inner product;
+a :class:`~orpheus.numerics.frame.FrameBase` binds a basis to a measure
+and mints the two faces from the pair (:eq:`galerkin-pair`). The two
+sides split as follows:
+
+- the **basis is the synthesis (trial) side**: it owns the reconstruction
+  :math:`R`, and the frame's codomain is its coefficient space;
+- the **analysis side belongs to the frame**: the analysis face
+  :math:`M` is minted from a test basis and the measure's weights. A
+  :class:`~orpheus.numerics.frame.GalerkinFrame` binds the test basis to
+  the trial basis (``test is trial``); a
+  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` holds a separate
+  test basis, and the shipped one,
+  :class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
+  (cell indicators times a nodal weight such as the region flux), builds
+  only ``evaluate`` and ``analyze`` and refuses the other five verbs
+  (``synthesize``, ``reconstruct``, ``reconstruct_transpose``,
+  ``analyze_transpose``, ``mass_matrix``) by name: none has a consumer,
+  and a Petrov–Galerkin reconstruction is trial-side.
+
+The separation is why one basis can serve several frames: the same
+basis bound to two different quadratures is two frames with two
+different discrete Grams, because the Gram belongs to the pairing and
+not to either half. It is also why a pairing can be wrong while each
+half is right, and why the basis must answer what it eats: ERR-080 was
+the full-sphere real harmonics evaluated at the ordinates of a 1-D rule,
+whose :math:`\mu_y = \mu_z = 0` meant "no azimuthal information" and
+were read as "azimuth zero", a pairing the level-2 spaces accepted and
+only the level-1 manifolds refute (:ref:`manifold-three-levels`). The symmetry a
+basis HAS is read off its domain, never stored
+(:attr:`Basis.invariance_group
+<orpheus.numerics.basis.base.Basis.invariance_group>`, ``@final``): a
+function on a quotient :math:`M/H` is exactly an :math:`H`-invariant
+function on :math:`M`.
+
+**What the coefficient space carries.** The basis's own space carries the
+**continuum** Gram where one exists (for the real harmonics
+:math:`g_C = \operatorname{diag}\bigl(4\pi/(2\ell+1)\bigr)`, on a head
+axis); the frame re-dresses that space with the **discrete** Parseval
+metric (:ref:`frame-parseval-metric`), and the dressed space, not the
+basis's, is the moment space the tree binds
+(:ref:`frame-moment-space-single-home`). An indicator basis is
+measure-free and its space carries only the Euclidean default, no
+intrinsic metric: the cell masses
+exist only against a bound measure.
+
+**The Gram structure is a declaration the type enforces.** A trial
+basis's frame normalises the projection by the cross Gram :math:`MR`,
+and the frame computes that Gram with one row-sum probe,
+``analysis(reconstruction(ones))``. The probe equals the required
+normalisation under exactly two structural conditions, so each basis
+declares which one holds
+(:attr:`Basis.gram_structure <orpheus.numerics.basis.base.Basis.gram_structure>`,
+a :class:`~orpheus.numerics.basis.base.GramStructure`):
+
+- ``DIAGONAL`` — disjoint supports or orthogonal functions: :math:`MR` is
+  diagonal and the row sum is the diagonal;
+- ``PARTITION_OF_UNITY`` — overlapping functions whose rows sum to one:
+  :math:`MR` is not diagonal, but :math:`R\mathbf 1 = \mathbf 1`
+  collapses the probe to the per-region weight anyway;
+- ``DENSE`` — neither: the true projection needs the dense
+  :math:`(MR)^{-1}M` solve, which is not built, so
+  :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+  REFUSES a dense trial rather than return a silently wrong coarsening.
+
+The base class answers ``DENSE``, the safe refusal: a new basis earns the
+shortcut only by declaring, having checked its Gram, that it may use it.
+
+**The family, measured.** `[M]` 2026-09-22, every concrete ``Basis``
+subclass in ``orpheus/`` (an AST census of class definitions whose
+bases name a basis class, seven production members, which a runtime
+``__subclasses__`` walk reproduces once
+``orpheus.sn.operators.loss_kernel_gauge`` is imported; the three test
+doubles the same census finds under ``tests/`` are excluded, one of them
+nested inside a test function, where a header grep anchored at column 0
+misses it), each coefficient
+space read off a constructed instance for the three members probed:
+
+.. list-table:: The concrete bases
+   :header-rows: 1
+   :widths: 30 24 16 30
+
+   * - Class
+     - Domain (what it eats)
+     - Gram structure
+     - Coefficient space
+   * - :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
+     - the partitioned manifold (spatial, energy, index)
+     - ``DIAGONAL``
+     - hand-named, axes-less, Euclidean (`[M]` ``has_coordinate_cone``
+       is ``None``)
+   * - :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`
+       (an ``IndicatorBasis``)
+     - the fine partition
+     - ``PARTITION_OF_UNITY``
+     - as ``IndicatorBasis``
+   * - :class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
+     - the wrapped indicator's
+     - ``DENSE`` (the default)
+     - the wrapped indicator's; a TEST basis only
+   * - :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
+     - :math:`S^2`
+     - ``DIAGONAL``
+     - one ``MODAL`` harmonic head axis (`[M]` cone ``False``)
+   * - :class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`
+     - :math:`S^2/\sigma_a`, a quotient
+     - ``DIAGONAL``
+     - as its parent
+   * - :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`
+     - :math:`S^2/O(2)_a`, a quotient
+     - ``DIAGONAL``
+     - one ``MODAL`` Legendre head axis (`[M]` cone ``False``)
+   * - :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis`
+     - an index set of trace degrees of freedom
+     - ``DIAGONAL``, a theorem: the table is :math:`G`-orthonormal
+     - hand-named, axes-less
+
+**Nodal and modal belong to the axis, not to the basis.**
+:class:`~orpheus.numerics.axis.BasisKind` is an axis slot
+(:ref:`spaces-the-axis`), and it records what one coefficient of the
+factor IS: ``NODAL`` when it is a point or cell **value** (an
+indicator-like basis, so a coordinate cone exists and a sign test on the
+coefficients is a sign test on the function), ``MODAL`` when it is an
+**expansion coefficient** (a positive function can have negative ones,
+:ref:`spaces-nodal-modal`). A basis enters that slot through the axes it
+mints. The harmonic family mints its coefficient space as an axis-built
+space whose one head axis is ``MODAL`` and names the basis as its
+generator (:ref:`spaces-moment-head-axis-built`); that is the sense of
+"a basis mints modal axes". It is a statement about 3 of the 7 members:
+the indicator family's coefficients are cell values, NODAL by
+:class:`~orpheus.numerics.axis.BasisKind`'s own wording, yet their
+spaces declare no axes, so the question is unanswered there (``None``)
+rather than answered ``NODAL``, and the loss-kernel basis is in the same
+position.
+
+**Two related surfaces.** The harmonic family also satisfies the
+structural protocol :class:`~orpheus.numerics.basis.base.TruncatedBasis`
+(a truncation order :math:`L`, its space, and ``at_order``), which is
+what a consumer asks for when it needs "the coefficient space of order
+:math:`L`" without naming one class; and
+:class:`~orpheus.numerics.basis.descent.Descent` pulls a basis back along
+a quotient map (:ref:`manifold-descent`).
 
 .. _spaces-axis-generator:
 
@@ -2214,6 +2458,356 @@ from ``apply_metric``/``apply_inverse_metric`` while the pairing that
 ``apply`` makes those two agree by construction — the ERR-067 family
 (two spellings of one metric diverging silently) becomes unspellable
 rather than merely untested.
+
+.. _spaces-riesz-legs:
+
+The Riesz legs: the metric as two arrows, and the adjoint as their composition
+------------------------------------------------------------------------------
+
+The metric object is applied through three verbs on the space
+(:meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`,
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`,
+:meth:`~orpheus.numerics.space.FunctionSpace.inner_product`). Two of them
+are also **arrows**: operators with a declared domain and codomain, which
+the operator algebra can compose like any other operator. They are the
+**Riesz legs**. This section is their one definition.
+
+**The mathematics.** A finite-dimensional real Hilbert space :math:`V`
+with symmetric positive-definite metric :math:`G` is isomorphic to its
+dual :math:`V^{*}` (the space of linear functionals on :math:`V`), and
+the isomorphism is fixed by the metric. The Riesz representation theorem
+states it: every functional :math:`f \in V^{*}` is the pairing with
+exactly one vector, :math:`f(x) = \langle v_f, x\rangle_G` for all
+:math:`x` (:cite:`Kreyszig1978` §3.8, Theorem 3.8-1, p. 188). In coordinates the map from a
+vector to the functional it represents multiplies by :math:`G`, and the
+inverse map multiplies by :math:`G^{-1}`. Differential geometry names the
+same pair the **musical isomorphisms** of a metric, :math:`\flat`
+("flat", which lowers an index) and :math:`\sharp` ("sharp", which raises
+one) (:cite:`Lee2018` Ch. 2, "Raising and Lowering Indices", p. 26), and
+ORPHEUS adopts those names. Lee's :math:`\sharp` is the inverse of
+:math:`\flat` and needs a nonsingular metric; the raising leg below
+extends it to a singular one through the pseudo-inverse, which is
+ORPHEUS's choice and not Lee's:
+
+.. (V&V scope note) Definitional: it STATES what the two leg classes
+   apply (RieszLowerOperator.apply delegates to FunctionSpace.apply_metric,
+   RieszRaiseOperator.apply to FunctionSpace.apply_inverse_metric), plus
+   the arrow bookkeeping. Not a solver claim: no flux, no eigenvalue, no
+   discretization error. Wired, L0, to the test a mutation of the
+   lowering leg reddens: tests/numerics/test_riesz_legs.py
+   ::test_lowering_realizes_the_metric_pairing (G-H2, the defining
+   pairing <flat x, y>_Euclid == <x, y>_G against a hand-spelled weight
+   array, bitwise). The raising half's Moore-Penrose behaviour is pinned
+   by G-H1's singular row (a 1/G raising leg reddens it and nothing else
+   in the module), which is the witness of spaces-riesz-round-trip below
+   and carries no marker. The dual-space refusal (G-H4) stays green
+   under a leg mutation, so it carries no marker either.
+
+.. math::
+   :label: spaces-riesz-lower-raise
+
+   \flat_V : V \to V^{*}, \quad \flat_V\,x = G\,x ,
+   \qquad\qquad
+   \sharp_V : V^{*} \to V, \quad \sharp_V\,f = G^{+} f ,
+
+.. implements:: spaces-riesz-lower-raise
+   :by: orpheus.numerics.operator.RieszLowerOperator.apply
+
+   **Implemented by** the lowering leg, whose ``apply`` is
+   ``space.apply_metric(x)``: the leg contributes the ARROW (``domain`` the
+   primal :math:`V`, ``codomain`` ``V.dual()``) and borrows the arithmetic
+   from the space, so the metric keeps one home.
+
+.. implements:: spaces-riesz-lower-raise
+   :by: orpheus.numerics.operator.RieszRaiseOperator.apply
+
+   **Implemented by** the raising leg, whose ``apply`` is
+   ``space.apply_inverse_metric(f)``: the Moore–Penrose pseudo-inverse of
+   :ref:`spaces-metric-moore-penrose`, on every metric realization.
+
+where :math:`G^{+}` is the Moore–Penrose pseudo-inverse, the unique
+matrix satisfying the four Penrose conditions :math:`G G^{+} G = G`,
+:math:`G^{+} G G^{+} = G^{+}`, :math:`(G G^{+})^{\mathsf T} = G G^{+}`
+and :math:`(G^{+} G)^{\mathsf T} = G^{+} G` (:cite:`Penrose1955` Theorem 1,
+p. 406, stated there for the conjugate transpose; the inverse was first
+defined by :cite:`Moore1920`, through conditions on column and row
+spaces rather than these four equations). On an
+invertible metric :math:`G^{+} = G^{-1}` and the pair is the Riesz map and
+its inverse exactly. The defining property of the lowering leg is that
+the Euclidean pairing of :math:`\flat x` with :math:`y` IS the metric
+pairing, :math:`\langle \flat x, y\rangle = y^{\mathsf T} G x =
+\langle x, y\rangle_G`, which is what the test G-H2
+(``test_lowering_realizes_the_metric_pairing``) asserts bitwise.
+
+Three facts about the dual end are load-bearing:
+
+- **The dual space carries the same metric.** Under the L²-Riesz
+  identification :math:`V^{*}` has :math:`V`'s shape and metric; what
+  distinguishes it is its type
+  (:class:`~orpheus.numerics.space.DualSpace`, reached by
+  :meth:`~orpheus.numerics.space.FunctionSpace.dual`), a covariance tag
+  that lets a composition chain tell a vector from a functional. Its
+  consequence is the next fact.
+- **The legs live on the primal space only.** Because :math:`V^{*}`
+  carries :math:`G` and not :math:`G^{-1}`, a lowering leg built on
+  :math:`V^{*}` would apply :math:`G` where the honest dual-side map
+  applies :math:`G^{-1}`, and ``lower(lower(x))`` would read
+  :math:`G^{2}x` (for :math:`w = [0.5, 2, 4]` and :math:`x = \mathbf 1`
+  that is :math:`[0.25, 4, 16]`, where the double Riesz map must return
+  :math:`x`). Both leg constructors therefore REFUSE a ``DualSpace`` with
+  a ``TypeError``, so the wrong composition cannot be spelled. A Hilbert
+  adjoint on the dual side routes through the dagger–dual commutation
+  :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}` instead
+  (``A.dual().H`` equals ``A.H.dual()``: two distinct objects whose
+  actions agree bitwise, test G-H4).
+- **Each leg is its own transpose.** Every shipped metric realization is
+  symmetric (a diagonal weight, or a
+  :class:`~orpheus.numerics.metric.DenseMetric` admitted only through its
+  symmetry guard, or a :class:`~orpheus.numerics.metric.FactoredMetric`
+  built from such factors), so :math:`\flat^{\mathsf T} = \flat` and
+  :math:`\sharp^{\mathsf T} = \sharp` under the reflexive identification
+  :math:`V^{**} = V`, and both legs report
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`.
+
+The round trip, and the Moore–Penrose choice on the kernel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A metric that is only positive **semi**-definite has a kernel, and the
+S\ :sub:`N` boundary trace carries one: the trace metric is
+:math:`|\Omega\cdot\hat n|\,w_n`, which vanishes on the tangential
+ordinates (:ref:`bc-trace-structure`; on one face the kernel is exactly
+the rows neither :ref:`half-trace <bc-half-trace>` carries). Composing the
+legs then does not return the identity. From the third and fourth Penrose conditions, with
+:math:`G` symmetric:
+
+.. (vv-status rationale) An identity of the pseudo-inverse, not a solver
+   claim: G⁺G is the orthogonal projector onto range(G) for any symmetric
+   G (Penrose conditions 1, 2 and 4). Case 1 of the vv-status-documented
+   taxonomy: a declared no-implementation identity (below), since no
+   production code forms ♯∘♭. Its measurement is
+   tests/numerics/test_riesz_legs.py G-H1: identity on a strictly
+   positive metric (the positivity precondition asserted), the
+   kernel-zeroing projector on a singular diagonal one, and non-finite
+   values refused. [M] 2026-09-22 a 1/G raising leg reddens exactly the
+   singular row, 1 of the module's 11 tests.
+.. vv-status: spaces-riesz-round-trip documented
+
+.. math::
+   :label: spaces-riesz-round-trip
+
+   \sharp_V \circ \flat_V \;=\; G^{+} G \;=\; P_{\operatorname{range}(G)} ,
+
+.. no-implementation:: spaces-riesz-round-trip
+   :kind: identity
+
+   **Nothing implements this.** No production code forms
+   :math:`\sharp\circ\flat`; the composite adjoint uses the legs in the
+   other order around an operator (below). The identity is what makes the
+   legs *honest* on a singular metric, and it is measured by G-H1.
+
+the orthogonal projector onto the range of :math:`G`. It is the identity
+exactly when :math:`G` is strictly positive. On a diagonal metric with
+zero weights it zeroes those slots and keeps the others, which on a trace
+block is the **tangential-zeroing projector**. On a dense singular metric
+it is not diagonal at all: `[M]` 2026-09-22, a rank-2 symmetric
+:math:`G = BB^{\mathsf T}` on :math:`\mathbb R^4` (``B`` a seeded
+:math:`4\times 2` Gaussian draw) through
+:class:`~orpheus.numerics.metric.DenseMetric`, the round trip built
+column by column is symmetric, idempotent and of rank 2, and has
+off-diagonal entries of order :math:`10^{-1}` (the probe is
+``scratch/_definitions/riesz_probe.py``). It also equals
+``pinv(G) @ G`` to the last bit, which is not an independent check:
+:class:`~orpheus.numerics.metric.DenseMetric` stores
+``pinv(G, hermitian=True)`` as its inverse face. A gate asserting
+``♯∘♭ == id`` would therefore be blind to a ``1/G`` raising leg on every
+strictly positive fixture and a false red on a legal trace space, which
+is why G-H1 carries a singular fixture beside the positive one: `[M]`
+2026-09-22, a ``1/G`` raising leg installed in-process reddens exactly
+that singular row, 1 of the module's 11 tests, and the unmutated run
+reads 11 of 11 green.
+
+**Why the pseudo-inverse and not some other inverse.** The kernel is
+exactly where the metric cannot see: a vector :math:`z \in \ker G`
+pairs to zero with everything. So wherever :math:`\sharp` is used to
+solve for a vector from its pairings, that vector is determined only up
+to :math:`\ker G`, and :math:`G^{+}` picks one representative, the one
+with no component in :math:`\ker G`. Because :math:`G` is symmetric,
+:math:`\operatorname{range}(G)` and :math:`\ker G` are Euclidean-orthogonal,
+so this is also the representative of least Euclidean norm. The next
+subsection shows the choice is exact for the adjoint whenever the
+operator does not carry kernel content into what the codomain metric
+measures. :math:`G^{-1}` does not exist there (:func:`numpy.linalg.inv`
+raises on the flagship slab Gram, :ref:`spaces-metric-moore-penrose`),
+and a reciprocal :math:`1/w` would put infinities in the tangential
+slots.
+
+The adjoint is the legs composed around the transpose
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For an operator :math:`A : V \to W` between spaces with metrics
+:math:`G_V` and :math:`G_W`, the Hilbert adjoint :math:`A^{*} : W \to V`
+is defined by reciprocity (:cite:`Kreyszig1978` §3.9, Definition 3.9-1,
+p. 196, for genuine Hilbert spaces, where it exists and is unique):
+
+.. math::
+
+   \langle A x, y\rangle_W \;=\; \langle x, A^{*} y\rangle_V
+   \qquad \text{for all } x \in V,\; y \in W .
+
+Here :math:`W` is the codomain *space*, the spelling the code uses; the
+subscript :math:`W` on a norm elsewhere on this page, as in
+:eq:`spaces-pseudo-inverse-parseval`, names the quadrature-weighted
+pairing instead. In coordinates the left side is :math:`(Ax)^{\mathsf T} G_W y =
+x^{\mathsf T}\,(A^{\mathsf T} G_W y)` and the right side is
+:math:`x^{\mathsf T} G_V\,(A^{*}y)`. Equal for every :math:`x` means
+:math:`G_V\,(A^{*}y) = A^{\mathsf T} G_W\, y`. Solving with the
+pseudo-inverse and reading the product right to left gives three arrows:
+
+.. (V&V scope note) The arrow-typed factorization of the Hilbert
+   adjoint: with V = W and G⁻¹ read as the pseudo-inverse it IS
+   g-adjoint-definition, one quantity in two spellings (X4), not a
+   second definition. Not a solver claim. Wired, L0, to the two tests a
+   mutation of either leg reddens, both in
+   tests/numerics/test_riesz_legs.py (G-A1):
+   ::test_adjoint_apply_is_bit_identical_to_the_inline_formula (the
+   composition bit-identical to G_V⁺ Aᵀ(G_W y)) and
+   ::test_adjoint_transpose_is_the_leg_theorem ((A*)ᵀ = ♭_W A ♯_V
+   bit-identical to a hand-built right side, with a wrong-order negative
+   leg). G-H3 (counting spies proving the composite ROUTES through the
+   legs) and the dagger-dual square stay green under a leg mutation and
+   carry no marker. The per-leg mutation battery
+   tests/sn/architecture/test_monomorphic_leaves.py
+   ::test_each_riesz_leg_is_individually_load_bearing exercises the same
+   legs on the SN leaves.
+
+.. math::
+   :label: spaces-adjoint-riesz-composition
+
+   A^{*} \;=\; \sharp_V \circ A^{\mathsf T} \circ \flat_W ,
+   \qquad
+   W \xrightarrow{\;\flat_W\;} W^{*}
+     \xrightarrow{\;A^{\mathsf T}\;} V^{*}
+     \xrightarrow{\;\sharp_V\;} V ,
+
+.. implements:: spaces-adjoint-riesz-composition
+   :by: orpheus.numerics.operator.AdjointOperator
+
+   **Implemented by** the dagger arrow, which builds the three factors AT
+   CONSTRUCTION from the inner operator's two ends: the codomain's
+   lowering leg, the metric-free dual arrow (the object ``inner.dual()``
+   returns, constructed directly), and the domain's raising leg;
+   ``apply`` is their composition and nothing else.
+
+.. implements:: spaces-adjoint-riesz-composition
+   :by: orpheus.numerics.operator.LinearOperator.dual
+
+   **Implemented by** the middle factor's public mint: the dual arrow
+   :math:`A^{\mathsf T} : W^{*} \to V^{*}` is the representation
+   transpose carried between the dual spaces, and every metric lives in
+   the legs, never here. The adjoint does not call this verb; it
+   constructs the same class directly.
+
+read as: lower the output-side vector to a functional on :math:`W`, pull
+that functional back along :math:`A` (the metric-free transpose, between
+the dual spaces), and raise the result to a vector of :math:`V`. With
+:math:`V = W` and :math:`G^{-1}` read as :math:`G^{+}` this is
+:eq:`g-adjoint-definition`, :math:`A^{\dagger} = G^{-1}A^{\mathsf T}G`;
+the two labels are one quantity, the composite page's endomorphic
+spelling and this page's arrow-typed one, and the second is the one that
+generalises to :math:`V \ne W`.
+
+**When the kernel is non-trivial the reciprocity is exact under one
+condition.** Substituting the pseudo-inverse and using
+:math:`G_V G_V^{+} = G_V^{+} G_V = P_{\operatorname{range}(G_V)}`,
+
+.. math::
+
+   \langle A x, y\rangle_W - \langle x, A^{*} y\rangle_V
+   \;=\; x^{\mathsf T}\bigl(I - G_V G_V^{+}\bigr) A^{\mathsf T} G_W\, y
+   \;=\; \bigl\langle A\,P_{\ker G_V}\,x,\; y\bigr\rangle_W ,
+
+so the identity holds for every :math:`x` and :math:`y` if and only if
+:math:`A` maps :math:`\ker G_V` into :math:`\ker G_W`, and it holds for
+every :math:`x \in \operatorname{range}(G_V)` unconditionally. `[M]`
+2026-09-22, twice. In plain numpy (``scratch/_definitions/riesz_probe.py``,
+one draw), a random :math:`A : \mathbb R^4 \to \mathbb R^3` against the
+rank-2 :math:`G_V` above: the defect equals the predicted
+:math:`\langle A P_{\ker} x, y\rangle_W` to a relative
+:math:`1.8\times10^{-15}` and vanishes to :math:`4\times10^{-15}` on
+:math:`x \in \operatorname{range}(G_V)`. Through the production arrow
+(``A.H`` on a space carrying a rank-2
+:class:`~orpheus.numerics.metric.DenseMetric`,
+``scratch/_definitions/riesz_production_probe.py``), over 200 seeds: the
+defect matches the prediction to a median relative
+:math:`3.5\times10^{-16}` and at most :math:`2.1\times10^{-13}`, and on
+:math:`\operatorname{range}(G_V)` it is at most
+:math:`7.4\times10^{-14}` of the pairing; a positive-definite control
+metric reads a defect at round-off. On the S\ :sub:`N` trace block
+the kernel is the tangential rows, and the condition is what the trace
+selectors are built for: their index sets exclude the tangential rows in
+both directions (:eq:`bc-trace-restriction-pair`), so `[R]` an operator
+that reaches the trace block only through them and their transposes can
+neither read nor write those rows. The composite-adjoint page records
+the resulting exactness from the output side (:ref:`g-adjoint`, Key
+Facts).
+
+**What the arrow form buys over the arithmetic.** The composition
+:math:`G_V^{+}\,A^{\mathsf T}(G_W\,y)` could be, and until CS4c step 1
+(2026-08-30) was, written inline. Promoting the factors to arrows is what
+the operator algebra needs from them, for four reasons:
+
+#. **The metric keeps one home.** Each leg delegates to the space's
+   resolved :class:`~orpheus.numerics.metric.HilbertMetric`, so the
+   adjoint serves a diagonal weight, a dense Gram and a composite
+   bulk :math:`\oplus` trace metric (a singular trace block included)
+   through the same three calls; G-A1 pins the leg composition
+   bit-identical to the pre-leg inline formula (`[M]` 2026-09-22, the
+   eleven tests of ``test_riesz_legs.py`` and the 40 rows of the per-leg
+   battery pass under ``python -O -m pytest``).
+#. **The dagger laws become structure.** ``A.H.H is A`` is an object
+   identity (the adjoint of the adjoint returns the inner operator), and
+   the transpose of the adjoint is a theorem of the legs,
+   :math:`(A^{*})^{\mathsf T} = \flat_W \circ A \circ \sharp_V`, since
+   the metrics are symmetric. That theorem is what made ``A.H``
+   adjointable and closed #375.
+#. **Each factor is a separately mutable seam.** A mutation that drops
+   the metric from both legs at once is a similarity transformation, and
+   a similarity is invisible wherever the operator commutes with the
+   metric; a mutation that drops one leg is not. Splitting the paired
+   mutation into single legs moved the ledger battery from 9 of 20 to
+   20 of 20 rows red (the SN development history's Riesz-legs entry,
+   :ref:`sn-development-history`; the battery re-measures itself in
+   ``test_monomorphic_leaves.py::test_each_riesz_leg_is_individually_load_bearing``).
+#. **The adjoint needs both ends, so an operator without them has none.**
+   The legs are built from ``inner.domain`` and ``inner.codomain``. An
+   operator that has not declared its spaces therefore has no Hilbert
+   adjoint to take, and :class:`~orpheus.numerics.operator.AdjointOperator`
+   refuses it at construction with
+   :class:`~orpheus.numerics.operator.MissingAdjoint`, rather than
+   silently applying the Euclidean transpose under the adjoint's name.
+   The only exemption is the metric-free stratum (a pointwise multiplier
+   commutes with every diagonal metric), whose missing end becomes an
+   :class:`~orpheus.numerics.operator.IdentityOperator` leg. This is why
+   the adjoint requires a **bound operator** (:ref:`bound-operator`).
+
+**Where it is realised.** The space mints the two legs on request,
+:attr:`FunctionSpace.riesz_lower
+<orpheus.numerics.space.FunctionSpace.riesz_lower>` and
+:attr:`FunctionSpace.riesz_raise
+<orpheus.numerics.space.FunctionSpace.riesz_raise>`, as
+:class:`~orpheus.numerics.operator.RieszLowerOperator` and
+:class:`~orpheus.numerics.operator.RieszRaiseOperator`, and
+:meth:`LinearOperator.dual <orpheus.numerics.operator.LinearOperator.dual>`
+mints the dual arrow. :class:`~orpheus.numerics.operator.AdjointOperator`,
+reached as ``A.H``, builds the same three factors from the operator's two
+ends by calling the leg constructors and the dual arrow's class directly,
+not through those three methods, and composes them. `[M]` 2026-09-22, an
+AST census of ``orpheus/``: no production code reads the two space
+properties; their only spellings are docstrings, four of which state the
+composition as ``domain.riesz_raise ∘ A.dual() ∘ codomain.riesz_lower``
+(``scratch/_definitions/round2/riesz_callers.txt``). The landing (CS4c steps 1–2, commits ``68a9c9f3`` and
+``733d96f3``) is recorded in the S\ :sub:`N` development history
+(:ref:`sn-development-history`).
 
 .. _spaces-metric-propagation:
 
@@ -4420,8 +5014,9 @@ taken.
        :math:`A^{*} = A.\mathrm{domain.riesz\_raise}\circ A.\mathrm{dual}()
        \circ A.\mathrm{codomain.riesz\_lower}` — P7's metric family is
        the one metric arithmetic they wrap, as this row anticipated, so
-       there is no third spelling of it. The landing is recorded in the
-       SN development history (the Riesz-legs entry).
+       there is no third spelling of it. Their definition is
+       :ref:`spaces-riesz-legs`; the landing is recorded in the SN
+       development history (the Riesz-legs entry).
 
 
 .. _spaces-development-history:

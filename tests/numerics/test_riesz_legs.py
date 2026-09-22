@@ -164,6 +164,8 @@ def test_round_trip_is_the_range_projector_on_a_singular_metric():
 # ── G-H2: the defining Riesz property ─────────────────────────────────────
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("spaces-riesz-lower-raise")
 def test_lowering_realizes_the_metric_pairing():
     """``⟨♭x, y⟩_Euclid == ⟨x, y⟩_G`` with the RHS hand-spelled from the
     raw weight array (the same reduction tree — bit-identity is honest)."""
@@ -268,6 +270,8 @@ def test_dual_refuses_a_transposeless_operator():
 # ── G-A1: bit-identity of the re-expression + the transpose theorem ───────
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("spaces-adjoint-riesz-composition")
 def test_adjoint_apply_is_bit_identical_to_the_inline_formula():
     """The leg composition reproduces ``G_V⁺ ⊙ Aᵀ(G_W ⊙ y)`` to the BIT —
     same call order, same delegation targets. ``array_equal``, not
@@ -280,6 +284,8 @@ def test_adjoint_apply_is_bit_identical_to_the_inline_formula():
     np.testing.assert_array_equal(A.H.apply(y), inline)
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("spaces-adjoint-riesz-composition")
 def test_adjoint_transpose_is_the_leg_theorem():
     """``(A*)ᵀ = G_W A G_V⁺`` (#375's four-line composition, landed) —
     hand-built RHS, bit-identical; and the WRONG-ORDER composition

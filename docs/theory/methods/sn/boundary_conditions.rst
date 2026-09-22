@@ -513,7 +513,8 @@ at :ref:`bc-sweep-cycle`.
      - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - ``PermutationOperator(local_perm) & IdentityOperator()`` on the
        **reduced** ordinate axis, with ``local_perm =
-       Γ₊(f).to_local(π⁻¹[inflow])`` (the half-trace SPACE owns the
+       Γ₊(f).to_local(π⁻¹[inflow])`` (the :ref:`half-trace <bc-half-trace>`
+       SPACE owns the
        local↔global remap — G6.5; a mirror is self-paired, so the domain
        face IS the installation face) — :math:`\pi` the mirror's derived
        ordinate permutation (:math:`\pi^{-1} = \pi` for a mirror)
@@ -603,14 +604,16 @@ at :ref:`bc-sweep-cycle`.
    and produces the inflow half-trace, and the consumer composes
    :math:`\iota_-\circ\text{law}\circ\gamma_+`. B3.2 landed it for
    ``vacuum`` and ``reflective``; **B3.4a** added ``white`` and
-   ``prescribed_inflow``. What remains is ``albedo`` — at *every*
-   :math:`\alpha`, since the :math:`\alpha = 0` and :math:`\alpha = 1`
-   fast paths are endomorphisms too — and ``periodic``, whose
-   :math:`G` must read the PARTNER face's :math:`\Gamma_+`. Those rows
-   still emit full-\ :math:`N` endomorphisms, are **unreachable from
-   this registry** (which admits only ``{vacuum, reflective}``), and
-   are pinned by strict xfails until **B3.4b** / **B3.4c** land. A
-   shape assertion cannot tell the two typings apart —
+   ``prescribed_inflow``; **B3.4b** completed ``albedo`` with a
+   re-emission closure and refused the closure-free spelling; **B3.4c**
+   built ``periodic``'s partner-face channel, and G6.3 step 7 derived its
+   arrow :math:`\Gamma_+(f') \to \Gamma_-(f)`, whose domain is the
+   PARTNER face's outflow half-trace. Every law the realizer admits is
+   narrowed (the table above), and the strict xfails that pinned the
+   deferred rows are retired. ⛔ This note said, until 2026-09-22, that
+   albedo and periodic *"still emit full-N endomorphisms … and are pinned
+   by strict xfails until B3.4b / B3.4c land"*; both landed in August
+   2026. A shape assertion cannot tell the two typings apart —
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
    tree — so read the *declared spaces*, never the output shape. Full
    derivation at :ref:`bc-domain-narrowing`.

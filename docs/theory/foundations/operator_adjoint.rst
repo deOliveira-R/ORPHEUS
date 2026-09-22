@@ -94,6 +94,13 @@ already-existing :class:`~orpheus.numerics.operator.AdjointOperator`
 wrapper turns that into the correct G-adjoint **with no change to the
 wrapper**.
 
+Its arrow-typed form, which generalises to :math:`V \ne W`, is
+:eq:`spaces-adjoint-riesz-composition`,
+:math:`A^{*} = \sharp_V \circ A^{\mathsf T} \circ \flat_W`; with
+:math:`V = W` and :math:`G^{-1}` read as the pseudo-inverse
+:math:`G^{+}`, the two labels are one quantity (:ref:`spaces-riesz-legs`,
+where the Riesz legs :math:`\flat` and :math:`\sharp` are defined).
+
 .. admonition:: Key Facts (composite G-adjoint)
    :class: tip
 

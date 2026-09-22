@@ -46,7 +46,7 @@ Key Facts
   rather than a flag. :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
   (the ``(A, F)``-posed sibling engine) is **no longer on the homogeneous call
   path**
-- **The problem is a HUB.**
+- **The problem is a HUB** (:ref:`the-problem-hub`).
   :class:`~orpheus.homogeneous.solver.HomogeneousProblem` — a frozen
   dataclass over one
   :class:`~orpheus.data.macro_xs.mixture.Mixture` — is the place the
@@ -2393,7 +2393,7 @@ hash, and ``git`` outranks this column.
        and R-c2, the user, 2026-09-08).  Two commits, in that order.
 
        **(1) The hub.**  Ruled verbatim (R-c1): *"The homogeneous
-       problem needs a hub, just like the function SNProblem (future
+       problem needs a hub, just like the function SNMesh (future
        SNProblem) currently fulfills, to act as the place the consumed
        objects live (and a save state)."*
        :class:`~orpheus.homogeneous.solver.HomogeneousProblem` is that
@@ -2481,7 +2481,7 @@ hash, and ``git`` outranks this column.
        ⚠ **Interim home, stated.** The hub lives in the solver module.
        Carving it into a standalone ``Problem`` module with a thin
        ``Problem → Solution`` solver is the consumers campaign's work,
-       alongside the same split for ``SNProblem`` → ``SNProblem``; the
+       alongside the same split for ``SNMesh`` → ``SNProblem``; the
        ruling names that as the long-term shape.
      - —
      - ``5caad3d6`` (the hub), ``39e7f32f`` (the retirement)
