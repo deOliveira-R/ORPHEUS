@@ -17,10 +17,9 @@ tools:
   - Read
   - Write
   - Edit
-  - Grep
-  - Glob
   - Bash
   - Agent
+  - SendMessage
 mcpServers:
   - nexus
 skills:

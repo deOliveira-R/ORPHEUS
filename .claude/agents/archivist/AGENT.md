@@ -1,5 +1,5 @@
 ---
-name: Archivist
+name: archivist
 description: >
   Proactively use this agent for ALL documentation tasks — writing,
   reviewing, or auditing Sphinx RST pages. Documentation specialist
@@ -12,9 +12,8 @@ tools:
   - Write
   - Edit
   - Bash
-  - Glob
-  - Grep
   - Agent
+  - SendMessage
 mcpServers:
   - nexus
 skills:

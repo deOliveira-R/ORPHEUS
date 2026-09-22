@@ -13,10 +13,12 @@ description: >
   critique.
 tools:
   - Read
-  - Grep
-  - Glob
+  - Write
+  - Edit
+  - Bash
   - WebSearch
   - WebFetch
+  - SendMessage
 mcpServers:
   - nexus
   - zotero

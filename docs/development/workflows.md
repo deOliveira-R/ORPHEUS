@@ -1,7 +1,7 @@
 # Workflows — phases, briefs, and the return contract
 
 The always-on core ([rules/workflows](rules/workflows.md)) carries the roles,
-the four invariants and the seven workflows as one-liners. This page carries
+the six invariants and the seven workflows as one-liners. This page carries
 what an agent needs when it is inside one: the phases in detail, the brief
 template, and the return contract. It replaces the retired
 `subagent-handoff-protocol` skill, which was written for a harness in which a
@@ -98,8 +98,15 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   datum this brief states (a hash's date, a count, an exemplar's behaviour,
   a `Class.attr (file:line)`) is a claim; verify it by one command before
   building on it, and report the discrepancy as a finding.* Paste the
-  generated list below, then the task-specific items: whether the agent may edit tracked files at all (a
-  census is read-only); if another agent is editing the tree meanwhile, what,
+  generated list below, then the task-specific items: what the agent may
+  edit. Read-only means no edit to a tracked file; in-process mutation (a
+  monkeypatch, a mutated copy under the temporary directory), a scratch file
+  and the agent's own memory stay allowed. For the five agents whose front
+  matter carries a `write-scope` hook (qa, elegance-enforcer, explorer,
+  cross-domain-attacker, literature-researcher) the harness already confines
+  writes to `scratch/`, the temporary directory and the agent's memory, so a
+  brief to one of them does not repeat it; a brief to a builder names what it
+  may edit (a census is read-only); if another agent is editing the tree meanwhile, what,
   where and until when (L38), and the agent then opens with `git status
   --short` and `git diff --stat`, closes by re-running every search whose
   emptiness is a finding, and tags every cited file as at HEAD or in flight;
@@ -153,6 +160,7 @@ drift):
 - `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2); a membership or consumer question is answered by an AST pass, a line grep reported only as the prose column, since a public name's docstring fame reads as consumption.
 - `plan-authoring`: a cited precedent's adjectives are verified by reading it, at the layer (data or binder) that preserves arity; a proposed name is grepped in the prose corpus with the verb it would own; a step that adds a gate lands with the case it catches, an `⟺` checked in both directions and every symbol on a law's RHS checked against the datum's methods.
 - `process-discipline`: never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy; a brief's framing is a claim, so take the count it presumes (branches, fibre, consumers by AST, fused attributes) before arguing its scope and report the smaller answer plainly; a rejected candidate carries its structural reason AND the question it was refuted for.
+- `workflows`: a question you cannot settle from this brief (a scope, a path, a premise, what was meant) goes to the orchestrator by `SendMessage` to `main`, and you continue the work that does not depend on the answer, which arrives at your next tool call; if nothing is independent of it, return with the question in `NEEDS:`; your own agent memory is always yours to write, and a lesson you write names the rule or skill clause that does not already cover it, or is not written.
 <!-- END GENERATED brief rules -->
 
 For an Opus-pinned agent the word cap is not optional: Opus 5 writes longer
@@ -195,3 +203,9 @@ edit to it reaches a dispatch only after a restart (`[M]` 2026-09-21: qa and
 method-implementer, with `Skill` added to their lists, held no `Skill` tool
 until Claude Code was restarted, then held it and loaded a skill on demand),
 while an edit to `skills:` or to the role block reaches the next dispatch.
+Measured 2026-09-22: a background sub-agent holding `SendMessage` messaged
+`main` before it returned, and the orchestrator's reply reached it at its next
+tool call (six seconds later, on the sixth of eight polling calls); it held no
+`AskUserQuestion`, which the harness removes from every sub-agent. So a
+sub-agent can ask the orchestrator mid-dispatch, never the user, and the
+channel is open exactly when its allowlist names `SendMessage`.

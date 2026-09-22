@@ -9,12 +9,11 @@ description: >
   right V&V level.
 tools:
   - Read
-  - Grep
-  - Glob
-  - Bash
-  - Agent
   - Write
   - Edit
+  - Bash
+  - Agent
+  - SendMessage
 mcpServers:
   - nexus
 skills:

@@ -8,7 +8,10 @@ description: >
   quick, medium, very thorough.
 tools:
   - Read
+  - Write
+  - Edit
   - Bash
+  - SendMessage
 mcpServers:
   - nexus
 skills:

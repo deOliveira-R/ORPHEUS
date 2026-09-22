@@ -1,7 +1,9 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 2000
+  budget_tokens: 2300
+  brief: >-
+    a question you cannot settle from this brief (a scope, a path, a premise, what was meant) goes to the orchestrator by `SendMessage` to `main`, and you continue the work that does not depend on the answer, which arrives at your next tool call; if nothing is independent of it, return with the question in `NEEDS:`; your own agent memory is always yours to write, and a lesson you write names the rule or skill clause that does not already cover it, or is not written.
 ---
 
 # Workflows — roles, invariants, and the routes work takes
@@ -59,9 +61,10 @@ user's signal, when routine refactor cycles resume.
 3. **Continuity by name.** The test-architect that wrote a verification spec is
    resumed (`SendMessage`) at review time to confirm its gates landed; the
    implementer is resumed with the review findings. No re-briefing: a finished
-   agent resumes on message with its full history, and a sub-agent addresses a
-   named sibling with `SendMessage` only when its `tools:` allowlist admits it
-   (measured: [the page's history](../workflows.md#history)).
+   agent resumes on message with its full history, and every project agent
+   holds `SendMessage` (ruling 2026-09-22; a sub-agent holds it only when its
+   `tools:` allowlist names it, measured:
+   [the page's history](../workflows.md#history)).
 4. **Every brief carries** the workflow ID, the phase, the previous phase's
    artefact paths, and the return contract: a word cap (Opus runs long), files
    carry the detail, and a `NEEDS:` block for anything the agent could not
@@ -71,6 +74,21 @@ user's signal, when routine refactor cycles resume.
    not the agent's own memory or its preloaded skills (measured, with what a
    dispatch inherits and what it costs, on the
    [harness page](../harness.md#what-loads-and-what-it-costs)).
+5. **Ask; never work around what was meant.** A question the brief does not
+   settle (a scope, a path, a premise, what was meant) goes to the orchestrator
+   by `SendMessage` to `main`; the sub-agent continues the work that does not
+   depend on the answer, which arrives at its next tool call, or, when none
+   is independent of it, returns with the question in `NEEDS:` and is resumed
+   by name, never spinning tool calls to wait. The orchestrator answers at
+   once. A sub-agent never reaches the user (`AskUserQuestion` is removed from
+   sub-agents), so a plan's ontological gap is not a clarification: it goes
+   back to the orchestrator and the user (`[R]` the user, 2026-09-22;
+   [measured](../workflows.md#history)).
+6. **An agent's memory is its own.** `.claude/agent-memory/<name>/` is inside
+   its edit scope whatever the brief says; a lesson names the rule or skill
+   clause that does not already cover it, or is not written; the orchestrator
+   commits memory at close-out without curating it (`[R]` the user,
+   2026-09-22).
 
 ## The workflows
 

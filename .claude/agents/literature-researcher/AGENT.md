@@ -8,11 +8,12 @@ description: >
   notation conventions, and returns precise equation numbers.
 tools:
   - Read
-  - Grep
-  - Glob
+  - Write
+  - Edit
   - Bash
   - WebSearch
   - WebFetch
+  - SendMessage
 mcpServers:
   - zotero
 skills:
