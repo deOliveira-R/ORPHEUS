@@ -520,3 +520,14 @@ def test_a_path_git_ignores_is_local_by_design_not_dead(tmp_path: pathlib.Path) 
     src = write(tmp_path / "p.md", body)
     resolved, problems = paths.check([page(Kind.RULE, body=body, path=src)], paths.Tree.tracked())
     assert problems == [] and resolved == 0
+
+
+def test_a_path_under_a_directory_pattern_is_ignored_even_where_the_directory_is_absent(tmp_path: pathlib.Path) -> None:
+    """CI's checkout has no literature folder: a `dir/` pattern must still read the bare directory
+    as ignored (the first push of the check read it dead there and ignored here)."""
+    import subprocess
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    write(tmp_path / ".gitignore", "lit/\n")
+    assert not (tmp_path / "lit").exists()
+    assert paths.ignored(["lit", "lit/", "lit/x.pdf", "kept.md"], root=tmp_path) == {"lit", "lit/x.pdf"}
+

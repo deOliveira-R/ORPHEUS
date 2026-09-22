@@ -32,7 +32,7 @@ import re
 import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from .ids import _CODE, _FENCE
 from .source import REPO_ROOT, Page
@@ -86,14 +86,20 @@ def spans(text: str) -> list[tuple[str, int]]:
     return [(m.group(0)[1:-1], masked.count("\n", 0, m.start()) + 1) for m in _CODE.finditer(masked)]
 
 
-def ignored(paths: Iterable[str]) -> frozenset[str]:
-    """The paths git ignores: local by design, so a citation of one is not dead."""
-    query = "\0".join(paths)
+def ignored(paths: Iterable[str], root: Path = REPO_ROOT) -> frozenset[str]:
+    """The paths git ignores: local by design, so a citation of one is not dead. Each is asked as
+    written and as a directory: a pattern with a trailing slash (``scratch/literature/``) matches a
+    path git knows to be a directory, and on a checkout where the directory is absent (CI's) only the
+    slashed spelling tells it so (`[M]` 2026-09-22: the first push of this check read the literature
+    folder dead in CI and ignored here, where the folder exists)."""
+    paths = [p.rstrip("/") for p in paths]
+    query = "\0".join(q for p in paths for q in (p, p + "/"))
     if not query:
         return frozenset()
-    out = subprocess.run(["git", "check-ignore", "--no-index", "--stdin", "-z"], cwd=REPO_ROOT, input=query + "\0",
+    out = subprocess.run(["git", "check-ignore", "--no-index", "--stdin", "-z"], cwd=root, input=query + "\0",
                          capture_output=True, text=True, check=False).stdout
-    return frozenset(p for p in out.split("\0") if p)
+    hits = {h for h in out.split("\0") if h}
+    return frozenset(p for p in paths if p in hits or p + "/" in hits)
 
 
 def check(pages: Iterable[Page], tree: Tree | None = None) -> tuple[int, list[str]]:
