@@ -69,8 +69,3 @@ home is `docs/development/harness.md`, never `vv-principles` (ruled 2026-09-20).
 - [phase1_moment_space_review.md](phase1_moment_space_review.md) — the ERR-039
   moment-space verification-of-record; cited from three files outside this
   memory — **durable**.
-- [issue_247_legA_review.md](issue_247_legA_review.md) and
-  [issue_251_legB_review.md](issue_251_legB_review.md) — full slope-source and
-  face-slope reviews of merged campaigns, distilled into L-037/L-038; `git grep`
-  finds **0** references outside this memory. **Archaeology — retire candidates
-  for the orchestrator's blast-radius audit.**
