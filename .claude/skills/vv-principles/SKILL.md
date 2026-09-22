@@ -56,6 +56,36 @@ ORTHOGONAL
 
 ---
 
+## A capability's tests form a ladder — reuse, then improve, then new
+
+The tests of one capability are ordered by what each exercises, and each rung
+rests on the verified rungs below it: the **foundations** (the simpler members
+the capability generalises: vacuum and reflective, under an albedo law), the
+**edges** (its limits, each asserted EQUAL to a foundation: albedo 0 against
+vacuum, albedo 1 against reflective), the **interior** (0 < α < 1, against a
+structurally-independent reference), then the compositions. The order is what
+makes a red diagnostic: the lowest red rung bounds the defect, so a ladder is
+the probe cascade built before the failure. The test-architect predicts the
+boundaries of failure; the numerics-investigator searches for one it missed;
+qa checks in hindsight that each was predicted and tested, and a new or a
+vacuous boundary sends the loop back to the test-architect (`[R]` the user,
+2026-09-22).
+
+- **check:** a verification design starts from the tests that exist for the
+  capability (the `verifies` edges and the runtime exercisers of the touched
+  symbols, then `grep`), places each on a rung, and fills each gap in the order
+  reuse > improve > new: a test already on the rung is reused, one nearly on it
+  is generalised, and a new test is written only where no rung holds one. A new
+  capability on an established foundation should reuse most of its ladder and
+  add tests for its own behaviour and limits; a merge or a generalisation that
+  lets one capability express several specialised ones tests little that is
+  new, and usually opens capabilities that do need new tests.
+- **tell:** a new test whose assertion duplicates an existing one; a suite of
+  peers with no order, where a red says that something broke and not where; an
+  edge tested against a typed-in number instead of against its foundation.
+
+---
+
 ## The three pillars of verification
 
 **NEVER** name a reference vaguely as "analytical" — identify its pillar; each

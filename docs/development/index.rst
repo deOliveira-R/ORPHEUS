@@ -41,6 +41,7 @@ the harness's ``CLAUDE.md`` is generated from.
    rules/process-discipline
    rules/code-search
    rules/vv-testing
+   rules/documentation
 
 .. toctree::
    :maxdepth: 1

@@ -1,0 +1,46 @@
+---
+harness:
+  kind: rule
+  budget_tokens: 700
+  paths: ["docs/theory/**", "docs/architecture/**"]
+---
+
+# Documentation — a page says what is true now
+
+A theory or architecture page describes the code as it stands at HEAD. The
+past and the future have homes of their own, and the body mixes in neither
+(`[R]` the user, 2026-09-22). How much a page must carry is `articulation` and
+Cardinal Rule 3; this rule says where each kind of content goes.
+
+## The body is the present
+
+Every sentence of the body is true of HEAD: the equations, the conventions,
+the design, the reason for the design, the numerical evidence, what verifies
+it. A reason stays in the body whatever its date, because it is why the code
+is as it is; the story of how the design was reached does not.
+
+- check: of each paragraph ask *is this true of HEAD, and would it be written
+  if the page were new today?* The past tense ("was", "used to", "no longer",
+  "we first tried", "Phase F5 found") marks content for the end of the page;
+  the future ("will", "planned", "not yet", "TODO") marks content for an issue
+  or a plan.
+- tell: a retraction note above the content it retracts; a falsified table
+  kept in the body with a caveat; a motivation kept by flipping "is expected
+  to" into "was expected to"; a session trail; a commit list.
+
+## The past goes to the end of the page
+
+- **Gotchas**: a trap live today, stated in the present (what goes wrong, why,
+  how to avoid it), whatever its origin.
+- **History**: one changelog, last on the page, a row per milestone:
+  `date — decision — commit — issue`.
+- **A collapsed "first got wrong" box** (`.. dropdown::`), at the content it
+  concerns, when a wrong first attempt teaches why the design is right: what
+  was tried, why it failed, what replaced it. The exception, not the default.
+- An investigation's narrative lives in its GitHub issue, linked from the page.
+
+## The future goes to issues and plans
+
+A capability not yet built, a known gap, an open question: an issue. The page
+states a limitation in the present ("X is not supported: it raises Y") and
+links the issue; the plan to lift it is not the page's.
