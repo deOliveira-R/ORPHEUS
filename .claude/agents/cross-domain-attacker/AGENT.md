@@ -26,6 +26,12 @@ skills:
 memory: project
 model: opus
 omitClaudeMd: true
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|MultiEdit"
+      hooks:
+        - type: command
+          command: "python3 .claude/hooks/write-scope.py cross-domain-attacker"
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/cross-domain-attacker.md; edit the source, not this block -->

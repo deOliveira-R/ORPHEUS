@@ -16,6 +16,12 @@ skills:
   - nexus-guide
 memory: project
 omitClaudeMd: true
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|MultiEdit"
+      hooks:
+        - type: command
+          command: "python3 .claude/hooks/write-scope.py explorer"
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/explorer.md; edit the source, not this block -->

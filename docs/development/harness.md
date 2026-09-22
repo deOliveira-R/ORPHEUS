@@ -47,6 +47,15 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   until then only a ten-line role block was generated, and the hand-written
   bodies, 125 to 654 lines each, were read by no check,
   `.claude/plans/agent_definitions.md` D1).
+- A hand edit of generated text is refused as it is made:
+  `.claude/hooks/generated-guard.py`, a PreToolUse hook on Edit, Write and
+  MultiEdit registered in `.claude/settings.json`, fires in the main agent and
+  in every sub-agent, and refuses an edit of a stamped file, an edit that
+  changes the text between `GENERATED` markers, and an edit of a file an
+  installer recorded in its manifest; the refusal names the source to edit and
+  the command that regenerates. A write through Bash is outside its reach, and
+  the drift check of `--check` in CI is the backstop
+  (`tests/tools/test_write_guards.py`, one red per arm).
 - Installed files: `nexus setup` writes the extension's own skills, hooks and
   its always-on routing rule `nexus-tools` into `.claude/` and records each in
   `.claude/nexus-install-manifest.json`. They are tracked, never generated and
@@ -122,7 +131,14 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   agent needs it at every dispatch.
 - **An agent**: `docs/development/agents/<name>.md` (role, phases, supports,
   method, return contract: the whole definition, budgeted at its measured
-  size like any page) with its `harness:` block, the page in `agents/index.rst`; the
+  size like any page) with its `harness:` block, the page in `agents/index.rst`. An
+  agent whose role writes nothing tracked (a reviewer, a Support agent)
+  carries a `write-scope` hook in its front matter
+  (`python3 .claude/hooks/write-scope.py <name>` on Edit, Write and
+  MultiEdit), which refuses a write outside `scratch/`, the temporary
+  directory and its own memory, so "read-only" is enforced rather than asked
+  for (qa, elegance-enforcer, explorer, cross-domain-attacker,
+  literature-researcher). The
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
   omits `Agent`; no agent lists `Skill`), the memory scope and
   `omitClaudeMd`; an edit to `tools:` is live from the next harness start, an

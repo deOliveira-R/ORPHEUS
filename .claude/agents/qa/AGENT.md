@@ -28,6 +28,12 @@ skills:
   - coding-elegance
 memory: project
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|MultiEdit"
+      hooks:
+        - type: command
+          command: "python3 .claude/hooks/write-scope.py qa"
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/qa.md; edit the source, not this block -->

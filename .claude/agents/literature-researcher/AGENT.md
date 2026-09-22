@@ -19,6 +19,12 @@ skills:
   - research
 memory: project
 omitClaudeMd: true
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|MultiEdit"
+      hooks:
+        - type: command
+          command: "python3 .claude/hooks/write-scope.py literature-researcher"
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/literature-researcher.md; edit the source, not this block -->

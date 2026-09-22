@@ -30,6 +30,12 @@ skills:
 model: opus
 color: purple
 memory: project
+hooks:
+  PreToolUse:
+    - matcher: "Edit|Write|MultiEdit"
+      hooks:
+        - type: command
+          command: "python3 .claude/hooks/write-scope.py elegance-enforcer"
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/elegance-enforcer.md; edit the source, not this block -->

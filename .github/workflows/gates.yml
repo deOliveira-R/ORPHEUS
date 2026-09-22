@@ -32,7 +32,7 @@ jobs:
       - name: The harness view is generated and current
         run: .venv/bin/python -m tools.harness --check
       - name: The generator, the generated tree, the layer contract and the text ledgers, under -O
-        run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/test_harness_generated.py tests/test_layer_imports.py tests/test_error_catalogue_reconciles.py tests/test_elegance_debt_is_tagged.py tests/test_vv_harness_audit.py -q
+        run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/tools/test_write_guards.py tests/test_harness_generated.py tests/test_layer_imports.py tests/test_error_catalogue_reconciles.py tests/test_elegance_debt_is_tagged.py tests/test_vv_harness_audit.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys
