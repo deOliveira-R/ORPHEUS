@@ -35,3 +35,15 @@ top-level memory for the setup details.
    consulted.
 4. Do not waste >1 minute retrying — the failure persists for
    many minutes.
+
+**Sharpened 2026-09-22 — the server-down fallback that still reads the
+library:** when port 23119 refuses AND no `mcp__zotero__*` tool is exposed,
+the library is still searchable READ-ONLY. The data dir is in
+`~/Library/Application Support/Zotero/Profiles/*/prefs.js`
+(`extensions.zotero.dataDir` = `/Users/rodrigo/Documents/Biblioteca/#Zotero`).
+Copy `zotero.sqlite` to the session scratchpad and open it with
+`sqlite3.connect("file:<copy>?mode=ro", uri=True)`; titles are
+`items ⋈ itemData ⋈ fields(fieldName='title') ⋈ itemDataValues`, creators
+`items ⋈ itemCreators ⋈ creators`. Never open the live file (Zotero locks it)
+and never write. Annotations are in the same DB but were not needed that
+time.

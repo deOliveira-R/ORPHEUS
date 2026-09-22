@@ -95,9 +95,12 @@ decides whether to open it.
 ### Corpus bibliography (#231 Phase G2)
 - [docs/refs.bib ledger](refs_bib_g2_corrections.md) — COMPLETE, 59 entries, pybtex-clean, DOIs CrossRef-verified. **Trust the BIB over any page/docstring definition**; keys immutable, only FIELDS fixed (per-entry ledger in file). Swaps: PS1982→PomraningSiewert1982, Sood1999→SoodLA13511_1999.
 
+### Pure-math foundations citations (functional analysis / geometry / linear algebra)
+- [Riesz legs + frame letters verified](math_foundations_citations_riesz_penrose.md) — Kreyszig 3.8-1 p.188 / Def 3.9-1 p.196; Lee p.26; Penrose Thm 1; Moore 26:394-5. ⛔ Christensen AND Casazza-2000 use T=SYNTHESIS, S=TT*; T=analysis is Casazza-Lynch 2016. Springer `page-one` preview trick.
+
 ### Tooling
 - [⭐ Tier 0 is BIGGER — the full NSE run on disk](user_nse_volume_archive.md) — `/Users/rodrigo/Downloads/NSE/Vol_NNN(I)_*.zip`, per-article PDFs. **Grep the `unzip -l` listings before EVER calling an NSE paper not-local**; filenames truncate at ~95 chars so grep an EARLY fragment. Copy→rename→`ocr_literature.py`. Also: ⛔ OpenAlex free-text is blind to `S_N` (supernova collision) — use ISSN-scoped CrossRef + Semantic Scholar `get_citations`.
-- [Zotero failover](reference_zotero_flakiness.md) — dead-server signature = 0 hits on known items + conn-refused on port 23119 → Tier 2 (L7).
+- [Zotero failover](reference_zotero_flakiness.md) — dead-server signature = 0 hits on known items + conn-refused on port 23119 → Tier 2 (L7). Server down? Read a scratchpad COPY of `zotero.sqlite` with `mode=ro`.
 
 ## 3. Active state
 
