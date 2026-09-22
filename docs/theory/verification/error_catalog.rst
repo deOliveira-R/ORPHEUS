@@ -747,10 +747,13 @@ older entries classify against.
    same bug but at ~6.7e-15 — just under the common ``rtol=1e-14`` threshold,
    which is why only the spherical case failed visibly.
 
-   The specific failing tests:
+   The specific failing tests, as they were named then — the
+   ``TestZoneSubdivision`` class of the geometry test module, which
+   ``81b083be`` deleted on 2026-05-05 with the ``GeometrySpec`` factories
+   it exercised:
 
-       tests/geometry/test_geometry.py::TestZoneSubdivision::test_equal_volume_single_zone[SPHERICAL]
-       tests/geometry/test_geometry.py::TestZoneSubdivision::test_equal_volume_multi_zone[SPHERICAL]
+       TestZoneSubdivision::test_equal_volume_single_zone[SPHERICAL]
+       TestZoneSubdivision::test_equal_volume_multi_zone[SPHERICAL]
 
    reported volumes of ``7.260569688296488`` vs reference ``7.260569688296414``
    — a relative difference of ``1.03e-14`` against an ``rtol=1e-14`` assertion.
@@ -786,9 +789,22 @@ older entries classify against.
    arbitrary edges continue to fall back to ``compute_volumes_1d`` from
    edges.
 
-   **L0 test that catches it:**
-   ``tests/geometry/test_geometry.py::TestZoneSubdivision::test_equal_volume_{single,multi}_zone``
-   for every ``CoordSystem`` — enforces bit-equal volumes at ``rtol=1e-14``.
+   **Test that catches it:**
+   ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
+   (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-020")``).
+   Each builds a single-region mesh through ``Mesh1D.from_geometry`` and
+   asserts the cell volumes EXACTLY equal (``volumes == volumes[0]``, not a
+   tolerance) plus the total against the closed-form volume at
+   ``rtol=1e-14``.  These succeed the original gate,
+   ``TestZoneSubdivision::test_equal_volume_{single,multi}_zone`` over every
+   ``CoordSystem``, retired with its class on 2026-05-05 (``81b083be``)
+   when ``StructuredGeometry`` replaced the zone factories (``b5e85c2d``,
+   same day).  The successor's scope is NARROWER than the original's: it
+   pins the cylindrical and spherical single-region paths only.  No
+   surviving catcher asserts bit-equal volumes on a Cartesian mesh or
+   across several regions — ``test_multi_region_cylinder_equal_volume`` in
+   the same class checks cell counts, edges and material ids, not volumes,
+   despite its name.
 
    **Lesson:** Non-bijective float operations (``sqrt``, ``cbrt``, ``exp``,
    ``log``) do not survive a round trip, and invariants that *should* hold
@@ -835,12 +851,22 @@ older entries classify against.
    segments: continue``, so a degenerate ray is now silently dropped
    instead of aborting the trace.
 
-   **L0 test that catches it:**
-   ``tests/moc/test_ray_tracing.py::test_degenerate_corner_ray`` — seeds a
-   ray with ``(x0, y0) = (0, 0)`` and ``phi = π/4`` so the entry point is
-   exactly the ``(0, 0)`` corner, and asserts that
-   ``_ray_box_intersections`` returns ``None`` and ``_trace_single_ray``
-   returns empty segments rather than raising.
+   **L0 tests that catch it** (module-level ``@pytest.mark.l0``, each
+   ``@pytest.mark.catches("ERR-021")``): both seed a ray at
+   ``(x0, y0) = (0, 0)`` with ``phi = π/4``, so the entry point is exactly
+   the ``(0, 0)`` corner.
+
+   - ``tests/moc/test_ray_tracing.py::test_degenerate_corner_ray_box_returns_none``
+     asserts ``_ray_box_intersections`` returns ``None`` OR a valid
+     distinct pair (``result[0] < result[1]``) — the contract is "does not
+     crash", not "returns ``None``".
+   - ``tests/moc/test_ray_tracing.py::test_degenerate_corner_ray_trace_short_circuits``
+     asserts ``_trace_single_ray`` does not raise and, when it returns no
+     segments, reports ``entry_surf == exit_surf == -1``.
+
+   (This entry used to cite a single ``test_degenerate_corner_ray``; no
+   test of that name ever existed — the fix commit ``c0c16d32``
+   (2026-04-14) shipped the two above.)
 
    **Lesson:** Whenever a function indexes a collection by a fixed
    position (``list[0]``, ``list[1]``), the *precondition* that the
@@ -1125,11 +1151,19 @@ older entries classify against.
    from 1.48 × 10⁻² to 3.4 × 10⁻⁸.
 
    **L1 test that catches it:**
-   ``tests/sn/test_cartesian.py::test_heterogeneous_absolute_keff`` — pins
+   ``tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff``
+   (``@pytest.mark.l1`` + ``@pytest.mark.catches("ERR-025")``) — pins
    the 2-region A+B reflective slab against the Case singular-eigenfunction
    reference to 5 × 10⁻⁴. Without a material interface the bug is
    invisible (the Rayleigh quotient's rescale invariance hides it), so
-   this test is the minimal configuration that exposes it.
+   this test is the minimal configuration that exposes it.  (The gate was
+   authored in the ``test_cartesian`` module, then directly under
+   ``tests/sn/``.  The 2026-06-01 split removed that module
+   (``390b9e4d``) and landed its slab-keff half at the present address
+   (``bc8d68f9``).  The fixture, the reference and the 5 × 10⁻⁴
+   tolerance carried over verbatim; the only change to the body since
+   is the accessor, ``result.keff`` → ``result.outcome.keff``, from the
+   later typed-``Solution`` carve.)
 
 .. error-entry:: ERR-026
    :title: Curvilinear sweep WDD angular closure converges to wrong fixed-source solution
@@ -1209,17 +1243,23 @@ older entries classify against.
    ``φ = Q/(Σ_t(1-c))`` with per-ordinate ``ψ_n = φ/Σw`` at ``rtol = 1e-9``.
    Carries ``@pytest.mark.catches("ERR-026", "ERR-048")`` since the
    PR-CLEANUP-CODE retirement of the historical evidence ledger
-   ``tests/sn/test_sweep_operator_inconsistency.py`` (2026-05-16).  The
+   ``test_sweep_operator_inconsistency`` — deleted from ``tests/sn/`` on
+   2026-05-16 in ``293e097a``, recoverable with ``git show``.  The
    canonical SI-vs-Krylov three-way standoff that documented the WDD
    fixed-point bias has been superseded by this L0 test (which now PASSES
    on both solvers — the cleanest possible evidence of ERR-026 closure).
 
    Additional ERR-026-tagged tests:
-   ``tests/sn/sweep/core/test_phase_c_gates.py``, ``tests/sn/test_phase_c_mms.py``,
+   ``tests/sn/sweep/core/test_phase_c_gates.py``,
+   ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
    ``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py``,
    ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py``,
    ``tests/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py`` —
-   collectively the post-closure regression net.
+   collectively the post-closure regression net.  (The second entry was
+   the ``test_phase_c_mms`` module, then directly under ``tests/sn/``,
+   until ``bc8d68f9`` consolidated it on 2026-06-01 with the duplicate
+   ``l1_analytical`` aniso-MMS module into the single
+   ``test_curvilinear_aniso_convergence`` gate set.)
 
    A cheaper L0 alternative — a direct unit test of the fixed-point
    of the 1D cumprod recurrence on a 1-cell uniform-material slab
@@ -1301,10 +1341,14 @@ older entries classify against.
    ``SNStreamingOperator`` now solves the *correct* operator
    equation for any BC family, so a Krylov-on-``apply`` solve can give
    the right answer if the operator's discretization is otherwise
-   2nd-order accurate. The constant-source flat-flux test in
-   :file:`tests/sn/test_sweep_operator_inconsistency.py` confirms this:
-   ``inner_solver="krylov"`` produces the analytical flat flux to
-   round-off where the sweep produces the documented ERR-026 deviation.
+   2nd-order accurate. The constant-source flat-flux test in the
+   Round-3-era ``test_sweep_operator_inconsistency`` ledger (deleted from
+   ``tests/sn/`` on 2026-05-16, ``293e097a``) confirmed this at the time:
+   ``inner_solver="krylov"`` produced the analytical flat flux to
+   round-off where the sweep produced the documented ERR-026 deviation.
+   The live successor for that claim is
+   ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
+   on which BOTH inner solvers now reach the closed form.
 
    What Round 3 left open (FD operator boundary truncation):
 
@@ -1327,11 +1371,14 @@ older entries classify against.
    the curvilinear outer-face flux at second order (DD diamond relation
    at the boundary, or an analogous ghost-cell technique).
 
-   The two MMS xfail-strict tripwires
-   (:file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`,
-   both anisotropic spherical and cylindrical cases) therefore stay
+   The two MMS xfail-strict tripwires (the anisotropic spherical and
+   cylindrical cases, then in the ``test_mms_curvilinear_aniso_dd_convergence``
+   module under ``tests/sn/l1_analytical/``) therefore stayed
    xfail through Round 3 with updated reason strings reflecting the
-   partial closure.
+   partial closure.  Both rows live in
+   ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``
+   today (consolidated 2026-06-01, ``bc8d68f9``) and are no longer
+   xfail — see the Phase C and #229 notes below.
 
    What Wave H Phase A added (commit ``d73ef68``, GH #168 Phase A):
 
@@ -1386,10 +1433,11 @@ older entries classify against.
 
    Phase B did NOT close ERR-026.  The empirical finding was pinned at
    the time by
-   ``tests/sn/test_snstreamingoperator.py::test_apply_spherical_constant_flux_under_morel_montry_canonical_form``
-   — a test that no longer exists, its module having been deleted on
-   2026-05-29 (``05864bf6``); what survives is the finding, not the
-   pin.  It is that pairing ``MorelMontryAngularSweep`` with the apply
+   ``test_apply_spherical_constant_flux_under_morel_montry_canonical_form``,
+   in the ``test_snstreamingoperator`` module then directly under
+   ``tests/sn/`` — a test that no longer exists, its module having been
+   deleted on 2026-05-29 (``05864bf6``); what survives is the finding,
+   not the pin.  It is that pairing ``MorelMontryAngularSweep`` with the apply
    matvec's existing **spatial** closure (interior arithmetic average
    ``0.5·(ψ_i + ψ_{i+1})`` + outer DD extrapolation) gives a *worse*
    operator than the legacy form on flat ψ:
@@ -1436,31 +1484,38 @@ older entries classify against.
       (the two anisotropic + two isotropic curvilinear MMS tests)
       come off. ERR-026 status: PARTIAL CLOSURE → CLOSED.
 
-   Tests (current state through Phase B):
+   Tests as Phase B left them (2026-05-10).  Each module is named by the
+   address it carried THEN, with its fate since; only a full
+   ``tests/…`` path in this inventory is a live address today:
 
-   - ``tests/sn/test_sweep_operator_inconsistency.py`` — pinned as the
-     ERR-026 evidence ledger; the sweep still produces the documented
-     WDD deviation when explicitly invoked, the krylov path gives the
+   - ``test_sweep_operator_inconsistency`` — pinned as the ERR-026
+     evidence ledger; the sweep still produced the documented WDD
+     deviation when explicitly invoked, the krylov path gave the
      correct answer for constant-source problems under the Phase B
-     default ``LegacyTauSymmetricInterpolation``.
-   - ``tests/sn/spatial/test_pole_angular_closure.py`` (NEW) — 28
+     default ``LegacyTauSymmetricInterpolation``.  RETIRED outright on
+     2026-05-16 (``293e097a``); the successor carrying the claim is
+     ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``.
+   - ``test_pole_angular_closure`` (NEW at Phase B) — 28
      foundation tests pinning Protocol contract, α-recursion identity
      (Hébert Eqs. 3.423-3.424), 2-ordinate hand-calcs, and the
-     BFF↔MMS Defect-3 disagreement on angularly-varying ψ.
-     (This module is alive under a new address: it is
-     ``tests/sn/sweep/curvilinear/test_angular_closure.py`` today — the
-     taxonomy reorg moved it, and P4.9b dropped "pole" from the
-     angular-closure vocabulary, 2026-08-28.  The other paths in this
-     inventory name modules that were retired outright and are recorded
-     here as history.)
-   - ``tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`` (NEW) —
+     BFF↔MMS Defect-3 disagreement on angularly-varying ψ.  ALIVE at
+     ``tests/sn/sweep/curvilinear/test_angular_closure.py`` — the
+     taxonomy reorg moved it (``105ce125``, 2026-06-01) and P4.9b
+     dropped "pole" from the angular-closure vocabulary (2026-08-28).
+   - ``test_pole_closure_flat_flux_identity`` (NEW at Phase B) —
      5 L1 tests pinning flat-flux invariants (Legacy↔BFF bit-for-bit
      on flat ψ; MMS preserves angular-integrated invariant by
-     α-telescoping).
-   - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`` —
-     xfail-strict, awaits Phase C spatial-closure alignment.
-   - ``tests/sn/verification/mms/test_mms_curvilinear.py`` (legacy isotropic ansatz) —
-     fails with order ≈ 0 on the WDD sweep; awaits Phase C.
+     α-telescoping).  RETIRED outright on 2026-05-18 (``2f24ae4a``)
+     together with the LegacyTau and ``BoundaryFaceFlux`` objects whose
+     parity it existed to pin — the claim went with its subjects.
+   - ``test_mms_curvilinear_aniso_dd_convergence`` — xfail-strict,
+     awaiting Phase C spatial-closure alignment.  CONSOLIDATED on
+     2026-06-01 (``bc8d68f9``) into
+     ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+     which carries the six aniso equation labels today.
+   - ``tests/sn/verification/mms/test_mms_curvilinear.py`` (legacy
+     isotropic ansatz) — failed with order ≈ 0 on the WDD sweep,
+     awaiting Phase C.  ALIVE at that address.
 
    What Wave H Phase C added (commits ``eae6f05``..., GH #168 Phase C):
 
@@ -1483,8 +1538,9 @@ older entries classify against.
 
    3. Phase A's ``BoundaryFaceFlux`` Protocol RETIRED entirely:
       ``orpheus/sn/spatial/boundary_face_flux.py`` deleted, the 21
-      foundation tests at ``tests/sn/spatial/test_boundary_face_flux.py``
-      deleted, ``SNMesh.boundary_face_flux`` field removed,
+      foundation tests of the ``test_boundary_face_flux`` module deleted
+      with it (``3fd1302f``, 2026-05-12), the
+      ``SNMesh.boundary_face_flux`` field removed,
       ``boundary_face_flux_closure`` kwarg removed from the matvec
       signatures.
 
@@ -1516,17 +1572,30 @@ older entries classify against.
 
    What Phase C leaves open (Phase D scope):
 
-   The four ``xfail-strict`` curvilinear MMS tripwires STAY xfail:
+   The four ``xfail-strict`` curvilinear MMS tripwires stayed xfail
+   through Phase C.  They are listed at TODAY's addresses; the two
+   anisotropic rows then lived in the
+   ``test_mms_curvilinear_aniso_dd_convergence`` module under
+   ``tests/sn/l1_analytical/``, consolidated into the module below on
+   2026-06-01 (``bc8d68f9``):
 
    - ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
    - ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_cylindrical_mms_converges_second_order``
-   - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_spherical_aniso_mms_converges_second_order``
-   - ``tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py::test_sn_cylindrical_aniso_mms_converges_second_order``
+   - ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py::test_sn_spherical_aniso_mms_converges_second_order``
+   - ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py::test_sn_cylindrical_aniso_mms_converges_second_order``
 
-   These will close in Phase D once the pole-face spatial closure
-   refinement lets MorelMontryAngularSweep become the natural default.
+   Phase C expected them to close once the pole-face spatial closure
+   refinement let MorelMontryAngularSweep become the natural default.
+   All four xfails were removed later, but not by that route: the
+   isotropic pair on 2026-06-12 with the ERR-058 closure-seed fix
+   (Issue #195), and the anisotropic pair on 2026-06-13 with the #229
+   retune (post-W1-unclamp ``b2d8a6d``), which re-scoped the two rows to
+   the claims that actually hold — a coarse rate plus a magnitude band
+   on sphere, a floor band on cylinder, the spatial-rate claim moving to
+   the W1 sphere ladder.
 
-   Tests added in Phase C (``tests/sn/test_phase_c_*.py``):
+   Tests added in Phase C (the ``test_phase_c_*`` modules, then directly
+   under ``tests/sn/``):
 
    - ``test_phase_c_gates.py`` — Gate 1.1 (parametrised over 3 pole
      closures × 2 Σ_t × 2 geometries; sphere-MMS marked xfail per
@@ -1625,8 +1694,11 @@ older entries classify against.
      Magnitude-manifestation of ERR-026 stays open: tracked as
      Issue #195.
 
-   Tests added or updated in Phase D (``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py``,
-   ``tests/sn/sweep/core/test_phase_c_gates.py``, ``tests/sn/test_snstreamingoperator.py``):
+   Tests added or updated in Phase D
+   (``tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py``,
+   ``tests/sn/sweep/core/test_phase_c_gates.py``, and the
+   ``test_snstreamingoperator`` module, since deleted from ``tests/sn/``
+   on 2026-05-29 in ``05864bf6``):
 
    - ``test_psi_half_angle_seed.py`` (NEW) — 25 foundation + L0 + L1
      tests covering Protocol conformance, registry, immutability,
@@ -2318,10 +2390,26 @@ older entries classify against.
      ``compute_P_esc`` / ``compute_G_bc`` callers — they share the
      ``slab-polar`` dispatch but not the same branch.
 
-   **L1 test that catches it:** Issue #131 multi-region slab test
-   (``tests/derivations/test_peierls_slab_multiregion.py``) — extended
-   to the ``boundary="white_rank1_mark"`` path will surface the same
-   4 × 10⁻³ → 6 × 10⁻⁵ bit-deficit the per-face fix already eliminates.
+   **Test that catches it:**
+   ``tests/derivations/test_peierls_slab_legacy_aggregate.py::TestSlabSingleSurfaceVsPerFaceAggregate``
+   (``@pytest.mark.foundation`` + ``@pytest.mark.catches("ERR-033")``,
+   promoted 2026-04-30 from
+   ``derivations/diagnostics/diag_l131a_single_surface_slab_multi_region.py``).
+   Its two methods — ``test_compute_P_esc_matches_per_face_sum`` and
+   ``test_compute_G_bc_matches_per_face_sum`` — assert the structural
+   per-face decomposition ``compute_P_esc == compute_P_esc_outer +
+   compute_P_esc_inner`` (and the ``compute_G_bc`` twin) on multi-region
+   slabs at ``rel_err < 1e-12``: the identity that holds once both legs
+   share the closed-form route, and that reproduces the
+   4 × 10⁻³ → 6 × 10⁻⁵ bit-deficit on the legacy aggregates without the
+   fix.  The marker is ``foundation``, NOT an L-level: the claim is an
+   algebraic identity between two primitives, not a claim about a
+   solver's answer.  (An earlier draft of this entry pointed at an
+   ``Issue #131 multi-region slab test`` in a
+   ``test_peierls_slab_multiregion`` module under ``tests/derivations/``.
+   No such file was ever committed — ``git log`` knows no such path —
+   so that pointer was aspirational, never a record; the gate that
+   shipped is the one above.)
 
    **Fix:** Replace the ``len(radii) > 1`` branch in
    ``compute_P_esc`` / ``compute_G_bc`` with the closed form
@@ -3201,7 +3289,7 @@ older entries classify against.
    direct test of that method against an independent reference (the
    adjoint identity, or the solve round-trip on a non-trivial input).
 
-   **Test reference (Wave 0 / Round 1):** ``tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production`` and ``::test_apply_transpose_no_2l_plus_1_factor``. Tagged ``@pytest.mark.l1`` and ``@pytest.mark.catches("ERR-039")``. *(2026-07-21 sync: this file and class no longer exist — the live catchers are the Round-2 reference below.)*
+   **Test reference (Wave 0 / Round 1):** ``TestApplyTransposeIsWWeightedAdjoint::test_adjoint_identity_matches_production`` and ``::test_apply_transpose_no_2l_plus_1_factor``, then in the ``test_projection_operators`` module under ``tests/numerics/``. Tagged ``@pytest.mark.l1`` and ``@pytest.mark.catches("ERR-039")``. *(Neither module nor class exists any more: the Frame campaign retired ``test_projection_operators`` on 2026-06-23 in ``501d4431`` when ``MomentProjection`` / ``HarmonicMomentReconstruction`` were absorbed into the Frame. The live catchers are the Round-2 reference below.)*
 
 
    **2026-05-26 Phase 1 update (refactor/moment-space-and-layering):**
@@ -3254,7 +3342,7 @@ older entries classify against.
    than "what was wrong about the old one?". See ERR-051 for the related
    discipline failure on the validation-method side.
 
-   **Phase 1 test reference (Round 2; synced 2026-07-21):** ``tests/numerics/test_spherical_harmonic_space.py`` — the live catcher set (8 tests marked ``@pytest.mark.catches("ERR-039")``). The adjoint endpoint was ``test_H_equals_g_C_times_S0`` (pinned ``M.H ≡ g_C · S₀``, the metric times the naked synthesis) — ⛔ renamed and re-keyed at F-0 (below) to ``test_H_equals_parseval_metric_times_S0``; ``test_R_equals_2l_plus_1_times_S0`` pins the complementary (2ℓ+1)-lives-in-R side. ``tests/numerics/test_projection_operators.py`` (with its ``TestApplyTransposeIsRepresentationTranspose`` / ``TestHilbertAdjointViaGenericMachinery`` classes) was retired tree-wide by the Frame campaign; its coverage lives in ``test_spherical_harmonic_space.py``. Phase 1 commits: 0eb9cf3..c5be4b0 on ``refactor/moment-space-and-layering``.
+   **Phase 1 test reference (Round 2; synced 2026-07-21):** ``tests/numerics/test_spherical_harmonic_space.py`` — the live catcher set (8 tests marked ``@pytest.mark.catches("ERR-039")``). The adjoint endpoint was ``test_H_equals_g_C_times_S0`` (pinned ``M.H ≡ g_C · S₀``, the metric times the naked synthesis) — ⛔ renamed and re-keyed at F-0 (below) to ``test_H_equals_parseval_metric_times_S0``; ``test_R_equals_2l_plus_1_times_S0`` pins the complementary (2ℓ+1)-lives-in-R side. The ``test_projection_operators`` module (with its ``TestApplyTransposeIsRepresentationTranspose`` / ``TestHilbertAdjointViaGenericMachinery`` classes) was retired tree-wide by the Frame campaign on 2026-06-23 (``501d4431``); its coverage lives in ``tests/numerics/test_spherical_harmonic_space.py``. Phase 1 commits: 0eb9cf3..c5be4b0 on ``refactor/moment-space-and-layering``.
 
 
    **2026-08-23 F-0 chapter — right Gram, WRONG SIDE (the metric truth):**
@@ -4307,7 +4395,7 @@ older entries classify against.
       L1 kinf_homogeneous suite (8 coords × 2 inner_solvers × 3 ng_keys + 6 cyl):
         35 passed + 5 xfailed (xfails pre-existing per #200)
 
-      L1 bridge-regression suite (Phase 1.3, tests/sn/test_invertible_operator.py
+      L1 bridge-regression suite (Phase 1.3,
       TestInvertibleSolveBridgeRegression):
         10/10 PASS — including all 3 coords × {2eg, 4eg} SI carve k_inf at rtol < 1e-9.
 
@@ -4317,17 +4405,24 @@ older entries classify against.
 
    **Which test catches it:**
 
-   ``tests/sn/test_invertible_operator.py::TestInvertibleSolveBridgeRegression``
+   ``tests/sn/operators/test_streaming_collision_operator.py::TestStreamingCollisionSolveBridgeRegression``
    (R-1 Step 4 Phase 1.3 promotion from
    ``derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py``).
-   Three test methods, ``@pytest.mark.l1 @pytest.mark.catches("ERR-049")
+   The gate was authored as ``TestInvertibleSolveBridgeRegression`` in
+   the ``test_invertible_operator`` module, then directly under
+   ``tests/sn/``; the SN taxonomy reorg moved
+   that module to ``tests/sn/operators/`` on 2026-06-01 (``105ce125``)
+   and the ``InvertibleOperator → StreamingCollisionOperator`` rename
+   re-spelled both module and class on 2026-07-28 (``8367346f``).
+   Three test methods, each carrying ``@pytest.mark.l1
+   @pytest.mark.catches("ERR-049")
    @pytest.mark.verifies("transport-cartesian",
    "sn-curvilinear-homogeneous-kinf-recovery")``:
 
-   1. ``test_slab_uniform_roundtrip`` — slab
+   1. ``test_slab_uniform_roundtrip_composite`` — slab
       ``(L+C).solve((L+C).apply(ψ=1)) == ψ=1`` to machine zero
       (streaming-free check; pre-fix gave ``1/W``).
-   2. ``test_fixed_source_homogeneous_reflective_recovers_q_over_sigma``
+   2. ``test_fixed_source_homogeneous_reflective_recovers_q_over_sigma_composite``
       — parametrised over slab/sphere/cylinder; converges to
       ``ψ_n = q_n/Σ_t`` per ordinate (pre-fix gave ``q_n/(W·Σ_t)``).
    3. ``test_si_carve_recovers_analytical_kinf`` — parametrised over
@@ -4336,8 +4431,12 @@ older entries classify against.
       ``k_inf`` at rtol < 1e-9 (pre-fix failed every ng≥2 case at
       ~21% drift).
 
+   Methods 1 and 2 gained the ``_composite`` suffix when the
+   ``TimedFullField`` dispatch arm became the only surviving arm; the
+   unsuffixed twins they mate with no longer exist.
+
    The N5 unit pin
-   ``tests/sn/test_invertible_operator.py::TestSolve::test_solve_consumes_per_ordinate_rhs``
+   ``tests/sn/operators/test_streaming_collision_operator.py::TestSolve::test_solve_consumes_per_ordinate_rhs``
    (``@pytest.mark.l0``) structurally pins the new contract:
    ``StreamingCollisionOperator.solve`` forwards ``rhs.values`` to
    ``transport_sweep`` bit-equal — no ``×W`` or ``/W`` rescaling on the
@@ -4519,11 +4618,23 @@ older entries classify against.
       default-sweep would also destabilise on residual inputs because
       the residual carries no valid history.
 
-   Companion structural pin in
-   ``tests/sn/test_invertible_operator.py::TestSolve::test_solve_forwards_explicit_initial_guess_to_sweep``
-   (``@pytest.mark.foundation``): spies on ``transport_sweep`` and
-   verifies the seed comes from the explicit ``initial_guess`` kwarg,
-   NOT from any ``rhs(1)`` history lookup.
+   The companion structural pin WAS
+   ``TestSolve::test_solve_forwards_explicit_initial_guess_to_sweep``
+   (``@pytest.mark.foundation``, in the module now at
+   ``tests/sn/operators/test_streaming_collision_operator.py``): it
+   spied on the sweep and verified the seed came from the explicit
+   ``initial_guess`` kwarg, NOT from any ``rhs(1)`` history lookup.  It
+   was retired on 2026-07-05 (``8cf52153``) together with the channel it
+   pinned — #280 step 2.5c removed the vestigial ``initial_guess`` seed
+   threading, so ``StreamingCollisionOperator.solve`` now accepts the
+   kwarg only to satisfy ``SupportsSeededApply`` and DROPS it.  The
+   surviving pin on the same invariant is
+   ``tests/sn/operators/test_streaming_collision_operator.py::TestSolveTimedFullField::test_rhs_boundary_seeds_the_sweep_inflow``
+   (``@pytest.mark.foundation``), which patches ``CumprodScan.sweep``
+   and asserts the sweep's inflow trace comes from the explicit
+   ``rhs.boundary`` argument.  That is the stronger statement: there is
+   no longer a seed channel with history semantics for a silent
+   fallback to read.
 
    **Why sphere/cylinder default-sweep is NOT pinned** by the L1
    suite: the curvilinear M-M closure with cold-start zero seed is a
@@ -4567,7 +4678,7 @@ older entries classify against.
 
    **Mechanism:** The method was added during Wave 0 alongside the ``ProjectionOperator`` ABC. The implementer drafted the assertion from the abstract Galerkin-idempotency statement ":math:`\Pi R = I` on the coefficient space", forgetting that the convention-bearing SH basis carries an implicit metric (the :math:`4\pi/(2\ell+1)` Gram diagonal) which modifies the discrete identity by a factor of :math:`4\pi`. The method called ``np.testing.assert_allclose(self.apply(reconstruction.apply(c)), c)`` — directly asserting :math:`\Pi R c = c`, not :math:`\Pi R c = 4\pi c`.
 
-   **How it hid:** **The method was never called against the production (Π, R) pair.** Its sole call site — ``tests/numerics/test_projection_operators.py:368-381`` (since deleted in P1.6) — deliberately built a **non-orthogonal Y matrix** so the method would raise:
+   **How it hid:** **The method was never called against the production (Π, R) pair.** Its sole call site — lines 368-381 of the ``test_projection_operators`` module, then under ``tests/numerics/`` (the call site deleted in P1.6, the module itself retired on 2026-06-23 in ``501d4431``) — deliberately built a **non-orthogonal Y matrix** so the method would raise:
 
 
    .. code-block:: python
@@ -4589,13 +4700,13 @@ older entries classify against.
    **Fix:** Delete the method and its sole caller (P1.6). The genuine identity is now pinned by:
 
    - ``tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`` (uses ``@pytest.mark.verifies("pi-r-equals-4pi-i")`` — the existing Sphinx equation label).
-   - ``tests/numerics/test_projection_operators.py::TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited`` (the sibling test that already pinned :math:`\Pi R = 4\pi \cdot I` correctly — pre-existed; was orphaned by the wrong-identity method's coexistence). *(2026-07-21 sync: this sibling file was retired by the Frame campaign; the surviving pin is the ``test_spherical_harmonic_space.py`` test above.)*
+   - ``TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited``, then in the ``test_projection_operators`` module under ``tests/numerics/`` (the sibling test that already pinned :math:`\Pi R = 4\pi \cdot I` correctly — pre-existed; was orphaned by the wrong-identity method's coexistence). *(That sibling module was retired by the Frame campaign on 2026-06-23 in ``501d4431``; the surviving pin is the ``tests/numerics/test_spherical_harmonic_space.py`` test above.)*
 
    **Lesson:** **Every contract-validation method (``assert_X``, ``check_X``, ``verify_X``) MUST be tested against AT LEAST one correct instance where it must NOT raise AND AT LEAST one broken instance where it MUST raise.** Negative-only testing ("we fed it a broken case and it raised") validates the method's *raising behavior* but NOT its *invariant claim*. The bug surface in this defect was the TEST, not the method per se — the test never asked "does the method correctly distinguish correct from broken?", only "does it raise on broken?". Both halves are needed; either alone is a discipline failure that hides wrong-invariant claims indefinitely.
 
    This generalizes the L11 lesson ("cross-checks must be structurally independent"): the cross-check here was not even procedural — it was *self-referential* (the broken Y was constructed precisely to make the wrong assertion succeed at raising). The structural-independence requirement applies to ALL test design, not just numerical cross-checks.
 
-   **Test reference:** ``tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited``. Tagged ``@pytest.mark.l1`` and ``@pytest.mark.catches("ERR-051")`` *(if the catches marker is added in a follow-up; currently the test is ``@pytest.mark.catches("ERR-039")`` because it was authored for the ERR-039 endpoint and ERR-051 surfaced as a side effect of writing it)*.
+   **Test reference:** ``tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited``. Tagged ``@pytest.mark.l1`` and ``@pytest.mark.catches("ERR-039", "ERR-051")`` — the follow-up landed, so the test carries both ids: it was authored for the ERR-039 endpoint and ERR-051 surfaced as a side effect of writing it. It is this entry's sole catcher.
 
    → ERR-039 is the sibling: both are convention-drift failures of the SH Galerkin discipline that conflated the discrete metric with the abstract identity. ERR-039 was the operator-side conflation (``Π* = R``); ERR-051 was the verification-method-side conflation (``Π R = I``). Both closed by Phase 1 of the moment-space + layering plan (refactor/moment-space-and-layering, commits 0eb9cf3..c5be4b0).
 
@@ -4850,7 +4961,7 @@ older entries classify against.
 
    **How it hid.**
 
-   1. **Existing scan-form tests cover the wrong regime.** ``tests/sn/sweep/core/test_ordinate_scan.py::test_ordinate_scan_small_attenuation`` uses ``a ∈ [0.05, 0.2]`` (positive, bounded away from 0). ``test_ordinate_scan_zero_attenuation`` uses ``a ≡ 1`` (the opposite limit). No existing test covers ``a ∋ 0`` — the exact pole-cell pathology.
+   1. **Existing scan-form tests cover the wrong regime.** ``tests/sn/sweep/core/test_ordinate_scan.py::TestNumericalStability::test_ordinate_scan_small_attenuation`` uses ``a ∈ [0.05, 0.2]`` (positive, bounded away from 0). ``TestAffineStructure::test_ordinate_scan_zero_attenuation`` uses ``a ≡ 1`` (the opposite limit). No existing test covers ``a ∋ 0`` — the exact pole-cell pathology.
 
    2. **The docstring acknowledged the regime but did not enforce it.** ``scan.py`` lines 126–135 explicitly noted "requires ``cumprod_a`` to stay finite and bounded away from zero ... For ``a → 0`` ... outside DD's normal operating envelope, consult the test catalog". The caveat lived in prose; no positive contract test pinned it. Anti-pattern #10 in ``vv-principles`` ("docstring caveat without enforcement").
 
@@ -4872,11 +4983,19 @@ older entries classify against.
    * ``derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py`` — 6 tests pinning the sharp-resonance fingerprint (``n_cells = 20`` only; Krylov worked on the same problem).
    * ~~``derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py``~~ — **RETIRED 2026-08-09 (#347).** It pinned the cache-level ``a = 0`` identity, the ``ordinate_scan`` NaN, the explicit-loop finiteness, and the Krylov-bypass invariant. Three of the four are now false or unreachable: the division-free backend inverted the NaN assertion (its own docstring named that as the retirement trigger), Phase G dissolved the Krylov-bypass invariant (see point 5 above), and its ``μ_x = 1/√20`` resonance node belongs to the retired pre-#337 seed. Successors, both live: ``tests/sn/sweep/core/test_ordinate_scan_reset.py`` (scan-form contract + reachability tripwire) and ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``.
 
-   When the fix lands, both regression tests carry ``@pytest.mark.catches("ERR-054")``.
+   The fix landed on 2026-06-08 (``5c373517``, the division-free
+   ``ordinate_scan``), but the ``@pytest.mark.catches("ERR-054")`` marker
+   did NOT go on the two regression tests above — the
+   ``test_si_cyl_20cell_nan_regression`` module carries only
+   ``regression`` + ``foundation``.  It went on the new
+   ``test_ordinate_scan_reset`` suite, deduplicated against this module
+   the same day (``da8f8c9f``).  Today's sole ERR-054 catcher is
+   ``tests/sn/sweep/core/test_ordinate_scan_reset.py::TestOrdinateScanReset::test_ordinate_scan_multiple_and_consecutive_resets``
+   (``@pytest.mark.l0``).
 
    **Fix family.** Replace the Blelloch closed form with a numerically-stable Blelloch variant. Three viable options:
 
-   1. **Pair-monoid prefix scan.** Compose ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')`` via an explicit associative prefix scan. The existing ``tests/sn/sweep/core/test_ordinate_scan.py::test_pair_monoid_associativity`` already verifies the algebra. No division anywhere; vectorises across ``(K, ng)`` identically. **Preferred — cleanest path.**
+   1. **Pair-monoid prefix scan.** Compose ``(α, β) ⊕ (α', β') = (α·α', α'·β + β')`` via an explicit associative prefix scan. The existing ``tests/sn/sweep/core/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_associativity`` already verifies the algebra. No division anywhere; vectorises across ``(K, ng)`` identically. **Preferred — cleanest path.**
 
    2. **Fallback to explicit loop** at chain cells where ``|a| < ε``. Hybrid; loses the all-numpy uniformity.
 
@@ -4894,7 +5013,7 @@ older entries classify against.
 
    4. **Krylov-versus-SI structural divergence is a load-bearing cross-check.** When two solver paths share the same operator construction but differ in execution algorithm, agreement is information; disagreement at the SAME problem is a diagnostic localiser. Issue #209 was localised in <2 hours because Krylov-vs-SI disagreement was already in the user's empirical table.
 
-   **Test reference:** ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py`` (this commit), with ``@pytest.mark.catches("ERR-054")`` to be added when the fix lands.
+   **Test reference:** ``tests/sn/sweep/core/test_ordinate_scan_reset.py::TestOrdinateScanReset::test_ordinate_scan_multiple_and_consecutive_resets`` (``@pytest.mark.l0`` + ``@pytest.mark.catches("ERR-054")``, the sole catcher), beside the solver-level regression gate ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``, which carries no ``catches`` marker (see "Which test catches it" above).
 
    → Probe path: see ``derivations/diagnostics/diag_si_cyl_20cell_nan_step{1,5}_*.py`` for the cascade. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
 
@@ -4903,7 +5022,7 @@ older entries classify against.
 
 
    **Date:** 2026-06-01
-   **Module:** ``sn`` / ``tests`` (``tests/sn/test_spherical.py``, ``tests/sn/test_cylindrical.py``; crash surfaces at ``orpheus/sn/spatial/sweep_cache.py:431``)
+   **Module:** ``sn`` / ``tests`` (the ``test_spherical`` and ``test_cylindrical`` modules, then directly under ``tests/sn/`` and redistributed by the 2026-06-01 taxonomy reorg — today's addresses are in the test reference below; crash surfaces at ``orpheus/sn/spatial/sweep_cache.py:431``)
    **Failure mode:** #6 (convention drift — definition site vs usage site disagree), residing in the TEST fixtures, NOT in production code.
 
    **Symptom.** Six SN curvilinear sweep-regression tests crash with ``IndexError: index 9 is out of bounds for axis 1 with size 1`` at ``sweep_cache.py:431`` (``sig_t[:, geom.chain_idx].transpose(1, 0, 2)``). Affected: ``test_spherical.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}``, ``::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded``, ``test_cylindrical.py::TestCylindricalSweepRegression::test_single_sweep_all_finite``, ``::TestMultiGroupMultiRegion::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}``.
@@ -4928,7 +5047,14 @@ older entries classify against.
 
    3. **ng=1 degeneracy hides axis-swap convention drift.** ``(nx, ng, ny)`` with ng=1 aliases against ``(ng, nx, ny)`` in element count and shape-rank; the swap only declares itself at an index/slice that distinguishes the two axes. ≥2 groups would have surfaced it sooner — another instance of cross-cutting hygiene rule H1 (1-group degeneracy) operating at the data-layout level.
 
-   **Test reference:** ``tests/sn/test_spherical.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}``, ``::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded``, ``tests/sn/test_cylindrical.py::TestCylindricalSweepRegression::test_single_sweep_all_finite``, ``::TestMultiGroupMultiRegion::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}`` (all six migrated this commit). No ``@pytest.mark.catches`` needed — the bug was in the test fixtures, not a production code path; the migrated tests gate the production convention by routing through the producer.
+   **Test reference:** all six migrated tests are alive.  The 2026-06-01 split deleted the two host modules (``390b9e4d``) and redistributed their contents across three curvilinear modules (``0241df70``); three of the four host classes kept their names, and the cylinder multi-group class was divided — its azimuthal-redistribution half became ``TestAzimuthalRedistribution``, its eigenvalue half ``TestCylinderMultiGroupMultiRegion``.  Today's addresses:
+
+   - ``tests/sn/sweep/curvilinear/test_sph_sweep_regression.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}`` (``@pytest.mark.l0``)
+   - ``tests/sn/eigenvalue/test_keff_curvilinear.py::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded`` (``@pytest.mark.l2``)
+   - ``tests/sn/sweep/curvilinear/test_cyl_sweep_regression.py::TestCylindricalSweepRegression::test_single_sweep_all_finite`` (``@pytest.mark.l0``)
+   - ``tests/sn/sweep/curvilinear/test_cyl_sweep_regression.py::TestAzimuthalRedistribution::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}`` (``@pytest.mark.l2``; the class was ``TestMultiGroupMultiRegion`` in the pre-split ``test_cylindrical`` module)
+
+   None of the six carries ``@pytest.mark.catches`` — the bug was in the test fixtures, not a production code path; the migrated tests gate the production convention by routing through the producer.  The explicit catcher added afterwards is ``tests/sn/sweep/core/test_sweep_ng2_layout_guard.py`` (module-level ``pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]``), which runs the same sweep at **ng=2** so the ``(nx, ng, ny)`` / ``(ng, nx, ny)`` aliasing that hid this bug at ng=1 cannot recur silently.
 
 .. error-entry:: ERR-056
    :title: Octant-group Gauss-Seidel schedule reflected a boundary face after only the FIRST octant group outflowing it, absorbing the not-yet-swept octants' SEED value instead of their outflow → wrong fixed point on diagonal/spherical cubatures
@@ -5087,7 +5213,7 @@ older entries classify against.
 
    **Fix.** ``return mu_axis * sp.Matrix(...)``. Mutation-verified ``-O``-safe: re-dropping the factor makes ``test_d2_exact_on_bilinear`` FAIL (returncode 1, via ``pytest.fail``) while the d=1 oracles stay GREEN.
 
-   **Which test catches it.** ``tests/transport/spatial/test_ld_ubld_symbolic.py::test_d2_exact_on_bilinear`` (Branch 1) + ``tests/transport/spatial/test_ld_ubld_primitive.py::test_d2_exact_on_bilinear`` (Branch 2 numpy), both ``@pytest.mark.foundation @pytest.mark.catches("ERR-060")``, Mode-8-safe (``pytest.fail``). NOTE: ``tests/transport/spatial/test_linear_discontinuous.py::test_d2_assembled_matrices_match_symbolic`` carried ``catches("ERR-060")`` but is BLIND to it (it checks ``assemble_ubld``'s A/M/G/F_out, which carry no inflow factor, and PASSES under the \|μ_axis\| drop). Only the exact-on-bilinear gates are genuine catchers (the marker on the A==A pin is a coverage-claim error to drop — qa L-031).
+   **Which test catches it.** ``tests/transport/spatial/test_ld_ubld_symbolic.py::TestOracleIIBilinearExactness::test_d2_exact_on_bilinear`` (Branch 1) + ``tests/transport/spatial/test_ld_ubld_primitive.py::TestPrimitiveMatchesSymbolic::test_d2_exact_on_bilinear`` (Branch 2 numpy), both ``@pytest.mark.foundation @pytest.mark.catches("ERR-060")``, Mode-8-safe (``pytest.fail``). NOTE (history, 2026-06-16): the d=2 cell-assembly pin ``tests/transport/spatial/test_ld_ubld_primitive.py::TestPrimitiveMatchesSymbolic::test_d2_assembled_matrices_match_symbolic`` — which this entry used to place in ``test_linear_discontinuous.py``, where it never lived — carried ``catches("ERR-060")`` in draft but is BLIND to it: it checks ``assemble_ubld``'s A/M/G/F_out, which carry no inflow factor, and PASSES under the \|μ_axis\| drop. qa's review of the landing commit ``495af604`` dropped the misattributed marker before commit (qa L-031), and the pin's own docstring now records why it carries none. Only the exact-on-bilinear gates are genuine catchers.
 
    **Lesson.** A reduction oracle that builds its own reduced-case RHS inline is blind to the general assembler's higher-d terms — ship the exact-on-bilinear (d≥2) gate WITH the d=1 reduction oracle, never the d=1 reduction alone. The d=1-blind / d≥2-caught split is the H2 signature lifted to dimension. → numerical-bug-signatures Signature 4 family at the symbolic-derivation layer.
 
@@ -5185,7 +5311,7 @@ older entries classify against.
 
    **Fix.** R7: operator-consistent everywhere — νΣf-only numerator; the emission ``E_2n`` enters the denominator NEGATIVELY (``R_Σa + L − E_2n``; ``absorption_xs`` counts the collision once, the emission is a gain). MoC's L0 expected value re-derived from the posed balance (1.125 → 1.25; principled re-baseline — the old reference encoded the estimator, not the eigenproblem). ``compute_production_rate`` deliberately KEEPS total physical production (fission + emission) — it is the ERR-052 renormalization scale anchor, a different role from the k numerator (role split documented at both sites). Σ₂=0 arithmetic bitwise unchanged (adding/subtracting exact zeros).
 
-   **Which test catches it.** ``test_keff_estimator_gate.py::TestReportedKeffIsThePosedEigenvalue::test_reflective_n2n_convention`` (reported ≡ map-ratio k* on the Σ₂≠0 fixture; the old convention mutant reds at −26% via ``TestGateTeeth::test_old_convention_reds_n2n_leg``) + the re-derived ``tests/moc/test_verification.py::test_n2n_1g_analytical_keff`` (now posed-problem-derived, k=1.25 exact for any flux shape).
+   **Which test catches it.** ``tests/sn/eigenvalue/test_keff_estimator_gate.py::TestReportedKeffIsThePosedEigenvalue::test_reflective_n2n_convention`` (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-065")``; reported ≡ map-ratio k* on the Σ₂≠0 fixture; the old convention mutant reds at −26% via ``TestGateTeeth::test_old_convention_reds_n2n_leg``) + the re-derived ``tests/moc/test_verification.py::TestL0N2nReaction::test_n2n_1g_analytical_keff`` (now posed-problem-derived, k=1.25 exact for any flux shape; it carries no ``catches`` marker).
 
    **Lesson.** The k functional is DEFINED by what the inner solve scales by 1/k — estimator and posed problem may not disagree, and "which terms sit in the numerator" is not a style choice. A reference value derived from the code's own convention is self-referential (the L11 structural-independence requirement applies to the DERIVATION of the expected value, not just to solver cross-checks): derive test references from the posed problem's balance. When a term is zero on all library data (Σ₂), its convention errors are Mode-10 invisible — the catcher needs the term genuinely activated (the #269 fixture idiom) AND a reference outside the estimator's own algebra (the map ratio).
 
@@ -5212,7 +5338,7 @@ older entries classify against.
 
 
    **Date:** 2026-07-06 (the FaceField codim-1 design session; the ghost framing was authored 2026-07-04 in the #280 2.5d carrier work and refuted here — derived by numerics-investigator via the adjoint constraint ``AᵀG = GA†`` on the dense augmented sphere operator).
-   **Module:** ``numerics`` (``spaces/starting_direction_space.py::for_levels`` built ``np.zeros``) / ``sn`` (the augmented loss composite's G-adjoint).
+   **Module:** ``numerics`` (``spaces/starting_direction_space.py::for_levels`` built ``np.zeros``; the same rename of 2026-07-07 carried that file to ``orpheus/numerics/spaces/radial_characteristic_space.py``, where ``for_levels`` now lives on ``_RadialCharacteristicSubSpace``) / ``sn`` (the augmented loss composite's G-adjoint).
    **Class:** Mode 12 (invariant-functional gate blindness) — a state's inner-product metric conflated with an angular-integration weight.
 
    **Failure mode.** THREE quantities all vanish at the pole μ=±1 for DIFFERENT reasons, in DIFFERENT objects, and the bug welded them: **M1** the moment/output weight ``w_moment = 0`` (open Gauss–Legendre has no node at the pole — correctly excludes ψ½ from ``φ = Σ wₙψₙ``); **M2** the angular through-flux ``(1−μ²)|_pole = 0`` (the α-dome endpoint ``α_{1/2}=0`` — an OPERATOR coefficient in the angular-derivative term, governing the straight-characteristic/triangular structure); **M3** the STATE metric ``G_sd`` — the inner product, governing the G-adjoint. Installing M2 (=0) as M3 put the seed in ``ker G``, so ``A.H = G⁻¹AᵀG`` (with ``G⁺_sd = 0``) zeroed the adjoint seed block ``A†_sb = G⁺_sd A_bsᵀ G_b`` — the seed→bulk coupling ``A_bs ≠ 0`` (the Morel–Montry recurrence) went unmatched. Measured production ``A.H`` reciprocity: **4.6e-16 on a zero seed, 1.3e-2 on a random seed** — a wrong adjoint the instant ψ½ carries data. ψ½ is a first-class radial STATE field (its self-block ``A_ss`` is a banded radial transport operator ``μ∂_r + σ_t``, off-diag ‖71‖ vs the trace's reflection-map ‖2‖), so its Hilbert metric is the bulk's spatial measure restricted to the ray: ``G_sd = V_cell``.
@@ -5221,7 +5347,7 @@ older entries classify against.
 
    **Fix.** ``G_sd = V_cell`` (radial cell volume, SPD), installed in ``StartingDirectionSpace.for_levels`` (mirroring ``G_bulk = V_cell·w_n``; the angular factor ``w`` is a free gauge — a single pole ray has no canonical quadrature weight — gauge-fixed to ``V_cell`` so the adjoint seed block is the physical backward radial march and bulk/trace observables are bitwise gauge-invariant). The metric is pinned only up to SPD by ``AᵀG = GA†`` (since ``apply_transpose`` is the EXACT Euclidean transpose, ``‖T−Aᵀ‖ ≈ 3e-16``); ``0`` is the single forbidden value (the boundary of the SPD cone). **Forward path bit-identical** (the metric is read only by ``A.H`` + ``inner_product``, never the forward sweep/matvec — the #208 trace-metric-install precedent).
 
-   **Which test catches it.** ``tests/sn/operators/test_starting_direction_metric.py::test_derive_gsd_and_close_mode12`` (``@pytest.mark.catches("ERR-067")``) — the dense structurally-independent ``G⁺TG`` sweep over {0, id, V_cell, V·w} × {zero-seed, random-seed, seed-row-flip}, proving ``g_sd=0`` is blind AND ``V_cell`` closes; corroborated on the production path by ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py::test_mode12_g_reciprocity_catches_a_seed_row_flip``. Mutation-verified teeth: revert ``G_sd → 0`` reds both; a seed-row sign-flip reds; the corner-gauge ``V[-1] → 2·V[-1]`` leaves reciprocity + bulk observables green (gauge inert). **Critical gate-design note:** the closure gate carries a **control leg** (unmutated nonzero-seed reciprocity ``< 1e-12``) so the red is attributable to the flip — without it, a broken ``G_sd=0`` baseline (also ``> tol`` on a random seed) mimics "caught."
+   **Which test catches it.** ``tests/sn/operators/test_radial_characteristic_metric.py::test_derive_gsd_and_close_mode12`` (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-067")``; the module was ``test_starting_direction_metric.py`` until the ``StartingDirection → RadialCharacteristic`` rename of 2026-07-07, ``b015e362``, which moved the whole family — the test function name is unchanged) — the dense structurally-independent ``G⁺TG`` sweep over {0, id, V_cell, V·w} × {zero-seed, random-seed, seed-row-flip}, proving ``g_sd=0`` is blind AND ``V_cell`` closes; corroborated on the production path by ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py::test_mode12_g_reciprocity_catches_a_seed_row_flip``. Mutation-verified teeth: revert ``G_sd → 0`` reds both; a seed-row sign-flip reds; the corner-gauge ``V[-1] → 2·V[-1]`` leaves reciprocity + bulk observables green (gauge inert). **Critical gate-design note:** the closure gate carries a **control leg** (unmutated nonzero-seed reciprocity ``< 1e-12``) so the red is attributable to the flip — without it, a broken ``G_sd=0`` baseline (also ``> tol`` on a random seed) mimics "caught."
 
    **Lesson.** A state DOF's Hilbert metric is set by its OPERATOR ROLE (it must be SPD so the adjoint is non-degenerate), NOT by its output/integration weight — a DOF that is zero-weight in the output functional (``φ``, ``k``) can still require a nonzero metric for its adjoint (``output-functional weight ≠ state inner-product metric``). Corollary for Mode-12-closure gates: the blindness is exact precisely on the input the old gate fed (the zero seed), so closing it REQUIRES exercising the previously-nulled input (a nonzero seed) AND a control leg that pins the honest baseline — else the closure test cannot distinguish "the metric now catches it" from "the baseline is broken too." The three-quantities-conflated pattern (integration weight / operator coefficient / state metric all vanishing at one geometric locus) generalises to any augmented block on a measure-degenerate face.
 
@@ -6755,10 +6881,15 @@ older entries classify against.
      inert today, because ``gauss_legendre(8).angular_frame(2)``'s
      measure still declares ``support.name == 'S^2'`` while the
      quadrature's own measure declares ``'S^2/O2_x'``. That is why the
-     witness — ``tests/numerics/test_basis_domain.py::test_e1`` — reads
-     the verdict off the **quadrature's** measure, and why its negative
-     leg is a *measurement made spellable* rather than a refusal
-     (``plan-authoring`` §6c). The **Gate** bullet below is unchanged:
+     witness — ``test_e1_the_folds_two_halves_read_ONE_group_and_the_slabs_pairing_is_refusable``
+     as it was named then (``9b4a4d9c``) — read the verdict off the
+     **quadrature's** measure, and why its negative leg was a
+     *measurement made spellable* rather than a refusal
+     (``plan-authoring`` §6c).  The repair inverted that leg and renamed
+     the test on 2026-09-02 (``5436184e``): it is
+     ``tests/numerics/test_basis_domain.py::test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too``
+     today, and the slab verdict reads **True**. The **Gate** bullet below
+     was unchanged at the time:
      the ``xfail(strict=True)`` rows still hold this entry open. See
      :ref:`manifold-basis-invariance-group` and
      :ref:`manifold-invariance-pairing`.
@@ -6769,10 +6900,13 @@ older entries classify against.
      itself. It now runs **only on the 1-D arm** — a rule whose nodes already
      are three-component directions hands the frame its own measure, `[M]` 10
      of the 12 shipped rules — so the forgery is scoped to exactly the rules
-     this entry is about, named, and carries its retirement trigger. It is
-     pinned as a fiction by
-     ``tests/numerics/test_quadrature_directional.py::test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so``,
-     which goes RED when phase 3.4 removes the branch. Public surface:
+     this entry is about, named, and carries its retirement trigger. It was
+     pinned as a fiction by ``test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so``,
+     designed to go RED when phase 3.4 removed the branch.  It did: the
+     fused repair (``5436184e``, 2026-09-02) deleted the branch and replaced
+     the fiction pin with
+     ``tests/numerics/test_quadrature_directional.py::test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis``
+     (``@pytest.mark.catches("ERR-080")``). Public surface at the time:
      ``solve_sn(..., scattering_order>=2)`` and
      ``solve_sn_fixed_source(..., scattering_order>=2)`` on any 1-D chart.
    - **Class**: **convention drift at a type boundary — two meanings, one set
