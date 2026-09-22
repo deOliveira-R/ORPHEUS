@@ -67,7 +67,7 @@ its interaction with the other already-confirmed factors).
 
 ## Directory and filename convention
 
-All probes live in `derivations/diagnostics/diag_{issueN}_probe_{letter}_{descriptor}.py`:
+All probes live in `scratch/derivations/diagnostics/diag_{issueN}_probe_{letter}_{descriptor}.py` (untracked: a probe is a working artefact; what survives is promoted into `tests/`, and the tracked `derivations/diagnostics/` is being retired, the user's ruling of 2026-09-22):
 
 - `diag_slab_issue131_probe_a_1g_2rg_vacuum.py`
 - `diag_slab_issue131_probe_b_2g_2rg_vacuum.py`
