@@ -26,6 +26,13 @@ An agent definition is a **projection of the project's knowledge onto one role, 
 
 Every defect found below is either a part held by the wrong owner (knowledge copied into a body, where it drifts) or a capability stated in prose that the harness does not grant or does not enforce.
 
+**The boundary-of-failure loop (the user, 2026-09-22, ruling R9).** Three agents are one loop over the boundaries of failure of a capability:
+- the **test-architect is foresight**: it predicts every boundary of failure before the capability exists, and its ladder of tests is those boundaries, ordered so that each rests on the verified ones below it;
+- the **numerics-investigator is search**: it is dispatched when (1) the boundaries were identified but the implementation failed at one, or (2) a boundary was not identified and must be found; its probe cascade is the ladder built after the fact;
+- the **qa is hindsight**: with the capability and its tests both existing, it checks that the boundaries were right and that each is tested. When hindsight finds a new requirement (a boundary nobody predicted) or a vacuous test (a duplicate or invalid boundary), the loop repeats from foresight.
+
+Each of the three definitions states its place in this loop, and the loop is the reason the ladder principle (R7) is shared doctrine rather than one agent's method.
+
 ## 3. The review, 2026-09-22 (first pass, by the orchestrator)
 
 Instruments: each of the nine AGENT.md files and role sources read in full; paths and symbols checked by `scratch/_agent_defs/agent_refs.py` (an AST pass over `orpheus/` for definitions, with `IterationRecord` as the positive control); defect patterns counted by `scratch/_agent_defs/agent_census2.py` (a regex census, positive control qa's known skill-edit line; its counts are read as leads and every instance cited below was read in its body); the Claude Code sub-agent documentation (`code.claude.com/docs/en/sub-agents`, fetched 2026-09-22); description and pasted-block sizes by `scratch/_agent_defs/agent_desc.py` (each probe runs as `ROOT=$PWD .venv/bin/python <probe>`). "Body" means the hand-maintained text after the generated role block.
@@ -88,7 +95,8 @@ The archivist's front matter spells `name: Archivist`; its memory directory is `
 ### Also found, needing a measurement before anything relies on it
 
 - `[M]` 2026-09-22 (the D6 probe): a background sub-agent holding `SendMessage` messages `main` and receives the reply at its next tool call.
-- The documentation says a non-fork sub-agent never receives the main conversation's auto memory; the harness page records, `[M]` 2026-09-21, that the project memory index is inherited by every dispatch without `omitClaudeMd`. One of the two is out of date; re-measure by dispatching before a definition leans on either.
+- The documentation says a non-fork sub-agent never receives the main conversation's auto memory; the harness page records, `[M]` 2026-09-21, that the project memory index is inherited by every dispatch without `omitClaudeMd`. `[M]` 2026-09-22, §8 step 1 (one background `general-purpose` haiku probe, no `omitClaudeMd`, answering from its context before any tool call): the index IS inherited, and it is the SESSION-START snapshot (the probe quoted the index line as it stood before this session edited it); the rules load (control: the cardinal page's heading present), and the path-scoped `plan-authoring` does not until triggered. The documentation is out of date for this harness; the harness page stands.
+- `[M]` 2026-09-22, the same probe: a WRITE of a new file under `.claude/plans/` did not load the path-scoped `plan-authoring` rule (no system reminder after the write), where a READ under a scoped path does (the harness page, `[M]` 2026-09-21). So a path-scoped rule reaches whoever reads a matching file, and every Edit is preceded by a Read, but creating a new page loads nothing: the archivist's definition says to read the `documentation` rule before creating a page (R11).
 - Harness features no agent uses (the documentation): per-agent `hooks`, `disallowedTools`, `effort`, `maxTurns`, `permissionMode`, `isolation: worktree`. `isolation: worktree` branches from the default branch, not the parent's HEAD, so it cannot review uncommitted work (refuted FOR mutating uncommitted work under review; the FACT: it isolates an agent that edits committed code).
 
 ### What worked (keep)
@@ -99,7 +107,7 @@ The two-pass review (qa withdrew attacks with reasons); probes run as scripts fr
 
 **S1. Patch in place.** Fix every D-item in the hand bodies. Makes nothing unspellable: D1 stands, so the next rename re-stales a body silently.
 
-**S2. Generate the whole body.** Move each hand body into `docs/development/agents/<name>.md` (role + method), so AGENT.md is front matter + one generated block. `--check` then reads every body line: dead links, dead IDs (`§6`, `error_catalog.md`), budgets. Knowledge leaves the bodies for pointers; for the `omitClaudeMd` explorer, the layer table is generated from its one source (CLAUDE.md's on-boarding page) instead of hand-copied. Makes D1 and D3 detectable and most of D4 visible; leaves D2 (capability in prose) and D5 (the learning channel) as review questions.
+**S2. Generate the whole body.** Move each hand body into `docs/development/agents/<name>.md` (role + method), so AGENT.md is front matter + one generated block. `--check` then reads every body line: dead links, dead IDs (`§6`, `error_catalog.md`), budgets. `[REFUTED 2026-09-22 in part, at implementation]` The ID check skips code spans by design and has no `§N` kind, so neither example would have reddened: D3's stale references are paths in code spans. The instrument that sees them is a new one, `tools/harness/paths.py` (a code-span file check over every generated page), which landed with the move; its first run found 1 dead file in the skills and 17 in the moved bodies. A numbered section reference (`§6`) and a bare identifier (`SNMesh`) stay unchecked, and the rewrite removes them. Knowledge leaves the bodies for pointers; for the `omitClaudeMd` explorer, the layer table is generated from its one source (CLAUDE.md's on-boarding page) instead of hand-copied. Makes D1 and D3 detectable and most of D4 visible; leaves D2 (capability in prose) and D5 (the learning channel) as review questions.
 
 **S3. S2 plus a capability contract the harness enforces** `[HYPOTHESIS]`, recommended.
 - tools that match the mandate: Bash for the attacker; Write and Edit listed wherever the role writes; Grep and Glob removed; `SendMessage` where a body resumes by name;
@@ -173,14 +181,14 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 
 - **Q1 → ruled R6.**
 - **Q2 → ruled R7.**
-- **Q3. Where the documentation procedure lives: the orchestrator's suggestion, awaiting the user's confirmation.** The user's framing: the archivist is the only sub-agent that documents, so the choice is its definition or a preloaded skill, and a skill's description would reach the main agent's roster every session. The suggestion is a third form: a **path-scoped rule** `documentation`, with `paths:` on `docs/theory/**` and `docs/architecture/**`, carrying the present-only ruling and the page template. The reasons:
+- **Q3 → ruled R11: a path-scoped rule.** The suggestion as made: The user's framing: the archivist is the only sub-agent that documents, so the choice is its definition or a preloaded skill, and a skill's description would reach the main agent's roster every session. The suggestion is a third form: a **path-scoped rule** `documentation`, with `paths:` on `docs/theory/**` and `docs/architecture/**`, carrying the present-only ruling and the page template. The reasons:
   - the main agent needs it too: it writes theory pages itself in a surgical carve (W3 sends only the changelog to the archivist) and fixes stale docs on sight (Cardinal Rule 3);
   - qa needs it to verify documentation claims in W4;
   - a path-scoped rule loads for whichever agent touches a matching file, main or sub-agent, at no cost until then, with no roster line and no preload (the harness page, `[M]` 2026-09-21, the `vv-testing` probe; `plan-authoring` and `coding-standards` load this way today);
   - the archivist's definition keeps only its own method (its build gate, its cross-reference grep, how it rewrites a page to the present) and points at the rule.
 
   One measurement is owed in Phase 1: that a WRITE of a new file under a scoped path loads the rule as a read does (`[R]`: only the read is measured).
-- **Q4. The preload criterion** (carried, `[R]`, not yet answered): a skill is preloaded when the role applies it at every dispatch; otherwise the brief names the page. It bears only on the rewrite phase, where each preload would be justified by it in the agent's review.
+- **Q4 → ruled R10**: decided per agent at the rewrite, where the orchestrator gives its best suggestion from several perspectives (what the role applies at every dispatch, context cost, what the brief can carry instead, what a missing preload has cost before).
 - **Q5 → ruled R8.**
 
 ## 7. Rulings ledger
@@ -192,13 +200,17 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 - **R5** (the user, 2026-09-22): the five items of §5 are the scope that follows the S3 foundation.
 - **R6** (the user, 2026-09-22, Q1): an agent that may need clarification from the orchestrator holds `SendMessage` and asks, rather than working around what it thinks was meant; the Key agents are the first candidates. **The orchestrator's application:** all nine, since each Support agent has its own clarification case (the literature-researcher's "not in the local folder" question is W7's own; the explorer's question scope; the attacker's artefact and question). **The protocol, in every definition `[R]`:** send the question and continue the work that does not depend on the answer (the reply arrives at the next tool call); if nothing is independent of it, return with the question in `NEEDS:` and be resumed by name with the answer (invariant 3), never spin tool calls waiting. An ontological gap in a plan is not a clarification: the method-implementer refuses (§5.4).
 - **R7** (the user, 2026-09-22, Q2): tests are hierarchical and well structured, so that a failure's boundary is known; the principle goes into `vv-principles`, the procedure into the test-architect's definition; the test matrix orders its rows reuse > improve > new (§5.2).
+- **R9** (the user, 2026-09-22): the boundary-of-failure loop of §2 — test-architect foresight, numerics-investigator search, qa hindsight, repeating when hindsight finds a new or a vacuous boundary.
+- **R10** (the user, 2026-09-22, Q4): the preload criterion is decided per agent at the rewrite, on the orchestrator's multi-perspective suggestion.
+- **R11** (the user, 2026-09-22, Q3): the documentation procedure is a path-scoped rule `documentation`.
+- **R12** (the user, 2026-09-22): *"The plan is scoped enough to start. Begin working on it."* Implementation opens at §8 step 1.
 - **R8** (the user, 2026-09-22, Q5): the orchestrator writes every rewritten definition and the user reviews each. The prose is direct, without mannered speech, straight to the point: maximum effect with minimum context. Its instrument: each body is generated with a `budget_tokens` set at its measured size (the harness's budget law), so growth is a red, and the §5.5 amendment census reads 0.
 
 ## 8. Implementation order and its start condition
 
-Implementation starts when the user rules this plan polished. Until then, nothing changes in any AGENT.md, role source, hook or setting. The order `[HYPOTHESIS]`:
+Implementation started 2026-09-22 (R12). The order `[HYPOTHESIS]`:
 
-1. **Measure.** Whether a Key dispatch receives the main memory index (§3's open conflict), by dispatching.
+1. **Measure.** Whether a Key dispatch receives the main memory index (§3's open conflict), by dispatching. `[LANDED 2026-09-22]` it does, as the session-start snapshot; and a write does not load a path-scoped rule (§3).
 2. **The S3 foundation.**
    - The generator reads the whole body. The move is verbatim first, and `--check`'s first red on the moved bodies is its positive control; D3's dead references are then fixed so the move lands green.
    - The front matter matches the mandates (tools; `SendMessage` for all nine per R6; the archivist's name).
