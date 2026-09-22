@@ -1419,3 +1419,32 @@ CI is now an instrument that exists: `gh run list --branch main --limit 3` after
 **After that: the development track.** The close-out's owed list stands: the topic-file blast-radius audits (39 files), #488, then #484 as its own living plan, the CP#3–CP#5/CP#7 docs lists, #478–#483, the #477 queue, #487.
 
 **Resume surface.** This point; the queue file; the six audit directories under `.claude/plans/archive/memory_distillation_2026-09-21/` (the `uplift.md` files hold the proposed texts verbatim); memory `project_harness_context_budget.md`. What NOT to do: paste a queue item as "#18" or without re-reading the live last number; edit a generated `.claude/` copy; retire a memory note before its rule clause is committed; land the signature before the ERR entry and its catching test; commit on `main`; `git add -A`.
+
+## Uplift queue landed (2026-09-22)
+
+Executed on `chore/uplift-queue` under the ruling recorded at ⏸ COMPACTION POINT #12, in
+the order of its list; every item's founding case and home are as recorded there.
+
+| item | commit | what landed |
+|---|---|---|
+| 1 | `b751657d` | `vv-principles`: Mode 8 class (10), the REASON half of marker decay, anti-pattern #37 (+ `## AP37 reciprocity partner` on the evidence page), #17 rider (j); the queue's §A header rewritten as history; budget 12100 → 12700 (`[M]` ≈12689) |
+| 2, 3, 4, 5 | `66433029` | elegance-enforcer scope sentence; literature-researcher §6 mechanism; attacker task-type row + backbone WHERE clause, digest pointers; Smell #17 two shapes + version history |
+| 6, 7 | `fee3305a` | `coding-standards` "Naming" (+ evidence "2026-06-22 naming rulings"), budget 2200 → 2800 (`[M]` ≈2725); `coding-elegance` Pattern 4 lossy-return corollary (+ evidence "Pattern 4 lossy return type"), budget 9000 → 9300 (`[M]` ≈9285); three main-memory notes retired outside git |
+| 8 | `88a134b3` | ERR-087 (catcher verified FIRST: `[M]` 2026-09-22, the greedy spelling re-dropped at `_moment_blocks` under `-O`, 4 failed / 11 passed, exactly the `LD-2^d=4` rows), `catches("ERR-087")` on `test_moment_source`, Signature 11 + cross-index row, the numerics-investigator's L13 → pointer |
+| 9 | — | HELD as planned: X2 parameter-independence heuristic; archivist A3 |
+
+**Gates (`[M]` 2026-09-22):** `tools.harness` and `--check` clean (24 targets, 0 problems,
+0 drifted; 726 ID citations resolved, 0 dangling); `tests/tools/test_harness_generator.py
+tests/test_harness_generated.py` under `-O`: 51 passed; `sphinx -E -W`: rc 0, 0 warnings;
+the catalogue index regenerated to 87 entries · 321 catching tests · 0 uncaught. Always-on
+`≈14 940` tokens, unchanged (`coding-standards` is path-scoped; the two skills load on
+demand). Main memory `diff -rq` against `scratch/_memory_checkpoint_2026-09-21/`: 15
+deleted (12 + the 3 of this landing), `MEMORY.md` 40 → 39 lines, no dangling wikilink.
+
+**One surprise, logged here rather than on the evidence page because it is the queue's
+own:** the four `MaterialXSField` verbs the queue named as the founding site no longer
+exist — they retired into `TransferMaterialField._moment_blocks` at step 3c (`81e9e7e1`,
+2026-08-30), so the catcher had to be verified at the successor site. The queue row was
+correct as history and stale as a pointer; the ERR entry records both homes.
+
+**The queue file is now a record;** its "Landed 2026-09-22" section closes it.

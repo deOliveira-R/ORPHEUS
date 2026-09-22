@@ -168,3 +168,31 @@ this file is just a recipe for regrowing what was cleaned up.
 - **New, surfaced and HELD** (from the main-memory census): a "Naming" section of `coding-standards` (six high-signal checks and the greppability law, `feedback_high_signal_names.md`, `feedback_naming_consistency_greppable.md`); the four lossy-return-type checks as a `coding-elegance` Pattern 4 corollary (`feedback_lossy_return_type_is_the_root_cause.md`).
 - **`numerical-bug-signatures`, a new signature (HELD, owes an ERR entry first)** — the greedy `(Ellipsis, *idx)` spectator-axis index: bit-identical for the scalar-moment case, `IndexError` on a rectangular grid or a silent wrong value on a square grid with an asymmetric material map once a trailing axis is present; fix `cells = (slice(None), slice(None), *idx)`; blind test classes: every scalar-moment test. Founding case #276 A2, commit `0b3275d`, all four `MaterialXSField` moment-scatter verbs. The skill's add-a-signature protocol asks for the ERR entry first; none exists (`vv-principles` "Log every caught bug"), so the archivist owes it before the signature lands. Proposal: `.claude/plans/archive/memory_distillation_2026-09-21/numerics-investigator/uplift.md` U4.
 - **`instrument-doctrine` X2, parameter-independence as a derivation hint (HELD)** — a fitted law measured independent of a parameter the object contains is combinatorial; derive it. One sighting (#344's kernel basis, 0.05 s closed form against a 23 s SVD). Proposal: the same file, U10.
+
+## Landed 2026-09-22 (the user's ruling: "I accept all your recommendations on this implementation. Go ahead.")
+
+Branch `chore/uplift-queue`, four commits, each item's home and founding case recorded in
+`.claude/plans/harness_context_budget.md` at ⏸ COMPACTION POINT #12 and its "Uplift queue
+landed" record.
+
+- **§A** — LANDED: A2 as Mode 8 class (10); A3 as the REASON half of the "Log every caught
+  bug" decay paragraph; A4 as anti-pattern #37 (evidence `## AP37 reciprocity partner`);
+  A6 as #17 rider (j). A1 had landed as #36 (2026-09-05); A5 resolved in `coding-standards`.
+- **§B** — LANDED: elegance-enforcer A1 (enumerate from a FRESH `git status`/`git diff`; the
+  brief's scope is a claim); cross-domain-attacker A1 (the task-type row) and A2 (the
+  backbone's WHERE clause), with "→ now in AGENT.md" pointers in its digest; the
+  literature-researcher's optional §6 mechanism sentence. RESOLVED without an edit:
+  elegance-enforcer A2 (the `code-search` positive-control check, which the Key agent
+  loads). Already reconciled on 2026-09-21: test-architect A1/A2, archivist A2/A3.
+- **§C** — LANDED: Smell #17, two shapes, in `cross-domain-frames` Part C, version history
+  2026-09-22; the attacker's digest M1 item 6 points at it.
+- **Naming section / lossy-return corollary** — LANDED in `coding-standards` "Naming" and
+  `coding-elegance` Pattern 4; the three main-memory notes retired outside git.
+- **Greedy-`Ellipsis` signature** — LANDED as Signature 11 after its ERR-087 entry and the
+  verified catcher (`tests/transport/test_material_field.py::TestIndependentReference::
+  test_moment_source`, `catches("ERR-087")`; the mutation reds exactly the four
+  trailing-axis rows under `-O`); the numerics-investigator's L13 retired to a pointer.
+- **Still HELD, on purpose:** the `instrument-doctrine` X2 parameter-independence heuristic
+  (one sighting); archivist A3 (a lesson, not identity-level).
+
+This file is now a record. Nothing in it is pending.
