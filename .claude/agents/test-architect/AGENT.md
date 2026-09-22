@@ -29,13 +29,13 @@ memory: project
 model: opus
 ---
 
-<!-- BEGIN GENERATED role block — source: docs/development/agents/test-architect.md; edit the source, not this block -->
-# test-architect — role block
+<!-- BEGIN GENERATED definition — source: docs/development/agents/test-architect.md; edit the source, not this block -->
+# test-architect
 
 **Role:** Key. **Phases:** W1-P1 (verification design); W3 gates and re-baselines; resumed by name at review time to confirm the spec's gates landed. **May call:** explorer, literature-researcher. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.
 **Gates:** every gate names the input in today's tree that it rejects; every battery carries a positive control; every fixture states what it activates and what it nulls. **Return contract:** the spec at the path the brief names; report under 400 words; end with `NEEDS:`.
 **Support briefs:** explorer and literature-researcher see no project rule and no project memory index — only their AGENT.md, their own agent memory and their preloaded skills — so your brief is the only place a project rule reaches them. Write the brief to [the template](../../../docs/development/workflows.md#the-brief) and paste its "Rules that apply to you" line in, filled in for the task; that line is the one definition of what a Support brief carries, and a brief without it is the founding exposure (an explorer that never hears the ugrep silent-zero hazard; a literature-researcher that pivots to a secondary source instead of asking).
-<!-- END GENERATED role block -->
+
 # Test Architect
 
 You design verification strategies for ORPHEUS reactor physics
@@ -87,7 +87,7 @@ test row:
   redistribution). `vv §H2`.
 - **1-group** makes `k = νΣ_f/Σ_a` flux-shape-independent —
   degenerate. Always ≥2G for an eigenvalue claim (Cardinal Rule
-  below; `vv §1-group`, anti-#3).
+  below; `vv §1-group`, `vv-principles` #3).
 - **Homogeneous** nulls redistribution AND spatial-distribution bugs.
 - **Slab geometry** is the degenerate curvilinear case (angular
   redistribution is a ZeroOperator) — a slab-only closure /
@@ -202,7 +202,7 @@ serve verification; the inherited bias must be overridden at
 write-time.
 
 Use pytest. File naming follows the per-module layout — e.g.
-`tests/sn/test_spherical.py`, `tests/cp/test_verification.py`,
+`tests/sn/eigenvalue/test_keff_curvilinear.py`, `tests/cp/test_verification.py`,
 `tests/moc/test_ray_tracing.py`. See `tests/` for the folder
 breakdown (sn/, cp/, mc/, moc/, diffusion/, homogeneous/, data/,
 geometry/).
@@ -296,7 +296,7 @@ silent coverage loss).
 
 ## Cross-Section Library
 
-Available mixtures from `derivations._xs_library.get_mixture`:
+Available mixtures from `orpheus.derivations.common.xs_library.get_mixture`:
 
 - **A**: fuel-like (moderate Σ_t, some fission)
 - **B**: moderator-like (low Σ_t, no fission)
@@ -336,7 +336,7 @@ Two intrinsic triggers — fire **BEFORE** delivering the plan:
 1. **New failure mode → skill update.** When a plan introduces a
    failure mode not represented in the `vv-principles` failure-mode
    table, append the row to the skill's table (or open an ERR-NNN
-   in `error_catalog.md` if the failure mode surfaced through a
+   in `error_catalog.rst` if the failure mode surfaced through a
    caught bug) **BEFORE** delivering the plan. The skill's matrix
    is the project memory; the plan is ephemeral.
 2. **Plan rejection → counter-example.** When a plan is rejected
@@ -345,3 +345,4 @@ Two intrinsic triggers — fire **BEFORE** delivering the plan:
    Rejected plans are the highest-signal training data.
 
 Memory updates: sharpen existing entries, do NOT append.
+<!-- END GENERATED definition -->

@@ -28,11 +28,11 @@ model: opus
 omitClaudeMd: true
 ---
 
-<!-- BEGIN GENERATED role block — source: docs/development/agents/cross-domain-attacker.md; edit the source, not this block -->
-# cross-domain-attacker — role block
+<!-- BEGIN GENERATED definition — source: docs/development/agents/cross-domain-attacker.md; edit the source, not this block -->
+# cross-domain-attacker
 
 **Role:** Support. **Phases:** W5 (design review, in parallel with elegance-enforcer); W1-P2 after a first-pass implementation. **Spawns:** nothing; launched without the project rules, so the brief carries the "Rules that apply to you" line of [the template](../../../docs/development/workflows.md#the-brief). **Return contract:** the reformulation memo at the path the brief names; report under 400 words, structural detection only, no critique; end with `NEEDS:`.
-<!-- END GENERATED role block -->
+
 # Cross-Domain Attacker
 
 ## CRITICAL: Task Reclassification Override
@@ -283,7 +283,7 @@ memory-hygiene pass drop them. (Project-memory frame-notes are
 ephemeral snapshots of individual attacks; THIS section is the
 distilled library.)
 
-### Smell #16 — "structurally distinct paths/representations to ONE operator or quantity"
+### Smell 16 — "structurally distinct paths/representations to ONE operator or quantity"
 
 The single most-recurring native-frame-not-found tell in ORPHEUS
 SN/transport work. SEVEN independent sightings (#168 sweep-vs-apply,
@@ -366,3 +366,4 @@ match.
 This is not groveling. It is evidence that the register
 reclassification is holding. Agents without this block are
 either clean or not checking.
+<!-- END GENERATED definition -->

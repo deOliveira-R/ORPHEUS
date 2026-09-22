@@ -3,14 +3,13 @@
 Tokens are estimated as characters / ``CHARS_PER_TOKEN``. Every generated
 target carries a ``budget_tokens`` in its source page's ``harness:`` block,
 and exceeding it fails generation, because the budget is the point of the
-whole arrangement: the always-on cost every dispatch pays for a rule or an
-agent's role block, the per-load cost for a skill.
+whole arrangement: the always-on cost every dispatch pays for a rule, the
+per-dispatch cost of an agent's definition, the per-load cost for a skill.
 
 How a budget is set: a round figure above the measured size after a review
 pass, never more than ``SLACK_MAX`` tokens above it — generation fails on more
 slack, so an over-generous budget cannot let growth in unreviewed; an agent's
-role block takes one flat value per role (Key 500, Support 300) inside the
-same slack. A raise is made in the same commit as the text that needs it,
+definition is budgeted like any page, at its measured size. A raise is made in the same commit as the text that needs it,
 which the front-matter placement makes literal. The budget is a size gate,
 never a quality gate: the review is.
 

@@ -29,13 +29,13 @@ memory: project
 model: opus
 ---
 
-<!-- BEGIN GENERATED role block — source: docs/development/agents/numerics-investigator.md; edit the source, not this block -->
-# numerics-investigator — role block
+<!-- BEGIN GENERATED definition — source: docs/development/agents/numerics-investigator.md; edit the source, not this block -->
+# numerics-investigator
 
 **Role:** Key. **Phases:** W2-P1 (the probe cascade); any phase, when an implementer needs an investigation kept out of its own context. **May call:** explorer, literature-researcher; test-architect for the permanent test a probe earns. Delegate only a sizeable, independent track of work you can brief in full; do not delegate what you can finish in a handful of tool calls; one agent rather than several.
 **Output:** the minimal reproducer, and every refuted candidate with the one-line structural reason it failed. **Return contract:** the memo at the path the brief names; report under 400 words; end with `NEEDS:`.
 **Support briefs:** explorer and literature-researcher see no project rule and no project memory index — only their AGENT.md, their own agent memory and their preloaded skills — so your brief is the only place a project rule reaches them. Write the brief to [the template](../../../docs/development/workflows.md#the-brief) and paste its "Rules that apply to you" line in, filled in for the task; that line is the one definition of what a Support brief carries, and a brief without it is the founding exposure (an explorer that never hears the ugrep silent-zero hazard; a literature-researcher that pivots to a secondary source instead of asking).
-<!-- END GENERATED role block -->
+
 # Numerics Investigator
 
 You diagnose bugs in numerical solvers for reactor physics. Your method
@@ -60,7 +60,7 @@ If this test catches a real bug, promote to the matching per-module
 folder — ``tests/sn/``, ``tests/cp/``, ``tests/moc/``, ``tests/mc/``,
 ``tests/diffusion/``, ``tests/homogeneous/``, ``tests/data/`` or
 ``tests/geometry/`` — picking the file name that matches the affected
-code path (e.g. ``tests/sn/test_spherical.py``).
+code path (e.g. ``tests/sn/eigenvalue/test_keff_curvilinear.py``).
 """
 import numpy as np
 import pytest
@@ -131,7 +131,7 @@ or its provenance is unclear — STOP and consult `vv-principles` §6
 (reference contamination) BEFORE writing diagnostics. A bug-hunt
 grounded in a contaminated reference will confirm the wrong cause.
 
-Write: `derivations/diagnostics/diag_01_characterize.py`
+Write: `derivations/diagnostics/diag_<topic>_01_characterize.py`
 
 ### Step 2: Reduce to the simplest failing case
 
@@ -143,7 +143,7 @@ Write: `derivations/diagnostics/diag_01_characterize.py`
 If the bug disappears when simplifying, the boundary between
 pass/fail tells you which feature triggers it.
 
-Write: `derivations/diagnostics/diag_02_minimal_reproducer.py`
+Write: `derivations/diagnostics/diag_<topic>_02_minimal_reproducer.py`
 
 ### Step 3: Fixed-source diagnostic
 
@@ -174,7 +174,7 @@ shrink artificially as `ρ → 1`. Use it for any convergence/distance
 diagnostic, and confirm any near-critical (`c ≥ 0.99`) result against
 the residual, not the increment.
 
-Write: `derivations/diagnostics/diag_03_fixed_source.py`
+Write: `derivations/diagnostics/diag_<topic>_03_fixed_source.py`
 
 ### Step 4: Component isolation
 
@@ -189,7 +189,7 @@ Zero out components one at a time and run the diagnostic:
 
 When the bug disappears, the last-zeroed component contains it.
 
-Write: `derivations/diagnostics/diag_04_isolation.py`
+Write: `derivations/diagnostics/diag_<topic>_04_isolation.py`
 
 ### Step 4.5: Token-adjacency sweep
 
@@ -218,7 +218,7 @@ If a token-adjacent sibling is in the code where the citation calls
 for a different symbol, that's the bug. Write a one-line diagnostic
 asserting the corrected expression and stop the cascade.
 
-Write: `derivations/diagnostics/diag_04_5_token_adjacency.py`
+Write: `derivations/diagnostics/diag_<topic>_04_5_token_adjacency.py`
 
 ### Step 5: Per-ordinate analysis
 
@@ -247,7 +247,7 @@ redistribution path is actually exercised. This is the same statement
 as: matvec self-consistency (SI≡Krylov, round-trip≈0) proves the
 operator is internally consistent, NOT that its fixed point is correct.
 
-Write: `derivations/diagnostics/diag_05_per_ordinate.py`
+Write: `derivations/diagnostics/diag_<topic>_05_per_ordinate.py`
 
 ### Step 6: Scaling analysis
 
@@ -264,7 +264,7 @@ Run at 3+ mesh sizes and tabulate:
 - Ratio < 1 → DIVERGING, fundamental bug
 - Ratio ≈ 1 → mesh-independent error (BC or normalization)
 
-Write: `derivations/diagnostics/diag_06_scaling.py`
+Write: `derivations/diagnostics/diag_<topic>_06_scaling.py`
 
 ### Step 7: Promote diagnostics to tests
 
@@ -284,7 +284,7 @@ Once the root cause is found and fixed, follow the canonical
 
 1. Convert the minimal reproducer (step 2) into a regression test
 2. Move it to the matching per-module folder — e.g.
-   `tests/sn/test_spherical.py`, `tests/cp/test_verification.py` —
+   `tests/sn/eigenvalue/test_keff_curvilinear.py`, `tests/cp/test_verification.py` —
    with a descriptive name
 3. Reference the GitHub Issue number in the test docstring
 4. Keep any diagnostic that tests a GENERAL property (like per-ordinate
@@ -335,3 +335,4 @@ the close-out commit **MUST**:
    reference's pillar and trace it to a structurally-independent
    ground. If you cannot, the case is open. (See `vv-principles`
    §1, §6.)
+<!-- END GENERATED definition -->

@@ -6,8 +6,9 @@
   matter verbatim, and the error-index injection point becomes a ``!cat`` line
   that loads ``error_index.md`` at skill-load time (harness-specific, so it
   lives here and not in the docs);
-* an **agent** is the role block of ``.claude/agents/<name>/AGENT.md``, between
-  markers after the hand-maintained front matter (tools, model, memory);
+* an **agent** is the definition block of ``.claude/agents/<name>/AGENT.md``,
+  everything after the hand-maintained front matter (tools, model, memory),
+  between markers: the role, the method and the return contract;
 * the **index** is ``.claude/<name>.md``, not auto-loaded (the session-start
   batch reads it);
 * the **onboarding** page is the on-boarding block of ``CLAUDE.md`` — the one
@@ -88,7 +89,7 @@ class ClaudeCode:
             case Kind.INDEX:
                 return WholeFile(stamp(page.rel) + body.lstrip("\n"))
             case Kind.AGENT:
-                return Block("role block", body.strip("\n"))
+                return Block("definition", body.strip("\n"))
             case Kind.ONBOARDING:
                 return Block("on-boarding block", body.strip("\n"))
             case _:

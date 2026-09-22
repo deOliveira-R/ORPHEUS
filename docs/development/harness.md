@@ -29,7 +29,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
         │  `tests/test_harness_generated.py`: drift, budget, dead links, orphans. `targets/claude_code.py` is the
         │  one harness; the other modules name none, and adding a harness is one module under `targets/`)
         ▼
-.claude/rules/*.md   .claude/skills/*/SKILL.md   .claude/lessons.md   AGENT.md role blocks   CLAUDE.md   (GENERATED, committed)
+.claude/rules/*.md   .claude/skills/*/SKILL.md   .claude/lessons.md   AGENT.md definitions   CLAUDE.md   (GENERATED, committed)
 ```
 
 - Evidence pages (`evidence/*.md`) have no `.claude/` copy: an agent reads them
@@ -41,8 +41,12 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   the `!cat` line that injects the error-catalogue index into `vv-principles`,
   the `GENERATED` stamp, the AGENT.md markers.
 - An AGENT.md's header (tools, model, memory, `omitClaudeMd`) is
-  harness-specific and hand-maintained; only the role block between the
-  markers is generated.
+  harness-specific and hand-maintained; everything after it is the agent's
+  definition (role, method, return contract), generated whole between the
+  markers, so every check below reads every line of it (since 2026-09-22;
+  until then only a ten-line role block was generated, and the hand-written
+  bodies, 125 to 654 lines each, were read by no check,
+  `.claude/plans/agent_definitions.md` D1).
 - Installed files: `nexus setup` writes the extension's own skills, hooks and
   its always-on routing rule `nexus-tools` into `.claude/` and records each in
   `.claude/nexus-install-manifest.json`. They are tracked, never generated and
@@ -69,10 +73,14 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   generator. A rule with no `paths:` is always-on for every Key agent and the
   main agent: it earns that only if it applies to every artefact an agent
   writes. A rule whose every clause bites only under some paths declares them
-  (`paths:`), and loads when a matching file is touched, in the main agent and
+  (`paths:`), and loads when a matching file is READ, in the main agent and
   in a sub-agent alike (`[M]` 2026-09-21: a haiku sub-agent that read
   `tests/conftest.py` received `vv-testing` as a system reminder after the
-  read, none before). When a
+  read, none before); a WRITE of a new file under the scope does not load it
+  (`[M]` 2026-09-22: a haiku sub-agent that wrote a new file under
+  `.claude/plans/` received no `plan-authoring`), so an edit, which the Edit
+  tool makes only after a read, gets the rule, and a page created from nothing
+  does not unless its author reads the rule first. When a
   Support brief must carry one sentence of the rule (the three Support agents
   load no rule), that sentence is the block's `brief:`; `tools/harness/brief.py`
   assembles every rule's brief into the generated list on
@@ -94,16 +102,31 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   `nexus` or `PR`, where it is one), `L1`–`L4` (also the V&V levels), a tag
   with fewer than two hyphens, and `mode-0` (ERR-030's normalisation sense;
   modes are numbered from 1).
+- **A file named in a code span is checked.** `--check` resolves every
+  repository path, dotted module and bare file name a generated page names
+  in a code span against the tracked tree (`tools/harness/paths.py`); a
+  renamed or deleted file reddens at every page that still names it, which
+  no build warning does, since a code span is not a link and the ID check
+  skips code. A file the reader is to create, and an example, carry a
+  placeholder (`diag_<topic>_01_characterize.py`); a span with a placeholder,
+  a glob or whitespace is not read, nor is a fence, a bare identifier or a
+  path git ignores (local by design). `[M]` 2026-09-22, its first run: 1
+  dead file in the skills and rules (a skill citing an untracked scratch
+  report; re-pointed to its evidence case), then 17 in the agent bodies once
+  they moved under generation (`error_catalog.md` for the `.rst`, a moved
+  module, a test file that never existed, output paths written as if they
+  existed); 126 resolved after the repair.
 - **A skill**: `docs/development/skills/<name>.md` with YAML front matter
   (`name`, `description` — the harness reads them) and the `harness:` block
   beside them, the page in `index.rst`; preload it from an agent's `skills:` list when that
   agent needs it at every dispatch.
 - **An agent**: `docs/development/agents/<name>.md` (role, phases, supports,
-  return contract) with its `harness:` block, the page in `agents/index.rst`; the
+  method, return contract: the whole definition, budgeted at its measured
+  size like any page) with its `harness:` block, the page in `agents/index.rst`; the
   hand-maintained AGENT.md header decides the model, the tools (a Support agent
   omits `Agent`; no agent lists `Skill`), the memory scope and
   `omitClaudeMd`; an edit to `tools:` is live from the next harness start, an
-  edit to `skills:` or the role block from the next dispatch.
+  edit to `skills:` or the definition from the next dispatch.
 - **Distilling a page into a core**: every clause keeps its imperative, its
   `check:` and its `tell:`; a clause's check must reach every mechanism its text
   names, so two mechanisms one check cannot reach are two clauses; a count in an
@@ -133,7 +156,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   dispatch costs the fixed harness block, the instruction files, its AGENT.md,
   its preloaded skills and its own memory index, and each part is measured
   by a probe that carries it. `[M]` 2026-09-21: an agent's `tools:` allowlist is
-  read when the harness starts, and its `skills:` list and role block at each
+  read when the harness starts, and its `skills:` list and definition at each
   dispatch: qa and method-implementer, with `Skill` added to their lists, held
   no `Skill` tool until Claude Code was restarted, then held it and loaded
   `nexus-guide` on demand, while the `retirement-audit` preload added to qa's

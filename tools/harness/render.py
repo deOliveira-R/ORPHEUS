@@ -2,7 +2,7 @@
 
 A **whole file** is the stamp followed by the rendered text (a rule core, a
 skill, the lessons index). A **block** is spliced between ``GENERATED``
-markers inside a hand-maintained file (an agent file's role block after its
+markers inside a hand-maintained file (an agent file's definition after its
 front matter; the on-boarding block of a harness's root instruction file);
 everything outside the markers is kept, and a file that has lost a marker, or
 carries the block without its markers, is a problem rather than a duplicate. On

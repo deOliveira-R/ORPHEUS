@@ -6,8 +6,8 @@ rule, so a brief to one of them is the only channel a project rule has; the temp
 you" list. Written by hand, that list is a copy of the rules that drifts
 (review 2026-09-21, concept C7). Here it is assembled instead: every rule page
 that declares ``harness.brief`` contributes one item, in page-name order, and
-the block is spliced into the workflows page between GENERATED markers like a
-role block, so ``--check`` reports a hand edit as drift. The block is a
+the block is spliced into the workflows page between GENERATED markers like an
+agent's definition, so ``--check`` reports a hand edit as drift. The block is a
 source-to-source derivation, harness-independent: the page is docs, and what a
 rule says to a rule-less agent is a fact of the rule.
 """

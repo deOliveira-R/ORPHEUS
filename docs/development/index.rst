@@ -53,7 +53,7 @@ the harness's ``CLAUDE.md`` is generated from.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Agent role blocks
+   :caption: Agent definitions
 
    agents/index
 

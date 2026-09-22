@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import brief, budget, ids
+from . import brief, budget, ids, paths
 from .pipeline import drift, generate, orphans
 from .source import DOCS_DEV, discover, rel
 from .targets import HARNESSES
@@ -53,6 +53,13 @@ def main(argv: list[str] | None = None) -> int:
     rc |= int(bool(id_problems))
     if args.check:
         print(f"citations by ID: {resolved} resolved, {len(id_problems)} dangling")
+    # Files named in code spans of the generated pages exist, whatever the harness.
+    named, path_problems = paths.check(pages)
+    for problem in path_problems:
+        print(f"PROBLEM: {problem}", file=err)
+    rc |= int(bool(path_problems))
+    if args.check:
+        print(f"files named in code spans: {named} resolved, {len(path_problems)} dead")
     # The brief-rules block is a source-to-source derivation, the same for every harness.
     text, problem = brief.render(pages)
     if problem:

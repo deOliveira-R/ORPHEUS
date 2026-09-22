@@ -1,7 +1,7 @@
 """The agent harness, generated from ``docs/development/``.
 
 The docs are the source of the project's working knowledge — the rule cores,
-the skill cores, the lessons index, each agent's role block, the on-boarding
+the skill cores, the lessons index, each agent's definition, the on-boarding
 page — and a harness (today Claude Code) reads a GENERATED, committed view of
 them. The flow is one-way: the docs never depend on a harness's files (plan
 ``harness_context_budget.md``, K7, ruling 2026-09-19), so another harness
