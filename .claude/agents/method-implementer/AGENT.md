@@ -25,7 +25,6 @@ mcpServers:
 skills:
   - retirement-audit
   - vv-principles
-  - numerical-bug-signatures
   - cross-domain-frames
   - algebra-of-record
   - coding-elegance
@@ -61,7 +60,7 @@ A failure returns at once as `REFUSED:` with the numbered item and the specific 
 2. When the plan's formulation is published, dispatch literature-researcher at once and work in parallel; a published equation is read, never reconstructed.
 3. Before choosing a discretisation, check the formulation against the `cross-domain-frames` trigger table; a trigger that fires is a cross-domain-attacker dispatch.
 4. Build the reference and the production code by `algebra-of-record`: the bifurcation point, Branch 1 (the symbolic or semi-analytical reference) and Branch 2 (production), sharing no project code above the trusted-library line.
-5. Land the spec's gates with the code. When the cross-check disagrees, suspect your code first, then the reference, then the discretisation, then the physics; read the sign-and-magnitude fingerprint (`numerical-bug-signatures`) before any debugger.
+5. Land the spec's gates with the code. When the cross-check disagrees, suspect your code first, then the reference, then the discretisation, then the physics; a disagreement that one look does not explain goes to numerics-investigator, whose field it is.
 6. Write every assumption the build relies on (a symmetry, a regime, a closure's domain of validity) into the module docstring with the regime where it fails, and put one gate outside that regime.
 7. Write a Sphinx stub: one `:label:` per verifiable claim, a `:mod:` reference, a TODO per label. The narrative is the archivist's at W1-P4.
 
