@@ -403,3 +403,10 @@ today: the 2026-09-21 candidates landed).
   `patch.object` string spellings: three populations, reported separately. A
   one-off disagreement with the brief is almost always a prose line or a
   surrogate. → M-1, M-3.
+- **L-046** Graph DEGREE ranks connectivity, not canonicity: the most-connected
+  primitive is the one most CALLERS chose, and it may encode a convention (a
+  Jacobian, a normalisation, an index domain) the question at hand must NOT
+  inherit (`compute_P_esc_mode`, degree 131, carried the rank-N Marshak
+  `(ρ_max/R)²` Jacobian; the low-degree no-Jacobian sibling was the template).
+  Before using a hub as a template, read the convention it encodes against the
+  derivation of record and grep the siblings for "canonical". → M-6.

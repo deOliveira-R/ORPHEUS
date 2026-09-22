@@ -63,4 +63,6 @@ the production arms.
    operation — the receiver of `*` is arbitrary.
 
 Related: L-039 (Nexus `callers` on a METHOD), L-013 (swap-it-and-run beats
-grep-classification), [[sn-solve-exit-and-reflective-default]].
+grep-classification). The unset-BC ⟹ reflective default that
+`sn_solve_exit_and_reflective_default.md` (retired 2026-09-22) recorded is now stated
+in the code's own docstrings (`resolve_boundary_conditions`, `orpheus/transport/method.py`).
