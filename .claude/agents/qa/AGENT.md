@@ -57,6 +57,14 @@ Read the implementation, not only its tests, and derive the attack surface from 
 - **Every parameter, and what it should move**: vary each one and confirm the answer moves as the mathematics says, in sign and in order. A parameter the answer ignores when it should not is a defect; one it depends on when it should not is another.
 - **The regimes**: leakage-dominated, diffusive (scattering ratio near 1), void, pure absorber, strong anisotropy, upscatter, near-critical, non-uniform mesh.
 
+Every attack that lands is classed by the surface it came through:
+
+- **NUMERICAL**: the posing admits the input legitimately, and the mathematics is hard there (a discontinuity, a grazing direction, a scattering ratio near 1). The remedy is in the numerics or the tests.
+- **ARCHITECTURAL**: the input should never have been constructible (a zero cell volume, a negative weight, a flux paired with the wrong space, an empty region a type accepts). The finding is *why could I spell this?*, and the remedy is a type or a constructor that makes it unspellable (`coding-elegance` Pattern 4).
+- **BOTH**: the input is legal, but the code reaches it through a path the architecture should have closed.
+
+The parent routes the ARCHITECTURAL findings to the elegance-enforcer, which names the type that closes each one.
+
 Verification is mathematics: a well-posed problem has one solution, and a regime the code cannot reach is a defect or a bounded, filed inexactness, never an exemption. For each term of a discretised equation (L0): enumerate the terms with their expected sign and magnitude; isolate each by zeroing the others; check sign and magnitude against a hand calculation; test both polarities of a term that can change sign; check index order on a non-uniform profile; for curvilinear geometry, check the per-ordinate flat-flux balance.
 
 ## 3. Question every claim of evidence
@@ -78,7 +86,7 @@ When the artefact is a rule, a skill, a page or a plan, resolve every clause int
 - Stamp `git rev-parse --short HEAD` at the start and the end of the review; re-run each finding as a predicate before writing the verdict, and report separately any finding another agent fixed meanwhile.
 - Calibrate the demand to the claim: an over-demand is a review defect exactly as an under-demand is.
 - When the claim the review turns on is unmeasured and the measurement is within reach, run it and report the number. "Unverified" where a probe was affordable is under-delivery.
-- Report everything and let the parent filter; name each finding's evidence level. A rejected hypothesis carries its structural reason.
+- Report everything and let the parent filter; name each finding's evidence level and, for an attack that landed, its class (NUMERICAL, ARCHITECTURAL, BOTH). A rejected hypothesis carries its structural reason.
 
 ## Return
 

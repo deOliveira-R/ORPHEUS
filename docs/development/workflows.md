@@ -17,7 +17,7 @@ contract below.
 | P0 context | orchestrator | explorer; literature-researcher when the formulation is published | the theory page's Key Facts read; the Nexus briefing run | — |
 | P1 verification design | **test-architect** | explorer | a spec whose every gate names the input in today's tree that it rejects (its first red) | redesign before P2 |
 | P2 build | **method-implementer**, or the main agent for a surgical carve | explorer, literature-researcher, numerics-investigator when a probe is needed; cross-domain-attacker after the first pass | scope suite green; the spec's gates land with the code | the implementer fixes; a second probe is a new dispatch, not a re-brief |
-| P3 review, in parallel | **qa** and **elegance-enforcer**, dispatched by the parent on the artefact | explorer | qa: term-level correctness, coverage, mutation; elegance: structure, every violation with its three legs (what, which pattern, the remedy) | any red resumes the implementer by name with the findings |
+| P3 review, in parallel | **qa** and **elegance-enforcer**, dispatched by the parent on the artefact | explorer | qa: the implementation attacked in hindsight, each landed attack classed NUMERICAL, ARCHITECTURAL or BOTH; elegance: structure, and the illegal states the types still let it spell; every violation with its three legs (what, which pattern, the remedy). The parent merges: qa's ARCHITECTURAL findings resume the elegance-enforcer by name for the type that closes each; the enforcer's constructed illegal states go to qa or the test-architect as boundaries to test | any red resumes the implementer by name with the findings |
 | P4 documentation | **archivist** | explorer | theory page, derivations, changelog; `sphinx -W` clean; `dead_references` 0 | archivist iterates |
 | P5 close-out | orchestrator | — | issues closed or filed; retirement audit run; one commit per landed unit | — |
 
@@ -28,8 +28,10 @@ time to the minimal reproducer); it may call test-architect for the permanent
 test and literature-researcher for the reference formulation. The fix lands
 (implementer or main agent). **qa** and **elegance-enforcer** review the fix in
 parallel, dispatched by the parent: qa with a mutation that re-introduces the
-defect and requires a red; the enforcer because a fix is where a patch replaces
-the structural repair. **archivist** writes the ERR entry
+defect and requires a red, classing the defect NUMERICAL or ARCHITECTURAL; the
+enforcer because a fix is where a patch replaces the structural repair, and an
+ARCHITECTURAL defect is closed by a type, not a guard. The parent merges the two
+as in W1-P3. **archivist** writes the ERR entry
 and the theory-page note. Close-out as W1.
 
 ## W3 — Surgical carve
