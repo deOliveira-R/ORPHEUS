@@ -306,6 +306,15 @@ the carve and re-pose them in the SAME commit.
   symbols (`retirement-audit` A.7), re-scope in the SAME change, and give the
   new structure its own positive gate. → `L33`
 
+- **⛔ A DIMENSION count (SVD nullity, rank) is blind to a kernel ROTATION.**
+  When `A = A_RR ⊕ 0_K` with `A_RR` nonsingular, a defect that fills `A[R,K]`
+  leaves the nullity EXACTLY unchanged (the kernel becomes `e_t − A_RR⁻¹A_RK e_t`),
+  so a law stated as `dim ker A = … + |K|` stays green. Gate the OBJECT: `A e_t == 0`
+  and `(Ax)[K] == 0` bitwise, one leg per side (forward rows, transpose rows), each
+  with its own tooth. And a reciprocity gate on a singular metric sees only
+  `A[range, ker]`: writes into kernel rows and kernel→kernel maps are its
+  stabiliser. → `L90`
+
 ## 2. Harness discipline — the instrument lies before the code does
 
 `vv` anti-#17's nine checks and `instrument-doctrine` X1 are the rule. Below:
@@ -577,7 +586,11 @@ shelf life — check it against a concrete row before trusting a green.
   FLAT collection is rank-1 by construction and d=1 hides it `L65d`; a SYNTHETIC
   fixture can null a property the REAL data exercises, making a synthetic-only
   assertion FALSE-RED on production data (pin a cumulative or inequality
-  property, never a brittle exact index) `L1`.
+  property, never a brittle exact index) `L1`; a SINGLE-REGION mesh starts its
+  only region at the origin, so it nulls every defect keyed on the region's
+  inner radius and every defect confined to a shell, and a POWER-OF-TWO
+  subdivision of a dyadic length makes a float round trip exact (0 of 16 cells
+  vs 8 of 23 at 5/7/11) `L89`.
 - **⛔ A branch added to DODGE a rank/carrier hazard CREATES the congruence
   blindness** (the new path runs on one carrier kind only), and a second MINT
   SITE hides on the branch where the producer does not exist — a Pattern-2 twin

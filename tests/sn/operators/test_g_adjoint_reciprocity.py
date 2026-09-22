@@ -35,7 +35,11 @@ population* is also caught.
 
 These are algebraic identities (exact by construction), so the suite is
 ``@pytest.mark.foundation`` — no ``verifies()`` label (no theory equation; the
-claim is a software/algebra invariant).
+claim is a software/algebra invariant). One exception:
+:func:`test_tangential_trace_slots_are_a_zero_summand_of_the_loss` (§5) also
+carries ``verifies("dd-null-counting-law")``, because its column leg pins the
+``+ #{tangential trace DOFs}`` term of that law as vectors: every tangential
+unit vector is in ``ker A``.
 
 ``-O``-safe (vv Mode 8): every gate is a ``pytest.fail`` function call — a bare
 ``assert`` is stripped to a NO-OP under the canonical ``python -O``. Migrated off
@@ -61,7 +65,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     ConstantInflowSource,
@@ -269,6 +273,74 @@ def _make_cart2d(ng: int = 2, sigma: float = 0.5):
     return sn, sig_t
 
 
+#: The singular-metric multi-D fixture (#493): a non-square 3 × 4 box on
+#: 2.0 × 3.0, so an x/y confusion has somewhere to show, with a checkerboard
+#: material map.
+_PRODUCT44_CELLS = (3, 4)
+_PRODUCT44_EXTENTS = (2.0, 3.0)
+
+
+def _cart2d_product44_problem(
+    bc: BC, materials: dict, scattering_order: int = 0,
+) -> SNProblem:
+    r"""2-D Cartesian DD on ``Quadrature.product(4, 4)``, one BC on all faces.
+
+    ``product(4, 4)`` puts half of its 16 ordinates on each face's tangent
+    plane with a cosine that is EXACTLY ``0.0`` (every ordinate has
+    :math:`\mu_x = 0` or :math:`\mu_y = 0`), so the trace metric
+    :math:`|\Omega\cdot\hat n|\,w_n` is SINGULAR: 224 of the 832 composite
+    degrees of freedom carry zero weight at ``ng = 2``. Posed through
+    :class:`~orpheus.sn.problem.SNProblem`, as production poses.
+    """
+    nx, ny = _PRODUCT44_CELLS
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, _PRODUCT44_EXTENTS[0], nx + 1),
+        edges_y=np.linspace(0.0, _PRODUCT44_EXTENTS[1], ny + 1),
+        mat_map=(np.add.outer(np.arange(nx), np.arange(ny)) % 2).astype(int),
+        coord=CoordSystem.CARTESIAN,
+        bc_xmin=bc, bc_xmax=bc, bc_ymin=bc, bc_ymax=bc,
+    )
+    return SNProblem(
+        mesh, Quadrature.product(4, 4), materials,
+        scattering_order=scattering_order,
+    )
+
+
+def _make_cart2d_product44(bc: BC, ng: int = 2, sigma: float = 0.5):
+    r"""The multi-D SINGULAR-metric reciprocity rows (#493, gate G1).
+
+    Before these rows the only singular-metric case in ``_BUILDERS`` was
+    ``cyl_product_2g``, a 1-D cylinder, which runs the 1-D path and not the
+    multi-D octant walk. On the multi-D walk the streaming operator READS the
+    tangential trace slots: it carries a grazing ordinate as if it moved in the
+    ``+1`` direction and takes its inflow from the whole lower-face slot, not
+    through a selector. The read never reaches a weighted row only because it
+    is multiplied by the streaming coefficient :math:`|\mu_a|/\Delta_a`, which
+    is exactly ``0.0`` there. ``test_g_adjoint_reciprocity_full_block`` on
+    these rows is the claim-level gate of that exactness; `[M]` 2026-09-22 it
+    reads 2.8e-16 (vacuum) and 2.5e-16 (reflective), and it reds when the
+    grazing coefficient is ``δ · max g`` with ``δ = 1e-3`` (9.8e-6) down to
+    ``δ ≈ 1e-8`` (9.8e-11); at ``δ = 1e-13`` it is below the ``1e-12`` floor.
+
+    **Stabiliser — what these rows cannot see.** The reciprocity defect reads
+    only the block ``A[range(G), ker(G)]``. A WRITE into a tangential row
+    lands on a zero-weight row of the codomain metric and is invisible, and so
+    is ERR-040-class misclassification (a tangential ordinate put in the
+    inflow or outflow selector), which sends the kernel into the kernel. Both
+    are caught by the structural gate
+    :func:`test_tangential_trace_slots_are_a_zero_summand_of_the_loss`, which
+    also resolves the grazing coefficient to ``δ = 1e-13``.
+    """
+    sn = _cart2d_product44_problem(
+        bc, placeholder_materials(ng=ng, mat_ids=(0, 1)),
+    )
+    sig_t = np.stack(
+        [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)],
+        axis=0,
+    )
+    return sn, sig_t
+
+
 def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
     r"""LD 2-D Cartesian, reflective NONSQUARE + NON-UNIFORM h, het σ (#310 C5).
 
@@ -329,6 +401,16 @@ _BUILDERS = {
     "ld_slab_2g": lambda: _make_ld_slab(ng=2),
     "cart2d_2g": lambda: _make_cart2d(ng=2),
     "ld_2d_2g": lambda: _make_ld_2d(ng=2),
+    # ── #493 G1: the singular trace metric on the multi-D walk. Two CASES,
+    # four rows: ``test_g_adjoint_reciprocity_full_block`` reads the
+    # tangential content through ``A = L + C − B`` (the grazing read of the
+    # octant walk), ``test_full_field_space_metric_matches_independent_reference``
+    # pins the singular metric's population. Stabiliser: see
+    # :func:`_make_cart2d_product44`.
+    "cart2d_product44_vacuum_2g": lambda: _make_cart2d_product44(BC("vacuum")),
+    "cart2d_product44_reflective_2g": lambda: _make_cart2d_product44(
+        BC("reflective"),
+    ),
     # ── P5: a DECLARED PrescribedInflow no longer poisons the block's
     # transpose. Two partner faces, because the prescribed face alone can
     # never be the reciprocity content:
@@ -437,6 +519,13 @@ def test_g_adjoint_reciprocity_full_block(case):
     degenerate pure-azimuthal class every ``level_symmetric`` row nulls by
     rule choice, so a transpose that drops the volumetric branch reds here
     at O(1).
+
+    The two ``cart2d_product44_*`` rows are the multi-D singular-metric rows
+    (#493): the octant walk reads the tangential trace slots and annihilates
+    the read by an exactly-zero streaming coefficient, and these rows red if
+    that coefficient is not zero. They are blind to writes into tangential
+    rows and to ERR-040-class misclassification; the stabiliser is stated on
+    :func:`_make_cart2d_product44`.
     """
     sn, sig_t = _BUILDERS[case]()
     A = _loss_operator(sn, sig_t)
@@ -949,3 +1038,210 @@ def test_tooth_s_transpose_drop_reds(monkeypatch):
 # fwd↔adj cross-check on the operator itself).
 
 
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# §5 — G2: the tangential trace slots are a zero direct summand of the loss
+# (#493)
+#
+# The reciprocity rows above see only the block ``A[range(G), ker(G)]`` of
+# the loss, so on the singular metric of ``product(4, 4)`` they are blind to
+# everything the loss does on the tangential rows themselves: a write into a
+# tangential row, and a tangential ordinate misclassified as inflow or
+# outflow. This gate pins the OBJECT instead of the functional: on the
+# tangential slots ``K`` the production loss is zero from both sides, bitwise.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _balanced_2g_mixtures() -> dict:
+    r"""Two 2-group mixtures: asymmetric P0 and P1 scatter, (n,2n), fission.
+
+    Material 0 is fissile; material 1 is not. Both carry up- and
+    down-scatter and an (n,2n) transfer, so ``S`` and ``N_2n`` are live and
+    non-symmetric in the loss. ``σ_t`` is COMPUTED from the removal identity
+    and the identity is asserted (``Mixture.assert_balanced``), so the
+    fixture is a consistent mixture, not only a nonzero one.
+    """
+    specs = {
+        0: dict(
+            sig_c=np.array([0.25, 0.65]), sig_f=np.array([0.05, 0.30]),
+            nu=np.array([2.4, 2.4]), chi=np.array([1.0, 0.0]),
+            sig_s=np.array([[0.30, 0.20], [0.05, 0.60]]),
+            sig_s1=np.array([[0.06, 0.02], [0.00, 0.10]]),
+            sig_2=np.array([[0.0, 0.02], [0.01, 0.0]]),
+        ),
+        1: dict(
+            sig_c=np.array([0.02, 0.10]), sig_f=np.zeros(2),
+            nu=np.zeros(2), chi=np.zeros(2),
+            sig_s=np.array([[0.40, 0.18], [0.01, 1.89]]),
+            sig_s1=np.array([[0.10, 0.03], [0.00, 0.40]]),
+            sig_2=np.array([[0.0, 0.01], [0.0, 0.0]]),
+        ),
+    }
+    mixtures = {}
+    for mat_id, s in specs.items():
+        sig_t = (
+            s["sig_c"] + s["sig_f"]
+            + s["sig_s"].sum(axis=1) + s["sig_2"].sum(axis=1)
+        )
+        mixture = make_mixture(sig_t=sig_t, **s)
+        mixture.assert_balanced()
+        mixtures[mat_id] = mixture
+    return mixtures
+
+
+def _tangential_kernel_mask(sn: SNProblem) -> np.ndarray:
+    r"""The kernel of the composite metric, from RAW data.
+
+    Over the flat composite ``[bulk.ravel(), trace]``: a bulk slot never
+    (its weight ``V·w_n`` is positive); a trace slot iff its ordinate's
+    ``Ω·n`` on that face is EXACTLY ``0.0``. Face rows of ``omega_dot_n``
+    follow ``layout.faces`` order.
+    """
+    n_bulk = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
+    layout = sn.angular_trace.layout
+    omega_dot_n = np.asarray(sn.angular_trace.omega_dot_n)
+    trace = np.zeros(int(layout.total_size), dtype=bool)
+    for row, face in enumerate(layout.faces):
+        slot = layout.faces[face]
+        on_face = np.zeros(slot.shape, dtype=bool)
+        on_face[omega_dot_n[row] == 0.0] = True
+        trace[slot.offset: slot.offset + slot.flat_size] = on_face.ravel()
+    return np.concatenate([np.zeros(n_bulk, dtype=bool), trace])
+
+
+def _zero_composite(sn: SNProblem) -> TimedFullField:
+    return TimedFullField(
+        interior=AngularFlux(
+            values=np.zeros((sn.quad.N, sn.ng, *sn.spatial_shape)),
+            space=sn.angular_bulk_space,
+        ),
+        boundary=AngularBoundaryFlux(
+            values=np.zeros(int(sn.angular_trace.layout.total_size)),
+            space=sn.angular_trace,
+        ),
+        _history=(), history_depth=2,
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.verifies("dd-null-counting-law")
+@pytest.mark.parametrize("bc", ["vacuum", "reflective"])
+def test_tangential_trace_slots_are_a_zero_summand_of_the_loss(bc):
+    r"""On the tangential trace slots ``K`` the loss is zero from both sides.
+
+    ``A = (L + C) − S − N_2n − B_a``, the production loss off
+    ``sn.system.factors``, on the ``product(4, 4)`` box of
+    :func:`_cart2d_product44_problem` with the consistent 2-group mixtures of
+    :func:`_balanced_2g_mixtures` (P1 scatter, (n,2n) live). ``K`` is the set
+    of trace slots whose ordinate grazes the face, ``Ω·n == 0.0`` exactly,
+    which is the zero set of the trace metric. Three legs, all BITWISE:
+
+    1. ``A e_t == 0`` for every ``t ∈ K``, exhaustively: every tangential unit
+       vector is in ``ker A``. This is the ``+ #{tangential trace DOFs}``
+       term of :eq:`dd-null-counting-law` as vectors, where the
+       T + R test in ``test_loss_nullspace_reflective_box`` pins its count.
+       It is the leg that sees the mechanism of #493: the multi-D octant walk
+       READS the tangential slot (a grazing ordinate rides the ``+1``
+       direction and takes its inflow from the whole lower-face slot) and the
+       read is annihilated only because the streaming coefficient
+       :math:`|\mu_a|/\Delta_a` is exactly ``0.0``.
+    2. ``(A x)[K] == 0`` for 20 random ``x``: the loss writes nothing into a
+       tangential row.
+    3. ``(Aᵀ y)[K] == 0`` for 20 random ``y``: the same fact as leg 1 read
+       through the production transpose walk.
+
+    Together: the tangential slots are a direct summand on which ``A`` is
+    zero, ``A P_K = 0 = P_K A``.
+
+    **Preconditions, asserted first.** ``|K| = 224`` (8 of the 16 ordinates
+    graze every face: ``2 groups × 8 × (4 + 4 + 3 + 3)`` face cells), which
+    is non-vacuity: a rule whose grazing cosines were only round-off zeros
+    would empty ``K`` and pass every leg. ``K`` is counted a second way from
+    the quadrature's own cosines, and ``K`` equals the zero set of the
+    PRODUCTION metric (``riesz_lower`` of the all-ones composite), so the
+    gate's ``K`` is the kernel the adjoint actually projects.
+
+    **What reds it** (in-process mutations, ``python -O``, `[M]` 2026-09-22):
+    a grazing streaming coefficient ``δ · max g`` down to ``δ = 1e-13``
+    (below the reciprocity rows' floor near ``1e-10``); a tangential ordinate
+    classified as inflow or as outflow under vacuum (the ERR-040 class; under
+    reflective the deck pairing refuses it at construction); a linear write
+    from a bulk slot into a tangential row. The reciprocity rows are blind to
+    the last three. **Stabiliser:** this gate reads only the ``K`` rows and
+    columns, so it says nothing about the transport content on the range
+    block; that is the reciprocity rows' job.
+    """
+    sn = _cart2d_product44_problem(
+        BC(bc), _balanced_2g_mixtures(), scattering_order=1,
+    )
+    factors = sn.system.factors
+    A = (
+        factors.streaming_collision - factors.scattering - factors.n2n
+        - factors.boundary
+    )
+    template = _zero_composite(sn)
+    kernel = _tangential_kernel_mask(sn)
+    n = kernel.size
+
+    # ── preconditions ────────────────────────────────────────────────
+    nx, ny = sn.spatial_shape
+    grazing_x = int(np.sum(np.asarray(sn.quad.mu_x) == 0.0))
+    grazing_y = int(np.sum(np.asarray(sn.quad.mu_y) == 0.0))
+    from_quadrature = sn.ng * (2 * grazing_x * ny + 2 * grazing_y * nx)
+    if not (int(kernel.sum()) == from_quadrature == 224):
+        pytest.fail(
+            f"[{bc}] precondition: |K| from Ω·n == 0.0 is {int(kernel.sum())}, "
+            f"from the quadrature's cosines {from_quadrature}, expected 224 "
+            f"— the fixture no longer has exact grazing cosines, and every "
+            f"leg below would be vacuous"
+        )
+    ones = TimedFullField.from_flat(np.ones(n), template)
+    metric_zero_set = (
+        sn.full_field_space.riesz_lower.apply(ones).to_flat() == 0.0
+    )
+    if not np.array_equal(kernel, metric_zero_set):
+        pytest.fail(
+            f"[{bc}] precondition: the tangential mask ({int(kernel.sum())} "
+            f"slots) is not the production metric's zero set "
+            f"({int(metric_zero_set.sum())} slots)"
+        )
+
+    def apply_flat(op_apply, flat: np.ndarray) -> np.ndarray:
+        return op_apply(TimedFullField.from_flat(flat, template)).to_flat()
+
+    # ── leg 1: every tangential unit vector is in ker A ──────────────
+    worst, worst_slot = 0.0, -1
+    for t in np.flatnonzero(kernel):
+        unit = np.zeros(n)
+        unit[t] = 1.0
+        column = np.max(np.abs(apply_flat(A.apply, unit)))
+        if column > worst:
+            worst, worst_slot = float(column), int(t)
+    if worst != 0.0:
+        pytest.fail(
+            f"[{bc}] A e_t != 0 for a tangential slot: max|A e_t| = "
+            f"{worst:.3e} at flat slot {worst_slot} — the loss reads a "
+            f"grazing trace slot into a nonzero row (a streaming coefficient "
+            f"that is not exactly 0, or a tangential ordinate in a selector)"
+        )
+
+    # ── legs 2 and 3: no tangential row, forward or transpose ────────
+    for seed in range(20):
+        rng = np.random.default_rng(seed)
+        x = rng.standard_normal(n)
+        y = rng.standard_normal(n)
+        forward_rows = apply_flat(A.apply, x)[kernel]
+        transpose_rows = apply_flat(A.apply_transpose, y)[kernel]
+        if np.any(forward_rows != 0.0):
+            pytest.fail(
+                f"[{bc}] seed {seed}: (A x)[K] != 0, max "
+                f"{np.max(np.abs(forward_rows)):.3e} — the loss WRITES into "
+                f"a tangential row"
+            )
+        if np.any(transpose_rows != 0.0):
+            pytest.fail(
+                f"[{bc}] seed {seed}: (Aᵀ y)[K] != 0, max "
+                f"{np.max(np.abs(transpose_rows)):.3e} — the transpose walk "
+                f"writes into a tangential row"
+            )

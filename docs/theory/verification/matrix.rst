@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12202**
+Total tests collected: **12214**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1763, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9033, 74.0%
+   foundation, 9045, 74.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12096
+   explicit, 12108
    class-name, 46
    func-name, 0
    case, 33
@@ -301,7 +301,7 @@ Module × level grid
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
-   geometry/test_structured_geometry, 0, 0, 0, 0, 37, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 43, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -446,7 +446,7 @@ Module × level grid
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
-   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 40, 0
+   operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 46, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
@@ -684,12 +684,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``region-areas-pin-cell``, 22
    ``n2n-source``, 21
    ``singular-eigenfunction-eq46``, 21
+   ``dd-null-counting-law``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
-   ``dd-null-counting-law``, 18
    ``direction-sampling``, 17
    ``energy-condensation-rate-preservation``, 17
    ``fission-weight``, 17
@@ -962,7 +962,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **606** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **608** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1028,6 +1028,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``coupled-block-2x2``
 - ``coupled-block-matvec``
 - ``coupled-block-substitution``
+- ``coupled-block-system-restriction-laws``
+- ``coupled-block-system-restriction-pair``
 - ``coupled-free-identity-residual``
 - ``coupled-loss-grid``
 - ``coupled-mn-splitting``

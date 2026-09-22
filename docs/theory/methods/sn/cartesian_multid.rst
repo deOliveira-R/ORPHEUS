@@ -5189,6 +5189,14 @@ ordinate **orbits** under the reflection group
    (test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator), with the
    two closed-form specialisations pinned separately
    (test_the_counting_law_reproduces_the_two_closed_form_specialisations).
+   Since 2026-09-22 (#493) one MEMBERSHIP half of the law carries a
+   verifies marker: tests/sn/operators/test_g_adjoint_reciprocity.py::
+   test_tangential_trace_slots_are_a_zero_summand_of_the_loss pins,
+   bitwise, that every tangential trace unit vector lies in the kernel of
+   the production loss (and that the loss and its transpose write nothing
+   into those rows); it reddens under a streaming coefficient of 1e-13 on
+   the grazing rows, where every reciprocity row stays green. It does not
+   pin the dimension count itself, which the three tests above do.
 .. vv-status: dd-null-counting-law documented
 
 and the specialisations fall out.  Note the **orbit** count: at

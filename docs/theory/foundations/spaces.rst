@@ -2716,6 +2716,8 @@ the two labels are one quantity, the composite page's endomorphic
 spelling and this page's arrow-typed one, and the second is the one that
 generalises to :math:`V \ne W`.
 
+.. _spaces-adjoint-kernel-condition:
+
 **When the kernel is non-trivial the reciprocity is exact under one
 condition.** Substituting the pseudo-inverse and using
 :math:`G_V G_V^{+} = G_V^{+} G_V = P_{\operatorname{range}(G_V)}`,
@@ -2742,14 +2744,65 @@ defect matches the prediction to a median relative
 :math:`3.5\times10^{-16}` and at most :math:`2.1\times10^{-13}`, and on
 :math:`\operatorname{range}(G_V)` it is at most
 :math:`7.4\times10^{-14}` of the pairing; a positive-definite control
-metric reads a defect at round-off. On the S\ :sub:`N` trace block
-the kernel is the tangential rows, and the condition is what the trace
-selectors are built for: their index sets exclude the tangential rows in
-both directions (:eq:`bc-trace-restriction-pair`), so `[R]` an operator
-that reaches the trace block only through them and their transposes can
-neither read nor write those rows. The composite-adjoint page records
-the resulting exactness from the output side (:ref:`g-adjoint`, Key
-Facts).
+metric reads a defect at round-off.
+
+On the S\ :sub:`N` trace block the kernel is the tangential rows, and
+the condition holds there exactly, though not only through the trace
+selectors. `[M]` 2026-09-22 (#493) on a 2-D Cartesian
+``Quadrature.product(4, 4)`` problem (a non-square :math:`3\times4`
+mesh, two groups, two materials, posed through
+:class:`~orpheus.sn.problem.SNProblem`), where 224 of the composite's
+832 degrees of freedom are tangential (on every face, 8 of the 16
+ordinates graze it): the loss :math:`A = (L + C) - S - N_{2n} - B` maps
+each of the 224 tangential unit vectors to exactly zero and writes
+nothing into a tangential row, so the predicted defect
+:math:`\langle A P_{\ker} x, y\rangle_W` is bitwise zero on 20 of 20
+seeds under vacuum, reflective and mixed boundaries, and the measured
+reciprocity defect is at most :math:`1.5\times10^{-14}` of
+:math:`|\langle A x, y\rangle_W|` (the linear-discontinuous closure
+reads the same: 448 tangential columns exactly zero, defect at most
+:math:`2.6\times10^{-14}`). Two mechanisms carry it. The boundary law
+:math:`B` reads and writes the trace only through the selectors of
+:eq:`bc-trace-restriction-pair`, whose index sets exclude the
+tangential rows. The streaming operator :math:`L` writes the trace only
+through the same selectors, but it does **read** the tangential rows:
+the multi-dimensional sweep walk carries a grazing ordinate (one with
+:math:`\mu_a = 0` along an axis :math:`a`) as if it moved in the
+positive :math:`a` direction, and takes its inflow from the whole slot
+of the lower :math:`a` face rather than through a selector. That read
+never reaches a weighted row, because it is multiplied by the ordinate's
+streaming coefficient :math:`|\mu_a|/\Delta_a`, which is exactly
+``0.0``: every shipped rule's tangential cosines are exact zeros, and
+the trace metric and the streaming stencil read the same cosine. A
+coefficient :math:`\delta` (relative to the largest one) in its place
+leaves the streaming operator a defect of about :math:`15\,\delta` of
+the pairing (measured at :math:`\delta = 10^{-3}` and
+:math:`10^{-13}`), so the exactness depends on that cosine being
+exactly zero. Writing into a tangential row, by contrast, can never
+break the identity, because the codomain metric gives those rows zero
+weight: that every output of the loss is zero on the tangential rows is
+true (:ref:`g-adjoint`, Key Facts), but it is not the reason for the
+exactness. Two gates in
+``tests/sn/operators/test_g_adjoint_reciprocity.py`` pin it on the same
+``product(4, 4)`` box (with mixtures of their own), under vacuum and
+reflective boundaries. The
+claim-level gate is the two ``cart2d_product44`` rows of
+``test_g_adjoint_reciprocity_full_block``, which read the reciprocity
+functional itself and, their docstring records, redden when the grazing
+streaming coefficient is :math:`10^{-8}` of the largest but not at
+:math:`10^{-13}`. The structural gate is
+``test_tangential_trace_slots_are_a_zero_summand_of_the_loss``, which
+asserts bitwise that the loss maps every tangential unit vector to zero
+and writes nothing into a tangential row; it resolves the coefficient
+down to :math:`10^{-13}` and also sees the two defects the functional
+is blind to, a write into a tangential row and a tangential ordinate
+misclassified as inflow or outflow.
+`[REFUTED 2026-09-22]` for the question "what makes the
+S\ :sub:`N` adjoint exact": this paragraph said until then that an
+operator reaching the trace block only through the selectors "can
+neither read nor write those rows"; the fact the measurement
+establishes is that :math:`L` reads them and multiplies the read by an
+exact zero.
 
 **What the arrow form buys over the arithmetic.** The composition
 :math:`G_V^{+}\,A^{\mathsf T}(G_W\,y)` could be, and until CS4c step 1

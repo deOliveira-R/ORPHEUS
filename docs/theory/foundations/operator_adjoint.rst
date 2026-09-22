@@ -138,9 +138,16 @@ where the Riesz legs :math:`\flat` and :math:`\sharp` are defined).
    - **The trace metric is singular** on tangential :term:`ordinates <ordinate>`
      (:math:`|\Omega\cdot\hat n| = 0`), so :math:`G^{-1}` is the
      **Moore–Penrose pseudo-inverse** (zero on the null space). This is
-     **exact** for the adjoint: the inflow / outflow selectors exclude
-     tangential ordinates, so those slots are identically zero in every
-     matvec output.
+     **exact** for the adjoint (`[M]` 2026-09-22, #493) because no
+     operator carries a tangential slot into a weighted row: the boundary
+     law reads the trace only through the inflow / outflow selectors,
+     which exclude tangential ordinates, and the streaming operator,
+     which does read a grazing ordinate's slot, multiplies it by that
+     ordinate's streaming coefficient, which is exactly zero. The
+     tangential slots are also zero in every matvec output, but that is
+     not the reason: a write into a tangential row carries zero weight
+     and cannot break reciprocity
+     (:ref:`the kernel condition <spaces-adjoint-kernel-condition>`).
    - **Discriminating gate:** the L11 wrong-metric control (drop
      :math:`|\Omega\cdot\hat n|` from the trace block) breaks
      reciprocity by :math:`6.4\times10^{-2}` (slab) /
@@ -593,35 +600,67 @@ pseudo-inverse** :math:`G^{+}` — :math:`1/G` where :math:`G \neq 0`, and
    nonzero = wb != 0.0
    return np.where(nonzero, x / np.where(nonzero, wb, 1.0), 0.0)
 
-This is not an approximation — it is **exact** for the adjoint, by the
-following argument. The pseudo-inverse zeroes the tangential components
-of the adjoint output. That is the correct value because the tangential
-trace slots are **identically zero in every matvec output** in the first
-place: the boundary inflow / outflow selectors
-(:meth:`AngularTraceSpace.outflow_indices_for_face
-<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>`) classify an ordinate
-as inflow (:math:`\Omega\cdot\hat n < -\epsilon`), outflow
-(:math:`> +\epsilon`), or **tangential** (:math:`|\cdot|\le\epsilon`) —
-and the boundary operators read/write **only** the inflow and outflow
-slots. The tangential slots are never sourced. Consequently:
+This is not an approximation — it is **exact** for the adjoint, and the
+reason is a condition on what the operator READS. With the
+pseudo-inverse, the reciprocity defect is
 
-* the tangential components of :math:`A\psi` are zero (no operator
-  writes them), so they carry **zero weight** in
-  :math:`\langle\cdot,\cdot\rangle_G` anyway (:math:`G_{\rm trace} = 0`
-  there);
+.. math::
+
+   \langle A\psi, \varphi\rangle_G - \langle \psi, A^{\dagger}\varphi\rangle_G
+   \;=\; \bigl\langle A\,P_{\ker G}\,\psi,\; \varphi\bigr\rangle_G ,
+
+derived on the spaces page (:ref:`the kernel condition
+<spaces-adjoint-kernel-condition>`): the identity is exact if and only if
+:math:`A` carries no tangential component of its input into a row the
+metric weights. A WRITE into a tangential row cannot break it, since
+:math:`G_{\rm trace} = 0` there and the pairing never sees that row; a
+READ of a tangential slot into a weighted row can. Two facts rule the
+second out on the S\ :sub:`N` loss:
+
+* **The boundary law reads the trace only through the selectors.** The
+  inflow / outflow selectors
+  (:meth:`AngularTraceSpace.outflow_indices_for_face
+  <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>`)
+  classify an ordinate as inflow
+  (:math:`\Omega\cdot\hat n < -\epsilon`), outflow
+  (:math:`> +\epsilon`), or **tangential**
+  (:math:`|\cdot|\le\epsilon`), and the boundary operators read and
+  write **only** the inflow and outflow slots.
+* **The streaming operator reads a grazing slot and annihilates it.**
+  The multi-dimensional sweep walk carries a grazing ordinate as if it
+  moved in the positive direction of the axis it grazes and takes that
+  ordinate's inflow from the whole slot of the lower face, not through a
+  selector; the read is multiplied by the ordinate's streaming
+  coefficient :math:`|\mu_a|/\Delta_a`, which is exactly ``0.0``
+  because every shipped rule's tangential cosines are exact zeros.
+
+Until 2026-09-22 this section gave the output side as the reason
+(*"the tangential slots are never sourced"*, and reciprocity *"would fail
+only if a matvec ever sourced a tangential slot — which the selectors
+forbid"*). `[REFUTED 2026-09-22]` for the question "why is the adjoint
+exact" (#493): a write into a tangential row is invisible to the
+reciprocity functional (`[M]` a mutation that writes the bulk into a
+tangential row leaves the defect at round-off), and the selectors do not
+govern the streaming operator's read. The facts that argument stated
+about the outputs remain true, and are consequences rather than the
+reason:
+
+* the tangential components of :math:`A\psi` are zero (`[M]` 2026-09-22,
+  #493: the loss writes exactly zero into every tangential row), so they
+  carry **zero weight** in :math:`\langle\cdot,\cdot\rangle_G` anyway
+  (:math:`G_{\rm trace} = 0` there);
 * the pseudo-inverse returns zero on exactly those components, so the
   reconstructed adjoint output :math:`G^{+} A^{\mathsf T}(G\varphi)`
-  agrees with the true G-adjoint on the **range** of the operator (the
-  inflow ⊕ outflow subspace), and is zero on the orthogonal complement
-  (the tangential null space) — which is where the true adjoint is also
-  zero.
+  is zero on the tangential null space, the Moore–Penrose choice of the
+  adjoint's value there, and agrees with the G-adjoint on the inflow
+  :math:`\oplus` outflow subspace.
 
-The pseudo-inverse and the true inverse-restricted-to-the-range
-**coincide on the subspace the operator actually touches**, so the
-reciprocity :eq:`g-adjoint-reciprocity` holds to round-off (it would
-fail only if a matvec ever sourced a tangential slot — which the
-selectors forbid). The trace-block residuals in the verification table
-below (:math:`\le 3.6\times10^{-15}`) confirm there is no measurable
+The measurement is on the spaces page (:ref:`the kernel condition
+<spaces-adjoint-kernel-condition>`): on a 2-D Cartesian
+``product(4, 4)`` problem the predicted defect is bitwise zero on 20 of
+20 seeds and the measured one at most :math:`1.5\times10^{-14}` of the
+pairing. The trace-block residuals in the verification table below
+(:math:`\le 3.6\times10^{-15}`) confirm there is no measurable
 contamination from the null space.
 
 

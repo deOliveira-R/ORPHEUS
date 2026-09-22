@@ -11387,3 +11387,40 @@ defining laws" is the obligation; below is how to meet it here.
   a row above it. ⭐ Over a PADDED layout the denominator must be REAL slots. And a
   value gate cannot always discriminate two accessors: only the REFUSAL leg
   attributes the choice. → `L69c`, `L69g`
+
+## L89 — ERR-020 multi-region gate (#489, 2026-09-22; branch `fix/definitions-followups`, tests only)
+
+- The surviving ERR-020 catchers were single-region. An in-process arm applying
+  the round trip only where `inner > 0` reddened all four new multi-region rows
+  and left BOTH single-region catchers green: the origin-started region is a
+  degenerate slice. A second arm dropping `inner` from `V_cell` is exact on
+  region 0 and on every single-region mesh; only the region total of region 1+
+  sees it. The equality leg and the total leg have DISJOINT threats (the round
+  trip telescopes in the total, 1.83e-16).
+- Cartesian "has no round trip" was refuted for the question "can the
+  re-derivation reach the slab": `np.diff(edges)` of rounded positions is the
+  round trip; invisible on 4/8/4 over 0.5/1.0/0.5 (dyadic), 3/5, 3/7, 2/11 cells
+  differ at 5/7/11. Pick non-power-of-two counts for any float-exactness gate.
+- A fix that STORES a derived quantity beside its source (precomputed volumes
+  beside edges) makes the stored-quantity gates blind to the source's formula:
+  an arm corrupting the radius formula left every volume gate green, and the
+  docs' vv-status rationale credited those gates for the radius labels. Owed: a
+  consistency witness (edges bound the stored volumes, tolerance derived from
+  the conditioning `n·x_out/(x_out−x_in)·eps`, measured worst 3.3 over 36
+  configs). Report: `scratch/_followups/err020_gate.md`.
+
+## L90 — #493 G1/G2: the singular trace metric on the multi-D walk (2026-09-22; tests only)
+
+- The octant walk READS grazing trace slots (whole face view) and annihilates the
+  read by an exactly-zero `|μ_a|/Δ_a`. Class-level patch of `SNProblem.streaming`
+  (`δ·max g` where `g == 0`): the 40 pre-existing reciprocity rows were ALL green at
+  δ = 1e-3 — no row could see it (the 1-D singular row never reads the accessor).
+  New reciprocity rows red down to δ ≈ 1e-8; the structural gate to δ = 1e-13.
+- The T + R SVD row of `dd-null-counting-law` stayed 12/12 green under δ = 1e-3 and
+  under a bulk→tangential write: with R = 0, `A_RR` nonsingular, the nullity is
+  preserved exactly. The kernel-vector gate is the only catcher.
+- ERR-040-class misclassification under REFLECTIVE is refused at construction by the
+  deck-pairing guard: the red there is the guard's, not the gate's; report it `E`.
+- Per-leg teeth needed a TRANSPOSE-ONLY write arm (5 activations); a consistent
+  forward+transpose write reds only the forward-row leg.
+  Report: `scratch/_followups/err020_gate.md` §G1/G2.
