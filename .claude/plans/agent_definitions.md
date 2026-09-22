@@ -204,6 +204,10 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 - **R10** (the user, 2026-09-22, Q4): the preload criterion is decided per agent at the rewrite, on the orchestrator's multi-perspective suggestion.
 - **R11** (the user, 2026-09-22, Q3): the documentation procedure is a path-scoped rule `documentation`.
 - **R12** (the user, 2026-09-22): *"The plan is scoped enough to start. Begin working on it."* Implementation opens at §8 step 1.
+- **R13** (the user, 2026-09-22, Q6): the literature-researcher downloads a freely published resource itself, into the scratch literature tree, and may fetch from OSTI; a paywalled paper or a secondary substitution is still a question.
+- **R14** (the user, 2026-09-22, Q7): `~/Downloads/NSE/` is NOT a sanctioned location. The user will create a place holding the NSE archive and the other literature, and give the agent access; until it exists, the definition names only `scratch/literature/` and the OCR sidecars.
+- **R15** (the user, 2026-09-22, Q8): the page template gets a home in `docs/development/`; the template and the page that follows it most closely are sharpened first, then the other pages are rewritten, in a separate documentation session: #498. The archivist's rewrite here points at the `documentation` rule and at #498 until the template page exists.
+- **R16** (the user, 2026-09-22, Q9): each agent's memory retirements (classes (i) and (iv) of its audit, and the archivist's 29 unindexed topic files) land in that agent's rewrite commit.
 - **R8** (the user, 2026-09-22, Q5): the orchestrator writes every rewritten definition and the user reviews each. The prose is direct, without mannered speech, straight to the point: maximum effect with minimum context. Its instrument: each body is generated with a `budget_tokens` set at its measured size (the harness's budget law), so growth is a red, and the §5.5 amendment census reads 0.
 
 ## 8. Implementation order and its start condition
