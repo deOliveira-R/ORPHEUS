@@ -3,7 +3,7 @@ name: coding-elegance
 description: PROACTIVELY load when writing or reviewing any production code, designing an API surface, choosing between abstractions, refactoring, or evaluating whether an implementation reads like the math/domain it claims to encode. This skill codifies what "elegance in coding" means — patterns to invoke, anti-patterns to flag, the prevention-by-construction argument for why elegant code has fewer bugs, and the elegance checklist used at code-write time. Preloaded by all sub-agents that produce code (method-implementer, numerics-investigator, qa, test-architect) and by the main agent when orchestrating implementation.
 harness:
   kind: skill
-  budget_tokens: 9300
+  budget_tokens: 9600
 ---
 
 # Coding Elegance core
@@ -172,6 +172,18 @@ carrier, or "no data ⟹ assume fine" in an accessor, lies by omission, so the
 field is required or defaults to the pessimistic value.
 [case](../evidence/coding-elegance.md#pattern-4-illegal-states);
 [the lossy-return case](../evidence/coding-elegance.md#pattern-4-lossy-return-type)
+**Corollary (a guard is debt or a boundary):** a property derived from the
+structure below it is the guard that never had to be written. A guard that
+remains stands where the machinery to derive its property does not exist, and
+that machinery is always NAMED: when it is in scope the guard is debt, owed a
+retirement; when a user ruling has decided not to build it yet, the guard is a
+**scope boundary** (`SCOPE-BOUNDARY[guard]`, `coding-standards`), the declared
+edge of what the code derives. The model is the orbit catalogue: a dozen
+quotients read from a table at one door, because a Gröbner-basis engine to
+derive them has no consumer yet. Inelegance lives on both sides: at debt the
+question is *why could I spell this?*; at a boundary it is *is the edge
+well-formed?* — single, declared, seeded with the machinery's own data model,
+and verified entry by entry as if derived.
 
 **5 — Build the right primitive, not the right product.** Decompose a complex
 behaviour into small composable primitives; the product is their composition.

@@ -118,3 +118,67 @@ def test_every_tagged_guard_carries_its_issue_and_its_retiring_change():
         pytest.fail(
             "ELEGANCE-DEBT[guard] ledger violations:\n  " + "\n  ".join(violations)
         )
+
+
+# ------------------------------------------------------------ scope boundaries
+
+#: A guard at the declared edge of machinery a user ruling chose not to build
+#: (``coding-standards``, "A guard is debt, or it is a declared scope boundary",
+#: ``[R]`` user 2026-09-22). It carries three fields within three lines: the
+#: machinery that would derive the refused property, the ruling that defers
+#: it, and what would overturn that ruling.
+_BOUNDARY = re.compile(r"SCOPE-BOUNDARY\[guard\]")
+_BOUNDARY_FIELDS = ("machinery:", "ruling:", "revisit:")
+
+
+def _boundary_violations_in(text: str, *, label: str) -> list[str]:
+    """Every boundary token in ``text`` missing a field within ±3 lines — the
+    ONE predicate both the tree scan and the positive control run."""
+    lines = text.splitlines()
+    out: list[str] = []
+    for i, line in enumerate(lines):
+        if not _BOUNDARY.search(line):
+            continue
+        window = " ".join(lines[max(0, i - 3): i + 4]).lower()
+        missing = [f for f in _BOUNDARY_FIELDS if f not in window]
+        if missing:
+            out.append(f"{label}:{i + 1}: boundary token without {', '.join(missing)}")
+    return out
+
+
+def _boundary_guards() -> tuple[list[str], list[str]]:
+    root = _repo_root() / "orpheus"
+    sites: list[str] = []
+    violations: list[str] = []
+    for path in sorted(root.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(_repo_root()).as_posix()
+        sites += [f"{rel}:{i + 1}" for i, line in enumerate(text.splitlines()) if _BOUNDARY.search(line)]
+        violations.extend(_boundary_violations_in(text, label=rel))
+    return sites, violations
+
+
+def test_the_boundary_predicate_flags_a_tag_missing_a_field():
+    """POSITIVE CONTROL — a boundary token with all three fields is clean, and
+    one missing any field is a violation, by the predicate the scan runs."""
+    good = (
+        "    SCOPE-BOUNDARY[guard] — machinery: the Gröbner-basis engine.\n"
+        "    ruling: D0.1, the user, 2026-08-31. revisit: a request outside.\n"
+    )
+    if _boundary_violations_in(good, label="control"):
+        pytest.fail(f"the predicate flagged a well-formed boundary: {_boundary_violations_in(good, label='control')}")
+    for field in _BOUNDARY_FIELDS:
+        bad = good.replace(field, "")
+        if not _boundary_violations_in(bad, label="control"):
+            pytest.fail(f"the predicate did not flag a boundary missing {field!r}")
+
+
+def test_every_scope_boundary_names_its_machinery_ruling_and_revisit_condition():
+    """The boundary ledger: ≥ 1 declared boundary in ``orpheus/`` (the orbit
+    catalogue's door, non-vacuity), and every one names the machinery that
+    would derive the refused property, the ruling, and what would overturn it."""
+    sites, violations = _boundary_guards()
+    if not any("numerics/manifold.py" in s for s in sites):
+        pytest.fail("the orbit catalogue's door carries no SCOPE-BOUNDARY[guard] token; the ledger's known member is missing")
+    if violations:
+        pytest.fail("SCOPE-BOUNDARY[guard] ledger violations:\n  " + "\n  ".join(violations))

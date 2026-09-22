@@ -51,8 +51,9 @@ Architecture here is ontological discipline: every concept in its right place
 with its right shape, so that the derived concepts fall out of the algebra
 (the adjoint of an operator bound to its spaces is `♯ ∘ dual ∘ ♭`, never a
 second implementation) and the mistakes become unspellable, which is what
-makes most guards unnecessary; a guard that remains is elegance debt, tagged
-and owed a retirement (`coding-standards`). A weld is several concepts mixed
+makes most guards unnecessary; a guard that remains is either elegance debt,
+tagged and owed a retirement, or the declared edge of machinery a ruling chose
+not to build yet, tagged with that machinery's name (`coding-standards`). A weld is several concepts mixed
 into one value or one inline computation, so that none of them can be named,
 typed, tested or reused on its own; unwelding spells each as its own object
 and re-composes them in the algebra (the tells are in `coding-elegance`).

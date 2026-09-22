@@ -1517,7 +1517,16 @@ def _generic_points(base: Manifold) -> NDArray:
 
 @functools.cache
 def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
-    """The memoised body of :meth:`Manifold.quotient` — see its Notes."""
+    """The memoised body of :meth:`Manifold.quotient` — see its Notes.
+
+    **SCOPE-BOUNDARY[guard]** — machinery: the Gröbner-basis orbit-space
+    engine, which would derive every entry. ruling: D0.1, the user,
+    2026-08-31, "deferred, not refused" (:ref:`manifold-engine-seed`).
+    revisit: an orbit space requested outside the catalogue, or more
+    than the dozen groups transport needs. The ``NotImplementedError``
+    below is the boundary's refusal; each entry is the engine's output in
+    its own data model, so building the engine develops the catalogue.
+    """
     # M/{e} = M is a THEOREM for every manifold, not a table row —
     # so it is derived here rather than needing one entry per member.
     # Run the same procedure on the trivial group: its invariant ring

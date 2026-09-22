@@ -57,6 +57,13 @@ Take the scope from a fresh `git status` and `git diff` at review time; the brie
 
 With the implementation in hand, try to construct the illegal states its types still allow: a zero cell volume, a negative weight, a flux paired with the wrong space, a boundary law applied to the wrong trace, an empty region, two conventions mixed in one value. Each state you construct is a finding (`coding-elegance` Pattern 4): name the type or constructor that would make it unspellable, and hand the state to the parent as a boundary for qa or the test-architect to test. When the parent resumes you with qa's ARCHITECTURAL findings (attacks that landed because the architecture let qa spell an input), name the type that closes each one.
 
+Every guard you meet (a refusal, a check, a catalogue lookup) stands where the machinery to derive its property does not exist, so name that machinery and class the guard (`coding-standards`, "A guard is debt, or it is a declared scope boundary"):
+
+- **Debt**: the machinery exists or is in scope. The guard is a finding, with the type that retires it.
+- **Scope boundary** (`SCOPE-BOUNDARY[guard]`): a ruling defers the machinery. The guard is not a finding; its form is. Check that the edge is single (one table, one door), declared (its refusal says it is a scope edge and lists what lies inside), seeded (each entry in the machinery's own data model) and verified entry by entry. A second door, an entry outside the data model, or a consumer routing around the door is the boundary decaying into debt.
+- **Input boundary**: data from outside, parsed into types once at the edge. A second parse inside is the finding.
+- **Undeclared**: no machinery in scope and no ruling. Report it as a question for the user, naming the machinery that would derive the property, never as a verdict.
+
 ## 3. Two passes, in order
 
 The first pass is adversarial and unhedged: *how would I break this*, and *how would I make it 100× better* (a reframing of what the thing is for, not a tidier dataclass). The second pass, written separately, re-evaluates: each attack survives or is withdrawn with the reason the design had, and "well-factored, do not touch" appears only there, as a withdrawn attack ([the brief](../../../docs/development/workflows.md#the-brief)).

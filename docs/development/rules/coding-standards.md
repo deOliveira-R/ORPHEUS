@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 2800
+  budget_tokens: 3300
   paths:
     - "orpheus/**"
     - "tests/**"
@@ -62,6 +62,14 @@ A runtime guard (`require_member`, `admit_composite`, a typed refusal on an alie
 - **Every guard that lands carries a greppable marker in its docstring:** the token **`ELEGANCE-DEBT[guard]`**, the issue number, and ONE sentence naming the structural change that makes the guarded mistake unspellable (e.g. *"retires when B is bound on its own trace end"*). check: `grep -rn "ELEGANCE-DEBT" orpheus/` is the debt ledger.
 - The issue is filed **with the carve that lands the guard**, never before (a guard without its retirement plan is an unpriced debt; a plan without its guard is a promise). The step landing the structural change deletes guard AND tag in the same commit, and the mutation battery must show the mistake is now unspellable, not merely refused.
 - tell: the guard's docstring justifies the *check* rather than naming the *shape that would make the check unnecessary*.
+
+**A guard is debt, or it is a declared scope boundary.** A guard stands where the machinery that would derive the refused property does not exist. When that machinery is in scope, the guard is debt, as above. When a user ruling has decided not to build it yet, the guard marks the edge of what the code derives, and it moves only when the machinery is built ([R] user ruling, 2026-09-22; the model is the orbit catalogue, "deferred, not refused"). Either way the machinery is **named**, so that building it can be ruled on.
+
+- **A boundary guard carries `SCOPE-BOUNDARY[guard]`** in its docstring, with `machinery:` (what would derive the refused property: "the Gröbner-basis orbit-space engine"), `ruling:` (who ruled, when, and where it is recorded) and `revisit:` (what would overturn it) within three lines. The same ledger test reads both tokens.
+- **A boundary is well-formed** when it is single (one table and one door at one site), declared (its refusal says it is a scope edge and lists what lies inside), seeded (each entry is the missing machinery's output in the machinery's own data model, so building the machinery develops the entries instead of replacing them), and verified as if derived (each entry is tested against the law a derivation would have established).
+- **An input boundary** is the other legitimate guard: data entering from outside (a data file, a user's deck) cannot be typed at its source, and is parsed into types once, at the edge, never re-checked inside.
+- check: for any guard, name the machinery that would make it unnecessary. It exists or is in scope: debt. A ruling defers it: boundary. Neither: an undeclared boundary, a question for the user naming that machinery, never a verdict.
+- tell: a boundary that decays into debt: an entry added outside the machinery's data model, a second catalogue or door, a consumer that routes around the door.
 
 ## Retire as you go — the audit is the `retirement-audit` skill
 
