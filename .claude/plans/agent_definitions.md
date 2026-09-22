@@ -132,6 +132,8 @@ The user, on what they meant: *"any of these should happen only after your propo
 
 **Sketch `[HYPOTHESIS]`:** the survey is the first step of every spec: the existing tests of the capability found by Nexus (the equations' `verifies` edges, the runtime exercisers of the touched symbols) and by grep, each placed on a ladder of rungs (foundation, edge, interior, composition), each rung naming the rungs it rests on; the spec's deliverable is the ladder with its gaps, each gap filled by improving a test when one sits on that rung and by a new test only when none does. An edge rung asserts equality to a foundation rung (albedo 0 against vacuum), a structurally independent reference by construction. The principle (a capability's tests form a ladder; a test not placed on it is a finding) may belong in `vv-principles` so that qa reviews against it too; the procedure belongs in the test-architect's definition (question Q2).
 
+**The user's refinement (2026-09-22, ruling R7):** the test-architect still delivers a test matrix, and its rows follow the order **reuse > improve > new**. The reason for the hierarchy is diagnosis: a flat suite says *that* something failed, not *where the boundary of the failure is*. The expected shape is a prediction the matrix can be checked against. A new capability built on an established foundation (a new boundary condition) should be mostly reuse, with some improvement (a test generalised, for instance) and some new tests for the capability's own behaviour and limits; a genuinely new capability must have behaviour no existing test covers, by definition. A refinement, merge or generalisation that lets one capability express several specialised cases is the exception that tests little that is new, and even it typically opens new capabilities that need new tests. `[R]` A consequence worth stating in the clause: a ladder whose rungs each rest on verified lower rungs is the numerics-investigator's probe cascade built in advance, so a red reads its own diagnosis (the lowest red rung bounds the defect).
+
 ### 5.3 The archivist writes the present; the past goes to the page's end, the future to issues and plans
 
 **Intent (the user):** documentation reflects the current state of the code. Older things go to the page's history section and its gotchas, or to a collapsible box showing something important that was first got wrong and how it was got right. *"The main documentation body should not mix past, present and future. It should be exclusively about the present. Past goes to auxiliary sections at the end of the page and future is the scope of GitHub issues and plans files."*
@@ -141,7 +143,7 @@ The user, on what they meant: *"any of these should happen only after your propo
 - The procedure has no home in `docs/development/`: its authority is an archived plan and an issue comment, so no agent definition can point at it.
 - The archivist's body teaches the opposite. Its "Close-Out Narrative Arc", which it calls its most-used playbook, keeps the motivation in the body with its tenses flipped, puts retraction tombstones above the content they retract, keeps falsified tables in the body, and lists a session trail. Its Directive 3 rubric scores "Failed approaches: full history with rationale" as excellent.
 
-**Sketch `[HYPOTHESIS]`:** the documentation procedure gets one source in `docs/development/` (a skill the archivist preloads, question Q3), stating the user's ruling with the template. The archivist's definition then carries only its method: how to rewrite a page to the present tense, and where each piece of the past goes. The options are the History changelog row, the Gotchas section, a collapsed "first got wrong" box at the content it concerns, or the issue that closed the work. The close-out narrative becomes an issue comment plus one History row.
+**Sketch `[HYPOTHESIS]`:** the documentation procedure gets one source in `docs/development/` (its form is question Q3), stating the user's ruling with the template. The archivist's definition then carries only its method: how to rewrite a page to the present tense, and where each piece of the past goes. The options are the History changelog row, the Gotchas section, a collapsed "first got wrong" box at the content it concerns, or the issue that closed the work. The close-out narrative becomes an issue comment plus one History row.
 
 ### 5.4 The method-implementer refuses a vague plan
 
@@ -169,11 +171,17 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 
 ## 6. Open questions
 
-- **Q1. The mid-dispatch channel.** Grant `SendMessage` to the Key agents, so that a narrow question (scope, a path, a premise) goes to the orchestrator without ending the dispatch? `[R]` Recommended for the reviewers and the explorer's callers; for the method-implementer the channel carries only narrow questions, and an ontological gap still ends in `REFUSED:` (§5.4), since the user is reached only through the orchestrator. The cost: the sibling roster appears in the agent's context when another agent is named.
-- **Q2. Where the test ladder lives.** A `vv-principles` clause (the principle, so qa reviews against it) plus the procedure in the test-architect's definition (recommended), or the definition alone.
-- **Q3. Where the documentation procedure lives.** A new skill under `docs/development/skills/`, preloaded by the archivist, carrying the page template and the present-only ruling (recommended); or a clause in `articulation`, which every agent loads.
-- **Q4. The preload criterion** (carried from the first draft, `[R]`): a skill is preloaded when the role applies it at every dispatch; otherwise the brief names the page.
-- **Q5. Who writes the rewritten definitions.** The main agent (recommended: the definitions are the fleet's constitution and the whole session's context is what the task needs, Cardinal Rule 5's exception), each reviewed by the user before it lands.
+- **Q1 → ruled R6.**
+- **Q2 → ruled R7.**
+- **Q3. Where the documentation procedure lives: the orchestrator's suggestion, awaiting the user's confirmation.** The user's framing: the archivist is the only sub-agent that documents, so the choice is its definition or a preloaded skill, and a skill's description would reach the main agent's roster every session. The suggestion is a third form: a **path-scoped rule** `documentation`, with `paths:` on `docs/theory/**` and `docs/architecture/**`, carrying the present-only ruling and the page template. The reasons:
+  - the main agent needs it too: it writes theory pages itself in a surgical carve (W3 sends only the changelog to the archivist) and fixes stale docs on sight (Cardinal Rule 3);
+  - qa needs it to verify documentation claims in W4;
+  - a path-scoped rule loads for whichever agent touches a matching file, main or sub-agent, at no cost until then, with no roster line and no preload (the harness page, `[M]` 2026-09-21, the `vv-testing` probe; `plan-authoring` and `coding-standards` load this way today);
+  - the archivist's definition keeps only its own method (its build gate, its cross-reference grep, how it rewrites a page to the present) and points at the rule.
+
+  One measurement is owed in Phase 1: that a WRITE of a new file under a scoped path loads the rule as a read does (`[R]`: only the read is measured).
+- **Q4. The preload criterion** (carried, `[R]`, not yet answered): a skill is preloaded when the role applies it at every dispatch; otherwise the brief names the page. It bears only on the rewrite phase, where each preload would be justified by it in the agent's review.
+- **Q5 → ruled R8.**
 
 ## 7. Rulings ledger
 
@@ -182,6 +190,9 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 - **R3** (the user, 2026-09-22): the method-implementer's first requirement is a well-specified plan; it refuses a vague one (§5.4). Its identity is a builder executing a polished plan, not a published-formulation specialist.
 - **R4** (the user, 2026-09-22): D6 is corrected; a sub-agent can reach the orchestrator before it returns (measured, §3).
 - **R5** (the user, 2026-09-22): the five items of §5 are the scope that follows the S3 foundation.
+- **R6** (the user, 2026-09-22, Q1): an agent that may need clarification from the orchestrator holds `SendMessage` and asks, rather than working around what it thinks was meant; the Key agents are the first candidates. **The orchestrator's application:** all nine, since each Support agent has its own clarification case (the literature-researcher's "not in the local folder" question is W7's own; the explorer's question scope; the attacker's artefact and question). **The protocol, in every definition `[R]`:** send the question and continue the work that does not depend on the answer (the reply arrives at the next tool call); if nothing is independent of it, return with the question in `NEEDS:` and be resumed by name with the answer (invariant 3), never spin tool calls waiting. An ontological gap in a plan is not a clarification: the method-implementer refuses (§5.4).
+- **R7** (the user, 2026-09-22, Q2): tests are hierarchical and well structured, so that a failure's boundary is known; the principle goes into `vv-principles`, the procedure into the test-architect's definition; the test matrix orders its rows reuse > improve > new (§5.2).
+- **R8** (the user, 2026-09-22, Q5): the orchestrator writes every rewritten definition and the user reviews each. The prose is direct, without mannered speech, straight to the point: maximum effect with minimum context. Its instrument: each body is generated with a `budget_tokens` set at its measured size (the harness's budget law), so growth is a red, and the §5.5 amendment census reads 0.
 
 ## 8. Implementation order and its start condition
 
@@ -190,11 +201,11 @@ Implementation starts when the user rules this plan polished. Until then, nothin
 1. **Measure.** Whether a Key dispatch receives the main memory index (§3's open conflict), by dispatching.
 2. **The S3 foundation.**
    - The generator reads the whole body. The move is verbatim first, and `--check`'s first red on the moved bodies is its positive control; D3's dead references are then fixed so the move lands green.
-   - The front matter matches the mandates (tools; `SendMessage` per Q1; the archivist's name).
+   - The front matter matches the mandates (tools; `SendMessage` for all nine per R6; the archivist's name).
    - A PreToolUse hook refuses writes to GENERATED files.
    - Each agent's write scope is stated and enforced.
    - The brief template defines "read-only" and states the memory scope (R2).
-   - The pages the rewritten bodies will point to are written: the documentation skill (Q3) and the test-ladder clause (Q2).
+   - The pages the rewritten bodies will point to are written: the documentation page in the form Q3 settles, and the test-ladder clause in `vv-principles` (R7).
 3. **The §5.1 audit,** per agent, producing the class-(ii) gap lists.
 4. **The rewrite (§5.5),** one agent per commit, folding in D4, D5, D7, the gap list and the §5.2–§5.4 mandates, with the amendment census at 0.
 5. **Confirm by dispatching:** each agent is probed for what it received (tools, write scope, memory policy).
