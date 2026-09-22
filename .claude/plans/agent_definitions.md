@@ -211,14 +211,14 @@ A failure is returned as `REFUSED:` with the specific questions, and the same ho
 Implementation started 2026-09-22 (R12). The order `[HYPOTHESIS]`:
 
 1. **Measure.** Whether a Key dispatch receives the main memory index (§3's open conflict), by dispatching. `[LANDED 2026-09-22]` it does, as the session-start snapshot; and a write does not load a path-scoped rule (§3).
-2. **The S3 foundation.**
+2. **The S3 foundation.** `[LANDED 2026-09-22]` in five commits: the whole definition generated and a code-span file check (`ff1e99d7`; the check's CI-only red on an absent ignored directory fixed in `d95a81ce`); the two write guards (`1d5d12d1`); tools matched to mandates, `SendMessage` for all nine, the archivist's name, invariants 5 and 6 and the brief template's read-only (`7ae2396c`); the `documentation` rule and the `vv-principles` ladder (`86d4529a`). The front-matter changes (tools, `SendMessage`, the write-scope hooks, the name) reach a dispatch only after Claude Code restarts; step 5's probes measure them then.
    - The generator reads the whole body. The move is verbatim first, and `--check`'s first red on the moved bodies is its positive control; D3's dead references are then fixed so the move lands green.
    - The front matter matches the mandates (tools; `SendMessage` for all nine per R6; the archivist's name).
    - A PreToolUse hook refuses writes to GENERATED files.
    - Each agent's write scope is stated and enforced.
    - The brief template defines "read-only" and states the memory scope (R2).
    - The pages the rewritten bodies will point to are written: the documentation page in the form Q3 settles, and the test-ladder clause in `vv-principles` (R7).
-3. **The §5.1 audit,** per agent, producing the class-(ii) gap lists.
+3. **The §5.1 audit,** per agent, producing the class-(ii) gap lists. `[HYPOTHESIS]` dispatched after the restart, so that each audit dispatch also measures what the agent now holds (step 5's probe folded in): each agent classifies its own memory with a fixed schema (entry; class (i) restates a clause, naming it; (ii) a definition gap, with the definition sentence it implies; (iii) its own experience), writes the table under `scratch/_agent_defs/audit/<name>.md`, and reports its tool list, and whether a write outside its scope was refused, in the first line of its return.
 4. **The rewrite (§5.5),** one agent per commit, folding in D4, D5, D7, the gap list and the §5.2–§5.4 mandates, with the amendment census at 0.
 5. **Confirm by dispatching:** each agent is probed for what it received (tools, write scope, memory policy).
 
