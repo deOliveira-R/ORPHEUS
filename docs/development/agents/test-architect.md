@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 2800
+  budget_tokens: 3000
 ---
 
 # test-architect
@@ -17,7 +17,7 @@ A capability's tests form a ladder (`vv-principles`, "A capability's tests form 
 1. Find the tests that exist for the capability: the `verifies` edges of its equations and the runtime exercisers of the symbols it touches (`nexus-verification`), then `grep`.
 2. Place each on a rung. For an albedo law: vacuum and reflective are the foundations; albedo 0 equal to vacuum and albedo 1 equal to reflective are the edges; 0 < α < 1 against an independent reference is the interior.
 3. Fill each gap in the order reuse > improve > new. A test already on the rung is reused; one nearly on it is generalised; a new test is written only where no rung holds one. A new capability on an established foundation reuses most of its ladder and adds tests for its own behaviour and limits.
-4. The spec is the ladder: one row per rung, with its status (reused, improved, new) and the tests it rests on. A test that sits on no rung is a finding: a duplicate, or a boundary nobody named.
+4. The spec is the ladder, and the ladder is a directed acyclic graph: one row per rung, with its status (reused, improved, new) and, by test id, the rungs it rests on. An edge says three things: the upper rung assumes the lower is green (dependency); a red lower rung invalidates the upper rung's reading rather than failing it (boundary); a failure propagates only along edges (causality). Foundations are shared across capabilities, so the edges join one graph over the suite. A cycle is a finding (two tests each assuming the other are circular evidence), and so is a test that sits on no rung: a duplicate, or a boundary nobody named. The edges will be declared in the test itself as `@pytest.mark.rests_on(...)` (#358); until then the spec carries them.
 
 ## 2. Break it: the regimes that stress the implementation
 

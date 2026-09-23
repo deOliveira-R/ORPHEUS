@@ -2,6 +2,16 @@
 
 ---
 
+## ⏸ 2026-09-22 — the test-architect now authors the DAG; step 3 has its marker
+
+**The user's ruling (2026-09-22, in the agent-definitions campaign, `.claude/plans/agent_definitions.md`):** a capability's tests form a ladder, and the ladder is a directed acyclic graph whose edges carry dependency (the upper rung assumes the lower is green), boundary (a red lower rung invalidates the upper reading) and causality (a failure propagates only along edges); across capabilities the foundations are shared, so over time the suite becomes one DAG, which Nexus should form and show. This is G1's partial order, now with an author: the test-architect's definition (§1, the ladder) makes every spec a DAG, each row naming by test id the rungs it rests on, a cycle a finding.
+
+**Step 3 ("a test declares what it is about") gains its first field, `@pytest.mark.rests_on(*test_ids)`** (named 2026-09-22: consistent with `verifies(*labels)` and `catches(*tags)`, the ladder's own verb, 0 hits in code and prose; `depends_on` rejected FOR this question because pytest-dependency uses it for SKIP-on-failure, and the semantics wanted is INVALIDATE, and it has 14 prose hits). Owed, in order `[HYPOTHESIS]`:
+1. Register the marker in `pyproject.toml` beside `verifies`/`catches`; the pytest manifest Nexus already ingests (`runtime_markers`) collects it; Nexus mints a `rests_on` edge per declared pair and computes `invalidated_by` over them (G1's done-when).
+2. **Each edge is a claim, so each gets a falsifier (X3):** if B rests on A, the lines A executes are executed by B too. With a coverage capture taken with per-test contexts (step 2), `executed(A) ⊆ executed(B)` is a necessary condition Nexus can check per edge; an edge that fails it is a mis-declared dependency, reported like a REFUTED claim. Positive control: a deliberately wrong edge between two unrelated tests.
+3. A cycle among declared edges is refused at collection, with the cycle printed.
+4. Migration is by capability, starting where a ladder is written (the test-architect's specs), never a bulk annotation of the existing suite.
+
 ## ⏸ COMPACTION POINT #5 — 2026-08-18 · the ledger SHIPS, the declaring path is guarded, and CI can be believed again
 
 ⚠ **Everything below this section is HISTORY unless a hash says otherwise.**
