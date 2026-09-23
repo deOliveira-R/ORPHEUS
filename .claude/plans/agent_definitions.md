@@ -254,7 +254,7 @@ Implementation started 2026-09-22 (R12). The order `[HYPOTHESIS]`:
    - **Held, outside this campaign**: the method-implementer's L-013 (a separability claim possibly refuted by `R = R_spatial ⊗ A_angular`) is re-measured before it moves anywhere.
 
    **Questions for the user** (collected from the audits): (Q6) may the literature-researcher fetch a freely published primary standard (ENDF-102, the NJOY manual) directly, asking only for a paywalled paper or a secondary substitution? (Q7) is `~/Downloads/NSE/` (760 NSE volume zips) a sanctioned second tier-0 location beside `scratch/literature/`? (Q8) should the #231 page template get a home in `docs/development/`, or does the `documentation` rule's placement law suffice? (Q9) the memory retirements (classes (i) and (iv), and the archivist's 29 unindexed topic files) — apply them in each agent's rewrite commit?
-   **The rewrite, progress** (each approved by the user, then merged): method-implementer `62ab8f6e`; test-architect `324ba447` (+ the qa-attack standard `c2a7418b`); qa `ea2e5c7d`; elegance-enforcer `af479efb` (+ the guard classes, `1f18f20e`). Remaining: numerics-investigator, archivist, explorer, literature-researcher, cross-domain-attacker. One red on `main` from the qa rewrite (a test anchored on a removed heading), fixed at `a49ec558`; CI is watched after every push.
+   **The rewrite** `[LANDED 2026-09-22]`, 9 of 9, each approved by the user, then merged: method-implementer `62ab8f6e`; test-architect `324ba447` (+ `c2a7418b` the qa-attack standard, `69bd323e` the spec as a declared DAG); qa `ea2e5c7d`; elegance-enforcer `af479efb` (+ `1f18f20e` the guard classes); numerics-investigator `54809381`; archivist `ba3e0dab`; explorer `43defe8d` (+ the write-scope hook refusing Nexus's writers); literature-researcher `5ac5ffe8`; cross-domain-attacker `69bfc44e`. Every definition is generated, budgeted at its measured size, and reads 0 on the amendment census bar present-tense uses. One red on `main` from the qa rewrite (a test anchored on a removed heading), fixed at `a49ec558`; CI is watched after every push.
 4. **The rewrite (§5.5),** one agent per commit, folding in D4, D5, D7, the gap list and the §5.2–§5.4 mandates, with the amendment census at 0.
 5. **Retire `derivations/diagnostics/` (R19)**: triage each tracked probe (move to scratch with its reason, promote, or retire), repoint the 11 pages, 35 tests and one module that cite the directory, retire or re-aim its import-resolution test, then triage and trim the scratch folder.
 6. **Confirm by dispatching:** each agent is probed for what it received (tools, write scope, memory policy).
@@ -262,3 +262,19 @@ Implementation started 2026-09-22 (R12). The order `[HYPOTHESIS]`:
 ## Resume surface
 
 This file; `docs/development/harness.md` ("Adding or changing", "What loads, and what it costs"); `docs/development/workflows.md` ("The brief"); `.claude/agents/*/AGENT.md`; `harness_context_budget.md` ⏸ COMPACTION POINT #14 (the census and the eight dispatch observations this review extends).
+
+
+# ⏸ COMPACTION POINT — 2026-09-22. The nine definitions are rewritten; next is §8 step 5, retiring `derivations/diagnostics/`
+
+**The instruction (the user, verbatim):** *"I approve. Merge and prepare for context compaction before the last step."* The last step is R19 (§8 step 5).
+
+**Where things stand.** `main` = `origin/main` at this commit's parent `69bfc44e` plus this plan update; CI green on `69bfc44e`. Landed this campaign (§8): the S3 foundation (whole definitions generated; the code-span file check; the generated-guard and write-scope hooks, the latter also refusing Nexus's applied `rename` and its `ingest` tools; tools matched to mandates; `SendMessage` for all nine; invariants 5 and 6; the `documentation` rule; the `vv-principles` ladder); the §5.1 audit; the nine rewrites; rulings R1–R19. Beside it: `SCOPE-BOUNDARY[guard]` (R18), the P3 review routing (R17), `rests_on` recorded in #358's plan, #497 (xref checker blind to `:class:` targets) and #498 (the page template, a separate documentation session) filed.
+
+**Next: §8 step 5 (R19).** Probes live only in `scratch/derivations/diagnostics/`; the tracked `derivations/diagnostics/` retires. `[M]` 2026-09-22: 24 tracked files; cited by 11 theory pages, 35 test files and one module (`orpheus/derivations/continuous/peierls_nystrom/geometry.py`); `tests/derivations/test_diagnostics_resolve_their_imports.py` scans the directory; `.claude/plans/**` and `.claude/scratch/**` cite it as archaeology (not repointed). The procedure `[HYPOTHESIS]`, per `tests/derivations/_promotion_policy.md` (DELETE / PROMOTE / LEAVE):
+1. Re-take the census (the counts above are from one `git grep`; re-run in Python with a positive control, X2).
+2. Triage each tracked probe: promote into `tests/` (test-architect), move to `scratch/derivations/diagnostics/` with a stated reason, or retire (git history keeps it). A likely delegate: the numerics-investigator, which owns probes, with the orchestrator reviewing.
+3. Repoint each citing page and test (a citation of a retired probe becomes its commit or its issue); retire or re-aim the import-resolution test.
+4. Triage and trim `scratch/derivations/diagnostics/` itself (33 files).
+5. Then §8 step 6: nothing further to probe (the audit dispatches measured it), so the campaign closes: the close-out, the plan archived, the memory index updated.
+
+**Open, outside this step:** the literature location the user will create (R14); the method-implementer's 112 unindexed closeout files (asked, not yet ruled; R16 covered only classes (i) and (iv)); L-013's separability claim, owed a re-measure.
