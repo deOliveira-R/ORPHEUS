@@ -1,21 +1,20 @@
 # Explorer memory index
 
 One line per entry. Behavioural lessons live in `lessons.md` (read FIRST each
-dispatch: six meta-lessons and L-001…L-045, one imperative each); their war
-stories are cold in `lessons_archive.md`; durable subsystem SHAPE lives in
-`AGENT.md`. A hook here is at most 15 words and never restates a lesson (a
-summary is a second copy that drifts). A topic file is a Nexus graph node
-(referenced from `docs/` and `.claude/plans/`): it is retired only after a
-blast-radius audit, never by an index edit.
+dispatch); their war stories are cold in `lessons_archive.md`; durable
+subsystem shape lives in topic files here, and one that belongs to the project
+is proposed to the orchestrator for its owning page (the definition is
+generated). A hook here is at most 15 words and never restates a lesson. A
+topic file is retired only after a blast-radius audit, never by an index edit.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — the digest: M-1…M-6, then L-001…L-045 (L-034b is the plan-vs-plans lesson).
+- [lessons.md](lessons.md) — the digest: the lessons no rule, skill or definition clause carries; 28 that were retired 2026-09-22 (the definition now carries them).
 - [lessons_archive.md](lessons_archive.md) — the war stories, cold; open one section when a pointer needs checking.
 
 ## 2. Active / in-flight state
 
-Merge status comes from git and GitHub, never from this file (`AGENT.md` OP6).
+Merge status comes from git and GitHub, never from this file.
 Landed milestones live in the theory pages' development history; the open
 backlog is GitHub issues.
 
@@ -24,7 +23,7 @@ backlog is GitHub issues.
 ## 3. Durable reference (topic files)
 
 A topic file records the tree at its date; a present-tense finding inside one
-is a claim to re-verify before it is repeated (M-1). Issue states as of
+is a claim to re-verify before it is repeated. Issue states as of
 2026-09-21.
 
 - [CP equation→code truth](nexus82_cp_implementers.md) — two CP implementations; three zero-arithmetic facades.

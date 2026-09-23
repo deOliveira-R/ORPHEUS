@@ -129,3 +129,27 @@ def test_write_scope_allows_the_temporary_directory_and_resolves_a_relative_path
 
 def test_write_scope_passes_other_tools() -> None:
     assert run(SCOPE, {"tool_name": "Bash", "tool_input": {"command": "ls"}}, REPO_ROOT, "qa")[0] == 0
+
+
+@pytest.mark.parametrize("payload, expected", [
+    ({"tool_name": "mcp__nexus__rename", "tool_input": {"old_name": "a", "new_name": "b", "dry_run": False}}, 2),
+    ({"tool_name": "mcp__nexus__rename", "tool_input": {"old_name": "a", "new_name": "b", "dry_run": True}}, 0),
+    ({"tool_name": "mcp__nexus__rename", "tool_input": {"old_name": "a", "new_name": "b"}}, 0),
+    ({"tool_name": "mcp__nexus__ingest", "tool_input": {"file_path": "x.pdf"}}, 2),
+    ({"tool_name": "mcp__nexus__runtime_ingest", "tool_input": {"artifact": "x.json"}}, 2),
+    ({"tool_name": "mcp__nexus__query", "tool_input": {"text": "x"}}, 0),
+])
+def test_write_scope_refuses_the_nexus_tools_that_write(payload: dict, expected: int) -> None:
+    """A dry-run rename (the tool's default) only previews; an applied rename edits tracked files
+    and an ingest writes the graph, which a read-only agent never needs."""
+    assert run(SCOPE, payload, REPO_ROOT, "explorer")[0] == expected
+
+
+def test_every_read_only_agent_matches_the_nexus_writers() -> None:
+    """The matcher, not the script, decides whether the hook runs at all: each read-only agent's
+    front matter must route the three Nexus writers to it."""
+    for name in ("explorer", "cross-domain-attacker", "literature-researcher", "qa", "elegance-enforcer"):
+        text = (REPO_ROOT / ".claude" / "agents" / name / "AGENT.md").read_text(encoding="utf-8")
+        for tool in ("mcp__nexus__rename", "mcp__nexus__ingest", "mcp__nexus__runtime_ingest"):
+            assert tool in text.split("\n---\n", 1)[0], f"{name}: the write-scope matcher misses {tool}"
+

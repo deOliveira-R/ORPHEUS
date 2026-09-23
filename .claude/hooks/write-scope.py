@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""PreToolUse hook on Edit, Write and MultiEdit, set in the front matter of an agent whose role
-writes nothing tracked (a reviewer, a Support agent): refuses a write outside the scratch tree, the
-temporary directory and the agent's own memory. Usage, as the front matter's hook command:
+"""PreToolUse hook on Edit, Write, MultiEdit and the Nexus tools that write, set in the front matter
+of an agent whose role writes nothing tracked (a reviewer, a Support agent): refuses a write outside
+the scratch tree, the temporary directory and the agent's own memory, and refuses Nexus's applied
+``rename`` (it edits tracked files) and its ``ingest`` and ``runtime_ingest`` (they write the graph
+and its traces), which such an agent never needs. Usage, as the front matter's hook command:
 ``python3 .claude/hooks/write-scope.py <agent-name>``.
 
 The brief template's "read-only" means no edit to a tracked file (the workflows page, "The brief");
@@ -19,6 +21,10 @@ import tempfile
 from pathlib import Path
 
 
+NEXUS_RENAME = "mcp__nexus__rename"
+NEXUS_WRITERS = {"mcp__nexus__ingest", "mcp__nexus__runtime_ingest"}
+
+
 def allowed_roots(project: Path, agent: str) -> list[Path]:
     temps = {Path(tempfile.gettempdir()), Path("/tmp"), Path("/private/tmp")}
     return [project / "scratch", project / ".claude" / "agent-memory" / agent, *(t.resolve() for t in temps)]
@@ -30,9 +36,17 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except Exception:
         return 0
-    if payload.get("tool_name") not in {"Edit", "Write", "MultiEdit"} or not agent:
+    tool = payload.get("tool_name") or ""
+    if not agent:
         return 0
-    raw = (payload.get("tool_input") or {}).get("file_path") or ""
+    tool_input = payload.get("tool_input") or {}
+    if tool in NEXUS_WRITERS or (tool == NEXUS_RENAME and tool_input.get("dry_run") is False):
+        print(f"write-scope: {agent} does not write through Nexus ({tool.rsplit('__', 1)[-1]} changes "
+              f"tracked files or the graph); ask the orchestrator with SendMessage.", file=sys.stderr)
+        return 2
+    if tool not in {"Edit", "Write", "MultiEdit"}:
+        return 0
+    raw = tool_input.get("file_path") or ""
     if not raw:
         return 0
     project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd") or ".").resolve()

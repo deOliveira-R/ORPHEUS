@@ -34,7 +34,7 @@ color: purple
 memory: project
 hooks:
   PreToolUse:
-    - matcher: "Edit|Write|MultiEdit"
+    - matcher: "Edit|Write|MultiEdit|mcp__nexus__rename|mcp__nexus__ingest|mcp__nexus__runtime_ingest"
       hooks:
         - type: command
           command: "python3 .claude/hooks/write-scope.py elegance-enforcer"
