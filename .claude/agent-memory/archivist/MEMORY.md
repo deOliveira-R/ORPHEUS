@@ -2,7 +2,8 @@
 
 An index, not a memory: one line per entry, each a pointer. Behavioural lessons live in
 `lessons.md` (read FIRST each dispatch) over `lessons_archive.md` (cold). Mechanical procedure —
-build-gating, cross-ref reality, venv/worktree facts, the 9-step close-out arc — is `AGENT.md`.
+the build gate, what the build cannot see, labels, editing — is the definition; where content
+goes on a page is the `documentation` rule.
 V&V vocabulary is the `vv-principles` / `algebra-of-record` skills. Rules are cited by ID, never
 copied here.
 
@@ -19,8 +20,8 @@ Same hot/cold split as this index: read the digest always, page the archive on d
 re-summarise a lesson upward** — each layer points down. Counts are deliberately not quoted
 (`grep -c '^- \*\*' lessons.md` answers it).
 
-- [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch.** Every lesson as one
-  imperative plus its failure→correction core, in 9 themes: (1) the LIVE tree is ground truth ·
+- [lessons.md](lessons.md) — **HOT digest, read FIRST every dispatch.** The lessons no rule,
+  skill or definition clause carries (62 that did retired 2026-09-22), in 9 themes: (1) the LIVE tree is ground truth ·
   (2) the build is blind, grep is the gate · (3) a `:label:` is a V&V edge · (4) retirement &
   staleness · (5) page surgery · (6) doc SHAPE per event class · (7) V&V vocabulary curation ·
   (8) code-prose rebalance · (9) gates & tooling. Each entry carries a `→ L-0NN` pointer.
@@ -42,18 +43,6 @@ catchers. There is no owed Sphinx pass and no owed marker.
   July HTML survives in `_build`, so a stale-ref grep must `test -f` the SOURCE). Commits are
   `git log --oneline -- docs/`. Per-pass lessons are the digest, §1–§9, over archive sections
   L-095…L-112 for the 2026-09 passes.
-- ⛔ **Two claims this section carried until 2026-09-21 were frozen and false, and both are the
-  index lying forward** (`process-discipline` "Trust git for merge status"): a list of nine
-  "uncommitted on branch X" passes, all merged; and "ERR-085/086 catchers owed by the main
-  agent", both landed. Do not re-introduce a per-pass status list here — `git status` answers it
-  in one command and cannot go stale.
-- ⛔ **The ERR-026 history-block entry is void**: its branch
-  `docs/err026-history-is-not-a-crossref` is gone locally and remotely, so the 2026-08-24 "still
-  OPEN, unlanded" claim says nothing.
-- ⛔ **The xref-gate blindness note moved into the digest** (§2b) — it is a lesson with a
-  measurement and two controls, not index state. Its rider is there too: acceptance evidence for
-  a page is your OWN import probe with a live AND a retired control.
-
 ## 3. Durable reference (reusable doc-architecture)
 
 One-line pointers; the recipe lives in the linked file. A reusable recipe earns a line; a campaign

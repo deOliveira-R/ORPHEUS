@@ -27,38 +27,12 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 
 ### 1a. Reading a relayed claim
 
-- **A relayed claim is a PREDICATE, not a fact — read the slot in the live tree before re-wording
-  it.** "renamed everywhere" licensed the inference that every slot holding the hub was renamed;
-  24 old-spelled params survived, and "fixing" the quoted live signatures would have read as the
-  careful half. Publish the residue with its count and predicate. → L-112, L-001, L-018, L-039
-- **A briefed LIST can contradict the brief's own carve-out; that contradiction IS the finding.**
-  CONSTRUCT each member and print the property — a grep finds the members that have it and is
-  silent on the ones that do not, which is the half that matters. → L-096, L-095, L-104
-- **A brief's named target can measure ZERO — run the FILE's own predicate before reporting
-  "nothing to do".** A 0 on someone else's grep is not a clean file, and a phase that landed with
-  no docs pass leaves its rot for the next phase's sweep: budget for it. The mirror is as common:
-  a brief's asserted **zero** can measure FIVE, and a refuted zero RE-SHAPES the work — the job
-  stops being "teach the page a new concept" and becomes "make its definition agree with its own
-  body, and CITE the body". → L-102, L-072, L-075, L-081, L-104, L-114
-- **A brief's LoC target is an estimate that never subtracted what the brief also tells you to
-  PRESERVE.** Count the preserved tables first; the achievable delta is `section − tables − stub`,
-  and a shortfall against the headline is CORRECT — publish it with the clause that forced it
-  rather than cutting further to hit the number (`process-discipline` "Measure a brief's premise
-  before arguing its scope"). → L-114
 - **A brief can instruct a HARD audit error — read the scanner before obeying a `vv-status`
   instruction.** `documented` is the ONLY legal status (`tests/_harness/audit.py`, exit 2
   otherwise); what a new `verifies` marker earns is UN-SENTINELING, not an upgrade. → L-106
 - **A brief describing code being typed NOW is a FORECAST** — verify the symbol, and poll on the
   INVARIANT (`! git grep -q <old> -- orpheus/`), never on one new symbol: a half-written tree
   answers plausibly, and its `AttributeError` reads as "unsupported", not "broken". → L-087, L-098
-- **A brief's discriminator is a heuristic; resolve EACH site by its own live signature.** A
-  mechanical vocabulary swap restates a false claim in fresh, authoritative words. → L-001, L-021
-- **A brief's "sharpest observation" is a HYPOTHESIS with a computable confusion matrix** — publish
-  the measured split and the refutation, or the next reader re-derives the heuristic. → L-060
-- **A design review's verdict is a RECOMMENDATION, not what shipped** — `dataclasses.fields` the
-  class before quoting its field list, and publish the divergence as a refuted-candidate row with
-  its reason (`process-discipline` "A refuted candidate is first-class output"). → L-104, L-001
-
 ### 1b. The tree moves under you
 
 - **On a live branch the re-read is a LOOP, not a pre-flight — re-read the public surface after
@@ -80,41 +54,6 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 
 ### 1c. Numbers you publish
 
-- **Re-derive every numeric literal the pass publishes, in ONE script, at the end.** A spot check
-  finds neither of the two defects the literal SET finds (a figure I had invented; a figure that was
-  real and answered a different question). → L-109, L-001, L-042 · now AGENT.md checklist item 6
-  (2026-09-21)
-- **Two honest `[M]`s of "the same thing" differ by the PREDICATE or the STATISTIC — never
-  adjudicate; find the reading that makes both true and PRINT the arithmetic.** An exact
-  reconciliation proves the census complete AND names what it excluded; when nothing reconciles,
-  RETIRE the pair and re-measure with the fixture in the caption. → L-107, L-108, L-100, L-093,
-  L-085, L-091, L-051
-- **When a quoted figure will not reproduce, find the PARAMETER and publish the CURVE** — a single
-  figure without its tolerances is one point on a curve wearing a constant's authority. → L-110,
-  L-108, L-065, L-067
-- **Publish the MECHANISM or the CLOSURE ARGUMENT, not the value.** A derivation stays true as the
-  tree grows; a number rots and gets COPIED into docstrings. Instances: a mutation magnitude is a
-  draw (publish the absorbed piece, not the digits) · a published digest LENGTH is an artefact of
-  your throwaway class's name (publish *byte-EQUAL*) · a positive control's VALUE carries no part of
-  the argument (publish the PREDICATE, keep the zeros). → L-064, L-104, L-103, L-070, L-075, L-088
-- **A `[M]` whose denominator is a COMPUTED SET has a shelf life the FINDING does not** — say "the
-  finding is unchanged and only the DENOMINATOR moved, because it is the size of a candidate set".
-  → L-090, L-091
-- **When a chapter-wide UNIVERSAL you published turns out false, re-scope it to the PASS, where
-  the DIFF can check it.** *"This pass changed no measured value; every edit is an algebra
-  spelling"* is verifiable from the diff; *"every fixture in this chapter is Σ₂ₙ ≡ 0"* was false
-  (an adjoint page carried a nonzero ladder and two gates inject one). Publish the real census
-  beside it with its denominator AND the reason the denominator is complete. → L-114
-- **Don't assert a mechanism — MEASURE it.** "A flat vector broadcasts across the spatial axis" was
-  true and useless; measured, it is an outer product, which buys three traps the hand-wave misses.
-  → L-109
-- Census and number discipline is `instrument-doctrine` X2 with `plan-authoring` §2/§4. The three
-  clauses this corpus breaks most: **QUANTIFIER** (every "each/every/all" you publish is countable
-  in one command, and the measured sentence was strictly better every time) · **DRAW**
-  (bit-exactness, a ULP gap and a percentage are properties of the draw — publish a bound over
-  ≥200 seeds and say whether you have construction-exact or draw-exact) · **RELAY** (publish YOUR
-  number with YOUR configuration). → L-060, L-067, L-071, L-076, L-084, L-099, L-057, L-043
-
 ### 1d. Read the object, not its description
 
 - **Construct the object and print the property.** `hasattr` is False for a dataclass field with no
@@ -125,14 +64,12 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
   count fixed, and a roster's own list is not the family (`vars(cls)` +
   `isinstance(v, classmethod)` said FIVE where four pages said four; the fifth row was the
   argument). → L-101, L-074, L-081
-- **A composite's measured identity cannot certify its FACTORS**, and an operator-movement claim has
-  a draw-free form: build the matrix column by column with `e_k`, never one probe vector. → L-049,
-  L-076, L-084
 - **The pre-carve tree is measurable** (`git worktree add … HEAD --detach`, or `git archive HEAD`),
   and when the retired object is shape-characterisable a hand-built STAND-IN beats a diff: the
-  equal-shape CONTROL is the finding, and a diff cannot produce it. ⚠ the venv's editable install
-  hooks `sys.meta_path` and OUTRANKS `PYTHONPATH` — strip the finder and print `orpheus.__file__`
-  as proof, or use a RENAMED shadow package. → L-095, L-101, L-050, L-083
+  equal-shape CONTROL is the finding, and a diff cannot produce it. Print `orpheus.__file__` as proof:
+  `PYTHONPATH` beats the editable install, but a probe run from inside the repository loses to
+  `sys.path[0]` (`[REFUTED 2026-09-22]` the earlier claim that the editable install outranks
+  `PYTHONPATH`; the mechanism is `code-search`'s). → L-095, L-101, L-050, L-083
 - **Any cross-carve table owes a line naming WHICH statistic is comparable** — the tell that you
   need it is that the CONTROL column moved. → L-095
 
@@ -142,21 +79,8 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
   reproducibility and nothing gates it. After any constructor/signature change grep the code-block
   BODIES before the prose sweep, and RUN what a present-tense sentence promises works. → L-077,
   L-047, L-093, L-099, L-105
-- **A docstring quoting another docstring, and a doc quoting a production docstring, are ungated
-  cross-file dependencies — grep the quoted FRAGMENT, not the symbol.** The quotation goes false
-  while every name in it stays alive, and it is usually load-bearing for the neighbour's
-  justification. → L-102, L-066, L-062
-- **A brand-new docstring can ship a convention the code does not have** — it documents the DESIGN.
-  Document the VALUE, date it, report the mismatch; never promise the planned flip. → L-109
-- **A table's CAPTION owns its columns**, and in a historical table exactly ONE column is
-  present-tense — the only one that can rot. "Update column X" can be an instruction to falsify the
-  caption; place by CONTENT, never by a site ORDINAL, and write the deviation into the report.
-  → L-098
 - **A regenerated cache or untracked artefact is a doc surface with no symbol in it; `ls -l` is the
   only instrument** — `git status`, `-W`, the xref gate and `dead_references` are all blind. → L-093
-- **A page can contradict itself 80–200 lines apart, and the stale half is the one a reader
-  quotes.** After an algebra change grep the OLD spelling WITHIN each page that already carries the
-  new one; when a page contradicts itself, the HEDGE is usually the true half. → L-077, L-078, L-092
 - **A page's own ⚠ CAVEAT can BE the diagnosis a later carve lands, or the theorem the next step is
   built on — keep it verbatim under a ⭐, never tense-flip it.** Tell: *"X is not always Y, so the
   precise statement is Z, not a named attribute"* is a page saying where its subject is welded.
@@ -164,13 +88,6 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 
 ### 1f. Landings, predictions and seams
 
-- **A landing is audited part by part, never by flipping a tense.** A deferral row has a CLAIM, a
-  PRECONDITION and a MECHANISM; a prediction names a MECHANISM, a HOST/TYPE, a PHASE and a
-  DELIVERABLE. Any subset can move: say which part survived, annotated under the row. → L-107,
-  L-100, L-049, L-082, L-087, L-097, L-110
-- **Keep a refuted prediction — the refuted MECHANISM is the interesting half.** "The defect was
-  correctly identified and the mechanism was not" is the durable sentence; a tense flip destroys it.
-  → L-108, L-090, L-074
 - **When a fix OVERRIDES an artefact that still exists and will be read FIRST, the page is a
   COUNTER-RECORD, not a report.** A literature memo's implementation note or a plan's pseudocode
   survives the fix and outranks it in a future search, so give the correction its own named
@@ -181,37 +98,7 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
   the artefact it refutes. → L-114
 - **A two-clause ruling may have an occupant for only one clause** — publish clause 1 as the ruling
   and clause 2 with the census showing it empty. → L-108
-- **A campaign day lands SIBLING steps, and each repeals a PREMISE elsewhere — grep the PREMISE and
-  the EVENT-phrases** (*"when the hub gains"*, *"until X lands"*, *"deferred to"*, *"becomes real
-  when"*), never the step's name: every symbol is alive and the sentence is grammatical, so no
-  build, `dead_references` or symbol grep sees it. → L-081, L-107, L-075
-- **When a landing gives a REAL NAME to a phrase the page used loosely, the phrase becomes a
-  MIS-STATEMENT, not a head start** — grep the new field's name across `docs/` and read every hit as
-  a claim about the new thing even where it predates it. → L-074
-- **A landed change that SILENTLY PRESERVES a published table is itself publishable** — re-measure
-  and add a dated note saying it survived BY DESIGN, or the next reader assumes staleness. → L-074
-- **A `==`-gate's blindness is a property of the IDENTITY RELATION, not of the gate** — a re-typing
-  upgrades or downgrades every equality assertion in the corpus with no file touched. Afterwards
-  grep `metric-blind` / `cannot tell them apart` / `(name, shape)`-equal and re-derive each: some go
-  false, some become STRONGER claims that now under-sell a real gate. → L-100, L-103
-
 ### 1g. Instruments and corroboration
-
-- **Your own gates fail silently and flatteringly** (`instrument-doctrine` X1). Two corpus
-  corollaries: a gate that can print 0 on an empty input list must echo the INPUT COUNT (an `instrument-doctrine` skill X1 clause since 2026-09-21); and a
-  LINE-based scanner cannot see a role, a bold run or a claim split across two lines — scan
-  CONTIGUOUS blocks with `re.S`, and use RETIRED symbols as positive controls. → L-108, L-107,
-  L-101, L-088
-- **Two prose surfaces agreeing is ONE surface** (X4), and git is the arbiter for dates and merge
-  status (`process-discipline` "Trust git for merge status"). Two surfaces agreeing on a NUMBER are
-  one surface until you check they do not share a seed. → L-064, L-099
-- **Two independently-VOCABULARIED instruments agreeing IS the acceptance evidence** — and adopting
-  a reviewer's exact patterns is evidence, not concession. → L-052, L-067, L-070, L-086
-- **You are the judgment layer over any bulk scanner** — import-verify every suggested target,
-  reject findings the clean build contradicts, attribute every residual to a named false-positive
-  class. → L-021
-
----
 
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 
@@ -227,28 +114,6 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   backtick (it swallows the sentence); a backslash inside a `` ``literal`` `` (scientific notation
   is a `:math:` role, never a literal); a raw relative hyperlink; a raw file path; a kwarg or
   expression inside a `code-block`. → L-002, L-044, L-069, L-074, L-082, L-058
-- **⛔⛔ TWO STANDING CLAIMS OF MINE ARE REFUTED, both by one 20-second throwaway project with
-  two-sided controls** (`[M]` 2026-09-21, Sphinx in this venv, a 2-page project, live targets beside
-  dead ones). **(a) A cross-doc dangling `:ref:` DOES warn** — `WARNING: undefined label: '<label>'
-  [ref.ref]` at DEFAULT severity, bare AND with explicit text, exactly like the intra-doc case; a
-  dangling `:doc:` warns as `[ref.doc]`. So "a cross-doc `:ref:` miss is silent at every severity"
-  is FALSE, and every label-rename caution argued from it is void: renaming a section anchor is
-  build-gated for its `:ref:` citers just as an eq-label is for its `:eq:` citers (L-070). **(b)
-  `-n` DOES catch dead python-domain roles ON AN `.rst` PAGE** — all five of
-  `:class:`/`:func:`/`:meth:`/`:attr:`/`:mod:` warned under `-n` and NONE at default severity. The
-  true scope of "`-n` does not save you" is the surface Sphinx never RENDERS — a docstring in an
-  un-`automodule`'d module, and everything under `tests/` (L-044's measurement, correctly). ⟹ for
-  `.rst` pages `-n` is an available instrument for the exact class the project xref gate is blind
-  to (§2b; `retirement-audit` A.2 carries it since 2026-09-21); use it as a pre-edit-vs-post-edit SET DIFF, because plain-text-by-convention roles into
-  the 24 noindex modules nitpick as "target not found" by design. → L-113, L-002, L-044, L-063, L-070,
-  L-076
-- **⛔⛔ `:noindex:` on an `automodule` mints NO cross-reference target, so the role renders plain
-  text.** `[M]` 2026-09-21 (mine, by parsing each directive's option block): **48** automodules in
-  the source, **24** of them `:noindex:`. `[M]` 2026-09-18 (L-112, not re-run): a two-sided HTML
-  control gives 0 `id=` anchors for a noindex module beside a normal page-mate, and **1 081**
-  python-domain roles point into the noindex set — re-measure that one before quoting it. REPORT the
-  finding; flipping `:noindex:` risks duplicate-object warnings and is an architectural decision.
-  → L-112, L-053, L-002
 - **These DO warn, so they are gated:** a dangling `:eq:` (measured with controls) and — per the
   refutation above — a dangling `:ref:` and `:doc:`, cross-doc included, so BOTH label classes are
   rename-gated by the build; a bad `:by:`; an unresolved
@@ -293,11 +158,6 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   believing a dead target's NAME, read its graph EDGES (`type_uses` = a code bug, `documents` = a
   page, `references` = a docstring) — a name can be an artefact minted by a third tree. → L-094,
   L-052
-- **Plain-text roles are often the page CONVENTION, not a defect** — match the page, repoint dead
-  refs to the LIVE path, never half-surface one or two leaves of an un-surfaced package.
-  `automodule` readiness is multi-gate ("0 `:label:`" is necessary, not sufficient): `-E -W` each in
-  isolation and report the unblocking fix. → L-002, L-034, L-047
-
 ### 2c. The render is the oracle for markup; the source diff is the free pre-check
 
 - **The HTML slice is the only instrument that sees nested inline markup — and the shape YOU will
@@ -369,26 +229,12 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   guesses forever, so `no-implementation` is a KIND worth a section (identity · law ·
   canonical-form · notation · superseded path · declared tag). → L-059, L-060, L-065, L-071, L-077,
   L-109
-- **Section-label and equation-label are DIFFERENT namespaces** coexisting under one name with no
-  warning; verify with `grep -c '^\.\. _X:'` / `grep -c ':label: X'`, never a mention count. The
-  WHERE-list under an equation is the tell that the equation drifted from its own prose. → L-024,
-  L-003, L-056
-
----
-
 ## 4. Retirement & staleness: the unit of repair is the THESIS
 
 The three searches, the surfaces a symbol grep cannot reach, marker migration, and what a retirement
 does to the surviving gates — including the DEMOTION of a rewired comparison and the doc re-scoping
 it forces (D.14) — are `retirement-audit` A–G. What follows is what that skill lacks. → L-044
 
-- **The load-bearing half of an ontology overturn has NO dead symbol in it.** Grep the retired
-  symbol to FIND the sites, then read the enclosing ARGUMENT to decide the edit: a five-obstruction
-  proof can rest on a premise that is now false while its CONCLUSION still holds. Re-derive from
-  what survives, keep the conclusion, tombstone the example — the live tree usually hands you the
-  replacement. When the deletion is a COROLLARY of a design unification the SECTION'S THESIS is
-  stale, not the line; the tell is a stale design stated in the present tense as live rationale.
-  → L-063, L-069, L-020, L-013
 - **Sort every surviving mention by TENSE into FIVE registers, one repair each** (`retirement-audit`
   B.19 gives the first two): live guidance ⟹ re-word to the successor, which is a CHOICE you must
   measure · history ⟹ prose stays past tense, only the role is downgraded to a `` ``literal`` `` ·
@@ -410,16 +256,6 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   page as a head-of-block `.. note::` and corroborate by counting both spellings in the same file.
   One register down: a raw FILE PATH in a literal (40 of 100 catalogue-wide dead) — fix the CLASS by
   stating once that which tests catch an ERR is the marker set, never prose. → L-062, L-061, L-111
-- **A stale REASON outlives a stale NAME, and only the name is greppable** — after fixing a retired
-  name, read the sentence that JUSTIFIES it: keep the imperative, replace the *because*, say what
-  changed. A retirement also propagates to BOUNDS, to NEGATIVE claims (`independent of|unaffected
-  by|does not depend on`) and to WORKED EXAMPLES and EXHIBITS, none of which a symbol grep sees.
-  → L-069, L-067, L-054, L-082
-- **Fixing HALF a claim in one file is worse than fixing none.** After repairing a section, grep the
-  WHOLE FILE for every spelling of the retired predicate and adjudicate each by tense: a
-  self-contradicting page is citable for EITHER sentence. A phase-N pass also inherits
-  phase-(N−1)'s falsifications — audit the PARAGRAPH FAMILY, not the commit's diff. → L-056, L-042,
-  L-077
 - **A FIELD or CLASS SPLIT is not a rename: one survivor inherits the retired name's letter, so
   every pre-split sentence is INVERTED, not merely stale** — and every hit resolves, so no gate can
   rank it. The instrument is an AST census of production CONSTRUCTION SITES per package; the output
@@ -432,12 +268,6 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   fix only the sites describing the SHIPPED object, and report the census with its denominator.
   Sweeping 37 pedagogical sites is a numerics adjudication riding inside a docs pass; silence leaves
   37 false sites. → L-077
-- **Before repairing a stale equation, census the corpus for a page that already states it right.**
-  That stops the repair minting a TWIN (keep the equation + an `.. important::` naming the SSOT and
-  which claim THIS page owns) and it tells you whether you are fixing an outlier or inventing a
-  convention. When the corpus states one object N incompatible ways, each internally consistent, a
-  hidden PARAMETER is unnamed — name it ONCE in a table and make every site a pointer. → L-060,
-  L-065
 - **Symbol collisions: inventory every MEANING before renaming, and rename only the meaning with NO
   constituency.** Importing algebra from code imports its collisions — KEEP the code's spelling
   (internal consistency outranks local awkwardness) and pay with a `.. note::` naming each overload
@@ -458,22 +288,9 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   paragraph away is read by nobody who lands on the equation (twice a page already carried the
   right note 2–6 lines below the site and it did not count). Moving it up is a genuine
   improvement, not gate-gaming, and it is why an annotation window is specified in LINES. → L-114
-- **A CAPABILITY FLIP stales DEFERRAL CONTRACTS, and the blast radius is the WHOLE page.** Census
-  with a ±3-line CO-OCCURRENCE window, never a line grep, and publish the PREDICATE, not the count
-  (the co-occurrence count RISES when you succeed, because a correction names what it corrects).
-  Grep every future-tense token (`blocked|not built|not yet|pending|in flight|future seam|lands
-  with`) — a `*(in development)*` hatch WRAPS, so a line-based grep reads 0. The signature defect is
-  a STALE HEADER over an ALREADY-CORRECTED BODY: read ±30 lines and adopt the neighbouring truth's
-  spelling verbatim. It also stales "X is UNTESTABLE" and "X is unreachable", and when the LAST
-  unbuilt X lands, RE-POINT the sentence to the still-unbuilt sibling rather than dropping X.
-  → L-073, L-037, L-075
 - **Discharging a seam edits FOUR surfaces, and the one nobody edits is the section's own CARDINAL
   NUMBER** ("**Three** arms are deliberately not built"). Grep the section for its cardinal and for
   every forward-looking verb, not only for the seam's noun; past-tense the WHY in place. → L-075
-- **A plan-internal STEP LABEL collides like a bare `#N`** — this corpus carries four `R7`s.
-  Disambiguate by CAMPAIGN at every use and name the ones you are NOT (`process-discipline`'s
-  plan-number clause, at corpus scale). → L-104, L-067
-
 ### 4a. The changelog contract
 
 - **Read the page's own preamble before deferring to what N neighbours do — its exception clause
@@ -482,10 +299,6 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   `operator_algebra.rst` carry the `*(in development)*` hatch. Route an unmerged entry to a page
   that permits the hatch and report the blocked row ready-to-paste; never fake a hash. → L-099,
   L-067, L-063, L-057
-- **`git merge-base --is-ancestor` every unstamped row above yours, INCLUDING your own from this
-  morning** — three stale rows in one table, twice. A vanished branch means merged; say whether the
-  hash was written verbatim in a plan (zero risk) or DERIVED from `git log --first-parent`. → L-105,
-  L-106, L-111, L-100
 - **The hatch is a DEBT the merge calls in: on discharge grep the BRANCH NAME across `docs/`
   first**,
   then `in development)\*` corpus-wide — nothing points at those cells, because the dispatch names
@@ -532,13 +345,6 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
   needs fixing, plus now-intra-page `(:doc:sibling)` parentheticals, which lie without warning.
   Labels are PATH-IMMUNE — the real break is consuming prose naming the old page, swept with a
   whitespace-FLATTENED scan. → L-022, L-024, L-026
-- **When the brief says "relocate to X" and X already carries it, the action is DE-DUPLICATION, not
-  relocate+merge** — replace with a `:doc:` pointer, merge nothing, FLAG the inversion. Prefer an
-  additive roadmap + `:ref:` to the SSOT over copying a table; a FOLD is a MOVE. → L-027, L-029
-- **Run a SELF-CONSISTENCY pass on prose YOU authored before the first build** — new prose that
-  DECLARES a rule must obey it; ask of every name *which branch of my stated rule does this take?*
-  Author heads and intros as pure literals so no f-string layer mangles LaTeX braces. → L-054,
-  L-062, L-026
 - **Metadata relocation, not deletion:** strip campaign provenance into the changelog, KEEPING
   invariants, eq-labels, vv-status, gotchas, `#N` refs and numerical data, mapping each item to a
   destination FIRST. An overloaded-symbol sweep re-classifies EVERY survivor in a final grep.
@@ -550,18 +356,11 @@ it forces (D.14) — are `retirement-audit` A–G. What follows is what that ski
 
 One line per event class; the shape itself lives in the archive section named.
 
-- **A NAMING pass adjudicates SENTENCES, never words** — a hub-SHAPED regex cut ~1 100 raw hits to
-  ~135 readable ones. The five keep-classes a blanket replace corrupts: genuinely geometric · a live
-  API literal · a RETIRED TIER'S name (history) · a QUOTATION of an archived plan row · a
-  cross-method tier only half-affected (add a ⚠ instead of renaming). → L-112
 - **A rename ruled on a DOC's own argument owes that doc a tombstone** — keep the ruling word for
   word, re-point its subject, spell the retired name as a literal. → L-112
 - **An ERR entry is earned by a defect of SILENCE, not of ABSENCE** — the discriminator is *can it
   be re-introduced and reddened?* Its best content is the HIDING mechanism (a COUNT gate over an
   inventory pins whatever inventory it was written against, so an omission reads as intentional).
-  → L-110
-- **A TABLE OF DEFERRALS is the highest-rot surface on a theory page** — every row is a prediction:
-  audit it whenever the owning campaign lands anything, close with ✅ + date, never by deleting.
   → L-110
 - **A doc's ARITY is an API.** Before adding a tier to an N-tier table, read the table's own arity
   claim and its guard note, and grep the corpus for the numbering (37 lines cited `Layer-1…4`,
@@ -579,8 +378,6 @@ One line per event class; the shape itself lives in the archive section named.
   five-member operator whose own splitting drops a term. Two more classes the census cannot see:
   a SECTION HEADING naming the count, and a non-rendered machine-facing
   `.. (vv-status rationale)` COMMENT restating the retired member list. → L-114
-- **An "X is arm-asymmetric BY DESIGN" argument that gets dissolved: keep the table, flip the verbs,
-  add the price** — principled equivalence, never bit-identity. → L-110
 - **A LEDGER gaining a field splits across two pages by REGISTER** — theorem and admission grid on
   the point-set page; ledger, SYMBOLS block, per-geometry derivation and worked examples on the
   algorithm page; each cites the other once. → L-091
@@ -623,12 +420,6 @@ One line per event class; the shape itself lives in the archive section named.
   tests verbatim → taxonomy → theorem → the doctrine dialectically (each refutation titled with the
   REFUTING QUESTION, not the verdict) → fences → dev history; and say what the doctrine does to the
   tension it settled. → L-064
-- **A RETRODICTION table needs a STATUS column IN the row** (`plan-authoring`
-  TABLE-ROWS-ARE-CLAIMS, at corpus scale) and a heading naming the real epistemic claim. → L-064
-- **Citing an SSOT: name the REGISTER your page owns** — the same fact in a different register is
-  not
-  a twin. Derive it a third way as UNLABELLED math, cite the SSOT's label, open with *"Edited
-  there, consumed here."* → L-064
 - **A fix that works BY RETIRING a failed-approach family gets a SUCCESS-RESOLUTION chapter, not the
   9-step CLOSED arc** — one supersession banner plus targeted tombstones on bald reversals only;
   flip any prior close-out's "open research path" that landed. → L-013
@@ -644,9 +435,6 @@ One line per event class; the shape itself lives in the archive section named.
   other solver's function AND grep the error catalogue for the term; the catalogue entry is where
   a reversal is recorded. Repair: a `.. note::` keeping the retired sentence verbatim in quotes,
   naming what retired it, and stating the surviving difference. → L-114
-- **Stub → rich narrative reads memo → production docstrings → tests → SymPy, in that order** — the
-  docstrings are the verbatim prose seed, the memo carries the honest interim scope, and on an
-  algebra error you dispatch rather than edit (`algebra-of-record`). → L-005
 - **An ARCHITECTURE pass has no Branch-1 SymPy, and its source ladder is the OTHER one:** rich CODE
   docstrings (module / class / property) → the throwaway instruments in `derivations/diagnostics/`,
   which you READ *and RUN* to confirm every cited number → the commit bodies, which carry the exact
@@ -677,33 +465,11 @@ You write the prose future readers QUOTE about verification status. The level de
 pillars and their evidence boundaries, the anti-patterns and the failure modes are `vv-principles` —
 match it VERBATIM, never paraphrase. → L-010
 
-- **A doc sentence "gates X and Y pin claim C" IS a coverage claim** — the prose analogue of
-  `vv-principles`' marker rule, and a clause of it since 2026-09-21. Justify it by a MUTATION that reddens X and Y, never by topical
-  adjacency, and cite PER FIELD, not per topic. Highest-risk moment is replacing a gate you just
-  demoted: the nearest-sounding sibling inherits neither scope. → L-047
-- **The SAME gate cited for TWO claims can be right once and wrong once** — on "citation of X is
-  false", ask *false for WHICH claim* and grep every occurrence before editing any. → L-047
-- **Never upgrade a `@pytest.mark.foundation` gate to an L-level in prose** to make a section sound
-  better-verified; read the marks and say "software/structural invariant of a discrete construction,
-  not an equation claim". → L-040
-- **Prose that summarises a gate outlives the gate's assertion — open the gate and read its
-  assertions AND its history note.** A docstring containing *"until <phase> this asserted X"* is a
-  gate whose prose summaries elsewhere are presumed stale, and naming which half proves the measure
-  is read at all versus which half is the ruling turns a wrong one-liner into design rationale.
-  → L-102
-- **Write the precise object: the Euclidean transpose `Aᵀ` is not the metric Hilbert adjoint
-  `A† = G⁻¹AᵀG`**, whatever a campaign colloquially calls it. → L-010, L-034
 - **When the WHOLE point is that the obvious reading is WRONG, name the FORBIDDEN SENTENCE** in an
   explicit `.. warning::`, verbatim, with the correct framing beside it. A future session quoting
   the page for V&V reasoning meets the warning before the misreading. It is the page-level
   analogue of `vv-principles`' *"NEVER write 'MMS verifies the eigenvalue'"*, and it beats a hedge
   because it is greppable. → L-114
-- **Skill-uplift duty:** propose the `vv-principles` / `error_catalog` / `algebra-of-record` edit in
-  your return whenever you meet a published-prose anti-pattern or evidence-boundary case the skill
-  does not capture. The skill grows when you feed it back. → L-010
-
----
-
 ## 8. Code-prose rebalance (docstring / comment trimming)
 
 - **Expect ZERO MOVED.** Cardinal Rule 3 means the theory shipped WITH the code, so a concept that
@@ -744,54 +510,11 @@ match it VERBATIM, never paraphrase. → L-010
   entry
   ready-to-paste with both marker lines and the build order, and report the marker as BLOCKING.
   → L-091, L-103
-- **RE-MEASURE the `-E` baseline every session; never quote a recorded number** (it has drifted
-  9 → 1 → 0). Diff the WARNING/ERROR/CRITICAL **set**, not the count. A full `-E` rebuild can exceed
-  the 120 s foreground cap. When the red is the carve's OWN, the gate becomes EXIT=0, stated in §0
-  of
-  the report — "count unchanged" would license shipping 13 errors. → L-027, L-029, L-041, L-094
-- **SEQUENCE the session so you build TWICE:** baseline `-E -W` → *all* edits → *all* residual greps
-  → xref gate → AST doc-only proof → ONE verification build. Every extra build is bought by an edit
-  made after launching, so the self-consistency pass (universals, quotations, denominators,
-  superlatives, symbol collisions, aspirational rows) runs to EXHAUSTION *before* the first
-  verification build. Re-broken to four builds, then to five. → L-054, L-064, L-081 · now AGENT.md
-  checklist item 0 (2026-09-21)
 - **ONE re-runnable python self-check beats the build for structure, at ~2 s:** short-underline
   detection, ladder-order, per-table column consistency, `:widths:` sums, label/anchor uniqueness by
   exact-line compare, role import-resolution, and `:eq:`/`:ref:`/`:doc:` resolution against the
   whole
   corpus. It caught every structural defect on a 1 158-line new page before any build ran. → L-064
-- **A LENGTH-CHANGING rename breaks section underlines — scan, don't wait for the build**
-  (`retirement-audit` F.23): code points, underline at col 0, single repeated marker; fix with the
-  FILE's own marker char and assert it. Title markers are file-local, so prefer COPYING a proven
-  underline to re-counting code points. ⚠ Only a **too-SHORT** underline warns — an over-long one
-  is silent (`[M]` 2026-09-21, both in one build), so the scan has one direction that matters and
-  normalising an over-run is cosmetic: scope it to YOUR lines, never "fix" a pre-existing one.
-  ⛔⛔ And marker levels are assigned by **FIRST-APPEARANCE ORDER**, so introducing a marker the
-  file has never used EARLIER than an existing same-depth marker DEMOTES the existing one (a new
-  `"""` at line 3267 pushed the file's `'''` at 5865 from level 5 to 7) — and the resulting
-  `Inconsistent title style: skip from level 5 to 7` ERROR **points at the OLD section, not at
-  your edit**. Before adding a depth the file has never used, grep it for an existing marker at
-  that depth and REUSE it; reusing prophylactically works first try. → L-114, L-112, L-009, L-035
-- **Validate your OWN parser against a known-good member before believing its negatives**, and
-  record
-  this corpus's three standing self-check false positives — a `.. code-block:: rst` example carrying
-  a duplicate eq-label, a legal EMPTY list-table cell (`^     -(\s|$)`), and a RELATIVE `:doc:`
-  docname — or every run re-litigates them. ⛔⛔ **The MIRROR is the costlier half: reproduce a
-  POSITIVE against the real builder before publishing or acting on it.** A permissive-shim
-  docutils parse is a genuine structural instrument (it catches `Unexpected indentation` and
-  `Bullet list ends without a blank line` that no hand-rolled check sees) but it FABRICATES markup
-  findings for every directive the shim replaced with a nested-parsing stub: `[M]` 2026-09-21, the
-  standing claim that a `list-table` cell's continuation line beginning `-` "is a bullet and
-  silently eats the role" does NOT reproduce under Sphinx — breaking a `:math:` before the operator
-  renders identically to breaking it after, no warning, no `<ul>`. The only shape that does break
-  is a continuation indented back to the CELL-MARKER column, and that is LOUD
-  (`ERROR: … uniform two-level bullet list expected … (3 vs 2)`). A shim finding is a LEAD.
-  → L-114, L-081, L-089
-- **⛔⛔ An UNQUOTED heredoc runs COMMAND SUBSTITUTION on every backtick pair inside it** — a
-  `code-search` check since 2026-09-21 (a quoted heredoc to a FILE, paths by env var, `chr(96)`, a
-  witness assert per pattern). The founding case: four markup patterns collapsed to "match any
-  bold", 120 hits on clean prose; the same collapse the other way prints a clean 0. → L-102, L-061,
-  L-030.
 - **Measure a gate baseline from `git archive HEAD` into a temp tree** for a true before/after on a
   dirty working tree — and read its traceback before counting its warnings: untracked DATA files are
   absent from the archive, so the pristine tree can carry artefacts the live tree does not. `rm -rf`
@@ -806,11 +529,6 @@ match it VERBATIM, never paraphrase. → L-010
 - **Self-check the V&V scan directly, not via the full audit** — `_scan_theory_equations` runs in
   <1 s, avoids pytest collection, and does not trip on a sibling batch's in-progress sentinels.
   → L-035, L-063, L-069
-- **Citations: `grep '^\.\. \[Key\]'` before citing or defining** — resolve cross-doc, never
-  redefine, match the page's plain-text convention, and verify the pre-existing duplicate-citation
-  count is unchanged rather than zero. → L-006, L-025
-- **An agreement `[M]` handed to you is a LADDER unless proven flat** — measure it, publish it, name
-  the gate's tolerance, and say a finer row must widen it. → L-054
 - **Widening someone else's issue: re-run THEIR instrument, not yours** — their number plus your
   wider denominator plus the exclusions retitles the issue; a fresh regex forks the count. → L-068
 
