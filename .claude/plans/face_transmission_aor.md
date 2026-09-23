@@ -37,7 +37,7 @@ Opened 2026-09-23. Status: ruled in outline, not started. The ontology of the LD
 ## Open questions, for the discussion at resume
 
 1. **LD's face map is not d x d.** A bilinear cell's face carries 2^(d-1) moments (its average and its transverse slopes), so the octant map acts on `d * 2^(d-1)` face moments, not d face averages. What is the right object to compare across closures: the full face-moment map; its restriction to face averages (which needs a closure of the transverse moments); or its spectrum on the zero-average subspace that carries diamond's sawtooth? `[HYPOTHESIS]` The comparative question the page needs answered is "does closure X carry an undamped mode at zero leakage?", which is a statement about the spectral radius and the unit-modulus eigenvalues of each map.
-2. **Step is not a production closure.** Is it a control in the derivation only (as today), or a reason to build it? `[R]` Control only, unless the user rules otherwise.
+2. **Step's algebra of record: RULED** (the user, 2026-09-23, verbatim): *"Step is not *currently* a differenciation scheme, but implementing its algebra of record is a good way to start."* So step is a first-class member of the comparison, with its own algebra of record, and not only a control. Building it as a production closure is not ruled; its algebra of record is the start.
 3. **The production-extraction leg:**
    - which operator surface exposes the single-cell, single-octant inflow-to-outflow map (the sweep through `StreamingCollisionOperator.solve` on a one-cell all-reflective mesh, or the boundary operator `B` restricted to one octant);
    - whether LD's map can be extracted the same way;
@@ -46,4 +46,4 @@ Opened 2026-09-23. Status: ruled in outline, not started. The ontology of the LD
 
 ## ⏸ COMPACTION POINT — 2026-09-23
 
-Resume here. Nothing is started. First, read this file and the `algebra-of-record` skill, then `derivations/sn_dd_face_transmission.py`, then `orpheus/derivations/discrete/sn/sweep_acyclicity.py` with its test, as the pattern. Bring questions 1 to 4 to the user before any code: this is ontology search, and the LD comparison's object is not yet named.
+Resume here. Nothing is started. First, read this file and the `algebra-of-record` skill, then `derivations/sn_dd_face_transmission.py`, then `orpheus/derivations/discrete/sn/sweep_acyclicity.py` with its test, as the pattern. Bring questions 1, 3 and 4 to the user before any code (2 is ruled): this is ontology search, and the LD comparison's object is not yet named.
