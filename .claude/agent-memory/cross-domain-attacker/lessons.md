@@ -22,7 +22,7 @@ payoff degrades the table's signal and is rejected output.
 
 ---
 
-## Part 1 — Meta-lessons. Fire these before any trigger lookup.
+## Part 1 — Meta-lesson M1 (M2, M3, M4 retired 2026-09-22 into the definition's standing bars). Fire these before any trigger lookup.
 
 ### M1 — Measure the brief's PREMISE before reaching for a frame
 
@@ -33,33 +33,8 @@ membership counts are an AST pass, never a line grep (`instrument-doctrine`).
 The general form is `process-discipline` "Measure a brief's premise" since
 2026-09-21; the instruments below are this agent's.
 
-1. **"Should we add a Factory / Manager / Builder / dispatcher?"** — three counts,
-   all greps, before any frame. (a) the runtime BRANCHES it would collapse: zero
-   means the factory manufactures the discrimination and then names itself the
-   fix, running illegal-states-unrepresentable backwards. (b) the FIBER of
-   `Op → Space` with the factory as a section: enumerate it; non-singleton ⇒ no
-   section exists ⇒ the key needs a second coordinate (usually a ROLE), and that
-   missing key is the finding, not the factory's size. (c) who CONSUMES the thing
-   the justification names. Strongest counter-evidence to a co-sourcing factory:
-   an existing satellite `cached_property`, which co-sources by CONSTRUCTION
-   where a factory co-sources by CONVENTION. → L-022
-2. **"Split X into A and B."** The boundary almost never runs where the brief
-   names it: find the third object where the halves are FUSED and sort every
-   attribute its `__init__` sets. The count sizes the carve, exposes the types
-   the campaign owes beyond the two named, and converts a design argument into a
-   checklist. Two one-grep riders: which side has usable IDENTITY (M1.8, and the
-   INVERTED case is sighted — everything the hub induces has structural `__eq__`
-   and the hub has none, so derive the container's `__eq__` from its induced
-   objects); and whether the proposed A-side is MUTATED by the B-side today
-   (`<b_object>\.<a_object>\._`, `setattr`) — a save-state charter is refuted by
-   any such site, and freezing is the cheapest ENFORCEMENT, never the requirement,
-   which is only that solving does not mutate. → L-023(a), L-023(c)
-3. **A chartered discriminating RULE is a hypothesis about the tree** — run it
-   over the shipped straddlers and count the INVERSIONS before proposing
-   anything. A rule phrased on *what the code constructs* inverts on every object
-   manufactured without the mathematics moving. Report the row YOU got wrong by
-   following the rule literally: a rule that walks a careful reader into the wrong
-   answer is a finding about the rule. → L-023(b)
+Items 1, 2, 3, 5, 6 and 10 retired 2026-09-22: the definition's step 0 and the path-scoped `plan-authoring` carry them. The instruments kept below are this agent's own.
+
 4. **"Which of these N families needs X?"** N independent arguments is N chances
    to be plausibly wrong. Find the GENERAL-CASE derivation first (grep the
    literature folder for "general geometry" / "arbitrary" / "general
@@ -74,23 +49,6 @@ The general form is `process-discipline` "Measure a brief's premise" since
    a continuum limit as a function of the coordinate? ⟹ it IS a chart object).
    Two opposed tests is what makes it a verdict rather than a preference; neither
    alone suffices. → L-021(a), L-021(c)
-5. **"Derive / induce / auto-convert X into Y."** Name Y's space and its
-   reference measure, then look up the OPTIMALITY theorem there (Gauss for
-   polynomial exactness on an interval, Chebyshev for uniform approximation,
-   Kolmogorov widths, Cramér–Rao). If one exists it bounds every possible
-   reduction, so the design's whole image is "the optimum" or "worse than the
-   optimum" — a refutation needing no code. State the METRIC the domination holds
-   in, and chase the equality condition: the alignment case is where the real bug
-   lives. → L-017
-6. **"Map what is missing in the machinery."** Read the neighbourhood predicates'
-   BODIES before enumerating new types. An `is_*` / `check_*` / `verify_*` /
-   `*_closure` that builds a permutation, matching, partition or certificate and
-   returns `bool` is the missing primitive, one `return` away — and the
-   downstream re-implementations are the confirmation. Second shape: the
-   predicate is complete and correct but wired to the ADVISORY path only, so sort
-   its callers into advisory vs CONSTRUCTIVE — zero constructive callers means
-   the gate is a suggestion and the fix is a call site, not machinery. → L-013
-   · → now Smell #17 in `cross-domain-frames` Part C (2026-09-22)
 7. **"The gate accepts/rejects everything — pick a new formulation."** Tabulate
    `(argument, kind it has, kind the relation needs)` first. A
    cardinality/topology mismatch is never repaired by re-shaping the relation: a
@@ -115,84 +73,6 @@ The general form is `process-discipline` "Measure a brief's premise" since
    against the tree (a unification that ABSORBS a shipped object deletes content;
    one that only adds cells is speculation), and find the admissibility guard that
    already exists before minting one. → L-024(a)
-10. **Before recommending any new object's NAME or primitive, grep the PROSE
-    corpus** (plans, agent memories, issues) for the name **and its VERB**. The
-    payoff is bigger than "the name is taken": a charter may already have ruled
-    the object's REALIZATION, and a wanted primitive often already exists in
-    MUTATING form on the wrong type — which is the strongest possible argument
-    for a carve, and is found by grepping the verb, not the noun. Companion
-    algebra check: a one-parameter operator family whose parameter multiplies a
-    DIAGONAL is a coefficient family, not a new summand. → L-024(b), L-012 ·
-    `plan-authoring` NAME-CARRIES-A-VERB since 2026-09-21
-
-### M2 — Every claim is tested by the object that VIOLATES it
-
-`AGENT.md` carries this bar for first TESTS ("a first test that cannot fail is
-rejected output"). These are the other claim shapes it does not cover:
-
-- **A chartered `⟺` / "iff" / "holds exactly when" is the highest-value thing to
-  re-derive.** An equivalence reads as self-checking and fails in one repeatable
-  way: the RIGHT hypothesis attached to the WRONG law, so `⟸` is true but VACUOUS
-  under the shipped convention, `⟹` is FALSE, and the only witness the campaign
-  ships satisfies both — the gate cannot red either way. Procedure, no code
-  needed: derive the necessary-and-sufficient condition for the stated property
-  yourself, check the two directions SEPARATELY, then ask what the named
-  hypothesis IS n&s for. It is almost always n&s for an adjacent law, and naming
-  that law is the deliverable, because it is usually the one certifying the
-  design's headline claim. Two riders: ask which SPELLING of each face the
-  construction uses (an equivalence over an undeclared convention is not yet a
-  claim), and a normalisation constant the design guards usually CANCELS in the
-  law it is guarding — a value contract must not be read as a law hypothesis.
-  → L-018 · `plan-authoring` GATE-IS-SPELLABLE since 2026-09-21
-- **Before re-deriving, check both sides are SPELLABLE.** Take every symbol on a
-  chartered law's RHS and check it against the datum's method list. One grep,
-  runs before you understand the math, and the payoff is usually good news: the
-  missing morphisms are one-liners. They also carry design forks nobody has
-  reached (the adjoint of an emission kernel violates the simplex invariant the
-  datum's own `__post_init__` enforces). → L-018 sub-shape
-- **A NAME is a claim, so test the invariant it promises against the object that
-  VIOLATES it.** A genus of decomposability ⟹ assert `A(m⊙x) == m⊙A(x)` for a
-  CELL-VARYING mask (a constant mask cannot fail), where the family passes and
-  streaming fails. Check the data cannot pass by accident — a diagonal-only `Σ_s`
-  satisfies a multiplier gate, and a design that reads the species off the data's
-  accidental diagonality is the bug. A name that cannot carry its own invariant
-  OWES a test that does. → L-012
-- **A TYPE claim's discriminator is negative.** A phantom-parameter design that
-  "passes" by branching on a stored tag at runtime is bypassed by
-  `replace(f, role=Other)`, which type-checks — that bypass test is the RED.
-  → L-004
-
-### M3 — A refutation records the QUESTION it was refuted FOR; the fact outlives the lever
-
-`AGENT.md` and `process-discipline` ("a refuted candidate is first-class output")
-require the structural REASON. The sharpening they do not carry: the same frame
-can be decisive on a DIFFERENT question, and a permanent "⛔ no lever" banner
-suppresses the best available answer. Worked: the symplectic / momentum-map frame
-is correctly refuted for a DESIGN question ("does it buy a better scheme?" — no,
-the chart that conserves `p` by construction IS MoC) and is the load-bearing
-answer to a CLASSIFICATION question (a method using `p` as a COORDINATE generates
-no redistribution term; one using `(r,x)` must carry the connection). Write
-**"refuted FOR <question>; the FACT it establishes is <fact>"**, and when a
-memory or plan hands you a ⛔ banner, check which question earned it before
-carrying it forward. → L-001 ⭐, L-021(b) · now in `AGENT.md` and `process-discipline`
-(2026-09-21)
-
-### M4 — The true deliverable is usually SMALLER than the proposal and somewhere else — say so plainly
-
-Recurring across every M1 instrument: the proposal asks for machinery and the
-measurement collapses it to a call site, a widened return type, a verb on an
-existing type, a gate plus a refusal message, or a diagnostic/oracle. Report the
-collapse plainly — it is good news for the requester — and report what SURVIVES:
-the steelman at a smaller scale (currying tells you where: the partial
-application with a REUSED operand), the half of a wrong analogy whose diagnosis
-holds, the row you got wrong. Two riders: shipped machinery with **zero
-production callers** relocates the whole brief to the consumer side (the
-productive question stops being "how do we produce it" and becomes "why does
-nothing call it"); and a stale-owner docstring spotted while measuring is a free
-finding worth reporting. → L-013, L-017, L-022, L-023
-
----
-
 ## Part 2 — Standing detection rules (not instances of Part 1)
 
 **D1 — Property-vs-TYPE is decidable, not a taste call.** A representation earns

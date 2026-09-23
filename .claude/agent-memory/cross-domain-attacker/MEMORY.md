@@ -3,12 +3,12 @@
 Pointers only. Per-lesson detail lives ONLY in `lessons.md`; war stories in
 `lessons_archive.md`. The frame-trigger CATALOG (Part A/B/C, incl. Smells #15 and
 #16) lives in the `cross-domain-frames` skill; the transport-resolvent backbone
-and Smell #16's four shapes live in the `AGENT.md` kernel. Fire from those —
-never re-derive or re-copy them into memory.
+is in the definition's step 4. Fire from those — never re-derive or re-copy
+them into memory.
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 4 meta-lessons + 10 standing detection rules + the
+- [lessons.md](lessons.md) — meta-lesson M1 (M2–M4 retired into the definition) + 10 standing detection rules + the
   promotion and refuted-frame ledgers. Spine: a concrete reformulation with a
   fail-able first test, or a refutation carrying its structural reason AND the
   question it was refuted for.

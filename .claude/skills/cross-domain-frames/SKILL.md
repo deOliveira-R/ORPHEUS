@@ -87,6 +87,8 @@ Validated matches (confirmed in ORPHEUS work):
   — Boundary conditions as a tensor network; avoids dense matrix
 - [scripts/validated_unified_geometry.md](scripts/validated_unified_geometry.md)
   — Slab / annulus / hollow sphere as one parameterized kernel
+- [scripts/validated_hilbert_schmidt_separable.md](scripts/validated_hilbert_schmidt_separable.md)
+  — a separable (Hilbert–Schmidt) kernel expansion, validated 2026-04-30
 
 Candidate matches (high-prior, not yet validated in ORPHEUS):
 
@@ -151,13 +153,19 @@ the gap explicitly rather than padding.
 The skill is not static. Each invocation should grow or sharpen
 the library.
 
+The cross-domain-attacker proposes; the orchestrator writes. The agent's
+write scope is `scratch/`, the temporary directory and its own memory (a
+hook enforces it), so every step below is a proposal in its return, applied
+by the orchestrator, and a proposal is made at the match's SECOND independent
+sighting in a different problem class; one sighting stays in the agent's
+memory.
+
 **When a frame-problem match produces concrete reformulation payoff:**
 
-1. Create a new file in `scripts/validated_<name>.md` using
-   the template
-2. If the trigger that fired is new, add it to the relevant
+1. Propose a new `scripts/validated_<name>.md` in the template's shape
+2. If the trigger that fired is new, propose its row for the relevant
    subsection of reference.md Part A
-3. If the problem class is new, add it to reference.md Part B
+3. If the problem class is new, propose its entry for reference.md Part B
 
 **When a frame-problem match is speculated but produces no
 concrete payoff:**
@@ -169,7 +177,7 @@ concrete payoff:**
 
 **When an elegance smell is discovered that is not in Part C:**
 
-1. Add it to Part C with a specific example that shows the
+1. Propose it for Part C with a specific example that shows the
    smell pointing to a real reformulation
 2. Cross-link from the reformulation precedent in scripts/
 
