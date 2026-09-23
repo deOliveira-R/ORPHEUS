@@ -124,7 +124,7 @@ To make Galerkin work, we'd need:
 
 None of these is a quick fix.
 
-## Files shipped (all in `derivations/diagnostics/`)
+## Files shipped (all in `derivations/diagnostics/`) [5 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 1. **`diag_phase5_round3_galerkin_double_integration.py`** — initial
    Galerkin v1 attempt with plain GL on µ ∈ [0, 1] (BROKEN — missed

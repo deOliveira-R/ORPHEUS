@@ -11,7 +11,7 @@ type: project
 The L19-compliant protocol helper (`assert_rank_n_structural_win`) and the
 per-point F.4 sign-stability scanner both ship in:
 
-- `derivations/diagnostics/diag_f4_structural_floor_baseline.py`
+- `scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py` (moved there at `f36572c8`, OPEN on #123; it now calls `solve_peierls_1g(..., boundary="white_f4")`)
 - `tests/cp/test_peierls_rank_n_protocol.py` (14 unit tests of helper + 12
   parametrized F.4 baseline tests; 8 of the 14 unit tests are fast, the
   12 baseline tests are all `@pytest.mark.slow`)
@@ -97,7 +97,7 @@ either be run on faster hardware or use a >= 180 s/run budget.
 
 ## Files shipped
 
-- `derivations/diagnostics/diag_f4_structural_floor_baseline.py` — scanner
+- `scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py` — scanner (moved at `f36572c8`, OPEN on #123)
 - `tests/cp/test_peierls_rank_n_protocol.py` — helper + unit tests + pin
 - This memo: `.claude/agent-memory/numerics-investigator/direction_n_quadrature_baseline.md`
 

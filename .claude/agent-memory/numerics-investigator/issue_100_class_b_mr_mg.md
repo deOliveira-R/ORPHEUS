@@ -18,7 +18,7 @@ solver gives:
 - rank-2: 1.483 (-1.10 %) ← essentially correct
 - rank-3..8: 1.533..1.538 (+2.4 %)
 
-**Diagnosis** (Probe-cascade B, C, D, E, F, G, H — `derivations/diagnostics/diag_class_b_rank_n_probe_*.py`):
+**Diagnosis** (Probe-cascade B, C, D, E, F, G, H — `derivations/diagnostics/diag_class_b_rank_n_probe_*.py`, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; the tables they printed are pinned by `tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`):
 
 1. Probe B (vacuum BC, K_vol alone): 2R routing-invariance gap is ~2e-4 (Issue #114-style ρ-quad noise). K_vol is fine.
 2. Probe C (homogeneous σ_t=1 with radii=[0.5,1] vs radii=[1]): rank-2 differs by ~1e-3. Pure routing OK.

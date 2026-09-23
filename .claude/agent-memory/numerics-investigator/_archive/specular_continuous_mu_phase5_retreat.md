@@ -79,7 +79,7 @@ The Phase 4 docstring reference to "Phase 5 — proper fix" is **withdrawn**. Th
 - Sphinx: `docs/theory/peierls_nystrom.rst` §peierls-phase5-retreat (this same content in user-facing form)
 - Code: `orpheus/derivations/peierls_geometry.py` — dispatch raises NotImplementedError with retreat message; reference impl preserved
 - SymPy: `derivations/peierls_specular_continuous_mu.py` (4/4 PASS — math is right, discretisation is fundamentally not Nyström-compatible)
-- Diagnostic record: 14 diagnostics in `derivations/diagnostics/diag_phase5_*.py`
+- Diagnostic record: 14 diagnostics in `derivations/diagnostics/diag_phase5_*.py` [25 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 ### GitHub
 

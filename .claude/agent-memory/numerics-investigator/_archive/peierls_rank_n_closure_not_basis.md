@@ -77,7 +77,7 @@ leaving quadrature nodes inside the cavity for hollow cells. Fixed at
 Without the fix, hollow sphere rank-2 residual was 1.5 % (quadrature
 error). With the fix it's back to 0.08 %.
 
-## Diagnostics committed
+## Diagnostics committed (both retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`)
 
 - `derivations/diagnostics/diag_rank_n_15_N1_reduction_model_split.py`
   — Three tests: F.4 regression gate (<0.1 %), Model-A-both documented

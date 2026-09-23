@@ -71,7 +71,7 @@ matching the operator-algebra contract.
 
 ## Confirming evidence
 
-`derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py`
+`derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py` [gone: `git show 2355ad9b^:derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py`]
 (10 tests, all PASS post-fix):
 
 * `test_invertible_solve_slab_uniform_roundtrip` — slab
@@ -131,7 +131,7 @@ first place they interacted at the per-ordinate-source level.
 * `orpheus/sn/scattering.py:~798-799` (docstring noting "the sweep's
   ``1/W`` factor is not applied here — the caller, ``transport_sweep``,
   applies it")
-* `derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py`
+* `derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py` [gone: `git show 2355ad9b^:derivations/diagnostics/diag_r1_step_e_invertible_solve_w_bridge.py`]
   (pinning test — 10 cases)
 
 ## Recommendation for promotion

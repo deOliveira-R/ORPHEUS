@@ -26,7 +26,7 @@ moment ratio `H(1)^{-1} · (∫H dμ)/(∫H μ dμ)`. Verdict: **FALSIFIED**.
 
 ### Step 1 — H-function solver validated
 
-`derivations/diagnostics/diag_chandrasekhar_h.py`, multiplicative
+`derivations/diagnostics/diag_chandrasekhar_h.py`, multiplicative [not preserved (never tracked)]
 fixed-point iteration, c=1 at 128-point Gauss-Legendre with 10000
 iterations (wall ~ 3 s, res 1e-7).
 
@@ -135,7 +135,7 @@ experiments.
 
 ## Artifacts
 
-- `derivations/diagnostics/diag_chandrasekhar_h.py` — H-solver,
+- `derivations/diagnostics/diag_chandrasekhar_h.py` — H-solver, [not preserved (never tracked)]
   tabulated validation, Frame 1 headline test at multiple c values.
 - Two pytest functions shipping with the diagnostic:
   - `test_h_at_c1_case_zweifel_table` — H(μ) matches Table 4-1

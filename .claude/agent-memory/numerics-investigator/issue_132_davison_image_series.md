@@ -38,10 +38,10 @@ For multi-region σ_t, image points lie OUTSIDE the physical sphere where σ_t i
 
 ## Diagnostic scripts (committed)
 
-- `derivations/diagnostics/diag_sphere_davison_image_01_derivation.py` — SymPy image positions/signs, structural breakdown explanation
-- `derivations/diagnostics/diag_sphere_davison_image_02_numerical_truncation.py` — naive trapezoidal (quadrature artifact, not promotable)
-- `derivations/diagnostics/diag_sphere_davison_image_03_proper_quadrature.py` — adaptive quad, sanity gate PASSES, eigenvalue test FALSIFIED
-- `derivations/diagnostics/diag_sphere_davison_image_04_multiregion.py` — MR structural barrier explanation
+- `derivations/diagnostics/diag_sphere_davison_image_01_derivation.py` — SymPy image positions/signs, structural breakdown explanation [gone: `git show 15486f66^:derivations/diagnostics/diag_sphere_davison_image_01_derivation.py`]
+- `derivations/diagnostics/diag_sphere_davison_image_02_numerical_truncation.py` — naive trapezoidal (quadrature artifact, not promotable) [gone: `git show 15486f66^:derivations/diagnostics/diag_sphere_davison_image_02_numerical_truncation.py`]
+- `derivations/diagnostics/diag_sphere_davison_image_03_proper_quadrature.py` — adaptive quad, sanity gate PASSES, eigenvalue test FALSIFIED [gone: `git show 15486f66^:derivations/diagnostics/diag_sphere_davison_image_03_proper_quadrature.py`]
+- `derivations/diagnostics/diag_sphere_davison_image_04_multiregion.py` — MR structural barrier explanation [gone: `git show 15486f66^:derivations/diagnostics/diag_sphere_davison_image_04_multiregion.py`]
 
 ## Promotion recommendation
 

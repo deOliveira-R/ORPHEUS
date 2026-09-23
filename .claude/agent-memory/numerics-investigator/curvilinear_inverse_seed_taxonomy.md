@@ -60,7 +60,7 @@ Ruling (2026-07-05, read-only feasibility): **FEASIBLE (clean pure-diagonal fold
   (μ_r≈0, is_degenerate=[2,6,10,…]) sit MID-level DOWNSTREAM of m0 (m0 = most-negative μ_x,
   never degenerate) → they inherit the correct M-M thread once m0 is folded; no special
   handling. τ-clamp #229 is NOT an obstruction (it DEFINES κ via (1−τ)/τ=1; triu=0 stands).
-- Diagnostics: `derivations/diagnostics/diag_280_cyl_product_seed_lag.py` (characterization
+- Diagnostics: `derivations/diagnostics/diag_280_cyl_product_seed_lag.py` (characterization [gone: `git show ba202a1e^:derivations/diagnostics/diag_280_cyl_product_seed_lag.py`]
   + strict-xfail TARGET gate) + `diag_280_cyl_fold_feasibility.py` (structural proofs +
   POC). Promote both to `tests/sn/sweep/` (the feasibility proofs are permanent
   routing/triangularity gates; the xfail flips green when the fold lands).
@@ -115,12 +115,13 @@ curvilinear GMRES ships the **IDENTITY** precond (`_within_group_krylov` solver.
 "cold-seed sweep destabilises curvilinear precond" per `test_krylov_curvilinear_precond_
 safety.py`), with #200 tracking the real one.
 
-## Diagnostics (tmp — promote candidates)
-`/Users/rodrigo/.claude/jobs/84fd66f8/tmp/diag_curvilinear_seed_sensitivity.py` (slab/cyl
-seed-independence + machine residual = regression gate; sphere seed-dep = xfail-until-#200)
-· `diag_sphere_fixedpoint_consistency.py` (fixed point is CORRECT). Natural home
-`tests/sn/operators/` beside `test_removal_form_matvec_sweep.py` (whose `_ROUNDTRIP_CASES`
-already EXCLUDES sphere for this exact reason, lines 337–346).
+## Diagnostics (promoted; the scripts are retired)
+`diag_curvilinear_seed_sensitivity.py` (slab/cyl seed-independence + machine residual) and
+`diag_sphere_fixedpoint_consistency.py` (fixed point is CORRECT) were promoted into
+`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py` (`test_ci_cold_residual_is_machine_zero`,
+`test_cii_sphere_solve_is_seed_insensitive_bitwise`, `test_cii_probe6_cold_solve_recovers_preimage`,
+`test_ciii_coarse_sphere_fixed_source_finite_positive`) once #282 route (a) killed the seed lag; the
+tracked copies under `derivations/diagnostics/` were retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
 
 ## Falsifier recipes (#226 plan §16 — re-run 2026-07-01, all CONFIRMED)
 - **F3 round-trip discriminator** (`falsifier_f3.py`): `inv.apply(A.apply(x))==x` cleanly

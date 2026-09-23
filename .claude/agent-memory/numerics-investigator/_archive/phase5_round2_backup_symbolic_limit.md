@@ -172,7 +172,7 @@ r-dependence reintroduces the singularity in a DIFFERENT location
 
 ## Files shipped
 
-- `derivations/diagnostics/diag_phase5_round2_backup_symbolic_limit.py`
+- `derivations/diagnostics/diag_phase5_round2_backup_symbolic_limit.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_round2_backup_symbolic_limit.py`]
   — 8 self-contained pytest tests, all PASS:
   1. `test_mu_T_limit_bounded_at_zero` — V1 reproof + corrected (1/2)µT limit
   2. `test_TR_is_matrix_rep_of_M_phi` — (TR)M = M(RT) at N=1,2,3

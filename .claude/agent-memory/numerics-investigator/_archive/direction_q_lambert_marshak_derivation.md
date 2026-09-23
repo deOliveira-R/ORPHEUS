@@ -23,7 +23,7 @@ rank-N Lambert-P/G generalisation gave 33–737 % error.
 
 ## Key symbolic facts established
 
-Running `python derivations/diagnostics/diag_lambert_marshak_symbolic.py`:
+Running `python derivations/diagnostics/diag_lambert_marshak_symbolic.py`: [not preserved (never tracked)]
 
 ### Solid sphere, rank-1, mode-0 primitives (SymPy closed form):
 
@@ -136,7 +136,7 @@ gauge DOF is empty at modes ≥ 1.
 
 ## Files produced this session
 
-- `/workspaces/ORPHEUS/derivations/diagnostics/diag_lambert_marshak_symbolic.py`
+- `/workspaces/ORPHEUS/derivations/diagnostics/diag_lambert_marshak_symbolic.py` [not preserved (never tracked)]
   — 600-line self-contained SymPy + mpmath derivation.  Run time
   ~1 min.  Prints closed forms for P_L(0), P_M(0), P_L(R), P_M(R);
   pointwise and trace-level ratios at 6 test points; the Laplace

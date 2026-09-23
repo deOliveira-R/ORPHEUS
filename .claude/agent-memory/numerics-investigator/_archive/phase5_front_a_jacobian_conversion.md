@@ -6,7 +6,7 @@ type: project
 
 # Phase 5+ Front A — Jacobian conversion FALSIFIED
 
-Diagnostic shipped at `derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py`.
+Diagnostic shipped at `derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py`. [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py`]
 
 ## Verdict
 
@@ -116,7 +116,7 @@ If users are satisfied with `closure="specular_multibounce"` at N ∈ {1,2,3} (s
 
 ## Files
 
-- Diagnostic: `/workspaces/ORPHEUS/derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py` (3 parametrised tests, all PASS as informational — no assertions because the conclusion was empirical exploration)
+- Diagnostic: `/workspaces/ORPHEUS/derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py` (3 parametrised tests, all PASS as informational — no assertions because the conclusion was empirical exploration) [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_jacobian_a01_rank1_crosscheck.py`]
 - Reference impl: `/workspaces/ORPHEUS/orpheus/derivations/peierls_geometry.py:2440` (`compute_K_bc_specular_continuous_mu_sphere`)
 - SymPy verification: `/workspaces/ORPHEUS/derivations/peierls_specular_continuous_mu.py` V4 (1/µ² singularity)
 - Phase 5a closeout: `/workspaces/ORPHEUS/.claude/agent-memory/numerics-investigator/specular_continuous_mu_phase5a_closeout.md`

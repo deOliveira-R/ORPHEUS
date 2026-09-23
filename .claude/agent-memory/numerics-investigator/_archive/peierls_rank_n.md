@@ -42,7 +42,7 @@ For the rank-N closure K_bc = Σ_n α_n · Σ_t · g_n(r_i) · P_esc^{(n)}(r_j) 
 
 ## Scripts
 
-All diagnostic scripts in `derivations/diagnostics/diag_rank_n_*.py`:
+All diagnostic scripts in `derivations/diagnostics/diag_rank_n_*.py`: [16 files gone: `git show 15486f66^:derivations/diagnostics/<name>`; 6 files gone: `git show f36572c8^:scratch/derivations/diagnostics/<name>`]
 - 01: observer vs surface-centered G_bc comparison (confirms sphere reciprocity)
 - 02: G_bc^{(n)} = 4·P_esc^{(n)} identity for sphere
 - 03: sphere ladders with original, no-(2n+1), and 4·P-substitution variants

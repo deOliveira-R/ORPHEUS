@@ -229,16 +229,16 @@ singularity; M2 does.
 
 ## Files shipped
 
-- `derivations/diagnostics/diag_phase5_native_c01_orpheus_form.py` —
+- `derivations/diagnostics/diag_phase5_native_c01_orpheus_form.py` — [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_native_c01_orpheus_form.py`]
   µ-resolved F_out, G_in primitives + 5 probes A-E
-- `derivations/diagnostics/diag_phase5_native_c02_kbc_magnitudes.py` —
+- `derivations/diagnostics/diag_phase5_native_c02_kbc_magnitudes.py` — [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_native_c02_kbc_magnitudes.py`]
   Sanchez vs Hebert magnitude comparison
-- `derivations/diagnostics/diag_phase5_native_c03_consistency.py` —
+- `derivations/diagnostics/diag_phase5_native_c03_consistency.py` — [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_native_c03_consistency.py`]
   F_out / G_in projection against P̃_n recovers Phase 4 P_esc_mode /
   G_bc_mode (within Q=128 quadrature noise)
-- `derivations/diagnostics/diag_phase5_native_c04_jacobian_audit.py` —
+- `derivations/diagnostics/diag_phase5_native_c04_jacobian_audit.py` — [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_native_c04_jacobian_audit.py`]
   finds K_esc=e^{-τ} bug; Phase 4 ω-integral matches u-integral
-- `derivations/diagnostics/diag_phase5_native_c05_sigma_scalar.py` —
+- `derivations/diagnostics/diag_phase5_native_c05_sigma_scalar.py` — [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_native_c05_sigma_scalar.py`]
   Sanchez Q-convergence (off-diagonal converges, diagonal diverges
   linearly with Q); Sanchez↔ORPHEUS scalar conversion fails
 

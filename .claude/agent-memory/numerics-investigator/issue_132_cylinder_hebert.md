@@ -56,8 +56,8 @@ power iteration.
 1. **P_ss^cyl derivation (this work) is ready to ship** as a
    `compute_P_ss_cylinder` primitive in peierls_geometry.py paralleling
    `compute_P_ss_sphere`. Test gates already in
-   `derivations/diagnostics/diag_cylinder_hebert_pss.py` (6 tests, all
-   pass) — promote to `tests/cp/test_cylinder_pss.py` when shipping.
+   `derivations/diagnostics/diag_cylinder_hebert_pss.py` (6 tests), promoted one-for-one
+   into `tests/cp/test_cylinder_pss.py` against production; the probe is retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
 
 2. **Do NOT extend `boundary="white_hebert"` to cylinder** in its
    current `compute_G_bc` form. The 10–17 % residual on 1G is worse
@@ -73,11 +73,11 @@ power iteration.
 
 ## Files / data
 
-- `derivations/diagnostics/diag_cylinder_hebert_pss.py` — 6 tests,
+- `derivations/diagnostics/diag_cylinder_hebert_pss.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; successor `tests/cp/test_cylinder_pss.py`) — 6 tests,
   derivation + MC verification + multi-region. PASS at 33 s.
-- `derivations/diagnostics/diag_cylinder_hebert_keff.py` — Class B
+- `derivations/diagnostics/diag_cylinder_hebert_keff.py` — Class B [gone: `git show c196f0ca^:derivations/diagnostics/diag_cylinder_hebert_keff.py`]
   k_eff scan (1G/1R, 1G/2R, 2G/1R, 2G/2R). One pytest test, parametrised.
-- `derivations/diagnostics/diag_cylinder_hebert_diagnose_residual.py`
+- `derivations/diagnostics/diag_cylinder_hebert_diagnose_residual.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; its G_bc hypothesis was confirmed and fixed by #112 Phase C)
   — row-sum K·1 partition probe + fixed-source pure-scatter probe.
   Localises the bias to `compute_G_bc` cylinder branch.
 
@@ -101,6 +101,6 @@ If asked to ship `boundary="white_hebert"` for cylinder: refuse and
 point to this memory + Issue #112 Phase C dependency. Do ship the
 P_ss^cyl primitive itself (it's a useful diagnostic tool independent
 of the closure pathway). When Issue #112 lands the 3-D `compute_G_bc`,
-re-run `diag_cylinder_hebert_diagnose_residual.py` first — if row-sum
+re-run `diag_cylinder_hebert_diagnose_residual.py` (recover it from `f36572c8^`) first — if row-sum
 K·1 / σ_t is within 1 % then re-enable the cylinder branch in
 `_build_full_K_per_group` (peierls_geometry.py:4252-4262).

@@ -162,7 +162,7 @@ plateau % grows with thickness (multi-bounce becomes less corrective
 at thicker τ since fewer photons survive multiple bounces), but the
 direction is always correct.
 
-## Files (`derivations/diagnostics/`)
+## Files (`derivations/diagnostics/`) [8 files gone: `git show 15486f66^:derivations/diagnostics/<name>`; gone: `git show c196f0ca^:derivations/diagnostics/diag_specular_mb_phase4_07_synthesis.py`]
 
 1. `diag_specular_mb_phase4_01_cyl_T_derivation.py` — cyl T derivation
    + rank-1 = P_ss^cyl identity (passes 1e-14 in 13 min via mpmath dps=30,

@@ -8,8 +8,8 @@ type: project
 
 **Dispatched**: 2026-04-22 (cross-domain attack followup)
 **Date delivered**: 2026-04-22
-**Artifact**: `derivations/diagnostics/diag_frame_3_surface_markov_mc.py` (single-file, pytest-form)
-**Output**: `derivations/diagnostics/_frame_3_surface_markov_mc.json`
+**Artifact**: `derivations/diagnostics/diag_frame_3_surface_markov_mc.py` (single-file, pytest-form) [not preserved (never tracked)]
+**Output**: `derivations/diagnostics/_frame_3_surface_markov_mc.json` [not preserved (never tracked)]
 
 ## MC setup
 
@@ -139,8 +139,8 @@ rank-N > 1 cannot overcome.
 
 ## Files
 
-- `derivations/diagnostics/diag_frame_3_surface_markov_mc.py` — MC
+- `derivations/diagnostics/diag_frame_3_surface_markov_mc.py` — MC [not preserved (never tracked)]
   driver + pytest tests (smoke test + regression test encoding the
   falsification).
-- `derivations/diagnostics/_frame_3_surface_markov_mc.json` — full
+- `derivations/diagnostics/_frame_3_surface_markov_mc.json` — full [not preserved (never tracked)]
   per-point histograms, fit params, moments, verdicts.

@@ -45,7 +45,7 @@ From Issue #126 step 1:
 
 ## What was tested
 
-Diagnostic script: `derivations/diagnostics/diag_rayleigh_quotient_f4.py`.
+Diagnostic script: `derivations/diagnostics/diag_rayleigh_quotient_f4.py`. [not preserved (never tracked)]
 
 F.4 reference k_eff is computed via `run_scalar_f4` (production
 scalar F.4 closure with Marshak W + Lambert P/G) at BASE quadrature
@@ -171,7 +171,7 @@ is not F.4 under any tested interpretation.
 
 ## Diagnostic script
 
-`derivations/diagnostics/diag_rayleigh_quotient_f4.py` (newly created).
+`derivations/diagnostics/diag_rayleigh_quotient_f4.py` (newly created). [not preserved (never tracked)]
 Self-contained; runs in ~4 minutes on BASE quadrature, evaluates all
 four interpretations at all 6 reference points, reports the full
 table. Does NOT need promotion to tests — it is a negative-result

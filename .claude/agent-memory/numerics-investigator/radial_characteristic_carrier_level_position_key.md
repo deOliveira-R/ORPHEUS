@@ -46,7 +46,7 @@ Sphere always exactly `(0,)` (one M-M level = whole quadrature); cylinder NEVER
 carries; Cartesian no curvature. So p_idx==0==key on the only carrying geometry.
 
 **Diagnostic (34 green under `-O`, real teeth):**
-`derivations/diagnostics/diag_p_idx_vs_level_radial_characteristic.py` — the
+`derivations/diagnostics/diag_p_idx_vs_level_radial_characteristic.py` — the [not preserved (never tracked); no promotion on record; the nearest coverage is `tests/sn/mesh/test_radial_characteristic_slot_coordination.py`]
 gate-source ≡ space-key invariant + R12a trichotomy across a 16-quadrature
 battery; a KEEPER (general property; reddens if a future quadrature carries >1
 level or if the two sources ever diverge). Existing coverage: the carrier A1

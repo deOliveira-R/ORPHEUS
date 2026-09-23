@@ -34,7 +34,8 @@ the optically-thick regime, not the thin-shell regime. The
 pre-integration — the kernels see different axial physics that
 geometric thinning does not erase.
 
-Diagnostics:
+Diagnostics (all four retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; the stage-1c L = 1, R = 1000 row is promoted as #129 Test 4.2,
+`tests/derivations/test_peierls_rank2_bc.py::TestSlabPolarVsCyl1DOpticallyThick`):
 - `derivations/diagnostics/diag_issue129_planar_limit_stage1_rscan.py` (R-scan, L/R fixed)
 - `derivations/diagnostics/diag_issue129_planar_limit_stage1b_fixed_L.py` (fixed L, vary R)
 - `derivations/diagnostics/diag_issue129_planar_limit_stage1c_L_scan.py` (fixed R, vary L)

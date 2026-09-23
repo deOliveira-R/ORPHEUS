@@ -149,7 +149,8 @@ Specifically, set `external_source = (1.0, 0.0)` per cell (only g0 source). The 
 ```python
 """Diagnostic: SN vacuum-BC eigenvalue divergence — minimal reproducer.
 
-Save as derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py
+Was derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
+ERR-052 is caught by tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_power_iteration_renormalises_to_unit_production_rate.
 """
 from __future__ import annotations
 import warnings

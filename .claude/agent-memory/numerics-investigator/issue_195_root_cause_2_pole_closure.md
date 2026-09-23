@@ -8,7 +8,10 @@ type: project
 
 **Date**: 2026-06-12 (round 2, term-decomposition + archaeology). **Branch**:
 `main` @ `a7a67d8` (HOST, `.venv/bin/python`).
-Diagnostics: `derivations/diagnostics/diag_195_probe{1,2,3,4,5}_*.py`.
+Diagnostics: `derivations/diagnostics/diag_195_probe{1,2,3,4,5}_*.py`, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`. Successors:
+`tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py` (probe 3),
+`test_mms_curvilinear.py::test_sn_{spherical,cylindrical}_mms_converges_second_order` (probe 1),
+`test_curvilinear_pole_cell_characterization.py` (probe 2).
 
 ## Headline (supersedes round-1's "no regressor, seed always there")
 

@@ -14,7 +14,7 @@ L17/L19 empirical pathology: F.4's signed error `(k - k_inf)/k_inf` under produc
 
 ## Deliverable
 
-`derivations/diagnostics/diag_f4_qmc_quadrature.py` — subprocess-isolated driver with Owen-scrambled Sobol' monkey-patched into `peierls_geometry.gl_float`. Default run: anchor + pathology (2 points, ~510s wall). Full 6-point scan: `QMC_SCAN_MODE=full`.
+`derivations/diagnostics/diag_f4_qmc_quadrature.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; its QMC arm was era-bound and refused at HEAD, since `gl_float` lost every call site) — subprocess-isolated driver with Owen-scrambled Sobol' monkey-patched into `peierls_geometry.gl_float`. Default run: anchor + pathology (2 points, ~510s wall). Full 6-point scan: `QMC_SCAN_MODE=full`.
 
 ## Option chosen
 
@@ -102,7 +102,7 @@ Sign-unambiguous-at-CI criterion: CI does not include 0. Tested: True for both p
 
 ## Artifacts
 
-- `derivations/diagnostics/diag_f4_qmc_quadrature.py` — the driver.
+- `derivations/diagnostics/diag_f4_qmc_quadrature.py` — the driver, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
 - `/tmp/diag_f4_qmc_quadrature.json` — machine-readable dump (anchor + pathology).
 - This memo.
 

@@ -11,7 +11,7 @@ type: project
 
 ## µ-weighted orthonormal basis (Gram-Schmidt on [0,1] under weight µ)
 
-Symbolically verified at `derivations/diagnostics/derive_mu_weighted_basis.py`:
+Symbolically verified at `derivations/diagnostics/derive_mu_weighted_basis.py`: [gone: `git show c196f0ca^:derivations/diagnostics/derive_mu_weighted_basis.py`]
 
 - f^0(µ) = √2
 - f^1(µ) = 6µ − 4
@@ -111,7 +111,7 @@ the ≤ 0.1 % the task specification demanded.
 raise `NotImplementedError`. The shipped Phase F.5 `_marshak` variants
 are preserved but unreachable. Diagnostic scripts committed as-is.
 
-## Scripts (all in `derivations/diagnostics/`)
+## Scripts (all in `derivations/diagnostics/`) [gone: `git show c196f0ca^:derivations/diagnostics/derive_mu_weighted_basis.py`; 3 files gone: `git show 15486f66^:derivations/diagnostics/<name>`; not preserved (never tracked): diag_G_prefactor_scan.py, diag_sanchez_legendre_variants.py, diag_sanchez_modeB_and_gelbard.py, diag_sanchez_recipe_scan.py]
 
 - `derive_mu_weighted_basis.py` — Gram-Schmidt derivation of µ-weighted
   orthonormal polynomials on [0,1]. Verified to 1e-12. **Promote to

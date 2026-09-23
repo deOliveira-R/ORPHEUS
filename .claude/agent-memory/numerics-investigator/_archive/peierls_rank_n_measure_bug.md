@@ -72,7 +72,7 @@ The fact that NO simple recipe works cleanly at N=2 suggests there may be MULTIP
 
 ## Scripts
 
-All in `derivations/diagnostics/`:
+All in `derivations/diagnostics/`, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`:
 - `diag_rank_n_sph_normalisation_measure_mismatch.py` — proves the Gram mismatch + shows row-sum shifts.
 - `diag_rank_n_sph_normalisation_probe.py` — scans mu-weighted P/G primitive variants.
 - `diag_rank_n_sph_keff_probe.py` — actual k_eff residual scan via monkey-patched closure.

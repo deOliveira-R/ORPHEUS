@@ -265,7 +265,7 @@ regularisation gauge level.
 
 ## Files shipped
 
-All in `derivations/diagnostics/`:
+All in `derivations/diagnostics/`: [5 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 - `diag_phase5_round3_adaptive_quadrature.py` — main test file with
   approaches 1, 2, 4, 5, 6

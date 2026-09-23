@@ -95,7 +95,7 @@ true structural error, not numerical noise.
    for thin cell). If it gives k_inf, our rank-N truncation is the
    bug.
 
-## Diagnostic files (derivations/diagnostics/)
+## Diagnostic files (derivations/diagnostics/) [14 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 - `diag_specular_thin_01_row_sum.py` — K·1 profile thin vs thick.
 - `diag_specular_thin_02_compare_closures.py` — Mark/Hébert/specular

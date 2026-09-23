@@ -64,9 +64,9 @@ knob that moves.
 
 ## Files
 
-- `derivations/diagnostics/diag_cin_f4_quadrature_floor.py`: E2.1.
-- `derivations/diagnostics/diag_cin_split_inner_enrichment.py`: E2.2 + E2.3.
-- `derivations/diagnostics/diag_cin_split_lambert_pg.py`: E2.4 + E2.5.
-- `derivations/diagnostics/diag_cin_split_jacobi_inner.py`: E2.6.
+- `derivations/diagnostics/diag_cin_f4_quadrature_floor.py`: E2.1. [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_f4_quadrature_floor.py`]
+- `derivations/diagnostics/diag_cin_split_inner_enrichment.py`: E2.2 + E2.3. [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_split_inner_enrichment.py`]
+- `derivations/diagnostics/diag_cin_split_lambert_pg.py`: E2.4 + E2.5. [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_split_lambert_pg.py`]
+- `derivations/diagnostics/diag_cin_split_jacobi_inner.py`: E2.6. [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_split_jacobi_inner.py`]
 - Research log: `.claude/plans/rank-n-closure-research-log.md` (updated
   with Experiment 2, L5-L7, RH4-RH5, Directions I and J).

@@ -46,7 +46,7 @@ Two compounding failures:
 
 ## Diagnostic chain (numbered by file)
 
-`derivations/diagnostics/diag_specular_overshoot_*.py`:
+`derivations/diagnostics/diag_specular_overshoot_*.py`: [12 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 | # | Diagnostic | Conclusion |
 |---|-----------|-----------|
@@ -145,7 +145,7 @@ Recommend:
   same `1/(1-e^(-τ(µ)))` divergence at µ=0. The basis is not the
   obstruction; the matrix-inverse formulation is.
 
-## Files (all in derivations/diagnostics/)
+## Files (all in derivations/diagnostics/) [12 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 - `diag_specular_overshoot_01_geometric_series.py` — term-by-term partial sums
 - `diag_specular_overshoot_02_TR_spectrum.py` — TR eigvals vs N

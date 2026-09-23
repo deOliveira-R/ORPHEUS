@@ -202,7 +202,7 @@ little over the existing N=1,2,3 envelope.
 
 ## Files shipped
 
-All in `derivations/diagnostics/`:
+All in `derivations/diagnostics/`: [6 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 - `diag_phase5_round2_m2_bounce_resolved.py` — main M2 form,
   weight pinning, K_max truncation, Q sweep at fixed K_max

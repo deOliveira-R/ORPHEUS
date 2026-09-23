@@ -11,7 +11,7 @@ type: project
 Monte-Carlo cross-check at R=5, r_0=1.5, Σ_t=1, 4M samples, 14
 (m,n) pairs in the W_io and W_oo blocks — all agree with
 `compute_hollow_sph_transmission_rank_n` to within statistical
-precision (< 5σ). See `derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py`.
+precision (< 5σ). See `derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py`. [gone: `git show 15486f66^:derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py`]
 σ_t=0 closed forms for W_io^{0,0}, W_io^{0,1}, W_io^{1,0} all match
 to 1e-10. Reciprocity `A_k·W_{jk}^{mn} = A_j·W_{kj}^{nm}` holds to 1e-13.
 **W is NOT the bug.**
@@ -113,7 +113,7 @@ Jacobian.
 
 ## Artifacts
 
-- `derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py` — 33 pytest
+- `derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py` — 33 pytest [gone: `git show 15486f66^:derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py`]
   checks: MC cross-check, σ_t=0 closed forms for W_io^{0,0}, W_io^{0,1}
   (Lambert basis probe), W_io^{1,0}, reciprocity, mode asymmetry,
   matches-analytical-high-res. Promote to `tests/derivations/` once

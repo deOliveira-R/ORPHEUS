@@ -81,7 +81,7 @@ accuracy cost?
 
 ## Artefacts
 Driver: `scratch/experimental/glob_sphere_study/driver.py` (+ run_sweep.py).
-Diagnostics (33 tests, all green): `derivations/diagnostics/diag_glob_0{1..5}_*.py`
+Diagnostics (33 tests, all green): `derivations/diagnostics/diag_glob_0{1..5}_*.py` [not preserved (never tracked); no permanent test gates the study, so this note's numbers are the record]
 (01 moment-integration, 02 per-ordinate consistency, 03 end-to-end penalty,
 04 pole treatment/tau_0=0, 05 driver faithfulness+k_inf anchor). Promote to
 `tests/sn/test_spherical.py` + `tests/numerics/test_rules_1d.py` IFF GLob is

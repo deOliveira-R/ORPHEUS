@@ -206,8 +206,8 @@ the L17+L14 story".**
 
 ## Files
 
-- `derivations/diagnostics/diag_pca_sectors_rich_adaptive.py` (main)
-- `derivations/diagnostics/diag_pca_sectors_hollow_sph.py` (E6 original,
+- `derivations/diagnostics/diag_pca_sectors_rich_adaptive.py` (main) [not preserved (never tracked)]
+- `derivations/diagnostics/diag_pca_sectors_hollow_sph.py` (E6 original, [gone: `git show 15486f66^:derivations/diagnostics/diag_pca_sectors_hollow_sph.py`]
   BASE-quadrature reference — frozen artifact)
 - `/tmp/dc_*.log` (per-point and crossing-check logs — not committed)
 - `/tmp/direction_c_grid_runner.py`, `/tmp/direction_c_crossing_check.py`

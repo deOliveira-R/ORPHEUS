@@ -107,7 +107,7 @@ the structural derivations as a reference result:
 - `diag_cin_aware_finite_sigma_t.py`: W at finite τ, block structure
   diagnostics — KEEP (textbook-grade result for Sphinx).
 - `diag_cin_aware_split_basis_keff.py`: this investigation's empirical
-  verdict — KEEP (documents why split basis doesn't help).
+  verdict — kept until retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>` (its `run_scalar_f4` was bit-identical to production `solve_peierls_1g(..., boundary="white_f4")`, which the rank-N protocol worker now calls).
 
 Do NOT lift the `NotImplementedError` guards on `boundary="white_rank2"`
 with n_bc_modes > 1. The existing Marshak rank-N path is already wired
@@ -123,7 +123,7 @@ close-out).
 ## Files produced this session
 
 - `/workspaces/ORPHEUS/derivations/diagnostics/diag_cin_aware_split_basis_keff.py`
-  — full split-basis implementation + k_eff scan. Run: 5-8 min.
+  — full split-basis implementation + k_eff scan. Run: 5-8 min. retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
 - Structural tests (included in diag_cin_aware_split_basis_keff.py):
   all pass to machine precision.
 
@@ -304,10 +304,10 @@ NOT structural. Must validate at RICH quad before shipping claim.
 
 ### Files produced in E4+E5
 
-- `/workspaces/ORPHEUS/derivations/diagnostics/diag_cin_split_regime_switched.py`
+- `/workspaces/ORPHEUS/derivations/diagnostics/diag_cin_split_regime_switched.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_split_regime_switched.py`]
   — Regime-switched scan; both formula and brent variants; 32-point scan.
   Pytest tests included (`@pytest.mark.slow`).
-- `/workspaces/ORPHEUS/derivations/diagnostics/diag_cin_split_rank112_adaptive.py`
+- `/workspaces/ORPHEUS/derivations/diagnostics/diag_cin_split_rank112_adaptive.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_cin_split_rank112_adaptive.py`]
   — rank-(1,1,2) 2D Nelder-Mead optim; 14-point scan.
 
 ### E4.2 RICH validation — FALSIFIED

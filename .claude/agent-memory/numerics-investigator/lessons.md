@@ -7,7 +7,7 @@ has been uplifted, the entry cites the clause and stops.
 
 **The L-numbers are STABLE identifiers, never renumbered** — `numerical-bug-signatures`
 SKILL.md cites "lessons L10/L9" and "lesson L11" by number, and
-`derivations/diagnostics/diag_282_sphere_repose_convergence.py:23` cites "L14/L15". A retired
+the #282 probe `diag_282_sphere_repose_convergence.py:23` cited "L14/L15" (the probe is retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`). A retired
 entry keeps its number as a stub naming where its correction lives.
 
 ## The spine — three meta-lessons

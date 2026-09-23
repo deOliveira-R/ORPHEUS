@@ -60,8 +60,8 @@ Slab quadrature scan at K[3,7] (cross-panel, far):
 
 ## Scripts
 
-- `derivations/diagnostics/diag_slab_kvol_panel_boundary_bug.py`
-- `derivations/diagnostics/diag_sphere_kvol_ray_crossing.py`
+- `derivations/diagnostics/diag_slab_kvol_panel_boundary_bug.py` [gone: `git show 9ac41de2^:derivations/diagnostics/diag_slab_kvol_panel_boundary_bug.py`]
+- `derivations/diagnostics/diag_sphere_kvol_ray_crossing.py` [gone: `git show aa985655^:derivations/diagnostics/diag_sphere_kvol_ray_crossing.py`]
 - Handoff plan: `.claude/plans/post-peierls-solver-bugs.md`
 
 ## Fix locations

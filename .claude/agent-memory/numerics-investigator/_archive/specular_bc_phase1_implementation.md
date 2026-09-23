@@ -146,7 +146,7 @@ for white BC. For SPECULAR, the same image-series construction with
 corrected sign IS the right kernel.
 
 Files to resurrect:
-- `derivations/diagnostics/diag_sphere_davison_image_{01..04}_*.py`
+- `derivations/diagnostics/diag_sphere_davison_image_{01..04}_*.py` [4 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 - agent memory `issue_132_davison_image_series.md` for image positions
   and convergence behaviour
 

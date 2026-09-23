@@ -24,7 +24,7 @@ because Defects 2 and 3 dominate as h→0.
 
 **How to apply:** before any Issue #168 fix dispatch, read the
 design memo at `.claude/plans/issue_168_design.md` and the
-diagnostic scripts under `scratch/derivations/diagnostics/diag_issue168_*.py`.
+diagnostic scripts `scratch/derivations/diagnostics/diag_issue168_*.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; #168 is CLOSED).
 DO NOT ship Option A alone — it would close GH #168 with a fix that
 regresses the very property it claims to deliver.
 
@@ -103,6 +103,7 @@ method to mirror the WDD sweep math entirely (most expensive option).
 ## Diagnostic scripts and design memo
 
 - `.claude/plans/issue_168_design.md` — full design memo.
+- The four scripts below were retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>` (`_05` was already gone before it).
 - `scratch/derivations/diagnostics/diag_issue168_01_characterize.py` — reproduces ~1.26 order.
 - `scratch/derivations/diagnostics/diag_issue168_02_option_a_dd_extrap.py` — falsifies single-bug framing.
 - `scratch/derivations/diagnostics/diag_issue168_05_apply_vs_solve.py` — truncation residual scaling.

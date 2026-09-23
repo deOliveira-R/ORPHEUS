@@ -67,7 +67,7 @@ cylinder with isotropic Q.
 
 ## Empirical 3-way disagreement table — minimal reproducer
 
-`derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py`:
+`derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py`: [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py`]
 ProductQuadrature(n_mu=2, n_phi=2) → N=4, n_cells=2.
 
 ```
@@ -98,7 +98,7 @@ SI and Krylov also fail vs each other.
 
 ## Convergence under refinement — the smoking gun
 
-`derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py`,
+`derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py`, [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py`]
 ProductQuadrature(n_mu=2, n_phi=2):
 
 ```
@@ -206,7 +206,7 @@ should be `Σ_t · ψ_flat = 1.5916`.
 
 ## The smoking-gun residual probe
 
-`derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`
+`derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py` [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`]
 compares `||L·ψ_flat − Σ_t·ψ_flat||_inf` for sphere vs cylinder.
 
 For flat ψ the streaming and redistribution terms must telescope to
@@ -252,7 +252,7 @@ because the M-M recurrence's `phi_aux` seed is the wrong value.
 
 ### Discriminator: which closure is broken
 
-`derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`
+`derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py` [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`]
 tested three closures on the same flat-ψ probe:
 
 ```
@@ -348,7 +348,7 @@ for sphere, correct for cylinder.
 ## Empirical validation of the fix
 
 ### Apply-matvec residual after fix
-`derivations/diagnostics/diag_phase_g_step2_cyl_carlson_seed_fix.py`
+`derivations/diagnostics/diag_phase_g_step2_cyl_carlson_seed_fix.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_carlson_seed_fix.py`]
 exposes a custom `FixedCylinderMM(PoleAngularClosureBase)` closure
 that builds Q_bar as `sigma_t · phi_0_level / Σw_level`:
 
@@ -369,7 +369,7 @@ Cylinder apply-matvec ||L·ψ − Σ_t·ψ||_inf with PATCHED Carlson seed:
 Mesh-independent at FP-accumulation precision (`O(nx · ULP)`). ✓
 
 ### Full Krylov solve after fix
-`derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py`:
+`derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py`: [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py`]
 
 ```
 Cylinder fixed-source Krylov solve with patched Carlson seed —
@@ -392,7 +392,7 @@ Machine-precision agreement with the analytical reference at every
 mesh and quadrature. ✓
 
 ### Full SI sweep after fix
-`derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py`:
+`derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py`: [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py`]
 
 ```
 Cylinder SI sweep (full Picard) with patched Carlson Q_bar:
@@ -545,7 +545,7 @@ because `Σw=2` makes `0.5 = 1/Σw` numerically.
 
 ## Convergence-under-refinement empirical evidence
 
-`derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py`:
+`derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py`: [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py`]
 
 ### Pre-fix (current production)
 
@@ -700,13 +700,13 @@ definition site, not at every consumer).
 
 ## Pointers
 
-- Minimal reproducer: `derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py`
-- Refinement probe (pre-fix): `derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py`
-- Residual probe (CRITICAL diagnostic): `derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`
-- Apply-matvec internal probe: `derivations/diagnostics/diag_phase_g_step2_cyl_apply_internal.py`
-- Krylov full solve with fix: `derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py`
-- SI sweep with fix: `derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py`
-- Refinement post-fix sweep: `derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py`
+- Minimal reproducer: `derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_minimal_2x4.py`]
+- Refinement probe (pre-fix): `derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_refinement.py`]
+- Residual probe (CRITICAL diagnostic): `derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py` [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_residual_at_flat.py`]
+- Apply-matvec internal probe: `derivations/diagnostics/diag_phase_g_step2_cyl_apply_internal.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_apply_internal.py`]
+- Krylov full solve with fix: `derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py` [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_full_solve_with_fix.py`]
+- SI sweep with fix: `derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_cyl_si_fix.py`]
+- Refinement post-fix sweep: `derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py` [gone: `git show dadf4e8c^:derivations/diagnostics/diag_phase_g_step2_cyl_refinement_postfix.py`]
 - Defect site (Patch 1): `orpheus/sn/spatial/psi_half_angle_seed.py:569`
 - Defect site (Patch 2): `orpheus/sn/sweep.py:754` (line 543 sphere equivalent)
 - Phase G Step 2 Path C closeout (unverified cylinder claim): `.claude/agent-memory/method-implementer/issue_196_phase_g_step2_path_c_closeout.md`

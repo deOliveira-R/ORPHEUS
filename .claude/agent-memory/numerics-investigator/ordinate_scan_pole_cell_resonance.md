@@ -93,8 +93,11 @@ is in the algorithm, not the recurrence.
   correctness check).
 - Diagnostic scripts:
   `derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py`
-  (6 tests pinning the sharp-resonance fingerprint),
-  `derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py`
+  (6 tests pinning the sharp-resonance fingerprint; retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; its
+  level-symmetric S8 cylinder is now refused and its NaN assertion inverted; successors
+  `tests/sn/sweep/core/test_ordinate_scan_reset.py` and
+  `tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py`),
+  `derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py` (retired 2026-08-09, #347)
   (4 tests pinning cache-level `a=0` algebraic identity,
   ordinate_scan NaN injection, explicit-loop finiteness, Krylov
   bypass invariant).

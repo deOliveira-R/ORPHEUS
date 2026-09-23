@@ -103,7 +103,7 @@ and cannot be absorbed. There is no production path.
 
 ## Diagnostic location
 
-`/workspaces/ORPHEUS/derivations/diagnostics/diag_frame_4_connection_form.py`
+`/workspaces/ORPHEUS/derivations/diagnostics/diag_frame_4_connection_form.py` [not preserved (never tracked)]
 (384 lines, 20 s devcontainer). Runs rank-1 and rank-2 sanity checks,
 regime scan σR ∈ {0.1, 1, 5, 10, 20, 50, 100}, and structural residual
 analysis. Self-contained — not suitable for promotion to tests (diagnoses

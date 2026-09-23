@@ -142,9 +142,9 @@ Both paths explain the plateau structurally AND prescribe the fix.
 
 ## Artifacts
 
-- `derivations/diagnostics/diag_anisotropic_bc_rank_n.py` — full scan
+- `derivations/diagnostics/diag_anisotropic_bc_rank_n.py` — full scan [not preserved (never tracked)]
   + MC + pytest tests (sanity + Frame 6 falsification).
-- `derivations/diagnostics/_issue_125_scan.json` — raw numerical results.
+- `derivations/diagnostics/_issue_125_scan.json` — raw numerical results. [not preserved (never tracked)]
 
 ## Open questions
 

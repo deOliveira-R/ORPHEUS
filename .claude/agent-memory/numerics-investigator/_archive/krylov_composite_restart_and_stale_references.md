@@ -46,7 +46,7 @@ c=0.95 reflective eig) + the grown composite. Fix LANDED in the SAME `a29ab2d` d
 on HEAD (restart 210, info=0, k_SI≡k_Krylov 4.7e-11, 3.4 s). **General rule: any
 operator-algebra carve that adds a block to a Krylov composite MUST re-derive restart/n_dof
 from the composite dimension — grep every `restart=`/`n_dof=` against the ravel, not the bulk.**
-Diagnostics `derivations/diagnostics/diag_282_{krylov_restart_truncation,sphere_repose_convergence}.py`;
+Diagnostics `derivations/diagnostics/diag_282_{krylov_restart_truncation,sphere_repose_convergence}.py`; [gone: `git show 977615f7^:derivations/diagnostics/diag_282_krylov_restart_truncation.py`; gone: `git show f36572c8^:derivations/diagnostics/diag_282_sphere_repose_convergence.py`]
 probes `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/probe_0{2,3,7,8}_*.py`.
 
 

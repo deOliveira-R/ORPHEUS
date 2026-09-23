@@ -64,7 +64,7 @@ Six transferable points.
    DD k-eigenvalue solve runs a singular within-group operator** (`cond = ∞`; a direct LU
    is rank-deficient; `A[trace,trace]` alone has `dim ker = 168` of `672`, far worse than
    `A`'s `12`). Full record: `scratch/issue_344_null_space_structure.md`; gate:
-   `derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (10 green, 58 s).
+   `derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (10 green, 58 s). [gone: `git show a1c90aac^:derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py`]
 
 ### L23 addendum (2026-08-14) — the DISPOSITION half: CORRECTNESS or DETERMINISM?
 

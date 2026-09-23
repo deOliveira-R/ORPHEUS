@@ -35,7 +35,7 @@ answers tested both fail:
   shipped Hébert (1-P_ss)⁻¹ closure (which is -1.5% on the
   matched chi=[1,0] 2G case). Do NOT ship as a replacement.
 
-# Diagnostic scripts (kept under derivations/diagnostics/)
+# Diagnostic scripts (kept under derivations/diagnostics/) [5 files gone: `git show 15486f66^:derivations/diagnostics/<name>`]
 
 | Script | What it pins |
 |---|---|

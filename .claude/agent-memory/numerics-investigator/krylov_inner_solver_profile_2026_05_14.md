@@ -158,7 +158,7 @@ Tottime (self-time) top-15:
 
 ## 3. Iteration-level breakdown
 
-Microbench `derivations/diagnostics/diag_krylov_iter_breakdown.py`
+Microbench `derivations/diagnostics/diag_krylov_iter_breakdown.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_krylov_iter_breakdown.py`]
 running ONE GMRES call (no outer Picard) on the same operator at
 the same scale, with per-matvec wall-clock timing:
 
@@ -437,7 +437,7 @@ this memo:
 * cProfile run wall clock 39.59 s vs raw 32.21 s — cProfile overhead
   ~23 %, ranking-preserving.
 * Iteration breakdown microbench
-  (`derivations/diagnostics/diag_krylov_iter_breakdown.py`) runs ONE
+  (`derivations/diagnostics/diag_krylov_iter_breakdown.py`) runs ONE [gone: `git show 977615f7^:derivations/diagnostics/diag_krylov_iter_breakdown.py`]
   GMRES call with timing callbacks on the same operator at the same
   scale.  Confirms 13 inner iter / 16 matvec, 2.6 ms per matvec,
   ~50/50 apply vs precond split.
@@ -450,7 +450,7 @@ this memo:
 
 * Profile: `/tmp/krylov_profile.prof` (binary cProfile output).
 * Microbench script:
-  `derivations/diagnostics/diag_krylov_iter_breakdown.py`
+  `derivations/diagnostics/diag_krylov_iter_breakdown.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_krylov_iter_breakdown.py`]
   (one-shot profiling probe; do NOT promote — wall-clock
   thresholds are machine-dependent; the GMRES iteration count
   (13) and matvec/precond ratio (~50/50) ARE machine-independent

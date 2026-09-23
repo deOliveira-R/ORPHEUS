@@ -7,7 +7,7 @@ type: project
 # Phase 5+ Front B closeout — singularity subtraction (2026-04-28)
 
 Branch `feature/peierls-specular-bc`. Diagnostic shipped at
-`derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`
+`derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`]
 (10/10 PASS, ~50 s wall via pytest, runs hands-off).
 
 ## Headline finding
@@ -140,11 +140,11 @@ are intrinsically singular).
   fine meshes).
 - Provided: 10 pytest-format diagnostic tests that double as a
   permanent regression suite for any future Phase 5+ work
-  (`derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`).
+  (`derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`). [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`]
 
 ## Files touched by Phase 5+ Front B
 
-- NEW `derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`
+- NEW `derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_phase5_singularity_b01_subtraction.py`]
   (10 tests, ~480 LoC, all PASS)
 - NEW `.claude/agent-memory/numerics-investigator/phase5_front_b_singularity_subtraction.md`
   (this file)

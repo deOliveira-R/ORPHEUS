@@ -8,7 +8,7 @@ metadata:
 # CP collision-probability matrix: density verdict + spherical conservation defect
 
 Two findings from the #226 taxonomy density hypothesis test (2026-07-01).
-Probe: `diag_cp_density_probe.py` (isolates [P] via `CPMesh.compute_pinf_group(sig_t_g)`
+Probe: `diag_cp_density_probe.py` (isolates [P] via `CPMesh.compute_pinf_group(sig_t_g)` [not preserved (never tracked); the finding is issue #283, and its two sibling sweeps live at `scratch/derivations/diagnostics/diag_cp_density_sphere_{conservation,isolate}.py`]
 — needs only mesh + per-cell sig_t, NO Mixture / eigenvalue solve; vacuum BC returns
 pure first-flight P_cell, white BC returns P_inf = P_cell + rank-1 outer product).
 

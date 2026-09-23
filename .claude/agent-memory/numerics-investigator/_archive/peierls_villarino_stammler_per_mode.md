@@ -126,7 +126,7 @@ geometry-adapted `{P̃_n(c_in(µ))}` inner basis, the user's
 
 ## Code artefacts
 
-- `derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py`
+- `derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py`]
   (~500 lines, 2 pytest tests, both pass, ~3s runtime).
   Documents:
   - `apply_vs_per_mode(W, N, S_out, S_in, g_out, g_in)` — reusable
@@ -147,8 +147,8 @@ plan wants an explicit "Hypothesis C falsified" record.
   including "probably won't help because V-S is rank-0 only").
 - `.claude/agent-memory/numerics-investigator/peierls_rank_n_sanchez_closure_failed.md`
   (60-recipe scan establishing the 1.42 % plateau).
-- `derivations/diagnostics/diag_rank_n_sanchez_conservation_probe.py`
+- `derivations/diagnostics/diag_rank_n_sanchez_conservation_probe.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_rank_n_sanchez_conservation_probe.py`]
   (structural diagnosis: `W_oo[n,n] + W_io[n,n] = 0.28, 0.13, 0.09`
   for n=1,2,3 at σ_t=0 — what we targeted with V-S).
-- `derivations/diagnostics/diag_sanchez_N_convergence.py`
+- `derivations/diagnostics/diag_sanchez_N_convergence.py` [gone: `git show 15486f66^:derivations/diagnostics/diag_sanchez_N_convergence.py`]
   (pipeline A baseline 1.42 % plateau at N=1..4).

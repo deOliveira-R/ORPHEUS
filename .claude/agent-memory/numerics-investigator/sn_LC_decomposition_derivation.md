@@ -53,7 +53,7 @@ R(ψ; σ_t) := M(ψ; σ_t) − L_naïve(ψ) − σ_t·ψ
 
 This is **factored**: zero iff σ_t = 0 OR `φ_0/Σw = φ_face` (flat ψ at the outer BC). The flat-ψ cancellation is WHY the prior fixed-source diagnostic (`tests/sn/diagnostics/phase_g_step2_04_fixed_source.py` against the converged fixed point) appeared to agree even though the operator is structurally non-affine.
 
-**Verbatim symbolic equation** (from `derivations/diagnostics/diag_LC_decomposition_sn.py:derive_spherical_carlson_seed_symbolic`):
+**Verbatim symbolic equation** (from `derivations/diagnostics/diag_LC_decomposition_sn.py:derive_spherical_carlson_seed_symbolic`): [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_sn.py`]
 
 ```
 phi_aux_full = (2·Σw·φ_face_outer + dr·φ_0·σ_t) / (Σw · (dr·σ_t + 2))
@@ -138,7 +138,7 @@ The two L's solve different operators. The prior agent's L is structurally wrong
 
 ## Empirical cross-check (Part B — numpy probe)
 
-Script: `derivations/diagnostics/diag_LC_decomposition_sn.py`. Run with `.venv/bin/python -m pytest derivations/diagnostics/diag_LC_decomposition_sn.py -v` — **all 8 tests pass** (4 SymPy + 4 numpy).
+Script: `derivations/diagnostics/diag_LC_decomposition_sn.py`. Run with `.venv/bin/python -m pytest derivations/diagnostics/diag_LC_decomposition_sn.py -v` — **all 8 tests pass** (4 SymPy + 4 numpy). [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_sn.py`]
 
 ```
 CART: rel_res=2.4e-17, 5.6e-17, 6.8e-17    (affine, machine zero)
@@ -281,7 +281,7 @@ class CollisionOperator(LinearOperatorMixin):
 
 ### Verification test (already written)
 
-`derivations/diagnostics/diag_LC_decomposition_resolution.py` — 10 tests, all PASS at rel_residual = 0.0 across {CART, SPH, CYL} × {3 random seeds}. Promote to `tests/sn/test_streaming_operator_decomposition.py` after the StreamingOperator lands; tag `@pytest.mark.l0`.
+`derivations/diagnostics/diag_LC_decomposition_resolution.py` — 10 tests, all PASS at rel_residual = 0.0 across {CART, SPH, CYL} × {3 random seeds}. Promote to `tests/sn/test_streaming_operator_decomposition.py` after the StreamingOperator lands; tag `@pytest.mark.l0`. [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_resolution.py`]
 
 ### Why this is the right answer architecturally
 
@@ -348,8 +348,8 @@ The only EXTRA work Resolution A imposes on Step 6 is: implement `matvec_transpo
 - **Reverted prior implementation**: commit `ad37ca0` (reverted as `b47551c`). The `StreamingOperator.apply` body there is WRONG (calls matvec with σ_t = 0). Resolution A replaces it with the subtractive form.
 
 - **Diagnostic scripts**:
-  - `derivations/diagnostics/diag_LC_decomposition_sn.py` — Q1 SymPy + numpy probe. 8 tests, all PASS.
-  - `derivations/diagnostics/diag_LC_decomposition_resolution.py` — Resolution A bit-exact verification. 10 tests, all PASS at rel_residual = 0.0.
+  - `derivations/diagnostics/diag_LC_decomposition_sn.py` — Q1 SymPy + numpy probe. 8 tests, all PASS. [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_sn.py`]
+  - `derivations/diagnostics/diag_LC_decomposition_resolution.py` — Resolution A bit-exact verification. 10 tests, all PASS at rel_residual = 0.0. [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_resolution.py`]
 
 ---
 

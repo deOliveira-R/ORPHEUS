@@ -43,7 +43,7 @@ every c∈[0,0.99]); production dodges it by shipping GMRES with the IDENTITY pr
 (`_within_group_krylov`, `solver.py:332`, #200) and by keff being shape-independent. This
 is L6 ("curvilinear needs a NON-FLAT per-ordinate reference") realized end-to-end.
 Diagnostics: `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/diag_curvilinear_seed_sensitivity.py`
-(+ `diag_sphere_fixedpoint_consistency.py`). See [[curvilinear-inverse-seed-taxonomy]].
+(+ `diag_sphere_fixedpoint_consistency.py`); the tracked copies were retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`. See [[curvilinear-inverse-seed-taxonomy]].
 
 
 ## L16: To compare two ANGULAR QUADRATURES' accuracy in a curvilinear SN scheme where they differ in the POLE/SEED treatment — build a standalone scheme-faithful driver gated to production, reference = fine-N + a cross-quadrature CONTAMINATION GUARD (MMS is blind), validate the new pole handling with the per-ordinate flat-flux residual
@@ -73,7 +73,7 @@ the seed-block type machinery, and at what accuracy cost? Method that worked:
 Verdict: GLob tracks GL at a bounded ~1.2× error penalty at resolved N (N≥8, N>L), regime/c/
 anisotropy-insensitive; affordable for the architectural win. Full recipe + numbers in
 [[glob-vs-gl-spherical-quadrature-study]]; artefacts `scratch/experimental/glob_sphere_study/`
-+ `derivations/diagnostics/diag_glob_0{1..5}_*.py` (33 tests green).
++ `derivations/diagnostics/diag_glob_0{1..5}_*.py` (33 tests green). [not preserved (never tracked)]
 
 ## L17: A STATE DOF's Hilbert metric is NOT its angular-integration weight — and when apply_transpose is the EXACT Euclidean transpose (T=Aᵀ), a block metric is GAUGE-FREE (any SPD), the determining equation only forbids DEGENERACY
 
@@ -123,7 +123,7 @@ angular w is the sole gauge d.o.f., no canonical value for a single ray).
    weight ⟹ pinned by `g_s[i]=g_b[coupled j]`. Faithfulness `G⁺TG==A.H` (2.8e-14) ties the
    dense reconstruction to production. Forward stays bit-identical under the install (metric
    read only by A.H + inner_product, #208 trace-metric precedent). Diagnostics
-   `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See
+   `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See [not preserved (never tracked); promoted into `tests/sn/operators/test_radial_characteristic_metric.py`]
    [[starting_direction_metric_gauge_derivation]].
 
 ## L18: To adjudicate a LABELING/ORDERING degeneracy in a discrete-ordinate scheme, the instrument is the operator's own SYMMETRY GROUP — MMS is exactly blind, and the answer is usually "no ordering is right, the closure is broken"

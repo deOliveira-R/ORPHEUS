@@ -82,7 +82,7 @@ The reference is `ψ_K = 5.0` per ordinate per cell, derived from:
 
 ## Minimal reproducer
 
-`derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py` —
+`derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py` — [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py`]
 2 cells × GL-2 (N=2), mixture B 1G, sphere R=2 cm, reflective BC,
 isotropic external Q=1.
 
@@ -296,7 +296,7 @@ contaminated SI fixed point.
 
 ## Empirical evidence — toggleable fixes (decisive)
 
-Script: `derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`.
+Script: `derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`. [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`]
 
 A custom SI sweep with two toggleable fixes:
 
@@ -455,11 +455,11 @@ longer COMPELS that decision; the surgical patch is now an option.
 
 ## Pointers
 
-- Reproducer: `derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py`
-- Symbolic walkthrough: `derivations/diagnostics/diag_phase_g_step2_symbolic_2x2.py`
-- Pole-face IC pinpoint: `derivations/diagnostics/diag_phase_g_step2_pole_face_ic.py`
-- Two-bugs isolation: `derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`
-- Mesh-scaling verification: `derivations/diagnostics/diag_phase_g_step2_mesh_scaling.py`
+- Reproducer: `derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_minimal_2x2.py`]
+- Symbolic walkthrough: `derivations/diagnostics/diag_phase_g_step2_symbolic_2x2.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_symbolic_2x2.py`]
+- Pole-face IC pinpoint: `derivations/diagnostics/diag_phase_g_step2_pole_face_ic.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_pole_face_ic.py`]
+- Two-bugs isolation: `derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`]
+- Mesh-scaling verification: `derivations/diagnostics/diag_phase_g_step2_mesh_scaling.py` [gone: `git show 977615f7^:derivations/diagnostics/diag_phase_g_step2_mesh_scaling.py`]
 - SI sweep: `orpheus/sn/sweep.py:397-595` (pole-face IC at line 559,
   Carlson Q_bar source at line 514)
 - Apply-matvec: `orpheus/sn/operator.py:571-838` (pole-face IC at
