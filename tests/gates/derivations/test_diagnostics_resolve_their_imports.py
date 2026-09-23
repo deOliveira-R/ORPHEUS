@@ -1,5 +1,6 @@
-r"""Every script under ``derivations/``, and every TRACKED probe under
-``scratch/derivations/diagnostics/``, must still RESOLVE its first-party imports.
+r"""Every script under ``derivations/``, every TRACKED probe under
+``scratch/derivations/diagnostics/``, and every performance case under
+``tests/performance/`` must still RESOLVE its first-party imports.
 
 Why this gate exists (#347)
 ===========================
@@ -96,6 +97,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 DERIVATIONS_ROOT = REPO_ROOT / "derivations"
 #: OPEN probes: tracked while the investigation each serves is open (R20).
 SCRATCH_PROBES_ROOT = REPO_ROOT / "scratch" / "derivations" / "diagnostics"
+#: The performance regimen: asv collects it, pytest never does, so nothing
+#: else would notice a case orphaned by a rename.
+PERFORMANCE_ROOT = REPO_ROOT / "tests" / "performance"
 
 #: Import roots this gate resolves. Third-party imports are the venv's problem
 #: (a missing one fails loudly at install time); these two are the ones a
@@ -121,6 +125,7 @@ def _scripts() -> list[pathlib.Path]:
             if "__pycache__" not in p.parts
         ]
         + _tracked_python(SCRATCH_PROBES_ROOT)
+        + _tracked_python(PERFORMANCE_ROOT)
     )
 
 
@@ -288,6 +293,7 @@ class TestTheGateItselfHasTeeth:
         for member in (
             DERIVATIONS_ROOT / "sn_dd_face_transmission.py",
             SCRATCH_PROBES_ROOT / "diag_f4_structural_floor_baseline.py",
+            PERFORMANCE_ROOT / "bench_loss_representation.py",
         ):
             assert member in scripts, (
                 f"{member.relative_to(REPO_ROOT)} is not in the gated "

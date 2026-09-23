@@ -71,6 +71,9 @@ docs = [
 ]
 dev = [
     "orpheus[test,docs]",
+    # The performance regimen (tests/performance/, run with
+    # `asv run --python=same --config tests/performance/asv.conf.json`).
+    "asv",
 ]
 
 [tool.pytest.ini_options]

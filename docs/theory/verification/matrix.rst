@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12308**
+Total tests collected: **12310**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1767, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9097, 73.9%
+   foundation, 9099, 73.9%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12202
+   explicit, 12204
    class-name, 46
    func-name, 0
    case, 33
@@ -171,7 +171,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 10, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0

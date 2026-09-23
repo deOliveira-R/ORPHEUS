@@ -3143,11 +3143,16 @@ with the default unchanged, precisely so the default could be decided on
 *measured* numbers rather than a plausibility argument — the governing
 principle: *construct each strategy as general as its algorithm
 naturally allows; select narrow; specialize only on measured internal
-cost.* The S6.9 benchmark (the script
-``diag_s69_scanmarch_vs_window_bench.py``, retired at ``f36572c8``:
+cost.* The S6.9 benchmark (then a diagnostic script,
 ``git show f36572c8^:derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py``;
 median over repeats, ``python -O``; full table in #222 comment
-4683241855) measured ``ScanMarch`` / ``MovingFrontierWindow`` ratios:
+4683241855) measured ``ScanMarch`` / ``MovingFrontierWindow`` ratios. The
+measurement is now the performance case
+``tests/performance/bench_loss_representation.py``, re-runnable with
+``asv run --python=same --config tests/performance/asv.conf.json``, which
+also records each strategy's sweep disagreement with the
+``FullFieldWavefront`` oracle beside its cost (:ref:`vv-test-suite-layout`).
+The ratios as first measured:
 
 .. list-table:: ScanMarch ÷ MovingFrontierWindow (lower is faster / leaner; median, ``-O``)
    :header-rows: 1

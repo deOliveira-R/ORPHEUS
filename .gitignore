@@ -57,3 +57,6 @@ pyrightconfig.json
 # Ignored so `git add -A` cannot pull it into the index.
 scratch/literature/
 scratch/literature_ocr/
+
+# airspeed velocity: per-machine environments, results and HTML (tests/performance/)
+.asv/

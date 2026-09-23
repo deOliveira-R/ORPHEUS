@@ -427,8 +427,17 @@ The regimens
 
 A folder is created when its first case lands, so an absent folder
 means that the regimen has no case yet; it is never an empty place to
-search. `[M]` 2026-09-22: ``tests/gates/`` is the only regimen folder
-in the tree. The first validation cases are the ICSBEP and IRPhE
+search. `[M]` 2026-09-22: ``tests/gates/`` and ``tests/performance/``
+are the regimen folders in the tree. The first performance case is
+``tests/performance/bench_loss_representation.py``, the three
+multi-D loss representations' sweep and matvec cost with each sweep's
+disagreement with the full-field oracle; run the regimen with
+``asv run --python=same --config tests/performance/asv.conf.json``
+(``--python=same`` measures the checked-out tree in the project's
+``.venv``; without it asv builds each commit in its own environment,
+which is how two commits are compared, ``asv continuous``). Results,
+environments and HTML live in the untracked ``.asv/``, because a timing
+belongs to the machine that produced it. The first validation cases are the ICSBEP and IRPhE
 comparisons of `#146 <https://github.com/deOliveira-R/ORPHEUS/issues/146>`__.
 
 ``tests/gates/`` itself is laid out by what each gate exercises. Its
