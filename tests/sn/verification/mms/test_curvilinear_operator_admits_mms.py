@@ -2,8 +2,8 @@ r"""ERR-058 catcher — the curvilinear operator ADMITS the manufactured solutio
 
 Promoted 2026-06-12 from ``derivations/diagnostics/diag_195_probe3_residual_audit.py``
 (numerics-investigator, Issue #195) after the ERR-058 closure-seed fix. The
-probe was retired at ``RETIRE_HASH``
-(``git show RETIRE_HASH^:derivations/diagnostics/diag_195_probe3_residual_audit.py``).
+probe was retired at ``f36572c8``
+(``git show f36572c8^:derivations/diagnostics/diag_195_probe3_residual_audit.py``).
 
 The decisive structural check behind the #195 diagnosis: build the
 typed within-group triple ``(L+C, S, B)`` exactly as

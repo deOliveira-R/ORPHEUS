@@ -3,7 +3,7 @@ probability for cylinder white BC.
 
 Promoted from ``scratch/derivations/diagnostics/diag_cylinder_hebert_pss.py``
 on 2026-04-25 (Issue #132 cylinder follow-up; the probe was retired at
-``RETIRE_HASH``). The primitive itself
+``f36572c8``). The primitive itself
 is shipped in ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``; this file
 pins its derivation against:
 

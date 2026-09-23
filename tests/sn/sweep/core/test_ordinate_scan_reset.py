@@ -13,7 +13,7 @@ division-free backend below inverted its central "the scan NaNs"
 assertion — exactly the retirement trigger its own docstring named —
 and its ``μ_x = 1/√20`` fixture no longer exists in any shipped rule.
 The ``_step1_characterize`` half, which asserted the NaN itself, was
-retired at ``RETIRE_HASH``. This file and
+retired at ``f36572c8``. This file and
 ``test_si_cyl_20cell_nan_regression.py`` are the successors of both.
 This one pins the load-bearing contract for the bug class
 

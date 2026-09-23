@@ -198,7 +198,7 @@ class TestWhiteBCEigenvalue:
 # The multi-region P_ss^cyl integration is the production primitive
 # ``compute_P_ss_cylinder``, gated in ``tests/cp/test_cylinder_pss.py``
 # (the probe that first carried it, ``diag_cylinder_hebert_pss.py``, was
-# retired at ``RETIRE_HASH``).
+# retired at ``f36572c8``).
 #
 # Promoted from
 # ``derivations/diagnostics/diag_cylinder_hebert_keff.py`` (2026-04-30

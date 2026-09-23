@@ -2910,8 +2910,8 @@ Session trail (V&V audit trail)
   residual evidence.
 * **Diagnostics**: the five probes ``diag_195_probe{1..5}_*.py`` (the
   refinement ladder, the pole spike, the residual audit, the term
-  decomposition and the seed fix) were retired at ``RETIRE_HASH``; recover
-  one with ``git show RETIRE_HASH^:derivations/diagnostics/<file>``.
+  decomposition and the seed fix) were retired at ``f36572c8``; recover
+  one with ``git show f36572c8^:derivations/diagnostics/<file>``.
   What they asked is gated by
   ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
   and ``::test_sn_cylindrical_mms_converges_second_order`` (probe 1: the

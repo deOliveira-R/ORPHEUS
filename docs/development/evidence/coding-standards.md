@@ -21,7 +21,7 @@ Clause: Retire as you go — mass-deletes are retirements too
 `diag_cin_aware_split_basis_keff` while the CP rank-n protocol test's worker consumed it;
 an untracked scratch copy masked the loss for ten weeks, then vanished — recovery had to
 route through a surviving `.pyc`'s `co_filename` back into git history. The probe was
-retired for good at `RETIRE_HASH`, when the worker was rewired to call the production
+retired for good at `f36572c8`, when the worker was rewired to call the production
 `solve_peierls_1g(..., boundary="white_f4")` directly.
 
 ### 2026-07-15 sphinx severity

@@ -1,7 +1,7 @@
 r"""ERR-053 regression catcher — Krylov restart-truncation structural signature.
 
 Promoted from ``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py``
-(numerics-investigator's step-5 diagnostic, retired at ``RETIRE_HASH``) per the investigator's
+(numerics-investigator's step-5 diagnostic, retired at ``f36572c8``) per the investigator's
 recommendation in the ERR-053 catalog entry.  This file pins the
 LOAD-BEARING structural signature for the bug class
 "GMRES subspace-dimension cap silently truncates the natural problem
@@ -46,7 +46,7 @@ References
   mechanism, root cause analysis, and fix rationale.
 * The 8 diagnostic scripts of the full bisection cascade,
   ``diag_krylov_si_homogeneous_sphere_step{1..8}_*.py``, are no longer in
-  the tree: steps 1, 2, 5 and 6 were retired at ``RETIRE_HASH`` and steps
+  the tree: steps 1, 2, 5 and 6 were retired at ``f36572c8`` and steps
   3, 4, 7 and 8 at ``d8843ba9``; recover one with
   ``git show <hash>^:derivations/diagnostics/<file>``.
 """

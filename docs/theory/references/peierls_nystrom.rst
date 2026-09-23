@@ -3809,7 +3809,7 @@ Quadrature: BASE preset
 = (2, 3, 24, 24, 24, 15)``. The same sweep at RICH preset
 ``(4, 5, 64, 48, 64, 20)`` was measured by the probe
 ``diag_class_b_rank_n_rich_check.py`` (added at ``184e7c57``, retired at
-``RETIRE_HASH``: ``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py``)
+``f36572c8``: ``git show f36572c8^:scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py``)
 and reproduces the BASE values to within :math:`0.022\,\%` —
 **the catastrophe is structural, not quadrature noise.**
 
@@ -3934,7 +3934,7 @@ and reproduces the BASE values to within :math:`0.022\,\%` —
    root once a canonical re-derivation lands.
 
 **Auxiliary numerical control: BASE↔RICH stability.** The probe
-``diag_class_b_rank_n_rich_check.py`` (retired at ``RETIRE_HASH``; see
+``diag_class_b_rank_n_rich_check.py`` (retired at ``f36572c8``; see
 above for its recovery) re-ran the sphere 1G/2R rank-2 catastrophe at the RICH preset
 ``(4, 5, 64, 48, 64, 20)``. Result: BASE k\ :sub:`eff` = 1.0152, RICH
 k\ :sub:`eff` = 1.0150, signed-error stability of :math:`0.022\,\%`.
@@ -4138,8 +4138,8 @@ The probe cascade (``diag_class_b_rank_n_probe.py`` and its probes B–G,
 ``diag_class_b_rank_n_probe_{b..g}_*.py``, added at ``184e7c57``) and
 ``diag_class_b_rank_n_rich_check.py`` (the BASE↔RICH stability control
 showing the catastrophe is structural — 0.022 % shift) were retired at
-``RETIRE_HASH``; recover one with
-``git show RETIRE_HASH^:scratch/derivations/diagnostics/<file>``. The
+``f36572c8``; recover one with
+``git show f36572c8^:scratch/derivations/diagnostics/<file>``. The
 cascade is promoted as ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
 the published 1G/1R table (``test_class_b_1g_1r_reproduces_published_table``),
 the multi-region routing invariance (``test_class_b_mr_routing_invariance_uniform_sigma``,
@@ -4310,8 +4310,8 @@ Gated by ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_
 (``slow``; 1G/1R, 2G/1R and 2G/2R within 0.05 %) and
 ``::test_class_b_sphere_hebert_heterogeneous_overshoot_known`` (BASE,
 1G/2R). The original reproducer ``diag_sphere_hebert_rich_check.py``
-(added at ``f9675db3``) was retired at ``RETIRE_HASH``
-(``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_hebert_rich_check.py``).
+(added at ``f9675db3``) was retired at ``f36572c8``
+(``git show f36572c8^:scratch/derivations/diagnostics/diag_sphere_hebert_rich_check.py``).
 
 The 1G/2R heterogeneous limitation — Mark uniformity assumption
 ----------------------------------------------------------------
@@ -4330,8 +4330,8 @@ through the geometric series rather than correcting it.
 Quantitatively, the cp_sphere k_inf with finer subdivisions converges
 to 0.6485 (verified up to 64 sub-regions, measured by the scan probe
 ``diag_sphere_geometric_series_thicker_cell_scan.py``, added at
-``9a44dd0f`` and retired at ``RETIRE_HASH``:
-``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py``;
+``9a44dd0f`` and retired at ``f36572c8``:
+``git show f36572c8^:scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py``;
 the overshoot it explains is pinned by
 ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_heterogeneous_overshoot_known``),
 so the +10 % overshoot is NOT a "pointwise vs flat-flux CP" artifact
@@ -4378,8 +4378,8 @@ Gated by
 ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_chi_dependence``
 (parametrised over the fast, mixed and thermal emission spectra, each
 row to ±1 %). The original reproducer ``diag_sphere_chi_dependence_hebert.py``
-(added at ``76b11e88``) was retired at ``RETIRE_HASH``
-(``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_chi_dependence_hebert.py``).
+(added at ``76b11e88``) was retired at ``f36572c8``
+(``git show f36572c8^:scratch/derivations/diagnostics/diag_sphere_chi_dependence_hebert.py``).
 
 **Pattern**: more spatially-localised source → larger Mark uniformity
 overshoot. The 2G/2R "good result" is coincident with the chi = [1, 0]
@@ -4519,8 +4519,8 @@ NSE 64 — see synthesis below).
 Probes (none survives in the tree): ``diag_cylinder_hebert_keff.py`` was
 promoted and deleted at ``c196f0ca``; ``diag_cylinder_hebert_pss.py``,
 ``diag_cylinder_hebert_diagnose_residual.py`` and
-``diag_cylinder_g_bc_3d_patched_test.py`` were retired at ``RETIRE_HASH``
-(``git show RETIRE_HASH^:scratch/derivations/diagnostics/<file>``). Their
+``diag_cylinder_g_bc_3d_patched_test.py`` were retired at ``f36572c8``
+(``git show f36572c8^:scratch/derivations/diagnostics/<file>``). Their
 gates: ``tests/cp/test_cylinder_pss.py`` (the :math:`P_{ss}` primitive,
 against an independent Monte Carlo estimate),
 ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_cylinder_hebert_recovers_kinf``

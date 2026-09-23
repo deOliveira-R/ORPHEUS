@@ -4667,7 +4667,7 @@ at all.
 reproducing, to the sweep, the independently measured 1631 of the d=3
 reflective budget study (``scratch/d3_absorber_diagnosis.md``, pinned by
 ``tests/sn/solve/test_reflective_si_iteration_budget.py``, promoted from
-the probe ``diag_d3_absorber_02_si_rate_scaling.py`` at ``RETIRE_HASH``) —
+the probe ``diag_d3_absorber_02_si_rate_scaling.py`` at ``f36572c8``) —
 without that control the table below would be one more unverified
 instrument.
 
