@@ -23,8 +23,11 @@ contract below.
 
 ## W2 — Wrong answer
 
-**numerics-investigator** runs the probe cascade (drop one complication at a
-time to the minimal reproducer); it may call test-architect for the permanent
+**numerics-investigator** starts from the failing node of the test graph (the
+brief names its pytest id, and the campaign's verification spec when one
+exists) and returns it LOCALISED or surfaces the hidden node or edge the graph
+lacks, by the probe cascade (drop one complication at a time to the minimal
+reproducer); it may call test-architect for the permanent
 test and literature-researcher for the reference formulation. The fix lands
 (implementer or main agent). **qa** and **elegance-enforcer** review the fix in
 parallel, dispatched by the parent: qa with a mutation that re-introduces the

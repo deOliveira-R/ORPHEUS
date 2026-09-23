@@ -4,7 +4,7 @@ description: PROACTIVELY use when reviewing claims of correctness, designing ver
 allowed-tools: Bash
 harness:
   kind: skill
-  budget_tokens: 13600
+  budget_tokens: 13650
 ---
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns
@@ -72,7 +72,12 @@ the probe cascade built before the failure. The test-architect predicts the
 boundaries of failure; the numerics-investigator searches for one it missed;
 qa checks in hindsight that each was predicted and tested, and a new or a
 vacuous boundary sends the loop back to the test-architect (`[R]` the user,
-2026-09-22).
+2026-09-22). Each test declares the rungs it rests on,
+`@pytest.mark.rests_on(*test_ids)`, so the ladder is a graph over the suite; a
+failure the graph cannot localise (the answer wrong while every rung is green,
+or a red rung whose supports are green and whose own increment holds no
+defect) is a missing node or edge, and surfacing it is the
+numerics-investigator's work.
 
 - **check:** a verification design starts from the tests that exist for the
   capability (the `verifies` edges and the runtime exercisers of the touched

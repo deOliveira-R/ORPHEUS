@@ -11,6 +11,10 @@ multi-group × F.4 closure × adaptive-mpmath" to a single
 finite-N-GL-where-closed-form-applies bug in
 `compute_P_esc_{outer,inner}` via a 5-probe isolation cascade.
 
+## Start from the test graph
+
+When the failure is a test that declares its supports (`@pytest.mark.rests_on(...)`), the reduction is a walk down those edges: run the supports, move to the lowest red one, and cascade only inside the increment of a node whose supports are all green. The cascade is needed where the graph is silent, and its minimal reproducer is then the hidden node the graph lacks, promoted into `tests/` with its own `rests_on`.
+
 ## When to use
 
 - Solver disagrees with a trusted reference by a small-but-nonzero
@@ -67,7 +71,7 @@ its interaction with the other already-confirmed factors).
 
 ## Directory and filename convention
 
-All probes live in `scratch/derivations/diagnostics/diag_{issueN}_probe_{letter}_{descriptor}.py` (untracked: a probe is a working artefact; what survives is promoted into `tests/`, and the tracked `derivations/diagnostics/` is being retired, the user's ruling of 2026-09-22):
+All probes live in `scratch/derivations/diagnostics/diag_{issueN}_probe_{letter}_{descriptor}.py` (scratch is temporary space: a probe tracked there is tracked only against loss while it waits; it ends promoted into `tests/` or retired, and the tracked `derivations/diagnostics/` is being retired, the user's rulings of 2026-09-22):
 
 - `diag_slab_issue131_probe_a_1g_2rg_vacuum.py`
 - `diag_slab_issue131_probe_b_2g_2rg_vacuum.py`

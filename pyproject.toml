@@ -94,6 +94,7 @@ markers = [
     "foundation: Foundation — software invariant (data structure / numerical primitive), not a physics equation",
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
+    "rests_on(*test_ids): pytest node ids of the tests this one rests on — the verification DAG (#358); a red support INVALIDATES this test's reading rather than failing it",
     "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
     "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/archive/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
     "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/archive/sn_sentinel_harness.md.",
