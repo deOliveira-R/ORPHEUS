@@ -435,9 +435,9 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     Euclidean transpose of ``apply`` — over BOTH blocks (the bulk residual AND
     the boundary trace), with a NON-ZERO boundary so the FULL-operator trace
     coupling (``L_bs`` inflow→bulk, ``L_sb`` bulk→outflow) is exercised, not
-    merely the cell block.  The reverse sweep is verified bit-for-bit against a
-    dense-probe transpose oracle in
-    ``derivations/diagnostics/diag_p42_adjoint_oracle.py``.
+    merely the cell block.  The reverse sweep was verified bit-for-bit at
+    landing against a dense-probe transpose oracle,
+    ``diag_p42_adjoint_oracle.py``, which was not preserved in git.
 
     This gate is metric-AGNOSTIC by design: the ``|Ω·n|·w`` partial-current
     metric is non-discriminating for ``(L+C)`` with a SPECULAR reflective BC

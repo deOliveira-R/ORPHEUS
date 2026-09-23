@@ -65,6 +65,16 @@ still open, or the commit that added the diag is within the last
 session's work. If neither, reconsider (the investigation may have
 concluded and nobody triaged the scratchpad).
 
+A LEFT probe must still import. An open issue does not keep a probe
+whose imports died in a restructuring: it can produce no reading, so
+it retires, and the issue's comments and the theory page keep its
+measurements (`[M]` 2026-09-22: 29 of the 32 probes then tracked here
+had not imported since May or June 2026, and 18 of the 20 kept for an
+open issue were among them). A probe left here and tracked in git is
+tracked only against loss while its decision is pending, never as a
+home (the user's ruling, 2026-09-22); the tracked ones are gated by
+`tests/derivations/test_diagnostics_resolve_their_imports.py`.
+
 ## When to run the triage
 
 - Immediately after landing a fix for the Issue that spawned the

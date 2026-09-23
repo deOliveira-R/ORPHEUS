@@ -6701,14 +6701,14 @@ architecture this decides is set out on the loss-operator page
 
 .. note::
 
-   The Gauss–Lobatto study is a set of scratch diagnostics
+   The Gauss–Lobatto study was a set of scratch diagnostics
    (``scratch/experimental/glob_sphere_study/`` and
-   ``derivations/diagnostics/diag_glob_0{1..5}_*.py`` — 33 green
-   diagnostics covering moment integration, per-ordinate consistency,
-   end-to-end penalty, the :math:`\tau_0 = 0` recurrence break, and the
-   :math:`k_\infty` anchor).  They are **uncommitted** and are promotion
-   targets *only if* a pole-node scheme is ever adopted; do not promote
-   them otherwise.  The durable synthesis is
+   ``diag_glob_0{1..5}_*.py`` — 33 green diagnostics covering moment
+   integration, per-ordinate consistency, end-to-end penalty, the
+   :math:`\tau_0 = 0` recurrence break, and the :math:`k_\infty`
+   anchor).  They were never committed and are no longer in the tree;
+   a pole-node scheme, if ever adopted, would owe that battery anew.
+   The durable synthesis is
    ``.claude/plans/archive/facefield_codim1_design.md`` §3.5.
 
 .. _sn-direct-seed-strategy-zoo:

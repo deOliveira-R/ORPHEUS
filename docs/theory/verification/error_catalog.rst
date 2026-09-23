@@ -2934,7 +2934,9 @@ older entries classify against.
    (Cauchy PV or implicit via the Eq 26 definition path), or (c) needs
    the closed-form Case-Plazcek-Hofmann 1961 X-function for isotropic.
    Tracked as separate investigation, regression-pinned by
-   ``derivations/diagnostics/diag_kj_x_function_divergent_integrand.py``.
+   ``tests/derivations/test_case_method_x_function.py``; the probe that
+   first measured it, ``diag_kj_x_function_divergent_integrand.py``, was
+   not preserved in git.
 
    **How it hid from higher-level tests:**
 
@@ -2965,11 +2967,13 @@ older entries classify against.
 
    **L1 tests that catch it:**
 
-   - ``derivations/diagnostics/diag_05_z0_regression_atalay_table1.py::test_atalay_z0_table1_isotropic``
+   - ``tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic``
      (parametrised over Atalay Table 1's 10 c values) — asserts
-     ``abs(z_0 - z_0_atalay) < 1e-5`` at f₁=0. **Tagged
-     ``@pytest.mark.catches("ERR-037")``** for permanent regression
-     binding. Promote to ``tests/derivations/test_case_method_z0.py``.
+     ``abs(z_0 - z_0_atalay) < 1e-5`` at f₁=0. **Tagged**
+     ``@pytest.mark.catches("ERR-037")`` for permanent regression
+     binding. Promoted from the probe
+     ``diag_05_z0_regression_atalay_table1.py``, which was not preserved
+     in git.
    - ``test_atalay_z0_consistent_with_milne_form_at_c130`` — cross-checks
      z_0 against Davison's Milne form $z_0 = (\pi/2) u_0 - a_c$
      using Atalay's own Table 2 row. This pin is structurally
@@ -4800,7 +4804,9 @@ older entries classify against.
 
    Secondary lesson: **``IterationHistory.converged=True`` was hardcoded** in ``orpheus/sn/solver.py:992-996``, decoupled from the solver's actual convergence flag. This is a latent bug worth a follow-up fix (low severity — the keff value is correct post-ERR-052; only the ``converged`` field is misleading). Tracked as P3.4 close-out work.
 
-   **Test reference:** ``tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective`` — tagged ``@pytest.mark.catches("ERR-052")``. Companion diagnostic: ``derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py`` runs the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirms SI/Krylov agreement post-fix. The diag script also documents a session-level gotcha — standalone scripts under ``derivations/diagnostics/`` must prepend the repo root to ``sys.path`` to load the worktree's ``orpheus``; otherwise the venv's ``pip install -e .`` silently resolves to the main checkout, giving stale-fix false-negatives.
+   **Test reference:** ``tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_power_iteration_renormalises_to_unit_production_rate`` (parametrised over ``tol`` ∈ {1e-7, 1e-12}) — tagged ``@pytest.mark.catches("ERR-052")``. It asserts the fix's documented output convention, unit production rate :math:`P(\phi) = 1` at ``rtol=1e-12`` on both the reflective and the vacuum leg; re-introducing the bug moves it to 0.844 (reflective) and 0.0740 (vacuum). The marker first sat on ``test_vacuum_keff_lower_than_reflective``, and was moved at B0.3 because that ordering assertion (reflective ``k`` above vacuum ``k``, a ~10× margin) stays green with the bug re-introduced once the fixture converges in 6 outers; the test's own docstring records the measurement.
+
+   A companion diagnostic, ``diag_vacuum_bc_eigenvalue_divergence.py``, ran the three discriminating probes (reflective baseline, vacuum + SI, vacuum + Krylov) and confirmed SI/Krylov agreement after the fix; it was retired at ``RETIRE_HASH`` (``git show RETIRE_HASH^:derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py``). It also recorded a session-level gotcha that still applies to any standalone script: prepend the worktree root to ``sys.path`` (or run from outside the repository with ``PYTHONPATH`` set) to load the worktree's ``orpheus``; otherwise the venv's ``pip install -e .`` silently resolves to the main checkout and gives stale-fix false negatives.
 
    → Probe path: see ``.claude/agent-memory/numerics-investigator/vacuum_bc_eigenvalue_divergence.md`` for the full hypothesis cascade.
 
@@ -4845,7 +4851,7 @@ older entries classify against.
 
    **Why "tighter inner_tol" did NOT rescue the test** (the misleading first hypothesis): scipy's ``rtol`` controls the EXIT criterion (relative residual < rtol), not the SUBSPACE dimension. With restart=50, no value of ``rtol`` can produce convergence — the subspace simply doesn't contain the solution direction. The investigator's repro (``/tmp/repro_krylov_sphere.py``) showed keff = 1.4019239124 identically for ``inner_tol ∈ {1e-8, 1e-10, 1e-12}`` — a clean tolerance-isn't-it falsification.
 
-   **Error growth with refinement** (the load-bearing diagnostic): mesh-refinement table from the investigator's step-5 diagnostic (``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py``):
+   **Error growth with refinement** (the load-bearing diagnostic): mesh-refinement table from the investigator's step-5 diagnostic (``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py``, retired at ``RETIRE_HASH`` after its promotion to ``tests/sn/solve/test_krylov_restart_signature.py``):
 
 
    .. code-block:: text
@@ -4952,7 +4958,7 @@ older entries classify against.
 
    **Test reference:** ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under ``tests/sn/`` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms ``info`` discard at the kernel boundary. All three carry ``@pytest.mark.catches("ERR-053")``.
 
-   → Probe path: ``derivations/diagnostics/diag_krylov_si_homogeneous_sphere_step{1,2,5,6}_*.py`` — **4** scripts, not the 8 this line claimed until 2026-08-09 (#347 audit: ``step3``, ``step4``, ``step7``, ``step8`` were never tracked; the bisection cascade's other rungs live only in the investigator's memo).
+   → Probe path: the bisection cascade ``diag_krylov_si_homogeneous_sphere_step{1..8}_*.py`` is no longer in the tree. ``step1``, ``step2``, ``step5`` and ``step6`` were retired at ``RETIRE_HASH`` (recover with ``git show RETIRE_HASH^:derivations/diagnostics/<file>``); ``step3``, ``step4``, ``step7`` and ``step8`` were deleted at ``d8843ba9`` (recover with ``git show d8843ba9^:derivations/diagnostics/<file>``; the #347 audit of 2026-08-09 read them as never tracked, which ``git log --all`` refutes). Step 5 survives as ``tests/sn/solve/test_krylov_restart_signature.py``; the other rungs' findings live in this entry and in the investigator's memo.
 
 .. error-entry:: ERR-054
    :title: ordinate_scan Blelloch closed-form cumprod_a · (psi_0 + cumsum(b/cumprod_a)) produces NaN when any chain entry of a is exactly 0 (cylindrical pole-cell algebraic resonance)
@@ -5007,8 +5013,8 @@ older entries classify against.
 
    Diagnostic scripts:
 
-   * ``derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py`` — 6 tests pinning the sharp-resonance fingerprint (``n_cells = 20`` only; Krylov worked on the same problem).
-   * ~~``derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py``~~ — **RETIRED 2026-08-09 (#347).** It pinned the cache-level ``a = 0`` identity, the ``ordinate_scan`` NaN, the explicit-loop finiteness, and the Krylov-bypass invariant. Three of the four are now false or unreachable: the division-free backend inverted the NaN assertion (its own docstring named that as the retirement trigger), Phase G dissolved the Krylov-bypass invariant (see point 5 above), and its ``μ_x = 1/√20`` resonance node belongs to the retired pre-#337 seed. Successors, both live: ``tests/sn/sweep/core/test_ordinate_scan_reset.py`` (scan-form contract + reachability tripwire) and ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``.
+   * ``derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py`` — **RETIRED at** ``RETIRE_HASH``. Its tests pinned the sharp-resonance fingerprint (``n_cells = 20`` only; Krylov worked on the same problem) by asserting ``isnan(keff)``, the bug itself; the division-free scan no longer produces the NaN, and its level-symmetric :math:`S_8` cylinder fixture is now refused as non-carrying, so all of them were red. Recover with ``git show RETIRE_HASH^:derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py``. Successors are the two tests named in the step-5 bullet below.
+   * ``derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py`` — **RETIRED 2026-08-09 (#347).** It pinned the cache-level ``a = 0`` identity, the ``ordinate_scan`` NaN, the explicit-loop finiteness, and the Krylov-bypass invariant. Three of the four are now false or unreachable: the division-free backend inverted the NaN assertion (its own docstring named that as the retirement trigger), Phase G dissolved the Krylov-bypass invariant (see point 5 above), and its ``μ_x = 1/√20`` resonance node belongs to the retired pre-#337 seed. Successors, both live: ``tests/sn/sweep/core/test_ordinate_scan_reset.py`` (scan-form contract + reachability tripwire) and ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``.
 
    The fix landed on 2026-06-08 (``5c373517``, the division-free
    ``ordinate_scan``), but the ``@pytest.mark.catches("ERR-054")`` marker
@@ -5042,7 +5048,7 @@ older entries classify against.
 
    **Test reference:** ``tests/sn/sweep/core/test_ordinate_scan_reset.py::TestOrdinateScanReset::test_ordinate_scan_multiple_and_consecutive_resets`` (``@pytest.mark.l0`` + ``@pytest.mark.catches("ERR-054")``, the sole catcher), beside the solver-level regression gate ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``, which carries no ``catches`` marker (see "Which test catches it" above).
 
-   → Probe path: see ``derivations/diagnostics/diag_si_cyl_20cell_nan_step{1,5}_*.py`` for the cascade. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
+   → Probe path: the cascade ``diag_si_cyl_20cell_nan_step{1,5}_*.py`` is retired (step 1 at ``RETIRE_HASH``, step 5 at ``977615f7``); recover a file with ``git show <hash>^:derivations/diagnostics/<file>``. The cascade is two-step (no need for step 2/3/4 isolation because the failing path was named directly by the FP-warning traceback at step 1); the methodology is a degenerate case of the standard 8-step cascade where step 1's traceback short-circuits the isolation.
 
 .. error-entry:: ERR-055
    :title: Curvilinear sweep regression tests fed sig_t / Q in the obsolete (nx, ng, ny) layout after the production contract flipped to PR-INDEX-5 (ng, nx, ny) / (N, ng, nx, ny) — IndexError at CollisionCache.from_geometry
@@ -5260,7 +5266,7 @@ older entries classify against.
 
    **Fix.** A single-sourced ``2^d`` moment-frame involution ``octant_moment_frame_signs(octant_signs, per_axis)`` = ``∏_a (octant_sign_a)^{o_a}`` (average moment sign-invariant; per-axis slope flips once if that axis sweeps backward; the d=2 cross moment ``x̂y`` flips when an ODD number of its axes reverse). Applied via the ``_reframe`` helper at both cell ops: the source/probe is mapped global→sweep on INPUT and the emitted moment/residual sweep→global on OUTPUT (the map is its own inverse). The OUTGOING FACE (``psi_out``) stays sweep-frame — it propagates along the wavefront and never crosses into the global-frame iterate. DD/Step (``per_axis == 1`` → ``None``) are byte-identical (the negative control: GATE 4 = 513 pass / 1 skip / 4 xfail, zero drift). The flat scalar source (matvec zero / flat external — only the sign-invariant average moment) is frame-invariant and skipped by the ``arr.shape[-1] != frame_signs.shape[0]`` guard, so it is never broadcast into a spurious moment axis. Post-fix: nx=4 LD vs DD rel 38.9% → 4.1%; nx=16 7.9% → 0.2%; nx=64 0.9% → 0.0%. The 2-D analog converges 8.4% → 1.7% → 0.4% across n=4/8/16.
 
-   **Which test catches it.** ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit`` (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G-het, Mode-6 group-coupled slope source) — both ``@pytest.mark.l1 @pytest.mark.catches("ERR-061")``, both Mode-8-safe (``np.testing.assert_array_less``, fires under ``-O``). The slope-frame fingerprint is pinned by ``derivations/diagnostics/diag_240_d5b_s3_probe_11_root_cause.py`` (forward and backward ordinate slopes must share sign in the global frame) and the structurally-independent confirmation by ``diag_240_d5b_s3_probe_08_independent_ld.py`` (from-scratch LD recovers diffusion only with the global-frame correction).
+   **Which test catches it.** ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit`` (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G-het, Mode-6 group-coupled slope source) — both ``@pytest.mark.l1 @pytest.mark.catches("ERR-061")``, both Mode-8-safe (``np.testing.assert_array_less``, fires under ``-O``). The slope-frame fingerprint was established by the probe ``diag_240_d5b_s3_probe_11_root_cause.py`` (forward and backward ordinate slopes must share sign in the global frame) and the structurally-independent confirmation by ``diag_240_d5b_s3_probe_08_independent_ld.py`` (from-scratch LD recovers diffusion only with the global-frame correction); neither probe was preserved in git, so the two thick-cell tests are the standing catchers.
 
    **Lesson.** A per-ordinate spatial-moment quantity (an LD slope, an Pℓ anisotropic moment) that is produced in a direction-dependent SWEEP frame MUST be lifted to the global frame BEFORE the angular reduction that sums it across ordinates — the producer and the consumer must agree on the frame, or forward and backward ordinates cancel a quantity that should reinforce. The matvec-self-consistency gate (SI≡Krylov, round-trip≈0) is necessary but NEVER sufficient for a moment-iterate fold: it proves the operator is internally consistent, not that its fixed point is the physically correct one — gate the converged VALUE against a structurally-independent reference (here: the continuous diffusion solution + an independent from-scratch LD kernel), never the round-trip. → numerical-bug-signatures: a NEW frame-convention class (sweep-frame vs global-frame for direction-dependent moments) adjacent to Signature 3 (scattering transpose) and Signature 4 (quadrature normalization) — the common thread is a per-ordinate convention that is invisible until a quantity is summed across ordinates of opposite sweep direction (the angular reduction is the discriminator, exactly as H2/H3 predict: flat flux nulls the slope, and conservation/round-trip are telescoping-degenerate to the frame error).
 

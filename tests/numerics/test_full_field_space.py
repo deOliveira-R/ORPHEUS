@@ -10,9 +10,10 @@ The per-block *metric* semantics (``apply_metric`` / ``apply_inverse_metric`` /
 ``inner_product`` on a real bulk :math:`\oplus` boundary
 :class:`~orpheus.transport.timed_full_field.TimedFullField`) are exercised at
 the SN layer in
-``tests/sn/operators/test_g_adjoint_reciprocity.py`` and against the dense-probe
-oracle ``derivations/diagnostics/diag_p42_adjoint_oracle.py`` — kept there to
-avoid importing the transport layer into a numerics-layer test.
+``tests/sn/operators/test_g_adjoint_reciprocity.py`` — kept there to avoid
+importing the transport layer into a numerics-layer test. (A dense-probe
+oracle, ``diag_p42_adjoint_oracle.py``, checked them at landing; it was not
+preserved in git.)
 """
 
 from __future__ import annotations

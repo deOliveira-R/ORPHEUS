@@ -2264,8 +2264,10 @@ The **adjoint** routes the :math:`+1` seed cotangent into the
 :math:`-1` reversal's initial outflow cotangent at the mirrored
 ordinates (see
 :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_transpose`,
-pinned by the dense-probe transpose oracle
-``derivations/diagnostics/diag_p42_adjoint_oracle.py``).
+checked at landing against the dense-probe transpose oracle
+``diag_p42_adjoint_oracle.py``, a probe that was not preserved in git; the
+standing gate is
+``tests/sn/sweep/core/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame``).
 
 .. _sn-coupled-pole-mu-level-invariant:
 
@@ -2906,9 +2908,21 @@ Session trail (V&V audit trail)
   <https://github.com/deOliveira-R/ORPHEUS/issues/195>`_ comments
   (2026-06-12) — the premise refutation and the decisive probe-3
   residual evidence.
-* **Diagnostics**: ``derivations/diagnostics/diag_195_probe{1,2,3}_*.py``
-  (the plateau / error-profile / operator-admission probes), promoted to
-  the gate ``tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py``.
+* **Diagnostics**: the five probes ``diag_195_probe{1..5}_*.py`` (the
+  refinement ladder, the pole spike, the residual audit, the term
+  decomposition and the seed fix) were retired at ``RETIRE_HASH``; recover
+  one with ``git show RETIRE_HASH^:derivations/diagnostics/<file>``.
+  What they asked is gated by
+  ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
+  and ``::test_sn_cylindrical_mms_converges_second_order`` (probe 1: the
+  error falls at second order, it does not plateau),
+  ``tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``
+  (probe 2: the pole-cell order is bounded below, so a growing spike
+  reds it), and ``tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py``
+  (probe 3, promoted 2026-06-12: the per-ordinate residual of the
+  operator on the manufactured solution decays). Probes 4 and 5 drove a
+  matvec that the operator-algebra carve retired; their finding is
+  ERR-058, gated by the probe-3 successor.
 * **Investigator memo**:
   ``.claude/agent-memory/numerics-investigator/issue_195_root_cause_2_pole_closure.md``.
 

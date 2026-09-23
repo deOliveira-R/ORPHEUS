@@ -3143,8 +3143,9 @@ with the default unchanged, precisely so the default could be decided on
 *measured* numbers rather than a plausibility argument — the governing
 principle: *construct each strategy as general as its algorithm
 naturally allows; select narrow; specialize only on measured internal
-cost.* The S6.9 benchmark
-(``derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py``,
+cost.* The S6.9 benchmark (the script
+``diag_s69_scanmarch_vs_window_bench.py``, retired at ``RETIRE_HASH``:
+``git show RETIRE_HASH^:derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py``;
 median over repeats, ``python -O``; full table in #222 comment
 4683241855) measured ``ScanMarch`` / ``MovingFrontierWindow`` ratios:
 

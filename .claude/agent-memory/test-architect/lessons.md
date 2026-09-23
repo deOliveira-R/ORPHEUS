@@ -399,6 +399,12 @@ shelf life — check it against a concrete row before trusting a green.
   2.2e-16 at n=8 to 2.6e-14 at n=1024. Ship the small `n` and SAY in the
   docstring that raising it degrades the gate, or a later session "strengthens"
   it into a false red. → `L73h`
+- **⛔ A conditioning bound is the amplification AVERAGED over the integrand, not
+  the argument's maximum** — `exp(-tau)` condition `max tau` is wrong when the
+  argument's own rounding is non-uniform (a chord `sqrt(R^2-h^2)` at the rim) and
+  the integrand concentrates there: compute the weighted mean by mpmath and write
+  the law from it. And a probe's sampled radii/regime are a SAMPLE: re-measure the
+  edge (`r -> R`, thick cell) before inheriting its "spectral at n=64". → `L92`
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
 Reference material, not a per-dispatch rule: moved to `lessons_archive.md`

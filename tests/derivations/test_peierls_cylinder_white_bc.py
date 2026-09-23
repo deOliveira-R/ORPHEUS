@@ -195,14 +195,14 @@ class TestWhiteBCEigenvalue:
 # (-10 % to -90 %). Any future closure improvement that closes the gap
 # below 10 % is a structural fix and must update this gate.
 #
-# The pss diagnostic that supplies the multi-region P_ss^cyl
-# integration lives in
-# ``derivations/diagnostics/diag_cylinder_hebert_pss.py`` (an
-# investigation primitive, not a diag scratchpad — kept).
+# The multi-region P_ss^cyl integration is the production primitive
+# ``compute_P_ss_cylinder``, gated in ``tests/cp/test_cylinder_pss.py``
+# (the probe that first carried it, ``diag_cylinder_hebert_pss.py``, was
+# retired at ``RETIRE_HASH``).
 #
 # Promoted from
 # ``derivations/diagnostics/diag_cylinder_hebert_keff.py`` (2026-04-30
-# triage).
+# triage; deleted at ``c196f0ca``).
 
 
 @pytest.mark.foundation

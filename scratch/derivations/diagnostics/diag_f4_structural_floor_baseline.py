@@ -46,24 +46,17 @@ Output: a plain-text Markdown-friendly table at the end.
 NOT a pytest test -- this is a scanner. The distilled baseline is copied
 into tests/cp/test_peierls_rank_n_protocol.py as the F.4 per-point reference.
 
-Provenance (moved 2026-07-13)
------------------------------
-Moved from the legacy ``scratch/derivations/diagnostics/`` tree — the
-pre-``ff473838`` repo-root ``derivations/``, where this scanner was
-TRACKED all along — into the live diagnostics home, beside the F.4
-evaluator ``diag_cin_aware_split_basis_keff.py`` its worker imports.
-The move followed that evaluator's loss: the evaluator sat UNTRACKED
-in the legacy tree (mass-deleted from git by ``15486f66`` while still
-consumed), so when its working copy vanished it had to be recovered
-via surviving ``__pycache__`` bytecode + git archaeology. This scanner
-IS the instrument that produced (and is the documented re-scan path
-for) the ``F4_REFERENCE_BASELINE`` pinned in the tracked protocol
-test — it now lives next to what it drives. The worker's hardcoded
-devcontainer scratch path became the ``__file__``-resolved directory
-passed via argv (a tool may only import code through
-environment-agnostic paths). Behavior otherwise unchanged; the
-120 s/run budget stays — it is the L19 protocol's documented scan
-vocabulary ("unresolved at 2-min budget"), not an infra backstop.
+Provenance
+----------
+This scanner is the instrument that produced, and the documented re-scan
+path for, the ``F4_REFERENCE_BASELINE`` pinned in the tracked protocol
+test. It stays in scratch while #123 is open (R19, R20: scratch is
+temporary space; tracked here only against loss). Since 2026-09-22 its
+worker calls production, ``solve_peierls_1g(..., boundary="white_f4")``,
+as the protocol test's worker does; the diagnostic evaluator it used to
+import retired with ``derivations/diagnostics/``. The 120 s/run budget
+stays: it is the L19 protocol's scan vocabulary ("unresolved at 2-min
+budget"), not an infra backstop.
 """
 from __future__ import annotations
 
@@ -107,13 +100,13 @@ RESOLUTION_THRESHOLD = 5.0e-5  # 0.005%
 # Subprocess worker -- runs a single (tau, rho, quad) triple, prints JSON.
 # -------------------------------------------------------------------------
 
-_DIAG_DIR = Path(__file__).resolve().parent
-
 _WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, sys.argv[6])
-    from diag_cin_aware_split_basis_keff import run_scalar_f4
+    import numpy as np
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import (
+        CurvilinearGeometry, solve_peierls_1g,
+    )
 
     tau = float(sys.argv[1])
     rho = float(sys.argv[2])
@@ -126,8 +119,13 @@ _WORKER_CODE = textwrap.dedent(
     r_0 = rho * R
 
     t0 = time.time()
-    k = run_scalar_f4(r_0, R, 1.0, 1.0/3.0, 1.0,
-                      n_panels=n_panels, p_order=p_order, n_ang=n_ang)
+    k = solve_peierls_1g(
+        CurvilinearGeometry(kind="sphere-1d", inner_radius=r_0),
+        np.array([R]), np.array([1.0]), np.array([1.0 / 3.0]), np.array([1.0]),
+        boundary="white_f4", n_panels_per_region=n_panels, p_order=p_order,
+        n_angular=n_ang, n_rho=n_ang, n_surf_quad=n_ang,
+        dps=15, tol=1e-12, max_iter=500,
+    ).k_eff
     dt = time.time() - t0
     signed = (k - K_INF) / K_INF  # SIGNED fractional residual
     print(json.dumps({"k": k, "signed": signed, "wall": dt}))
@@ -151,7 +149,6 @@ def run_point_quad(tau: float, rho: float, quad: dict, wall_budget: float = WALL
         sys.executable, "-c", _WORKER_CODE,
         str(tau), str(rho),
         str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
-        str(_DIAG_DIR),
     ]
     t0 = time.time()
     try:

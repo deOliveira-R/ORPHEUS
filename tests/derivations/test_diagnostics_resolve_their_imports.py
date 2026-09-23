@@ -1,4 +1,5 @@
-r"""Every script under ``derivations/`` must still RESOLVE its first-party imports.
+r"""Every script under ``derivations/``, and every TRACKED probe under
+``scratch/derivations/diagnostics/``, must still RESOLVE its first-party imports.
 
 Why this gate exists (#347)
 ===========================
@@ -19,16 +20,16 @@ today's instances guarantees a fresh crop at the next rename. This gate
 converts a silent rot into a red test **at the rename, for the author who
 made it** — the failure becomes unrepresentable as *silence*.
 
-Not everything in there is debris. Three of the survivors are the
-instrument behind something committed:
-
-* ``diag_175_sweep_snapshot_regen.py`` regenerates ``tests/sn/sweep_ref_2g.npy``
-  and carries the structurally-independent plain-Python 2-D DD oracle that
-  licenses each re-baseline;
-* ``diag_s69_scanmarch_vs_window_bench.py`` produced the table published in
-  ``docs/theory/methods/sn/loss_representation.rst``;
-* ``diag_cin_aware_split_basis_keff.py`` is imported by the subprocess worker
-  in ``tests/cp/test_peierls_rank_n_protocol.py``.
+Its population changed at R19 (2026-09-22): ``derivations/diagnostics/``
+retired, each probe promoted into ``tests/``, retired to git history, or
+moved to ``scratch/derivations/diagnostics/`` because the investigation
+it serves is still open. A probe tracked there is tracked only against
+loss while its decision is pending (R20), and the promotion policy
+(``tests/derivations/_promotion_policy.md``) requires such an OPEN probe
+to still collect: this gate is where that requirement fails. `[M]`
+2026-09-22, the triage behind R19: 29 of the 32 probes then tracked in
+scratch had not imported since May or June 2026, because nothing looked.
+Untracked scratch probes are working files and are not gated.
 
 What this gate CANNOT see
 =========================
@@ -44,19 +45,19 @@ cannot reach):
    sibling it ``exec``'d. Both were retired at #347, so the tree carries
    **zero** instances today.
 2. **Imports inside a subprocess-worker string.** A ``textwrap.dedent`` body
-   handed to ``python -c`` is plain text. The one live instance is in
-   ``tests/cp/test_peierls_rank_n_protocol.py``, where the consuming test
-   *executes* it — so that path is gated by its own test, not by this one.
-   (This class already cost ten weeks once: ``15486f66`` mass-deleted
-   ``diag_cin_aware_split_basis_keff`` while that worker consumed it.)
+   handed to ``python -c`` is plain text. The #123 scanner in
+   ``scratch/derivations/diagnostics/`` carries one, and so does
+   ``tests/cp/test_peierls_rank_n_protocol.py``, whose consuming test
+   *executes* it. Both import only ``orpheus`` since R19; before it, the
+   worker imported a diagnostic script, and this class cost ten weeks once:
+   ``15486f66`` mass-deleted ``diag_cin_aware_split_basis_keff`` while that
+   worker consumed it.
 3. **A computed module name** — ``importlib.import_module(f"...{x}")``.
 
 And resolution is not execution: a script whose imports resolve can still
 fail on a changed *signature* (``TimedFullField.zeros(bulk=...)`` →
 ``interior=``) or a renamed attribute reached through an object rather than
-an import. That second layer is genuinely out of reach for a ~1 s gate; the
-scripts that must actually RUN are the three named above, and each is either
-run by hand before it is relied on or exercised by its consuming test.
+an import. That second layer is genuinely out of reach for a ~1 s gate.
 
 Decoder discipline
 ==================
@@ -85,6 +86,7 @@ import ast
 import importlib
 import importlib.util
 import pathlib
+import subprocess
 
 import pytest
 
@@ -92,6 +94,8 @@ pytestmark = pytest.mark.foundation
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DERIVATIONS_ROOT = REPO_ROOT / "derivations"
+#: OPEN probes: tracked while the investigation each serves is open (R20).
+SCRATCH_PROBES_ROOT = REPO_ROOT / "scratch" / "derivations" / "diagnostics"
 
 #: Import roots this gate resolves. Third-party imports are the venv's problem
 #: (a missing one fails loudly at install time); these two are the ones a
@@ -99,11 +103,24 @@ DERIVATIONS_ROOT = REPO_ROOT / "derivations"
 FIRST_PARTY = ("orpheus", "tests")
 
 
+def _tracked_python(root: pathlib.Path) -> list[pathlib.Path]:
+    """The ``.py`` files git tracks under ``root``; an untracked file is a
+    working file, not a pending decision."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--", str(root.relative_to(REPO_ROOT))],
+        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+    ).stdout
+    return [REPO_ROOT / f for f in listed.split("\0") if f.endswith(".py")]
+
+
 def _scripts() -> list[pathlib.Path]:
     return sorted(
-        p
-        for p in DERIVATIONS_ROOT.rglob("*.py")
-        if "__pycache__" not in p.parts
+        [
+            p
+            for p in DERIVATIONS_ROOT.rglob("*.py")
+            if "__pycache__" not in p.parts
+        ]
+        + _tracked_python(SCRATCH_PROBES_ROOT)
     )
 
 
@@ -160,7 +177,7 @@ def _resolves(dotted: str) -> bool:
 
 
 @pytest.mark.parametrize(
-    "script", _scripts(), ids=lambda p: str(p.relative_to(DERIVATIONS_ROOT))
+    "script", _scripts(), ids=lambda p: str(p.relative_to(REPO_ROOT))
 )
 def test_every_derivations_script_resolves_its_first_party_imports(
     script: pathlib.Path,
@@ -260,14 +277,20 @@ class TestTheGateItselfHasTeeth:
     def test_the_gate_actually_covers_the_tree(self) -> None:
         """A parametrize over an empty glob is green and gates nothing.
 
-        The ``rglob`` runs at collection time against a path built from
-        ``__file__``; if ``derivations/`` moves, the row count silently
-        drops to zero rather than reddening (`vv-principles` #8's
-        signature-tautological class).
+        The population is small since R19 (one derivation script and the OPEN
+        probes), so a count floor would be arbitrary. The control is instead
+        one known member per root: if a root moves, or the tracked-file
+        listing breaks, its member vanishes and this reddens (`vv-principles`
+        #8's signature-tautological class). When a member retires, name
+        another, or drop the root with its reason.
         """
-        scripts = _scripts()
-        assert len(scripts) >= 20, (
-            f"only {len(scripts)} scripts found under {DERIVATIONS_ROOT} — "
-            "either the tree moved (repoint DERIVATIONS_ROOT) or a mass "
-            "retirement happened; a near-empty parametrize gates nothing."
-        )
+        scripts = set(_scripts())
+        for member in (
+            DERIVATIONS_ROOT / "sn_dd_face_transmission.py",
+            SCRATCH_PROBES_ROOT / "diag_f4_structural_floor_baseline.py",
+        ):
+            assert member in scripts, (
+                f"{member.relative_to(REPO_ROOT)} is not in the gated "
+                f"population ({len(scripts)} scripts) — a root moved or the "
+                "listing broke; a gate over a vanished population gates nothing."
+            )

@@ -24,6 +24,12 @@ from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
 from tests.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
 from tests.sn._test_helpers import SN_TESTS_ROOT
+from tests.sn._independent_dd_sweep import (
+    hand_sweep,
+    snapshot_source,
+    solver_2g_case,
+    sweep_agreement_tolerances,
+)
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from dataclasses import replace
@@ -42,22 +48,12 @@ def _uniform_2d(nx, ny, delta, mat_map):
 
 @pytest.fixture
 def solver_2g():
-    """Build a small 2-group solver for component testing."""
-    fuel = get_mixture("A", "2g")
-    mod = get_mixture("B", "2g")
-    materials = {2: fuel, 0: mod}
+    """Build a small 2-group solver for component testing.
 
-    nx, ny = 6, 4
-    delta = 0.2
-    mat = np.zeros((nx, ny), dtype=int)
-    mat[:3, :] = 2
-    mat[3:, :] = 0
-
-    mesh = _uniform_2d(nx, ny, delta, mat)
-    quad = Quadrature.lebedev(order=17)
-    problem = SNProblem(mesh, quad, materials)
-    solver = SNSolver(problem)
-    return solver, materials, problem, quad
+    The case is :func:`tests.sn._independent_dd_sweep.solver_2g_case`, the
+    one definition shared with the sweep snapshot and its regeneration.
+    """
+    return solver_2g_case()
 
 
 @pytest.fixture
@@ -366,32 +362,93 @@ class TestTransportSweep:
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
 
+    @pytest.mark.rests_on(
+        "tests/sn/operators/test_solver_components.py::TestTransportSweep::test_matches_independent_hand_sweep",
+    )
     def test_matches_saved_reference(self, solver_2g):
-        """Sweep output must match the saved reference (bitwise regression).
+        """Sweep output must match the saved reference (a RECORD: it pins
+        drift, not correctness).
 
-        Snapshot regenerated for issue #175 (2026-06-12) via
-        ``derivations/diagnostics/diag_175_sweep_snapshot_regen.py``: the
-        pre-Wave-2 snapshot was doubly stale — pre-octant-batching VALUES
-        and pre-PR-INDEX-5 LAYOUT ``(nx, ny, ng)``. Per vv-principles
-        §bit-identity, the regenerated values were verified against a
-        structurally-independent reference: a from-scratch per-cell-loop
-        2-D DD sweep (no shared code with the production
-        windowed-frontier kernel) agreeing to max |Δψ| = 3.5e-17,
-        rel |Δφ| ≤ 9.8e-16. Re-run the diagnostic before any future
-        regeneration; it carries the standing readings table, and its
-        2026-08-09 row (``2.776e-17`` / ``5.152e-16``, taken through
-        ``(L + C).solve``) re-confirms the same agreement on today's
-        operator-algebra production path.
+        The snapshot was regenerated for issue #175 (2026-06-12): the
+        pre-Wave-2 snapshot was doubly stale, with pre-octant-batching VALUES
+        and the pre-PR-INDEX-5 LAYOUT ``(nx, ny, ng)``.  Its correctness is
+        not this test's claim: it rests on
+        :meth:`test_matches_independent_hand_sweep`, which compares the
+        same production sweep with a structurally independent per-cell DD
+        sweep on every run.  A red there invalidates this reading; a red
+        HERE alone means the production values moved while staying correct,
+        and the snapshot is regenerated, never re-typed, with
+        ``.venv/bin/python -O -c "from tests.sn._independent_dd_sweep import
+        regenerate_sweep_snapshot; regenerate_sweep_snapshot()"``, which
+        refuses to write unless the oracle agrees.  (The oracle lived in the
+        diagnostic ``diag_175_sweep_snapshot_regen.py``, retired, R19.)
         """
         solver, _, problem, quad = solver_2g
-        np.random.seed(7)
-        Q = np.random.rand(solver.ng, *problem.spatial_shape) + 0.01
+        Q = snapshot_source(solver.ng, problem.spatial_shape)
 
         _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.problem), solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
         ref = np.load(SN_TESTS_ROOT / "sweep_ref_2g.npy")
 
         np.testing.assert_allclose(phi, ref, rtol=1e-14,
                                    err_msg="Sweep regression: output changed")
+
+    @pytest.mark.verifies("dd-cartesian-2d")
+    @pytest.mark.rests_on(
+        "tests/numerics/test_rules_sphere.py::test_lebedev_weight_sum_is_4pi",
+        "tests/numerics/test_rules_sphere.py::test_lebedev_integrates_constants",
+    )
+    def test_matches_independent_hand_sweep(self, solver_2g):
+        """The production 2-D DD sweep equals an independent per-cell sweep.
+
+        What it catches: any change to the production 2-D diamond-difference
+        sweep's arithmetic (a coefficient, a closure weight, an axis swap in
+        the upstream couplings, a traversal-order dependence) on a
+        two-material, two-group, 110-ordinate case.  The frozen snapshot
+        test beside it compares production with bytes; this one compares it
+        with :func:`tests.sn._independent_dd_sweep.hand_sweep`, a plain-loop
+        transcription of :eq:`dd-cartesian-2d` that shares no code with the
+        production kernel (the independence argument, per axis, is that
+        module's docstring).  Kind: REFERENCE.
+
+        Activation: vacuum inflow on all four faces, a heterogeneous
+        (fuel | moderator) sigma_t, a spatially random positive source, and
+        a Lebedev-17 rule whose ordinates have ``|mu_x| != |mu_y|``, so the
+        x and y couplings differ and an axis swap moves the answer.  It
+        NULLS scattering (one sweep, no source iteration) and the reflective
+        boundary; those rungs are the SI and boundary tests.
+
+        Tolerance: both sides evaluate one recurrence in a different order,
+        so the bound is re-association only, ``10 x depth x eps`` (derived
+        in :func:`~tests.sn._independent_dd_sweep.sweep_agreement_tolerances`).
+        `[M]` 2026-09-22: 5.3e-16 and 1.39e-15 against 2.2e-14 and 2.7e-13.
+
+        Origin: #175, the oracle of
+        ``derivations/diagnostics/diag_175_sweep_snapshot_regen.py``
+        (retired, R19), which no collected test ran.
+        """
+        solver, _, problem, quad = solver_2g
+        sig_t = solver.problem.mat_xs.total_cross_section
+        Q = snapshot_source(solver.ng, problem.spatial_shape)
+
+        ang, phi = sweep_once(
+            AngularSourceSink.from_isotropic(Q, solver.problem), sig_t,
+            solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace),
+        )
+        psi_hand, phi_hand = hand_sweep(problem, sig_t, Q)
+        tol_psi, tol_phi = sweep_agreement_tolerances(problem)
+
+        dpsi = float(np.abs(np.asarray(ang) - psi_hand).max()
+                     / np.abs(psi_hand).max())
+        dphi = float((np.abs(phi - phi_hand) / np.abs(phi_hand)).max())
+        assert dpsi <= tol_psi, (
+            f"angular flux: max |psi_prod - psi_hand| / max |psi| = {dpsi:.3e} "
+            f"> {tol_psi:.3e}; the production DD sweep no longer equals the "
+            f"independent per-cell sweep"
+        )
+        assert dphi <= tol_phi, (
+            f"scalar flux: max rel |phi_prod - phi_hand| = {dphi:.3e} > "
+            f"{tol_phi:.3e}"
+        )
 
     def test_positive_source_positive_flux(self, solver_2g):
         """Positive source must produce non-negative flux."""

@@ -2669,11 +2669,13 @@ The thick-cell diffusion tripwire is
 group-coupled slope source — Mode 6), both ``@pytest.mark.l1
 @pytest.mark.catches("ERR-061")`` and both Mode-8-safe
 (``np.testing.assert_array_less`` fires under ``-O``).  The slope-frame
-fingerprint is pinned by
-``derivations/diagnostics/diag_240_d5b_s3_probe_11_root_cause.py`` (forward and
-backward ordinate slopes must share sign in the global frame), and the
+fingerprint was established by the probe
+``diag_240_d5b_s3_probe_11_root_cause.py`` (forward and backward
+ordinate slopes must share sign in the global frame), and the
 structurally-independent confirmation by
-``diag_240_d5b_s3_probe_08_independent_ld.py``.
+``diag_240_d5b_s3_probe_08_independent_ld.py``; neither probe was
+preserved in git, so the two thick-cell tests above are the standing
+gates.
 
 .. _ld-ubld-pure-z-collision-twin:
 
@@ -4664,7 +4666,8 @@ at all.
 ``scratch/probe_gs_vs_jacobi_rate.py``; its first row is a **control**
 reproducing, to the sweep, the independently measured 1631 of the d=3
 reflective budget study (``scratch/d3_absorber_diagnosis.md``, pinned by
-``derivations/diagnostics/diag_d3_absorber_02_si_rate_scaling.py``) —
+``tests/sn/solve/test_reflective_si_iteration_budget.py``, promoted from
+the probe ``diag_d3_absorber_02_si_rate_scaling.py`` at ``RETIRE_HASH``) —
 without that control the table below would be one more unverified
 instrument.
 

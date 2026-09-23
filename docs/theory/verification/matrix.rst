@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12286**
+Total tests collected: **12308**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1308, 10.6%
-   L1, 1763, 14.3%
+   L0, 1346, 10.9%
+   L1, 1767, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9117, 74.2%
+   foundation, 9097, 73.9%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12180
+   explicit, 12202
    class-name, 46
    func-name, 0
    case, 33
@@ -112,6 +112,7 @@ Module × level grid
    cp/test_properties, 12, 0, 0, 0, 0, 0
    cp/test_slab, 0, 9, 0, 0, 0, 0
    cp/test_sphere, 0, 9, 0, 0, 0, 0
+   cp/test_sphere_pss, 22, 0, 0, 0, 0, 0
    cp/test_verification, 4, 25, 5, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
@@ -169,7 +170,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 30, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 10, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -225,12 +226,12 @@ Module × level grid
    derivations/test_peierls_greens_function_xverif_ps1982, 0, 0, 0, 0, 6, 0
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
    derivations/test_peierls_nystrom_verification, 0, 4, 0, 0, 0, 0
-   derivations/test_peierls_rank2_bc, 9, 24, 0, 0, 4, 0
+   derivations/test_peierls_rank2_bc, 9, 25, 0, 0, 4, 0
    derivations/test_peierls_rank_n_bc, 59, 15, 0, 0, 0, 0
    derivations/test_peierls_rank_n_class_b_mr_mg, 0, 31, 0, 0, 0, 0
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
-   derivations/test_peierls_reference, 40, 25, 0, 0, 16, 0
+   derivations/test_peierls_reference, 55, 25, 0, 0, 16, 0
    derivations/test_peierls_reference_naming, 0, 0, 0, 0, 23, 0
    derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
@@ -481,7 +482,7 @@ Module × level grid
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 54, 0
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
-   operators/test_solver_components, 28, 0, 0, 0, 0, 0
+   operators/test_solver_components, 29, 0, 0, 0, 0, 0
    operators/test_space_content_witnesses, 0, 0, 0, 0, 9, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_step2_posed_fission_anchors, 0, 0, 0, 0, 18, 0
@@ -534,6 +535,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
+   solve/test_reflective_si_iteration_budget, 0, 3, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_scattering_order_is_the_only_truncation, 0, 3, 0, 0, 0, 0
    solve/test_si_convergence_diagnostics, 0, 4, 0, 0, 0, 0
@@ -603,7 +605,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 
    ``matrix-eigenvalue``, 240
    ``mg-balance``, 184
-   ``peierls-unified``, 158
+   ``peierls-unified``, 174
    ``one-group-kinf``, 146
    ``reflective-bc``, 145
    ``peierls-rank-n-bc-closure``, 124
@@ -674,12 +676,14 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
    ``inf-hom-balance``, 23
+   ``peierls-class-b-Pss-homogeneous``, 23
    ``two-group-A``, 23
    ``two-group-Ainv``, 23
    ``two-group-F``, 23
    ``two-group-M``, 23
    ``effective-spacing``, 22
    ``peierls-cyl-3d-mode-formula``, 22
+   ``peierls-sphere-Pss-homogeneous``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
    ``region-areas-pin-cell``, 22
@@ -691,6 +695,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
+   ``peierls-escape-probability``, 18
    ``direction-sampling``, 17
    ``energy-condensation-rate-preservation``, 17
    ``fission-weight``, 17
@@ -768,6 +773,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
+   ``dd-cartesian-2d``, 6
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``manifold-fibre-constancy``, 6
@@ -775,7 +781,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
-   ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
@@ -822,7 +827,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``moc-mms-qext``, 3
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
-   ``peierls-escape-probability``, 3
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
    ``peierls-greens-slab-V-alpha-2``, 3
    ``peierls-mg-operator``, 3
@@ -900,7 +904,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``normalisation``, 1
    ``normalization-dd-source-coefficient``, 1
    ``p0-scatter-source``, 1
-   ``peierls-class-b-Pss-homogeneous``, 1
    ``peierls-cyl-3d-gbc-mode-formula``, 1
    ``peierls-greens-T00-integrand``, 1
    ``peierls-greens-V-alpha-3``, 1
@@ -1586,9 +1589,13 @@ Files under the theory tree excluded from the label/sentinel scan by an explicit
 Phantom verifies targets
 ------------------------
 
-Labels declared by ``@pytest.mark.verifies("label")`` with NO matching ``:label:`` anywhere under ``docs/`` — the inverse of the orphan gate (issue #224): a theory-page label rename or removal that is not migrated into its tests silently drops those tests from the coverage table above. **0** phantom label(s).
+Labels declared by ``@pytest.mark.verifies("label")`` with NO matching ``:label:`` anywhere under ``docs/`` — the inverse of the orphan gate (issue #224): a theory-page label rename or removal that is not migrated into its tests silently drops those tests from the coverage table above. **1** phantom label(s).
 
-*(none — every verifies-target resolves to a live ``:label:``)*
+.. csv-table::
+   :header: Phantom label, Tests
+   :widths: 50, 10
+
+   ``peierls-sphere-Pss-homogeneous``, 22
 
 L0 error-catalog coverage
 -------------------------

@@ -33,6 +33,8 @@ when two boundaries exist).
 
 from __future__ import annotations
 
+import functools
+
 import mpmath
 import numpy as np
 import pytest
@@ -943,3 +945,136 @@ class TestSlabPolarVsNativeE1KEff:
             f"||φ_unified − φ_native||_∞ = {flux_max_rel:.3e} "
             f"at (L={L}, Σ_t={sig_t})."
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #129 Test 4.2 — the thin-shell cylinder's optically-thick planar limit
+# ═══════════════════════════════════════════════════════════════════════
+
+#: The #129 Test 4.2 material: one group, vacuum on every surface.
+_T42_XS = dict(
+    sig_t=np.array([1.0]), sig_s=np.array([0.4]), nu_sig_f=np.array([0.6]),
+)
+_T42_L = 1.0          # shell thickness = slab thickness, Sigma_t L = 1
+_T42_R = 1000.0       # outer radius; curvature L / R = 1e-3
+
+
+def _t42_kw(n: int) -> dict:
+    return dict(
+        **_T42_XS, boundary="vacuum", n_panels_per_region=1, p_order=3,
+        n_angular=n, n_rho=n, dps=20,
+    )
+
+
+def _t42_eigenvalue(k_eff: float | None) -> float:
+    """An eigenvalue solve returns ``k_eff``; a fixed-source one returns None."""
+    if k_eff is None:
+        raise TypeError("#129 Test 4.2 needs the eigenvalue solve's k_eff")
+    return float(k_eff)
+
+
+@functools.lru_cache(maxsize=None)
+def _t42_k_slab() -> float:
+    """The foundation: the unified slab-polar ``k_eff`` (the slab path
+    integrates its angular variable adaptively, so ``n_angular`` does not
+    enter it; `[M]` 2026-09-22 identical at n = 24 and 48)."""
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import (
+        solve_peierls_1g,
+    )
+    return _t42_eigenvalue(solve_peierls_1g(
+        SLAB_POLAR_1D, radii=np.array([_T42_L]), **_t42_kw(24),
+    ).k_eff)
+
+
+def _t42_k_cyl(n: int) -> float:
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import (
+        CurvilinearGeometry,
+        solve_peierls_1g,
+    )
+    shell = CurvilinearGeometry(kind="cylinder-1d", inner_radius=_T42_R - _T42_L)
+    return _t42_eigenvalue(solve_peierls_1g(
+        shell, radii=np.array([_T42_R]), **_t42_kw(n),
+    ).k_eff)
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-unified")
+class TestSlabPolarVsCyl1DOpticallyThick:
+    r"""#129 Test 4.2: a thin cylindrical shell is a slab, as an EDGE
+    asserted equal to its FOUNDATION.
+
+    A hollow cylinder of inner radius :math:`R - L` and outer radius
+    :math:`R`, as :math:`L/R \to 0`, is a slab of thickness :math:`L`.  The
+    two unified Nyström paths reach the limit through different kernels
+    (the cylinder's :math:`\mathrm{Ki}_1` over an in-plane
+    :math:`(\omega, \rho)` quadrature; the slab's :math:`e^{-\tau}` over an
+    adaptive polar integral), so their agreement tests the cylinder's
+    whole geometry and kernel machinery against the slab path, which is
+    itself verified against the native :math:`E_1` slab
+    (:class:`TestSlabPolarVsNativeE1KEff`).
+
+    Why optically thick.  At fixed THIN :math:`L` there is no clean limit:
+    the shell keeps a tangential-chord tail the slab lacks, and the gap
+    plateaus near 3.4 % as :math:`R \to \infty` (#129, scan 1b).  At
+    :math:`\Sigma_t L = 1` that tail is attenuated, and the gap at
+    :math:`R = 1000` is the cylinder's quadrature error, not curvature:
+    `[M]` 2026-09-22 the n = 24 gap is :math:`-3.720\times10^{-6}` at
+    :math:`R = 10^3` and :math:`-3.885\times10^{-6}` at :math:`R = 10^5`.
+
+    What it catches: an error in the cylinder volume kernel, its
+    :math:`(\omega, \rho)` ray geometry or the hollow-cylinder inner-surface
+    plumbing that survives a thin shell, and an error in the slab-polar
+    kernel (either side moves the gap off its convergence to zero).
+
+    Not on its path: the cylinder's radial volume weight :math:`r`
+    (:meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.radial_volume_weight`).
+    The observer-centred polar kernel carries no :math:`r^{d-1}` factor, so
+    the vacuum eigenvalue solve never reads it: `[M]` 2026-09-22, 0 calls,
+    and setting it to 1 leaves :math:`k_{\rm cyl}` bit-identical.  A defect
+    there is out of this test's reach.
+
+    Origin: ``derivations/diagnostics/diag_issue129_planar_limit_stage1c_L_scan.py``
+    (retired, R19), whose :math:`L = 1` row is this configuration; it
+    could not be ported (its imports were dead), so this is written from
+    the #129 specification.
+    """
+
+    @pytest.mark.rests_on(
+        "tests/derivations/test_peierls_rank2_bc.py::TestSlabPolarVsNativeE1KEff::test_1g_vacuum_slab_k_eff_matches_native",
+        "tests/derivations/test_peierls_reference.py::TestCylinderKernelRowSum::test_row_sum_matches_analytical_uniform_source",
+        "tests/derivations/test_peierls_geometry.py::TestRhoInnerIntersectionsHollow",
+    )
+    def test_the_thin_shell_cylinder_converges_to_the_slab(self) -> None:
+        r"""The shell's :math:`k_{\rm eff}` converges to the slab's under
+        refinement of the cylinder quadrature.
+
+        Three legs, at :math:`n_\omega = n_\rho = n \in \{12, 24, 48\}`:
+
+        * the #129 Test 4.2 statement, :math:`|k_{\rm cyl} - k_{\rm slab}|
+          / k_{\rm slab} < 10^{-4}` at :math:`n = 24`;
+        * the gap falls by at least 4 per doubling of :math:`n` (at least
+          second order), which is what makes the agreement a LIMIT rather
+          than a coincidence at one resolution.  `[M]` 2026-09-22: gaps
+          :math:`5.995\times10^{-5}`, :math:`3.720\times10^{-6}`,
+          :math:`1.902\times10^{-7}` (factors 16.1 and 19.6, order about
+          4); the next doubling reaches the curvature term
+          (:math:`+4.1\times10^{-8}` at :math:`n = 96`), so the ladder
+          stops at 48.
+
+        Runtime `[M]` 2026-09-22: about 14 s (the slab solve 10.4 s, the
+        three shell solves 3.4 s), under the 30 s ``slow`` line.
+        """
+        k_slab = _t42_k_slab()
+        gaps = {n: abs(_t42_k_cyl(n) - k_slab) / k_slab for n in (12, 24, 48)}
+        assert gaps[24] < 1e-4, (
+            f"#129 Test 4.2: thin-shell cylinder k_eff departs from the slab "
+            f"by {gaps[24]:.3e} >= 1e-4 at n_angular = n_rho = 24 "
+            f"(Sigma_t L = 1, R = {_T42_R:g})"
+        )
+        for coarse, fine in ((12, 24), (24, 48)):
+            assert gaps[fine] * 4.0 <= gaps[coarse], (
+                f"the shell-to-slab gap does not converge: {gaps[coarse]:.3e} "
+                f"at n = {coarse} -> {gaps[fine]:.3e} at n = {fine} (a factor "
+                f"{gaps[coarse] / gaps[fine]:.2f} < 4).  A gap that stops "
+                f"shrinking is a kernel or geometry error, not quadrature."
+            )

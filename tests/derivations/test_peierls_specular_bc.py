@@ -266,8 +266,9 @@ def test_specular_slab_rank1_equals_mark_kinf(homogeneous_fuel_A_1G):
     SYMMETRIC eigenmode for homogeneous slab. So the dominant
     eigenvalue (= k_eff) matches bit-exactly.
 
-    See ``derivations/diagnostics/diag_slab_specular_08_*.py`` for the
-    element-wise mathematical breakdown.
+    The element-wise mathematical breakdown was the probe
+    ``diag_slab_specular_08_rank1_bitexact.py``, deleted at ``15486f66``
+    (``git show 15486f66^:derivations/diagnostics/diag_slab_specular_08_rank1_bitexact.py``).
     """
     sol_spec = _solve(
         SLAB_POLAR_1D, homogeneous_fuel_A_1G,
@@ -306,8 +307,9 @@ def test_specular_slab_homogeneous_converges_to_kinf(
     -0.82 %). Rank-N specular for slab improves ON TOP of Mark by
     capturing higher Legendre modes of ψ⁺ at each face.
 
-    See ``derivations/diagnostics/diag_slab_specular_06_divisor_check.py``
-    for the divisor-sensitivity sweep (divisor ∈ {0.5, 1.0, 2.0}) that
+    The divisor-sensitivity sweep (divisor ∈ {0.5, 1.0, 2.0}) was
+    ``diag_slab_specular_06_divisor_check.py``, deleted at ``15486f66``
+    (``git show 15486f66^:derivations/diagnostics/diag_slab_specular_06_divisor_check.py``); it
     isolated the per-face vs combined-face area normalisation as the
     root cause of the rank-N plateau.
     """
@@ -1019,7 +1021,7 @@ def test_specular_multibounce_cyl_lifts_thin_plateau(thin_cyl_fuelA_like_1G):
 
     Pinned regression numbers from
     ``derivations/diagnostics/diag_specular_mb_phase4_06_keff_endtoend.py``
-    at BASE quadrature (p_order=4, n_panels=2, n_angular=24, dps=20):
+    (deleted at ``15486f66``) at BASE quadrature (p_order=4, n_panels=2, n_angular=24, dps=20):
 
     - :math:`N=1`: bare ~ -2.95 %, MB ~ -0.17 %.
     - :math:`N=3`: MB ~ -0.14 % (close to convergence).

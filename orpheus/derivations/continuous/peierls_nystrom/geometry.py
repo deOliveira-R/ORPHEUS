@@ -2114,9 +2114,8 @@ def compute_P_ss_cylinder(
     :math:`\mathrm{Ki}_3(2\Sigma_t R\cos\alpha)`.
 
     See :func:`compute_P_ss_sphere` for the sphere analog. The
-    cylinder formula derives in
-    ``derivations/diagnostics/diag_cylinder_hebert_pss.py``; verified
-    to <5e-3 against an independent Monte Carlo estimate.
+    cylinder formula is verified to <5e-3 against an independent
+    Monte Carlo estimate in ``tests/cp/test_cylinder_pss.py``.
 
     Parameters
     ----------
@@ -2328,7 +2327,9 @@ def compute_T_specular_sphere(
       mb}` carries an additional :math:`\mu`-weight that **cancels this
       singularity** (:math:`\mu / (1 - e^{-2\sigma R\mu}) \to 1/(2\sigma R)`,
       finite). MC ground truth gives :math:`k_{\rm eff} = k_\infty` at
-      homogeneous specular sphere (verified by `diag_specular_overshoot_05`).
+      homogeneous specular sphere (measured by the probe
+      ``diag_specular_overshoot_05_mc_multibounce.py``, deleted at
+      ``15486f66``).
     - But the **matrix-Galerkin projection** distributes the
       :math:`\mu`-weight across :math:`P, T, G` separately and the
       matrix inverse :math:`(I - T R)^{-1}` does not preserve the
@@ -5014,8 +5015,9 @@ def build_closure_operator(
             # investigation: (a) mode-1 primitive sign/normalisation,
             # (b) transmission matrix indexing at cross-face blocks,
             # (c) reciprocity / surface-area factor in W_oi at n ≥ 1.
-            # Tracked in Issue #119 follow-up (see the measure-mismatch
-            # memo + recipe scan in `derivations/diagnostics/`).
+            # Tracked in Issue #119 follow-up (the measure-mismatch
+            # memo + recipe scan probes were retired; git history keeps
+            # them, and #119's close-out carries the numbers).
             raise NotImplementedError(
                 "Rank-N per-face white BC (n_bc_modes > 1) infrastructure "
                 "is present but the final closure DEGRADES k_eff instead "

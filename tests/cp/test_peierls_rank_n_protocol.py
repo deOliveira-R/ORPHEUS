@@ -58,7 +58,6 @@ import subprocess
 import sys
 import textwrap
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, Sequence
 
 import pytest
@@ -442,7 +441,8 @@ def test_protocol_requires_at_least_two_quads():
 # =========================================================================
 #
 # Per-point reference quadratures are populated below from the
-# ``diag_f4_structural_floor_baseline.py`` scan output. The pinning rule
+# #123 scanner's output
+# (``scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py``). The pinning rule
 # (shared with the scanner):
 #     - The reference quadrature Q_ref is the earliest quadrature in the
 #       ladder (RICH, RICH+panels, RICH+pp, ULTRA) such that
@@ -471,7 +471,7 @@ QUAD = {
 
 
 # Per-point reference state from the 2026-04-22 scan on the devcontainer
-# (diag_f4_structural_floor_baseline.py). All six points REMAIN UNRESOLVED at
+# (the #123 scanner). All six points REMAIN UNRESOLVED at
 # the 120 s/run budget on this hardware: RICH+pp and ULTRA both time out at
 # every point. The accessible pair RICH vs RICH+panels is documented here
 # with the observed signed-err trajectory. No point meets the L19 resolution
@@ -562,35 +562,36 @@ F4_REFERENCE_BASELINE: dict[tuple[float, float], dict] = {
 
 # =========================================================================
 # Subprocess worker to evaluate F.4 without binding the test process.
-# Mirrors diag_f4_structural_floor_baseline.py.
+# Mirrors the #123 scanner,
+# ``scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py``.
 #
-# The F.4 evaluator lives in the TRACKED derivations tree
-# (``derivations/diagnostics/diag_cin_aware_split_basis_keff.py``,
-# recovered 2026-07-13 from its surviving cpython-312 bytecode after the
-# original — untracked, in scratch/ — was lost). The directory is passed
-# to the child as an argv, resolved from THIS file's location: the
-# pre-recovery worker hardcoded the devcontainer mount
-# ``/workspaces/ORPHEUS/scratch/...``, so it could never run on Host and
-# its import target was invisible to version control — two process
-# defects with the same lesson: a tracked test may only import tracked
-# code through environment-agnostic paths.
+# The worker calls production: F.4 is ``solve_peierls_1g(...,
+# boundary="white_f4")`` on the hollow sphere. It used to import
+# ``run_scalar_f4`` from a diagnostic script, a hand composition of the
+# same L0 primitives that production reproduces to within 1.5e-16 in
+# 4 of 4 checked (tau, rho, quadrature) cases (`[M]` 2026-09-22); the
+# script retired with ``derivations/diagnostics/`` (R19), and a tracked
+# test no longer imports anything outside the package.
 # =========================================================================
-
-_DIAGNOSTICS_DIR = (
-    Path(__file__).resolve().parents[2] / "derivations" / "diagnostics"
-)
 
 _WORKER_CODE = textwrap.dedent(
     r"""
     import json, sys, time
-    sys.path.insert(0, sys.argv[6])
-    from diag_cin_aware_split_basis_keff import run_scalar_f4
+    import numpy as np
+    from orpheus.derivations.continuous.peierls_nystrom.geometry import (
+        CurvilinearGeometry, solve_peierls_1g,
+    )
     tau = float(sys.argv[1]); rho = float(sys.argv[2])
     n_panels = int(sys.argv[3]); p_order = int(sys.argv[4]); n_ang = int(sys.argv[5])
     R = tau; r_0 = rho * R
     t0 = time.time()
-    k = run_scalar_f4(r_0, R, 1.0, 1.0/3.0, 1.0,
-                      n_panels=n_panels, p_order=p_order, n_ang=n_ang)
+    k = solve_peierls_1g(
+        CurvilinearGeometry(kind="sphere-1d", inner_radius=r_0),
+        np.array([R]), np.array([1.0]), np.array([1.0 / 3.0]), np.array([1.0]),
+        boundary="white_f4", n_panels_per_region=n_panels, p_order=p_order,
+        n_angular=n_ang, n_rho=n_ang, n_surf_quad=n_ang,
+        dps=15, tol=1e-12, max_iter=500,
+    ).k_eff
     dt = time.time() - t0
     print(json.dumps({"k": k, "wall": dt}))
     """
@@ -608,7 +609,6 @@ def _run_f4_subprocess(tau: float, rho: float, quad: dict, timeout: float = 600.
         sys.executable, "-c", _WORKER_CODE,
         str(tau), str(rho),
         str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
-        str(_DIAGNOSTICS_DIR),
     ]
     proc = subprocess.run(
         args, capture_output=True, text=True, timeout=timeout, check=True,
@@ -631,7 +631,7 @@ def test_f4_is_sign_stable_at_its_reference_quadrature(tau: float, rho: float):
 
     This is the ground truth that any future rank-N closure competes
     against. If this test fails, either the reference quadrature pinned
-    by ``diag_f4_structural_floor_baseline.py`` is stale or F.4 itself
+    by the #123 scanner (``scratch/derivations/diagnostics/diag_f4_structural_floor_baseline.py``) is stale or F.4 itself
     has drifted.
 
     Points that remain unresolved at the 120 s/run budget on the scan

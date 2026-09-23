@@ -781,6 +781,171 @@ class TestSlabPescClosedForm:
             )
 
 
+def _sphere_pesc_closed_form(r: float, R: float, sig_t: float):
+    r"""Homogeneous-sphere uncollided escape probability, closed form.
+
+    From an interior point at radius :math:`r` the distance to the surface
+    along direction cosine :math:`\mu` (measured from the outward radial) is
+    :math:`d(\mu) = -r\mu + \sqrt{R^2 - r^2(1-\mu^2)}`, and
+    :math:`P_{\rm esc} = \tfrac12\int_{-1}^{1} e^{-\Sigma_t d(\mu)}\,d\mu`.
+    The chord length obeys :math:`d^2 + 2r\mu d = R^2 - r^2`, so
+    :math:`d\mu = -(d^2 + R^2 - r^2)\,\mathrm{d}d / (2 r d^2)` and
+    :math:`P_{\rm esc} = \frac{1}{4r}\int_{R-r}^{R+r}
+    \bigl(1 + (R^2 - r^2)/d^2\bigr) e^{-\Sigma_t d}\,\mathrm{d}d`,
+    which integrates (the second term by parts, into :math:`E_2`) to
+
+    .. math::
+
+       P_{\rm esc}(r) = \frac{e^{-a} - e^{-b} + b\,E_2(a) - a\,E_2(b)}
+                           {4\,\Sigma_t r},\qquad
+       a = \Sigma_t(R - r),\; b = \Sigma_t(R + r).
+
+    Evaluated with :func:`mpmath.expint` at 40 digits; pinned against its
+    own defining integral by
+    :meth:`TestSpherePescClosedForm.test_the_closed_form_is_the_defining_integral`.
+    """
+    with mpmath.workdps(40):
+        r_, R_, s_ = mpmath.mpf(r), mpmath.mpf(R), mpmath.mpf(sig_t)
+        a, b = s_ * (R_ - r_), s_ * (R_ + r_)
+        return (mpmath.exp(-a) - mpmath.exp(-b)
+                + b * mpmath.expint(2, a) - a * mpmath.expint(2, b)) / (4 * r_ * s_)
+
+
+def _sphere_pesc_tolerance(n_angular: int, R: float, sig_t: float) -> float:
+    r"""``10 eps (n_angular + 2 Sigma_t R)``: a GL sum of depth
+    ``n_angular``, plus the condition number of :math:`e^{-\tau}` in its
+    argument, :math:`\tau \le 2\Sigma_t R` along a diameter."""
+    return 10.0 * float(np.finfo(float).eps) * (n_angular + 2.0 * sig_t * R)
+
+
+#: (R, Sigma_t): unit and non-unit radius at one optical size, then a thin
+#: (Sigma_t R = 0.01) and a thick (Sigma_t R = 20) sphere.
+_SPHERE_PESC_CELLS = [(1.0, 1.0), (2.0, 0.5), (1.0, 3.0), (1.0, 0.01), (1.0, 20.0)]
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("peierls-unified", "peierls-escape-probability")
+class TestSpherePescClosedForm:
+    r"""Factor-level verification: sphere :math:`P_{\rm esc}(r)` for
+    :math:`r > 0` against the :math:`E_2` closed form
+    (:func:`_sphere_pesc_closed_form`), the sibling of
+    :class:`TestSlabPescClosedForm`.
+
+    What it catches: an error in the sphere escape integrand of
+    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc`
+    (the escape kernel, the :math:`\sin\omega` angular weight, the
+    prefactor, the ray-exit distance, the optical depth along the ray) or
+    in the observer-centred angular assembly.  Before this class the sphere
+    :math:`P_{\rm esc}` at :math:`r > 0` had no closed-form gate: the
+    :math:`G_{\rm bc} = 4P_{\rm esc}` ratio test shares the integrand on
+    both sides, so a defect in it cancels there (Mode 12).
+
+    The reference is structurally independent (X4): an :math:`E_2`
+    closed form in :mod:`mpmath`, reached by a change of variable to chord
+    length, against production's Gauss-Legendre quadrature over the
+    observer-centred angle :math:`\omega`.
+
+    Declared blind: the sign of the :math:`r\cos\omega` term in the
+    ray-exit distance.  Flipping it maps :math:`\omega \to \pi - \omega`,
+    and :math:`P_{\rm esc}` integrates over every direction, so it is
+    invariant (the functional's stabiliser); the K-matrix tests see that
+    sign.
+
+    The near-surface regime.  For an observer at :math:`r \to R` the
+    integrand develops a feature of angular width
+    :math:`\sqrt{1 - (r/R)^2}`, and the quadrature needs
+    :math:`n_\omega \propto 1/\sqrt{1 - r/R}` to resolve it.  `[M]`
+    2026-09-22 at :math:`r = 0.999R`, :math:`\Sigma_t R = 1`: relative
+    error :math:`4.9\times10^{-4}` at the default ``n_angular = 32``,
+    :math:`2.8\times10^{-5}` at 64, :math:`2.5\times10^{-7}` at 128,
+    :math:`5.8\times10^{-11}` at 256, :math:`1.6\times10^{-16}` at 512.
+    The interior rows run at 128; the near-surface row at 512.
+
+    Origin: ``derivations/diagnostics/diag_sphere_p_esc_closed_form_vs_shipped.py``
+    (retired, R19; #101, #132), a print-only probe that could not be
+    ported.
+    """
+
+    @pytest.mark.parametrize("r_over_R, R, sig_t", [
+        (0.3, 1.0, 1.0), (0.95, 1.0, 1.0), (0.005, 2.0, 0.5),
+        (0.95, 2.0, 0.5), (0.5, 1.0, 3.0),
+    ])
+    def test_the_closed_form_is_the_defining_integral(self, r_over_R, R, sig_t):
+        r"""The reference is pinned to its definition,
+        :math:`\tfrac12\int_{-1}^{1} e^{-\Sigma_t d(\mu)}d\mu`, by
+        adaptive :func:`mpmath.quad` at 40 digits, before production is
+        compared with it.  `[M]` 2026-09-22: agreement below
+        :math:`10^{-40}`; the bound :math:`10^{-30}` leaves the quadrature
+        ten digits."""
+        r = r_over_R * R
+        with mpmath.workdps(40):
+            r_, R_, s_ = mpmath.mpf(r), mpmath.mpf(R), mpmath.mpf(sig_t)
+            integral = mpmath.quad(
+                lambda mu: mpmath.exp(
+                    -s_ * (-r_ * mu + mpmath.sqrt(R_ * R_ - r_ * r_ * (1 - mu * mu)))
+                ),
+                [-1, 0, 1],
+            )
+            direct = mpmath.fdiv(integral, 2)
+            rel = abs(_sphere_pesc_closed_form(r, R, sig_t) - direct) / direct
+        assert rel < mpmath.mpf("1e-30"), f"closed form vs definition: {rel}"
+
+    @pytest.mark.rests_on(
+        "tests/derivations/test_peierls_reference.py::TestSpherePescClosedForm::test_the_closed_form_is_the_defining_integral",
+        "tests/derivations/test_peierls_sphere_geometry.py::TestSphereGeometryConstants::test_prefactor_is_half",
+        "tests/derivations/test_peierls_sphere_geometry.py::TestSphereGeometryConstants::test_angular_weight_is_sin_theta",
+        "tests/derivations/test_peierls_sphere_geometry.py::TestSphereRhoMax",
+        "tests/derivations/test_peierls_sphere_geometry.py::TestSphereOpticalDepthAlongRay::test_homogeneous_1region_linear_in_rho",
+        "tests/derivations/test_peierls_assembly_drivers.py::test_per_observer_constant_integrand_recovers_angular_range",
+    )
+    @pytest.mark.parametrize("R, sig_t", _SPHERE_PESC_CELLS)
+    def test_interior_observers_match_the_E2_closed_form(self, R, sig_t):
+        r"""Seven interior observers, :math:`r/R \in [0.01, 0.95]`, at
+        ``n_angular = 128``, within :func:`_sphere_pesc_tolerance`.
+
+        Why 128 and not 64: the boundary-layer width is optical, so a thick
+        cell pulls it inward.  `[M]` 2026-09-22 at :math:`\Sigma_t R = 20`,
+        :math:`r = 0.95R`: :math:`8.2\times10^{-13}` at 64 (outside the
+        :math:`2.3\times10^{-13}` bound), :math:`1.0\times10^{-14}` at
+        128.  At 128 the worst row over all five cells is
+        :math:`1.1\times10^{-14}`, the summation floor."""
+        n = 128
+        r = np.array([0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95]) * R
+        P = compute_P_esc(SPHERE_1D, r, np.array([R]), np.array([sig_t]),
+                          n_angular=n, dps=25)
+        tol = _sphere_pesc_tolerance(n, R, sig_t)
+        for i, r_i in enumerate(r):
+            ref = float(_sphere_pesc_closed_form(float(r_i), R, sig_t))
+            rel = abs(P[i] - ref) / ref
+            assert rel < tol, (
+                f"sphere P_esc(r={r_i:.4f}) (R={R}, Sigma_t={sig_t}, "
+                f"n_angular={n}): got {P[i]:.16e}, closed form {ref:.16e}, "
+                f"rel {rel:.3e} >= {tol:.3e}"
+            )
+
+    @pytest.mark.rests_on(
+        "tests/derivations/test_peierls_reference.py::TestSpherePescClosedForm::test_interior_observers_match_the_E2_closed_form",
+    )
+    @pytest.mark.parametrize("R, sig_t", _SPHERE_PESC_CELLS)
+    def test_a_near_surface_observer_matches_once_resolved(self, R, sig_t):
+        r""":math:`r = 0.999R`, the boundary-layer regime, at
+        ``n_angular = 512``: the same tolerance law holds once the
+        quadrature resolves the feature (see the class docstring).  A red
+        here with the interior rows green is a near-surface defect, not
+        a kernel one."""
+        n = 512
+        r = 0.999 * R
+        P = compute_P_esc(SPHERE_1D, np.array([r]), np.array([R]),
+                          np.array([sig_t]), n_angular=n, dps=25)[0]
+        ref = float(_sphere_pesc_closed_form(r, R, sig_t))
+        rel = abs(P - ref) / ref
+        tol = _sphere_pesc_tolerance(n, R, sig_t)
+        assert rel < tol, (
+            f"sphere P_esc(0.999 R) (R={R}, Sigma_t={sig_t}, n_angular={n}): "
+            f"rel {rel:.3e} >= {tol:.3e}"
+        )
+
+
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestSlabGbcClosedForm:

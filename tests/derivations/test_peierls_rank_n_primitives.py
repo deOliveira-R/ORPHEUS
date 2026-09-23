@@ -47,9 +47,17 @@ _SIG_T = np.array([1.0])
 
 
 @pytest.mark.l0
+@pytest.mark.rests_on(
+    "tests/derivations/test_peierls_reference.py::TestSpherePescClosedForm::test_interior_observers_match_the_E2_closed_form",
+)
 @pytest.mark.parametrize("R", [0.5, 1.0, 2.0, 5.0, 10.0])
 def test_sphere_rank1_G_bc_equals_4_P_esc(R):
     """Sphere: ``G_bc(r) = 4 · P_esc(r)`` pointwise, every R.
+
+    A ratio: it pins ``G_bc`` only as far as ``P_esc`` is right, and an
+    error in the integrand both share cancels here (Mode 12).  It rests on
+    the sphere ``P_esc`` closed-form gate, which is where such an error
+    reds.
 
     Both primitives are observer-centred angular integrals with identical
     integrands; the ratio 4 comes from the prefactor convention (2 vs 0.5).

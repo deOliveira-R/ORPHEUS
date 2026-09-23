@@ -54,7 +54,8 @@ References
   — §2 (reciprocity), §3 (L11 wrong-metric control), §4 (crosswalk).
 * ``.claude/plans/glimmering-launching-lantern.md`` — Phase 4 / O.2b R5.
 * Dense-probe oracle (structurally independent ``G^{-1}A^{\mathsf T}G`` fold):
-  ``derivations/diagnostics/diag_p42_adjoint_oracle.py::validate_composite_adjoint``.
+  ``diag_p42_adjoint_oracle.py::validate_composite_adjoint``, used at landing
+  and not preserved in git.
 """
 
 from __future__ import annotations

@@ -11439,3 +11439,21 @@ defining laws" is the obligation; below is how to meet it here.
 - The existing 8 tests had no `.H` row (M4–M6 all green) and their idempotence test
   was blind to the wrong-member arm.
   Report: `scratch/_followups/err020_gate.md` §System-restriction laws.
+
+## L92 — R19 probe promotions: conditioning is averaged over the integrand; a probe's radii are a sample (2026-09-22; tests only)
+
+- `compute_P_ss_sphere` vs its closed form: a tolerance `10 eps (n + 2 tau_R)` (condition of
+  `exp(-tau)` at the MAX tau) false-reddened tau_R = 100, R = 2.5 (8.4e-13 vs 7.3e-13). The
+  chord `2 sqrt(R^2 - h^2)` carries relative rounding `eps R^2/(R^2 - h^2)`, unbounded at the
+  rim, and a thick cell's integrand lives at the rim. The weighted mean of `tau x rel-rounding`
+  over `h e^{-tau}` is `4 tau_R` (thin) to `4 tau_R^2` (thick) — measured by mpmath.quad, 40000 at
+  100. Law `10 eps (n + 4 tau_R (1 + tau_R))`; every mutation still reds by orders.
+- Sphere `P_esc`: the verdict measured "spectral, 1.1e-14 at n=64" on r/R <= 0.95. At 0.999R the
+  error is algebraic in n (4.9e-4 at the production default n=32, 1.6e-16 at 512), and a thick
+  cell (Sigma R = 20) pulls the layer to 0.95R. A probe's radii are a SAMPLE of the regime.
+- The first production arm aimed at `DiamondDifference.cell_kernel_batch` (its docstring: "the
+  single source of the DD cell math") did not bite: the 2-D sweep runs
+  `cartesian_scan_coefficients`. The plugin's honest-vs-mutant bite check is what caught it.
+- A "declared blind by stabiliser" row (`radial_volume_weight` on a thin shell) was 0 calls:
+  not on the path. Count activations before writing WHY an arm is green.
+  Report: `scratch/_r19/promotions.md`.

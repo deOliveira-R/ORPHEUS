@@ -3433,15 +3433,17 @@ residual table (µ-ortho + Marshak, ranks 1–4, with reciprocity
 machine-precision evidence) is in
 `Issue #119 close-out
 <https://github.com/deOliveira-R/ORPHEUS/issues/119#issuecomment-4348745180>`_;
-diagnostic at
-:file:`scratch/derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py`.
+the diagnostic ``diag_rank_n_villarino_stammler_per_mode.py`` was deleted
+at ``15486f66``
+(``git show 15486f66^:derivations/diagnostics/diag_rank_n_villarino_stammler_per_mode.py``).
 
 Production closure decision
 ---------------------------
 
 **F.4 scalar rank-2 per-face is production.** Its residual across
-:term:`optical thickness` at :math:`r_0/R = 0.3` (from
-:file:`scratch/derivations/diagnostics/diag_rank_n_closure_characterization.py`):
+:term:`optical thickness` at :math:`r_0/R = 0.3` (measured by
+``diag_rank_n_closure_characterization.py``, deleted at ``15486f66``:
+``git show 15486f66^:derivations/diagnostics/diag_rank_n_closure_characterization.py``):
 
 .. list-table:: F.4 scalar rank-2 residual, hollow sphere, :math:`r_0/R = 0.3`
    :header-rows: 1
@@ -3528,8 +3530,8 @@ helper ``_build_closure_operator_rank_n_white`` (guarded behind
 .. vv-status: peierls-change-of-basis documented
 
 
-Closed forms (verified in
-``scratch/derivations/diagnostics/diag_lambert_marshak_basis_change.py``):
+Closed forms (verified by the probe
+``diag_lambert_marshak_basis_change.py``, which was not preserved in git):
 
 .. math::
    :label: peierls-M-rank-1
@@ -3805,8 +3807,9 @@ independent of any Peierls assembly.
 Quadrature: BASE preset
 ``(n_panels_per_region, p_order, n_angular, n_rho, n_surf_quad, dps)
 = (2, 3, 24, 24, 24, 15)``. The same sweep at RICH preset
-``(4, 5, 64, 48, 64, 20)`` is recorded in
-:file:`scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
+``(4, 5, 64, 48, 64, 20)`` was measured by the probe
+``diag_class_b_rank_n_rich_check.py`` (added at ``184e7c57``, retired at
+``RETIRE_HASH``: ``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py``)
 and reproduces the BASE values to within :math:`0.022\,\%` —
 **the catastrophe is structural, not quadrature noise.**
 
@@ -3930,9 +3933,9 @@ and reproduces the BASE values to within :math:`0.022\,\%` —
    :math:`\mathrm{Ki}_{k+2}` issue alone. The two bugs may share a
    root once a canonical re-derivation lands.
 
-**Auxiliary numerical control: BASE↔RICH stability.**
-:file:`scratch/derivations/diagnostics/diag_class_b_rank_n_rich_check.py`
-re-runs the sphere 1G/2R rank-2 catastrophe at the RICH preset
+**Auxiliary numerical control: BASE↔RICH stability.** The probe
+``diag_class_b_rank_n_rich_check.py`` (retired at ``RETIRE_HASH``; see
+above for its recovery) re-ran the sphere 1G/2R rank-2 catastrophe at the RICH preset
 ``(4, 5, 64, 48, 64, 20)``. Result: BASE k\ :sub:`eff` = 1.0152, RICH
 k\ :sub:`eff` = 1.0150, signed-error stability of :math:`0.022\,\%`.
 The catastrophe is **not** Issue #114 ρ-quadrature noise (Issue #114's
@@ -4131,10 +4134,19 @@ re-derivation work:
   *wrong* choice for mode 0 of a rank-:math:`N` Marshak expansion.
   Both clients must be supported until Issue #132 lands.
 
-Diagnostic scripts live under :file:`scratch/derivations/diagnostics/` as
-``diag_class_b_rank_n_probe_*.py`` (one per probe) and
-``diag_class_b_rank_n_rich_check.py`` (the BASE↔RICH stability
-control showing the catastrophe is structural — 0.022 % shift).
+The probe cascade (``diag_class_b_rank_n_probe.py`` and its probes B–G,
+``diag_class_b_rank_n_probe_{b..g}_*.py``, added at ``184e7c57``) and
+``diag_class_b_rank_n_rich_check.py`` (the BASE↔RICH stability control
+showing the catastrophe is structural — 0.022 % shift) were retired at
+``RETIRE_HASH``; recover one with
+``git show RETIRE_HASH^:scratch/derivations/diagnostics/<file>``. The
+cascade is promoted as ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
+the published 1G/1R table (``test_class_b_1g_1r_reproduces_published_table``),
+the multi-region routing invariance (``test_class_b_mr_routing_invariance_uniform_sigma``,
+probe C), the strict-xfail catastrophe pins that flip when Issue #132
+lands (``test_class_b_mr_catastrophe_{sphere,cylinder}_1g_2r_rank2``,
+probe G, ``catches("ERR-030")``) and the 2G/2R rank-1 Mark floor
+(``test_class_b_2g_2r_rank1_mark_floor_pinned``).
 
 L1 test pinning is at
 :file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
@@ -4294,8 +4306,12 @@ Mark uniformity assumption holds. **The 1G/2R case retains a stable
 +10.7 % overshoot at both BASE and RICH quadrature** — confirmed
 structural, not numerical.
 
-Reproducer:
-:file:`scratch/derivations/diagnostics/diag_sphere_hebert_rich_check.py`.
+Gated by ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_recovers_kinf_rich``
+(``slow``; 1G/1R, 2G/1R and 2G/2R within 0.05 %) and
+``::test_class_b_sphere_hebert_heterogeneous_overshoot_known`` (BASE,
+1G/2R). The original reproducer ``diag_sphere_hebert_rich_check.py``
+(added at ``f9675db3``) was retired at ``RETIRE_HASH``
+(``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_hebert_rich_check.py``).
 
 The 1G/2R heterogeneous limitation — Mark uniformity assumption
 ----------------------------------------------------------------
@@ -4312,8 +4328,12 @@ an error. The Hébert (1−P_ss)⁻¹ factor **amplifies** this Mark error
 through the geometric series rather than correcting it.
 
 Quantitatively, the cp_sphere k_inf with finer subdivisions converges
-to 0.6485 (verified up to 64 sub-regions; see
-:file:`scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py`),
+to 0.6485 (verified up to 64 sub-regions, measured by the scan probe
+``diag_sphere_geometric_series_thicker_cell_scan.py``, added at
+``9a44dd0f`` and retired at ``RETIRE_HASH``:
+``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py``;
+the overshoot it explains is pinned by
+``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_heterogeneous_overshoot_known``),
 so the +10 % overshoot is NOT a "pointwise vs flat-flux CP" artifact
 — it is a real Mark-closure limitation.
 
@@ -4354,8 +4374,12 @@ dependence:
      - 0.4555
      - **+6.58 %**
 
-Reproducer:
-:file:`scratch/derivations/diagnostics/diag_sphere_chi_dependence_hebert.py`.
+Gated by
+``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_chi_dependence``
+(parametrised over the fast, mixed and thermal emission spectra, each
+row to ±1 %). The original reproducer ``diag_sphere_chi_dependence_hebert.py``
+(added at ``76b11e88``) was retired at ``RETIRE_HASH``
+(``git show RETIRE_HASH^:scratch/derivations/diagnostics/diag_sphere_chi_dependence_hebert.py``).
 
 **Pattern**: more spatially-localised source → larger Mark uniformity
 overshoot. The 2G/2R "good result" is coincident with the chi = [1, 0]
@@ -4492,9 +4516,17 @@ is more localized than the sphere eigenvector for the same fuel-mod
 arrangement. Resolution remains the open question (Sanchez 1977
 NSE 64 — see synthesis below).
 
-Probes:
-``scratch/derivations/diagnostics/diag_cylinder_hebert_{pss,keff,diagnose_residual}.py``,
-``diag_cylinder_g_bc_3d_patched_test.py``;
+Probes (none survives in the tree): ``diag_cylinder_hebert_keff.py`` was
+promoted and deleted at ``c196f0ca``; ``diag_cylinder_hebert_pss.py``,
+``diag_cylinder_hebert_diagnose_residual.py`` and
+``diag_cylinder_g_bc_3d_patched_test.py`` were retired at ``RETIRE_HASH``
+(``git show RETIRE_HASH^:scratch/derivations/diagnostics/<file>``). Their
+gates: ``tests/cp/test_cylinder_pss.py`` (the :math:`P_{ss}` primitive,
+against an independent Monte Carlo estimate),
+``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_cylinder_hebert_recovers_kinf``
+and ``::test_class_b_cylinder_hebert_heterogeneous_overshoot_known``, and
+``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py::test_correct_form_matches_production``
+(the corrected 3-D :math:`G_{bc}` the patched test trialled);
 derivation:
 :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d` (pinned by
 ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``);
@@ -7523,8 +7555,9 @@ factor that survives the joint geometry carries a
 giving an integrable :math:`1/\sqrt{\mu^{2} - \mu_{\rm vis}^{2}}`-type
 singularity at the lower endpoint :math:`\mu = \mu_{\rm vis}`. This is
 the off-diagonal Phase 5 Round 3 SECONDARY pattern, isolated and
-reproduced in
-``scratch/derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
+reproduced by the probe ``diag_phase5_round3_visibility_cone_quad.py``
+(deleted at ``15486f66``;
+``git show 15486f66^:derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``).
 
 **(ii) Chord half-length on an annulus.** The primitive
 :func:`~orpheus.derivations.common.kernels.chord_half_lengths` returns
@@ -7820,8 +7853,9 @@ Three properties of the substitution are visible in this table:
    is a singularity to absorb, not as a default replacement.
 
 These numbers are fully reproducible from
-``tests/derivations/test_quadrature.py`` and the originating diagnostic at
-``scratch/derivations/diagnostics/diag_phase5_round3_visibility_cone_quad.py``.
+``tests/derivations/test_quadrature.py``; the originating diagnostic,
+``diag_phase5_round3_visibility_cone_quad.py``, was deleted at
+``15486f66`` and is recovered as shown above.
 
 Gotchas and non-uses
 ~~~~~~~~~~~~~~~~~~~~
@@ -9191,8 +9225,9 @@ once the correct conventions are found — a structural payoff that
 survives the empirical setback.
 
 The diagnostic scripts ``diag_rank_n_{09-12}_*.py`` and the summary
-``diag_rank_n_13_phaseAC_summary.md`` preserve the variant data for
-the next investigator who resumes this work.
+``diag_rank_n_13_phaseAC_summary.md`` hold the variant data for the next
+investigator who resumes this work; they were deleted at ``15486f66``
+and are recovered with ``git show 15486f66^:derivations/diagnostics/<file>``.
 
 
 Section 30 — The ``BoundaryClosureOperator`` dataclass

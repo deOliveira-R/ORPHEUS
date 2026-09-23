@@ -53,5 +53,6 @@ applied to localisation, not just falsification).
 **References.** Issue #100 (open); Issue #103 (open); Issue #132
 (open follow-up); numerics-investigator agent memory
 `issue_100_class_b_mr_mg.md`; probe cascade
-`scratch/derivations/diagnostics/diag_class_b_rank_n_probe_*.py`
-(probes B–H).
+`diag_class_b_rank_n_probe_*.py` (probes B–H; added at `184e7c57`,
+retired at `RETIRE_HASH`; its findings are gated by
+`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`).

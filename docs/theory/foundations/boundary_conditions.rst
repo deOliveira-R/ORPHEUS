@@ -4110,8 +4110,9 @@ for the field algebra is now :ref:`cone-typed-field-algebra`.
    (:ref:`bc-extraction-numerical-evidence`) plus the type-residual
    gates catalogued below. B.5.2's verification ground:
 
-* the **B0 decision instrument** (``diag_b52_boundary_typing_decision.py``)
-  proving OPT-BSS closes both sums while OPT-BR throws the two-hat;
+* the **B0 decision instrument** (``diag_b52_boundary_typing_decision.py``,
+  a throwaway probe that was not preserved in git), which proved OPT-BSS
+  closes both sums while OPT-BR throws the two-hat;
 * the core operator / boundary / 2-D suite (324 passed);
 * SI eigenvalue slab / sphere / cylinder × 1 / 2 / 4-group — the
   **two-hat exerciser** (the SI rhs sum that OPT-BR would throw on);

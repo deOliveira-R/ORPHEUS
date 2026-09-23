@@ -68,10 +68,11 @@ second open item of :ref:`bc-extraction-operator-output-o2`: it makes
 
 .. (vv-status rationale) The G-adjoint defining identity. The
    verifiable claim is the reciprocity ⟨Aψ,φ⟩_G = ⟨ψ,A†φ⟩_G plus the
-   block-diagonal G-fold op.H = G⁻¹AᵀG, both pinned against a
+   block-diagonal G-fold op.H = G⁻¹AᵀG, both checked at landing against a
    structurally-independent dense-transpose-plus-explicit-diagonal-G
-   oracle (derivations/diagnostics/diag_p42_adjoint_oracle.py) — NOT a
-   code-to-code comparison against another ORPHEUS adjoint path. This
+   oracle (the probe diag_p42_adjoint_oracle.py, not preserved in git;
+   the standing gate is tests/sn/operators/test_g_adjoint_reciprocity.py)
+   — NOT a code-to-code comparison against another ORPHEUS adjoint path. This
    is the algebra-of-record ground for the equation.
 .. vv-status: g-adjoint-definition documented
 

@@ -11,7 +11,8 @@ measurement that certifies the lag is dead (solve ≡ apply on the cold
 start, a genuine single-pass exact inverse).
 
 Promoted from the diagnostics ``diag_curvilinear_seed_sensitivity`` /
-``diag_sphere_fixedpoint_consistency`` probes.  Every gate measures the
+``diag_sphere_fixedpoint_consistency`` probes (both retired at
+``RETIRE_HASH``; ``git show RETIRE_HASH^:derivations/diagnostics/<name>.py``).  Every gate measures the
 FULL augmented field (bulk ⊕ trace ⊕ seed) — a bulk-only norm would be
 seed-blind (vv-principles Mode 12 (b)).  The seed COEFFICIENTS are
 certified by §16.B (``carlson_inward_sweep_from_source`` convergence)

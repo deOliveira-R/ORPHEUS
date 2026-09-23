@@ -238,7 +238,9 @@ def _build_kernel_matrix(
     #   derivative kink at x'=x_i that GL cannot resolve, producing
     #   ~1% error on the diagonal panel too.
     #
-    # See issues #113 and diag_slab_kvol_panel_boundary_bug.py.
+    # See issue #113; the probe diag_slab_kvol_panel_boundary_bug.py was
+    # deleted at 9ac41de2 (recover with git show
+    # 9ac41de2^:derivations/diagnostics/diag_slab_kvol_panel_boundary_bug.py).
     with mpmath.workdps(dps):
         for g in range(ng):
             K = mpmath.matrix(N, N)
