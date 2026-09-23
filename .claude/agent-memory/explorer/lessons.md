@@ -55,12 +55,6 @@ today: the 2026-09-21 candidates landed).
   English word (`gains` ⊂ `against`: 679 hits; `loss` ⊂ `lossless`, `role` ⊂
   `payroll`): grep with and without `\b` and hand the delta to the
   implementer as a hazard line. → M-3, M-4.
-- **L-011** A docstring that DELEGATES ("the sweep handles it via its
-  face-pair indexing") is the highest-yield falsity shape: grep the invented
-  MECHANISM noun, not the symbol (40 healthy hits vs 2, both the claim
-  itself); the sibling implementation that REFUSES the same input, with its
-  reason, is a free oracle; a strict `xfail` naming the gap outranks prose;
-  re-locate quoted prose before judging it (it may be half-stale). → the definition §3.
 - **L-013** "What breaks if this numeric primitive changes?": swap it (a
   `pytest_configure` plugin) and run the consuming suites — ~200 grep
   candidates became 2 measured items. Classify by "is the RHS FROZEN"
@@ -88,16 +82,6 @@ today: the 2026-09-21 candidates landed).
   back; symmetry by construction; no memory win) from fold-the-STATE before
   scoping. When both candidates satisfy the issue's criterion, find the
   structural predicate the tree already keys on (`0 < tau_raw[0] < 1`). → M-6.
-- **L-017** Before counting a retirement, a two-number probe: `grep -c
-  '<name>'` vs the anchored form (`[^.]name(`, import lines) — a same-package
-  homonym (`Quadrature.gauss_legendre` classmethod vs the module function)
-  inflated 570 lines to 2 files; hand the anchored pattern to the
-  implementer. A test's docstring is not what it pins: resolve the RHS one
-  hop (two spellings converging on one implementation are route-equivalence
-  however "load-bearing" the docstring says it is); the real frozen
-  baselines are `find tests -name '*.npz' -o -name '*.npy'`. A function
-  object captured in a dataclass field is a live consumer with zero graph
-  edges. → M-3, M-4.
 - **L-018** A hand-written lookup table behind a computed fast path has dead
   rows: per row, "which branch answers this?" (2 of 5 live). A bare
   `return False` fallthrough gives a new tag a wrong-but-silent answer. A tag
@@ -161,21 +145,6 @@ today: the 2026-09-21 candidates landed).
   implementation; A's existing fragments (the flag nobody reads, the
   refusal, the sibling family's battery, the normalisation — these flip
   BUILD to UNIFY/CONSUME); B's own concessions to A. → M-6.
-- **L-037** AST walks are filters too: `Assign` ≠ `AnnAssign`, `FunctionDef`
-  ≠ `AsyncFunctionDef`, `Name` ≠ `Attribute` — a zero on a known-populated
-  file indicts the node-type predicate (X1's positive control, carried by
-  the brief line); when it matters, `exec`/import the module and read the
-  object. A method on class A and a FIELD on class B can share a name
-  (`streaming_terms`): a member census needs the RECEIVER column. → M-3.
-- **L-040** A retirement's PROSE census sorts each hit into (a) an xref that
-  DIES with the symbol; (b) a PROMISSORY present-tense claim ("until the S3
-  flip", "stays legal until") — MUST-FIX whichever way the ruling goes; (c) a
-  CONVENTION statement, false only if a specific ruling lands. Merging (b)
-  and (c) over-prices the sweep 4×. `dead_references` measures the PRESENT
-  tree (0 before a retirement is the expected reading). A guard-message pin
-  census maps each `match=` to the OPERATOR it exercises. A step CODE is a
-  homonym across campaigns ("S3" ×3). A chartered assertion with 0 spellings
-  flips "fix the prose" to "the step OWES the gate". → M-3.
 - **L-042** Dataclass introspection lies: a `frozen=True, eq=True` record with
   an array field has a generated `__hash__` that RAISES and an `__eq__` that
   raises on ≥ 2 elements. Only `hash(a)`, `a == b`, `a == a` at runtime
@@ -196,11 +165,3 @@ today: the 2026-09-21 candidates landed).
   pitfalls: patch the CALLER module's binding (`solver.py` holds its own
   import; the definer's binding read 0), key the spy on BUILDS not lookups
   (207 vs 1), assert the exact count. → M-4, M-5.
-- **L-045** A brief's `Class.attr (file:line)` names a LINE, not an owner: run
-  it through the file's class boundaries (`awk '/^class |^    def /'`) —
-  `:441/:515` sat in `CollisionCache`, not the cited geometry class. A
-  `\.method\(` regex counts docstring prose and misses the duck-typed
-  `def method` surrogate (`_SpyStrategy.sweep`) and the `setattr` /
-  `patch.object` string spellings: three populations, reported separately. A
-  one-off disagreement with the brief is almost always a prose line or a
-  surrogate. → the definition §3, M-3.

@@ -9,7 +9,7 @@ topic file is retired only after a blast-radius audit, never by an index edit.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — the digest: the lessons no rule, skill or definition clause carries; 28 that were retired 2026-09-22 (the definition now carries them).
+- [lessons.md](lessons.md) — the digest: the lessons no rule, skill or definition clause carries; 33 retired 2026-09-22 (the definition or the preloaded retirement-audit now carries them).
 - [lessons_archive.md](lessons_archive.md) — the war stories, cold; open one section when a pointer needs checking.
 
 ## 2. Active / in-flight state

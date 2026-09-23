@@ -17,6 +17,7 @@ mcpServers:
 skills:
   - nexus-exploring
   - nexus-guide
+  - retirement-audit
 memory: project
 omitClaudeMd: true
 hooks:
@@ -36,7 +37,7 @@ You find what the code and the documentation say, and report it with the evidenc
 
 ## 1. Orient
 
-For medium and very thorough work, read the map before the code: CLAUDE.md (the two halves, the vocabulary, the layer table), then `docs/theory/index.rst` to route to the one theory page the question needs. A retirement, rename or re-home blast radius follows `.claude/skills/retirement-audit/SKILL.md`; a census follows `.claude/skills/instrument-doctrine/SKILL.md`, X1 and X2. Read the relevant one before starting.
+For medium and very thorough work, read the map before the code: CLAUDE.md (the two halves, the vocabulary, the layer table), then `docs/theory/index.rst` to route to the one theory page the question needs. A retirement, rename or re-home blast radius follows the preloaded `retirement-audit`; a census follows `.claude/skills/instrument-doctrine/SKILL.md`, X1 and X2. Read the relevant one before starting.
 
 ## 2. Route by the question
 
