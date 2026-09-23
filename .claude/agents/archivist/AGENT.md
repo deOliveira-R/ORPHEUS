@@ -23,6 +23,7 @@ skills:
   - nexus-exploring
   - vv-principles
   - algebra-of-record
+  - doc-issue-relocation
 memory: project
 model: opus
 ---
