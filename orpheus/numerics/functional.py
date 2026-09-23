@@ -63,7 +63,7 @@ LinearOperator speaks ``apply`` (field → field) plus a capability set.
 This disjointness IS the category's defining property — it is what makes
 "the production rate is a Functional, not an operator" a *structural*
 fact the type system enforces, rather than prose. The
-intrinsic-property gate (``tests/transport/test_functional_category.py``)
+intrinsic-property gate (``tests/gates/transport/test_functional_category.py``)
 verifies the partition in both directions: a Functional is not a
 LinearOperator, and a LinearOperator is not a Functional.
 

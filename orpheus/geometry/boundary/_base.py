@@ -108,7 +108,7 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
     ``is_adjointable``; the extra member would complete
     :class:`~orpheus.geometry.boundary.BoundaryGeometryMap`'s member set, so a
     response would satisfy the geometry Protocol **structurally**.
-    ``tests/geometry/test_boundary_factors.py`` asserts those two tiers are
+    ``tests/gates/geometry/test_boundary_factors.py`` asserts those two tiers are
     disjoint, precisely to stop a response from posing as a geometry — the
     conflation phase B3.0 corrected. A convenience member is not worth
     disarming that guard, so the pairing is asked of each tier in that tier's

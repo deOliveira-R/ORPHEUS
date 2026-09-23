@@ -56,11 +56,11 @@ CURRENT surface; do NOT resurrect the retired string tags.**
   psi_half_angle_seed, sweep_cache, scan, pairing} (R9).
 - **Assembly** `orpheus/sn/loss_representation/assembly.py` — `assemble_ordinate_blocks`,
   `ordinate_walk_order`; Cartesian-only.
-- **Canary tests** (post-relocation): `tests/sn/sweep/core/test_sweep_cache.py`
-  (was `tests/sn/spatial/`); `tests/sn/operators/{test_g_adjoint_reciprocity,
+- **Canary tests** (post-relocation): `tests/gates/sn/sweep/core/test_sweep_cache.py`
+  (was `tests/gates/sn/spatial/`); `tests/gates/sn/operators/{test_g_adjoint_reciprocity,
   test_invertible_operator,test_one_octant_walk,test_capability_survival,
-  test_removal_form_matvec_sweep}.py`; `tests/sn/sweep/core/{test_cell_kernel_batch,
-  test_phase_c_gates}.py`; `tests/sn/sweep/test_assembly_mode.py`.
+  test_removal_form_matvec_sweep}.py`; `tests/gates/sn/sweep/core/{test_cell_kernel_batch,
+  test_phase_c_gates}.py`; `tests/gates/sn/sweep/test_assembly_mode.py`.
 
 ## 2. The 2.5a apply-loop unification — bit-identity of a RELOCATION (both orientations)
 
@@ -83,7 +83,7 @@ NOT a value oracle. Under a RELOCATION that moves BOTH `op.apply`'s path AND
 the reference's path (SAME relocated code), they move TOGETHER and stay
 GREEN even if values shifted. NECESSARY, NOT SUFFICIENT for the relocation.
 **The sufficient addition:** a FROZEN pre-carve baseline snapshot
-(`tests/sn/regression/_regression_assert.py::assert_regression`,
+(`tests/gates/sn/regression/_regression_assert.py::assert_regression`,
 `--capture-baseline`) of the fwd+adj 1-D matvec VALUES (slab/sphere/cyl,
 2G), re-compared post-carve at `array_equal` — structurally independent of
 the relocated code because captured BEFORE it. This is the genuine 0-ULP
@@ -234,10 +234,10 @@ and was BLIND (only the `cyl_product_2g` reciprocity row caught the 2.5a ERR-066
 adjoint-drop). **Product cyl is mandatory; LS is the everything-nulled CONTROL
 (a mutation that reds product MUST stay green on LS — that asymmetry IS the
 config-blindness proof).** Both mesh helpers already exist in
-`tests/sn/sweep/test_cyl_direct_seed_fold.py` (`_cyl_product_mesh`,
+`tests/gates/sn/sweep/test_cyl_direct_seed_fold.py` (`_cyl_product_mesh`,
 `_cyl_level_symmetric_mesh`).
 
-### Gate roster (extend `tests/sn/operators/test_loss_transpose_solve.py` — the a3 spec's `tests/sn/sweep/` path is stale)
+### Gate roster (extend `tests/gates/sn/operators/test_loss_transpose_solve.py` — the a3 spec's `tests/gates/sn/sweep/` path is stale)
 
 Add `"cyl_product"`, `"cyl_ls"` to `_MESHES` (cyl `space is None` → G1/G2 helpers
 reduce to the slab bulk-only branch out-of-the-box), plus new gates:

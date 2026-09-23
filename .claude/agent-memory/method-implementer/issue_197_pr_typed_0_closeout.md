@@ -44,9 +44,9 @@ Two patterns of test-call-site updates were needed:
 
 - **Inline pattern**: `SNSolver(materials, SNMesh(mesh, quad), ...)` → `SNSolver(SNMesh(mesh, quad, materials), ...)`. Mechanically rewritten via `/tmp/typed_0_rewrite.py` for 8 files (test_solver_components, test_scattering_operator, test_sweep_regression, test_cylindrical, test_spherical, test_fission_operator, test_sweep_cache, test_iteration).
 - **Separate-line pattern**: `sn_mesh = SNMesh(mesh, quad); SNSolver(materials, sn_mesh, ...)` → `sn_mesh = SNMesh(mesh, quad, materials); SNSolver(sn_mesh, ...)`. Manually fixed across test_solver_components.py, test_spherical.py, test_cylindrical.py, test_sweep_regression.py, test_fission_operator.py, test_scattering_operator.py, test_iteration.py, test_sweep_cache.py.
-- **Geometry-only pattern**: `SNMesh(mesh, quad)` for tests that don't run a solver — threaded a new `tests/sn/_test_helpers.placeholder_materials()` helper into every such call via `/tmp/typed_0_phase2.py` across 20 files. The helper returns a minimal `Mixture` with `SigT = ones(ng)` and all other XS zero — sufficient to satisfy `SNMesh.ng` and `_validate_materials` for tests that exercise pure geometry/cache/sweep structure.
+- **Geometry-only pattern**: `SNMesh(mesh, quad)` for tests that don't run a solver — threaded a new `tests/gates/sn/_test_helpers.placeholder_materials()` helper into every such call via `/tmp/typed_0_phase2.py` across 20 files. The helper returns a minimal `Mixture` with `SigT = ones(ng)` and all other XS zero — sufficient to satisfy `SNMesh.ng` and `_validate_materials` for tests that exercise pure geometry/cache/sweep structure.
 
-### §2.5 New acceptance tests (`tests/sn/test_snmesh_materials_pr_typed_0.py`)
+### §2.5 New acceptance tests (`tests/gates/sn/test_snmesh_materials_pr_typed_0.py`)
 
 7 foundation-tagged tests pinning the §F mechanism criteria:
 
@@ -58,7 +58,7 @@ Two patterns of test-call-site updates were needed:
 
 All 7 PASS in 0.39 s.
 
-### §2.6 New helper module (`tests/sn/_test_helpers.py`)
+### §2.6 New helper module (`tests/gates/sn/_test_helpers.py`)
 
 `placeholder_materials(ng=1, mat_ids=(0,)) -> dict[int, Mixture]` for geometry-only tests. Documented with reference to PR-TYPED-0. The 7 tests in test_snmesh_materials_pr_typed_0.py build their own `_mix(ng)` factory directly (don't depend on the helper) — the helper is only consumed by geometry-only tests already threading `placeholder_materials()` into their `SNMesh(...)` calls.
 
@@ -74,8 +74,8 @@ All 7 PASS in 0.39 s.
 | 6 | `SNSolver.__init__` no longer accepts `materials` / `n_groups` | `inspect.signature(SNSolver.__init__)`: `(self, sn_mesh, inner_solver='source_iteration', scattering_order=0, keff_tol=1e-7, flux_tol=1e-6, max_inner=200, inner_tol=1e-8)` — no `materials` parameter. (`n_groups` was never an SNSolver parameter; only `materials` existed and was retired.) |
 | 7 | Both `solve_sn`/`solve_sn_fixed_source` thread `materials` into `SNMesh(...)` | `grep -rn "SNMesh(" orpheus/`: `solver.py:1045: SNMesh(mesh, quadrature, materials)` + `solver.py:1168: SNMesh(mesh, quadrature, materials)` |
 | 8 | All SNSolver call sites updated (no `materials` / `n_groups` args) | `grep -rn "SNSolver(" orpheus/ tests/`: 0 hits showing `SNSolver(materials, ...)`. All 39 call sites now `SNSolver(sn_mesh, ...)` or `SNSolver(SNMesh(..., materials), ...)`. |
-| 9 | 11/11 regression PASS at rtol=1e-12 | `pytest tests/sn/regression/ -q` → **11 passed in 61.71 s** |
-| 10 | L0 streaming-equilibrium 26/26 PASS | `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q` → **26 passed in 951.06 s** |
+| 9 | 11/11 regression PASS at rtol=1e-12 | `pytest tests/gates/sn/regression/ -q` → **11 passed in 61.71 s** |
+| 10 | L0 streaming-equilibrium 26/26 PASS | `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q` → **26 passed in 951.06 s** |
 | 11 | Full SN suite PASS | (in progress — see §4 caveat) |
 | 12 | CP suite green | (in progress) |
 
@@ -84,7 +84,7 @@ All 7 PASS in 0.39 s.
 ### §4.1 Regression suite (load-bearing rtol=1e-12 gate)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/regression/ -q --no-header
+$ .venv/bin/python -m pytest tests/gates/sn/regression/ -q --no-header
 ...........                                                              [100%]
 11 passed, 3 warnings in 61.71s (0:01:01)
 ```
@@ -94,7 +94,7 @@ The 3 warnings are pre-existing `RuntimeWarning: invalid value encountered in di
 ### §4.2 L0 streaming-equilibrium curvilinear (26/26 cases)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q --no-header
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q --no-header
 ..........................                                               [100%]
 26 passed, 1 warning in 951.06s (0:15:51)
 ```
@@ -102,7 +102,7 @@ $ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvili
 ### §4.3 PR-TYPED-0 acceptance tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_snmesh_materials_pr_typed_0.py -v
+$ .venv/bin/python -m pytest tests/gates/sn/test_snmesh_materials_pr_typed_0.py -v
 test_materials_required_positional_arg PASSED                            [ 14%]
 test_ng_property_returns_uniform_ng PASSED                               [ 28%]
 test_inconsistent_ng_raises_inconsistent_materials_error PASSED          [ 42%]
@@ -116,17 +116,17 @@ test_inconsistent_materials_error_is_value_error PASSED                  [100%]
 ### §4.4 Geometry/operator subset
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_snmesh_sweep_graphs.py \
-    tests/sn/test_snmesh_consumes_reduced.py \
-    tests/sn/test_dag_walk.py \
-    tests/sn/test_collision_operator.py \
-    tests/sn/test_streaming_operator.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_snmesh_sweep_graphs.py \
+    tests/gates/sn/test_snmesh_consumes_reduced.py \
+    tests/gates/sn/test_dag_walk.py \
+    tests/gates/sn/test_collision_operator.py \
+    tests/gates/sn/test_streaming_operator.py -q
 130 passed, 1 warning in 0.63s
 ```
 
 ### §4.5 Pre-existing failure NOT introduced by PR-TYPED-0
 
-`tests/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous_spectrum[*]` — 6 cases fail because the test's `result.scalar_flux.mean(axis=(0, 1))` was written for the pre-PR-INDEX-5 `(nx, ny, ng)` layout; under the principled `(ng, nx, ny)` layout it reduces over `g` and `nx` instead of `nx` and `ny`, leaving a `(ny,)` shape instead of `(ng,)`. **Verified pre-existing** by `git stash` + re-running: 6/6 same failures on the pristine baseline. This is a pre-existing PR-INDEX issue independent of PR-TYPED-0 and should be tracked separately.
+`tests/gates/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous_spectrum[*]` — 6 cases fail because the test's `result.scalar_flux.mean(axis=(0, 1))` was written for the pre-PR-INDEX-5 `(nx, ny, ng)` layout; under the principled `(ng, nx, ny)` layout it reduces over `g` and `nx` instead of `nx` and `ny`, leaving a `(ny,)` shape instead of `(ng,)`. **Verified pre-existing** by `git stash` + re-running: 6/6 same failures on the pristine baseline. This is a pre-existing PR-INDEX issue independent of PR-TYPED-0 and should be tracked separately.
 
 ## §5 Architecture rationale
 
@@ -165,10 +165,10 @@ Pre-PR-TYPED-0, the third was held externally by SNSolver, and `sn_mesh.ng` was 
 - `orpheus/sn/solver.py` — SNSolver simplified; 2 SNMesh call sites updated
 
 ### Tests (`tests/`)
-- `tests/sn/_test_helpers.py` (NEW)
-- `tests/sn/test_snmesh_materials_pr_typed_0.py` (NEW — 7 acceptance tests)
-- Updated for SNSolver call signature: `test_solver_components.py`, `test_scattering_operator.py`, `test_sweep_regression.py`, `test_cylindrical.py`, `test_spherical.py`, `test_fission_operator.py`, `tests/sn/spatial/test_sweep_cache.py`, `tests/numerics/test_iteration.py`.
-- Updated for SNMesh `materials` requirement (placeholder_materials threaded): `test_unified_sweep_dispatch.py`, `test_snstreamingoperator.py`, `test_boundary_conditions.py`, `test_dag_walk.py`, `test_collision_operator.py`, `test_streaming_operator.py`, `test_streaming_operator_decomposition.py`, `test_quadrature.py`, `test_snmesh_consumes_reduced.py`, `test_snmesh_sweep_graphs.py`, `test_snmesh_realizer_wiring.py`, `test_2d_octant_sweep_equivalence.py`, `test_phase_c_gates.py`, `tests/sn/spatial/test_ordinate_scan_joint_batch.py`, `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`, `tests/geometry/test_bound_compat.py`, `tests/geometry/test_reduced_operator.py`.
+- `tests/gates/sn/_test_helpers.py` (NEW)
+- `tests/gates/sn/test_snmesh_materials_pr_typed_0.py` (NEW — 7 acceptance tests)
+- Updated for SNSolver call signature: `test_solver_components.py`, `test_scattering_operator.py`, `test_sweep_regression.py`, `test_cylindrical.py`, `test_spherical.py`, `test_fission_operator.py`, `tests/gates/sn/spatial/test_sweep_cache.py`, `tests/gates/numerics/test_iteration.py`.
+- Updated for SNMesh `materials` requirement (placeholder_materials threaded): `test_unified_sweep_dispatch.py`, `test_snstreamingoperator.py`, `test_boundary_conditions.py`, `test_dag_walk.py`, `test_collision_operator.py`, `test_streaming_operator.py`, `test_streaming_operator_decomposition.py`, `test_quadrature.py`, `test_snmesh_consumes_reduced.py`, `test_snmesh_sweep_graphs.py`, `test_snmesh_realizer_wiring.py`, `test_2d_octant_sweep_equivalence.py`, `test_phase_c_gates.py`, `tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py`, `tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py`, `tests/gates/geometry/test_bound_compat.py`, `tests/gates/geometry/test_reduced_operator.py`.
 
 ## §9 Self-improvement / skill notes
 
@@ -195,5 +195,5 @@ principled_index_migration.md §10.
 ## §11 Manifest line (for MEMORY.md)
 
 ```
-- [Issue #197 PR-TYPED-0 — SNMesh consumes materials + .ng (aggressive retirement)](issue_197_pr_typed_0_closeout.md) — `refactor/sn-operator-algebra` 2026-05-16 (STAGED). SNMesh becomes phase-space-as-such (geometry × quadrature × materials); materials moved from SNSolver to SNMesh; new `.ng` property + `InconsistentMaterialsError`; SNSolver.__init__ retires the redundant `materials` parameter. 11/11 regression PASS at rtol=1e-12 (61.71 s); 26/26 L0 streaming-equilibrium curvilinear PASS (951.06 s); 7/7 new acceptance tests in `test_snmesh_materials_pr_typed_0.py` PASS. New `tests/sn/_test_helpers.placeholder_materials()` helper threaded into 17 geometry-only test files. SNSolver call signature is now `SNSolver(sn_mesh, inner_solver=..., ...)`; all 39 call sites updated. Pre-existing PR-INDEX issue surfaced: 6 `test_kinf_homogeneous_spectrum` cases fail because `mean(axis=(0,1))` is wrong for principled `(ng, nx, ny)` — file follow-up. Foundation for typed-field contract resume per `principled_index_migration.md` §10.
+- [Issue #197 PR-TYPED-0 — SNMesh consumes materials + .ng (aggressive retirement)](issue_197_pr_typed_0_closeout.md) — `refactor/sn-operator-algebra` 2026-05-16 (STAGED). SNMesh becomes phase-space-as-such (geometry × quadrature × materials); materials moved from SNSolver to SNMesh; new `.ng` property + `InconsistentMaterialsError`; SNSolver.__init__ retires the redundant `materials` parameter. 11/11 regression PASS at rtol=1e-12 (61.71 s); 26/26 L0 streaming-equilibrium curvilinear PASS (951.06 s); 7/7 new acceptance tests in `test_snmesh_materials_pr_typed_0.py` PASS. New `tests/gates/sn/_test_helpers.placeholder_materials()` helper threaded into 17 geometry-only test files. SNSolver call signature is now `SNSolver(sn_mesh, inner_solver=..., ...)`; all 39 call sites updated. Pre-existing PR-INDEX issue surfaced: 6 `test_kinf_homogeneous_spectrum` cases fail because `mean(axis=(0,1))` is wrong for principled `(ng, nx, ny)` — file follow-up. Foundation for typed-field contract resume per `principled_index_migration.md` §10.
 ```

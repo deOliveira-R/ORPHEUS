@@ -65,7 +65,7 @@ Contrast the S5 :class:`~orpheus.numerics.functional.Functional`, which
 shares **no** member with LinearOperator (it speaks ``evaluate``, not
 ``apply``): the Functional is a *sibling* of the operator category,
 while the Kernel is a *refinement* of it. The intrinsic-property gate
-(``tests/transport/test_integral_kernel_category.py``) verifies both
+(``tests/gates/transport/test_integral_kernel_category.py``) verifies both
 relationships: a Kernel is still a LinearOperator, but a kernel-less
 LinearOperator (Identity / Multiplication) is not a Kernel, and a
 Functional is neither.

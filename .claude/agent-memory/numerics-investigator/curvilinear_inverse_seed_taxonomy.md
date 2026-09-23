@@ -62,7 +62,7 @@ Ruling (2026-07-05, read-only feasibility): **FEASIBLE (clean pure-diagonal fold
   handling. τ-clamp #229 is NOT an obstruction (it DEFINES κ via (1−τ)/τ=1; triu=0 stands).
 - Diagnostics: `derivations/diagnostics/diag_280_cyl_product_seed_lag.py` (characterization [gone: `git show ba202a1e^:derivations/diagnostics/diag_280_cyl_product_seed_lag.py`]
   + strict-xfail TARGET gate) + `diag_280_cyl_fold_feasibility.py` (structural proofs +
-  POC). Promote both to `tests/sn/sweep/` (the feasibility proofs are permanent
+  POC). Promote both to `tests/gates/sn/sweep/` (the feasibility proofs are permanent
   routing/triangularity gates; the xfail flips green when the fold lands).
 
 ## Where the seed enters (file:line)
@@ -118,7 +118,7 @@ safety.py`), with #200 tracking the real one.
 ## Diagnostics (promoted; the scripts are retired)
 `diag_curvilinear_seed_sensitivity.py` (slab/cyl seed-independence + machine residual) and
 `diag_sphere_fixedpoint_consistency.py` (fixed point is CORRECT) were promoted into
-`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py` (`test_ci_cold_residual_is_machine_zero`,
+`tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py` (`test_ci_cold_residual_is_machine_zero`,
 `test_cii_sphere_solve_is_seed_insensitive_bitwise`, `test_cii_probe6_cold_solve_recovers_preimage`,
 `test_ciii_coarse_sphere_fixed_source_finite_positive`) once #282 route (a) killed the seed lag; the
 tracked copies under `derivations/diagnostics/` were retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.

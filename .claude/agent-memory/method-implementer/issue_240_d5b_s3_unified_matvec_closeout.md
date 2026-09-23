@@ -8,7 +8,7 @@ metadata:
 # #240 D5b-S3 (merged A+B) — the UNIFIED moment matvec
 
 **Branch** `feature/sn-space-angle-tier2`. **NOT committed** (main agent reviews + commits).
-Host env, `.venv/bin/python -O`. Canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Host env, `.venv/bin/python -O`. Canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## STATUS — the ARCHITECTURE is DONE; the diffusion-limit PHYSICS + the d=1 scan are OWED
 
@@ -115,8 +115,8 @@ walk_windowed), `_sweep_scheduled` (angular/scalar/moment buffers), the d=1
 
 ### GATE 4 (negative control — DD/Step byte-identity) — PASSES, IDENTICAL pre/post
 ```
-$ .venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-    -W "error::tests.sn.regression._regression_assert.DriftWarning" -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+    -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" -q
 513 passed, 1 skipped, 4 xfailed, 2 warnings in 84.04s
 ```
 The S2 baseline `513/1/4` is PRESERVED pre==post, NO golden `.npy` moved. The
@@ -126,7 +126,7 @@ The S2 baseline `513/1/4` is PRESERVED pre==post, NO golden `.npy` moved. The
 
 ### GATE 2 (2-D leg) — PASSES (the 2-D LD MMS O(h²) + DD≠LD discrimination)
 ```
-$ .venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_2d.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/verification/mms/test_mms_ld_2d.py -q
 3 passed, 1 warning in 324.54s
 ```
 `test_ld_2d_converges_second_order_smoke` (O(h²) with the slope source active) +
@@ -135,7 +135,7 @@ ALL green. (⚠ 324s — the d≥2 dense per-cell solve is slow; #227 perf.)
 
 ### Pre-existing reds (spatial+operators) — EXACTLY 7, ZERO new (git-stash confirmed)
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial tests/sn/operators -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial tests/gates/sn/operators -q
 7 failed, 573 passed, 4 skipped, 1 xfailed
 ```
 The 7: sphere 1-D matvec SPH ×3 (`test_vacuum_bulk_bit_identical_1d[*-SPH]`) +
@@ -145,11 +145,11 @@ confirmed identical at clean tree — ZERO introduced by this carve.
 
 ### LD foundation + dispatch + numerics/transport — ALL GREEN
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial/test_ld_ubld_symbolic.py \
-    tests/sn/spatial/test_ld_ubld_primitive.py tests/sn/spatial/test_linear_discontinuous.py \
-    tests/sn/sweep/core/test_unified_sweep_dispatch.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial/test_ld_ubld_symbolic.py \
+    tests/gates/sn/spatial/test_ld_ubld_primitive.py tests/gates/sn/spatial/test_linear_discontinuous.py \
+    tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py -q
 59 passed
-$ .venv/bin/python -O -m pytest tests/numerics tests/transport -q
+$ .venv/bin/python -O -m pytest tests/gates/numerics tests/gates/transport -q
 848 passed
 ```
 
@@ -170,7 +170,7 @@ landed as the formal `test_ld_2d_krylov_matches_si_full_operator` once OWED-1 is
 ### GATE 1 (the thick-diffusion tripwire) — STILL XFAILED (the diffusion limit is NOT recovered)
 ```
 $ .venv/bin/python -O -m pytest \
-    "tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail" -q
+    "tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail" -q
 1 xfailed, 1 warning
 ```
 I deliberately LEFT the xfail (did NOT flip to a passing gate) because flipping it
@@ -179,7 +179,7 @@ xfailed until the diffusion-limit physics is fixed.
 
 ### GATE 2 (1-D leg) + the d=1 two-paths gate — FAILING ON THE SCAN MOMENT THREADING
 ```
-$ .venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_slab.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/verification/mms/test_mms_ld_slab.py -q
 3 failed, 2 passed, 1 xfailed
   FAILED test_sn_1d_slab_ld_mms_converges_second_order — broadcast (16,1,20,2) (the scan QV·V)
   FAILED test_sn_1d_slab_ld_mms_krylov_matches_si — same (the SI leg crashes)
@@ -249,10 +249,10 @@ Until done, the 1-D LD SI path crashes (the 1-D MMS uses the scan).
   closed form).
 - `docs/theory/discrete_ordinates.rst` — `ld-ubld-unified-moment-matvec` stub (labels
   `ld-ubld-unified-moment-residual` + `:mod:` + archivist TODO; build exit 0, no new warnings).
-- `tests/sn/spatial/test_linear_discontinuous.py` — 2 tests updated (d=1 kernel returns the
+- `tests/gates/sn/spatial/test_linear_discontinuous.py` — 2 tests updated (d=1 kernel returns the
   moment vector now: `psi_avg[..., AVERAGE_MOMENT]` for the scalar avg; the d=1 face is
   scalar, no moment axis).
-- `tests/sn/spatial/test_ld_ubld_primitive.py` — `test_production_kernel_equals_dense` same.
+- `tests/gates/sn/spatial/test_ld_ubld_primitive.py` — `test_production_kernel_equals_dense` same.
 NOT mine (pre-existing uncommitted): `.claude/skills/vv-principles/*`, `.claude/plans/*`,
 `docs/verification/matrix.rst` (Sphinx auto-regen), `.claude/agent-memory/elegance-enforcer/*`,
 the 3 forbidden untracked.

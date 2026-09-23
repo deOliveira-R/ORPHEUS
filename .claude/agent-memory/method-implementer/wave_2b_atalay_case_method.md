@@ -56,15 +56,15 @@ type: project
 
 ## Tests
 
-* `tests/derivations/test_case_method_symbolic.py` — 9 `@pytest.mark.foundation`
+* `tests/gates/derivations/test_case_method_symbolic.py` — 9 `@pytest.mark.foundation`
   tests, one per `derive_*()`. Total runtime 0.4 s, all pass.
-* `tests/derivations/test_case_method_slab.py` — 8 L1 tests against Atalay
+* `tests/gates/derivations/test_case_method_slab.py` — 8 L1 tests against Atalay
   Tables 2-3 (slab vacuum + reflected, isotropic + linearly anisotropic).
   Tolerances: 2e-2 for vacuum, 1e-1 for reflected (R > 0). Plus validity-bound
   rejection tests.
-* `tests/derivations/test_case_method_sphere.py` — 4 L1 tests against Sood
+* `tests/gates/derivations/test_case_method_sphere.py` — 4 L1 tests against Sood
   Ua-1-0-SP at 1e-2; monotone-c trend; structural attribute checks.
-* `tests/derivations/test_case_method_slab_sphere_parity_flip.py` — 4 tests
+* `tests/gates/derivations/test_case_method_slab_sphere_parity_flip.py` — 4 tests
   numerically enforcing the parity-flip identity: `K_j == L_j` at `R=0`
   (vacuum), `T(R=1) = -1`, `T_1(R=1) = +1`, signed ranges for partial reflection.
 

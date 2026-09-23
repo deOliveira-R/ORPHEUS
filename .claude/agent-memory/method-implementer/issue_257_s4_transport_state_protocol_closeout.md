@@ -22,7 +22,7 @@ structural contract) — NOT the old class-name of `TimedFullField` (renamed 202
    `LinearOperatorMixin["TransportState"]`; `apply`/`solve`/`apply_transpose` param+return
    `"TimedFullField"`→`"TransportState"`; `TransportState` added to the `TYPE_CHECKING` block.
    Bodies UNCHANGED (still construct concrete `TimedFullField` returns — covariant-valid).
-4. **`tests/transport/test_transport_state.py` (NEW)** — `@foundation`, 4 tests, the discriminating
+4. **`tests/gates/transport/test_transport_state.py` (NEW)** — `@foundation`, 4 tests, the discriminating
    type-check: `TimedFullField` IS-a `TransportState` AND `Vector`; `np.ndarray` IS-a `Vector` but
    NOT a `TransportState`; bare `AngularFlux` IS-a `Vector` but NOT a `TransportState`.
    `CollisionOperator` (`sn/operator.py:512`) needs NO change — it inherits the re-pointed annotations
@@ -134,4 +134,4 @@ S8 (ship S4 as D1+D3 only) — D1+D3 alone is genuinely 2295 with no hidden offs
 - NEW `orpheus/transport/state.py`
 - `orpheus/transport/__init__.py` (export)
 - `orpheus/transport/multiplication_operator.py` (generic + 3 annotation re-points + TYPE_CHECKING import)
-- NEW `tests/transport/test_transport_state.py`
+- NEW `tests/gates/transport/test_transport_state.py`

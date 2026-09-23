@@ -252,7 +252,7 @@ is exactly the inherited
 .. Rationale: this is the STRUCTURAL typing identity of a flux leaf, not a
 .. solver claim — there is no eigenvalue, flux shape, or convergence order
 .. in it. Its verifiable content is pinned bit-exactly by the foundation
-.. battery tests/numerics/test_flux_vector_algebra.py across the four
+.. battery tests/gates/numerics/test_flux_vector_algebra.py across the four
 .. parameterized leaves (legality + exactness of the sum, commutativity,
 .. zero-is-the-identity with the copy contract, the signed difference, the
 .. round-trip and telescoping to 8 ULP, and scalar algebra), plus the
@@ -275,7 +275,7 @@ lives:
 .. nodal axes — with no single implementing function to point an
 .. `implements` edge at. Its verifiable content is the closure algebra and
 .. the predicate that decides membership: the foundation unit legs of
-.. tests/sn/solve/test_cone_membership_witness.py's siblings (apex, closure
+.. tests/gates/sn/solve/test_cone_membership_witness.py's siblings (apex, closure
 .. under + and under nonnegative scaling, NON-closure under difference and
 .. under negative scaling, the exact-index report, and the IEEE edges) plus
 .. the two production witness rows in that module. `foundation` gates, so no
@@ -566,7 +566,7 @@ The DD witness — measured production output outside the cone
 
 The second half is the one that has to be *measured* rather than
 argued, so it is. The gate is
-``tests/sn/solve/test_cone_membership_witness.py``, and the numbers
+``tests/gates/sn/solve/test_cone_membership_witness.py``, and the numbers
 below were re-derived for this page through the public entry
 :func:`~orpheus.sn.solver.solve_sn_fixed_source`.
 
@@ -1010,7 +1010,7 @@ partial-current metric asserts.
 
 The carve owed this a **negative control**, and it has one, re-derived
 in place: ``test_fiber_guard_cross_mesh_refuses`` in
-``tests/numerics/test_flux_vector_algebra.py`` now carries the
+``tests/gates/numerics/test_flux_vector_algebra.py`` now carries the
 correctly-blind leg (twin carriers ADD, with an activation guard
 asserting their spaces really do compare equal — so the leg cannot
 silently become vacuous), the refusal leg (a stretched carrier reds on
@@ -1165,7 +1165,7 @@ and records nothing, as before.
    *today*; but the interior-leaf norm and the **whole-composite** flat
    norm — which additionally ravels the boundary trace block — differ by
    :math:`4.71\times 10^{-3}`. That nine-order gap is what the capture
-   gate ``tests/numerics/test_si_diagnostic_trajectory.py`` exists to
+   gate ``tests/gates/numerics/test_si_diagnostic_trajectory.py`` exists to
    catch, at ``rtol = 1e-12``.
 
 **Why** :math:`\rho` **is deliberately not a stopping criterion.** The
@@ -1199,9 +1199,9 @@ derives the Banach factor
 .. of two entries of increment_norms), not a solver claim in its own
 .. right — the physics claim it enables (rho -> c) is the separate L1
 .. gate named below. Its computed content is pinned by the frozen
-.. trajectory in tests/numerics/test_si_diagnostic_trajectory.py (11
+.. trajectory in tests/gates/numerics/test_si_diagnostic_trajectory.py (11
 .. ratios at rtol=1e-12, with a measured mutation battery) and its
-.. physical calibration by tests/sn/solve/test_si_convergence_diagnostics.py
+.. physical calibration by tests/gates/sn/solve/test_si_convergence_diagnostics.py
 .. (marked `l1`, pillar = closed-form). Neither carries a verifies(...)
 .. marker today, so the label stays `documented`.
 
@@ -1230,9 +1230,9 @@ the distance from the current iterate to the fixed point is the tail sum
 .. Rationale: the closed form of a geometric tail — a literature identity
 .. (Adams & Larsen 2002; the standard Banach a-posteriori bound), not an
 .. ORPHEUS solver claim. Its implementation is pinned by
-.. tests/numerics/test_si_diagnostic_trajectory.py (the frozen value at
+.. tests/gates/numerics/test_si_diagnostic_trajectory.py (the frozen value at
 .. rtol=1e-12) and its identity against the recorded norm and ratio by
-.. tests/sn/solve/test_si_convergence_diagnostics.py. Both are foundation /
+.. tests/gates/sn/solve/test_si_convergence_diagnostics.py. Both are foundation /
 .. l1 gates without a verifies(...) marker, so the label stays
 .. `documented`.
 
@@ -1577,7 +1577,7 @@ Numerical evidence
    * - Gate (test)
      - Level / pillar
      - What it proves
-   * - ``tests/numerics/test_flux_vector_algebra.py``
+   * - ``tests/gates/numerics/test_flux_vector_algebra.py``
      - ``foundation``
      - The :math:`V` algebra of :eq:`flux-vector-algebra`, across four
        parameterized flux leaves (angular / scalar / moment /
@@ -1591,7 +1591,7 @@ Numerical evidence
        carve:** ``Field.__add__`` → subtraction reds 12 value legs while
        every type leg stays green, which is why the type legs alone are
        not the gate.
-   * - ``tests/numerics/test_flux_vector_algebra.py``
+   * - ``tests/gates/numerics/test_flux_vector_algebra.py``
        (``test_fiber_guard_cross_mesh_refuses``)
      - ``foundation``, negative control
      - The fiber discipline lands on the **retained**
@@ -1605,7 +1605,7 @@ Numerical evidence
        pairing). **Mutation-verified:** deleting the SPACE arm of
        ``Field._check_partner`` reds the refusal leg while both
        positive legs stay green.
-   * - ``tests/sn/solve/test_cone_membership_witness.py``
+   * - ``tests/gates/sn/solve/test_cone_membership_witness.py``
      - ``foundation``, production witness
      - :meth:`Field.cone_violations
        <orpheus.numerics.field.Field.cone_violations>` against converged
@@ -1616,7 +1616,7 @@ Numerical evidence
        Both legs carry activation guards, so a fixture that stopped
        discriminating fails loudly rather than passing vacuously. The
        measured tables are reproduced above.
-   * - ``tests/numerics/test_si_diagnostic_trajectory.py``
+   * - ``tests/gates/numerics/test_si_diagnostic_trajectory.py``
      - ``foundation``, capture gate
      - **Value-neutrality of the diagnostics' relocation.** The
        :math:`\rho` trajectory (11 ratios), :math:`\lVert\Delta\psi\rVert`,
@@ -1627,7 +1627,7 @@ Numerical evidence
        *which side is right* — so it is deliberately anchored by the
        independent :math:`\rho \approx c` gate below and carries an
        in-file control proving it can RED.
-   * - ``tests/sn/solve/test_si_convergence_diagnostics.py``
+   * - ``tests/gates/sn/solve/test_si_convergence_diagnostics.py``
      - ``l1``, pillar = closed-form (:math:`\rho = c`)
      - ``record.contraction_ratios`` :math:`\to \rho \approx c` on a
        homogeneous slab: `[M]` :math:`\rho \in [0.40, 0.56]` at

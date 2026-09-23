@@ -74,7 +74,7 @@ angle-resolved transport eigenvalue and flux-shape problems in compact
 and 2-surface geometries. It already cross-checks against external
 benchmarks: Sood/Forster/Parsons ``Ua-1-0-CY`` cylinder critical
 radius at 8.5e-6 (see
-:func:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003.test_a2_variant_alpha_agrees_with_sood2003_cylinder`).
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003.test_a2_variant_alpha_agrees_with_sood2003_cylinder`).
 
 That cross-check, however, leans on a single published value. The
 F_N method gives a **second, structurally-independent reference
@@ -648,7 +648,7 @@ etc.). What the class adds:
    :meth:`MomentSpace.reconstruct_flux` returns
    :class:`~orpheus.derivations.common.solution_types.FluxSolution`,
    and ``Billiard`` populates the same types. Cross-method
-   consumers (e.g., :mod:`tests.cross_method.adapters`) can hold a
+   consumers (e.g., :mod:`tests.gates.cross_method.adapters`) can hold a
    ``CriticalSolution`` without knowing which pillar produced it.
 3. **Math-rich documentation locality**. The class docstring +
    this theory section make the F_N moment space the single place
@@ -659,7 +659,7 @@ etc.). What the class adds:
 4. **Bit-equality with the function-level API**. The class facade
    produces IDENTICAL float results to direct function calls —
    verified by 14 foundation-tagged tests in
-   :mod:`tests.derivations.test_fn_method_moment_space` via
+   :mod:`tests.gates.derivations.test_fn_method_moment_space` via
    ``float.hex()`` exact-bit comparison. No accuracy drift from
    the wrapper layer.
 
@@ -775,16 +775,16 @@ Per the project's algebra-of-record discipline (see the
   code**: numpy/scipy implementations of the same closed forms,
   structurally independent of any ORPHEUS in-house primitive above
   the trusted-library line.
-* :func:`tests.derivations.test_fn_la13511_kinf`,
-  :func:`tests.derivations.test_fn_la13511_slab`,
-  :func:`tests.derivations.test_fn_la13511_sphere`,
-  :func:`tests.derivations.test_fn_la13511_slab_reflected`,
-  :func:`tests.derivations.test_fn_la13511_slab_flux`,
-  :func:`tests.derivations.test_fn_la13511_sphere_flux`,
-  :func:`tests.derivations.test_fn_la13511_slab_xverif`,
-  :func:`tests.derivations.test_fn_la13511_sphere_xverif`,
-  :func:`tests.derivations.test_atkinson_product_nystrom`, and
-  :func:`tests.derivations.test_path_ai_legacy_plain_gl_signature`
+* :func:`tests.gates.derivations.test_fn_la13511_kinf`,
+  :func:`tests.gates.derivations.test_fn_la13511_slab`,
+  :func:`tests.gates.derivations.test_fn_la13511_sphere`,
+  :func:`tests.gates.derivations.test_fn_la13511_slab_reflected`,
+  :func:`tests.gates.derivations.test_fn_la13511_slab_flux`,
+  :func:`tests.gates.derivations.test_fn_la13511_sphere_flux`,
+  :func:`tests.gates.derivations.test_fn_la13511_slab_xverif`,
+  :func:`tests.gates.derivations.test_fn_la13511_sphere_xverif`,
+  :func:`tests.gates.derivations.test_atkinson_product_nystrom`, and
+  :func:`tests.gates.derivations.test_path_ai_legacy_plain_gl_signature`
   pin both branches with foundation-tagged tests, plus the Branch-1 ↔
   Branch-2 + ORPHEUS-cross-implementation agreement gates.
 
@@ -805,7 +805,7 @@ V_fn1.1 — 1G k_inf from balance equation
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_19`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn1_1_kinf_1g_eq_19`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_1_kinf_1g_eq_19`.
 
 Starting from Sood Eq 18 (the 1G integrated transport equation for
 an infinite, isotropically-scattering, homogeneous medium),
@@ -845,7 +845,7 @@ V_fn1.2 — Eq 20 simplifies to Eq 19 (c factor cancels)
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_20_simplifies_to_eq_19`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19`.
 
 Sood states the same 1G result two ways. Eq 19 is the clean form;
 Eq 20 includes the explicit "mean number of secondaries"
@@ -884,7 +884,7 @@ V_fn2.1 — 2G general k_inf from det(M) = 0
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_2g_general_from_matrix`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn2_1_kinf_2g_general_from_matrix`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_1_kinf_2g_general_from_matrix`.
 
 From Sood Eqs 21-22 (2G balance), Eqs 23-24 rearrange to a 2x2
 homogeneous linear system :math:`M(k_\infty)\,\vec\phi = 0`
@@ -939,7 +939,7 @@ V_fn2.2 — Eq 29 makes det(M) = 0 at no-upscatter
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_2g_no_upscatter`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero`.
 
 Independent verification of Sood Eq 29: substitute the printed
 Eq 29 closed form
@@ -979,7 +979,7 @@ V_fn2.3 — phi_2/phi_1 from chi-sum + balance (Eq 32)
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_phi_ratio_2g_no_upscatter`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn2_3_phi_ratio_eq_32`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_3_phi_ratio_eq_32`.
 
 Adding the two 2G balance equations Eqs 23 + 24 with
 :math:`\chi_1 + \chi_2 = 1` eliminates the :math:`\chi_g` from the
@@ -1012,7 +1012,7 @@ V_fnMG.1 — Eq 76 for G=2 is the trace of a rank-1 matrix
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn_mg_1_eq_76_g2_form`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_1_eq_76_g2_form`.
 
 The general G-group balance (Sood Eq 72) reduces to a single
 matrix-vector identity (Sood Eq 76):
@@ -1060,13 +1060,13 @@ V_fnMG.2 — Eq 76 with G=1 reduces to Eq 19
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_reduces_to_1g`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_kinf.test_v_fn_mg_2_reduces_to_1g`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_2_reduces_to_1g`.
 
 Trivial dimensional-reduction check — Eq 76 with all matrices and
 vectors at G=1 collapses to scalar arithmetic and produces Eq 19
 exactly. The MG infrastructure must reproduce the 1G result
 bit-for-bit; this is enforced via
-:func:`tests.derivations.test_fn_la13511_kinf.test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1`
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1`
 on the Branch-2 numpy side as well. Together V_fnMG.2 + the
 foundation Branch-2 reduction test pin the "G=1 is a special case
 of G ≥ 2 solver" invariant on both branches.
@@ -1096,7 +1096,7 @@ library line:
 
 Disagreement would point at a real implementation bug in one or the
 other. Foundation-test gate:
-:func:`tests.derivations.test_fn_la13511_kinf.test_kinf_mg_agrees_with_existing_orpheus_kinf_homogeneous`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_kinf_mg_agrees_with_existing_orpheus_kinf_homogeneous`.
 
 When the F_N slab/sphere/cylinder solvers are added, the cross-check
 extends to:
@@ -1271,7 +1271,7 @@ V_fn-slab.1 — B_α moment recursion
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations.derive_B_recursion`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab.test_v_fn_slab_1_B_recursion`.
+:func:`tests.gates.derivations.test_fn_la13511_slab.test_v_fn_slab_1_B_recursion`.
 
 The :math:`B` moments are the integrals
 :math:`B_\alpha(\xi) = \int_0^1 \mu^\alpha/(\xi - \mu)\, d\mu` minus
@@ -1303,7 +1303,7 @@ V_fn-slab.2 — A_α moment recursion
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations.derive_A_recursion`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab.test_v_fn_slab_2_A_recursion`.
+:func:`tests.gates.derivations.test_fn_la13511_slab.test_v_fn_slab_2_A_recursion`.
 
 Same long-division pattern as V_fn-slab.1 but at the negative
 collocation argument :math:`-\xi`. The substitution
@@ -1327,7 +1327,7 @@ V_fn-slab.3 — B_0 long-division identity
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations.derive_B0_seed`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab.test_v_fn_slab_3_B0_seed`.
+:func:`tests.gates.derivations.test_fn_la13511_slab.test_v_fn_slab_3_B0_seed`.
 
 Split :math:`\mu/(\xi-\mu) = -1 + \xi/(\xi-\mu)` and verify that the
 resulting integral is elementary. The published seed
@@ -1353,7 +1353,7 @@ V_fn-slab.4 — A_0 seed integral
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations.derive_A0_seed`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab.test_v_fn_slab_4_A0_seed`.
+:func:`tests.gates.derivations.test_fn_la13511_slab.test_v_fn_slab_4_A0_seed`.
 
 SymPy evaluates :math:`\int_0^1 \mu/(\xi+\mu)\,d\mu = 1 -
 \xi\log(1+1/\xi)` directly. No principal value is needed since the
@@ -1369,7 +1369,7 @@ V_fn-slab.5 — Critical-slab determinant structure
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations.derive_critical_determinant_structure`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab.test_v_fn_slab_5_critical_determinant`.
+:func:`tests.gates.derivations.test_fn_la13511_slab.test_v_fn_slab_5_critical_determinant`.
 
 The F_N collocation system :eq:`fn-slab-collocation` is
 :math:`M(a)\,\vec a = 0` with
@@ -1401,7 +1401,7 @@ V_fn-sphere-fn.1 — Slab/sphere BC sign-flip parameterisation
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations.derive_sphere_bc_sign_flip`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_1_bc_sign_flip`.
+:func:`tests.gates.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_1_bc_sign_flip`.
 
 The slab BC (Siewert-Benoist Eq. 4) is :math:`\Psi(-a, \mu) = \Psi(a,
 -\mu)` (symmetric reflection in both space and angle). For the
@@ -1436,7 +1436,7 @@ V_fn-sphere-fn.2 — Sphere F_N matrix entry from geometry_sign = -1
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations.derive_sphere_fn_matrix_entry`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_2_matrix_entry`.
+:func:`tests.gates.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_2_matrix_entry`.
 
 The unified F_N matrix entry :eq:`fn-unified-matrix-entry` reduces
 to the published sphere form (Siewert-Thomas Eq. 46):
@@ -1467,7 +1467,7 @@ V_fn-sphere-fn.3 — Sphere bare-critical = det M(R) = 0
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations.derive_sphere_critical_condition`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_3_critical_condition`.
+:func:`tests.gates.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_3_critical_condition`.
 
 The sphere F_N collocation system :math:`M(R)\,\vec a = 0` is
 homogeneous (no source for the bare-critical problem); a non-trivial
@@ -1486,7 +1486,7 @@ V_fn-sphere-fn.4 — Siewert-Thomas 2G→1G reduction
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations.derive_sphere_2g_to_1g_reduction`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_4_2g_to_1g_reduction`.
+:func:`tests.gates.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_4_2g_to_1g_reduction`.
 
 Siewert-Thomas 1986 develops F_N for the general 2G case. The 1G
 specialisation collapses every 2×2 matrix to a scalar:
@@ -1525,7 +1525,7 @@ V_fn-sphere-fn.5 — Wiener-Hopf X-function geometry-independence
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations.derive_x_function_geometry_independence`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_5_x_function_geometry_independence`.
+:func:`tests.gates.derivations.test_fn_la13511_sphere.test_v_fn_sphere_fn_5_x_function_geometry_independence`.
 
 The Wiener-Hopf X-function (Case 1960; Case-Zweifel 1967 § 4)
 
@@ -1592,14 +1592,14 @@ The second slice's load-bearing cross-check claims:
   Variant α slab at :math:`(n_x, n_\mu) = (48, 128)` reaches ~1e-5.
   Cross-check tolerance 5e-5 is the safe envelope. Foundation-test
   gate:
-  :func:`tests.derivations.test_fn_la13511_slab_xverif.test_fn_slab_vs_variant_alpha_at_sood_ua_1_0_sl`.
+  :func:`tests.gates.derivations.test_fn_la13511_slab_xverif.test_fn_slab_vs_variant_alpha_at_sood_ua_1_0_sl`.
 
 * **Sphere Ua-1-0-SP**: F_N sphere (Siewert-Thomas 1986) returns
   :math:`R_c = 2.4248249802` mfp to ≤ 1e-5 (achieved 3.6e-8 at
   :math:`N = 10`); Variant α sphere at the F_N predicted radius
   gives :math:`k_{\rm eff} = 1` to ≤ 1e-5 (achieved 4.2e-6).
   Foundation-test gate:
-  :func:`tests.derivations.test_fn_la13511_sphere_xverif.test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp`.
+  :func:`tests.gates.derivations.test_fn_la13511_sphere_xverif.test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp`.
 
 Together these establish the **structural-independence pillar** for
 the Variant α slab + sphere prototypes against published-method
@@ -1668,7 +1668,7 @@ V_fn-flux-slab.1 — KLL Eq. 7 slab scalar-flux structure
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_slab_kll_phi_eq7_structure`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_1_kll_eq7_structure`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_1_kll_eq7_structure`.
 
 KLL Eq. 7 (the :math:`c > 1` critical-slab scalar-flux
 reconstruction) has the structure
@@ -1701,7 +1701,7 @@ V_fn-flux-slab.2 — :math:`\phi(z)/\phi(0)` is normalisation-free
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_slab_phi_endpoint_normalization`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_2_endpoint_normalization`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_2_endpoint_normalization`.
 
 The multiplicative constant :math:`a` cancels in the ratio
 :math:`\phi(z)/\phi(0)`, so the published Sood Table 14 / KLL Table
@@ -1719,7 +1719,7 @@ V_fn-flux-slab.3 — Interior :math:`\psi(z, \mu)` via characteristics
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_slab_psi_from_phi_characteristic`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_3_psi_from_phi_characteristic`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_3_psi_from_phi_characteristic`.
 
 Once :math:`\phi(z)` is known via KLL, the BTE
 :math:`\mu \partial_z \psi + \psi = (c/2)\phi(z)` integrates along
@@ -1743,7 +1743,7 @@ V_fn-flux-sphere.1 — KLL Eq. 15 sphere scalar-flux structure
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_sphere_kll_phi_eq15_structure`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_1_kll_eq15_structure`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_1_kll_eq15_structure`.
 
 KLL Eq. 15
 
@@ -1773,7 +1773,7 @@ V_fn-flux-sphere.2 — Sphere chord-length characteristic
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_sphere_psi_from_phi_characteristic`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_2_psi_from_phi_characteristic`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_sphere_2_psi_from_phi_characteristic`.
 
 Chord length from :math:`(r, \mu)` back to the surface is
 
@@ -1804,7 +1804,7 @@ V_fn-flux-shared.1 — Universal angular-flux closure
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations.derive_scalar_flux_angular_integral`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_shared_1_scalar_from_angular`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_shared_1_scalar_from_angular`.
 
 :math:`\phi(z) = \int_{-1}^{1} \psi(z, \mu)\,d\mu` is the literal
 definition of scalar flux from angular flux. SymPy verifies on three
@@ -2075,7 +2075,7 @@ The closed-form antiderivatives of :math:`\int s^k \log|t - s|\,ds`
 are verified against :func:`scipy.integrate.quad` with explicit
 singularity subdivision (across regular, endpoint-singular, and
 interior-singular panel configurations) in
-:func:`tests.derivations.test_atkinson_product_nystrom.test_F_k_primitives_match_scipy_singular_quadrature`.
+:func:`tests.gates.derivations.test_atkinson_product_nystrom.test_F_k_primitives_match_scipy_singular_quadrature`.
 
 Product-Simpson weight construction
 ------------------------------------
@@ -2156,7 +2156,7 @@ The legacy plain-GL Path A.i is preserved in
 :func:`...slab.flux_reconstruction.slab_scalar_flux_fn_projection` at
 its honest 5–7 % tolerance — it is the *plain* baseline against which
 Atkinson is compared. The failure-mode signature is pinned by
-:mod:`tests.derivations.test_path_ai_legacy_plain_gl_signature`:
+:mod:`tests.gates.derivations.test_path_ai_legacy_plain_gl_signature`:
 
 * ``test_log_decomposition_foundation`` — kernel decomposition holds.
 * ``test_diagonal_truncation_scaling`` — pinning the
@@ -2170,7 +2170,7 @@ Atkinson is compared. The failure-mode signature is pinned by
 All tagged ``@pytest.mark.catches("ERR-036")``.
 
 The Atkinson fix is pinned by
-:mod:`tests.derivations.test_atkinson_product_nystrom`:
+:mod:`tests.gates.derivations.test_atkinson_product_nystrom`:
 
 * ``test_l1_atkinson_vs_kll_5e_minus_4`` (parametrised over the
   three Wave 2-A cases) — asserts ``sup |err| ≤ 5e-4`` at
@@ -2229,7 +2229,7 @@ V_fn-slab-refl.1 — Reflected-slab moment recursions match bare-slab
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations.derive_reflected_moment_recursions_match_bare`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_1_recursions_match_bare`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_1_recursions_match_bare`.
 
 V_fn-slab-refl.1 verifies that the :math:`A_\alpha` and
 :math:`B_\alpha^{(i)}` moment recursions of the reflected-slab F_N
@@ -2249,7 +2249,7 @@ V_fn-slab-refl.2 — NM Eq. 10/11 attenuation signs + Eq. 17 limits
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations.derive_reflector_attenuation_signs`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_2_attenuation_signs`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_2_attenuation_signs`.
 
 V_fn-slab-refl.2 verifies that the exponential signs in NM Eqs. 10-11
 (:math:`e^{-\Delta/\hat\xi}` and :math:`e^{+\Delta/\hat\xi}`) are
@@ -2267,7 +2267,7 @@ V_fn-slab-refl.3 — Critical condition NM Eq. 15 reduces to Eq. 16
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations.derive_critical_condition_eq15_structure`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_3_eq15_critical_condition`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_3_eq15_critical_condition`.
 
 V_fn-slab-refl.3 verifies that the critical condition NM Eq. 15,
 collocated at the core Case discrete eigenvalue :math:`\xi = \nu_0`,
@@ -2310,7 +2310,7 @@ V_fn-slab-refl.4 — F_0 b_0 (NM Eq. 17) reduces from Eqs. 10-11
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations.derive_F0_initial_guess_structure`.
 **Test gate:**
-:func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_4_F0_initial_guess`.
+:func:`tests.gates.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_4_F0_initial_guess`.
 
 V_fn-slab-refl.4 verifies that the :math:`F_0` initial-guess
 :math:`b_0` formula NM Eq. 17 follows algebraically from the
@@ -2343,7 +2343,7 @@ V_fn-proj.1 — phi(z) = ∫ psi dmu universal closure
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations.derive_path_ai_phi_from_psi_integral`.
 **Test gate:**
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_1_phi_from_psi_closure`.
+:func:`tests.gates.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_1_phi_from_psi_closure`.
 
 V_fn-proj.1 verifies the universal scalar-flux ↔ angular-flux closure
 :math:`\phi(z) = \int_{-1}^{1} \psi(z, \mu)\,d\mu`. This holds for
@@ -2359,7 +2359,7 @@ V_fn-proj.2 — Characteristic propagation satisfies BTE
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations.derive_psi_characteristic_vacuum_bc_slab`.
 **Test gate:**
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_2_characteristic_propagation`.
+:func:`tests.gates.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_2_characteristic_propagation`.
 
 V_fn-proj.2 verifies that the characteristic-propagation formulas
 for :math:`\psi(z, \mu)` (with vacuum BC) satisfy the BTE
@@ -2373,7 +2373,7 @@ V_fn-proj.3 — F_N surface-flux constraint requires non-flat phi
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations.derive_fn_surface_flux_constraint`.
 **Test gate:**
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_3_surface_flux_constraint`.
+:func:`tests.gates.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_3_surface_flux_constraint`.
 
 V_fn-proj.3 verifies that a constant interior :math:`\phi = \phi_0`
 produces a surface outgoing flux
@@ -2397,7 +2397,7 @@ V_fn-proj.4 — Path A.i and Path B share the discrete-mode form
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations.derive_path_ai_path_b_same_eigenmode`.
 **Test gate:**
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_4_path_ai_path_b_same_eigenmode`.
+:func:`tests.gates.derivations.test_fn_projection_vs_kll_flux.test_v_fn_proj_4_path_ai_path_b_same_eigenmode`.
 
 V_fn-proj.4 verifies that Path A.i (BTE phase-space iteration) and
 Path B (KLL Wiener-Hopf + Fredholm) share the discrete-mode form
@@ -2409,7 +2409,7 @@ the continuum-correction algorithms is the L1 cross-check evidence.
 After the Atkinson hardening, the empirical agreement is at the
 :math:`O(10^{-5})` level — the F_N moment floor. The numerical
 demonstration is the
-:func:`tests.derivations.test_fn_projection_vs_kll_flux.test_l1_path_ai_vs_path_b_flux_ratios`
+:func:`tests.gates.derivations.test_fn_projection_vs_kll_flux.test_l1_path_ai_vs_path_b_flux_ratios`
 gate.
 
 References

@@ -731,7 +731,7 @@ Variant α implementation if the operator action is wired correctly.
 The symbolic proof of :eq:`peierls-greens-V-alpha-1` lives in
 :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
 (SymPy verification, paired numerical gate in
-:file:`tests/derivations/test_trajectory_resolvent_symbolic.py`).
+:file:`tests/gates/derivations/test_trajectory_resolvent_symbolic.py`).
 The argument has three steps.
 
 Step 1: surface fixed-point with constant source
@@ -998,7 +998,7 @@ Findings:
    convergence behaviour" below.
 
 The numerical evidence is pinned by the test gates in
-:file:`tests/derivations/test_trajectory_resolvent_xverif.py`:
+:file:`tests/gates/derivations/test_trajectory_resolvent_xverif.py`:
 
 - :func:`test_b5_variant_alpha_gives_k_inf_exactly` —
   pins Variant α k_eff to :math:`\kinf` at 1e-10 relative tolerance
@@ -1180,7 +1180,7 @@ eigenvalue, and :math:`k_{\rm eff} = c \cdot \nSigf{}/(\Sigs{} +
 :math:`c = (\Sigs{} + \nSigf{}/k)/\Sigt{}` self-consistently.
 
 Cross-check evidence (table from
-:func:`tests.derivations.test_peierls_greens_function_xverif_ps1982.test_a2_variant_alpha_agrees_with_ps1982`):
+:func:`tests.gates.derivations.test_peierls_greens_function_xverif_ps1982.test_a2_variant_alpha_agrees_with_ps1982`):
 
 .. list-table:: A2 — Variant α vs PS-1982 vacuum sphere k_eff
    :header-rows: 1
@@ -1364,7 +1364,7 @@ Test coverage:
      - 4G vacuum has non-trivial spectrum
 
 The full test file is
-:file:`tests/derivations/test_peierls_greens_function_mg.py`
+:file:`tests/gates/derivations/test_peierls_greens_function_mg.py`
 (all gates pass at default quadrature).
 
 
@@ -1509,7 +1509,7 @@ closure** — the BC is absorbed into the kernel via Sanchez Eq. (A1)
 that breaks Phase 4 simply cannot occur structurally.
 
 The test gate
-:func:`tests.derivations.test_peierls_greens_function_mr.test_mr_issue132_no_catastrophe_closed_sphere`
+:func:`tests.gates.derivations.test_peierls_greens_function_mr.test_mr_issue132_no_catastrophe_closed_sphere`
 pins :math:`0.5 < k_{\rm eff} < 0.95` and explicitly :math:`k_{\rm
 eff} < 1` (ruling out the Phase 4 catastrophe). The spatial mode
 gate
@@ -1735,7 +1735,7 @@ Variant α agreement vs Garcia 2021 Table 5 at default settings
      - < 1 %
 
 Tolerance bands gated by the per-point test
-:func:`tests.derivations.test_peierls_greens_function_garcia2021.test_garcia_case1_phi_matches_at_point`:
+:func:`tests.gates.derivations.test_peierls_greens_function_garcia2021.test_garcia_case1_phi_matches_at_point`:
 2 % at non-interface points, 15 % at interface-adjacent points
 (within ±2 cm of an interior region boundary).
 
@@ -2319,12 +2319,12 @@ Source code, tests, and provenance
   ``_scalar_flux_from_psi``; result dataclasses
   ``CylinderGreensResult`` and ``CylinderGreensMGResult``.
 - **Symbolic foundation tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_cylinder_symbolic.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_cylinder_symbolic.py`
   — 9 ``@pytest.mark.foundation`` gates (the four ``derive_*``
   identities plus 5 V_α2 production-primitive cross-checks at five
   :math:`\tau_R` values).
 - **Numerical L1 tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_cylinder_solver.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_cylinder_solver.py`
   — 7 ``@pytest.mark.l1`` gates (k_inf-exactness at thin/moderate
   :math:`\tau_R`, MG asymmetric Σ_s at α=1, MG G=1 reduction at α=0,
   vacuum self-consistency convergence floor).
@@ -2479,11 +2479,11 @@ a known spline-across-jump floor at :math:`\sim 3\!\times\!10^{-3}`.
      - :math:`\sim 5\!\times\!10^{-15}`
 
 Test files:
-:file:`tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+:file:`tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py`
 (Gates 1, 3, 4, 6, 7),
-:file:`tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
+:file:`tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
 (Gate 2),
-:file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+:file:`tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py`
 (three new V_α1_cyl_mr foundation tests).
 
 Multi-region 2D trajectory + chord segments
@@ -2618,7 +2618,7 @@ This factoring is the **V_α1_cyl_mr.b** SymPy identity, proved
 symbolically in
 :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
 and pinned by foundation test
-:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_piecewise_3d_optical_depth`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_piecewise_3d_optical_depth`.
 
 **Why this matters.** Without the algebraic factoring guarantee,
 the implementation could legitimately apply the axial lift
@@ -2750,7 +2750,7 @@ and proves that under :math:`\Sigma_{t,1} = \Sigma_{t,2} =
 \Sigma_t,\,\alpha=1`, the closure reduces to
 :math:`\psi_{\rm surf} = q/\Sigma_t` — V_α1_cyl's identity verbatim.
 Foundation gate
-:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_two_region_constant_source_homogeneous_limit`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_two_region_constant_source_homogeneous_limit`.
 
 Homogeneous-limit reducibility (Gate 1)
 ----------------------------------------
@@ -2822,7 +2822,7 @@ proves both pieces symbolically:
    the difference returns 0).
 
 Foundation gate:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_homogeneous_reducibility`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_homogeneous_reducibility`.
 
 **Numerical evidence.**
 
@@ -2856,7 +2856,7 @@ by three orders relative to 1G because the power iteration runs
 to a 1e-9 tolerance per iteration and the asymmetric :math:`\Sigma_s`
 multi-group coupling injects per-iteration noise; the result is
 nevertheless three orders below the rtol=1e-9 target. Tests:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_K3_uniform_reduces_to_mg_1g`,
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_K3_uniform_reduces_to_mg_1g`,
 :func:`...test_mr_K5_uniform_reduces_to_mg_1g`,
 :func:`...test_mr_K3_uniform_reduces_to_mg_2g`.
 
@@ -2920,7 +2920,7 @@ solver itself achieves :math:`\sim 3\!\times\!10^{-7}` self-
 consistency, so the limiting precision is the Variant α
 quadrature; doubling :math:`n_{\rm traj}` to 128 closes the
 floor further. Test:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr_xverif.test_mr_single_region_vacuum_matches_wm72`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr_xverif.test_mr_single_region_vacuum_matches_wm72`.
 
 **Anti-pattern avoided.** Per the ``vv-principles`` skill
 § "Code-to-code (L4)", an `np.allclose` cross-check against
@@ -3006,7 +3006,7 @@ verification claim.
      - :math:`3.5\!\times\!10^{-12}`
 
 Tests:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_single_region_kinf_2g_asymmetric_sigs`
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_single_region_kinf_2g_asymmetric_sigs`
 (L1, load-bearing),
 :func:`...test_mr_single_region_kinf_1g_fuelA`
 (sanity).
@@ -3085,7 +3085,7 @@ acceptance condition is
 
 **Achieved.** :math:`\sim 3\!\times\!10^{-3}` rel-jump across the
 inner/middle interface (10× :math:`\Sigma_t` contrast). Test:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_interface_continuity_3region`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_interface_continuity_3region`.
 
 **Why not tighter.** The 3e-3 floor reflects the **single-domain
 Gauss-Legendre** radial grid used in the Phase 1b prototype: GL
@@ -3170,7 +3170,7 @@ independently while holding the other two at high values.
      - < 1.0 (PASS)
 
 Tests:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_quadrature_convergence_chord`,
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_quadrature_convergence_chord`,
 :func:`...test_mr_quadrature_convergence_phi_az`,
 :func:`...test_mr_quadrature_convergence_mu_axial`. All marked
 ``@pytest.mark.l1`` and ``@pytest.mark.slow`` (each axis sweep
@@ -3258,7 +3258,7 @@ realises the Branch-1 symbolic algebra.
 uniform fuel-A, :math:`R = 5.0` cm, ``radii=[3.0, 5.0]``,
 :math:`(n_r, n_{\mu_{\rm ax}}, n_{\varphi_{\rm az}}, n_{\rm traj})
 = (12, 12, 24, 32)`, 30 max iter at ``tol=1e-13``. Test:
-:func:`tests.derivations.test_peierls_greens_function_cylinder_mr.test_mr_branch_1_branch_2_algebraic_ancestor`.
+:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_branch_1_branch_2_algebraic_ancestor`.
 
 L0 bugs caught during development
 ----------------------------------
@@ -3314,11 +3314,11 @@ Phase 1b ship list
   ``_cylinder_chord_segments_2d``,
   ``_region_at_radius_cyl``.
 - **Test files**:
-  :file:`tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+  :file:`tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py`
   (Gates 1, 3, 4, 6, 7);
-  :file:`tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
+  :file:`tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
   (Gate 2 — WM-72 cross-check);
-  :file:`tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+  :file:`tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py`
   (three new V_α1_cyl_mr foundation tests appended).
 - **Verification plan**:
   :file:`.claude/plans/cylinder_mr_variant_alpha_verification.md`.
@@ -3891,7 +3891,7 @@ paragraph once invoked was a geometry descriptor, since deleted, and
 never a base of these transfer operators).
 A single problem can spawn multiple methods :math:`\to` multiple
 math-hearts :math:`\to` multiple solutions; the cross-method
-regression net (see :file:`tests/cross_method/`) compares them
+regression net (see :file:`tests/gates/cross_method/`) compares them
 against each other and against the structurally-independent
 external references.
 
@@ -3933,7 +3933,7 @@ pre-R3 ``_apply_operator_*`` body in its geometry module. Bit-equality
 is preserved at the IEEE-754 exact-bit level; the legacy facade
 functions in each ``greens_function_*.py`` module now construct the
 matching oracle and delegate to it. The 21-test foundation gate at
-:file:`tests/derivations/test_trajectory_resolvent_chord_oracle.py`
+:file:`tests/gates/derivations/test_trajectory_resolvent_chord_oracle.py`
 pins this byte-equivalence using :func:`numpy.ndarray.view` against
 :class:`numpy.int64`.
 
@@ -4361,7 +4361,7 @@ Numerical verification status (symmetric slab, post-ERR-034 + ERR-035)
 ----------------------------------------------------------------------
 
 Acceptance gates are tagged ``@pytest.mark.l1`` in
-:file:`tests/derivations/test_trajectory_resolvent_slab_solver.py`.
+:file:`tests/gates/derivations/test_trajectory_resolvent_slab_solver.py`.
 
 - **k_inf-exactness at α=1** — fuel-A-like XS, both thin
   (:math:`\tau_L = 1`) and moderate (:math:`\tau_L = 5`):
@@ -4434,7 +4434,7 @@ reflection product from BC reflectivity:
   benefits from the rank-1 form (none currently in the codebase).
 
 Foundation tests pin both branches in
-:file:`tests/derivations/test_peierls_variant_alpha_core.py`.
+:file:`tests/gates/derivations/test_peierls_variant_alpha_core.py`.
 
 Source code, tests, and provenance
 ----------------------------------
@@ -4454,10 +4454,10 @@ Source code, tests, and provenance
   Result dataclasses :class:`SlabGreensResult`,
   :class:`SlabGreensMGResult` are preserved for API stability.
 - **Symbolic foundation tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_slab_symbolic.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_slab_symbolic.py`
   — 10 ``@pytest.mark.foundation`` gates.
 - **Numerical L1 tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_slab_solver.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_slab_solver.py`
   — 12 ``@pytest.mark.l1`` gates. Includes
   :func:`test_alpha_zero_convergence_floor` (re-pinned to ~9e-6
   post-ERR-034/035 fixes) and the V_α2_slab production-primitive
@@ -4937,10 +4937,10 @@ Source code, tests, and provenance
   :func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.apply_variant_alpha_closure_rank2`
   in :mod:`.variant_alpha_core` (~130 LoC added in Phase 3B).
 - **Symbolic foundation tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_slab_asymmetric_symbolic.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_slab_asymmetric_symbolic.py`
   — 16 ``@pytest.mark.foundation`` gates.
 - **Numerical L1 tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_slab_asymmetric_solver.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_slab_asymmetric_solver.py`
   — 11 ``@pytest.mark.l1`` gates including the load-bearing
   method-of-images symmetry test and the
   ``catches("ERR-035")`` regression-prevention gate.
@@ -5308,10 +5308,10 @@ Source code, tests, and provenance
   :func:`solve_greens_function_hollow_sphere` (1G);
   :func:`solve_greens_function_hollow_sphere_mg` (MG).
 - **Symbolic foundation tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_hollow_sphere_symbolic.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_hollow_sphere_symbolic.py`
   — 18 ``@pytest.mark.foundation`` gates.
 - **Numerical L1 tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_hollow_sphere_solver.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_hollow_sphere_solver.py`
   — 11 ``@pytest.mark.l1`` gates including the load-bearing V_α1
   closed-shell composability check and the R_in → 0 solid-sphere
   limit.
@@ -5694,10 +5694,10 @@ Source code, tests, and provenance
   :func:`solve_greens_function_annulus` (1G);
   :func:`solve_greens_function_annulus_mg` (MG).
 - **Symbolic foundation tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_annulus_symbolic.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_annulus_symbolic.py`
   — 22 ``@pytest.mark.foundation`` gates.
 - **Numerical L1 tests**:
-  :file:`tests/derivations/test_trajectory_resolvent_annulus_solver.py`
+  :file:`tests/gates/derivations/test_trajectory_resolvent_annulus_solver.py`
   — 11 ``@pytest.mark.l1`` gates including the load-bearing V_α1
   closed-annulus composability check, the R_in → 0 solid-cylinder
   limit reduction, and the research-grade convergence floor.
@@ -5831,40 +5831,40 @@ Test provenance
 The test gates lock down each algebraic identity and the numerical
 implementation against it:
 
-- :file:`tests/derivations/test_trajectory_resolvent_symbolic.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_symbolic.py`
   — 8 SymPy gates (V_α1 surface fixed-point + total-ψ-constant +
   operator-eigenvalue + composite; V_α2 integrand-match + closed-form
   + composite; V_α3 g_h vanishes at α=0).
 
-- :file:`tests/derivations/test_trajectory_resolvent_solver.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_solver.py`
   — 3 numerical gates (V_α1.numerical with constant initial guess
   + non-uniform initial guess + two thicknesses
   :math:`\tau_R \in \{2.5, 5\}`).
 
-- :file:`tests/derivations/test_trajectory_resolvent_xverif.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_xverif.py`
   — 3 closed-sphere cross-verification gates: B5.A (Variant α exact),
   B5.B (Phase 4 N=1 ≡ ``white_hebert``), B5.C (Phase 4 rank
   convergence toward Variant α).
 
-- :file:`tests/derivations/test_trajectory_resolvent_vacuum.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_vacuum.py`
   — 5 A1 vacuum-BC gates (k_eff < k_inf, thick sphere asymptote,
   α-continuity, non-trivial spatial mode, α=1 unchanged).
 
-- :file:`tests/derivations/test_trajectory_resolvent_xverif_ps1982.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_xverif_ps1982.py`
   — 6 A2 PS-1982 cross-verification gates (4 parametrised
   configurations + thick-sphere regression + flux-shape qualitative).
 
-- :file:`tests/derivations/test_peierls_greens_function_mg.py`
+- :file:`tests/gates/derivations/test_peierls_greens_function_mg.py`
   — 7 A3 multi-group gates (G=1 reduction, 2G downscatter +
   upscatter, 2G spectrum, 2G vacuum, 4G with realistic χ, 4G
   vacuum).
 
-- :file:`tests/derivations/test_trajectory_resolvent_mr.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_mr.py`
   — 4 Plan-(b) Option 2 multi-region k-eigenvalue gates (1-region
   reduction to MG, Issue #132 catastrophe avoided, spatial mode
   physical, vacuum BC reduces k_eff).
 
-- :file:`tests/derivations/test_trajectory_resolvent_garcia2021.py`
+- :file:`tests/gates/derivations/test_trajectory_resolvent_garcia2021.py`
   — 17 Plan-(b) Option 1 fixed-source gates (3 sanity + 15 per-r-point
   cross-checks vs Garcia 2021 Table 5).
 

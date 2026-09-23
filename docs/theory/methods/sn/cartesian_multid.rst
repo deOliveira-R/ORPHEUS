@@ -504,7 +504,7 @@ The §15A.2 invariant set
 
 The Grand Report v3 §15A.2 (lines 2165–2171) prescribes a fixed set
 of L0 invariants every ``SweepDependencyGraph`` instance must satisfy.
-These are pinned by ``tests/sn/test_sweep_graph.py`` (63 L0 tests):
+These are pinned by ``tests/gates/sn/test_sweep_graph.py`` (63 L0 tests):
 
 * **Upwind orientation** — for each octant
   :math:`\sigma = (\mathrm{sgn}\,\mu_x, \mathrm{sgn}\,\mu_y)`, the
@@ -709,7 +709,7 @@ is structurally correct.
    closed, which is independent of the storage spelling.
 
 The L7-trap detector test
-``tests/sn/test_2d_octant_sweep_equivalence.py::case-3`` is the
+``tests/gates/sn/test_2d_octant_sweep_equivalence.py::case-3`` is the
 load-bearing regression gate — a TESTS-FIRST harness (case 3 with
 mixed reflective + vacuum BCs, 2G heterogeneous, ``n_sweeps=2``)
 designed to fail if any future refactor reintroduces the per-ordinate
@@ -732,7 +732,7 @@ For LS-family quadratures (``LevelSymmetricSN``,
 lexicographic order, the Wave-2 implementation is **bit-identical**
 to the legacy per-ordinate loop on every regression snapshot — the
 existing
-``tests/sn/regression/snapshots/2d_1g_LS4_dd_15x15.npz``,
+``tests/gates/sn/regression/snapshots/2d_1g_LS4_dd_15x15.npz``,
 ``test_apply_2d_cartesian_bit_identical_to_legacy``, and
 ``test_unified_sweep_dispatch`` snapshots all pass with
 ``np.array_equal``.  The argument has three parts:
@@ -863,11 +863,11 @@ discipline):
 
 * **L0 unit tests** — on the primitives:
 
-  - ``tests/sn/test_octants_property.py`` (across 8
+  - ``tests/gates/sn/test_octants_property.py`` (across 8
     quadrature factories) — disjoint union, weight conservation,
     sign-signature correctness, pure-axis ordinates labelled
     ``sign=0``.
-  - ``tests/sn/test_cell_kernel_batch.py`` (S6.4(e) successor of
+  - ``tests/gates/sn/test_cell_kernel_batch.py`` (S6.4(e) successor of
     ``test_cell_update_batch.py``) — term-level L0 on the storage-free
     kernel pair (``cell_kernel_batch`` / ``residual_kernel_batch``):
     bit-identity against per-cell :meth:`update` on a
@@ -876,17 +876,17 @@ discipline):
     the per-ordinate Python loop; plus a ``sha256`` source-of-record
     pin on the two kernel bodies (the explicit left-fold order is
     bit-identity-load-bearing).
-  - ``tests/sn/test_sweep_graph.py`` — the §15A.2 invariant set above;
+  - ``tests/gates/sn/test_sweep_graph.py`` — the §15A.2 invariant set above;
     anti-diagonal cell coverage; topo-order acyclicity per octant sign;
     BC face conventions; and the ``walk_full`` / ``walk_windowed`` ×
     level-operation walks (with ``window ≡ full`` bit-identity oracles).
-  - ``tests/sn/primitives/test_dag_ownership.py`` (S6.4(c) successor of ``test_snmesh_sweep_graphs.py``) — graph
+  - ``tests/gates/sn/primitives/test_dag_ownership.py`` (S6.4(c) successor of ``test_snmesh_sweep_graphs.py``) — graph
     contents agree with hand-derived schedule on a 3×3 mesh; dict
     keys equal ``quad.octants`` labels; cache invalidates when mesh
     changes.
 
 * **L1 closed-form anchor + L7-trap detector** — the C2.5 TESTS-
-  FIRST harness ``tests/sn/test_2d_octant_sweep_equivalence.py``
+  FIRST harness ``tests/gates/sn/test_2d_octant_sweep_equivalence.py``
   (7/7 pass), tagged ``@pytest.mark.l1`` and
   ``@pytest.mark.catches("ERR-003")``.  Includes:
 
@@ -898,10 +898,10 @@ discipline):
   - cases 1–6 covering BC mixes, ordinate batching corners, and
     Lebedev (vacuum-BC variant).
 
-* **L2 regression** — existing ``tests/sn/verification/mms/test_mms_2d.py``,
+* **L2 regression** — existing ``tests/gates/sn/verification/mms/test_mms_2d.py``,
   ``test_discrete_ordinates_2d.py``, ``test_streaming_operator.py``,
   ``test_streaming_operator_decomposition.py``,
-  ``test_unified_sweep_dispatch.py``, ``tests/sn/regression/``: 56/56
+  ``test_unified_sweep_dispatch.py``, ``tests/gates/sn/regression/``: 56/56
   pass, 6 slow-marked skipped.
 
 The verification chain is the canonical
@@ -944,7 +944,7 @@ References and pointers
   :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`)
   and the ``_CellSolve`` / ``_CellResidual`` level operations.
 * C2.5 TESTS-FIRST harness:
-  ``tests/sn/test_2d_octant_sweep_equivalence.py``.
+  ``tests/gates/sn/test_2d_octant_sweep_equivalence.py``.
 
 
 Choosing the schedule: the representation layer
@@ -1018,7 +1018,7 @@ the tensor-product basis separates):
 
 .. (vv-status rationale) Algebra-of-record: the assembled per-cell UBLD
    Galerkin system. Foundation-gated by the SymPy oracle
-   (tests.transport.spatial.test_ld_ubld_symbolic / test_ld_ubld_primitive),
+   (tests.gates.transport.spatial.test_ld_ubld_symbolic / test_ld_ubld_primitive),
    not a solver claim.
 .. vv-status: ld-ubld-cell-system documented
 
@@ -1223,7 +1223,7 @@ The module proves the construction with two structurally distinct oracles
   analog of the 1-D "exact on linear-in-x" oracle and the structurally
   independent correctness gate for the :math:`d \ge 2` closure.
 
-The foundation gate is :mod:`tests.transport.spatial.test_ld_ubld_symbolic` (6
+The foundation gate is :mod:`tests.gates.transport.spatial.test_ld_ubld_symbolic` (6
 ``@pytest.mark.foundation`` tests, one per ``derive_*`` plus an anchor to the
 live production ``LinearDiscontinuous.update``); the literature contract is
 recorded in
@@ -1395,7 +1395,7 @@ symbolically by the Branch-1 oracles above (``derive_d1_kernel_view_equals`` /
    reconstruction is the exact power-of-two doubling that commutes with
    round-to-nearest).
 
-The verification is :mod:`tests.transport.spatial.test_ld_ubld_primitive`:
+The verification is :mod:`tests.gates.transport.spatial.test_ld_ubld_primitive`:
 the numpy primitive :math:`==` the SymPy oracle at :math:`d=1` (matrices +
 moments) and exact-on-bilinear at :math:`d=2`; the shared closed form
 :math:`==` the dense :math:`d=1` solve in all three views; and the LIVE
@@ -1544,13 +1544,13 @@ boundary:
   tripwire — **S4** and **S3** respectively.
 
 The verification is the kernel round-trip + matvec-twin face reconstruction
-(:mod:`tests.transport.spatial.test_linear_discontinuous` ``TestLDKernel``), the
+(:mod:`tests.gates.transport.spatial.test_linear_discontinuous` ``TestLDKernel``), the
 end-to-end two-paths FFW :math:`\equiv` MFW, the DD :math:`\ne` LD routing-flip,
 and the :math:`O(h^2)` convergence smoke
-(:mod:`tests.sn.verification.mms.test_mms_ld_2d`), plus the :math:`d=2`
+(:mod:`tests.gates.sn.verification.mms.test_mms_ld_2d`), plus the :math:`d=2`
 numpy↔symbolic entry-wise ``A == A`` cell-assembly pin and the
 ``test_d2_exact_on_bilinear`` ERR-060 catcher
-(:mod:`tests.transport.spatial.test_ld_ubld_primitive`).
+(:mod:`tests.gates.transport.spatial.test_ld_ubld_primitive`).
 
 .. _two-moment-axes:
 
@@ -2422,7 +2422,7 @@ verified at the **foundation** level (data-structure / factory-output
 invariants, not an L0/L1/L2 solver claim — they carry no eigenvalue or flux
 assertion), in two test modules:
 
-* ``tests/numerics/test_spatial_moment_field_space.py`` — the factory
+* ``tests/gates/numerics/test_spatial_moment_field_space.py`` — the factory
   widening: the **byte-identity-at-default negative control** for DD AND LD on
   all three carriers (:class:`AngularField`, :class:`ScalarField`,
   :class:`HarmonicMomentFlux`), the widened :math:`d{=}1` / :math:`d{=}2`
@@ -2430,7 +2430,7 @@ assertion), in two test modules:
   The mutation check — auto-reading the scheme turns the LD byte-identity
   cases red — is what proves the construct-general gate has teeth.
 
-* ``tests/numerics/test_spatial_moment_tail_is_the_schemes_axis.py`` — the
+* ``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py`` — the
   space layer, since item 6.2c-iii: that the widened moment product is
   axis-built with the scheme's own ``moment_axis`` as its tail (the axis
   compared to :meth:`DiscretizationSchemeBase.moment_axis
@@ -2449,7 +2449,7 @@ assertion), in two test modules:
 .. note::
 
    **What the retirement moved.**  The S3-A0 account above named a third
-   module, ``tests/numerics/test_spatial_moment_space.py``, which pinned
+   module, ``tests/gates/numerics/test_spatial_moment_space.py``, which pinned
    the ``SpatialMomentSpace`` class: the
    :math:`(\text{per\_axis})^d` size law, the
    :meth:`~orpheus.numerics.space.TensorProductSpace.find_factor`
@@ -2464,7 +2464,7 @@ assertion), in two test modules:
    new module, the composition shape lives in both field-space modules,
    and the slot-0 identity is now the constant itself, imported
    directly by every consumer.  The head's ``find_factor`` round-trip
-   survives in ``tests/numerics/test_moment_head_axis_built_premise.py``.
+   survives in ``tests/gates/numerics/test_moment_head_axis_built_premise.py``.
 
 The design record (the angular-vs-spatial distinction, the FP resolution) is
 ``.claude/plans/issue_240_d5b_s3_crosswalk.md``; the closeout is
@@ -2664,7 +2664,7 @@ the sweep (source-iteration) paths:
    Mode 6 (convention drift) — see ``error_catalog.rst`` ERR-061.
 
 The thick-cell diffusion tripwire is
-``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
+``tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
 (1G) and ``::test_ld_thick_diffusive_limit_2g`` (2G heterogeneous, a
 group-coupled slope source — Mode 6), both ``@pytest.mark.l1
 @pytest.mark.catches("ERR-061")`` and both Mode-8-safe
@@ -2734,7 +2734,7 @@ the twin cannot diverge on the moment-axis convention.  DD/Step (no moment axis)
    gate, not a round-trip"): the round-trip and FFW :math:`\equiv` MFW gates
    ran on ``level_symmetric`` and never exercised the pure-z arm at all.  The
    gate is
-   ``tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature``
+   ``tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature``
    (``@pytest.mark.foundation @pytest.mark.catches("ERR-062")``), on a Mode-9
    degeneracy-break config: a pure-z-bearing Lebedev order-5 quadrature
    (:math:`N = 14`, genuine :math:`\mu_y` + the 2 :math:`\pm z` poles),
@@ -2843,7 +2843,7 @@ The SymPy module / live scheme is :mod:`orpheus.transport.spatial._ubld`
 :meth:`orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
 and :meth:`orpheus.sn.loss_representation._OneDimScanWalk._run` (the slab
 joint-batch moment branch); the gates are
-``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
+``tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
 (scan :math:`\equiv` DAG) and ``::test_ld_thick_diffusive_limit`` (the diffusion
 limit on the SI path, the same ERR-061 catcher the matvec uses); the closeout is
 ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_owed2_scan_closeout.md``.
@@ -3085,7 +3085,7 @@ the change.
    frame :math:`R` face as the fused angular route, so the two agree
    numerically — `[M]` 200/200 ``array_equal`` on a 1-D GL8 :math:`P_1`
    slab and on the gate's own 2-D heterogeneous fixture
-   (``tests/sn/operators/test_scattering_kernel_crosscheck.py``).
+   (``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``).
 
    The spelling reached this shape in three moves, each recorded: it read
    ``frame.reconstruct(…)`` until the F-1 carve moved the binding from
@@ -4202,7 +4202,7 @@ refuted in :ref:`sn-boundary-gs-not-regular`):
    corrected 2026-08-09 (#341) is only its NAME — it was called a "regular
    splitting", which is Varga's term for M^-1 >= 0 AND N >= 0 and does not
    hold here (see sn-boundary-gs-not-regular). Foundation-gated by the
-   reified-splitting invariants (tests/sn/solve/test_gauss_seidel_reification.py
+   reified-splitting invariants (tests/gates/sn/solve/test_gauss_seidel_reification.py
    — the W2 round-trip, the M-SPLIT mutations, and the FP-invariance gate),
    no isolated claim.
 .. vv-status: si-gauss-seidel-splitting documented
@@ -4309,7 +4309,7 @@ splitting :math:`\psi_{k+1}=M^{-1}(q+B_{\rm upper}\psi_k)` says they carry
    ``orpheus/`` (its ψ½ sibling ``reflect_corner_inplace`` retired outright
    at #448 — no consumer anywhere); its last consumer was the sweep-tier
    gates' inter-sweep helper
-   (``tests/sn/_test_helpers.py::reflect_outflow_into_inflow``), which is
+   (``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow``), which is
    where the module-level ``_reflect_outflow_into_inflow`` had moved.
 
    ⛔ **CS4c step 6 item 6.5 (2026-09-07) retired the verb — and its
@@ -4330,7 +4330,7 @@ splitting :math:`\psi_{k+1}=M^{-1}(q+B_{\rm upper}\psi_k)` says they carry
    asserts a floor rather than a value).
    The inter-sweep reflect therefore still exists, spelled on production's
    own live verb, at
-   ``tests/sn/_test_helpers.py::reflect_outflow_into_inflow`` — no
+   ``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow`` — no
    production surface was added, and one was removed.
 
    ⚠ One behaviour moved with the retirement rather than dying with it.
@@ -4398,7 +4398,7 @@ box (anisotropic flux; the fully-reflective isotropic box is the Mode-9
 degenerate).  That gate is **necessary but not sufficient** — the
 load-bearing correctness gate is the W2-round-trip; the FP-invariance
 pins only the *splitting* claim (same :math:`\psi^*`, only the rate
-differs).  All gates live in ``tests/sn/solve/test_gauss_seidel_reification.py``
+differs).  All gates live in ``tests/gates/sn/solve/test_gauss_seidel_reification.py``
 (``@pytest.mark.foundation`` — software invariants of the splitting, no
 theory-page ``:label:`` and no ``verifies()``).
 
@@ -4666,7 +4666,7 @@ at all.
 ``scratch/probe_gs_vs_jacobi_rate.py``; its first row is a **control**
 reproducing, to the sweep, the independently measured 1631 of the d=3
 reflective budget study (``scratch/d3_absorber_diagnosis.md``, pinned by
-``tests/sn/solve/test_reflective_si_iteration_budget.py``, promoted from
+``tests/gates/sn/solve/test_reflective_si_iteration_budget.py``, promoted from
 the probe ``diag_d3_absorber_02_si_rate_scaling.py`` at ``f36572c8``) —
 without that control the table below would be one more unverified
 instrument.
@@ -4718,7 +4718,7 @@ instrument.
 
 ⚠ **The magnitudes above are fixture-specific; only the SIGN and the
 leakage-dependence are robust.**  The gate
-``tests/sn/verification/analytical/test_si_convergence_rate.py::
+``tests/gates/sn/verification/analytical/test_si_convergence_rate.py::
 test_boundary_gs_recovers_reflective_2d_si`` measures a *second* d=2
 zero-leakage point — B-2g, :math:`8\times8`, ``product(2,4)`` — and gets
 :math:`641/697 = 0.92`, against :math:`0.40` here.  Same sign, same
@@ -4862,7 +4862,7 @@ Numerical evidence
 --------------------
 
 All measured 2026-06-05 on this branch
-(:func:`tests.sn.verification.analytical.test_si_convergence_rate`,
+(:func:`tests.gates.sn.verification.analytical.test_si_convergence_rate`,
 GL/``product`` :math:`N=8`, ``inner_tol`` as noted).  The Jacobi and
 Gauss-Seidel counts are compared **in-process** (no hardcoded
 baseline — Jacobi is a permanent live control, so the gates cannot
@@ -5059,7 +5059,7 @@ transverse index, the **sawtooth**
    the already-verified multi-D DD closure (dd-cartesian-2d) at psi_c = 0 — an
    algebraic rearrangement, not a new solver claim. Its content is that every
    null vector has this SHAPE, which is asserted end-to-end by the foundation
-   suite tests/sn/operators/test_loss_kernel_gauge.py: the constructed basis is
+   suite tests/gates/sn/operators/test_loss_kernel_gauge.py: the constructed basis is
    annihilated by the PRODUCTION matvec
    (test_EVERY_basis_vector_is_annihilated_by_the_production_matvec) and its
    dimension equals a dense SVD of the assembled operator
@@ -5103,7 +5103,7 @@ is why a graded mesh needs no separate treatment**.  What is left is
 .. (vv-status rationale) Structural identity: the substitution image of the
    cell balance under dd-null-sawtooth — a change of variables, not a new
    solver claim. Its consequences ARE gated by the foundation suite
-   tests/sn/operators/test_loss_kernel_gauge.py, which asserts that the basis
+   tests/gates/sn/operators/test_loss_kernel_gauge.py, which asserts that the basis
    built from this equation's solution set is annihilated by the production
    matvec and spans a dense SVD's null space; the physics-independence it
    predicts is pinned by test_the_basis_never_reads_a_CROSS_SECTION.
@@ -5184,7 +5184,7 @@ ordinate **orbits** under the reflection group
 .. (vv-status rationale) Structural identity: a combinatorial count derived
    from dd-null-balance-combinatorial, carrying no solver claim. It is
    nonetheless doubly gated by the foundation suite
-   tests/sn/operators/test_loss_kernel_gauge.py — the law is evaluated without
+   tests/gates/sn/operators/test_loss_kernel_gauge.py — the law is evaluated without
    building a vector by predicted_kernel_dimension and compared BOTH against the
    rank the construction's SVD finds
    (test_the_dimension_matches_the_combinatorial_counting_law) and against a
@@ -5193,7 +5193,7 @@ ordinate **orbits** under the reflection group
    two closed-form specialisations pinned separately
    (test_the_counting_law_reproduces_the_two_closed_form_specialisations).
    Since 2026-09-22 (#493) one MEMBERSHIP half of the law carries a
-   verifies marker: tests/sn/operators/test_g_adjoint_reciprocity.py::
+   verifies marker: tests/gates/sn/operators/test_g_adjoint_reciprocity.py::
    test_tangential_trace_slots_are_a_zero_summand_of_the_loss pins,
    bitwise, that every tangential trace unit vector lies in the kernel of
    the production loss (and that the loss and its transpose write nothing
@@ -5365,7 +5365,7 @@ angular weight :math:`F` that is *even* under the reflection group
    which functionals CANNOT see the kernel, and it is what makes
    psi_exact G-orthogonal to ker A (hence the minimum-norm gauge canonical
    rather than conventional). Both faces are gated by the foundation suite
-   tests/sn/solve/test_every_entry_gauges_its_trace.py: the mirror-ODD
+   tests/gates/sn/solve/test_every_entry_gauges_its_trace.py: the mirror-ODD
    tangential current collapses while the mirror-EVEN normal currents do not
    move (test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone), and
    keff is unchanged against an independent analytic k_inf anchor
@@ -5593,12 +5593,12 @@ operation the solver performs at every exit that returns a trace is
 .. (vv-status rationale) Structural/representational: the definition of the
    shipped operation plus its residual-neutrality identity, which follows from
    the definition of a kernel and carries no solver claim of its own. Both are
-   gated by the foundation suite tests/sn/operators/test_loss_kernel_gauge.py —
+   gated by the foundation suite tests/gates/sn/operators/test_loss_kernel_gauge.py —
    idempotence and G-self-adjointness
    (test_it_is_an_idempotent_G_self_adjoint_projector) and the
    no-certificate-may-move contract on all six fixtures
    (test_gauging_cannot_move_any_convergence_certificate) — and end to end by
-   tests/sn/solve/test_every_entry_gauges_its_trace.py.
+   tests/gates/sn/solve/test_every_entry_gauges_its_trace.py.
 .. vv-status: sn-loss-kernel-gauge-projection documented
 
 The right-hand identity is the whole safety argument: the projection is
@@ -5723,7 +5723,7 @@ one reflective axis pair.
 
    ⚠ **Do not read a green adjoint test as evidence the gauge works** —
    that is *inert*, not *verified*.  Coverage is gated by
-   ``tests/sn/solve/test_every_entry_gauges_its_trace.py``, whose entry
+   ``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``, whose entry
    list is **derived from the module** rather than hand-written, so a
    new ``solve_sn*`` entry that forgets to gauge cannot pass by being
    unknown to the gate.

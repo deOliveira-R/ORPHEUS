@@ -214,7 +214,7 @@ orpheus/derivations/fn_method/
     └── la13511.py             # the 75-problem catalogue, machine-readable
 ```
 
-Cross-check tests (Branch 2 of `algebra-of-record`) should live alongside the existing peierls tests in `tests/derivations/`, with a new `test_fn_la13511_*.py` set verifying that **Variant α and the F_N reimplementation agree on the same physics to ≥6 digits** for every overlapping case (sphere primary, cylinder bonus, slab if Variant α slab is added).
+Cross-check tests (Branch 2 of `algebra-of-record`) should live alongside the existing peierls tests in `tests/gates/derivations/`, with a new `test_fn_la13511_*.py` set verifying that **Variant α and the F_N reimplementation agree on the same physics to ≥6 digits** for every overlapping case (sphere primary, cylinder bonus, slab if Variant α slab is added).
 
 The Siewert-Thomas 1986 paper (Ref. 8) is cited as the analytic source for **all 2G bare slab + sphere** problems (45-49). Securing that PDF (NSE 94, 264 — likely paywalled, try OpenAlex/HAL/Sci-Hub with DOI 10.13182/NSE86-A18620 or similar) unlocks Cases 5 + bonus.
 

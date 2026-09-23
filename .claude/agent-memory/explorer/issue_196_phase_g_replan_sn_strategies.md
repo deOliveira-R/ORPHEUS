@@ -103,7 +103,7 @@ piece — see §4 below.
 A `grep -rn 'class .*\(CellUpdate'` across `orpheus/` and `tests/`
 returned only the Protocol/ABC themselves and `DiamondDifference`.
 Test-only mocks: `IdentityCellUpdate` and `BadCellUpdate` in
-`tests/sn/spatial/test_cell_update_protocol.py`. No other production
+`tests/gates/sn/spatial/test_cell_update_protocol.py`. No other production
 concretes — Step / LinearDiscontinuous / ExponentialCharacteristic are
 documented in the diamond module docstring (lines 208-219) as
 *planned* Wave-C-extension work but unimplemented.

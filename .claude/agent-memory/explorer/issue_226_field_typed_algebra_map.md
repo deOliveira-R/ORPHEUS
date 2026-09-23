@@ -32,7 +32,7 @@ durable part; line numbers drift — re-derive via Nexus `context`/`query`.
 
 2. **The flat ndarray is a SERIALIZATION boundary, not an algebra vector space.**
    `as_scipy_linop` (`operator.py:1661`) has **ZERO production callers** (only 5 sites
-   in `tests/numerics/test_operator.py`). The SN Krylov path builds its OWN
+   in `tests/gates/numerics/test_operator.py`). The SN Krylov path builds its OWN
    `spla.LinearOperator` inline (`iteration.py:755`) whose `A_matvec`
    (`iteration.py:743-753`) ravels field→flat→`apply`→flat via the `to_flat`/`from_flat`
    ravellable protocol. So operators NEVER actually consume the flat vector in
@@ -120,7 +120,7 @@ For EACH: what axis of what field it operates on, who uses it, irreducibly-flat 
 | `PermutationOperator` | 961 | ONE tagged numpy `axis` (gather `np.take`); reflective uses **axis=0 = ordinate axis** of a per-face trace slot | `boundary_realizer.py:199` (reflective `B`), folded `& IdentityOperator` into a 2-factor `TensorProductOperator`; `quad.reflection_index(axis)` is an involution | NO — "permute the ordinate axis of the trace field". A typed `PermuteAxis(space, axis)` hosts it. |
 | `IncomingOrdinateMaskTensor` | 1065 | tagged `axis` (zeroes inflow ordinate indices); realizer uses **axis=0** | `boundary_realizer.py:176` (vacuum `B`), folded `& IdentityOperator` | NO — "zero inflow ordinates on the trace's ordinate axis". |
 | `PeriodicWrapOperator` | 1155 | identity-copy (angular passthrough today) | `boundary_realizer.py:252` (periodic `B`), folded `& IdentityOperator` | NO — currently a typed-no-op; reserved for spatial pushforward (follow-up). |
-| `DiagonalOperator` | 1417 | tagged `axis` broadcast-multiply (the §9 `AngularWeightMatrix` W) | **NO SN-production instantiation** — tests/derivations + `from_measure`; it IS the angular-quadrature-weight primitive | NO — "multiply axis n by w_n". The metric `apply_metric` already does this inline on spaces. |
+| `DiagonalOperator` | 1417 | tagged `axis` broadcast-multiply (the §9 `AngularWeightMatrix` W) | **NO SN-production instantiation** — tests/gates/derivations + `from_measure`; it IS the angular-quadrature-weight primitive | NO — "multiply axis n by w_n". The metric `apply_metric` already does this inline on spaces. |
 | `RankOneOperator` | 1535 | tagged `axis` outer-product `|ℓ⟩⟨r|`; fission uses **axis=0 = group axis** | `fission.py:218` (`F.kernel` = `RankOneOperator(χ,νΣf,axis=0) & IdentityOperator`) | NO — "rank-1 on the group axis (χ⊗νΣf)". |
 | `TensorProductOperator` | 1203 | per-axis sequential apply of factors | `fission.py:219`, every realized `B` (`& IdentityOperator` fold), `RankOneOperator & I` | NO — it IS the typed per-axis composition; pairs with `TensorProductSpace`. |
 | `SumOfTensorProductsOperator` | 1324 | sum of TP summands (§15 streaming/scattering canonical form) | structural type; no live production sum yet | NO — typed separable-sum. |

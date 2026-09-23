@@ -220,7 +220,7 @@ the L17+L14 story".**
 2. Do NOT lift NotImplementedError guards on `boundary="white_rank2"`.
    F.4 remains production.
 3. Promote `test_pca_uniform_scale_does_not_beat_f4_at_rich_anchor` to
-   `tests/cp/test_peierls.py` as a canary regression test.
+   `tests/gates/cp/test_peierls.py` as a canary regression test.
 4. Land L17+L19 in the research log: RICH is NOT the final word on
    structural floors at σ_t·R ≥ 10. For any future closure claim, a
    ≥ 2-quadrature signed-error stability table is mandatory.

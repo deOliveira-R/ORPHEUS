@@ -7,9 +7,9 @@ metadata:
 
 The non-vacuum prescribed-inflow MMS (Phase 4 O.2b 4.6) is LANDED on `main`
 (`3273010`→`d87f3b0`). Tests live at
-`tests/sn/verification/analytical/test_mms_prescribed_inflow.py`,
-`tests/sn/verification/analytical/test_prescribed_inflow_consistency.py`,
-`tests/derivations/test_sn_mms_nonvacuum_symbolic.py`. This note keeps the
+`tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py`,
+`tests/gates/sn/verification/analytical/test_prescribed_inflow_consistency.py`,
+`tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py`. This note keeps the
 durable ansatz-design WHY.
 
 **THE GAP this MMS closed (the reason the ansatz had to be NON-standard).**

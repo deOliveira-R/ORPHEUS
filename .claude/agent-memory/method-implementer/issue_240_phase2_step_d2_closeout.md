@@ -60,15 +60,15 @@ Production (6):
   reconstruction"; `self.mesh.cell_update` is the scheme instance.)
 
 Tests/docs (8 incl. matrix regen):
-* `tests/sn/spatial/test_affine_closure.py` — import `CellUpdateBase`, bind the
+* `tests/gates/sn/spatial/test_affine_closure.py` — import `CellUpdateBase`, bind the
   two ops as module aliases (`cell_average = CellUpdateBase.cell_average`, etc.);
   docstring `:func:` → `:meth:` refs.
-* `tests/sn/spatial/test_linear_discontinuous.py` — same alias pattern for
+* `tests/gates/sn/spatial/test_linear_discontinuous.py` — same alias pattern for
   `cell_average`/`source_emission`; 1 prose comment updated.
-* `tests/sn/sweep/core/test_cell_kernel_batch.py` — **EXPECTED source-of-record
+* `tests/gates/sn/sweep/core/test_cell_kernel_batch.py` — **EXPECTED source-of-record
   hashes updated** (see below).
-* `tests/sn/sweep/core/test_affine_carve_baseline.py`,
-  `tests/sn/verification/mms/test_mms_ld_slab.py` — prose/docstring refs updated.
+* `tests/gates/sn/sweep/core/test_affine_carve_baseline.py`,
+  `tests/gates/sn/verification/mms/test_mms_ld_slab.py` — prose/docstring refs updated.
 * `docs/theory/discrete_ordinates.rst` — the `:func:`affine_closure`` todo cross-refs
   → the base `:meth:`s + a D2 note ("homed onto the scheme base, retired the
   dangling module").
@@ -111,13 +111,13 @@ all modules import, the 3 staticmethods are callable on the base AND inherited o
 ## Gate results
 
 * **STRICT bit-identical gate (CORRECT path)** —
-  `python -O -m pytest tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"`:
+  `python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"`:
   **505 passed / 1 skipped / 4 xfailed** = the pre-D2 baseline EXACTLY. NO
   DriftWarning escaped → relocation + LD `w`-fold stayed **bit-identical**. The
   pre-existing `vacuum_bulk_SLB` 1-ULP DriftWarning the plan flagged as possible
   did NOT appear (clean at both baseline and post-D2).
-* **Full route-around set** (`tests/sn/operators tests/sn/spatial tests/sn/sweep/core
-  tests/sn/sweep/cartesian_2d tests/sn/solve` with the 4-clause `-k` route-around):
+* **Full route-around set** (`tests/gates/sn/operators tests/gates/sn/spatial tests/gates/sn/sweep/core
+  tests/gates/sn/sweep/cartesian_2d tests/gates/sn/solve` with the 4-clause `-k` route-around):
   **1083 passed / 6 skipped / 7 deselected / 5 xfailed** = plan target.
 * Migrated unit tests (`test_affine_closure.py` + `test_linear_discontinuous.py`):
   **22 passed**.
@@ -126,7 +126,7 @@ all modules import, the 3 staticmethods are callable on the base AND inherited o
   `SyntaxWarning`s in `test_projection_operators.py`/`test_fission_operator.py`); all
   `:meth:`/`:class:` cross-ref changes resolve.
 * **`python -m tests._harness.audit` exit 0**.
-* NEVER ran all `tests/sn` (#212).
+* NEVER ran all `tests/gates/sn` (#212).
 
 ## Bit-identity attestation (vv-principles)
 

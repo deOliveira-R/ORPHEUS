@@ -1,6 +1,6 @@
 """``python -m tools.harness`` writes every harness's view of the docs;
 ``--check`` verifies only and exits 1 on a problem or on drift. The reader of
-``--check`` is ``tests/test_harness_generated.py``; write mode is a
+``--check`` is ``tests/gates/test_harness_generated.py``; write mode is a
 ``_GENERATORS`` row in ``docs/conf.py``, so every Sphinx build regenerates."""
 from __future__ import annotations
 

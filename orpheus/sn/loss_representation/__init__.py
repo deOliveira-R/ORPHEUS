@@ -475,7 +475,7 @@ class LossRepresentation(Protocol):
 #: replaces the consumer side with a lazy solution strategy, the interim
 #: interning dies with the layer it serves (the user's
 #: survives-the-lazy-strategy criterion; `scratch/p4_9b_design.md` §9).
-#: The COUNT gate (`tests/sn/sweep/core/test_cache.py`) pins builds-per-
+#: The COUNT gate (`tests/gates/sn/sweep/core/test_cache.py`) pins builds-per-
 #: solve == 1 — the F2-measured hazard (6-10 operators/solve × 8.78 ms).
 #: Consumers campaign step 2 C3a (2026-09-13): the table is SHARED by
 #: CONTENT — the hub's ``_contractibility_key`` × the closure CLASS, so a
@@ -593,7 +593,7 @@ class _LossRepresentation:
     :class:`SNProblem` (the geometric substrate) and, since P4.9b step 2, the
     TWO CLOSURES the posed operator holds: the walk consumes the closure
     pair it is HANDED, never the hub's attributes (the keystone route gate
-    ``tests/sn/operators/test_operator_feeds_the_walk.py`` pins it; the
+    ``tests/gates/sn/operators/test_operator_feeds_the_walk.py`` pins it; the
     read-set gate bounds the residual hub route to the two space facts).
     """
 
@@ -1129,7 +1129,7 @@ class _OctantWalk:
 
     NEVER a boolean ``is_solve`` flag — the direction is carried by the
     kernel/emit OBJECTS (the anti-degradation tripwire in
-    ``tests/sn/operators/test_one_octant_walk.py`` enforces this shape).
+    ``tests/gates/sn/operators/test_one_octant_walk.py`` enforces this shape).
 
     Dimension-generic from birth: signs / faces / inflow / captures are
     per-axis tuples over ``mesh.ndim`` — at d = 2 byte-identical to the
@@ -1737,7 +1737,7 @@ class MovingFrontierWindow(_DAGWavefront):
     this representation is kept as a genuinely different schedule over the same
     lower-triangular operator (user decision: multiple proper methods ARE the
     point of selectability).  Its end-to-end coverage rides the forced-window
-    gates in ``tests/sn/solve/test_scan_march_end_to_end.py`` + the explicit
+    gates in ``tests/gates/sn/solve/test_scan_march_end_to_end.py`` + the explicit
     window≡full oracles.
     """
 
@@ -2326,7 +2326,7 @@ class FullFieldWavefront(_DAGWavefront):
         principled-equivalent (scan-march) — while this walk itself is
         pinned by the 2-D dense-``Mᵀ`` forward-probe + the
         assembled-``Mᵀ`` cross-check + the d=1 cross-realization against
-        the 1-D scan reverse (``tests/sn/sweep/core/test_multi_d_reverse_walk.py``).
+        the 1-D scan reverse (``tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py``).
         Returns ``(L+C)ᵀφ`` for the given ``sigma``;
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
         recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
@@ -2435,7 +2435,7 @@ class ScanMarch(_LossRepresentation):
     ``docs/theory/methods/sn/loss_representation.rst §loss-rep-fork-b2``).
     1-D still selects ``CumprodScan`` (registered first; same scan primitive,
     no march shell).  Mode-9 FP-invariance vs the window is pinned end-to-end
-    by ``tests/sn/solve/test_scan_march_end_to_end.py``.
+    by ``tests/gates/sn/solve/test_scan_march_end_to_end.py``.
     """
 
     @classmethod
@@ -3130,7 +3130,7 @@ class _OneDimScanWalk:
         the adjoint's seed-cotangent routing).  Both matvec orientations
         route through here, so "the adjoint walks the SAME DAG, reversed"
         is a code fact, not a test-maintained coincidence (spy + AST
-        tripwire: ``tests/sn/sweep/core/test_one_dim_loop_walk.py``).
+        tripwire: ``tests/gates/sn/sweep/core/test_one_dim_loop_walk.py``).
 
         Orientation is carried by the DATA, never by a flag: the leg
         schedule and each leg's ``cells`` arrive already in traversal
@@ -3236,7 +3236,7 @@ class _OneDimScanWalk:
         per-cell ``scheme.update`` reference iteration (the Pattern 2
         dual-view contract) — the cache precomputes once at solver
         construction what the reference rebuilds every sweep.  The dual-view
-        test (``tests/sn/sweep/core/test_cache.py``) pins this at
+        test (``tests/gates/sn/sweep/core/test_cache.py``) pins this at
         ``rtol=1e-13`` across the parametrised geometry × ng × source grid;
         slab regression snapshots stay bit-identical at ``rtol=1e-12``.
         """
@@ -3319,7 +3319,7 @@ class _OneDimScanWalk:
           curvilinear closure is not yet implemented, #158), so this is a single-occupant
           geometry, not a polymorphism gap.  The angular-redistribution term is
           verified end-to-end by the anisotropic curvilinear MMS
-          (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+          (``tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
           ``catches("ERR-026")``); #238 retired the separately-applicable
           ``M_angular_redist`` leaf that re-walked here only to isolate this
           term (it had no production consumer).

@@ -637,7 +637,7 @@ is history and keeps its original glyphs and its original list numbering.
     right (one source is the point); what must not survive is the
     docstring's unqualified "genuinely independent routes / neither consults
     the other". (2026-08-07, G6.3 §7d.3.
-    `tests/geometry/test_specular_response_pins_to_geometry.py` compares a
+    `tests/gates/geometry/test_specular_response_pins_to_geometry.py` compares a
     geometric permutation against `quad.ordinate_permutation(motion)`; before
     the retirement the response side was `quad.reflection_index(axis)`,
     which resolved the LETTER through the quadrature tier's own
@@ -862,7 +862,7 @@ is history and keeps its original glyphs and its original list numbering.
     compensating for it"*, *"rename X **and** drop the shim"*. One conjunction
     in the subject = two mechanisms = two checks owed per artefact.
     (`[M]` 2026-08-12, SN Q5.6.4 cylinder re-baseline `39b46a31`. Its case
-    list, landed in `tests/sn/regression/_generate_snapshots.py` and carrying
+    list, landed in `tests/gates/sn/regression/_generate_snapshots.py` and carrying
     an `[M]` marker, reads: *"folded_2x4 has M = 2 ordinates per level, and
     `[M]` the new ω-midpoint partition is BIT-IDENTICAL to the retired
     η-midpoint one at M = 2 … **So this case's tau did not change at all**,
@@ -964,7 +964,7 @@ is history and keeps its original glyphs and its original list numbering.
     > its own `q = 0` control** — while the direct `A(ψ₁ + ψ₂)` reads
     > `1.288361e+00`. No tolerance, refinement, or fixture change could ever
     > have exposed it. Corroborated independently by the codebase's own battery
-    > (`tests/sn/operators/test_declared_law_is_linear.py`): under an `affine`
+    > (`tests/gates/sn/operators/test_declared_law_is_linear.py`): under an `affine`
     > mutation, **19 of 69** rows reddened and *"neither base-point-independence
     > row reddened"*, so re-spelling to the direct form **upgraded** that
     > battery by two rows. ⭐ The sharpest residue: one of the five had its
@@ -1392,7 +1392,7 @@ is history and keeps its original glyphs and its original list numbering.
     > of #434 then made the copy unspellable (the closure's `images_of`
     > became REQUIRED and the second body was deleted), and the structural
     > claim is now GATED — `_orbit_closure` has exactly one call site,
-    > asserted by AST in `tests/numerics/test_invariance.py`.
+    > asserted by AST in `tests/gates/numerics/test_invariance.py`.
 
 ## AP35 overloaded unit
 
@@ -1447,7 +1447,7 @@ is history and keeps its original glyphs and its original list numbering.
     > run (#452). A gate that never RUNS is not only a `slow`-marker shape.
 
     > `[M]` 2026-09-03, ORPHEUS #428 census. ERR-023's ONLY catcher is
-    > `tests/mc/test_gaps.py:718` (`slow` + `catches("ERR-023")`). Under the
+    > `tests/gates/mc/test_gaps.py:718` (`slow` + `catches("ERR-023")`). Under the
     > mutation ν₂ₙ: 2 → 1 the MC tree reads **39 passed / 0 red** at
     > `-m "not slow"`; the same test **FAILS in 84 s** run alone. Real teeth,
     > never engaged by the gate that matters.

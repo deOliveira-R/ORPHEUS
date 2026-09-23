@@ -10,7 +10,7 @@ retire. After surgery, `StreamingOperator.apply` consumes only
 **Sibling wave state** (read from dispatch brief):
 - D-I.1 (c97897d): `CollisionOperator.apply / .solve / .apply_transpose`
   TimedFullField-only. Decomposition gate
-  (`tests/sn/test_streaming_operator_decomposition.py`) already migrated.
+  (`tests/gates/sn/test_streaming_operator_decomposition.py`) already migrated.
 - D-I.2 (8a8ddbf): `ScatteringOperator.apply(np.ndarray)` retired.
 - D-K.1 (400ca33): `SNSolver.L = (StreamingOperator + CollisionOperator)
   = InvertibleOperator`.
@@ -40,13 +40,13 @@ invocations, run sequentially from the worktree root.
 
 ```
 python -O -m pytest \
-  tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_invertible_operator.py \
-  tests/sn/test_b1pp_verification.py \
-  tests/sn/test_phase_c_gates.py \
-  tests/sn/test_2d_l2_matvec_correctness.py \
-  tests/sn/test_2d_l2_face_view_unit_source.py \
+  tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_invertible_operator.py \
+  tests/gates/sn/test_b1pp_verification.py \
+  tests/gates/sn/test_phase_c_gates.py \
+  tests/gates/sn/test_2d_l2_matvec_correctness.py \
+  tests/gates/sn/test_2d_l2_face_view_unit_source.py \
   -q
 ```
 
@@ -57,9 +57,9 @@ assertion message becomes the paste-back anchor.
 ### 1b. Broader SN gate (catches inadvertent breakage)
 
 ```
-python -O -m pytest tests/sn/ -q \
-  --ignore=tests/sn/test_l1_standoff_slab_cylinder.py \
-  --deselect tests/sn/test_curvilinear_convergence.py
+python -O -m pytest tests/gates/sn/ -q \
+  --ignore=tests/gates/sn/test_l1_standoff_slab_cylinder.py \
+  --deselect tests/gates/sn/test_curvilinear_convergence.py
 ```
 
 (The L1 slow convergence files are excluded to keep the gate runnable
@@ -71,15 +71,15 @@ Capture as `D-I.3_baseline_broader.txt`.
 ### 1c. L1 MMS / convergence pins (load-bearing)
 
 Per L1 pins identified in Section 4 below:
-- `tests/sn/test_2d_l2_matvec_correctness.py::test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf`
+- `tests/gates/sn/test_2d_l2_matvec_correctness.py::test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf`
   — pillar: closed-form `k_inf = νΣ_f/Σ_a`. Already in 1a's gate.
-- `tests/sn/test_2d_l2_matvec_correctness.py::test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog`
+- `tests/gates/sn/test_2d_l2_matvec_correctness.py::test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog`
   — pillar: structurally-independent (1-D slab analytic reference).
   Already in 1a's gate.
 - Curvilinear MMS convergence (if present):
 
   ```
-  python -O -m pytest tests/sn/test_curvilinear_convergence.py -q
+  python -O -m pytest tests/gates/sn/test_curvilinear_convergence.py -q
   ```
 
   Capture stdout as `D-I.3_baseline_l1_mms.txt`. If the file does not
@@ -99,7 +99,7 @@ Per the dispatch brief deletion criterion:
 - **Already-typed (NO-OP)**: tests already TimedFullField; verify they
   still pass.
 
-### `tests/sn/test_streaming_operator.py` (532 LoC)
+### `tests/gates/sn/test_streaming_operator.py` (532 LoC)
 
 | Class / test | Verdict | Note |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ Per the dispatch brief deletion criterion:
 tests migrate. The helper exists solely to size against the retired
 packed contract.
 
-### `tests/sn/test_streaming_operator_decomposition.py` (333 LoC)
+### `tests/gates/sn/test_streaming_operator_decomposition.py` (333 LoC)
 
 Per D-I.1 commit message (the file already migrated to TimedFullField),
 `grep -n "TimedFullField\|np.ndarray"` confirms: all three tests
@@ -128,7 +128,7 @@ construct `TimedFullField` explicitly at fixture time (L157, L234, L303).
 Verdict: **ALL NO-OP**. The decomposition gate's Resolution A bit-exact
 contract (Section 3) re-verifies verbatim post-surgery.
 
-### `tests/sn/test_invertible_operator.py` (926 LoC)
+### `tests/gates/sn/test_invertible_operator.py` (926 LoC)
 
 `grep` confirms: TimedFullField imported at L55, helpers `_random_state`
 (L61) and `_constant_state` (L82) return TimedFullField. The legacy
@@ -154,7 +154,7 @@ def test_apply_rejects_bare_ndarray(self) -> None:
 This is the typed-contract NEGATIVE test (vv-principles anti-pattern
 #11: contract-validation methods need positive + negative tests).
 
-### `tests/sn/test_b1pp_verification.py` (302 LoC) — the densest legacy site
+### `tests/gates/sn/test_b1pp_verification.py` (302 LoC) — the densest legacy site
 
 | Test | Verdict | Note |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ This is the typed-contract NEGATIVE test (vv-principles anti-pattern
 | `test_b1pp_lplusc_gmres_converges_fp_noise` (L224) | **MIGRATE** | L1 GMRES convergence pin. **Critical**: GMRES requires a `scipy.sparse.linalg.LinearOperator` over **a flat ndarray**. The migration MUST preserve this — wrap TimedFullField ↔ flat-ndarray at the GMRES boundary via `state.flat_view()` / `TimedFullField.from_flat(flat, mesh, history_depth=...)` (assuming D-G shipped these; if not, this test is BLOCKED until D-G ships the round-trip helper that the rest of D-I assumes). Alternative: pin GMRES on **`InvertibleOperator.solve`** (`A.solve(rhs_state)`) since `A = L + C` already provides a typed Krylov dispatch. Prefer this — it's the production path. **Verdict**: rewrite to drive GMRES via `(L+C).solve(q_typed)` and assert convergence info + residual. |
 | `test_b1pp_decode_encode_roundtrip` (L279) | **DELETE** | Pins the BARE-NDARRAY contract VIA `solution_to_angular_flux_with_traces` + `pack_with_traces`. These helpers are the machinery being retired (per dispatch brief). The test exists solely to gate the contract that is going away. Per Section 2 of the brief: tests pinning the bare-ndarray contract via the now-retired `solution_to_angular_flux*` / `pack_with_traces` family are by definition pinning machinery that is going away. DELETE alongside the surgery. |
 
-### `tests/sn/test_phase_c_gates.py` (889 LoC)
+### `tests/gates/sn/test_phase_c_gates.py` (889 LoC)
 
 Per the D-K.5 migration comment at L21–L25 ("Migrated from the retiring
 :class:`SNStreamingOperator` (packed-vector matvec API) to the composite
@@ -175,7 +175,7 @@ The xfail at L353 (`test_apply_apply_transpose_reciprocity_under_sweep_frame`)
 is a pre-existing reciprocity contract waiting on Wave J; D-I.3 does
 NOT touch it.
 
-### `tests/sn/test_2d_l2_matvec_correctness.py` (305 LoC) and `test_2d_l2_face_view_unit_source.py` (239 LoC)
+### `tests/gates/sn/test_2d_l2_matvec_correctness.py` (305 LoC) and `test_2d_l2_face_view_unit_source.py` (239 LoC)
 
 Both files already use `mesh.zeros_timed_full_field()` (Section 2.2:
 `test_apply_vs_sweep_2d_residual_cancellation` L171–L207 explicitly
@@ -205,7 +205,7 @@ negative test** (apply rejects bare ndarray).
 ## Section 3 — Resolution A bit-exact decomposition gate
 
 The load-bearing correctness gate for the operator algebra is
-`tests/sn/test_streaming_operator_decomposition.py::TestResolutionABitExact`
+`tests/gates/sn/test_streaming_operator_decomposition.py::TestResolutionABitExact`
 (per D-I.1, gates `(L+C).apply ≡ M` bit-exactly on bulk AND boundary).
 
 Per Section 2 above, the file is ALREADY TimedFullField (D-I.1
@@ -218,7 +218,7 @@ shipped the migration). After D-I.3:
 Post-surgery verification command:
 
 ```
-python -O -m pytest tests/sn/test_streaming_operator_decomposition.py -v
+python -O -m pytest tests/gates/sn/test_streaming_operator_decomposition.py -v
 ```
 
 Expected: 3 tests pass, no diff from baseline. Paste-back this against
@@ -239,10 +239,10 @@ Identified L1 MMS / closed-form pins on `StreamingOperator.apply`:
 
 | Test | File:line | Pillar | Post-surgery status |
 | --- | --- | --- | --- |
-| `test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf` | `tests/sn/test_2d_l2_matvec_correctness.py:137` | Closed-form `k_inf = νΣ_f/Σ_a = 1.875` | Already typed. Re-runs verbatim. |
-| `test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog` | `tests/sn/test_2d_l2_matvec_correctness.py:214` | Structurally-independent (1-D slab analytic ref) | Already typed. Re-runs verbatim. |
-| `test_apply_vs_sweep_2d_residual_cancellation` | `tests/sn/test_2d_l2_matvec_correctness.py:171` | Algebraic identity (`OperatorSum.apply` distributes) | Already typed; `@catches("ERR-026")`. Re-runs verbatim. |
-| `test_b1pp_lplusc_gmres_converges_fp_noise` | `tests/sn/test_b1pp_verification.py:224` | B1'' algebraic consistency (GMRES floor) | MIGRATE (Section 2) — preserves the convergence claim through `(L+C).solve` |
+| `test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf` | `tests/gates/sn/test_2d_l2_matvec_correctness.py:137` | Closed-form `k_inf = νΣ_f/Σ_a = 1.875` | Already typed. Re-runs verbatim. |
+| `test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog` | `tests/gates/sn/test_2d_l2_matvec_correctness.py:214` | Structurally-independent (1-D slab analytic ref) | Already typed. Re-runs verbatim. |
+| `test_apply_vs_sweep_2d_residual_cancellation` | `tests/gates/sn/test_2d_l2_matvec_correctness.py:171` | Algebraic identity (`OperatorSum.apply` distributes) | Already typed; `@catches("ERR-026")`. Re-runs verbatim. |
+| `test_b1pp_lplusc_gmres_converges_fp_noise` | `tests/gates/sn/test_b1pp_verification.py:224` | B1'' algebraic consistency (GMRES floor) | MIGRATE (Section 2) — preserves the convergence claim through `(L+C).solve` |
 
 **Issue #210 status (noted, not blocking)**: Test 3.1 MMS L1
 convergence pin on `_apply_2d_cartesian_l2` is deferred pending
@@ -250,7 +250,7 @@ vectorization. D-I.3 does NOT block on this; the pin can land
 independently after `_apply_2d_cartesian` is vectorized.
 
 **Curvilinear MMS convergence** (slab/sphere/cylinder): if
-`tests/sn/test_curvilinear_convergence.py` exists, run it as part of
+`tests/gates/sn/test_curvilinear_convergence.py` exists, run it as part of
 1c's baseline and re-run post-surgery for paste-back. If the file is
 absent, no pin is in scope here (the curvilinear convergence claim is
 verified elsewhere, e.g. by L1 standoff cylinder/slab vs analytic).
@@ -259,9 +259,9 @@ Post-surgery L1 gate command (combines all L1 pins on touched paths):
 
 ```
 python -O -m pytest \
-  tests/sn/test_2d_l2_matvec_correctness.py \
-  tests/sn/test_b1pp_verification.py \
-  tests/sn/test_l1_standoff_slab_cylinder.py \
+  tests/gates/sn/test_2d_l2_matvec_correctness.py \
+  tests/gates/sn/test_b1pp_verification.py \
+  tests/gates/sn/test_l1_standoff_slab_cylinder.py \
   -v -m "l1 or foundation"
 ```
 
@@ -280,9 +280,9 @@ D-I.3, only API narrowing.
 
 Tests pinning this anchor (search target: `Q/sigma_t`,
 `streaming.*equilibrium`, fixed-source flat-flux):
-- `tests/sn/test_streaming_equilibrium.py` (likely path — verify via
+- `tests/gates/sn/test_streaming_equilibrium.py` (likely path — verify via
   `Glob` at execution time).
-- `tests/sn/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
+- `tests/gates/sn/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
   (referenced in `numerical-bug-signatures` Signature 1).
 
 These tests construct via the production `solve_sn` API, which already
@@ -300,9 +300,9 @@ nothing).
 
 | Geometry | Carrier | File:test | ≥2G? | Heterogeneous? |
 | --- | --- | --- | --- | --- |
-| 1-D slab (cartesian, ny=1, curv=None) | TimedFullField | `tests/sn/test_streaming_operator.py:385` (`test_returns_timed_full_field[slab]`) | 2G via `_sig_t_uniform(ng=2)` | NO — but covered by `test_streaming_operator_decomposition.py:227` (`test_L_apply_equals_subtractive_form[slab]`) using `_random_state` + heterogeneous σ_t |
+| 1-D slab (cartesian, ny=1, curv=None) | TimedFullField | `tests/gates/sn/test_streaming_operator.py:385` (`test_returns_timed_full_field[slab]`) | 2G via `_sig_t_uniform(ng=2)` | NO — but covered by `test_streaming_operator_decomposition.py:227` (`test_L_apply_equals_subtractive_form[slab]`) using `_random_state` + heterogeneous σ_t |
 | 1-D slab (algebraic identity) | TimedFullField (packed→typed via decomposition gate) | `test_streaming_operator_decomposition.py:147` (`test_bit_exact_uniform_sigma_t[slab]`) | 2G | Uniform σ_t (foundation pin); heterogeneous covered by L1 `test_l1_standoff_slab_cylinder.py` |
-| 1-D sphere (curvilinear) | TimedFullField | `tests/sn/test_streaming_operator.py:385` (`test_returns_timed_full_field[sphere]`) | 2G | NO at L0 |
+| 1-D sphere (curvilinear) | TimedFullField | `tests/gates/sn/test_streaming_operator.py:385` (`test_returns_timed_full_field[sphere]`) | 2G | NO at L0 |
 | 1-D sphere (algebraic) | TimedFullField | `test_streaming_operator_decomposition.py:147` (`test_bit_exact_uniform_sigma_t[sphere]`) | 2G | Uniform; heterogeneous via L1 cylinder/sphere standoff |
 | 1-D sphere (curvilinear correctness) | TimedFullField | `test_phase_c_gates.py:258` (`test_apply_curvilinear_per_ordinate_flat_flux_residual`) — `@verifies("dd-curvilinear-scalar") @catches("ERR-026")` | 2G via `placeholder_materials(ng=2)` | YES (parametrised σ_t ∈ {0, 0.5}) |
 | 1-D cylinder | TimedFullField | `test_streaming_operator.py:385` (`test_returns_timed_full_field[cylinder]`) + `test_streaming_operator_decomposition.py:147` (`[cylinder]`) | 2G | Cylinder heterogeneous: covered by L1 cylinder standoff |
@@ -400,7 +400,7 @@ The exact ordering for D-I.3 verification, with paste-back gates:
 5. **Post-surgery full gate**:
    - Re-run 1a, 1b, 1c. Paste-back against baselines from step 1.
    - Re-run Resolution A decomposition gate
-     (`tests/sn/test_streaming_operator_decomposition.py` per Section 3).
+     (`tests/gates/sn/test_streaming_operator_decomposition.py` per Section 3).
    - Re-run L1 MMS gate per Section 4.
    - Verify the new negative test now passes (strict=True flip).
    - Owner: main agent. Paste-back filed as

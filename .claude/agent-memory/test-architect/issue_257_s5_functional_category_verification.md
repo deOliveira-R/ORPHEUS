@@ -34,7 +34,7 @@ follows). Spec files LANDED + dry-run-validated (correct stub → 21p/1skip;
 
 ## Deliverable files (4) — ALL collect under `-O` (canonical), guarded by
 `pytest.importorskip`/duck-probe so PRE-IMPL = skip-not-error.
-- `tests/transport/_functional_helpers.py` — shared. `require()` (-O-firing
+- `tests/gates/transport/_functional_helpers.py` — shared. `require()` (-O-firing
   pytest.fail), `require_functional()`/`require_production_rate_functional()`
   (probes sn.production_rate_functional / sn.fission / sn.functional),
   meshes (slab + nx≠ny 2-D discriminator), ASYMMETRIC ≥2G het νΣf+φ
@@ -43,19 +43,19 @@ follows). Spec files LANDED + dry-run-validated (correct stub → 21p/1skip;
   construction assumption — change ONE func if layout differs),
   `hand_derived_production_density()` (explicit Python double-loop, NO
   numpy reduction = structurally-indep ref), `squeeze_density()`.
-- `tests/transport/test_functional_category.py` — Spec A (foundation).
+- `tests/gates/transport/test_functional_category.py` — Spec A (foundation).
   POSITIVE (SUT IS Functional + has evaluate) + NEGATIVE both directions
   (Functional NOT LinearOperator: isinstance + lacks apply + lacks
   capabilities; RankOne/Mult/Identity NOT Functional) + DISCRIMINATOR
   (Frame-4: not-just-Vector via bare ndarray-is-Vector-not-Functional;
   not-just-LinearOperator; disjoint surfaces).
-- `tests/transport/test_production_rate_functional.py` — Spec B (foundation).
+- `tests/gates/transport/test_production_rate_functional.py` — Spec B (foundation).
   B.1 CORRECTNESS = hand-loop ref (2G-2D-nx≠ny + 4G-slab) + wrong-axis
   mutation discriminator; B.2 EQUIVALENCE (clearly demarcated NOT
   correctness) = 0-ULP `assert_array_equal` vs live RankOne `inner`
   (de-risks S6); B.3 Mode-3 = no-volume-measure (shape group-collapsed-only
   + value==unweighted hand-loop on non-uniform-V mesh).
-- `tests/numerics/test_estimators_as_functionals.py` — Spec C (foundation).
+- `tests/gates/numerics/test_estimators_as_functionals.py` — Spec C (foundation).
   C.1 bit-identity arithmetic (synthetic L0 triple, hand floats 6.0 /
   6.0/39.6 — PASSES TODAY, 3 green) + C.2 category-honesty.
 
@@ -99,15 +99,15 @@ the wrapper or not; spec green either way.
 
 ## Gate list (regression subset — all VERIFIED green @ baseline)
 STAY-GREEN inheritance pins (RankOne untouched in S5 → fission byte-id):
-`tests/sn/operators/test_fission_operator.py` (18p), `tests/numerics/
-test_operator.py -k rank/RankOne` (subset), `tests/transport/
+`tests/gates/sn/operators/test_fission_operator.py` (18p), `tests/gates/numerics/
+test_operator.py -k rank/RankOne` (subset), `tests/gates/transport/
 test_multiplication_operator.py` + `test_kinf_homogeneous.py` (≥2G NOT 1G)
 + `test_invertible_operator.py` (74p/2xf together). NEW: the 3 S5 files.
 Baseline reds = 7 (#250 SPHERE ×5 + #232 mu_y ×2) — route around, never
-all tests/sn (#212). Recommended select:
-`pytest -O tests/transport/test_functional_category.py tests/transport/
-test_production_rate_functional.py tests/numerics/test_estimators_as_functionals.py
-tests/sn/operators/test_fission_operator.py tests/transport/
+all tests/gates/sn (#212). Recommended select:
+`pytest -O tests/gates/transport/test_functional_category.py tests/gates/transport/
+test_production_rate_functional.py tests/gates/numerics/test_estimators_as_functionals.py
+tests/gates/sn/operators/test_fission_operator.py tests/gates/transport/
 test_multiplication_operator.py`.
 
 Extends [[issue-257-s3-multiplication-operator-verification]] (the sibling

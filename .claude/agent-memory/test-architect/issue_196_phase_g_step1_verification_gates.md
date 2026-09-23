@@ -96,7 +96,7 @@ assert np.array_equal(
 
 Plus the same on `outgoing_spatial_flux` and `outgoing_angular_state`.
 
-**Coverage.** This subsumes the existing `tests/sn/spatial/test_diamond.py`
+**Coverage.** This subsumes the existing `tests/gates/sn/spatial/test_diamond.py`
 gates (28 tests) but parametrizes the SAME inputs through the new
 operator API in addition. Net: 28 existing + ~36 new = ~64.
 
@@ -256,7 +256,7 @@ Two consumers can agree to machine precision on a wrong fixed point
 (the canonical hidden-twin failure mode). At Step 1, the test only
 proves the two consumers route through the SAME promoted
 `SNCellOperator`. The absolute correctness chain comes from the
-existing `tests/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck`
+existing `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck`
 + MMS convergence tests, which are NOT in Step 1 scope.
 
 **Gate design.**
@@ -355,7 +355,7 @@ closure) and the Carlson seed (apply-vs-source-driven equivalence).
 labels) and the M-M weights identity (`mm-weights`).
 
 **Why this gate exists.** The 57 existing tests at
-`tests/sn/spatial/test_sweep_vs_apply_consistency.py` pin these
+`tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` pin these
 identities at the FUNCTION level (`carlson_inward_sweep_from_source`
 helper, `CarlsonInwardSweep` strategy class). Step 1 lifts these to
 the OPERATOR level — the same identities must hold when
@@ -375,7 +375,7 @@ inner `LinearOperator`.
 4. **Flat-flux closure** (M-M recurrence, Σw = 2 Hébert convention).
    On flat ψ_const with Q_bar = Σ_t · ψ_const, the recurrence's
    seed is φ̄_i = ψ_const at every cell (the Phase F Gate 1.6
-   identity at `tests/sn/test_phase_c_gates.py:551+`).
+   identity at `tests/gates/sn/test_phase_c_gates.py:551+`).
 5. **Linearity of `AngularRedistribution.apply` in input**. The M-M
    recurrence is affine in its scalar-flux input; the operator's
    `.apply` is linear (the affine intercept is captured in the
@@ -390,7 +390,7 @@ inner `LinearOperator`.
 
 **Reuse rather than rewrite.** The 57 existing tests already cover
 this matrix at the function level. Step 1's tests EXTEND the existing
-file (`tests/sn/spatial/test_sweep_vs_apply_consistency.py`) with
+file (`tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`) with
 new tests that exercise the OPERATOR API
 (`AngularRedistribution(...).apply(...)` / `.solve(...)`) on the same
 matrix. Net add: ~15 new tests.
@@ -436,7 +436,7 @@ cyl_2g_3reg_LS4_dd_n40.npz
 2d_1g_LS4_dd_15x15.npz
 ```
 
-Gate: `pytest tests/sn/regression/test_dd_regression.py` MUST pass
+Gate: `pytest tests/gates/sn/regression/test_dd_regression.py` MUST pass
 unchanged.
 
 ---
@@ -446,7 +446,7 @@ unchanged.
 Three new/extended pytest modules. **Method-implementer fills the
 bodies; this memo defines the structure.**
 
-### File 1 — `tests/sn/spatial/test_sncell_operator.py` (NEW)
+### File 1 — `tests/gates/sn/spatial/test_sncell_operator.py` (NEW)
 
 Module-level concerns: bit-identity + apply-vs-solve + capability
 surface + curvilinear coverage for `SNCellOperator`.
@@ -462,7 +462,7 @@ Test classes (sketch):
 - `TestSNCellOperatorApplySolveRoundTrip` — Gate 2 across all
   geometries.
 
-### File 2 — `tests/sn/spatial/test_angular_redistribution.py` (NEW)
+### File 2 — `tests/gates/sn/spatial/test_angular_redistribution.py` (NEW)
 
 Module-level concerns: M-M algebraic identities + Carlson seed
 equivalence + flat-flux closure + capability surface for
@@ -480,7 +480,7 @@ Test classes (sketch):
 - `TestAngularRedistributionApplySolveRoundTrip` — Gate 2 for
   AngularRedistribution.
 
-### File 3 — Extension to `tests/sn/spatial/test_sweep_vs_apply_consistency.py`
+### File 3 — Extension to `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`
 
 Add tests that exercise the OPERATOR API on the same parametrize
 matrix as the existing 57 function-level tests:
@@ -493,8 +493,8 @@ matrix as the existing 57 function-level tests:
 
 ### File 4 — Phase F twin-path defense
 
-Either add to `tests/sn/test_phase_c_gates.py` (as Gate 1.7) or to
-`tests/sn/spatial/test_sweep_vs_apply_consistency.py`. The plan's
+Either add to `tests/gates/sn/test_phase_c_gates.py` (as Gate 1.7) or to
+`tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`. The plan's
 list of suggested locations names the latter; prefer that for
 operator-level cohesion.
 
@@ -641,7 +641,7 @@ scope here.
    another operator requiring an unsupported capability. Is there
    an existing canonical fixture (e.g.
    `compose_requiring_adjoint(op)`) in
-   `tests/numerics/test_operator.py` that Step 1's tests can reuse?
+   `tests/gates/numerics/test_operator.py` that Step 1's tests can reuse?
    If yes, refer to it. If no, the method-implementer needs to
    construct one; alternatively, simply assert
    `CAP_APPLY_TRANSPOSE not in op.capabilities` and let the
@@ -703,7 +703,7 @@ scope here.
 
    **Mitigation**: Gate 7 is a regression contract, NOT a
    correctness gate. The absolute-correctness chain runs through
-   `tests/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck`
+   `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck`
    (Variant α reference) — that test MUST also pass at Step 1.
    The method-implementer's closeout memo for Step 1 must confirm
    both: (a) all 11 snapshots bit-identical, (b) Gate 4.2 cross-
@@ -718,9 +718,9 @@ Step 1's tests prepare the gate but DO NOT cover:
 - **Manifestation #7 closure verification** — happens at Step 2 via
   the call-site unification; Gate 5 transitions xfail → xpass.
 - **`.H` adjoint reciprocity** — Step 5 deliverable; new test
-  module `tests/sn/test_adjoint.py` is in the plan's Step 5 scope.
+  module `tests/gates/sn/test_adjoint.py` is in the plan's Step 5 scope.
 - **MMS L1 convergence** — already pinned by existing
-  `tests/sn/l1_analytical/` suite; Step 1 doesn't change the
+  `tests/gates/sn/l1_analytical/` suite; Step 1 doesn't change the
   numerical algebra, so existing convergence rates are preserved
   by construction.
 
@@ -736,11 +736,11 @@ Step 1's tests prepare the gate but DO NOT cover:
   curvilinear streaming closure detail).
 - Phase F closeout: `.claude/agent-memory/method-implementer/issue_168_phase_f_closeout.md`
   — failure-mode profile this gate matrix defends against.
-- Existing tests: `tests/sn/spatial/test_diamond.py` (28
+- Existing tests: `tests/gates/sn/spatial/test_diamond.py` (28
   bit-identity tests, baseline for Gate 1's extension);
-  `tests/sn/spatial/test_sweep_vs_apply_consistency.py` (57
+  `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` (57
   function-level Carlson + twin-path tests, baseline for Gate 6's
-  operator-level extension); `tests/sn/test_phase_c_gates.py`
+  operator-level extension); `tests/gates/sn/test_phase_c_gates.py`
   Gate 1.6 (the canonical M-M flat-flux closure at sweep level).
 - LinearOperator Protocol: `orpheus/numerics/operator.py:115-200`
   (CAP_APPLY, CAP_SOLVE, MissingCapability, Protocol contract).

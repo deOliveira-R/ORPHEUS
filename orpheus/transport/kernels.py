@@ -325,7 +325,7 @@ class FissionKernel:
     the angular composite
     :class:`~orpheus.transport.operators.fission.FissionOperator` (the
     frame's :math:`\ell=0` conjugation). The χ↔νΣf-coupled condensation
-    is gated (G-F1, ``tests/transport/test_kernels.py``).
+    is gated (G-F1, ``tests/gates/transport/test_kernels.py``).
 
     Fission stays its own kernel type under the type-vs-property rule the
     transfer family was ruled by: its realization is a separable rank-1

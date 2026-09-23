@@ -98,7 +98,7 @@ to 1.
    dominant eigenvalue.
 9. `diag_slab_specular_09_promote.py` — final validation gate
    (test 1: rank-1 bit-exact; test 2: rank-N convergence). PROMOTED
-   to `tests/derivations/test_peierls_specular_bc.py` as
+   to `tests/gates/derivations/test_peierls_specular_bc.py` as
    `test_specular_slab_rank1_equals_mark_kinf` and
    `test_specular_slab_homogeneous_converges_to_kinf`.
 
@@ -108,7 +108,7 @@ to 1.
   in `_build_full_K_per_group`'s `closure="specular"` block (~75 lines).
   Uses inline `_slab_E_n` for closed-form per-face primitives. Removed
   the NotImplementedError.
-- `tests/derivations/test_peierls_specular_bc.py` — replaced
+- `tests/gates/derivations/test_peierls_specular_bc.py` — replaced
   `test_specular_slab_raises_not_implemented` with two new tests for
   rank-1 equivalence and rank-N convergence. Added SLAB_POLAR_1D
   import.

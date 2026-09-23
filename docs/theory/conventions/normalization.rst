@@ -22,7 +22,7 @@ The weight sum :math:`W`
 measure says it is — :math:`W = 2` for Gauss–Legendre on
 :math:`[-1, 1]`, :math:`W = 4\pi` for the sphere rules — and it is
 never silently renormalized. Enforced:
-``tests/numerics/test_quadrature_directional.py`` pins the
+``tests/gates/numerics/test_quadrature_directional.py`` pins the
 Gauss–Legendre sum to :math:`2` and the ``lebedev`` /
 ``level_symmetric`` / ``product`` sums to :math:`4\pi`; the octant
 partition test pins that restriction preserves the total.
@@ -209,7 +209,7 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
    :ref:`frame-parseval-dense-arm`.
 
 **The catchers.** In
-``tests/numerics/test_spherical_harmonic_space.py``:
+``tests/gates/numerics/test_spherical_harmonic_space.py``:
 ``test_H_equals_parseval_metric_times_S0`` pins the Hilbert adjoint to
 :math:`S_0(G^{-1}c)` at :math:`10^{-12}` — the Parseval metric
 :math:`(2\ell+1)/4\pi` times the *naked* synthesis, with no bare
@@ -217,7 +217,7 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
 ``test_R_equals_2l_plus_1_times_S0`` pins the complementary side,
 that the :math:`(2\ell+1)` lives in :math:`R`;
 ``test_pi_R_is_4pi_identity_on_band_limited`` pins
-:math:`\Pi R = 4\pi I` (ERR-051). In ``tests/numerics/test_frame.py``
+:math:`\Pi R = 4\pi I` (ERR-051). In ``tests/gates/numerics/test_frame.py``
 the ``test_parseval_*`` family pins the metric itself — the isometry
 :math:`\|\Pi\psi\|_\star = \|\psi\|_W` over the six ``DIAGONAL``
 sphere families **and** the ``DENSE`` slab, the closure
@@ -227,7 +227,7 @@ slab's matrix dressing and the wrong-metric discriminator that
 justifies it, and a loaded-not-blind negative leg per arm that
 re-installs a metric known to be wrong. The addition theorem itself
 is verified at :math:`\ell \le 3` in
-``tests/sn/operators/test_solver_components.py``.
+``tests/gates/sn/operators/test_solver_components.py``.
 
 .. _normalization-alpha-crosswalk:
 

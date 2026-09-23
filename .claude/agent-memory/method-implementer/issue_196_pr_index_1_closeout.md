@@ -13,7 +13,7 @@ via entry/exit transposes.
  1 file changed, 237 insertions(+), 118 deletions(-)
 ```
 
-Plus new file: `tests/sn/spatial/test_ordinate_scan_joint_batch.py`
+Plus new file: `tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py`
 (170 lines, 5 tests).
 
 ## §2 Test paste-back
@@ -21,7 +21,7 @@ Plus new file: `tests/sn/spatial/test_ordinate_scan_joint_batch.py`
 ### §2.1 Regression suite (11 snapshots, bit-identity contract)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -35,7 +35,7 @@ views, no FP drift). Bit-identity preserved.
 ### §2.2 Targeted cache/scan/streaming-equilibrium + new joint-batch test
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py tests/sn/spatial/test_ordinate_scan.py tests/sn/spatial/test_ordinate_scan_joint_batch.py tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -v
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py tests/gates/sn/spatial/test_ordinate_scan.py tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -v
 ```
 
 ```
@@ -51,7 +51,7 @@ Breakdown:
 ### §2.3 Full spatial suite
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/ -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/ -q
 ```
 
 ```
@@ -61,18 +61,18 @@ Breakdown:
 ### §2.4 New joint-batch test (verbose)
 
 ```
-tests/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_one_scan_per_chain_direction PASSED [ 20%]
-tests/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_independent_of_N PASSED          [ 40%]
-tests/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_independent_of_ng PASSED         [ 60%]
-tests/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_call_shapes PASSED               [ 80%]
-tests/sn/spatial/test_ordinate_scan_joint_batch.py::test_sphere_per_ordinate_scan_safety_sentinel PASSED   [100%]
+tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_one_scan_per_chain_direction PASSED [ 20%]
+tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_independent_of_N PASSED          [ 40%]
+tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_independent_of_ng PASSED         [ 60%]
+tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py::test_slab_joint_batch_call_shapes PASSED               [ 80%]
+tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py::test_sphere_per_ordinate_scan_safety_sentinel PASSED   [100%]
 ========================= 5 passed, 1 warning in 0.98s =========================
 ```
 
 ### §2.5 Additional curvilinear-path coverage
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_apply_matvec_cylinder_invariants.py tests/sn/spatial/test_sweep_vs_apply_consistency.py tests/sn/spatial/test_diamond.py tests/sn/spatial/test_pole_angular_closure.py tests/sn/spatial/test_psi_half_angle_seed.py tests/sn/spatial/test_cell_update_protocol.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py tests/gates/sn/spatial/test_diamond.py tests/gates/sn/spatial/test_pole_angular_closure.py tests/gates/sn/spatial/test_psi_half_angle_seed.py tests/gates/sn/spatial/test_cell_update_protocol.py -q
 ```
 
 ```

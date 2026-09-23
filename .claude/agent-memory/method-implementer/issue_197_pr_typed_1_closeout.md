@@ -68,8 +68,8 @@ Lazy-import method returning `MaterialXSField.from_mesh(self)`. The lazy import 
 
 ### §2.6 Test fixture updates
 
-- `tests/sn/test_legendre_moment_scattering.py`: 4 direct `LegendreMomentScattering(sig_s=...)` constructor calls migrated to use `MaterialXSField._synthetic_for_tests(...)` factory + new `LegendreMomentScattering(mat_xs=...)` API.
-- `tests/sn/test_scattering_operator.py`: 4 direct `ScatteringOperator(n_ordinates=..., sig_s=..., ...)` constructor calls migrated to `ScatteringOperator(mat_xs=..., quadrature=_StubQuad(...), scattering_order=...)`. New `_StubQuad` class added inline (minimal AngularQuadrature stand-in supplying `.N`, `.weights`, `.spherical_harmonics(L)`).
+- `tests/gates/sn/test_legendre_moment_scattering.py`: 4 direct `LegendreMomentScattering(sig_s=...)` constructor calls migrated to use `MaterialXSField._synthetic_for_tests(...)` factory + new `LegendreMomentScattering(mat_xs=...)` API.
+- `tests/gates/sn/test_scattering_operator.py`: 4 direct `ScatteringOperator(n_ordinates=..., sig_s=..., ...)` constructor calls migrated to `ScatteringOperator(mat_xs=..., quadrature=_StubQuad(...), scattering_order=...)`. New `_StubQuad` class added inline (minimal AngularQuadrature stand-in supplying `.N`, `.weights`, `.spherical_harmonics(L)`).
 - Other tests pass unchanged via the read-through TRANSIENT shims on `SNSolver` / `ScatteringOperator`.
 
 ## §3 Mechanism criteria (verbatim paste-back)
@@ -82,9 +82,9 @@ Lazy-import method returning `MaterialXSField.from_mesh(self)`. The lazy import 
 | 4 | All 8 per-material loops in `scattering.py` + `solver.py:422` REPLACED by `mat_xs.*` calls | `grep "for mid.*cells_by_mat\|for mid.*items()" orpheus/sn/scattering.py orpheus/sn/solver.py` returns **0 hits**. All 8 sites now route through typed verbs in `material_xs_field.py` (where the 8 sites collapse into 9 dispatch-loop call sites, but ALL inside the producer module per Pattern 7). |
 | 5 | `FissionOperator` constructor takes `mat_xs` | `grep "mat_xs:" orpheus/sn/fission.py` → 1 dataclass field declaration |
 | 6 | `ScatteringOperator` constructor takes `mat_xs` | `grep "mat_xs:" orpheus/sn/scattering.py` → 2 dataclass field declarations (`LegendreMomentScattering` + `ScatteringOperator`) |
-| 7 | 11/11 regression PASS at rtol=1e-12 | `pytest tests/sn/regression/ -q` → **11 passed in 62.86 s** |
-| 8 | L0 streaming-equilibrium 26/26 PASS | `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q` → **26 passed in 958.88 s** |
-| 9 | Operator suites PASS | `pytest tests/sn/test_scattering_operator.py tests/sn/test_fission_operator.py tests/sn/test_collision_operator.py tests/sn/test_legendre_moment_scattering.py tests/sn/test_snstreamingoperator.py tests/sn/test_streaming_operator.py tests/sn/test_streaming_operator_decomposition.py -q` → **214 passed in 1.06 s** |
+| 7 | 11/11 regression PASS at rtol=1e-12 | `pytest tests/gates/sn/regression/ -q` → **11 passed in 62.86 s** |
+| 8 | L0 streaming-equilibrium 26/26 PASS | `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q` → **26 passed in 958.88 s** |
+| 9 | Operator suites PASS | `pytest tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_fission_operator.py tests/gates/sn/test_collision_operator.py tests/gates/sn/test_legendre_moment_scattering.py tests/gates/sn/test_snstreamingoperator.py tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_streaming_operator_decomposition.py -q` → **214 passed in 1.06 s** |
 | 10 | Full SN suite PASS (minus pre-existing) | (running — see §4 for details) |
 | 11 | CP suite green | (running) |
 
@@ -93,7 +93,7 @@ Lazy-import method returning `MaterialXSField.from_mesh(self)`. The lazy import 
 ### §4.1 Regression suite (load-bearing rtol=1e-12 gate)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/regression/ -q --no-header
+$ .venv/bin/python -m pytest tests/gates/sn/regression/ -q --no-header
 ...........                                                              [100%]
 11 passed, 3 warnings in 62.86s (0:01:02)
 ```
@@ -103,7 +103,7 @@ The 3 warnings are pre-existing `RuntimeWarning: invalid value encountered in di
 ### §4.2 L0 streaming-equilibrium curvilinear (26/26 cases)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q --no-header
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q --no-header
 ..........................                                               [100%]
 26 passed, 1 warning in 958.88s (0:15:58)
 ```
@@ -111,13 +111,13 @@ $ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvili
 ### §4.3 Operator suites (full)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_scattering_operator.py \
-    tests/sn/test_fission_operator.py \
-    tests/sn/test_collision_operator.py \
-    tests/sn/test_legendre_moment_scattering.py \
-    tests/sn/test_snstreamingoperator.py \
-    tests/sn/test_streaming_operator.py \
-    tests/sn/test_streaming_operator_decomposition.py -q --no-header
+$ .venv/bin/python -m pytest tests/gates/sn/test_scattering_operator.py \
+    tests/gates/sn/test_fission_operator.py \
+    tests/gates/sn/test_collision_operator.py \
+    tests/gates/sn/test_legendre_moment_scattering.py \
+    tests/gates/sn/test_snstreamingoperator.py \
+    tests/gates/sn/test_streaming_operator.py \
+    tests/gates/sn/test_streaming_operator_decomposition.py -q --no-header
 214 passed, 1 warning in 1.06s
 ```
 
@@ -125,8 +125,8 @@ $ .venv/bin/python -m pytest tests/sn/test_scattering_operator.py \
 
 Confirmed via `git stash` + re-run that the following failures are pre-existing on the PR-TYPED-0 baseline (tip `c4c269d`):
 
-- `tests/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous_spectrum[*]` — 6 cases fail. Per `principled_index_migration.md` and the PR-TYPED-0 closeout, the test's `mean(axis=(0, 1))` is wrong for principled `(ng, nx, ny)` layout. NOT a PR-TYPED-1 concern.
-- `tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference` — shape `(2, 6, 4)` vs saved reference `(6, 4, 2)`. The saved npy file is in legacy `(nx, ny, ng)` layout; the test was never regenerated after PR-INDEX-5. Verified pre-existing on PR-TYPED-0 baseline. NOT a PR-TYPED-1 concern.
+- `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous_spectrum[*]` — 6 cases fail. Per `principled_index_migration.md` and the PR-TYPED-0 closeout, the test's `mean(axis=(0, 1))` is wrong for principled `(ng, nx, ny)` layout. NOT a PR-TYPED-1 concern.
+- `tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference` — shape `(2, 6, 4)` vs saved reference `(6, 4, 2)`. The saved npy file is in legacy `(nx, ny, ng)` layout; the test was never regenerated after PR-INDEX-5. Verified pre-existing on PR-TYPED-0 baseline. NOT a PR-TYPED-1 concern.
 
 ### §4.5 Full SN suite (in flight)
 
@@ -193,8 +193,8 @@ The current PR delivers the foundation that makes all three composability operat
 - `orpheus/sn/fission.py` — `FissionOperator` consumes `mat_xs`; `chi`/`sig_p` become read-through properties.
 
 ### Tests (`tests/`)
-- `tests/sn/test_legendre_moment_scattering.py` — 4 constructor sites migrated to `MaterialXSField._synthetic_for_tests` + new API.
-- `tests/sn/test_scattering_operator.py` — 4 constructor sites migrated; `_StubQuad` helper added inline.
+- `tests/gates/sn/test_legendre_moment_scattering.py` — 4 constructor sites migrated to `MaterialXSField._synthetic_for_tests` + new API.
+- `tests/gates/sn/test_scattering_operator.py` — 4 constructor sites migrated; `_StubQuad` helper added inline.
 
 ## §9 Self-improvement / skill notes
 

@@ -72,7 +72,7 @@ the matvec consolidation. The two helpers remain kept in lockstep
 
 ### §1.3 Foundation tests (§B.9 of brief — partial coverage)
 
-**File**: `tests/sn/spatial/test_cell_balance_for_streaming.py` (~260 LoC, 9 tests).
+**File**: `tests/gates/sn/spatial/test_cell_balance_for_streaming.py` (~260 LoC, 9 tests).
 
 Pins five load-bearing invariants:
 
@@ -95,7 +95,7 @@ All 9 pass at FP-zero or atol=1e-13.
 
 ### §2.1 Regression suite (11/11 PASS)
 
-`tests/sn/regression/test_dd_regression.py` — 11 cases covering
+`tests/gates/sn/regression/test_dd_regression.py` — 11 cases covering
 slab / sphere / cylinder × homogeneous / 3-region × DD product /
 LS / S4 quadrature × 2G / 1G × P0 / P1 aniso × fixed-source +
 eigenvalue. All bit-identical at `rtol=1e-12` against the existing
@@ -107,7 +107,7 @@ snapshots. **The refactor does not perturb the FP reduction tree.**
 
 ### §2.2 Diamond + cell-update protocol (69/69 PASS)
 
-`tests/sn/spatial/test_diamond.py + test_cell_update_protocol.py`
+`tests/gates/sn/spatial/test_diamond.py + test_cell_update_protocol.py`
 — all pass.
 
 ```
@@ -116,7 +116,7 @@ snapshots. **The refactor does not perturb the FP reduction tree.**
 
 ### §2.3 Leaf operator decomposition (110/110 PASS)
 
-`tests/sn/test_streaming_operator.py + test_collision_operator.py +
+`tests/gates/sn/test_streaming_operator.py + test_collision_operator.py +
 test_streaming_operator_decomposition.py` — all pass.
 
 ```
@@ -125,7 +125,7 @@ test_streaming_operator_decomposition.py` — all pass.
 
 ### §2.4 L0 streaming-equilibrium + cylinder invariants (160/160 PASS)
 
-`tests/sn/spatial/test_streaming_equilibrium_curvilinear.py +
+`tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py +
 test_apply_matvec_cylinder_invariants.py` — all pass.
 
 ```
@@ -134,7 +134,7 @@ test_apply_matvec_cylinder_invariants.py` — all pass.
 
 ### §2.5 New foundation tests (9/9 PASS)
 
-`tests/sn/spatial/test_cell_balance_for_streaming.py` — all 9 pass
+`tests/gates/sn/spatial/test_cell_balance_for_streaming.py` — all 9 pass
 at FP-zero or atol=1e-13.
 
 ```
@@ -204,7 +204,7 @@ merits.
 ```
 orpheus/sn/spatial/cell_balance.py        +140 LoC (new helper + __all__)
 orpheus/sn/spatial/diamond.py             +40 / -10 LoC (residual delegation)
-tests/sn/spatial/test_cell_balance_for_streaming.py  +260 LoC (NEW)
+tests/gates/sn/spatial/test_cell_balance_for_streaming.py  +260 LoC (NEW)
 ```
 
 Diff summary (untracked + modified):
@@ -217,7 +217,7 @@ Diff summary (untracked + modified):
 ```
 git add orpheus/sn/spatial/cell_balance.py \
         orpheus/sn/spatial/diamond.py \
-        tests/sn/spatial/test_cell_balance_for_streaming.py \
+        tests/gates/sn/spatial/test_cell_balance_for_streaming.py \
         .claude/agent-memory/method-implementer/issue_197_pr_typed_6_foundation_closeout.md
 ```
 

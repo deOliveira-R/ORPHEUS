@@ -24,22 +24,22 @@ tree genuinely changes (then narrow per `vv-principles` bit-id-vs-principled).
 ## The existing gate inventory (verified live in tree, this session)
 
 ⭐ **The `--capture-baseline` random-ψ bit-identity gate ALREADY EXISTS** —
-`tests/sn/operators/test_bc_extraction_matvec.py` `TestVacuumMatvecBitIdentity`
+`tests/gates/sn/operators/test_bc_extraction_matvec.py` `TestVacuumMatvecBitIdentity`
 (`test_vacuum_bulk_bit_identical_1d` slab/sphere/cyl + 2-D-cartesian +
 `test_vacuum_boundary_slot_bit_identical_zero_input_1d`). Mechanism: fixed-seed
-random ψ → `(L+C).apply` → committed `.npz` under `tests/sn/_data/bc_extraction_baseline/`
+random ψ → `(L+C).apply` → committed `.npz` under `tests/gates/sn/_data/bc_extraction_baseline/`
 → `np.testing.assert_array_equal` (rtol=0). The `--capture-baseline` flag is
 declared in the ROOT `tests/conftest.py` (the gotcha — `pytest_addoption` only
 fires there); flag present = WRITE+skip, absent = READ+assert. **This is the
 exact gate the prompt asked whether existed: it does. Re-use it, do not rebuild.**
 
 End-to-end CONVERGED-flux sha256 bit-id (≥2G het, `-O`-safe via `raise
-AssertionError`, foundation): `tests/sn/solve/test_affine_carve_bit_identity.py`
+AssertionError`, foundation): `tests/gates/sn/solve/test_affine_carve_bit_identity.py`
 (slab-2g-het SI + 2-D-2g-aniso-het SI/Krylov). The slab-2g-het row is the
 end-to-end PhaseA/B bit-id anchor.
 
 Regression-snapshot harness with the SoT tolerance helper:
-`tests/sn/regression/test_dd_regression.py` → `_regression_assert.assert_regression`
+`tests/gates/sn/regression/test_dd_regression.py` → `_regression_assert.assert_regression`
 (`kind="iterative"` → `SAFETY(10)×conv_tol` read off RUN_CONFIG; `kind="direct"`
 → `nulp(reduction_depth)`; `DriftWarning` tripwire escalatable to strict bit-id
 via `-W error::DriftWarning`; `-O`-safe, no bare assert). For PhaseA/B run
@@ -48,7 +48,7 @@ that already pre-drift — the `2d_2g_p1_aniso_dd_8x4_het_si` ~6920 ULP — are
 2-D and untouched by the 1-D carve, so the 1-D rows stay strict-clean).
 
 Dual-view cache contract (Pattern 2 anchor):
-`tests/sn/sweep/core/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms`
+`tests/gates/sn/sweep/core/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms`
 (cache `(a, 1/denom)` ≡ `cell_balance_terms` at rtol=1e-14). MUST stay green —
 it pins that the cache/scan path and the matvec's `cell_balance_for_streaming`
 derive the same `(a, denom)`. **This test is the Phase-A invariant**: it already
@@ -60,9 +60,9 @@ The canonical ORPHEUS invocation is `python -O -m pytest` (memory:
 default-test-mode-is-optimize). Bare `assert` is stripped under `-O`. These
 carve-relevant gates use BARE assert and are INERT under `-O`:
 
-- `tests/sn/operators/test_streaming_operator.py` — pervasive bare `assert`
+- `tests/gates/sn/operators/test_streaming_operator.py` — pervasive bare `assert`
   (capability, decomposition-invariant `assert isinstance`, `test_boundary_carries_face_residual` `assert face_max > 1e-12`). The `assert_array_equal`/`assert_allclose` rows DO fire under `-O`; the bare-`assert` rows do not.
-- `tests/sn/operators/test_bc_extraction_matvec.py::test_flat_flux_per_ordinate_balance_no_pole_spike` (`assert per_cell[0] <= 2.0*median` — the curvilinear pole-spike L0 diagnostic) — **bare assert, INERT under -O. This is the missing-ΔA/w Mode-3 catcher; if Phase A mis-routes the curvilinear seed this is the gate, but it cannot fire under -O.** Either run this gate WITHOUT `-O` or rewrite to `pytest.fail`/`np.testing.*` at the carve commit (Mode-8 fix-at-touch).
+- `tests/gates/sn/operators/test_bc_extraction_matvec.py::test_flat_flux_per_ordinate_balance_no_pole_spike` (`assert per_cell[0] <= 2.0*median` — the curvilinear pole-spike L0 diagnostic) — **bare assert, INERT under -O. This is the missing-ΔA/w Mode-3 catcher; if Phase A mis-routes the curvilinear seed this is the gate, but it cannot fire under -O.** Either run this gate WITHOUT `-O` or rewrite to `pytest.fail`/`np.testing.*` at the carve commit (Mode-8 fix-at-touch).
 - `test_streaming_operator_decomposition.py` — `assert rel_bulk < 1e-14` etc.
 
 GREEN/SAFE (function-call asserts, fire under -O): `test_g_adjoint_reciprocity.py`
@@ -104,7 +104,7 @@ rtol=0 on BOTH `(L+C).apply(ψ).bulk` and ONE `_sweep_1d_unified(Q,σ_t,...)`
 output, comparing pre-carve `.npz` (captured at `eab05ab` BEFORE Phase A) to
 post-carve. The existing `test_vacuum_bulk_bit_identical_1d` covers the matvec
 on random ψ but at VACUUM bc with the (L+C) public surface; it does NOT pin a
-single bare `_sweep_1d_unified` call. Add a `tests/sn/sweep/core/` row that
+single bare `_sweep_1d_unified` call. Add a `tests/gates/sn/sweep/core/` row that
 captures the raw sweep output (angular_flux + scalar_flux) on a fixed-seed
 random Q + heterogeneous σ_t (so the curvilinear redistribution is ACTIVE — vv
 §H2: flat ψ NULLS redistribution → Phase A's curvilinear closure routing would
@@ -128,7 +128,7 @@ But the relocation TARGETS still exist as MODULE-LEVEL free helpers:
 `_run_1d_sweep:1817` — called by BOTH `CumprodScan.sweep:726` AND
 `ScanMarch.sweep:1246` (the `is_1d` branch). The 2-D template is `_OctantWalk:445`
 (forks at cell-kernel + `_SweepEmit` OBJECTS, NEVER a bool `is_solve`; the
-anti-degradation tripwire is `tests/sn/operators/test_one_octant_walk.py`).
+anti-degradation tripwire is `tests/gates/sn/operators/test_one_octant_walk.py`).
 Phase B builds the 1-D analogue and relocates the 4 free helpers into it,
 shared by CumprodScan + ScanMarch-1D (NOT folded into CumprodScan).
 
@@ -137,7 +137,7 @@ slab joint-batch / curvilinear per-ordinate) + EMIT (`angular_flux` write +
 `scalar_flux += w_n·psi_avg`) are the fork; relocation must NOT reorder FP.
 
 ⭐⭐ **CRITICAL FINDING (changes the gate design) — `-W error::DriftWarning`
-is INERT inside `tests/sn/regression/`.** `tests/sn/regression/conftest.py:25-31`
+is INERT inside `tests/gates/sn/regression/`.** `tests/gates/sn/regression/conftest.py:25-31`
 runs `warnings.simplefilter("always", DriftWarning)` + appends
 `always::...DriftWarning` to ini filterwarnings at `pytest_configure`, which
 WINS over the command-line `-W error::...` — VERIFIED LIVE: the drifting
@@ -145,7 +145,7 @@ WINS over the command-line `-W error::...` — VERIFIED LIVE: the drifting
 `-W error::...DriftWarning` (1 passed, 3 warnings). The "strict bit-id via
 `-W error`" recipe in the carve plan + the gate table below is a NO-OP for the
 regression suite. The genuine strict escalation works ONLY where there is NO
-such conftest override — i.e. `tests/sn/sweep/core/` (no DriftWarning conftest;
+such conftest override — i.e. `tests/gates/sn/sweep/core/` (no DriftWarning conftest;
 `-W error::...` DOES escalate there). ⟹ **the A-NEW gate
 `test_affine_carve_baseline.py` is the real strict-bit-id Phase-B gate; the
 regression suite is a TOLERANCE gate that surfaces (not escalates) drift.**
@@ -178,18 +178,18 @@ tolerance-gate residual to be REPRODUCED.
 
 | Gate | Test (path) | Strict mechanism | What it pins | -O? |
 |------|-------------|------------------|--------------|-----|
-| B1-strict | `tests/sn/sweep/core/test_affine_carve_baseline.py` (6) under `-W "error::tests.sn.regression._regression_assert.DriftWarning"` | **REAL** (no conftest override in sweep/core) | slab/sphere/cyl single-sweep+matvec bit-id to `be4a57b` baseline | ✓ |
-| B1-suite | `tests/sn/sweep/core` (443p/1s/4xf) under same `-W` | **REAL** | every sweep/core invariant strict-bit-id | ✓ |
-| B1-regr | `tests/sn/regression/test_dd_regression.py -k "not 2d"` | TOLERANCE (DriftWarning surfaced not escalated — see finding) | 1-D drift profile UNCHANGED vs before-baseline (compare warnings summary) | ✓ |
+| B1-strict | `tests/gates/sn/sweep/core/test_affine_carve_baseline.py` (6) under `-W "error::tests.gates.sn.regression._regression_assert.DriftWarning"` | **REAL** (no conftest override in sweep/core) | slab/sphere/cyl single-sweep+matvec bit-id to `be4a57b` baseline | ✓ |
+| B1-suite | `tests/gates/sn/sweep/core` (443p/1s/4xf) under same `-W` | **REAL** | every sweep/core invariant strict-bit-id | ✓ |
+| B1-regr | `tests/gates/sn/regression/test_dd_regression.py -k "not 2d"` | TOLERANCE (DriftWarning surfaced not escalated — see finding) | 1-D drift profile UNCHANGED vs before-baseline (compare warnings summary) | ✓ |
 | B2 import-surface | NEW (recommend, see below) | function-call asserts | relocated symbols resolve from new home AND old call sites still bind | ✓ |
-| B3 cumprod≡wavefront | `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py` (EXISTS) | nulp(128) + closed-form k_inf anchor | CumprodScan(d=1) ≡ FullFieldWavefront(d=1) through the real strategy API | ✓ |
-| B4 dispatch pins | `tests/sn/sweep/core/test_unified_sweep_dispatch.py` (12) | pytest.fail | default_for selection + transport_sweep delegation unchanged | ✓ |
-| B5 solve bit-id | `tests/sn/solve/test_affine_carve_bit_identity.py` (slab-2g-het sha256) | `raise AssertionError` | end-to-end slab-2g-het converged bytes unmoved | ✓ |
+| B3 cumprod≡wavefront | `tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py` (EXISTS) | nulp(128) + closed-form k_inf anchor | CumprodScan(d=1) ≡ FullFieldWavefront(d=1) through the real strategy API | ✓ |
+| B4 dispatch pins | `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py` (12) | pytest.fail | default_for selection + transport_sweep delegation unchanged | ✓ |
+| B5 solve bit-id | `tests/gates/sn/solve/test_affine_carve_bit_identity.py` (slab-2g-het sha256) | `raise AssertionError` | end-to-end slab-2g-het converged bytes unmoved | ✓ |
 
 **B2 import-surface gate (the one NEW gate Phase B needs).** Add a class to the
-EXISTING `tests/sn/sweep/core/test_unified_sweep_dispatch.py` (it already pins
+EXISTING `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py` (it already pins
 the strategy import surface + dispatch — natural home) OR a new
-`tests/sn/sweep/core/test_one_dim_walk.py` mirroring `test_one_octant_walk.py`
+`tests/gates/sn/sweep/core/test_one_dim_walk.py` mirroring `test_one_octant_walk.py`
 (the `_OctantWalk` anti-degradation tripwire). Assert: (1) the relocated frame
 class resolves from `loss_representation` (its new home); (2) `CumprodScan.sweep`
 + `ScanMarch(is_1d).sweep` still produce the documented `(angular,scalar)`
@@ -231,7 +231,7 @@ CumprodScan + ScanMarch-1D (both `loss_action` → `operator.M_spatial._compute_
 ### The four-leg coverage map (slab + sphere + cylinder)
 
 - **Leg 1 (sweep ≡ structurally-independent reference):**
-  `tests/sn/verification/analytical/test_phase_c_crosscheck.py` — SN 1-D solve
+  `tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py` — SN 1-D solve
   vs **trajectory_resolvent Variant α Green's-function** (semi-analytical pillar)
   + `kinf_homogeneous` (closed-form pillar). Covers spherical kinf 2G recovery +
   the 5 P0 MR snapshots that admit a Variant α reference. THIS is the leg-1
@@ -273,13 +273,13 @@ Most tests reach the matvec through PUBLIC surfaces (`L.apply`,
 `(L+C).apply`, `rep.loss_action(L,psi)`) — they survive Phase C transparently.
 The genuine path reach-ins to migrate:
 
-- `tests/sn/operators/test_streaming_operator_decomposition.py:328` — COMMENT
+- `tests/gates/sn/operators/test_streaming_operator_decomposition.py:328` — COMMENT
   references `_MSpatialOperatorSum._compute_decomposition`; the test BODY uses
   `L.apply`. Update the comment to the new home; body unchanged.
-- `tests/sn/_test_helpers.py:297,330` — `_M_matvec`/`_LC_matvec` shims mention
+- `tests/gates/sn/_test_helpers.py:297,330` — `_M_matvec`/`_LC_matvec` shims mention
   `_compute_decomposition` in DOCSTRINGS only; bodies route through
   `(L+C).apply`. Update docstrings to new home; bodies unchanged.
-- `tests/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py:22-23` —
+- `tests/gates/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py:22-23` —
   docstring names `_compute_LpC`/`_compute_decomposition` as the twins; body
   uses public surface. Update docstring.
 
@@ -358,23 +358,23 @@ telescopes by construction — vv §H3). Gates that MUST run on stressing config
 ## Carve gate-run recipe (REFINED 2026-06-14 — Phase-B specific)
 
 ⚠ `DriftWarning` MUST use the QUALIFIED path
-`error::tests.sn.regression._regression_assert.DriftWarning` — the bare
+`error::tests.gates.sn.regression._regression_assert.DriftWarning` — the bare
 `error::DriftWarning` raises `AttributeError`. AND ⚠ it is INERT inside
-`tests/sn/regression/` (conftest forces `always`); it only ESCALATES under
-`tests/sn/sweep/core/` + `tests/sn/solve/`.
+`tests/gates/sn/regression/` (conftest forces `always`); it only ESCALATES under
+`tests/gates/sn/sweep/core/` + `tests/gates/sn/solve/`.
 
 1. Phase-B strict bit-id (the REAL gate — sweep/core, where -W escalates):
-   `.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve/test_affine_carve_bit_identity.py -W "error::tests.sn.regression._regression_assert.DriftWarning" -p no:cacheprovider`
+   `.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve/test_affine_carve_bit_identity.py -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" -p no:cacheprovider`
    (HEAD baseline: 443p/1s/4xf sweep/core + slab-2g-het sha256 GREEN.)
 2. Phase-B drift-profile reproduce (regression, TOLERANCE, 1-D only):
-   `.venv/bin/python -O -m pytest tests/sn/regression/test_dd_regression.py -k "not 2d" -p no:cacheprovider`
+   `.venv/bin/python -O -m pytest tests/gates/sn/regression/test_dd_regression.py -k "not 2d" -p no:cacheprovider`
    then DIFF the DriftWarning summary vs the before-baseline (the 4 curvilinear
    rows + their ULP counts above). Identical summary = pure relocation. Any
    row/ULP change = relocation reordered the reduction (bug).
 3. Mode-8 bare-assert gates (NO -O — `test_phase_c_gates.py` Gate 1.2/1.3 use
    bare `assert np.array_equal`/`assert rel<1e-12`; `test_streaming_operator.py`
-   pervasive bare assert): `.venv/bin/python -m pytest tests/sn/sweep/core/test_phase_c_gates.py tests/sn/operators/test_streaming_operator.py -k "not (sphere_1g_apply or sphere_2g_apply)" -p no:cacheprovider`
-4. `--deselect tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff` (#212 hang).
+   pervasive bare assert): `.venv/bin/python -m pytest tests/gates/sn/sweep/core/test_phase_c_gates.py tests/gates/sn/operators/test_streaming_operator.py -k "not (sphere_1g_apply or sphere_2g_apply)" -p no:cacheprovider`
+4. `--deselect tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff` (#212 hang).
    A-NEW baseline ALREADY captured (`be4a57b`, pre-Phase-A) + committed.
 
 ## Self-improvement note (no new failure mode)

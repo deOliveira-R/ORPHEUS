@@ -9,7 +9,7 @@ never discretize-the-reduced — proven symbolically in
 :mod:`orpheus.derivations.discrete.sn.dsa` (the algebra of record) and
 realized numerically by its ``build_consistent_dd_system``. This module
 is pinned entry-for-entry against that reference builder
-(``tests/sn/acceleration/test_dsa_low_order.py``); it transcribes no
+(``tests/gates/sn/acceleration/test_dsa_low_order.py``); it transcribes no
 formula the derivation has not proven.
 
 Why the edge-centered system and not the diffusion module's operator

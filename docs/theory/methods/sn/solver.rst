@@ -387,7 +387,7 @@ ratio**.
    eigenvalue-correctness claim against an external analytical reference
    (that rests on the multi-group heterogeneous L1/L2 references
    elsewhere on this page). The label is wired to the cross-engine
-   consistency gate tests/sn/eigenvalue/test_keff_estimator_gate.py
+   consistency gate tests/gates/sn/eigenvalue/test_keff_estimator_gate.py
    (reported k == the converged fixed-point map ratio k* = P(Mφ*)/P(φ*),
    map-ratio ground-truth noise ≤ 2e-11) with in-file mutation teeth.
 
@@ -440,7 +440,7 @@ eigenproblem is
 
 .. (vv-status rationale) Derivation step (the divergence-telescoping cell
    balance). Its terminal result sn-keff-update is verified by the k* map-ratio
-   gate (tests/sn/eigenvalue/test_keff_estimator_gate.py); definitional.
+   gate (tests/gates/sn/eigenvalue/test_keff_estimator_gate.py); definitional.
 .. vv-status: sn-keff-cell-balance documented
 
 (streaming + total collision on the left; the isotropic fission source
@@ -534,7 +534,7 @@ ordering would silently mis-weight the leakage sum, and Cardinal Rule 1
 forbids returning a wrong-but-plausible number.  The wire landed
 2026-07-13 when the first 3-D vacuum eigenvalue consumer arrived (the
 d=3 Mode-9 G-S≡Jacobi gate), with the ordering pinned twice in
-``tests/sn/eigenvalue/test_keff_estimator_gate.py``: an **object-level
+``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py``: an **object-level
 pin** (face measure ≡ the boundary layer's ``volumes / Δ_axis``, the
 mesh's own ascending-axis enumeration — vv Mode-12 discipline: pin the
 object, not only the k functional) and the **k* map-ratio gate** on a
@@ -712,7 +712,7 @@ Verification
 ~~~~~~~~~~~~
 
 The permanent gate is
-``tests/sn/eigenvalue/test_keff_estimator_gate.py``: it asserts the
+``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py``: it asserts the
 reported :math:`k` equals the converged fixed-point map ratio
 :math:`k^\star = P(M\phi^\star)/P(\phi^\star)` across the four physics
 regimes — {vacuum slab, vacuum sphere (pinning the :math:`4\pi R^2`
@@ -873,7 +873,7 @@ That twin was tracked as **R7 of the operator/strategy campaign** (not
 to be confused with the ``(n,2n)`` R7 of :ref:`sn-keff-estimator`, nor
 with the #310 R7 schedule-reverse transpose).  It was pinned by a
 ``xfail(strict=True)`` row in
-``tests/sn/architecture/test_stage_separation.py`` so the fix could not
+``tests/gates/sn/architecture/test_stage_separation.py`` so the fix could not
 land silently; step 2 made the row XPASS, and the marker was deleted the
 same day.  What keeps teeth now is the law itself, below, plus the
 positive rows that assert the driver consumes the value's own operators
@@ -931,9 +931,9 @@ are derived from that partition:
    it holds, which is a definition rather than a solver claim.  The
    verifiable content is the law :eq:`sn-splitting-law` it makes
    immediate, gated by
-   ``tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py::test_both_schedules_are_splittings_of_the_SAME_A``
+   ``tests/gates/sn/solve/test_boundary_gs_is_a_coherent_splitting.py::test_both_schedules_are_splittings_of_the_SAME_A``
    (exhaustive dense assembly, both schedules) and
-   ``tests/sn/architecture/test_stage_separation.py::test_reconstruction_identity_A_equals_M_minus_N``
+   ``tests/gates/sn/architecture/test_stage_separation.py::test_reconstruction_identity_A_equals_M_minus_N``
    (both arms), with their mutation rows.
 .. vv-status: sn-splitting-labelled-terms documented
 
@@ -1529,7 +1529,7 @@ block matrix with holes:
    claim.  Its verifiable content is that the posed object agrees with
    the adjoint entry's own on a random coupled state, gated by the
    ``@pytest.mark.foundation`` row
-   ``tests/sn/operators/test_step2_posed_fission_anchors.py::TestLawTheHubsFissionIsWhatBothFacesRead::test_the_carrying_adjoint_poses_the_records_production``.
+   ``tests/gates/sn/operators/test_step2_posed_fission_anchors.py::TestLawTheHubsFissionIsWhatBothFacesRead::test_the_carrying_adjoint_poses_the_records_production``.
 .. vv-status: sn-posed-production-carrying documented
 
 where :math:`r_{\rm bulk}` is the
@@ -1594,7 +1594,7 @@ structurally-independent anchor, a drift bounded by one reduction's
 depth).  What makes it a *decision* rather than a formality is that the
 S\ :sub:`N` regression set is already at the ULP frontier: ``[M]``
 recorded at
-``tests/sn/operators/test_step2_posed_fission_anchors.py``, nine of the
+``tests/gates/sn/operators/test_step2_posed_fission_anchors.py``, nine of the
 fourteen diamond-difference regression cases already drift 1–11 ULP
 against their frozen references, so a 1-nulp shift on *every* eigen
 solve would move the drift **set** rather than disappear into it.  A
@@ -1610,7 +1610,7 @@ The gate is a COUNT, not a name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The permanent catcher is
-``tests/sn/operators/test_step2_posed_fission_anchors.py::TestRuledOneFissionPerProblem``:
+``tests/gates/sn/operators/test_step2_posed_fission_anchors.py::TestRuledOneFissionPerProblem``:
 it builds a forward :class:`~orpheus.sn.solver.SNSolver` **and** poses
 the adjoint over one hub with both fission factories wrapped by a
 counting spy, and asserts the total is ``1``.  Three properties of that
@@ -1999,7 +1999,7 @@ inputs cleanly, and the carve is exactly that split:
 
 Two properties of that table are the ruling's acceptance criteria, and
 both are gated by
-``tests/diffusion/test_sigma_variant_reach.py::test_a_sigma_variant_hub_reaches_the_diffusion_removal_term``:
+``tests/gates/diffusion/test_sigma_variant_reach.py::test_a_sigma_variant_hub_reaches_the_diffusion_removal_term``:
 
 #. **Bit-identical on a non-overridden hub.**  ``[M]``
    ``array_equal(mat_xs.diffusion_coefficient, gather of
@@ -2096,10 +2096,10 @@ them is seconds, not milliseconds.
 ⚠ And **no value gate can see it**: ``[M]`` :math:`k` is bit-identical at
 ``0.435195214258`` under 1 build and under 550.  The instrument has to be
 a **count**, and two carry it: ``test_geometry_cache_builds_exactly_once_per_mesh``
-(``tests/sn/sweep/core/test_cache.py``), whose two legs pin one build
+(``tests/gates/sn/sweep/core/test_cache.py``), whose two legs pin one build
 across a whole solve and across two independently posed operators over
 one hub; and
-``tests/sn/mesh/test_sigma_datum.py::…::test_law_the_table_is_built_ONCE_per_solve``,
+``tests/gates/sn/mesh/test_sigma_datum.py::…::test_law_the_table_is_built_ONCE_per_solve``,
 which adds an explicit positive control (*the spy must observe at least
 one build*) so a silently-inert spy cannot read as a clean pass.  Both
 spy on ``StreamingCoefficientCache.from_mesh_and_quad``.  This is
@@ -2181,7 +2181,7 @@ What retired, and what the gates are
        matters lives in the sweep and on
        :class:`~orpheus.numerics.quadrature.Quadrature`.
    * - the ``if __debug__`` PR-INDEX-3 assert
-     - ``tests/sn/mesh/test_sigma_datum.py``
+     - ``tests/gates/sn/mesh/test_sigma_datum.py``
        ``::TestLawTheRoundTrip`` — a real
        ``@pytest.mark.verifies("sn-cell-flatten-roundtrip")`` witness over
        both carrier tiers (:ref:`sn-cell-flattening-invariant`), plus the
@@ -2193,7 +2193,7 @@ What retired, and what the gates are
        across.  A record row whose subject cannot be constructed is not a
        gate, it is a fossil.
 
-The step's own laws land in ``tests/sn/mesh/test_sigma_datum.py``, a
+The step's own laws land in ``tests/gates/sn/mesh/test_sigma_datum.py``, a
 ``foundation`` module.  Its two *identity* classes are parametrised over
 **both carrier tiers** — a bare
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and an
@@ -2334,7 +2334,7 @@ at its new owner: one table per Problem, one binding per operator.
    ``sigma_stratum``.
 
 The §6c witness lands with the seam:
-``tests/sn/sweep/core/test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
+``tests/gates/sn/sweep/core/test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
 sweeps one strategy at two :math:`\sigma` and asserts (a) the two answers
 **differ** and (b) the second equals a freshly posed strategy's, ``[M]``
 bit-identically.  Leg (a) is the one that was red pre-carve; leg (b) is
@@ -2349,7 +2349,7 @@ is still a hub attribute.  It is :math:`\sigma`-**free** (it is derived
 from the quadrature's mirror motion), so it carries none of the
 staleness this seam removes, and it is out of this unit's scope.  The
 route gate's ``_MEMO_SLOTS`` tuple in
-``tests/sn/operators/test_operator_feeds_the_walk.py`` now lists it and
+``tests/gates/sn/operators/test_operator_feeds_the_walk.py`` now lists it and
 ``_geom_cache`` alone.
 
 .. _sn-the-problem-poses-its-pencil:
@@ -2395,7 +2395,7 @@ hub.system.production``, both by identity.
 The chain stops at the question.  It does **not** continue into a
 resolvent, an inverse, a splitting, a schedule or a tolerance — and that
 is gated rather than merely stated.
-``tests/sn/architecture/test_posing.py`` walks every callable on
+``tests/gates/sn/architecture/test_posing.py`` walks every callable on
 ``SNProblem(...) → .system → .pencil → .eigen_posing`` and asserts that none
 of them accepts a Strategy token (``inner_solver``, ``inner_schedule``,
 ``max_iter``, ``max_inner``, ``tol``, ``inner_tol``, ``restart``,
@@ -2430,7 +2430,7 @@ forwarding calls); **43** across **16** counting every such node,
 untracked probes included.  The interesting split is inside the 34: **33**
 passed back the hub's own operator — the seam was paid for and not used —
 and exactly **one** minted a foreign P0 :math:`S`, a reference
-construction inside ``tests/sn/operators/test_psi_half_coupling.py``,
+construction inside ``tests/gates/sn/operators/test_psi_half_coupling.py``,
 which now poses on ``sn.system`` like every other consumer.  Both keywords
 are deleted, together with ``build_coupled_system``'s long-dead
 ``scattering_order`` parameter.
@@ -2501,7 +2501,7 @@ different numbers):
 The "before" column is a **fixture** reading (those ``n_outer`` values
 belong to the anchor's specific problems); the "after" column is a
 **law**, and the row that asserts it re-measures both halves itself —
-``tests/sn/architecture/test_step2_terminal_object_anchors.py``, whose
+``tests/gates/sn/architecture/test_step2_terminal_object_anchors.py``, whose
 docstring carries the table above and is the thing to re-run rather than
 this page.
 
@@ -2584,7 +2584,7 @@ dense random :math:`A`, :math:`S = c\,A` jittered :math:`\pm 10\,\%`):
 
 So "1 of 40" is exactly where a scattering-dominated transport fixture
 belongs on that curve, and the ``S = ZeroOperator`` row of
-``tests/numerics/test_estimators_as_functionals.py`` is bit-identical
+``tests/gates/numerics/test_estimators_as_functionals.py`` is bit-identical
 **by construction**, not by luck.
 
 ``[M]`` the end-to-end drift on the path the deferral named — the
@@ -2686,7 +2686,7 @@ and not shipped.  The physics is
    source.  A posing identity rather than a solver claim: it states which
    operator the composition ``SourcePosing(pencil.at(1), q)`` builds.  Its
    verifiable content is the composition law row
-   tests/sn/solve/test_subcritical_multiplying_source.py::
+   tests/gates/sn/solve/test_subcritical_multiplying_source.py::
    test_the_composition_is_the_loss_minus_the_production (bit-identical
    against ``loss.apply(x) − production.apply(x)`` on a seeded coupled
    state, with a non-triviality positive control) together with the 0-D
@@ -2749,7 +2749,7 @@ Because the entry *is* that lowering, it inherits the fixed-source path's
 exits wholesale — the same :ref:`exit gauge <sn-loss-kernel-gauge>`, the
 same convergence certificate, the same
 :class:`~orpheus.sn.solution.Solution` contract.
-``tests/sn/solve/test_every_entry_gauges_its_trace.py``'s entry ledger
+``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``'s entry ledger
 records it as *not separately exercised* for exactly that reason, naming
 the shared path the fixed-source rows already cover — a **declared
 inheritance**, not a coverage gap.
@@ -2816,7 +2816,7 @@ tolerance alone is **1961**.
    :meth:`Solution.converged <orpheus.sn.solution.Solution.converged>`
    reads ``False``).
 
-**The witness** is ``tests/sn/solve/test_subcritical_multiplying_source.py``
+**The witness** is ``tests/gates/sn/solve/test_subcritical_multiplying_source.py``
 (``l1``), six rows over a two-region 2-group slab
 (mixture ``A`` | mixture ``B``, 4 + 4 cells, ``gauss_legendre(8)``):
 
@@ -2965,7 +2965,7 @@ solve.**  A within-group splitting writes the loss operator as
    verifiable content — that ONE application at the converged iterate
    reproduces that iterate, and that its angular integral reproduces the
    reported scalar flux — is pinned by
-   ``tests/sn/solve/test_eigenvalue_finalize_reconstruction.py``
+   ``tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py``
    (``@pytest.mark.catches("ERR-083")``, seven arms × two orders).
 .. vv-status: sn-finalize-map documented
 
@@ -3097,7 +3097,7 @@ finalize passes it because it calls the same constructor.
      tree could witness its removal, so the honest artefact is the
      measurement plus a *wrong*-:math:`B` mutation arm, not a gate.  The
      whole-trace verb itself survives as the sweep-tier gates' inter-sweep
-     helper (``tests/sn/_test_helpers.py::reflect_outflow_into_inflow``);
+     helper (``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow``);
      it has **no production caller** any more.
    * the ``AngularBoundarySourceSink.prescribed_inflow`` cast the finalize
      used to perform on that reflected trace (the ERR-071 role conversion).
@@ -3420,7 +3420,7 @@ tree and the tree is the thing that can answer them:
    reports, and the generalisation is insurance against the day a third
    level appears.  The deep case is pinned on the record itself, where it
    belongs:
-   ``tests/numerics/test_iteration_record.py::TestTheTreeReadingsAreTheRecords``.
+   ``tests/gates/numerics/test_iteration_record.py::TestTheTreeReadingsAreTheRecords``.
 
 The ``None``-by-SHAPE trio did not move, and that is the point
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3588,7 +3588,7 @@ one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
    iteration's own map (:ref:`sn-finalize-one-step`), so the returned flux
    solves the equation the reported :math:`(k, \phi)` pose; and the
    projection's budget response is the property a regression gate asserts
-   (``tests/sn/solve/test_eigenvalue_finalize_reconstruction.py`` →
+   (``tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py`` →
    ``TestTheShippedDiagnostic``).  ``[M]`` 2026-09-06, 2-group A|B|A slab, ``keff_tol =
    flux_tol = 1e-12``, ``inner_tol = 1e-11``, ``max_outer`` 3 → 12: the
    defect falls by :math:`1.43\times10^{7}` at :math:`L = 0` and
@@ -3725,7 +3725,7 @@ The two families also differed by **5×** where the law puts the factor at
 :math:`\ln(10^{-12})/\ln(10^{-8}) = 1.5`; `[M]` the shipped ratio is now
 ``1308 : 1961 = 1.4992``.
 
-Gates: ``tests/sn/solve/test_convergence_contract.py`` — each honesty claim
+Gates: ``tests/gates/sn/solve/test_convergence_contract.py`` — each honesty claim
 is a PAIR (a converging configuration and a deliberately-starved one),
 because asserting ``converged is True`` on a solve that converges is
 satisfied by the very hardcoded ``True`` the contract forbids; it is the
@@ -3759,7 +3759,7 @@ that changes what verification it owes: :eq:`sn-exit-balance-defect`
 loses a diagnostic; a forgotten gauge site silently returns a
 non-physical answer.  Coverage is therefore gated by an enumeration
 **derived from the module** rather than hand-listed
-(``tests/sn/solve/test_every_entry_gauges_its_trace.py``).
+(``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``).
 
 Three properties make firing it at a converged exit safe, and each is
 asserted rather than assumed:

@@ -369,7 +369,7 @@ follow, and keeping them apart is the whole point:
    content is the admission guard
    ``orpheus.sn.angular.redistribution._assert_alpha_dome_closes`` (a real
    raise, per level on the cylinder), gated by an explicit positive+negative
-   pair in ``tests/geometry/test_reduced_operator.py`` (vv-principles #11):
+   pair in ``tests/gates/geometry/test_reduced_operator.py`` (vv-principles #11):
    ``test_every_shipped_gauss_legendre_dome_closes`` and
    ``test_every_shipped_folded_product_dome_closes_on_every_level`` admit
    every shipped rule on both arms (and assert the PRODUCERS' ~1e-16 floor
@@ -841,7 +841,7 @@ produced **solely** by the closure (see :ref:`sn-tau-c-on-cellvisit-live`).
    factory still baked an
    IDENTICAL :math:`\tau` for the sweep path while the carve de-risked by
    parallel-run-and-compare.  The producer-equivalence gate (Leg 1)
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` pins
+   ``tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` pins
    the closure-produced :math:`\tau` to (a) the geometry-factory value
    (0-ULP) AND (b) an independent reference — at the time
    ``contamination.morel_montry_weights``; see the
@@ -908,7 +908,7 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    so the closure's per-level :math:`c` equals the inline :math:`c`
    bit-for-bit; the per-level :math:`\to (N,)` gather is a pure
    permutation (no arithmetic).  The anchor gate
-   ``tests/sn/sweep/core/test_cache.py::test_cache_populator_matches_cell_balance_terms``
+   ``tests/gates/sn/sweep/core/test_cache.py::test_cache_populator_matches_cell_balance_terms``
    pinned the cache ``denom`` (which carries :math:`(\Delta A/w)\,c_{\rm out}`)
    to ``cell_balance_terms`` at
    ``rtol=1e-14`` (both renamed / retired at P4.9a — the gate is now
@@ -994,9 +994,9 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    geometry-:math:`\tau`, Step-A Leg-1) and the SAME geometry-:math:`\alpha`,
    and the per-level :math:`\to (N,)` gather is a pure permutation.  The
    matvec residual path (fed by ``DD.residual``) stays bit-for-bit on the
-   ``tests/sn/sweep/curvilinear/test_unified_matvec_{sphere,cylinder}.py``
+   ``tests/gates/sn/sweep/curvilinear/test_unified_matvec_{sphere,cylinder}.py``
    twin and on the DriftWarning-escalating
-   ``tests/sn/sweep/core`` + ``tests/sn/solve`` snapshots.  The remaining
+   ``tests/gates/sn/sweep/core`` + ``tests/gates/sn/solve`` snapshots.  The remaining
    TWO ``c`` rebuild sites
    (``cell_balance_terms`` for the
    ``DD.update`` solve path; the geometry-side :math:`\tau` producer) were
@@ -1032,7 +1032,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      visits with a SURROGATE.  A wrong global-ordinate map (a
      ``c_in``:math:`\leftrightarrow`\ ``c_out`` swap, a mis-scattered
      cylinder level block) would ship silently.
-     ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a REAL
+     ``tests/gates/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a REAL
      production ``dag_walk`` (sphere + multi-level cylinder + slab) and
      asserts every ``visit.c_in`` / ``visit.c_out`` equals the constants
      recomputed INLINE from that visit's OWN
@@ -1044,7 +1044,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    * **Test-surrogate dedup (Pattern 2).** The byte-identical
      ``_c_from_streaming_terms`` (``test_diamond.py``) and ``_visit_c``
      (``test_cell_balance_for_streaming.py``) hand-recomputes were unified
-     into one shared ``tests/sn/sweep/core/_c_surrogate.py`` consumed by
+     into one shared ``tests/gates/sn/sweep/core/_c_surrogate.py`` consumed by
      both files and the new catcher.
 
 .. _sn-tau-c-on-cellvisit-live:
@@ -1334,7 +1334,7 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
    :eq:`dd-mm-scan-split`, applied — until P4.9a — in the
    ``DiamondDifference.update`` frame and now in the closure's own; the
    bit-identity across the consumer frames is the L21 twin-path content,
-   pinned by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
+   pinned by ``tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
 .. vv-status: dd-mm-angular-recurrence documented
 
 and read it from ``CellVisit.tau`` (stamped by
@@ -1394,7 +1394,7 @@ and precomputed the split
    separate statement, carried only by the latter) — a
    perform-once-at-construction hoist (L16) of 1/τ and (1−τ)/τ, algebraically
    identical to the scalar recurrence.  The scalar↔scan bit-identity is pinned
-   by ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
+   by ``tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py``.
 .. vv-status: dd-mm-scan-split documented
 
 consumed at the loss-representation scan recurrence (in
@@ -1475,7 +1475,7 @@ already established by the earlier carve steps:
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
    is a line-for-line replica of the geometry factory's :math:`\tau`
    arithmetic (Step A), pinned by the **Leg-1 producer-equivalence
-   gate** ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
+   gate** ``tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
    to the geometry-factory value (0-ULP) *and* to an independent
    reference (then ``contamination.morel_montry_weights``, a different
    code path to the same BMC-2010-Eq. 43 weight; see the
@@ -1497,8 +1497,8 @@ process**: at sphere (single :math:`\mu`-level) and cylinder
 :math:`\lvert\texttt{closure.tau\_per\_ordinate} - \texttt{st.tau\_mm}\rvert`,
 and ``np.array_equal`` on the cache's ``tau_inv`` / ``mm_a_in_coeff``
 against the geometry-:math:`\tau`-derived split were **all exactly
-zero**.  The DriftWarning-escalating ``tests/sn/sweep/core``,
-``tests/sn/sweep``, and ``tests/sn/solve`` snapshots stayed unmoved
+zero**.  The DriftWarning-escalating ``tests/gates/sn/sweep/core``,
+``tests/gates/sn/sweep``, and ``tests/gates/sn/solve`` snapshots stayed unmoved
 (588 + 60 green), with zero drift escalation.
 
 The bit-identity guarantee is what makes B3 the **regression floor for
@@ -1512,7 +1512,7 @@ Step C) cannot silently break them:
   deleted.
 
 * The **production-stamp catcher**
-  ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a real
+  ``tests/gates/sn/sweep/core/test_cell_visit_c_stamp.py`` walked a real
   production ``dag_walk`` (sphere, multi-level cylinder, slab) and — in
   its dedicated :math:`\tau` arm — asserted every ``visit.tau`` equals
   the **independently recomputed** Morel--Montry weight for that visit's
@@ -1541,14 +1541,14 @@ Step C) cannot silently break them:
   gather *inside the closure's own construction* would now reach every
   consumer of the :math:`(N,)` accessors: the cache populator, the walk's
   degenerate assembly, and the march itself.  The successor
-  ``tests/sn/sweep/core/test_closure_constant_map.py`` pins exactly that
+  ``tests/gates/sn/sweep/core/test_closure_constant_map.py`` pins exactly that
   map, against the same independent surrogate (:math:`\tau` from a
   different code path to the BMC-2010 weight, :math:`\alpha` from the
   operator's surviving dome) at 0-ULP, over every (cell, global ordinate)
   of a sphere, a multi-level cylinder and a slab.
 
 * The **seam-6 scan catcher**
-  ``tests/sn/sweep/core/test_affine_carve_baseline.py`` reddens on a
+  ``tests/gates/sn/sweep/core/test_affine_carve_baseline.py`` reddens on a
   corruption of the CumprodScan :math:`\tau` split, pinning the third
   live consumer.
 
@@ -1732,7 +1732,7 @@ this subsection — a reader who takes it for carelessness will
 re-introduce it.
 
 The project declares an import-layer contract and gates it.  `[M]` by
-AST over ``tests/test_layer_imports.py``: ``transport`` is **L2**,
+AST over ``tests/gates/test_layer_imports.py``: ``transport`` is **L2**,
 ``sn`` is **L3**, and ``FORBIDDEN_EDGES["transport"] = L3_PACKAGES`` —
 enforced per module by a ``@pytest.mark.foundation`` parametrized gate.
 So :mod:`orpheus.transport.spatial.diamond` **may not import**
@@ -1981,7 +1981,7 @@ product* narrative on the theory page.  The campaign had three phases:
   is geometry-dependent, and it is the campaign's headline claim.
 
 The decomposition is pinned permanently by the L1 MMS characterisation
-gate :mod:`tests.sn.verification.mms.test_space_angle_separability`,
+gate :mod:`tests.gates.sn.verification.mms.test_space_angle_separability`,
 which carries ``@pytest.mark.verifies("sn-space-angle-separability")``
 against :eq:`sn-space-angle-separability` below.
 
@@ -2330,7 +2330,7 @@ The permanent pin: the ST5 characterization gate
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The decomposition is pinned permanently by
-:mod:`tests.sn.verification.mms.test_space_angle_separability` (Issue
+:mod:`tests.gates.sn.verification.mms.test_space_angle_separability` (Issue
 #236 Phase 3, sub-task ST5), an **L1** MMS characterisation gate modelled
 on the pole-cell characterisation gate
 ``test_curvilinear_pole_cell_characterization.py`` (#233).  It carries
@@ -3287,7 +3287,7 @@ contamination is **exactly affine in the effective starting cosine**:
    β_eff(−1) = β leg IS the shipped
    :func:`orpheus.derivations.discrete.sn.angular_differencing.morel_montry_beta`
    (= 3β/2 in its Σw = 1 normalisation), gated on both legs by
-   ``tests/sn/sweep/curvilinear/test_angular_beta_identity.py``; the affinity
+   ``tests/gates/sn/sweep/curvilinear/test_angular_beta_identity.py``; the affinity
    in μ_s has no gate because no production path perturbs the anchor.
 
 `[M]` verified at :math:`\mu_s = -1.4,\,-1.0,\,-0.6,\,+0.3` and
@@ -3775,7 +3775,7 @@ flat-flux invariance, and asymptotic accuracy:
      therefore keeps ``psi_half_seed=None`` → zero as its API default, and
      that default — **not** the shipped scheme — is what the equation's
      ``verifies`` gates in
-     :file:`tests/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
+     :file:`tests/gates/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
      exercise.  On the coupled production path the seed is the marched
      state.
 
@@ -4179,7 +4179,7 @@ Half-angle grid exposure
    directly.)
 
    Test gate:
-   :file:`tests/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
+   :file:`tests/gates/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
    — foundation + L0 tests pinning function existence, shape contract,
    the verbatim Hébert recurrence formula
    :math:`\phi_{m+1/2} = (\phi_m - (1-\tau_m)\phi_{m-1/2})/\tau_m`,
@@ -4356,7 +4356,7 @@ WDD recurrence walks the face flux along the DAG:
    recurrence the apply matvec walks in DAG order — the apply-direction spelling
    of the loss operator L+C.  Its verifiable content is the apply↔sweep
    structural equivalence and the apply linearity/reciprocity/determinism
-   foundation gates (``tests/sn/sweep/core/test_phase_c_gates.py`` Gates
+   foundation gates (``tests/gates/sn/sweep/core/test_phase_c_gates.py`` Gates
    1.2/1.3/1.4, ``@pytest.mark.foundation``, unwired — the label stays
    ``documented`` with the gates named here).
 .. vv-status: phase-c-wdd-recurrence documented
@@ -4380,7 +4380,7 @@ balance, ORPHEUS-normalised):
    constituent of the apply-matvec cell update :eq:`phase-c-cell-update`.  Not
    a standalone claim; its correctness is exercised through the per-ordinate
    flat-flux / streaming-equilibrium gate and the apply↔sweep equivalence
-   foundation gates (``tests/sn/sweep/core/test_phase_c_gates.py``).
+   foundation gates (``tests/gates/sn/sweep/core/test_phase_c_gates.py``).
 .. vv-status: phase-c-streaming-spherical documented
 
 with the redistribution term provided by the Phase B
@@ -4399,7 +4399,7 @@ unchanged. The full per-cell update is
    definition of the (L+C)ψ action, not a separate solver claim.  Its
    constituents are foundation-gated by the apply linearity / reciprocity /
    determinism gates and the apply↔sweep structural equivalence
-   (``tests/sn/sweep/core/test_phase_c_gates.py``).
+   (``tests/gates/sn/sweep/core/test_phase_c_gates.py``).
 .. vv-status: phase-c-cell-update documented
 
 where :math:`R_{n,i,g}` is the strategy's redistribution output
@@ -4481,7 +4481,7 @@ Two new APIs surface what the existing infrastructure already knew:
   by :math:`(\mathrm{sign}(\mu_x), \mathrm{sign}(\mu_y))`; the
   direction-keyed branch surfaces that sign-only view as a
   first-class API. A foundation test
-  (:file:`tests/sn/sweep/core/test_dag_walk.py`) pins
+  (:file:`tests/gates/sn/sweep/core/test_dag_walk.py`) pins
   bit-identity between the two invocation modes across sphere /
   slab / cylindrical for every representative ordinate. For
   cylindrical the per-level
@@ -4527,7 +4527,7 @@ algebraic extrapolation of cell centres. The retired symbols are:
 * The ``boundary_face_flux_closure`` keyword argument from
   ``transport_operator_matvec_spherical`` and ``_cylindrical`` (the
   matvec family since deleted — #197 / #280 campaigns)
-* :file:`tests/sn/sweep/test_boundary_face_flux.py` (232 LOC,
+* :file:`tests/gates/sn/sweep/test_boundary_face_flux.py` (232 LOC,
   21 foundation tests)
 
 Three additional simplifications shipped with the rewrite:
@@ -4836,7 +4836,7 @@ identity is the load-bearing acceptance criterion for
 preconditioned-Krylov stability — when ``apply`` is the loss
 operator :math:`L+C` and the sweep is :math:`(L+C)^{-1}`
 (approximately), they must agree on what :math:`L+C` **is**. The Phase-C
-gate set lives in :file:`tests/sn/sweep/core/test_phase_c_gates.py`:
+gate set lives in :file:`tests/gates/sn/sweep/core/test_phase_c_gates.py`:
 
 * **Gate 1.2** — ``apply(ψ) == apply(ψ)`` bit-identical across two
   invocations of the composite, on ``interior`` **and** ``boundary``.
@@ -4977,8 +4977,8 @@ vector defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
 **Gate 1.5** (foundation,
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`)
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`)
 pins this contract: for each
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete kind
 (``VacuumInflow`` / ``ReflectiveBoundary`` / ``WhiteBoundary`` /
@@ -5041,7 +5041,7 @@ path:
   became one step of that same driven map at #448 (2026-09-06,
   :ref:`sn-finalize-one-step`), in which :math:`B` is a gain like every
   other.  The whole-trace helper survives as the sweep-tier gates'
-  inter-sweep reflect (``tests/sn/_test_helpers.py``), and the
+  inter-sweep reflect (``tests/gates/sn/_test_helpers.py``), and the
   face-restricted reflect the scheduled sweep uses is a different verb
   (:meth:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator.reflect_rows_inplace`).
 
@@ -5157,7 +5157,7 @@ sweep-frame matvec accidentally moved the convergence rate past
 that demands a fresh investigation), the marker would flip to
 ``xpass`` rather than fail strictly. The strict markers stay on
 the four canonical ERR-026 tripwires
-(:file:`tests/sn/verification/mms/test_mms_curvilinear.py` and the L1 aniso file)
+(:file:`tests/gates/sn/verification/mms/test_mms_curvilinear.py` and the L1 aniso file)
 because those tests cover the closure status that Phase D will
 actually close.
 
@@ -5243,7 +5243,7 @@ without any spatial or angular discretisation choice; it is the
 State 1A closed-form pillar in the ``algebra-of-record`` taxonomy.
 The Phase C sweep-frame matvec recovers it to ``rtol ≤ 5e-4`` on the
 2-group homogeneous reflective sphere; pinned at
-:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
 
 The clean :math:`k_\infty` recovery is **not** a contradiction of
 ERR-026 staying at PARTIAL CLOSURE. The eigenvalue is shape-
@@ -5317,7 +5317,7 @@ because :math:`P_1` anisotropic eigenvalue is still
 shape-independent for a homogeneous reflective problem.
 
 The cross-check placeholder landed as the Phase D test
-:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
 (after the pole-face spatial-closure refinement). It is
 **structurally important**: it pins
 the names of the bare entry points so the reader knows
@@ -5340,7 +5340,7 @@ Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 xpass, the canonical Morel--Montry angular recurrence is exercised
 by the apply matvec and pinned by an L1 test chain. Through Phase C
 the label remains tested only via the Phase B foundation suite
-(:file:`tests/sn/sweep/curvilinear/test_angular_closure.py`); the L1
+(:file:`tests/gates/sn/sweep/curvilinear/test_angular_closure.py`); the L1
 upgrade is Phase D's responsibility.
 
 Empirical Gate 1.1 finding: spherical-vs-cylindrical structural asymmetry
@@ -6381,7 +6381,7 @@ derived float:
 
 .. (vv-status rationale) Structural predicate: the two bit-exact facts keying
    which μ-levels carry an independent starting-direction block. Verified by
-   ``tests/sn/sweep/test_march_start_structure.py`` — per-family
+   ``tests/gates/sn/sweep/test_march_start_structure.py`` — per-family
    classification over ten configurations (NODE_ALIGNED even/odd, STAGGERED
    full, level-symmetric, sphere-GL, and both σ_y-folded variants) carrying
    this label's marker, plus the bit-exact theorem gate demoting the former
@@ -6389,7 +6389,7 @@ derived float:
    epsilon). The terminal consequence (route (a) is a genuine single-pass
    exact inverse: sphere cold-start residual → 2.5×10⁻¹⁶, cylinder
    seed-sensitivity 0.0 bit) is exercised by
-   ``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
+   ``tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
    and the ``@pytest.mark.foundation`` ``test_radial_characteristic_metric.py``
    suite.
 .. vv-status: sn-direct-seed-r12a-predicate documented
@@ -6777,7 +6777,7 @@ Numerical evidence — the lag death
 ----------------------------------
 
 The acceptance gates live in
-:file:`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
+:file:`tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`
 (the §16.C fixed-point classifiers); every gate measures the **full
 coupled state** (System A's bulk ⊕ trace *and* System B's ψ½), because a
 bulk-only norm would be blind to any seed error (a Mode-12
@@ -6843,7 +6843,7 @@ since route (a) landed and **compared by nothing**
 (:ref:`sn-angular-endpoint-defect`).
 
 Its gates live in
-:file:`tests/sn/sweep/curvilinear/test_angular_endpoint_defect.py` — six
+:file:`tests/gates/sn/sweep/curvilinear/test_angular_endpoint_defect.py` — six
 ``foundation`` rows on a **heterogeneous, two-group, vacuum** curvilinear
 problem, on both arms.  The fixture discipline is structural, not
 decoration:

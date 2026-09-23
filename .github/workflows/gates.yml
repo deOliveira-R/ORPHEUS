@@ -32,7 +32,7 @@ jobs:
       - name: The harness view is generated and current
         run: .venv/bin/python -m tools.harness --check
       - name: The generator, the generated tree, the layer contract and the text ledgers, under -O
-        run: .venv/bin/python -O -m pytest tests/tools/test_harness_generator.py tests/tools/test_write_guards.py tests/test_harness_generated.py tests/test_layer_imports.py tests/test_error_catalogue_reconciles.py tests/test_elegance_debt_is_tagged.py tests/test_vv_harness_audit.py -q
+        run: .venv/bin/python -O -m pytest tests/gates/tools/test_harness_generator.py tests/gates/tools/test_write_guards.py tests/gates/test_harness_generated.py tests/gates/test_layer_imports.py tests/gates/test_error_catalogue_reconciles.py tests/gates/test_elegance_debt_is_tagged.py tests/gates/test_vv_harness_audit.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys
@@ -48,10 +48,10 @@ jobs:
       - name: On a store miss, fetch the tapes from LFS; the build then materialises the store
         if: steps.store.outputs.cache-hit != 'true'
         run: git lfs pull --include="orpheus/data/micro_xs/*.GXS"
-      - name: "pyright as the #226 ratchet over orpheus/: tests/test_pyright_ratchet.py against the committed baseline"
+      - name: "pyright as the #226 ratchet over orpheus/: tests/gates/test_pyright_ratchet.py against the committed baseline"
         run: |
           npm install -g pyright@1.1.410
-          .venv/bin/python -O -m pytest tests/test_pyright_ratchet.py -q
+          .venv/bin/python -O -m pytest tests/gates/test_pyright_ratchet.py -q
       - name: Sphinx, strict; rebuilds every generated file and the Nexus graph
         run: .venv/bin/sphinx-build -E -W --keep-going docs docs/_build/html
       - name: The build changed no tracked file

@@ -33,7 +33,7 @@ PROBED at HEAD c6e21c0:
   **377 total affected symbols**; **77 non-fissile
   `get_mixture("B"/"C"/"D", ...)` call sites in `tests/`** — SN, CP,
   MoC, MC verification suites + the SN regression-snapshot generator
-  (`tests/sn/regression/_generate_snapshots.py` uses `get_mixture("B",
+  (`tests/gates/sn/regression/_generate_snapshots.py` uses `get_mixture("B",
   ng)` pervasively). ALL would red en masse the moment the non-fissile
   branch is enabled.
 
@@ -82,11 +82,11 @@ tests-only; the 377 is the full graph.
 
 ## Gates (test skeletons LANDED, pre-impl)
 
-Two files under `tests/data/`, both `@pytest.mark.foundation` (software
+Two files under `tests/gates/data/`, both `@pytest.mark.foundation` (software
 invariant — probability-simplex law has NO theory `:label:`; foundation
 carries NO `verifies(...)` per [[feedback_vv_tagging]]):
 
-### `tests/data/test_emission_spectrum.py` — gate 1 + gate 3a
+### `tests/gates/data/test_emission_spectrum.py` — gate 1 + gate 3a
 - Whole module `pytest.importorskip("orpheus.data.emission_spectrum")`
   → COLLECTS-SKIPPED pre-impl, green post-impl, ZERO edits needed.
 - `TestNdarraySubclassBehaviour` (gate 3a, zero-ripple at type level):
@@ -101,7 +101,7 @@ carries NO `verifies(...)` per [[feedback_vv_tagging]]):
   `[0.5, 0.5+1e-6]` RAISES (pins both ends of the 1e-12 band).
 - `TestIsEmitting` / `TestAssertNull` both legs.
 
-### `tests/data/test_chi_invariant_enforcement.py` — gate 2 + gate 5
+### `tests/gates/data/test_chi_invariant_enforcement.py` — gate 2 + gate 5
 - HAND-BUILT minimal fixtures `_mixture`/`_isotope` (L11 — NEVER via
   `make_mixture`/`load_isotope` for the synthetic legs; those builders
   ARE the guarded system).
@@ -143,7 +143,7 @@ carries NO `verifies(...)` per [[feedback_vv_tagging]]):
 The headline claim is "χ VALUES unchanged, type wraps them". Two anchor
 tiers, both PROBED passing at HEAD:
 1. **Strictest (snapshot byte-id):**
-   `tests/sn/regression/test_dd_regression.py` — 13 passed (45.8s; the
+   `tests/gates/sn/regression/test_dd_regression.py` — 13 passed (45.8s; the
    13 DriftWarnings are WITHIN-tol, pre-existing, NOT a S10a effect).
    Its `_generate_snapshots.py` builds `get_mixture("B", ng)` non-fissile
    mixtures pervasively → AFTER the precursor zeroes xs_library chi,
@@ -168,23 +168,23 @@ Run AFTER precursor + production land, under `-O` (canonical):
 
 ```
 .venv/bin/python -O -m pytest \
-  tests/data/test_emission_spectrum.py \
-  tests/data/test_chi_invariant_enforcement.py \
-  tests/data/test_mixture.py \
-  tests/data/test_cross_section_data.py \
-  tests/sn/operators/test_fission_operator.py \
-  tests/sn/operators/test_fission_kernel_crosscheck.py \
-  tests/sn/verification/analytical/test_kinf_homogeneous.py \
-  tests/sn/regression/test_dd_regression.py \
+  tests/gates/data/test_emission_spectrum.py \
+  tests/gates/data/test_chi_invariant_enforcement.py \
+  tests/gates/data/test_mixture.py \
+  tests/gates/data/test_cross_section_data.py \
+  tests/gates/sn/operators/test_fission_operator.py \
+  tests/gates/sn/operators/test_fission_kernel_crosscheck.py \
+  tests/gates/sn/verification/analytical/test_kinf_homogeneous.py \
+  tests/gates/sn/regression/test_dd_regression.py \
   -p no:cacheprovider \
   -k "not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical)"
 ```
 
 - The `-k` excludes the 5 stale SPHERE snapshots (#250, main baseline-red
   w/ #232) if any surface in the regression run.
-- DESELECT `tests/sn/eigenvalue/test_keff_slab.py::...heterogeneous_absolute_keff`
+- DESELECT `tests/gates/sn/eigenvalue/test_keff_slab.py::...heterogeneous_absolute_keff`
   (#212 `continuous_get` hang) if you widen to the keff suite —
-  `--deselect tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`.
+  `--deselect tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`.
 - These reds are PRE-EXISTING on the branch (NOT S10a) — confirm at
   clean HEAD before crediting any S10a red to S10a.
 

@@ -33,7 +33,7 @@ produce a homogenized
 method can then *promote* back to a solvable phase space
 (:meth:`SNProblem.from_material_mesh`).
 
-Layer (``tests/test_layer_imports.py``): L2 ``transport``.  It imports
+Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``.  It imports
 only ``geometry`` (legacy mesh shapes), ``numerics`` (the volume
 measure), ``data`` (the :class:`Mixture` type, ``TYPE_CHECKING``), and
 its sibling :mod:`~orpheus.transport.mesh.axis` /
@@ -693,7 +693,7 @@ class MaterialMesh:
             mesh (areas live on the ``Mesh2D``) and the d≥3 axis-native
             carrier (no legacy mesh at all). ``mesh is None`` has ONE
             meaning — the d≥3 axis-native carrier: every d≤2 constructor
-            carries a mesh (``tests/transport/test_material_mesh_admission.py``
+            carries a mesh (``tests/gates/transport/test_material_mesh_admission.py``
             pins the theorem). Until the CS4c coda a third arm served the
             mesh-less infinite-medium 1-cell carrier that shared the
             sentinel (S7 G7.3 discriminated the two by ``ndim``); that

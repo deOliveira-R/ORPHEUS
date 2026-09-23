@@ -18,7 +18,7 @@ staged work + main-agent independent verification.
  orpheus/sn/geometry.py                      |  27 +++++
  orpheus/sn/operator.py                      |  27 +++--
  orpheus/sn/solver.py                        |   8 +-
- tests/sn/test_typed_sources.py              | 333 +++++++ (NEW)
+ tests/gates/sn/test_typed_sources.py              | 333 +++++++ (NEW)
  docs/verification/matrix.rst                |  45 ++++---
 ```
 
@@ -27,7 +27,7 @@ staged work + main-agent independent verification.
 ### §2.1 Regression suite — load-bearing gate
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```

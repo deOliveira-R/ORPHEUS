@@ -8,7 +8,7 @@ metadata:
 # #240 D5b-S3-A0 — first-class SpatialMomentSpace + optional field-space factor
 
 **Branch** `feature/sn-space-angle-tier2`. **NOT committed** (main agent reviews + commits).
-Host env, `.venv/bin/python -O`. Canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Host env, `.venv/bin/python -O`. Canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 This is the typed-field-space half the prior dispatch
 (`issue_240_d5b_s3_a_inc_c_closeout.md`) surfaced as a HARD PREREQUISITE
@@ -117,11 +117,11 @@ RED — the gate has teeth on exactly that mistake.
 
 ## GATES (all GREEN)
 - **NEW foundation tests, 34P -O:**
-  `tests/numerics/test_spatial_moment_space.py` (22 — space layer: shape/metadata/
+  `tests/gates/numerics/test_spatial_moment_space.py` (22 — space layer: shape/metadata/
   `from_per_axis`/`find_factor` round-trip + raises-when-absent + composition
   shape + `per_axis==1` no-widening + `average_moment_index`==`_ubld.AVERAGE_MOMENT`
   + `n_moments`==`per_axis**ndim` + size-identity eq) +
-  `tests/sn/spatial/test_spatial_moment_field_space.py` (12 — byte-id-at-default
+  `tests/gates/sn/spatial/test_spatial_moment_field_space.py` (12 — byte-id-at-default
   for DD AND LD on all 3 carriers [the negative control] + widened d=1/d=2 shapes
   + both-moment-factors-coexist + from_mesh roundtrip + wrong-shape raises).
   **Mode-8/L26 SAFE:** ALL asserts are `np.testing.*` / `pytest.fail` / a
@@ -129,11 +129,11 @@ RED — the gate has teeth on exactly that mistake.
   is a NO-OP under `-O`). Mutation-verified: break the `per_axis**ndim` size law
   → 9 reds under `-O`; auto-read the scheme → 2 `[ld]` byte-id reds.
 - **DD/Step bit-identity strict gate (THE negative control):**
-  `tests/sn/sweep/core tests/sn/solve -W error::DriftWarning` = **513P/1skip/4xf**,
+  `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::DriftWarning` = **513P/1skip/4xf**,
   IDENTICAL to the documented S2 baseline pre==post (re-confirmed 513, NOT 562).
-- `tests/numerics` **644P** (incl my 22 + the `find_factor` addition).
-- `tests/transport` **204P** (the `MomentDisplacement` + `_bases` ripple clean).
-- `tests/sn/operators tests/sn/spatial` **573P / 7F** — the 7F are the EXACT
+- `tests/gates/numerics` **644P** (incl my 22 + the `find_factor` addition).
+- `tests/gates/transport` **204P** (the `MomentDisplacement` + `_bases` ripple clean).
+- `tests/gates/sn/operators tests/gates/sn/spatial` **573P / 7F** — the 7F are the EXACT
   documented PRE-EXISTING reds (sphere 1-D matvec SPH ×3 + `Face 'ymin' mu_y` ×2
   + sphere curvilinear apply ×2), `git stash`-confirmed identical at clean tree.
   ZERO new failures from my changes.
@@ -151,8 +151,8 @@ RED — the gate has teeth on exactly that mistake.
 - `orpheus/transport/displacements/moment_displacement.py` — `spatial_moments`
   field + widened `_phase_space_shape` (the mint-copy ripple fix).
 - `docs/theory/discrete_ordinates.rst` — the `spatial-moment-space` stub.
-- `tests/numerics/test_spatial_moment_space.py` — NEW (22 foundation).
-- `tests/sn/spatial/test_spatial_moment_field_space.py` — NEW (12 foundation).
+- `tests/gates/numerics/test_spatial_moment_space.py` — NEW (22 foundation).
+- `tests/gates/sn/spatial/test_spatial_moment_field_space.py` — NEW (12 foundation).
 NOT MINE (pre-existing uncommitted, LEFT UNTOUCHED): `material_xs_field.py` (the
 scattering lift), the other `docs/`/`.claude/` working-tree edits.
 

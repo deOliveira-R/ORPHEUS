@@ -26,7 +26,7 @@ return.").
 | `_solve_fixed_source_si` typed | DONE | `solver.py:1241-1310` |
 | `_make_sweep_preconditioner` typed | DONE | `solver.py:704-745` |
 | Final-sweep in `solve_sn` typed | DONE | `solver.py:1086-1098` |
-| Foundation tests | DONE | `tests/sn/test_harmonic_moment_field.py` (30 tests) |
+| Foundation tests | DONE | `tests/gates/sn/test_harmonic_moment_field.py` (30 tests) |
 | Test fixture migration | DONE | `test_unified_sweep_dispatch.py`, `test_2d_octant_sweep_equivalence.py`, `test_snstreamingoperator.py`, `test_solver_components.py`, `test_iteration.py`, `test_sweep_cache.py`, `test_ordinate_scan_joint_batch.py` |
 | Sphinx narrative update | DONE | `docs/theory/index_convention.rst:743-749` HarmonicMomentField row updated |
 | Closeout memo | THIS FILE | — |
@@ -46,7 +46,7 @@ Total diff: ~590 LoC across 17 files + 2 new (`harmonic_moment_field.py`
 | 3 | `LegendreMomentScattering.apply(HMF) -> HMF` | PASS | `scattering.py:217-263` typed isinstance dispatch |
 | 4 | `build_aniso_source` returns `PerOrdinateSource \| None` | PASS | `scattering.py:572-622` typed-in branch returns `PerOrdinateSource`; bare-in branch returns bare ndarray (legacy preserved) |
 | 5 | `Q_aniso=` keyword GONE from `transport_sweep` signature | PASS | `grep -n "Q_aniso" orpheus/sn/sweep.py` — only on internal `_sweep_2d_wavefront` parameter name (deliberately retained, INTERNAL) |
-| 6 | `Q_aniso=` GONE from all test fixtures | PASS | `grep -rn "Q_aniso=" tests/sn/test_2d_octant_sweep_equivalence.py` returns docstring/comment narrative + ONE call to internal `_sweep_2d_wavefront` (line 805); dataclass field renamed `Q_aniso → aniso_source` |
+| 6 | `Q_aniso=` GONE from all test fixtures | PASS | `grep -rn "Q_aniso=" tests/gates/sn/test_2d_octant_sweep_equivalence.py` returns docstring/comment narrative + ONE call to internal `_sweep_2d_wavefront` (line 805); dataclass field renamed `Q_aniso → aniso_source` |
 | 7 | `np.ndarray` overload GONE from `iso_source` / `aniso_source` | PASS | `_unwrap_sources` raises `TypeError` on non-typed input (`sweep.py:185-203`) |
 | 8 | All `_solve_*` call sites in `solver.py` use typed sources | PASS | 4 production sites migrated: `_solve_source_iteration`, `_solve_fixed_source_si`, `_make_sweep_preconditioner` matvec, final sweep in `solve_sn` |
 | 9 | `HarmonicMomentField` algebra tests PASS | PASS | 30/30 PASS in 0.36 s |
@@ -61,7 +61,7 @@ Total diff: ~590 LoC across 17 files + 2 new (`harmonic_moment_field.py`
 ### §3.1 New foundation tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_harmonic_moment_field.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_harmonic_moment_field.py -q
 30 passed, 1 warning in 0.36s
 ```
 
@@ -77,7 +77,7 @@ Test class coverage:
 ### §3.2 Regression suite
 
 ```
-$ .venv/bin/python -m pytest tests/sn/regression/ -q
+$ .venv/bin/python -m pytest tests/gates/sn/regression/ -q
 11 passed, 3 warnings in 68.35s
 ```
 
@@ -90,7 +90,7 @@ wrapping.
 ### §3.3 L0 streaming-equilibrium curvilinear
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 26 passed, 1 warning in 954.01s
 ```
 
@@ -101,7 +101,7 @@ of the AI failure-mode catalog are pinned.
 ### §3.4 Typed-fields + scattering operator tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_harmonic_moment_field.py tests/sn/test_typed_fields.py tests/sn/test_typed_sources.py tests/sn/test_scattering_operator.py tests/sn/test_legendre_moment_scattering.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_harmonic_moment_field.py tests/gates/sn/test_typed_fields.py tests/gates/sn/test_typed_sources.py tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_legendre_moment_scattering.py -q
 138 passed, 1 warning in 0.83s
 ```
 
@@ -113,7 +113,7 @@ overload is bit-identical to the bare-ndarray legacy path.
 ### §3.5 Migrated test fixtures
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_unified_sweep_dispatch.py tests/sn/test_snstreamingoperator.py tests/sn/spatial/test_sweep_cache.py tests/sn/test_2d_octant_sweep_equivalence.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_unified_sweep_dispatch.py tests/gates/sn/test_snstreamingoperator.py tests/gates/sn/spatial/test_sweep_cache.py tests/gates/sn/test_2d_octant_sweep_equivalence.py -q
 71 passed, 1 skipped, 1 warning in 1.68s
 ```
 
@@ -124,8 +124,8 @@ aniso_source` is intact.
 ### §3.6 test_solver_components.py (deselecting pre-existing failure)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_solver_components.py -q \
-    --deselect tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference
+$ .venv/bin/python -m pytest tests/gates/sn/test_solver_components.py -q \
+    --deselect tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference
 40 passed, 1 deselected, 1 warning in 162.98s
 ```
 
@@ -138,7 +138,7 @@ scope for PR-TYPED-4.
 ### §3.7 Operator-leaf tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_streaming_operator.py tests/sn/test_collision_operator.py tests/sn/test_streaming_operator_decomposition.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_collision_operator.py tests/gates/sn/test_streaming_operator_decomposition.py -q
 110 passed, 1 warning in 0.40s
 ```
 
@@ -185,7 +185,7 @@ returns non-green.
   moment field. Frozen dataclass with `(values, mesh, L)` and seven
   named primitives (`l_block`, `isotropic_part`, `anisotropic_part`,
   `scalar_flux`, `truncate`, `+`, `-`, `*`, `/`, `__neg__`).
-- **`tests/sn/test_harmonic_moment_field.py`** (~450 LoC, 30 tests) —
+- **`tests/gates/sn/test_harmonic_moment_field.py`** (~450 LoC, 30 tests) —
   foundation-tagged contract tests + the `R · Λ · M · ψ` typed
   round-trip class.
 
@@ -216,31 +216,31 @@ returns non-green.
 
 ### §4.3 Modified test files
 
-- **`tests/sn/test_solver_components.py`** (+15 LoC, -10 LoC). 7
+- **`tests/gates/sn/test_solver_components.py`** (+15 LoC, -10 LoC). 7
   `transport_sweep` call sites + the `_build_aniso_scattering` test
   shape migrated to principled `(N, ng, nx, ny)`.
-- **`tests/sn/test_unified_sweep_dispatch.py`** (+20 LoC, -16 LoC). 5
+- **`tests/gates/sn/test_unified_sweep_dispatch.py`** (+20 LoC, -16 LoC). 5
   dispatch test sites migrated to typed sources; legacy `(nx, 1, ng)`
   layout in fake-sweep tests flipped to principled `(ng, nx, 1)`.
-- **`tests/sn/test_snstreamingoperator.py`** (+10 LoC, -6 LoC). 3
+- **`tests/gates/sn/test_snstreamingoperator.py`** (+10 LoC, -6 LoC). 3
   bit-identity test sites migrated to typed `IsotropicSource` +
   `aniso_source=None`.
-- **`tests/sn/test_2d_octant_sweep_equivalence.py`** (~20 LoC mod).
+- **`tests/gates/sn/test_2d_octant_sweep_equivalence.py`** (~20 LoC mod).
   `OctantEquivalenceInputs.Q_aniso` field renamed `→ aniso_source`;
   6 case-builder constructor sites + 2 consumer sites updated.
   Note: the internal `_sweep_2d_wavefront(Q_aniso=)` keyword
   preserved (the internal hot-path signature is untouched).
-- **`tests/sn/regression/_generate_2d_octant_snapshots.py`** (1 line).
+- **`tests/gates/sn/regression/_generate_2d_octant_snapshots.py`** (1 line).
   `inputs.Q_aniso → inputs.aniso_source` consumer update.
-- **`tests/sn/spatial/test_sweep_cache.py`** (4 LoC). Slab benchmark
+- **`tests/gates/sn/spatial/test_sweep_cache.py`** (4 LoC). Slab benchmark
   Q wrapped in `IsotropicSource`.
-- **`tests/sn/spatial/test_ordinate_scan_joint_batch.py`** (10 LoC).
+- **`tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py`** (10 LoC).
   Both setup helpers wrap Q in `IsotropicSource`; passed
   `placeholder_materials(ng=ng)` to fix a PRE-EXISTING bug where
   `placeholder_materials()` defaulted to `ng=1` mismatching the
   test's `ng=2/3/4`; replaced `{}` boundary_flux with proper
   `sn_mesh.zeros_boundary_flux()`.
-- **`tests/numerics/test_iteration.py`** (8 LoC). `L_inv_adapter.solve`
+- **`tests/gates/numerics/test_iteration.py`** (8 LoC). `L_inv_adapter.solve`
   in the SN-operator-triple L1 gate test wraps `rhs` in
   `IsotropicSource` at the adapter boundary.
 
@@ -368,11 +368,11 @@ The diff retires THREE explicit anti-patterns (per anti-patterns
 ## §7 Out-of-scope acknowledgements
 
 - **Pre-existing failures (NOT introduced by PR-TYPED-4)**:
-  1. `tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
+  1. `tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
      — fails because `sweep_ref_2g.npy` carries legacy `(nx, ny, ng)`
      shape. Reproduced on `main` via `git stash`. Out of scope; flag
      for follow-up regenerator.
-  2. `tests/sn/test_sweep_regression.py::TestSNMesh::test_{stencil_values_cartesian, mesh1d_shapes, spherical_setup}` (3 cases)
+  2. `tests/gates/sn/test_sweep_regression.py::TestSNMesh::test_{stencil_values_cartesian, mesh1d_shapes, spherical_setup}` (3 cases)
      — fails because the test builds an `SNMesh` with `mat_map`
      referencing materials `{1, 2}` while `placeholder_materials()`
      supplies only `{0}`. Pre-existing PR-TYPED-3 fallout (the
@@ -515,7 +515,7 @@ more cross-method operators.
 ### §10.3 The pre-existing `placeholder_materials()` `ng=1` default
 
 A subtle PR-TYPED-3 fallout that surfaced under PR-TYPED-4's stricter
-type contract: `tests/sn/_test_helpers.py::placeholder_materials()`
+type contract: `tests/gates/sn/_test_helpers.py::placeholder_materials()`
 defaults to `ng=1`, but tests in `test_ordinate_scan_joint_batch.py`
 called it with implicit single-material assumption while building a
 mesh with `ng=2/3/4`. Under bare-ndarray contracts the mismatch
@@ -575,7 +575,7 @@ no normalisation factor. Pinned at rtol=1e-13 by
 test_scalar_flux_agrees_with_integrate_angular.
 
 VERIFICATION
-* 30 new foundation tests in tests/sn/test_harmonic_moment_field.py
+* 30 new foundation tests in tests/gates/sn/test_harmonic_moment_field.py
   PASS (construction + slicing + scalar_flux round-trip + truncate +
   algebra + R·Λ·M typed pipeline).
 * 11/11 regression PASS at rtol=1e-12 (typed wrapping is type

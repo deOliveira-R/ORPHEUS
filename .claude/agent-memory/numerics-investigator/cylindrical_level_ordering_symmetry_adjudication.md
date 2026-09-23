@@ -10,9 +10,9 @@ metadata:
 **Status (2026-08-01):** adjudicated; the three diagnostics are PROMOTED to the permanent
 suite and the `derivations/diagnostics/diag_326_*` originals deleted. Branch
 `refactor/operator-strategy-layers`. Findings file `scratch/issue326_mms_adjudication.md`.
-Gates now at `tests/sn/sweep/curvilinear/test_{alpha_closed_form,azimuthal_mirror_symmetry}.py`
-+ `tests/sn/verification/mms/test_mms_ordering_blindness.py` (54 passed + 3 xfail-strict);
-the ordering swap is the shared `tests/sn/_test_helpers.product_level_ordering`.
+Gates now at `tests/gates/sn/sweep/curvilinear/test_{alpha_closed_form,azimuthal_mirror_symmetry}.py`
++ `tests/gates/sn/verification/mms/test_mms_ordering_blindness.py` (54 passed + 3 xfail-strict);
+the ordering swap is the shared `tests/gates/sn/_test_helpers.product_level_ordering`.
 
 **Why:** `rules_product.py:139` sorts each mu-level by `argsort(mu_x)`; `eta = mu_x` is
 2-to-1 over `phi in [0,2pi)`, so the level was never totally ordered and the tie-break was

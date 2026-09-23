@@ -128,7 +128,7 @@ the re-derivation carries no arithmetic.  The ruling and its numbers are
    production consumer left --- every live read of :math:`D` goes through
    the per-cell derivation above, and the two per-material properties are
    exercised only by their own gates and by the bit-identity reference in
-   ``tests/diffusion/test_sigma_variant_reach.py``.  They are kept
+   ``tests/gates/diffusion/test_sigma_variant_reach.py``.  They are kept
    deliberately, as the **per-material statement of the same formula**
    and as that reference; do not read the empty consumer census as
    dead code, and do not add a second live read path to them.

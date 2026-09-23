@@ -23,7 +23,7 @@ type: project
   - `inflow_indices_for_face(face)` / `outflow_indices_for_face(face)`
     methods returning 1-D int index arrays (the API surface Wave 5's
     `SNBoundaryRealizer` will consume).
-- **NEW** `/workspaces/ORPHEUS/tests/numerics/test_trace_space.py` —
+- **NEW** `/workspaces/ORPHEUS/tests/gates/numerics/test_trace_space.py` —
   15 tests (12 from the brief + 3 bonus); 13 `@pytest.mark.l0`, 2
   `@pytest.mark.l1`.
 
@@ -87,7 +87,7 @@ Future consumer can grep for "transient-giggling-cake" or
 ## Test counts
 
 ```
-tests/numerics/test_trace_space.py: 15 tests
+tests/gates/numerics/test_trace_space.py: 15 tests
   13 @pytest.mark.l0
    2 @pytest.mark.l1
 ```
@@ -96,15 +96,15 @@ All 15 pass in 0.45 s.
 
 ## Regression suites
 
-- `tests/numerics/` — **447 pass** (was 432 pre-Wave-2; +15 from
+- `tests/gates/numerics/` — **447 pass** (was 432 pre-Wave-2; +15 from
   test_trace_space.py).
-- `tests/geometry/` — **177 pass**.
-- `tests/sn/test_quadrature.py` — **49 pass** (focused regression;
-  full `tests/sn/` was killed at 38% after 30+ min — pre-existing
+- `tests/gates/geometry/` — **177 pass**.
+- `tests/gates/sn/test_quadrature.py` — **49 pass** (focused regression;
+  full `tests/gates/sn/` was killed at 38% after 30+ min — pre-existing
   intrinsic SN-suite heaviness, not a trace_space regression. No
-  module under `tests/sn/` imports `trace_space`; pure addition.)
+  module under `tests/gates/sn/` imports `trace_space`; pure addition.)
 
-Combined `tests/numerics/ tests/geometry/` — **624 pass, 1 warning,
+Combined `tests/gates/numerics/ tests/gates/geometry/` — **624 pass, 1 warning,
 0 failed, 0 skipped** in 0.89 s.
 
 ## Bifurcation discipline (per algebra-of-record)
@@ -140,11 +140,11 @@ were honored:
    "curvilinear Krylov consumer" / "transient-giggling-cake.md"
    marker as requested — grep-able for the future consumer.
 2. `test_sn_2region_reflective_case_eigenvalue.py` was excluded as
-   directed; the broader `tests/sn/` regression was attempted
+   directed; the broader `tests/gates/sn/` regression was attempted
    twice and timed out (heavy SN suite is intrinsic, not a Wave-2
-   regression). Focused `tests/sn/test_quadrature.py` (49 tests,
+   regression). Focused `tests/gates/sn/test_quadrature.py` (49 tests,
    the most likely affected file by quadrature-touching changes)
-   passes cleanly. Pure-addition + no `tests/sn/` import of
+   passes cleanly. Pure-addition + no `tests/gates/sn/` import of
    `trace_space` means risk of SN-suite regression is structurally
    zero.
 

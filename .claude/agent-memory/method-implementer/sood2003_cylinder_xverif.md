@@ -17,7 +17,7 @@ structural integrity.
 
 ### Files created
 
-- `tests/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py`
   — 2 L1-tagged tests (one main `slow`, one fast convergence
   guard).
 
@@ -71,7 +71,7 @@ agreement at 24 s, comfortably better than the 1e-5 target and
 
 ### Test gate results
 
-`pytest tests/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py
+`pytest tests/gates/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py
 -v`:
 
 ```
@@ -238,7 +238,7 @@ memo.
 
 ## Pointers
 
-- Test: `tests/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py`
+- Test: `tests/gates/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py`
 - Production solver:
   `orpheus/derivations/continuous/peierls_greens_function/greens_function_cylinder.py`
 - Sood reference memo:
@@ -250,4 +250,4 @@ memo.
 - V&V hardening closeout (Tasks 2-4, this is Task 1):
   `.claude/agent-memory/method-implementer/vv_hardening_post_phase3.md`
 - Sphere PS-1982 cross-check (parallel sphere structure):
-  `tests/derivations/test_peierls_greens_function_xverif_ps1982.py`
+  `tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py`

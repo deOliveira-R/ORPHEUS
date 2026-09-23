@@ -72,8 +72,8 @@ contract.
 rtol=1e-12 BY CONSTRUCTION (`apply` unchanged; the 3 new methods have ZERO
 production consumers outside `scattering.py` — grep-verified). No new ERR-NNN.
 
-**File-path note**: brief specified `tests/sn/scattering/test_scattering_operator.py`;
-the on-disk path is `tests/sn/test_scattering_operator.py` (no `scattering/`
+**File-path note**: brief specified `tests/gates/sn/scattering/test_scattering_operator.py`;
+the on-disk path is `tests/gates/sn/test_scattering_operator.py` (no `scattering/`
 subdir). Tests added to the existing file. A brief-text-vs-disk-state mismatch,
 not a coverage gap — worth checking the actual on-disk path before trusting a
 brief's stated test location.

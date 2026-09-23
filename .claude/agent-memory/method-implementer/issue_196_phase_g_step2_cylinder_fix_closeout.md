@@ -1,6 +1,6 @@
 ---
 name: issue-196-phase-g-step2-cylinder-fix-closeout
-description: Issue #196 Phase G Step 2 cylinder fix closeout. Five `0.5` magic-number sites replaced with geometry-general `/ weights.sum()` (Σw normalisation) per the numerics-investigator's root-cause memo. 12/12 cylinder L0 streaming-equilibrium PASS at rtol=1e-9 (pre-fix 12/12 FAIL with up to 580% rel error). 12/12 sphere streaming-equilibrium PASS (no regression — sphere Σw=2 so the new form is bit-identical). 24/24 new V&V tests in `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py` PASS (apply-matvec flat-flux invariant + 4-leg 3-way standoff). 11/11 regression snapshots PASS (1 cylinder snapshot `cyl_1g_homogeneous_product_dd_n20` regenerated under post-fix solver with three-pillar attestation; 10 stay bit-identical). Phase E flux-shape sentinel 2/2 PASS. Convergence-under-refinement: SI err ~ 1.5e-11, Krylov err ~ 1.5e-11, |SI−K| ~ 3e-12 at n_cells ∈ {20, 40, 80, 160} × n_mu ∈ {2, 4} × n_phi ∈ {2, 4} — fully mesh-independent at FP-noise. ERR-048 manifestation #3 entry written. The fix is a 5-line literal replacement (`0.5` → `1.0 / weights.sum()`) at 3 file sites — no new types, no new modules, no scope creep. Lesson: hardcoded numerical literals that look like `0.5` may be encoding quadrature-dependent normalisations.
+description: Issue #196 Phase G Step 2 cylinder fix closeout. Five `0.5` magic-number sites replaced with geometry-general `/ weights.sum()` (Σw normalisation) per the numerics-investigator's root-cause memo. 12/12 cylinder L0 streaming-equilibrium PASS at rtol=1e-9 (pre-fix 12/12 FAIL with up to 580% rel error). 12/12 sphere streaming-equilibrium PASS (no regression — sphere Σw=2 so the new form is bit-identical). 24/24 new V&V tests in `tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py` PASS (apply-matvec flat-flux invariant + 4-leg 3-way standoff). 11/11 regression snapshots PASS (1 cylinder snapshot `cyl_1g_homogeneous_product_dd_n20` regenerated under post-fix solver with three-pillar attestation; 10 stay bit-identical). Phase E flux-shape sentinel 2/2 PASS. Convergence-under-refinement: SI err ~ 1.5e-11, Krylov err ~ 1.5e-11, |SI−K| ~ 3e-12 at n_cells ∈ {20, 40, 80, 160} × n_mu ∈ {2, 4} × n_phi ∈ {2, 4} — fully mesh-independent at FP-noise. ERR-048 manifestation #3 entry written. The fix is a 5-line literal replacement (`0.5` → `1.0 / weights.sum()`) at 3 file sites — no new types, no new modules, no scope creep. Lesson: hardcoded numerical literals that look like `0.5` may be encoding quadrature-dependent normalisations.
 metadata:
   type: project
   branch: refactor/sn-operator-algebra
@@ -52,7 +52,7 @@ verified.
 
 ## Test promotion
 
-New file: `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`
+New file: `tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py`
 
 - **`test_cylinder_apply_matvec_preserves_flat_psi`** (12 cases):
   L0 flat-flux invariant `L·ψ_flat = Σ_t·ψ_flat` per ordinate per
@@ -122,17 +122,17 @@ already captured the verbatim 12/12 FAIL output from a complete pre-fix
 run with `max rel = 5.79` (580%) on the smallest case.
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
 collecting ... collected 12 items
 
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] FAILED [  8%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] FAILED [ 16%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] FAILED [ 25%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] FAILED [ 33%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] FAILED [ 41%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] FAILED [ 50%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] FAILED [ 58%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] ...
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] FAILED [  8%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] FAILED [ 16%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] FAILED [ 25%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] FAILED [ 33%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] FAILED [ 41%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] FAILED [ 50%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] FAILED [ 58%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] ...
 ```
 
 Earlier numerics-investigator run captured the full ASSERT trace:
@@ -150,21 +150,21 @@ Max relative difference among violations: 5.79165969
 ### 2. Post-fix state — 12/12 cylinder L0 PASS at rtol=1e-9
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
 collecting ... collected 12 items
 
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] PASSED [  8%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] PASSED [ 16%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] PASSED [ 25%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] PASSED [ 33%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] PASSED [ 41%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] PASSED [ 50%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] PASSED [ 58%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] PASSED [ 66%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-80] PASSED [ 75%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-20] PASSED [ 83%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-40] PASSED [ 91%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-80] PASSED [100%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] PASSED [  8%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] PASSED [ 16%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] PASSED [ 25%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] PASSED [ 33%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] PASSED [ 41%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] PASSED [ 50%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] PASSED [ 58%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] PASSED [ 66%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-80] PASSED [ 75%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-20] PASSED [ 83%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-40] PASSED [ 91%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-80] PASSED [100%]
 
 ================== 12 passed, 1 warning in 1589.75s (0:26:29) ==================
 ```
@@ -172,21 +172,21 @@ tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_str
 ### 3. Sphere no-regression — 12/12 sphere L0 PASS
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere -v
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere -v
 collecting ... collected 12 items
 
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-20] PASSED [  8%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-40] PASSED [ 16%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-80] PASSED [ 25%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-20] PASSED [ 33%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-40] PASSED [ 41%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-80] PASSED [ 50%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-20] PASSED [ 58%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-40] PASSED [ 66%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-80] PASSED [ 75%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-20] PASSED [ 83%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-40] PASSED [ 91%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-80] PASSED [100%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-20] PASSED [  8%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-40] PASSED [ 16%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-8-80] PASSED [ 25%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-20] PASSED [ 33%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-40] PASSED [ 41%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[source_iteration-16-80] PASSED [ 50%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-20] PASSED [ 58%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-40] PASSED [ 66%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-80] PASSED [ 75%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-20] PASSED [ 83%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-40] PASSED [ 91%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-16-80] PASSED [100%]
 
 ================== 12 passed, 1 warning in 898.44s (0:14:58) ===================
 ```
@@ -194,20 +194,20 @@ tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_str
 ### 4. Regression suite — 11/11 PASS (1 regen + 10 bit-identical)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/regression/ -v
+$ .venv/bin/python -m pytest tests/gates/sn/regression/ -v
 collecting ... collected 11 items
 
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
 
 ================== 11 passed, 3 warnings in 640.78s (0:10:40) ==================
 ```
@@ -215,11 +215,11 @@ tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_
 ### 5. Phase E flux-shape sentinel — 2/2 PASS
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck -v
+$ .venv/bin/python -m pytest tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck -v
 collecting ... collected 2 items
 
-tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[sphere_2g_3reg_dd_n40] PASSED [ 50%]
-tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_LS4_dd_n40] PASSED [100%]
+tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[sphere_2g_3reg_dd_n40] PASSED [ 50%]
+tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_LS4_dd_n40] PASSED [100%]
 
 =================== 2 passed, 1 warning in 790.62s (0:13:10) ===================
 ```
@@ -298,12 +298,12 @@ PASSED
 ### 8. NEW V&V test — `test_apply_matvec_cylinder_invariants.py` 24/24 PASS
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_apply_matvec_cylinder_invariants.py -v
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py -v
 collecting ... collected 24 items
 
-tests/sn/spatial/test_apply_matvec_cylinder_invariants.py::test_cylinder_apply_matvec_preserves_flat_psi[2-2-10] PASSED [  4%]
+tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py::test_cylinder_apply_matvec_preserves_flat_psi[2-2-10] PASSED [  4%]
 …(11 more flat-psi cases, all PASS)…
-tests/sn/spatial/test_apply_matvec_cylinder_invariants.py::test_cylinder_three_way_standoff[2-2-10] PASSED [ 54%]
+tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py::test_cylinder_three_way_standoff[2-2-10] PASSED [ 54%]
 …(11 more 3-way-standoff cases, all PASS)…
 
 ================== 24 passed, 1 warning in 459.40s (0:07:39) ===================
@@ -312,9 +312,9 @@ tests/sn/spatial/test_apply_matvec_cylinder_invariants.py::test_cylinder_three_w
 ## Mechanism criteria — all GREEN
 
 - ✅ `grep -n "0\\.5 \\* sigma_t \\* phi_0\\|0\\.5 \\* sigma_t_gx \\* phi_0\\|0\\.5 \\* Q_1d" orpheus/sn/spatial/psi_half_angle_seed.py orpheus/sn/sweep.py` → empty
-- ✅ `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -v` → 24/24 PASS (sphere 12 + cylinder 12)
-- ✅ `pytest tests/sn/regression/ -v` → 11/11 PASS
-- ✅ `pytest tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck -v` → 2/2 PASS
+- ✅ `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -v` → 24/24 PASS (sphere 12 + cylinder 12)
+- ✅ `pytest tests/gates/sn/regression/ -v` → 11/11 PASS
+- ✅ `pytest tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck -v` → 2/2 PASS
 
 ## Scope discipline
 
@@ -383,9 +383,9 @@ trace each numeric claim to its real test execution.
 - ERR-048 (manifestations #1+#2 sphere, #3 cylinder):
   `.claude/skills/vv-principles/error_catalog.md`
 - Promoted V&V test:
-  `tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`
+  `tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py`
 - Promoted V&V (existing, post-fix gates):
-  `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+  `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py`
 
 ## Linked memories
 

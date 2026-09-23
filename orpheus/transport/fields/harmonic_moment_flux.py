@@ -297,7 +297,7 @@ class HarmonicMomentFlux(MomentField):
         scheme's moment axis on a widened field) is kept verbatim —
         `[M]` content-equal to the factory's own mint at
         ``(mesh, L_new, spatial_moments)`` on both widths (gated:
-        ``tests/transport/fields/test_harmonic_moment_flux.py``).
+        ``tests/gates/transport/fields/test_harmonic_moment_flux.py``).
 
         Parameters
         ----------

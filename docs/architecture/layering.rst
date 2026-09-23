@@ -5,7 +5,7 @@ The Layer Contract
 
 This page records the **layering criterion** that organizes the ORPHEUS
 package tree, the package-to-layer assignment that follows from it, the
-import-linter test that enforces it (:file:`tests/test_layer_imports.py`),
+import-linter test that enforces it (:file:`tests/gates/test_layer_imports.py`),
 and the transitional exemptions captured in its ``WHITELIST``.
 
 The contract is load-bearing. The whole point of organizing code by
@@ -248,7 +248,7 @@ the diffusion hub's pencil, the α posing) is the debt list of
 The import-linter test
 ----------------------
 
-The criterion is enforced by :file:`tests/test_layer_imports.py`. The
+The criterion is enforced by :file:`tests/gates/test_layer_imports.py`. The
 test walks every Python module under :file:`orpheus/`, parses its
 imports via Python's ``ast`` module (NOT regex — regex misses
 ``TYPE_CHECKING`` blocks, multi-line imports, and function-body lazy
@@ -340,7 +340,7 @@ engineering need requires a transgression, the procedure is:
    import rather than a module-level import; this localizes the
    coupling to a single function rather than to the whole module.
 
-2. **Add a WHITELIST entry** in :file:`tests/test_layer_imports.py`
+2. **Add a WHITELIST entry** in :file:`tests/gates/test_layer_imports.py`
    with a ``RETIRE_IN_<phase-or-issue>`` comment naming the
    retirement trigger. The whitelist makes the exemption visible and
    gives a future contributor a place to start when refactoring.

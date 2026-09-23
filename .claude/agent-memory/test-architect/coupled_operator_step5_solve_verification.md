@@ -78,9 +78,9 @@ tests today, and load-bearing for the swap-law inverse arm).
 
 ## 5a (D1) — the numerics `CoupledOperator` solve mode (semantics-agnostic)
 
-Home: EXTEND `tests/numerics/test_coupled_operator.py` (the step-4 M1-M5 suite —
+Home: EXTEND `tests/gates/numerics/test_coupled_operator.py` (the step-4 M1-M5 suite —
 synthetic toy blocks, N-general, NOT SN) with a `TestBlockSolve` section + a NEW
-`tests/numerics/test_matrix_inverse_operator.py` transpose section (or extend the
+`tests/gates/numerics/test_matrix_inverse_operator.py` transpose section (or extend the
 existing one). Build synthetic 2×2 grids over two DISTINCT toy System types (asymmetric
 dense/diagonal blocks) so triangularity, substitution order, and type-safety are all
 hand-verifiable.
@@ -207,9 +207,9 @@ today's `‖Δψ‖/max(‖ψ‖, 1e-30)` (iterate-relative). Equation-relative 
 (the residual is a rate-density, its natural scale is the source); q_ext≈0 falls back to
 absolute (a zero source has a zero solution — refutation r5).
 
-Home: `tests/numerics/test_iteration.py` (the free-identity unit gate — semantics-agnostic)
+Home: `tests/gates/numerics/test_iteration.py` (the free-identity unit gate — semantics-agnostic)
 + a solve-layer certificate test in `test_psi_half_coupling.py` / a new
-`tests/sn/solve/test_coupled_solve_certificate.py`.
+`tests/gates/sn/solve/test_coupled_solve_certificate.py`.
 
 - **C1 — the free-identity unit gate (r_running ≡ N·Δψ, semantics-agnostic).** On a SMALL
   synthetic `SourceIteration` (toy `M⁻¹`, toy gain `N`, a few iterations), assert the
@@ -303,19 +303,19 @@ which the keff_tol-tight regression snapshots cannot absorb." The D5 change IS a
 stopping change, so the same ledger applies. Partition the existing green gates:
 
 **STOP-TEST-SENSITIVE (must re-baseline or widen):**
-- `tests/sn/regression/test_dd_regression.py:100-102` — `result.keff` vs frozen `snap["keff"]`
+- `tests/gates/sn/regression/test_dd_regression.py:100-102` — `result.keff` vs frozen `snap["keff"]`
   via `_regression_assert` (replaced the magic `rtol=1e-12`/`atol=1e-13` floors, :3-8). The
   frozen k moves ~inner_tol-scale → RE-BASELINE the snapshots in the D5 commit (against the
   closed-form anchor, NOT old-vs-new k — Signature 10 / stale-snapshot discipline).
 - The 15-digit k probes from 4e (`test_psi_half_coupling` `TestWithinGroupSystemAnchors`
-  :3652, and any `assert_allclose(k, <frozen>, rtol=1e-12)` in `tests/sn/solve/`) — widen to
-  `SAFETY × inner_tol` (~1e-6) or re-baseline. Grep `tests/sn/solve/ tests/sn/regression/` for
+  :3652, and any `assert_allclose(k, <frozen>, rtol=1e-12)` in `tests/gates/sn/solve/`) — widen to
+  `SAFETY × inner_tol` (~1e-6) or re-baseline. Grep `tests/gates/sn/solve/ tests/gates/sn/regression/` for
   `keff` + `1e-1[012]`.
 - ANY `history.n_inner ==`-frozen-count pin (grep `n_inner ==`) — a stop change moves the
   count. NONE found in `test_si_convergence_rate` (see below), but grep the tree.
 
 **STOP-TEST-ROBUST (assert UNCHANGED — a red here = the change leaked somewhere it shouldn't):**
-- `tests/sn/verification/analytical/test_si_convergence_rate.py` — measures `history.n_inner`
+- `tests/gates/sn/verification/analytical/test_si_convergence_rate.py` — measures `history.n_inner`
   but via RELATIVE ratios (no frozen count): `n_gs < n_jac` (:219), `n_gs >= n_kry` (:224),
   `n_si >= 1.5·n_krylov` (:305), and `n_inner/n_predicted ∈ [0.6, 1.2]` (:280-282, the analytic
   ρ=c anchor). Wide-band relative → ROBUST to a uniform stop change. ⚠ ONE caveat: `test_si_
@@ -381,8 +381,8 @@ numerics CoupledOperator; a named SN facade over it is a twin-path habitat) — 
 
 **`TestCoupledSolve` home:** `test_psi_half_coupling.py` (the ψ½ instance's suite — where
 `TestRegressionFloor`/`TestCoupledBuilder`/`TestWithinGroupSystem` live) for the SN-bound
-rows (B1-B5, C2-C5, E3-E4); `tests/numerics/test_coupled_operator.py` for the semantics-
-agnostic 5a (S1-S4); `tests/numerics/test_matrix_inverse_operator.py` for S5; `tests/numerics/
+rows (B1-B5, C2-C5, E3-E4); `tests/gates/numerics/test_coupled_operator.py` for the semantics-
+agnostic 5a (S1-S4); `tests/gates/numerics/test_matrix_inverse_operator.py` for S5; `tests/gates/numerics/
 test_iteration.py` for C1; `test_inverse_adjoint_coherence.py` for E1-E2.
 
 ---
@@ -490,9 +490,9 @@ retirement D2a+D3 / 5e xfail→live + anchors + re-baseline), sequencing verific
 FIRST (semantics-agnostic, synthetic — the substitution + `MatrixInverseOperator.apply_transpose`
 proven in isolation), THEN 5b (M re-pose, row-6 principled-equiv re-point), THEN 5c (the stop,
 with C3 the in-M-lag certificate as the headline NEW row), THEN 5d (retirement, D2a/D3 ruled),
-THEN 5e (flip the xfail + re-baseline the k-snapshots)**. NEW: `tests/numerics/test_coupled_
+THEN 5e (flip the xfail + re-baseline the k-snapshots)**. NEW: `tests/gates/numerics/test_coupled_
 operator.py::TestBlockSolve` (S1-S4) + `test_matrix_inverse_operator.py` transpose (S5) +
-`tests/numerics/test_iteration.py` free-identity (C1) + a solve-layer certificate test (C2-C5) +
+`tests/gates/numerics/test_iteration.py` free-identity (C1) + a solve-layer certificate test (C2-C5) +
 `test_psi_half_coupling.py::TestCoupledSolve` (B-rows, E3-E4). CONVERT: `test_a2a_grid_swap_law_
 inverse_arm` (coherence :653) xfail→live + the E2 positive control. RE-POINT (D2a-RETIRE):
 `_joint_M`/`_coupled_M`/the row-6 oracle/`test_si_single_primitive_contract` isinstance rows/
@@ -507,7 +507,7 @@ in-M lag BY CONSTRUCTION — the certificate is the ONLY catcher, #282's lag was
 φ=Q/Σ_t + k_eff anchors E4** (the operator-is-correct claim, not just reduction-tree-independent)
 + **`MatrixInverseOperator.apply_transpose` S5** (the arm the swap-law inverse rides — NET-NEW,
 Mode-12-asymmetric) + **the stop-test re-baseline ledger** (the frozen k-snapshots move; the ρ=c
-ratios are robust). End-to-end acceptance per sub-commit: full `tests/sn -m "not slow"` +
-`tests/numerics` + `tests/diffusion` + `tests/cp` + ratchet `transport:1` + sphinx -W; through 5a
+ratios are robust). End-to-end acceptance per sub-commit: full `tests/gates/sn -m "not slow"` +
+`tests/gates/numerics` + `tests/gates/diffusion` + `tests/gates/cp` + ratchet `transport:1` + sphinx -W; through 5a
 the wall STAYS 6340/0, and after 5e only the frozen k-snapshots moved (re-baselined) + one xfail
 went live (37→36 xfailed) — every count else holds.

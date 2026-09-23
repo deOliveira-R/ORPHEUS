@@ -324,7 +324,7 @@ the refinements used.
     - :class:`SNSlab2GHeterogeneousMMSCase` — the dataclass that
       carries the continuous cross-section functions and the
       reference solution.
-    - ``tests/sn/test_mms_heterogeneous.py`` — the L1 convergence
+    - ``tests/gates/sn/test_mms_heterogeneous.py`` — the L1 convergence
       consumer test.
     - ``docs/theory/verification/sn.rst`` — the heterogeneous
       MMS verification section.
@@ -1158,7 +1158,7 @@ through) — and ``_lift_external_source_to_moments`` threads the moment-resolve
 slope rows into the SI rhs alongside the iterate-driven SCATTERING source
 :math:`\Sigma_s\cdot\hat\phi`.  The slope-SOURCE sign is pinned by the
 per-moment structural gate + the mutation controls (M1–M4) in
-``tests/sn/verification/mms/test_mms_ld_2d.py`` (the #247 block): flipping a
+``tests/gates/sn/verification/mms/test_mms_ld_2d.py`` (the #247 block): flipping a
 CONSUMED slope-source row changes the converged flux ≫ the inner tolerance,
 while the FLAT scalar gate stays GREEN (the Mode-10 asymmetry that closed the
 gap).  Per vv-principles Mode 10: the converged flux is only sub-floor sensitive
@@ -1183,7 +1183,7 @@ delivers O(h²) AT the boundary (the coherent promise: LD is 2nd-order everywher
 incl. the boundary, no asterisk).  The slope is an inflow-representation
 refinement (O(h)→O(h²) on the face trace), NOT a deficiency repair; no
 value/order gate is keyed on it (it would falsely RED a correct term).  Locked by
-``tests/sn/verification/mms/test_ld_2d_boundary_promise.py`` (the coherent-promise
+``tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py`` (the coherent-promise
 gate + the sub-floor verdict pins + the Mode-11 toggle sentinel).
 
 CONSEQUENCE: this MMS now verifies the multi-D slope-UNKNOWN sign + the
@@ -1371,7 +1371,7 @@ class SN2DCartesianLDStressMMSCase:
     (**Leg A, #247**): the public entry accepts a moment-resolved external
     source and the lift threads the projected slope rows through (pinned by the
     per-moment structural gate + mutation controls in
-    ``tests/sn/verification/mms/test_mms_ld_2d.py``).  The BOUNDARY
+    ``tests/gates/sn/verification/mms/test_mms_ld_2d.py``).  The BOUNDARY
     transverse-face-slope (**Leg B, #251**) is now CARRIED end to end (the trace
     is moment-resolved, the cochain consumes slot-1) and — since **#257 S9** —
     :meth:`prescribed_inflow` EMITS the projected transverse face-slope (its
@@ -3137,7 +3137,7 @@ class SNSphericalAnisotropicMMSCase:
 
         Bit-equal to the SymPy expression
         :func:`derive_spherical_anisotropic_mms` returns (cross-checked
-        in :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py`).
+        in :file:`tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py`).
         """
         r = mesh.centers                              # (nx,)
         A_ = self.A(r)                                # (nx,)

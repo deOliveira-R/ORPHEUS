@@ -9,7 +9,7 @@ metadata:
 
 **Status:** PRE-IMPLEMENTATION. Branch `feature/sn-space-angle-tier2`,
 HEAD `f45a219` (S2 done + committed `495af60`). Host env, canonical
-`python -O -m pytest`. NEVER run all `tests/sn` (#212 hang).
+`python -O -m pytest`. NEVER run all `tests/gates/sn` (#212 hang).
 
 This memo is the S3-specific spec. It EXTENDS
 [[d5-nd-polymorphism-verification]] §D5b (the S2/D5b.0–.5 gates) — the
@@ -170,7 +170,7 @@ Two acceptable reference realizations (pick per leg):
   1-D leg's value anchor (not just `LD ≈ DD`).
 
 **Leg 1a — 1-D tripwire flips xfail→PASS.**
-- File: `tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail` (`:235`).
+- File: `tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail` (`:235`).
 - Action: it is `@pytest.mark.xfail(strict=False, reason="#158 Increment C ...")`.
   When S3 lands, **flip `strict=False` → `strict=True`** (or remove the
   xfail and rename `test_ld_thick_diffusive_limit`). Per
@@ -196,7 +196,7 @@ Two acceptable reference realizations (pick per leg):
   exercised. Do NOT ship gate 1 on 1G alone.
 
 **Leg 1b — the 2-D Cartesian analog (NEW).**
-- File: NEW `tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_thick_diffusive_limit`
+- File: NEW `tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_thick_diffusive_limit`
   (the 2-D home already exists from S2).
 - Config: a 2-D Cartesian homogeneous thick slab/box, `σ_t·h ≈ 10`/cell,
   `c → 1` (`c=0.99`), uniform isotropic source, vacuum edges. The
@@ -325,7 +325,7 @@ now-closeable d≥2 LD matvec) converge to the SAME scalar flux to
 solver tol. This is where the closed `_CellResidual.cell` raise
 (`sweep_graph.py:929`) gets exercised end-to-end.
 
-- File: `tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_matches_si_full_operator`
+- File: `tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_matches_si_full_operator`
   (mirror the 1-D `test_sn_1d_slab_ld_mms_krylov_matches_si` `:123`,
   but now WITH a non-zero `scattering_order=0` P0 self-scatter so the
   slope-scattering source is active — see config).
@@ -384,14 +384,14 @@ strict DriftWarning gate stays at the S2 baseline.
 
 - **Exact invocation:**
   ```
-  python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-    -W "error::tests.sn.regression._regression_assert.DriftWarning"
+  python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+    -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
   ```
   MUST stay at the **S2 baseline** (the S2 record says `562 / 2 skip /
   4 xfail`; the prior-memo DD strict gate was `505/1/4` — **RE-CONFIRM
   the live count at pickup**; the gate is "unchanged vs the immediately
   preceding HEAD `f45a219`", not a hard-coded number). The
-  `tests.sn.regression...` path is load-bearing (`orpheus.sn...`
+  `tests.gates.sn.regression...` path is load-bearing (`orpheus.sn...`
   silently fails to escalate — FINDING-1, [[issue_206_phase_c_verification]]).
 - **Why it works:** S3's scattering change is gated on the
   spatial-moment axis. DD/Step have `spatial_basis_per_axis=1` → the
@@ -538,7 +538,7 @@ MMS (1-D + 2-D smoke) + the D5b.3/D5b.5 foundation gates + the DD
 strict gate (S2 baseline) + `test_kinf_homogeneous`(≥2G, the
 structurally-indep eigenvalue anchor — UNTOUCHED by S3) + `test_mms_2d`
 (DD). Route around the pre-existing reds (the d5 memo's 7-red `-k`
-list); NEVER all `tests/sn` (#212).
+list); NEVER all `tests/gates/sn` (#212).
 
 ---
 
@@ -609,7 +609,7 @@ a physics-completion. For now: documented here.
    `verifies("ld-cartesian-2d")` claim}.
 8. **Self-improvement** (§4): note the Mode-9-misclassification to the
    vv-principles Mode-9 row at delivery.
-9. Route around the 7 pre-existing reds; NEVER all `tests/sn` (#212).
+9. Route around the 7 pre-existing reds; NEVER all `tests/gates/sn` (#212).
 
 ---
 
@@ -627,7 +627,7 @@ a physics-completion. For now: documented here.
 - [[feedback_vv_tagging]] (the xfail strict=False → flip-to-PASS
   discipline for gate 1 leg 1a).
 - [[issue_206_phase_c_verification]] (FINDING-1: the
-  `tests.sn.regression...` DriftWarning escalation path for gate 4).
+  `tests.gates.sn.regression...` DriftWarning escalation path for gate 4).
 - vv-principles: Mode 9 (the mis-application is §0/§4); hierarchical
   taxonomy (gate 1 = flux-shape/value claim, NOT eigenvalue — MMS
   can't prove eigenvalues, and the diffusion limit is the structurally-

@@ -133,7 +133,7 @@ Every theorem below verifies its identity with exact (rational/symbolic)
 arithmetic and raises :class:`DerivationError` on failure — no bare
 ``assert`` (this module is not pytest-collected, so bare asserts would be
 stripped under the canonical ``python -O``; vv-principles Mode 8).  The
-pinning suite is ``tests/derivations/test_homogenization_rules.py``.
+pinning suite is ``tests/gates/derivations/test_homogenization_rules.py``.
 
 Usage::
 

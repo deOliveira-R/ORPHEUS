@@ -48,7 +48,7 @@ characteristics.  It is a mesh theorem, exactly as strong as its hypotheses,
 and it fails for an unstructured mesh (the Pautz/Plimpton cycle-breaking
 problem).  This module does not re-derive it; the production certificate is the
 assembled-matrix gate ``triu(PᵀMP, 1) == 0`` in
-``tests/sn/sweep/test_assembly_mode.py``.
+``tests/gates/sn/sweep/test_assembly_mode.py``.
 
 **(2) The TRACE digraph, across ordinates — the boundary.**  This is the one
 that decides whether the *whole* within-group problem sweeps in one pass, and
@@ -211,7 +211,7 @@ class TraceDigraph:
         convention across the tree is deliberate: the acyclicity test here is
         then literally the production gate's,
         ``np.triu(permuted, k=1) == 0``
-        (``tests/sn/sweep/test_assembly_mode.py::test_g2_walk_order_triangularity_is_exact``).
+        (``tests/gates/sn/sweep/test_assembly_mode.py::test_g2_walk_order_triangularity_is_exact``).
         """
         return self.adjacency.T
 

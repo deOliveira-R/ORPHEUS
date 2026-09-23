@@ -139,28 +139,28 @@ note: Tolerance criterion for heterogeneous test acceptance. This is a verificat
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._precompute_xs
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:379; orpheus/mc/solver.py:355-357 (_precompute_xs computes sig_t_max = max over materials); test: tests/mc/test_properties.py::test_majorant_computation
+evidence: docs/theory/methods/monte_carlo.rst:379; orpheus/mc/solver.py:355-357 (_precompute_xs computes sig_t_max = max over materials); test: tests/gates/mc/test_properties.py::test_majorant_computation
 note: The majorant cross-section is computed as the maximum total cross section over all materials. Implemented in _precompute_xs as sig_t_max = np.maximum(sig_t_max, mix.SigT).
 
 ## free-flight
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:398; orpheus/mc/solver.py:392 (free_path = -np.log(rng.random()) / xs.sig_t_max[ig]); test: tests/mc/test_gaps.py::test_free_path_exponential
+evidence: docs/theory/methods/monte_carlo.rst:398; orpheus/mc/solver.py:392 (free_path = -np.log(rng.random()) / xs.sig_t_max[ig]); test: tests/gates/mc/test_gaps.py::test_free_path_exponential
 note: Free-flight distance sampled from exponential distribution with rate Σ_maj. Implemented directly in the random walk loop.
 
 ## direction-sampling
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:526; orpheus/mc/solver.py:395-398 (theta = pi * rng.random(); phi = 2*pi * rng.random(); dir_x/dir_y = sin/cos projections); test: tests/mc/test_gaps.py (multiple tests exercise this)
+evidence: docs/theory/methods/monte_carlo.rst:526; orpheus/mc/solver.py:395-398 (theta = pi * rng.random(); phi = 2*pi * rng.random(); dir_x/dir_y = sin/cos projections); test: tests/gates/mc/test_gaps.py (multiple tests exercise this)
 note: ⚠ **Note**: The docs explicitly flag this as NOT true isotropic sampling (ERR-018), but it IS a declarable equation because the code implements this exact formula.
 
 ## virtual-collision-probability
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:501; orpheus/mc/solver.py:407-410 (sig_v / xs.sig_t_max[ig] >= rng.random() decides virtual collision); test: tests/mc/test_properties.py::test_delta_tracking_virtual_probability
+evidence: docs/theory/methods/monte_carlo.rst:501; orpheus/mc/solver.py:407-410 (sig_v / xs.sig_t_max[ig] >= rng.random() decides virtual collision); test: tests/gates/mc/test_properties.py::test_delta_tracking_virtual_probability
 note: Probability P_virtual = (Σ_maj - Σ_t) / Σ_maj coded directly as sig_v / sig_t_max.
 
 ## decompose
@@ -174,49 +174,49 @@ note: Algebraic decomposition identity: Σ_maj = Σ_t + Σ_virtual. This is a ma
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:702; orpheus/mc/solver.py:413-415 (cum_s = np.cumsum(sig_s_row); ig = np.searchsorted(cum_s, rng.random() * sig_s_sum)); test: tests/mc/test_gaps.py (multiple tests), tests/mc/test_properties.py::test_scattering_cdf_sampling
+evidence: docs/theory/methods/monte_carlo.rst:702; orpheus/mc/solver.py:413-415 (cum_s = np.cumsum(sig_s_row); ig = np.searchsorted(cum_s, rng.random() * sig_s_sum)); test: tests/gates/mc/test_gaps.py (multiple tests), tests/gates/mc/test_properties.py::test_scattering_cdf_sampling
 note: Cumulative distribution function for scattering group selection. Implemented via cumsum + searchsorted in the random walk.
 
 ## branching
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:628; orpheus/mc/solver.py:412-428 (r = rng.random() * sig_t; if r < sig_s_sum: scatter; elif r < sig_s_sum + sig_2n_sum: n2n; else: absorption); test: tests/mc/test_properties.py::test_scattering_branching_ratio
+evidence: docs/theory/methods/monte_carlo.rst:628; orpheus/mc/solver.py:412-428 (r = rng.random() * sig_t; if r < sig_s_sum: scatter; elif r < sig_s_sum + sig_2n_sum: n2n; else: absorption); test: tests/gates/mc/test_properties.py::test_scattering_branching_ratio
 note: Three-way branch decision (scatter/n2n/absorption) based on reaction cross sections. Fully coded in _random_walk via scaled uniform sampling.
 
 ## fission-weight
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:741; orpheus/mc/solver.py:421-423 (w *= sig_p / sig_a); test: tests/mc/test_properties.py::test_fission_weight_adjustment, tests/mc/test_gaps.py::test_absorption_nonfissile_zeroes_weight
+evidence: docs/theory/methods/monte_carlo.rst:741; orpheus/mc/solver.py:421-423 (w *= sig_p / sig_a); test: tests/gates/mc/test_properties.py::test_fission_weight_adjustment, tests/gates/mc/test_gaps.py::test_absorption_nonfissile_zeroes_weight
 note: Weight multiplication on absorption: w ← w · (νΣ_f / Σ_a). Implemented in _random_walk as the else branch of the collision decision.
 
 ## chi-sampling
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:802; orpheus/mc/solver.py:424-425 (ig = np.searchsorted(xs.chi_cum, rng.random())); test: tests/mc/test_gaps.py (multiple tests via chi-sampling), tests/mc/test_properties.py tests
+evidence: docs/theory/methods/monte_carlo.rst:802; orpheus/mc/solver.py:424-425 (ig = np.searchsorted(xs.chi_cum, rng.random())); test: tests/gates/mc/test_gaps.py (multiple tests via chi-sampling), tests/gates/mc/test_properties.py tests
 note: Fission spectrum sampling via CDF. Implemented using precomputed cumulative spectrum chi_cum.
 
 ## periodic-bc
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:606; orpheus/mc/solver.py:401-402 (nx_ = nx_ % pitch; ny_ = ny_ % pitch); test: tests/mc/test_monte_carlo.py (multiple tests use periodic BC)
+evidence: docs/theory/methods/monte_carlo.rst:606; orpheus/mc/solver.py:401-402 (nx_ = nx_ % pitch; ny_ = ny_ % pitch); test: tests/gates/mc/test_monte_carlo.py (multiple tests use periodic BC)
 note: Periodic boundary condition via modulo operation. Implemented directly in the random walk loop.
 
 ## roulette-prob
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._russian_roulette
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:829; orpheus/mc/solver.py:452-453 (terminate_p = 1.0 - bank.weight[i_n] / weight0[i_n]); test: tests/mc/test_properties.py, tests/mc/test_gaps.py
+evidence: docs/theory/methods/monte_carlo.rst:829; orpheus/mc/solver.py:452-453 (terminate_p = 1.0 - bank.weight[i_n] / weight0[i_n]); test: tests/gates/mc/test_properties.py, tests/gates/mc/test_gaps.py
 note: Russian roulette kill probability: P_kill = 1 - w/w_0. Implemented in _russian_roulette function.
 
 ## roulette-restore
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._russian_roulette
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:837; orpheus/mc/solver.py:454-457 (if terminate_p >= rng.random(): w=0; elif terminate_p > 0: w=w_0); test: tests/mc/test_properties.py::test_roulette_restore_weight, test_roulette_weight_conservation
+evidence: docs/theory/methods/monte_carlo.rst:837; orpheus/mc/solver.py:454-457 (if terminate_p >= rng.random(): w=0; elif terminate_p > 0: w=w_0); test: tests/gates/mc/test_properties.py::test_roulette_restore_weight, test_roulette_weight_conservation
 note: Post-roulette weight restoration: w_after ∈ {0, w_0}. Implemented in _russian_roulette.
 
 ## roulette-conservation
@@ -230,7 +230,7 @@ note: Algebraic identity proving that E[w_after] = w_before under the roulette s
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._split_heavy
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:890; orpheus/mc/solver.py:468-482 (N = floor(w); stochastic rounding; w_new = w/N); test: tests/mc/test_properties.py::test_splitting_weight_conservation, tests/mc/test_gaps.py::test_splitting_copy_count
+evidence: docs/theory/methods/monte_carlo.rst:890; orpheus/mc/solver.py:468-482 (N = floor(w); stochastic rounding; w_new = w/N); test: tests/gates/mc/test_properties.py::test_splitting_weight_conservation, tests/gates/mc/test_gaps.py::test_splitting_copy_count
 note: Weight-based splitting with stochastic rounding. Fully implemented in _split_heavy function.
 
 ## splitting-weight-conservation
@@ -244,28 +244,28 @@ note: Algebraic identity: E[N] = w under the stochastic splitting scheme. This i
 verdict: DECLARABLE
 implementers: orpheus.mc.solver.solve_monte_carlo
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:935; orpheus/mc/solver.py:621 (keff_cycle = bank.weight[:bank.n].sum() / weight0.sum()); test: tests/mc/test_gaps.py::test_keff_cycle_estimator
+evidence: docs/theory/methods/monte_carlo.rst:935; orpheus/mc/solver.py:621 (keff_cycle = bank.weight[:bank.n].sum() / weight0.sum()); test: tests/gates/mc/test_gaps.py::test_keff_cycle_estimator
 note: Cycle eigenvalue estimation as weight ratio. Implemented in the main solver loop.
 
 ## keff-mean
 verdict: DECLARABLE
 implementers: orpheus.mc.solver.solve_monte_carlo
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:964; orpheus/mc/solver.py:630-631 (keff_history[ia] = keff_active[:i_active].mean()); test: tests/mc/test_convergence.py::test_bias_decreases_with_histories, test_inactive_cycles_reduce_bias, test_sigma_scales_with_sqrt_n
+evidence: docs/theory/methods/monte_carlo.rst:964; orpheus/mc/solver.py:630-631 (keff_history[ia] = keff_active[:i_active].mean()); test: tests/gates/mc/test_convergence.py::test_bias_decreases_with_histories, test_inactive_cycles_reduce_bias, test_sigma_scales_with_sqrt_n
 note: Cumulative mean over active cycles. Implemented as the running mean of keff_active.
 
 ## sigma-keff
 verdict: DECLARABLE
 implementers: orpheus.mc.solver.solve_monte_carlo
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:971; orpheus/mc/solver.py:632-635 (sigma_history[ia] = sqrt(sum((k_m - mean)^2) / (M-1) / M)); test: tests/mc/test_convergence.py::test_sigma_scales_with_sqrt_n
+evidence: docs/theory/methods/monte_carlo.rst:971; orpheus/mc/solver.py:632-635 (sigma_history[ia] = sqrt(sum((k_m - mean)^2) / (M-1) / M)); test: tests/gates/mc/test_convergence.py::test_sigma_scales_with_sqrt_n
 note: Standard deviation of the mean using unbiased sample variance. Fully implemented in the solver loop.
 
 ## collision-estimator
 verdict: DECLARABLE
 implementers: orpheus.mc.solver._random_walk
 confidence: high
-evidence: docs/theory/methods/monte_carlo.rst:998; orpheus/mc/solver.py:411 (tally[ig] += w / sig_t); test: tests/mc/test_gaps.py::test_2g_flux_ratio_homogeneous
+evidence: docs/theory/methods/monte_carlo.rst:998; orpheus/mc/solver.py:411 (tally[ig] += w / sig_t); test: tests/gates/mc/test_gaps.py::test_2g_flux_ratio_homogeneous
 note: Collision estimator for flux tally: φ_g ≈ (1/N·V) Σ(w/Σ_t). Implemented at every real collision in _random_walk.
 
 ## mc-lethargy-width-sign
@@ -280,21 +280,21 @@ note: Mathematical sign relationship for lethargy width: Δu_g = ln(E_{g+1}/E_g)
 verdict: DECLARABLE
 implementers: orpheus.numerics.quadrature.directional.Quadrature.product
 confidence: high
-evidence: docs/theory/methods/sn/angular_quadrature.rst:351; orpheus/numerics/quadrature/directional.py:660 (Quadrature.product factory method); orpheus/numerics/quadrature/recipes.py (product_mu_phi function computes weights w_GL * 2π/N_φ); test: tests/sn/primitives/test_quadrature.py (many tests)
+evidence: docs/theory/methods/sn/angular_quadrature.rst:351; orpheus/numerics/quadrature/directional.py:660 (Quadrature.product factory method); orpheus/numerics/quadrature/recipes.py (product_mu_phi function computes weights w_GL * 2π/N_φ); test: tests/gates/sn/primitives/test_quadrature.py (many tests)
 note: Tensor product quadrature weights w_{p,m} = w_GL(μ_p) · 2π/N_φ. Implemented via the product factory method and underlying recipes module.
 
 ## quadrature-ordinate-permutation
 verdict: DECLARABLE
 implementers: orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation
 confidence: high
-evidence: docs/theory/methods/sn/angular_quadrature.rst:418; orpheus/numerics/quadrature/directional.py:337 (ordinate_permutation method); orpheus/numerics/symmetry.py (motion certification via RigidMotion.preserves); test: tests/sn/primitives/test_quadrature.py (TestReflectionIndices and related tests)
+evidence: docs/theory/methods/sn/angular_quadrature.rst:418; orpheus/numerics/quadrature/directional.py:337 (ordinate_permutation method); orpheus/numerics/symmetry.py (motion certification via RigidMotion.preserves); test: tests/gates/sn/primitives/test_quadrature.py (TestReflectionIndices and related tests)
 note: Permutation π such that Ω_{π(n)} = Q·Ω_n and w_{π(n)} = w_n, certified by ordinate-permutation method on all Quadrature objects.
 
 ## reflective-bc
 verdict: DECLARABLE
 implementers: orpheus.geometry.boundary.reflective.ReflectiveBoundary
 confidence: high
-evidence: docs/theory/methods/sn/boundary_conditions.rst:126; orpheus/geometry/boundary/reflective.py:32 (ReflectiveBoundary class implements ψ_n^in = ψ_{n'}^out via ordinate permutation); orpheus/sn/boundary/realizer.py (SNBoundaryRealizer realizes the BC as PermutationOperator); test: tests/sn/eigenvalue/test_keff_slab.py, tests/sn/primitives/test_quadrature.py (alpha_boundary_zero, reflection tests)
+evidence: docs/theory/methods/sn/boundary_conditions.rst:126; orpheus/geometry/boundary/reflective.py:32 (ReflectiveBoundary class implements ψ_n^in = ψ_{n'}^out via ordinate permutation); orpheus/sn/boundary/realizer.py (SNBoundaryRealizer realizes the BC as PermutationOperator); test: tests/gates/sn/eigenvalue/test_keff_slab.py, tests/gates/sn/primitives/test_quadrature.py (alpha_boundary_zero, reflection tests)
 note: Specular reflection: incoming flux set to outgoing flux of reflected partner. Implemented via ReflectiveBoundary descriptor + SNBoundaryRealizer.
 
 ---
@@ -345,14 +345,14 @@ Processing equations from: acceleration, index, spherical_harmonics, method_of_c
 verdict: DECLARABLE
 implementers: orpheus.sn.acceleration.dsa, orpheus.derivations.discrete.sn.dsa
 confidence: high
-evidence: docs/theory/methods/sn/acceleration.rst:418; test verifies at line 57-60 of tests/derivations/test_dsa_rules.py; implementation in orpheus.sn.acceleration.dsa.DSACorrection and derivation module
+evidence: docs/theory/methods/sn/acceleration.rst:418; test verifies at line 57-60 of tests/gates/derivations/test_dsa_rules.py; implementation in orpheus.sn.acceleration.dsa.DSACorrection and derivation module
 note: The four-step DSA derivation produces the cell-average update equations (28) in Larsen 1982. Tests verify via exact symbolic derivation (L0) and production build ties it to DSACorrection/DSALowOrderSystem (L3).
 
 ## sn-dsa-coefficients
 verdict: DECLARABLE
 implementers: orpheus.sn.acceleration.dsa.DSALowOrderSystem, orpheus.derivations.discrete.sn.dsa
 confidence: high
-evidence: docs/theory/methods/sn/acceleration.rst:368; test at line 71-75 of tests/derivations/test_dsa_rules.py; implements via DD instance
+evidence: docs/theory/methods/sn/acceleration.rst:368; test at line 71-75 of tests/gates/derivations/test_dsa_rules.py; implements via DD instance
 note: Larsen (23a–f) coefficients for consistent DSA. Derivation proves they equal Larsen's printed forms. Production DSALowOrderSystem.from_sn_mesh() builds these coefficients.
 
 ## sn-dsa-consistent-fourier
@@ -538,7 +538,7 @@ Processed 24 equations across 4 theory pages:
 verdict: DECLARABLE
 implementers: orpheus.sn.loss_representation._sweep_jacobi
 confidence: high
-evidence: docs/theory/methods/sn/cartesian_multid.rst:160; tests/sn/sweep/cartesian_2d/ exercise orpheus.sn.loss_representation._sweep_jacobi which directly computes psi_{n,i,j} using streaming coefficients s_x, s_y as shown in line 160-167
+evidence: docs/theory/methods/sn/cartesian_multid.rst:160; tests/gates/sn/sweep/cartesian_2d/ exercise orpheus.sn.loss_representation._sweep_jacobi which directly computes psi_{n,i,j} using streaming coefficients s_x, s_y as shown in line 160-167
 note: The 2D DD cell-update equation. _sweep_jacobi implements the inner kernel directly from this form. The equation is well-understood production code.
 
 ## dd-null-counting-law
@@ -559,21 +559,21 @@ note: Mathematical identity describing the shape of null vectors. The production
 verdict: DECLARABLE
 implementers: orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux, orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis
 confidence: medium
-evidence: docs/theory/methods/sn/cartesian_multid.rst:3242; tests/sn/solve/test_2d_anisotropic_windowing.py exercises HarmonicMomentFlux which computes moment projections via spherical harmonic basis
+evidence: docs/theory/methods/sn/cartesian_multid.rst:3242; tests/gates/sn/solve/test_2d_anisotropic_windowing.py exercises HarmonicMomentFlux which computes moment projections via spherical harmonic basis
 note: Moment projection onto spherical harmonics. The test name "test_2d_windowed_product_equals_post_projection" indicates tests verify that projection. HarmonicMomentFlux and SphericalHarmonicBasis are the production carriers.
 
 ## ld-ubld-d1-reduction
 verdict: DECLARABLE
 implementers: orpheus.transport.spatial._ubld.D1ClosedForm, orpheus.transport.spatial._ubld.assemble_ubld, orpheus.derivations.discrete.sn.ld_ubld.assemble_ubld
 confidence: high
-evidence: docs/theory/methods/sn/cartesian_multid.rst:1031 describes the 1D reduction of the UBLD system; tests/sn/verification/mms/test_mms_ld_slab.py exercises _ubld.py which implements this; orpheus/transport/spatial/_ubld.py:D1ClosedForm.kernel_rhs computes the matrix form
+evidence: docs/theory/methods/sn/cartesian_multid.rst:1031 describes the 1D reduction of the UBLD system; tests/gates/sn/verification/mms/test_mms_ld_slab.py exercises _ubld.py which implements this; orpheus/transport/spatial/_ubld.py:D1ClosedForm.kernel_rhs computes the matrix form
 note: The d=1 specialization of the multi-D UBLD closure. Production implementation in _ubld.py with Branch-1 algebra reference in orpheus.derivations.discrete.sn.ld_ubld.
 
 ## ld-ubld-octant-moment-frame-signs
 verdict: DECLARABLE
 implementers: orpheus.transport.spatial._ubld.D1ClosedForm, orpheus.transport.spatial._ubld.octant_moment_frame_signs, orpheus.numerics.moment_layout.face_moment_tail, orpheus.numerics.moment_layout.face_moment_count
 confidence: medium
-evidence: docs/theory/methods/sn/cartesian_multid.rst:2347; tests/sn/verification/mms/test_mms_ld_slab.py exercises octant moment frame calculations; orpheus/transport/spatial/_ubld.py:octant_moment_frame_signs is the production implementation
+evidence: docs/theory/methods/sn/cartesian_multid.rst:2347; tests/gates/sn/verification/mms/test_mms_ld_slab.py exercises octant moment frame calculations; orpheus/transport/spatial/_ubld.py:octant_moment_frame_signs is the production implementation
 note: Formula for frame signs applied to octant moments in LD/UBLD. Computed by octant_moment_frame_signs function and integrated in D1ClosedForm.
 
 ## ld-ubld-pure-z-collision
@@ -615,35 +615,35 @@ note: The continuous transport equation for 2D Cartesian. Multiple production co
 verdict: DECLARABLE
 implementers: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
 confidence: high
-evidence: docs/theory/methods/sn/curvilinear_numerics.rst:265; tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py marked with @pytest.mark.verifies("hebert-3-432"); orpheus/sn/sweep/psi_half_angle_seed.py implements the discretization of this PDE
+evidence: docs/theory/methods/sn/curvilinear_numerics.rst:265; tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py marked with @pytest.mark.verifies("hebert-3-432"); orpheus/sn/sweep/psi_half_angle_seed.py implements the discretization of this PDE
 note: The continuous PDE for the μ=-1 starting direction. Discretized and implemented by carlson_inward_sweep_from_source which marches the Hébert (3.434)-(3.435) recurrence.
 
 ## hebert-3-432-source
 verdict: DECLARABLE
 implementers: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
 confidence: high
-evidence: docs/theory/methods/sn/curvilinear_numerics.rst:284; tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-432-source"); source is computed as part of carlson_inward_sweep_from_source
+evidence: docs/theory/methods/sn/curvilinear_numerics.rst:284; tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-432-source"); source is computed as part of carlson_inward_sweep_from_source
 note: The Legendre-collapsed source term at μ=-1 (isotropic case, L=0). Computed as Q̄ = ½·Σ_t·φ_0 in the carlson_inward_sweep_from_source implementation.
 
 ## hebert-3-434
 verdict: DECLARABLE
 implementers: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
 confidence: high
-evidence: docs/theory/methods/sn/curvilinear_numerics.rst:345; tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-434"); this is the cell-center recurrence formula implemented directly
+evidence: docs/theory/methods/sn/curvilinear_numerics.rst:345; tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-434"); this is the cell-center recurrence formula implemented directly
 note: The DD recurrence formula for cell centers. Core of the Hébert §3.9.4 spatial march, implemented by carlson_inward_sweep_from_source.
 
 ## hebert-3-435
 verdict: DECLARABLE
 implementers: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
 confidence: high
-evidence: docs/theory/methods/sn/curvilinear_numerics.rst:355; tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-435"); this is the face-update formula in the DD march
+evidence: docs/theory/methods/sn/curvilinear_numerics.rst:355; tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py marked with @pytest.mark.verifies("hebert-3-435"); this is the face-update formula in the DD march
 note: The DD auxiliary relation (face-update step). Implements φ_{i-1/2} = 2·φ_i - φ_{i+1/2}, used in carlson_inward_sweep_from_source.
 
 ## phase-f-carlson-seed-source-driven
 verdict: DECLARABLE
 implementers: orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source
 confidence: high
-evidence: docs/theory/methods/sn/curvilinear_numerics.rst:1500; tests/sn/sweep/core/test_phase_c_gates.py marked with @pytest.mark.verifies("phase-f-carlson-seed-source-driven"); this is the source-driven variant of Hébert recurrence implemented in carlson_inward_sweep_from_source
+evidence: docs/theory/methods/sn/curvilinear_numerics.rst:1500; tests/gates/sn/sweep/core/test_phase_c_gates.py marked with @pytest.mark.verifies("phase-f-carlson-seed-source-driven"); this is the source-driven variant of Hébert recurrence implemented in carlson_inward_sweep_from_source
 note: Source-driven variant of the Hébert (3.434)-(3.435) recurrence for the sweep path. When Q_bar (not per-ordinate ψ) is available, this formulation is used. Implemented by carlson_inward_sweep_from_source with Q_bar parameter.
 
 ## phase-f-q-bar-twin-forms
@@ -657,49 +657,49 @@ note: Mathematical equivalence statement: the two formulations of Q̄ (from appl
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.singular_eigenfunction.core.x_function.atalay_X_function, orpheus.derivations.continuous.singular_eigenfunction.core.x_function._atalay_X_function_scipy, orpheus.derivations.continuous.singular_eigenfunction.core.x_function._atalay_X_function_mpmath, orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum
 confidence: high
-evidence: docs/theory/references/singular_eigenfunction.rst:1454; tests/derivations/test_case_method_x_function.py exercises atalay_X_function implementations; orpheus/derivations/continuous/singular_eigenfunction/core/x_function.py implements the Atalay equation 40 formula
+evidence: docs/theory/references/singular_eigenfunction.rst:1454; tests/gates/derivations/test_case_method_x_function.py exercises atalay_X_function implementations; orpheus/derivations/continuous/singular_eigenfunction/core/x_function.py implements the Atalay equation 40 formula
 note: The Wiener-Hopf X-function equation from Atalay. Multiple implementations: scipy-based numerical integration and mpmath-based arbitrary precision. Spectrum class uses these in case method calculations.
 
 ## singular-eigenfunction-eq42
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum
 confidence: medium
-evidence: docs/theory/references/singular_eigenfunction.rst:1524; tests/derivations/test_case_method_z0.py exercises Spectrum which implements the case method equations; this equation is part of the case method formulation
+evidence: docs/theory/references/singular_eigenfunction.rst:1524; tests/gates/derivations/test_case_method_z0.py exercises Spectrum which implements the case method equations; this equation is part of the case method formulation
 note: Part of the case method formulation. Spectrum class handles this as part of its z₀ calculation in the case method.
 
 ## singular-eigenfunction-eq46
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum, orpheus.derivations.continuous.singular_eigenfunction.core.x_function.atalay_X_function
 confidence: high
-evidence: docs/theory/references/singular_eigenfunction.rst:1302; tests/derivations/test_case_method_slab.py and test_case_method_sphere.py exercise the case method which uses equation 46; Spectrum and atalay_X_function are the production implementations
+evidence: docs/theory/references/singular_eigenfunction.rst:1302; tests/gates/derivations/test_case_method_slab.py and test_case_method_sphere.py exercise the case method which uses equation 46; Spectrum and atalay_X_function are the production implementations
 note: Wiener-Hopf solution form used in case method. The Spectrum class and related X-function implementations form the production machinery for calculating this.
 
 ## singular-eigenfunction-eq5
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum
 confidence: medium
-evidence: docs/theory/references/singular_eigenfunction.rst:1679; tests/derivations/test_case_method_slab.py marked with @pytest.mark.catches on validity bounds check; Spectrum implements the validity bounds logic
+evidence: docs/theory/references/singular_eigenfunction.rst:1679; tests/gates/derivations/test_case_method_slab.py marked with @pytest.mark.catches on validity bounds check; Spectrum implements the validity bounds logic
 note: Validity bounds for the case method. Spectrum enforces these bounds in its calculations.
 
 ## singular-eigenfunction-eq54
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum
 confidence: high
-evidence: docs/theory/references/singular_eigenfunction.rst:1387; tests/derivations/test_case_method_slab_sphere_parity_flip.py and test_case_method_sphere.py exercise T-functions and K-functions which are computed via Spectrum class; equation 54 is part of the T-function formulation
+evidence: docs/theory/references/singular_eigenfunction.rst:1387; tests/gates/derivations/test_case_method_slab_sphere_parity_flip.py and test_case_method_sphere.py exercise T-functions and K-functions which are computed via Spectrum class; equation 54 is part of the T-function formulation
 note: T-function formulation in case method. Part of the Spectrum class's machinery for computing boundary conditions via the case method.
 
 ## kinf-1g
 verdict: DECLARABLE
 implementers: orpheus.derivations.common.eigenvalue.kinf_homogeneous
 confidence: high
-evidence: docs/theory/verification/monte_carlo.rst:45; tests/mc/test_monte_carlo.py exercises kinf_homogeneous; orpheus/derivations/common/eigenvalue.py:kinf_homogeneous implements the 1-group formula k_∞ = νΣ_f / Σ_a
+evidence: docs/theory/verification/monte_carlo.rst:45; tests/gates/mc/test_monte_carlo.py exercises kinf_homogeneous; orpheus/derivations/common/eigenvalue.py:kinf_homogeneous implements the 1-group formula k_∞ = νΣ_f / Σ_a
 note: The 1-group infinite-medium eigenvalue formula. Direct implementation in kinf_homogeneous for the single-group case.
 
 ## kinf-mg
 verdict: DECLARABLE
 implementers: orpheus.derivations.common.eigenvalue.kinf_homogeneous, orpheus.derivations.common.eigenvalue.kinf_from_cp
 confidence: high
-evidence: docs/theory/verification/monte_carlo.rst:54; tests/mc/test_monte_carlo.py exercises kinf_homogeneous for multi-group cases; orpheus/derivations/common/eigenvalue.py implements both functions for computing k_∞
+evidence: docs/theory/verification/monte_carlo.rst:54; tests/gates/mc/test_monte_carlo.py exercises kinf_homogeneous for multi-group cases; orpheus/derivations/common/eigenvalue.py implements both functions for computing k_∞
 note: The multi-group infinite-medium eigenvalue as the dominant eigenvalue of A^-1 F. Implemented by kinf_homogeneous and kinf_from_cp for different input forms.
 
 ---
@@ -752,14 +752,14 @@ note: This is the fundamental balance law (streaming + collision = sources) that
 verdict: DECLARABLE
 implementers: orpheus.sn.solver.SNSolver._add_scattering_source
 confidence: high
-evidence: docs/theory/methods/sn/slab_multigroup.rst:160 explicitly names "_add_scattering_source" as the production hook; tests/sn/operators/test_solver_components.py:TestAddScatteringSource.test_matches_reference marks @pytest.mark.verifies("mg-inscatter-source") and calls solver._add_scattering_source(Q_actual, phi)
+evidence: docs/theory/methods/sn/slab_multigroup.rst:160 explicitly names "_add_scattering_source" as the production hook; tests/gates/sn/operators/test_solver_components.py:TestAddScatteringSource.test_matches_reference marks @pytest.mark.verifies("mg-inscatter-source") and calls solver._add_scattering_source(Q_actual, phi)
 note: This equation defines the in-scatter source as a matrix contraction. SNSolver._add_scattering_source performs the exact contraction specified: `out[:, ix, iy] += SigS[mid].T @ phi[:, ix, iy]` per material.
 
 ## flux-moments
 verdict: UNSURE
 implementers: 
 confidence: low
-evidence: docs/theory/methods/sn/slab_multigroup.rst:196-200; tests/sn/primitives/test_quadrature.py:pytestmark includes flux-moments verification
+evidence: docs/theory/methods/sn/slab_multigroup.rst:196-200; tests/gates/sn/primitives/test_quadrature.py:pytestmark includes flux-moments verification
 note: The flux-moments equation defines a computational procedure (summing weighted spherical harmonics) that is embedded in multiple places: moment accumulation in sweeps, scattering source construction. No single dedicated function computes this in isolation; it's a sub-routine within larger operations. The guessed implementers (field types) suggest the moment computation is distributed across field abstractions rather than localized.
 
 ## addition-theorem
@@ -794,14 +794,14 @@ note: This specifies the explicit forms of the ℓ=1 real spherical harmonics in
 verdict: DECLARABLE
 implementers: orpheus.sn.solver.SNSolver._build_aniso_scattering
 confidence: high
-evidence: docs/theory/methods/sn/slab_multigroup.rst:206 explicitly says "Implementation in :meth:`SNSolver._build_aniso_scattering`"; tests/sn/operators/test_solver_components.py:TestAnisotropicScattering carries @pytest.mark.verifies("pn-scatter")
+evidence: docs/theory/methods/sn/slab_multigroup.rst:206 explicitly says "Implementation in :meth:`SNSolver._build_aniso_scattering`"; tests/gates/sn/operators/test_solver_components.py:TestAnisotropicScattering carries @pytest.mark.verifies("pn-scatter")
 note: The equation defines the anisotropic scattering source as a sum over Legendre orders of moment-weighted spherical harmonics. SNSolver._build_aniso_scattering implements this: (1) compute moments via einsum, (2) scale by (2ℓ+1) and SigS[l], (3) reconstruct per-ordinate source as a sum of weighted harmonics.
 
 ## n2n-source
 verdict: DECLARABLE
 implementers: orpheus.sn.solver.SNSolver._add_n2n_source
 confidence: high
-evidence: docs/theory/methods/sn/slab_multigroup.rst:352 explicitly names "_add_n2n_source" as implementation; tests/sn/operators/test_solver_components.py:TestAddN2NSource.test_matches_reference marks @pytest.mark.verifies("n2n-source") and calls solver._add_n2n_source(Q, phi)
+evidence: docs/theory/methods/sn/slab_multigroup.rst:352 explicitly names "_add_n2n_source" as implementation; tests/gates/sn/operators/test_solver_components.py:TestAddN2NSource.test_matches_reference marks @pytest.mark.verifies("n2n-source") and calls solver._add_n2n_source(Q, phi)
 note: Implements the (n,2n) source as Q += 2·Σ₂ᵀ@φ. The factor of 2 accounts for two neutrons produced per reaction.
 
 ---
@@ -824,28 +824,28 @@ note: This states that energy condensation must preserve the property that χ (e
 verdict: DECLARABLE
 implementers: orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns, orpheus.data.energy_grid.EnergyGrid.overlap_to
 confidence: medium
-evidence: docs/theory/foundations/frame.rst:2074 (fractional collapse definition); tests/data/test_mixture_condense.py:TestF1StraddleRatePreservation.test_condensed_value_equals_fractional_oracle carries the test; OverlapBasis.fractional_columns computes the fractional overlap columns
+evidence: docs/theory/foundations/frame.rst:2074 (fractional collapse definition); tests/gates/data/test_mixture_condense.py:TestF1StraddleRatePreservation.test_condensed_value_equals_fractional_oracle carries the test; OverlapBasis.fractional_columns computes the fractional overlap columns
 note: This describes how to compute the condensed cross-section using fractional overlaps when groups partially straddle the condensation boundary. EnergyGrid.overlap_to and OverlapBasis.fractional_columns implement the fractional downsampling operation.
 
 ## energy-condensation-rate-preservation
 verdict: DECLARABLE
 implementers: orpheus.data.energy_grid.EnergyGrid.overlap_to, orpheus.transport.reaction_rate_functional.IntegratedReactionRate
 confidence: medium
-evidence: docs/theory/foundations/frame.rst:1616 (rate preservation statement); tests/sn/test_condensation.py:test_solution_condense_rate_preservation and tests/data/test_mixture_condense.py tests verify this
+evidence: docs/theory/foundations/frame.rst:1616 (rate preservation statement); tests/gates/sn/test_condensation.py:test_solution_condense_rate_preservation and tests/gates/data/test_mixture_condense.py tests verify this
 note: Energy condensation must preserve reaction rates. IntegratedReactionRate computes rates on both fine and coarse meshes; EnergyGrid.overlap_to performs the group downsampling operation.
 
 ## energy-condensation-scattering-collapse
 verdict: DECLARABLE
 implementers: orpheus.transport.operators.scattering.LegendreMomentScattering, orpheus.transport.operators.scattering.ScatteringOperator, orpheus.data.energy_grid.EnergyGrid.overlap_to
 confidence: medium
-evidence: docs/theory/foundations/frame.rst:1743; tests/sn/test_condensation.py and tests/data/test_mixture_condense.py::TestG3ScatteringTwoAxisCollapse verify this
+evidence: docs/theory/foundations/frame.rst:1743; tests/gates/sn/test_condensation.py and tests/gates/data/test_mixture_condense.py::TestG3ScatteringTwoAxisCollapse verify this
 note: Scattering matrix condensation must be done carefully to preserve the physics. ScatteringOperator carries the condensed operator; EnergyGrid.overlap_to does the group downsampling.
 
 ## sn-homogenization-rate-preservation
 verdict: DECLARABLE
 implementers: orpheus.transport.reaction_rate_functional.IntegratedReactionRate
 confidence: high
-evidence: docs/theory/foundations/frame.rst:517-522 (rate preservation constraint); tests/sn/test_homogenization.py tests verify this; IntegratedReactionRate.compute or similar methods compute rates on original and homogenized meshes
+evidence: docs/theory/foundations/frame.rst:517-522 (rate preservation constraint); tests/gates/sn/test_homogenization.py tests verify this; IntegratedReactionRate.compute or similar methods compute rates on original and homogenized meshes
 note: Homogenization must preserve reaction rates (the fundamental constraint). IntegratedReactionRate provides the functional that computes rates against which homogenization is validated.
 
 ## sn-homogenization-balance-preservation
@@ -859,14 +859,14 @@ note: This is a conservation law that defines what homogenized cross sections mu
 verdict: DECLARABLE
 implementers: orpheus.sn.solution.Solution.homogenize, orpheus.sn.solution.Solution.condense, orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis
 confidence: high
-evidence: docs/theory/foundations/frame.rst:1005-1010 explicitly names "Solution.homogenize / Solution.condense build the collapse"; tests/sn/test_homogenization.py::TestC1AdjointWeightedDiscriminator verifies this; WeightedIndicatorBasis implements the adjoint-weighted effective cross section formula
+evidence: docs/theory/foundations/frame.rst:1005-1010 explicitly names "Solution.homogenize / Solution.condense build the collapse"; tests/gates/sn/test_homogenization.py::TestC1AdjointWeightedDiscriminator verifies this; WeightedIndicatorBasis implements the adjoint-weighted effective cross section formula
 note: The bilinear (adjoint-weighted) effective cross section keeps the eigenvalue first-order stationary. Solution.homogenize and Solution.condense build this using the adjoint-weighted formula, with WeightedIndicatorBasis implementing the computation.
 
 ## sn-homogenization-adjoint-weighted
 verdict: DECLARABLE
 implementers: orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis, orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.evaluate, orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze, orpheus.sn.solver.solve_sn_adjoint
 confidence: high
-evidence: docs/theory/foundations/frame.rst:3462 (adjoint-weighted homogenization); tests/sn/test_homogenization.py::TestC1AdjointWeightedDiscriminator tests verify; WeightedIndicatorBasis computes and evaluates the adjoint-weighted basis
+evidence: docs/theory/foundations/frame.rst:3462 (adjoint-weighted homogenization); tests/gates/sn/test_homogenization.py::TestC1AdjointWeightedDiscriminator tests verify; WeightedIndicatorBasis computes and evaluates the adjoint-weighted basis
 note: Adjoint-weighted homogenization requires solving the adjoint SN problem (solve_sn_adjoint) and using those adjoint fluxes to weight the effective cross sections. WeightedIndicatorBasis orchestrates this computation.
 
 ---
@@ -875,7 +875,7 @@ note: Adjoint-weighted homogenization requires solving the adjoint SN problem (s
 verdict: DECLARABLE
 implementers: orpheus.geometry.boundary._base.BoundaryTraceLaw.response_kernel
 confidence: high
-evidence: docs/theory/foundations/boundary_conditions.rst:769-776 (factored adjoint form); tests/numerics/test_factored_adjoint_identity.py tests verify @pytest.mark.verifies("bc-response-factored-adjoint"); tests/sn/operators/test_lambertian_factored.py tests verify factored adjoint law
+evidence: docs/theory/foundations/boundary_conditions.rst:769-776 (factored adjoint form); tests/gates/numerics/test_factored_adjoint_identity.py tests verify @pytest.mark.verifies("bc-response-factored-adjoint"); tests/gates/sn/operators/test_lambertian_factored.py tests verify factored adjoint law
 note: The adjoint of a boundary response kernel factors as R* = (G⁻¹_+ C^T G_S)(G⁻¹_S B^T G⁻). BoundaryTraceLaw.response_kernel computes this factored form; the algebraic identity is verified by tests on Lambertian and reflective laws.
 
 ## bc-single-delivery
@@ -889,14 +889,14 @@ note: This defines what "single delivery" means for boundary conditions: the pre
 verdict: DECLARABLE
 implementers: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face, orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_restriction, orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face, orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_restriction, orpheus.sn.solver._reflect_outflow_into_inflow
 confidence: high
-evidence: docs/theory/foundations/boundary_conditions.rst:4010-4020 explicitly states "This mask is the discrete realization"; AngularTraceSpace methods compute inflow/outflow masks and restrictions; tests/numerics/test_angular_trace_space.py verify this
+evidence: docs/theory/foundations/boundary_conditions.rst:4010-4020 explicitly states "This mask is the discrete realization"; AngularTraceSpace methods compute inflow/outflow masks and restrictions; tests/gates/numerics/test_angular_trace_space.py verify this
 note: The discrete inflow/outflow mask is computed as a sign test on the dot product of ordinate with face normal. AngularTraceSpace computes and caches these masks; they're used to partition ordinates and extract trace restrictions.
 
 ## ordinate-partition-inflow-outflow
 verdict: DECLARABLE
 implementers: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face, orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face, orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation
 confidence: high
-evidence: docs/theory/foundations/boundary_conditions.rst:5906-5912 (partition definition); tests/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors and test_inflow_xor_outflow_complementary_for_gl_1d verify this
+evidence: docs/theory/foundations/boundary_conditions.rst:5906-5912 (partition definition); tests/gates/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors and test_inflow_xor_outflow_complementary_for_gl_1d verify this
 note: The ordinates must be partitioned into inflow, outflow, and tangential sets based on sign of dot product with face normal. AngularTraceSpace computes these index sets; Quadrature.ordinate_permutation may reorder them.
 
 ---
@@ -905,7 +905,7 @@ note: The ordinates must be partitioned into inflow, outflow, and tangential set
 verdict: DECLARABLE
 implementers: orpheus.data.emission_spectrum.EmissionSpectrum, orpheus.data.emission_spectrum.enforce_emission_spectrum, orpheus.data.macro_xs.recipes.pwr_like_mix, orpheus.data.emission_spectrum.EmissionSpectrum.assert_normalized, orpheus.data.emission_spectrum.EmissionSpectrum.assert_null
 confidence: medium
-evidence: docs/theory/foundations/cross_section_data.rst:1320-1330; tests/data/test_chi_mix_production_weighting.py::TestChiMixHandReference.test_two_fissile_matches_hand_weighted_average verifies this; EmissionSpectrum implements the weighted-average spectrum formula
+evidence: docs/theory/foundations/cross_section_data.rst:1320-1330; tests/gates/data/test_chi_mix_production_weighting.py::TestChiMixHandReference.test_two_fissile_matches_hand_weighted_average verifies this; EmissionSpectrum implements the weighted-average spectrum formula
 note: The mixed emission spectrum is a production-weighted average of per-isotope spectra. EmissionSpectrum computes and validates this; enforce_emission_spectrum ensures it's a valid probability simplex.
 
 ## sigT-computed
@@ -913,7 +913,7 @@ verdict: NOTHING:definition
 implementers: 
 confidence: high
 evidence: docs/theory/foundations/cross_section_data.rst:703-709 (definition of how total XS is computed from components)
-note: This defines how the total cross section is computed from its reaction components (capture, fission, alpha, scattering, n2n). It's a computational procedure for building data, not a solver-equation implementation. The MC solver tests (tests.mc.test_gaps.test_xs_consistency_in_solver) verify consistency but don't "implement" the definition itself.
+note: This defines how the total cross section is computed from its reaction components (capture, fission, alpha, scattering, n2n). It's a computational procedure for building data, not a solver-equation implementation. The MC solver tests (tests.gates.mc.test_gaps.test_xs_consistency_in_solver) verify consistency but don't "implement" the definition itself.
 
 ---
 
@@ -1207,7 +1207,7 @@ note: This is a gate condition (verification criterion) written as an equation. 
 verdict: NOTHING:definition
 implementers:
 confidence: high
-evidence: docs/theory/conventions/normalization.rst line 56; tests/sn/sweep/slab/test_dd_recurrence.py tests the DD recurrence, not the normalization coefficient
+evidence: docs/theory/conventions/normalization.rst line 56; tests/gates/sn/sweep/slab/test_dd_recurrence.py tests the DD recurrence, not the normalization coefficient
 note: This is a definition of the source coefficient used in the diamond-difference recurrence. The test verifies the recurrence formula itself against a symbolic derivation, not a separate "normalization coefficient" implementation. The coefficient is an algebraic parameter within the DD scheme.
 
 ## two-group-A
@@ -1256,28 +1256,28 @@ note: Closed-form roots of the 2×2 characteristic polynomial. Algebraic identit
 verdict: DECLARABLE
 implementers: orpheus.data.macro_xs.recipes._number_density
 confidence: high
-evidence: orpheus/data/macro_xs/recipes.py:21 (def _number_density); tests/data/test_cross_section_data.py line 10 and 35 cite it
+evidence: orpheus/data/macro_xs/recipes.py:21 (def _number_density); tests/gates/data/test_cross_section_data.py line 10 and 35 cite it
 note: Formula N = ρ / (mᵤ·A) is implemented as _number_density helper. Tests verify against hand calculations.
 
 ## sigma-zero
 verdict: DECLARABLE
 implementers: orpheus.data.macro_xs.sigma_zeros.solve_sigma_zeros
 confidence: high
-evidence: orpheus/data/macro_xs/sigma_zeros.py:15 (def solve_sigma_zeros); tests/data/test_cross_section_data.py docstring line 7 cites it
+evidence: orpheus/data/macro_xs/sigma_zeros.py:15 (def solve_sigma_zeros); tests/gates/data/test_cross_section_data.py docstring line 7 cites it
 note: Bondarenko σ₀ iteration is directly implemented. Formula σ₀ᵢ = (Σ_escape + Σⱼ≠ᵢ Nⱼ σₜⱼ) / Nᵢ is computed as part of the XS preprocessing pipeline.
 
 ## xs-interp
 verdict: DECLARABLE
 implementers: orpheus.data.macro_xs.interpolation.interp_xs_field, orpheus.data.macro_xs.interpolation.interp_sig_s
 confidence: high
-evidence: orpheus/data/macro_xs/interpolation.py (both functions exist); tests/data/test_cross_section_data.py docstring line 8-9 cites both
+evidence: orpheus/data/macro_xs/interpolation.py (both functions exist); tests/gates/data/test_cross_section_data.py docstring line 8-9 cites both
 note: Log-linear interpolation in σ₀ space is implemented by two interpolation functions. Tests verify hand-calculated interpolations.
 
 ## macro-sum
 verdict: DECLARABLE
 implementers: orpheus.data.macro_xs.mixture.compute_macro_xs, orpheus.data.macro_xs.mixture.Mixture
 confidence: high
-evidence: tests/data/test_mixture.py tests verify macro_sum formula; orpheus/data/macro_xs/mixture.py implements summation Σₓ = Σᵢ Nᵢ σₓᵢ
+evidence: tests/gates/data/test_mixture.py tests verify macro_sum formula; orpheus/data/macro_xs/mixture.py implements summation Σₓ = Σᵢ Nᵢ σₓᵢ
 note: The general equation Σₓ = Σᵢ Nᵢ σₓᵢ is implemented in compute_macro_xs function and via Mixture properties for individual reaction types.
 
 ## absorption-xs
@@ -1815,7 +1815,7 @@ note: The equation is directly mentioned in the theory page as the code `P_out =
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix, orpheus.derivations.continuous.flat_source_cp.slab, orpheus.derivations.continuous.flat_source_cp.cylinder, orpheus.derivations.continuous.flat_source_cp.sphere
 confidence: medium
-evidence: docs/theory/references/peierls_nystrom.rst:6048-6057 (describes rcp formula); tests/derivations/test_cp_geometry.py (test_unified_* tests verify build_cp_matrix against legacy implementations)
+evidence: docs/theory/references/peierls_nystrom.rst:6048-6057 (describes rcp formula); tests/gates/derivations/test_cp_geometry.py (test_unified_* tests verify build_cp_matrix against legacy implementations)
 note: The equation describes the collision probability formula using second-difference of F_3 kernel. The three facade modules all delegate to `build_cp_matrix`, which computes this via the unified second-difference operator.
 
 ## cp-flat-source-double-integral
@@ -1829,42 +1829,42 @@ note: Describes the double-integral form underlying the F_3 collision probabilit
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_inner, orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_inner
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:5992-6020 (antiderivative identity); tests/derivations/test_cp_geometry.py:TestInnerIntegralAntiderivative
+evidence: docs/theory/references/peierls_nystrom.rst:5992-6020 (antiderivative identity); tests/gates/derivations/test_cp_geometry.py:TestInnerIntegralAntiderivative
 note: The test directly verifies that E1→E2, E2→E3, Ki1→Ki2 antiderivative relations hold, tested via the compute_P_esc_inner and compute_G_bc_inner functions.
 
 ## cp-kernel-differential-identities
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel, orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel_adaptive
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:5832-5880; tests/derivations/test_kernels.py (derivative identity tests)
+evidence: docs/theory/references/peierls_nystrom.rst:5832-5880; tests/gates/derivations/test_kernels.py (derivative identity tests)
 note: The tests verify that d/dx(E_n) and d/dx(Ki_n) match expected antiderivative forms, checked within the volume kernel builders.
 
 ## cp-outer-integral-antiderivative
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_outer, orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_outer
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:6035-6065 (antiderivative); tests/derivations/test_cp_geometry.py:TestOuterIntegralAntiderivative
+evidence: docs/theory/references/peierls_nystrom.rst:6035-6065 (antiderivative); tests/gates/derivations/test_cp_geometry.py:TestOuterIntegralAntiderivative
 note: Tests verify E2→E3 and Ki2→Ki3 outer antiderivative relations via compute_* functions.
 
 ## cp-second-difference-operator
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry._build_closure_operator_rank2_white, orpheus.derivations.continuous.peierls_nystrom.geometry.build_closure_operator, orpheus.derivations.continuous.flat_source_cp.geometry._second_difference
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:6070-6090; orpheus/derivations/continuous/flat_source_cp/geometry.py:_second_difference (line 71-88); tests/derivations/test_cp_geometry.py:TestSecondDifferenceOperator
+evidence: docs/theory/references/peierls_nystrom.rst:6070-6090; orpheus/derivations/continuous/flat_source_cp/geometry.py:_second_difference (line 71-88); tests/gates/derivations/test_cp_geometry.py:TestSecondDifferenceOperator
 note: The _second_difference free function in flat_source_cp/geometry.py directly implements this operator. The Peierls version uses it in closure building.
 
 ## cp-unified-outer-integration
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_outer, orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_outer, orpheus.derivations.continuous.peierls_nystrom.cases._build_peierls_slab_case_via_unified
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:6198-6240 (unified y-integration); tests/derivations/test_cp_geometry.py (test_unified_* tests)
+evidence: docs/theory/references/peierls_nystrom.rst:6198-6240 (unified y-integration); tests/gates/derivations/test_cp_geometry.py (test_unified_* tests)
 note: Tests verify unified integration against legacy per-geometry paths in the three CP modules.
 
 ## gauss-legendre-visibility-cone
 verdict: DECLARABLE
 implementers: orpheus.derivations.common.quadrature.gauss_legendre_visibility_cone
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:7539-7600; orpheus/derivations/common/quadrature.py (function defined); tests/derivations/test_quadrature.py (7 visibility_cone tests)
+evidence: docs/theory/references/peierls_nystrom.rst:7539-7600; orpheus/derivations/common/quadrature.py (function defined); tests/gates/derivations/test_quadrature.py (7 visibility_cone tests)
 note: Direct function `gauss_legendre_visibility_cone` computes the quadrature cone. Tests verify constant/smooth integrands, endpoint spectral properties, and input validation.
 
 ## hebert-3-323
@@ -1885,28 +1885,28 @@ note: This describes a property of the Peierls solution under homogeneous source
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: medium
-evidence: docs/theory/references/peierls_nystrom.rst:4818-4850; tests/derivations/test_peierls_cylinder_knyazev_symbolic.py:test_g_prefactor_is_4_over_pi
+evidence: docs/theory/references/peierls_nystrom.rst:4818-4850; tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py:test_g_prefactor_is_4_over_pi
 note: The test verifies g_prefactor=4/π, which is part of the Nyström kernel assembly in BoundaryClosureOperator. However, this is a component of a larger formula rather than a standalone implementer.
 
 ## peierls-cyl-3d-mode-formula
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator, orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution
 confidence: medium
-evidence: docs/theory/references/peierls_nystrom.rst:4811-4850 (3D mode formula); tests/derivations/test_peierls_cylinder_knyazev_symbolic.py (5 tests verify formula components)
+evidence: docs/theory/references/peierls_nystrom.rst:4811-4850 (3D mode formula); tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py (5 tests verify formula components)
 note: Tests verify polar integral identity and prefactors of the cylinder 3D Nyström formula, checked through the closure operator and solution assembly.
 
 ## peierls-cyl-Gbc-3d-final
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:4414-4470 (derivation of final Gbc formula); tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py (5 tests verify form and limits)
+evidence: docs/theory/references/peierls_nystrom.rst:4414-4470 (derivation of final Gbc formula); tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py (5 tests verify form and limits)
 note: Tests verify the final cylinder boundary-closure form: the closed-form expression, thin-cell limit, and correction-factor quantification.
 
 ## peierls-escape-probability
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2563-2600 (escape probability identity); tests/derivations/test_peierls_reference.py:TestSlabPescClosedForm
+evidence: docs/theory/references/peierls_nystrom.rst:2563-2600 (escape probability identity); tests/gates/derivations/test_peierls_reference.py:TestSlabPescClosedForm
 note: Test verifies that escape probability matches closed-form E2 sum at machine precision, verified via the Solution object's computed escape values.
 
 ## peierls-mg-operator
@@ -1920,28 +1920,28 @@ note: This defines the structure of the multigroup fission source operator used 
 verdict: NOTHING:definition
 implementers:
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:3068-3150 (describes rank-N closure ansatz and shifted-Legendre basis); tests/derivations/test_peierls_rank_n_bc.py (25 tests verify angular moment exactness, reciprocity, convergence)
+evidence: docs/theory/references/peierls_nystrom.rst:3068-3150 (describes rank-N closure ansatz and shifted-Legendre basis); tests/gates/derivations/test_peierls_rank_n_bc.py (25 tests verify angular moment exactness, reciprocity, convergence)
 note: Describes the general rank-N ansatz for boundary closures. Multiple tests verify properties (moment exactness, reciprocity) that follow from the ansatz, but tests don't directly implement this abstract formula.
 
 ## peierls-rank-n-stability
 verdict: NOTHING:definition
 implementers:
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:3597-3700 (defines rank-N stability constraints); tests/cp/test_peierls_rank_n_protocol.py (8 tests verify sign stability, monotonicity)
+evidence: docs/theory/references/peierls_nystrom.rst:3597-3700 (defines rank-N stability constraints); tests/gates/cp/test_peierls_rank_n_protocol.py (8 tests verify sign stability, monotonicity)
 note: Documents stability requirements on rank-N closures as a protocol. Tests verify these constraints are satisfied, but do not implement the equation itself — they verify properties that follow from it.
 
 ## peierls-slab-Gbc-mode
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:4921-4950 (slab Gbc mode formula); tests/derivations/test_peierls_specular_slab_symbolic.py (2 tests verify primitive matches E2)
+evidence: docs/theory/references/peierls_nystrom.rst:4921-4950 (slab Gbc mode formula); tests/gates/derivations/test_peierls_specular_slab_symbolic.py (2 tests verify primitive matches E2)
 note: Tests verify that the slab boundary-closure G primitive computed via the operator matches the E2 antiderivative form.
 
 ## peierls-slab-Pesc-mode
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:4915-4950 (slab Pesc mode formula); tests/derivations/test_peierls_specular_slab_symbolic.py (2 tests verify primitive matches E2)
+evidence: docs/theory/references/peierls_nystrom.rst:4915-4950 (slab Pesc mode formula); tests/gates/derivations/test_peierls_specular_slab_symbolic.py (2 tests verify primitive matches E2)
 note: Tests verify slab escape-probability primitive matches E2 form.
 
 ## peierls-specular-bc-defn
@@ -1962,14 +1962,14 @@ note: This is the **defining integral equation** for the Peierls-Nyström method
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution, orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2657-2700 (vacuum BC on cylinder); tests/derivations/test_peierls_reference.py:TestCylinderKernelRowSum
+evidence: docs/theory/references/peierls_nystrom.rst:2657-2700 (vacuum BC on cylinder); tests/gates/derivations/test_peierls_reference.py:TestCylinderKernelRowSum
 note: Test verifies row-sum identity for cylinder vacuum BC, checked via the Solution object's kernel assembly.
 
 ## peierls-vacuum-bc-flux
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution, orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2600-2620 (vacuum BC flux identity); tests/derivations/test_peierls_reference.py (3 row-sum tests across geometries)
+evidence: docs/theory/references/peierls_nystrom.rst:2600-2620 (vacuum BC flux identity); tests/gates/derivations/test_peierls_reference.py (3 row-sum tests across geometries)
 note: Tests verify the row-sum identity for uniform-source vacuum BC in all three geometries.
 
 ## peierls-vacuum-bc-row-sum-gate
@@ -1983,21 +1983,21 @@ note: This is a documented gate property (k_eff=k_infinity via row-sum identity)
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution, orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2627-2650 (slab vacuum BC); tests/derivations/test_peierls_reference.py:TestSlabKernelRowSum
+evidence: docs/theory/references/peierls_nystrom.rst:2627-2650 (slab vacuum BC); tests/gates/derivations/test_peierls_reference.py:TestSlabKernelRowSum
 note: Tests verify row-sum identity for slab.
 
 ## peierls-vacuum-bc-sphere
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution, orpheus.derivations.continuous.peierls_nystrom.geometry.BoundaryClosureOperator
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2697-2720 (sphere vacuum BC); tests/derivations/test_peierls_reference.py:TestSphereKernelRowSum
+evidence: docs/theory/references/peierls_nystrom.rst:2697-2720 (sphere vacuum BC); tests/gates/derivations/test_peierls_reference.py:TestSphereKernelRowSum
 note: Tests verify row-sum identity for sphere.
 
 ## peierls-white-bc-slab
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution
 confidence: high
-evidence: docs/theory/references/peierls_nystrom.rst:2751-2800 (white BC identity on slab); tests/derivations/test_peierls_reference.py:TestSlabWhiteBCInfiniteMediumIdentity
+evidence: docs/theory/references/peierls_nystrom.rst:2751-2800 (white BC identity on slab); tests/gates/derivations/test_peierls_reference.py:TestSlabWhiteBCInfiniteMediumIdentity
 note: Tests verify that flux equals 1/sigma_t in infinite white-BC medium, verified via the solution in that geometry.
 
 
@@ -2663,7 +2663,7 @@ Analysis of 37 equations from `theory/verification/sn`.
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.phi_exact
 confidence: high
-evidence: docs/theory/verification/sn.rst:2043 defines ansatz; test imports and uses SN2DCartesianLDStressMMSCase from tests/sn/verification/mms/test_mms_ld_2d.py
+evidence: docs/theory/verification/sn.rst:2043 defines ansatz; test imports and uses SN2DCartesianLDStressMMSCase from tests/gates/sn/verification/mms/test_mms_ld_2d.py
 note: The manufactured solution flux for 2D Cartesian linear discontinuous SN. Implemented by `phi_exact()` method of the LD stress MMS case class.
 
 ## ld-cartesian-2d-bilinear-coeffs
@@ -2677,7 +2677,7 @@ note: Bilinear coefficients for the manufactured solution's polynomial expansion
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.external_source
 confidence: high
-evidence: docs/theory/verification/sn.rst:2295 describes projection coefficient; tests/sn/verification/mms/test_mms_ld_2d.py line 63 tests projection
+evidence: docs/theory/verification/sn.rst:2295 describes projection coefficient; tests/gates/sn/verification/mms/test_mms_ld_2d.py line 63 tests projection
 note: Projection coefficient for the LD stress MMS case. The coefficient definition is used in external_source computation.
 
 ## sn-case-back-substitution
@@ -2734,42 +2734,42 @@ note: The spatial basis mode functions (like linear discontinuous) are productio
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_2d.py:96 uses build_2d_cartesian_heterogeneous_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:526
+evidence: tests/gates/sn/verification/mms/test_mms_2d.py:96 uses build_2d_cartesian_heterogeneous_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:526
 note: 2-group heterogeneous 2D Cartesian manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-2d-2g-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_2d.py:96 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:537
+evidence: tests/gates/sn/verification/mms/test_mms_2d.py:96 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:537
 note: 2-group heterogeneous 2D Cartesian manufactured source. Implemented by external_source() method.
 
 ## sn-mms-2d-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesianMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_2d.py:50 uses build_2d_cartesian_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:395
+evidence: tests/gates/sn/verification/mms/test_mms_2d.py:50 uses build_2d_cartesian_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:395
 note: 1-group 2D Cartesian manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-2d-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesianMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_2d.py:50 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:417
+evidence: tests/gates/sn/verification/mms/test_mms_2d.py:50 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:417
 note: 1-group 2D Cartesian manufactured source. Implemented by external_source() method.
 
 ## sn-mms-cylindrical-aniso-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNCylindricalAnisotropicMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNCylindricalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:898
+evidence: tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNCylindricalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:898
 note: Cylindrical anisotropic manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-cylindrical-aniso-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNCylindricalAnisotropicMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNCylindricalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:914
+evidence: tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNCylindricalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:914
 note: Cylindrical anisotropic manufactured source. Implemented by external_source() method.
 
 ## sn-mms-cylindrical-aniso-spatial-convergence
@@ -2783,42 +2783,42 @@ note: Statement about convergence behavior/relationship; describes how the spati
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNCylindricalMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_curvilinear.py line 122 uses SNCylindricalMMSCase and calls phi_exact; equation at docs/theory/verification/sn.rst:747
+evidence: tests/gates/sn/verification/mms/test_mms_curvilinear.py line 122 uses SNCylindricalMMSCase and calls phi_exact; equation at docs/theory/verification/sn.rst:747
 note: Cylindrical manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-cylindrical-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNCylindricalMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_curvilinear.py uses SNCylindricalMMSCase; equation at docs/theory/verification/sn.rst:759
+evidence: tests/gates/sn/verification/mms/test_mms_curvilinear.py uses SNCylindricalMMSCase; equation at docs/theory/verification/sn.rst:759
 note: Cylindrical manufactured source. Implemented by external_source() method.
 
 ## sn-mms-hetero-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_heterogeneous.py line 36 uses build_2d_cartesian_heterogeneous_mms_case() and calls phi_exact; equation at docs/theory/verification/sn.rst:220
+evidence: tests/gates/sn/verification/mms/test_mms_heterogeneous.py line 36 uses build_2d_cartesian_heterogeneous_mms_case() and calls phi_exact; equation at docs/theory/verification/sn.rst:220
 note: Heterogeneous (spatially varying cross sections) manufactured solution flux. Implemented by phi_exact() in 2D heterogeneous case class.
 
 ## sn-mms-hetero-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_heterogeneous.py uses SN2DCartesian2GHeterogeneousMMSCase; equation at docs/theory/verification/sn.rst:258
+evidence: tests/gates/sn/verification/mms/test_mms_heterogeneous.py uses SN2DCartesian2GHeterogeneousMMSCase; equation at docs/theory/verification/sn.rst:258
 note: Heterogeneous manufactured source. Implemented by external_source() method.
 
 ## sn-mms-nonvacuum-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSlabNonVacuumMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSlabNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:3927
+evidence: tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSlabNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:3927
 note: Non-vacuum boundary condition manufactured solution flux (slab with prescribed inflow). Implemented by phi_exact().
 
 ## sn-mms-nonvacuum-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSlabNonVacuumMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSlabNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4028
+evidence: tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSlabNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4028
 note: Non-vacuum manufactured source. Implemented by external_source() method.
 
 ## sn-mms-nonvacuum-qext-mg
@@ -2832,56 +2832,56 @@ note: Multigroup variant of the non-vacuum manufactured source. The same externa
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalNonVacuumMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSphericalNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4090
+evidence: tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSphericalNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4090
 note: Spherical non-vacuum manufactured solution flux. Implemented by phi_exact().
 
 ## sn-mms-nonvacuum-sph-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalNonVacuumMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSphericalNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4113
+evidence: tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py uses SNSphericalNonVacuumMMSCase; equation at docs/theory/verification/sn.rst:4113
 note: Spherical non-vacuum manufactured source. Implemented by external_source() method.
 
 ## sn-mms-p1-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNP1AnisoMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_aniso.py line 21 uses build_p1_aniso_mms_case() and calls phi_exact; equation at docs/theory/verification/sn.rst:618
+evidence: tests/gates/sn/verification/mms/test_mms_aniso.py line 21 uses build_p1_aniso_mms_case() and calls phi_exact; equation at docs/theory/verification/sn.rst:618
 note: P1 anisotropic manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-p1-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNP1AnisoMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_aniso.py uses SNP1AnisoMMSCase; equation at docs/theory/verification/sn.rst:634
+evidence: tests/gates/sn/verification/mms/test_mms_aniso.py uses SNP1AnisoMMSCase; equation at docs/theory/verification/sn.rst:634
 note: P1 anisotropic manufactured source. Implemented by external_source() method.
 
 ## sn-mms-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSlabMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms.py:39 uses build_1d_slab_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:29
+evidence: tests/gates/sn/verification/mms/test_mms.py:39 uses build_1d_slab_mms_case() and calls case.phi_exact(); equation at docs/theory/verification/sn.rst:29
 note: 1D slab isotropic manufactured solution flux (the foundational MMS ansatz). Implemented by phi_exact() method.
 
 ## sn-mms-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSlabMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms.py:39 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:54
+evidence: tests/gates/sn/verification/mms/test_mms.py:39 creates case and calls case.external_source(); equation at docs/theory/verification/sn.rst:54
 note: 1D slab isotropic manufactured source. Implemented by external_source() method.
 
 ## sn-mms-spherical-aniso-psi
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalAnisotropicMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNSphericalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:837
+evidence: tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNSphericalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:837
 note: Spherical anisotropic manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-spherical-aniso-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalAnisotropicMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNSphericalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:872
+evidence: tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py uses SNSphericalAnisotropicMMSCase; equation at docs/theory/verification/sn.rst:872
 note: Spherical anisotropic manufactured source. Implemented by external_source() method.
 
 ## sn-mms-spherical-aniso-spatial-convergence
@@ -2895,14 +2895,14 @@ note: Statement about spatial convergence behavior. Describes a measured propert
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalMMSCase.phi_exact
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_curvilinear.py line 74 uses SNSphericalMMSCase and calls phi_exact; equation at docs/theory/verification/sn.rst:710
+evidence: tests/gates/sn/verification/mms/test_mms_curvilinear.py line 74 uses SNSphericalMMSCase and calls phi_exact; equation at docs/theory/verification/sn.rst:710
 note: Spherical manufactured solution flux. Implemented by phi_exact() method.
 
 ## sn-mms-spherical-qext
 verdict: DECLARABLE
 implementers: orpheus.derivations.continuous.mms.sn.SNSphericalMMSCase.external_source
 confidence: high
-evidence: tests/sn/verification/mms/test_mms_curvilinear.py uses SNSphericalMMSCase; equation at docs/theory/verification/sn.rst:728
+evidence: tests/gates/sn/verification/mms/test_mms_curvilinear.py uses SNSphericalMMSCase; equation at docs/theory/verification/sn.rst:728
 note: Spherical manufactured source. Implemented by external_source() method.
 
 ## sn-p1-cylinder-hand-ref

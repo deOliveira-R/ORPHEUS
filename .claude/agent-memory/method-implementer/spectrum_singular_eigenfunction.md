@@ -18,7 +18,7 @@ Protocol design (parallel agent on `feat/transport-solver-protocol`).
 shared production-protocol input shape (`materials: dict[int, Mixture]
 + GeometrySpec`) with shared cross-method result types
 (`CriticalSolution` / `FluxSolution`). Cross-method comparators in
-`tests/cross_method/adapters.py` can dispatch on `method_name`
+`tests/gates/cross_method/adapters.py` can dispatch on `method_name`
 without isinstance ladders. The Protocol is observed, not posited.
 
 **How to apply:** future math-heart additions follow the precedent
@@ -52,7 +52,7 @@ exact-bit comparison).
 | --------------------------------------------------------------------- | ---------- | ---------------------------------------- |
 | `orpheus/derivations/continuous/singular_eigenfunction/spectrum.py`   | ~870 LOC   | Spectrum dataclass + factory + solve_*   |
 | `orpheus/derivations/continuous/singular_eigenfunction/__init__.py`   | +3 lines   | Export `Spectrum`                        |
-| `tests/derivations/test_singular_eigenfunction_spectrum.py`           | ~440 LOC   | 19 foundation-tagged tests               |
+| `tests/gates/derivations/test_singular_eigenfunction_spectrum.py`           | ~440 LOC   | 19 foundation-tagged tests               |
 | `docs/theory/singular_eigenfunction.rst`                              | +562 lines | "Case spectrum and expansion theorem" §  |
 
 ## Bit-equality preservation
@@ -151,7 +151,7 @@ The brief's hard constraints all met:
   shape, right properties, right return types), so the explicit
   isinstance test will pass when the Protocol agent lands. Separate
   follow-up dispatch needed.
-- **Cross-method adapter integration**: `tests/cross_method/adapters.py`
+- **Cross-method adapter integration**: `tests/gates/cross_method/adapters.py`
   has a placeholder for SingularEigenfunction adapter; not wired in
   this slice. Follow-up.
 - **Slab + sphere flux reconstruction**: explicitly out of pillar for

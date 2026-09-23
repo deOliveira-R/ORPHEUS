@@ -160,13 +160,13 @@ the whole point of landing the scan-march as opt-in first.
 
 | Anchor | File::test | Class | WRAP-not-relocate? | Note |
 | ------ | ---------- | ----- | ------------------ | ---- |
-| **L2 PRIMARY** | `tests/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 cases: `si_2d_p1_aniso_het`/`krylov_2d_p1_aniso_het`/`si_slab_2g_het`) | bit-identity (sha256 golden of converged ψ/φ) | n/a | Fork B1: stays byte-identical (default path untouched). Fork B2: REGENERATES (cross-schedule FP-assoc). `-O`-safe (`raise AssertionError`). |
-| **L3 A2D-1** | `tests/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` | bit-identity (sha256 of `inspect.getsource(_apply_2d_cartesian)`) | **YES — WRAP not relocate** | Pins LITERAL source text of the matvec body. If the scan-march matvec is a NEW method (`_apply_2d_cartesian_scanmarch`), `_apply_2d_cartesian` is UNTOUCHED → hash stays free-green. If the scan-march REPLACES the body of `_apply_2d_cartesian` (Fork B2 matvec), regenerate `EXPECTED_SHA256` + add a history line. |
-| **L4 DD-regression non-square** | `tests/sn/regression/test_dd_regression.py` (the `2d_*_8x4_het` non-square cases) | principled-equiv (`assert_regression`, SAFETY×conv_tol≈1e-11; `2d_2g_p1_aniso_dd_8x4_het_si` pre-drifts ~6920 ULP) | n/a | The non-square 8×4 mesh catches x↔y swap. See G5. |
-| **L5/L6 window≡full** | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` + `::test_matvec_window_equals_full_field_end_to_end`; `tests/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (d=1/d=2/d=3) | bit-identity (`np.testing.assert_array_equal`) | n/a | These pin window≡full WITHIN the wavefront schedule — UNTOUCHED by the scan-march (a different schedule). They are NOT the scan-march gate; G2 is. |
-| **L7 φ=Q/Σ_t d=2** | `tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` (`np.linalg.solve` 2×2) | value-ground (closed-form converged VALUE) | n/a | d=2 structurally-independent converged-value ground. STAYS (vv §1.5: ULP-distance necessary-never-sufficient). |
-| **L8 k_inf=1.875 d=1** | `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` (transfer-matrix `kinf_and_spectrum_homogeneous`) | value-ground (closed-form eigenvalue) | n/a | d=1 structurally-independent ground; the scan-march inherits it transitively via G2. |
-| **L9 hand-loop x↔y moat** | `tests/sn/sweep_graph` `TestApplyMatchesLegacyInlined::test_per_cell_loop_equivalence` non-square (if present in worktree) + the non-square shapes in `SHAPES` of `test_sweep_graph_window_equivalence.py` ((12,7),(5,9)) | bit-identity | n/a | The x↔y-swap moat (Mode-2 detection). The scan-march's own moat is the d=2 non-square G2 config. |
+| **L2 PRIMARY** | `tests/gates/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 cases: `si_2d_p1_aniso_het`/`krylov_2d_p1_aniso_het`/`si_slab_2g_het`) | bit-identity (sha256 golden of converged ψ/φ) | n/a | Fork B1: stays byte-identical (default path untouched). Fork B2: REGENERATES (cross-schedule FP-assoc). `-O`-safe (`raise AssertionError`). |
+| **L3 A2D-1** | `tests/gates/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` | bit-identity (sha256 of `inspect.getsource(_apply_2d_cartesian)`) | **YES — WRAP not relocate** | Pins LITERAL source text of the matvec body. If the scan-march matvec is a NEW method (`_apply_2d_cartesian_scanmarch`), `_apply_2d_cartesian` is UNTOUCHED → hash stays free-green. If the scan-march REPLACES the body of `_apply_2d_cartesian` (Fork B2 matvec), regenerate `EXPECTED_SHA256` + add a history line. |
+| **L4 DD-regression non-square** | `tests/gates/sn/regression/test_dd_regression.py` (the `2d_*_8x4_het` non-square cases) | principled-equiv (`assert_regression`, SAFETY×conv_tol≈1e-11; `2d_2g_p1_aniso_dd_8x4_het_si` pre-drifts ~6920 ULP) | n/a | The non-square 8×4 mesh catches x↔y swap. See G5. |
+| **L5/L6 window≡full** | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` + `::test_matvec_window_equals_full_field_end_to_end`; `tests/gates/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (d=1/d=2/d=3) | bit-identity (`np.testing.assert_array_equal`) | n/a | These pin window≡full WITHIN the wavefront schedule — UNTOUCHED by the scan-march (a different schedule). They are NOT the scan-march gate; G2 is. |
+| **L7 φ=Q/Σ_t d=2** | `tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` (`np.linalg.solve` 2×2) | value-ground (closed-form converged VALUE) | n/a | d=2 structurally-independent converged-value ground. STAYS (vv §1.5: ULP-distance necessary-never-sufficient). |
+| **L8 k_inf=1.875 d=1** | `tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` (transfer-matrix `kinf_and_spectrum_homogeneous`) | value-ground (closed-form eigenvalue) | n/a | d=1 structurally-independent ground; the scan-march inherits it transitively via G2. |
+| **L9 hand-loop x↔y moat** | `tests/gates/sn/sweep_graph` `TestApplyMatchesLegacyInlined::test_per_cell_loop_equivalence` non-square (if present in worktree) + the non-square shapes in `SHAPES` of `test_sweep_graph_window_equivalence.py` ((12,7),(5,9)) | bit-identity | n/a | The x↔y-swap moat (Mode-2 detection). The scan-march's own moat is the d=2 non-square G2 config. |
 
 **Anchor-set acceptance:** under `python -O`, the core anchor batch
 (`test_wavefront_cumprod_equivalence` + `test_sweep_graph_window_equivalence` +
@@ -190,7 +190,7 @@ and to φ=Q/Σ_t via L7). **Do NOT propose a new oracle** — vv structural-
 independence is satisfied: the scan-march and the wavefront are two valid
 topological linearizations of the SAME lower-triangular solve.
 
-**Test file:** extend `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py`
+**Test file:** extend `tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py`
 (or a sibling `test_scan_march_equivalence.py` if Fork A1 keeps both) — REUSE its
 `_NULP_BOUND`, `_slab_sn_mesh`, `_seeded_inflow` helpers.
 
@@ -252,7 +252,7 @@ structurally-independent ground (different algorithm, no division), already in
 the worktree.
 
 **G3.a — exact-zero underflow (EXISTING, inherited).**
-`tests/sn/spatial/test_ordinate_scan_reset.py::TestOrdinateScanReset::test_ordinate_scan_multiple_and_consecutive_resets`
+`tests/gates/sn/spatial/test_ordinate_scan_reset.py::TestOrdinateScanReset::test_ordinate_scan_multiple_and_consecutive_resets`
 already pins `ordinate_scan` finite + correct at `a=0` (the pair-monoid path)
 against the explicit loop. The scan-march reuses `ordinate_scan`, so this anchor
 covers the per-line exact-zero case for free. ADD a scan-march-level wrapper that
@@ -361,7 +361,7 @@ schedules" boundary.
 - **Fork B2 (scan-march becomes the d=2 default):** the d=2 snapshots
   (`2d_1g_dd_15x15`, `2d_2g_LS4_dd_8x4_het_si`, `2d_2g_p1_aniso_dd_8x4_het_si`)
   SHIFT by ~ULP (the row-march FP-association) and REGENERATE via
-  `python -m tests.sn.regression._generate_snapshots`. The bound is
+  `python -m tests.gates.sn.regression._generate_snapshots`. The bound is
   `assert_regression(kind="iterative", conv_tol=...)` → `SAFETY × conv_tol`
   (≈1e-11); the regenerated snapshots stay within it. **Regeneration discipline:**
   before regenerating, the snapshot's converged value MUST be independently
@@ -388,7 +388,7 @@ with `ScanMarch` forced via the selectable API; under Fork B2 they run as the
 default. Either way they MUST stay green.
 
 - **G6.a — SI ≡ Krylov ≡ k_inf (≥2G, the anti-degeneracy gate).**
-  `tests/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux`
+  `tests/gates/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux`
   (8×4 fuel|mod, LS-4, 2G, non-flat guarded) — the scan-march inner must reproduce
   SI≡Krylov flux SHAPE agreement + k_inf. **NEVER a 1-group test** (L2: k is
   flux-shape-independent at 1G — the 1-group-degeneracy bar). The k_inf anchor
@@ -403,7 +403,7 @@ default. Either way they MUST stay green.
   `test_affine_carve_bit_identity` configs, `test_2d_anisotropic_windowing`,
   `test_fixed_source_2d_equivalence`) green; under Fork B2 the affine-carve golden
   REGENERATES (see G1/G5), under Fork B1 it stays bit-identical.
-- **Deselect** `tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
+- **Deselect** `tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
   (#212 `continuous_get` hang). Held reds untouched by the d=2 scan-march: #206
   cyl-matvec, #195 MMS@160.
 

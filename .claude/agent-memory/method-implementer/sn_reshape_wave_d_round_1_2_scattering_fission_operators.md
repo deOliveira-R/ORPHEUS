@@ -64,10 +64,10 @@ operators directly via the (L − S − F)·ψ = q algebra.
 
 | Gate | Result |
 |---|---|
-| `pytest tests/sn/test_scattering_operator.py tests/sn/test_fission_operator.py -v` | **27 passed** — all foundation tests green |
-| `pytest tests/sn/test_solver_components.py::TestAddScatteringSource ::TestAddN2NSource ::TestComputeKeff ::TestFissionSource` | **6 passed** — delegators bit-identical to legacy |
-| `pytest tests/sn/test_solver_components.py::TestAnisotropicScattering` (excl. `test_p1_changes_heterogeneous_keff` — slow but pre-existing) | **8 passed** |
-| `pytest tests/sn/l1_analytical/ tests/derivations/test_sn_mms_anisotropic_symbolic.py -q` | **27 passed + 2 xfail** intact |
+| `pytest tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_fission_operator.py -v` | **27 passed** — all foundation tests green |
+| `pytest tests/gates/sn/test_solver_components.py::TestAddScatteringSource ::TestAddN2NSource ::TestComputeKeff ::TestFissionSource` | **6 passed** — delegators bit-identical to legacy |
+| `pytest tests/gates/sn/test_solver_components.py::TestAnisotropicScattering` (excl. `test_p1_changes_heterogeneous_keff` — slow but pre-existing) | **8 passed** |
+| `pytest tests/gates/sn/l1_analytical/ tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py -q` | **27 passed + 2 xfail** intact |
 | `pytest -m regression -q` | **11/11 bit-identical** (gating contract held) |
 | `sphinx-build -W -q docs docs/_build/html` | **exit 0** |
 | `python -m tests._harness.audit` | orphan count drops 24→23 (my prose `:label:` fix), ERR coverage unchanged |
@@ -86,8 +86,8 @@ operators directly via the (L − S − F)·ψ = q algebra.
 - `orpheus/sn/fission.py` — NEW (~115 LOC).
 - `orpheus/sn/solver.py` — modified (-58 LOC, +28 LOC: methods become delegators; new init block constructs the operators).
 - `orpheus/sn/__init__.py` — exports `ScatteringOperator`, `FissionOperator`.
-- `tests/sn/test_scattering_operator.py` — NEW (~290 LOC, 17 tests).
-- `tests/sn/test_fission_operator.py` — NEW (~165 LOC, 10 tests).
+- `tests/gates/sn/test_scattering_operator.py` — NEW (~290 LOC, 17 tests).
+- `tests/gates/sn/test_fission_operator.py` — NEW (~165 LOC, 10 tests).
 - `docs/theory/discrete_ordinates.rst` — new section "Scattering and fission as LinearOperators" with full algebra-of-record cross-refs.
 
 ## Forward references

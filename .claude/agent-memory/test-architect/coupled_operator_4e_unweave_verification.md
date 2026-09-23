@@ -95,7 +95,7 @@ template` (B.2d re-point).
 | `test_welded_sweep_is_exact_direct_inverse` | 377 | `‖solve∘apply − ψ‖<1e-12` | **STAYS** + doc reword | post-4e "welded"→"extracted"; solve∘apply is principled-equiv ~1e-15 ≪ 1e-12. Reword the docstring "welded sweep IS the exact inverse" → "extracted block solve" (tense update, no re-baseline). |
 | `test_extract_to_dense_is_principled_equivalent_not_bit_identical` (**row 6, THE oracle**) | 397 | `‖extracted_solve − LU(_dense(M.apply))‖<1e-11` (~5.5e-16) | **STAYS — becomes literal** | the durable principled-equiv floor. Pre-4e "welded vs dense-LU"; post-4e "extracted vs dense-LU-of-extract" — it was DESIGNED as the anchor every EXTRACT step pins against. **The re-capture anchor for the sphere walk_matvec row (§B).** |
 
-### B. The frozen walk_matvec baselines (`tests/sn/regression/test_walk_matvec_baselines.py` + `_generate_walk_baselines.py`)
+### B. The frozen walk_matvec baselines (`tests/gates/sn/regression/test_walk_matvec_baselines.py` + `_generate_walk_baselines.py`)
 
 `assert_regression(kind="direct", reduction_depth=1)` → `nulp=1` (tightest). Measures
 `fwd_bulk/fwd_trace/adj_bulk/adj_trace` = the System-A OUTPUT (the ray FEEDS the bulk
@@ -109,7 +109,7 @@ via A_AB on carrying meshes).
 
 ### C. The affine-carve bit-identity baselines (the (A,A)-untouched CONTROL)
 
-- `tests/sn/sweep/core/test_affine_carve_baseline.py` + `tests/sn/solve/test_affine_
+- `tests/gates/sn/sweep/core/test_affine_carve_baseline.py` + `tests/gates/sn/solve/test_affine_
   carve_bit_identity.py` — `(L+C).apply(ψ)` / `transport_sweep` on het σ_t + non-flat
   ψ, **NO ray legs** (the ray is zeroed / (A,A)-only action). `kind="direct"`, the
   `DriftWarning` tripwire fires on ANY ULP move.
@@ -144,7 +144,7 @@ via A_AB on carrying meshes).
 | **G-d3.1** `test_g_d3_1_flat_flux_equilibrium_on_the_carrying_sphere` (E4) | 3701 | **STAYS — the redistribution catcher** | φ=Q/Σ_t END-TO-END, rtol 1e-10, both drivers. A PHYSICS invariant a principled-equiv extraction preserves; a dropped/sign-flipped ray fold moves φ off Q/Σ_t O(1). **KEEP as the primary 4e correctness anchor** (flux-shape layer). |
 | **G-d2.3** honest-DOF / ERR-053 restart | 3616 | **STAYS/RE-POINT** | the coupled `to_flat` count. If 4e shrinks the ray member's flat size (unified→split-native) the honest count could shift by the seed/corner layout delta — assert `restart == coupled.to_flat().size` recomputed from the NEW space (not a frozen integer). |
 
-### F. The test_282 cold-residual acceptance suite (`tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`) — THE L18 acceptance number
+### F. The test_282 cold-residual acceptance suite (`tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py`) — THE L18 acceptance number
 
 | gate | :line | 4e fate | why |
 |---|---|---|---|
@@ -175,12 +175,12 @@ symbol) — this is a compile-time break, land the re-aim IN the 4e commit.
 
 ### G. STAYS UNCHANGED (do NOT touch)
 
-- `tests/numerics/test_coupled_operator.py` (M1–M5, `TestBlockMatvec`/`TestAssembleProbe`/
+- `tests/gates/numerics/test_coupled_operator.py` (M1–M5, `TestBlockMatvec`/`TestAssembleProbe`/
   `TestBlockAdjoint`) — semantics-agnostic SYNTHETIC toy blocks, ZERO SN-walk reference.
   4e is SN-only. Grep-confirmed no ψ½/walk refs.
-- `tests/diffusion`, `tests/cp` — 2-block base algebra, the eviction's bit-id oracle;
+- `tests/gates/diffusion`, `tests/gates/cp` — 2-block base algebra, the eviction's bit-id oracle;
   4e touches only the ray. Assert ZERO re-points (a diffusion red = 4e broke the base).
-- The Phase-C L0 gates (`tests/sn/sweep/core/test_phase_c_gates.py`:355/829 per-ordinate
+- The Phase-C L0 gates (`tests/gates/sn/sweep/core/test_phase_c_gates.py`:355/829 per-ordinate
   flat-flux residual `catches("ERR-026")`; :413 reciprocity) — L0 physics invariants
   (per-ordinate residual = 0), reduction-tree-independent; STAY green, but **re-run as
   the redistribution re-verification** (they are the ERR-026 curvilinear catchers).
@@ -327,17 +327,17 @@ No NEW gate needed; the deletion is the proof — assert the ABSENCE.
 the retirement-means-test-migration rule, run all THREE searches and RE-POINT vs RETIRE
 each. Known consumers of the unified leaf/space that PIN the layout (must re-point vs
 retire):
-- `tests/sn/mesh/test_radial_characteristic_carrier.py`, `…_slot_coordination.py`,
+- `tests/gates/sn/mesh/test_radial_characteristic_carrier.py`, `…_slot_coordination.py`,
   `…_split_spaces.py` — the carrier algebra on `sn.radial_characteristic_space`;
   largely the unified-layout probes → RE-POINT to the composite native layout or RETIRE
   the unified-only rows (the composite has its own carrier suite).
-- `tests/sn/operators/test_ray_operator.py`, `…test_radial_characteristic_metric.py`,
+- `tests/gates/sn/operators/test_ray_operator.py`, `…test_radial_characteristic_metric.py`,
   `…test_loss_transpose_solve.py`, `…test_invertible_operator.py` — `.radial_
   characteristic_space` probes → RE-POINT.
-- `tests/sn/sweep/test_assembly_mode.py`, `…curvilinear/test_282…`, `…curvilinear/
-  test_psi_half_angle_seed.py`, `tests/numerics/test_face_layout_typed_key.py`/
+- `tests/gates/sn/sweep/test_assembly_mode.py`, `…curvilinear/test_282…`, `…curvilinear/
+  test_psi_half_angle_seed.py`, `tests/gates/numerics/test_face_layout_typed_key.py`/
   `test_face_streaming_normal.py` — mixed; audit each.
-- `tests/sn/regression/_generate_walk_baselines.py` — RE-POINT the `radial_
+- `tests/gates/sn/regression/_generate_walk_baselines.py` — RE-POINT the `radial_
   characteristic_flux=` leg (§B).
 - **The DOC blast radius (search 2, the silent one):** `:class:`/`:func:` cross-refs to
   `RadialCharacteristicSpace`/`RadialCharacteristicField`/`to_unified` in `docs/theory/`
@@ -464,6 +464,6 @@ surface's solve leg anchors to) + **test_282 C(i) cold-residual <1e-11** (the L1
 acceptance number) + **G-d3.1 φ=Q/Σ_t** (the redistribution catcher) + **the FINDING-M1
 Mode-12 re-aim** (or the ERR-067 closure goes silently toothless) + **the affine-carve
 sphere (A,A)-control** (the e1 bit-exact tripwire). End-to-end acceptance per sub-commit:
-full `tests/sn -m "not slow"` + `tests/numerics` + `tests/diffusion` + `tests/cp` +
+full `tests/gates/sn -m "not slow"` + `tests/gates/numerics` + `tests/gates/diffusion` + `tests/gates/cp` +
 ratchet `transport:1` + sphinx -W; the wall STAYS 3733/0 · 37 xfailed through e1 (bit-id),
 and after e2 only the sphere walk_matvec `.npz` moved (re-captured) — every count else holds.

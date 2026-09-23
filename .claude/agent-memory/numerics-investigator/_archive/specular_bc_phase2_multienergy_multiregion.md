@@ -123,7 +123,7 @@ independent analytical paths for specular k_eff", we now have
 
 ## Files touched in Phase 2
 
-- `tests/derivations/test_peierls_specular_bc.py`:
+- `tests/gates/derivations/test_peierls_specular_bc.py`:
   - Added 3 new fixtures (`homogeneous_fuel_A_2G`, `heterogeneous_AB_1G`,
     `heterogeneous_AB_2G`)
   - Added 9 new test cases (3 geometries × 3 multi-G/MR cases)

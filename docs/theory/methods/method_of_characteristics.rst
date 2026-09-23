@@ -493,7 +493,7 @@ gives :math:`2 \times 0.5 = 1.0`.
      - 0.335074
 
 These tables are hardcoded in :class:`MOCQuadrature` from :cite:`Yamamoto2007`
-Table 2.  Verified by ``tests/moc/test_quadrature.py::test_ty3_values_match_published``.
+Table 2.  Verified by ``tests/gates/moc/test_quadrature.py::test_ty3_values_match_published``.
 
 The combined angular weight normalisation satisfies:
 
@@ -504,7 +504,7 @@ The combined angular weight normalisation satisfies:
 
 The factor of 2 accounts for the two hemispheres (upper = forward sweep,
 lower = backward sweep).  This is verified by
-``tests/moc/test_quadrature.py::test_combined_weight_normalisation``.
+``tests/gates/moc/test_quadrature.py::test_combined_weight_normalisation``.
 
 
 Ray Tracing
@@ -610,7 +610,7 @@ centre belongs to region :math:`k` where
 :math:`r_{k-1} < d \leq r_k` for :math:`k < N-1`, or region
 :math:`N-1` (square border) if :math:`d > r_{N-2}`.
 
-**Verified by** ``tests/moc/test_ray_tracing.py``:
+**Verified by** ``tests/gates/moc/test_ray_tracing.py``:
 
 - ``test_ray_circle_chord_length``: chord length =
   :math:`2\sqrt{R^2 - d^2}` for impact parameter :math:`d`
@@ -704,7 +704,7 @@ The target track is found by matching the exit point of one track to the
 entry point (for forward targets) or exit point (for backward targets)
 of a track at the reflected azimuthal angle.  The closest match is used.
 
-**Verified by** ``tests/moc/test_verification.py::TestL0GeometricInvariants::
+**Verified by** ``tests/gates/moc/test_verification.py::TestL0GeometricInvariants::
 test_reflective_links_form_cycles``: following forward links from any
 track must return to the starting track after a finite number of
 reflections (closed cycle).
@@ -975,7 +975,7 @@ When :math:`\Sigma_2 = 0`, :eq:`moc-keff-update` reduces to the standard
    diagnostic ``print`` of the old ratio was retired with the fix.
 
 Implemented in :meth:`MOCSolver.compute_keff`.  Verified by
-``tests/moc/test_verification.py::TestL0N2nReaction::test_n2n_1g_analytical_keff``
+``tests/gates/moc/test_verification.py::TestL0N2nReaction::test_n2n_1g_analytical_keff``
 (the docstring carries the full posed-balance re-derivation).
 
 
@@ -1308,7 +1308,7 @@ segments in void regions are skipped (no contribution to
 In the ORPHEUS verification library, no test material has
 :math:`\Sigt{} = 0`, so this code path is exercised only by the
 protocol compliance test
-``tests/moc/test_verification.py::TestL0ProtocolCompliance``.
+``tests/gates/moc/test_verification.py::TestL0ProtocolCompliance``.
 
 Effective Spacing vs Requested Spacing
 ---------------------------------------

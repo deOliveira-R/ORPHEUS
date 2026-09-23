@@ -330,8 +330,8 @@ companion script) that:
    benchmark (≥1000 matvecs to amortise warmup). This is the L5-1
    reference walltime.
 
-Snapshot file: `tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`.
-Perf baseline: `tests/sn/_fixtures/wave_t_t4/pre_t4_walltime.json`.
+Snapshot file: `tests/gates/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`.
+Perf baseline: `tests/gates/sn/_fixtures/wave_t_t4/pre_t4_walltime.json`.
 
 **Gate (T.4a).**
 - Snapshot file exists; schema validated (one ndarray per dispatch
@@ -430,12 +430,12 @@ invariant tests.
   subtraction at the apply boundary unwinds.)
 - A-4: `(L + C).solve(q)` value-equal to pre-T.4 snapshot. Verifies
   Q5 contract — the `.solve` path was not touched.
-- L1-1: `tests/sn/test_mms_aniso.py` 1-D slab P1 aniso O(h²) gate
+- L1-1: `tests/gates/sn/test_mms_aniso.py` 1-D slab P1 aniso O(h²) gate
   stays green.
-- L1-2: `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+- L1-2: `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
   curvilinear gate stays at the same xfail set.
-- L1-3: `tests/sn/test_mms.py` (P0 MMS) stays green.
-- L1-4: `tests/sn/test_mms_heterogeneous.py` stays green.
+- L1-3: `tests/gates/sn/test_mms.py` (P0 MMS) stays green.
+- L1-4: `tests/gates/sn/test_mms_heterogeneous.py` stays green.
 
 **Why mandatory.** Per plan §5.2 line 162: "the L1 MMS gates are the
 ground truth. They must stay green at every Wave T commit. If a
@@ -552,7 +552,7 @@ The user-endorsed honest decomposition (commit `c55b505` T.4b):
 * `M_spatial.a` and `M_spatial.b` are `_SpatialSweepDirection` BESPOKE LEAVES — NOT `TensorProductOperator` instances.  Each carries `direction_sign ∈ {+1, -1}` metadata.
 * `M_spatial.apply` OVERRIDES the default `OperatorSum.apply` to run ONE bidirectional sweep with shared state (Design B — see plan §6 T.4 and the T.4b commit message for the rationale).
 
-**Revised test rows (what actually shipped in `tests/sn/test_streaming_operator.py`)**:
+**Revised test rows (what actually shipped in `tests/gates/sn/test_streaming_operator.py`)**:
 
 | Spec row | Original claim (table below) | Shipped form (T.4b/T.4c) | Implementation |
 |----------|------------------------------|--------------------------|----------------|
@@ -567,7 +567,7 @@ The user-endorsed honest decomposition (commit `c55b505` T.4b):
 | **L4-5 / L4-6** | `(L+C).apply` / `(L+C).solve` bit-identical to pre-T.4 snapshot | Verified inline at snapshot re-capture (commits `cb18fdb`/`c55b505`/`90e7d4e` close-out checks all bit-identical).  No pytest case shipped — the inline check is the load-bearing gate for the algebra-decomposition contract; explicit test could be added in a future maintenance pass | (verified inline; no test row) |
 | **L5-1** | `(L+C).apply` walltime ≤ 1.05× pre-T.4 baseline on 1000-iter slab P1 | Verified inline at T.4c close-out (median 1.040×, p95 0.998×; commit `90e7d4e`).  200 iterations instead of 1000 for fixture wallclock cost.  No pytest case shipped — perf gate would need a marker like `@pytest.mark.slow` to avoid CI noise; deferred | (verified inline; no test row) |
 
-The **shipped test count** is 21 new tests in `tests/sn/test_streaming_operator.py` (vs the spec's projected 27 = 18 foundation + 7 L4 + 1 L5 + 1 A2D-1).  The 6 missing tests are either DROPPED (L2-2, L2-5, A-9 — structurally inapplicable to the OperatorSum/bespoke-leaf shape) or verified inline (L4-4, L4-5, L4-6, L5-1 — the snapshot re-capture proves bit-identity at close-out time; an explicit pytest case is redundant for these but could be added in a future maintenance pass for CI discipline).
+The **shipped test count** is 21 new tests in `tests/gates/sn/test_streaming_operator.py` (vs the spec's projected 27 = 18 foundation + 7 L4 + 1 L5 + 1 A2D-1).  The 6 missing tests are either DROPPED (L2-2, L2-5, A-9 — structurally inapplicable to the OperatorSum/bespoke-leaf shape) or verified inline (L4-4, L4-5, L4-6, L5-1 — the snapshot re-capture proves bit-identity at close-out time; an explicit pytest case is redundant for these but could be added in a future maintenance pass for CI discipline).
 
 The **architectural value** of the deviation is captured in the T.4 spec §1 "post-implementation deviations" subsection and the Wave T plan §6 T.4 + §9 amendments (T.5.1, also landing in this commit).
 
@@ -579,7 +579,7 @@ The **architectural value** of the deviation is captured in the T.4 spec §1 "po
 
 | #   | Test name | File | Class | Level | What it verifies | Reference | Pass criterion |
 |-----|-----------|------|-------|-------|------------------|-----------|----------------|
-| L2-1 | `test_M_spatial_is_sum_of_tensor_products` | `tests/sn/test_streaming_operator.py` | `TestTensorNetworkDecomposition` | foundation | `op.M_spatial` is a `SumOfTensorProductsOperator` with one summand per spatial axis (slab/sphere/cylinder: 1; 2-D Cartesian: out of scope per Q1) | Type-introspection | `isinstance(op.M_spatial, SumOfTensorProductsOperator)` AND `len(op.M_spatial.summands) == op.sn_mesh.n_spatial_axes` |
+| L2-1 | `test_M_spatial_is_sum_of_tensor_products` | `tests/gates/sn/test_streaming_operator.py` | `TestTensorNetworkDecomposition` | foundation | `op.M_spatial` is a `SumOfTensorProductsOperator` with one summand per spatial axis (slab/sphere/cylinder: 1; 2-D Cartesian: out of scope per Q1) | Type-introspection | `isinstance(op.M_spatial, SumOfTensorProductsOperator)` AND `len(op.M_spatial.summands) == op.sn_mesh.n_spatial_axes` |
 | L2-2 | `test_each_M_spatial_summand_is_3_factor_TP` | same | same | foundation | Each summand is a 3-factor `TensorProductOperator` per §15.1 `D_axis & Ω_axis & I_g` | Type-introspection | `len(summand.ops) == 3` AND each factor is a `LinearOperator` |
 | L2-3 | `test_M_angular_redist_slab_is_zero` | same | same | foundation | Slab's `M_angular_redist` is `ZeroOperator` (or equivalent); `M_angular_redist.apply(ψ).values == 0` bit-exact | Algebraic ground truth (slab has no curvilinear redistribution) | `isinstance(op.M_angular_redist, ZeroOperator)` for slab; `np.testing.assert_array_equal(zeros)` for curvilinear at uniform-ψ probe |
 | L2-4 | `test_M_angular_redist_curvilinear_is_bespoke_leaf` | same | same | foundation | Sphere and cylinder's `M_angular_redist` is the bespoke `AngularRedistributionOperator` leaf — NOT a TensorProductOperator (Q2 decision) | Type-introspection | `isinstance(op.M_angular_redist, AngularRedistributionOperator)` for sphere AND cylinder |
@@ -600,15 +600,15 @@ The **architectural value** of the deviation is captured in the T.4 spec §1 "po
 | L4-3 | `test_apply_cylinder_bit_identical_to_pre_t4` | same | same | foundation | Cylinder arm — both 1G and 2G | Pre-T.4 captured numerics | same |
 | L4-4 | `test_apply_2d_cartesian_bit_identical_to_pre_t4` | same | same | foundation | 2-D Cartesian (specular AND vacuum); strict bit-identity (Q1 decision: 2-D path untouched in T.4 scope) | Pre-T.4 captured numerics | `np.testing.assert_array_equal` (strict — no reductions reorder because the path is untouched) |
 | L4-5 | `test_LpC_composition_apply_unchanged` | same | same | foundation | `(L + C).apply` composition is bit-identical pre/post-T.4 across all 3 geometries (Q3 + Q5: the subtraction unwinds; the composite output is the original M) | Pre-T.4 snapshot | `np.testing.assert_array_equal` |
-| L4-6 | `test_InvertibleOperator_solve_unchanged` | `tests/sn/test_invertible_operator.py` (extend) | (existing class) | foundation | `(L + C).solve(q)` bit-identical pre/post-T.4 (Q5 contract) | Pre-T.4 snapshot | `np.testing.assert_array_equal` |
-| L4-7 | `test_boundary_face_residuals_unchanged` | `tests/sn/test_streaming_operator.py` | `TestPreT4RegressionSnapshot` | foundation | `op.apply(ψ).boundary.face_view("xmax")` and `face_view("xmin")` (for slab) bit-identical pre/post-T.4. Verifies face-residual semantics (per plan §6 T.4 paragraph 1: "L is the ONLY operator that emits a non-zero face residual on its output .boundary") | Pre-T.4 snapshot | Route A: `np.testing.assert_array_equal`; Route B: nulp gate |
+| L4-6 | `test_InvertibleOperator_solve_unchanged` | `tests/gates/sn/test_invertible_operator.py` (extend) | (existing class) | foundation | `(L + C).solve(q)` bit-identical pre/post-T.4 (Q5 contract) | Pre-T.4 snapshot | `np.testing.assert_array_equal` |
+| L4-7 | `test_boundary_face_residuals_unchanged` | `tests/gates/sn/test_streaming_operator.py` | `TestPreT4RegressionSnapshot` | foundation | `op.apply(ψ).boundary.face_view("xmax")` and `face_view("xmin")` (for slab) bit-identical pre/post-T.4. Verifies face-residual semantics (per plan §6 T.4 paragraph 1: "L is the ONLY operator that emits a non-zero face residual on its output .boundary") | Pre-T.4 snapshot | Route A: `np.testing.assert_array_equal`; Route B: nulp gate |
 | A2D-1 | `test_apply_2d_cartesian_path_untouched` | same | same | foundation | Structural test: `_apply_2d_cartesian` source-code hash unchanged (or: `inspect.getsource(StreamingOperator._apply_2d_cartesian) == saved_signature`). Defensive pin against author drift. | Source-introspection snapshot | hash equality |
-| L5-1 | `test_wave_t_t4_apply_overhead_below_5pct` | `tests/sn/performance/test_wave_t_overhead.py` | `TestT4PerformanceRegression` | (not vv-tagged) | Per plan §5.4. `(L+C).apply` walltime delta on 1-D slab P1 ≥1000 iterations. Pre-T.4 baseline from `pre_t4_walltime.json`. | Pre-T.4 wallclock baseline | `post_t4_walltime / pre_t4_baseline <= 1.05` |
-| L1-1 | (delegated to existing) | `tests/sn/test_mms_aniso.py` | (module-level) | l1 | 1-D slab P1 aniso MMS O(h²) — must stay green | MMS pillar (structurally independent) | Existing xfail set unchanged |
-| L1-2 | (delegated to existing) | `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | (existing) | l1 | Curvilinear P1 aniso MMS — same xfail set | MMS pillar | Same xfail set |
-| L1-3 | (delegated to existing) | `tests/sn/test_mms.py`, `tests/sn/test_mms_curvilinear.py`, `tests/sn/test_mms_heterogeneous.py`, `tests/sn/test_mms_2d.py` | (existing) | l1 | The full MMS suite (P0, multi-region, 2D) — must stay green | MMS pillar | All passing tests still pass |
-| L1-4 | (delegated to existing) | `tests/sn/l1_analytical/test_kinf_homogeneous.py` | (existing) | l1 | `k_∞ = νΣ_f/Σ_a` closed-form on homogeneous reflective — slab AND curvilinear. **The structurally-independent closed-form reference for the principled-equivalence three-criteria gate.** | Closed-form pillar (homogeneous infinite medium) | Existing tolerance |
-| L1-5 | (delegated to existing) | `tests/sn/test_heterogeneous_transport.py` | (existing) | l2 | Heterogeneous mesh-refined eigenvalue convergence — catches Mode #1 sign flip + Mode #4 wrong recursion (per `vv-principles` table) | L2 self-convergence | Existing tolerance |
+| L5-1 | `test_wave_t_t4_apply_overhead_below_5pct` | `tests/gates/sn/performance/test_wave_t_overhead.py` | `TestT4PerformanceRegression` | (not vv-tagged) | Per plan §5.4. `(L+C).apply` walltime delta on 1-D slab P1 ≥1000 iterations. Pre-T.4 baseline from `pre_t4_walltime.json`. | Pre-T.4 wallclock baseline | `post_t4_walltime / pre_t4_baseline <= 1.05` |
+| L1-1 | (delegated to existing) | `tests/gates/sn/test_mms_aniso.py` | (module-level) | l1 | 1-D slab P1 aniso MMS O(h²) — must stay green | MMS pillar (structurally independent) | Existing xfail set unchanged |
+| L1-2 | (delegated to existing) | `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | (existing) | l1 | Curvilinear P1 aniso MMS — same xfail set | MMS pillar | Same xfail set |
+| L1-3 | (delegated to existing) | `tests/gates/sn/test_mms.py`, `tests/gates/sn/test_mms_curvilinear.py`, `tests/gates/sn/test_mms_heterogeneous.py`, `tests/gates/sn/test_mms_2d.py` | (existing) | l1 | The full MMS suite (P0, multi-region, 2D) — must stay green | MMS pillar | All passing tests still pass |
+| L1-4 | (delegated to existing) | `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py` | (existing) | l1 | `k_∞ = νΣ_f/Σ_a` closed-form on homogeneous reflective — slab AND curvilinear. **The structurally-independent closed-form reference for the principled-equivalence three-criteria gate.** | Closed-form pillar (homogeneous infinite medium) | Existing tolerance |
+| L1-5 | (delegated to existing) | `tests/gates/sn/test_heterogeneous_transport.py` | (existing) | l2 | Heterogeneous mesh-refined eigenvalue convergence — catches Mode #1 sign flip + Mode #4 wrong recursion (per `vv-principles` table) | L2 self-convergence | Existing tolerance |
 
 ### Test count summary
 
@@ -618,7 +618,7 @@ The **architectural value** of the deviation is captured in the T.4 spec §1 "po
 - **New defensive pin (A2D-1)**: 1.
 - **Existing L1 gates that must stay green**: 5 test files.
 - **Total new test files**: 0 (extend `test_streaming_operator.py` + extend `test_invertible_operator.py`).
-- **Pre-T.4 snapshot fixtures required**: 2 files under `tests/sn/_fixtures/wave_t_t4/` (snapshots + walltime).
+- **Pre-T.4 snapshot fixtures required**: 2 files under `tests/gates/sn/_fixtures/wave_t_t4/` (snapshots + walltime).
 
 ---
 
@@ -628,16 +628,16 @@ Per plan §5.2 and the test-architect's pillar-gate discipline.
 
 | Test file | Geometry | Pillar | Claim layer | Status pre-T.4 | T.4 contract |
 |-----------|----------|--------|-------------|----------------|--------------|
-| `tests/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | 1-D slab | MMS | Convergence-order + flux-shape | Green | Must stay green |
-| `tests/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_source_degrades_to_p0` | 1-D slab | MMS (degeneracy) | Source consistency | Green | Must stay green |
-| `tests/sn/test_mms.py` (all) | 1-D slab P0 | MMS | Convergence-order | Green | Must stay green |
-| `tests/sn/test_mms_curvilinear.py` (all) | 1-D sphere + cylinder P0 | MMS | Convergence-order | Green | Must stay green |
-| `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` (all) | 1-D sphere + cylinder P1 | MMS | Convergence-order | 10 pre-existing DD-regression failures (per plan §6 line 295) | Same failure set; NO new failures |
-| `tests/sn/test_mms_heterogeneous.py` (all) | Multi-region | MMS | Convergence-order + heterogeneity | Green | Must stay green |
-| `tests/sn/test_mms_2d.py` (all) | 2-D Cartesian | MMS | Convergence-order | Green | Must stay green |
-| `tests/sn/l1_analytical/test_kinf_homogeneous.py` (all) | Homogeneous reflective | Closed-form | Eigenvalue (k_∞) | Green | Must stay green |
-| `tests/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` | Homogeneous reflective | Closed-form | Eigenvalue tolerance | Green | Must stay green |
-| `tests/sn/test_heterogeneous_transport.py` (all) | Heterogeneous | L2 self-convergence | Mesh refinement | Green | Must stay green |
+| `tests/gates/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | 1-D slab | MMS | Convergence-order + flux-shape | Green | Must stay green |
+| `tests/gates/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_source_degrades_to_p0` | 1-D slab | MMS (degeneracy) | Source consistency | Green | Must stay green |
+| `tests/gates/sn/test_mms.py` (all) | 1-D slab P0 | MMS | Convergence-order | Green | Must stay green |
+| `tests/gates/sn/test_mms_curvilinear.py` (all) | 1-D sphere + cylinder P0 | MMS | Convergence-order | Green | Must stay green |
+| `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` (all) | 1-D sphere + cylinder P1 | MMS | Convergence-order | 10 pre-existing DD-regression failures (per plan §6 line 295) | Same failure set; NO new failures |
+| `tests/gates/sn/test_mms_heterogeneous.py` (all) | Multi-region | MMS | Convergence-order + heterogeneity | Green | Must stay green |
+| `tests/gates/sn/test_mms_2d.py` (all) | 2-D Cartesian | MMS | Convergence-order | Green | Must stay green |
+| `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py` (all) | Homogeneous reflective | Closed-form | Eigenvalue (k_∞) | Green | Must stay green |
+| `tests/gates/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` | Homogeneous reflective | Closed-form | Eigenvalue tolerance | Green | Must stay green |
+| `tests/gates/sn/test_heterogeneous_transport.py` (all) | Heterogeneous | L2 self-convergence | Mesh refinement | Green | Must stay green |
 
 **Why heterogeneous + mesh-refinement mandatory.** Per
 `vv-principles` H2 ("Homogeneous eigenvalue is degenerate to
@@ -935,7 +935,7 @@ method-implementer dispatch.
 
 ### Files to extend (new tests)
 
-1. **`tests/sn/test_streaming_operator.py`** — extend with new
+1. **`tests/gates/sn/test_streaming_operator.py`** — extend with new
    classes:
    - `TestTensorNetworkDecomposition` (L2-1..L2-7)
    - `TestAlgebraDecomposition` (A-1..A-3)
@@ -943,18 +943,18 @@ method-implementer dispatch.
    - `TestAlgebraicIdentities` (A-7..A-9)
    - `TestPreT4RegressionSnapshot` (L4-1..L4-5, L4-7, A2D-1)
 
-2. **`tests/sn/test_invertible_operator.py`** — extend with L4-6.
+2. **`tests/gates/sn/test_invertible_operator.py`** — extend with L4-6.
 
-3. **`tests/sn/performance/test_wave_t_overhead.py`** — extend (or
+3. **`tests/gates/sn/performance/test_wave_t_overhead.py`** — extend (or
    create if no file) with `TestT4PerformanceRegression` (L5-1).
 
 ### Files to write (snapshot + perf fixtures)
 
 1. **`tools/wave_t/capture_pre_t4_snapshots.py`** — one-shot script
    per §3 schema.
-2. **`tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`** —
+2. **`tests/gates/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`** —
    generated by step 1.
-3. **`tests/sn/_fixtures/wave_t_t4/pre_t4_walltime.json`** —
+3. **`tests/gates/sn/_fixtures/wave_t_t4/pre_t4_walltime.json`** —
    generated by step 1.
 
 ### Sequence (turn-by-turn)
@@ -1181,12 +1181,12 @@ it proves load-bearing.
     (`SumOfTensorProductsOperator` + `assert_separable`).
   - `orpheus/numerics/space.py:301` (`TensorProductSpace`).
 - **L1 MMS gates** (must stay green):
-  - `tests/sn/test_mms_aniso.py` (1-D slab P1 aniso).
-  - `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+  - `tests/gates/sn/test_mms_aniso.py` (1-D slab P1 aniso).
+  - `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
     (curvilinear P1, same xfail set).
-  - `tests/sn/l1_analytical/test_kinf_homogeneous.py` (closed-form
+  - `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py` (closed-form
     eigenvalue — the principled-equivalence pillar #2 reference).
-  - `tests/sn/test_mms.py`, `test_mms_curvilinear.py`,
+  - `tests/gates/sn/test_mms.py`, `test_mms_curvilinear.py`,
     `test_mms_heterogeneous.py`, `test_mms_2d.py`.
 - **`vv-principles` §"Bit-identity vs principled-equivalence"**: the
   three-criteria gate for Route B (nulp-relaxation); every criterion

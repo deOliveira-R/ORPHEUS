@@ -153,6 +153,6 @@ grouping. The face-closure routing (`2ψ̄−in`) IS bit-identical (same algebra
 
 **Key files:** `orpheus/sn/operator.py` (343, 595, 772, 1154, 1272, 1556–1631), `orpheus/sn/loss_representation.py`
 (445, 582, 727–752, 1359–1433, 1810–2008), `orpheus/sn/spatial/diamond.py`, `orpheus/sn/spatial/cell_balance.py` (120),
-`orpheus/sn/spatial/sweep_cache.py`, `tests/sn/_test_helpers.py` (297, 322), `tests/sn/operators/test_bc_extraction_matvec.py`,
-`tests/sn/operators/test_streaming_operator_decomposition.py` (333), `tests/sn/operators/test_loss_action_convention.py`,
-`tests/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py`.
+`orpheus/sn/spatial/sweep_cache.py`, `tests/gates/sn/_test_helpers.py` (297, 322), `tests/gates/sn/operators/test_bc_extraction_matvec.py`,
+`tests/gates/sn/operators/test_streaming_operator_decomposition.py` (333), `tests/gates/sn/operators/test_loss_action_convention.py`,
+`tests/gates/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py`.

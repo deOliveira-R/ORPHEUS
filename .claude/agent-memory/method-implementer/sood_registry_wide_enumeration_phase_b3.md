@@ -39,7 +39,7 @@ Wide-cast enumeration of every LA-13511 case currently solvable. NO machinery ex
 
 **56 new tests** (passing) + **12 skipped stubs** (registered but solver-pending):
 
-* `tests/derivations/test_sood_registry_wide_kinf.py`: 47 tests
+* `tests/gates/derivations/test_sood_registry_wide_kinf.py`: 47 tests
   - 11 1G k_inf parametrized over `KINF_1G_CASE_IDS`
   - 5 2G no-upscatter k_inf parametrized
   - 2 2G with-upscatter k_inf parametrized
@@ -49,7 +49,7 @@ Wide-cast enumeration of every LA-13511 case currently solvable. NO machinery ex
   - 2 flux-spectrum gates (URR-3-0-IN, URR-6-0-IN mirror)
   - 2 bookkeeping (count, partition completeness)
 
-* `tests/derivations/test_sood_registry_wide_bare_critical.py`: 9 active + 12 skipped
+* `tests/gates/derivations/test_sood_registry_wide_bare_critical.py`: 9 active + 12 skipped
   - 3 slab F_N L1 reference-value tests at N=12
   - 2 sphere F_N L1 reference-value tests at N=10
   - 2 stub-tracking parametrized tests (cylinder × 2; 2G × 10) — all `pytest.skip` with explanatory message
@@ -115,8 +115,8 @@ Per the parallel-phase scope wall:
 Only modified files:
 1. `orpheus/derivations/continuous/sood_registry/la13511.py` — added 37 new cases + 5 helper functions
 2. `orpheus/derivations/continuous/sood_registry/__init__.py` — re-export new cases + slice tuples
-3. `tests/derivations/test_sood_registry_wide_kinf.py` — NEW
-4. `tests/derivations/test_sood_registry_wide_bare_critical.py` — NEW
+3. `tests/gates/derivations/test_sood_registry_wide_kinf.py` — NEW
+4. `tests/gates/derivations/test_sood_registry_wide_bare_critical.py` — NEW
 5. `docs/theory/sood_registry.rst` — added Phase B3 coverage matrix + updated Phase B preview
 
 ## Verdict on tractability
@@ -149,6 +149,6 @@ The schema **did not strain at scale**. If anything, the Phase A design anticipa
 
 - Registry: `orpheus/derivations/continuous/sood_registry/la13511.py` (671 → ~1450 lines).
 - Re-exports: `orpheus/derivations/continuous/sood_registry/__init__.py`.
-- Tests: `tests/derivations/test_sood_registry_wide_kinf.py` (NEW), `tests/derivations/test_sood_registry_wide_bare_critical.py` (NEW).
+- Tests: `tests/gates/derivations/test_sood_registry_wide_kinf.py` (NEW), `tests/gates/derivations/test_sood_registry_wide_bare_critical.py` (NEW).
 - Sphinx: `docs/theory/sood_registry.rst` (updated Phase B preview → Phase B3 coverage matrix).
 - Closeout: this memo.

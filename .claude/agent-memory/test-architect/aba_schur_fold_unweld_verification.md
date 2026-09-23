@@ -97,7 +97,7 @@ correctness gates.
 
 ## Result (this dispatch)
 
-File `tests/sn/operators/test_psi_half_coupling.py::TestA_BA_SchurFold`
+File `tests/gates/sn/operators/test_psi_half_coupling.py::TestA_BA_SchurFold`
 (`pytest.mark.foundation`); reuses `_sphere`/`_mixture`/`_random_composite`.
 7 LIVE green + 3 xfail-skeleton under `-O`; every tooth mutation-verified
 in-process (never `git checkout` an uncommitted file); pyright delta is the

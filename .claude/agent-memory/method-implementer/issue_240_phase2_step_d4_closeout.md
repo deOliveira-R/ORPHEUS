@@ -20,7 +20,7 @@ make the interface explicit (a Base docstring note). NO numerical change.
 
 ## Deliverables
 
-1. **Contract gate** — `tests/sn/spatial/test_scheme_reaction_rate_contract.py`
+1. **Contract gate** — `tests/gates/sn/spatial/test_scheme_reaction_rate_contract.py`
    (NEW, 10 tests, all `@pytest.mark.foundation`, NO `verifies` — a
    software-contract gate, not equation verification). Proves:
    - **POSITIVE (closed-form at arbitrary reaction-rate):** DD + LD
@@ -57,9 +57,9 @@ make the interface explicit (a Base docstring note). NO numerical change.
 ## Verification (bit-identical — gate + docstring only)
 
 - New gate: **10 passed** under `-O`.
-- Strict DriftWarning gate `tests/sn/sweep/core tests/sn/solve
+- Strict DriftWarning gate `tests/gates/sn/sweep/core tests/gates/sn/solve
   -W error::...DriftWarning` → **505 passed / 1 skipped / 4 xfailed** (= baseline 505/1/4).
-- Route-around `tests/sn/operators spatial sweep/core sweep/cartesian_2d solve`
+- Route-around `tests/gates/sn/operators spatial sweep/core sweep/cartesian_2d solve`
   with the standard `-k` route-around → **1093 passed** (= 1083 baseline + 10 new),
   6 skipped / 7 deselected / 5 xfailed. No DriftWarnings, no regressions.
 - Sphinx `-W --keep-going` → **exit 0**, ZERO warnings from `scheme.py` /

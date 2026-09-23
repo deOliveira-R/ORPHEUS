@@ -88,6 +88,6 @@ docstrings swept (operator/vacuum/_bound_compat/boundary_operator/pole_angular_c
   reflection_index("x"))`). Moved onto the slab's REAL xmin/xmax faces.
 
 ## Gates
-`tests/sn/operators tests/sn/primitives` 770 passed / 4 skip / 1 xfail (incl new pins).
+`tests/gates/sn/operators tests/gates/sn/primitives` 770 passed / 4 skip / 1 xfail (incl new pins).
 Migrated curvilinear/sweep/bound_compat suites 46 passed / 31 xfailed exit 0 (31 = pre-
 existing #212 deselect, not introduced). Curvilinear matvec suites are SLOW (~12 min).

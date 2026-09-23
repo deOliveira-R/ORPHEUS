@@ -287,7 +287,7 @@ class SphericalHarmonicBasis(Basis):
         :attr:`metric_per_ell` along the diagonal and vanishing
         off-diagonal. The match-to-:attr:`metric_per_ell` is the
         ERR-039 test gate pinned by
-        ``tests/numerics/test_spherical_harmonic_space.py``.
+        ``tests/gates/numerics/test_spherical_harmonic_space.py``.
 
         Parameters
         ----------
@@ -576,7 +576,7 @@ def _evaluate_real_sh(
     :meth:`SphericalHarmonicBasis.evaluate_from_components` are both
     thin callers of it. Algorithm preserved bit-identical to the legacy
     ``evaluate_real_sh`` so the snapshots at
-    ``tests/sn/regression/snapshots/`` continue to pass.
+    ``tests/gates/sn/regression/snapshots/`` continue to pass.
 
     See the module docstring for the convention and citations.
     """

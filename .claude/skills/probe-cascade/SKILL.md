@@ -80,7 +80,7 @@ All probes live in `scratch/derivations/diagnostics/diag_{issueN}_probe_{letter}
 - `diag_slab_issue131_probe_f_2eg_2rg_f4.py`
 
 Each probe is a standalone pytest test — can be promoted to
-permanent tests per `tests/derivations/_promotion_policy.md`.
+permanent tests per `tests/gates/derivations/_promotion_policy.md`.
 
 ## Closed-form detection
 
@@ -114,7 +114,7 @@ After the cascade:
    reference precision.
 4. **Promotion recommendation** — which probe tests should move to
    `tests/` as permanent regression gates (follow
-   `tests/derivations/_promotion_policy.md`).
+   `tests/gates/derivations/_promotion_policy.md`).
 5. **Related-pattern audit** — grep for the SAME anti-pattern
    elsewhere. If the bug is "finite-N GL for a closed-form
    integral," there may be twins in sibling functions.

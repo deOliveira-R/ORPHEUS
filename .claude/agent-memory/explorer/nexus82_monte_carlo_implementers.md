@@ -76,15 +76,15 @@ two shapes below, which are the only judgement calls that arose.
   `grep -rn "_random_walk|_russian_roulette|_split_heavy|_precompute_xs" tests/`
   returns **0 hits across the whole test tree**. Four L0 gates instead
   REPLICATE the solver logic inline, saying so in their own comments
-  (`tests/mc/test_properties.py:397, 460, 524, 620`;
-  `tests/mc/test_gaps.py:640-646`). ⟹ once declarations land, those `verifies`
+  (`tests/gates/mc/test_properties.py:397, 460, 524, 620`;
+  `tests/gates/mc/test_gaps.py:640-646`). ⟹ once declarations land, those `verifies`
   claims adjudicate as REFUTED — correctly. Do not soften a declaration to
   green a replicating gate (this is L-013's frozen-RHS family: the test and the
   SUT are two copies, so the gate cannot see the SUT drift).
 - **`collision-estimator` is implemented only as the SUM.** The equation's
   `1/(N_act·V)` normalisation exists nowhere; `MCResult.tally` is returned raw.
 - **`ws-pitch`'s `p = R√π` direction is duplicated 5× across test modules**
-  (`tests/mc/test_monte_carlo.py`, `test_cross_verification.py`,
+  (`tests/gates/mc/test_monte_carlo.py`, `test_cross_verification.py`,
   `test_convergence.py` ×2, `test_gaps.py`) rather than routed through a helper —
   and that expression IS the ERR-017 fix.
 - **All 22 equations had ZERO `implements` edges** before this pass — not even a

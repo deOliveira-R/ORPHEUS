@@ -786,7 +786,7 @@ def _exit_gauge_trace(
     deliberately bypass :func:`_package_solution` to keep their DG slope
     structure, :ref:`the note below <no-label>` at the arms), so coverage is
     GATED instead — see
-    ``tests/sn/solve/test_every_entry_gauges_its_trace.py``.
+    ``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``.
 
     ⛔ **Rebuilds, never mutates in place.**  `[M]` on the Krylov arm the bulk
     and trace are two views into ONE flat buffer
@@ -1888,7 +1888,7 @@ class SNSolver:
         depth; 3-D: the ``(n_t0, n_t1)`` transverse-area product —
         the #291 estimator's d=3 arm). Equivalent to the boundary
         layer's ``volumes / Δ_axis`` — the object-level pin in
-        ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
+        ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py``.
         """
         mesh = self.problem
         # One parse of the face name yields BOTH halves of its outward normal.
@@ -1990,7 +1990,7 @@ class SNSolver:
         the 2-D Krylov path uses).
 
         Verified SI ≡ Krylov ≡ closed-form ``k_inf`` in
-        ``tests/sn/eigenvalue/test_keff_2d.py`` (the values + the
+        ``tests/gates/sn/eigenvalue/test_keff_2d.py`` (the values + the
         ERR-026 / ERR-058 curvilinear-closure history are recorded in the
         SN verification theory page).
         """
@@ -2405,7 +2405,7 @@ def solve_sn(
     # returned ψ missed the converged iterate by 8.8e-2 and its own moments
     # missed the reported φ by 3.4e-2; this step reproduces the iterate to
     # 1.2e-10 and its moments reproduce φ to 3.2e-10
-    # (``tests/sn/solve/test_eigenvalue_finalize_reconstruction.py``;
+    # (``tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py``;
     # error-catalogue entry ERR-083).  The reflective coupling arrives as
     # the ``B`` gain, exactly as in every inner solve; the hand reflect of
     # the converged trace this block used to perform first was `[M]` INERT
@@ -3672,7 +3672,7 @@ def _solve_fixed_source_si(
     Gauss-Seidel resolvent completes its lagged rows additively through
     :meth:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator.reflect_rows_inplace`,
     and the whole-trace assignment is the sweep-tier gates' helper
-    (``tests/sn/_test_helpers.py::reflect_outflow_into_inflow``).
+    (``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow``).
 
     Geometry-agnostic (slab / sphere / cylinder / 2-D Cartesian): the
     within-group solve carries no geometry dependence, exactly as the
@@ -3905,7 +3905,7 @@ def _solve_fixed_source_krylov(
     per-ordinate flux hits the closed-form streaming equilibrium ``q/Σ_t``
     on a homogeneous reflective box, and SI ≡ Krylov flux shape agrees on a
     heterogeneous non-flat case
-    (``tests/sn/solve/test_fixed_source_2d_equivalence.py``).
+    (``tests/gates/sn/solve/test_fixed_source_2d_equivalence.py``).
     """
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,

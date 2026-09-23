@@ -56,7 +56,7 @@ state, so only the empty-state tooth reds, and only if the test ADVANCES first).
 
 **A10. Run the mutation over the WHOLE module tree in BOTH arms; the symmetric
 difference turns "does an external pin exist?" from an argument into a LIST.**
-`[M]` old-τ vs HEAD over `tests/sn`: 7 red only at HEAD, **32 red only under
+`[M]` old-τ vs HEAD over `tests/gates/sn`: 7 red only at HEAD, **32 red only under
 old-τ** — the 32 named the analytic pins I had just concluded did not exist.
 Bite-check first: the target gates must FLIP, with a non-zero call count. → L-069
 
@@ -253,7 +253,7 @@ necessarily 0 ULP and characterizes nothing. → L-022
 
 **D5. A HARD nULP floor and a STRICT bit-identity floor are different gates —
 verify WHICH invocation ran.** Strict = `-W error::DriftWarning` layered on top;
-`tests/sn/regression/conftest.py` downgrades it for its own directory and does
+`tests/gates/sn/regression/conftest.py` downgrades it for its own directory and does
 NOT leak to siblings (measured — assume neither way). Prove a strict floor live
 by perturbing the baseline 1 ULP (`np.nextafter`). → L-014, L-015
 

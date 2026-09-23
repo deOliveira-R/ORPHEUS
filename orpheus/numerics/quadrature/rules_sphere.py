@@ -519,7 +519,7 @@ def _measured_exactness_degree(
 
     The largest ``d`` with every monomial of total degree ``<= d``
     integrated to ``atol`` — the same sweep, with the same tolerance,
-    that ``tests/numerics/test_advertised_degree_is_measured.py``
+    that ``tests/gates/numerics/test_advertised_degree_is_measured.py``
     re-runs independently. Used to STAMP the level-symmetric claim
     (#337): under the moment-matched seed the achieved degree is not a
     clean formula of :math:`N`, so the honest stamp is a measurement
@@ -564,7 +564,7 @@ def _moment_matched_octant_weights(
     ⭐ **At** :math:`S_2` **this is provably a no-op.** The node set is a
     SINGLE orbit, so invariance plus :math:`\sum w = 4\pi` determine the
     weight uniquely — bit-identical across #327 AND #337 (the pre-carve
-    capture in ``tests/numerics/test_level_symmetric_nodes.py`` pins it).
+    capture in ``tests/gates/numerics/test_level_symmetric_nodes.py`` pins it).
     (:math:`S_4` was also a forced no-op at #327; #337 then moved its
     NODES, so its weight — still forced — changed with the orbit sums.)
 
@@ -877,15 +877,15 @@ def _build_level_symmetric_arrays(
     old side-by-side bit-identity comparison is therefore no longer
     expressible, and **nothing witnesses that the carve preserved the
     node order** — the honest statement, which the companion gate
-    ``tests/numerics/test_rules_sphere.py::
+    ``tests/gates/numerics/test_rules_sphere.py::
     test_level_symmetric_bit_identical_to_legacy_adapter`` already
     carries in its own docstring. What exists going forward is a
     POST-carve floor: the frozen literal in
-    ``tests/numerics/test_level_symmetric_nodes.py`` (nodes at S2, the
+    ``tests/gates/numerics/test_level_symmetric_nodes.py`` (nodes at S2, the
     level partition at S4..S12).
 
     ⛔ Until 2026-08-13 this paragraph named
-    ``tests/sn/regression/snapshots/cyl_*_LS4_*.npz`` as the pin. That
+    ``tests/gates/sn/regression/snapshots/cyl_*_LS4_*.npz`` as the pin. That
     was false twice over. Those three files were **deleted** at
     ``c39b7d44`` when the cylinder snapshot families were re-captured on
     the σ_y fold (Q5.6.3) — the survivors are ``cyl_*_folded_*``. And
@@ -986,7 +986,7 @@ def _build_level_symmetric_arrays(
         # and eta is 4-fold degenerate on an ABS_MU_Z level (the ±xi,
         # ±mu_z replications), so the intra-level order was introsort's
         # partition detail — `[M]` reproduced verbatim in the frozen
-        # literal of `tests/numerics/test_level_symmetric_nodes.py`,
+        # literal of `tests/gates/numerics/test_level_symmetric_nodes.py`,
         # where S6 level 0 read `..., 0, 3, 2, 1, 6, 5, 4, 7, ...`.
         level_membership.append(
             np.where(np.abs(mu_z_arr) == level_mu_vals[p])[0]
@@ -1025,7 +1025,7 @@ def level_symmetric_sn(
     :math:`S_{14}`; :math:`N-1` at :math:`S_{12}`/:math:`S_{16}`/
     :math:`S_{18}` — no clean formula of :math:`N`), gated three ways:
     the stamp, an independent sweep, and frozen 50-digit-checked
-    literals (``tests/numerics/test_level_symmetric_nodes.py`` +
+    literals (``tests/gates/numerics/test_level_symmetric_nodes.py`` +
     ``test_advertised_degree_is_measured.py``).
 
     The node seed is **moment-matched** (#337, 2026-08-08): the
@@ -1120,7 +1120,7 @@ def level_symmetric_sn(
         # at 4/6/8/10/14, N-1 at 12/16/18, 3 at S_2), so the stamp is
         # what THIS rule measures against the closed-form monomial
         # integral — the same sweep the both-directions gate
-        # (``tests/numerics/test_advertised_degree_is_measured.py``)
+        # (``tests/gates/numerics/test_advertised_degree_is_measured.py``)
         # re-runs independently, with the gate's third corner a table
         # of FROZEN literals cross-checked at 50 digits (so the stamp,
         # the gate's sweep, and the literals must all three agree).

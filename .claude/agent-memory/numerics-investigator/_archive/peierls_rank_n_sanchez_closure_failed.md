@@ -19,7 +19,7 @@ Symbolically verified at `derivations/diagnostics/derive_mu_weighted_basis.py`: 
 - f^3(µ) = √2 · (70µ³ − 120µ² + 60µ − 8)
 
 These are proportional to Jacobi P^{(0,1)}_n shifted to [0,1]. Promote to
-`tests/derivations/` as a general mathematical utility test.
+`tests/gates/derivations/` as a general mathematical utility test.
 
 ## Negative results — systematic scan (all on hollow sphere at target params)
 
@@ -115,7 +115,7 @@ are preserved but unreachable. Diagnostic scripts committed as-is.
 
 - `derive_mu_weighted_basis.py` — Gram-Schmidt derivation of µ-weighted
   orthonormal polynomials on [0,1]. Verified to 1e-12. **Promote to
-  `tests/derivations/test_mu_weighted_basis.py` as general utility.**
+  `tests/gates/derivations/test_mu_weighted_basis.py` as general utility.**
 - `diag_sanchez_recipe_scan.py` — 13-variant initial recipe scan.
 - `diag_sanchez_fractional_scan.py` — 16-combination α^{P,G,We,Wa} scan.
 - `diag_sanchez_modeB_and_gelbard.py` — Model A/B + Gelbard variants.

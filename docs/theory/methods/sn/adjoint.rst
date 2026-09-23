@@ -162,7 +162,7 @@ sweep — is a consequence of that one choice.
      :ref:`the measured block <sn-n2n-p0-truncation-measured>` carries
      all three conventions, three fixtures and the controls).  The
      shipped library now reads that value with no probe —
-     ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
+     ``tests/gates/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
      The history, and what is still :math:`P_0` **by physics** and must
      not be "fixed", are at
      :ref:`the truncation record <sn-n2n-p0-truncation>`
@@ -586,7 +586,7 @@ The modernised in-scatter source is ONE frame-conjugated operator
    Legendre transfer Λ, reconstruction R).  Its verifiable content —
    the frame form reproduces the independent scalar fast-path forward source —
    is the ``@pytest.mark.foundation`` gate
-   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``
+   ``tests/gates/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``
    (rtol 1e-12); the gate is unwired, so the label stays ``documented``
    with the gate named here (wiring backlog: #309).
 .. vv-status: sn-scattering-adjoint-kernel documented
@@ -642,7 +642,7 @@ Its transpose is therefore the product transpose
    transpose assembled from the leaf transposes (no per-geometry derivation).
    Its verifiable content is the Euclidean reciprocity ⟨kernel ψ, c⟩ =
    ⟨ψ, kernelᵀ c⟩, pinned by the ``@pytest.mark.foundation`` gate
-   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_full_kernel_euclidean_reciprocity``
+   ``tests/gates/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_full_kernel_euclidean_reciprocity``
    (scalar + LD trailing spectator) — foundation gates carry no
    ``verifies(...)`` by design.
 .. vv-status: sn-scattering-adjoint-kernel-transpose documented
@@ -689,7 +689,7 @@ is why the whole product transpose is one expression.
    the note above kept as an *oracle for a one-block special case* is
    now the general factor, and the gate that consumed it exercises
    :math:`L+1` blocks
-   (``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``).
+   (``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``).
 
 The :term:`per-ordinate <ordinate>` adjoint scattering source is then
 
@@ -704,7 +704,7 @@ The :term:`per-ordinate <ordinate>` adjoint scattering source is then
    ⟨Sψ,χ⟩=⟨ψ,Sᵀχ⟩ — the frame-form Sᵀ cross-checked against the structurally
    INDEPENDENT scalar fast-path S — plus the S.apply_transpose == (1/W)·kernelᵀ
    wiring gate, both ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``;
+   ``tests/gates/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``;
    both gates are unwired, so the label stays ``documented`` with the
    gates named here (wiring backlog: #309).
 .. vv-status: sn-scattering-adjoint-source documented
@@ -731,7 +731,7 @@ representations of the same operator, which is exactly what makes the
 verification a genuine cross-check rather than a tautology: the per-group
 Euclidean reciprocity
 :math:`\langle S\psi, \chi\rangle = \langle\psi, S^{T}\chi\rangle`
-(``tests/sn/operators/test_scattering_adjoint.py``,
+(``tests/gates/sn/operators/test_scattering_adjoint.py``,
 ``TestFullScatterKernel::test_S_euclidean_reciprocity``) pins the frame-form
 :math:`S^{T}` against the *independent* scalar fast-path :math:`S`, and the
 forward equivalence
@@ -834,9 +834,9 @@ So the within-group algebra spells the channel out,
    that the shipped builder composes exactly these members and that the
    composed pair reproduces the pre-extraction fused source: the
    ``@pytest.mark.foundation`` gates
-   ``tests/sn/operators/test_n2n_operator.py`` (the lift, its transpose,
+   ``tests/gates/sn/operators/test_n2n_operator.py`` (the lift, its transpose,
    the carrier arms) and
-   ``tests/sn/operators/test_scattering_operator.py::TestAnisoMomentSourcePath``
+   ``tests/gates/sn/operators/test_scattering_operator.py::TestAnisoMomentSourcePath``
    (``S.apply + N2N.apply`` against the frozen pre-extraction snapshots).
 .. vv-status: sn-within-group-with-n2n documented
 
@@ -1225,7 +1225,7 @@ chosen for both.
    gate is the **sign**: :math:`\bar\mu` of Be-9's MT=16 is positive on
    50 of 50 live groups, so the emitted pair continues outward, less
    returns to the fuel, and :math:`k` must FALL.  The gate is
-   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``
+   ``tests/gates/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``
    (``@pytest.mark.l2``, deliberately **not** ``slow`` — 25 s inside a
    ≥90-minute gate), and it is the catcher for ERR-082.
 
@@ -1280,7 +1280,7 @@ chosen for both.
    separable at a common order.  Whether the solve's order should be
    raised is a different question, tracked separately; that
    ``scattering_order`` is the ONLY remaining truncation is what
-   ``tests/sn/solve/test_scattering_order_is_the_only_truncation.py``
+   ``tests/gates/sn/solve/test_scattering_order_is_the_only_truncation.py``
    pins.
 
    ⚠ **Do not quote step 1's version of this ladder here.**  It read
@@ -1310,7 +1310,7 @@ factor that carries the channel's yield:
    composition-site fact about how the binding is built (which stack,
    which yield, which order), not a solver claim.  Its verifiable
    content is threefold and all three are ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``:
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``:
    the realized operator reproduces its own conjugated product at the
    solve's order (``test_apply_equals_the_frame_conjugation_at_the_solve_order``),
    the ℓ = 1 moment REACHES the action (``test_the_first_moment_reaches_the_action``
@@ -1320,7 +1320,7 @@ factor that carries the channel's yield:
    2·S'.apply(ψ)`` over the same stack — exact because scaling by 2 is
    exact in binary floating point).  The EIGENVALUE consequence is
    ``@pytest.mark.l2`` in
-   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
+   ``tests/gates/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
 .. vv-status: sn-n2n-transfer-binding documented
 
 with :math:`\mathbf{P}_\ell` the projector onto the degree-:math:`\ell`
@@ -1370,14 +1370,14 @@ operator,
    conjugation it realizes at the solve's order,
    ``N2N.apply(ψ) == (1/W)·frame.conjugate(Λ₂ₙ).apply(ψ)``, pinned by
    the ``@pytest.mark.foundation`` gate
-   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``.
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``.
    ⚠ Scope, stated so the row is not over-read: that gate's fixture runs
    at L = 1, so it pins the FULL conjugation, of which this equation is
    the ℓ = 0 block — it is a necessary condition on this equation and
    not a gate written for it, and no shipped gate isolates the ℓ = 0
    block alone.  The block's own arithmetic (the P0 verb, yield applied
    once) is pinned at the term tier by
-   ``tests/transport/test_material_field.py``.
+   ``tests/gates/transport/test_material_field.py``.
 .. vv-status: sn-n2n-isotropic-lift documented
 
 which is *literally* the frame's :math:`\ell = 0` conjugation
@@ -1429,7 +1429,7 @@ derivation, and no per-geometry work.  From :eq:`sn-n2n-isotropic-lift`,
    ℓ = 0 block.  Its verifiable content is the per-group Euclidean
    reciprocity ⟨N₂ₙψ,χ⟩ = ⟨ψ,N₂ₙᵀχ⟩ and its group-flip mutation leg,
    both ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``
    (``test_euclidean_reciprocity``, ``test_transpose_reds_on_group_flip``)
    — and since #426 step 2 that reciprocity is measured on an ℓ ≥ 1
    fixture, so it now pins the per-ℓ chain and not only this block.
@@ -1462,7 +1462,7 @@ argument :math:`S` uses (:eq:`sn-scattering-adjoint-kernel-transpose`),
    reversal is one expression).  Its verifiable content is the per-group
    Euclidean reciprocity on an ℓ ≥ 1 fixture plus the group-flip
    mutation leg, both ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``.
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``.
 .. vv-status: sn-n2n-adjoint-per-ell documented
 
 :math:`\Lambda_{2n}` being block-diagonal on the harmonic axis and the
@@ -1620,12 +1620,12 @@ w_n`.  The three gains are
    not a solver claim.  Its verifiable content is that each realized
    operator reproduces its own conjugated product: the
    ``@pytest.mark.foundation`` gates
-   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``
-   (N₂ₙ), ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``
+   (N₂ₙ), ``tests/gates/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``
    (S), and for F the two-binding split gated by
-   ``tests/sn/operators/test_isotropic_fission.py`` (the energy binding's
+   ``tests/gates/sn/operators/test_isotropic_fission.py`` (the energy binding's
    forward/transpose against hand-rolled dyads, with a swapped-factor
-   control) plus ``tests/sn/operators/test_fission_adjoint.py::TestCompositeTransposeArm``
+   control) plus ``tests/gates/sn/operators/test_fission_adjoint.py::TestCompositeTransposeArm``
    (the angular binding's composite arm against an independent spelling,
    with a weight-swap discriminator).
 .. vv-status: sn-gain-channels-one-shape documented
@@ -1664,7 +1664,7 @@ reversal of its own product,
    each channel, the ``@pytest.mark.foundation`` rows named in
    :eq:`sn-scattering-adjoint-source` (S), ``TestLiftIsTheConjugation``
    (N₂ₙ) and
-   ``tests/sn/operators/test_fission_adjoint.py::TestForwardAdjointReciprocity``
+   ``tests/gates/sn/operators/test_fission_adjoint.py::TestForwardAdjointReciprocity``
    + ``::TestCompositeTransposeArm`` (F, scalar and composite arms).
 .. vv-status: sn-gain-transposes-one-shape documented
 
@@ -2410,8 +2410,8 @@ The k rows verify the daggered **eigenproblem**
 **duality** :eq:`sn-adjoint-duality`.  The full narrative and mutation
 teeth live in the V&V slice (:ref:`sn-adjoint-verification-slice`); the
 gate code is
-``tests/sn/solve/test_sn_adjoint_certification.py`` and
-``tests/sn/solve/test_sn_adjoint_entries.py``.
+``tests/gates/sn/solve/test_sn_adjoint_certification.py`` and
+``tests/gates/sn/solve/test_sn_adjoint_entries.py``.
 
 The Mode-12 accounting — what :math:`k` can and cannot see
 ----------------------------------------------------------

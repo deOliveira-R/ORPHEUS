@@ -23,7 +23,7 @@ Both families satisfy the differential identities
    \mathrm{Ki}_n'(x) = -\mathrm{Ki}_{n-1}(x),
 
 exposed as :func:`e_n_derivative` / :func:`ki_n_derivative` and
-verified term-by-term in ``tests/derivations/test_kernels.py`` (L0).
+verified term-by-term in ``tests/gates/derivations/test_kernels.py`` (L0).
 
 .. note::
 
@@ -70,7 +70,7 @@ def chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
     derivations (:mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder`,
     :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere`) and by the Phase-4 Peierls
     cylinder reference (:mod:`~orpheus.derivations.continuous.peierls_nystrom.cylinder`).
-    Tested at L0 in ``tests/derivations/test_kernels.py``.
+    Tested at L0 in ``tests/gates/derivations/test_kernels.py``.
 
     Parameters
     ----------

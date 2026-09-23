@@ -82,6 +82,6 @@ finiteness twice; the spent-group door refusing `(S²/σ_y).quotient(Trivial)` w
 `admits_domain` reading `X.by` instead of the group the descent ARROW spends.
 Dead-name census: `_invariance_on_points` 0, `_section_nodes` 0, `M.preserves(` 0 —
 `_polar_axis_of` **2 live present-tense claims** (`docs/theory/foundations/manifolds.rst:6285`
-production docs, and `tests/numerics/test_symmetry.py:1698`).
+production docs, and `tests/gates/numerics/test_symmetry.py:1698`).
 
 Probes: `scratch/_22b_elegance_probe{1..10}.py`. Design memo: `scratch/_22b_design.md`.

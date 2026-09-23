@@ -35,11 +35,11 @@ type: project
 
 ### Tests
 
-- `tests/derivations/test_singular_eigenfunction_cylinder.py`
+- `tests/gates/derivations/test_singular_eigenfunction_cylinder.py`
   — 15 tests (7 foundation Branch-1 SymPy + 6 foundation Branch-2
   invariants + 2 L1 production gates including Sood ``Ua-1-0-CY``
   reference-value).
-- `tests/derivations/test_singular_eigenfunction_cylinder_xverif.py`
+- `tests/gates/derivations/test_singular_eigenfunction_cylinder_xverif.py`
   — 1 L1 cross-check vs Variant α cylinder.
 
 ### Docs

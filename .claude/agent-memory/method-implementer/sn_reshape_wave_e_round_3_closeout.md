@@ -48,7 +48,7 @@ narrative and the open follow-up (FD operator boundary truncation).
 
 ### Test rewrite
 
-`tests/sn/test_sweep_operator_inconsistency.py` docstrings refreshed —
+`tests/gates/sn/test_sweep_operator_inconsistency.py` docstrings refreshed —
 file is now the ERR-026 closure evidence ledger; the
 `@pytest.mark.catches("ERR-026")` mark stays.
 
@@ -73,7 +73,7 @@ therefore *regresses* MMS convergence from the WDD sweep's ~O(h^1.3)
 (FD operator boundary truncation). I therefore kept
 `inner_solver="source_iteration"` as the default for all geometries.
 `"krylov"` is **opt-in** and correct for **constant-source** problems
-(verified by `tests/sn/test_sweep_operator_inconsistency.py`).
+(verified by `tests/gates/sn/test_sweep_operator_inconsistency.py`).
 
 The MMS xfail-strict tripwires therefore stay `xfail` with updated
 reason strings reflecting the partial closure.
@@ -150,19 +150,19 @@ for **constant-source** problems.
 
 ## Verification gate results
 
-- **`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`**:
+- **`tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`**:
   2 xfail (Round 3 stays xfail-strict with updated reason; orders ≈ 1.3
   rather than > 1.9).
-- **`tests/sn/test_mms_curvilinear.py`** (legacy isotropic): 2 xfail
+- **`tests/gates/sn/test_mms_curvilinear.py`** (legacy isotropic): 2 xfail
   (Round 3 added xfail-strict markers — same ERR-026 root cause).
-- **`tests/sn/test_sweep_operator_inconsistency.py`**: 4/4 PASSED.
-- **`tests/sn/test_snstreamingoperator.py`**: 22/22 PASSED (bit-identity
+- **`tests/gates/sn/test_sweep_operator_inconsistency.py`**: 4/4 PASSED.
+- **`tests/gates/sn/test_snstreamingoperator.py`**: 22/22 PASSED (bit-identity
   tests updated to thread BCs through legacy calls).
-- **Foundation tests** (`pytest tests/sn/ -m foundation -q`): 100 passed.
-- **`tests/sn/test_quadrature.py`**: 49 passed.
-- **`tests/sn/test_sweep_regression.py`**: 12 passed.
-- **`tests/sn/test_spherical.py`**: 26 passed (took ~64s).
-- **L1 analytical** (`pytest tests/sn/l1_analytical/`): 15 passed,
+- **Foundation tests** (`pytest tests/gates/sn/ -m foundation -q`): 100 passed.
+- **`tests/gates/sn/test_quadrature.py`**: 49 passed.
+- **`tests/gates/sn/test_sweep_regression.py`**: 12 passed.
+- **`tests/gates/sn/test_spherical.py`**: 26 passed (took ~64s).
+- **L1 analytical** (`pytest tests/gates/sn/l1_analytical/`): 15 passed,
   2 xfailed (the 2 anisotropic MMS markers).
 - **Regression bit-identity** (`-m regression`): all 11 cases verified
   individually:
@@ -222,10 +222,10 @@ Single atomic landing covering:
 1. `orpheus/sn/operator.py` — BC-aware `solution_to_angular_flux*` +
    `transport_operator_matvec*`.
 2. `orpheus/sn/solver.py` — call site updates; docstring on `inner_solver`.
-3. `tests/sn/test_snstreamingoperator.py` — bit-identity tests thread BCs.
-4. `tests/sn/test_sweep_operator_inconsistency.py` — docstring refresh.
-5. `tests/sn/test_mms_curvilinear.py` — xfail markers added.
-6. `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+3. `tests/gates/sn/test_snstreamingoperator.py` — bit-identity tests thread BCs.
+4. `tests/gates/sn/test_sweep_operator_inconsistency.py` — docstring refresh.
+5. `tests/gates/sn/test_mms_curvilinear.py` — xfail markers added.
+6. `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
    — xfail markers restored with updated reason.
 7. `docs/theory/discrete_ordinates.rst` — narrative update.
 8. `.claude/skills/vv-principles/error_catalog.md` — ERR-026 status

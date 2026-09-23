@@ -438,7 +438,7 @@ def all_cases() -> list[VerificationCase]:
 #
 # Intentional duplication with the legacy ``derive_Ng``: Phase 1.1
 # keeps the legacy call paths untouched so nothing in
-# ``tests/homogeneous/`` has to change. Phase 2 may fold them into
+# ``tests/gates/homogeneous/`` has to change. Phase 2 may fold them into
 # the continuous derivations once every consumer has migrated.
 
 

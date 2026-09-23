@@ -21,11 +21,11 @@ rule** and reported back to the user for direction.
 | -- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | 1  | ``test_matches_saved_reference`` PASS                                    | **BLOCKED** — bit-identity-via-transpose gate FAILED; STOP rule fired. See §2 below.  |
 | 2  | Snapshot regenerated in ``(ng, nx, ny)``                                 | **DEFERRED** — same STOP rule.                                                        |
-| 3  | ``tests/sn/test_sweep_operator_inconsistency.py`` GONE                   | PASS — file no longer present in working tree; deletion staged.                       |
+| 3  | ``tests/gates/sn/test_sweep_operator_inconsistency.py`` GONE                   | PASS — file no longer present in working tree; deletion staged.                       |
 | 4  | ERR-026 catch tag preserved on another test                              | PASS — audit shows ``41/48`` coverage incl. ERR-026 NOT MISSING.                      |
-| 5  | All ``tests/sn/diagnostics/phase_g_step2_*.py`` GONE                     | PASS — directory removed.                                                             |
+| 5  | All ``tests/gates/sn/diagnostics/phase_g_step2_*.py`` GONE                     | PASS — directory removed.                                                             |
 | 6  | ``__debug__`` block in ``SNSolver.__init__`` GONE                        | PASS — ``grep "__debug__" orpheus/sn/solver.py`` empty.                               |
-| 7  | New foundation test ``test_cell_flattening_invariant...`` exists + PASS  | PASS — 3 parametrised cases at ``tests/sn/test_cell_flattening_invariant.py``.        |
+| 7  | New foundation test ``test_cell_flattening_invariant...`` exists + PASS  | PASS — 3 parametrised cases at ``tests/gates/sn/test_cell_flattening_invariant.py``.        |
 | 8  | ``EquationMap`` docstring updated                                        | PASS — packed FD-matvec vs user-visible distinction stated explicitly.                |
 | 9  | Regression 11/11 PASS at ``rtol=1e-12``                                  | PASS — ``11 passed in 62.72s``.                                                       |
 | 10 | L0 streaming-equilibrium 26/26 PASS                                      | (running in background; not yet observed pass — see §8 verification paste-back).      |
@@ -48,7 +48,7 @@ this closeout reports back.
 
 ### §2.1 Why the drift is NOT a pure layout flip
 
-The snapshot at ``tests/sn/sweep_ref_2g.npy`` was last touched at commit
+The snapshot at ``tests/gates/sn/sweep_ref_2g.npy`` was last touched at commit
 ``b4b4bc6`` (2026-04, "reorganize flat layout into per-module folders").
 Since then, the 2D Cartesian sweep has been substantively refactored by
 multiple commits:
@@ -82,7 +82,7 @@ Two paths (user's call):
      end-to-end; the new principled-layout output is consumed by
      ``SNSolver`` via named axes ``(ng, nx, ny)``).
    - Structurally-independent reference: PASS via the 11 regression
-     snapshots at ``tests/sn/regression/snapshots/`` which were
+     snapshots at ``tests/gates/sn/regression/snapshots/`` which were
      regenerated under each major refactor and stay bit-identical at
      ``rtol=1e-12`` (production code is verified by those, not by
      ``sweep_ref_2g.npy``).
@@ -95,7 +95,7 @@ Two paths (user's call):
 
 2. **Convert to bit-identity-via-regen-against-regression-suite**: rewrite
    the test to load the equivalent snapshot from
-   ``tests/sn/regression/snapshots/`` (or its 2D-octant equivalent)
+   ``tests/gates/sn/regression/snapshots/`` (or its 2D-octant equivalent)
    and compare. This eliminates the ``sweep_ref_2g.npy`` fixture entirely
    in favour of the canonical regression-suite reference. Lower-risk
    long-term; same effort as Option 1 above.
@@ -131,10 +131,10 @@ to authorize.
 
 The historical ERR-026 evidence ledger has been retired:
 
-- ``git rm tests/sn/test_sweep_operator_inconsistency.py``.
+- ``git rm tests/gates/sn/test_sweep_operator_inconsistency.py``.
 - Added ``@pytest.mark.catches("ERR-026", "ERR-048")`` to the L0
   ``test_homogeneous_streaming_equilibrium_sphere`` (in
-  ``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py``), the
+  ``tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py``), the
   canonical L0 gauntlet that pins the post-closure SI fixed-point
   agreement. Updated the test docstring to explicitly inherit the
   ERR-026 lineage.
@@ -167,16 +167,16 @@ ERR-026 NOT in MISSING list ⇒ tag preserved. Mechanism criterion #4 PASS.
 
 ## §4 §D — diagnostic-script retirement
 
-All 7 files under ``tests/sn/diagnostics/`` retired:
+All 7 files under ``tests/gates/sn/diagnostics/`` retired:
 
 ```
-D tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py
-D tests/sn/diagnostics/phase_g_step2_00_baseline.py
-D tests/sn/diagnostics/phase_g_step2_01_psi_comparison.py
-D tests/sn/diagnostics/phase_g_step2_02_sncell_residual.py
-D tests/sn/diagnostics/phase_g_step2_03_closure_audit.py
-D tests/sn/diagnostics/phase_g_step2_04_fixed_source.py
-D tests/sn/diagnostics/phase_g_step2_05_homogeneous.py
+D tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py
+D tests/gates/sn/diagnostics/phase_g_step2_00_baseline.py
+D tests/gates/sn/diagnostics/phase_g_step2_01_psi_comparison.py
+D tests/gates/sn/diagnostics/phase_g_step2_02_sncell_residual.py
+D tests/gates/sn/diagnostics/phase_g_step2_03_closure_audit.py
+D tests/gates/sn/diagnostics/phase_g_step2_04_fixed_source.py
+D tests/gates/sn/diagnostics/phase_g_step2_05_homogeneous.py
 ```
 
 Directory removed (was empty after the `git rm`s). Mechanism
@@ -193,13 +193,13 @@ existing pytest coverage. No coverage gap found.
 
 | Retired script                          | Behavior asserted                                                       | Now covered by                                                                                                                                                       |
 | --------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ``phase_g_step2_00_baseline.py``        | Phase F empirical baseline keff/sf-ratio on ``sphere_2g_3reg`` n=40    | ``tests/sn/regression/`` ``sphere_2g_3reg_*`` snapshots — pinned at ``rtol=1e-12`` and superset of the Phase F baseline (the baseline values are inherited).         |
-| ``phase_g_step2_01_psi_comparison.py``  | Per-cell ψ_si vs ψ_kr drift attribution                                | ``tests/sn/spatial/test_sweep_vs_apply_consistency.py`` — 4 ``catches("ERR-026")`` tagged tests covering apply-vs-sweep equivalence + Q-linearity.                  |
-| ``phase_g_step2_02_sncell_residual.py`` | SI fixed-point's residual under ``SNCellOperator.apply``               | ``tests/sn/spatial/test_cell_update_protocol.py`` — residual gate methods on ``DiamondDifference`` Protocol; ``test_sweep_vs_apply_consistency.py`` SI vs Krylov tests. |
-| ``phase_g_step2_03_closure_audit.py``   | ``test_structural_audit_consistency`` asserts ``nx == 40``, ``N == 8``, ``bc_right is not None``, ``eq_map.n_eq`` arithmetic | ``tests/sn/spatial/test_apply_matvec_cylinder_invariants.py`` + the equation-map arithmetic is covered by any ``solve_sn`` test that hits curvilinear. (The audit TEXT was documentation, not a test.) |
+| ``phase_g_step2_00_baseline.py``        | Phase F empirical baseline keff/sf-ratio on ``sphere_2g_3reg`` n=40    | ``tests/gates/sn/regression/`` ``sphere_2g_3reg_*`` snapshots — pinned at ``rtol=1e-12`` and superset of the Phase F baseline (the baseline values are inherited).         |
+| ``phase_g_step2_01_psi_comparison.py``  | Per-cell ψ_si vs ψ_kr drift attribution                                | ``tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`` — 4 ``catches("ERR-026")`` tagged tests covering apply-vs-sweep equivalence + Q-linearity.                  |
+| ``phase_g_step2_02_sncell_residual.py`` | SI fixed-point's residual under ``SNCellOperator.apply``               | ``tests/gates/sn/spatial/test_cell_update_protocol.py`` — residual gate methods on ``DiamondDifference`` Protocol; ``test_sweep_vs_apply_consistency.py`` SI vs Krylov tests. |
+| ``phase_g_step2_03_closure_audit.py``   | ``test_structural_audit_consistency`` asserts ``nx == 40``, ``N == 8``, ``bc_right is not None``, ``eq_map.n_eq`` arithmetic | ``tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py`` + the equation-map arithmetic is covered by any ``solve_sn`` test that hits curvilinear. (The audit TEXT was documentation, not a test.) |
 | ``phase_g_step2_04_fixed_source.py``    | SI vs Krylov agreement on heterogeneous fixed source at matched Q     | ``test_streaming_equilibrium_curvilinear.py`` (parametrized over ``inner_solver``); ``test_sweep_vs_apply_consistency.py`` (apply-vs-sweep linearity).             |
 | ``phase_g_step2_05_homogeneous.py``     | Homogeneous-medium streaming-equilibrium fixed source                  | ``test_homogeneous_streaming_equilibrium_sphere`` + ``test_homogeneous_streaming_equilibrium_cylinder`` (L0, parametrized over ``inner_solver``, ``n_cells``, ``n_ord`` — DIRECT promotion of the diagnostic into V&V-tagged regression). |
-| ``gate_1_1_sphere_mms_failure.py``      | Per-ordinate residual diagnostic for Phase D Carlson coupled-pole seed | ``tests/sn/spatial/test_psi_half_angle_seed.py`` — 5 ``catches("ERR-026")`` tagged tests covering Carlson seed strategy correctness + flat-ψ algebraic checks.    |
+| ``gate_1_1_sphere_mms_failure.py``      | Per-ordinate residual diagnostic for Phase D Carlson coupled-pole seed | ``tests/gates/sn/spatial/test_psi_half_angle_seed.py`` — 5 ``catches("ERR-026")`` tagged tests covering Carlson seed strategy correctness + flat-ψ algebraic checks.    |
 
 **Additionally, all of phase_g_step2_01/02/04/05 use legacy
 ``result.angular_flux[:, :, 0, :]`` index slicing** that assumes the
@@ -228,7 +228,7 @@ if __debug__:
 
 Removed from production code. Replaced with a comment block pointing
 at the new test. The invariant is now pinned by a dedicated
-foundation-tagged test at ``tests/sn/test_cell_flattening_invariant.py``
+foundation-tagged test at ``tests/gates/sn/test_cell_flattening_invariant.py``
 parametrised over 3 mesh sizes:
 
 - ``(nx=1, ny=1, ng=2)`` — 1D-degenerate / smallest meaningful case
@@ -249,7 +249,7 @@ plus a per-coordinate spot check (``sig_t_new[g, i, j] == sig_t[flat,
 g]``), making the failure mode locality observable.
 
 **Marker choice — dedicated file**: the test lives in
-``tests/sn/test_cell_flattening_invariant.py`` rather than appended to
+``tests/gates/sn/test_cell_flattening_invariant.py`` rather than appended to
 ``test_solver_components.py`` because the latter carries
 ``pytestmark = pytest.mark.l0`` at file level. The V&V audit
 harness picks the stronger ``l0`` over ``foundation`` when both are
@@ -299,16 +299,16 @@ Mechanism criterion #8 PASS.
 ## §8 §H verification gates — paste-back
 
 ```
-.venv/bin/python -m pytest tests/sn/test_solver_components.py --deselect tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference -q
+.venv/bin/python -m pytest tests/gates/sn/test_solver_components.py --deselect tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference -q
   40 passed, 1 deselected, 1 warning in 158.87s (0:02:38)
   # 1 deselected = test_matches_saved_reference (BLOCKED by §B STOP rule)
 
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
   11 passed, 3 warnings in 62.72s (0:01:02)
   # All 11 regression snapshots stay bit-identical at rtol=1e-12 —
   # mechanism criterion #9 PASS, production code untouched.
 
-.venv/bin/python -m pytest tests/sn/test_cell_flattening_invariant.py -v
+.venv/bin/python -m pytest tests/gates/sn/test_cell_flattening_invariant.py -v
   3 passed in 0.02s
   # Foundation invariant verified on 1x1x2, 5x1x2, 3x4x3.
 
@@ -317,13 +317,13 @@ Mechanism criterion #8 PASS.
     MISSING ERR-020, ERR-031, ERR-040, ERR-041, ERR-042, ERR-045, ERR-047
   # ERR-026 NOT MISSING — catch tag preserved. Mechanism criterion #4 PASS.
 
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
   [TBD — running in background at closeout-writing time; see paste-back below]
 
-.venv/bin/python -m pytest tests/cp/ -q
+.venv/bin/python -m pytest tests/gates/cp/ -q
   [TBD — running in background at closeout-writing time]
 
-.venv/bin/python -m pytest tests/sn/ -q
+.venv/bin/python -m pytest tests/gates/sn/ -q
   [NOT RUN — would include test_matches_saved_reference which is BLOCKED]
 ```
 
@@ -355,7 +355,7 @@ assumption proved false.
 
 **Recommended unblock**: Option 1 from §2.2 (regenerate under
 current production; justify the new snapshot via the
-``tests/sn/regression/`` suite acting as the structurally-independent
+``tests/gates/sn/regression/`` suite acting as the structurally-independent
 reference). This was attempted in this session and blocked by the
 auto-mode classifier, correctly enforcing the brief's STOP rule.
 
@@ -368,14 +368,14 @@ overrode the function-level ``@pytest.mark.foundation`` per
 ``tests/conftest.py`` precedence rule (L<N> > foundation). The
 "conflicting V&V level markers" warning fired three times.
 
-Resolution: NEW dedicated file ``tests/sn/test_cell_flattening_invariant.py``
+Resolution: NEW dedicated file ``tests/gates/sn/test_cell_flattening_invariant.py``
 with no file-level pytestmark. This is consistent with how
-``tests/sn/test_spherical.py`` and ``test_cylindrical.py`` handle the
+``tests/gates/sn/test_spherical.py`` and ``test_cylindrical.py`` handle the
 same conflict (file-level markers explicitly restricted to non-level
 ones; per-class/function level tagging).
 
 **No lesson update needed** — the precedence rule is documented in
-``tests/conftest.py:85-88`` and ``tests/sn/test_spherical.py:86-99``
+``tests/conftest.py:85-88`` and ``tests/gates/sn/test_spherical.py:86-99``
 already explains the pattern. The implication for future
 foundation-test authors: prefer a dedicated file over appending to a
 ``pytestmark = pytest.mark.l<N>``-flagged module.
@@ -405,16 +405,16 @@ deliverables.
 .claude/skills/vv-principles/error_catalog.md          (M, §C)
 orpheus/sn/operator.py                                  (M, §F)
 orpheus/sn/solver.py                                    (M, §E)
-tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py    (D, §D)
-tests/sn/diagnostics/phase_g_step2_00_baseline.py      (D, §D)
-tests/sn/diagnostics/phase_g_step2_01_psi_comparison.py(D, §D)
-tests/sn/diagnostics/phase_g_step2_02_sncell_residual.py(D, §D)
-tests/sn/diagnostics/phase_g_step2_03_closure_audit.py (D, §D)
-tests/sn/diagnostics/phase_g_step2_04_fixed_source.py  (D, §D)
-tests/sn/diagnostics/phase_g_step2_05_homogeneous.py   (D, §D)
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py (M, §C — catches tag + docstring)
-tests/sn/test_cell_flattening_invariant.py             (A, §E NEW)
-tests/sn/test_sweep_operator_inconsistency.py          (D, §C)
+tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py    (D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_00_baseline.py      (D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_01_psi_comparison.py(D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_02_sncell_residual.py(D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_03_closure_audit.py (D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_04_fixed_source.py  (D, §D)
+tests/gates/sn/diagnostics/phase_g_step2_05_homogeneous.py   (D, §D)
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py (M, §C — catches tag + docstring)
+tests/gates/sn/test_cell_flattening_invariant.py             (A, §E NEW)
+tests/gates/sn/test_sweep_operator_inconsistency.py          (D, §C)
 ```
 
 Per brief §K, **NOT committed**. Staged for the user to inspect and
@@ -427,7 +427,7 @@ commit.
 This wave reinforced two existing lessons rather than adding new ones:
 
 1. **``feedback_aggressive_retirement.md``** — the 7-script
-   ``tests/sn/diagnostics/`` retirement is a textbook instance of the
+   ``tests/gates/sn/diagnostics/`` retirement is a textbook instance of the
    "superseded code = noise" pattern. The scripts were one-off
    investigation tools (Phase G Step 2 H1-vs-H2 discrimination), their
    behavior is fully covered by the L0/L1 regression net that
@@ -442,7 +442,7 @@ This wave reinforced two existing lessons rather than adding new ones:
    snapshot regeneration. When the drift is NOT FP-non-associativity
    (this case: per-octant batching + ordinate_scan rewrite), the
    regeneration must establish a NEW structurally-independent
-   reference (the ``tests/sn/regression/`` suite plays this role for
+   reference (the ``tests/gates/sn/regression/`` suite plays this role for
    the 2D Cartesian sweep, but the user must explicitly authorise the
    relaxation given the magnitude of the drift).
 

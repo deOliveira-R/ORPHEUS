@@ -39,8 +39,8 @@ multi-fissile production-weighting). Closes the type+guard half;
    Same `__post_init__` pattern as Isotope.
 
 4. **Foundation gates (TA-authored skeletons, made green, ZERO edits to them):**
-   `tests/data/test_emission_spectrum.py` (28 legs incl. real-GENDF) +
-   `tests/data/test_chi_invariant_enforcement.py`. Both `@pytest.mark.foundation`,
+   `tests/gates/data/test_emission_spectrum.py` (28 legs incl. real-GENDF) +
+   `tests/gates/data/test_chi_invariant_enforcement.py`. Both `@pytest.mark.foundation`,
    NO `verifies()` (simplex law has no theory `:label:` equation — it's a
    software invariant). Run `-O`: **28 passed** (the 1 PytestConfigWarning is
    the expected `-O` notice; ALL substantive legs route through
@@ -69,30 +69,30 @@ transitively).
   `νΣf≡0` ⇒ `χ·(νΣf·φ).sum≡0`.
 - `test_sweep_cache.py:287/:598` (per brief) → `np.zeros(1)`.
 - **EXTRA (found via a deterministic AST scanner, NOT in the brief):**
-  - `tests/moc/test_verification.py` `_make_pure_absorber_1g`/`_make_pure_scatterer_1g`
+  - `tests/gates/moc/test_verification.py` `_make_pure_absorber_1g`/`_make_pure_scatterer_1g`
     (non-fissile, `chi=[1.0]`→`np.zeros(1)`). The two MoC reds that first
     surfaced the wider radius (`test_pure_scatterer_equilibrium_single_sweep`,
     `test_scatter_only_source`). [`_make_fission_only_*` + `_make_n2n_*` are
     FISSILE — chi=[1,0]/[1.0] is a valid simplex, LEFT untouched.]
-  - `tests/cross_method/cases.py` `_make_unit_sigma_t_one_group_mixture` —
+  - `tests/gates/cross_method/cases.py` `_make_unit_sigma_t_one_group_mixture` —
     the `c<1.0` non-fissile branch shared a `chi=np.array([1.0])` with the
     fissile `c>=1.0` branch; split so the non-fissile branch builds
     `np.zeros(1)`, the fissile branch keeps `[1.0]`. (Was a COLLECTION error
     via module-level fixtures in `test_eigenvalue.py`/`test_polymorphism.py`.)
-  - `tests/sn/operators/test_scattering_kernel_crosscheck.py` `_mix`,
+  - `tests/gates/sn/operators/test_scattering_kernel_crosscheck.py` `_mix`,
     `test_scattering_operator.py` `test_n2n_doubling_factor` +
     `test_residual_zero_when_p0_diagonal_only_no_n2n` (non-fissile, `chi=[1,0]`→
     `np.zeros(2)`).
-  - `tests/sn/primitives/test_axis_native_construction.py` (COLLECTION error,
+  - `tests/gates/sn/primitives/test_axis_native_construction.py` (COLLECTION error,
     module-level `_MATERIALS`) + `test_axis_primitive.py` `_one_group_mixture`
     (`chi=[1.0]`→`np.zeros(1)`).
-  - `tests/sn/solve/test_d3_admission.py` pure-absorber 2g (`chi=[1,0]`→`np.zeros(2)`).
-  - `tests/sn/sweep/core/test_sweep_schedule_nd.py` + `test_unified_sweep_dispatch.py`
+  - `tests/gates/sn/solve/test_d3_admission.py` pure-absorber 2g (`chi=[1,0]`→`np.zeros(2)`).
+  - `tests/gates/sn/sweep/core/test_sweep_schedule_nd.py` + `test_unified_sweep_dispatch.py`
     (2 sites) pure-scatterer (`chi=[1.0]`→`np.zeros(1)`).
 
 ## ⭐ THE ONE TRUE BLAST-RADIUS FINDING (SigF vs SigP semantic gap)
 
-`tests/derivations/test_trajectory_resolvent_billiard.py::_mixture_from_xs`
+`tests/gates/derivations/test_trajectory_resolvent_billiard.py::_mixture_from_xs`
 builds a **MULTIPLYING medium**: `SigP = nu_sigma_f > 0` (e.g. 0.1) but
 `SigF = 0` (the helper takes `nu_sigma_f` directly, never separating Σf and ν).
 The billiard reference solver (`billiard.py:1031-1032`) reads `mix.SigP` and
@@ -200,7 +200,7 @@ valid emission spectrum is required exactly where production is nonzero.
 
 **Gate test re-keyed** (`test_chi_invariant_enforcement.py`): `_mixture(*, sig_p, chi)` (parametrize by SigP); `_isotope(*, sig_f_row, nubar, chi)` (producing legs set nubar>0 where sig_f_row>0). Methods renamed producing/non-producing; assert `is_producing`. NEW `test_non_producing_nonzero_raises` ISOLATES the predicate gap: sigF>0 (fissile) but nubar=0 (non-producing) → χ must be null → proves `is_producing` ≠ `is_fissile`. Real-GENDF leg asserts `is_producing` (U_235 True, O_016/H_001 False — VERIFIED on real `.h5`: U_235 max(νΣf)=3.17e4, O_016/H_001 ≡0). BOTH legs/branches kept (vv #11).
 
-**Promoted ERR-063 test:** `derivations/diagnostics/diag_err063_probe_e_intrinsic_property.py` → NEW `tests/derivations/test_peierls_fission_source_indexing.py` (`@l1 @catches("ERR-063") @verifies("peierls-mg-operator")`, Mode-8-safe `np.testing.assert_array_less`). Claim: a non-fissile region's χ must not affect k_eff (Hébert 2009 Eq.3.57/3.58). MUTATION-VERIFIED teeth on the FINAL file: reverting `geometry.py:6426` to `chi_n[i,ge]` reddens BOTH negative legs (3.59% k_eff move) while the positive non-degeneracy leg stays green; restored via Edit (NEVER `git checkout` an uncommitted tracked file — elegance lesson). ⚠ PYRIGHT TRAP: the diagnostic lived in `derivations/diagnostics/` (UNSCANNED) and used `solve_peierls_mg(geom, **case_dict, **_QUAD)` `**dict` splat → the sibling peierls MG tests carry 66 `reportArgumentType` from this idiom, but promoting into `tests/derivations/` (SCANNED) added **+41 net-new pyright**. RESOLVED to 0 net-new (NO `# type:ignore`) by collapsing both call sites into ONE typed helper `_solve_two_region(geometry, *, chi)` with FULLY-EXPLICIT kwargs (no splat) + a `pytest.fail` None-narrow on `k_eff: float|None` (Mode-8-safe).
+**Promoted ERR-063 test:** `derivations/diagnostics/diag_err063_probe_e_intrinsic_property.py` → NEW `tests/gates/derivations/test_peierls_fission_source_indexing.py` (`@l1 @catches("ERR-063") @verifies("peierls-mg-operator")`, Mode-8-safe `np.testing.assert_array_less`). Claim: a non-fissile region's χ must not affect k_eff (Hébert 2009 Eq.3.57/3.58). MUTATION-VERIFIED teeth on the FINAL file: reverting `geometry.py:6426` to `chi_n[i,ge]` reddens BOTH negative legs (3.59% k_eff move) while the positive non-degeneracy leg stays green; restored via Edit (NEVER `git checkout` an uncommitted tracked file — elegance lesson). ⚠ PYRIGHT TRAP: the diagnostic lived in `derivations/diagnostics/` (UNSCANNED) and used `solve_peierls_mg(geom, **case_dict, **_QUAD)` `**dict` splat → the sibling peierls MG tests carry 66 `reportArgumentType` from this idiom, but promoting into `tests/gates/derivations/` (SCANNED) added **+41 net-new pyright**. RESOLVED to 0 net-new (NO `# type:ignore`) by collapsing both call sites into ONE typed helper `_solve_two_region(geometry, *, chi)` with FULLY-EXPLICIT kwargs (no splat) + a `pytest.fail` None-narrow on `k_eff: float|None` (Mode-8-safe).
 
 **Verification (all `-O`, route around #250/#232/#212):**
 - `test_emission_spectrum.py`+`test_chi_invariant_enforcement.py`: **28 passed**.

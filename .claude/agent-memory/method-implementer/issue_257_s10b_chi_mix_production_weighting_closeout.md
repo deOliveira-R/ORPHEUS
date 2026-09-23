@@ -12,7 +12,7 @@ Branch `feature/field-typed-operator-algebra`, on HEAD `1d4df67` (S10a
 test-architect gate spec
 `issue_257_s10b_chi_mix_production_weighting.md`. **NOT committed**
 (per brief). Working tree: `orpheus/data/macro_xs/mixture.py` modified,
-`tests/data/test_chi_mix_production_weighting.py` un-skipped (was the TA
+`tests/gates/data/test_chi_mix_production_weighting.py` un-skipped (was the TA
 skeleton, untracked).
 
 ## Behavioral change
@@ -37,7 +37,7 @@ dropped.
   helper. Guard on `total>0` (degenerate ν̄≡0 → uniform weights, never
   divide-by-zero).
 - **Gate skeleton un-skipped**: all 8 tests in
-  `tests/data/test_chi_mix_production_weighting.py` made green (was
+  `tests/gates/data/test_chi_mix_production_weighting.py` made green (was
   8 skipped). Gates: (1) convex-simplex intrinsic + S10a interlock,
   (2) 2-fissile hand-reference TEETH, (3a/3b) single-fissile + no-fissile
   byte-identity, real-UO2 smoke.

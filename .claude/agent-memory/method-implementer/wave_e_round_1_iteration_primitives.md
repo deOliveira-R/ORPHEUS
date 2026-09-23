@@ -33,7 +33,7 @@ type: project
   stay functional through the cross-solver migration sequence.
 * **`orpheus/numerics/__init__.py`** — exports `KEigenvalue` +
   `SourceIteration` and adds them to `__all__`.
-* **`tests/numerics/test_iteration.py`** — 11 tests:
+* **`tests/gates/numerics/test_iteration.py`** — 11 tests:
   * 3 foundation L0 synthetic SourceIteration (matches
     `np.linalg.solve` to 1e-10; `inverter` override path; full
     `(L − S − F)` recovery).
@@ -70,11 +70,11 @@ type: project
 
 ## Verification gate results
 
-* `pytest tests/numerics/test_iteration.py -v`: **11/11 passed**
+* `pytest tests/gates/numerics/test_iteration.py -v`: **11/11 passed**
   in 0.36s.
-* `pytest -m foundation -q --ignore=tests/derivations`:
+* `pytest -m foundation -q --ignore=tests/gates/derivations`:
   **580 passed, 634 deselected** in 14.65s.
-* `pytest tests/sn/l1_analytical/ tests/derivations/test_sn_mms_anisotropic_symbolic.py -q`:
+* `pytest tests/gates/sn/l1_analytical/ tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py -q`:
   **27 passed, 2 xfailed** in 12.18s — the 2 ERR-026 xfail-strict
   curvilinear MMS tripwires preserved as expected (Round 1 does
   NOT close ERR-026; Round 2 will via `inverter` Krylov-on-apply).
@@ -86,7 +86,7 @@ type: project
   build (the noisy "skipping" notices are pre-existing
   unrelated `verifies()` labels on other test files; they do
   not block the build).
-* `pytest tests/sn/regression/`: **timed out** twice at 10 min
+* `pytest tests/gates/sn/regression/`: **timed out** twice at 10 min
   on this dev container (multi-threaded SN sweep on 11
   multigroup eigenvalue snapshots is slow under CPU contention).
   Expected to pass — Issue #163 does NOT touch any SN code path

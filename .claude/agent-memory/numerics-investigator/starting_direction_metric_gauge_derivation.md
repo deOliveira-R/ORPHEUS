@@ -77,7 +77,7 @@ observable (bulk φ†, adjoint reaction rates) reads G_sd — the gauge is genu
 **PROMOTED + fix LANDED (2026-07-06).** `G_sd=V_cell` is live (`starting_direction_space.for_levels`
 builds `np.tile(cell_volumes,ng)`, strict-positive guard; `augmented_mesh:858` passes
 `cell_volumes=self.volumes`). The 5 `diag_gsd_*` diagnostics are DELETED, consolidated into the
-permanent gate **`tests/sn/operators/test_starting_direction_metric.py`** (`pytestmark=foundation`,
+permanent gate **`tests/gates/sn/operators/test_starting_direction_metric.py`** (`pytestmark=foundation`,
 19 gates green under `-O`; the Mode-12 gate `test_derive_gsd_and_close_mode12` carries
 `@catches("ERR-067")`). ERR-067 is in the catalog (§4589). **Coverage split (mutation-verified,
 non-obvious):** reverting production `G_sd→0` REDs the three PRODUCTION-PATH value-catchers
@@ -120,7 +120,7 @@ MEASURE-the-angular-face (through-flux) it gives 0. The plan conflated the two r
 Verdict = FaceField ABC owns STRUCTURE only (FaceLayout + presence-invariant); metric stays
 per-leaf (spatial→partial current, pole→V_cell), same as the bulk's metric is per-leaf V·w.
 Diagnostics `diag_gsd_0{4,5}_*.py` were the diagnostics-of-record; the SPD fix LANDED and both
-are now PROMOTED/inverted into `tests/sn/operators/test_starting_direction_metric.py`
+are now PROMOTED/inverted into `tests/gates/sn/operators/test_starting_direction_metric.py`
 (`test_seed_selfblock_is_transport_not_reflection` as-is; the trace-vs-pole probe INVERTED to
 `test_trace_and_pole_faces_both_hold_reciprocity` + `test_shipped_metric_block_values`). All 5 diag
 files deleted. **Doc-drift flagged (out of numerics-investigator scope):** the UPPER module docstring of

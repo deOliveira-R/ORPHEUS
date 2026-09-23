@@ -68,7 +68,7 @@ Keyword-only `carlson_context` per `coding-elegance` Pattern 4 (the
 parameter is convention-bearing and the kwarg form prevents
 positional-swap bugs of the ERR-031 family).
 
-### §1.3 Foundation test gate (`tests/sn/spatial/test_compute_psi_half_per_level.py`)
+### §1.3 Foundation test gate (`tests/gates/sn/spatial/test_compute_psi_half_per_level.py`)
 
 21 tests, all PASS, all bit-identical:
 
@@ -97,13 +97,13 @@ test gate and this closeout memo.
 ### §2.1 New foundation tests (21/21 PASS)
 
 ```
-tests/sn/spatial/test_compute_psi_half_per_level.py: 21 passed in 0.31s
+tests/gates/sn/spatial/test_compute_psi_half_per_level.py: 21 passed in 0.31s
 ```
 
 ### §2.2 Regression suite (11/11 PASS at rtol=1e-12 bit-identical)
 
 ```
-tests/sn/regression/test_dd_regression.py: 11 passed in 67.64s
+tests/gates/sn/regression/test_dd_regression.py: 11 passed in 67.64s
 ```
 
 The Pattern 2 refactor stored the half-angle grid in `np.empty` of
@@ -114,21 +114,21 @@ suite at FP-zero.
 ### §2.3 Diamond + cell-update + cell-balance (78/78 PASS)
 
 ```
-tests/sn/spatial/{test_cell_balance_for_streaming, test_diamond,
+tests/gates/sn/spatial/{test_cell_balance_for_streaming, test_diamond,
                   test_cell_update_protocol}.py: 78 passed in 0.35s
 ```
 
 ### §2.4 Leaf operators (110/110 PASS)
 
 ```
-tests/sn/{test_streaming_operator, test_collision_operator,
+tests/gates/sn/{test_streaming_operator, test_collision_operator,
           test_streaming_operator_decomposition}.py: 110 passed in 0.43s
 ```
 
 ### §2.5 SN streaming operator + Phase C gates (51 PASS + 4 xpassed)
 
 ```
-tests/sn/{test_snstreamingoperator, test_phase_c_gates}.py:
+tests/gates/sn/{test_snstreamingoperator, test_phase_c_gates}.py:
   51 passed, 4 xpassed in 0.94s
 ```
 
@@ -141,7 +141,7 @@ for PR-TYPED-6b.
 ### §2.6 Psi-half-angle seed foundation gate (24/24 PASS)
 
 ```
-tests/sn/spatial/test_psi_half_angle_seed.py: 24 passed in 0.36s
+tests/gates/sn/spatial/test_psi_half_angle_seed.py: 24 passed in 0.36s
 ```
 
 The existing `CarlsonInwardSweep` + `ZeroSeed` strategy gate is
@@ -258,7 +258,7 @@ orpheus/sn/spatial/pole_angular_closure.py     +90 / -34 LoC
   - New compute_psi_half_per_level public method (+70 LoC including
     docstring)
 
-tests/sn/spatial/test_compute_psi_half_per_level.py     +320 LoC (NEW)
+tests/gates/sn/spatial/test_compute_psi_half_per_level.py     +320 LoC (NEW)
   21 foundation + L0 tests
 
 docs/theory/discrete_ordinates.rst    +35 LoC
@@ -275,7 +275,7 @@ Working tree NOT committed. Stage with:
 
 ```
 git add orpheus/sn/spatial/pole_angular_closure.py \
-        tests/sn/spatial/test_compute_psi_half_per_level.py \
+        tests/gates/sn/spatial/test_compute_psi_half_per_level.py \
         docs/theory/discrete_ordinates.rst \
         .claude/agent-memory/method-implementer/issue_197_pr_typed_6b_closeout.md
 ```

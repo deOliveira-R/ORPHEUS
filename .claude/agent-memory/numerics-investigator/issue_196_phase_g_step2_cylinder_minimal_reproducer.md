@@ -426,22 +426,22 @@ structurally independent of the SN discretisation. ✓
 ## Empirical 12/12 cylinder FAILURE — verified
 
 ```bash
-$ .venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder -v
 ```
 
 All 12 cases FAIL. Output excerpt for the smallest case:
 
 ```
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] FAILED [  8%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] FAILED [ 16%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] FAILED [ 25%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] FAILED [ 33%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] FAILED [ 41%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] FAILED [ 50%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] FAILED [ 58%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] FAILED [ 66%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-80] FAILED [ 75%]
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-20] FAILED [...]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20] FAILED [  8%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-40] FAILED [ 16%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-80] FAILED [ 25%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-20] FAILED [ 33%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-40] FAILED [ 41%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-8-80] FAILED [ 50%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] FAILED [ 58%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-40] FAILED [ 66%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-80] FAILED [ 75%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-8-20] FAILED [...]
 
 E       Mismatched elements: 320 / 320 (100%)
 E       First 5 mismatches are at indices:
@@ -682,7 +682,7 @@ How it hid:
   without RUNNING the cylinder test; the actual test exposes 580%
   rel error on every case.
 
-Catching test: `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
+Catching test: `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
 (the L0 streaming-equilibrium gauntlet, parametrised over 12 cases).
 
 Defect sites:
@@ -713,7 +713,7 @@ definition site, not at every consumer).
 - Sphere precedent: `.claude/agent-memory/numerics-investigator/issue_196_phase_g_step2_minimal_reproducer.md`
 - Variant α cylinder Green's function: `orpheus/derivations/continuous/trajectory_resolvent/greens_function_cylinder.py`
 - ERR-048 entry: `.claude/skills/vv-principles/error_catalog.md`
-- The L0 test that catches this: `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
+- The L0 test that catches this: `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder`
 
 ## Linked memories
 

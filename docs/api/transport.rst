@@ -110,7 +110,7 @@ are accessible via the standard import path.
   :class:`~orpheus.transport.material_field.TransferMaterialField`
   constructor for its channel) and ``isotropic_binding`` (the P0 energy
   binding it lifts).  An AST gate
-  (``tests/transport/test_transfer_roles.py``) refuses **any** method on
+  (``tests/gates/transport/test_transfer_roles.py``) refuses **any** method on
   a role — no ``apply``, no ``apply_transpose``, no classmethod, no
   field — so the twin path the collapse removed cannot regrow one
   override at a time.  The tier-2 mint

@@ -48,7 +48,7 @@ symbolic zero; d=2 → 4×4 with xy coupling; d=3 → 8×8 with θ³.
    `balance.py` (discrete-SN symbolic discretisation the production solver
    must satisfy).
 2. **Foundation gate:**
-   `tests/sn/spatial/test_ld_ubld_symbolic.py` — 6 `@pytest.mark.foundation`
+   `tests/gates/sn/spatial/test_ld_ubld_symbolic.py` — 6 `@pytest.mark.foundation`
    tests (no `verifies(...)`), `-O`-safe (function-call assertions via
    `_require`/`_require_zero`/`_require_zero_matrix` + `np.testing`, NOT bare
    assert — Mode 8). One test per claim + an extra anchoring the symbolic
@@ -87,14 +87,14 @@ projected source moments → solved 4 moments − exact projections =
 Final clean gate, canonical `python -O` invocation:
 
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial/test_ld_ubld_symbolic.py -v
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial/test_ld_ubld_symbolic.py -v
 collected 6 items
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_reduction_to_production_schur PASSED [ 16%]
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_divV_kernel_view_equals_reduction PASSED [ 33%]
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_timesV_scan_view_equals_reduction PASSED [ 50%]
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_symbolic_primitive_matches_production_update PASSED [ 66%]
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestOracleIIBilinearExactness::test_d2_exact_on_bilinear PASSED [ 83%]
-tests/sn/spatial/test_ld_ubld_symbolic.py::TestD3StructuralReadiness::test_d3_assembles_8x8_with_theta_cubed PASSED [100%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_reduction_to_production_schur PASSED [ 16%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_divV_kernel_view_equals_reduction PASSED [ 33%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_timesV_scan_view_equals_reduction PASSED [ 50%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestOracleId1Reduction::test_d1_symbolic_primitive_matches_production_update PASSED [ 66%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestOracleIIBilinearExactness::test_d2_exact_on_bilinear PASSED [ 83%]
+tests/gates/sn/spatial/test_ld_ubld_symbolic.py::TestD3StructuralReadiness::test_d3_assembles_8x8_with_theta_cubed PASSED [100%]
 ======================== 6 passed, 1 warning in 20.61s =========================
 ```
 

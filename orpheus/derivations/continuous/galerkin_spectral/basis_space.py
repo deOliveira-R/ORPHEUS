@@ -438,7 +438,7 @@ class BasisSpace:
     collocation) but both reduce the one-speed transport
     equation, so agreement at :math:`10^{-6}` is strong evidence
     of correctness. The L1 cross-check tests live in
-    :mod:`tests.derivations.test_carlvik_galerkin_xverif_fn`.
+    :mod:`tests.gates.derivations.test_carlvik_galerkin_xverif_fn`.
 
     Connection to the Sanchez–Chandrasekhar three-meanings taxonomy
     ---------------------------------------------------------------
@@ -708,7 +708,7 @@ class BasisSpace:
         n_modes=basis_order, n_quad=n_quad)` /
         :func:`solve_galerkin_spectral_sphere(...)`. The class-level
         call is a thin facade. Verified by
-        :mod:`tests.derivations.test_galerkin_spectral_basis_space`
+        :mod:`tests.gates.derivations.test_galerkin_spectral_basis_space`
         (the foundation gate that pins the bit-equality invariant).
         """
         if d is None:

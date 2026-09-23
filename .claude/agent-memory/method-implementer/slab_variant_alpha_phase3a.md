@@ -28,9 +28,9 @@ possible API extension. **Asymmetric BC (rank-2) deferred to Phase 3B.**
 | `orpheus/derivations/continuous/peierls_greens_function/origins/specular/greens_function_slab.py` | **NEW** | +431 | 3 `derive_*` SymPy functions (V_α1_slab, V_α2_slab, V_α3_slab) |
 | `orpheus/derivations/continuous/peierls_greens_function/origins/specular/__init__.py` | modified | +9 / −1 | re-export slab derivations |
 | `orpheus/derivations/continuous/peierls_greens_function/greens_function_slab.py` | **NEW** | +469 | `solve_greens_function_slab`, `solve_greens_function_slab_mg` + helpers + 2 dataclasses |
-| `tests/derivations/test_peierls_greens_function_slab_symbolic.py` | **NEW** | +199 | 10 `@pytest.mark.foundation` tests |
-| `tests/derivations/test_peierls_greens_function_slab_solver.py` | **NEW** | +443 | 12 `@pytest.mark.l1` tests |
-| `tests/derivations/test_peierls_variant_alpha_core.py` | modified | +83 / 0 | 2 new `@pytest.mark.foundation` tests for `alpha_per_period` |
+| `tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py` | **NEW** | +199 | 10 `@pytest.mark.foundation` tests |
+| `tests/gates/derivations/test_peierls_greens_function_slab_solver.py` | **NEW** | +443 | 12 `@pytest.mark.l1` tests |
+| `tests/gates/derivations/test_peierls_variant_alpha_core.py` | modified | +83 / 0 | 2 new `@pytest.mark.foundation` tests for `alpha_per_period` |
 | `docs/theory/peierls_greens.rst` | modified | +175 / 0 | new `_peierls-greens-slab:` Sphinx stub with 4 :label: equations |
 
 **Total net lines added**: ~1,872 (4 new modules/files + 4 modifications).
@@ -38,17 +38,17 @@ possible API extension. **Asymmetric BC (rank-2) deferred to Phase 3B.**
 ## Test results
 
 ```
-pytest tests/derivations/test_peierls_greens_function_solver.py \
-       tests/derivations/test_peierls_greens_function_vacuum.py \
-       tests/derivations/test_peierls_greens_function_xverif.py \
-       tests/derivations/test_peierls_greens_function_xverif_ps1982.py \
-       tests/derivations/test_peierls_greens_function_mg.py \
-       tests/derivations/test_peierls_greens_function_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_solver.py \
-       tests/derivations/test_peierls_variant_alpha_core.py \
-       tests/derivations/test_peierls_greens_function_slab_symbolic.py \
-       tests/derivations/test_peierls_greens_function_slab_solver.py
+pytest tests/gates/derivations/test_peierls_greens_function_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_vacuum.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py \
+       tests/gates/derivations/test_peierls_greens_function_mg.py \
+       tests/gates/derivations/test_peierls_greens_function_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py \
+       tests/gates/derivations/test_peierls_variant_alpha_core.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_solver.py
 ============================= 89 passed in 158.71s (0:02:38) =============
 ```
 

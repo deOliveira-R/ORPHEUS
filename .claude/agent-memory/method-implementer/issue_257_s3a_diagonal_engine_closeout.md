@@ -78,7 +78,7 @@ KEPT.
   naming the expected rank.
 
 ## Tests (spec §1 + §4b)
-File `tests/numerics/test_diagonal_operator.py` migrated:
+File `tests/gates/numerics/test_diagonal_operator.py` migrated:
 - ALL legacy 1-D tests (`TestDiagonalApplyShape/SelfAdjoint/CapabilitiesAndSolve/
   Composition/FromMeasure`) pass UNCHANGED against the generalized engine (the
   1-D path is bit-identical) — only the `solve` ValueError-match string updated
@@ -103,19 +103,19 @@ File `tests/numerics/test_diagonal_operator.py` migrated:
   be acceptable ONLY from a more-principled construction, which a pure broadcast
   cannot produce.
 
-File `tests/numerics/test_tensor_product_operator.py`: **byte-UNCHANGED** (git
+File `tests/gates/numerics/test_tensor_product_operator.py`: **byte-UNCHANGED** (git
 diff empty). All `DiagonalOperator(w, axis=k) & …` Kronecker compositions are
 rank-1 instances of the engine; `.weights`/`.axis`/`T.ops` reads all preserved.
 
 ## Verification (paste-back, lessons-L12)
-- `.venv/bin/python -O -m pytest -q tests/numerics/test_diagonal_operator.py
-  tests/numerics/test_tensor_product_operator.py -p no:cacheprovider`:
+- `.venv/bin/python -O -m pytest -q tests/gates/numerics/test_diagonal_operator.py
+  tests/gates/numerics/test_tensor_product_operator.py -p no:cacheprovider`:
   **`49 passed, 1 warning in 0.30s`** (the warning = the standard `-O` "assert
   statements not executed" config-warning; every test uses `np.testing.*` /
   `pytest.raises` → Mode-8 SAFE, NO inert bare-assert).
-- Full `tests/numerics/`: **657 passed** (export + `__init__` import path clean).
-- `npx pyright orpheus/numerics/operator.py tests/numerics/test_diagonal_operator.py
-  tests/numerics/test_tensor_product_operator.py`: **22 errors, 0 warnings** —
+- Full `tests/gates/numerics/`: **657 passed** (export + `__init__` import path clean).
+- `npx pyright orpheus/numerics/operator.py tests/gates/numerics/test_diagonal_operator.py
+  tests/gates/numerics/test_tensor_product_operator.py`: **22 errors, 0 warnings** —
   ALL 22 PRE-EXISTING #226 rooting noise, ZERO net-new, NO `# type: ignore`
   added. Proof: my first draft showed 35 (the +13 = `self.axis`/`self.weights`
   None-union + `bcast` possibly-unbound I created); after the int-axis +
@@ -155,8 +155,8 @@ no bug caught; next free ERR-063 reserved per #251 note).
 
 ## Deliverables
 - `orpheus/numerics/operator.py` — generalized `DiagonalOperator` (the engine).
-- `tests/numerics/test_diagonal_operator.py` — migrated + foundation oracle.
-- `tests/numerics/test_tensor_product_operator.py` — UNCHANGED (rank-1 survives).
+- `tests/gates/numerics/test_diagonal_operator.py` — migrated + foundation oracle.
+- `tests/gates/numerics/test_tensor_product_operator.py` — UNCHANGED (rank-1 survives).
 
 ## LESSON (coding-elegance / pyright-clean generalization)
 When generalizing a primitive from "1-D-on-one-axis" to "N-D-on-a-sub-product",

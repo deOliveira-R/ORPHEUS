@@ -37,7 +37,7 @@ test = [
     # xdist pin: 3.8.0 DEADLOCKS the scheduler on Python 3.14.3 (workers
     # exit, master idles at 0% CPU; reproduces at -n 2). 3.7.0 WORKS
     # (operators tier -n4 = 4s, exit 0) — hence the <3.8 cap. NOTE: even
-    # on 3.7, `tests/sn -n auto` over the WHOLE suite uses ~21 GB
+    # on 3.7, `tests/gates/sn -n auto` over the WHOLE suite uses ~21 GB
     # aggregate RSS (per-worker bounded, but summed) and is slow (the
     # inherent convergence/MMS tests dominate) — prefer per-tier, and use
     # `-n` to parallelize WITHIN a tier or in CI where the RAM is there.
@@ -49,7 +49,7 @@ test = [
     # Mutation-testing engine for the sentinel sensitivity metric. Runs
     # on Python 3.14.3 via the `local` distributor (NO xdist). Scopes to
     # ONE module-under-test per config so per-capability runs stay
-    # tractable (~1 s/mutant). See tests/_mutation/README.md (Phase S0
+    # tractable (~1 s/mutant). See tests/gates/_mutation/README.md (Phase S0
     # verdict: cosmic-ray over mutmut). diamond.py spike: 99.7 % score.
     "cosmic-ray>=8.4",
     "sympy>=1.13",
@@ -74,10 +74,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/gates"]
 pythonpath = ["."]
 # Modern importlib-based discovery. Required once tests/ grew to a
-# nested layout (``tests/sn/``, ``tests/cp/``, ...) because several
+# nested layout (``tests/gates/sn/``, ``tests/gates/cp/``, ...) because several
 # subfolders share basenames (e.g. ``test_properties.py`` exists in
 # cp/, sn/, mc/, moc/, diffusion/, moc/). The legacy ``prepend``
 # import mode would import each as the same top-level module name
@@ -95,7 +95,7 @@ markers = [
     "verifies(*labels): Sphinx equation labels (:label: in docs/theory/*.rst) that this test exercises",
     "catches(*tags): failure-mode (FM-NN) or error-catalog (ERR-NNN) tags this test guards",
     "rests_on(*test_ids): pytest node ids of the tests this one rests on — the verification DAG (#358); a red support INVALIDATES this test's reading rather than failing it",
-    "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/sn/regression/_generate_snapshots.py)",
+    "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/gates/sn/regression/_generate_snapshots.py)",
     "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/archive/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
     "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/archive/sn_sentinel_harness.md.",
 ]

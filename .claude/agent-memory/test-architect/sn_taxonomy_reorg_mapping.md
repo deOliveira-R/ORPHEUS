@@ -1,6 +1,6 @@
 ---
 name: sn-taxonomy-reorg-mapping
-description: Working file-destination map + per-phase plan for the tests/sn capability-taxonomy reorg (74 files → primitives/operators/sweep/solve/eigenvalue/verification). Includes __file__-relative path constraints + the 4-offender split design.
+description: Working file-destination map + per-phase plan for the tests/gates/sn capability-taxonomy reorg (74 files → primitives/operators/sweep/solve/eigenvalue/verification). Includes __file__-relative path constraints + the 4-offender split design.
 metadata:
   type: project
 ---
@@ -70,7 +70,7 @@ conftest. Final dir tree: primitives(13) operators(14) sweep/{core14,slab2,
 curvilinear10,cartesian_2d5} solve(4) eigenvalue(4) verification/{mms6,analytical5}
 regression(1) = 78 files.
 
-**Why:** whole-tree `pytest tests/sn` single-process OOMs; no logical org.
+**Why:** whole-tree `pytest tests/gates/sn` single-process OOMs; no logical org.
 **How to apply:** move with `git mv`; preserve every test's markers; new subdirs
 need `__init__.py` (matches existing spatial/l1_analytical/regression pattern).
 
@@ -83,7 +83,7 @@ need `__init__.py` (matches existing spatial/l1_analytical/regression pattern).
 - `test_invertible_operator.py`, `test_krylov_curvilinear_precond_safety.py` →
   `sys.path.insert(Path(__file__).parent/"l1_analytical")` + `from test_kinf_homogeneous import`.
   l1_analytical stays put OR update the sys.path anchor.
-- `SN_TESTS_ROOT = Path(__file__).resolve().parent` added to `tests/sn/_test_helpers.py`.
+- `SN_TESTS_ROOT = Path(__file__).resolve().parent` added to `tests/gates/sn/_test_helpers.py`.
 
 ## V&V invariants (path-INDEPENDENT — verified via conftest registry)
 Registry populated purely from markers + parametrize at collection; file path is

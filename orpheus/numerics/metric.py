@@ -11,7 +11,7 @@ frame's discrete Gram has live off-diagonals at 0.93 of the Cauchy–Schwarz
 scale, so **no diagonal metric satisfies Parseval on it** (`[M]` 2026-08-30:
 a diagonal ``1/diag(G)`` dressing reads the Parseval ratio 1.806 where the
 dense pseudo-inverse reads 1.000000000000 on the same band-limited field —
-the wrong-metric discriminator gate in ``tests/numerics/test_frame.py``).
+the wrong-metric discriminator gate in ``tests/gates/numerics/test_frame.py``).
 
 This module makes the metric a thing that is **applied** rather than a thing
 that is multiplied. The family owns the arithmetic; the Hadamard weight is
@@ -76,7 +76,7 @@ both load-bearing:
   ``2.1e-12`` over 40 seeds (archivist census) — routing the shipped
   diagonal path through a densified matmul would move pinned numbers
   tree-wide. The bit-exact witness is
-  ``tests/numerics/test_dense_metric.py``'s pairing-spelling gate.
+  ``tests/gates/numerics/test_dense_metric.py``'s pairing-spelling gate.
 * **Single source.** ``AdjointOperator`` builds the Hilbert adjoint from
   ``apply_metric``/``apply_inverse_metric`` while the pairing that judges
   it comes from ``inner_product``; deriving the pairing FROM ``apply``

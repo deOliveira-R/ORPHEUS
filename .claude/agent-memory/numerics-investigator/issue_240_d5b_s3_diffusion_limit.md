@@ -8,7 +8,7 @@ metadata:
 # #240 D5b-S3 — thick-cell LD diffusion limit (ERR-061, FIXED 2026-06-17)
 
 **Branch** `feature/sn-space-angle-tier2`. **NOT committed** (main agent commits).
-Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## ROOT CAUSE — the LD slope moment was stored in the SWEEP frame, not the GLOBAL frame
 
@@ -113,7 +113,7 @@ nx= 64   DD=2.3597 LD=2.3415 rel=0.008   →   LD=2.3594 rel=0.000
 # 2-D analog: rel 8.4% → 1.7% → 0.4% across n=4/8/16 (vacuum on all 4 sides;
 #   the residual 8.4% at n=4 is the 2-D boundary-layer fraction, not a bug)
 ```
-GATE 4 (DD/Step byte-id, `tests/sn/sweep/core tests/sn/solve -W error::DriftWarning`)
+GATE 4 (DD/Step byte-id, `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::DriftWarning`)
 = **513 passed / 1 skipped / 4 xfailed** — IDENTICAL pre/post (zero drift).
 GATE 3 (2-D LD MMS: O(h²) + FFW≡MFW + DD≠LD) = 3 passed.
 LD foundation + primitive = 59 passed; spatial = 68; transport+numerics = 848;
@@ -121,10 +121,10 @@ operators = 420 (excl. the 7 documented pre-existing curvilinear reds).
 
 ## GATES (promoted, mutation-verified)
 
-- `tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit`
+- `tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit`
   (1G, flipped xfail→PASS + Mode-8 migrate to `np.testing.assert_array_less`) +
   `::test_ld_thick_diffusive_limit_2g` (2G-het, Mode-6 group-coupled slope).
-- `tests/sn/spatial/test_ld_slope_frame.py::test_ld_slope_moment_global_frame_consistency`
+- `tests/gates/sn/spatial/test_ld_slope_frame.py::test_ld_slope_moment_global_frame_consistency`
   (frame consistency) + `::test_independent_ld_global_frame_recovers_diffusion`
   (`@foundation`, structural-independence ground — NO catches marker, it does
   not exercise `_reframe`).

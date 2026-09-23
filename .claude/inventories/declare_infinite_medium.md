@@ -87,11 +87,11 @@ and it is not self-verifying.
 
 | claiming family | claims | what it actually runs |
 |---|---|---|
-| SN (`tests/sn/*`) | 26 | `orpheus/transport/operators/scattering.py` moment operators |
-| CP (`tests/cp/*`) | 26 | `orpheus/cp/solver.py` — its own `SigS[0].T @ φ` transcription |
-| homogeneous (`tests/homogeneous/*`) | 12 | `orpheus/homogeneous/solver.py` + `orpheus/transport/operators/isotropic_scattering.py` |
-| MC (`tests/mc/*`) | 5 | `orpheus/mc/` group-transfer sampling |
-| MoC (`tests/moc/*`) | 1 | `orpheus/moc/core.py:183` — its own `sig_s0[i].T @ phi` |
+| SN (`tests/gates/sn/*`) | 26 | `orpheus/transport/operators/scattering.py` moment operators |
+| CP (`tests/gates/cp/*`) | 26 | `orpheus/cp/solver.py` — its own `SigS[0].T @ φ` transcription |
+| homogeneous (`tests/gates/homogeneous/*`) | 12 | `orpheus/homogeneous/solver.py` + `orpheus/transport/operators/isotropic_scattering.py` |
+| MC (`tests/gates/mc/*`) | 5 | `orpheus/mc/` group-transfer sampling |
+| MoC (`tests/gates/moc/*`) | 1 | `orpheus/moc/core.py:183` — its own `sig_s0[i].T @ phi` |
 
 ⚠ `[M]` **there is no shared multigroup-balance implementer across the five.**
 `orpheus/transport/operators/scattering.py` is imported by `orpheus/sn/` only
@@ -120,7 +120,7 @@ knowingly.
   - `orpheus.transport.operators.scattering.N2NMomentOperator` — `orpheus/transport/operators/scattering.py:300` — the SN `2Σ_2ᵀ` transfer.
   - `orpheus.transport.operators.scattering.ScatteringOperator` — `orpheus/transport/operators/scattering.py:356` — the composed SN scattering source.
 - **UNSURE / not enumerated**: the MC family's group-transfer sampling
-  (5 claims, `tests/mc/test_monte_carlo.py`). I did not open `orpheus/mc/` —
+  (5 claims, `tests/gates/mc/test_monte_carlo.py`). I did not open `orpheus/mc/` —
   a Monte-Carlo realisation of a *balance* is a sampled estimator rather than
   an assembled operator, and deciding whether that counts as "implements" is a
   judgement I am flagging rather than making.
@@ -191,9 +191,9 @@ facts are stated once here.
   lead is `equation_labels` on `derive_2g`
   (`orpheus/derivations/continuous/analytical/homogeneous.py:269-280`) and
   `derive_2g_continuous` (`:594-598`), each of which lists **all six**.
-- **claims**: 12 / 12 / 12 / 12 / 8 / 8 — all from `tests/homogeneous/`
+- **claims**: 12 / 12 / 12 / 12 / 8 / 8 — all from `tests/gates/homogeneous/`
   (`test_homogeneous.py` file-level `pytestmark`, `test_continuous_reference.py`
-  module-level list). Nothing outside `tests/homogeneous/` claims any of them.
+  module-level list). Nothing outside `tests/gates/homogeneous/` claims any of them.
 - ⭐ **The find that answers the back half of the family**:
   `orpheus/derivations/continuous/fn_method/origins/k_inf_derivations.py:516`,
   `derive_kinf_mg_matrix_form` — a **fully symbolic G=2** derivation that, in
@@ -209,7 +209,7 @@ facts are stated once here.
   `A` is the page's `A` under a relabelling, not literally; (ii) it keeps `χ`
   and the upscatter entry **general**, so the page's forms are its
   specialisation at `χ = [1,0]`, `Σ_s(2→1) = 0`; (iii) `[M]` its only consumer
-  is `tests/derivations/test_fn_la13511_kinf.py:146`, which carries
+  is `tests/gates/derivations/test_fn_la13511_kinf.py:146`, which carries
   `@pytest.mark.foundation` and **no `verifies` marker** — so none of the 12/8
   claiming tests execute it. Declaring it adds a true implementer that the
   claims cannot reach.
@@ -221,7 +221,7 @@ facts are stated once here.
   `kinf_and_spectrum_homogeneous`, which forms `M = np.linalg.solve(A, F)` and
   calls `np.linalg.eig(M)` (`derivations/common/eigenvalue.py:131-133`). No
   characteristic polynomial is ever formed. The same false mechanism is
-  restated in `tests/homogeneous/test_homogeneous.py:25-28` as the JUSTIFICATION
+  restated in `tests/gates/homogeneous/test_homogeneous.py:25-28` as the JUSTIFICATION
   for the `two-group-charpoly` / `two-group-roots` markers ("the analytical
   k_inf is derived symbolically via exactly those equations"). **The markers'
   stated warrant is refuted by the reference's own body** — worth fixing
@@ -273,7 +273,7 @@ facts are stated once here.
   is not a named quantity.
 - **implementers** (verified to resolve):
   - `orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` — `orpheus/numerics/matrix_inverse_operator.py:95` — **is** `A⁻¹` for exactly this loss matrix, as an object: eager materialisation of `A` + one LU factorisation, `apply` = the backsolve. It is on the production path and every one of the 12 claiming tests executes it (there is even a dedicated Mode-11 gate asserting its `apply` fires, `test_homogeneous.py:294`).
-  - `orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.as_matrix` — `orpheus/numerics/matrix_inverse_operator.py:251` — ⭐ **the one method in the tree that forms `[A⁻¹]` explicitly**: `lu_solve(lu, I)`, "Materialize `[A⁻¹]` — one batched backsolve on the identity". This is the entrywise-inverse implementer the equation asks for. ⚠ `[M]` it is NOT reached by the homogeneous solve: `solve_homogeneous_infinite` calls `as_matrix` on the *product* `K`, which walks basis columns through `MatrixInverseOperator.apply` (the LU backsolve), never through this override — which is exactly what `test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path` (`tests/homogeneous/test_homogeneous.py:294`) pins.
+  - `orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.as_matrix` — `orpheus/numerics/matrix_inverse_operator.py:251` — ⭐ **the one method in the tree that forms `[A⁻¹]` explicitly**: `lu_solve(lu, I)`, "Materialize `[A⁻¹]` — one batched backsolve on the identity". This is the entrywise-inverse implementer the equation asks for. ⚠ `[M]` it is NOT reached by the homogeneous solve: `solve_homogeneous_infinite` calls `as_matrix` on the *product* `K`, which walks basis columns through `MatrixInverseOperator.apply` (the LU backsolve), never through this override — which is exactly what `test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path` (`tests/gates/homogeneous/test_homogeneous.py:294`) pins.
   - `orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form` — `orpheus/derivations/continuous/fn_method/origins/k_inf_derivations.py:516` (line `:598`, `A_inv = A.inv()`) — the only place in the tree that forms an explicit symbolic 2×2 loss-matrix inverse. See preamble caveats (i)–(iii).
 - **confidence**: **medium**. The declaration is honest for "the inverse of the
   two-group loss matrix"; it is NOT an implementation of the printed *closed
@@ -383,7 +383,7 @@ facts are stated once here.
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none, but the CLAIMING TEST names the
   implementer verbatim in its own module docstring:
-  `tests/data/test_cross_section_data.py:10` — *"``number-density``  —
+  `tests/gates/data/test_cross_section_data.py:10` — *"``number-density``  —
   :func:`orpheus.data.macro_xs.recipes._number_density`"*, and again at
   `:364`. That is an authored declaration sitting one file away from the graph.
 - **what the equation says**: `N_i = ρ_i /(m_u A_i)`, with the `1e-24`
@@ -442,7 +442,7 @@ facts are stated once here.
   - RHS: `orpheus.numerics.eigenvalue.direct_eigenvalue` — `orpheus/numerics/eigenvalue.py:594` — the tree's production spelling of `np.linalg.solve(A, F)`, i.e. the reference side of the identity.
 - **⚠ the alternative reading, which I think is defensible and I am flagging
   rather than choosing**: this equation is the *assertion* of
-  `tests/homogeneous/test_homogeneous.py:333`
+  `tests/gates/homogeneous/test_homogeneous.py:333`
   `test_K_operator_as_matrix_is_the_resolvent`, which already carries the
   single `tests` edge. Under that reading the equation is
   `NOTHING:canonical-form` (a gate criterion, not a computed quantity), and
@@ -485,7 +485,7 @@ answer to transcribe.
 `derive_2g`'s docstring: *"2-group infinite medium eigenvalue **via
 characteristic polynomial**"*. `derive_2g_continuous`'s `Provenance.
 derivation_notes`: *"Solved via characteristic polynomial (closed form for
-2x2)"*. `tests/homogeneous/test_homogeneous.py:24-28`: *"the analytical k_inf
+2x2)"*. `tests/gates/homogeneous/test_homogeneous.py:24-28`: *"the analytical k_inf
 is derived symbolically via exactly those equations"* — offered as the warrant
 for the `two-group-charpoly` / `two-group-roots` markers.
 

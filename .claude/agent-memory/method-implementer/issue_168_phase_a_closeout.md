@@ -85,11 +85,11 @@ None = None` (defaults to `DDExtrapolation()`).
 
 ### Tests
 
-- **NEW** `tests/sn/spatial/test_boundary_face_flux.py` — 21
+- **NEW** `tests/gates/sn/spatial/test_boundary_face_flux.py` — 21
   foundation-tagged tests covering Protocol conformance, DD-extrapolation
   hand-calc, pole closure, CellCenter reproducer, registry
   self-registration, immutability.
-- **EXTENDED** `tests/sn/test_snstreamingoperator.py` — 7 new tests
+- **EXTENDED** `tests/gates/sn/test_snstreamingoperator.py` — 7 new tests
   pinning the Phase-A invariants:
   - Tuple return signature for the curvilinear decoder.
   - Defect 2 fix: `fi[..., -1, 0]` for inward ordinates is the
@@ -170,16 +170,16 @@ treatment (Lewis & Miller §4.5): initialize ψ^face_n,1/2 = ψ_n,0".
 
 ## Verification gates — all green
 
-- `pytest tests/sn/spatial/test_boundary_face_flux.py -q` → 21 passed.
-- `pytest tests/sn/test_snstreamingoperator.py -q` → 29 passed
+- `pytest tests/gates/sn/spatial/test_boundary_face_flux.py -q` → 21 passed.
+- `pytest tests/gates/sn/test_snstreamingoperator.py -q` → 29 passed
   (22 original + 7 new Phase-A invariants).
 - `pytest -m regression` → 5 passed (Cartesian, bit-identical),
   6 skipped (curvilinear, intentionally invalidated).
-- `pytest tests/sn/l1_analytical/ -m "not slow"` → 15 passed,
+- `pytest tests/gates/sn/l1_analytical/ -m "not slow"` → 15 passed,
   2 xfailed (the curvilinear MMS — orders ~1.5-1.7, still below
   the > 1.9 xfail-strict bar).
-- `pytest tests/sn/test_mms_curvilinear.py
-  tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+- `pytest tests/gates/sn/test_mms_curvilinear.py
+  tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
   → 4 xfailed (all ERR-026 tripwires stay xfail correctly).
 - `sphinx-build -W docs docs/_build/html` → exit 0.
 - `python -m tests._harness.audit` → 23 orphan equations + 36/38
@@ -209,8 +209,8 @@ treatment (Lewis & Miller §4.5): initialize ψ^face_n,1/2 = ψ_n,0".
 - MODIFIED: `orpheus/sn/geometry.py` (`SNMesh.boundary_face_flux`
   attribute).
 - MODIFIED: `orpheus/sn/solver.py` (4 caller-site tuple unpacks).
-- NEW: `tests/sn/spatial/test_boundary_face_flux.py` (232 lines).
-- MODIFIED: `tests/sn/test_snstreamingoperator.py` (7 new tests).
+- NEW: `tests/gates/sn/spatial/test_boundary_face_flux.py` (232 lines).
+- MODIFIED: `tests/gates/sn/test_snstreamingoperator.py` (7 new tests).
 - MODIFIED: `docs/theory/discrete_ordinates.rst` (Phase-A subsection).
 - DELETED: 6 curvilinear regression snapshots.
 - DELETED: zero — clean cut, no backward-compat shims (per brief).

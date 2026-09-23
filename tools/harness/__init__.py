@@ -19,6 +19,6 @@ Modules, each answering one question:
 * ``pipeline`` — generation for one harness; drift; orphans.
 * ``targets``  — the ``Harness`` Protocol (``base``) and the implementations.
   The modules above name no harness and import none;
-  ``tests/tools/test_harness_generator.py`` asserts it.
+  ``tests/gates/tools/test_harness_generator.py`` asserts it.
 * ``__main__`` — ``python -m tools.harness [--check]``.
 """

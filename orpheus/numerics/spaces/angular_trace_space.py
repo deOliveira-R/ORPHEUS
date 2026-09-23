@@ -93,7 +93,7 @@ generation, no trig round-off), so the band ``(0, eps]`` is empty too
 and the selectors classify identically to a bare sign test: the eps is
 **demoted from classifier to provably-inert defensive guard**.
 :func:`test_eps_sits_in_the_round_off_to_genuine_gap` (in
-``tests/numerics/test_angular_trace_space.py``) pins the gap across
+``tests/gates/numerics/test_angular_trace_space.py``) pins the gap across
 every shipped family so a future quadrature cannot silently reopen it.
 
 Coord-system coverage

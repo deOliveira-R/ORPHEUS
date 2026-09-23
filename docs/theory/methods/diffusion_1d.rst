@@ -605,7 +605,7 @@ Numerical evidence (the operator-family gates)
 ----------------------------------------------
 
 The architecture is pinned by object-level and cross-engine gates in
-``tests/diffusion/`` (the continuous-reference convergence study and the
+``tests/gates/diffusion/`` (the continuous-reference convergence study and the
 MMS gate are in :ref:`diffusion-2rg-verification` and
 :ref:`diffusion-mms-section`):
 
@@ -665,7 +665,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
    cross-engine consistency gate, the field-construction foundation gates,
    and the per-law trace-semantics gates in the table above (the vacuum
    :math:`J^-=0` realization is asserted by
-   ``tests/diffusion/test_properties.py::test_vacuum_means_zero_incoming_current``);
+   ``tests/gates/diffusion/test_properties.py::test_vacuum_means_zero_incoming_current``);
    the k-value carries no new claim here (it is verified by those gates
    plus the L1 / L2 anchors below). These sentinels are co-located here,
    with their #290-family siblings, rather than at each label's Key-Facts
@@ -1349,7 +1349,7 @@ open is an unsatisfiable tolerance (``keff_tol = 0.0``, which
 :class:`~orpheus.numerics.convergence.StoppingCriterion` documents as its
 never-clears input). A method whose failure mode is *hard to provoke* is a
 good method and a badly-covered one; the fixture is spelled out in
-``tests/numerics/test_family_convergence_contract.py`` so the next reader
+``tests/gates/numerics/test_family_convergence_contract.py`` so the next reader
 does not rediscover all three dead ends.
 
 The general lesson **transfers** to any iterative solver even though
@@ -1453,7 +1453,7 @@ collapses the measured order from :math:`(2.004, 2.001, 2.000)` to
 :math:`(1.121, 1.034, 1.009)` with the finest-mesh error
 :math:`3.4 \times 10^{-3}` — RED under both gate assertions.
 
-Measured evidence (``tests/diffusion/test_mms.py``, cells
+Measured evidence (``tests/gates/diffusion/test_mms.py``, cells
 :math:`n = 20, 40, 80, 160`): errors
 :math:`1.37 \times 10^{-2}`, :math:`3.41 \times 10^{-3}`,
 :math:`8.53 \times 10^{-4}`, :math:`2.13 \times 10^{-4}`;

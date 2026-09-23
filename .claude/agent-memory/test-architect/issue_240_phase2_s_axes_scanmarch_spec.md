@@ -135,7 +135,7 @@ the diamond mean, already correct).
 
 ### Green baseline @ HEAD (L12, verbatim)
 
-`python -O -m pytest tests/sn/sweep/core tests/sn/operators -q`:
+`python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/operators -q`:
 
 ```
 7 failed, 928 passed, 5 skipped, 4 xfailed, 14 warnings in 22.73s
@@ -154,7 +154,7 @@ Phase 2's job and must be ROUTED AROUND:
 
 **Route-around invocation for the green-subset check:**
 `-k "not (vacuum_bulk_bit_identical_1d and SPH) and not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical) and not test_2d_mesh_resolution and not two_d_cartesian_loss_action"`.
-NEVER run all of `tests/sn` (#212 `continuous_get` hang).
+NEVER run all of `tests/gates/sn` (#212 `continuous_get` hang).
 
 ### What DRIFTS (matvec re-association ~1 ULP) and what does NOT
 
@@ -172,7 +172,7 @@ docstring + `diamond.py` reads:
 #### 2a. DD apply/matvec snapshots → migrate to `assert_regression`
 
 The Phase-1 PRECEDENT to copy verbatim is
-`tests/sn/operators/test_streaming_operator.py::TestT4bPreT4RegressionSnapshot`
+`tests/gates/sn/operators/test_streaming_operator.py::TestT4bPreT4RegressionSnapshot`
 (slab arms ALREADY migrated by Phase 1): bulk →
 `assert_regression(..., kind="direct", reduction_depth=mesh.nx)`,
 boundary stays STRICT `assert_array_equal` (the outflow defect
@@ -182,12 +182,12 @@ bytes).
 
 | Gate | File | Treatment | Notes |
 |------|------|-----------|-------|
-| **`test_cell_kernel_batch.py` hand-calc** `TestSolveKernelClosedForm` / `TestResidualKernelClosedForm` | `tests/sn/sweep/core/test_cell_kernel_batch.py:84,164` | **RE-BASELINE the hand-calc** (see §2c — this is the kernel's PUBLIC contract change, NOT a snapshot) | the `s_axes=(3,5)`→`denom=10` arithmetic CHANGES to `denom=2+2·3+2·5=18` IF inputs stay `s=2g`; see §2c for the correct fix |
+| **`test_cell_kernel_batch.py` hand-calc** `TestSolveKernelClosedForm` / `TestResidualKernelClosedForm` | `tests/gates/sn/sweep/core/test_cell_kernel_batch.py:84,164` | **RE-BASELINE the hand-calc** (see §2c — this is the kernel's PUBLIC contract change, NOT a snapshot) | the `s_axes=(3,5)`→`denom=10` arithmetic CHANGES to `denom=2+2·3+2·5=18` IF inputs stay `s=2g`; see §2c for the correct fix |
 | `test_cell_kernel_batch.py` left-fold bit-id | `:122 TestBitIdenticalToPerOrdinateLoop` | UPDATE the `_per_ordinate_loop_reference` (:109) to mirror the NEW `2·s_a` fold; KEEP `array_equal` (vectorisation is still exact vs loop) | the reference must gain the same factor-2 |
-| 2-D ScanMarch ≡ oracle (apply leg) | `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:179 test_scanmarch_residual_equals_oracle` | already `assert_allclose` (nulp-tolerant) — SURVIVES | NON-bit-id by design across schedules |
-| window ≡ full-field (apply leg) | `tests/sn/sweep/core/test_sweep_graph_window_equivalence.py:239 test_residual_window_equals_full_field` | `array_equal` — SURVIVES IFF both walks read the SAME kernel (they do — both `residual_kernel_batch`); the re-association is IDENTICAL on both paths → 0 ULP between them | this gate is path-A≡path-B, not path-vs-snapshot — re-association cancels |
-| end-to-end matvec window≡full | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py:109 test_matvec_window_equals_full_field_end_to_end` | `array_equal` — SURVIVES (same reason: both paths, same kernel) | |
-| `bc_extraction_matvec` cart2d | `tests/sn/operators/test_bc_extraction_matvec.py` (cart2d arms, NOT the SPH reds) | if it pins matvec vs a frozen snapshot/closed form → migrate to nulp; if path-A≡path-B → survives | INSPECT: confirm which (see §2d action) |
+| 2-D ScanMarch ≡ oracle (apply leg) | `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:179 test_scanmarch_residual_equals_oracle` | already `assert_allclose` (nulp-tolerant) — SURVIVES | NON-bit-id by design across schedules |
+| window ≡ full-field (apply leg) | `tests/gates/sn/sweep/core/test_sweep_graph_window_equivalence.py:239 test_residual_window_equals_full_field` | `array_equal` — SURVIVES IFF both walks read the SAME kernel (they do — both `residual_kernel_batch`); the re-association is IDENTICAL on both paths → 0 ULP between them | this gate is path-A≡path-B, not path-vs-snapshot — re-association cancels |
+| end-to-end matvec window≡full | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py:109 test_matvec_window_equals_full_field_end_to_end` | `array_equal` — SURVIVES (same reason: both paths, same kernel) | |
+| `bc_extraction_matvec` cart2d | `tests/gates/sn/operators/test_bc_extraction_matvec.py` (cart2d arms, NOT the SPH reds) | if it pins matvec vs a frozen snapshot/closed form → migrate to nulp; if path-A≡path-B → survives | INSPECT: confirm which (see §2d action) |
 
 **NOTE on the cart2d apply snapshots:** `pre_t4_snapshots.npz` carries
 `cart2d_{1g_vacuum,1g_specular,2g_specular}_apply_{bulk,boundary}` and
@@ -207,21 +207,21 @@ to 2-D.
 #### 2b. SCAN/SWEEP snapshots → STAY STRICT (byte-identical)
 
 These MUST remain `array_equal` and the strict gate
-`pytest tests/sn/sweep/core tests/sn/solve -W "error::…DriftWarning"`
+`pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::…DriftWarning"`
 MUST stay clean (DD scan is power-of-2-exact):
 
 | Gate | File | Why unchanged |
 |------|------|---------------|
-| sweep regression | `tests/sn/sweep/core/test_sweep_regression.py` | SOLVE path (scan) — byte-identical |
-| affine carve baseline | `tests/sn/sweep/core/test_affine_carve_baseline.py` | the Phase-1 strict sha256/bit-id gate — scan-side |
+| sweep regression | `tests/gates/sn/sweep/core/test_sweep_regression.py` | SOLVE path (scan) — byte-identical |
+| affine carve baseline | `tests/gates/sn/sweep/core/test_affine_carve_baseline.py` | the Phase-1 strict sha256/bit-id gate — scan-side |
 | group-3≡group-2 scan flat | `test_sweep_cache.py` (the `affine_scan_coefficients` gate) | scan coefficients unchanged (factor-2 was always explicit at `diamond.py:462`) |
 | sweep window≡full (SOLVE) | `test_sweep_graph_window_equivalence.py:216 test_solve_window_equals_full_field` | scan solve, path≡path AND byte-exact |
 | CumprodScan≡wavefront | `test_wavefront_cumprod_equivalence.py` | 1-D scan — does NOT read `SNMesh.streaming` (rides `affine_scan_coefficients`) → UNTOUCHED |
-| `test_diamond.py` slab snapshots | `tests/sn/sweep/core/test_diamond.py` | INSPECT: solve-side stays strict; any apply-side row migrates per §2a |
+| `test_diamond.py` slab snapshots | `tests/gates/sn/sweep/core/test_diamond.py` | INSPECT: solve-side stays strict; any apply-side row migrates per §2a |
 
 **The Phase-1 strict gate command (must stay 505p/1s/4xf per my prior
 note `project_issue_158_ld_dag`):**
-`python -O -m pytest tests/sn/sweep/core tests/sn/solve -W "error::orpheus.sn.regression._regression_assert.DriftWarning"`
+`python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::orpheus.sn.regression._regression_assert.DriftWarning"`
 — if this goes RED on a SWEEP snapshot, the change leaked into the
 solve path (a bug — scan must stay byte-identical). If it goes red on
 an APPLY snapshot, that snapshot needed §2a migration.
@@ -258,10 +258,10 @@ test docstring.
 
 #### 2d. Pre-write inspection actions (the implementer runs these first)
 
-1. `grep -n "def test_\|array_equal\|nulp\|allclose\|snapshot" tests/sn/operators/test_bc_extraction_matvec.py`
+1. `grep -n "def test_\|array_equal\|nulp\|allclose\|snapshot" tests/gates/sn/operators/test_bc_extraction_matvec.py`
    — classify each cart2d arm: path-vs-path (survives) or
    path-vs-frozen (migrate per §2a).
-2. `grep -n "apply\|residual\|matvec\|array_equal\|snapshot" tests/sn/sweep/core/test_diamond.py`
+2. `grep -n "apply\|residual\|matvec\|array_equal\|snapshot" tests/gates/sn/sweep/core/test_diamond.py`
    — find any APPLY-side strict gate; migrate per §2a (solve-side
    stays strict).
 3. Run the strict DriftWarning gate (§2b command) BEFORE editing →
@@ -280,7 +280,7 @@ golden". The §2 snapshots are re-baselined and therefore CANNOT catch
 a 2× error introduced by the same change. The gate below CAN.
 
 **The strongest existing gate: `test_scanmarch_sweep_equals_oracle`**
-(`tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:104`).
+(`tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:104`).
 WHY it is the strongest:
 
 - `FullFieldWavefront.sweep` reads `str_axes` → routes through
@@ -387,11 +387,11 @@ to the old value.
 
 | Reference | File | Claim layer | Pillar | Why it MUST stay green |
 |-----------|------|-------------|--------|------------------------|
-| **DD analytical k∞ (MULTI-group)** | `tests/sn/verification/analytical/test_kinf_homogeneous.py` | eigenvalue | closed-form (`λ_max(A⁻¹F)`) | the ONLY structurally-independent eigenvalue anchor; 1G is DEGENERATE (Cardinal Rule) — confirm ≥2G arms run |
-| DD 2-D MMS convergence | `tests/sn/verification/mms/test_mms_2d.py` | convergence-order + flux-shape | MMS | proves the 2-D operator (post-rewrite) is consistent; O(h²) to the imposed solution |
-| LD MMS O(h²) slab | `tests/sn/verification/mms/test_mms_ld_slab.py` | convergence-order | MMS | proves the LD kernel still O(h²) after dropping the `0.5` — the LD slope-sign trap catcher |
-| DD 1-D MMS (slab + het) | `tests/sn/verification/mms/test_mms_heterogeneous.py` | convergence-order | MMS | heterogeneous → activates redistribution (H2); flat flux would null it |
-| Phase-C crosscheck | `tests/sn/verification/analytical/test_phase_c_crosscheck.py` | flux-shape | semi-analytical (trajectory_resolvent) | structurally-independent of the sweep kernel |
+| **DD analytical k∞ (MULTI-group)** | `tests/gates/sn/verification/analytical/test_kinf_homogeneous.py` | eigenvalue | closed-form (`λ_max(A⁻¹F)`) | the ONLY structurally-independent eigenvalue anchor; 1G is DEGENERATE (Cardinal Rule) — confirm ≥2G arms run |
+| DD 2-D MMS convergence | `tests/gates/sn/verification/mms/test_mms_2d.py` | convergence-order + flux-shape | MMS | proves the 2-D operator (post-rewrite) is consistent; O(h²) to the imposed solution |
+| LD MMS O(h²) slab | `tests/gates/sn/verification/mms/test_mms_ld_slab.py` | convergence-order | MMS | proves the LD kernel still O(h²) after dropping the `0.5` — the LD slope-sign trap catcher |
+| DD 1-D MMS (slab + het) | `tests/gates/sn/verification/mms/test_mms_heterogeneous.py` | convergence-order | MMS | heterogeneous → activates redistribution (H2); flat flux would null it |
+| Phase-C crosscheck | `tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py` | flux-shape | semi-analytical (trajectory_resolvent) | structurally-independent of the sweep kernel |
 
 **Live confirmation this session:** `test_kinf_homogeneous.py` +
 `test_mms_2d.py` + `test_mms_ld_slab.py` + the 2-D oracles =
@@ -497,7 +497,7 @@ present). Per gate:
    placeholder.
 5. **§5 references** — `test_kinf_homogeneous` (≥2G) + `test_mms_2d` +
    `test_mms_ld_slab` green (the 56p floor).
-6. **§2b strict gate** — `tests/sn/sweep/core tests/sn/solve -W
+6. **§2b strict gate** — `tests/gates/sn/sweep/core tests/gates/sn/solve -W
    "error::…DriftWarning"` stays at the recorded baseline (scan
    byte-identical).
 7. **§2a re-baseline** — hand-calc (Design A, hand-derived numbers) +
@@ -506,7 +506,7 @@ present). Per gate:
 8. **§6 audit** — zero inline-`2*s`/scheme-name/isinstance hits in
    sweep-strategy bodies; `:2038` dedup done.
 9. Route around the 7 pre-existing reds (§2 invocation); NEVER run all
-   of `tests/sn` (#212).
+   of `tests/gates/sn` (#212).
 
 ---
 

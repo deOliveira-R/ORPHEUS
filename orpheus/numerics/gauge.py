@@ -41,7 +41,7 @@ Two realizations of ONE concept:
   untouched by construction; this tier never imports the SN class (the layer
   contract forbids ``numerics → sn``).
 
-The defining laws each realization ships a test of (``tests/numerics/``):
+The defining laws each realization ships a test of (``tests/gates/numerics/``):
 the section lands on the target (``n(apply(ψ)) ≈ t``), it is IDEMPOTENT
 (``apply(apply(ψ)) ≈ apply(ψ)`` — ``allclose``, not bit-equal: a rescale
 multiplies by :math:`1/(1 \pm \varepsilon)`), it is Γ-INVARIANT

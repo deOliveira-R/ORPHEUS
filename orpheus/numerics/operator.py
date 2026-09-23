@@ -380,7 +380,7 @@ def _agreed_space(
 
     ⚠ **The message keeps the phrase** ``equal <role>s`` **deliberately.** It
     predates this helper (it was :class:`OperatorSum`'s own inline wording) and
-    two gates in ``tests/sn/operators/test_typed_residual_evaluation.py`` pin it
+    two gates in ``tests/gates/sn/operators/test_typed_residual_evaluation.py`` pin it
     as the provenance marker that says *this* guard fired and not some
     incidental raise elsewhere. ``owner`` is prefixed so the marker still
     identifies WHICH composite refused now that the law is shared.

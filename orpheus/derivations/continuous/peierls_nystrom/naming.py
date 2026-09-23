@@ -60,7 +60,7 @@ The drift the capability matrix's promised cross-check was meant to *detect*
 is now **unspellable**: there is one enumeration and one name rule, so a row
 and a registry key cannot disagree. Per `coding-standards`' rewire-demotion
 clause, the surviving gate in
-``tests/derivations/test_capability_matrices.py`` says so plainly rather than
+``tests/gates/derivations/test_capability_matrices.py`` says so plainly rather than
 keeping an authoritative name for a comparison that can no longer fail.
 """
 

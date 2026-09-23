@@ -10,7 +10,7 @@ Behavioral-NEUTRAL internal extraction of the carrier type. `TimedFullField`'s p
 - **REWRITE** `orpheus/transport/timed_full_field.py` — `TimedFullField(FullField)`: adds `_history: tuple[FullField, ...] = ()` + `history_depth: int = 2`, `advance`/`at_lag`/`history_length`, the `history_depth >= 0` check (via `super().__post_init__()` + extension), and OVERRIDES `_recombine` / `zeros` / `from_flat` to thread `history_depth` + empty history. `at_lag(1)` now returns a timeless `FullField` snapshot (was a `TimedFullField`).
 - **DELETE** `orpheus/transport/state.py` (the S4 `TransportState` Protocol — superseded; concrete base + nominal isinstance replaces the structural Protocol).
 - **EDIT** `orpheus/transport/__init__.py` — drop `TransportState`, add `FullField` + `TimedFullField` to imports + `__all__`.
-- **NEW** `tests/transport/test_full_field.py` (`@foundation`, 24 tests) — migrated from `test_transport_state.py` (DELETED). Nominal discriminating checks + timeless/timed distinction + the polymorphic-recombine teeth.
+- **NEW** `tests/gates/transport/test_full_field.py` (`@foundation`, 24 tests) — migrated from `test_transport_state.py` (DELETED). Nominal discriminating checks + timeless/timed distinction + the polymorphic-recombine teeth.
 
 ## Final shape (the load-bearing design)
 - **Field split:** base = `{bulk, boundary}`; subclass ADDS `{_history, history_depth}`. `_history` element type is `FullField` (a historical frame is a timeless snapshot — built by `advance` via `FullField(bulk=self.bulk, boundary=self.boundary)`).
@@ -23,7 +23,7 @@ Behavioral-NEUTRAL internal extraction of the carrier type. `TimedFullField`'s p
 - `TimedFullField + TimedFullField` (recombine path): the inherited base `__add__` runs `self.bulk + other.bulk` / `self.boundary + other.boundary` (IDENTICAL leaf arithmetic to the old direct-construct body) then routes through the overridden `_recombine` → `TimedFullField(..., _history=(), history_depth=self.history_depth)` (IDENTICAL to the old body's explicit `_history=(), history_depth=self.history_depth`). Same values, same type, same empty history.
 - `to_flat`/`from_flat`: inherited body byte-identical for `to_flat`; `TimedFullField.from_flat` body is the old body verbatim (threaded `history_depth`).
 - `advance`: unchanged semantics — stores a timeless `FullField` snapshot (was a `TimedFullField` snapshot with empty history; the values are identical, only the wrapper class differs — and `at_lag(1)` consumers subtract against the current `TimedFullField`, which the widened `_check_partner` allows).
-- Proof: the dedicated `tests/transport/test_timed_full_field.py` (27 tests, the post-D-H.1 contract incl. flat round-trip, advance/at_lag, time-derivative stencil, frozen) passes UNCHANGED.
+- Proof: the dedicated `tests/gates/transport/test_timed_full_field.py` (27 tests, the post-D-H.1 contract incl. flat round-trip, advance/at_lag, time-derivative stencil, frozen) passes UNCHANGED.
 
 ## ⚠ THE ONE `# type: ignore` (justified, design-forced)
 `TimedFullField.from_flat` carries `# type: ignore[override]` — narrowing the classmethod `template: FullField` → `TimedFullField` is a Liskov param-narrowing pyright flags (`reportIncompatibleMethodOverride`). FORCED: the body reads `template.history_depth` which the base lacks; widening to `FullField` would break the access. This is the SAME category as the original `zeros`' `# type: ignore[attr-defined]` (design-forced, not a workaround). I removed the unneeded `[override]` ignores on `_recombine` (now clean via self-type) and `zeros` (signature widening is variance-OK). Net: 1 design-forced `[override]` + the inherited `[attr-defined]` ×2 in `zeros` (carried over from the original). The `# type: ignore[return-value]` I first put in base `_recombine` was ELIMINATED by switching to `replace(self, ...)`.
@@ -33,7 +33,7 @@ Behavioral-NEUTRAL internal extraction of the carrier type. `TimedFullField`'s p
 - **Regression** (`-O`, the brief's subset): **7 failed / 1981 passed / 6 skipped / 5 xfailed**. The 7 = EXACTLY the documented baseline reds (#250 SPHERE ×5: `test_vacuum_bulk_bit_identical_1d[{0,1,2}-SPH]` + `test_sphere_{1,2}g_apply_bit_identical`; #232 mu_y ×2: `test_2d_mesh_resolution` + `test_two_d_cartesian_loss_action_returns_result`). CONFIRMED identical on the baseline worktree (7 failed there too). ZERO new regression.
 - **Dedicated `test_timed_full_field.py`:** 27 pass unchanged (the bit-identity proof).
 - **New `test_full_field.py`:** 24 pass.
-- **Full `tests/transport` + `test_layer_imports.py`:** 516 pass.
+- **Full `tests/gates/transport` + `test_layer_imports.py`:** 516 pass.
 - No `TransportState` / `transport.state` references remain in `orpheus/` `tests/` (grep clean; only prose "transport state" + the `[[project_transport_state_container]]` memory-link survive). No `docs/` ref to `transport.state` (the doc `TimedFullField` cross-refs all resolve — `to_flat`/`from_flat`/`zeros` inherited).
 
 ## NOT done (correctly out of scope, folds into S8)

@@ -25,7 +25,7 @@ Single commit pending. All verification gates green:
 |---|---|---|
 | `orpheus/sn/operator.py` | +280 (~290 deletions of the 2-line `LinearOperator` import) | Added `SNStreamingOperator` class + `__all__` + numerics-operator imports. KEPT existing `transport_operator_matvec_*` functions verbatim (Wave E retires them). |
 | `orpheus/sn/__init__.py` | +1 | Export `SNStreamingOperator`. |
-| `tests/sn/test_snstreamingoperator.py` | +475 (new) | 22 foundation-tagged tests. |
+| `tests/gates/sn/test_snstreamingoperator.py` | +475 (new) | 22 foundation-tagged tests. |
 | `docs/theory/discrete_ordinates.rst` | +218 | New `_sn-streaming-operator` section + `:label:sn-streaming-reciprocity` math block. |
 
 ## Key design decisions
@@ -70,7 +70,7 @@ These 7 tests are the load-bearing structural-extraction claim that Wave D R3 is
 
 * `transport_operator_matvec_*` retirement — Wave E.
 * `SNSolver` consuming `SNStreamingOperator` — Wave E Issue 15.
-* `tests/sn/test_sweep_operator_inconsistency.py` rewrite — Wave E.
+* `tests/gates/sn/test_sweep_operator_inconsistency.py` rewrite — Wave E.
 * LD/EC/Step `CellUpdate` strategies — Wave C-extension.
 * O(n) analytic-adjoint matvec — future, when production reciprocity becomes performance-critical.
 * ERR-026 closure — Wave E Issue 15 (Krylov-on-apply with sweep as preconditioner).

@@ -169,7 +169,7 @@ exact line numbers below drift — re-confirm with Nexus `context`/`query` at pi
 
 ## 6. Verification hooks for Tier 2
 
-- **#233 spatial characterization gate:** `tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`.
+- **#233 spatial characterization gate:** `tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`.
   Four L1 tests, all `catches("ERR-059")`: `test_sphere_global_L2_second_order_dual_reference`
   (`:201`), `test_cylinder_global_L2_second_order` (`:256`),
   `test_sphere_pole_cell_first_order_and_Linf_dominant` (`:297`, pole `orders > 0.8`
@@ -179,13 +179,13 @@ exact line numbers below drift — re-confirm with Nexus `context`/`query` at pi
   LIMITATION, not a correctness claim) — a new higher-order spatial scheme makes
   these PASS at order ~2.0 without changing the assertion.
 - **Spatial-convergence MMS oracle (DD second-order):**
-  `tests/sn/verification/mms/test_mms_curvilinear.py`:
+  `tests/gates/sn/verification/mms/test_mms_curvilinear.py`:
   `test_sn_spherical_mms_converges_second_order` (`:66`),
   `test_sn_cylindrical_mms_converges_second_order` (`:117`) — `catches("ERR-058")`,
   `orders > 1.9` on ladder [20,40,80,160]. A new spatial scheme is verified it stays
   ≥ O(h²) here (must not regress the global L2).
 - **Angular-floor / angular-convergence gate (the #235 / #229 target):**
-  `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`:
+  `tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py`:
   `test_cyl_aniso_floor_scales_with_quadrature` (`:107`, `verifies(
   "sn-mms-cylindrical-aniso-spatial-convergence")`, `catches("ERR-026")`) — the
   cylinder azimuthal floor SCALES with `n_phi` (8→16→32: 1.90e-2→7.37e-3→3.10e-3),

@@ -147,19 +147,19 @@ ZERO production call sites. Only test-side (one site).
 
 | File | LOC | Pre-D-H surface used | Migration burden |
 |---|---|---|---|
-| `tests/sn/test_angular_flux_with_boundary.py` | 612 | stash/__lshift__/__call__(lag)/__len__/history_depth/from_flat_with_traces/to_flat_with_traces/copy/boundary keyword | **HIGHEST** — these are exactly the legacy-only methods; tests should retire wholesale and be re-implemented against `TimedFullField` |
-| `tests/sn/test_native_matvec.py` | 511 | boundary= kwarg constructor, .values, .mesh, .boundary | Phase A overlap (matvec internals) — AVOID until Phase A lands its rewrite |
-| `tests/sn/test_invertible_operator.py` | 768 | AngularFlux constructor (no boundary), .mesh, .values, history_depth keyword, `rhs(1)` retired-test reference, .copy | HIGH — InvertibleOperator.solve return type changes; per-test ~10 sites |
-| `tests/sn/test_collision_operator.py` | 395 | AngularFlux constructor, no boundary, .values, .mesh | LOW — operator returns typed flux; rewire to TimedFullField |
-| `tests/sn/test_operators_apply_typed.py` | 355 | AngularFlux constructor, .values, .mesh, to_flat_with_traces/from_flat_with_traces, .integrate_angular | MEDIUM — Krylov round-trip tests; rewire flat-methods to TimedFullField.from_flat/to_flat |
-| `tests/sn/test_typed_fields.py` | 293 | AngularFlux constructor, .values, .mesh, .at_ordinate | MEDIUM — `at_ordinate` retires; replace with direct `psi.values[n]` indexing or keep as derived method on new L2 AngularFlux if needed |
-| `tests/sn/test_harmonic_moment_field.py` | 558 | AngularFlux constructor, .values, .integrate_angular | LOW — moment-field tests; AngularFlux is a fixture builder |
-| `tests/sn/test_fixed_source_g1.py` | 405 | AngularFlux constructor (no boundary) | LOW — fixture builder |
-| `tests/sn/test_solution.py` | 424 | AngularFlux constructor (sol.angular_flux field), .values | MEDIUM — Solution.angular_flux field type changes to `TimedFullField`; rewire field-access patterns |
-| `tests/sn/test_streaming_operator_decomposition.py` | 339 | AngularFlux(boundary=) constructor | Phase A — AVOID |
-| `tests/sn/test_krylov_curvilinear_precond_safety.py` | 255 | AngularFlux constructor, .integrate_angular, retired rhs(1) ref | MEDIUM |
-| `tests/sn/_test_helpers.py` | 131 | `legacy_proxy_matvec` builds an AngularFlux(boundary=) | Phase A — AVOID (this helper exists for legacy `transport_operator_matvec_unified`; Phase A retires it) |
-| `tests/numerics/test_iteration_angular_flux.py` | 254 | AngularFlux constructor, to_flat_with_traces / from_flat_with_traces, .mesh | **HIGHEST in numerics**: tests the ravellable protocol on the legacy class. Either (a) retire entirely now that `tests/transport/test_timed_full_field.py` covers the new protocol, or (b) keep until D-H.2 retirement of legacy class. Recommendation: tag with `pytest.mark.skip` post-D-H.1b consumers complete, then delete in D-H.2 alongside `orpheus/sn/angular_flux.py`. |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | 612 | stash/__lshift__/__call__(lag)/__len__/history_depth/from_flat_with_traces/to_flat_with_traces/copy/boundary keyword | **HIGHEST** — these are exactly the legacy-only methods; tests should retire wholesale and be re-implemented against `TimedFullField` |
+| `tests/gates/sn/test_native_matvec.py` | 511 | boundary= kwarg constructor, .values, .mesh, .boundary | Phase A overlap (matvec internals) — AVOID until Phase A lands its rewrite |
+| `tests/gates/sn/test_invertible_operator.py` | 768 | AngularFlux constructor (no boundary), .mesh, .values, history_depth keyword, `rhs(1)` retired-test reference, .copy | HIGH — InvertibleOperator.solve return type changes; per-test ~10 sites |
+| `tests/gates/sn/test_collision_operator.py` | 395 | AngularFlux constructor, no boundary, .values, .mesh | LOW — operator returns typed flux; rewire to TimedFullField |
+| `tests/gates/sn/test_operators_apply_typed.py` | 355 | AngularFlux constructor, .values, .mesh, to_flat_with_traces/from_flat_with_traces, .integrate_angular | MEDIUM — Krylov round-trip tests; rewire flat-methods to TimedFullField.from_flat/to_flat |
+| `tests/gates/sn/test_typed_fields.py` | 293 | AngularFlux constructor, .values, .mesh, .at_ordinate | MEDIUM — `at_ordinate` retires; replace with direct `psi.values[n]` indexing or keep as derived method on new L2 AngularFlux if needed |
+| `tests/gates/sn/test_harmonic_moment_field.py` | 558 | AngularFlux constructor, .values, .integrate_angular | LOW — moment-field tests; AngularFlux is a fixture builder |
+| `tests/gates/sn/test_fixed_source_g1.py` | 405 | AngularFlux constructor (no boundary) | LOW — fixture builder |
+| `tests/gates/sn/test_solution.py` | 424 | AngularFlux constructor (sol.angular_flux field), .values | MEDIUM — Solution.angular_flux field type changes to `TimedFullField`; rewire field-access patterns |
+| `tests/gates/sn/test_streaming_operator_decomposition.py` | 339 | AngularFlux(boundary=) constructor | Phase A — AVOID |
+| `tests/gates/sn/test_krylov_curvilinear_precond_safety.py` | 255 | AngularFlux constructor, .integrate_angular, retired rhs(1) ref | MEDIUM |
+| `tests/gates/sn/_test_helpers.py` | 131 | `legacy_proxy_matvec` builds an AngularFlux(boundary=) | Phase A — AVOID (this helper exists for legacy `transport_operator_matvec_unified`; Phase A retires it) |
+| `tests/gates/numerics/test_iteration_angular_flux.py` | 254 | AngularFlux constructor, to_flat_with_traces / from_flat_with_traces, .mesh | **HIGHEST in numerics**: tests the ravellable protocol on the legacy class. Either (a) retire entirely now that `tests/gates/transport/test_timed_full_field.py` covers the new protocol, or (b) keep until D-H.2 retirement of legacy class. Recommendation: tag with `pytest.mark.skip` post-D-H.1b consumers complete, then delete in D-H.2 alongside `orpheus/sn/angular_flux.py`. |
 
 ---
 
@@ -238,7 +238,7 @@ Given the Phase-A overlap, the safest order is **leaf-first** — files with no 
 
 11. Migrate MEDIUM-burden tests (test_typed_fields, test_solution, test_operators_apply_typed, test_krylov_curvilinear_precond_safety) once `Solution` type signature is final.
 
-12. The HIGH-burden tests (test_angular_flux_with_boundary, test_invertible_operator, test_iteration_angular_flux) wait until D-H.2 to RETIRE — these test legacy-specific behavior (`stash`, `__call__(lag)`, `to_flat_with_traces`, `boundary=` kwarg, `history_depth` on `AngularFlux`). The new `TimedFullField` equivalents are already covered by `tests/transport/test_timed_full_field.py`; the legacy tests delete in D-H.2.
+12. The HIGH-burden tests (test_angular_flux_with_boundary, test_invertible_operator, test_iteration_angular_flux) wait until D-H.2 to RETIRE — these test legacy-specific behavior (`stash`, `__call__(lag)`, `to_flat_with_traces`, `boundary=` kwarg, `history_depth` on `AngularFlux`). The new `TimedFullField` equivalents are already covered by `tests/gates/transport/test_timed_full_field.py`; the legacy tests delete in D-H.2.
 
 13. Phase-A overlap tests (test_native_matvec, test_streaming_operator_decomposition, _test_helpers.legacy_proxy_matvec) — AVOID. Phase A will handle.
 
@@ -253,9 +253,9 @@ Per cross-worktree note: Phase A in `.claude/worktrees/r1-phase-a-dim-agnostic/`
 - `orpheus/sn/operator.py` lines 1454-1700 — `SNStreamingOperator` (entire class). Phase A retires.
 - `orpheus/sn/operator.py` lines 1900-2150 — `StreamingOperator.apply`, `_apply_typed`, and the packed-format bare-ndarray branches. Phase A overlap.
 - `orpheus/sn/operator.py` lines 2128-2132 — 2-D Cartesian flat round-trip with `to_flat_with_traces` / `from_flat_with_traces`. Phase A.
-- `tests/sn/test_native_matvec.py` — exercises `transport_operator_matvec_unified` directly.
-- `tests/sn/test_streaming_operator_decomposition.py` — exercises StreamingOperator typed apply.
-- `tests/sn/_test_helpers.py` `legacy_proxy_matvec` — Phase A retires this helper.
+- `tests/gates/sn/test_native_matvec.py` — exercises `transport_operator_matvec_unified` directly.
+- `tests/gates/sn/test_streaming_operator_decomposition.py` — exercises StreamingOperator typed apply.
+- `tests/gates/sn/_test_helpers.py` `legacy_proxy_matvec` — Phase A retires this helper.
 
 **Safe-to-touch surface in operator.py for D-H.1b**:
 
@@ -273,6 +273,6 @@ Per cross-worktree note: Phase A in `.claude/worktrees/r1-phase-a-dim-agnostic/`
 
 3. **History semantics on the composite return path**: currently `InvertibleOperator.solve` reads `rhs.history_depth` but returns a fresh AngularFlux. The new `TimedFullField` flow: does `solve` call `.advance()` on `rhs` to push the result, or return a fresh composite with `_history=()`? The cleanest semantic is **return a fresh composite with empty history** — history is iteration metadata and the outer loop is responsible for `.advance()`-ing.
 
-4. **Krylov adapter retirement**: `iteration.py:163-194` supports both protocols. The legacy branch retires in D-H.2 when no `to_flat_with_traces`-bearing types remain. The audit confirms no production code path needs the legacy branch after D-H.1b lands; only `tests/numerics/test_iteration_angular_flux.py` does. Recommend marking that test file `pytest.mark.skip(reason="D-H.2 retirement")` in D-H.1b commit, deleting in D-H.2.
+4. **Krylov adapter retirement**: `iteration.py:163-194` supports both protocols. The legacy branch retires in D-H.2 when no `to_flat_with_traces`-bearing types remain. The audit confirms no production code path needs the legacy branch after D-H.1b lands; only `tests/gates/numerics/test_iteration_angular_flux.py` does. Recommend marking that test file `pytest.mark.skip(reason="D-H.2 retirement")` in D-H.1b commit, deleting in D-H.2.
 
 5. **No `at_ordinate` in new L2 AngularFlux**: the new pure-Field does NOT carry `at_ordinate`. One test uses it (`test_typed_fields.py:202`). Either (a) add `at_ordinate` to new L2 AngularFlux for ergonomics, or (b) migrate the test to direct `psi.values[n]` indexing. Lean toward (b) — `at_ordinate` is a 1-liner indexing convenience; explicit indexing reads as the math.

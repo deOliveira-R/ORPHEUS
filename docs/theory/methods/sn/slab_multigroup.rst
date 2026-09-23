@@ -383,7 +383,7 @@ is ``TransferOperator._redistribute_ordinates``):
    Both identities are verified at :math:`\ell \le 3` by
    ``test_spherical_harmonics_addition_theorem_L3`` and
    ``test_spherical_harmonics_orthogonality_L3`` in
-   ``tests/sn/test_solver_components.py``.  The :math:`\ell \le 1`
+   ``tests/gates/sn/test_solver_components.py``.  The :math:`\ell \le 1`
    branch is kept as bit-identical hardcoded values so existing
    :math:`P_0/P_1` test outputs are preserved at any tolerance
    (``test_spherical_harmonics_l1_unchanged_after_extension``).
@@ -532,11 +532,11 @@ stores, scaled by the yield:
    moments REACH the action (a P0 twin leaves the difference at exactly
    0.0) and that the two channels differ by the yield alone, both
    ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``
+   ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``
    (``test_the_first_moment_reaches_the_action``,
    ``test_the_two_terms_differ_by_the_yield_alone``); the EIGENVALUE
    consequence is ``@pytest.mark.l2`` in
-   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
+   ``tests/gates/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
    The label stays ``documented`` because neither gate is wired to it
    (wiring backlog: #309).
 .. vv-status: n2n-source-per-ell documented
@@ -576,7 +576,7 @@ value is 1 and :math:`(n,2n)`'s is 2 on the same class.)  That was not always so
 was an inline ``2.0`` (or, in one place, an integer ``2``) at
 **fourteen** production sites across S\ :sub:`N`, CP, MoC and Monte
 Carlo, and a census gate
-(``tests/transport/test_n2n_multiplicity_census.py``) now asserts that
+(``tests/gates/transport/test_n2n_multiplicity_census.py``) now asserts that
 no production literal survives outside the kernel module.  The gate's
 AST predicate is validated against all four historical spellings the
 sweep had to catch — ``2.0 *``, a bare integer ``2 *``, an augmented
@@ -796,7 +796,7 @@ Wave D Issue 13 lifted :math:`S` and :math:`F` out of
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
 :class:`~orpheus.transport.operators.fission.FissionOperator` respectively. The math is
 **moved verbatim** --- the regression contract on the 11 frozen
-snapshots at ``tests/sn/regression/snapshots/`` gates the extraction.
+snapshots at ``tests/gates/sn/regression/snapshots/`` gates the extraction.
 
 Why ``apply``-only
 ------------------
@@ -857,7 +857,7 @@ The :math:`\ell\ge 1` contribution to :math:`S` is the
 harmonics :math:`Y_\ell^m`, expanded with the discrete-orthogonality
 identity :eq:`addition-theorem` (the Lebedev-quadrature L0
 verification of the addition theorem lives at
-``tests/sn/test_solver_components.py::TestAnisotropicScattering
+``tests/gates/sn/test_solver_components.py::TestAnisotropicScattering
 ::test_spherical_harmonics_addition_theorem_L3``).
 
 .. note::
@@ -900,7 +900,7 @@ verification of the addition theorem lives at
       anisotropic source :eq:`pn-scatter`, which is itself wired
       (``verifies("pn-scatter")`` on ``TestAnisotropicScattering``).  The RΛM
       composition is gated by the ``slab_2g_p1_aniso_dd_n20`` regression
-      snapshot, the ``tests/sn/verification/mms/test_mms_aniso.py`` Pℓ MMS
+      snapshot, the ``tests/gates/sn/verification/mms/test_mms_aniso.py`` Pℓ MMS
       convergence suite, and the forward-reproduction cross-check
       ``test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``.
    .. vv-status: pn-scatter-rlm documented
@@ -923,7 +923,7 @@ verification of the addition theorem lives at
    refactor is gated by the
    ``slab_2g_p1_aniso_dd_n20`` regression snapshot (rtol=1e-12,
    atol=1e-13) and the full
-   :file:`tests/sn/verification/mms/test_mms_aniso.py` Pℓ MMS convergence suite.
+   :file:`tests/gates/sn/verification/mms/test_mms_aniso.py` Pℓ MMS convergence suite.
 
 Per-cell flux moments :eq:`flux-moments` are computed by the
 discrete projection
@@ -1019,7 +1019,7 @@ production by :math:`1/k` and demand balance:
    production by 1/k and demand balance).  Definitional — it states the
    eigenproblem, not a per-term solver claim.  Its solved eigenvalue is pinned
    independently of transport by the analytical infinite-medium anchor
-   k∞=λ_max(A⁻¹F) (``tests/sn/verification/analytical/test_kinf_homogeneous.py``,
+   k∞=λ_max(A⁻¹F) (``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py``,
    :ref:`mg-eigenvalue-problem`).
 .. vv-status: sn-mg-eigenvalue-posing-eq documented
 
@@ -1093,7 +1093,7 @@ is classical power iteration on the :math:`k`-update, with
    states the outer-loop step, not a per-term claim.  The end-to-end power
    iteration is exercised by the synthetic KEigenvalue-vs-``numpy.linalg.eig``
    ground truth and the KEigenvalue-vs-``solve_sn`` L1 gate in
-   ``tests/numerics/test_iteration.py``.
+   ``tests/gates/numerics/test_iteration.py``.
 .. vv-status: power-iteration-flux-update documented
 
 .. math::
@@ -1108,7 +1108,7 @@ is classical power iteration on the :math:`k`-update, with
    theorem below every consistent functional returns k* at the fixed point, so
    "k matches" carries limited object-level mutation coverage (vv Mode 12).
    The method-layer functional it mirrors, :eq:`sn-keff-update`, is wired with
-   leakage-drop teeth in ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
+   leakage-drop teeth in ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py``.
 .. vv-status: power-iteration-keff-update documented
 
 The dominance ratio :math:`|k_1/k_0|` governs outer-loop
@@ -1392,10 +1392,10 @@ Verification hooks
   identities behind :eq:`pn-scatter` are pinned at :math:`\ell \le 3`
   by ``test_spherical_harmonics_addition_theorem_L3`` /
   ``test_spherical_harmonics_orthogonality_L3``; the P\ :sub:`ℓ` MMS
-  convergence suite (:file:`tests/sn/verification/mms/test_mms_aniso.py`)
+  convergence suite (:file:`tests/gates/sn/verification/mms/test_mms_aniso.py`)
   exercises the full moment chain.
 * **The frozen snapshots.** The 11 regression snapshots at
-  ``tests/sn/regression/snapshots/`` gate every operator extraction
+  ``tests/gates/sn/regression/snapshots/`` gate every operator extraction
   (Wave D) and refactor (Wave 1 :math:`R\Lambda M`) bit-identically —
   including the 2-group P\ :sub:`1` anisotropic case
   ``slab_2g_p1_aniso_dd_n20``.

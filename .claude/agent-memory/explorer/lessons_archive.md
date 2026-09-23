@@ -358,8 +358,8 @@ Three sub-lessons that generalize:
 - **The consuming-file list from grep is INCOMPLETE — run the sibling suites
   too.** `test_dd_regression.py` never spells `.product(`; it reaches it through
   `_generate_snapshots.CASES`. That file held the ONLY moving snapshot. A
-  second batch over the whole owning directories (`tests/sn/regression`,
-  `tests/moc`, …) is what found it.
+  second batch over the whole owning directories (`tests/gates/sn/regression`,
+  `tests/gates/moc`, …) is what found it.
 
 Two more findings from the same audit, both re-usable question shapes:
 
@@ -1429,7 +1429,7 @@ outranked every claim-by-claim verdict came from checks the brief never asked fo
 Corollary that pays for itself: **when a campaign ships its own gate suite, RUN it
 — the xfail rows are the premise oracle.** The strategy campaign's marker said
 "verify P1-not-started from the Optional leaf domains"; 1.7 s of
-`pytest tests/sn/architecture/ -q -rx` returned the exact 21-row todo list
+`pytest tests/gates/sn/architecture/ -q -rx` returned the exact 21-row todo list
 (5 marker sites × parametrize), bit-matching the campaign's own 2026-08-13
 checkpoint — simultaneously verifying the campaign plan's honesty and the
 report's staleness in one measurement.

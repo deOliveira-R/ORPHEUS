@@ -43,7 +43,7 @@ transport-corrected value IS the correct isotropic-equivalent encoding.
    `test_2region_transcendental_matches_richardson_cache` cross-check either retires with it or
    re-anchors on a regenerated cache.
 
-## Existing suite (tests/diffusion/, 4 files) — rewire map
+## Existing suite (tests/gates/diffusion/, 4 files) — rewire map
 
 `test_continuous_reference.py` (8, L1, verifies 15 diffusion-* labels):
 - 4 SOLVER tests (`*_matches_continuous_reference` ×2, `*_flux_shape_converges_second_order` ×2) →

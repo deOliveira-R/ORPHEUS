@@ -31,7 +31,7 @@ ORACLE), `MovingFrontierWindow`(Cartesian d≥2). NONE landed yet (pre-impl).
 
 ## The anchor set (all GREEN @ 0f2ab34, batch = `47 passed, 3 xfailed` -O)
 
-- **L2 PRIMARY S1-S2 tripwire** `tests/sn/solve/test_affine_carve_bit_identity.py` —
+- **L2 PRIMARY S1-S2 tripwire** `tests/gates/sn/solve/test_affine_carve_bit_identity.py` —
   sha256 golden of converged psi/phi via `solve_sn_fixed_source` end-to-end (routes
   sweep+matvec); 3 cases (2D-SI-windowed/2D-Krylov/1D-slab-SI); `-O`-safe `raise
   AssertionError`; MUST stay byte-identical.
@@ -56,7 +56,7 @@ ORACLE), `MovingFrontierWindow`(Cartesian d≥2). NONE landed yet (pre-impl).
 
 ## ⚠ Mode-8 LIVE HAZARD (demonstrated)
 
-`tests/sn/sweep/core/test_unified_sweep_dispatch.py` (the legacy-dispatch pin,
+`tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py` (the legacy-dispatch pin,
 `TestDispatchByReducedProperty`) uses bare `assert` — passes under `-O` (7 passed) WHILE
 asserting NOTHING (pytest warns "assertions ignored"). S1 MIGRATES it to strategy-
 selection + converts bare assert → `np.testing`/`pytest.fail`. Sibling
@@ -72,13 +72,13 @@ incompatible`.
 
 ## S4 synthetic-d3 idiom (model)
 
-`tests/sn/sweep/core/test_sweep_graph_nd_admission.py::_walk_roundtrip_residual` +
+`tests/gates/sn/sweep/core/test_sweep_graph_nd_admission.py::_walk_roundtrip_residual` +
 `test_d3_walk_residual_vanishes_at_apply_solution` — apply↔residual round-trip on a
 synthetic `d`-tuple (NO real quadrature). S4's `MovingFrontierWindow` frontier_dim=d−1
 `window≡full` mirrors it: d=1(frontier_dim=0 base)/d=2(bit-id)/synthetic-d3
 (`assert_array_equal`). d=3 CONTIGUITY/speedup is OUT of correctness gate (profiling).
 
 ## Deselect / standing reds
-Deselect `tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
+Deselect `tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
 (#212 hang). Orthogonal held reds: #206 cyl-matvec (deferred adjoint), #195 MMS@160 —
 both untouched by the 2-D-gated carve.

@@ -68,7 +68,7 @@ unified ray leaf into the composite (a pure gather/scatter, `from_unified`); B_b
 identical specular corner swap on the boundary member. So every value row is a **bit-identity
 claim** (equivalence bar = `array_equal`, verified by INHERITANCE from the untouched kernel).
 The eigenvalue/flux-shape claims (E4 `φ=Q/Σ_t`, `k_inf`) DO NOT MOVE and are NOT re-proven
-per gate — they are the end-to-end wall the existing `tests/sn` suite owns.
+per gate — they are the end-to-end wall the existing `tests/gates/sn` suite owns.
 
 **THE RULING — `array_equal` everywhere; a `rtol`/`nulp` in a B.2b gate is a RED FLAG.**
 Because the re-type touches no reduction tree, there is NO principled-equivalence row in
@@ -90,7 +90,7 @@ discharged pre-B.2b; B.2b sits ABOVE it as re-labeling — do NOT re-anchor it h
 
 ## b1 — the SourceSink pair + role-preserving bridge + re-bound composite
 
-### Net-new gates (extend `tests/sn/mesh/test_radial_characteristic_split_leaves.py` [leaves] + `tests/transport/test_radial_characteristic_composite.py` [bridge/composite])
+### Net-new gates (extend `tests/gates/sn/mesh/test_radial_characteristic_split_leaves.py` [leaves] + `tests/gates/transport/test_radial_characteristic_composite.py` [bridge/composite])
 
 - **G-b1.1 — source-leaf intrinsic laws (cross-role sum rejection + closed source algebra).**
   For BOTH `RadialCharacteristicInteriorSourceSink` and `…BoundarySourceSink`:
@@ -156,7 +156,7 @@ discharged pre-B.2b; B.2b sits ABOVE it as re-labeling — do NOT re-anchor it h
 
 ## b2 — System B's member space (FullFieldSpace reuse + presence-dispatch)
 
-### Net-new gates (new file `tests/sn/mesh/test_radial_characteristic_composite_space.py`, mirroring the split-space tests)
+### Net-new gates (new file `tests/gates/sn/mesh/test_radial_characteristic_composite_space.py`, mirroring the split-space tests)
 
 - **G-b2.1 — member-space identity + metric-trio ≡ direct split-space application on the REAL
   composite.** `space = sn.radial_characteristic_composite_space`:
@@ -202,7 +202,7 @@ discharged pre-B.2b; B.2b sits ABOVE it as re-labeling — do NOT re-anchor it h
 
 ## b3 — the operator re-type (A_BA codomain, B_b domain=codomain) + adapters
 
-### Net-new gates (extend `tests/sn/operators/test_psi_half_coupling.py`)
+### Net-new gates (extend `tests/gates/sn/operators/test_psi_half_coupling.py`)
 
 - **G-b3.1 — A_BA block apply ≡ old embedded value (P3, bit-id INHERITANCE).** `out = A_BA.apply(psi)`
   (sphere, ≥2G, nonzero `psi`): (i) VALUE — `array_equal(out.to_unified().values,
@@ -351,12 +351,12 @@ discharged pre-B.2b; B.2b sits ABOVE it as re-labeling — do NOT re-anchor it h
 ## Result contract
 
 Land in three sub-commits (b1 leaves+bridge / b2 member space / b3 operator re-type + adapters). NEW test
-homes: extend `tests/sn/mesh/test_radial_characteristic_split_leaves.py` (G-b1.1/2), `tests/transport/
-test_radial_characteristic_composite.py` (G-b1.3/4), NEW `tests/sn/mesh/test_radial_characteristic_composite_space.py`
-(G-b2.1/2); extend `tests/sn/operators/test_psi_half_coupling.py` (G-b3.1-4 + all the re-points) +
-`tests/sn/operators/test_g_adjoint_reciprocity.py` (`test_tooth_a_ba_transpose_drop_reds` re-point). Every
-tooth mutation-verified in-process under `-O`. End-to-end acceptance: full `tests/sn -m "not slow"` +
-`tests/numerics` GREEN + ratchet `transport:1` + pyright 0 on the new source-sink leaves (G-b1.4 static) +
+homes: extend `tests/gates/sn/mesh/test_radial_characteristic_split_leaves.py` (G-b1.1/2), `tests/gates/transport/
+test_radial_characteristic_composite.py` (G-b1.3/4), NEW `tests/gates/sn/mesh/test_radial_characteristic_composite_space.py`
+(G-b2.1/2); extend `tests/gates/sn/operators/test_psi_half_coupling.py` (G-b3.1-4 + all the re-points) +
+`tests/gates/sn/operators/test_g_adjoint_reciprocity.py` (`test_tooth_a_ba_transpose_drop_reds` re-point). Every
+tooth mutation-verified in-process under `-O`. End-to-end acceptance: full `tests/gates/sn -m "not slow"` +
+`tests/gates/numerics` GREEN + ratchet `transport:1` + pyright 0 on the new source-sink leaves (G-b1.4 static) +
 sphinx -W. The load-bearing deliverables: **G-b1.3 role-preservation (role⊕values split)** + **G-b2.1
 presence-dispatch metric-trio (both branches)** + **G-b3.3 the adapter-delegation sentinel-teeth check**
 (the proof that keeps the L4-S sentinel non-vacuous).

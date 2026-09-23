@@ -482,7 +482,7 @@ this page is the radial coordinate of the ψ½ two-point problem, and the
 subscript is what tells them apart.
 
 Every measurement in this subsection is taken on one fixture, the carrying
-arm of ``tests/sn/operators/test_step2_posed_fission_anchors.py``: a
+arm of ``tests/gates/sn/operators/test_step2_posed_fission_anchors.py``: a
 two-region sphere (edges ``np.linspace(0.01, 2.0, 9)``, mixtures A and B at
 2 groups, ``Quadrature.gauss_legendre(8)``, isotropic scattering), whose
 ``problem.system.space`` couples System A, a ``FullField`` of 144 degrees
@@ -503,7 +503,7 @@ For each member :math:`i`:
    is the scatter, extension by zero). Not a solver claim: no flux, no
    eigenvalue, no discretization error. Its defining behaviour is pinned by
    the foundation tests of TestSystemRestriction in
-   tests/numerics/test_coupled_operator.py (member selection into the
+   tests/gates/numerics/test_coupled_operator.py (member selection into the
    1-member coupling, extension with the dual-role zeros, the Euclidean
    pairing <r x, y> = <x, iota y>); foundation tests carry no verifies(...)
    marker, so the label is sentineled.
@@ -557,10 +557,10 @@ adds:
    no-implementation (below). Gated: the split law r_1 iota_1 = id and the
    idempotence of iota_1 r_1 on the FIRST member (the code's system=0), by
    the foundation tests of TestSystemRestriction
-   (tests/numerics/test_coupled_operator.py), on toy members. Since
+   (tests/gates/numerics/test_coupled_operator.py), on toy members. Since
    2026-09-22 every law is gated on BOTH members (system=0 and system=1)
    of toy members with non-unit weights: the four laws by
-   tests/numerics/test_coupled_operator.py::TestSystemRestrictionLaws
+   tests/gates/numerics/test_coupled_operator.py::TestSystemRestrictionLaws
    (test_split_law, test_cross_law, test_completeness,
    test_metric_adjoint_is_extension_on_the_metric_range, each carrying
    verifies(coupled-block-system-restriction-laws)), the last including a
@@ -781,7 +781,7 @@ counts members from 0, so the code's ``system=0`` is :math:`r_1`):
 **Where it is used.** `[M]` 2026-09-22, an AST census of call sites spelled
 ``SystemRestrictionOperator(...)`` finds 1 in ``orpheus/`` (352 files
 parsed) and 3 in ``tests/`` (612 files), all 3 in
-``tests/numerics/test_coupled_operator.py``; the same census finds 6
+``tests/gates/numerics/test_coupled_operator.py``; the same census finds 6
 ``CoupledOperator(...)`` call sites in ``orpheus/``. The production site is
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which poses
 the fission operator on a carrying mesh as the composition
@@ -796,7 +796,7 @@ hand-written zero closures; the transpose of the composition,
 extension by zero does its work.
 
 **What the gates pin, and what is only measured.** The 8 foundation tests
-of ``TestSystemRestriction`` in ``tests/numerics/test_coupled_operator.py``
+of ``TestSystemRestriction`` in ``tests/gates/numerics/test_coupled_operator.py``
 pin, on toy members: member selection into the one-member codomain; the
 split law :math:`r \circ \iota = \mathrm{id}`; extension with the dual-role
 zeros; the Euclidean pairing :math:`\langle r x, y\rangle = \langle x,
@@ -805,7 +805,7 @@ zeros; the Euclidean pairing :math:`\langle r x, y\rangle = \langle x,
 ``is_adjointable``. Every construction site among them restricts onto
 the first member, or refuses a third. The rest was measured and not gated
 until 2026-09-22; since then
-``tests/numerics/test_coupled_operator.py::TestSystemRestrictionLaws``
+``tests/gates/numerics/test_coupled_operator.py::TestSystemRestrictionLaws``
 gates, on both members, the cross law,
 the completeness sum, the metric adjoint in its full form
 :math:`r_i^{*} = \iota_i \circ P_{\operatorname{range}(G_i)}` (on a member
@@ -1182,7 +1182,7 @@ seedless geometries stay bit-identical (the strongest leak tripwire).
 The outer spectral radius :math:`\rho(M^{-1}N) = 0.371` and the measured
 block algebra (:math:`A_{bs} = 7.5`, :math:`A_{ss} = 5.0`, :math:`S_{sb} =
 0.183`, :math:`S_{bs} = 0`) confirm the direct/iterative split the API
-reflects. The full within-group wall (tests/sn + tests/numerics, not-slow
+reflects. The full within-group wall (tests/gates/sn + tests/gates/numerics, not-slow
 serial) is 3080/0 through the step-6 collapse.
 
 The DSA seam — issue #2 as a future consumer

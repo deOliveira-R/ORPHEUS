@@ -80,7 +80,7 @@ hand-rolled: [the conceptual view](../architecture/conceptual_view.rst).
 
 A module's home is the lowest-knowledge layer whose vocabulary suffices to
 define it, and imports flow only from more knowledge to less;
-`tests/test_layer_imports.py` enforces the layers (the criterion:
+`tests/gates/test_layer_imports.py` enforces the layers (the criterion:
 [layering](../architecture/layering.rst)).
 
 | layer | packages | knows |

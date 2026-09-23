@@ -814,7 +814,7 @@ slope moment adds.
    lives in exactly one place,
    :meth:`_LDCellTerms.slope <orpheus.transport.spatial.linear_discontinuous._LDCellTerms.slope>`,
    pinned by the foundation tests in
-   ``tests/transport/spatial/test_linear_discontinuous.py``.
+   ``tests/gates/transport/spatial/test_linear_discontinuous.py``.
 
 **The Schur-complement scalar form.** The slope :math:`\hat\psi` is *local* to
 the cell — it appears in no other cell's equations — so eliminate it. The

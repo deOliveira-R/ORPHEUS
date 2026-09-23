@@ -106,7 +106,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none on the page. **But there is an authored
   rationale for this exact label in the TEST**, and it is decisive —
-  `tests/diffusion/test_continuous_reference.py:61-65`:
+  `tests/gates/diffusion/test_continuous_reference.py:61-65`:
   > "The 1G bare-slab continuous reference (derive_1rg_continuous) solves the
   > bare-slab ODE and produces its closed-form keff; its derivation siblings
   > (buckling / eigenfunction / critical-equation) are pinned below, so the governing
@@ -144,8 +144,8 @@ node-type filter `('function','method','class','data')` — a module is never pr
   > `   that keeps k_eff first-order stationary — is now a VERIFIED solver`
   > `   claim, not documented-only. Solution.homogenize / Solution.condense`
   > `   build the collapse under the ``adjoint=`` parameter, and the`
-  > `   full-taxonomy discriminator gates C1 (tests.sn.test_homogenization)`
-  > `   and C4 (tests.sn.test_condensation) stack`
+  > `   full-taxonomy discriminator gates C1 (tests.gates.sn.test_homogenization)`
+  > `   and C4 (tests.gates.sn.test_condensation) stack`
   > `   verifies("sn-homogenization-bilinear") against structurally-`
   > `   independent per-region hand rules. The label is covered by tests, so`
   > `   it carries no ``documented`` sentinel.`
@@ -263,7 +263,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
   > `.. the reconstruction AND the reference, so it cancels in the convergence`
   > `.. error metric — the MMS gate is blind to its sign. The MOC operators the`
   > `.. MMS convergence test verifies are ``moc-mms-psi-ref`` / ``moc-mms-qext``
-  > `.. (wired on ``tests/moc/test_mms.py``).`
+  > `.. (wired on ``tests/gates/moc/test_mms.py``).`
 
   ⭐ The last sentence is the author distinguishing the *context* labels (equilibrium,
   reconstruction — sentinel'd `documented`) from the two that are genuinely verified.
@@ -348,7 +348,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
     halves** of the equation: the normalisation
     `P_cell[i,:] = rcp[i,:] / (sig_t_g[i] * volumes[i])` (`:362`) and then the named
     line `P_out = np.maximum(1.0 - P_cell.sum(axis=1), 0.0)` (`:365`). This is also the
-    SUT of `tests/derivations/test_cp_geometry.py::TestEscapeFromPCell` — a test class
+    SUT of `tests/gates/derivations/test_cp_geometry.py::TestEscapeFromPCell` — a test class
     named after the equation.
   - `orpheus.cp.solver.CPMesh._apply_white_bc` — `orpheus/cp/solver.py:401` — the
     **production** copy of the same line (`:414`), inside the shipped CP solver.
@@ -529,7 +529,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
   `.. vv-status: hilbert-adjoint-equals-metric-times-S0 documented`.
   ⚠ **That sentinel is stale/contradicted**: two L1 tests carry
   `@pytest.mark.verifies("hilbert-adjoint-equals-metric-times-S0")`
-  (`tests/numerics/test_spherical_harmonic_space.py:225` and `:348`), so the label is
+  (`tests/gates/numerics/test_spherical_harmonic_space.py:225` and `:348`), so the label is
   *test-covered*, not `documented`. Same authoring situation the `sn-homogenization-
   bilinear` author handled by replacing the sentinel with a "no vv-status sentinel"
   note. Worth flagging to whoever lands the declaration.
@@ -576,7 +576,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
   says so on purpose, in a `.. note::` at `:2163-2177`:
   > "`:eq:`bc-single-delivery`` carries **no** ``vv-status`` sentinel because it needs
   > none: it is a genuine L1 equation claim with a committed gate.
-  > ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py``'s
+  > ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``'s
   > ``test_the_declared_boundary_law_holds_on_the_answer`` carries
   > ``@pytest.mark.verifies("bc-single-delivery")`` on both inner-solver parameters,
   > plus ``@pytest.mark.catches("ERR-075")`` …"
@@ -636,7 +636,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
   > `.. (vv-status rationale) definition: the canonical A&S 5.1.4 defining integral`
   > `.. of the exponential integral. Definitional — the implementing evaluator`
   > `.. ``kernels.e_n`` is pinned by the derived identities (special values,`
-  > `.. derivative, full-line integral) in ``tests.derivations.test_kernels``.`
+  > `.. derivative, full-line integral) in ``tests.gates.derivations.test_kernels``.`
 
   ⭐ The author sentinels `en-definition` as `documented` and points at the *derived*
   identities — of which this is one — as the things that carry the verification. So the
@@ -685,7 +685,7 @@ node-type filter `('function','method','class','data')` — a module is never pr
   > "This identity is the foundation of the Atkinson fix … the load-bearing
   > notation-bridge identity used by ``…peierls_atkinson_nystrom`` to split the kernel
   > into log-singular + smooth parts."
-  (`tests/derivations/test_path_ai_legacy_plain_gl_signature.py:15-19, 53-70`)
+  (`tests/gates/derivations/test_path_ai_legacy_plain_gl_signature.py:15-19, 53-70`)
 - **what the equation says**: the `E_1` kernel's log singularity is separable —
   `E_1(z) = [−ln z − γ] + R(z)` with `R` analytic and `R(0) = 0` — which is what lets a
   Nyström assembly handle the singular part by product-integration weights and the

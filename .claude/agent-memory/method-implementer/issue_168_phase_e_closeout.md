@@ -80,7 +80,7 @@ tests calibrated against the pre-fix single-GL artifact:
   tolerance branch — tol=5% at r=R (vacuum BC, post-Phase-E extrap
   artifact), 2% elsewhere, 15% near material interfaces.
 
-### Gate 4.2 tightening — `tests/sn/test_phase_c_crosscheck.py`
+### Gate 4.2 tightening — `tests/gates/sn/test_phase_c_crosscheck.py`
 
 `test_phase_d_trajectory_resolvent_crosscheck` heterogeneous-MR
 tolerances tightened:
@@ -240,11 +240,11 @@ independent discretisations.
   — rewired 1 caller; added the helper import.
 
 ### MODIFIED — tests
-- `tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py`
   — interface-continuity ceiling 1e-2 → 5e-2 + docstring rewrite.
-- `tests/derivations/test_peierls_greens_function_garcia2021.py`
+- `tests/gates/derivations/test_peierls_greens_function_garcia2021.py`
   — explicit outer-surface tolerance branch (r=R → 5%).
-- `tests/sn/test_phase_c_crosscheck.py`
+- `tests/gates/sn/test_phase_c_crosscheck.py`
   — Gate 4.2 rtol tightened 1e-1 → 2e-2 / 3e-2; NEW
     `test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
     xfail-strict with empirical finding.

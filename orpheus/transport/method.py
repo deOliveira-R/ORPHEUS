@@ -91,7 +91,7 @@ mint the method-mesh (conforms here structurally), its realizer, and
 its ``BOUNDARY_OPERATOR_REGISTRY`` of admitted laws — no central
 registration step.
 
-Layer (``tests/test_layer_imports.py``): L2 ``transport``. Imports
+Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``. Imports
 ``geometry`` (the BC tag + the law types) and ``numerics`` (the
 operator base), like its sibling :mod:`~orpheus.transport.mesh.axis`.
 The method packages (L3) import THIS module; never the reverse.

@@ -70,7 +70,7 @@ A regime a rung cannot yet pass goes into the spec as a challenge to the impleme
 
 - **The keystone.** A carve that re-expresses a verified predecessor without reordering a reduction inherits bit-identity, which is necessary and never sufficient, so pair it with an independent value anchor. A carve with nothing to inherit needs a structurally independent reference. Before accepting a bit-identity line, name the reductions the change reorders: one makes the line impossible.
 - **The surviving gates.** Before the carve lands, class every gate that survives it: DEMOTED (its two sides became one object), PROMOTED (it now asserts more than its docstring says), DEAD (it can no longer construct its subject: delete it, never repair it by passing the new argument), INVERTED (it now pins the degradation as the contract). Re-pose them in the carve's commit.
-- **Diagnostics.** A batch of diagnostic scripts is triaged by `tests/derivations/_promotion_policy.md`.
+- **Diagnostics.** A batch of diagnostic scripts is triaged by `tests/gates/derivations/_promotion_policy.md`.
 
 ## 5. Proving each gate can fail
 

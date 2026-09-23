@@ -390,7 +390,7 @@ consumers (CP `[P]` §14b; homogeneous full-operator spelling task #138):
 
 - **RETIREMENT CLEAN — a first for this campaign** (steps 2/3 both BLOCKED on doc-retirement
   blast radius; step 5 does NOT). `_as_dense` deleted: NO dangling import (test-migration
-  done — the behavioral char-test rehomed to `tests/numerics/test_matrix_inverse_operator.py`
+  done — the behavioral char-test rehomed to `tests/gates/numerics/test_matrix_inverse_operator.py`
   INLINES the reference loop as a drift-guard oracle, not an import of the dead symbol); NO
   source `.rst` cross-ref (the `docs/_build/*` `_as_dense` hits are regenerated build output);
   all surviving mentions are HISTORICAL-framed ("né _as_dense", "retired _as_dense"). When

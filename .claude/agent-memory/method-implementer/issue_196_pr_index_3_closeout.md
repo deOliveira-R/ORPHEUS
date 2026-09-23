@@ -23,17 +23,17 @@ PR-INDEX-4); `assemble_cell_xs` is UNTOUCHED (CP suite stays valid).
  orpheus/sn/operator.py                             | 88 +++++++++++++---------
  orpheus/sn/solver.py                               | 82 +++++++++++++++-----
  orpheus/sn/sweep.py                                | 33 +++++---
- tests/sn/spatial/test_apply_matvec_cylinder_invariants.py       |  2 +-
- tests/sn/spatial/test_ordinate_scan_joint_batch.py |  4 +-
- tests/sn/spatial/test_sweep_cache.py               |  2 +-
- tests/sn/test_collision_operator.py                | 24 +++---
- tests/sn/test_fission_operator.py                  | 11 ++-
- tests/sn/test_phase_c_gates.py                     | 12 +--
- tests/sn/test_snstreamingoperator.py               | 13 ++--
- tests/sn/test_solver_components.py                 | 39 +++++++---
- tests/sn/test_streaming_operator.py                |  6 +-
- tests/sn/test_streaming_operator_decomposition.py  | 13 ++--
- tests/sn/test_sweep_operator_inconsistency.py      |  4 +-
+ tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py       |  2 +-
+ tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py |  4 +-
+ tests/gates/sn/spatial/test_sweep_cache.py               |  2 +-
+ tests/gates/sn/test_collision_operator.py                | 24 +++---
+ tests/gates/sn/test_fission_operator.py                  | 11 ++-
+ tests/gates/sn/test_phase_c_gates.py                     | 12 +--
+ tests/gates/sn/test_snstreamingoperator.py               | 13 ++--
+ tests/gates/sn/test_solver_components.py                 | 39 +++++++---
+ tests/gates/sn/test_streaming_operator.py                |  6 +-
+ tests/gates/sn/test_streaming_operator_decomposition.py  | 13 ++--
+ tests/gates/sn/test_sweep_operator_inconsistency.py      |  4 +-
  15 files changed, 245 insertions(+), 132 deletions(-)
 ```
 
@@ -46,7 +46,7 @@ stays at `(N_cells, ng)` flat; CP suite unaffected by construction).
 ### §2.1 Regression suite (load-bearing bit-identity gate)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -68,9 +68,9 @@ NOT introduced by this PR.
 ### §2.2 Spatial gates
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py \
-  tests/sn/spatial/test_ordinate_scan.py \
-  tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py \
+  tests/gates/sn/spatial/test_ordinate_scan.py \
+  tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -82,7 +82,7 @@ NOT introduced by this PR.
 ### §2.3 L0 streaming-equilibrium curvilinear
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 ```
 
 ```
@@ -96,15 +96,15 @@ Streaming equilibrium φ → Q/σ_t to machine precision holds.
 ### §2.4 Operator + iteration + dispatch tests aggregate
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_fission_operator.py \
-  tests/sn/test_solver_components.py tests/sn/test_phase_c_gates.py \
-  tests/sn/test_snstreamingoperator.py tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_sweep_operator_inconsistency.py \
-  tests/sn/test_scattering_operator.py \
-  tests/sn/test_unified_sweep_dispatch.py \
-  tests/numerics/test_iteration.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_fission_operator.py \
+  tests/gates/sn/test_solver_components.py tests/gates/sn/test_phase_c_gates.py \
+  tests/gates/sn/test_snstreamingoperator.py tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_sweep_operator_inconsistency.py \
+  tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_unified_sweep_dispatch.py \
+  tests/gates/numerics/test_iteration.py -q
 ```
 
 ```
@@ -114,11 +114,11 @@ Streaming equilibrium φ → Q/σ_t to machine precision holds.
 **287/289 PASS + 4 xpassed; the 2 failures are PRE-EXISTING** (see §8).
 
 Failures:
-- `tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
+- `tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
   — already failing on PR-INDEX-2 baseline; 2D Cartesian saved
   snapshot drift unrelated to PR-INDEX-3. Verified via `git stash`
   on the pre-PR working tree.
-- `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
+- `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
   — already failing on PR-INDEX-2 baseline; the test asserts that
   the spherical sweep error is `> 0.2` (ERR-026 evidence) but the
   measured `sweep_err = 1.6e-14` shows ERR-026 has been substantially
@@ -138,7 +138,7 @@ Pending verbatim CP paste-back — will append below once the suite
 completes. The main agent should re-run if needed:
 
 ```bash
-.venv/bin/python -m pytest tests/cp/ -q
+.venv/bin/python -m pytest tests/gates/cp/ -q
 ```
 
 ## §3 Performance benchmark
@@ -440,7 +440,7 @@ to use the new `(ng, nx, ny)` σ_t fixture layout. Files updated:
 - `test_streaming_operator_decomposition.py`
 - `test_sweep_operator_inconsistency.py`
 
-`tests/numerics/test_iteration.py` was NOT modified — it constructs
+`tests/gates/numerics/test_iteration.py` was NOT modified — it constructs
 `SNStreamingOperator(sn_mesh=sn_mesh, sig_t=solver.sig_t)` where
 `solver.sig_t` is now `(ng, nx, ny)` natively, and the operator
 constructor accepts that natively.
@@ -459,10 +459,10 @@ Two test failures observed post-PR were confirmed PRE-EXISTING via
 for completeness; the user should treat them as ORTHOGONAL to
 PR-INDEX-3:
 
-1. `tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
+1. `tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
    — 2-D Cartesian saved snapshot drift. Pre-existing.
 
-2. `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
+2. `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
    — asserts `sweep_err > 0.2` (ERR-026 evidence); measured value
    `1.6e-14`. Suggests ERR-026 has been substantially closed for this
    specific case (likely by Phase D Carlson seed work). The test
@@ -500,7 +500,7 @@ receives (ng, nx, ny) natively.
 
 assemble_cell_xs (the producer shared with CP) is UNCHANGED —
 its output stays (N_cells, ng) flat.  CP solver unaffected by
-construction; no test in tests/cp/ touched.
+construction; no test in tests/gates/cp/ touched.
 
 Rewires operator-matvec helpers to consume new layout natively:
   - transport_operator_matvec (Cartesian): sig_t[ix, iy, :] →

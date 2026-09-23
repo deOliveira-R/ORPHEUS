@@ -31,7 +31,7 @@ def pytest_addoption(parser) -> None:
     """``--capture-baseline`` — write (not assert) pre-carve snapshots.
 
     Used by the Wave O (#208) O.4a.2 BC-extraction matvec gate
-    (``tests/sn/operators/test_bc_extraction_matvec.py``): when present the
+    (``tests/gates/sn/operators/test_bc_extraction_matvec.py``): when present the
     snapshot tests WRITE the pre-extraction matvec output and skip the
     assert; absent (the default, incl. the post-carve gate) they READ the
     committed snapshots and assert byte-identity. ``pytest_addoption`` only

@@ -58,7 +58,7 @@ imposed only where a printed target assumes it. The ORPHEUS slab
 quadrature carries raw Gauss-Legendre weights :math:`\sum_m w_m = 2`
 (``orpheus/numerics/quadrature/rules_1d.py``); the map
 :math:`\omega_m = w_m/2` is applied ONCE at the numeric boundary of this
-module (the production ties in ``tests/derivations/test_dsa_rules.py``)
+module (the production ties in ``tests/gates/derivations/test_dsa_rules.py``)
 with the weight sums asserted numerically there.
 
 **Transcription reference.** [Larsen1982a]_ is the sole transcription
@@ -66,7 +66,7 @@ source for the target forms; [Alcouffe1977]_ is a cross-check ONLY — its
 printed Eqs. (17) and (23) carry sign errata (memo §1.5), so nothing here
 transcribes from them.
 
-Verified by ``tests/derivations/test_dsa_rules.py`` (foundation level).
+Verified by ``tests/gates/derivations/test_dsa_rules.py`` (foundation level).
 Every check raises :class:`DerivationError` — never a bare ``assert`` — so
 the proofs hold under ``python -O`` (vv-principles Mode 8).
 

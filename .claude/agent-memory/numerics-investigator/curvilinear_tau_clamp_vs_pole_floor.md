@@ -162,7 +162,7 @@ attribution discipline of L4/L5.)
 
 Scripts: `/Users/rodrigo/.claude/jobs/84fd66f8/tmp/negclosure/diag_01..15`.
 Promotion candidates: diag_11 (iso-vs-aniso pole floor control), diag_14
-(per-cell rate pin) → `tests/sn/` as the OPEN pole-cell-O(h) regression
+(per-cell rate pin) → `tests/gates/sn/` as the OPEN pole-cell-O(h) regression
 gate once a fix lands. Relates to #229 (OPEN, aniso quad retune), ERR-026
 (PARTIAL), #195/#196 (CLOSED — fixed the seed/fixed-point, NOT the
 pole-cell truncation), #168 (CLOSED, outer-face, distinct).

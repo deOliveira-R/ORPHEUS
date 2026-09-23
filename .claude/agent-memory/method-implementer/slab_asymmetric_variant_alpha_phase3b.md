@@ -33,8 +33,8 @@ ERR-035 documented and gated, fix deferred per scope).
 | `orpheus/derivations/continuous/peierls_greens_function/origins/specular/__init__.py` | modified | +14 / −2 | Re-export rank-2 derivations |
 | `orpheus/derivations/continuous/peierls_greens_function/greens_function_slab.py` | modified | +6 / −2 | **ERR-034 fix**: `x_traj = x - μ·s` (was `x - s`) |
 | `orpheus/derivations/continuous/peierls_greens_function/greens_function_slab_asymmetric.py` | **NEW** | +452 | `solve_greens_function_slab_asymmetric{,_mg}` + 2 dataclasses + helpers |
-| `tests/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py` | **NEW** | +258 | 16 `@pytest.mark.foundation` tests |
-| `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py` | **NEW** | +458 | 11 `@pytest.mark.l1` tests |
+| `tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py` | **NEW** | +258 | 16 `@pytest.mark.foundation` tests |
+| `tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py` | **NEW** | +458 | 11 `@pytest.mark.l1` tests |
 | `docs/theory/peierls_greens.rst` | modified | +178 / 0 | New `_peierls-greens-slab-asym:` Sphinx stub with 4 :label: equations |
 | `.claude/skills/vv-principles/error_catalog.md` | modified | +178 / 0 | ERR-034 + ERR-035 |
 
@@ -51,19 +51,19 @@ ERR-035 documented and gated, fix deferred per scope).
 ## Test results
 
 ```
-pytest tests/derivations/test_peierls_greens_function_solver.py \
-       tests/derivations/test_peierls_greens_function_vacuum.py \
-       tests/derivations/test_peierls_greens_function_xverif.py \
-       tests/derivations/test_peierls_greens_function_xverif_ps1982.py \
-       tests/derivations/test_peierls_greens_function_mg.py \
-       tests/derivations/test_peierls_greens_function_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_solver.py \
-       tests/derivations/test_peierls_variant_alpha_core.py \
-       tests/derivations/test_peierls_greens_function_slab_symbolic.py \
-       tests/derivations/test_peierls_greens_function_slab_solver.py \
-       tests/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py \
-       tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py
+pytest tests/gates/derivations/test_peierls_greens_function_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_vacuum.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py \
+       tests/gates/derivations/test_peierls_greens_function_mg.py \
+       tests/gates/derivations/test_peierls_greens_function_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py \
+       tests/gates/derivations/test_peierls_variant_alpha_core.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py
 ============================= 116 passed in 198.44s (0:03:18) =============
 ```
 

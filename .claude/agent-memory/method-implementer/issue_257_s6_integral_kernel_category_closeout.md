@@ -117,7 +117,7 @@ baseline noise).
   `test_curvilinear_aniso_scattering_p1.py` both l0 + S5
   `test_functional_category.py` + `test_layer_imports.py`). ZERO baseline
   reds introduced; routed around #250 SPHERE×5 + #232 mu_y×2 + #212 hang
-  (never ran all of tests/sn).
+  (never ran all of tests/gates/sn).
 - **`import orpheus`** clean; layer-imports green (`integral_kernel_operator.py`
   imports ONLY `orpheus.numerics` L1 + stdlib — clean L2, NO L3).
 - **Sphinx** `sphinx-build` SUCCEEDED, NO warnings/errors (only pre-existing

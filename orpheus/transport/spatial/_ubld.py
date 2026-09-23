@@ -36,7 +36,7 @@ truth:
    moment matvec); at d=1 the dense ``2×2`` IS this closed form's Schur, proven
    ``==`` (symbolically by
    :mod:`orpheus.derivations.discrete.sn.ld_ubld`, in code by
-   ``tests/transport/spatial/test_ld_ubld_primitive.py``).
+   ``tests/gates/transport/spatial/test_ld_ubld_primitive.py``).
 
 The scale-free invariants
 =========================
@@ -654,7 +654,7 @@ def d1_closed_form(
     ``eff_denom``.  This is the analytic Schur complement of the primitive's
     ``d = 1`` ``2×2`` — vectorized (no dense solve), so it is the production
     fast path (L16).  Proven ``== `` the dense :func:`per_cell_solve` at
-    ``d = 1`` by ``tests/transport/spatial/test_ld_ubld_primitive.py``.
+    ``d = 1`` by ``tests/gates/transport/spatial/test_ld_ubld_primitive.py``.
     """
     g = np.asarray(g, dtype=np.float64)
     sig_t = np.asarray(sig_t, dtype=np.float64)

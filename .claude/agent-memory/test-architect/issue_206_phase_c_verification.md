@@ -82,7 +82,7 @@ against the old value alone; (3) the drift is FP-non-associativity bounded by
   (Layer 1 = `assert_array_almost_equal_nulp(nulp=nx)` passes ≤nx ULP) AND
   **surfaces it** (Layer 2 `DriftWarning` fires on ANY n_ulp>0).
 - **If the main agent picks DENSITY:** run the A-NEW matvec leg under
-  `-W error::tests.sn.regression._regression_assert.DriftWarning` in `sweep/core`
+  `-W error::tests.gates.sn.regression._regression_assert.DriftWarning` in `sweep/core`
   (where the conftest does NOT override — FINDING 1) → STRICT bit-id, MUST be
   0 ULP. This is the recommended gate (cheapest, strongest).
 - **If the main agent picks SCAN:** DROP the `-W error` escalation on the matvec
@@ -106,7 +106,7 @@ elegance, the nULP gate is sound but the strict A-NEW matvec arm is forfeited.
 
 | Leg | Test (LIVE path) | Pins relocation? | Tol | Blind-spot / fix |
 |-----|------------------|------------------|-----|------------------|
-| 1 (sweep ≡ indep ref) | `tests/sn/verification/analytical/test_phase_c_crosscheck.py` | **SWEEP only — NOT the matvec** | value (kinf exact; rel<2% MR) | ⚠ GAP: leg 1 runs `solve_sn` (the SWEEP path); it NEVER calls `(L+C).apply`. A matvec-only relocation bug (Krylov path) is invisible here. FIX: leg 1 stays the leg-1 ground for the SWEEP/value; the MATVEC value-ground is leg 2 + the Krylov-vs-SI consistency in `test_sweep_vs_apply_consistency.py` (which DOES drive the matvec via Krylov). |
+| 1 (sweep ≡ indep ref) | `tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py` | **SWEEP only — NOT the matvec** | value (kinf exact; rel<2% MR) | ⚠ GAP: leg 1 runs `solve_sn` (the SWEEP path); it NEVER calls `(L+C).apply`. A matvec-only relocation bug (Krylov path) is invisible here. FIX: leg 1 stays the leg-1 ground for the SWEEP/value; the MATVEC value-ground is leg 2 + the Krylov-vs-SI consistency in `test_sweep_vs_apply_consistency.py` (which DOES drive the matvec via Krylov). |
 | 2 (matvec ≡ ref) | `test_bc_extraction_matvec.py::TestStreamingEquilibriumValue::test_flat_flux_per_ordinate_balance_no_pole_spike` + `TestVacuumMatvecBitIdentity` | **partial** | bit-id (vacuum) / spike-factor 2× (flat) | ⚠ **DOUBLE GAP**: (a) the spike gate is FLAT-ψ → vv §H2 NULLS curvilinear redistribution → blind to a `dA_w·c_out` relocation bug; AND (b) it is **BARE assert** (`:477`) → INERT under -O (Mode-8). FIX: the A-NEW matvec leg (het σ_t + NON-flat ψ, `np.testing`-based, -O-safe) is the real leg-2 matvec ground; the spike gate is a complementary L0 anchor that MUST run WITHOUT -O. **The transpose dense-probe oracle the prior note cited (`diag_p42_adjoint_oracle.py`) NO LONGER EXISTS** — leg-2-transpose is now ONLY the reciprocity gate (see §4). |
 | 3 (sweep ≡ matvec TWIN) | `test_loss_action_convention.py` + `test_sweep_vs_apply_consistency.py` + `test_streaming_operator_decomposition.py` | **YES — the load-bearing relocation leg** | mixed (see below) | The non-tautological flat-reflective anchor (`test_loss_action_is_full_loss_LpC_flat_reflective`, -O-safe `np.testing`) + the ≥2G het `apply == loss_action − C·ψ` (`test_apply_equals_loss_action_minus_independent_collision_het`, -O-safe) DIRECTLY pin "the relocated matvec is still (L+C)". ⚠ `test_streaming_operator_decomposition.py::TestResolutionADecomposition::test_bit_exact_uniform_sigma_t` (`:180/:197` bare `assert rel<1e-14`) is INERT under -O; its sibling `TestSubtractiveDefinition` (`:257` `assert_array_equal`) IS -O-safe. |
 | 4 (refinement) | `test_phase_c_crosscheck.py` flux-shape/MR rows | SWEEP only | value | Convergence RATE necessary not sufficient (vv §5); leg 1 supplies the converged VALUE ground. Same matvec-blindness as leg 1. |
@@ -127,7 +127,7 @@ drift.**
 **The existing A-NEW gate SUFFICES; no Phase-C-specific golden is needed** —
 BUT the runtime mode + tolerance per leg must be set explicitly.
 
-`tests/sn/sweep/core/test_affine_carve_baseline.py` already captures (at the
+`tests/gates/sn/sweep/core/test_affine_carve_baseline.py` already captures (at the
 pre-carve `eab05ab`/`be4a57b` baseline, committed) BOTH:
 - **Sweep leg** (`TestAffineCarveSweepBaseline`, `:221`) — one `transport_sweep`
   on het σ_t + non-flat random Q, ≥2G, slab/sphere/cyl; `reduction_depth=nx`
@@ -174,7 +174,7 @@ through the SAME `_OneDimScanWalk` frame (the right answer — single source), o
 pin that the two STILL agree.
 
 **Gate that proves the split stays correct through the carve:**
-`tests/sn/operators/test_streaming_operator.py::TestT4cAlgebraDecompositionInvariantCurvilinear`
+`tests/gates/sn/operators/test_streaming_operator.py::TestT4cAlgebraDecompositionInvariantCurvilinear`
 (`:854`) — `test_sphere_LpC_equals_M_spatial_plus_M_angular_redist` (`:882`) +
 `test_cylinder_...` (`:908`) + slab `TestT4bAlgebraDecompositionInvariantSlab`
 (`:714`). These assert `(L+C)ψ ≡ M_spatial·ψ + M_angular_redist·ψ` PER-ORDINATE-BULK
@@ -196,7 +196,7 @@ catcher).
 
 **The ONLY -O-firing gate that exercises the curvilinear angular adjoint
 (`closure.angular_adjoint`):**
-`tests/sn/operators/test_g_adjoint_reciprocity.py::test_g_adjoint_reciprocity_full_block`
+`tests/gates/sn/operators/test_g_adjoint_reciprocity.py::test_g_adjoint_reciprocity_full_block`
 (`:199`) — `⟨Aψ,φ⟩_G = ⟨ψ, A.Hφ⟩_G` for `A=L+C` (reflective BC so the A_ss
 block is live), random NON-flat ψ/φ on bulk+trace, over
 `slab/slab_2g/sphere_2g/cyl` (the `_BUILDERS` dict `:122-126`), all `pytest.fail`
@@ -251,7 +251,7 @@ box (vv §H2 nulls redistribution; vv §H3 per-ordinate balance telescopes). The
 gates that run on STRESSING configs (NOT the degenerate box):
 
 - **Existing, -O-safe, sufficient for the spatial+collision matvec:**
-  `tests/sn/solve/test_affine_carve_bit_identity.py` — `si_slab_2g_het` (P1
+  `tests/gates/sn/solve/test_affine_carve_bit_identity.py` — `si_slab_2g_het` (P1
   anisotropic, ≥2G, het σ_t, non-flat; sha256, `raise AssertionError` so -O-safe)
   + the 2-D row. The slab arm is the end-to-end ≥2G-het-aniso anchor.
 - **Existing, -O-safe, the per-ordinate twin:** `test_loss_action_convention.py::
@@ -301,22 +301,22 @@ then the full set at the end. Route-arounds baked in (FINDING + pre-existing red
 - `-k "not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical)"` —
   2 stale post-ERR-058 sphere apply snapshots (CONFIRMED red this session; fire
   under -O via `assert_allclose`).
-- `--deselect tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff` —
+- `--deselect tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff` —
   #212 `continuous_get` hang (orthogonal).
 - `-p no:cacheprovider` (clean collection).
 
 ### THE STRICT BIT-ID GATE (where `-W error` actually escalates — FINDING 1)
-`-W error::DriftWarning` is INERT in `tests/sn/regression/` (its conftest forces
-`always`). It ONLY escalates in `tests/sn/sweep/core/` + `tests/sn/solve/`. Use
+`-W error::DriftWarning` is INERT in `tests/gates/sn/regression/` (its conftest forces
+`always`). It ONLY escalates in `tests/gates/sn/sweep/core/` + `tests/gates/sn/solve/`. Use
 the QUALIFIED path (bare `error::DriftWarning` → AttributeError):
-`-W "error::tests.sn.regression._regression_assert.DriftWarning"`.
+`-W "error::tests.gates.sn.regression._regression_assert.DriftWarning"`.
 
 **STRICT gate (DENSITY option — recommended):**
 ```
 .venv/bin/python -O -m pytest \
-  tests/sn/sweep/core/test_affine_carve_baseline.py \
-  tests/sn/solve/test_affine_carve_bit_identity.py \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning" \
+  tests/gates/sn/sweep/core/test_affine_carve_baseline.py \
+  tests/gates/sn/solve/test_affine_carve_bit_identity.py \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" \
   -p no:cacheprovider -q
 ```
 Per sub-step scope: `-k "SLB or slab"` (slab), `-k SPH` (sphere), `-k CYL`
@@ -327,13 +327,13 @@ bare `kind="direct" nulp=nx` — see §2.)
 ### THE VALUE/TOLERANCE GATE (the four-leg standoff + decomposition + adjoint)
 ```
 .venv/bin/python -O -m pytest \
-  tests/sn/operators/test_bc_extraction_matvec.py \
-  tests/sn/operators/test_loss_action_convention.py \
-  tests/sn/operators/test_streaming_operator_decomposition.py \
-  tests/sn/operators/test_g_adjoint_reciprocity.py \
-  tests/sn/sweep/core/test_sweep_vs_apply_consistency.py \
-  tests/sn/solve/test_affine_carve_bit_identity.py \
-  tests/sn/operators/test_streaming_operator.py \
+  tests/gates/sn/operators/test_bc_extraction_matvec.py \
+  tests/gates/sn/operators/test_loss_action_convention.py \
+  tests/gates/sn/operators/test_streaming_operator_decomposition.py \
+  tests/gates/sn/operators/test_g_adjoint_reciprocity.py \
+  tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py \
+  tests/gates/sn/solve/test_affine_carve_bit_identity.py \
+  tests/gates/sn/operators/test_streaming_operator.py \
   -k "not (vacuum_bulk_bit_identical_1d and SPH) and not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical)" \
   -p no:cacheprovider -q
 ```
@@ -345,7 +345,7 @@ are -k-excluded). GREEN = legs 2/3/4(value) + decomposition + adjoint hold.
 ### THE LEG-1 STRUCTURALLY-INDEPENDENT GROUND (slow — run once per geometry milestone)
 ```
 .venv/bin/python -O -m pytest \
-  tests/sn/verification/analytical/test_phase_c_crosscheck.py \
+  tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py \
   -p no:cacheprovider -q
 ```
 SLOW (trajectory_resolvent cylinder-MR GL quadrature is heavy — minutes). The
@@ -372,9 +372,9 @@ verified via the pytest "assertions not in test modules" warning + the explicit
   as a #206 gate.**
 ```
 .venv/bin/python -m pytest \
-  tests/sn/operators/test_bc_extraction_matvec.py \
-  tests/sn/operators/test_streaming_operator_decomposition.py \
-  tests/sn/operators/test_streaming_operator.py \
+  tests/gates/sn/operators/test_bc_extraction_matvec.py \
+  tests/gates/sn/operators/test_streaming_operator_decomposition.py \
+  tests/gates/sn/operators/test_streaming_operator.py \
   -k "not (vacuum_bulk_bit_identical_1d and SPH) and not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical)" \
   -p no:cacheprovider -q
 ```

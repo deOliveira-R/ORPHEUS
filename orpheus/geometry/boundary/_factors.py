@@ -378,7 +378,7 @@ class BoundaryGeometryMap(Protocol):
     ask with string comparisons — ``bc[face] == "reflective"`` for the first,
     ``kind in _RULED_CORNER_KINDS`` for the second. Phase **B2** repointed
     those sites here and retired both tag sets; the law-by-law equivalence is
-    pinned in ``tests/geometry/test_boundary_factor_consumers.py``.
+    pinned in ``tests/gates/geometry/test_boundary_factor_consumers.py``.
     """
 
     @property

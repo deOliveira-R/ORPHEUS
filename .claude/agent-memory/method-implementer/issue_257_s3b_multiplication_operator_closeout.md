@@ -53,7 +53,7 @@ commits). The transport half of the §5.7 operator-as-promotion fold.
    (`__init__` `L = Streaming + Collision`), `:1000` (`rebind_sigma_t`).
    The 87 test callers stay on the ndarray back-compat path.
 
-4. **NEW `tests/transport/test_multiplication_operator.py`** (11 tests,
+4. **NEW `tests/gates/transport/test_multiplication_operator.py`** (11 tests,
    all `@foundation`, all -O-firing): broadcast oracle (engine ≡ legacy
    `σ[None]·ψ` at VALUES level, `assert_array_equal` PRIMARY, 0 ULP — same
    op) on the discriminating **2-D nx=5≠ny=3, ng=2** carrier; the
@@ -98,7 +98,7 @@ CAP_SOLVE (was silent IEEE NaN). Pattern 4.
   resolvent). All 35+ green.
 - **pyright**: 2295 errors / 19 warnings — IDENTICAL to baseline (ZERO
   net-new, ZERO new `# type: ignore`). Both new files 0/0 standalone.
-- **Regression subset** (`tests/sn/operators spatial sweep/core solve
+- **Regression subset** (`tests/gates/sn/operators spatial sweep/core solve
   numerics transport`, -O, deselect het keff): 7 failed / 1968 passed.
   The 7 = EXACTLY the documented baseline reds (#250 SPHERE ×5 + #232
   mu_y ×2). +11 = the new tests. NO non-baseline regression.

@@ -71,7 +71,7 @@ tests were rewired to the modern
 
 Both cases live under ``operator_form="diffusion"`` in the
 Phase-0 registry and are tested in
-:mod:`tests.diffusion.test_continuous_reference`. The
+:mod:`tests.gates.diffusion.test_continuous_reference`. The
 measured numerical evidence at convergence is:
 
 .. list-table::

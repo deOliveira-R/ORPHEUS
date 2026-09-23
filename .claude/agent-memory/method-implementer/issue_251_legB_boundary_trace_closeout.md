@@ -110,7 +110,7 @@ slope), bundles it with the manufactured bulk source, and solves via the public
 END-TO-END (Mode-11 blindness closed; the dedicated stamp catcher is the threading
 foundation gate). The monkeypatch is fully removed.
 
-## THE TESTS (`tests/sn/verification/mms/test_mms_ld_2d.py`, the #251 block)
+## THE TESTS (`tests/gates/sn/verification/mms/test_mms_ld_2d.py`, the #251 block)
 
 The 2 xfail-strict gates FLIPPED to live (`xfail` markers removed; both are now
 plain `@pytest.mark.foundation`):
@@ -140,31 +140,31 @@ the consumption mutation. No `@catches` (no caught bug; next free ERR-063).
 
 ```
 # Full LD-2-D + symbolic INCL slow, AFTER the change:
-tests/sn/verification/mms/test_mms_ld_2d.py tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py
+tests/gates/sn/verification/mms/test_mms_ld_2d.py tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py
   31 passed, 1 warning in 458.32s   (Leg A baseline was 25 passed, 1 skipped)
 # net: the 1 #251 skip stub → 6 #251 gates (2 flipped xfail→live + 4 already green).
 
 # Non-slow LD-2-D + symbolic:
-tests/sn/verification/mms/test_mms_ld_2d.py tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py -m "not slow"
+tests/gates/sn/verification/mms/test_mms_ld_2d.py tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py -m "not slow"
   28 passed, 3 deselected, 1 warning in 77.28s
 
 # The 6 #251 gates by name:
   6 passed, 17 deselected, 1 warning in 7.98s
 
 # Non-vacuum prescribed-inflow MMS (the scalar-inflow path — slab + sphere):
-tests/sn/verification/analytical/test_mms_prescribed_inflow.py
+tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py
   4 passed, 1 warning in 0.48s   (baseline 4 passed — byte-identical, n_face_moments==1 → identity)
 
 # Bit-identity DriftWarning strict gate (DD/Step + scalar-inflow byte-identical):
-tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"
+tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
   520 passed, 1 skipped, 4 xfailed, 2 warnings in 91.77s
 # EXACTLY the spec baseline (520/1/4). NO DriftWarning fired, NO golden moved — the
 # moment-tail widening leaves the DD/Step + scalar-inflow trace untouched (the
 # negative control: face_moment_tail(1) == ()).
 
-# tests/sn/operators (the 7 KNOWN pre-existing baseline reds):
-tests/sn/operators                                          → 7 failed, 492 passed, 4 skipped, 1 xfailed
-tests/sn/operators -W "error::...DriftWarning"              → 9 failed, 490 passed, 4 skipped, 1 xfailed
+# tests/gates/sn/operators (the 7 KNOWN pre-existing baseline reds):
+tests/gates/sn/operators                                          → 7 failed, 492 passed, 4 skipped, 1 xfailed
+tests/gates/sn/operators -W "error::...DriftWarning"              → 9 failed, 490 passed, 4 skipped, 1 xfailed
 # NON-strict = EXACTLY the 7 pre-existing (5 SPHERE #250 + 2 mu_y #232). The +2 strict
 # reds are vacuum_bulk_SLB_seed0/1 = WITHIN-TOL 1-ULP DriftWarnings (drifted 1 ULP /
 # 1.50e-16 rel, within tol nulp=5), DOCUMENTED #240-era SLB matvec re-association
@@ -251,7 +251,7 @@ trace `(24,2,4,2)`):
   import added.
 - `orpheus/transport/source_sinks/boundary_source_sink.py` — `prescribed_inflow`
   scalar-or-moment slot assignment + `AVERAGE_MOMENT` import + docstring prose.
-- `tests/sn/verification/mms/test_mms_ld_2d.py` — 2 xfail-strict gates flipped to
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py` — 2 xfail-strict gates flipped to
   live (markers removed); `_solve_with_boundary_slope` re-targeted onto the public
   API (monkeypatch removed); docstrings updated.
 - `docs/theory/discrete_ordinates.rst` — the `ld-cartesian-2d-slope-source` note

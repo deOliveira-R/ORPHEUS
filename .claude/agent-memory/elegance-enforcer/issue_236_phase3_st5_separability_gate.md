@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-`tests/sn/verification/mms/test_space_angle_separability.py` — #236 Phase 3 (ST5),
+`tests/gates/sn/verification/mms/test_space_angle_separability.py` — #236 Phase 3 (ST5),
 the LAST campaign piece. NEW test-only module, 6 tests (2 Cartesian separable / 3
 curvilinear-scalar gating / 1 curvilinear per-ordinate L27). VERDICT: **PASS-WITH-NITS**,
 1 MUST-FIX. Ran green `6 passed in 2.93s` (`-O`, brief-mandated invocation).
@@ -19,13 +19,13 @@ GATES (`E≈max(E_space,E_angle)`, spatial rate quadrature-gated). Mirrors
 
 ⭐ **MUST-FIX = the recurring `_l2_1d` directory-wide twin.** The volume-weighted L2
 body `float(np.sqrt(np.sum(volumes * diff * diff)))` is now byte-identical in FOUR
-files in `tests/sn/verification/mms/`: `test_mms_curvilinear.py:49`,
+files in `tests/gates/sn/verification/mms/`: `test_mms_curvilinear.py:49`,
 `test_curvilinear_aniso_convergence.py:65`, the new file `:134`, and
 `test_curvilinear_pole_cell_characterization.py:155` (as `_l2`, "production-gate
 norm" — the naming drift already starting). + same body local-named in
 `test_mms_2d.py:33` / `test_mms_ld_2d.py:62`. SIX copies. Rule-of-three passed long
 ago. STANDING TELL: every new MMS gate in this dir re-mints `_l2_1d` rather than
-importing it — flag on sight. Hoist dest = shared helper (`tests/sn/_test_helpers.py`
+importing it — flag on sight. Hoist dest = shared helper (`tests/gates/sn/_test_helpers.py`
 already imported by the dir conftest, OR a new `_helpers.py`); conftest.py itself is
 hook-oriented so prefer the helper module. The convention is load-bearing (which V
 power, sqrt-of-sum vs RMS-normalized, cell vs shell measure) → drift = two gates in

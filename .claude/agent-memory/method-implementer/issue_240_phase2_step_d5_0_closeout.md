@@ -96,13 +96,13 @@ PRODUCTION:
   split into the two-arm predicate).
 
 TESTS:
-- `tests/sn/sweep/core/test_unified_sweep_dispatch.py` — imports
+- `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py` — imports
   (`LinearDiscontinuous`, `MovingFrontierWindow`, `FullFieldWavefront`); NEW
   `_2d_ld_sn_mesh(nx=4, ny=3)` fixture (non-square, LS-S4, LD scheme);
   `TestD3SupportsMatrix._fake` migrated (added `facewise` kwarg →
   `scheme.transverse_coupling_is_facewise`); 4 NEW D5-0 routing tests +
   3 NEW `TestSchemeTraitProbe` strategy-free trait probes.
-- `tests/sn/sweep/core/test_discretization_scheme_protocol.py` — 2 synthetic
+- `tests/gates/sn/sweep/core/test_discretization_scheme_protocol.py` — 2 synthetic
   strategies (`IdentityDiscretizationScheme`, `FakeCurvilinearStrategy`) gained
   `transverse_coupling_is_facewise: ClassVar[bool] = False` (Protocol grew a
   required attr; conforming fixtures must declare it). NOT a value change —
@@ -170,11 +170,11 @@ Baseline (pre-change), strict bit-identity gate:
 ```
 
 Strict bit-identity gate POST-change
-(`tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"`):
+(`tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"`):
 ```
 512 passed, 1 skipped, 4 xfailed, 2 warnings in 85.55s (0:01:25)
 ```
-512 = 505 pre-existing + 7 new D5-0 tests (which live INSIDE `tests/sn/sweep/
+512 = 505 pre-existing + 7 new D5-0 tests (which live INSIDE `tests/gates/sn/sweep/
 core`). Skip/xfail counts UNCHANGED (1/4). Proof the pre-existing 505 are
 untouched — deselecting the 7 new tests:
 ```
@@ -185,7 +185,7 @@ So the trait + supports change altered NO computed value on any exercised path
 
 Dispatch + spatial:
 ```
-58 passed, 1 warning in 47.52s        (tests/sn/sweep/core/test_unified_sweep_dispatch.py tests/sn/spatial)
+58 passed, 1 warning in 47.52s        (tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py tests/gates/sn/spatial)
 ```
 New D5-0 + trait-probe tests (all 7) PASSED (verbose run); the 4 migrated-fake
 `TestD3SupportsMatrix` pins stay green.
@@ -231,7 +231,7 @@ orphan-label warnings are unrelated — the LD theory section is still a D6
    working; the conformance-test red is the guarantee firing, not a regression."
 2. **The brief's "strict gate MUST stay 505/1/4" had an implicit assumption the
    new tests land OUTSIDE the gate's path** — they didn't (the dispatch test is
-   in `tests/sn/sweep/core`). The correct generalization of the gate's intent is
+   in `tests/gates/sn/sweep/core`). The correct generalization of the gate's intent is
    "the PRE-EXISTING set stays 505/1/4 and skip/xfail are unchanged" — verified
    by deselecting the new tests. A new-test-count delta on a directory-scoped
    bit-identity gate is expected; the load-bearing invariant is that no

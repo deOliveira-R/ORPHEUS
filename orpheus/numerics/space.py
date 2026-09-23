@@ -23,7 +23,7 @@ boundary-trace spaces the quadrature weights ARE the canonical
 inner-product weights, so the adjoint identity
 :math:`\langle A x, y \rangle_W = \langle x, A^* y \rangle_V`
 becomes a non-trivial consistency check (see test
-``tests/numerics/test_operator.py::test_hilbert_adjoint_weighted_identity``).
+``tests/gates/numerics/test_operator.py::test_hilbert_adjoint_weighted_identity``).
 
 Where the anticipated specialisations landed
 ============================================
@@ -746,7 +746,7 @@ class FunctionSpace(Generic[Carrier]):
         :meth:`DiagonalMetric.apply_block` is operation-for-operation the
         per-axis reshape-and-multiply the retired ``_apply_axes_weights``
         performed inline (`[M]` bit-identical on every axis-built space —
-        gated in ``tests/numerics/test_axis_metric_is_a_derived_object.py``),
+        gated in ``tests/gates/numerics/test_axis_metric_is_a_derived_object.py``),
         and the legacy diagonal arm is operation-for-operation the arms
         that used to live inline in the three ``_diagonal_*`` realizations.
 
@@ -1054,7 +1054,7 @@ def _tensor_product_factored_metric(
     product to `[M]` 2 ULP worst over 1600 draws (200 seeds × 8
     (geometry × L) rows — one extra rounding, reduction depth +1; the
     ``vv-principles`` bit-identity criterion 3), gated at ``nulp = 4`` in
-    ``tests/numerics/test_tensor_product_metric_is_factored.py``.
+    ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``.
     """
     entries: list[
         tuple[tuple[int, ...], DiagonalMetric | DenseMetric | None]

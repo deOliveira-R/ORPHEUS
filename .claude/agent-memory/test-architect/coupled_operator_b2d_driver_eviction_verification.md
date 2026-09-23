@@ -94,7 +94,7 @@ docs dispatch (not this scope); estate cleanup.
 **Config (MANDATORY).** carrying = **sphere-GL S4**; cylinder + slab = the non-carrying CONTROL
 (seedless, ZERO-touch — cylinder is non-carrying by the #229 `τ_raw=0` clamp fact,
 `augmented_mesh.py:805`). The Mode-9 fixed-point row uses a **HETEROGENEOUS VACUUM sphere** (the
-`curvilinear_two_region_mesh` from `tests/sn/_test_helpers`), NOT the reflective isotropic box.
+`curvilinear_two_region_mesh` from `tests/gates/sn/_test_helpers`), NOT the reflective isotropic box.
 **≥2G every value row** (Cardinal Rule). Canonical `.venv/bin/python -O -m pytest -p no:xdist
 --timeout=300 -p no:cacheprovider` SERIAL; every gate fires under `-O` (`np.testing.assert_*`/
 `pytest.fail`, never bare `assert`); every mutation is in-process `monkeypatch` (NEVER `git
@@ -110,7 +110,7 @@ the sweep, or the assembly DIRECTLY (not through the SI/Krylov driver) is **bit-
 d1**. Only `solve_sn`/`solve_sn_fixed_source` END-TO-END on a carrying mesh drifts (the rhs
 reassembly `q + N.apply` + the GMRES dead-ray flat padding). This partitions every pin.
 
-**No existing VALUE gate moves at d1.** Grep of `tests/sn/solve` + `tests/sn/eigenvalue`
+**No existing VALUE gate moves at d1.** Grep of `tests/gates/sn/solve` + `tests/gates/sn/eigenvalue`
 confirms: EVERY `array_equal`/bitwise DRIVER-OUTPUT pin is on a **seedless** config —
 `test_fixed_source_g1` (source-forwarding, see F1), `test_gauss_seidel_reification` (2-D
 Cartesian G-S), `test_2d_anisotropic_windowing` (2-D Cartesian windowing). NONE pins a
@@ -148,7 +148,7 @@ B.2c's grid≡fused centrepiece, which was OPERATOR-level).
 
 ### F1 — `test_fixed_source_g1[sphere]` pins the DRIVER INPUT `q_ext.interior.values` bit-equal on a CARRYING mesh → falsely RED at d1
 
-`tests/sn/solve/test_fixed_source_g1.py::TestExternalSourcePerOrdContract::test_external_source_forwarded_to_krylov_bit_equal`
+`tests/gates/sn/solve/test_fixed_source_g1.py::TestExternalSourcePerOrdContract::test_external_source_forwarded_to_krylov_bit_equal`
 is parametrized over **`sphere` AND `cylinder`** (:126-129). Its spy on
 `KrylovAcceleration.solve` captures `np.array(q_ext.interior.values)` (:148) and asserts it
 equals the raw `external_source` (:168, ERR-049 re-sentinel). At d1 the carrying-mesh driver
@@ -231,7 +231,7 @@ go empty.
 
 ## d1 gates — the block-native driver
 
-Home: `tests/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystem` (NEW) + the F1/F2/F5
+Home: `tests/gates/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystem` (NEW) + the F1/F2/F5
 re-points across the ~12 caller files.
 
 - **G-d1.1 — W1 Mode-11 sentinel: the production route EXECUTES N.apply, M.solve/M.apply, and
@@ -297,7 +297,7 @@ re-points across the ~12 caller files.
 ## d2 gates — the atomic eviction
 
 Home: the eviction re-point ledger (batched by test-class below) + `TestFullFieldTwoBlock` (NEW,
-`tests/transport/test_full_field.py`) + the split-Residual/`Solution` gates.
+`tests/gates/transport/test_full_field.py`) + the split-Residual/`Solution` gates.
 
 - **G-d2.1 — the eviction re-point ledger (batch by test-class; the explorer tests table is the
   index).** Per the explorer's per-file line counts, each is REWIRE (3-block ctor → 2-block +
@@ -348,8 +348,8 @@ Home: the eviction re-point ledger (batched by test-class below) + `TestFullFiel
   `boundary_flux`, `SolutionDiff`) untouched; a ray reader reads `sol.radial_characteristic`.
   Tooth: a `Solution` built with a 3-block angular_flux (pre-eviction shape) → the 2-block
   `__post_init__` rejects it.
-- **G-d2.6 — diffusion/CP untouched-wall (the eviction's bit-id oracle).** `tests/diffusion` +
-  `tests/cp` walls run GREEN UNTOUCHED — they already ride 2-block `FullField`, so the eviction is
+- **G-d2.6 — diffusion/CP untouched-wall (the eviction's bit-id oracle).** `tests/gates/diffusion` +
+  `tests/gates/cp` walls run GREEN UNTOUCHED — they already ride 2-block `FullField`, so the eviction is
   a NO-OP for them; a diffusion/CP red means the eviction broke the 2-block base algebra (not the
   ray). This is the living bit-identity proof the design leans on; assert ZERO diffusion/CP
   re-points in the d2 commit.
@@ -362,7 +362,7 @@ Home: the eviction re-point ledger (batched by test-class below) + `TestFullFiel
 
 ## d3 gates — anchors, A2a, ERR-053
 
-Home: `tests/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystemAnchors` (NEW) +
+Home: `tests/gates/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystemAnchors` (NEW) +
 `test_inverse_adjoint_coherence.py` (A2a) + the migrated `test_krylov_curvilinear_precond_safety`.
 
 - **G-d3.1 — E4 φ=Q/Σ_t END-TO-END (the single most powerful curvilinear diagnostic).** On a
@@ -475,9 +475,9 @@ gate rests keff alone against a shape-class mutation.
   (G-c2.2 P2, now the only presence gate).
 
 **STAY (do NOT touch):**
-- `tests/numerics/test_coupled_operator.py` (39, synthetic) — the N-general machinery is CONSUMED,
+- `tests/gates/numerics/test_coupled_operator.py` (39, synthetic) — the N-general machinery is CONSUMED,
   not changed. ZERO changes (grep-confirmed no ψ½/SN references).
-- `tests/diffusion`, `tests/cp` — the eviction's bit-id oracle (G-d2.6). ZERO changes.
+- `tests/gates/diffusion`, `tests/gates/cp` — the eviction's bit-id oracle (G-d2.6). ZERO changes.
 - `TestCoupledBuilder` G-c2.1–2.5 — the B.2c grid gates hold (the grid IS `system.loss`); only
   **G-c2.6 is REMOVED** at d2 (G-d2.7).
 
@@ -549,14 +549,14 @@ gate rests keff alone against a shape-class mutation.
 
 NEW: `orpheus/sn/coupled_system.py::build_within_group_system` (the `WithinGroupSystem` record +
 the `CoupledResolvent` bridge). d1 gate class:
-`tests/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystem` (G-d1.1–1.8) + the F1/F2/F5
+`tests/gates/sn/operators/test_psi_half_coupling.py::TestWithinGroupSystem` (G-d1.1–1.8) + the F1/F2/F5
 re-points. d2: the eviction re-point ledger (G-d2.1) + `TestFullFieldTwoBlock` (G-d2.2–2.3) + the
 split-Residual/`Solution` intrinsic gates (G-d2.4–2.5) + the diffusion/CP untouched-wall
 (G-d2.6) + G-c2.6 removal (G-d2.7). d3: `TestWithinGroupSystemAnchors` (G-d3.1–3.3) + the A2a
 forward arm (G-d3.4). Every tooth mutation-verified in-process under `-O`. End-to-end acceptance
-per phase: **d1** — psi_half + the ~12 re-pointed caller files green + full `tests/sn -m "not slow"`
-+ `tests/numerics` (UNCHANGED, 39) + ratchet `transport:1` + sphinx -W; **d2** — the eviction wall
-green + `tests/diffusion`/`tests/cp` UNTOUCHED-green + FullField `hasattr(radial_characteristic)`
+per phase: **d1** — psi_half + the ~12 re-pointed caller files green + full `tests/gates/sn -m "not slow"`
++ `tests/gates/numerics` (UNCHANGED, 39) + ratchet `transport:1` + sphinx -W; **d2** — the eviction wall
+green + `tests/gates/diffusion`/`tests/gates/cp` UNTOUCHED-green + FullField `hasattr(radial_characteristic)`
 False; **d3** — the E4 anchors + the migrated ERR-053 gate. **Load-bearing deliverables:** the
 **W1 Mode-11 sentinel (G-d1.1, the sufficient block-route catcher)** + the **Mode-9
 heterogeneous same-fixed-point FIELD gate (G-d1.6, NOT reflective-isotropic, NOT keff-alone)** +

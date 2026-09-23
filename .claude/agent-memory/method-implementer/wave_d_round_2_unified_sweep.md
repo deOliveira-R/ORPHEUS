@@ -44,7 +44,7 @@ reproduces the inlined sweep math verbatim (Wave C verified via
 hand-calc tests). The dispatch consolidation preserves 1 ULP equality.
 
 **ERR-026 NOT closed by Wave D:** the 2 xfail-strict tripwires at
-`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+`tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
 remain xfail. The curvilinear sweep's one-directional WDD closure
 (the bug) is preserved bit-identically through DD's curvilinear
 branch; Wave E (Issue #15) closes ERR-026 via solver-path migration
@@ -63,7 +63,7 @@ APIs are extended (Wave C-extension or Wave E).
   scaffolding; main code reduction is the consolidated dispatch).
 - `orpheus/sn/geometry.py` — added `cell_update: CellUpdate` constructor
   argument with default `DiamondDifference()`.
-- `tests/sn/test_unified_sweep_dispatch.py` — new. 9 foundation tests
+- `tests/gates/sn/test_unified_sweep_dispatch.py` — new. 9 foundation tests
   covering: dispatch routing (slab/sphere/cyl/2D), 1D cumprod fast-path
   preconditions (DD + GL1D + isotropic), default cell_update.
 - `docs/theory/discrete_ordinates.rst` — extended with
@@ -74,28 +74,28 @@ APIs are extended (Wave C-extension or Wave E).
   bumped 2758 → 2767).
 
 **Tests passed (Wave D R2 verification gates):**
-- `tests/sn/test_unified_sweep_dispatch.py` — 9/9 foundation (new)
-- `tests/sn/spatial/` — 24/24 foundation (Wave C protocol + diamond)
-- `tests/sn/test_sweep_regression.py` — 12/12 (geometry stencil reads)
-- `tests/sn/regression/test_dd_regression.py` — **11/11 bit-identical**
+- `tests/gates/sn/test_unified_sweep_dispatch.py` — 9/9 foundation (new)
+- `tests/gates/sn/spatial/` — 24/24 foundation (Wave C protocol + diamond)
+- `tests/gates/sn/test_sweep_regression.py` — 12/12 (geometry stencil reads)
+- `tests/gates/sn/regression/test_dd_regression.py` — **11/11 bit-identical**
   (gating contract held)
-- `tests/sn/l1_analytical/` — 27/29 + 2 xfail intact (ERR-026 tripwires)
-- `tests/derivations/test_sn_mms_anisotropic_symbolic.py` — 12/12
-- `tests/sn/test_mms.py` + `test_mms_aniso.py` + `test_mms_2d.py` —
+- `tests/gates/sn/l1_analytical/` — 27/29 + 2 xfail intact (ERR-026 tripwires)
+- `tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py` — 12/12
+- `tests/gates/sn/test_mms.py` + `test_mms_aniso.py` + `test_mms_2d.py` —
   4 + 1 + 3 (slab + 2D Cartesian MMS, including 2g hetero ~86s)
-- `tests/sn/test_quadrature.py` + `test_boundary_conditions.py` +
+- `tests/gates/sn/test_quadrature.py` + `test_boundary_conditions.py` +
   `test_properties.py` + `test_snmesh_consumes_reduced.py` — 80
   passing (Wave D R1 read-site tests + BC/quad tests)
-- `tests/sn/test_scattering_operator.py` + `test_fission_operator.py`
+- `tests/gates/sn/test_scattering_operator.py` + `test_fission_operator.py`
   — 27/27 (Wave D R1 operator tests)
-- `tests/sn/test_sweep_operator_inconsistency.py` — 4/4 (D3 staying
+- `tests/gates/sn/test_sweep_operator_inconsistency.py` — 4/4 (D3 staying
   as-is, Wave E rewriting)
 - `sphinx-build -W -q` — exit 0
 - `python -m tests._harness.audit` — orphan/ERR coverage unchanged
   (23 orphan equations + ERR-020 / ERR-031 missing — pre-existing)
 
 **Pre-existing failures NOT introduced by this round:**
-- `tests/sn/test_mms_curvilinear.py` — 2 failures (legacy isotropic
+- `tests/gates/sn/test_mms_curvilinear.py` — 2 failures (legacy isotropic
   ansatz, fail in baseline too — pre-existing ERR-026-adjacent issue;
   per the plan, file is not xfail-marked but L1-tagged; left alone
   since baseline state).

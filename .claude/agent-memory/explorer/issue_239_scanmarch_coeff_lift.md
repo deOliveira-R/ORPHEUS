@@ -62,7 +62,7 @@ the DISTINCT `transverse_coupling_is_facewise` for the 2-D arm.
 
 ## The bit-id / equivalence gate (already present)
 
-`tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py` — `ScanMarch` ≡
+`tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py` — `ScanMarch` ≡
 `FullFieldWavefront` oracle (principled-equiv, rtol 1e-11 / atol 1e-12; NON-SQUARE x↔y moat;
 vacuum+reflective; foundation; verifies `loss-rep-scanmarch{,-solve,-apply}`). This is the
 DD principled-equivalence pin through the lift. The issue's named DD-byte-identity DriftWarning

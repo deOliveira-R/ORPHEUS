@@ -80,7 +80,7 @@ know all of them and pick a config that breaks every one that matters:
   constructor DIRECTLY (the `test_mixture_xs_balance.py` / P5.0
   `test_mixture_condense.py::_balanced_fissile_4g` hand-built pattern), or
   `make_mixture(..., sig_2≠0)` for n2n only (reuse
-  `tests/cp/test_verification.py::_make_mixture_with_n2n`). Same shape as
+  `tests/gates/cp/test_verification.py::_make_mixture_with_n2n`). Same shape as
   the anisotropic-case rule above: the convenient builder nulls the
   channel; manufacture the activating fixture FIRST.
 
@@ -1046,7 +1046,7 @@ test-design facts (Phase-2 spatial-substrate + assembly campaign,
   on a SYMMETRIC operator (Mode-12).** A row/col swap on `A=Aᵀ` is invisible →
   the fixture MUST be het + **asymmetric SigS** + **non-uniform h** so `A≠Aᵀ`
   and the transposition/face-swap is observable (reuse the exact
-  `tests/diffusion/test_operators.py` fixture — it already pulls every lever
+  `tests/gates/diffusion/test_operators.py` fixture — it already pulls every lever
   with the comment "asymmetric Σ_s so a transpose is observable"). G1's `x`
   MUST be **non-flat fixed-seed random** with non-zero inflow (flat x nulls the
   DD streaming coupling, §0.6/H2). ≥2G always (anti-#3); exclude 1G explicitly,
@@ -1305,7 +1305,7 @@ inner.inverse().H`, `SweepOperator.apply_transpose = inner.solve_transpose` (the
 2.5b reverse-scan), `SweepOperator.is_adjointable` flips True over the
 `InvertibleOperator` arm; the metric adjoint-solve `A.H.inverse().apply(b) =
 G⁺·solve_transpose(G·b)` falls out of the EXISTING `_AdjointOperator.apply` FOR
-FREE. Gate file `tests/sn/operators/test_inverse_adjoint_coherence.py` (helpers
+FREE. Gate file `tests/gates/sn/operators/test_inverse_adjoint_coherence.py` (helpers
 reused from `test_loss_transpose_solve.py`). Durable gate-design facts (the
 wiring-proof sibling of L13–L18):
 
@@ -1800,7 +1800,7 @@ on the SN leaf set (P0, `main` @ `b0a003b4`):
   so each row still provably pins `apply_transpose`'s structure, and
   point at the gate that DOES pin their metric (for `B`: the existing
   L11 drop-`|Ω·n|`-from-the-REFERENCE control in
-  `tests/sn/operators/test_g_adjoint_reciprocity.py`).
+  `tests/gates/sn/operators/test_g_adjoint_reciprocity.py`).
 
 **Two companion traps caught in the same file, both worth the habit:**
 
@@ -1845,7 +1845,7 @@ message; (5) prove the flip with a plugin-based landing simulation.
 Sharpens vv Mode 12 (the ERR-067 metric-repair closure) with the
 commutator criterion, and vv Mode 10 (the third state:
 exercised-but-unconstrained *by algebra*, where no isolating regime can
-exist). Gate file → `tests/sn/architecture/test_monomorphic_leaves.py`.
+exist). Gate file → `tests/gates/sn/architecture/test_monomorphic_leaves.py`.
 
 ---
 
@@ -1933,7 +1933,7 @@ spec's illustrative method name; (2) tabulate the arity against EVERY axis
 single assertion; (3) prove the fold mutation is value-identical and put
 that number in the docstring; (4) split the legs by contention-immunity —
 pad the wall clock, tighten the allocation; (5) fingerprint the fixture.
-Delivered: `tests/sn/architecture/test_composition_cost.py` (9 gates,
+Delivered: `tests/gates/sn/architecture/test_composition_cost.py` (9 gates,
 0.9 s, pyright-clean). Refines L24 §6; sharpens L16 (the perf-regression
 precedent) and L4 (prove every gate's teeth).
 
@@ -2218,7 +2218,7 @@ completions through the bodies that already realize `ReflectiveBoundary` /
 `WhiteBoundary`, making `albedo(α, SpecularReturn(a)) ≡ reflective(a, α)` and
 `albedo(α, IsotropicReturn(a,s)) ≡ white(a,s,α)` **theorems by construction**.
 Every finding MEASURED 2026-08-01 (`scratch/b34b_verification_plan.md`; new gate
-`tests/geometry/test_reemission_closure.py`; harness selected by `ORPHEUS_B34B`).
+`tests/gates/geometry/test_reemission_closure.py`; harness selected by `ORPHEUS_B34B`).
 
 - **The design's own justification is the reason the gate cannot verify.** "The
   two routes execute the same code, so the theorem holds" ⟹ a shared body
@@ -2765,7 +2765,7 @@ B3.4c finding (L33) where all seven production steps landed mid-plan.
 
 ### L35j — WRITING the gates found three defects, and every one was in the FIXTURE
 
-G2 shipped as `tests/geometry/test_transformation.py` (42 gates / 96 cases,
+G2 shipped as `tests/gates/geometry/test_transformation.py` (42 gates / 96 cases,
 8.9 s, 32/32 mutations caught, 0 blind). The three reds during authoring were
 all mine, and each is a reusable trap:
 
@@ -2821,7 +2821,7 @@ into one `SelfPairedDeck(motion: RigidMotion)`.
 A type-collapse moves the discriminating information **from the TYPE to a
 FIELD**. Every existing gate that asserts on the type keeps passing and stops
 discriminating. Two measured instances in ONE file
-(`tests/geometry/test_boundary_factors.py`):
+(`tests/gates/geometry/test_boundary_factors.py`):
 
 * `test_every_production_law_states_both_factors` asserts
   `isinstance(law.geometry_map, geom_cls)` per law. Today: `IdentityMap × 5`,
@@ -2914,15 +2914,15 @@ be evidence about the parameter; its value is entirely in the cross-type
 partition (self-paired ⟺ not-a-wrap), so it MUST ship with the sibling type's
 no-fixed-point control. (ii) The certified-table row whose canonical mutant is
 the identity table (`ERR-045`,
-`tests/geometry/test_bc_universal_invariants.py::TestReflectiveInflowToOutflowInvariant`)
+`tests/gates/geometry/test_bc_universal_invariants.py::TestReflectiveInflowToOutflowInvariant`)
 is the row a merge-identity-with-mirror carve must not let decay — it is the gate
 saying the two are still distinguishable where it matters.
 
 ### L36e — measure the brief's cost estimate before rationing the battery
 
-`[M]` The brief budgeted "`tests/numerics` + `tests/geometry` ≈ 5.5 min". The
+`[M]` The brief budgeted "`tests/gates/numerics` + `tests/gates/geometry` ≈ 5.5 min". The
 subset the carve can actually reach —
-`tests/geometry tests/numerics/test_quadrature_directional.py tests/numerics/test_face_layout.py`
+`tests/gates/geometry tests/gates/numerics/test_quadrature_directional.py tests/gates/numerics/test_face_layout.py`
 — runs in **9.40 s** (`1 failed, 743 passed`, the 1 being the pre-declared
 task-#33 red). Off by ~35×, in the helpful direction: a 16-mutation battery goes
 from "ration it" to ≈6 min. **Measure the reachable subset, not the directory
@@ -3000,7 +3000,7 @@ activation: trace metric max/min = 1.351 / 3.468 / 5.601  (GL4 / product / lebed
 
 Positive control PC1 (`FunctionSpace.apply_inverse_metric := identity`, a
 linear/shape-preserving mutation — anti-#18 clean) over
-`tests/sn/operators + tests/geometry`:
+`tests/gates/sn/operators + tests/gates/geometry`:
 
 ```
 baseline    3 failed, 1597 passed   23.2 s
@@ -3037,7 +3037,7 @@ makes it exist", not a cleverer assertion.**
 ### e. The survey that sizes a "turn on a check that never ran" risk
 
 Instrument the composer constructors and COUNT the skips before binding
-anything. Plugin `skipcount2.py`, `tests/geometry + tests/sn/operators`, 23 s:
+anything. Plugin `skipcount2.py`, `tests/gates/geometry + tests/gates/sn/operators`, 23 s:
 
 ```
 OperatorSum 172 SKIP / 1694 CHECK (9.2 %) · OperatorProduct 6 / 1568 (0.4 %)
@@ -3101,7 +3101,7 @@ because it changes what is CONSTRUCTIBLE:
 
 ### h. The strict-xfail set was ALREADY the todo list — and it must be read by ARM
 
-`tests/sn/architecture/test_monomorphic_leaves.py` already carried G6.4's
+`tests/gates/sn/architecture/test_monomorphic_leaves.py` already carried G6.4's
 acceptance gates as `strict=True` xfails whose reasons say *"WHEN THIS XPASSES:
 P1 has landed — delete this marker."* Measured `105 passed, 21 xfailed` in 1.31 s,
 of which **exactly 12** flip (4 `test_model_generic_leaf_declares_a_space` + 5
@@ -3169,7 +3169,7 @@ claim, and read "I am about to write X" as "X may already be on disk".
 
 In-process pytest plugin rebinding `realizer._specular_kernel`; the plugin
 raises if the rebind does not take and prints its entry count in the terminal
-summary. Baseline `tests/geometry tests/sn/operators -m "not slow"` =
+summary. Baseline `tests/gates/geometry tests/gates/sn/operators -m "not slow"` =
 `3 failed / 1668 passed` in 24 s, `_specular_kernel entered 1252 times`.
 
 | mutation | new reds |
@@ -3257,8 +3257,8 @@ Assert the NUMBER, not "it moved".
 
 ### 6. Cost — the reachable-subset rule again
 
-The brief's cost ladder said `+ tests/numerics` ≈5 m 45 s. `[M]` the positive
-control reddens **zero** files under `tests/numerics`, and no `tests/numerics`
+The brief's cost ladder said `+ tests/gates/numerics` ≈5 m 45 s. `[M]` the positive
+control reddens **zero** files under `tests/gates/numerics`, and no `tests/gates/numerics`
 module imports `sn.boundary.realizer`. The whole realizer-side battery lives in
 a **24 s** slice. Budgeting off the directory rather than the reachable subset
 would have made a 7-mutation battery 40 minutes instead of 3.
@@ -3360,7 +3360,7 @@ one gate cannot replace the other.
 still referenced it (`NameError`) — so I measured "before" from
 `git worktree add <tmp> <HEAD-hash>` (NEVER `git checkout`; the tree carries
 irrecoverable uncommitted state). Then, mid-plan: four test files migrated, a
-brand-new `tests/numerics/test_zero_operator_spaces.py` appeared, and the 8-red
+brand-new `tests/gates/numerics/test_zero_operator_spaces.py` appeared, and the 8-red
 debt I had measured went to **`555 passed`** before I finished. So §2 became an
 AUDIT of what landed and §8 the residual-gap list.
 
@@ -3376,7 +3376,7 @@ label-less `:ref:`, and the whole battery.
 ### 6. ⭐ A measured number recorded in a COMMENT is not a gate
 
 `|B(0)| = 2.5` — the campaign's central measurement — appears in the tree ONLY
-as prose at `tests/sn/operators/test_operator_block_role.py:203`. Excellent
+as prose at `tests/gates/sn/operators/test_operator_block_role.py:203`. Excellent
 documentation; zero teeth. **When auditing a landed carve, grep for the
 measurement's NUMBER and ask whether any `assert` consumes it.** The
 "honest metadata that gates nothing" shape.
@@ -3440,13 +3440,13 @@ the checker, so run BOTH and triage BY TENSE (past-tense provenance STAYS).
 * Two channels reaching the same fixed point are **NOT bit-identical**:
   `|φ_D0 − φ_C|_inf = 1.998e-13` at `inner_tol = 1e-13` (rel ≈ 0.3 × tol),
   `array_equal = False`. Gate at `SAFETY(10) × inner_tol`.
-* `tests/sn/solve` naming trap: `test_affine_carve_bit_identity.py` is **#208's**
+* `tests/gates/sn/solve` naming trap: `test_affine_carve_bit_identity.py` is **#208's**
   `FluxDisplacement` carve, NOT the affine BOUNDARY carve — all-vacuum configs,
   `sha256`-frozen, and 3 of its params are pre-existing reds. `[M]` its signature
   is unchanged by P3, which is the useful fact: **a `sha256` gate that MOVES
   during a carve that should not touch its path is a real signal.**
 * Costs `[M]`: the P3 blast-radius slice **24.5 s** (555 passed);
-  `tests/sn/solve + tests/numerics` **7 m 27 s** (2016 passed, the 3 known reds).
+  `tests/gates/sn/solve + tests/gates/numerics` **7 m 27 s** (2016 passed, the 3 known reds).
 
 ---
 
@@ -3577,7 +3577,7 @@ Two spellings of `γ₋ψ|_f = q_f`:
   recomputed from the reference OBJECT ⟹ catches everything in the L40f battery.
 
 The shipped channel-tier sibling
-(`tests/sn/verification/analytical/test_mms_prescribed_inflow.py`, assertion 3)
+(`tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py`, assertion 3)
 already uses ✅. **General: for any "the answer satisfies the declared condition"
 gate, name which side is under test. If the answer is "both", it is not a gate.**
 
@@ -3706,7 +3706,7 @@ point REBUILT the object you configured.**
 | G7 2-D layout ramp, plain `Mesh2D` + `placeholder_materials(ng=2)` | **0.67 s** (do NOT reach for the LD stress case) |
 | the 3 existing gate modules together | `29 passed, 1 deselected in 0.74 s` |
 | medium slice `tests/{transport,geometry,sn/operators} -m "not slow"` | **`3 failed, 2205 passed, 5 skipped, 9 xfailed in 42.57 s`** — RE-VERIFIED at `8d552395`, identical to the pre-P3 figure ⟹ P3 added no reds |
-| wide slice (campaign figure, not re-run) | `7 failed`, ≈17 m 35 s — run `tests/sn` WHOLE |
+| wide slice (campaign figure, not re-run) | `7 failed`, ≈17 m 35 s — run `tests/gates/sn` WHOLE |
 
 Labels: **no new one is needed.** `bc-single-delivery`
 (`foundations/boundary_conditions.rst:2037`) is literally `γ₋ψ|_f = q_f`
@@ -3726,8 +3726,8 @@ documented double delivery.
 `PairedDeck(motion)` beside `SelfPairedDeck(motion)` (7a), and
 `_specular_kernel` (keyed on `quadrature.reflection_index(axis)`) + the periodic
 `IdentityOperator() & IdentityOperator()` arm → one `_deck_kernel` keyed on the
-rigid motion (7b). Delivered `tests/geometry/test_paired_deck.py` (63 rows) and
-`tests/sn/operators/test_deck_kernel.py` (78 rows); spec
+rigid motion (7b). Delivered `tests/gates/geometry/test_paired_deck.py` (63 rows) and
+`tests/gates/sn/operators/test_deck_kernel.py` (78 rows); spec
 `scratch/step7_deck_uplift_verification_plan.md`. Both production halves landed
 DURING the dispatch (7a at `e13313a8`), so the plan is a POST-carve
 reconciliation with the gate matrix as the audit of record.
@@ -3880,9 +3880,9 @@ the identity) ⟹ `array_equal`; **≤ 1.11e-16** for the 90° rotation
 
 ### j. Measured costs
 
-`tests/geometry/test_paired_deck.py` 63 rows / 0.34 s;
-`tests/sn/operators/test_deck_kernel.py` 78 rows / 0.95 s; pyright 0.
-Slice `tests/geometry tests/sn/operators -m "not slow"`: **1921 passed /
+`tests/gates/geometry/test_paired_deck.py` 63 rows / 0.34 s;
+`tests/gates/sn/operators/test_deck_kernel.py` 78 rows / 0.95 s; pyright 0.
+Slice `tests/gates/geometry tests/gates/sn/operators -m "not slow"`: **1921 passed /
 15 failed / 28 s** — 3 pre-existing baseline reds + 12 from the main agent's
 in-flight `test_b3_domain_narrowing.py` edit; none mine.
 
@@ -4050,7 +4050,7 @@ and read the justifying sentence — not just the number in it.
 
 ### L42g — A pre-existing red must be characterised, not merely counted, or it masks the change's own reds.
 
-`[M]` baselining `tests/geometry/test_bc_equivalence_snapshot.py` found
+`[M]` baselining `tests/gates/geometry/test_bc_equivalence_snapshot.py` found
 `1 failed, 109 passed in 2.10 s`. The failure is
 `TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`
 — 8/60 elements, max abs diff `2.22e-16` (**1 ULP**). Critically it is the
@@ -4065,7 +4065,7 @@ re-baseline (that would hide an unrelated regression inside a legitimate one).
 
 ### L42h — Cost: measure the reachable subset; the directory estimate was useless.
 
-`[M]` the four fast gate files are **1.45 s** and **2.10 s**. `tests/numerics/`
+`[M]` the four fast gate files are **1.45 s** and **2.10 s**. `tests/gates/numerics/`
 as a WHOLE did not finish in 120 s. The battery's per-mutation slice is ~3 s,
 so an 11-mutation battery is under a minute — there is no reason to ration it.
 A directory-level estimate would have over-stated the relevant cost by
@@ -4218,7 +4218,7 @@ post-flip every admitted cylinder has ALL levels carrying (`[M]`
 `continue` fires every iteration and the branch — refusal included — is
 unreachable on every constructible mesh (L43d: a mixed rule cannot be built).
 
-Consequence for test design: `tests/sn/sweep/test_cyl_direct_seed_fold.py`
+Consequence for test design: `tests/gates/sn/sweep/test_cyl_direct_seed_fold.py`
 (6 `foundation` tests) does not need re-quadraturing, its SUBJECT is gone —
 4 retire with the fold, 2 (`cold_solve == matvec inverse` / `== SI fixed
 point`) are geometry-general and re-pose. Route the production-retirement
@@ -4550,7 +4550,7 @@ error. One-line move, fixed.
 
 ### L44l — Attributing an out-of-scope red: audit the DIFF for arithmetic, don't guess
 
-The wider run (`tests/numerics` + `tests/sn/solve`, `-m "not slow"`) came
+The wider run (`tests/gates/numerics` + `tests/gates/sn/solve`, `-m "not slow"`) came
 back `[M]` **3 failed, 2375 passed in 514.69s** — three golden-sha
 bit-identity rows in `test_affine_carve_bit_identity.py`. The cheap, rigorous
 attribution is **not** "run it before and after" (forbidden here — the tree
@@ -4753,8 +4753,8 @@ Deliverable file `scratch/n4_7_verification_plan.md` (659 lines).
 still on the old private name and ZERO cp/moc/diffusion sites; the second
 showed all eight sites in place and `_warn_if_unconverged` gone (grep rc=1).
 By 04:50 the SN TEST surface had migrated too
-(`tests/sn/solve/test_convergence_contract.py`, +61/−36). ⛔ **One of my first
-three measurements — a `tests/diffusion -W error` baseline reading
+(`tests/gates/sn/solve/test_convergence_contract.py`, +61/−36). ⛔ **One of my first
+three measurements — a `tests/gates/diffusion -W error` baseline reading
 `113 passed` — was taken PRE-carve and looked exactly like a post-carve
 baseline.** Only the bracketing (`grep -c` before AND after each run) made it
 attributable. Re-measured post-carve it is `113 passed` again, but that was
@@ -4821,9 +4821,9 @@ An entry-wrapping pytest plugin reading the PRODUCTION predicate
 (`result.record.fully_converged`) is the right instrument for "which tests
 will newly warn". Two ways it lied:
 
-1. ⛔ It reported **`0 entry calls` on `tests/diffusion`** — it wrapped only
+1. ⛔ It reported **`0 entry calls` on `tests/gates/diffusion`** — it wrapped only
    `orpheus.diffusion.solver.solve_diffusion_1d` while
-   `tests/diffusion/test_solver.py:34` imports from the **PACKAGE**
+   `tests/gates/diffusion/test_solver.py:34` imports from the **PACKAGE**
    (`from orpheus.diffusion import solve_diffusion_1d`). Fix: rebind every
    module in `sys.modules` whose attribute `is` the original object (6
    bindings, printed and asserted `>= 3` at configure time). A "0 found" from
@@ -4835,14 +4835,14 @@ will newly warn". Two ways it lied:
    there an introspecting TEST adapter inflated a battery; here an
    introspecting instrument breaks an introspecting REFERENCE.
 
-**Decoder cross-check that made the census trustworthy:** on `tests/moc` its
+**Decoder cross-check that made the census trustworthy:** on `tests/gates/moc` its
 DISTINCT node-id count is **24** and the `-W error` run is **24 failed**.
 
 ### f. The adjudication — 53 candidate reds, all INCIDENTAL, and the CP fix is free
 
 `[M]` under `-W error::orpheus.numerics.convergence.ConvergenceWarning`:
-`tests/diffusion` **113 passed** (zero), `tests/moc` **24 failed / 100 passed**
-(100 s), `tests/cp` (peierls ignored) **29 tests** by census,
+`tests/gates/diffusion` **113 passed** (zero), `tests/gates/moc` **24 failed / 100 passed**
+(100 s), `tests/gates/cp` (peierls ignored) **29 tests** by census,
 `test_family_convergence_contract.py` **5 failed**.
 
 - **CP: one cause — `CPParams.max_inner = 100` (production default) against
@@ -4898,10 +4898,10 @@ Dispatch 2026-08-11, branch `refactor/operator-strategy-layers`, PRE-numerics
 experiment. Ask: gate `orpheus/sn/sweep/pole_angular_closure.py` —
 `angular_cell_edges_per_level` (the one partition producer),
 `morel_montry_tau_per_level` (P2, BMC Eq. 43), the march-orientation sign, and
-half-angle-flux (ψ̂) positivity. Delivered: `tests/sn/sweep/test_angular_cell_partition.py`
-(NEW, 9 gates / 56 rows), `tests/sn/sweep/curvilinear/test_psi_half_positivity.py`
+half-angle-flux (ψ̂) positivity. Delivered: `tests/gates/sn/sweep/test_angular_cell_partition.py`
+(NEW, 9 gates / 56 rows), `tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py`
 (NEW, 4 gates / 19 rows), and a widen+re-derive of
-`tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py` (5 → 14 rows).
+`tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py` (5 → 14 rows).
 13-mutation battery over a 298-row scope, un-mutated control clean.
 
 ### a. ⭐⭐ THE HEADLINE — three committed τ properties, one symmetry group, and the error class inside it
@@ -5062,7 +5062,7 @@ chord) — exactly the semantics "one of the two conventions moved".
 ### i. Measured coverage delta (the deliverable's own acceptance number)
 
 Scope: 298 rows (this module + `test_tau_arc_wellposedness` +
-`test_march_start_structure` + `tests/sn/sweep/curvilinear/` +
+`test_march_start_structure` + `tests/gates/sn/sweep/curvilinear/` +
 `test_mms_ordering_blindness` + `test_cylindrical_quadrature_admission`, minus
 three files costing 244/70/53 s). Un-mutated: **298 passed, 0 failed, 25–34 s**.
 (The same scope WITH `slow` and the three heavy files is **24 m 53 s** —
@@ -5153,7 +5153,7 @@ all of them.
 
 ### L48b ⛔⛔ The graded FUNCTIONAL is a design choice with its own stabiliser — an INTEGRATED one can rank garbage above production
 
-Every gate in `tests/sn/verification/mms/` grades `‖φ_h − φ_exact‖`, and
+Every gate in `tests/gates/sn/verification/mms/` grades `‖φ_h − φ_exact‖`, and
 `φ = Σ_n w_n ψ_n`. `[M]` same solves, fixture `harmonics=(1,2,3)`,
 `σ_t=5`, `folded_product(4,64)`, `nx=320`, all `converged=True`:
 
@@ -5311,9 +5311,9 @@ Dispatch 2026-08-15, branch `refactor/track-b-remainder`. Task: promote
 `derivations/diagnostics/diag_344_reflective_box_loss_nullspace.py` (13 test
 functions, 24 cases, `[M]` **166.58 s**, reproduced) into `tests/`, where
 `pyproject.toml`'s `testpaths = ["tests"]` means it currently runs never.
-Shipped: `tests/sn/_singular_loss_box.py` (shared, NON-collected builders),
-`tests/sn/operators/test_loss_nullspace_reflective_box.py` (12 rows) and
-`tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py` (13 rows).
+Shipped: `tests/gates/sn/_singular_loss_box.py` (shared, NON-collected builders),
+`tests/gates/sn/operators/test_loss_nullspace_reflective_box.py` (12 rows) and
+`tests/gates/sn/solve/test_boundary_gs_is_a_coherent_splitting.py` (13 rows).
 `[M]` **25 passed in 64.69 s**, pyright 0, 13-arm battery.
 
 ### a. ⛔⛔ A "functional X is blind to `ker A`" gate built on a DENSE-SVD null basis is a TAUTOLOGY
@@ -5406,7 +5406,7 @@ it.
 
 ### g. Two documentation defects found in passing
 
-* `tests/sn/operators/test_loss_kernel_gauge.py`'s module-docstring SVD table
+* `tests/gates/sn/operators/test_loss_kernel_gauge.py`'s module-docstring SVD table
   records `mine`/`law` = `224 / 464 / 242` for `product(4,4)`, `product(8,8)`
   and `lebedev(11)`. `[M]` the true values are **0 / 16 / 18** — the columns
   recorded `T + R` where they claim `R`. The table contradicts its own prose
@@ -5431,7 +5431,7 @@ tracked artefact).
 ### a. ⛔⛔ THE HEADLINE — 94.8 % of the tests that execute an operator are invisible to `callers`
 
 `[M]` For `py:class:orpheus.numerics.operator.OperatorSum`, restricted to the
-`tests/numerics` slice that I traced under cProfile:
+`tests/gates/numerics` slice that I traced under cProfile:
 
 ```
 STATIC selection      : 13
@@ -5580,7 +5580,7 @@ ordering exists but is coarse (60 % ties).
 
 ### h. Runtime overlay — cost, and the `--source-prefix` trap
 
-`[M]` `tests/numerics`: baseline **331.21 s** (2344 passed) → cProfile
+`[M]` `tests/gates/numerics`: baseline **331.21 s** (2344 passed) → cProfile
 **529.97 s** = **1.60×**; `.prof` 2.49 MB; `runtime-ingest` **2.3 s**; sidecar
 1.47 MB. `runtime-edges`: `fired` 1643 edges (tests→orpheus 575),
 `dynamic_only` **3671** (tests→orpheus **1924**), `dead` 99.
@@ -5641,7 +5641,7 @@ are computed at collection time and are not in the AST at all.
 
 ### k. Side finding, unrelated to #358 but large
 
-`[M]` `runtime-hotspots --by ncalls` on the 331 s `tests/numerics` slice:
+`[M]` `runtime-hotspots --by ncalls` on the 331 s `tests/gates/numerics` slice:
 `RigidMotion.determinant` **55 753 738 calls**, `RigidMotion.__post_init__`
 **27 720 955**, `__matmul__` **27 305 170**, `close_group` **27 255 285**. The
 frozen dataclass's construction invariant re-runs 27.7 M times inside
@@ -5657,7 +5657,7 @@ affine/torsor flux algebra; flux lives in the positive cone K ⊂ V) on branch
 `refactor/cone-field-algebra`, HEAD `000cf144`. Deliverables: a value-neutrality
 harness, a ρ-trajectory capture gate implemented and green, a test-migration map, the
 new-algebra gates, and the cone-predicate spec. Plan:
-`scratch/cs3_verification_plan.md`; gate: `tests/numerics/test_si_diagnostic_trajectory.py`.
+`scratch/cs3_verification_plan.md`; gate: `tests/gates/numerics/test_si_diagnostic_trajectory.py`.
 
 ### L58a — the brief's relocation phrase was ambiguous, and the two readings are 4 orders apart
 
@@ -5724,10 +5724,10 @@ clothes.
 
 ### L58c — before minting a bit-identity instrument, grep for a WARNING you can escalate
 
-`tests/sn/solve/test_affine_carve_bit_identity.py` (the #208 carve's own gate, re-posed
+`tests/gates/sn/solve/test_affine_carve_bit_identity.py` (the #208 carve's own gate, re-posed
 at #333 from `sha256` onto stored `.npy` + a `DriftWarning` tripwire) is a
 `SAFETY × conv_tol = 1e-11` value wall by default — and `-W
-error::tests.sn.regression._regression_assert.DriftWarning` turns it into a **1-ULP
+error::tests.gates.sn.regression._regression_assert.DriftWarning` turns it into a **1-ULP
 bit-identity wall on three drivers** (2-D windowed SI, 2-D Krylov, 1-D slab SI).
 `[M]` 3 passed in **1.60 s**; positive control (a plugin advancing the FIRST element
 of every loaded baseline by one ULP, `raise`ing at `sessionfinish` if it perturbed
@@ -5785,7 +5785,7 @@ must not be touched).
 
 The brief said the cone predicate would be "exercised by DD's existing negative-flux
 witness (`TestPositivityFailure`)". `[M]` that test lives at
-`tests/sn/sweep/core/test_diamond.py:793-855` and asserts on
+`tests/gates/sn/sweep/core/test_diamond.py:793-855` and asserts on
 `strat.update(...).outgoing_spatial_flux` — a bare ndarray from a single CELL VISIT.
 There is no field, so an element predicate on a `Field` cannot be exercised by it
 without wrapping the number back up.
@@ -5902,7 +5902,7 @@ This is `vv` #17's multi-arm-guard trap, but the arm is unreachable because of t
 separately") produces a mutation with an empty red set and no obvious diagnosis.
 
 ⭐ The witness existed one line away, already in the tree, and only a grep for the
-FIELD (not for the arm) found it — `tests/homogeneous/test_homogeneous.py:415-417`
+FIELD (not for the arm) found it — `tests/gates/homogeneous/test_homogeneous.py:415-417`
 builds the only `eg`-bearing homogeneous mixture in the repository via
 `dataclasses.replace(base, eg=np.array([1.0e7, 1.0e3, 1.0e-3]))`.
 
@@ -5939,7 +5939,7 @@ the row asserts a capability the tree already had. It reads like coverage of the
 and is `vv` Mode 8's signature-tautological class wearing a type hint.
 
 ⟹ **The rule: a widen/narrow of a static type is gated by the type checker, never by
-a runtime row.** In this tree that is `tests/test_pyright_ratchet.py`; record the
+a runtime row.** In this tree that is `tests/gates/test_pyright_ratchet.py`; record the
 ratchet delta in the commit body. Say so explicitly in the plan, or the step ships with
 a green row and an uncovered change. Same family, measured in the same pass:
 `homogeneous/solver.py` keeping a leftover `basis_shape=(ng, 1)` after the derivation
@@ -5974,12 +5974,12 @@ The design record's §P ran 10 grounding items and closed all 10. Four call-site
 still slipped, and all four share a shape — **the pass checked the SITES it enumerated
 and not the CONSEQUENCES at those sites**:
 
-1. `tests/numerics/test_matrix_inverse_operator.py:206/:265` were classified "stays on
+1. `tests/gates/numerics/test_matrix_inverse_operator.py:206/:265` were classified "stays on
    the legal None path". `[M]` both call
    `MultiplicationOperator.from_mesh(…, mat_xs.mesh)` with the **degenerate carrier**,
    so they pick up the new default. They stay green (explicit `basis_shape` wins) but
    are no longer None-path witnesses — a later citation of them as such would be false.
-2. `tests/homogeneous/test_homogeneous.py:284-286/:359-365` were classified "mirror
+2. `tests/gates/homogeneous/test_homogeneous.py:284-286/:359-365` were classified "mirror
    tests — migrate to domain-derivation". `[M]` **half of each cannot**: both build `F`
    BARE, and no-default-derivation is RULED, so `F.domain is None` and `as_matrix()`
    raises. ⭐ And `:359-365` is `@verifies("resolvent-object-gate")`, written as the
@@ -6096,7 +6096,7 @@ round-trip is invisible to the reasoning and obvious to the probe.
 
 ### L60c ⛔ An attribute→property conversion kills every committed `hasattr(Class, …)` PREMISE — and the replacement witness is usually one grep away
 
-`[M]` `tests/test_docstring_xrefs.py:391` asserts
+`[M]` `tests/gates/test_docstring_xrefs.py:391` asserts
 `assert not hasattr(SNMesh, "mesh"), "premise: 'mesh' is per-instance"`, using
 `SNMesh.mesh` as the witness for the *unannotated instance attribute* resolution
 shape. Making `mesh` a forwarding property on the base makes
@@ -6197,8 +6197,8 @@ consumer and the pair IS the vv #17 proof.
 
 ### L60h ⭐ Sizing: measure the reachable subset, and let the excluded numbers justify themselves
 
-`[M]` `tests/numerics` whole = **329.66 s**; the four files this carve can reach
-= **2.72 s** (a 122× tax). `[M]` `tests/sn` whole ≈ **80 min** (extrapolated from
+`[M]` `tests/gates/numerics` whole = **329.66 s**; the four files this carve can reach
+= **2.72 s** (a 122× tax). `[M]` `tests/gates/sn` whole ≈ **80 min** (extrapolated from
 ~6 % in ~5 min, 3329 collected) ⟹ it belongs to the pre-merge ≥90-min gate under
 the campaign's BRANCH-HOLD ruling, never to a per-arm battery. The scope that
 remains — homogeneous + transport + diffusion + sn/{mesh,primitives,architecture}
@@ -6467,7 +6467,7 @@ see (b)) and MEASURED the witness table: disable each guard (`if <cond>:` →
 `if False:`), run a 548-row / 3.31 s attribution scope, count reds.
 
 `[M]` **7 arms redden NOTHING** over a **3936-row** denominator (14-path battery
-1436 + `tests/sn/operators` 1230 + `tests/sn/solve` 202 + a partial 1068-row
+1436 + `tests/gates/sn/operators` 1230 + `tests/gates/sn/solve` 202 + a partial 1068-row
 sweep/moc/cp leg): `diffusion/operators.py:603`, `sn/solver.py:3091`,
 `sn/solution.py:475`, `radial_characteristic.py:1176`, `windowing.py:114`,
 `boundary.py:715`, `streaming.py:1065`.
@@ -6514,7 +6514,7 @@ norm — which is why the change is invisible to a "does the solve still converg
 check.
 
 ⭐ **The gate that predicted it names the WRONG PHASE.**
-`tests/numerics/test_si_diagnostic_trajectory.py` (CS3) carries in its own
+`tests/gates/numerics/test_si_diagnostic_trajectory.py` (CS3) carries in its own
 docstring *"CS2 will legitimately RED this gate … CS2 owns re-deriving these
 frozen numbers"* and an `[M]` battery row `M2 Field.l2 → np.linalg.norm` = **5
 passed** (the declared blindness). F1-(A) makes the metric arrive at the FIELD
@@ -6829,7 +6829,7 @@ wrong reason:**
    curvilinear rows — P4.9a's Q1 ruling split the surfaces (`.solve` consumes
    `advance_psi_half` + the minted scan constants; `cell_contribution` is the
    MATVEC's arm). One surface = one route certified. (L49c, in a new dress.)
-2. ⛔ **The driver that re-poses.** `tests/sn/_test_helpers.sweep_once` builds
+2. ⛔ **The driver that re-poses.** `tests/gates/sn/_test_helpers.sweep_once` builds
    `StreamingOperator(sn_mesh)` **internally** at `:814`, i.e. AFTER the swap —
    so post-carve it would still read the mutant and the gate would stay red for
    a reason unrelated to the carve. Drive `(L + C).solve` on the operator the
@@ -6902,7 +6902,7 @@ claim.
 ### L64e ⭐ The M1 superset denominator, and its geometry PARTITION (the frozen corpus, 27 tests)
 
 `[M]` in-process, MRO-resolved, self-asserting plugin over
-`tests/sn/regression` + `test_affine_carve_baseline.py`:
+`tests/gates/sn/regression` + `test_affine_carve_baseline.py`:
 
 | arm | mutated ×1.05 | bound | wall | reds |
 |---|---|---:|---:|---:|
@@ -6961,7 +6961,7 @@ and `_coll_cache` is re-stamped by `SNSolver.rebind_cross_sections` — which is
 the ONLY reason a depletion/thermal rebind does not serve a stale σ
 (`_ensure_coll_cache` reads the memo and never validates σ).
 
-⛔ `tests/sn/sweep/core/test_cache.py:295-340` is the **only** witness of the
+⛔ `tests/gates/sn/sweep/core/test_cache.py:295-340` is the **only** witness of the
 two-stratum rebind contract and it asserts on `solver.geom_cache` /
 `solver.coll_cache` — the slots being retired, so it DIES (L61h's flavour).
 Its re-pose owes a THIRD leg that does not exist today ("the post-rebind answer
@@ -6993,9 +6993,9 @@ new coverage, not a migration.
   refusal, and Python's own arity error contains that same substring. Match the
   argument NAMES.
 * `[M]` scope costs at `10314dfa` (`-O -p no:randomly -q -m "not slow"`,
-  serial): the 40 ctor-site files **663 p / 56.2 s**; `tests/sn/operators`
-  **1240 p / 74.0 s**; `tests/sn/sweep` **911 p / 282.2 s**; `tests/transport`
-  **566 p / 22.3 s**; `tests/sn/{solve,regression,architecture}`
+  serial): the 40 ctor-site files **663 p / 56.2 s**; `tests/gates/sn/operators`
+  **1240 p / 74.0 s**; `tests/gates/sn/sweep` **911 p / 282.2 s**; `tests/gates/transport`
+  **566 p / 22.3 s**; `tests/gates/sn/{solve,regression,architecture}`
   **327 p / 311.9 s**. `dead_references` baseline **0 dead / 52 checked**.
 
 ---
@@ -7013,9 +7013,9 @@ edits throughout, making `git checkout` forbidden anyway).
 
 ### L65a ⛔⛔ The landed surface had ZERO genuine catchers — and the ONE red was a harness artefact
 
-Anchor set: `tests/numerics/{test_axis, test_space_of_axes, test_measure,
+Anchor set: `tests/gates/numerics/{test_axis, test_space_of_axes, test_measure,
 test_quadrature_directional, test_axis_marginal}.py` +
-`tests/sn/mesh/test_angular_bulk_space.py` = **184 passed / 1.31 s**.
+`tests/gates/sn/mesh/test_angular_bulk_space.py` = **184 passed / 1.31 s**.
 
 | mutation | reds |
 |---|---:|
@@ -7269,12 +7269,12 @@ The banked set (ground §G.4) is a class-NAME census. Two members it is
 structurally blind to (the P4.9b lesson, one campaign later):
 
 * **`_MutantMM(sn.reduced.angular, sn.reduced.redistribution_pairing)`**,
-  `tests/sn/operators/test_operator_feeds_the_walk.py:161` — a SUBCLASS
+  `tests/gates/sn/operators/test_operator_feeds_the_walk.py:161` — a SUBCLASS
   inheriting `__init__`. It is **the P4.9b keystone's mutant factory**, so
   missing it does not weaken a gate, it removes that gate from the run at
   COLLECTION.
 * **`AngularClosureBase.create("morel_montry_angular_sweep", angular=…,
-  pairing=…)`**, `tests/sn/sweep/curvilinear/test_angular_closure.py:129` — a
+  pairing=…)`**, `tests/gates/sn/sweep/curvilinear/test_angular_closure.py:129` — a
   keyword-forwarding registry call, which also makes the third parameter's
   NAME an API surface.
 
@@ -7332,7 +7332,7 @@ form survives as a wrong-mint catcher.
 `axis.generator.mu_x` is a pyright error at EVERY re-pointed read, and the G5
 refusal accessor should return a narrowed `Quadrature` — which makes G5
 load-bearing rather than decorative and forecloses the `# type: ignore` reflex
-(`coding-elegance` #19). ⚠ `tests/test_pyright_ratchet.py` gates BOTH
+(`coding-elegance` #19). ⚠ `tests/gates/test_pyright_ratchet.py` gates BOTH
 directions (an INCREASE and a DECREASE both red), so any legitimate movement is
 re-baselined in the same commit.
 
@@ -7366,10 +7366,10 @@ instrument.
 
 ### L66j — measured scope costs (serial, `-O`, `-m "not slow"`, `-p no:randomly`)
 
-`tests/sn/mesh` 166 / **2.2 s** · `tests/sn/primitives` 336 / **3.2 s** ·
-the numerics axis trio 82 / **1.9 s** · `tests/transport/spatial` 80 /
-**21.9 s** · `tests/sn/sweep/core` 474 / **60.4 s** · `tests/sn/operators`
-1255 / **71.2 s** · `tests/sn/sweep/curvilinear` 308 / **209.9 s** ⟹ union
+`tests/gates/sn/mesh` 166 / **2.2 s** · `tests/gates/sn/primitives` 336 / **3.2 s** ·
+the numerics axis trio 82 / **1.9 s** · `tests/gates/transport/spatial` 80 /
+**21.9 s** · `tests/gates/sn/sweep/core` 474 / **60.4 s** · `tests/gates/sn/operators`
+1255 / **71.2 s** · `tests/gates/sn/sweep/curvilinear` 308 / **209.9 s** ⟹ union
 **2701 / ≈ 371 s**. Baseline reconciliation: `[M]` `pytest tests/ -m "not slow"
 --collect-only` = **9988 / 10215, 227 deselected**, and 9896 + 22 + 70 = 9988,
 so the campaign's headline baseline IS a `-m "not slow"` run.
@@ -7521,7 +7521,7 @@ ruled shape.
 
 ### L67h — `condense`'s asymmetric morphism pair, and its activation precondition
 
-`[M]` on the shipped `tests/data/test_mixture_condense.py` 4g→2g fixture
+`[M]` on the shipped `tests/gates/data/test_mixture_condense.py` 4g→2g fixture
 (`_PHI = [1,4,2,0.5]`), against `dyad(FissionKernel.from_mixture(condensed))`:
 
 | morphism pair | max-rel |
@@ -7569,8 +7569,8 @@ dependency to three solver families is larger than its line count
 | scope | rows | wall |
 |---|---|---|
 | the 4 `_AdjointOperator` files + the ledger | 208 P + 14 xf | **0.71 s** |
-| `tests/transport/` + axis-generator + the 3 S suites | 712 P + 1 sk | **23.6 s** |
-| `tests/homogeneous/` + `tests/diffusion/` + mixture-condense | 204 P | **3.1 s** |
+| `tests/gates/transport/` + axis-generator + the 3 S suites | 712 P + 1 sk | **23.6 s** |
+| `tests/gates/homogeneous/` + `tests/gates/diffusion/` + mixture-condense | 204 P | **3.1 s** |
 
 `[M]` `--runxfail` over the ledger: all **14** strict-xfail rows red for their
 own documented reason (the `vv` Mode-8 FOURTH-class audit passes). ⚠ but the
@@ -7590,7 +7590,7 @@ makes — a FOLDED rule binds `MirrorEvenSphericalHarmonicBasis` (the σ-even
 sub-basis of the quotient), an unfolded one the plain `SphericalHarmonicBasis`.
 The defining mutation is the silent rebind `return SphericalHarmonicBasis(L=L)`.
 
-**Shipped.** `tests/sn/eigenvalue/test_keff_curvilinear.py`,
+**Shipped.** `tests/gates/sn/eigenvalue/test_keff_curvilinear.py`,
 `TestFoldedCylinderP1BindsTheQuotientBasis` (2 tests / 3 rows, `[M]` 18.16 s,
 3 passed at HEAD; pyright delta **0** — 21 errors at HEAD, 21 after).
 
@@ -7603,7 +7603,7 @@ The plan carried `[M] "deleting MirrorEvenSphericalHarmonicBasis outright reds
 
 1. **The IN-CLASS mutation reddens two committed gates already.** Rebinding to
    the parent basis via a `pytest_configure` monkeypatch:
-   `tests/sn/primitives/test_quadrature_fold.py` goes **14 passed → 2 failed,
+   `tests/gates/sn/primitives/test_quadrature_fold.py` goes **14 passed → 2 failed,
    12 passed**, the two being
    `TestFoldedHarmonics::test_flat_moments_are_the_isotropic_moment_alone` and
    `::test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux`. Census:
@@ -7611,12 +7611,12 @@ The plan carried `[M] "deleting MirrorEvenSphericalHarmonicBasis outright reds
    two harmonic-basis calls and both are catchers.
 2. **The DELETION mutation cannot produce a red at all.**
    `directional.py:83-87` imports the class at MODULE SCOPE, and
-   `tests/sn/primitives/conftest.py:7` reaches it transitively:
-   `conftest → tests.sn._test_helpers:30 → orpheus.transport:77 →
+   `tests/gates/sn/primitives/conftest.py:7` reaches it transitively:
+   `conftest → tests.gates.sn._test_helpers:30 → orpheus.transport:77 →
    transport.fields:49 → cross_section_field.py:68 → orpheus.numerics:37 →
    numerics.quadrature:71 → .directional:83 → ImportError`. Reproduced with a
    `sitecustomize` meta-path hook that strips the attribute before any import:
-   scoping to `tests/sn/primitives/` gives **rc=4, 0 collected, 0 `^FAILED`
+   scoping to `tests/gates/sn/primitives/` gives **rc=4, 0 collected, 0 `^FAILED`
    lines AND 0 `^ERROR` lines** — pytest aborts on the conftest.
 
 ⟹ **the rule, and it is one notch past `vv` Mode-8's third pipeline class.**
@@ -7734,8 +7734,8 @@ construction) gives **74** test files. But `[M]` production ALSO mints folded
 rules: `orpheus/derivations/continuous/mms/sn.py:2104` and `:3873`
 (`build_cylindrical_mms_case`, `build_cylindrical_anisotropic_mms_case` — "the
 case builders default to folded_product"), so filter 2 adds **6 indirect-only**
-files, one of them outside `tests/sn` and `tests/numerics` entirely
-(`tests/derivations/test_sn_mms_anisotropic_symbolic.py`). Union **80**.
+files, one of them outside `tests/gates/sn` and `tests/gates/numerics` entirely
+(`tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py`). Union **80**.
 Both filters carry an in-script positive control asserting a known member.
 ⟹ **a "who can reach this seam" census needs the PRODUCTION defaults, not just
 the test-side constructor grep** — the plan-authoring §2 FILTER clause, at the
@@ -7840,7 +7840,7 @@ ACCEPTS; (iii) the full-rank dense Legendre witness must come from a **non-Gauss
 measure — `[M]` equispaced `n = 8, L = 3`: offdiag `6.107e-01`, 0 dead slots, cond `21.0`.
 
 ⭐ And the elegant coincidence: that equispaced measure IS
-`tests/transport/frames/test_binding_tightness.py::_equispaced_frame`, the one existing
+`tests/gates/transport/frames/test_binding_tightness.py::_equispaced_frame`, the one existing
 fixture G0 would refuse (it declares `support = COSINE_INTERVAL`). Re-declaring its
 support as `SPHERE.quotient(SO2("x"))` makes it pass G0 **and** become the post-carve
 dense flagship — one edit, two problems.
@@ -7901,7 +7901,7 @@ group. `SPHERE.quotient(SO2(a))` is REFUSED with that theorem. The consequence:
 admits the Legendre basis on a σ_b-fold for `b ≠ a` (previously over-refused —
 `L69f`).
 
-**Deliverable.** 43 new tests across 5 files (`tests/numerics/test_symmetry.py` +23,
+**Deliverable.** 43 new tests across 5 files (`tests/gates/numerics/test_symmetry.py` +23,
 `test_manifold.py` +8, `test_frame.py` +5, `test_registry.py` +5,
 `test_legendre_basis.py` +2), a 17-arm in-process battery (`scratch/_p19_mut/`), and
 one present-tense-false docstring repaired.
@@ -7989,7 +7989,7 @@ read only the second as evidence about the claim.
 
 ### L70e ⭐ The two arms with ZERO pre-existing catchers are the report's headline — compute new-vs-pre-existing per arm, not a total
 
-`[M]` per-arm split over `tests/numerics + tests/transport` (3558 passed baseline,
+`[M]` per-arm split over `tests/gates/numerics + tests/gates/transport` (3558 passed baseline,
 17 arms, ~52 s each, every arm carrying a BITE assertion that printed its own defect):
 
 | arm | reds | of which NEW | pre-existing |
@@ -8107,7 +8107,7 @@ permutation where the identity is right — a silent wrong answer in a public ac
 on **2 of 3 axes**, invisible because the slab's own `S^2/O2_x` is the axis where the
 two spellings agree. The landed carve took the re-point route
 (`support.section_coordinates(nodes)`), so the hazard did not fire — and `[M]`
-`tests/numerics` is **2857 passed / 0 failed** with no gate added, i.e. reverting that
+`tests/gates/numerics` is **2857 passed / 0 failed** with no gate added, i.e. reverting that
 half would still be invisible. ⟹ a "retire this internal" ruling is a §6b question:
 enumerate the readers, and when the families agree on ONE parameter value, that value
 is the blind spot.
@@ -8171,7 +8171,7 @@ step 2.
 28 gates in 9 classes, the dim / identity_component / orbit_stabiliser tables,
 a 20-arm battery table, 5 open rulings), `scratch/_r1_gates_draft.py`
 (importable, `[M]` 28 passed / 10.46 s cold / 3.80 s warm, pyright 0 errors, 0
-top-level name collisions with `tests/numerics/test_symmetry.py`),
+top-level name collisions with `tests/gates/numerics/test_symmetry.py`),
 `scratch/_r1_test_migration.md`, `scratch/_r1_mut.py` + `_r1_battery.sh`.
 
 ### L72a — the carve LANDED mid-dispatch, and that inverted the deliverable's evidentiary status
@@ -8180,7 +8180,7 @@ The brief said "BEFORE the main agent implements it". `[M]` the file was
 already modified at first import (`dataclasses.is_dataclass(SubgroupOfO3)` True
 and `g._tag = 'X'` raising, while the source I had read 12 minutes earlier
 showed `__slots__` + a plain `__init__`). The hash moved **four** times during
-the dispatch; `tests/numerics/test_{symmetry,manifold,registry}.py`,
+the dispatch; `tests/gates/numerics/test_{symmetry,manifold,registry}.py`,
 `registry.py` and four `.rst` pages were migrated in parallel.
 
 ⟹ **Every gate became MEASURED rather than predicted**, and the §6b list became
@@ -8190,7 +8190,7 @@ copy before the first mutation, and `diff -q` after every battery batch (the
 battery is pure monkeypatch, so the only file changes were the main agent's —
 which `diff` then attributes correctly instead of alarming).
 
-⭐ The headline the collision produced for free: `[M]` `tests/numerics/` =
+⭐ The headline the collision produced for free: `[M]` `tests/gates/numerics/` =
 **3004 passed / 0 failed / 46.02 s** under the full carve — 13 helpers retired,
 `_NAMED_LATTICE` gone, `Cn(1) → Trivial`, `identity_component` corrected — and
 **nothing reds**. The migration is a quality obligation, not a red list.
@@ -8471,7 +8471,7 @@ contradicting `induced_permutation`, which has answered the identity since #429 
 nothing else in the tree states it, so it needs a gate of its own or it lands unrecorded.
 
 ⚠ And a quantified coverage note the census would have missed:
-`tests/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py`'s `_CUBATURES`
+`tests/gates/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py`'s `_CUBATURES`
 includes 2 folded rows. `[M]` the gate passes on 8 of 8 before AND after, but on those 2
 rows `|μ_y|max` collapses `8.688e-01 → 0.000e+00` and `9.082e-01 → 0.000e+00`, so its
 docstring's *"μ_y/μ_z must be held"* goes vacuous in y on 2 of 8 (`vv` #20). The remedy is
@@ -8574,7 +8574,7 @@ is the identity, so the axial arm cannot express the both-halves reversal at all
 
 `orbit_barycentres_passes_ambient_width_through` (the pre-carve pass-through
 restored) reddens **9 R4 rows and 0 of the 4588 others** — including the five
-`_embedded_nodes` consumers and every `tests/geometry` mirror gate.
+`_embedded_nodes` consumers and every `tests/gates/geometry` mirror gate.
 
 `vv`#17's red-set-by-IDENTITY clause would read that as *"the symbol has no
 consumer; its pins are a mirror"*. It has two consumers (`_act_through`,
@@ -8587,7 +8587,7 @@ PRE-CARVE consumer census, never by the red count.
 
 ### L73m — the battery's measured table (19 + 3 arms, 4597-row denominator)
 
-Scope `tests/numerics tests/geometry tests/transport` + the two SN
+Scope `tests/gates/numerics tests/gates/geometry tests/gates/transport` + the two SN
 `_embedded_nodes` consumers; `-m "not slow"`, serial, `python -O`.
 Baseline **4597 passed / 5 skipped / 1 xfailed / 0 failed in 51.9 s**; 22 arms
 ≈ 20 min. Pristine copies of the three carved modules taken before arm 1 and
@@ -8797,12 +8797,12 @@ capture.py,physics.py,predicate_laws.py,quadrants.py,census.py}` +
 **Terminal state.** 42 gate rows / 8 classes, 42 passed in 1.84 s, pyright 0.
 Battery **16 arms, 16 installed and BIT, 14 redden (32/22/16/13/8/8/7/6/6/4/4/2/1/1),
 2 DECLARED NULLS at exactly 0**, baseline 0, SHAs stable, pristine diff clean.
-Predicted count delta +42 (`tests/numerics` 3213 → 3255; tree 10965 → 11007).
+Predicted count delta +42 (`tests/gates/numerics` 3213 → 3255; tree 10965 → 11007).
 
 ### The tree moved THREE times during one dispatch
 
 06:04 the production carve; ~06:2x the test migration (15 reds → 0, and the R2
-baselines moved `scratch/` → `tests/numerics/data/`); ~07:0x the ELEGANCE pass,
+baselines moved `scratch/` → `tests/gates/numerics/data/`); ~07:0x the ELEGANCE pass,
 which re-signatured `is_subset_of_product` to KEYWORD-ONLY, delegated its two
 conjuncts to a new `Realization.is_subset_of_product`, and replaced
 `admits_domain`'s body with `self.domain_refusal(measure) is None` (a new
@@ -8928,9 +8928,9 @@ coverage of public API, not a mirror.
 `[M]` by a validated text census the WHOLE R3 API — `select_quadrature` 51,
 `GEOMETRY_ANGULAR_SYMMETRY` 45, `AngularSymmetry` 42, `admits_domain` 25,
 `admits_symmetry` 16, `domain_refusal` 8, `is_subset_of_product` 16 — has **ZERO**
-sites outside `orpheus/numerics/` + `tests/numerics/`. That table is what licenses
-scoping to `tests/numerics` (**3255 collected / ~26 s per arm**, 16 arms ≈ 7 min)
-and excluding `tests/sn` (~80 min, the pre-merge gate's business). An excluded
+sites outside `orpheus/numerics/` + `tests/gates/numerics/`. That table is what licenses
+scoping to `tests/gates/numerics` (**3255 collected / ~26 s per arm**, 16 arms ≈ 7 min)
+and excluding `tests/gates/sn` (~80 min, the pre-merge gate's business). An excluded
 directory with no number beside it reads as an oversight.
 
 ## L76 — #426, the (n,2n) anisotropy carve (plan + 5 drafts DELIVERED 2026-09-03, PRE-carve; branch `fix/n2n-anisotropy`, HEAD `72aa4a59` → `ef915e2d` mid-dispatch)
@@ -9002,7 +9002,7 @@ First layout of the ingest pin called `convert_gxs("BE009")` inside each paramet
 `[M]` **247.57 s** for 19 rows. `[M]` `convert_gxs("BE009")` = **17.80 s** (it builds all
 4 temperatures); `convert_gxs("U_235")` = **71.58 s**; the raw parse is 1.96 s / 5.42 s.
 Hoisted to one module fixture: **26.98 s**, same verdict. ⭐ And then the sharper move: the
-rows belong INSIDE `tests/data/test_n2n_yield_convention.py`, which `[M]` costs **38.43 s
+rows belong INSIDE `tests/gates/data/test_n2n_yield_convention.py`, which `[M]` costs **38.43 s
 for 10 rows** because it calls `convert_gxs` **twice**. Merged behind one fixture the file
 becomes ≈27 s for 29 rows — **the 19 new rows land at NEGATIVE marginal cost**. ⟹ **before
 minting a new test file, price the EXISTING file that already pays your fixture's cost**;
@@ -9167,7 +9167,7 @@ Companion anchor: Euclidean reciprocity `⟨Fψ,χ⟩ = ⟨ψ,Fᵀχ⟩` reads r
 ### L77d — ⛔ `-W error::DriftWarning` is NOT a bit-identity wall on this tree; 9 of 19 cases already drift
 
 `lessons L58c` recorded the escalation as a 1-ULP wall (measured then on a
-subset). `[M]` today over `tests/sn/regression` (19 collected, 59.9 s): plain run
+subset). `[M]` today over `tests/gates/sn/regression` (19 collected, 59.9 s): plain run
 **19 passed**; escalated **9 failed / 10 passed**, drifts 1–11 ULP
 (`slab_2g_homogeneous` 1 · `slab_2g_3reg` 1 · `sphere_2g_homogeneous` 2 ·
 `sphere_2g_3reg` 11 · `cyl_1g_folded_4x8` 1 · `cyl_1g_folded_2x4` 4 ·
@@ -9181,7 +9181,7 @@ today AND it is the windowed case (L77e), so it is the step's single best anchor
 ### L77e — ⭐⭐ The whole windowed non-endomorphism has a 0.55 s frozen witness, and the first spy that looked for it read ZERO
 
 `[M]` descriptor-protocol spy over
-`tests/sn/regression/test_dd_regression.py -k 2d_2g_p1_aniso` (1 passed, **0.55 s**):
+`tests/gates/sn/regression/test_dd_regression.py -k 2d_2g_p1_aniso` (1 passed, **0.55 s**):
 
 ```
 143  ScatteringOperator.apply  <- HarmonicMomentFlux  @ composite[24x2x8x4]
@@ -9235,7 +9235,7 @@ has no case to catch.
 
 ### L77h — ⭐ The one-level witness is a ROUTE claim with a 0-vs-5309 first red, and its value legs MUST stay green
 
-`[M]` spy over `tests/sn/solve/test_sn_adjoint_certification.py` (15 rows,
+`[M]` spy over `tests/gates/sn/solve/test_sn_adjoint_certification.py` (15 rows,
 56.7 s): `IsotropicScattering.apply_transpose` **5309**,
 `IsotropicN2N.apply_transpose` **5309**, `IsotropicFission.apply_transpose`
 **0** — D11 reproduced exactly. Both bypasses verified verbatim:
@@ -9258,8 +9258,8 @@ unchanged so the row is attributable.
 | **C** = transport + sn/architecture + diffusion + homogeneous + sn/operators | 2332 passed / 1 skip / 1 desel / **16 xf** | **92.75 s** |
 | **C+W** = C + sn/regression + 3 windowed files | 2381 / 1 / 1 / 16 xf | **153.77 s** |
 | **A** = `test_sn_adjoint_certification.py` (15 rows, 56.66 s) + the ERR-082 record (5 rows, 29.49 s) | 20 passed | **86.2 s** |
-| *excluded:* `tests/sn/solve` whole | 208 passed | **258.85 s** (2.8× C+W for 5 reachable rows; the windowed + gate-dispatch files extract at **2.85 s**) |
-| *excluded:* `tests/sn/eigenvalue` | 67 passed | **118.74 s** |
+| *excluded:* `tests/gates/sn/solve` whole | 208 passed | **258.85 s** (2.8× C+W for 5 reachable rows; the windowed + gate-dispatch files extract at **2.85 s**) |
+| *excluded:* `tests/gates/sn/eigenvalue` | 67 passed | **118.74 s** |
 
 Per-tree, `[M]`: transport **738** collected (737 + 1 skip), `sn/operators`
 **1283/1284**, `sn/solve` **208/210**, `sn/architecture` **163** (ledger 139 =
@@ -9315,9 +9315,9 @@ iteration and are unaffected (`[M]` the fixed-source cross-route agrees to 1.67e
 at BOTH orders) — which is exactly why every eigenvalue-value gate in the tree is
 structurally blind.
 
-**Deliverables.** `tests/sn/solve/test_eigenvalue_finalize_reconstruction.py`
+**Deliverables.** `tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py`
 (45 rows; `[M]` **10 failed / 35 passed / 44.9 s**, pyright 0), 28 pre-carve `.npy`
-anchors under `tests/sn/_data/finalize_reconstruction_448/`, the battery
+anchors under `tests/gates/sn/_data/finalize_reconstruction_448/`, the battery
 `scratch/_448_battery.{py,sh}` (11 arms, run), and `scratch/_448_verification_plan.md`.
 
 ### L78a — the claim layer that needs no reference: `φ = ∫ψ dΩ` is the DEFINITION
@@ -9369,7 +9369,7 @@ The spread is constant to 6 d.p. — a PURE global scale, the power iteration's
 normalisation reading a medium that emits without removing. The damage is not a
 wrong number: the **L = 0 CONTROL reds too**, so the gate attributes nothing and a
 reader concludes the defect bites at P0. The balanced spelling is the house one
-(`tests/cp/test_verification.py:181`, `tests/mc/test_gaps.py:742`:
+(`tests/gates/cp/test_verification.py:181`, `tests/gates/mc/test_gaps.py:742`:
 `sig_t = sig_c + sig_f + rowsum(sig_s) + rowsum(sig2)`). ⟹ **any manufactured cross
 section must be BALANCED into `Σ_t`, and an L = 0 control is the cheapest instrument
 that notices when it was not.** ⚠ `[M]` **every** `xs_library` mixture (A/B/C/D ×
@@ -9466,7 +9466,7 @@ a symbol grep flags it.
 ### L78 §R2 — POST-carve (2026-09-06; the carve landed uncommitted on `f75a9e59` as option B)
 
 Deliverables: the gate module **45 → 86 rows** (+`cart2d_gs` arm, +`TestTheReturnedTrace`,
-+`TestTheGaussSeidelArmPosesItsOwnSplitting`), **new** `tests/numerics/test_fixed_point_step.py`
++`TestTheGaussSeidelArmPosesItsOwnSplitting`), **new** `tests/gates/numerics/test_fixed_point_step.py`
 (8 rows, 0.29 s), 4 new post-carve anchors, the re-keyed battery `scratch/_448/battery_r2.{py,sh}`
 (12 arms). `[M]` **94 passed / 52.9 s**, pyright 0.
 
@@ -9771,7 +9771,7 @@ head and the ratio is `(2ℓ+1)²/(8π)`. The claim predates the #429 family spl
 
 ### L80c — the fork's whole movement was UNGATED, and the battery proved it in one arm
 
-`[M]` the tree's only SI-diagnostic pin (`tests/numerics/test_si_diagnostic_trajectory.py`)
+`[M]` the tree's only SI-diagnostic pin (`tests/gates/numerics/test_si_diagnostic_trajectory.py`)
 REFUSES a windowed fixture by construction (`:245-247`), and `apply_metric` is called
 **0** times on a moment space (vv#29 census; the only reader is `norm`, 6×/solve, via
 `solver.py:3823 ← iteration.py:801 ← field.py:379`, and it is DIAGNOSTICS ONLY — the stop
@@ -9837,7 +9837,7 @@ because the sibling item one commit earlier legitimately could not.*
 
 ### L80g — battery + harness notes
 
-* Arms and reds over 4501 rows (`tests/numerics tests/transport tests/sn/mesh` + the new
+* Arms and reds over 4501 rows (`tests/gates/numerics tests/gates/transport tests/gates/sn/mesh` + the new
   windowed pin, ≈ 48 s/arm): `none` 0 · `A1` head-measure-dropped 11 · `A2`
   head-measure-is-Parseval 55 · **`A3` frame-dressing-reverted 148** · `A4`
   axis-identity-drops-weights 18 · `A5` per-axis-metric-skips-an-axis 43 · **`B1` the
@@ -9876,14 +9876,14 @@ which `[M]` also changes the product's NAME (`spherical_harmonic_space ⊗ …#1
 Dispatch: design the verification plan for the coda BEFORE any production edit, and land
 pre-carve anchors. Tree `main` @ `3c50eb4d`, clean. Deliverables:
 `scratch/_step6/test_architect_verification_plan_coda.md`,
-`tests/homogeneous/test_coda_anchors.py` (**38 rows**, 36 p / 2 xf, 1.68 s, pyright 0),
-`tests/homogeneous/_fixtures/coda_precarve_operators.json`,
+`tests/gates/homogeneous/test_coda_anchors.py` (**38 rows**, 36 p / 2 xf, 1.68 s, pyright 0),
+`tests/gates/homogeneous/_fixtures/coda_precarve_operators.json`,
 `scratch/_step6/coda_mut.py` + `coda_battery.sh` (7 arms + HONEST).
 
 ### L81a — the anchor a carve needs may ALREADY be on disk; check before minting one
 
 The brief asked me to *"capture the D5 byte-stability oracle as a frozen record if it is not
-already one"*. `[M]` it already is: `tests/homogeneous/test_byte_stability.py` reads
+already one"*. `[M]` it already is: `tests/gates/homogeneous/test_byte_stability.py` reads
 `_fixtures/cs1_prewiring.json`, *"captured at 3a-HEAD (`24a991ba`, post-rename,
 PRE-wiring)"*, and the capture entry point and the gate share ONE payload helper. So the
 coda's end-to-end bit-identity wall PREDATES the campaign and the only instruction owed is
@@ -9987,10 +9987,10 @@ not a null, and the finding that produced L81g.
 
 ### L81i — scope costs `[M]` for this family (canonical flags, SERIAL)
 
-`tests/homogeneous` **50 rows / 2.49 s** (→ **88 / 2.64 s** with the anchors); the whole
+`tests/gates/homogeneous` **50 rows / 2.49 s** (→ **88 / 2.64 s** with the anchors); the whole
 §6b-reachable battery scope (homogeneous + 4 transport files + 2 numerics files +
-`tests/diffusion/test_augmented_mesh.py` + `tests/sn/architecture/test_monomorphic_leaves.py`)
-**415 p / 2 xf / 3.4 s**; `tests/transport` whole **24.2 s** (7× the scope for the 4 files the
+`tests/gates/diffusion/test_augmented_mesh.py` + `tests/gates/sn/architecture/test_monomorphic_leaves.py`)
+**415 p / 2 xf / 3.4 s**; `tests/gates/transport` whole **24.2 s** (7× the scope for the 4 files the
 carve reaches — EXCLUDED, with the number); wide
 (`homogeneous+transport+numerics+diffusion`) **4526 p / 3 s / 2 xf / 50.8 s**; the ROOT tree
 (`tests/ --ignore=<the 12 trees>`) **429 p / 5 xf / 39.5 s** (⚠ the plan's §25.2 records
@@ -10081,7 +10081,7 @@ entries**; simulated content `__eq__`/`__hash__` → **6 builds / 1 entry**.
 `face_area_total`, `delta_A_over_w`, `volume`, `is_degenerate` — no mesh, no
 closure, σ-free, so content sharing is CORRECT and re-keying the validation to
 the closure CLASS takes the count 2 → 1.
-Blind gates: `tests/sn/sweep/core/test_cache.py:303` counts
+Blind gates: `tests/gates/sn/sweep/core/test_cache.py:303` counts
 `CollisionCache._build_count` (Stratum 2); `:361-369` uses ONE mesh.
 
 ### L82i — the three-spellings measurement (the step's headline §6c witness)
@@ -10113,10 +10113,10 @@ sites no NAME-keyed census returns.
 
 ### Exit state
 
-Anchors: `tests/data/test_mixture_identity_anchors.py` (20 rows),
-`tests/sn/mesh/test_problem_identity_anchors.py` (37 rows) — `[M]` **19 passed /
-38 xfailed / 2.93 s**, pyright **0/0**. Scope gates `[M]` `tests/sn/mesh`
-**239 passed / 23 xfailed / 3.92 s**; `tests/data` **319 passed / 15 xfailed /
+Anchors: `tests/gates/data/test_mixture_identity_anchors.py` (20 rows),
+`tests/gates/sn/mesh/test_problem_identity_anchors.py` (37 rows) — `[M]` **19 passed /
+38 xfailed / 2.93 s**, pyright **0/0**. Scope gates `[M]` `tests/gates/sn/mesh`
+**239 passed / 23 xfailed / 3.92 s**; `tests/gates/data` **319 passed / 15 xfailed /
 31.56 s**. Eight open rulings O-1…O-8; O-2 (does `SNSolver` keep its kwarg?),
 O-3 (the intern key) and O-4 (freeze `Mixture`?) are blocking.
 
@@ -10128,8 +10128,8 @@ Dispatched on R-cc6 (`.claude/plans/cs4c_binding_design.md` §27.2): (i) split
 `WithinGroupSystem`; (ii) adopt the adjoint's posed `F` forward; (iii) the
 pencil onto the hub. `main` @ `b0fd3e7e`, tree clean at start AND at end (no
 carve landed mid-dispatch). Memo `scratch/_consumers/test_architect_step2.md`
-(1032 lines); anchors `tests/sn/architecture/test_step2_terminal_object_anchors.py`
-(14 rows) + `tests/sn/operators/test_step2_posed_fission_anchors.py` (18 rows) —
+(1032 lines); anchors `tests/gates/sn/architecture/test_step2_terminal_object_anchors.py`
+(14 rows) + `tests/gates/sn/operators/test_step2_posed_fission_anchors.py` (18 rows) —
 `[M]` **29 passed / 3 xfailed / 7.83 s**, pyright 0/0; battery
 `scratch/_consumers/probes2/{mut_step2.py,battery_step2.sh}` 10 arms.
 
@@ -10181,7 +10181,7 @@ the factors. Check a proposed partition on EVERY arm of the producer's branch.
 
 ### L83d — ⭐⭐ the §6c red-before ALREADY SHIPPED, and the carve DEMOTES it
 
-`[M]` `tests/sn/architecture/test_stage_separation.py::test_driver_consumes_the_records_own_splitting[cart2d-gauss_seidel]`
+`[M]` `tests/gates/sn/architecture/test_stage_separation.py::test_driver_consumes_the_records_own_splitting[cart2d-gauss_seidel]`
 is `xfail(strict=True)` (R7) and its module says *"the strict-xfail set IS the
 campaign's todo list"*. Sub-step (i) flips it — and makes it true BY
 CONSTRUCTION, because afterwards the driver consumes exactly the record the
@@ -10265,7 +10265,7 @@ migration; the negative tests belong in the same commit.
 
 ### L83k — the fixture facts, added to the ORPHEUS inventory
 
-* ⛔ **Every `tests/sn/architecture/_config` mesh is NON-FISSILE.** They are
+* ⛔ **Every `tests/gates/sn/architecture/_config` mesh is NON-FISSILE.** They are
   built from `_two_region_materials` (`anisotropic_mixture`), and `solve_sn`
   on one raises *"leakage scale bridge is degenerate: the last inner solve's
   flux carries non-positive fission production"*. Three of my own rows failed
@@ -10277,7 +10277,7 @@ migration; the negative tests belong in the same commit.
   #448's 32 anchors. A brief asking for "bit-identity of keff, scalar_flux AND
   angular_flux on the frozen fixtures" cannot be run on that corpus.
 * ⭐ **The DriftWarning delta table at `b0fd3e7e`** (re-measured, confirming
-  L77d that the escalation is a DELTA): `tests/sn/regression` = 19 passed /
+  L77d that the escalation is a DELTA): `tests/gates/sn/regression` = 19 passed /
   59.13 s plain, **9 failed / 10 passed** escalated. The nine, with their ULP:
   `2d_1g_LS4` k 3 · `2d_2g_LS4_het_si` φ 2 · `cyl_1g_2x4` k 4 · `cyl_1g_4x8`
   k 1 · `cyl_2g_4x8` k 2 · `slab_2g_3reg` k 1 · `slab_2g_homog` φ 1 ·
@@ -10397,7 +10397,7 @@ now a CLAIM owing a gate (`len(intern) == 1` after an N-σ sweep). Also `[M]` co
 hubs already share ONE entry today.
 
 ### L84h — the cache re-homing's ORDERING is already gated for free
-`[M]` `tests/sn/sweep/core/test_cache.py:303` pins `CollisionCache._build_count == 1` over a
+`[M]` `tests/gates/sn/sweep/core/test_cache.py:303` pins `CollisionCache._build_count == 1` over a
 ≥5-outer `solve_sn`. Moving the cache onto the `StreamingCollisionOperator` INSTANCE while
 `LC` is still built per OUTER gives `_build_count == n_outer` — `[M]` **4 / 4 / 5 / 3** by
 chart. ⟹ the plan's fusion of the re-homing with `hub.system` as a `cached_property` is forced,
@@ -10505,7 +10505,7 @@ Also `[M]`: the memo's stated instrument does not exist —
 `hasattr(StreamingCoefficientCache, "_build_count")` is **False**; `cache.py:441/
 :450/:515` are `CollisionCache`'s (classes at `:130` and `:398`). The only shipped
 geometry-build instrument is the `from_mesh_and_quad` spy in step 1's
-`tests/sn/mesh/test_problem_identity_anchors.py:445-463`.
+`tests/gates/sn/mesh/test_problem_identity_anchors.py:445-463`.
 
 Per-solve seam counts `[M]`: `sweep` **1098** (base → walk ⟹ 549 real sweeps),
 `_ensure_geom_cache` **549**, `_ensure_coll_cache` **549**, `_run` **549**.
@@ -10720,7 +10720,7 @@ projections) also reads materials.
 
 Brief: design the verification for step 3 (`.claude/plans/consumers_step3_design.md`) and
 deliver PRE-carve anchors. Delivered: `scratch/_consumers/step3/test_architect_step3.md`
-(392 lines), `tests/sn/architecture/test_step3_solution_anchors.py` (**31 rows — 23 passed /
+(392 lines), `tests/gates/sn/architecture/test_step3_solution_anchors.py` (**31 rows — 23 passed /
 8 strict-xfailed in 7.2 s**, pyright 0), and 8 probes under
 `scratch/_consumers/step3/probes/`. With the two step-2 anchor files: **50 passed / 8
 xfailed / 12.86 s**.
@@ -10840,10 +10840,10 @@ resolved by type). `[M]` a text census of `\.keff\b` over `tests/` finds **67 fi
 `test_fission_kernel_crosscheck.py:364` — correctly excluded), **1** my own new anchor file,
 and **2 genuine misses**:
 
-* `tests/sn/regression/test_dd_regression.py:150` — `result.keff`, where the producer
+* `tests/gates/sn/regression/test_dd_regression.py:150` — `result.keff`, where the producer
   `run_case(cfg: dict)` (`_generate_snapshots.py:646`) carries **no return annotation**.
   This is the **loader for the 12 `.npz` eigen pins.**
-* `tests/sn/solve/test_sn_adjoint_certification.py:143/145` — `_k(sol)`, an untyped
+* `tests/gates/sn/solve/test_sn_adjoint_certification.py:143/145` — `_k(sol)`, an untyped
   parameter (the landing memo names it; the census does not).
 
 ⟹ the 2026-09-13 plan-authoring surprise, one tier out: *a field-read census keys on the

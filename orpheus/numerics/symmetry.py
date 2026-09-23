@@ -1610,9 +1610,9 @@ def _vertical_mirrors(n: int) -> list[RigidMotion]:
     determinant, closure and group order are all preserved by a rotated
     mirror set, so none of those checks can see it. Two gates can, by
     different mechanisms: the plane-placement gate in
-    ``tests/numerics/test_symmetry.py`` compares the placement against
+    ``tests/gates/numerics/test_symmetry.py`` compares the placement against
     the setting, and the mirror-accuracy gate in
-    ``tests/numerics/test_symmetry_exactness.py`` sees it as a RESIDUAL
+    ``tests/gates/numerics/test_symmetry_exactness.py`` sees it as a RESIDUAL
     — rotating the planes takes the mirrors off the odd-``n`` rule
     entirely, so the landing blows up from ``2.5e-16`` to ``1.97e-01``.
     `[M]` that second gate reds on odd ``n`` and stays green on even

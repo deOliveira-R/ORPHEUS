@@ -71,7 +71,7 @@ second open item of :ref:`bc-extraction-operator-output-o2`: it makes
    block-diagonal G-fold op.H = G⁻¹AᵀG, both checked at landing against a
    structurally-independent dense-transpose-plus-explicit-diagonal-G
    oracle (the probe diag_p42_adjoint_oracle.py, not preserved in git;
-   the standing gate is tests/sn/operators/test_g_adjoint_reciprocity.py)
+   the standing gate is tests/gates/sn/operators/test_g_adjoint_reciprocity.py)
    — NOT a code-to-code comparison against another ORPHEUS adjoint path. This
    is the algebra-of-record ground for the equation.
 .. vv-status: g-adjoint-definition documented
@@ -165,7 +165,7 @@ the reciprocity (turn-over) identity
 
 .. (vv-status rationale) The DEFINING adjoint reciprocity
    ⟨Aψ,φ⟩_G = ⟨ψ,A†φ⟩_G. Pinned by the foundation-tagged
-   tests/sn/operators/test_g_adjoint_reciprocity.py, which by design
+   tests/gates/sn/operators/test_g_adjoint_reciprocity.py, which by design
    carries no verifies() (an algebraic identity over the operator-algebra
    ground truth, anchored to the structurally-independent dense-transpose-
    plus-explicit-diagonal-G oracle), matching the sentineled
@@ -670,7 +670,7 @@ Numerical evidence
 
 The defining ground is the dense-probe oracle
 ``validate_composite_adjoint``
-(committed in ``tests/sn/operators/test_g_adjoint_reciprocity.py``). It is
+(committed in ``tests/gates/sn/operators/test_g_adjoint_reciprocity.py``). It is
 **structurally independent** of the production path: it assembles the
 operator's dense matrix by probing :math:`op.\text{apply}` on unit
 vectors, builds the diagonal metric :math:`G` **explicitly** from
@@ -745,7 +745,7 @@ why the L11 test gates on slab and sphere specifically.)
 
 These results are pinned by two foundation-tagged test files:
 
-* ``tests/sn/operators/test_g_adjoint_reciprocity.py`` —
+* ``tests/gates/sn/operators/test_g_adjoint_reciprocity.py`` —
   the G-adjoint reciprocity on slab / sphere / cylinder / slab-2g /
   sphere-2g (5), a metric-population cross-check that
   ``op.codomain.inner_product`` matches an independent reference built
@@ -753,7 +753,7 @@ These results are pinned by two foundation-tagged test files:
   wrong-metric control on slab / sphere (2). The reciprocity inner
   products are evaluated with an **independent** Gram fold so a wrong
   *metric* cannot mask a wrong *adjoint*.
-* ``tests/numerics/test_full_field_space.py`` — pins the
+* ``tests/gates/numerics/test_full_field_space.py`` — pins the
   :class:`FullFieldSpace` identity semantics (flat direct-sum ``shape``,
   ``(name, shape)``-only identity with ``compare=False`` block
   metadata — the composite carries no ``axes``, so the 2026-09-07

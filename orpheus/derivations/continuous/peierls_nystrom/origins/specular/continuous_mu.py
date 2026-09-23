@@ -105,7 +105,7 @@ Output
 
 Each ``derive_*`` function returns a dict with the SymPy expressions
 and a ``pass`` flag for the corresponding verification. The pytest
-gate in ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``
+gate in ``tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py``
 asserts the four dicts are pass-True and bit-checks the load-bearing
 identities (V1, V2, V3 gating; V4 documentary).
 

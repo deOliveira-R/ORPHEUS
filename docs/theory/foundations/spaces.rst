@@ -339,10 +339,10 @@ that sentence alone, and both are what
    measures, applied factor-by-factor and never materialized). Not a
    solver claim — no flux, no eigenvalue, no discretization error. The
    verifiable content is the CS1 foundation battery
-   (``tests/numerics/test_space_of_axes.py``: shape concatenation, the
+   (``tests/gates/numerics/test_space_of_axes.py``: shape concatenation, the
    per-axis metric against an independently-built dense reference, the
    no-densification proof, and the derived name's determinism across
-   processes) plus ``tests/numerics/test_axis.py`` for the factor laws.
+   processes) plus ``tests/gates/numerics/test_axis.py`` for the factor laws.
 .. vv-status: spaces-axis-product documented
 
 where :math:`\frown` is tuple concatenation and :math:`w_a` is axis
@@ -432,7 +432,7 @@ reach.
    *evaluations* per windowed solve falls from `[M]`
    :math:`2\cdot\texttt{max\_inner} + 6` to a constant in the iteration
    budget (gated in
-   ``tests/sn/mesh/test_hub_owns_the_moment_space.py``).
+   ``tests/gates/sn/mesh/test_hub_owns_the_moment_space.py``).
 
    ⛔ **The count is now TWO, not four (2026-09-08, CS4c step 6 item
    6.2c-iii).** The two TAIL products are gone: a widened space no
@@ -700,7 +700,7 @@ an axis-built space with a MODAL factor. ⚠ Scope: that measures the
 *occupant*, not the *firing* — whether any consumer asks
 ``has_coordinate_cone`` of that space is a separate census this page
 does not carry. The named test witness stands either way
-(``tests/numerics/test_field.py``, gates E1/E2 — the refusal and the
+(``tests/gates/numerics/test_field.py``, gates E1/E2 — the refusal and the
 same values answered on an all-nodal space, the positive-and-negative
 pair ``vv-principles`` anti-pattern #11 requires).
 
@@ -1006,7 +1006,7 @@ measure it presents,
    the NODAL kind implied by the generator's TYPE. Not a solver claim —
    no flux, no eigenvalue, no discretization error. The verifiable
    content is the CS5 foundation battery
-   (``tests/numerics/test_axis_generator.py`` G3, the mint-fidelity
+   (``tests/gates/numerics/test_axis_generator.py`` G3, the mint-fidelity
    roster over all five shipped ``Quadrature`` factories, comparing the
    minted axis's label/shape/kind/weight BYTES against the literal
    construction it replaced).
@@ -1056,10 +1056,10 @@ reads it back. The two compose to identities in both directions:
    recorded generator reproduces the axis (``a.generator.axis(a.label)
    == a``, a structural-equality check). Not a solver claim — no flux,
    no eigenvalue, no discretization error. The verifiable content is the
-   CS5 foundation battery: ``tests/numerics/test_axis_generator.py``
+   CS5 foundation battery: ``tests/gates/numerics/test_axis_generator.py``
    G8 (``TestG8TheMintIsASectionOfTheForgetfulMap``, the angular roster
    plus the NODAL-measure leg) and the spatial leg beside G6a in
-   ``tests/numerics/test_space_of_axes.py``.
+   ``tests/gates/numerics/test_space_of_axes.py``.
 .. vv-status: spaces-axis-generator-section documented
 
 The right-hand law is the operational one and it is gated by name:
@@ -1283,7 +1283,7 @@ the simulation is four lines and needs no mutation of production code:
    hash(b1)      # TypeError: unhashable type: 'numpy.ndarray'
 
 The gate that carries this is
-``tests/numerics/test_axis_generator.py``
+``tests/gates/numerics/test_axis_generator.py``
 ``::TestG1GeneratorIsProvenanceNotIdentity``: ``G1a`` / ``G1b`` pin the
 ruling (an axis re-weighted through one generator equals the same
 weights minted through another), and ``G1c`` — re-posed in the same
@@ -1749,7 +1749,7 @@ why the gate module is part of the same change.
      - Gate
      - What a mutation does to it
    * - provenance is not identity
-     - ``tests/numerics/test_axis_generator.py``
+     - ``tests/gates/numerics/test_axis_generator.py``
        ``::TestG1GeneratorIsProvenanceNotIdentity``
      - ``G1a`` / ``G1b`` pin the RULING: an axis re-weighted through one
        generator equals the same weights minted through another, so
@@ -1763,13 +1763,13 @@ why the gate module is part of the same change.
        case and a future "tidy the field into the key" is refuted by
        ``G1a``/``G1b``, not by a traceback.
    * - the digest is blind to provenance
-     - ``tests/numerics/test_space_of_axes.py``
+     - ``tests/gates/numerics/test_space_of_axes.py``
        ``::test_of_axes_name_is_BLIND_to_the_generator``
      - the same inclusion moves the derived space name; the gate is
        stated at the tier where the damage would occur
        (:ref:`spaces-identity-bridge`).
    * - the mint reproduces the literal
-     - ``tests/numerics/test_axis_generator.py``
+     - ``tests/gates/numerics/test_axis_generator.py``
        ``::TestG3MintFidelity``
      - minting ``MODAL``, or dropping the ``replace`` upgrade so the
        generator stays the bare measure, both red. Honest scope: the
@@ -1777,7 +1777,7 @@ why the gate module is part of the same change.
        ``measure.weights``); what this pins is the THREADING and the
        surviving canonicalization.
    * - the four names answer through the space
-     - ``tests/numerics/test_axis_generator.py``
+     - ``tests/gates/numerics/test_axis_generator.py``
        ``::TestG4TheFourNamesAnswerThroughTheSpace``
      - parametrized over **all five** ``Quadrature`` classmethod
        factories — ``gauss_legendre``, ``level_symmetric``, ``product``,
@@ -1798,22 +1798,22 @@ why the gate module is part of the same change.
        ``level_indices``, and if one starts to, this design must be
        re-ruled.
    * - the mint is a section
-     - ``tests/numerics/test_axis_generator.py``
+     - ``tests/gates/numerics/test_axis_generator.py``
        ``::TestG8TheMintIsASectionOfTheForgetfulMap``
      - minting at a shape other than ``(generator.n_points,)``, or
        hand-passing a generator that did not produce the axis, reds it.
    * - the spatial chain, anchored independently
-     - ``tests/numerics/test_space_of_axes.py``
+     - ``tests/gates/numerics/test_space_of_axes.py``
        ``::test_the_spatial_axis_is_minted_through_the_carriers_own_measure``
      - its volumes and cell centres are HAND-DERIVED from the edge
        list, not read back from the mesh — the one structurally
        independent pin in the mesh → measure → axis chain.
    * - the rank-:math:`d` seam
-     - ``tests/numerics/test_space_of_axes.py``
+     - ``tests/gates/numerics/test_space_of_axes.py``
        ``::test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT``
      - the contract row; inverting it is a deliberate CS2 act.
    * - the widened Protocol
-     - ``tests/sn/angular/test_redistribution.py``
+     - ``tests/gates/sn/angular/test_redistribution.py``
        ``::TestG9TheProtocolDeclaresWhatItsConsumersRead``
      - removing the ``level_structure`` declaration reds the first
        assertion. `[M]` nothing else in the tree observes the
@@ -1833,7 +1833,7 @@ reading of one says nothing about the other.
      - Gate
      - What a mutation does to it
    * - the narrow is the ONE refusal home
-     - ``tests/numerics/test_axis_generator.py``
+     - ``tests/gates/numerics/test_axis_generator.py``
        ``::TestG5GeneratorAsIsTheOneRefusalHome``
      - the Axis-tier rows: positive first (the narrow returns the
        generator itself), then generator-less and **wrong-kind**
@@ -1848,16 +1848,16 @@ reading of one says nothing about the other.
        generator-less axis travels (the homogeneous pose, the energy
        family).
    * - the refusal names both parties
-     - ``tests/sn/mesh/test_reduced_operator.py``
+     - ``tests/gates/sn/mesh/test_reduced_operator.py``
        ``::…::test_a_generator_less_axis_refuses_naming_streaming_terms``;
-       ``tests/sn/sweep/curvilinear/test_angular_closure.py``
+       ``tests/gates/sn/sweep/curvilinear/test_angular_closure.py``
        ``::…::test_G5_a_generator_less_axis_refuses_naming_the_closure``
      - three-fragment match per consumer — the axis label, the
        consumer's own name, and the ``"minted through"`` remedy. A
        generic message keeps a *wrong* reason true, so each fragment is
        pinned separately rather than as one regex.
    * - the courier is dead, structurally
-     - ``tests/sn/mesh/test_reduced_operator.py``
+     - ``tests/gates/sn/mesh/test_reduced_operator.py``
        ``::…::test_the_courier_is_dead_by_field_set``
      - ``dataclasses.fields`` equality — never ``hasattr``, which a
        defaulted field or a ``getattr`` fallback would still answer —
@@ -1866,7 +1866,7 @@ reading of one says nothing about the other.
        factor, a consumer that still wants the quadrature has exactly
        one place to get it.
    * - the two mints agree
-     - ``tests/sn/mesh/test_reduced_operator.py``
+     - ``tests/gates/sn/mesh/test_reduced_operator.py``
        ``::…::test_the_two_mints_agree_on_the_1d_arm`` /
        ``…_on_the_d2_cartesian_arm``
      - the only gate that reds on a wrong **label** at either mint site,
@@ -1876,7 +1876,7 @@ reading of one says nothing about the other.
        typo away from a label twin until the default killed the
        spelling. ``==``, never ``is`` (the mint is fresh per call).
    * - **KEYSTONE** — the packet reads through the axis
-     - ``tests/sn/mesh/test_reduced_operator.py``
+     - ``tests/gates/sn/mesh/test_reduced_operator.py``
        ``::…::test_K1_the_packet_reads_THROUGH_the_axis`` (per chart)
      - four legs, because a route gate's own precondition must be
        gated too: an anti-dud **control** (the axis-built operator
@@ -1887,14 +1887,14 @@ reading of one says nothing about the other.
        angular factor was *not* reached. `[M]` 4 / 4 slab, 4 / 4
        sphere, 8 / 12 cylinder packets moved.
    * - the index read is a SEPARATE route
-     - ``tests/sn/mesh/test_reduced_operator.py``
+     - ``tests/gates/sn/mesh/test_reduced_operator.py``
        ``::…::test_K2_the_cylinder_index_read_is_a_separate_route``
      - the level-roll decoy leaves ``mu_x`` untouched, so it isolates
        the ``level_indices`` read from the cosine read — without it a
        half-re-pointed producer is indistinguishable from a complete
        one (``vv-principles`` #17's per-arm discipline). `[M]` 4 / 12.
    * - the closure mint reads through the axis
-     - ``tests/sn/sweep/curvilinear/test_angular_closure.py``
+     - ``tests/gates/sn/sweep/curvilinear/test_angular_closure.py``
        ``::TestP4RemTheClosureMintReadsThroughTheAxis``
      - three decoys for three reads: nodes (:math:`\tau` and
        :math:`\mu_x` move), weights (:math:`\Delta A/w` moves — its own
@@ -2256,7 +2256,7 @@ the restructuring is not cosmetic. Before P7 the check sat *behind* an
 with no possible witness (``vv-principles`` #17's granularity trap, in
 its purest form: the guard would have been mutated as a unit and
 certified by whichever arm the suite happened to reach). Each arm now
-carries its own gate in ``tests/numerics/test_space_of_axes.py``.
+carries its own gate in ``tests/gates/numerics/test_space_of_axes.py``.
 
 .. warning::
 
@@ -2393,11 +2393,11 @@ moments under :math:`G^{+}` and using the first Penrose identity
    no discretization error — the metric-object layer's statement of a
    claim the frame page owns in the frame register. The verifiable
    content is the DenseMetric law battery
-   (``tests/numerics/test_dense_metric.py``, hand-derived literals in
+   (``tests/gates/numerics/test_dense_metric.py``, hand-derived literals in
    exact binary fractions plus the range-projector leg) and, on the
    frame side, the four-mechanism dressing gate, the isometry gate's
    slab row, and the wrong-metric discriminator
-   (``tests/numerics/test_frame.py``).
+   (``tests/gates/numerics/test_frame.py``).
 .. vv-status: spaces-pseudo-inverse-parseval documented
 
 .. no-implementation:: spaces-pseudo-inverse-parseval
@@ -2494,7 +2494,7 @@ ORPHEUS's choice and not Lee's:
    RieszRaiseOperator.apply to FunctionSpace.apply_inverse_metric), plus
    the arrow bookkeeping. Not a solver claim: no flux, no eigenvalue, no
    discretization error. Wired, L0, to the test a mutation of the
-   lowering leg reddens: tests/numerics/test_riesz_legs.py
+   lowering leg reddens: tests/gates/numerics/test_riesz_legs.py
    ::test_lowering_realizes_the_metric_pairing (G-H2, the defining
    pairing <flat x, y>_Euclid == <x, y>_G against a hand-spelled weight
    array, bitwise). The raising half's Moore-Penrose behaviour is pinned
@@ -2585,7 +2585,7 @@ legs then does not return the identity. From the third and fourth Penrose condit
    G (Penrose conditions 1, 2 and 4). Case 1 of the vv-status-documented
    taxonomy: a declared no-implementation identity (below), since no
    production code forms ♯∘♭. Its measurement is
-   tests/numerics/test_riesz_legs.py G-H1: identity on a strictly
+   tests/gates/numerics/test_riesz_legs.py G-H1: identity on a strictly
    positive metric (the positivity precondition asserted), the
    kernel-zeroing projector on a singular diagonal one, and non-finite
    values refused. [M] 2026-09-22 a 1/G raising leg reddens exactly the
@@ -2668,7 +2668,7 @@ pseudo-inverse and reading the product right to left gives three arrows:
    g-adjoint-definition, one quantity in two spellings (X4), not a
    second definition. Not a solver claim. Wired, L0, to the two tests a
    mutation of either leg reddens, both in
-   tests/numerics/test_riesz_legs.py (G-A1):
+   tests/gates/numerics/test_riesz_legs.py (G-A1):
    ::test_adjoint_apply_is_bit_identical_to_the_inline_formula (the
    composition bit-identical to G_V⁺ Aᵀ(G_W y)) and
    ::test_adjoint_transpose_is_the_leg_theorem ((A*)ᵀ = ♭_W A ♯_V
@@ -2676,7 +2676,7 @@ pseudo-inverse and reading the product right to left gives three arrows:
    leg). G-H3 (counting spies proving the composite ROUTES through the
    legs) and the dagger-dual square stay green under a leg mutation and
    carry no marker. The per-leg mutation battery
-   tests/sn/architecture/test_monomorphic_leaves.py
+   tests/gates/sn/architecture/test_monomorphic_leaves.py
    ::test_each_riesz_leg_is_individually_load_bearing exercises the same
    legs on the SN leaves.
 
@@ -2783,7 +2783,7 @@ break the identity, because the codomain metric gives those rows zero
 weight: that every output of the loss is zero on the tangential rows is
 true (:ref:`g-adjoint`, Key Facts), but it is not the reason for the
 exactness. Two gates in
-``tests/sn/operators/test_g_adjoint_reciprocity.py`` pin it on the same
+``tests/gates/sn/operators/test_g_adjoint_reciprocity.py`` pin it on the same
 ``product(4, 4)`` box (with mixtures of their own), under vacuum and
 reflective boundaries. The
 claim-level gate is the two ``cart2d_product44`` rows of
@@ -3242,7 +3242,7 @@ the metric ARRAY with the other spelling as its negative control
 (``vv-principles`` #19). Since 6.2c-ii the metric IS the identity on
 these spaces, so ``==`` is the discriminating instrument — which is what
 lets the hub/frame agreement gate assert ``==`` and mean it
-(``tests/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``). ⭐
+(``tests/gates/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``). ⭐
 The transferable half: *whether a* ``==`` *gate is blind or
 discriminating is a property of the identity relation, not of the gate* —
 so a re-typing that moves a field into the identity silently upgrades
@@ -4022,7 +4022,7 @@ that forgets the axis:
    measure contracted over the axis's ndarray dims). Not a solver claim
    — no flux, no eigenvalue, no discretization error. The verifiable
    content is the CS4b S6 foundation battery
-   (``tests/numerics/test_axis_marginal.py``): the tightness row pins
+   (``tests/gates/numerics/test_axis_marginal.py``): the tightness row pins
    this contraction against the mint frame's own analysis content, and
    G6.5 pins it bit-identically against a hand-spelled einsum on the
    real S\ :sub:`N` carrier.
@@ -4060,7 +4060,7 @@ the product metric the axis weights **cancel exactly**:
    integration is the UNWEIGHTED broadcast. Representational, not a
    solver claim (no physics enters; it is true for every axis measure).
    The verifiable content is the CS4b S6 foundation battery's G6.3 row
-   in ``tests/numerics/test_axis_marginal.py``, which pins the
+   in ``tests/gates/numerics/test_axis_marginal.py``, which pins the
    adjunction on the physical metrics and carries the vv #19 NEGATIVE
    leg (the same pairing under a deliberately stripped spatial measure
    must break at O(1)).
@@ -4078,7 +4078,7 @@ the product metric the axis weights **cancel exactly**:
    :math:`\Sigma w`. No line forms the comparison — that is the point:
    the cancellation is what lets the adjoint be free rather than
    bespoke. It is *measured* by the G6.4 row of
-   ``tests/numerics/test_axis_marginal.py``.
+   ``tests/gates/numerics/test_axis_marginal.py``.
 
 where :math:`\pi^{*}` is the **pullback** — the plain, unweighted
 broadcast of :math:`\varphi` across the axis. So
@@ -4118,7 +4118,7 @@ total mass. That division is the second arrow:
    total mass, then broadcast) and identifies it as the Moore-Penrose
    pseudo-inverse of the retraction in the two spaces' own metrics. Not
    a solver claim. The verifiable content is the CS4b S6 foundation
-   battery in ``tests/numerics/test_axis_marginal.py``: G6.1 (the
+   battery in ``tests/gates/numerics/test_axis_marginal.py``: G6.1 (the
    section law), G6.2 (idempotence of the composite projector), G6.6
    (bit-identity with the shipped isotropic-source kernel on the real
    S\ :sub:`N` carrier) and the gram-derivation row that pins the
@@ -4327,7 +4327,7 @@ axis's total mass:
    INVERSE discrete Gram), specialized to a single-region indicator
    basis where the Gram is 1x1 and its entry is the measure's total
    mass. Not a solver claim. The verifiable content is the
-   gram-derivation row of ``tests/numerics/test_axis_marginal.py``,
+   gram-derivation row of ``tests/gates/numerics/test_axis_marginal.py``,
    which asserts the section's divisor IS the literal frame's
    ``discrete_gram[0, 0]``, and the tightness row, which pins the
    minted kernels against that frame's own face contents.
@@ -4789,7 +4789,7 @@ Two readings, and the second is the one to carry:
 Verification — cite the gate, never copy its numbers
 ------------------------------------------------------
 
-The battery is ``tests/numerics/test_axis_marginal.py``, ``foundation``
+The battery is ``tests/gates/numerics/test_axis_marginal.py``, ``foundation``
 -tagged throughout: these are software and mathematical invariants of a
 *construction*, not equation claims, so no row carries
 ``verifies(...)``. Each row's docstring names the mutation that reddens
@@ -4937,7 +4937,7 @@ taken.
        ``support``, and the indicator basis is the line above — but a
        ``FunctionSpace`` still holds the resulting *name*, so the two
        producers agree by discipline rather than by construction.
-       ``tests/numerics/test_basis_domain.py::test_d6`` pins that
+       ``tests/gates/numerics/test_basis_domain.py::test_d6`` pins that
        agreement, and pins the one pair that does NOT yet agree in
        spelling (``LossKernelBasis``'s bare label against ``IndexSet``'s
        ``index(...)``). ⛔ This clause read *"`[M]` ``measure.py:331``
@@ -4991,7 +4991,7 @@ taken.
        each still asserts the same outer product, now as
        ``tp.apply_metric(...)`` rather than as a stored tensor — and the
        new arm-agreement band lives in
-       ``tests/numerics/test_tensor_product_metric_is_factored.py``. No
+       ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``. No
        file moved.
    * - The condensation morphisms on :math:`V` / :math:`V^*`
      - **Campaign 2.** Declared at
@@ -5428,19 +5428,19 @@ status.
    software and mathematical invariants of a *type*, not equation
    claims, so no gate carries ``verifies(...)``.
 
-   - ``tests/numerics/test_axis.py`` — the intrinsic laws of the axis
+   - ``tests/gates/numerics/test_axis.py`` — the intrinsic laws of the axis
      concept: rank, measure canonicalization, the refusals, structural
      identity per subclass, and the ``synthetic`` / ``from_grid``
      inequality.
-   - ``tests/numerics/test_space_of_axes.py`` — composition: shape
+   - ``tests/gates/numerics/test_space_of_axes.py`` — composition: shape
      concatenation, the per-axis metric against an independently built
      reference, the no-densification proof, the derived name's
      determinism across processes, and ``has_coordinate_cone``.
-   - ``tests/numerics/test_field.py`` (gates E1/E2) — the cone
+   - ``tests/gates/numerics/test_field.py`` (gates E1/E2) — the cone
      consult's **positive and negative pair**: a MODAL space REFUSES
      with a typed error naming the space, and the same values on an
      all-NODAL space answer exactly what the legacy path answers.
-   - ``tests/homogeneous/test_operator_spaces.py`` — the positive floor
+   - ``tests/gates/homogeneous/test_operator_spaces.py`` — the positive floor
      (all five homogeneous operators plus :math:`K` report the SAME
      space), the refusal witnesses (a 2g-vs-4g sum; :math:`M^{-1}(2g)
      \circ F(4g)`), the energy arm's ``from_grid``-vs-``synthetic``
@@ -5449,7 +5449,7 @@ status.
      shipped scalar-metric case, paired with a deliberately
      non-physical per-group-weighted axis on which ``.H`` demonstrably
      MOVES.
-   - ``tests/homogeneous/test_byte_stability.py`` — the migration gate
+   - ``tests/gates/homogeneous/test_byte_stability.py`` — the migration gate
      that measured the theorem. It pins the homogeneous solve
      bit-exactly (``np.array_equal`` and exact ``==``, never
      ``allclose``) against a baseline captured immediately before the

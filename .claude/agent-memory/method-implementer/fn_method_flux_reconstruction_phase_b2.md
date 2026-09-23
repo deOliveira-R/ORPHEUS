@@ -20,9 +20,9 @@ type: project
 * `orpheus/derivations/continuous/fn_method/slab/__init__.py` — UPDATED. Re-export new `flux_reconstruction` symbols.
 * `orpheus/derivations/continuous/fn_method/sphere/__init__.py` — UPDATED. Re-export new `flux_reconstruction` symbols.
 * `orpheus/derivations/continuous/sood_registry/la13511.py` — UPDATED. Populated `UA_1_0_SP_STUB.truth.flux_ratios` dict from KLL Table VII c=1.30 row. Updated primary_reference + notes accordingly. **Surgical** — no other edits to existing cases (B3 agent added new cases below, in parallel; no merge conflict).
-* `tests/derivations/test_fn_la13511_slab_flux_symbolic.py` — NEW. 6 `@pytest.mark.foundation` gates (one per `derive_*()`).
-* `tests/derivations/test_fn_la13511_slab_flux.py` — NEW. 9 L1 tests: Sood/KLL Table III at c=1.30, KLL Table III sweep over 6 c-values, angular-flux closure, F_N↔KLL r_c agreement, F_N polynomial accessor sanity.
-* `tests/derivations/test_fn_la13511_sphere_flux.py` — NEW. 11 L1 tests: KLL Table VII at c=1.30 (= Sood Ua-1-0-SP XS), KLL Table VII sweep over 6 c-values, angular-flux closure, F_N↔KLL R_c agreement, surface-polynomial accessor sanity.
+* `tests/gates/derivations/test_fn_la13511_slab_flux_symbolic.py` — NEW. 6 `@pytest.mark.foundation` gates (one per `derive_*()`).
+* `tests/gates/derivations/test_fn_la13511_slab_flux.py` — NEW. 9 L1 tests: Sood/KLL Table III at c=1.30, KLL Table III sweep over 6 c-values, angular-flux closure, F_N↔KLL r_c agreement, F_N polynomial accessor sanity.
+* `tests/gates/derivations/test_fn_la13511_sphere_flux.py` — NEW. 11 L1 tests: KLL Table VII at c=1.30 (= Sood Ua-1-0-SP XS), KLL Table VII sweep over 6 c-values, angular-flux closure, F_N↔KLL R_c agreement, surface-polynomial accessor sanity.
 * `docs/theory/fn_method.rst` — REPLACED "Flux reconstruction — deferred" stub with the full Phase B2 stub: 6 TODO markers (one per `derive_*()`), L1 verification gates listed with achieved tolerances, two `:label:` blocks (`kll-1974-slab-flux`, `kll-1974-sphere-flux`) matching the `verifies` test markers.
 
 ## Commits expected (5)
@@ -157,9 +157,9 @@ brief: |
    - Sphere production code:
      orpheus/derivations/continuous/fn_method/sphere/flux_reconstruction.py
    - Test gates:
-     tests/derivations/test_fn_la13511_slab_flux_symbolic.py
-     tests/derivations/test_fn_la13511_slab_flux.py
-     tests/derivations/test_fn_la13511_sphere_flux.py
+     tests/gates/derivations/test_fn_la13511_slab_flux_symbolic.py
+     tests/gates/derivations/test_fn_la13511_slab_flux.py
+     tests/gates/derivations/test_fn_la13511_sphere_flux.py
    - Closeout memo:
      .claude/agent-memory/method-implementer/fn_method_flux_reconstruction_phase_b2.md
 

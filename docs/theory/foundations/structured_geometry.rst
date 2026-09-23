@@ -278,11 +278,11 @@ normalization:
    2026-08-27; that name encoded the wrong-paper attribution retracted
    at Issue #168 Phase B (see
    :ref:`sn-citation-corrections`).  The verifiable content is the
-   dome-closure contract — ``tests/geometry/test_reduced_operator.py``
+   dome-closure contract — ``tests/gates/geometry/test_reduced_operator.py``
    (``test_every_shipped_gauss_legendre_dome_closes``,
    ``test_every_shipped_folded_product_dome_closes_on_every_level``,
    and the negative control ``test_a_dome_that_does_not_close_is_refused``)
-   plus ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py``
+   plus ``tests/gates/sn/sweep/curvilinear/test_alpha_closed_form.py``
    (``test_production_alpha_is_a_non_negative_closing_dome``).
    ⚠ The SAME recursion is also stated on the S\ :sub:`N` methods page as
    :eq:`alpha-recursion`, which is the label the ``verifies`` markers
@@ -337,11 +337,11 @@ in the radial cosine:
    angular closure weight (Bailey-Morel-Chang 2010 Eq. 43 = Lathrop 2000
    Eq. 23); it is a representational identity, not a solver claim. The
    verifiable content is the producer-equivalence gate
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (both
+   ``tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (both
    arms now compare against HAND-AUTHORED references — the analytic arc
    closed form on the cylinder, an inline cumulative-weight expression on
    the sphere) plus the ν-closure and P3 gates in
-   ``tests/sn/sweep/test_tau_arc_wellposedness.py``.  τ is closure-owned,
+   ``tests/gates/sn/sweep/test_tau_arc_wellposedness.py``.  τ is closure-owned,
    NOT a reduced-operator field — see the τ-ownership note below.
 
 ⭐ **There is no "raw" and no "clamped" τ** (Q5.6.4, 2026-08-11): the
@@ -377,7 +377,7 @@ A level's ordinates each own an angular *cell*; the partition is the
    Rationale: a geometry-of-the-rule construction, not a physics-equation
    claim with an L0..L3 ladder slot — the partition is a property of the
    quadrature, produced solve-free.  The verifiable content is
-   ``tests/sn/sweep/test_angular_cell_partition.py`` — the **direct**
+   ``tests/gates/sn/sweep/test_angular_cell_partition.py`` — the **direct**
    value gate on the producer, both arms, added 2026-08-11: a
    hand-written cumulative-weight reference (sphere) and the analytic
    equispaced-arc closed form :math:`e_k = \sin\theta\cos(\pi - k\Delta
@@ -387,11 +387,11 @@ A level's ordinates each own an angular *cell*; the partition is the
    labelled control recording that :math:`M = 2` — i.e. every
    ``folded_product(·, 4)`` fixture — is structurally BLIND to the
    partition choice.  Then
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
+   ``tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
    (:math:`\tau` = P2 applied to the partition, same two references),
-   ``tests/sn/sweep/test_tau_arc_wellposedness.py`` (the P3 theorem and
+   ``tests/gates/sn/sweep/test_tau_arc_wellposedness.py`` (the P3 theorem and
    the attainable closed endpoint) and
-   ``tests/sn/verification/mms/test_mms_ordering_blindness.py``
+   ``tests/gates/sn/verification/mms/test_mms_ordering_blindness.py``
    ``::test_the_full_circle_double_cover_is_REFUSED_by_the_cell_partition``
    (the non-monotone-arc refusal).  All are ``foundation`` gates —
    software/structural invariants of a discrete construction.
@@ -404,7 +404,7 @@ A level's ordinates each own an angular *cell*; the partition is the
    :math:`A(M) = \max_m \prod_{k\le m}(1-\tau_k)/\tau_k` — the number
    quoted as "recurrence error-amplification" in the Q5.6.4
    adjudication — is likewise now committed, in
-   ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``.
+   ``tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py``.
 
 Both branches are **derived, not conventional**, and they are derived
 from *different* facts:
@@ -751,7 +751,7 @@ since :math:`\cot(\Delta\omega/2)\tan(\Delta\omega/4) \to \tfrac12`.
    achieves).
 
 .. (vv-status rationale) morel-montry-folded-arc: Verified by the Q5.5
-   mechanism gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``,
+   mechanism gates in ``tests/gates/sn/sweep/test_tau_arc_wellposedness.py``,
    re-posed at Q5.6.4 —
    ``test_the_fold_mechanism_is_an_empty_singular_set`` asserts the
    MECHANISM (Σ = ∅, computed via ``singular_set_under``, never declared) and
@@ -915,7 +915,7 @@ When the lift landed, the factories were required to produce arrays
 bit-identical to the historical inline implementations
 ``SNProblem._setup_spherical`` and ``SNProblem._setup_cylindrical``.  Hash
 equality — :func:`numpy.array_equal`, never ``np.allclose`` — was
-enforced at test time by ``tests/geometry/test_reduced_operator.py``
+enforced at test time by ``tests/gates/geometry/test_reduced_operator.py``
 (``foundation``-tagged), so the two paths had to share every
 floating-point bit.  That is what made the lift safe at the time: the
 then-consumers (the SN sweep and the curvilinear Krylov operator) were
@@ -950,12 +950,12 @@ unaffected because the two paths computed the same data.
    to cite for a correctness claim — identified by that same mutation,
    each one **structurally independent** (a closed form), with the SN
    curvilinear regression snapshots
-   (``tests/sn/regression/test_dd_regression.py``) corroborating but
+   (``tests/gates/sn/regression/test_dd_regression.py``) corroborating but
    nowhere the sole evidence:
 
    * ``delta_A`` — the closed-form L0 term check
      ``TestL0TermVerification::test_delta_A_magnitude`` in
-     ``tests/sn/primitives/test_quadrature.py``, against
+     ``tests/gates/sn/primitives/test_quadrature.py``, against
      :math:`4\pi\,\Delta(r^2)` / :math:`2\pi\,\Delta r`.
      ⛔ This entry read "**sole catcher**; the snapshots are blind here,
      and correctly so — ``delta_A`` has no production consumer."  True
@@ -968,13 +968,13 @@ unaffected because the two paths computed the same data.
      the angular factor) — the L0 per-ordinate flat-flux identity
      ``test_per_ordinate_flat_flux_consistency`` on both arms
      (``catches("ERR-006", "ERR-007")``);
-     ``tests/sn/sweep/curvilinear/test_alpha_closed_form.py`` (the
+     ``tests/gates/sn/sweep/curvilinear/test_alpha_closed_form.py`` (the
      Dirichlet-kernel closed form; **cylindrical α only** — every
      fixture there is ``CoordSystem.CYLINDRICAL``); plus both snapshot
      families.
    * ``redist_dAw`` / ``redist_dAw_per_level`` — **RETIRED 2026-08-26**
      as a fused product neither of its two consumers owned.  Its catcher
-     — ``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
+     — ``tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``,
      the L0 closed-form :math:`\varphi = Q/(\Sigma_t(1-c))` identity —
      still covers the QUANTITY, now formed at each consumer from
      ``delta_A`` and the weights.  ⭐ And the historical note that the
@@ -982,11 +982,11 @@ unaffected because the two paths computed the same data.
      reading the production array" is exactly why that gate needed no
      migration: it was already forming the product, not reading the
      cache.
-   * ``face_areas`` — ``tests/geometry/test_geometry.py`` pins the
+   * ``face_areas`` — ``tests/gates/geometry/test_geometry.py`` pins the
      producer :func:`~orpheus.geometry.coord.compute_areas_1d`
      against its closed form; the snapshots pin the forwarding.
 
-   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` is
+   ``tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` is
    **not** among them, despite an earlier revision of this warning
    naming it.  #236 Step C moved :math:`\tau` to the angular closure
    (see the :ref:`τ-ownership note <tau-ownership-note>` above), which

@@ -6,12 +6,12 @@ monkeypatching production **in process** and run against a chosen slice of the
 suite. It answers one question: **do these gates actually have teeth, and which
 gate catches which hazard?**
 
-## ⛔ This is NOT `tests/_mutation/`
+## ⛔ This is NOT `tests/gates/_mutation/`
 
 The two directories exist for different questions and their recipes are not
 interchangeable.
 
-| | `tests/_mutation/` | here |
+| | `tests/gates/_mutation/` | here |
 |---|---|---|
 | mechanism | **cosmic-ray**: automatic AST mutation of a whole module | hand-authored named mutations |
 | question | *what fraction* of mutants does the sentinel set kill? | *does gate X redden for hazard N?* |
@@ -34,9 +34,9 @@ evidence is still on disk:
   still catches 30/31"). It lived only in a job-scratch directory and
   **evaporated with the session**. `b3_2_boundary.py` is its reconstruction,
   and it carries 10 mutations, not 31.
-- `tests/sn/operators/__pycache__/` still contains
+- `tests/gates/sn/operators/__pycache__/` still contains
   `conftest_mutate_kernel.*.pyo` and `conftest_mutate_pr.*.pyo` — but
-  `git log --all -- 'tests/sn/operators/conftest_mutate*'` is **empty**. Two
+  `git log --all -- 'tests/gates/sn/operators/conftest_mutate*'` is **empty**. Two
   more hand-written plugins were written into `tests/`, used, and lost,
   leaving only bytecode.
 
@@ -50,11 +50,11 @@ unstable on this interpreter):
 
 ```sh
 # CONTROL leg — nothing patched. Everything must be GREEN.
-.venv/bin/python -O -m pytest tests/sn/operators \
+.venv/bin/python -O -m pytest tests/gates/sn/operators \
     -p no:randomly -p tests._harness.mutation_batteries.b3_2_boundary -q
 
 # One mutation. Expect RED, and read WHICH gates went red.
-ORPHEUS_B32=N1 .venv/bin/python -O -m pytest tests/sn/operators \
+ORPHEUS_B32=N1 .venv/bin/python -O -m pytest tests/gates/sn/operators \
     -p no:randomly -p tests._harness.mutation_batteries.b3_2_boundary -q -rf
 ```
 
@@ -68,14 +68,14 @@ harness lies before the code does — and lies in the *safe-looking* direction.
 |---|---|---|---|
 | `b3_2_boundary.py` | `SNBoundaryOperator._reflect_trace`, the SN boundary realizer, `TraceRestrictionOperator.to_local` | 10 (`N1`–`N5`, `N7`–`N9`, `M1`, `M2`) | `ORPHEUS_B32` |
 
-`[M]` 2026-08-14 at `0f5ca91c`, `b3_2_boundary.py` against `tests/sn/operators`:
+`[M]` 2026-08-14 at `0f5ca91c`, `b3_2_boundary.py` against `tests/gates/sn/operators`:
 CONTROL → **1167 passed, 1 skipped, 5 xfailed** in 38.9 s;
 `ORPHEUS_B32=N1` → **66 failed**, 1101 passed in 138.7 s.
 
 ⚠ A full 10-leg sweep costs **~20–25 min**: a mutated leg runs ~140 s rather
 than ~39 s, because a broken boundary makes downstream fixed-source solves
 iterate to their budget caps. It also runs all 1174 tests in
-`tests/sn/operators`, so its reds are *not* scoped to the gates being
+`tests/gates/sn/operators`, so its reds are *not* scoped to the gates being
 justified — use `-rf` and read the names.
 
 ## Not yet migrated

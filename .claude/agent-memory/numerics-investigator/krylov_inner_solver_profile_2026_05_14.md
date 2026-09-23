@@ -64,9 +64,9 @@ and verified it shows the same fingerprint.
 
 ```
 $ time .venv/bin/python -m pytest \
-    "tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]" -v
+    "tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]" -v
 
-tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] PASSED [100%]
+tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20] PASSED [100%]
 ======================== 1 passed, 1 warning in 32.21s =========================
 .venv/bin/python -m pytest  -v 2>&1  32.28s user 0.33s system 99% cpu 32.908 total
 ```
@@ -76,8 +76,8 @@ together):
 
 ```
 $ time .venv/bin/python -m pytest \
-    "tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20]" \
-    "tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-20]" -v
+    "tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[source_iteration-4-20]" \
+    "tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_sphere[krylov-8-20]" -v
 ======================== 2 passed, 1 warning in 9.97s =========================
 ```
 
@@ -100,7 +100,7 @@ GMRES converges in ~13 inner iterations).
 
 ```
 $ .venv/bin/python -m cProfile -o /tmp/krylov_profile.prof \
-    -m pytest "tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]" -q
+    -m pytest "tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]" -q
 1 passed, 1 warning in 39.59s
 ```
 
@@ -458,4 +458,4 @@ this memo:
   lands and we want to pin the new iteration scheme's
   characteristic counts).
 * Reproducer (production test):
-  `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]`.
+  `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py::test_homogeneous_streaming_equilibrium_cylinder[krylov-4-20]`.

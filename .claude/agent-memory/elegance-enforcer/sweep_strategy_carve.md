@@ -405,7 +405,7 @@ tree): PASS — ZERO blocking nits.** THE deferred-debt payment named at S5.1a/S
 3-line delegators (`return _OctantWalk(self.mesh).loss_action(operator, psi, self._loss_action_interior)`),
 each supplying only its `_loss_action_interior` kernel; both `.. note:: Edit both in lockstep` IOUs
 DELETED. A2D-1 source-hash pin (`TestT4dApply2DCartesianSourceHashPin`) RETIRED. New
-`tests/sn/operators/test_one_octant_walk.py` (AST anti-flag tripwire + both-variants SPY + strict-xfail
+`tests/gates/sn/operators/test_one_octant_walk.py` (AST anti-flag tripwire + both-variants SPY + strict-xfail
 sweep SPY). Focused gates green (2 passed, 1 strict-xfail), confirmed by me.
 
 Durable rulings (reinforce — RIGHT):
@@ -485,7 +485,7 @@ Durable rulings (reinforce — RIGHT):
 
 THE 3 CONCERNs (stale text the deletion left behind; NOT architecture; fix before commit):
 - **Required (Cardinal Rule 3, Sphinx-breaking)**: `:func:` xrefs to DELETED symbols —
-  `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:3` (`_sweep_2d_scanmarch` → repoint
+  `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:3` (`_sweep_2d_scanmarch` → repoint
   `ScanMarch._sweep_interior`) + `docs/theory/operator_algebra.rst:5072` (`sweep_octant_group` → `_OctantWalk.sweep_group`).
 - **Should-fix prose**: `operator_algebra.rst:4795` "`sweep_octant_group` loops octants" → name `_OctantWalk._interior_walk`
   (the cross-octant `+=` moment call graph that page documents).

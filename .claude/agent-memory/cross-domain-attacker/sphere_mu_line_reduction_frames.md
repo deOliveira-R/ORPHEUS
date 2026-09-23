@@ -111,7 +111,7 @@ The sphere's angular cell edges are CUMULATIVE WEIGHTS from `μ_{1/2} = −1`
 ## The gate that is BUILT and UNWIRED (L-013's sibling sub-shape)
 
 `AngularSymmetry.admits_domain` answers #336 correctly TODAY and is TESTED
-(`tests/numerics/test_registry.py:683 assert not slab.admits_domain(lebedev)`) —
+(`tests/gates/numerics/test_registry.py:683 assert not slab.admits_domain(lebedev)`) —
 its only production caller is `select_quadrature` (`registry.py:915`), the
 **advisory/selection** path. The `SNMesh` **construction** path never asks. Same
 for `assert_carrying_quadrature`: `march_start_structure_per_level` already has a

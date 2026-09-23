@@ -64,11 +64,11 @@ that rank-1 Mark omits.
 
 **File placement (Phase F.1+F.2):**
 
-- NEW file `tests/derivations/test_peierls_geometry.py` for
+- NEW file `tests/gates/derivations/test_peierls_geometry.py` for
   dataclass + method-contract tests (inner_radius validation,
   rho_inner_intersections, optical_depth_along_ray cavity handling).
-- Extend `tests/derivations/test_peierls_reference.py` Layer 6 with
+- Extend `tests/gates/derivations/test_peierls_reference.py` Layer 6 with
   per-face E_2 tests (sibling to `TestSlabPescClosedForm`).
-- Extend `tests/derivations/test_peierls_closure_operator.py` with
+- Extend `tests/gates/derivations/test_peierls_closure_operator.py` with
   the regime-A zero-array sentinel (next to existing rank-1
   legacy-equivalence tests).

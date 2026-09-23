@@ -19,8 +19,8 @@ was stale (`docs/bailey-bib-migration`); these line numbers are file-truth.
 production call sites are `CumprodScan.sweep` (`:726`) and `ScanMarch.sweep` 1-D branch
 (`:1246`), and they invoke `_sweep_1d_unified` IDENTICALLY (same arg order, same kwargs).
 Tests / derivations mention the symbols only in **docstrings/comments** (no live imports):
-`tests/sn/primitives/test_boundary_face_layout.py:18`, `tests/sn/sweep/core/test_sweep_graph_nd_admission.py:20`,
-`tests/sn/operators/test_streaming_operator.py:1095`, `derivations/diagnostics/diag_krylov_iter_breakdown.py:10`,
+`tests/gates/sn/primitives/test_boundary_face_layout.py:18`, `tests/gates/sn/sweep/core/test_sweep_graph_nd_admission.py:20`,
+`tests/gates/sn/operators/test_streaming_operator.py:1095`, `derivations/diagnostics/diag_krylov_iter_breakdown.py:10`,
 `derivations/diagnostics/diag_si_cyl_20cell_nan_step5_root_cause.py:136`. So Phase B is a
 pure intra-module relocation → bit-identical; no import-surface churn, no test rewiring.
 
@@ -52,7 +52,7 @@ NO `__init__` (dataclass-generated). Instantiated as `_OctantWalk(sn_mesh)` at t
      (`cell_kernel_batch`) or apply (`residual_kernel_batch`) flavor; and
   2. the **emit policy** = `_SweepEmit` (solve) / the apply accumulator + O.4b residual.
 - **The tripwire forbidding a bool `is_solve`**: docstring `:466-468` —
-  `tests/sn/operators/test_one_octant_walk.py` enforces the kernel/emit-OBJECT shape.
+  `tests/gates/sn/operators/test_one_octant_walk.py` enforces the kernel/emit-OBJECT shape.
 
 ## The 1-D sweep free functions (the relocation targets)
 

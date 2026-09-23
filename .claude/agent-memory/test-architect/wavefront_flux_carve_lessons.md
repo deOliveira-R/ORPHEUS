@@ -11,9 +11,9 @@ storage-B (rolling 2-diagonal `_MovingFrontier` window,
 `O(N·ng·nx·ny)`→`O(N·ng·(nx+ny))`) both shipped; the full-field
 sweep+matvec ORACLES were RECOVERED (aggressive-retirement EXCEPTION —
 the fuller view pins the windowed path). Tests live at
-`tests/transport/fields/test_wavefront_flux.py`,
-`tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py`,
-`tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`. This note
+`tests/gates/transport/fields/test_wavefront_flux.py`,
+`tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py`,
+`tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`. This note
 keeps the WHY.
 
 **1. Storage-B BIT-IDENTITY is INHERITED from the octant snapshot — and the

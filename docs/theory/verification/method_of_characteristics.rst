@@ -54,36 +54,36 @@ test counts are in the auto-generated :doc:`matrix`):
      - File(s)
      - Coverage
    * - L0
-     - ``tests/moc/test_quadrature.py``
+     - ``tests/gates/moc/test_quadrature.py``
      - Weight sums, TY values, shapes, validation
    * - L0
-     - ``tests/moc/test_ray_tracing.py``
+     - ``tests/gates/moc/test_ray_tracing.py``
      - Ray-circle intersection, region ID, segments, volume, links
    * - L0
-     - ``tests/moc/test_verification.py``
+     - ``tests/gates/moc/test_verification.py``
      - Single-track attenuation, equilibrium flux, fission-only, (n,2n),
        scatter isolation, geometric invariants, protocol compliance, volume
        tracking, boundary conditions
    * - L1
-     - ``tests/moc/test_moc.py``
+     - ``tests/gates/moc/test_moc.py``
      - Homogeneous eigenvalue (1G/2G/4G), heterogeneous (slow)
    * - L1
-     - ``tests/moc/test_properties.py``
+     - ``tests/gates/moc/test_properties.py``
      - Particle balance, positivity, flux consistency, thermal depression
    * - L1
-     - ``tests/moc/test_verification.py``
+     - ``tests/gates/moc/test_verification.py``
      - Eigenvalue + flux ratio, heterogeneous + monotonicity, particle
        balance (2G), flux positivity (all groups), material sensitivity
    * - L2
-     - ``tests/moc/test_verification.py``
+     - ``tests/gates/moc/test_verification.py``
      - Ray spacing convergence, azimuthal convergence, polar convergence
    * - XV
-     - ``tests/moc/test_verification.py``
+     - ``tests/gates/moc/test_verification.py``
      - MOC vs CP cross-verification (slow)
 
 Run the full suite (excluding slow tests)::
 
-   python -O -m pytest tests/moc -m "not slow"
+   python -O -m pytest tests/gates/moc -m "not slow"
 
 
 Homogeneous Infinite Medium
@@ -165,7 +165,7 @@ eigenvalue is compared against the CP solver on the same geometry:
 
 The ~0.1% gap is consistent with the white-BC (CP) vs reflective-BC
 (MOC) approximation difference.  This is verified by
-``tests/moc/test_verification.py::TestXVCrossVerification``.
+``tests/gates/moc/test_verification.py::TestXVCrossVerification``.
 
 
 Convergence Properties
@@ -412,7 +412,7 @@ computed analytically:
 .. the reconstruction AND the reference, so it cancels in the convergence
 .. error metric — the MMS gate is blind to its sign. The MOC operators the
 .. MMS convergence test verifies are ``moc-mms-psi-ref`` / ``moc-mms-qext``
-.. (wired on ``tests/moc/test_mms.py``).
+.. (wired on ``tests/gates/moc/test_mms.py``).
 .. vv-status: moc-mms-reference-equilibrium documented
 
 and the transport correction :math:`\delta\phi_i` from the sweep
@@ -427,7 +427,7 @@ is added:
 .. (vv-status rationale) reference-derivation context: the MMS harness flux
 .. reconstruction (analytical equilibrium + swept transport correction) that
 .. produces the solver flux compared in
-.. ``tests/moc/test_mms.py::test_moc_mms_converges_second_order``. Because the
+.. ``tests/gates/moc/test_mms.py::test_moc_mms_converges_second_order``. Because the
 .. error norm is |phi_solver - phi_ref|, a sign flip of the delta-phi term
 .. leaves |error| unchanged — the convergence gate is sign-blind to this
 .. reconstruction, so it is derivation context, not a sign-pinned contract.
@@ -466,7 +466,7 @@ Implementation
 
 - :mod:`orpheus.derivations.continuous.mms.moc` — MMS case, standalone sweep,
   continuous-reference registration
-- ``tests/moc/test_mms.py`` — L1 convergence consumer test
+- ``tests/gates/moc/test_mms.py`` — L1 convergence consumer test
 - The outermost FSR (square-border region) is excluded from the
   convergence measurement because its complex geometry has a fixed
   track-sampling error that does not converge with FSR refinement.

@@ -40,20 +40,20 @@ the fission operator (S6), NO touch to SN/CP eigenvalue production paths.
    of `F = M_χ ∘ ProductionRateFunctional ∘ M_νΣf` (Frame 3); S6 composes it.
    BIT-IDENTICAL to `RankOneOperator.apply`'s `inner` (right=νΣf, axis=0,
    keepdims). NO volume measure (density, not integral), NO χ re-broadcast.
-4. **Foundation test gate (category)** — `tests/transport/test_functional_category.py`
+4. **Foundation test gate (category)** — `tests/gates/transport/test_functional_category.py`
    (test-architect-authored, PRE-LANDED). My code turns its 9 PRE-IMPL skips
    into live passes.
 5. **L1 cross-check (correctness + equivalence)** —
-   `tests/transport/test_production_rate_functional.py` (test-architect, PRE-
+   `tests/gates/transport/test_production_rate_functional.py` (test-architect, PRE-
    LANDED). B.1 = hand-loop correctness (struct-indep ref, the L1 cross-check
    by pillar = the explicit double-loop, NOT the RankOne it'll replace), B.2 =
    RankOne `inner` bit-identity (DEMARCATED equivalence, de-risks S6), B.3 =
    no-measure Mode-3 guard. DEVIATION from the literal
-   `tests/derivations/test_<name>_xverif*.py` folder convention: the
-   verification spec deliberately lives in `tests/transport/` (the spec note
+   `tests/gates/derivations/test_<name>_xverif*.py` folder convention: the
+   verification spec deliberately lives in `tests/gates/transport/` (the spec note
    is explicit; the cross-check ref is a test-side hand-loop, not a
    derivations/ Branch-1 module), so the xverif IS B.1 in this file. Justified.
-6. **Estimators-as-functionals gate** — `tests/numerics/test_estimators_as_functionals.py`
+6. **Estimators-as-functionals gate** — `tests/gates/numerics/test_estimators_as_functionals.py`
    (test-architect, PRE-LANDED). C.1 = estimator bit-identity (PASSED today,
    unchanged arithmetic) + C.2 = category-honesty. The 1 remaining SKIP is the
    OPTIONAL `ProductionFunctional` bound wrapper leg — NOT shipped, per the
@@ -66,7 +66,7 @@ the fission operator (S6), NO touch to SN/CP eigenvalue production paths.
    anchor + `:eq:`/`:mod:`/`:class:`/`:meth:`/`:func:` cross-refs + 2
    `.. vv-status: ... documented` + a `.. todo:: Archivist expansion needed`.
    DID NOT write the rich narrative (archivist's deliverable).
-8. **Test-helper probe** (Deliverable 3) — `tests/transport/_functional_helpers.py`
+8. **Test-helper probe** (Deliverable 3) — `tests/gates/transport/_functional_helpers.py`
    `require_production_rate_functional` now probes
    `"orpheus.transport.production_rate_functional"` FIRST (the transport home),
    sn/ candidates kept as fallback. THE ONLY test-file edit (the helper says
@@ -118,7 +118,7 @@ the fission operator (S6), NO touch to SN/CP eigenvalue production paths.
   byte-identical by construction (purely additive 2 new files + 2 export lines +
   1 helper probe line — touches NO SN/CP/operator production code). Baseline
   reds = 7 (#250 SPHERE ×5 + #232 mu_y ×2) live in OTHER files I routed around
-  (never all tests/sn, #212 hangs); my subset introduces ZERO new reds.
+  (never all tests/gates/sn, #212 hangs); my subset introduces ZERO new reds.
 - **`import orpheus` clean; layer imports 281 passed** (`-O`) + the 2 new-module
   rows pass WITHOUT `-O` (asserts firing, Mode-8). functional.py imports only
   typing + numerics.vector (L1-clean); production_rate_functional.py imports

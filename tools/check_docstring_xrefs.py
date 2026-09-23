@@ -318,7 +318,7 @@ def _is_empty_namespace_package(module: object) -> bool:
     all imported clean, and the knowledge graph was right about all five while
     this tool was wrong about all five.
 
-    A namespace package WITH content stays alive — ``tests/sn/`` has no
+    A namespace package WITH content stays alive — ``tests/gates/sn/`` has no
     ``__init__.py`` yet carries hundreds of modules, so the test is "does any
     Python module live under it", not "is it a namespace package".
     """

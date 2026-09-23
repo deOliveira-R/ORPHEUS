@@ -87,6 +87,6 @@ scheme-agnostic accessor (LD had to un-bake `0.5*s`; 2-D ScanMarch inlined it).
   kernel-routed); #239 is its tracked collapse.
 
 ## Gates (per dispatch brief — NOT re-run this review)
-- `tests/sn/sweep/core tests/sn/solve` = 505 passed/1 skip/4 xfail under DriftWarning-error,
+- `tests/gates/sn/sweep/core tests/gates/sn/solve` = 505 passed/1 skip/4 xfail under DriftWarning-error,
   NO drift. operators+cartesian_2d = 532 passed, 7 pre-existing reds (#195/#209 SPH, #214
   mu_y). MMS 2-D/LD-slab/het + k∞ ≥2G = 41 passed.

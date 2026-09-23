@@ -72,7 +72,7 @@ def capability_rows() -> list[dict[str, object]]:
     # -----------------------------------------------------------------
     # 19 wide-slice + 2 first-slice = 21 catalogued LA-13511 cases.
     # Activated by ``compute_kinf_*`` in ``multi_group/k_inf.py``.
-    # See ``tests/derivations/test_sood_registry_wide_kinf.py``.
+    # See ``tests/gates/derivations/test_sood_registry_wide_kinf.py``.
 
     rows.append({
         "name": "k_inf — 1G isotropic (Sood Eq 19)",

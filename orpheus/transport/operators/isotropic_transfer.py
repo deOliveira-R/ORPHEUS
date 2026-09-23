@@ -35,7 +35,7 @@ mathematical object, the operator tier names the TERM):
 
 The roles carry NOTHING but the channel constant (which ``Mixture`` channel
 the ONE tier-2 mint reads) and the role name — an AST gate
-(``tests/transport/test_transfer_roles.py``) asserts it, so the
+(``tests/gates/transport/test_transfer_roles.py``) asserts it, so the
 member-for-member twins these two classes were until 2026-09-04 cannot regrow.
 
 Both are the **scalar (:math:`\ell=0`) realization** of the moment-space operator

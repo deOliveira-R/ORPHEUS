@@ -131,7 +131,7 @@ must-iterate cell axes last.
 The migration from the historical layout to the principled one was
 done in six PRs over a single branch (``refactor/sn-operator-algebra``)
 in May 2026.  Every intermediate commit kept
-``tests/sn/regression/`` green at ``rtol=1e-12``.  The final commit
+``tests/gates/sn/regression/`` green at ``rtol=1e-12``.  The final commit
 (``3356cec``) regenerated the regression snapshots under the
 principled layout *only after* a bit-identity-via-transpose gate
 demonstrated that every one of the 11 snapshots agreed with the
@@ -297,7 +297,7 @@ no Python loop over cells.  The pair-monoid composition
 (:cite:`Blelloch1990` §1.5; :cite:`Brent1974`), so the same closed form admits
 Brent's :math:`O(N/\log N)`-work parallel decomposition if a future
 GPU port adopts a parallel-prefix backend.  The
-``tests/sn/sweep/core/test_ordinate_scan.py`` algebraic-theorem suite
+``tests/gates/sn/sweep/core/test_ordinate_scan.py`` algebraic-theorem suite
 pins the pair-monoid associativity, identity, linearity in
 :math:`\psi_0`, linearity in :math:`b`, and bit-identity to a serial
 explicit loop — fifteen foundation-level invariants that justify
@@ -377,7 +377,7 @@ view rather than re-deriving it, so the layout has exactly one producer.
    assertion could not fail in the suite that decides a merge.  It was
    retired with the σ rebind it lived beside; its successors are
 
-   * ``tests/sn/mesh/test_sigma_datum.py``
+   * ``tests/gates/sn/mesh/test_sigma_datum.py``
      ``::TestLawTheRoundTrip::test_law_the_datum_is_the_assembled_cell_sigma_t``
      — the ``@pytest.mark.verifies("sn-cell-flatten-roundtrip")`` witness,
      parametrised over both carrier tiers
@@ -386,7 +386,7 @@ view rather than re-deriving it, so the layout has exactly one producer.
      stored datum is ``array_equal`` to
      ``assemble_cell_xs(materials, mat_map).sig_t.T.reshape(ng, *spatial)``
      **and** that the field's ``total_cross_section`` view reads it;
-   * ``tests/sn/primitives/test_cell_flattening_invariant.py``
+   * ``tests/gates/sn/primitives/test_cell_flattening_invariant.py``
      ``::test_cell_flattening_invariant_xs_storage_round_trips`` — the
      pure-storage form on synthetic ``(N_cells, ng)`` arrays over three
      shapes (``1×1×2``, ``5×1×2``, ``3×4×3``).  It was promoted out of the
@@ -415,7 +415,7 @@ History --- the six-PR migration
 
 The migration unfolded as a six-commit chain on the
 ``refactor/sn-operator-algebra`` branch between 2026-05-14 and
-2026-05-15.  Each PR kept ``tests/sn/regression/`` green at
+2026-05-15.  Each PR kept ``tests/gates/sn/regression/`` green at
 ``rtol=1e-12`` by inserting temporary bridge transposes at the
 boundary between flipped (principled) and unflipped (legacy) layers.
 The bridges were named ``BRIDGE_*_to_principled`` /
@@ -646,7 +646,7 @@ agreement was at machine precision (max ``keff`` delta
 
 Only after every case passed did the migration proceed to step 2
 (snapshot regeneration via
-``tests.sn.regression._generate_snapshots``).  This sequence ---
+``tests.gates.sn.regression._generate_snapshots``).  This sequence ---
 **verify first, then regenerate** --- is the canonical pattern for
 any future layout flip and is enshrined in the migration plan's
 risk register.
@@ -665,7 +665,7 @@ the PR closeout memos
 Regression snapshots (rtol=1e-12)
 ---------------------------------
 
-The 11 ``tests/sn/regression/`` snapshots cover:
+The 11 ``tests/gates/sn/regression/`` snapshots cover:
 
 - Slab 2-group homogeneous DD (``slab_2g_homogeneous_dd_n20``).
 - Slab 2-group 3-region DD (``slab_2g_3reg_dd_n40``).
@@ -733,7 +733,7 @@ L0 streaming-equilibrium curvilinear
 ------------------------------------
 
 The L0 curvilinear gate at
-``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``
+``tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``
 asserts the streaming-equilibrium identity
 :math:`\phi = q / \Sigma_t` to machine precision under refinement.
 It is the strongest L0 test for the sphere and cylinder sweep, and
@@ -784,7 +784,7 @@ transposes) --- no measurable wall-clock change.
 -------------------------
 
 The 2-D Cartesian octant-equivalence suite at
-``tests/sn/test_2d_octant_sweep_equivalence.py`` exercises six
+``tests/gates/sn/test_2d_octant_sweep_equivalence.py`` exercises six
 bit-identity cases plus one closed-form L1 anchor.  Post-PR-INDEX-5,
 all 7 pass.  The six bit-identity cases agree at ``nulp=64``
 (~1.4 × 10\ :sup:`-14`), which is principled-equivalence per
@@ -1523,7 +1523,7 @@ fail at construction time (Pattern 4 — illegal states unrepresentable).
    Source modules: :mod:`orpheus.transport.fields.angular_flux`,
    :mod:`orpheus.transport.fields.scalar_flux`, :mod:`orpheus.transport.fields.angular_boundary_flux`.
    Foundation tests:
-   :file:`tests/sn/test_typed_fields.py` (22 cases, all green).
+   :file:`tests/gates/sn/test_typed_fields.py` (22 cases, all green).
    Closeout memo:
    :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_2_closeout.md`.
 
@@ -1867,7 +1867,7 @@ that wrap the right-hand side of the transport equation
 
    Source module: :mod:`orpheus.transport.source_sinks`.
    Foundation tests:
-   :file:`tests/sn/primitives/test_typed_source_sinks.py` (37 cases).
+   :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (37 cases).
    Closeout memo:
    :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_3_closeout.md`.
 
@@ -2055,7 +2055,7 @@ principled order directly:
 
 No test should construct in legacy order and then transpose.  The two
 remaining transposes in
-:file:`tests/sn/test_2d_octant_sweep_equivalence.py` (cases 4--5) are
+:file:`tests/gates/sn/test_2d_octant_sweep_equivalence.py` (cases 4--5) are
 documented adapters that build sources via a broadcast against
 ``np.array([...])[None, None, :]`` (per-group profile times spatial
 profile) and then transpose to principled --- this is a readability
@@ -2208,5 +2208,5 @@ treatment of the within-group source iteration.
   slab joint-batch hot path.
 - :cite:`Brent1974` --- Brent's theorem on work-efficient associative-scan
   reduction.  The pair-monoid associativity test in
-  ``tests/sn/sweep/core/test_ordinate_scan.py`` is the algebraic
+  ``tests/gates/sn/sweep/core/test_ordinate_scan.py`` is the algebraic
   justification for the closed form.

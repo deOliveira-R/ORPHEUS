@@ -23,7 +23,7 @@ ok
 `.venv/bin/python -O -c "import orpheus.data.micro_xs.hdf5_io, orpheus.data.micro_xs.gendf; print('ok')"`
 
 ## Tests
-- `tests/data/test_mixture.py` + `tests/data/test_cross_section_data.py`: 15 passed (these don't
+- `tests/gates/data/test_mixture.py` + `tests/gates/data/test_cross_section_data.py`: 15 passed (these don't
   directly drive gendf/hdf5_io; `micro_xs` there is a local numpy var, `test_cross_section_data`
   imports `isotope` only).
 - Added functional verification (ad-hoc, real U_235.GXS): `convert_gxs` → `save_isotope` →

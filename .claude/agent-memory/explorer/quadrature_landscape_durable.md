@@ -113,7 +113,7 @@ numpy imposes the ±μ mirror. The checker's `_orbit_closure` is a 4th `argmin` 
   on the Bickley `Ki₃` family) — the case that an `int` field structurally cannot
   carry.
 - **`degree_of_exactness` has exactly ONE reader that computes with it**
-  (`tests/numerics/test_spherical_harmonic_basis.py`, `L = deg // 2`); every other
+  (`tests/gates/numerics/test_spherical_harmonic_basis.py`, `L = deg // 2`); every other
   reference is a tag-pinning assert. The selector does NOT read the attribute — it
   calls a per-family INVERTED formula in `registry.py`, so the formula is
   duplicated (rule-side tag + registry-side inverse) with no consistency check.

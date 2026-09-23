@@ -6,7 +6,7 @@
 **Predecessor**: `badac51` (Step 2.5c closeout)
 **Status**: SHIPPED.  All mechanism criteria 1-9 satisfied; 11
 regression snapshots bit-identical; L0 streaming-equilibrium
-26/26 PASS; tests/sn/test_dag_walk.py 12/12 PASS; XOR-signature
+26/26 PASS; tests/gates/sn/test_dag_walk.py 12/12 PASS; XOR-signature
 enforced.
 
 ---
@@ -93,13 +93,13 @@ control-flow path, two entry signatures.
 
 | # | File                                            | Action                                                                                                                                                                              |
 | - | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 | `tests/sn/test_iter_cells_by_direction.py`      | **RENAMED** to `tests/sn/test_dag_walk.py`.  11 equivalence tests rewritten to use new XOR signature.  Added 1 new test `test_dag_walk_xor_signature_enforced` (12 tests total).    |
-| 2 | `tests/sn/test_snmesh_consumes_reduced.py:180-294` | 5 test bodies + 5 function names migrated: `test_sphere_iter_cell_visits_*` → `test_sphere_dag_walk_*` etc.  `sn.iter_cell_visits(ordinate_idx=n)` → `sn.dag_walk(ordinate_idx=n)`. |
-| 3 | `tests/sn/spatial/test_sweep_cache.py:359, 418` | 2 test bodies migrated to `dag_walk(ordinate_idx=...)`.                                                                                                                             |
-| 4 | `tests/sn/test_phase_c_gates.py:283`            | Docstring reference updated.                                                                                                                                                        |
-| 5 | `tests/sn/test_snstreamingoperator.py:225`      | Docstring reference updated.                                                                                                                                                        |
-| 6 | `tests/sn/spatial/test_diamond.py:436`          | Docstring reference updated.                                                                                                                                                        |
-| 7 | `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py:268-269` | 2 call sites in diagnostic script migrated.                                                                                                                            |
+| 1 | `tests/gates/sn/test_iter_cells_by_direction.py`      | **RENAMED** to `tests/gates/sn/test_dag_walk.py`.  11 equivalence tests rewritten to use new XOR signature.  Added 1 new test `test_dag_walk_xor_signature_enforced` (12 tests total).    |
+| 2 | `tests/gates/sn/test_snmesh_consumes_reduced.py:180-294` | 5 test bodies + 5 function names migrated: `test_sphere_iter_cell_visits_*` → `test_sphere_dag_walk_*` etc.  `sn.iter_cell_visits(ordinate_idx=n)` → `sn.dag_walk(ordinate_idx=n)`. |
+| 3 | `tests/gates/sn/spatial/test_sweep_cache.py:359, 418` | 2 test bodies migrated to `dag_walk(ordinate_idx=...)`.                                                                                                                             |
+| 4 | `tests/gates/sn/test_phase_c_gates.py:283`            | Docstring reference updated.                                                                                                                                                        |
+| 5 | `tests/gates/sn/test_snstreamingoperator.py:225`      | Docstring reference updated.                                                                                                                                                        |
+| 6 | `tests/gates/sn/spatial/test_diamond.py:436`          | Docstring reference updated.                                                                                                                                                        |
+| 7 | `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py:268-269` | 2 call sites in diagnostic script migrated.                                                                                                                            |
 
 ### Doc sites (2 files, ~14 references)
 
@@ -110,7 +110,7 @@ control-flow path, two entry signatures.
 | 3  | `docs/theory/discrete_ordinates.rst:1070-1071` | `iter_cell_visits` reference + cylindrical degenerate `face_area_downstream` updated (Issue #196 Step 2.5 retired the `None` sentinel — narrative now reflects `0.0`). |
 | 4  | `docs/theory/discrete_ordinates.rst:1555` | `iter_cell_visits` → `dag_walk`                                                                                       |
 | 5  | `docs/theory/discrete_ordinates.rst:2479` | Apply-matvec body description: `iter_cells_by_direction` → `dag_walk` invoked with `direction_sign`                  |
-| 6  | `docs/theory/discrete_ordinates.rst:2560-2596` | "The new APIs" subsection: rewrote to describe the unified `dag_walk(*, ordinate_idx=..., direction_sign=...)` XOR signature.  Test file pointer updated to `tests/sn/test_dag_walk.py`. |
+| 6  | `docs/theory/discrete_ordinates.rst:2560-2596` | "The new APIs" subsection: rewrote to describe the unified `dag_walk(*, ordinate_idx=..., direction_sign=...)` XOR signature.  Test file pointer updated to `tests/gates/sn/test_dag_walk.py`. |
 | 7  | `docs/theory/discrete_ordinates.rst:2761` | Phase C sweep-frame three primitives list — direction-keyed cell-visit DAG points at `dag_walk(direction_sign=±1)`.   |
 | 8  | `docs/theory/discrete_ordinates.rst:2837, 2854` | Two sweep-frame code examples migrated to `for visit in sn_mesh.dag_walk(direction_sign=±1):`                         |
 
@@ -130,16 +130,16 @@ control-flow path, two entry signatures.
    (cache populator at L259) + 1 docstring reference (L203).
 5. `orpheus/sn/spatial/cell_update.py` — 3 docstring references
    (L114-118 module docstring, L300 CellVisit docstring).
-6. `tests/sn/test_iter_cells_by_direction.py` → `tests/sn/test_dag_walk.py`
+6. `tests/gates/sn/test_iter_cells_by_direction.py` → `tests/gates/sn/test_dag_walk.py`
    (renamed + 11 equivalence tests rewritten + 1 XOR test added →
    12 tests total).
-7. `tests/sn/test_snmesh_consumes_reduced.py` — 5 test function
+7. `tests/gates/sn/test_snmesh_consumes_reduced.py` — 5 test function
    names + bodies migrated.
-8. `tests/sn/spatial/test_sweep_cache.py` — 2 test bodies migrated.
-9. `tests/sn/test_phase_c_gates.py` — 1 docstring reference.
-10. `tests/sn/test_snstreamingoperator.py` — 1 docstring reference.
-11. `tests/sn/spatial/test_diamond.py` — 1 docstring reference.
-12. `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py` — 2
+8. `tests/gates/sn/spatial/test_sweep_cache.py` — 2 test bodies migrated.
+9. `tests/gates/sn/test_phase_c_gates.py` — 1 docstring reference.
+10. `tests/gates/sn/test_snstreamingoperator.py` — 1 docstring reference.
+11. `tests/gates/sn/spatial/test_diamond.py` — 1 docstring reference.
+12. `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py` — 2
     call sites migrated.
 13. `docs/theory/discrete_ordinates.rst` — ~12 narrative + code
     example references migrated.
@@ -172,10 +172,10 @@ Two commits per plan:
 6. 11 regression snapshots bit-identical at rtol=1e-12
    → PASS — see test_dd_regression output below
 
-7. L0 streaming-equilibrium tests/sn/spatial/test_streaming_equilibrium_curvilinear.py
+7. L0 streaming-equilibrium tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py
    → 26/26 PASS at rtol=1e-9 — see paste-back below
 
-8. tests/sn/test_dag_walk.py exists (renamed) + 12/12 PASS
+8. tests/gates/sn/test_dag_walk.py exists (renamed) + 12/12 PASS
    → PASS — see paste-back below
 ```
 
@@ -217,7 +217,7 @@ The Q3 doc updates are clean.
 
 ## Verbatim test pin (L12 paste-back — full stdout)
 
-### 1. `pytest tests/sn/spatial/test_sweep_cache.py -v`
+### 1. `pytest tests/gates/sn/spatial/test_sweep_cache.py -v`
 
 ```
 ============================= test session starts ==============================
@@ -228,34 +228,34 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 28 items
 
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
-tests/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
-tests/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
-tests/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
-tests/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
-tests/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
 
 =============================== warnings summary ===============================
 orpheus/numerics/__init__.py:3
@@ -266,7 +266,7 @@ orpheus/numerics/__init__.py:3
 =================== 27 passed, 1 skipped, 1 warning in 0.59s ===================
 ```
 
-### 2. `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
+### 2. `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
 
 ```
 ..........................                                               [100%]
@@ -279,7 +279,7 @@ orpheus/numerics/__init__.py:3
 26 passed, 1 warning in 1011.00s (0:16:50)
 ```
 
-### 3. `pytest tests/sn/regression/ -v`
+### 3. `pytest tests/gates/sn/regression/ -v`
 
 ```
 ============================= test session starts ==============================
@@ -290,25 +290,25 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 11 items
 
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
 
 =============================== warnings summary ===============================
 orpheus/numerics/__init__.py:3
   /Users/rodrigo/git/nuclear/ORPHEUS/orpheus/numerics/__init__.py:3: DeprecationWarning: orpheus.numerics.eigenvalue.power_iteration and EigenvalueSolver are deprecated; use orpheus.numerics.iteration.KEigenvalue / SourceIteration for new code.  power_iteration stays functional through the cross-solver migration sequence (CP, diffusion, MoC, homogeneous).
     from .eigenvalue import EigenvalueSolver, power_iteration
 
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20]
   /Users/rodrigo/git/nuclear/ORPHEUS/orpheus/sn/solver.py:318: RuntimeWarning: invalid value encountered in divide
     return self.fission_op.apply(flux_distribution) / keff
 
@@ -316,7 +316,7 @@ tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso
 ================== 11 passed, 3 warnings in 72.28s (0:01:12) ===================
 ```
 
-### 4. `pytest tests/sn/test_dag_walk.py -v`
+### 4. `pytest tests/gates/sn/test_dag_walk.py -v`
 
 ```
 ============================= test session starts ==============================
@@ -327,18 +327,18 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 12 items
 
-tests/sn/test_dag_walk.py::test_dag_walk_spherical_outward_matches_per_ordinate PASSED [  8%]
-tests/sn/test_dag_walk.py::test_dag_walk_spherical_inward_matches_per_ordinate PASSED [ 16%]
-tests/sn/test_dag_walk.py::test_dag_walk_slab_matches_per_ordinate PASSED [ 25%]
-tests/sn/test_dag_walk.py::test_dag_walk_cylindrical_per_level_matches PASSED [ 33%]
-tests/sn/test_dag_walk.py::test_dag_walk_invalid_sign_raises PASSED      [ 41%]
-tests/sn/test_dag_walk.py::test_dag_walk_cylindrical_requires_level PASSED [ 50%]
-tests/sn/test_dag_walk.py::test_dag_walk_xor_signature_enforced PASSED   [ 58%]
-tests/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_spherical_matches_brute_force PASSED [ 66%]
-tests/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_cylindrical_matches_brute_force PASSED [ 75%]
-tests/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_empty_mask_yields_empty PASSED [ 83%]
-tests/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_lazy_table_caches PASSED [ 91%]
-tests/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_outer_boundary_inward_absent PASSED [100%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_spherical_outward_matches_per_ordinate PASSED [  8%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_spherical_inward_matches_per_ordinate PASSED [ 16%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_slab_matches_per_ordinate PASSED [ 25%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_cylindrical_per_level_matches PASSED [ 33%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_invalid_sign_raises PASSED      [ 41%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_cylindrical_requires_level PASSED [ 50%]
+tests/gates/sn/test_dag_walk.py::test_dag_walk_xor_signature_enforced PASSED   [ 58%]
+tests/gates/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_spherical_matches_brute_force PASSED [ 66%]
+tests/gates/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_cylindrical_matches_brute_force PASSED [ 75%]
+tests/gates/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_empty_mask_yields_empty PASSED [ 83%]
+tests/gates/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_lazy_table_caches PASSED [ 91%]
+tests/gates/sn/test_dag_walk.py::test_unknowns_at_cell_for_mask_outer_boundary_inward_absent PASSED [100%]
 
 =============================== warnings summary ===============================
 orpheus/numerics/__init__.py:3
@@ -349,7 +349,7 @@ orpheus/numerics/__init__.py:3
 ======================== 12 passed, 1 warning in 0.31s =========================
 ```
 
-### 5. `pytest tests/sn/test_snmesh_consumes_reduced.py -v`
+### 5. `pytest tests/gates/sn/test_snmesh_consumes_reduced.py -v`
 
 ```
 ============================= test session starts ==============================
@@ -360,21 +360,21 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 15 items
 
-tests/sn/test_snmesh_consumes_reduced.py::test_slab_reduced_is_reduced_streaming_operator PASSED [  6%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_reduced_is_reduced_streaming_operator PASSED [ 13%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_reduced_is_reduced_streaming_operator PASSED [ 20%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_warn[face_areas] PASSED [ 26%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_warn[delta_A] PASSED [ 33%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_warn[face_areas] PASSED [ 40%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_warn[delta_A] PASSED [ 46%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_route_to_reduced PASSED [ 53%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_route_to_reduced PASSED [ 60%]
-tests/sn/test_snmesh_consumes_reduced.py::test_slab_keeps_cartesian_streaming_arrays PASSED [ 66%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_dag_walk_outward_order PASSED [ 73%]
-tests/sn/test_snmesh_consumes_reduced.py::test_sphere_dag_walk_inward_order PASSED [ 80%]
-tests/sn/test_snmesh_consumes_reduced.py::test_slab_dag_walk_no_face_areas PASSED [ 86%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_dag_walk_per_level PASSED [ 93%]
-tests/sn/test_snmesh_consumes_reduced.py::test_cylinder_dag_walk_requires_level_idx PASSED [100%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_slab_reduced_is_reduced_streaming_operator PASSED [  6%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_reduced_is_reduced_streaming_operator PASSED [ 13%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_reduced_is_reduced_streaming_operator PASSED [ 20%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_warn[face_areas] PASSED [ 26%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_warn[delta_A] PASSED [ 33%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_warn[face_areas] PASSED [ 40%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_warn[delta_A] PASSED [ 46%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_deprecated_properties_route_to_reduced PASSED [ 53%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_deprecated_properties_route_to_reduced PASSED [ 60%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_slab_keeps_cartesian_streaming_arrays PASSED [ 66%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_dag_walk_outward_order PASSED [ 73%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_sphere_dag_walk_inward_order PASSED [ 80%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_slab_dag_walk_no_face_areas PASSED [ 86%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_dag_walk_per_level PASSED [ 93%]
+tests/gates/sn/test_snmesh_consumes_reduced.py::test_cylinder_dag_walk_requires_level_idx PASSED [100%]
 
 =============================== warnings summary ===============================
 orpheus/numerics/__init__.py:3
@@ -385,7 +385,7 @@ orpheus/numerics/__init__.py:3
 ======================== 15 passed, 1 warning in 0.36s =========================
 ```
 
-### 6. `time pytest tests/sn/ -q` — L12 verifier-of-record
+### 6. `time pytest tests/gates/sn/ -q` — L12 verifier-of-record
 
 **PASTE-IN-PROGRESS.**  The full SN suite (including the 17-minute
 streaming-equilibrium-curvilinear run + 1-minute regression suite

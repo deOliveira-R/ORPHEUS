@@ -9,7 +9,7 @@ population; ignored entirely as instructed).
 exactly **two** hunks (`7c250811`), both re-pointing the ERR-023/ERR-024
 catalogue path from `.claude/skills/…/error_catalog.md` to
 `docs/theory/verification/error_catalog.rst`. No equation, label, prose pointer
-or rationale comment changed, and no file under `orpheus/mc/`, `tests/mc/` or
+or rationale comment changed, and no file under `orpheus/mc/`, `tests/gates/mc/` or
 `orpheus/geometry/structured_geometry.py` changed at all. All reads below are
 against the working tree at `58e46c6f` (clean).
 
@@ -50,20 +50,20 @@ page carries **no** declaration directive on any of the 22 (its only
 ## ⚠ Finding the parent must weigh BEFORE landing these declarations
 
 **The L0 property tests REPLICATE the solver logic instead of calling it.**
-`tests/mc/test_properties.py` carries verbatim comments *"Replicate solver's
+`tests/gates/mc/test_properties.py` carries verbatim comments *"Replicate solver's
 chi sampling"* (`:397`), *"Apply roulette (replicate solver logic)"* (`:460`),
 *"Replicate solver splitting logic"* (`:524`), *"Replicate solver's batch
 statistics"* (`:620`), and `test_periodic_bc_wrapping` (`:420-439`) asserts
 `3.7 % 3.6 == 0.1` on bare Python floats — it never runs `_random_walk`.
 `[M]` `grep -rn "_random_walk|_russian_roulette|_split_heavy|_precompute_xs" tests/`
 returns **0 hits across the whole test tree**: none of the four private kernels
-is ever imported or called by any test. `tests/mc/test_gaps.py::test_splitting_copy_count`
+is ever imported or called by any test. `tests/gates/mc/test_gaps.py::test_splitting_copy_count`
 (`:640-646`) replicates the splitting rule the same way.
 
 ⟹ once these declarations land, a contexts-carrying coverage run will
 **REFUTE** the `verifies` claims of the L0 replicating tests against the
 declared implementers, unless the test happens to also drive
-`solve_monte_carlo` end-to-end (the `tests/mc/test_gaps.py` and
+`solve_monte_carlo` end-to-end (the `tests/gates/mc/test_gaps.py` and
 `test_monte_carlo.py` module-level `pytestmark` claims mostly DO, because those
 tests call `solve_monte_carlo`). **That refutation is a true finding, not a
 declaration error** — the equation really is implemented where I say, and the
@@ -272,7 +272,7 @@ replicating test go green.
 - **rationale comment on the page**: none on this label; but the adjacent
   `mc-analog-multiplication` DOES carry one and it names this label explicitly:
   *"the fission-weight factor it derives is verified by
-  `tests/mc/test_properties.py::test_fission_weight_adjustment` (the wired
+  `tests/gates/mc/test_properties.py::test_fission_weight_adjustment` (the wired
   `fission-weight` label)"*. The page also inlines the three implementing lines at
   `monte_carlo.rst:748-750`.
 - **what the equation says**: analog absorption multiplies the weight by the
@@ -316,8 +316,8 @@ replicating test go green.
   is a page-level decision, not a declaration decision — flagging, not deciding.
 - **Test-side sites** (not declared; listed for completeness because they compute
   the equation in the *exact* direction the MC page states it, `p = R√π`):
-  `tests/mc/test_monte_carlo.py:128`, `tests/mc/test_cross_verification.py:79`,
-  `tests/mc/test_convergence.py:85` and `:122`, `tests/mc/test_gaps.py:678` — five
+  `tests/gates/mc/test_monte_carlo.py:128`, `tests/gates/mc/test_cross_verification.py:79`,
+  `tests/gates/mc/test_convergence.py:85` and `:122`, `tests/gates/mc/test_gaps.py:678` — five
   copies of `pitch = r_cell * np.sqrt(np.pi)`, i.e. the ERR-017 fix, duplicated per
   test module rather than routed through a helper.
 - **confidence**: high for the two production sites. Medium on scope: whether the
@@ -387,7 +387,7 @@ replicating test go green.
 - **rationale comment on the page**: none (it sits inside a `.. note::`). The note
   itself is the pointer: *"fixed by taking |Δu_g| at the definition site (the code
   computes `flux_per_lethargy = tally / np.abs(xs.du)`)"* and names the regression
-  gate `tests/mc/test_gaps.py::test_flux_per_lethargy_nonnegative`.
+  gate `tests/gates/mc/test_gaps.py::test_flux_per_lethargy_nonnegative`.
 - **what the equation says**: with ORPHEUS's fastest-first (descending `eg`) group
   convention, `Δu_g = ln(eg[g+1]/eg[g])` is NEGATIVE — hence the `abs`.
 - **implementers** (complete):
@@ -440,12 +440,12 @@ replicating test go green.
   systematic allowance.
 - **implementers** (complete — there is NO production site; grep for `0.06` in
   `orpheus/` finds nothing related):
-  - `tests.mc.test_monte_carlo.test_mc_heterogeneous` —
-    `tests/mc/test_monte_carlo.py:159`
+  - `tests.gates.mc.test_monte_carlo.test_mc_heterogeneous` —
+    `tests/gates/mc/test_monte_carlo.py:159`
     (`tol = 5.0 * max(result.sigma, 1e-10) + 0.06 * case.k_inf`)
-  - `tests.mc.test_monte_carlo.test_mc_heterogeneous_extended` —
-    `tests/mc/test_monte_carlo.py:190` (the same expression, duplicated)
-  Both resolve as `py:function:tests.mc.test_monte_carlo.*` nodes.
+  - `tests.gates.mc.test_monte_carlo.test_mc_heterogeneous_extended` —
+    `tests/gates/mc/test_monte_carlo.py:190` (the same expression, duplicated)
+  Both resolve as `py:function:tests.gates.mc.test_monte_carlo.*` nodes.
 - **⚠ Caveat the parent must weigh**: `test_mc_heterogeneous` is ALSO the sole
   `verifies("hetero-tolerance")` claimant. Declaring it as its own implementer
   makes that claim adjudicate to *corroborated* trivially ("did the test execute
@@ -557,7 +557,7 @@ Every one is a `function` / `method` / `class` node — no module appears.
 | `collision-estimator` | `orpheus.mc.solver._random_walk` |
 | `mc-lethargy-width-sign` | `orpheus.mc.solver._precompute_xs`, `orpheus.mc.solver.solve_monte_carlo` |
 | `splitting-weight-conservation` | `orpheus.mc.solver._split_heavy` |
-| `hetero-tolerance` | `tests.mc.test_monte_carlo.test_mc_heterogeneous`, `tests.mc.test_monte_carlo.test_mc_heterogeneous_extended` ⚠ test-only |
+| `hetero-tolerance` | `tests.gates.mc.test_monte_carlo.test_mc_heterogeneous`, `tests.gates.mc.test_monte_carlo.test_mc_heterogeneous_extended` ⚠ test-only |
 | `majorant` | `orpheus.mc.solver._precompute_xs` |
 | `virtual-collision-probability` | `orpheus.mc.solver._random_walk` |
 | `splitting` | `orpheus.mc.solver._split_heavy` |
@@ -588,7 +588,7 @@ sits outside those three: `ws-pitch` states the same equal-area conversion that
 pages, so I declared only the two sites the MC page itself names or owns and
 left `MOCMesh.__init__` / `build_moc_mesh` to their own pages. Finally, the
 finding that most affects what these declarations will *do*: the L0 gates in
-`tests/mc/test_properties.py` (and `test_gaps.py::test_splitting_copy_count`)
+`tests/gates/mc/test_properties.py` (and `test_gaps.py::test_splitting_copy_count`)
 **replicate** the solver logic inline rather than importing it, so their
 `verifies` claims will adjudicate as REFUTED against the declared implementers —
 correctly, and that is a coverage gap to file, not a declaration to soften.

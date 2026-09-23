@@ -24,7 +24,7 @@ three durable claims below survive line-number churn.
 - `orpheus.moc.core.MOCSolver.solve_fixed_source` — production sweep.
 - `orpheus.derivations.continuous.mms.moc.mms_sweep` — an **independent**
   re-implementation of the same segment kernel with a manufactured per-segment
-  source, imported by `tests/moc/test_mms.py`. It is not a wrapper; it duplicates
+  source, imported by `tests/gates/moc/test_mms.py`. It is not a wrapper; it duplicates
   τ, Δψ, the `4π ω_a ω_p t_s sinθ` weight and the flux reconstruction.
 - Third, symbolic: `orpheus.derivations.discrete.moc.equations.derive_bar_psi`
   (SymPy, integrates + asserts the ψ̄ identity — the statement of record for
@@ -44,7 +44,7 @@ equations. The rationale form exists on `methods/index.rst` and
 `methods/collision_probability.rst`. ⟹ before briefing (or believing) a fanout
 method that leads with "read the authored rationale", grep the page for it; on
 this page the answer comes from the equation + prose + the **claiming test
-module's own comment block** (`tests/moc/test_*.py` pytestmark comments name the
+module's own comment block** (`tests/gates/moc/test_*.py` pytestmark comments name the
 gate and often the mechanism — that is where MoC's authored knowledge sits).
 
 ## 3. Two measured defect leads (independent of the declarations)

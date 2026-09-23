@@ -88,7 +88,7 @@ and `_atalay_X_function_mpmath` over `(0, T_MAX=20)` and over
 
 The parallel investigation (r099 perfect-reflector front) had ALREADY
 reached this conclusion earlier in the session — see
-`derivations/diagnostics/diag_atalay_r099_06_pin_xfunction_fix.py` [not preserved (never tracked); what survives is ERR-038 and its catching tests `tests/derivations/test_case_method_*.py`]
+`derivations/diagnostics/diag_atalay_r099_06_pin_xfunction_fix.py` [not preserved (never tracked); what survives is ERR-038 and its catching tests `tests/gates/derivations/test_case_method_*.py`]
 which shows R=0.99 still 5.03% off after a tanh-X-function patch.
 
 # What's actually wrong — provenance question
@@ -126,11 +126,11 @@ Outside scope of this session per the task brief.
 
 # Files touched (this investigation)
 
-- `derivations/diagnostics/diag_kj_phase1_fingerprint.py` — K_j outer [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/derivations/test_case_method_*.py`]
+- `derivations/diagnostics/diag_kj_phase1_fingerprint.py` — K_j outer [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/gates/derivations/test_case_method_*.py`]
   scipy.quad convergence fingerprint (rules out Signature 7 at K_j level).
-- `derivations/diagnostics/diag_kj_phase1b_xfunction.py` — X(-ν) [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/derivations/test_case_method_*.py`]
+- `derivations/diagnostics/diag_kj_phase1b_xfunction.py` — X(-ν) [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/gates/derivations/test_case_method_*.py`]
   scipy-vs-mpmath agreement (proved the bottleneck is X, not K_j outer).
-- `derivations/diagnostics/diag_kj_x_function_divergent_integrand.py` [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/derivations/test_case_method_*.py`]
+- `derivations/diagnostics/diag_kj_x_function_divergent_integrand.py` [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/gates/derivations/test_case_method_*.py`]
   — pinned regression: X integrand drifts 6e-3 across dps 15→60
   (logarithmic divergence fingerprint), AND pinned residual K_j gap
   at the post-ERR-037 baseline values (1.13%, 2.87%, 4.40%).
@@ -161,6 +161,6 @@ that look similar without verifying the SAME pole structure exists.
 The Wave 2-B follow-up scope ("apply μ=tanh(t) to K_j") is closed as
 **hypothesis FALSIFIED**. Production code unchanged from baseline. The
 residual ~1-4 % gap on Atalay Table 2 reflected slabs is pinned by
-`derivations/diagnostics/diag_kj_x_function_divergent_integrand.py` [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/derivations/test_case_method_*.py`]
+`derivations/diagnostics/diag_kj_x_function_divergent_integrand.py` [not preserved (never tracked); what survives is this note and ERR-038 with its catching tests `tests/gates/derivations/test_case_method_*.py`]
 and tracked as an open investigation requiring deeper analytical work
 on the X-function regularisation.

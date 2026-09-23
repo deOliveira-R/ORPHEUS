@@ -54,7 +54,7 @@ The interior face-flux cochain — :math:`C^1_{\rm int}`
    (on the space ``InteriorFaceSpace``). **That type is retired** — the
    modules ``orpheus/transport/fields/wavefront_flux.py`` and
    ``orpheus/numerics/spaces/interior_face_space.py``, and the 25
-   foundation tests in ``tests/transport/fields/test_wavefront_flux.py``,
+   foundation tests in ``tests/gates/transport/fields/test_wavefront_flux.py``,
    are deleted. The cochain **mathematics** below — the biproduct
    :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`, the trace algebra
    :math:`\iota_*` / :math:`\iota^*`, the flux-only single-role
@@ -537,7 +537,7 @@ already-verified raw-numpy path:
        BC block matches
      - 126 passed
    * - **foundation suite**
-       (``tests/transport/fields/test_wavefront_flux.py`` — RETIRED
+       (``tests/gates/transport/fields/test_wavefront_flux.py`` — RETIRED
        at S6.4(f) with the type)
      - units / class identity / field+views / the two biproduct laws /
        the round-trip pin + L11 negative control / axis-parametricity

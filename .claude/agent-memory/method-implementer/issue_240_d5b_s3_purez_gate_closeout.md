@@ -8,7 +8,7 @@ metadata:
 # #240 D5b-S3 — close the two review findings before commit (purez gate + frame-sign hoist)
 
 **Branch** `feature/sn-space-angle-tier2`. **NOT committed** (main agent commits; NO `git add` was run).
-Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## ⚠⚠ READ FIRST — accidental damage to `error_catalog.md` (needs main-agent restore)
 
@@ -70,7 +70,7 @@ operator applied two ways; a ported guard is a second twin waiting to drift
 
 **THE MISSING GATE (the load-bearing part — L14/L18/L21, "the matvec needs
 a committed gate", recurring a THIRD time).** NEW
-`tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature`
+`tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature`
 (`@foundation @catches("ERR-062")`, Mode-8-safe — `np.testing.assert_allclose`
 / `pytest.fail`). Config = the genuine-Mode-9 spec, the bug's EXACT habitat:
 - **Lebedev order 5** (N=14, 2 pure-z ordinates + genuine `mu_y`) — the cheap
@@ -118,32 +118,32 @@ pre-existing, incl. the `moment_scan_closure` LD-only-on-base nit from qa L-033)
 
 ```
 # Finding-1 NEW gate (the bug's exact habitat)
-tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature
+tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature
     PASS with fix (Krylov ≡ SI ~1e-11) ; FAIL (ValueError (2,5,4) vs (1,2,5,4,4)) under mutation
     → catches("ERR-062") MUTATION-VERIFIED
 
 # GATE 4 — DD/Step byte-id (the negative control)
-.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-    -W "error::tests.sn.regression._regression_assert.DriftWarning" -q
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+    -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" -q
     → 513 passed / 1 skipped / 4 xfailed  (IDENTICAL pre/post; NO golden .npy moved)
 
 # d=1 correctness HOLDS (diffusion tripwire + scan≡DAG + krylov-matches-SI)
-tests/sn/verification/mms/test_mms_ld_slab.py            → 7 passed
+tests/gates/sn/verification/mms/test_mms_ld_slab.py            → 7 passed
 
 # 2-D LD MMS (now 4 tests incl. the new pure-z gate)
-tests/sn/verification/mms/test_mms_ld_2d.py              → 4 passed (1 @slow ~5.5min)
+tests/gates/sn/verification/mms/test_mms_ld_2d.py              → 4 passed (1 @slow ~5.5min)
 
 # spatial + LD foundation
-tests/sn/spatial                                          → 70 passed
-tests/sn/spatial/test_linear_discontinuous.py + ubld_primitive + ubld_symbolic + ld_slope_frame
+tests/gates/sn/spatial                                          → 70 passed
+tests/gates/sn/spatial/test_linear_discontinuous.py + ubld_primitive + ubld_symbolic + ld_slope_frame
                                                          → 40 passed
-tests/sn/solve                                           → 60 passed
-tests/sn/sweep/cartesian_2d + verification/mms/test_mms_2d.py (not slow)
+tests/gates/sn/solve                                           → 60 passed
+tests/gates/sn/sweep/cartesian_2d + verification/mms/test_mms_2d.py (not slow)
                                                          → 48 passed / 1 skip / 4 deselected
 
 # operators — the 7 DOCUMENTED PRE-EXISTING reds ONLY (stash-verified: with
 #   loss_representation.py reverted, STILL 7 failed / 505 passed → ZERO new)
-tests/sn/operators                                       → 505 passed / 7 failed (pre-existing)
+tests/gates/sn/operators                                       → 505 passed / 7 failed (pre-existing)
     [3× sphere 1-D matvec SPH + 2× Face 'ymin' mu_y + 2× sphere apply]
 
 # branch-free grep
@@ -165,7 +165,7 @@ isinstance.*(LinearDiscontinuous|DiamondDifference|...)  → CLEAN
   pure_z arms → `_moment_broadcast_sigma`; 2 `_OneDimScanWalk` frame-sign sites →
   `frame_signs_for`; TYPE_CHECKING import `DiscretizationSchemeBase`; import
   `octant_moment_frame_signs`.
-- `tests/sn/verification/mms/test_mms_ld_2d.py` — NEW
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py` — NEW
   `test_ld_2d_krylov_equals_si_pure_z_quadrature` (D5b.6).
 - `docs/theory/discrete_ordinates.rst` — NEW stub `ld-ubld-pure-z-collision`
   (`:label:` + eq + `:mod:` + archivist TODO) under the unified-moment-matvec section.
@@ -232,7 +232,7 @@ order after the τ-clamp finding's Lesson line.)
 
 **Fix.** `return mu_axis * sp.Matrix(...)`. Mutation-verified `-O`-safe: re-dropping the factor makes `test_d2_exact_on_bilinear` FAIL (returncode 1, via `pytest.fail`) while the d=1 oracles stay GREEN.
 
-**Which test catches it.** `tests/sn/spatial/test_ld_ubld_symbolic.py::test_d2_exact_on_bilinear` (Branch 1) + `tests/sn/spatial/test_ld_ubld_primitive.py::test_d2_exact_on_bilinear` (Branch 2 numpy), both `@pytest.mark.foundation @pytest.mark.catches("ERR-060")`, Mode-8-safe (`pytest.fail`). NOTE: `tests/sn/spatial/test_linear_discontinuous.py::test_d2_assembled_matrices_match_symbolic` carried `catches("ERR-060")` but is BLIND to it (it checks `assemble_ubld`'s A/M/G/F_out, which carry no inflow factor, and PASSES under the |μ_axis| drop). Only the exact-on-bilinear gates are genuine catchers (the marker on the A==A pin is a coverage-claim error to drop — qa L-031).
+**Which test catches it.** `tests/gates/sn/spatial/test_ld_ubld_symbolic.py::test_d2_exact_on_bilinear` (Branch 1) + `tests/gates/sn/spatial/test_ld_ubld_primitive.py::test_d2_exact_on_bilinear` (Branch 2 numpy), both `@pytest.mark.foundation @pytest.mark.catches("ERR-060")`, Mode-8-safe (`pytest.fail`). NOTE: `tests/gates/sn/spatial/test_linear_discontinuous.py::test_d2_assembled_matrices_match_symbolic` carried `catches("ERR-060")` but is BLIND to it (it checks `assemble_ubld`'s A/M/G/F_out, which carry no inflow factor, and PASSES under the |μ_axis| drop). Only the exact-on-bilinear gates are genuine catchers (the marker on the A==A pin is a coverage-claim error to drop — qa L-031).
 
 **Lesson.** A reduction oracle that builds its own reduced-case RHS inline is blind to the general assembler's higher-d terms — ship the exact-on-bilinear (d≥2) gate WITH the d=1 reduction oracle, never the d=1 reduction alone. The d=1-blind / d≥2-caught split is the H2 signature lifted to dimension. → numerical-bug-signatures Signature 4 family at the symbolic-derivation layer.
 
@@ -252,7 +252,7 @@ order after the τ-clamp finding's Lesson line.)
 
 **Fix.** A single-sourced `2^d` moment-frame involution `octant_moment_frame_signs(octant_signs, per_axis)` = `∏_a (octant_sign_a)^{o_a}` (average moment sign-invariant; per-axis slope flips once if that axis sweeps backward; the d=2 cross moment `x̂y` flips when an ODD number of its axes reverse). Applied via the `_reframe` helper at both cell ops: the source/probe is mapped global→sweep on INPUT and the emitted moment/residual sweep→global on OUTPUT (the map is its own inverse). The OUTGOING FACE (`psi_out`) stays sweep-frame — it propagates along the wavefront and never crosses into the global-frame iterate. DD/Step (`per_axis == 1` → `None`) are byte-identical (the negative control: GATE 4 = 513 pass / 1 skip / 4 xfail, zero drift). The flat scalar source (matvec zero / flat external — only the sign-invariant average moment) is frame-invariant and skipped by the `arr.shape[-1] != frame_signs.shape[0]` guard, so it is never broadcast into a spurious moment axis. Post-fix: nx=4 LD vs DD rel 38.9% → 4.1%; nx=16 7.9% → 0.2%; nx=64 0.9% → 0.0%. The 2-D analog converges 8.4% → 1.7% → 0.4% across n=4/8/16.
 
-**Which test catches it.** `tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit` (1G) + `::test_ld_thick_diffusive_limit_2g` (2G-het, Mode-6 group-coupled slope source) — both `@pytest.mark.l1 @pytest.mark.catches("ERR-061")`, both Mode-8-safe (`np.testing.assert_array_less`, fires under `-O`). The slope-frame fingerprint is pinned by `derivations/diagnostics/diag_240_d5b_s3_probe_11_root_cause.py` (forward and backward ordinate slopes must share sign in the global frame) and the structurally-independent confirmation by `diag_240_d5b_s3_probe_08_independent_ld.py` (from-scratch LD recovers diffusion only with the global-frame correction).
+**Which test catches it.** `tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit` (1G) + `::test_ld_thick_diffusive_limit_2g` (2G-het, Mode-6 group-coupled slope source) — both `@pytest.mark.l1 @pytest.mark.catches("ERR-061")`, both Mode-8-safe (`np.testing.assert_array_less`, fires under `-O`). The slope-frame fingerprint is pinned by `derivations/diagnostics/diag_240_d5b_s3_probe_11_root_cause.py` (forward and backward ordinate slopes must share sign in the global frame) and the structurally-independent confirmation by `diag_240_d5b_s3_probe_08_independent_ld.py` (from-scratch LD recovers diffusion only with the global-frame correction).
 
 **Lesson.** A per-ordinate spatial-moment quantity (an LD slope, an Pℓ anisotropic moment) that is produced in a direction-dependent SWEEP frame MUST be lifted to the global frame BEFORE the angular reduction that sums it across ordinates — the producer and the consumer must agree on the frame, or forward and backward ordinates cancel a quantity that should reinforce. The matvec-self-consistency gate (SI≡Krylov, round-trip≈0) is necessary but NEVER sufficient for a moment-iterate fold: it proves the operator is internally consistent, not that its fixed point is the physically correct one — gate the converged VALUE against a structurally-independent reference (here: the continuous diffusion solution + an independent from-scratch LD kernel), never the round-trip. → numerical-bug-signatures: a NEW frame-convention class (sweep-frame vs global-frame for direction-dependent moments) adjacent to Signature 3 (scattering transpose) and Signature 4 (quadrature normalization) — the common thread is a per-ordinate convention that is invisible until a quantity is summed across ordinates of opposite sweep direction (the angular reduction is the discriminator, exactly as H2/H3 predict: flat flux nulls the slope, and conservation/round-trip are telescoping-degenerate to the frame error).
 
@@ -272,6 +272,6 @@ order after the τ-clamp finding's Lesson line.)
 
 **Fix.** Single-source the moment-broadcast through `_moment_broadcast_sigma(sig, moment_valued)` (= `sig[..., None] if moment_valued.ndim > sig.ndim + 1 else sig`), called by BOTH the sweep arm (`Q / _moment_broadcast_sigma(sig_t, q)`) and the matvec arm (`_moment_broadcast_sigma(sigma, probe_oct) * probe_oct`). The two twins now CANNOT diverge on the moment-axis reshape (Pattern 2 / L21 — sweep ≡ matvec are two applications of the same collision-only operator). DD/Step (no moment axis) → `sig` unchanged, byte-identical (the negative control: GATE 4 = 513 pass / 1 skip / 4 xfail, zero drift).
 
-**Which test catches it.** `tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature` (`@pytest.mark.foundation @pytest.mark.catches("ERR-062")`, Mode-8-safe — `np.testing.assert_allclose` / `pytest.fail`). Mode-9 degeneracy-break config: a pure-z-bearing **Lebedev order 5** quadrature (N=14, genuine `mu_y` + the 2 ±z poles), **heterogeneous** 2-material map (A/B), **2-group asymmetric** XS with **non-zero self-scatter**, **NON-SQUARE** 5×4, vacuum edges. Mutation-verified: re-introducing the bare `sigma * probe[oct_idx]` makes the gate FAIL with the exact `ValueError` (shapes `(2,5,4)` vs `(1,2,5,4,4)`); with the fix Krylov ≡ SI to ~1e-11 (the same `(L+C−S_full)` fixed point).
+**Which test catches it.** `tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature` (`@pytest.mark.foundation @pytest.mark.catches("ERR-062")`, Mode-8-safe — `np.testing.assert_allclose` / `pytest.fail`). Mode-9 degeneracy-break config: a pure-z-bearing **Lebedev order 5** quadrature (N=14, genuine `mu_y` + the 2 ±z poles), **heterogeneous** 2-material map (A/B), **2-group asymmetric** XS with **non-zero self-scatter**, **NON-SQUARE** 5×4, vacuum edges. Mutation-verified: re-introducing the bare `sigma * probe[oct_idx]` makes the gate FAIL with the exact `ValueError` (shapes `(2,5,4)` vs `(1,2,5,4,4)`); with the fix Krylov ≡ SI to ~1e-11 (the same `(L+C−S_full)` fixed point).
 
 **Lesson.** When a per-cell quantity gains a new axis (here the `2^d` spatial-moment axis), every TWIN that touches it — the sweep solve AND its matvec apply — must learn the new broadcast convention at the SAME single-source site, or the twin that was edited diverges from the twin that was forgotten. The L21 rule "sweep and matvec are two applications of the same operator" is not just a correctness aesthetic: a collision-only `Q/σ_t` ↔ `σ_t·ψ̄` pair that does not share its σ-reshape helper is a crash waiting for the first quadrature that exercises the degenerate arm. And the matvec ALWAYS needs a committed gate on the bug's exact habitat (a pure-z-bearing quadrature here), never a round-trip on a degenerate config — the round-trip is structurally blind to an arm it never runs. → coding-elegance Pattern 2 (single source) + the recurring L14/L18/L21 "the matvec needs a committed gate."

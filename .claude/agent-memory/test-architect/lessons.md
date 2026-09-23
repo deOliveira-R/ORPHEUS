@@ -85,7 +85,7 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   gate: hoist every emission into the public entry. → `L46b`, `L46c`
 - **⛔ A TYPE-ANNOTATION widen has NO runtime witness** ("hand it the wider type,
   assert it constructs" is green before and after). Gate it with
-  `tests/test_pyright_ratchet.py`, and SAY which done-when items are grep
+  `tests/gates/test_pyright_ratchet.py`, and SAY which done-when items are grep
   OBLIGATIONS rather than gates, or they read as covered. → `L59d`
 - **⛔ Constructing a break-exactly-ONE-invariant mutant is a design problem** —
   `np.roll(arange(N),1)` breaks measure AND sign AND involution, and no ODD
@@ -229,7 +229,7 @@ shelf life — check it against a concrete row before trusting a green.
   `ρ(A⁻¹F) = k_eff < 1`. → `L84e`
 - **The SN operator fixtures carry `placeholder_materials`** (SigS / χ / νΣf all
   zero) ⟹ `F` is the ZERO operator and its reciprocity row is `0 == 0`. Every
-  `tests/sn/architecture/_config` mesh is NON-FISSILE (`solve_sn` raises
+  `tests/gates/sn/architecture/_config` mesh is NON-FISSILE (`solve_sn` raises
   *"leakage scale bridge is degenerate"*) and reads `|N2N·x| = 0`. "Reuse the
   existing fixture" is a hypothesis: measure it, and record WHY each neighbour
   was rejected. → `L26`, `L83`, `L84j`
@@ -250,7 +250,7 @@ shelf life — check it against a concrete row before trusting a green.
   per-SWEEP; the only full-solve angular wall is #448's 32 anchors.
   `material_xs_field()` is a FRESH MINT per call; `geometry_cache_for` fires
   1182× per 1-D eigen solve (intern-absorbed). → `L83k`
-- **`-W error::tests.sn.regression._regression_assert.DriftWarning` is a 1-ULP
+- **`-W error::tests.gates.sn.regression._regression_assert.DriftWarning` is a 1-ULP
   wall but NOT absolute on this tree** (19 passed plain, 9 failed / 10 passed
   escalated). Used absolutely it is 9 false reds; used as a DELTA (the drift SET
   and each case's ULP count unchanged) it is exact and free in ~1.6 s. The

@@ -594,8 +594,8 @@ operator action and `solve(source, upstream) → cell_average` is the
 existing update. No mathematical change; pure type-system promotion.
 
 **Acceptance criterion**: hand-calc tests
-(`tests/sn/spatial/test_diamond.py`) still pass at `np.array_equal`.
-**Independently committable.** **Tests**: `pytest tests/sn/spatial/`.
+(`tests/gates/sn/spatial/test_diamond.py`) still pass at `np.array_equal`.
+**Independently committable.** **Tests**: `pytest tests/gates/sn/spatial/`.
 
 ### Step 2 (small, ~2 days). Make `MorelMontryAngularSweep` a `LinearOperator`.
 
@@ -608,8 +608,8 @@ are bound at `__init__`. `CarlsonInwardSweep` similarly wraps as a
 half-angle seed.
 
 **Acceptance criterion**: 4 closure-foundation tests
-(`tests/sn/spatial/test_pole_angular_closure.py`) green.
-**Tests**: `pytest tests/sn/spatial/`.
+(`tests/gates/sn/spatial/test_pole_angular_closure.py`) green.
+**Tests**: `pytest tests/gates/sn/spatial/`.
 
 ### Step 3 (small, ~3 days). Promote the SI sweep to a `SNSweepOperator`.
 
@@ -622,10 +622,10 @@ Q_aniso)`. Capabilities: `{apply, solve}` where `apply(ψ)` is
 via the sweep".
 
 **Acceptance criterion**: 11 regression snapshots
-(`tests/sn/regression/snapshots/`) PASS at `assert_allclose
+(`tests/gates/sn/regression/snapshots/`) PASS at `assert_allclose
 rtol=1e-12`. Bit-equivalence on flat-ψ is structural; numerical
 equivalence on stored snapshots is via the wrapper.
-**Tests**: `pytest tests/sn/regression/ tests/sn/spatial/`.
+**Tests**: `pytest tests/gates/sn/regression/ tests/gates/sn/spatial/`.
 
 ### Step 4 (medium, ~5 days). Replace the inlined matvec WDD recurrence with composition.
 
@@ -645,7 +645,7 @@ def transport_operator_matvec_spherical(...):
 The WDD recurrence in operator.py:792 / 825 disappears — it now lives
 ONCE inside `SNCellOperator`. Manifestation #7 dissolves at this step
 IF the two paths converge to the same fixed point under the chosen
-closure. Empirical validation: `tests/sn/spatial/test_sweep_vs_apply_consistency.py`
+closure. Empirical validation: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`
 (57 tests) should now exhibit bit-identity, not just flat-flux
 equivalence, on representative non-flat ψ.
 
@@ -664,7 +664,7 @@ parameterised on the `EquationMap`. The BC fill becomes the adapter's
 `__init__`-bound `bc_*` operators applied uniformly.
 
 **Acceptance criterion**: bit-identical regression. **Tests**:
-`pytest tests/sn/regression/`.
+`pytest tests/gates/sn/regression/`.
 
 ### Step 6 (medium, ~5 days). Wire the iteration primitives (`SourceIteration`, `PreconditionedGMRES`).
 
@@ -674,7 +674,7 @@ parameterised on the `EquationMap`. The BC fill becomes the adapter's
 the operator_algebra.rst Phase 0 stub at line 226-230).
 
 **Acceptance criterion**: full eigenvalue + fixed-source MMS suite
-green. **Tests**: full `pytest tests/sn/`.
+green. **Tests**: full `pytest tests/gates/sn/`.
 
 ### Step 7 (medium, ~5 days). Choose and document the closure convention.
 
@@ -788,8 +788,8 @@ A, with `CellUpdate` Protocol updated to declare it inherits from
 - Wave H plan: `.claude/plans/sn_reshape.md:153-180` (Wave H rows)
 - Issue #196 + Manifestation #7: GitHub
 - Issue #168 + Phase F: GitHub
-- Test consistency suite: `tests/sn/spatial/test_sweep_vs_apply_consistency.py`
-- Phase E sentinel: `tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+- Test consistency suite: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`
+- Phase E sentinel: `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
 
 ## Linked memories
 

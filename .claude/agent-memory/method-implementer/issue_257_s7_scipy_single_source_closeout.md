@@ -60,7 +60,7 @@ single adapter to live in `iteration.py`.
    `from .operator import (...)` block (was line 31) + `"as_scipy_linop",`
    from package `__all__` (was line 87).
 
-5. **`tests/numerics/test_operator.py`** — remove `as_scipy_linop` from
+5. **`tests/gates/numerics/test_operator.py`** — remove `as_scipy_linop` from
    the import; DELETE the 5 orphaned tests + their `# scipy interop`
    banner (was lines 415-460): `test_as_scipy_linop_matvec_matches_apply`,
    `_rmatvec_when_transpose_capable`, `_no_rmatvec_when_not_transpose_capable`,

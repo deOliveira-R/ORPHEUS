@@ -38,7 +38,7 @@ adds the FORWARD: `A_BB.apply(ψ) = (μ∂_r + σ_t)ψ` (the DD residual `m = σ
 - Flip `is_invertible=True`, `is_adjointable=True`; `inverse()` → involution
   (`inverse().apply ≡ solve`, `inverse().solve ≡ apply` — the `InverseOperator`/`InverseWrapMixin` leaf pattern, requires `is_invertible=True`).
 
-Home: `tests/sn/operators/test_psi_half_coupling.py::TestA_BB_RadialBVP` (extend;
+Home: `tests/gates/sn/operators/test_psi_half_coupling.py::TestA_BB_RadialBVP` (extend;
 `foundation`). Carrying = sphere-GL S4 (`_sphere`/`_graded_sphere`, ≥2G); cyl/slab =
 non-carrying CONTROL (constructor refuses — existing `:936`). Reuse helpers
 `_ray_sigma`/`_ray_source`/`_ray_cotangent`/`_two_leg_reference`/`_install_engine_spy`/
@@ -78,7 +78,7 @@ non-carrying CONTROL (constructor refuses — existing `:936`). Reuse helpers
 - **Existing coverage — SUFFICIENT for VALUE, INSUFFICIENT for bit-identity.**
   `TestRegressionFloor::test_welded_sweep_is_exact_direct_inverse` (`:266`,
   `(L+C).solve(apply(ψ))≈ψ` @3.5e-16) + `test_extract_to_dense...` (`:286`,
-  dense-LU of `(L+C).apply` @5.5e-16) + `tests/sn/sweep/**` end-to-end + the
+  dense-LU of `(L+C).apply` @5.5e-16) + `tests/gates/sn/sweep/**` end-to-end + the
   ERR-067/L18 Mode-12 catcher `test_282_direct_seed_fixed_point.py:367`
   (monkeypatches `_OneDimScanWalk._seed_rows_forward` — survives IFF the method
   stays as a wrapper). All are TOLERANCE gates → keep the walk GREEN at current
@@ -185,7 +185,7 @@ at the COMPOSITE (step-4-ASSEMBLE), not on the leaf residual.
 ## Result contract
 Extend `test_psi_half_coupling.py::TestA_BB_RadialBVP` (foundation) with gates 1b/2/3/4/5/6; add
 the 1a frozen baseline (capture PRE-carve). Every tooth mutation-verified in-process under `-O`.
-Acceptance: full `tests/sn -m "not slow"` 0 reds + `TestRegressionFloor` unchanged + the ERR-067
+Acceptance: full `tests/gates/sn -m "not slow"` 0 reds + `TestRegressionFloor` unchanged + the ERR-067
 `test_282` Mode-12 catcher green + ratchet `transport:1` + sphinx -W. The `is_invertible`/
 `is_adjointable=True` flip may ripple into the step-4-ASSEMBLE swap-law gates
 (`test_inverse_adjoint_coherence.py`) — OUT of 4b scope, flag as a downstream note.

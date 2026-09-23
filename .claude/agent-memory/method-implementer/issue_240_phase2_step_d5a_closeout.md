@@ -74,15 +74,15 @@ the scan was ALREADY established as `residual_kernel_batch` territory in
   read `self.mesh.scheme`, zero inline `2.0*`/`Diamond`/`0.5`.
 - `orpheus/sn/spatial/scan.py` — `_scanmarch_row` (~`:312-352`) gained `w` param;
   closes via the generic staticmethods (was inline `0.5*(in+out)` + `outgoing_face_from_average(...,0.5)`).
-- `tests/sn/operators/test_streaming_operator.py` — EXTENDED
+- `tests/gates/sn/operators/test_streaming_operator.py` — EXTENDED
   `TestT4bPreT4RegressionSnapshot` with `_assert_cart2d_arm` + 3 cart2d apply
   arms (D5a.2; `~:875-960`).
-- `tests/sn/solve/test_affine_carve_bit_identity.py` — re-baselined the 4 2-D
+- `tests/gates/sn/solve/test_affine_carve_bit_identity.py` — re-baselined the 4 2-D
   GOLDEN sha hashes + regen-history comment (D5a entry, 2026-06-16).
-- `tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz` — regenerated 3 cart2d
+- `tests/gates/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz` — regenerated 3 cart2d
   `*_apply_bulk` keys to post-D5a value (boundary byte-identical; all 47 keys
   preserved).
-- `tests/sn/_data/bc_extraction_2d_baseline/vacuum_bulk_2d_seed{0,1,2}.npy` —
+- `tests/gates/sn/_data/bc_extraction_2d_baseline/vacuum_bulk_2d_seed{0,1,2}.npy` —
   regenerated via `--capture-baseline` (2-D vacuum matvec ~1-ULP re-baseline).
 - `docs/theory/loss_representations.rst` — NEW stub
   `.. _loss-rep-scanmarch-coefficient-model:` with `.. todo::` (archivist #240
@@ -111,7 +111,7 @@ the scan was ALREADY established as `residual_kernel_batch` territory in
   (`si_2d_p1_aniso_het` + `krylov_2d_p1_aniso_het`) RE-BASELINED — see below.
 - **Stay-green anchors:** 2-D MMS (DD value reference) + kinf homogeneous (≥2G):
   `39 passed, 3 xfailed`. ScanMarch end-to-end + 2-D windowing: `8 passed`.
-- **Route-around** (`tests/sn/operators spatial sweep/core sweep/cartesian_2d`):
+- **Route-around** (`tests/gates/sn/operators spatial sweep/core sweep/cartesian_2d`):
   `1044 passed` (+3 new cart2d arms), `7 failed` — ALL 7 confirmed PRE-EXISTING
   on the clean baseline (sphere 1-D matvec SPH #206-family ×3, `Face 'ymin'
   requires genuine mu_y` ×2, sphere curvilinear apply snapshots ×2).

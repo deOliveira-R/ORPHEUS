@@ -12,7 +12,7 @@ type: project
 
 ## What shipped
 
-### Test module — `tests/sn/test_phase_c_crosscheck.py`
+### Test module — `tests/gates/sn/test_phase_c_crosscheck.py`
 
 The SKIP placeholder at
 `test_phase_c_trajectory_resolvent_crosscheck` has been replaced with a
@@ -76,7 +76,7 @@ _SNAPSHOT_KEFFS = {
 ```
 
 Rationale: the regression test at
-`tests/sn/regression/test_dd_regression.py` already pins the SN side
+`tests/gates/sn/regression/test_dd_regression.py` already pins the SN side
 to these exact values bit-identically. Hard-coding here means
 Gate 4.2 doesn't depend on the snapshot files existing on disk and
 doesn't drift if the snapshot k_eff is regenerated. The two test
@@ -187,7 +187,7 @@ file:
 
 > Phase E follow-up to Issue #168: flux-shape Gate 4.2.b cross-check.
 > Adds a flux-shape comparison to the parametrised Gate 4.2 test in
-> `tests/sn/test_phase_c_crosscheck.py`, building:
+> `tests/gates/sn/test_phase_c_crosscheck.py`, building:
 > 1. A GL-node-to-cell-centre interpolation harness
 >    (`scipy.interpolate.CubicSpline` would suffice).
 > 2. Per-snapshot normalisation matching (volume-integrated fission
@@ -201,7 +201,7 @@ file:
 ## Test results summary
 
 ```
-tests/sn/test_phase_c_crosscheck.py:
+tests/gates/sn/test_phase_c_crosscheck.py:
   test_sn_spherical_homogeneous_kinf_recovery_2g                    PASSED
   test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_homogeneous_dd_n20]   PASSED
   test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_3reg_dd_n40]          PASSED
@@ -215,7 +215,7 @@ tests/sn/test_phase_c_crosscheck.py:
 No regressions in sibling Phase C test files:
 
 ```
-tests/sn/test_phase_c_gates.py + test_phase_c_mms.py:
+tests/gates/sn/test_phase_c_gates.py + test_phase_c_mms.py:
   ======= 18 passed, 2 xfailed, 4 xpassed, 1 warning in 333.69s (0:05:33) ========
 ```
 
@@ -263,7 +263,7 @@ case). No new orphan labels were introduced.
 
 ### MODIFIED
 
-* `tests/sn/test_phase_c_crosscheck.py` — replaced SKIP placeholder
+* `tests/gates/sn/test_phase_c_crosscheck.py` — replaced SKIP placeholder
   with 5-case parametrised L1 cross-check. New imports
   (`solve_greens_function_*`), new module-level helpers
   (`_mr_xs_2g`, `_run_*_closed`, `_GATE_4_2_CASES`, `_SNAPSHOT_KEFFS`,
@@ -322,11 +322,11 @@ that this test catches, that's the moment to log a new ERR entry.
 * Phase D Step 3 closeout (predecessor): `.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md`
 * Cylinder MR Phase 1b closeout (sibling reference build):
   `.claude/agent-memory/method-implementer/cylinder_mr_variant_alpha_phase1b.md`
-* Test module: `tests/sn/test_phase_c_crosscheck.py`
+* Test module: `tests/gates/sn/test_phase_c_crosscheck.py`
 * Bare trajectory_resolvent entry points:
   `orpheus/derivations/continuous/trajectory_resolvent/greens_function.py` (sphere)
   `orpheus/derivations/continuous/trajectory_resolvent/greens_function_cylinder.py` (cylinder)
 * Snapshot generator (for keff source-of-truth):
-  `tests/sn/regression/_generate_snapshots.py`
+  `tests/gates/sn/regression/_generate_snapshots.py`
 * V&V principles + structural-independence: `.claude/skills/vv-principles/SKILL.md`
 * Branch 1 / Branch 2 cross-check pattern: `.claude/skills/algebra-of-record/SKILL.md`

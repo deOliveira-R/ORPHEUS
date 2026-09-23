@@ -9,7 +9,7 @@ metadata:
 
 **Branch** `feature/sn-space-angle-tier2`, base HEAD `f45a219` (S2 done).
 **NOT committed** (main agent reviews + commits). Host env, `.venv/bin/python -O`.
-Canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## STATUS — what is DONE vs OWED
 
@@ -48,11 +48,11 @@ bit-id" branch is satisfied: the `...` change IS the fix AND DD bit-id is proven
 (GATE 4 = 513/1/4 unchanged).**
 
 **GATE 4 (DD/Step bit-identity, the negative control) — HOLDS:**
-`python -O -m pytest tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"`
+`python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"`
 = **513 passed / 1 skipped / 4 xfailed**, IDENTICAL pre/post the scattering lift.
 (The test-architect memo said "562" but the live count at HEAD `f45a219` is
 513/1/4 — the memo flagged "RE-CONFIRM at pickup"; 513 is the live S2 baseline,
-matching the prior strict-gate count.) `tests/sn/operators tests/sn/spatial`:
+matching the prior strict-gate count.) `tests/gates/sn/operators tests/gates/sn/spatial`:
 the scattering lift introduced ZERO new failures (561 pass / 7 fail, the 7 being
 the documented PRE-EXISTING reds — sphere 1-D matvec SPH ×3, `Face 'ymin' mu_y`
 ×2, sphere curvilinear apply ×2; confirmed via `git stash` that they fail at
@@ -121,11 +121,11 @@ material loop, below the space gate); the field-space widening is the other half
   no-op invariant). NOTHING ELSE touched.
 
 ## Gates run (this session)
-- GATE 4: `tests/sn/sweep/core tests/sn/solve -W error::DriftWarning` →
+- GATE 4: `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::DriftWarning` →
   **513P/1skip/4xf**, IDENTICAL pre/post (byte-identical by construction).
-- `tests/sn/operators tests/sn/spatial` → 561P/7F (7 PRE-EXISTING, stash-confirmed).
+- `tests/gates/sn/operators tests/gates/sn/spatial` → 561P/7F (7 PRE-EXISTING, stash-confirmed).
 - LD MMS floor (pre-change baseline, for GATE 2 reference):
-  `tests/sn/verification/mms/test_mms_ld_slab.py + test_mms_ld_2d.py` →
+  `tests/gates/sn/verification/mms/test_mms_ld_slab.py + test_mms_ld_2d.py` →
   **8P/1xf** (the 1xf is `test_ld_thick_diffusive_limit_xfail`, the #37 tripwire
   to flip; all gate-2 transport-MMS green).
 

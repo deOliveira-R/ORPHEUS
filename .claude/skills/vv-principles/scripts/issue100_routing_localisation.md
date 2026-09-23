@@ -55,4 +55,4 @@ applied to localisation, not just falsification).
 `issue_100_class_b_mr_mg.md`; probe cascade
 `diag_class_b_rank_n_probe_*.py` (probes B–H; added at `184e7c57`,
 retired at `f36572c8`; its findings are gated by
-`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`).
+`tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py`).

@@ -517,7 +517,7 @@ partition is not prose: it is an executable allowlist.
      - the allowlist for the angular half is **empty**
 
 ``test_hub_route_reads_only_space_facts``
-(``tests/sn/operators/test_operator_feeds_the_walk.py``) enforces exactly
+(``tests/gates/sn/operators/test_operator_feeds_the_walk.py``) enforces exactly
 that table.  Its instrument is worth knowing, because it is reusable: it
 poses the operator (which captures the *real* objects), then rebinds the
 hub's two slots to **delegating recording subclasses**.  A read that
@@ -587,7 +587,7 @@ diagnostic probe that wants to switch angular redistribution off and
 measure the difference should build such an operator honestly rather
 than monkeypatching production; the constructor is how.
 ``test_the_raw_ctor_is_a_declared_expert_seam``
-(``tests/sn/operators/test_streaming_operator.py``) freezes that as a
+(``tests/gates/sn/operators/test_streaming_operator.py``) freezes that as a
 one-positive-leg test with **no** negative leg, and says so in its own
 docstring — the contract being frozen is *that no validation exists*, so
 there is nothing to assert raising.
@@ -902,7 +902,7 @@ Three properties follow, and each was a criterion:
 
 The gate is a **count**, never a wall clock:
 ``test_geometry_cache_builds_exactly_once_per_mesh``
-(``tests/sn/sweep/core/test_cache.py``) pins one build across a whole
+(``tests/gates/sn/sweep/core/test_cache.py``) pins one build across a whole
 solve **and** across two independently posed operators over one hub.  A
 timing assertion would be a flaky proxy for the same question; the count
 is exact, and it is the only instrument that can see a memo-scoping
@@ -1088,7 +1088,7 @@ outside the hub's own forwarding plumbing — two single-Problem sweep gates
 and the identity anchors' sphere pair — and **no** site anywhere pairs
 two ``Solution``\ s built over different closures, so a closure-aware
 pairing predicate would have no witness at all
-(``plan-authoring`` §6c).  ``tests/sn/mesh/test_problem_identity_anchors.py``
+(``plan-authoring`` §6c).  ``tests/gates/sn/mesh/test_problem_identity_anchors.py``
 ``::TestTheClosureExclusionSurvives`` is the red that catches the
 "strengthening".
 
@@ -1593,7 +1593,7 @@ The historical convention this section records was a single field test:
   ``outgoing_angular_state``.
 
 That convention was locked in by foundation-tier protocol-conformance
-tests in ``tests/sn/sweep/core/test_discretization_scheme_protocol.py``;
+tests in ``tests/gates/sn/sweep/core/test_discretization_scheme_protocol.py``;
 those tests now pin the successor contract — the assembled-contribution
 keyword arguments and the purely spatial
 :class:`~orpheus.transport.spatial.scheme.UpstreamState` /
@@ -1677,7 +1677,7 @@ The first concrete strategy is
 (:mod:`orpheus.transport.spatial.diamond`).  It implements the **same**
 algebra as the existing inlined sweep — Round 2 of Wave C is a
 bit-identical extraction, gated by ``np.array_equal`` hand-calc tests
-in ``tests/sn/sweep/core/test_diamond.py`` against the sweep's scalar
+in ``tests/gates/sn/sweep/core/test_diamond.py`` against the sweep's scalar
 formulas at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).
 
 Per Wave C decision **D5** (one geometry-polymorphic class), the
@@ -1943,7 +1943,7 @@ Of the three planned alternatives, one has landed:
 (:math:`\mathcal{O}(\Delta x^2)`, better robustness in optically-thick
 cells) ships today under the registry key ``"linear_discontinuous"``,
 with its own MMS spatial-convergence gates
-(``tests/sn/verification/mms/test_mms_ld_slab.py`` and
+(``tests/gates/sn/verification/mms/test_mms_ld_slab.py`` and
 ``test_mms_ld_2d.py``); see :ref:`ld-ubld-multidim` for the derivation
 and the multi-dimensional wiring.  The other two are still **reserved,
 not yet implemented**, and are therefore written as literals rather than
@@ -2174,7 +2174,7 @@ constructor (introduced in this round as a constructor argument with
 default
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  The
 default reproduces the inlined sweep math bit-identically — every
-regression snapshot at ``tests/sn/regression/snapshots/`` was
+regression snapshot at ``tests/gates/sn/regression/snapshots/`` was
 generated with DD and continues to match bit-for-bit when the
 unified sweep dispatches via ``scheme.update(...)``.  See
 :ref:`cell-update-strategies` for the strategy contract and
@@ -2339,9 +2339,9 @@ Degeneracy traps — a passing test that proves nothing
    flat-flux diagnostic (:math:`Q/\Sigma_t`), or an absolute eigenvalue
    comparison against a structurally-independent heterogeneous reference.
    The live pins are the L0 symbolic-recurrence check
-   :func:`tests.sn.sweep.slab.test_dd_recurrence.test_dd_per_cell_recurrence_matches_symbolic_derivation`
+   :func:`tests.gates.sn.sweep.slab.test_dd_recurrence.test_dd_per_cell_recurrence_matches_symbolic_derivation`
    and the L1 heterogeneous absolute-:math:`k` regression
-   :func:`tests.sn.eigenvalue.test_keff_slab.test_heterogeneous_absolute_keff`
+   :func:`tests.gates.sn.eigenvalue.test_keff_slab.test_heterogeneous_absolute_keff`
    (a 2-region A+B reflective slab pinned against the Case
    singular-eigenfunction reference; the pre-fix :math:`1.48\times10^{-2}`
    error fails it by two orders of magnitude).
@@ -2384,7 +2384,7 @@ Solver-coordination traps
   renormalise) would break the bridge's ``1.0`` shortcut.
 * **The outer iterate must stay a bare** ``np.ndarray``.  The Mode-11
   live-arm sentinel in
-  ``tests/sn/operators/test_fission_kernel_crosscheck.py`` proves that
+  ``tests/gates/sn/operators/test_fission_kernel_crosscheck.py`` proves that
   ``power_iteration`` feeds a **bare** :class:`numpy.ndarray` flux to
   :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
   bare-``np.ndarray`` dispatch arm of

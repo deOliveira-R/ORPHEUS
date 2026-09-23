@@ -55,7 +55,7 @@ Python loop. Blelloch 1990 §1.5 canonical form.
    pure-azimuthal degenerate ordinates (rare; `|η| < 1e-15`).
    `_sweep_2d_wavefront` untouched per scope hard limit.
 
-6. **`tests/sn/spatial/test_ordinate_scan.py`** (NEW, 525 lines).
+6. **`tests/gates/sn/spatial/test_ordinate_scan.py`** (NEW, 525 lines).
    Sixteen strong tests:
    - **Algebraic theorems** (4): pair-monoid associativity (THE
      theorem, rtol=1e-14), identity element (exact), Brent's
@@ -72,14 +72,14 @@ Python loop. Blelloch 1990 §1.5 canonical form.
      4 vectorisation-vs-serial cases at rtol=1e-14; 1 full-sweep
      baseline at rtol=1e-12.
 
-7. **`tests/sn/spatial/test_cell_update_protocol.py`**. Add stub
+7. **`tests/gates/sn/spatial/test_cell_update_protocol.py`**. Add stub
    `affine_coefficients` to two synthetic test strategies to
    satisfy the new Protocol method.
 
 ## Pair-monoid theorem PASS line
 
 ```
-tests/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_associativity PASSED [  1%]
+tests/gates/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_associativity PASSED [  1%]
 ```
 
 This is the load-bearing algebraic verification of the entire
@@ -93,7 +93,7 @@ Sample case from parametrised test 12
 (`test_affine_coefficients_matches_update_single_cell`):
 
 ```
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-cylinder] PASSED
 ```
 
 Across all 36 parametrised cases (4 geometries × 3 group counts ×
@@ -150,78 +150,78 @@ constant-factor optimisation is a future commit.
 
 ## Verbatim full pytest stdout — paste-back per L12
 
-### `pytest tests/sn/spatial/test_ordinate_scan.py -v`
+### `pytest tests/gates/sn/spatial/test_ordinate_scan.py -v`
 
 ```
 ============================= test session starts ==============================
 collecting ... collected 52 items
 
-tests/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_associativity PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_identity PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_brent_blocked_scan_equivalence PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_ordinate_scan_matches_explicit_loop PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_zero_source PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_zero_attenuation PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_linearity_in_psi_0 PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_linearity_in_b PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_affine_combination PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestNumericalStability::test_ordinate_scan_near_identity_attenuation PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestNumericalStability::test_ordinate_scan_small_attenuation PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[slab] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[sphere_outward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[sphere_inward] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[cylinder] PASSED
-tests/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_full_sweep_matches_pre_step_2_5b_baseline PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_associativity PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_pair_monoid_identity PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_brent_blocked_scan_equivalence PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestPairMonoidTheorems::test_ordinate_scan_matches_explicit_loop PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_zero_source PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_zero_attenuation PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_linearity_in_psi_0 PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_linearity_in_b PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestAffineStructure::test_ordinate_scan_affine_combination PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestNumericalStability::test_ordinate_scan_near_identity_attenuation PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestNumericalStability::test_ordinate_scan_small_attenuation PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-1-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-2-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[zero-4-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-1-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-2-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[constant-4-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-1-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-2-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_matches_update_single_cell[random-4-cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[slab] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[sphere_outward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[sphere_inward] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_affine_coefficients_vectorisation_matches_serial[cylinder] PASSED
+tests/gates/sn/spatial/test_ordinate_scan.py::TestDualViewContracts::test_full_sweep_matches_pre_step_2_5b_baseline PASSED
 
 ======================== 52 passed, 1 warning in 0.42s =========================
 ```
 
-### `pytest tests/sn/spatial/test_diamond.py -v`
+### `pytest tests/gates/sn/spatial/test_diamond.py -v`
 
 ```
 ======================== 53 passed, 1 warning in 0.40s =========================
 ```
 
-### `pytest tests/sn/regression/ -v`
+### `pytest tests/gates/sn/regression/ -v`
 
 ```
-tests/sn/regression/test_dd_regression.py ...........  [100%]
+tests/gates/sn/regression/test_dd_regression.py ...........  [100%]
 11 passed, 3 warnings in 405.52s (0:06:45)
 ```
 
@@ -229,7 +229,7 @@ All 11 regression snapshots (5 Cartesian + 6 curvilinear) pass at
 `rtol=1e-12`. Bit-identical to pre-Step-2.5b baseline modulo the
 documented FP-non-associativity band.
 
-### `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
+### `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
 
 ```
 .......................... [100%]
@@ -240,7 +240,7 @@ All 26 L0 streaming-equilibrium tests (sphere + cylinder + mixed
 configurations) pass — Step 2's curvilinear correctness preserved
 by Step 2.5b.
 
-### `pytest tests/sn/ -q` (FULL SUITE)
+### `pytest tests/gates/sn/ -q` (FULL SUITE)
 
 [PLACEHOLDER — running, will update with verbatim full output
 including final summary line when complete. The earlier killed

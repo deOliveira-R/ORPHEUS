@@ -31,7 +31,7 @@ home, dead→literal) is applied wholesale and is the cleanest of the five.
   (the LD/EC/Step CellUpdate-Protocol open-problem note → `docs/theory/discrete_ordinates.rst`
   §2241-2266; the scan-march principled-equiv note → `ScanMarch` class docstring). No rationale lost.
 - `WavefrontFlux` + `InteriorFaceSpace` git-rm'd (`transport/fields/wavefront_flux.py`,
-  `numerics/spaces/interior_face_space.py`, `tests/transport/fields/test_wavefront_flux.py`).
+  `numerics/spaces/interior_face_space.py`, `tests/gates/transport/fields/test_wavefront_flux.py`).
 
 ## The load-bearing seam (spy-import re-points) — VERIFIED CORRECT
 `operator.py` resolves `transport_sweep` via a **function-local** `from .loss_representation import

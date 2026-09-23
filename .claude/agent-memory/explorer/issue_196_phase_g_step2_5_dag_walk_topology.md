@@ -74,7 +74,7 @@ So the proposed `dag_walk(mesh, direction)` is essentially `iter_cells_by_direct
 
 **Fold-compatibility verdict: CLEAN MATCH.** The separation is exactly what a fold needs:
 
-- `CellVisit` is **immutable** (`@dataclass(frozen=True, slots=True)`) — the per-visit packet emitted by the iterator does NOT carry mutable state. There is one foundation test (`tests.sn.spatial.test_cell_update_protocol.TestCellVisitPacket.test_cell_visit_is_frozen`) that pins this.
+- `CellVisit` is **immutable** (`@dataclass(frozen=True, slots=True)`) — the per-visit packet emitted by the iterator does NOT carry mutable state. There is one foundation test (`tests.gates.sn.spatial.test_cell_update_protocol.TestCellVisitPacket.test_cell_visit_is_frozen`) that pins this.
 - `UpstreamState` carries the **dynamic** scalar state that needs threading through the fold step: spatial face flux + (optionally) angular half-angle state. Note this is per-cell upstream, not "one upstream blob for the whole sweep" — `angular_upstream` is indexed by `i` in the calling sites (e.g. `sweep.py:629`).
 - The fold step shape `upstream → (visit, upstream) → result` is realised today as:
   ```

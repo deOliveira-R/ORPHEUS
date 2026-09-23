@@ -511,7 +511,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         The per-level slot key is the carrier's own ``space.levels`` member
         (the level POSITION, ``p_idx`` in the in-sweep) — the coordinate
         that keys the space slots, pinned by
-        :mod:`tests.sn.mesh.test_radial_characteristic_slot_coordination`.
+        :mod:`tests.gates.sn.mesh.test_radial_characteristic_slot_coordination`.
 
         Parameters
         ----------

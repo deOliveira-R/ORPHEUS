@@ -63,7 +63,7 @@ Design principles
    lists orphan equations, and cross-checks
    :doc:`error_catalog`. No scattered assertions.
 
-6. **Enforcement mode.** Every test in ``tests/`` carries a level
+6. **Enforcement mode.** Every gate in ``tests/gates/`` carries a level
    tag — physics (``l0``..``l3``) or ``foundation``. The audit tool
    surfaces every untagged test and ``--strict`` exits non-zero on
    any gap, so new tests cannot slip in untagged. The "unmarked
@@ -74,7 +74,7 @@ Design principles
 7. **Type-error ratchet** (issue #226). The package carries a large
    pre-existing pyright error surface; until the per-module burn-down
    reaches zero, the enforceable invariant is monotonicity.
-   ``tests/test_pyright_ratchet.py`` (``foundation`` + ``slow``,
+   ``tests/gates/test_pyright_ratchet.py`` (``foundation`` + ``slow``,
    skips without a host pyright) compares live per-module error
    counts against ``tests/_harness/pyright_baseline.json`` and fails
    in BOTH directions — an increase is a regression, a decrease must
@@ -404,8 +404,8 @@ from L0..L3. A ``verifies(...)`` mark is **orthogonal to the
 level bucket**: the orphan gate counts marks from any collected
 test, so a foundation gate that genuinely pins an equation's
 content closes its orphan exactly as an L0–L3 test does (live
-instances: ``tests/sn/eigenvalue/test_keff_estimator_gate.py``,
-``tests/sn/operators/test_inverse_operator_equivalence.py``, the
+instances: ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py``,
+``tests/gates/sn/operators/test_inverse_operator_equivalence.py``, the
 reference-pillar ``V_αN`` gates). Most foundation tests carry no
 ``verifies(...)`` simply because they pin software invariants
 that have no equation label; some algebra-of-record suites
@@ -505,7 +505,7 @@ The standard pytest marker expressions apply:
 
    pytest -m l0                       # only L0 term verification
    pytest -m "l1 and not slow"        # fast L1 checks
-   pytest -m "l2 or l3"               # integration + validation
+   pytest -m l2                       # integration (no gate carries l3)
    pytest -m foundation               # only foundation tests (software invariants)
    pytest -m "not foundation"         # only physics V&V
    pytest -m "l0 or foundation"       # L0 + foundation (fast; excludes eigenvalue runs)
@@ -529,19 +529,23 @@ expression language doesn't parse marker arguments).
        pyright_ratchet.py     # #226 pyright error-count monotonicity gate
        pyright_baseline.json  # the ratchet's committed baseline
        xs.py                  # shared cross-section builders (re-exports)
-       meshes.py              # (stub) shared mesh/geometry builders
+       references.py          # independent geometric references (mirror partners)
+       mutation_batteries/    # hand-written, hazard-named mutation batteries
 
 ``xs.py`` re-exports the canonical cross-section helpers from
 ``orpheus.derivations.common.xs_library`` (``make_mixture``, ``get_mixture``,
 ``get_xs``, ``get_materials``, ``validate_all``) so tests can import
-them from a single stable path. ``meshes.py`` is currently an empty
-placeholder — the shared ``_ws_mesh``, ``_homogeneous_ws_mesh``, and
-related helpers are still duplicated across ``test_moc_verification.py``,
-``test_cp_verification.py``, ``test_sn_cylindrical.py``, and
-``test_sn_spherical.py``. Consolidating them into ``meshes.py`` is
-deferred housekeeping (tracked in issue #77, "Reorganize tests/ by
-model"); the module exists now so the eventual migration is a pure
-search-and-replace against a stable import path.
+them from a single stable path. The Wigner-Seitz mesh builders
+(``_ws_mesh``, ``_homogeneous_ws_mesh``, ``_two_region_ws_mesh``) are
+defined privately in ``tests/gates/moc/test_verification.py``, and
+``_build_homogeneous_mesh`` in ``tests/gates/moc/test_moc.py``; an empty
+``meshes.py`` placeholder meant to collect them had no consumer and
+retired with the move to ``tests/gates/`` (2026-09-22).
+
+``tests/_harness/`` sits at the root of ``tests/``, beside
+``tests/conftest.py`` and outside ``tests/gates/``, because every
+regimen may import it, not only the pass/fail gates; the layout and
+its reasons are :ref:`vv-test-suite-layout`.
 
 Nexus integration
 -----------------
@@ -557,9 +561,10 @@ these edges to build the test↔equation matrix.
 1. The referenced label must exist as a Sphinx equation label (i.e.
    there is a ``.. math:: :label: collision-rate`` block in a
    ``docs/theory/**/*.rst`` page).
-2. The test's containing file must be on Nexus's source path
-   (``tests/`` is picked up automatically via
-   ``nexus_test_patterns``).
+2. The test's containing file must be on Nexus's source path. Every
+   file under ``tests/`` is: the project-root pass analyses the whole
+   tree (``.nexus/config.toml``; the ``nexus_*`` options that
+   ``docs/conf.py`` once carried are retired).
 3. The docstring must use the ``:math:\`label\``` form, *not* inline
    LaTeX source like ``:math:\`\Sigma_a\``` — the latter is correctly
    treated as inline math and produces no edge.
@@ -574,6 +579,11 @@ Contributor checklist
 
 When adding a new test:
 
+- [ ] Decide its regimen first: a pass/fail check that must hold on
+  every commit is a gate and goes in ``tests/gates/``, in the folder of
+  the package it exercises; a timing or an experimental comparison is
+  not a gate (:ref:`vv-test-suite-layout`, "Where a new case goes").
+  The rest of this checklist is for gates.
 - [ ] Decide whether it is a **physics test** or a **foundation
   test**. Physics tests verify a ``:label:``\ -ed equation in
   ``docs/theory/**/*.rst`` and go on the L0..L3 ladder. Foundation
@@ -587,7 +597,8 @@ When adding a new test:
 - [ ] If it's a physics test, choose the right V&V rung. L0 is term
   verification against a hand calculation; L1 needs a *measured*
   convergence order; L2 is multi-group heterogeneous integration;
-  L3 is experimental validation. 1-group tests are **degenerate**
+  L3 is experimental validation, whose cases belong in
+  ``tests/validation/`` rather than among the gates. 1-group tests are **degenerate**
   for transport — always demand ≥2G.
 - [ ] Apply the level marker — ``@pytest.mark.l0`` / ... /
   ``@pytest.mark.foundation`` (or file-level ``pytestmark``).

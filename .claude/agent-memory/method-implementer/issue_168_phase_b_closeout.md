@@ -83,7 +83,7 @@ level. Defines:
   — algebraic flat-flux collapse `R_n = (ΔA/w)(α_{n+1/2} −
   α_{n-1/2})ψ_n/V = -μ_n·ΔA·ψ_n/V` (using the α-recursion
   `α_{n+1/2} − α_{n-1/2} = -w_n μ_n`). Used by the L1 flat-flux-
-  identity test (`tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`)
+  identity test (`tests/gates/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`)
   to pin the equivalence to the legacy form on flat ψ.
 
 - `MorelMontryAngularSweep` (registered as
@@ -105,7 +105,7 @@ The factor-of-two gap that the literature researcher identified —
 form of [Hébert Eq. 3.428], NOT a different equation" — is the gap
 between `BaileyFlatFluxRedist` and `MorelMontryAngularSweep` on
 angularly-varying ψ. On the 2-ordinate sphere fixture
-(`tests/sn/spatial/test_pole_angular_closure.py::TestDefect3FactorOfTwoGap`):
+(`tests/gates/sn/spatial/test_pole_angular_closure.py::TestDefect3FactorOfTwoGap`):
 
 - BFF on ψ_0=1, ψ_1=3 gives R_0 = +1/√3, R_1 = -3/√3.
 - MMS on the same fixture gives R_0 = +2/√3, R_1 = -2/√3.
@@ -190,7 +190,7 @@ test pins the algebra).
 
 ### Tests
 
-- **NEW** `tests/sn/spatial/test_pole_angular_closure.py` — **28
+- **NEW** `tests/gates/sn/spatial/test_pole_angular_closure.py` — **28
   foundation-tagged tests** covering Protocol conformance, registry
   self-registration, immutability invariants, α-recursion identities
   (Hébert Eq. 3.423-3.424), 2-ordinate sphere hand-calc for both
@@ -198,7 +198,7 @@ test pins the algebra).
   angularly-varying ψ, cylindrical multi-level dispatch, and
   linearity for all three strategies.
 
-- **NEW** `tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`
+- **NEW** `tests/gates/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`
   — **5 L1 tests** pinning the flat-flux invariants:
   (a) `LegacyTauSymmetricInterpolation` ↔ `BaileyFlatFluxRedist`
   bit-for-bit on flat ψ (the **load-bearing** consistency check —
@@ -211,7 +211,7 @@ test pins the algebra).
   for BFF on flat ψ;
   (d) cylindrical analogues of (a) and (b).
 
-- **EXTENDED** `tests/sn/test_snstreamingoperator.py` — Phase A's
+- **EXTENDED** `tests/gates/sn/test_snstreamingoperator.py` — Phase A's
   `test_apply_spherical_constant_flux_yields_zero_collisionless`
   and `test_apply_spherical_vacuum_bc_constant_flux_no_corruption`
   preserved verbatim (they pass under the Phase B default
@@ -272,7 +272,7 @@ through Phase B. Rationale:
   0, 2c, 0, 2c, …), so Krylov-on-apply with the sweep preconditioner
   produces an INCORRECT solution — the analytical flat flux is no
   longer recovered.
-- The `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
+- The `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
   ERR-026 evidence test was failing badly under the MMS canonical
   form (φ ranging from 0.6 to 1.004 instead of the analytical 1.0).
   This is a regression in the canonical form's MMS behavior, not a
@@ -318,20 +318,20 @@ remains opt-in.
 
 ## Verification gates — all green
 
-- `pytest tests/sn/spatial/test_pole_angular_closure.py -q` → 28 passed.
-- `pytest tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py -q`
+- `pytest tests/gates/sn/spatial/test_pole_angular_closure.py -q` → 28 passed.
+- `pytest tests/gates/sn/l1_analytical/test_pole_closure_flat_flux_identity.py -q`
   → 5 passed.
-- `pytest tests/sn/test_snstreamingoperator.py -q` → 30 passed
+- `pytest tests/gates/sn/test_snstreamingoperator.py -q` → 30 passed
   (Phase A's 22 + Phase A Defect-1/2 invariants + 1 new MMS canonical-
   form test).
-- `pytest tests/sn/test_sweep_operator_inconsistency.py -q` → 4 passed
+- `pytest tests/gates/sn/test_sweep_operator_inconsistency.py -q` → 4 passed
   (ERR-026 evidence test gating the Krylov-on-flat-flux invariant
   under the LegacyTauSymmetricInterpolation default).
-- `pytest tests/sn/ -m "not slow and not regression and not l1"
-  --ignore=tests/sn/test_mms_curvilinear.py
-  --ignore=tests/sn/l1_analytical -q` → 310 passed in 691s. No
+- `pytest tests/gates/sn/ -m "not slow and not regression and not l1"
+  --ignore=tests/gates/sn/test_mms_curvilinear.py
+  --ignore=tests/gates/sn/l1_analytical -q` → 310 passed in 691s. No
   regressions.
-- `pytest tests/sn/test_mms_curvilinear.py tests/sn/l1_analytical/`
+- `pytest tests/gates/sn/test_mms_curvilinear.py tests/gates/sn/l1_analytical/`
   → 20 passed, 4 xfailed (the ERR-026 tripwires stay xfail correctly,
   per Deviation 2).
 - `pytest -m regression` → 5 Cartesian PASS, 6 curvilinear SKIP
@@ -360,8 +360,8 @@ remains opt-in.
    verify each via FN-method cross-check on the closest Sood
    La13511 case (per the brief's B.5.5 / B.6).
 4. **Marker removal**: the four xfail-strict ERR-026 tripwires
-   (`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
-   spherical + cylindrical aniso; `tests/sn/test_mms_curvilinear.py`
+   (`tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+   spherical + cylindrical aniso; `tests/gates/sn/test_mms_curvilinear.py`
    spherical + cylindrical iso) come off. ERR-026 status:
    PARTIAL CLOSURE → CLOSED.
 5. **error_catalog.md update**: ERR-026 status flip + Verification
@@ -386,11 +386,11 @@ remains opt-in.
 - **MODIFIED**: `orpheus/sn/solver.py` (curvilinear default
   rationale comment updated for Phase B partial-closure narrative;
   default behavior unchanged).
-- **MODIFIED**: `tests/sn/test_snstreamingoperator.py` (one new
+- **MODIFIED**: `tests/gates/sn/test_snstreamingoperator.py` (one new
   test for the canonical form; existing tests preserved).
-- **NEW**: `tests/sn/spatial/test_pole_angular_closure.py` (~340
+- **NEW**: `tests/gates/sn/spatial/test_pole_angular_closure.py` (~340
   LOC, 28 foundation tests).
-- **NEW**: `tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`
+- **NEW**: `tests/gates/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`
   (~180 LOC, 5 L1 tests).
 - **MODIFIED**: `docs/theory/discrete_ordinates.rst` (~120 lines new
   Phase B narrative subsection with `:label: sn-pole-angular-closure-protocol`).

@@ -27,7 +27,7 @@ test threshold. Both criteria met without compromise.
 | File | Status | Net lines | Functions touched |
 |------|--------|-----------|-------------------|
 | `orpheus/derivations/continuous/peierls/variant_alpha_core.py` | **NEW** | +169 | `compute_resolvent_T`, `apply_variant_alpha_closure` |
-| `tests/derivations/test_peierls_variant_alpha_core.py` | **NEW** | +173 | 6 foundation-tagged tests |
+| `tests/gates/derivations/test_peierls_variant_alpha_core.py` | **NEW** | +173 | 6 foundation-tagged tests |
 | `orpheus/derivations/continuous/peierls/greens_function.py` | modified | +6 / -14 | `_apply_operator_with_source_profile`, `_apply_operator_mr` |
 | `orpheus/derivations/continuous/peierls/greens_function_cylinder.py` | modified | +1 / -11 | `_apply_operator_cylinder` |
 
@@ -84,21 +84,21 @@ module + foundation tests but leaves both solvers untouched;
 ## Test results (post-refactor)
 
 ```
-pytest tests/derivations/test_peierls_greens_function_solver.py \
-       tests/derivations/test_peierls_greens_function_vacuum.py \
-       tests/derivations/test_peierls_greens_function_xverif.py \
-       tests/derivations/test_peierls_greens_function_xverif_ps1982.py \
-       tests/derivations/test_peierls_greens_function_mg.py \
-       tests/derivations/test_peierls_greens_function_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_solver.py
+pytest tests/gates/derivations/test_peierls_greens_function_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_vacuum.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py \
+       tests/gates/derivations/test_peierls_greens_function_mg.py \
+       tests/gates/derivations/test_peierls_greens_function_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py
 ============================= 59 passed in 159.35s (0:02:39) =============
 ```
 
 Plus foundation tests for the shared core itself (6 tests, 0.05s):
 
 ```
-pytest tests/derivations/test_peierls_variant_alpha_core.py
+pytest tests/gates/derivations/test_peierls_variant_alpha_core.py
 ============================= 6 passed in 0.05s =========================
 ```
 
@@ -106,8 +106,8 @@ Plus the multi-region sphere tests that ride on the same refactor
 path (21 tests, 33.91s — Garcia 2021 + MR eigenvalue):
 
 ```
-pytest tests/derivations/test_peierls_greens_function_mr.py \
-       tests/derivations/test_peierls_greens_function_garcia2021.py
+pytest tests/gates/derivations/test_peierls_greens_function_mr.py \
+       tests/gates/derivations/test_peierls_greens_function_garcia2021.py
 ============================= 21 passed in 33.91s =======================
 ```
 

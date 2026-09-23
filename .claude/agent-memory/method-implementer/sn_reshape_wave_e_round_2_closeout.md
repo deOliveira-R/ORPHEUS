@@ -18,28 +18,28 @@ type: project
 - `orpheus/sn/operator.py` — retired 7 functions (`build_transport_linear_operator{,_spherical,_cylindrical}`, `build_rhs{,_spherical,_cylindrical}`, `angular_flux_to_scalar`). Updated module docstring + `__all__`.
 - `orpheus/sn/geometry.py` — retired 6 deprecated `@property` accessors (`alpha_half`, `redist_dAw`, `tau_mm`, `alpha_per_level`, `redist_dAw_per_level`, `tau_mm_per_level`). `face_areas`/`delta_A` retain transitional shims.
 - 11 BiCGSTAB→krylov call sites migrated:
-  - `tests/sn/test_solver_components.py` (7 sites)
-  - `tests/sn/test_spherical.py` (3 sites)
+  - `tests/gates/sn/test_solver_components.py` (7 sites)
+  - `tests/gates/sn/test_spherical.py` (3 sites)
   - `examples/discrete_ordinates/demo_discrete_ordinates.py` (1 site)
-- `tests/sn/test_sweep_operator_inconsistency.py` — full rewrite to use the new `inner_solver="krylov"` path (replaces inline `_solve_bicgstab` helper). All 4 assertions pass on the symmetric-closure operator.
-- `tests/sn/test_snmesh_consumes_reduced.py` — pruned tests for the 6 retired accessors.
-- `tests/sn/{test_spherical, test_sweep_regression, test_cylindrical, test_quadrature}.py` — migrated `sn_mesh.<accessor>` reads to `sn_mesh.reduced.<accessor>`.
-- `tests/sn/test_snstreamingoperator.py` — removed unused `angular_flux_to_scalar` import.
-- `tests/geometry/test_reduced_operator.py` — same `sn_mesh.reduced.*` migration.
+- `tests/gates/sn/test_sweep_operator_inconsistency.py` — full rewrite to use the new `inner_solver="krylov"` path (replaces inline `_solve_bicgstab` helper). All 4 assertions pass on the symmetric-closure operator.
+- `tests/gates/sn/test_snmesh_consumes_reduced.py` — pruned tests for the 6 retired accessors.
+- `tests/gates/sn/{test_spherical, test_sweep_regression, test_cylindrical, test_quadrature}.py` — migrated `sn_mesh.<accessor>` reads to `sn_mesh.reduced.<accessor>`.
+- `tests/gates/sn/test_snstreamingoperator.py` — removed unused `angular_flux_to_scalar` import.
+- `tests/gates/geometry/test_reduced_operator.py` — same `sn_mesh.reduced.*` migration.
 - `docs/theory/discrete_ordinates.rst` — section "BiCGSTAB Alternative" renamed to "Krylov inner solver"; new section "SNSolver as an operator-algebra coordinator"; Wave-E forward-references updated to present-perfect; `[AdamsLarsen2002]_` citation added.
 - `docs/verification/matrix.rst` — regenerated.
 
 ## Verification gate results
 
-- **Foundation tests** (`pytest tests/sn/ -m foundation`): **100 passed**.
-- **Numerics tests** (`pytest tests/numerics/`): **270 passed**.
+- **Foundation tests** (`pytest tests/gates/sn/ -m foundation`): **100 passed**.
+- **Numerics tests** (`pytest tests/gates/numerics/`): **270 passed**.
 - **Regression bit-identity** (`pytest -m regression`): all 11 snapshots verified individually:
   - Fast cases (slab/2D Cartesian + curvilinear homogeneous): **9/9 PASSED**.
   - P1 cases (slab + sphere): **2/2 PASSED** (slow — 7.5 + 5 minutes respectively, pre-existing slowness).
-- **`tests/sn/test_sweep_operator_inconsistency.py`**: 4/4 PASSED. The new `_solve_via_krylov` helper produces the analytically-correct flat flux (1.0 ± 1e-10) on the reflective-BC sphere problem; the sweep still produces the documented ERR-026 deviation.
-- **`tests/sn/test_snmesh_consumes_reduced.py`**: 19/19 PASSED.
-- **`tests/sn/test_solver_components.py::TestBicgstabPnScattering`**: P0/P1 SI vs krylov tests PASSED (~30-50 s each).
-- **`tests/sn/test_quadrature.py` + `test_snstreamingoperator.py` + `test_sweep_regression.py` + `test_reduced_operator.py`**: 83 PASSED.
+- **`tests/gates/sn/test_sweep_operator_inconsistency.py`**: 4/4 PASSED. The new `_solve_via_krylov` helper produces the analytically-correct flat flux (1.0 ± 1e-10) on the reflective-BC sphere problem; the sweep still produces the documented ERR-026 deviation.
+- **`tests/gates/sn/test_snmesh_consumes_reduced.py`**: 19/19 PASSED.
+- **`tests/gates/sn/test_solver_components.py::TestBicgstabPnScattering`**: P0/P1 SI vs krylov tests PASSED (~30-50 s each).
+- **`tests/gates/sn/test_quadrature.py` + `test_snstreamingoperator.py` + `test_sweep_regression.py` + `test_reduced_operator.py`**: 83 PASSED.
 - **Sphinx**: clean build (no NEW errors; the 4 pre-existing `:pydata:` role errors in the iteration-primitives section landed by Wave E Round 1 are unchanged).
 - **V&V audit**: 36/38 ERR coverage (unchanged; missing ERR-020, ERR-031 pre-existing).
 
@@ -67,7 +67,7 @@ the equation-map extension that adds vacuum-BC slots to the packed
 layout.
 
 The xfail-strict markers in
-`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+`tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
 **stay xfail** — Round 3's marker-removal is correctly coupled to
 Round 3's equation-map extension.
 
@@ -136,11 +136,11 @@ math; #149 remains for the dedicated triage session.
    default can flip to "krylov" (closing ERR-026 for fixed-source MMS).
 
 2. **Marker removal**:
-   `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+   `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
    xfail markers come off when (1) lands.
 
 3. **Test rewrite**:
-   `tests/sn/test_sweep_operator_inconsistency.py` flips from
+   `tests/gates/sn/test_sweep_operator_inconsistency.py` flips from
    "ERR-026 documented" to "ERR-026 closed" assertions. The current
    file passes with both the sweep-deviation assertions AND the
    krylov-correct assertions, so the rewrite is mostly cosmetic

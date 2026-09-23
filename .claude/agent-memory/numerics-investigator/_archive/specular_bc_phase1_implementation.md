@@ -170,8 +170,8 @@ error directly. This is the verification payoff of the whole plan.
   - `closure="specular"` branch in `_build_full_K_per_group` (~80 lines)
   - Updated error message
 - `derivations/peierls_specular_bc.py` (new, ~180 lines)
-- `tests/derivations/test_peierls_specular_bc.py` (new, ~190 lines)
-- `tests/derivations/test_peierls_closure_operator.py`:
+- `tests/gates/derivations/test_peierls_specular_bc.py` (new, ~190 lines)
+- `tests/gates/derivations/test_peierls_closure_operator.py`:
   - 3 new foundation tests for reflection_specular (rank-1 = Mark,
     contract, dense off-diag)
 - `docs/theory/peierls_nystrom.rst`:

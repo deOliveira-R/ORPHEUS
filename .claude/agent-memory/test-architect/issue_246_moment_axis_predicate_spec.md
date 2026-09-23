@@ -82,27 +82,27 @@ So the predicate gates MUST encode:
   1-D scan `_reframe` sites (`loss_representation.py:2341,2353,2999,3042`)
   inherit the signature change; their callers have `frame_signs` (and the scheme)
   in scope.
-- Gate files GREEN: `tests/sn/spatial/test_ld_slope_frame.py` (3) +
-  `tests/sn/spatial/test_linear_discontinuous.py` (20) → 23 passed -O.
-- `tests/sn/regression/` (DD bit-id, 13 cases) PASSES under
+- Gate files GREEN: `tests/gates/sn/spatial/test_ld_slope_frame.py` (3) +
+  `tests/gates/sn/spatial/test_linear_discontinuous.py` (20) → 23 passed -O.
+- `tests/gates/sn/regression/` (DD bit-id, 13 cases) PASSES under
   `-W error::...DriftWarning` (44.9 s). NOTE: it emits 13 within-tolerance
   `DriftWarning`s (e.g. `2d_2g_LS4_dd_8x4_het_si: scalar_flux drifted 36293 ULP /
   6.28e-12 rel within tol 1.0e-09`). These are PRE-EXISTING and NOT escalated —
   the `-W error` flag fires only on ABOVE-tolerance drift. See "the bit-id gate"
   below for what #246 must hold.
-- `tests/sn/verification/mms/test_mms_ld_2d.py -m "not slow"` GREEN (5p/2desel).
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py -m "not slow"` GREEN (5p/2desel).
 
 ## Expected baseline reds to NOT depend on (per the dispatch brief)
 
-- 5 stale sphere snapshots (#250) + 2 `mu_y` (#232) in `tests/sn/operators`.
-- #212 hang at `tests/sn/solve/test_keff_slab::test_heterogeneous_absolute_keff`
-  — NEVER run all of `tests/sn`. The gates below NEVER touch `test_keff_slab`.
+- 5 stale sphere snapshots (#250) + 2 `mu_y` (#232) in `tests/gates/sn/operators`.
+- #212 hang at `tests/gates/sn/solve/test_keff_slab::test_heterogeneous_absolute_keff`
+  — NEVER run all of `tests/gates/sn`. The gates below NEVER touch `test_keff_slab`.
 
 ---
 
 ## ⭐ GATE 1 — THE S4-HAZARD NEGATIVE CONTROL (the centerpiece)
 
-**File:** `tests/sn/sweep/core/test_reframe_moment_intent.py` (NEW, unit-level).
+**File:** `tests/gates/sn/sweep/core/test_reframe_moment_intent.py` (NEW, unit-level).
 **Level:** L0 (term-level — `_reframe` is a single involution applied to one
 array; this is the per-term sign/intent verification). `@pytest.mark.l0`.
 **`-O`-safe:** `np.testing.assert_array_equal` / `pytest.fail` (function calls
@@ -179,12 +179,12 @@ NO NEW above-tolerance `DriftWarning`.
 
 | Suite / file | Covers | Invocation | Expected |
 | ------------ | ------ | ---------- | -------- |
-| `tests/sn/regression/` (`test_dd_regression.py`, 13 cases incl. `2d_1g_LS4_dd_15x15`, `2d_2g_LS4_dd_8x4_het_si`, `slab_fixed_source_dd_n20`, both `*_p1_aniso_*`) | DD matvec/sweep bit-identity in d=1 AND d=2 (the d=2 cases route DD through `_reframe` with `frame_signs=None` → the short-circuit half) + the flat-source slab case | `-O -W "error::tests.sn.regression._regression_assert.DriftWarning"` | 13 passed. The 13 pre-existing WITHIN-tolerance DriftWarnings stay (they are NOT escalated). **NO snapshot regenerates** (the change cannot touch DD). If any case escalates to a FAILURE the carve broke DD bit-id. |
-| `tests/sn/spatial/test_ld_slope_frame.py` | ERR-061 — `_reframe` exercised through `solve_sn_fixed_source` (LD slab, both sweep directions); the `catches("ERR-061")` regression for the moment-frame involution | `-O` | 3 passed (no change — LD moment arrays still get the involution via `is_moment_valued=True`). |
-| `tests/sn/spatial/test_linear_discontinuous.py` (`TestLDKernel::test_residual_zero_at_solved_cell_avg_2d`, `TestLDLinearExactness`, `TestLDRoundTrip`) | The d=2 LD `cell_kernel_batch`/`residual_kernel_batch` round-trip — the kernel-level matvec twin that consumes the reframed moment arrays in BOTH sweep directions | `-O` | 20 passed (LD moment path unchanged). |
-| `tests/sn/verification/mms/test_mms_ld_2d.py` (foundation rows: `test_ld_2d_two_paths_ffw_equals_mfw`, `test_dd_and_ld_2d_converge_to_different_values`, `test_ld_2d_krylov_equals_si_pure_z_quadrature` [ERR-062]) | The 2-D wavefront `_CellSolve`/`_CellResidual` walk (FFW≡MFW), DD≠LD discrimination, the `_moment_broadcast_sigma` pure-z arm (Site 3) | `-O -m "not slow"` | 5 passed / 2 deselected (the predicate routing on Site 3's rank-compare-replacement does not change the broadcast result). |
-| `tests/sn/verification/mms/test_mms_ld_2d.py` (slow: `test_ld_2d_stress_krylov_equals_si` [D5b.4], `test_ld_2d_stress_converges_second_order`) | The 2-D LD Krylov-vs-SI matvec twin on the slope-active stress habitat (the `loss_action`/`residual_kernel_batch` path that threads `is_moment_valued` through `_CellResidual`) | `-O` (slow; ~2 min) | green (the matvec twin still reaches the SAME fixed point — `is_moment_valued=True` for the moment probe). |
-| `tests/sn/sweep/core/test_phase_c_gates.py` | The 1-D scan `_reframe` sites (`loss_representation.py:2341,2353,2999,3042`) inherit the signature change; this is the 1-D Phase-C matvec/sweep gate | `-O` | green (the 1-D scan moment arrays are moment-valued → `is_moment_valued=True`; DD 1-D scan → `frame_signs=None`). |
+| `tests/gates/sn/regression/` (`test_dd_regression.py`, 13 cases incl. `2d_1g_LS4_dd_15x15`, `2d_2g_LS4_dd_8x4_het_si`, `slab_fixed_source_dd_n20`, both `*_p1_aniso_*`) | DD matvec/sweep bit-identity in d=1 AND d=2 (the d=2 cases route DD through `_reframe` with `frame_signs=None` → the short-circuit half) + the flat-source slab case | `-O -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"` | 13 passed. The 13 pre-existing WITHIN-tolerance DriftWarnings stay (they are NOT escalated). **NO snapshot regenerates** (the change cannot touch DD). If any case escalates to a FAILURE the carve broke DD bit-id. |
+| `tests/gates/sn/spatial/test_ld_slope_frame.py` | ERR-061 — `_reframe` exercised through `solve_sn_fixed_source` (LD slab, both sweep directions); the `catches("ERR-061")` regression for the moment-frame involution | `-O` | 3 passed (no change — LD moment arrays still get the involution via `is_moment_valued=True`). |
+| `tests/gates/sn/spatial/test_linear_discontinuous.py` (`TestLDKernel::test_residual_zero_at_solved_cell_avg_2d`, `TestLDLinearExactness`, `TestLDRoundTrip`) | The d=2 LD `cell_kernel_batch`/`residual_kernel_batch` round-trip — the kernel-level matvec twin that consumes the reframed moment arrays in BOTH sweep directions | `-O` | 20 passed (LD moment path unchanged). |
+| `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (foundation rows: `test_ld_2d_two_paths_ffw_equals_mfw`, `test_dd_and_ld_2d_converge_to_different_values`, `test_ld_2d_krylov_equals_si_pure_z_quadrature` [ERR-062]) | The 2-D wavefront `_CellSolve`/`_CellResidual` walk (FFW≡MFW), DD≠LD discrimination, the `_moment_broadcast_sigma` pure-z arm (Site 3) | `-O -m "not slow"` | 5 passed / 2 deselected (the predicate routing on Site 3's rank-compare-replacement does not change the broadcast result). |
+| `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (slow: `test_ld_2d_stress_krylov_equals_si` [D5b.4], `test_ld_2d_stress_converges_second_order`) | The 2-D LD Krylov-vs-SI matvec twin on the slope-active stress habitat (the `loss_action`/`residual_kernel_batch` path that threads `is_moment_valued` through `_CellResidual`) | `-O` (slow; ~2 min) | green (the matvec twin still reaches the SAME fixed point — `is_moment_valued=True` for the moment probe). |
+| `tests/gates/sn/sweep/core/test_phase_c_gates.py` | The 1-D scan `_reframe` sites (`loss_representation.py:2341,2353,2999,3042`) inherit the signature change; this is the 1-D Phase-C matvec/sweep gate | `-O` | green (the 1-D scan moment arrays are moment-valued → `is_moment_valued=True`; DD 1-D scan → `frame_signs=None`). |
 
 ### Why DD d=2 is the load-bearing bit-id case (not just d=1)
 
@@ -202,7 +202,7 @@ KEEP both in the bit-id run.
 A contract-style predicate needs a positive (real multi-moment → True) AND a
 negative (real single-moment → False) test. TWO predicates → two pairs.
 
-**File:** `tests/sn/spatial/test_moment_axis_predicates.py` (NEW).
+**File:** `tests/gates/sn/spatial/test_moment_axis_predicates.py` (NEW).
 **Level:** `@pytest.mark.foundation` (software invariant — the predicate is a
 typed query over a data structure, NOT an equation `:label:`; no `verifies`).
 **`-O`-safe:** `np.testing.assert_*` / `pytest.fail` (the predicates return
@@ -285,27 +285,27 @@ method-boundary readability only. Gate P4' is what makes this constraint visible
 
 ```
 # Baseline (run BEFORE the carve to confirm green floor):
-.venv/bin/python -O -m pytest tests/sn/spatial/test_ld_slope_frame.py \
-  tests/sn/spatial/test_linear_discontinuous.py tests/sn/sweep/core/test_phase_c_gates.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/spatial/test_ld_slope_frame.py \
+  tests/gates/sn/spatial/test_linear_discontinuous.py tests/gates/sn/sweep/core/test_phase_c_gates.py -q
 
 # After the carve — Gate 1 (new):
-.venv/bin/python -O -m pytest tests/sn/sweep/core/test_reframe_moment_intent.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core/test_reframe_moment_intent.py -q
 
 # After the carve — Gate 3 (new predicates):
-.venv/bin/python -O -m pytest tests/sn/spatial/test_moment_axis_predicates.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/spatial/test_moment_axis_predicates.py -q
 
 # After the carve — Gate 2 bit-id (DD strict + LD paths):
-.venv/bin/python -O -m pytest tests/sn/regression/ \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning" -q   # expect 13 passed, NO new above-tol escalation
-.venv/bin/python -O -m pytest tests/sn/spatial/test_ld_slope_frame.py \
-  tests/sn/spatial/test_linear_discontinuous.py \
-  tests/sn/verification/mms/test_mms_ld_2d.py -m "not slow" \
-  tests/sn/sweep/core/test_phase_c_gates.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/regression/ \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" -q   # expect 13 passed, NO new above-tol escalation
+.venv/bin/python -O -m pytest tests/gates/sn/spatial/test_ld_slope_frame.py \
+  tests/gates/sn/spatial/test_linear_discontinuous.py \
+  tests/gates/sn/verification/mms/test_mms_ld_2d.py -m "not slow" \
+  tests/gates/sn/sweep/core/test_phase_c_gates.py -q
 # (slow LD-2D Krylov≡SI matvec twin — run once before merge:)
-.venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_2d.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/verification/mms/test_mms_ld_2d.py -q
 ```
 
-NEVER run all of `tests/sn` (#212 hang at `test_keff_slab`).
+NEVER run all of `tests/gates/sn` (#212 hang at `test_keff_slab`).
 
 ---
 

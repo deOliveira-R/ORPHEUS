@@ -128,7 +128,7 @@ true structural error, not numerical noise.
 
 ## Promotion recommendation
 
-- `diag_specular_thin_11_synthesis.py` → `tests/derivations/test_peierls_specular_bc.py`
+- `diag_specular_thin_11_synthesis.py` → `tests/gates/derivations/test_peierls_specular_bc.py`
   as `test_specular_thin_sphere_plateau_pinned_for_regression` once
   the user confirms the documentation strategy (mark as known
   limitation vs xfail vs research issue).

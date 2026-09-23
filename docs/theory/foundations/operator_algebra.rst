@@ -505,7 +505,7 @@ The three primitive actions on a flux vector :math:`\psi`:
 
 .. (vv-status rationale) Phase 0 stub label for the ``apply`` primitive
    action. Verified at the protocol level by
-   ``tests/numerics/test_operator.py`` (foundation-tagged software
+   ``tests/gates/numerics/test_operator.py`` (foundation-tagged software
    invariants); a per-solver Phase-1 test will check that each
    solver's ``L.apply(x)`` matches its legacy path bit-for-bit.
 .. vv-status: operator-apply documented
@@ -530,7 +530,7 @@ The three primitive actions on a flux vector :math:`\psi`:
 .. (vv-status rationale) Phase 0 stub label for the ``solve``
    primitive action — the algorithmic dual of ``apply``, NOT the
    matrix inverse. Verified at the protocol level by
-   ``tests/numerics/test_operator.py``; per-solver verification is
+   ``tests/gates/numerics/test_operator.py``; per-solver verification is
    queued for the BiCGSTAB-consumer migration (Issue 15).
 .. vv-status: operator-solve documented
 
@@ -555,7 +555,7 @@ The three primitive actions on a flux vector :math:`\psi`:
 
 .. (vv-status rationale) Phase 0 stub label for the
    ``apply_transpose`` primitive action. Verified at the protocol
-   level by ``tests/numerics/test_operator.py``; per-solver adjoint
+   level by ``tests/gates/numerics/test_operator.py``; per-solver adjoint
    sensitivity tests are queued for the sensitivity track (Issue 17).
 .. vv-status: operator-apply-transpose documented
 
@@ -852,12 +852,12 @@ The ``psi.bulk`` cast #262 tracked goes with it: the interior is reached
 through the admission, which has already proved the space.
 
 ⚠ **What this cost, honestly.** The C6 gate
-(``tests/sn/operators/test_operators_apply_typed.py``) pinned the alias
+(``tests/gates/sn/operators/test_operators_apply_typed.py``) pinned the alias
 identity and a runtime dispatch-parity check on the public ``apply``;
 those rows pin a mechanism that no longer exists. Their successor is the
-AST no-dispatch census (``tests/transport/test_no_carrier_dispatch.py``,
+AST no-dispatch census (``tests/gates/transport/test_no_carrier_dispatch.py``,
 which states its predicate and declares its carve-outs) plus the
-ends-to-body fence in ``tests/transport/test_kernels.py`` — a
+ends-to-body fence in ``tests/gates/transport/test_kernels.py`` — a
 per-``(operator, binding kind, carrier)`` matrix whose off-binding cells
 are typed refusals. The lexical AST census cannot see a carrier parse one
 frame out in a helper; that limitation is stated in the gate itself
@@ -983,7 +983,7 @@ composite).
 **200 / 200 under** ``np.array_equal``, ``max |Δ| = 0.0`` — the two
 routes genuinely share :math:`\Lambda` and the frame's :math:`R`. The
 committed gate is
-``tests/sn/operators/test_scattering_kernel_crosscheck.py``, which runs
+``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``, which runs
 the same comparison on a 2-D :math:`P_1` heterogeneous multigroup
 fixture and records its own 200-seed sweep.
 
@@ -1135,7 +1135,7 @@ the forward direction:
 .. (vv-status rationale) #257 S8b — the σ-free streaming primitive. The
    intrinsic σ-freedom of pure L (its apply reads no σ) is a SOFTWARE
    invariant pinned by the foundation catcher C1
-   (``tests/sn/operators/test_pure_L_sigma_free.py``, with a Mode-11
+   (``tests/gates/sn/operators/test_pure_L_sigma_free.py``, with a Mode-11
    σ-leak mutation that reddens C1); the affine relation
    ``M(σ)ψ = streaming_action(ψ) + σ⊙ψ`` and the byte-identical (L+C)
    recovery are pinned by ``test_streaming_operator_decomposition.py``
@@ -1368,7 +1368,7 @@ the *streaming-leaf* matvec — and **byte-identical** on the
 :math:`M(\sigma_t)\psi` through the same ``loss_action`` call). The
 software invariant "pure :math:`L` reads no :math:`\sigma`" is pinned by
 the foundation catcher
-:func:`tests.sn.operators.test_pure_L_sigma_free.test_c1_pure_L_apply_is_sigma_free`,
+:func:`tests.gates.sn.operators.test_pure_L_sigma_free.test_c1_pure_L_apply_is_sigma_free`,
 which carries a Mode-11 σ-leak mutation (monkeypatch a σ-leaking
 ``streaming_action`` stub) that reddens the gate — so the gate is
 verified to be *able* to see a regression, not merely green. The affine
@@ -2122,7 +2122,7 @@ object*, ``A.inverse().apply(b)``.
    applying an operator's inverse OBJECT equals invoking its native
    realization verb ``solve``. A foundation software invariant (no
    eigenvalue / flux claim); the label is wired to the bit-identity
-   gate ``tests/sn/operators/test_inverse_operator_equivalence.py``
+   gate ``tests/gates/sn/operators/test_inverse_operator_equivalence.py``
    (``(L+C).inverse().apply(b) == (L+C).solve(b)`` for the sweep-invertible
    loss operator, plus the seed-drop and returned-surface-type checks).
 
@@ -2188,7 +2188,7 @@ the sweep composites, the mixin's un-invert, and
 .. (vv-status rationale) Representational identity — the factor-wise
    ``OperatorProduct.solve`` re-route (Design B), NOT a solver claim
    (no eigenvalue / flux). The verifiable content is the §40 re-route
-   gate battery in ``tests/numerics/test_operator.py`` (the dense
+   gate battery in ``tests/gates/numerics/test_operator.py`` (the dense
    ``np.linalg.solve`` anchor + the five-row factor-kind matrix vs the
    pre-carve baseline + the Mode-11 execution sentinel) and the §13 I2
    functoriality gate ``(AB)^{-1} = B^{-1}A^{-1}``.
@@ -2484,7 +2484,7 @@ its action on a multi-axis tensor :math:`x` is elementwise
 multiplication along ``axis``:
 
 .. (vv-status rationale) Verified by
-   ``tests/numerics/test_diagonal_operator.py`` — apply against
+   ``tests/gates/numerics/test_diagonal_operator.py`` — apply against
    ``np.einsum`` reference on randomised tensors, self-adjointness,
    and round-trip ``apply ↔ solve`` bit-identity.
 .. vv-status: diagonal-operator-action documented
@@ -2590,7 +2590,7 @@ pointwise multiplication,
 .. (vv-status rationale) Structural / definitional identity — the
    multiplier-algebra embedding M: L^∞ → B(L²). Not a solver claim; the
    verifiable content is the multiplier-algebra law-suite
-   (``tests/transport/test_multiplication_operator.py``) which pins the
+   (``tests/gates/transport/test_multiplication_operator.py``) which pins the
    discrete realization :eq:`multiplication-operator-action`.
 .. vv-status: multiplication-operator-embedding documented
 
@@ -2635,7 +2635,7 @@ group-and-space-indexed broadcast over the ordinate axis:
    broadcast action is verified at the VALUES level against the legacy
    ``σ[None]·ψ`` (0 ULP, ``assert_array_equal`` — the generalized engine
    reduces to the same broadcast-multiply) and the multiplier-algebra
-   laws are verified as intrinsic properties (``tests/transport/
+   laws are verified as intrinsic properties (``tests/gates/transport/
    test_multiplication_operator.py``). The structurally-independent
    physics backing is the k_∞ = νΣf/Σa analytical limit and the
    streaming-equilibrium ψ = Q/σ_t reference, both of which route σ_t
@@ -2726,7 +2726,7 @@ That :math:`M` is a faithful unital ``*``-homomorphism is not decoration
 — it is the set of *intrinsic properties* the promotion must satisfy, and
 each is pinned as a law-suite test (the user directive: every
 math-bearing type ships a test of its defining laws). The laws, verified
-in ``tests/transport/test_multiplication_operator.py`` on a discriminating
+in ``tests/gates/transport/test_multiplication_operator.py`` on a discriminating
 ``nx=5 ≠ ny=3, ng=2`` carrier with asymmetric heterogeneous coefficients:
 
 .. list-table:: Multiplier-algebra laws (faithful unital ``*``-homomorphism)
@@ -3122,7 +3122,7 @@ Petrov–Galerkin bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi
    eigenvalue expressed as a ratio of integrated reaction rates. Not a new
    solver claim (the SN keff value is verified by the existing eigenvalue
    gates); the verifiable content of the *routing* is the closed-form
-   k∞-as-ratio gate ``tests/transport/test_integrated_reaction_rate.py``.
+   k∞-as-ratio gate ``tests/gates/transport/test_integrated_reaction_rate.py``.
 .. vv-status: keff-as-integrated-rates documented
 
 .. _reaction-rate-kinf-oracle-section:
@@ -3161,7 +3161,7 @@ primitive** with the rank-1 functional. The
 is pinned by evaluating production **and** absorption *independently* at
 the converged spectrum :math:`\phi^*` and checking
 :math:`\langle\nu\Sigma_f,\phi^*\rangle / \langle\Sigma_a,\phi^*\rangle =
-k_\infty` (``tests/transport/test_reaction_rate_functional.py``). Pinning
+k_\infty` (``tests/gates/transport/test_reaction_rate_functional.py``). Pinning
 the two functionals *separately* (not just their ratio) is what gives the
 gate teeth a ratio test lacks: a shared-factor error that scales both the
 numerator and the denominator — a mis-scaled accessor, a spurious volume
@@ -3240,9 +3240,9 @@ Two details of that spelling are load-bearing, and both are lost if
 .. (vv-status rationale) Structural / decomposition label: the closed-form
    k∞ = λ_max(A⁻¹F) identity that grounds the reaction-rate functional's
    correctness. Not itself a solver claim; the verifiable content is the
-   eigenvalue/closed-form gate ``tests/transport/test_reaction_rate_functional.py``
+   eigenvalue/closed-form gate ``tests/gates/transport/test_reaction_rate_functional.py``
    (production AND absorption pinned independently at φ*) and the
-   ``tests/transport/test_integrated_reaction_rate.py`` k∞-as-ratio gate.
+   ``tests/gates/transport/test_integrated_reaction_rate.py`` k∞-as-ratio gate.
 .. vv-status: reaction-rate-kinf-oracle documented
 
 Why the estimators are NOT Functionals
@@ -3267,7 +3267,7 @@ field-to-scalar **core** is (the production-rate contraction
 :math:`\sum(F\psi)`), without forcing the estimators into a wrapper that
 would misrepresent their arity. They stay bare (hardwired) methods,
 arithmetic bit-identical to the pre-R8 module-level defaults they
-replaced (pinned by ``tests/numerics/test_estimators_as_functionals.py``),
+replaced (pinned by ``tests/gates/numerics/test_estimators_as_functionals.py``),
 and the honesty of *not* wrapping them is itself a category-correctness
 claim.  ⚠ The :math:`k` estimator's arithmetic did move once afterwards,
 at the 2026-09-14 re-posing onto
@@ -3302,17 +3302,17 @@ above is the gate that states the new spelling.
    :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
    (the volume-integrated scalar) (L2). Rank-1 constructor:
    :func:`~orpheus.numerics.operator.outer`. Intrinsic-category gate:
-   ``tests/transport/test_functional_category.py`` (Functional ≠
+   ``tests/gates/transport/test_functional_category.py`` (Functional ≠
    LinearOperator, both directions + discriminator foils). Correctness:
-   ``tests/transport/test_reaction_rate_functional.py`` (the closed-form
+   ``tests/gates/transport/test_reaction_rate_functional.py`` (the closed-form
    :math:`k_\infty = \lambda_{\max}(A^{-1}F)` per-term oracle —
    production AND absorption pinned independently — + the hand-derived
    double-loop density reference + the no-measure guard);
-   ``tests/transport/test_integrated_reaction_rate.py``
+   ``tests/gates/transport/test_integrated_reaction_rate.py``
    (:math:`k_\infty` as the ratio of integrated rates, incl. the
-   ``(n,2n)`` term). Dyad laws: ``tests/numerics/test_outer_dyad.py``
+   ``(n,2n)`` term). Dyad laws: ``tests/gates/numerics/test_outer_dyad.py``
    (action / rank-1 / adjointability / linearity). Estimator honesty:
-   ``tests/numerics/test_estimators_as_functionals.py``. The
+   ``tests/gates/numerics/test_estimators_as_functionals.py``. The
    field-to-scalar contraction is coded in three places today
    (SN / CP / numerics) — unifying that fragmentation is tracked on #259.
 
@@ -3507,9 +3507,9 @@ Fission is the rank-1 dyad — a reconstruction **column** :math:`|\chi\rangle`
 .. (vv-status rationale) Structural / decomposition of the fission
    operator — the rank-1 dyad reading. Not a solver claim; the verifiable
    content is the closed-form k∞ = λ_max(A⁻¹F) correctness of the row
-   co-vector (``tests/transport/test_reaction_rate_functional.py``) and the
+   co-vector (``tests/gates/transport/test_reaction_rate_functional.py``) and the
    0-ULP equivalence of the dyad apply to the matvec arm
-   (``tests/sn/operators/test_fission_kernel_crosscheck.py``).
+   (``tests/gates/sn/operators/test_fission_kernel_crosscheck.py``).
 .. vv-status: fission-as-dyad documented
 
 .. math::
@@ -3645,7 +3645,7 @@ are the **local / separate** components that live *outside* the kernel
 (a strict sub-component, pinned). The kernel reproduces the existing
 anisotropic moment path :math:`R(\Lambda(M\psi))` byte-for-byte (0 ULP);
 its physics L1 backing is the existing anisotropic MMS gate
-``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
+``tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
 not a new reference.
 
 **Both collision gains are this kernel, since #426 step 2** (2026-09-04).
@@ -3816,7 +3816,7 @@ two independent reasons, and the second is the sharper one:
 
 The tier-2/exact-ctor split then owes one gate, and gets it: every
 extract-and-mint classmethod is pinned against the exact constructor on
-the same inputs (``tests/transport/test_tier2_equivalence_s_family.py``),
+the same inputs (``tests/gates/transport/test_tier2_equivalence_s_family.py``),
 so the hand-built fixtures the rest of the suite uses provably stand for
 what production builds — the standing hazard being that a *convenience*
 factory populates a field the *composite* factory forgets, and the
@@ -3883,7 +3883,7 @@ are not adjoint to each other?*  The failure this guards against is
 catalogued — **ERR-039**, a claimed :math:`\Pi^{*} = R` that was in
 fact the addition-theorem reconstruction, i.e. an adjoint claim that
 held under one embedding and not under the one that shipped.  The gate
-(``tests/transport/frames/test_binding_tightness.py``) runs three legs,
+(``tests/gates/transport/frames/test_binding_tightness.py``) runs three legs,
 and the third is a recorded blindness rather than a claim:
 
 .. list-table:: The three legs, and what each can see
@@ -4144,8 +4144,8 @@ edges that map between them.
    identity (which carrier type sits at each node, and the role/axis
    semantics of each edge). Not a solver claim; the verifiable content is
    the role/class-identity algebra of the four leaves (the foundation
-   tests ``tests/sn/primitives/test_typed_source_sinks.py`` ::
-   ``TestHarmonicMomentSourceSink`` and ``tests/transport/frames/
+   tests ``tests/gates/sn/primitives/test_typed_source_sinks.py`` ::
+   ``TestHarmonicMomentSourceSink`` and ``tests/gates/transport/frames/
    test_harmonic_frame.py``) and the 0-ULP equivalence of the typed and
    ndarray scattering arms (``test_scattering_kernel_crosscheck.py``).
 .. vv-status: scattering-carrier-grid documented
@@ -4444,7 +4444,7 @@ already pins to 0 ULP.
    operator belongs to (horizontal = representation-change, vertical =
    role-change, scattering = the 2-cell). Not a solver claim; the
    verifiable content is the 0-ULP interchange-coherence identity
-   (``tests/sn/operators/test_frame_conjugate_carve.py`` ::
+   (``tests/gates/sn/operators/test_frame_conjugate_carve.py`` ::
    ``TestFrameConjugateEqualsRLambdaM`` +
    ``test_kernel_property_is_frame_conjugate_of_lambda``) plus the
    role/class-identity algebra of the leaves (the foundation tests cited
@@ -4461,8 +4461,8 @@ operator :math:`R \circ \Lambda \circ M` and the *step-by-step* typed
 evaluation (project with :math:`M`, scatter with :math:`\Lambda`,
 reconstruct with :math:`R`) compute the **same** per-ordinate source —
 not approximately, but to the last bit. That is exactly what
-``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and
-``tests/sn/operators/test_frame_conjugate_carve.py`` assert with
+``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` and
+``tests/gates/sn/operators/test_frame_conjugate_carve.py`` assert with
 ``np.array_equal`` (0 ULP, **not** ``allclose``):
 
 .. math::
@@ -4577,7 +4577,7 @@ and naming its endpoints names the morphism completely:
    representational/structural statement about where the parametrization
    lives (on the operator, not the carrier). The verifiable content is the
    static ``assert_type`` pins on the heteromorphic ``apply``
-   (``tests/sn/operators/test_operators_apply_typed.py``) and the
+   (``tests/gates/sn/operators/test_operators_apply_typed.py``) and the
    composition-guard tests; not a solver claim.
 .. vv-status: carrier-grid-operator-typing documented
 
@@ -4787,7 +4787,7 @@ bound on the moment end, so the two sides of the crosscheck are the two
 BOUND operators' own public actions rather than a private helper against
 a private chain. The claim did not weaken — the second side is now the
 production route instead of a fragment of it. The gate is
-``tests/sn/operators/test_scattering_kernel_crosscheck.py``; it records
+``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``; it records
 its own 200-seed ``array_equal`` sweep, and an independent reproduction
 on a 1-D GL8 :math:`P_1` slab (2 groups, 20 cells, seeds 0…199) reads
 **200 / 200, max |Δ| = 0.0**.
@@ -5154,12 +5154,12 @@ tracks is the *relocation* itself and the CP / MoC carrier unification.
    delegate to it, and are what the Protocol gate reaches);
    :attr:`orpheus.transport.operators.scattering.ScatteringOperator.kernel`.
    Category-refinement gate:
-   ``tests/transport/test_integral_kernel_category.py``. Fission
-   cross-check: ``tests/sn/operators/test_fission_kernel_crosscheck.py``
+   ``tests/gates/transport/test_integral_kernel_category.py``. Fission
+   cross-check: ``tests/gates/sn/operators/test_fission_kernel_crosscheck.py``
    (hand-derived correctness reference + the
    :math:`\chi \cdot \mathrm{production\_rate} \equiv F.\mathrm{apply}`
    0-ULP de-risk). Scattering cross-check:
-   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` (the
+   ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` (the
    :math:`S.\mathrm{kernel}.\mathrm{apply} \equiv R\circ\Lambda\circ M`
    0-ULP equivalence). Deferred follow-up: #260
    (:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
@@ -5306,7 +5306,7 @@ broadcasts on the rest), the tensor-product operator's action is
 the sequential per-axis application
 
 .. (vv-status rationale) Verified by
-   ``tests/numerics/test_tensor_product_operator.py`` — Kronecker-
+   ``tests/gates/numerics/test_tensor_product_operator.py`` — Kronecker-
    product reference on small concrete factors, the
    ``is_invertible`` / ``is_adjointable`` predicate meet, and the
    algebraic laws below.
@@ -5340,7 +5340,7 @@ Algebraic laws
 The
 :class:`~orpheus.numerics.operator.TensorProductOperator` carries
 three algebraic laws verified by tests
-(:file:`tests/numerics/test_tensor_product_operator.py`):
+(:file:`tests/gates/numerics/test_tensor_product_operator.py`):
 
 .. math::
    :label: tensor-product-adjoint-distributivity
@@ -5505,9 +5505,9 @@ silently electing one leg.
 
    Gated by ``TestTensorProductSpaces`` /
    ``TestSumOfTensorProductsSpaces`` in
-   :file:`tests/numerics/test_tensor_product_operator.py` (the law) and
+   :file:`tests/gates/numerics/test_tensor_product_operator.py` (the law) and
    ``TestTheRealizedLawIsMETRICCorrect`` in
-   :file:`tests/sn/operators/test_sn_boundary_realizer.py` (the
+   :file:`tests/gates/sn/operators/test_sn_boundary_realizer.py` (the
    consequence, at the tier the physics lives in). ``[M]`` the mutation
    battery: dropping the derivation reddens **18**, swapping
    ``domain`` ↔ ``codomain`` reddens **8**, replacing agreement with the
@@ -6528,7 +6528,7 @@ pencil**
    OperatorPencil type IS.  Structural / representational: a definitional
    identity of a numerics type, not a solver claim.  Its verifiable
    content is the type's own foundation suite
-   (tests/numerics/test_pencil.py: at(0) is the lhs object, at(σ) is the
+   (tests/gates/numerics/test_pencil.py: at(0) is the lhs object, at(σ) is the
    affine combination bit-identically in matrix form, .H is the pair of
    adjoints, rhs_rank counts the finite spectrum), plus the closed-form
    reference row k_inf == trace(A⁻¹F) against
@@ -6810,7 +6810,7 @@ problem silently breaks.  Three checkable consequences:
   .. (vv-status rationale) The affine-increment identity — the degree-1
      contract's checkable form.  Structural: a definitional property of
      the OperatorPencil type.  Its verifiable content is the foundation
-     row tests/numerics/test_pencil.py::TestLawTheAffineFamily::
+     row tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::
      test_law_the_increment_is_minus_tau_M (300 random draws, gated at
      8·eps·scale) plus the matrix-form bit-identity row beside it.
   .. vv-status: pencil-affine-increment documented
@@ -6914,7 +6914,7 @@ Both kinds evaluate the same thing.  Write
    kinds.  Structural / representational: it names which functional the
    two layer-2 types single-source, not a solver claim.  Its verifiable
    content is the foundation row
-   tests/numerics/test_posing.py::TestLawTheEigenPosing::
+   tests/gates/numerics/test_posing.py::TestLawTheEigenPosing::
    test_law_the_balance_functional_is_ONE_functional (the eigen and
    source spellings agree bit-identically) together with the
    Rayleigh-at-the-exact-eigenpair row; the physical k claim itself is
@@ -6979,7 +6979,7 @@ algebra:
 
    ⚠ Those two figures are a **recorded** measurement, not a gated one —
    they come from the C3b verification design and are restated in the
-   module docstring of ``tests/numerics/test_posing.py``.  No row asserts
+   module docstring of ``tests/gates/numerics/test_posing.py``.  No row asserts
    them, precisely because a residual is a property of mesh × quadrature ×
    tolerance; what IS gated is the theorem underneath, that the Rayleigh
    quotient at the **exact** eigenpair equals the eigenvalue for *any*
@@ -7044,25 +7044,25 @@ The gates, and what each one can see:
 
    * - gate
      - what it pins
-   * - ``tests/numerics/test_pencil.py``
+   * - ``tests/gates/numerics/test_pencil.py``
      - the ends law (both the coarse and the **sharp** equal-shape pair),
        ``at(0) is lhs``, the affine combination, the affine increment,
        ``.H`` as the pair of adjoints, ``rhs_rank`` over 12 mixtures, the
        closed-form :math:`k_\infty = \operatorname{tr}(A^{-1}F)`
        reference, and the opaque (CP-shaped) pair
-   * - ``tests/numerics/test_posing.py``
+   * - ``tests/gates/numerics/test_posing.py``
      - the Rayleigh quotient at the **exact** eigenpair with two weights
        (a theorem at the solution, not a tolerance), the vanishing
        residual, ONE balance functional spelled two ways bit-identically,
        and the adjoint **arity** pair (nullary vs unary)
-   * - ``tests/sn/architecture/test_posing.py``
+   * - ``tests/gates/sn/architecture/test_posing.py``
      - AC-a — no Strategy token (``inner_solver``, ``inner_schedule``,
        ``max_iter``, ``tol``, …) appears on any callable of the chain
        ``SNProblem(...) → .system → .pencil → .eigen_posing``, over a chain
        held as an explicit LIST of nine callables so a rename cannot
        silently empty the loop; plus the identity half — two content-equal
        hubs pose equal records, and each hub's members are its own
-   * - ``tests/numerics/test_estimators_as_functionals.py``
+   * - ``tests/gates/numerics/test_estimators_as_functionals.py``
      - (since 2026-09-14) that
        :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` **is**
        the pencil's own spelling :math:`\sum(F\psi)/\sum((A-S)\psi)`,
@@ -7070,7 +7070,7 @@ The gates, and what each one can see:
        ``S = ZeroOperator`` row — which is bit-identical to the retired
        association **by construction**, there being nothing to
        re-associate when :math:`\sum(S\psi) = 0`
-   * - ``tests/sn/solve/test_subcritical_multiplying_source.py``
+   * - ``tests/gates/sn/solve/test_subcritical_multiplying_source.py``
      - (since 2026-09-14) the :math:`(M, q)` cell in production — the
        composition law ``SourcePosing(pencil.at(1), q).operator`` ≡
        ``loss − production`` bit-identically on a seeded coupled state,
@@ -7368,12 +7368,12 @@ Fix a functional :math:`n` that is **homogeneous of degree 1** —
    numerics type, in the family of pencil-family and
    posing-balance-functional above, not a solver claim.  Its verifiable
    content is the type's own foundation suite
-   (tests/numerics/test_gauge.py::TestLawTheScaleGauge — the section lands
+   (tests/gates/numerics/test_gauge.py::TestLawTheScaleGauge — the section lands
    on its target, idempotence to allclose, Γ-invariance over
    c ∈ {0.1, 0.5, 2, 10}, the sign leg, the zero-reading refusal, and the
    two-functionals negative leg), plus its first production witness, the
    infinite medium's νΣf·φ = 100 rescale pinned byte-for-byte by
-   tests/homogeneous/test_byte_stability.py.
+   tests/gates/homogeneous/test_byte_stability.py.
 .. vv-status: scale-gauge-section documented
 
 .. math::
@@ -7485,7 +7485,7 @@ That is exactly the negative law the type ships
 ``ScaleGauge.functional`` is annotated ``Callable[[Any], float]`` and must
 stay so.  The layer contract forbids ``numerics → transport``
 (``FORBIDDEN_EDGES["numerics"] = L2 | L3`` in
-``tests/test_layer_imports.py``), so the numerics tier may **not** import
+``tests/gates/test_layer_imports.py``), so the numerics tier may **not** import
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
 even though that is what the first witness passes it.
 
@@ -7502,7 +7502,7 @@ kernel:
    minimum-norm claim's own mathematical content (every kernel mode is
    mirror-odd, so the exact solution is G-orthogonal to ker A) is the #344
    result documented at sn-loss-kernel-gauge.  Its verifiable content here
-   is tests/numerics/test_gauge.py::TestLawTheKernelGauge — Π² = Π,
+   is tests/gates/numerics/test_gauge.py::TestLawTheKernelGauge — Π² = Π,
    (I − Π)² = I − Π, Γ-invariance with the element drawn from Π's own
    range on the trace space, residual-neutrality of the section, and the
    negative leg showing a NON-kernel move IS visible in the residual.
@@ -7579,7 +7579,7 @@ were re-keyed onto ``certificate.gauge`` / ``certificate.balance`` — or
 retired with the view's own test rows — and now match on the
 :class:`~orpheus.numerics.outcome.Evidence` member instead of on ``is
 None``.  The largest block is the SN entry-ledger gate
-(``tests/sn/solve/test_every_entry_gauges_its_trace.py``: five gate
+(``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``: five gate
 functions, 11 reads), and each of them now says *which* of the
 ``Measured``-versus-absent states it is asserting.  The certificate is the
 only surface.
@@ -7705,7 +7705,7 @@ rather than stylistic: ``numerics`` may import neither ``transport`` nor
 any method package, which is why ``ScaleGauge.functional`` is a bare
 callable and why ``KernelGauge`` is a Protocol instead of a base class.
 Both new modules are in the cold-interpreter entry-point gate
-(``tests/test_layer_imports.py``), so a cycle that resolves only because
+(``tests/gates/test_layer_imports.py``), so a cycle that resolves only because
 something else was imported first fails there.
 
 ⭐ **The coupled field's derived space — a member that turned an inert
@@ -7746,24 +7746,24 @@ full account, including the shape gotcha that makes the state the posed
 
    * - gate
      - what it pins
-   * - ``tests/numerics/test_gauge.py``
+   * - ``tests/gates/numerics/test_gauge.py``
      - both realizations' defining laws — lands-on-target, idempotence
        (``allclose``, deliberately not bit-equal), Γ-invariance (for the
        kernel gauge with the element drawn from :math:`\Pi`'s own range
        on the trace space), residual-neutrality, the sign leg, the
        zero-reading refusal, and the negative law that two functionals
        give distinguishable sections
-   * - ``tests/numerics/test_outcome.py``
+   * - ``tests/gates/numerics/test_outcome.py``
      - the kind parse in both directions, the trajectory co-indexing law,
        the absence of ``keff``/``lam``/``adjoint_posing`` on a
        ``SourceOutcome``, the ``Evidence`` sum's closedness under
        ``assert_never``, and ``CoupledField.space``
-   * - ``tests/homogeneous/test_homogeneous_outcome.py``
+   * - ``tests/gates/homogeneous/test_homogeneous_outcome.py``
      - the infinite medium's outcome — ``k_inf`` IS the outcome's λ, the
        flux is a **view** of the posed column, the recorded section lands
        on :math:`100`, and the Rayleigh quotient reproduces
        :math:`k_\infty`.  ≥ 2 groups on purpose (see the gotcha above)
-   * - ``tests/homogeneous/test_byte_stability.py``
+   * - ``tests/gates/homogeneous/test_byte_stability.py``
      - that the rescale's arithmetic did not move — the same bit-identity
        wall that licensed calling the CS4c coda a re-source
 
@@ -7860,7 +7860,7 @@ it completely — every library mixture ships :math:`\Sigma_2 = 0`, so the
 two functionals read *the same number* — and on a
 :math:`\Sigma_2`-carrying deck they differ by rel :math:`1.2\times
 10^{-1}` (both populations are pinned, one row each, by
-``tests/sn/architecture/test_step3_solution_anchors.py`` →
+``tests/gates/sn/architecture/test_step3_solution_anchors.py`` →
 ``TestRecordTheFourProductionRateFunctionals``).  A
 ``gauge: str = "production_rate"`` field would have recorded a falsehood
 on both paths, and no library fixture could ever have caught it — which
@@ -8235,7 +8235,7 @@ Verification status
 --------------------
 
 The discriminating gate for the canonical-loop refactor is
-``tests/numerics/test_iteration.py::test_keigenvalue_matches_solve_sn_2g_slab``:
+``tests/gates/numerics/test_iteration.py::test_keigenvalue_matches_solve_sn_2g_slab``:
 it stays green after
 :class:`~orpheus.numerics.iteration.KEigenvalue` delegates to
 :func:`~orpheus.numerics.eigenvalue.power_iteration`. This is the
@@ -8553,7 +8553,7 @@ the cheapest tell.
        :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update`,
        and the twin was **forced**: ``transport`` is an L2 package and
        ``sn`` an L3 one, so ``FORBIDDEN_EDGES["transport"]`` (gated per
-       module in ``tests/test_layer_imports.py``) made it impossible for
+       module in ``tests/gates/test_layer_imports.py``) made it impossible for
        the scheme to *call* the closure that owns the relation — it could
        only re-spell it.  P4.9a moves the responsibility up to the site
        that already sees both packages: the march has one production

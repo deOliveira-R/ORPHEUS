@@ -75,7 +75,7 @@ Operators that expose `domain` / `codomain` as `FunctionSpace`-valued properties
   `codomain: SphericalHarmonicSpace` (`cached_property`, P1.3) and
   `domain: FunctionSpace` (`cached_property`, P1.4 angular-ordinate). **This is the
   reference pattern the plan generalises.**
-- `tests/numerics/test_operator.py:540-572` — `_SpacedMatrixOperator` test fixture
+- `tests/gates/numerics/test_operator.py:540-572` — `_SpacedMatrixOperator` test fixture
   (the only test-side operator carrying domain/codomain explicitly).
 
 ### (field type carrying space) — 1 occurrence
@@ -86,15 +86,15 @@ FunctionSpace as a data field" pattern. **No typed-field class today carries a
 `IsotropicSource`, `PerOrdinateSource`) carries `mesh: SNMesh` instead.
 
 ### (test fixture) — 21 occurrences
-- `tests/numerics/test_operator.py:540-695` — `_SpacedMatrixOperator` plus
+- `tests/gates/numerics/test_operator.py:540-695` — `_SpacedMatrixOperator` plus
   `FunctionSpace(name="V"|"W"|"V1"|"V2"|"W1"|"W2"|"Z"|"phi"|"psi", shape=(n,))`
   constructions for adjoint identity (line 586-589), composition (606-619), product
   domain/codomain checks (628-644), mismatch raises (657-695). 15 unique `FunctionSpace(`
   call sites in test_operator.py alone.
-- `tests/numerics/test_space.py:31-141` — equality, hashing, factory tests
+- `tests/gates/numerics/test_space.py:31-141` — equality, hashing, factory tests
   (`angular_flux_space`, `scalar_flux_space`, `boundary_trace_space`). 12 `FunctionSpace(`
   calls.
-- `tests/numerics/test_spherical_harmonic_space.py:434` — bare-FunctionSpace
+- `tests/gates/numerics/test_spherical_harmonic_space.py:434` — bare-FunctionSpace
   comparison test (equality across base vs subclass).
 
 ### (unused / dead code) — 0 occurrences

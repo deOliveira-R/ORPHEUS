@@ -10,20 +10,20 @@ teaches — `flux⊖flux→FluxDisplacement`, `flux⊕flux→TypeError` — was 
 flux lives in V (`flux+flux` legal, differences same-class signed under the
 class/space/mesh fiber guard), the displacement family is deleted, iterate
 diagnostics live on `IterationRecord`, and
-`tests/sn/solve/test_flux_displacement_diagnostics.py` is now
+`tests/gates/sn/solve/test_flux_displacement_diagnostics.py` is now
 `test_si_convergence_diagnostics.py`. Do NOT design gates to §4's algebra.
 The rest of this memo's patterns are algebra-independent and stand.
 
 The #208/#201 Wave-O carve (operator block-role typing → SOURCE-side
 dimensional retyping → typed `from_balance` residual → affine
 `FluxDisplacement` torsor + flux-add gate) is LANDED on `main`
-(`8c2f355`→`63719a2`; tests live: `tests/sn/operators/test_bc_extraction_matvec.py`,
-`tests/sn/operators/test_typed_residual_evaluation.py`,
-`tests/transport/residuals/test_typed_residuals.py`,
-`tests/numerics/test_affine_flux_algebra.py`,
-`tests/sn/solve/test_flux_displacement_diagnostics.py`,
-`tests/sn/solve/test_affine_carve_bit_identity.py`,
-`tests/sn/operators/test_g_adjoint_reciprocity.py`). The test files are
+(`8c2f355`→`63719a2`; tests live: `tests/gates/sn/operators/test_bc_extraction_matvec.py`,
+`tests/gates/sn/operators/test_typed_residual_evaluation.py`,
+`tests/gates/transport/residuals/test_typed_residuals.py`,
+`tests/gates/numerics/test_affine_flux_algebra.py`,
+`tests/gates/sn/solve/test_flux_displacement_diagnostics.py`,
+`tests/gates/sn/solve/test_affine_carve_bit_identity.py`,
+`tests/gates/sn/operators/test_g_adjoint_reciprocity.py`). The test files are
 the WHAT. This note keeps the WHY that the test files do not encode.
 
 **1. Snapshot-on-RANDOM-ψ for the bulk + a SEPARATE structurally-independent

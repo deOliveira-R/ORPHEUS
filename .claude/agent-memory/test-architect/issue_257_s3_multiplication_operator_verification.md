@@ -33,12 +33,12 @@ bit-id (user 2026-06-19).**
   (CrossSectionField, `.values IS` the same `(ng,*spatial)` array).
 - `DiagonalOperator(weights:1-D,axis=0)`: `_reshape(ndim)*x`, self-adjoint,
   CAP_SOLVE iff all w≠0, `from_measure`. 2 TEST callers ONLY:
-  `tests/numerics/test_diagonal_operator.py` (170 lines, the direct pin),
-  `tests/numerics/test_tensor_product_operator.py` (DiagonalOperator&Diagonal
+  `tests/gates/numerics/test_diagonal_operator.py` (170 lines, the direct pin),
+  `tests/gates/numerics/test_tensor_product_operator.py` (DiagonalOperator&Diagonal
   Kronecker via `&`). NO prod callers (grep clean).
 
 ## Structurally-independent references (the L14 four-legged correctness, NOT L4)
-- **kinf homogeneous** `tests/sn/verification/analytical/test_kinf_homogeneous.py`
+- **kinf homogeneous** `tests/gates/sn/verification/analytical/test_kinf_homogeneous.py`
   (L1, ≥2G — 1eg/2eg/4eg): dominant eigenvector+eigenvalue of `A⁻¹F` by PURE
   linalg on XS matrices, NO transport discretisation → mathematically orthogonal.
   THE eigenvalue reference (closed-form pillar). Must STAY green — it routes σ_t

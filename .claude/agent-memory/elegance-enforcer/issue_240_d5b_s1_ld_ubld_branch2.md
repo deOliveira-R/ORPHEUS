@@ -46,7 +46,7 @@ Branch `feature/sn-space-angle-tier2`, MAIN checkout. Date 2026-06-16. Verdict *
 - New gate `test_ld_ubld_primitive.py` 10 passed (-O). Includes the d=2-exact-on-bilinear ERR-060
   catcher (xy coupling) + the 3-view closed-form==dense reduction (the elegance Branch-1 CONCERN
   closed in code) + the LINK proof (LIVE production update/kernel/scan == dense d=1).
-- `tests/sn/spatial tests/sn/sweep/core` 506 passed / 1 skip / 4 xfail (the bit-id DD negative
+- `tests/gates/sn/spatial tests/gates/sn/sweep/core` 506 passed / 1 skip / 4 xfail (the bit-id DD negative
   control held — strict gate carries NO LD golden, its LD items are structural-only).
 - LD two-paths scan≡DAG oracle + MMS-LD 5 passed / 1 xfail. Single-sourcing holds end-to-end.
 

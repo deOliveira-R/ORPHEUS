@@ -556,7 +556,7 @@ Stamm'ler outflow convention :cite:`Stamm1983`)
 .. (vv-status rationale) Literature-transcribed definition: the Stamm'ler
    outflow transport correction (Stamm'ler–Abbate 1983). Its terminal result
    is verified downstream under the diffusion method's ``diffusion-coefficient``
-   label — ``tests/data/test_mixture_transport_xs.py`` pins Σ_tr = Σ_t −
+   label — ``tests/gates/data/test_mixture_transport_xs.py`` pins Σ_tr = Σ_t −
    rowsum(Σ_s1) (foundation ``test_transport_xs_is_total_minus_p1_outscatter_row_sum``)
    and D = 1/(3Σ_tr) (L1 ``test_diffusion_coefficient_matches_definition``).
    Restated here to illustrate the method-dependent partition; not a separate claim.
@@ -1116,7 +1116,7 @@ and ORPHEUS treats it as one:
 - **The certification.** Acyclicity is a property of the (mesh, closure,
   boundary) **triple**, and ORPHEUS certifies it *per case* rather than
   assuming it: the assembly-mode gates
-  (``tests/sn/sweep/test_assembly_mode.py``) assert the strictly-upper
+  (``tests/gates/sn/sweep/test_assembly_mode.py``) assert the strictly-upper
   triangle of the assembled operator is exactly zero under the sweep
   ordering, and that the LAPACK dense solve and the sweep agree to
   :math:`\sim 6 \times 10^{-16}` — the sweep *is* the direct solve, to
@@ -1146,7 +1146,7 @@ and ORPHEUS treats it as one:
   That criterion is now **executable**:
   :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` builds the
   trace digraph and computes its SCCs, and
-  ``tests/sn/sweep/test_sweep_acyclicity.py`` gates the verdicts —
+  ``tests/gates/sn/sweep/test_sweep_acyclicity.py`` gates the verdicts —
   ``reflective|vacuum`` and ``vacuum|reflective`` acyclic,
   ``reflective|reflective`` two mirror-pair SCCs with the closing edges
   named, ``periodic`` cyclic from a single law. The same module records

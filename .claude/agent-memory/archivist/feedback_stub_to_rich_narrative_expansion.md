@@ -34,7 +34,7 @@ expansion target.
    reflect.
 4. **Replace each TODO note with its full prose** in this shape:
    - **SymPy derivation pointer** (`:func:`...).
-   - **Test gate pointer** (`:func:`tests.derivations....`).
+   - **Test gate pointer** (`:func:`tests.gates.derivations....`).
    - 1-2 paragraphs of math + design rationale + literature
      reference + the actual identity being verified.
    - For the load-bearing identities (e.g., the Atkinson F_k closed

@@ -171,8 +171,8 @@ shape-agnostic — pinned at the time by the always-on Mode-11 spy
 call *(k−1)*'s return, by value; **retired in #280 2.5c** together with
 the vestigial ``initial_guess`` threading it guarded). The live pins on
 the seed contract are the strict no-forwarding spy in
-``tests/sn/operators/test_inverse_operator_equivalence.py`` and the
-curvilinear value catcher in ``tests/sn/eigenvalue/test_keff_curvilinear.py``.
+``tests/gates/sn/operators/test_inverse_operator_equivalence.py`` and the
+curvilinear value catcher in ``tests/gates/sn/eigenvalue/test_keff_curvilinear.py``.
 
 
 Retiring the signature probe — why it existed, why it could go
@@ -372,8 +372,8 @@ The rewire was pinned by three structural gates (all ``-O``-proof —
 ``pytest.fail`` / ``np.testing.assert_*``, never a bare ``assert``;
 ``test_seed_threading_spy.py`` was **retired in #280 2.5c** with the
 vestigial ``initial_guess`` threading it guarded — the live seed-contract
-pins are ``tests/sn/operators/test_inverse_operator_equivalence.py`` and
-``tests/sn/eigenvalue/test_keff_curvilinear.py``):
+pins are ``tests/gates/sn/operators/test_inverse_operator_equivalence.py`` and
+``tests/gates/sn/eigenvalue/test_keff_curvilinear.py``):
 
 .. list-table:: Step-3 regression gates
    :header-rows: 1
@@ -1224,7 +1224,7 @@ value (``test_kinf_exact``, 1e-12), the analytical pillar.
 
    * - Gate file
      - What it pins
-   * - ``tests/numerics/test_matrix_inverse_operator.py``
+   * - ``tests/gates/numerics/test_matrix_inverse_operator.py``
      - The base ``as_matrix`` L0 (exact vs hand-built + the storage-oracle
        cross-check; the **C-order column convention on a non-symmetric op**;
        rectangular-honesty; :math:`\equiv` the retired ``_as_dense`` loop),

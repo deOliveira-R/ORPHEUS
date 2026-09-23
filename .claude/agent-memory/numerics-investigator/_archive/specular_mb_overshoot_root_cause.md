@@ -162,14 +162,14 @@ Recommend:
 
 ## Promotion candidates
 
-- **diag_05 (MC ground truth)** → `tests/derivations/test_peierls_specular_bc.py`
+- **diag_05 (MC ground truth)** → `tests/gates/derivations/test_peierls_specular_bc.py`
   as `test_mc_specular_sphere_recovers_kinf` (slow regression, gates the
   fundamental "specular sphere = k_inf" physics).
-- **diag_11 (bare specular convergence)** → `tests/derivations/test_peierls_specular_bc.py`
+- **diag_11 (bare specular convergence)** → `tests/gates/derivations/test_peierls_specular_bc.py`
   as `test_bare_specular_known_divergence_window` (pins the convergence
   window N ∈ [4, 10] for thin sphere; alerts if R_spec conditioning
   changes).
-- **diag_13 (resolvent norm)** → `tests/derivations/test_peierls_specular_bc.py`
+- **diag_13 (resolvent norm)** → `tests/gates/derivations/test_peierls_specular_bc.py`
   as `test_specular_multibounce_resolvent_norm_growth` (regression on
   the documented divergence; if a future fix bounds the norm, this
   test should be updated).

@@ -163,7 +163,7 @@ section contains neither "reference" nor "claim" for a grep to catch.
 
 Clause: Retire as you go — the MIRROR, a retirement can silently PROMOTE a gate's claim class
 
-`[M]` 2026-08-17. `tests/sn/operators/test_loss_action_convention.py` asserted
+`[M]` 2026-08-17. `tests/gates/sn/operators/test_loss_action_convention.py` asserted
 `apply(ψ) == loss_action(σ_t, ψ) − C.apply(ψ)` and its own header called that check
 *"tautological (`apply` is DEFINED as `loss_action − σ_t·ψ`)"* — true when written.
 #257 S8b made `apply` σ-free (`loss_action(0, ψ)`), so the same line now reads
@@ -178,7 +178,7 @@ Clause: Retire as you go — a symbol grep cannot see a name that lives inside a
 
 `[M]` 2026-08-26, P1 item 8. Retiring `SNMesh.curvature` (whose `None`
 **was** the Cartesian case), my residual grep returned only prose and I
-called the set closed. `tests/sn/operators/test_native_matvec.py:392` read
+called the set closed. `tests/gates/sn/operators/test_native_matvec.py:392` read
 it as `curv = getattr(sn_mesh, "curvature", None)` and branched on
 `curv is None`, so after the retirement **every curvilinear mesh took the
 slab branch** — 2 reds, sphere and cylinder. ⚠ The aggravator: I had run

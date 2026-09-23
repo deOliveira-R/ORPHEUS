@@ -39,7 +39,7 @@ in ORPHEUS, distinct from the SN operator-algebra carves that dominate the rest 
    plugin or in `orpheus/` itself is stripped. ⟹ do NOT flag a bare `assert` in a test module
    on this ground; DO flag one in production or shared-helper code (`coding-standards`).
    `foundation` marker, NEVER `verifies(...)` (software invariant ≠ physics equation). Direct
-   sibling precedent = `tests/test_layer_imports.py` (import-linter, same artifact-invariant
+   sibling precedent = `tests/gates/test_layer_imports.py` (import-linter, same artifact-invariant
    class). Both `foundation`+`slow` registered in pyproject.toml.
 
 4. **Single-source the counting, not just the data.** Test imports `collect_module_counts`

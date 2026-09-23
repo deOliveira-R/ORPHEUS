@@ -59,7 +59,7 @@ orpheus/derivations/continuous/
   `build_materials`, `build_mesh`, `build_cp_params`.
 * `orpheus/derivations/continuous/sood_registry/extractors.py` —
   `mixture_to_fn_arrays` for legacy F_N consumption.
-* `tests/derivations/test_sood_registry_compatibility.py` — 26 gates
+* `tests/gates/derivations/test_sood_registry_compatibility.py` — 26 gates
   (24 foundation + 2 L1 smoke).
 * `docs/theory/sood_registry.rst` — Sphinx stub with 6 TODO markers.
 
@@ -70,11 +70,11 @@ orpheus/derivations/continuous/
   `sood_registry.la13511` (377 → ~50 lines).
 * `orpheus/derivations/continuous/fn_method/benchmarks/__init__.py` —
   re-exports updated to point at the new module.
-* `tests/derivations/test_fn_la13511_kinf.py` — 1-line import rewire.
-* `tests/derivations/test_fn_la13511_slab.py` — 1-line import rewire.
-* `tests/derivations/test_fn_la13511_sphere.py` — 1-line import rewire.
-* `tests/derivations/test_fn_la13511_slab_xverif.py` — 1-line import rewire.
-* `tests/derivations/test_fn_la13511_sphere_xverif.py` — 1-line import rewire.
+* `tests/gates/derivations/test_fn_la13511_kinf.py` — 1-line import rewire.
+* `tests/gates/derivations/test_fn_la13511_slab.py` — 1-line import rewire.
+* `tests/gates/derivations/test_fn_la13511_sphere.py` — 1-line import rewire.
+* `tests/gates/derivations/test_fn_la13511_slab_xverif.py` — 1-line import rewire.
+* `tests/gates/derivations/test_fn_la13511_sphere_xverif.py` — 1-line import rewire.
 * `docs/index.rst` — added `theory/sood_registry` to toctree.
 * `docs/theory/fn_method.rst` — updated stale `fn_method.benchmarks.la13511`
   reference to point at `sood_registry.la13511` + cross-ref to new

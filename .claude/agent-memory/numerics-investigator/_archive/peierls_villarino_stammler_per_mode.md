@@ -136,7 +136,7 @@ geometry-adapted `{P̃_n(c_in(µ))}` inner basis, the user's
   - Residual table generator + per-mode conservation verifier.
   - Reciprocity check `S_out · W_io[m,n] = S_in · W_oi[n,m]`.
 
-Do NOT promote to `tests/cp/` as a success gate; promote as a
+Do NOT promote to `tests/gates/cp/` as a success gate; promote as a
 **plateau-persistence regression gate** if the eventual close-out
 plan wants an explicit "Hypothesis C falsified" record.
 

@@ -91,7 +91,7 @@ Verification
 
 Pinned numerically against the production
 :func:`compute_G_bc_cylinder_3d` and against the legacy 3-bug
-form by ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
+form by ``tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
 The thin-cell limits :math:`r \to 0,\,\Sigma_t R \to 0` give the
 sanity values :math:`G_{\rm correct}(0) = 4\,\mathrm{Ki}_2(0) = 4`
 and :math:`G_{\rm legacy}(0) = 2\,\mathrm{Ki}_1(0) = \pi`, a

@@ -71,14 +71,14 @@ math bug.
    MMS-derived source              GL/GJ quadrature
             │                           │
             ▼                           ▼
-   tests/derivations/              orpheus/<module>/
+   tests/gates/derivations/              orpheus/<module>/
    test_<name>_symbolic.py         <name>.py
    (foundation-tagged tests)       (production code)
             │                           │
             └─────────┬─────────────────┘
                       ▼
               L1 cross-check test
-              tests/derivations/
+              tests/gates/derivations/
               test_<name>_xverif.py
               (compares Branch 2 to Branch 1)
                       │
@@ -299,7 +299,7 @@ def derive_<identity_name>() -> dict:
     }
 ```
 
-Test gate at `tests/derivations/test_<name>_symbolic.py`:
+Test gate at `tests/gates/derivations/test_<name>_symbolic.py`:
 
 ```python
 @pytest.mark.foundation
@@ -500,7 +500,7 @@ Written by the agent that builds the prototype. Contains:
      :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function`
      (function ``derive_operator_constant_trial_closed_sphere``).
      Test gate:
-     :func:`tests.derivations.test_peierls_greens_function_symbolic.test_v_alpha1_overall_pass`.
+     :func:`tests.gates.derivations.test_peierls_greens_function_symbolic.test_v_alpha1_overall_pass`.
      Closeout memo:
      ``.claude/agent-memory/numerics-investigator/peierls_greens_phase1_closeout.md``.
 
@@ -593,7 +593,7 @@ columns).
 Sphinx build; running an eigenvalue solve per row would push build
 time to O(minutes). The function reads static loop structure
 (geometry × tolerances × groups) and emits row dicts with no compute.
-A separate test (`tests/derivations/test_capability_matrices.py`)
+A separate test (`tests/gates/derivations/test_capability_matrices.py`)
 asserts the metadata agrees with `continuous_cases()` row-for-row on
 shared keys, catching drift between metadata and shipped references.
 
@@ -622,7 +622,7 @@ ONLY actions a method-implementer needs to take are:
    `Capabilities at a glance` section in the method's theory page
 3. Run `python -m tools.verification.generate_capability_matrices`
    once to verify the matrix renders, then `pytest
-   tests/derivations/test_capability_matrices.py` to verify the
+   tests/gates/derivations/test_capability_matrices.py` to verify the
    `--check` gate is happy.
 
 The schema contract is enforced at meta-generator runtime — a row
@@ -712,7 +712,7 @@ have caught earlier):
   `derive_operator_constant_trial_closed_sphere()`,
   `derive_T00_equals_P_ss_sphere()`,
   `derive_alpha_zero_kernel_reduction()`.
-- Test gate: `tests/derivations/test_peierls_greens_function_symbolic.py`
+- Test gate: `tests/gates/derivations/test_peierls_greens_function_symbolic.py`
   with one foundation-tagged test per `derive_*`.
 
 **Branch 1 semi-analytical** (PS-1982 reference, State 1B):
@@ -797,5 +797,5 @@ The discipline inherits this lesson: **for problems where 1A and
   invocation conventions in the "Capability matrices" section above.
   Sphinx `builder-inited` hook in `docs/conf.py` runs it on every
   build; foundation-tagged test gate at
-  `tests/derivations/test_capability_matrices.py` catches drift via
+  `tests/gates/derivations/test_capability_matrices.py` catches drift via
   `--check` mode.

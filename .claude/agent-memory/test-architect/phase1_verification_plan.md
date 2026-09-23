@@ -41,7 +41,7 @@ discretisation**. The claim layers are therefore:
 - **Bit-identity invariance claims** (the SN production path remains
   bit-identical, or drifts only within the FP-non-associativity bound
   per `vv-principles` §"Bit-identity vs principled-equivalence") —
-  verified against frozen snapshots (`tests/sn/regression/snapshots/`)
+  verified against frozen snapshots (`tests/gates/sn/regression/snapshots/`)
   and the L1 MMS gates which carry analytical references.
 - **NO eigenvalue claims are made by Phase 1.** The aniso scattering
   source builder (`ScatteringOperator.build_aniso_source`) does not
@@ -68,7 +68,7 @@ tests, (2) the SH evaluation tests, (3) the SN regression snapshots,
 (4) the SN scattering tests. Their behaviour through P1.1–P1.7 is
 specified below at file:line granularity.
 
-### A.1 `tests/numerics/test_projection_operators.py` (410 lines)
+### A.1 `tests/gates/numerics/test_projection_operators.py` (410 lines)
 
 Verified against the worktree copy as of 62994ad. Class-by-class
 disposition:
@@ -84,7 +84,7 @@ disposition:
 | **234-302** | `TestApplyTransposeIsWWeightedAdjoint` (`@catches("ERR-039")`, 2 tests at 248-271 and 273-302) | **LEGACY, REWRITE under P1.4.** Currently asserts `apply_transpose` returns bare `S₀` (no `w_n`). After P1.4, `apply_transpose` (or its `.T` successor) returns `Πᵀ = w_n · S₀`. The W-weighted adjoint identity in the first test (LHS `⟨Πψ,c⟩_C` line 264, RHS `⟨ψ, Π* c⟩_V` line 269) MUST still hold — but the RHS computation MUST drop the EXTERNAL `measure.weights` factor that line 269 currently applies, because the operator now CARRIES `w_n` internally. **Specific edits:** |
 | | | Line 268: change `M.apply_transpose(c_masked)` (a) keep call site under the new `.T` semantics; the returned array now equals `w_n · S₀(c_masked)` (shape `(N,)`); (b) line 269 RHS becomes `float(np.sum(psi * Pi_T_c))` — drop the `measure.weights *` factor since `Pi_T_c` already carries it. The identity LHS=RHS still pins ERR-039. |
 | | | Lines 273-302 (`test_apply_transpose_no_2l_plus_1_factor`): semantics shift from "bare `S₀`" to "`w_n · S₀`". The "differs from `R`" assertion still holds (`R = (2ℓ+1)·S₀` ≠ `w_n · S₀`). The expected RHS at line 299 changes from `np.einsum("nlm,lm->n", M.Y, c_masked)` to `np.einsum("n,nlm,lm->n", M.weights, M.Y, c_masked)`. Test name updates to `test_T_returns_w_weighted_transpose`. |
-| | | Decorator: keep `@pytest.mark.catches("ERR-039")` + `@pytest.mark.l1`. The test class moves to NEW file `tests/numerics/test_spherical_harmonic_space.py` (P1.5) as the canonical ERR-039 catching site, OR the rewrite stays here and the new file adds the broader space-based coverage. **Recommendation**: rewrite in-place under the new name; the new P1.5 file covers the space-level invariants. |
+| | | Decorator: keep `@pytest.mark.catches("ERR-039")` + `@pytest.mark.l1`. The test class moves to NEW file `tests/gates/numerics/test_spherical_harmonic_space.py` (P1.5) as the canonical ERR-039 catching site, OR the rewrite stays here and the new file adds the broader space-based coverage. **Recommendation**: rewrite in-place under the new name; the new P1.5 file covers the space-level invariants. |
 | 305-350 | `TestGalerkinAdjointPairing.test_adjoint_pairing_matches` | **LEGACY, ADAPT.** Same shift as above: the RHS at line 349 currently writes `np.sum(psi * measure.weights * Rc_no_factor)` because the prose constructs `Rc_no_factor = np.einsum("nlm,lm->n", Y, c_masked)` — i.e. the OLD `apply_transpose` semantics. Under P1.4 this is `M.T.apply(c_masked)` (which now includes `w_n`), so drop the explicit `measure.weights *` from line 349. The mathematics is invariant; only the wiring updates. |
 | 358-381 | `TestAssertGalerkinIdempotencyMethod.test_method_signals_violation` | **DELETED** under P1.6 (Resolution #4 in plan §0.2; CC.5 in plan §1.5). The method `assert_galerkin_idempotency` is itself retired; the test exists only to exercise it. Both go in the same P1.6 commit per `lessons-L20` (retirement = test migration). |
 | 389-409 | `TestCapabilities` (2 tests) + `test_petrov_galerkin_is_abstract_no_ship_concrete` | **LEGACY, ADAPT names**. `CAP_APPLY_TRANSPOSE` is still advertised by `MomentProjection` (the operator now correctly carries `w_n`); the bare `from_Y` reconstruction still advertises `CAP_APPLY` only. |
@@ -94,7 +94,7 @@ disposition:
 - Rewrite (semantics shift under P1.4): TestApplyTransposeIsWWeightedAdjoint (2 tests), TestGalerkinAdjointPairing (1 test).
 - Delete (retirement under P1.6): TestAssertGalerkinIdempotencyMethod (1 test).
 
-### A.2 `tests/numerics/test_spherical_harmonics.py`
+### A.2 `tests/gates/numerics/test_spherical_harmonics.py`
 
 The function `evaluate_real_sh` relocates from
 `orpheus/numerics/spherical_harmonics.py` to a **method** on
@@ -108,7 +108,7 @@ the math is identical.
 
 **Required action in P1.1**: re-verify all imports of `evaluate_real_sh` continue working — the four sn-quadrature delegators (`numerics/quadrature/directional.py:75, 393` plus the four sn-quadrature wrappers per plan §P1.1) AND these two test classes.
 
-### A.3 `tests/sn/regression/snapshots/` (15+ .npz files)
+### A.3 `tests/gates/sn/regression/snapshots/` (15+ .npz files)
 
 The frozen regression suite is the **bit-identity contract** for the
 production SN path. Phase 1 changes ONLY (a) the projection's
@@ -125,12 +125,12 @@ unchanged; (c) the `_build_rhs_cartesian` inline `(2ℓ+1)` migration
 **P1.7 bit-identity criteria (per `vv-principles` §"Bit-identity vs principled-equivalence")**:
 
 1. **Principled at every step.** The new chain `R @ Λ @ M @ ψ` produces named intermediates: `moments = M(ψ)` is the harmonic-moment field, `scattered = Λ(moments)` is the per-ℓ-block-diagonal scaling output, `q_aniso = R(scattered) / W` is the per-ordinate aniso source. Each is a reactor-physics quantity (HarmonicMomentField; cf. `sn/harmonic_moment_field.py`). The legacy `fiL[ix, iy, :, l, l+m]` array and `qS` inner-loop accumulator at `sn/solver.py:887-930` are unnamed scratch intermediates. **Criterion 1: SATISFIED** by the migration's nature.
-2. **Structurally-independent reference**: each affected snapshot must agree with the analytical limit where one exists. The homogeneous-reflective `*_homogeneous_*` snapshots converge to `k_inf = νΣ_f/Σ_a` exactly (cited in `test_dd_regression.py:46`); the heterogeneous snapshots are pinned by the L1 MMS-aniso gate (`tests/sn/test_mms_aniso.py`) which uses MMS as its independent reference. **Action**: re-run the snapshot generator post-P1.7 and verify each `*_homogeneous_*` snapshot's `keff` still matches `k_inf` to within `outer_iters × ULP`; verify each heterogeneous snapshot's flux remains within `rtol=5e-6` (the existing curvilinear bound — slabs may stay at `rtol=1e-12` if the drift is truly FP-only). **Criterion 2: PIN VIA EXISTING REFERENCES** — no new references needed.
+2. **Structurally-independent reference**: each affected snapshot must agree with the analytical limit where one exists. The homogeneous-reflective `*_homogeneous_*` snapshots converge to `k_inf = νΣ_f/Σ_a` exactly (cited in `test_dd_regression.py:46`); the heterogeneous snapshots are pinned by the L1 MMS-aniso gate (`tests/gates/sn/test_mms_aniso.py`) which uses MMS as its independent reference. **Action**: re-run the snapshot generator post-P1.7 and verify each `*_homogeneous_*` snapshot's `keff` still matches `k_inf` to within `outer_iters × ULP`; verify each heterogeneous snapshot's flux remains within `rtol=5e-6` (the existing curvilinear bound — slabs may stay at `rtol=1e-12` if the drift is truly FP-only). **Criterion 2: PIN VIA EXISTING REFERENCES** — no new references needed.
 3. **Drift dimensionally explainable**: the new chain has reduction depth `O(N · (L+1)²)` (one einsum) vs the legacy triple loop's `O(N · (L+1)² · ng)` reduction. Drift bound per step 3 of the criteria: `reduction_depth × ULP × condition_number ≤ outer_iters × ULP_floor`. For slabs (well-conditioned), drift should remain ≤ 1e-13; for curvilinear (worse-conditioned), drift should remain ≤ existing 5e-6 floor. **Action**: if any snapshot exceeds these bounds post-P1.7, investigate as a real bug (not a tolerance drift) — the bound is the contract.
 
 **P1.7 snapshot relaxation policy**: do NOT loosen `rtol` or `atol` in `test_dd_regression.py`. If the drift exceeds the existing bound, the migration is wrong. If it stays within, no change needed. Document the verification in the P1.7 commit message: "Verified post-migration drift ≤ existing snapshot bound per `vv-principles` §Bit-identity criterion 3."
 
-### A.4 `tests/sn/test_scattering_operator.py` and related
+### A.4 `tests/gates/sn/test_scattering_operator.py` and related
 
 The single production consumer of the `(M, Λ, R)` triple is
 `ScatteringOperator.build_aniso_source` (`sn/scattering.py:525-657`).
@@ -139,16 +139,16 @@ einsum is bit-identical (Anti-recommendation 3). Therefore:
 
 | Test file | Disposition |
 |---|---|
-| `tests/sn/test_scattering_operator.py` | **STRICT bit-identical** through P1.1–P1.6. Production `build_aniso_source` calls `HarmonicMomentReconstruction.from_Y(Y)` (line 633); this constructor (line 461 of `projection.py`) is unchanged by P1.3 (kept as back-compat shim). Even if the new `from_spherical_harmonic_space` classmethod sources `two_l_plus_one` from the space, the values are identical and the einsum is identical. |
-| `tests/sn/test_legendre_moment_scattering.py` | **STRICT bit-identical** (Λ operator is untouched by Phase 1). |
-| `tests/sn/test_operators_apply_typed.py` | **STRICT bit-identical** (FD-matvec / probe-tests; bypass the type layer entirely per `sn/scattering.py:652-654`). |
-| `tests/sn/test_harmonic_moment_field.py` | **STRICT bit-identical** (P1 does not touch `HarmonicMomentField`'s typed-field algebra; relocation happens in P3.3 not P1). |
+| `tests/gates/sn/test_scattering_operator.py` | **STRICT bit-identical** through P1.1–P1.6. Production `build_aniso_source` calls `HarmonicMomentReconstruction.from_Y(Y)` (line 633); this constructor (line 461 of `projection.py`) is unchanged by P1.3 (kept as back-compat shim). Even if the new `from_spherical_harmonic_space` classmethod sources `two_l_plus_one` from the space, the values are identical and the einsum is identical. |
+| `tests/gates/sn/test_legendre_moment_scattering.py` | **STRICT bit-identical** (Λ operator is untouched by Phase 1). |
+| `tests/gates/sn/test_operators_apply_typed.py` | **STRICT bit-identical** (FD-matvec / probe-tests; bypass the type layer entirely per `sn/scattering.py:652-654`). |
+| `tests/gates/sn/test_harmonic_moment_field.py` | **STRICT bit-identical** (P1 does not touch `HarmonicMomentField`'s typed-field algebra; relocation happens in P3.3 not P1). |
 
 ---
 
 ## Section B — New tests under P1.5
 
-Test file: `tests/numerics/test_spherical_harmonic_space.py`. ALL tests
+Test file: `tests/gates/numerics/test_spherical_harmonic_space.py`. ALL tests
 `@pytest.mark.catches("ERR-039")` + `@pytest.mark.l1` +
 `@pytest.mark.verifies(<label>)` where the label resolves to a
 `.. math:: :label:` block added to
@@ -308,7 +308,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
 def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     """Pi · R = 4pi · I on the band-limited coefficient space.
 
-    Sister of tests/numerics/test_projection_operators.py:194-231
+    Sister of tests/gates/numerics/test_projection_operators.py:194-231
     (TestGalerkinIdempotencyOnLebedev) — this one constructs the
     operators through the new SphericalHarmonicSpace API; the legacy
     test pins the same identity through the legacy (Π, R) pair.
@@ -568,12 +568,12 @@ path; the bit-identity contract holds.
 
 | Test file | What it exercises | Disposition |
 |---|---|---|
-| `tests/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | P1 anisotropic MMS slab; `solve_sn_fixed_source` with `scattering_order=1`. Calls `_build_aniso_scattering` → `ScatteringOperator.build_aniso_source` → the (M, Λ, R) pipeline. | **STRICT bit-identical** through P1.1–P1.6. After P1.7 (the `_build_rhs_cartesian` migration), MUST still show O(h²) convergence; the per-iterate flux may drift within `outer_iters × ULP` but the convergence rate is invariant. Decorator stack unchanged: `@pytest.mark.l1` + `@pytest.mark.verifies("transport-cartesian", "dd-cartesian-1d", "dd-slab", "pn-scatter", "sn-mms-p1-psi", "sn-mms-p1-qext")`. |
-| `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | Curvilinear MMS aniso convergence (sphere / cylinder; uses the same R-Λ-M pipeline). | **STRICT bit-identical** through P1.1–P1.6. Post-P1.7: convergence rate invariant; per-iterate drift within iteration floor. |
-| `tests/sn/test_scattering_operator.py` | Direct unit tests of `ScatteringOperator.build_aniso_source` and the (M, Λ, R) pipeline composition. | **STRICT bit-identical** through P1.1–P1.7 (the pipeline composition is unchanged; only `_build_rhs_cartesian`'s parallel hand-rolled form retires). |
-| `tests/sn/test_legendre_moment_scattering.py` | Direct unit tests of `LegendreMomentScattering` (Λ). | **STRICT bit-identical** (Λ is untouched). |
-| `tests/sn/test_harmonic_moment_field.py` | Typed `HarmonicMomentField` tests. | **STRICT bit-identical** (P3.3 not P1 relocates this class). |
-| `tests/sn/test_phase_c_mms.py` | Phase-C MMS tests (curvilinear M-M sweep). | **STRICT bit-identical**. |
+| `tests/gates/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | P1 anisotropic MMS slab; `solve_sn_fixed_source` with `scattering_order=1`. Calls `_build_aniso_scattering` → `ScatteringOperator.build_aniso_source` → the (M, Λ, R) pipeline. | **STRICT bit-identical** through P1.1–P1.6. After P1.7 (the `_build_rhs_cartesian` migration), MUST still show O(h²) convergence; the per-iterate flux may drift within `outer_iters × ULP` but the convergence rate is invariant. Decorator stack unchanged: `@pytest.mark.l1` + `@pytest.mark.verifies("transport-cartesian", "dd-cartesian-1d", "dd-slab", "pn-scatter", "sn-mms-p1-psi", "sn-mms-p1-qext")`. |
+| `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | Curvilinear MMS aniso convergence (sphere / cylinder; uses the same R-Λ-M pipeline). | **STRICT bit-identical** through P1.1–P1.6. Post-P1.7: convergence rate invariant; per-iterate drift within iteration floor. |
+| `tests/gates/sn/test_scattering_operator.py` | Direct unit tests of `ScatteringOperator.build_aniso_source` and the (M, Λ, R) pipeline composition. | **STRICT bit-identical** through P1.1–P1.7 (the pipeline composition is unchanged; only `_build_rhs_cartesian`'s parallel hand-rolled form retires). |
+| `tests/gates/sn/test_legendre_moment_scattering.py` | Direct unit tests of `LegendreMomentScattering` (Λ). | **STRICT bit-identical** (Λ is untouched). |
+| `tests/gates/sn/test_harmonic_moment_field.py` | Typed `HarmonicMomentField` tests. | **STRICT bit-identical** (P3.3 not P1 relocates this class). |
+| `tests/gates/sn/test_phase_c_mms.py` | Phase-C MMS tests (curvilinear M-M sweep). | **STRICT bit-identical**. |
 
 **Invariance claim**: P1.1–P1.6 touch ONLY the rename, the new
 basis/space classes, the `.T`/`.H` semantics on `MomentProjection`,
@@ -606,13 +606,13 @@ decorator stacks for the Phase 2 tests:
 
 | Test | Where | Decorator stack |
 |---|---|---|
-| `test_dual_of_dual_is_identity` | `tests/numerics/test_dual_space.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("dual-dual-identity")` |
-| `test_composite_adjoint_distributes` | `tests/numerics/test_operator_adjoint_algebra.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("composite-adjoint-distributivity")` (asserts `(A @ B).H == B.H @ A.H` on non-self-adjoint pairs via `assert_adjoint_consistency`) |
-| `test_assert_adjoint_consistency_W_inner_product` | `tests/numerics/test_operator_adjoint_algebra.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("hilbert-adjoint-pairing-identity")` (the canonical ⟨A x, y⟩_W = ⟨x, A.H y⟩_V over random samples) |
-| `test_tensor_product_shape` | `tests/numerics/test_tensor_product_space.py` | `@pytest.mark.l0` + `@pytest.mark.verifies("tensor-product-shape-concatenation")` (`(V * W).shape == V.shape + W.shape`) |
-| `test_direct_sum_shape_along_coupled_axis` | `tests/numerics/test_direct_sum_space.py` | `@pytest.mark.l0` + `@pytest.mark.verifies("direct-sum-coupled-axis-sum")` |
-| `test_sum_of_tensor_products_streaming_form` | `tests/numerics/test_sum_of_tensor_products_operator.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("streaming-as-sum-of-tensor-products")` — **issue #172 anchor** |
-| `test_tensor_product_operator_adjoint_distributivity` | `tests/numerics/test_tensor_product_operator.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("tensor-operator-adjoint-distributivity")` — **issue #173 anchor** |
+| `test_dual_of_dual_is_identity` | `tests/gates/numerics/test_dual_space.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("dual-dual-identity")` |
+| `test_composite_adjoint_distributes` | `tests/gates/numerics/test_operator_adjoint_algebra.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("composite-adjoint-distributivity")` (asserts `(A @ B).H == B.H @ A.H` on non-self-adjoint pairs via `assert_adjoint_consistency`) |
+| `test_assert_adjoint_consistency_W_inner_product` | `tests/gates/numerics/test_operator_adjoint_algebra.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("hilbert-adjoint-pairing-identity")` (the canonical ⟨A x, y⟩_W = ⟨x, A.H y⟩_V over random samples) |
+| `test_tensor_product_shape` | `tests/gates/numerics/test_tensor_product_space.py` | `@pytest.mark.l0` + `@pytest.mark.verifies("tensor-product-shape-concatenation")` (`(V * W).shape == V.shape + W.shape`) |
+| `test_direct_sum_shape_along_coupled_axis` | `tests/gates/numerics/test_direct_sum_space.py` | `@pytest.mark.l0` + `@pytest.mark.verifies("direct-sum-coupled-axis-sum")` |
+| `test_sum_of_tensor_products_streaming_form` | `tests/gates/numerics/test_sum_of_tensor_products_operator.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("streaming-as-sum-of-tensor-products")` — **issue #172 anchor** |
+| `test_tensor_product_operator_adjoint_distributivity` | `tests/gates/numerics/test_tensor_product_operator.py` | `@pytest.mark.l1` + `@pytest.mark.verifies("tensor-operator-adjoint-distributivity")` — **issue #173 anchor** |
 
 **Naming convention** (inherited by Phase 2):
 - File name: `test_<concept>.py` mirrors the production module name
@@ -634,7 +634,7 @@ the same namespace.
 
 ## Section E — P3.1 import-linter test spec
 
-Test file: `tests/test_layer_imports.py`. The test enforces the
+Test file: `tests/gates/test_layer_imports.py`. The test enforces the
 import contract defined in plan §P3.0 (layer table). It is written
 in P3.1 (FIRST step of Phase 3) before any module moves; its initial
 failures are the migration to-do list.
@@ -819,63 +819,63 @@ def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
 Run after EACH P1.x step. Every gate MUST be green before advancing.
 
 ### After P1.0 (recon — already complete)
-- `pytest -q tests/numerics/test_projection_operators.py tests/numerics/test_spherical_harmonics.py`
+- `pytest -q tests/gates/numerics/test_projection_operators.py tests/gates/numerics/test_spherical_harmonics.py`
 - Establishes the green baseline.
 
 ### After P1.1 (`SphericalHarmonicBasis`)
-- `pytest -q tests/numerics/test_spherical_harmonics.py` — STRICT bit-identical (shim works).
-- `pytest -q tests/numerics/test_projection_operators.py` — STRICT bit-identical (no projection change yet).
-- `pytest -q tests/sn/test_scattering_operator.py` — STRICT bit-identical (production unchanged).
-- `pytest -q tests/sn/regression/test_dd_regression.py -m regression` — STRICT bit-identical (existing tolerances).
+- `pytest -q tests/gates/numerics/test_spherical_harmonics.py` — STRICT bit-identical (shim works).
+- `pytest -q tests/gates/numerics/test_projection_operators.py` — STRICT bit-identical (no projection change yet).
+- `pytest -q tests/gates/sn/test_scattering_operator.py` — STRICT bit-identical (production unchanged).
+- `pytest -q tests/gates/sn/regression/test_dd_regression.py -m regression` — STRICT bit-identical (existing tolerances).
 
 ### After P1.2 (`SphericalHarmonicSpace`, `MomentMassMatrix`)
 - All P1.1 gates green.
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_space_inner_product_weights_equal_4pi_over_2l_plus_1`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_basis_mass_matrix_against_lebedev`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_spherical_harmonic_space_equality_by_name_shape`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_space_inner_product_weights_equal_4pi_over_2l_plus_1`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_basis_mass_matrix_against_lebedev`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_spherical_harmonic_space_equality_by_name_shape`
 
 ### After P1.3 (`MomentProjection` / `ReconstructionOperator` rewire)
 - All P1.2 gates green.
-- `pytest -q tests/numerics/test_projection_operators.py` — STRICT bit-identical EXCEPT class-name imports adapt (see §A.1; `TestABCs`, `TestHarmonicMomentProjection*` rename to `TestMomentProjection*`).
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_moment_projection_codomain_is_spherical_harmonic_space`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_from_spherical_harmonic_space_roundtrip`
+- `pytest -q tests/gates/numerics/test_projection_operators.py` — STRICT bit-identical EXCEPT class-name imports adapt (see §A.1; `TestABCs`, `TestHarmonicMomentProjection*` rename to `TestMomentProjection*`).
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_moment_projection_codomain_is_spherical_harmonic_space`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_from_spherical_harmonic_space_roundtrip`
 
 ### After P1.4 (`.T` / `.H` correction)
 - All P1.3 gates green.
-- **Rewritten under P1.4**: `pytest -q tests/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint` (now `TestTReturnsWWeightedTranspose`).
-- **Rewritten under P1.4**: `pytest -q tests/numerics/test_projection_operators.py::TestGalerkinAdjointPairing` (RHS drops external `w_n`).
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_T_is_w_weighted_representation_transpose`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_R_equals_2l_plus_1_times_S0`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`
-- New: `pytest -q tests/numerics/test_spherical_harmonic_space.py::test_H_equals_g_C_times_S0`
-- `pytest -q tests/sn/test_scattering_operator.py` — STRICT bit-identical (production calls `R.apply`, untouched).
-- `pytest -q tests/sn/regression/test_dd_regression.py -m regression` — STRICT bit-identical.
+- **Rewritten under P1.4**: `pytest -q tests/gates/numerics/test_projection_operators.py::TestApplyTransposeIsWWeightedAdjoint` (now `TestTReturnsWWeightedTranspose`).
+- **Rewritten under P1.4**: `pytest -q tests/gates/numerics/test_projection_operators.py::TestGalerkinAdjointPairing` (RHS drops external `w_n`).
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_T_is_w_weighted_representation_transpose`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_R_equals_2l_plus_1_times_S0`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`
+- New: `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py::test_H_equals_g_C_times_S0`
+- `pytest -q tests/gates/sn/test_scattering_operator.py` — STRICT bit-identical (production calls `R.apply`, untouched).
+- `pytest -q tests/gates/sn/regression/test_dd_regression.py -m regression` — STRICT bit-identical.
 
 ### After P1.5 (the new test file as a whole)
 - All P1.4 gates green; this step is the canonical "did P1.5 land?" gate.
-- `pytest -q tests/numerics/test_spherical_harmonic_space.py` — entire file green (5 plan-identity + 4 API-surface + 1 forward-compat = 10 tests).
+- `pytest -q tests/gates/numerics/test_spherical_harmonic_space.py` — entire file green (5 plan-identity + 4 API-surface + 1 forward-compat = 10 tests).
 - `pytest -q -k catches_ERR_039` (or `-m "catches('ERR-039')"`) — confirms the ERR-039 catalog test set has been expanded.
 
 ### After P1.6 (docstring surgery + `assert_galerkin_idempotency` retired)
 - All P1.5 gates green.
-- **Deleted**: `pytest -q tests/numerics/test_projection_operators.py::TestAssertGalerkinIdempotencyMethod` — MUST fail to collect (the class no longer exists).
-- `pytest -q tests/numerics/test_projection_operators.py` — strict green minus the deleted class.
+- **Deleted**: `pytest -q tests/gates/numerics/test_projection_operators.py::TestAssertGalerkinIdempotencyMethod` — MUST fail to collect (the class no longer exists).
+- `pytest -q tests/gates/numerics/test_projection_operators.py` — strict green minus the deleted class.
 - `python -m tests._harness.audit` — verify the V&V matrix carries the new `sh-*` equation labels and no orphan `catches("ERR-039")` entries remain unmapped.
 - `sphinx-build -W docs docs/_build/html` — clean (the new `sh-space-metric` etc. labels were added; the warning boxes at `projection.py:402-422` and `sn/scattering.py:555-560` collapsed to one line each).
 
 ### After P1.7 (retire `sn/solver.py:930` inline `(2ℓ+1)`)
 - All P1.6 gates green.
-- `pytest -q tests/sn/test_scattering_operator.py` — STRICT bit-identical (the `R · Λ · M` pipeline at `sn/scattering.py:609-657` is the canonical site; unchanged).
-- `pytest -q tests/sn/test_mms_aniso.py` — convergence rate O(h²) preserved.
-- `pytest -q tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` — convergence rate preserved.
-- `pytest -q tests/sn/regression/test_dd_regression.py -m regression` — slab `*_dd_n*` snapshots STRICT bit-identical at `rtol=1e-12`; curvilinear `sphere_*`, `cyl_*` snapshots within existing `rtol=5e-6` floor. If any snapshot breaches its existing bound, the migration is wrong (see §A.3 "P1.7 bit-identity criteria"). DO NOT loosen the tolerance.
+- `pytest -q tests/gates/sn/test_scattering_operator.py` — STRICT bit-identical (the `R · Λ · M` pipeline at `sn/scattering.py:609-657` is the canonical site; unchanged).
+- `pytest -q tests/gates/sn/test_mms_aniso.py` — convergence rate O(h²) preserved.
+- `pytest -q tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` — convergence rate preserved.
+- `pytest -q tests/gates/sn/regression/test_dd_regression.py -m regression` — slab `*_dd_n*` snapshots STRICT bit-identical at `rtol=1e-12`; curvilinear `sphere_*`, `cyl_*` snapshots within existing `rtol=5e-6` floor. If any snapshot breaches its existing bound, the migration is wrong (see §A.3 "P1.7 bit-identity criteria"). DO NOT loosen the tolerance.
 - For each `*_homogeneous_*` snapshot, verify `result.keff` matches `k_inf = νΣ_f/Σ_a` to within `outer_iters × ULP` — confirms criterion 2 (structurally-independent analytical reference).
 - Document the snapshot verification in the P1.7 commit message per the §A.3 policy.
 - **Final gate before Phase 1 close**: full suite — `pytest -q` — green.
 
 ### Phase-1-close audit
 - `python -m tests._harness.audit` — V&V matrix fully populated for ERR-039; no orphan equation labels under `docs/theory/spherical_harmonics.rst`.
-- `grep -rn "(2 \* l + 1)\|(2\*l+1)\|two_l_plus_one" orpheus/` — exactly TWO sources remain: `SphericalHarmonicSpace.addition_theorem_factor` (the canonical) and `ReconstructionOperator.two_l_plus_one` field initialised from it (the cache). The `_build_rhs_cartesian` site at `sn/solver.py:862, 884-898, 930` is gone. The test fixture at `tests/numerics/test_projection_operators.py:173, 293` is the test-as-spec form per plan §P1.3 and stays.
+- `grep -rn "(2 \* l + 1)\|(2\*l+1)\|two_l_plus_one" orpheus/` — exactly TWO sources remain: `SphericalHarmonicSpace.addition_theorem_factor` (the canonical) and `ReconstructionOperator.two_l_plus_one` field initialised from it (the cache). The `_build_rhs_cartesian` site at `sn/solver.py:862, 884-898, 930` is gone. The test fixture at `tests/gates/numerics/test_projection_operators.py:173, 293` is the test-as-spec form per plan §P1.3 and stays.
 - `grep -rn "assert_galerkin_idempotency" orpheus/ tests/` — zero hits.
 - `sphinx-build -W docs docs/_build/html` — clean.
 
@@ -901,8 +901,8 @@ test-architect AGENT.md self-improvement directive.
 ## Pointers
 
 - Plan: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/.claude/plans/moment_space_and_layering_plan.md`
-- Legacy test (the canonical pin): `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/tests/numerics/test_projection_operators.py`
-- SN regression snapshot driver: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/tests/sn/regression/test_dd_regression.py`
+- Legacy test (the canonical pin): `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/tests/gates/numerics/test_projection_operators.py`
+- SN regression snapshot driver: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/tests/gates/sn/regression/test_dd_regression.py`
 - The production consumer: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/orpheus/sn/scattering.py` (lines 525-657)
 - The inline-`(2ℓ+1)` retirement site: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/orpheus/sn/solver.py` (lines 862, 884-898, 930)
 - Skills: `vv-principles`, `coding-elegance` Pattern 7 (definition-site normalisation), `numerical-bug-signatures` Signature 3 (transpose convention drift)

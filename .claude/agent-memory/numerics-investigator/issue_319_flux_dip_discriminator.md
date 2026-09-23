@@ -12,8 +12,8 @@ Full record: `scratch/q68_flux_dip_discriminator.md`. Raw data (251 solves,
 251 `converged`, every row carrying its φ(r) profile):
 `/Users/rodrigo/.claude/jobs/c30e4f25/tmp/q68_results.jsonl`. Promotable
 gate: ⛔ PROMOTED + RETIRED 2026-08-12 — the diag file is GONE. Successors:
-`tests/sn/sweep/curvilinear/test_angular_beta_identity.py` (solve-free beta) and
-`tests/sn/verification/analytical/test_angular_diffusion_limit_consistency.py`
+`tests/gates/sn/sweep/curvilinear/test_angular_beta_identity.py` (solve-free beta) and
+`tests/gates/sn/verification/analytical/test_angular_diffusion_limit_consistency.py`
 (Fig.4 + the h-refinement discriminator); the shared instrument is
 `orpheus.derivations.discrete.sn.angular_differencing.morel_montry_beta`
 (12 passed, 33 s).

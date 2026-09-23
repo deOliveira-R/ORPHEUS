@@ -321,7 +321,7 @@ def reflective_faces(problem: "SNProblem") -> frozenset[str]:
     ``problem.bc[face] == "reflective"`` — the same question spelled as a
     string comparison, which was all the pre-B2.0 shim could answer because it
     discarded the law at realization. The two agree on every registered law
-    (``tests/geometry/test_boundary_factor_consumers.py`` compares the old
+    (``tests/gates/geometry/test_boundary_factor_consumers.py`` compares the old
     tag expression against this one, law by law), so the repoint is
     behaviour-preserving; what it buys is that a NEW ordinate-
     permuting law joins this set by construction instead of by remembering to

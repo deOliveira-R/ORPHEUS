@@ -113,7 +113,7 @@ Key Facts
   decomposition of the :math:`(\text{face}, \text{ordinate})` trace
   digraph, computed by
   :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` and gated
-  by ``tests/sn/sweep/test_sweep_acyclicity.py``. See
+  by ``tests/gates/sn/sweep/test_sweep_acyclicity.py``. See
   :ref:`bc-sweep-cycle`.
 - The eight typed errors :class:`~orpheus.geometry.boundary.IncomingOutgoingTraceClassificationError`
   through :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
@@ -208,11 +208,11 @@ Key Facts
    any equation. The verification load is carried by:
 
    - L0 foundation tests on individual primitives
-     (:mod:`tests.numerics`,
-     :mod:`tests.geometry.test_boundary_trace_law`,
-     :mod:`tests.geometry.test_bc_errors`).
+     (:mod:`tests.gates.numerics`,
+     :mod:`tests.gates.geometry.test_boundary_trace_law`,
+     :mod:`tests.gates.geometry.test_bc_errors`).
    - Foundation reference-image tests
-     (:mod:`tests.geometry.test_bc_equivalence_snapshot`), which
+     (:mod:`tests.gates.geometry.test_bc_equivalence_snapshot`), which
      compare each realised operator against a **frozen,
      independently-derived** reference image — see
      :ref:`bc-numerical-evidence`. Re-anchored on 2026-08-01: the
@@ -221,11 +221,11 @@ Key Facts
      they now carry an image computed from the law's own equation, so
      the gate states correctness rather than stability.
    - L1 descriptor-tree algebra tests
-     (:mod:`tests.geometry.test_law_composition`) pinning the
+     (:mod:`tests.gates.geometry.test_law_composition`) pinning the
      :class:`LawSum` / :class:`LawScaled` closed-algebra contract
      (foundation + L1 coverage).
    - L1 universal-invariant tests
-     (:mod:`tests.geometry.test_bc_universal_invariants`) that fire
+     (:mod:`tests.gates.geometry.test_bc_universal_invariants`) that fire
      ERR-043 / ERR-044 / ERR-046 under fault-injection.
 
    No equation on this page makes a claim that requires a closed-form
@@ -785,12 +785,12 @@ For :math:`R = B \circ C` with :math:`C : \Gamma_+ \to S` and
    ``IsotropicEmissionOperator @ PartialCurrentOperator`` — so the precondition
    expired and the directive is removed rather than left as a standing claim
    that the equation is documented-only. It is now GATED on the shipped chain:
-   ``tests/sn/operators/test_lambertian_chain.py::
+   ``tests/gates/sn/operators/test_lambertian_chain.py::
    TestReciprocityAgainstTheMirrorFace::test_H_is_pointwise_the_mirror_face_kernel``
    carries ``verifies("bc-response-factored-adjoint")``, alongside six
-   abstract-matrix gates in ``tests/numerics/test_factored_adjoint_identity.py``.
+   abstract-matrix gates in ``tests/gates/numerics/test_factored_adjoint_identity.py``.
    Its PRECONDITION is separately gated:
-   ``tests/numerics/test_angular_face_trace_space.py::
+   ``tests/gates/numerics/test_angular_face_trace_space.py::
    test_the_half_trace_metric_is_strictly_positive`` pins the non-degeneracy
    this equation requires of the intermediate, and
    ``test_the_metric_is_not_euclidean`` pins that the metric is load-bearing.
@@ -1031,7 +1031,7 @@ explicit rather than to tune the value.
    both on unbound abstract permutations. Those were *rewired, not
    deleted* — from "the flag matches the index test" to "the square is the
    identity", asked of the algebra
-   (``tests/numerics/test_permutation_operator.py``). The behavioural
+   (``tests/gates/numerics/test_permutation_operator.py``). The behavioural
    content survived the attribute; only the caching of it did not.
 
 One consequence worth stating, because dropping it would have been the
@@ -1072,8 +1072,8 @@ naturality square commutes:
    DEFINES "this law realizes in this method". It is the framing statement the
    two shipped realizers' dispatch and refusals instantiate; the verifiable
    content is per-realizer (the diffusion 𝒜-table pinned law-by-law in
-   ``tests/geometry/test_boundary_factors.py``, the SN narrowing pinned
-   bit-identical in ``tests/sn/operators/test_b3_domain_narrowing.py``), not a
+   ``tests/gates/geometry/test_boundary_factors.py``, the SN narrowing pinned
+   bit-identical in ``tests/gates/sn/operators/test_b3_domain_narrowing.py``), not a
    solver claim of this equation's own.
 .. vv-status: bc-realizability-square documented
 
@@ -1349,7 +1349,7 @@ gather / scatter pair. Given a **sorted, unique** index set
    affine form's γ±. Its DEFINING LAWS (γι = I, ιγ idempotent and symmetric,
    ι materialised against the dense γᵀ, γ₋∘ι₊ = 0, and the three-way partition
    resolving I) are pinned by the nine foundation tests opening
-   ``tests/numerics/test_trace_restriction_operator.py``; this equation states
+   ``tests/gates/numerics/test_trace_restriction_operator.py``; this equation states
    the definition those tests verify, not a solver claim.
 .. vv-status: bc-trace-restriction-pair documented
 
@@ -1384,7 +1384,7 @@ the law:
    the composition reproduces the retired full-face-then-slice expression
    exactly (``np.array_equal``, against a numpy reference materialised off the
    law DESCRIPTOR, over slab-asym / slab-sym / sphere / cyl ``product(2,4)`` /
-   2-D Cartesian LS4), in ``tests/sn/operators/test_b3_domain_narrowing.py``.
+   2-D Cartesian LS4), in ``tests/gates/sn/operators/test_b3_domain_narrowing.py``.
    Not an independent solver claim.
 .. vv-status: bc-face-action-narrowed documented
 
@@ -1483,7 +1483,7 @@ calls for, and made the closure-free spelling a refusal; B3.4c
 G6.3 step 7 (``c3bb7341``, 2026-08-07) derived its arrow
 :math:`\Gamma_+(f') \to \Gamma_-(f)`. Every law the realizer admits is
 narrowed, and the strict xfails that pinned the deferred rows are
-retired (``tests/sn/operators/test_b3_domain_narrowing.py``, `[M]`
+retired (``tests/gates/sn/operators/test_b3_domain_narrowing.py``, `[M]`
 2026-09-22: 31 of 31 pass under ``python -O``). The first consequence
 below is moot for the same reason (a closure-free albedo cannot be
 built, so ``0.3·specular + 0.7·albedo`` cannot be spelled), and the
@@ -1894,12 +1894,12 @@ realized through :meth:`SNProblem.realize_boundary_law
 .. (vv-status rationale) Structural/typing identity, not a solver claim: the
    two laws realize to the SAME expression, so it is verified by object- and
    space-identity assertions, not by a value. Gated at the production tier by
-   ``tests/sn/operators/test_operator_block_role.py``
+   ``tests/gates/sn/operators/test_operator_block_role.py``
    (``test_prescribed_inflow_realizes_the_same_object_vacuum_does``:
    ``type(...) is type(...)`` plus ``domain is`` / ``codomain is``) and by
-   ``tests/sn/operators/test_capability_survival.py``'s re-posed capability
+   ``tests/gates/sn/operators/test_capability_survival.py``'s re-posed capability
    rows; the ``ZeroOperator`` two-space contract itself is pinned by the
-   foundation suite ``tests/numerics/test_zero_operator_spaces.py``. NOTE the
+   foundation suite ``tests/gates/numerics/test_zero_operator_spaces.py``. NOTE the
    Mode-12 hole recorded in the gotchas below: an identity row proves the two
    AGREE, not that either names the right END — see G5 of the P3 verification
    plan.
@@ -1985,7 +1985,7 @@ source are **one** object
 .. (vv-status rationale) Representational: names the composite the solve's RHS
    already is (the ``TimedFullField`` pair). Its verifiable content is the
    class gate on every operator-output boundary plus the RHS construction
-   rows in ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py``
+   rows in ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``
    (``TestTheDeclarationIsNotInert``,
    ``TestTheSourceCannotBeSpecifiedTwice``). Not a solver claim.
 .. vv-status: bc-composite-source documented
@@ -2220,7 +2220,7 @@ and which assertion belongs there.
 
    :eq:`bc-single-delivery` carries **no** ``vv-status`` sentinel
    because it needs none: it is a genuine L1 equation claim with a
-   committed gate. ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py``'s
+   committed gate. ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``'s
    ``test_the_declared_boundary_law_holds_on_the_answer`` carries
    ``@pytest.mark.verifies("bc-single-delivery")`` on both inner-solver
    parameters, plus ``@pytest.mark.catches("ERR-075")`` — the error
@@ -2690,11 +2690,11 @@ a gate. The gate that would close the hole is one ``is``-identity row
 per bound realized law naming *which* space is *which end* — asserting
 against the **trace's** ``outflow_space`` / ``inflow_space``, not
 against a sibling operator. It exists for the hand-built type
-(``tests/numerics/test_zero_operator_spaces.py`` carries a
+(``tests/gates/numerics/test_zero_operator_spaces.py`` carries a
 ``test_the_ends_are_not_swapped`` row on an intentionally *unequal*
 :math:`3 \times 7` fixture, which is what makes a swap observable
 there) and for the specular chain
-(``tests/sn/operators/test_specular_deck_chain.py``); at the production
+(``tests/gates/sn/operators/test_specular_deck_chain.py``); at the production
 tier it exists for **neither** vacuum nor prescribed inflow. It is item
 **G5** of P3's verification plan, and it is the reason the
 ``vv-status`` rationale on
@@ -3378,7 +3378,7 @@ source of truth, Cardinal Rule 2):
        in-sweep (``[M]`` 4/4 geometries: ``lower`` is empty and
        ``upper`` carries every inflow row of every face) — the same
        verb is also the sweep-tier gates' *inter-sweep* reflect
-       (``tests/sn/_test_helpers.py::reflect_outflow_into_inflow``).
+       (``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow``).
 
        ⛔ **Until 2026-09-07 this row named a whole-trace ASSIGNMENT
        verb instead** — ``SNBoundaryOperator.reflect_inflow_inplace``,
@@ -3398,7 +3398,7 @@ source of truth, Cardinal Rule 2):
        the zeroing moves the answer by :math:`O(1)` (the positive
        control that the reading is not a zero-inflow artefact).  So the
        semantics survived without the surface; the gate is
-       ``tests/sn/operators/test_reflect_helper_reexpression.py``.
+       ``tests/gates/sn/operators/test_reflect_helper_reexpression.py``.
 
 The masked reflect is **not** a fold of :math:`B` into :math:`S`: it is
 the trace-only :math:`A_{ss}` action of the *same* :math:`B`, restricted
@@ -3659,7 +3659,7 @@ separate per-geometry boundary closure.
 **Numerical evidence (SI ≡ Krylov ≡ closed-form** :math:`k_\infty`
 **).** The twin is pinned at the production
 :func:`~orpheus.sn.solver.solve_sn` entry (not a hand-rolled power
-loop) by ``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``:
+loop) by ``tests/gates/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``:
 
 .. list-table:: 2-D Cartesian SI/Krylov verification (Wave O step #208)
    :header-rows: 1
@@ -3669,16 +3669,16 @@ loop) by ``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``:
      - Reference (pillar)
      - Result
    * - Default-entry homogeneous (1G / 2G / 4G)
-       (:func:`test_default_entry_hits_kinf <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_default_entry_hits_kinf>`)
+       (:func:`test_default_entry_hits_kinf <tests.gates.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_default_entry_hits_kinf>`)
      - Closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)`
        (1g → 1.5, 2g → 1.875, 4g → 1.4878)
      - SI hits :math:`k_\infty` to :math:`< 10^{-8}`
    * - Heterogeneous 2G fuel\|moderator, **non-flat** flux
-       (:func:`test_si_krylov_heterogeneous_2g_nonflat_flux <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_krylov_heterogeneous_2g_nonflat_flux>`)
+       (:func:`test_si_krylov_heterogeneous_2g_nonflat_flux <tests.gates.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_krylov_heterogeneous_2g_nonflat_flux>`)
      - SI vs Krylov flux **shape** + eigenvalue
      - flux shape agrees to :math:`\sim 10^{-9}`
    * - 2-D SI :math:`k_{\rm eff}` Cauchy under refinement
-       (:func:`test_si_2d_keff_converges_under_refinement <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_2d_keff_converges_under_refinement>`)
+       (:func:`test_si_2d_keff_converges_under_refinement <tests.gates.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_2d_keff_converges_under_refinement>`)
      - Self-convergence (consistency regression catcher)
      - monotone, single fixed point
 
@@ -3693,7 +3693,7 @@ prove eigenvalues). The heterogeneous leg carries a genuinely non-flat
 (≥2G, fuel\|moderator) flux so the angular / wavefront redistribution
 terms are active rather than nulled (``vv-principles`` anti-patterns
 #3 / #4), and the un-xfailed L2 mesh-convergence pin
-(``tests/sn/sweep/cartesian_2d/test_discrete_ordinates_2d.py::test_do_mesh_convergence``,
+(``tests/gates/sn/sweep/cartesian_2d/test_discrete_ordinates_2d.py::test_do_mesh_convergence``,
 the ERR-003 catcher) plus the ``2d_2g_LS4_dd_8x4_het_si`` regression
 snapshot round out the catch surface.
 
@@ -3745,22 +3745,22 @@ reference:
      - Reference (pillar)
      - Both solvers?
    * - Curvilinear streaming-equilibrium
-       (``tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``)
+       (``tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py``)
      - Analytical infinite-medium balance
        :math:`\phi = q/\Sigma_t` (closed-form)
      - ``source_iteration`` AND ``krylov``
    * - Reflective :math:`k_\infty` homogeneous
-       (``tests/sn/verification/analytical/test_kinf_homogeneous.py``)
+       (``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py``)
      - :math:`k_\infty = \nu\Sigma_f / \Sigma_a` (closed-form
        eigenvalue — MMS does NOT prove eigenvalues)
      - both
    * - ``test_si_carve_recovers_analytical_kinf``
-       (``tests/sn/operators/test_invertible_operator.py``)
+       (``tests/gates/sn/operators/test_invertible_operator.py``)
      - Analytical :math:`k_\infty` via the SI path with :math:`B`
        folded (closed-form)
      - SI path
    * - Invertible-operator :math:`Q/\Sigma_t` recovery
-       (``tests/sn/operators/test_invertible_operator.py``)
+       (``tests/gates/sn/operators/test_invertible_operator.py``)
      - Flat-flux fixed-source balance (closed-form)
      - direct ``−B`` drive
 
@@ -4639,7 +4639,7 @@ but doesn't feed back. For two BC families this is no longer true:
    This is executable, not editorial:
    :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` is the
    algebra of record, and
-   ``tests/sn/sweep/test_sweep_acyclicity.py`` gates it. Measured on
+   ``tests/gates/sn/sweep/test_sweep_acyclicity.py`` gates it. Measured on
    an S\ :sub:`4` slab:
 
    .. csv-table::
@@ -4924,7 +4924,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    spelling a refusal; **B3.4c** built periodic's partner-face channel
    and G6.3 step 7 derived its arrow :math:`\Gamma_+(f') \to
    \Gamma_-(f)`. The strict xfails that pinned the deferred rows are
-   retired (``tests/sn/operators/test_b3_domain_narrowing.py``). `[M]`
+   retired (``tests/gates/sn/operators/test_b3_domain_narrowing.py``). `[M]`
    2026-09-22: on a face method space the two closure rows realize
    ``array_equal`` to the reflective and white rows at α ∈ {0, 0.5, 1}
    (``scratch/_definitions/round2/minimal_probe.py``). A shape assertion
@@ -5423,7 +5423,7 @@ is not constructible.
    drop partially-reflecting faces out of
    ``sweep_schedule.reflective_faces``' ``== "reflective"`` set. That
    is a semantic change wearing a refactor's clothes, and
-   ``tests/geometry/test_bound_compat.py`` reddens on it.
+   ``tests/gates/geometry/test_bound_compat.py`` reddens on it.
 
 The shim is **internal** to the package (not in :attr:`__all__`)
 — a test pins its private status.
@@ -5515,7 +5515,7 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC declares
 **five universal** assertion methods plus **three specific**
 assertions on the BCs that need them. Together they form the
 structural verification surface that the
-:mod:`tests.geometry.test_bc_universal_invariants` suite exercises.
+:mod:`tests.gates.geometry.test_bc_universal_invariants` suite exercises.
 
 .. warning::
 
@@ -6171,7 +6171,7 @@ are:
    they agree on the inflow set and diverge on the outflow set. NEITHER is the
    live realization: since campaign phase B3.2 vacuum realizes to the zero map
    Γ₊ → Γ₋, and the live gate is the re-posed vacuum snapshot case in
-   ``tests/geometry/test_bc_equivalence_snapshot.py`` (asserts Γ₋ shape + all
+   ``tests/gates/geometry/test_bc_equivalence_snapshot.py`` (asserts Γ₋ shape + all
    zero). Kept as the record of a contract that looked right for two campaign
    phases. An explanatory comparison, never a solver claim.
 .. vv-status: vacuum-legacy-vs-trace-correct documented
@@ -6455,7 +6455,7 @@ because that path no longer exists in the code.
 Empirical justification
 -----------------------
 
-The 18-test :mod:`tests.geometry.test_law_composition` suite pins
+The 18-test :mod:`tests.gates.geometry.test_law_composition` suite pins
 the descriptor-tree contract (foundation + L1 tests):
 
 * Algebra closure on every dunder for every node-type pairing
@@ -6521,7 +6521,7 @@ Numerical evidence
 ==================
 
 The reference-image harness
-(:mod:`tests.geometry.test_bc_equivalence_snapshot`) is the widest
+(:mod:`tests.gates.geometry.test_bc_equivalence_snapshot`) is the widest
 mutation net in the boundary subsystem. Seven cases compare the
 realized operator against a frozen ``.npz`` image at a per-case
 tolerance.
@@ -6712,9 +6712,9 @@ rounding and wrong about its effect: the reference performs the same
 multiplication, so both sides round identically.)
 
 The ``.npz`` files live at
-``tests/geometry/snapshots/bc_equivalence_*.npz`` and are committed to
+``tests/gates/geometry/snapshots/bc_equivalence_*.npz`` and are committed to
 the repository — the artefacts ARE the verification reference.
-``tests/geometry/_generate_bc_equivalence_snapshots.py`` regenerates
+``tests/gates/geometry/_generate_bc_equivalence_snapshots.py`` regenerates
 them; since the re-anchoring, regeneration is legitimate only when the
 reference EXPRESSION or the probe changes, never to make a red go
 away — that would re-anchor the gate on the very code it gates, which
@@ -6845,7 +6845,7 @@ calls ``bc.apply`` twice and the test must locate Call #2 (the
 §16A.3 call) unambiguously.
 
 The Phase D test
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``):
 
 #. Monkey-patches ``problem.bc["xmax"].apply`` (the outer radial
@@ -6996,7 +6996,7 @@ collective.
 
 No new Gate 1.5 test variant is needed for the Phase F seed
 call.  The Phase F bit-identity test module
-:mod:`tests.sn.sweep.core.test_sweep_vs_apply_consistency`
+:mod:`tests.gates.sn.sweep.core.test_sweep_vs_apply_consistency`
 (57 foundation tests) pins that the sweep-path's
 ``bc_outer_value`` extraction matches the apply-path's Phase D
 Call #1 result on every test configuration — the structural
@@ -7424,7 +7424,7 @@ construction:
 .. (vv-status rationale) Structural by-construction identity: the BC-dict keys,
    the boundary-face-layout faces, and the FaceLabel.face_name renderings are
    the same set because both producers call one crosswalk. The crosswalk is
-   pinned by the foundation gate ``tests/sn/primitives/test_face_name_crosswalk.py``
+   pinned by the foundation gate ``tests/gates/sn/primitives/test_face_name_crosswalk.py``
    (the exhaustive (axis,endpoint)→face_name table + fail-loud negatives). A
    single-source-of-truth structural identity, not a solver claim.
 .. vv-status: bc-face-name-key-identity documented
@@ -7496,7 +7496,7 @@ strategy reflects that:
   ``sha256`` goldens stayed byte-identical; the broad sweep /
   operators / primitives / solve suite is green.
 * **L0 crosswalk pins**
-  (:mod:`tests.sn.primitives.test_face_name_crosswalk`,
+  (:mod:`tests.gates.sn.primitives.test_face_name_crosswalk`,
   foundation-tagged). An exhaustive **hand-transcribed**
   ``(axis, endpoint) → face-name`` table for :math:`d \in \{1,2,3\}`
   (mirror-not-import, so the test is not tautological against the
@@ -7506,7 +7506,7 @@ strategy reflects that:
   negatives (a non-canonical endpoint → :class:`ValueError`; an
   axis beyond the named inventory → :class:`IndexError`).
 * **L0 bc-dict / face-layout inventory pins**
-  (:mod:`tests.sn.operators.test_snmesh_realizer_wiring`,
+  (:mod:`tests.gates.sn.operators.test_snmesh_realizer_wiring`,
   foundation-tagged):
 
   - ``test_bc_inventory_equals_face_layout_across_geometries`` —
@@ -7706,7 +7706,7 @@ per-axis cell widths come from the axis edges:
 .. (vv-status rationale) Representational bit-identity: per-axis cell widths are
    np.diff of the axis edges, byte-identical to the retired Mesh1D.widths /
    Mesh2D.dx / Mesh2D.dy spellings. Pinned by the bit-identity gates
-   ``tests/sn/primitives/test_axis_native_construction.py``
+   ``tests/gates/sn/primitives/test_axis_native_construction.py``
    (``test_d2_metadata_byte_identical_axis_vs_legacy`` /
    ``test_1d_slab_metadata_byte_identical_axis_vs_legacy``). A carve
    representational identity, not a solver claim.
@@ -8027,7 +8027,7 @@ Numerical evidence — the d=3 value gates
 ----------------------------------------
 
 C5.5's admission is gated by four value tests
-(:mod:`tests.sn.solve.test_d3_admission`), **all driven through the
+(:mod:`tests.gates.sn.solve.test_d3_admission`), **all driven through the
 production entry points** (``np.testing.assert_*`` only — Mode-8 safe
 under ``python -O``, where bare ``assert`` is stripped). Each probes a
 distinct failure class:

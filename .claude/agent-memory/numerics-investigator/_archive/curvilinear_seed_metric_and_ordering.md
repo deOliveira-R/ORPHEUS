@@ -123,7 +123,7 @@ angular w is the sole gauge d.o.f., no canonical value for a single ray).
    weight ⟹ pinned by `g_s[i]=g_b[coupled j]`. Faithfulness `G⁺TG==A.H` (2.8e-14) ties the
    dense reconstruction to production. Forward stays bit-identical under the install (metric
    read only by A.H + inner_product, #208 trace-metric precedent). Diagnostics
-   `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See [not preserved (never tracked); promoted into `tests/sn/operators/test_radial_characteristic_metric.py`]
+   `derivations/diagnostics/diag_gsd_0{1,2,3}_*.py` (17 green). See [not preserved (never tracked); promoted into `tests/gates/sn/operators/test_radial_characteristic_metric.py`]
    [[starting_direction_metric_gauge_derivation]].
 
 ## L18: To adjudicate a LABELING/ORDERING degeneracy in a discrete-ordinate scheme, the instrument is the operator's own SYMMETRY GROUP — MMS is exactly blind, and the answer is usually "no ordering is right, the closure is broken"

@@ -165,7 +165,7 @@ from orpheus.geometry import CoordSystem
 # ⛔ NOTHING FROM ``orpheus.sn`` MAY BE IMPORTED HERE.
 #
 # This module is L0 (``derivations/``); ``sn`` is L3, and
-# ``tests/test_layer_imports.py`` forbids the edge. Until 2026-08-12 this
+# ``tests/gates/test_layer_imports.py`` forbids the edge. Until 2026-08-12 this
 # file imported ``angular_cell_edges_per_level`` and
 # ``morel_montry_tau_per_level`` from ``orpheus.sn.angular.closure``
 # to fetch the very quantities it then GRADED.
@@ -370,7 +370,7 @@ def morel_montry_beta(
     :math:`n_\varphi` — refuted there, for the same antisymmetry reason
     that kills :func:`contamination_beta`.
 
-    Gated by ``tests/sn/sweep/curvilinear/test_angular_beta_identity.py``
+    Gated by ``tests/gates/sn/sweep/curvilinear/test_angular_beta_identity.py``
     (positive + negative legs); evidence
     ``scratch/q68_flux_dip_discriminator.md``.
     """
@@ -422,7 +422,7 @@ def alpha_defect_beta(*, edges, alpha):
     τ ≡ ½" was unsatisfiable by any input.  Lifting to
     :math:`\alpha^{H}` first gives ``4.253e-02 → 1.153e-02 →
     3.031e-03 → 7.793e-04 → 1.977e-04``, i.e. :math:`O(N^{-2}) \to 0`.
-    Gated by ``tests/sn/sweep/curvilinear/test_alpha_defect_normalization.py``.
+    Gated by ``tests/gates/sn/sweep/curvilinear/test_alpha_defect_normalization.py``.
 
     ⚠ **A SECOND, independent hazard is recorded but NOT repaired here**
     (it was never measured): ``edges`` must be the angular cell

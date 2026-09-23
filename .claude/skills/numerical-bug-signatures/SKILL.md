@@ -119,11 +119,11 @@ the offending factor.
   just summed. Conservation always passes; per-ordinate exposes
   the bug.
 - **Catching test:**
-  - `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
+  - `tests/gates/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`
     (the L0-SN-003 definitive curvilinear diagnostic — flat ψ must
     satisfy streaming + redistribution = 0 per ordinate; tagged
     `@pytest.mark.catches("ERR-006", "ERR-007")`).
-  - `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
+  - `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
     (catches the WDD-closure variant — sweep diverges, BiCGSTAB
     is exact).
 - **Catalog entry:** ERR-006 (α recursion + ΔA/w) and ERR-026
@@ -157,7 +157,7 @@ the offending factor.
   the closed-form analytical value. Or: run a 1G 2-region pin
   cell against a CP reference.
 - **Catching test:**
-  `tests/moc/test_verification.py::TestL0EquilibriumFlux::test_pure_scatterer_equilibrium_single_sweep`.
+  `tests/gates/moc/test_verification.py::TestL0EquilibriumFlux::test_pure_scatterer_equilibrium_single_sweep`.
 - **Catalog entry:** ERR-019.
 - **Why it hides:** All three homogeneous eigenvalue tests passed
   to machine precision because `δψ = 0` annihilates the weight-
@@ -183,11 +183,11 @@ the offending factor.
   source for a 2-group asymmetric scattering matrix, compare to
   code output term-by-term.
 - **Catching test:**
-  - `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`
+  - `tests/gates/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`
     (L0-SN-009 — hand calc against `SigS^T @ φ`, tagged
     `@pytest.mark.catches("ERR-002")`).
-  - `tests/mc/test_properties.py::test_sigs_orientation_g0_to_g1`
-    and `tests/mc/test_gaps.py` — explicit ERR-002-pattern guards
+  - `tests/gates/mc/test_properties.py::test_sigs_orientation_g0_to_g1`
+    and `tests/gates/mc/test_gaps.py` — explicit ERR-002-pattern guards
     in the MC verification suite.
 - **Catalog entry:** ERR-002.
 - **Why it hides:** Symmetric scattering matrices (any 1-group
@@ -218,7 +218,7 @@ the offending factor.
   normalization makes φ deviate from Q/Σ_t by a constant factor
   (the ratio of assumed weight sum to actual).
 - **Catching test:**
-  - `tests/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2`,
+  - `tests/gates/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2`,
     `::test_lebedev_weights_sum_to_4pi`,
     `::test_level_symmetric_weights_sum_to_4pi`,
     `::test_product_weights_sum_to_4pi` (the weight-sum
@@ -272,12 +272,12 @@ the offending factor.
   `||err||_∞ · sqrt(n)`. The first ≈ constant + the second
   decaying → confirms Signature 6.
 - **Catching test:**
-  - `tests/derivations/test_path_ai_legacy_plain_gl_signature.py`
+  - `tests/gates/derivations/test_path_ai_legacy_plain_gl_signature.py`
     (4 tests pinning the failure-mode signature: log-decomposition
     foundation, diagonal-truncation `2·log(n_μ)` scaling,
     off-diagonal machine-precision convergence, first-order-with-log
     rate). Tagged `@pytest.mark.catches("ERR-036")`.
-  - `tests/derivations/test_atkinson_product_nystrom.py` — pinned
+  - `tests/gates/derivations/test_atkinson_product_nystrom.py` — pinned
     fix verification (n_panels=64 → 3.5e-4; 256 → 1.1e-5).
 - **Catalog entry:** ERR-036.
 - **Why it hides:** Plain Gauss-Legendre integrates *smooth*
@@ -329,7 +329,7 @@ the offending factor.
   `log(err) vs dps` is shallow and the values plateau, you have
   Signature 7.
 - **Catching test:**
-  - `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic[*]`
+  - `tests/gates/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic[*]`
     — 11 cases parametrised over c ∈ [0.1, 0.99]. Pre-fix: 1.5–2 %
     error at dps=15. Post-fix: 6–7 digits agreement.
     Tagged `@pytest.mark.catches("ERR-037")`.
@@ -370,7 +370,7 @@ the offending factor.
 - **Diagnostic probe:** `assert np.all(alpha >= -1e-14)` on every
   level of `SNMesh.alpha_per_level` before the first sweep.
 - **Catching test:**
-  `tests/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`,
+  `tests/gates/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`,
   `::test_alpha_boundary_zero`, and
   `::test_spherical_alpha_dome_non_negative`.
 - **Catalog entry:** Uncatalogued — pattern only. (The
@@ -603,7 +603,7 @@ the offending factor.
   `cells = (slice(None),) * rank + tuple(idx)`
   (`TransferMaterialField._moment_blocks`).
 - **Catching test:**
-  `tests/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]`
+  `tests/gates/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]`
   (`@pytest.mark.catches("ERR-087")`; `[M]` 2026-09-22, re-dropping the
   greedy spelling under `python -O`: 4 failed — the two `LD-2^d=4` rows of
   this test and the two of
@@ -706,17 +706,17 @@ canon; signatures here are a derived view.
 
 | Signature | Catalog ERR    | Failure mode | Catching test (primary)                                                                              |
 | --------- | -------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| 1         | ERR-006        | #2 + #3      | `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`       |
+| 1         | ERR-006        | #2 + #3      | `tests/gates/sn/primitives/test_quadrature.py::TestL0TermVerification::test_per_ordinate_flat_flux_consistency`       |
 | 1         | ERR-007        | #3           | same — BiCGSTAB-operator variant covered by `@catches("ERR-006","ERR-007")`                          |
-| 1         | ERR-026        | #6           | `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`          |
-| 2         | ERR-019        | #3           | `tests/moc/test_verification.py::TestL0EquilibriumFlux::test_pure_scatterer_equilibrium_single_sweep`|
-| 3         | ERR-002        | #2           | `tests/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`              |
-| 4         | ERR-004        | #4           | `tests/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2` + streaming-equilibrium      |
-| 4         | ERR-025        | #3 + #4      | `tests/sn/test_cartesian.py::test_heterogeneous_absolute_keff`                                       |
-| 5         | (uncatalogued) | —            | `tests/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
-| 6         | ERR-036        | #3 + #4      | `tests/derivations/test_path_ai_legacy_plain_gl_signature.py` + `test_atkinson_product_nystrom.py`   |
-| 7         | ERR-037        | #4           | `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`                          |
+| 1         | ERR-026        | #6           | `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`          |
+| 2         | ERR-019        | #3           | `tests/gates/moc/test_verification.py::TestL0EquilibriumFlux::test_pure_scatterer_equilibrium_single_sweep`|
+| 3         | ERR-002        | #2           | `tests/gates/sn/primitives/test_quadrature.py::TestL0TermVerification::test_scattering_source_magnitude`              |
+| 4         | ERR-004        | #4           | `tests/gates/sn/primitives/test_quadrature.py::TestWeightSums::test_gl_weights_sum_to_2` + streaming-equilibrium      |
+| 4         | ERR-025        | #3 + #4      | `tests/gates/sn/test_cartesian.py::test_heterogeneous_absolute_keff`                                       |
+| 5         | (uncatalogued) | —            | `tests/gates/sn/primitives/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
+| 6         | ERR-036        | #3 + #4      | `tests/gates/derivations/test_path_ai_legacy_plain_gl_signature.py` + `test_atkinson_product_nystrom.py`   |
+| 7         | ERR-037        | #4           | `tests/gates/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`                          |
 | 8         | (uncatalogued) | —            | speculative — checked-`info` wrapper raising on `info != 0` + under-`maxiter` case that MUST raise   |
 | 9         | (uncatalogued) | —            | speculative — `‖Aψ − q‖`-based stop pinned by high-`c` (`c ≥ 0.99`) fixed-source vs `φ = Q/Σ_a`      |
 | 10        | (uncatalogued) | —            | speculative (triage) — sibling-pass discriminator + re-baseline vs structurally-independent reference|
-| 11        | ERR-087        | #2           | `tests/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]` |
+| 11        | ERR-087        | #2           | `tests/gates/transport/test_material_field.py::TestIndependentReference::test_moment_source[l>=1-LD-2^d=4]` |

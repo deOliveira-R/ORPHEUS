@@ -90,7 +90,7 @@ import numpy as np
 # kernel and imported this module at module scope, ``manifold`` could reach
 # ``symmetry`` only under ``TYPE_CHECKING``, and `[M]` 2026-09-01 five import
 # orders were probed by hand.  The live witness is now the fresh-interpreter
-# gate in ``tests/test_layer_imports.py`` over every entry point the old cycle
+# gate in ``tests/gates/test_layer_imports.py`` over every entry point the old cycle
 # killed.)  ``invariance`` is bound as a MODULE so each verb below resolves its
 # kernel at call time — the delegation a counting spy can see.
 from orpheus.numerics import invariance as _invariance
@@ -284,7 +284,7 @@ class DiscreteMeasure:
         degree, and it WAS degree-3 at every order while claiming
         :math:`N-1` — until 2026-08-06, when the weights became
         per-:math:`O_h`-orbit moment-solved and the gate
-        (``tests/numerics/test_advertised_degree_is_measured.py``)
+        (``tests/gates/numerics/test_advertised_degree_is_measured.py``)
         began asserting measured == advertised both directions.
 
     Notes

@@ -62,13 +62,13 @@ bisection. Both paths remain exercised by the test suite: the
 unified path is the shipped registry route, and the native path is
 exercised by every gate that calls
 :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
-directly — :mod:`tests.derivations.test_peierls_convergence` (L0
+directly — :mod:`tests.gates.derivations.test_peierls_convergence` (L0
 self-convergence under panel refinement),
-:mod:`tests.derivations.test_peierls_multigroup` (including the
+:mod:`tests.gates.derivations.test_peierls_multigroup` (including the
 diagnostic test
-:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`,
+:class:`tests.gates.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`,
 now at ``rel_diff < 1e-10`` bound), and
-:mod:`tests.derivations.test_peierls_greens_function_slab_solver`.
+:mod:`tests.gates.derivations.test_peierls_greens_function_slab_solver`.
 """
 from __future__ import annotations
 
@@ -455,7 +455,7 @@ def continuous_case_builders() -> dict[str, Callable[[], ContinuousReferenceSolu
     (#345) — before that they were two hand-written formulas, and the
     equivalence ``set(continuous_case_builders()) ==
     {c.name for c in continuous_cases()}`` pinned by
-    ``tests/derivations/test_continuous_registry_lazy.py`` was carrying the
+    ``tests/gates/derivations/test_continuous_registry_lazy.py`` was carrying the
     risk. That test now guards the *enumeration* (does every grid entry build,
     and does the built object stamp the grid's name) rather than a race
     between two spellings.
@@ -499,7 +499,7 @@ def capability_rows() -> list[dict[str, object]]:
     to invoke at Sphinx build time without paying the O(minutes) cost
     of :func:`continuous_cases`. The capability-matrix infrastructure
     test
-    :func:`tests.derivations.test_capability_matrices.test_check_mode_exits_zero_when_in_sync`
+    :func:`tests.gates.derivations.test_capability_matrices.test_check_mode_exits_zero_when_in_sync`
     pins the rendered include file against this registry.
     """
     # Lazy imports of per-shape tolerance tables so that this module

@@ -137,12 +137,12 @@ first place they interacted at the per-ordinate-source level.
 ## Recommendation for promotion
 
 * `test_si_carve_recovers_analytical_kinf` is subsumed by the
-  existing `tests/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous[…-source_iteration]`
+  existing `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous[…-source_iteration]`
   parametrisation — once R-1 Step E lands, those 6 tests catch the
   same regression.  Leave the diagnostic version in place as a
   faster cross-check.
 * `test_invertible_solve_fixed_source_homogeneous_reflective` is
-  NEW coverage — promote to `tests/sn/test_operator.py` under a new
+  NEW coverage — promote to `tests/gates/sn/test_operator.py` under a new
   `TestInvertibleOperator` class, retags as L0 streaming-equilibrium
   (covers L0-SN-001 family for the operator-algebra layer that
   doesn't have a separate L0 test yet).  This is the canonical L0

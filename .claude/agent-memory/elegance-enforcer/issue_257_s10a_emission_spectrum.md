@@ -34,7 +34,7 @@ the guarded value; if they read a DIFFERENT field than the guard, the guard is t
 spelling (coincidence on real data masks it).
 
 ## ⭐ RULING-2 — the billiard SigF hack is a symptom, REVERT it.
-`tests/derivations/test_trajectory_resolvent_billiard.py:105-114` `_mixture_from_xs` set
+`tests/gates/derivations/test_trajectory_resolvent_billiard.py:105-114` `_mixture_from_xs` set
 `SigF=nu_sf_arr.copy()` (dimensionally WRONG — conflates Σf with νΣf) + a 4-line apology
 comment, purely to flip the SigF-keyed `is_fissile`→True so χ=[1,0] passes. anti-pattern
 item-9 (code you must write a paragraph to excuse = the smell). With RULING-1's SigP-keyed

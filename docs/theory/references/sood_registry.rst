@@ -551,11 +551,11 @@ matrix-valued — the structural pattern is the same.
 
 Verification gates live in:
 
-* :mod:`tests.derivations.test_sood_registry_wide_kinf` — k_inf gate,
+* :mod:`tests.gates.derivations.test_sood_registry_wide_kinf` — k_inf gate,
   one parametrised case per :data:`WIDE_SLICE_KINF` entry plus the
   cross-implementation gate against
   :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous`.
-* :mod:`tests.derivations.test_sood_registry_wide_bare_critical` —
+* :mod:`tests.gates.derivations.test_sood_registry_wide_bare_critical` —
   L1 reference-value gate for slab/sphere F_N.
 
 Tolerances achieved:
@@ -642,7 +642,7 @@ Production-protocol bridge tests
 .. _sood-registry-bridge-tests:
 
 The structural-bridge gates live in
-:mod:`tests.derivations.test_sood_registry_compatibility` and verify:
+:mod:`tests.gates.derivations.test_sood_registry_compatibility` and verify:
 
 * Every registered case has a well-formed
   ``materials: dict[int, Mixture]`` (foundation).
@@ -801,7 +801,7 @@ truth| < tol``), a poisoned cache fails the test exactly as
 poison-detection would dictate.
 
 The cache infrastructure is pinned by
-:mod:`tests.derivations.test_sood_registry_cache` —
+:mod:`tests.gates.derivations.test_sood_registry_cache` —
 load-bearing invariants: round trip, miss-vs-hit, version
 invalidation, hash stability, ``clear()``, decorator integration,
 and an L1 smoke against the transfer-matrix :math:`k_\infty`
@@ -831,14 +831,14 @@ likely to extend in future Waves to:
   + Atalay pattern.
 * **Westfall-Metcalf 1973 (WM-72)** — Table II cylinder critical
   radii (six configurations); currently inlined in
-  :mod:`tests.derivations.test_singular_eigenfunction_cylinder`;
+  :mod:`tests.gates.derivations.test_singular_eigenfunction_cylinder`;
   could be promoted similarly.
 * **Burkart-Ishiguro-Siewert 1976 (BIS)** — two-region anisotropic
   F_N reference values; needed for the future reflected-slab P_N
   expansion.
 * **Garcia 2021** — multi-region fixed-source benchmarks (Table 5
   ppP_N); already consumed by
-  :mod:`tests.derivations.test_peierls_greens_function_garcia2021`.
+  :mod:`tests.gates.derivations.test_peierls_greens_function_garcia2021`.
 
 The Wave 3 architectural plan
 (``.claude/plans/wave3/architecture.md``) discusses promoting these

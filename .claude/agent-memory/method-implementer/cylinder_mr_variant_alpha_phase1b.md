@@ -56,11 +56,11 @@ piecewise-Σ_t in-plane chord arithmetic; the 3D arclength lift
 
 ### Tests (V&V gates)
 
-- `tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py`
   (10 tests covering gates 1, 3, 4, 6, 7).
-- `tests/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py`
   (Gate 2 WM-72 vacuum cross-check).
-- `tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py`
   (3 new SymPy foundation tests for V_α1_cyl_mr identities, added
   alongside the existing 9 cylinder symbolic tests).
 
@@ -233,7 +233,7 @@ brief: |
     + `derive_piecewise_3d_optical_depth_cylinder_mr` +
     `derive_two_region_constant_source_consistency_cylinder_mr`.
   - Tests:
-    `tests/derivations/test_peierls_greens_function_cylinder_mr.py`
+    `tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py`
     + `..._cylinder_mr_xverif.py` + `..._cylinder_symbolic.py`
     (new MR foundation tests).
   - Verification plan:

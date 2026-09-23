@@ -116,5 +116,5 @@ Jacobian.
 - `derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py` — 33 pytest [gone: `git show 15486f66^:derivations/diagnostics/diag_rank_n_W_mc_crosscheck.py`]
   checks: MC cross-check, σ_t=0 closed forms for W_io^{0,0}, W_io^{0,1}
   (Lambert basis probe), W_io^{1,0}, reciprocity, mode asymmetry,
-  matches-analytical-high-res. Promote to `tests/derivations/` once
+  matches-analytical-high-res. Promote to `tests/gates/derivations/` once
   Phase F.5 closure lands.

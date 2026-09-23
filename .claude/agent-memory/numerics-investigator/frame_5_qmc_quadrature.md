@@ -109,5 +109,5 @@ Sign-unambiguous-at-CI criterion: CI does not include 0. Tested: True for both p
 ## Cross-references
 
 - L17, L19, L20: research log §"New lessons (L17+)".
-- Direction N / Issue #123: `tests/cp/test_peierls_rank_n_protocol.py` (the L19 protocol helper `assert_rank_n_structural_win`).
+- Direction N / Issue #123: `tests/gates/cp/test_peierls_rank_n_protocol.py` (the L19 protocol helper `assert_rank_n_structural_win`).
 - Frame attack memo: `.claude/agent-memory/cross-domain-attacker/peierls_rank_n_frame_attack.md` Frame 5 section.

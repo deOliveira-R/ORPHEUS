@@ -216,7 +216,7 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
     but a multi-moment pairing is a plain array, so a HAND-BUILT one does, and
     that is a real witness rather than a mutation of the code under test.
     The gate is
-    ``tests/sn/sweep/curvilinear/test_angular_closure.py``; it pins
+    ``tests/gates/sn/sweep/curvilinear/test_angular_closure.py``; it pins
     both shapes the literature actually proposes — a square ``(nx, 2, 2)``
     (Adams--Martin, closing per spatial moment) and a rank-1 ``(nx, 2, 1)``
     (ONETRAN, closing on the cell average only).  So this is a fail-loud
@@ -1588,18 +1588,18 @@ class MorelMontryAngularSweep(
     drift.  What still has teeth, and what to cite instead of an equivalence
     gate:
 
-    * ``tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py`` — the
+    * ``tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py`` — the
       scalar recurrence against its precomputed-split vectorized scan,
       bit-identical across the three consumer frames (two genuinely distinct
       float programs over the one algebra).
-    * ``tests/sn/sweep/core/test_sweep_vs_apply_consistency.py`` — the
+    * ``tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py`` — the
       end-to-end SI-vs-Krylov consistency leg: two different *solvers* over
       the one operator, which is where an apply-vs-sweep divergence would
       actually surface.
-    * ``tests/sn/sweep/core/test_phase_c_gates.py`` — Gate 1.3 reciprocity
+    * ``tests/gates/sn/sweep/core/test_phase_c_gates.py`` — Gate 1.3 reciprocity
       and Gate 1.4 linearity on the composite.
 
-    ⛔ This paragraph cited ``tests/sn/l1_analytical/test_pole_closure_sweep_equivalence.py``
+    ⛔ This paragraph cited ``tests/gates/sn/l1_analytical/test_pole_closure_sweep_equivalence.py``
     until 2026-08-13.  That file **has never existed** in this repository's
     history — a coverage claim with no gate behind it, which is worse than no
     claim because an audit trusts it.
@@ -2008,7 +2008,7 @@ class MorelMontryAngularSweep(
         ⛔ **``D`` MUST NOT be used to correct the seed.**  The map's linear
         part is exactly :math:`(-1)^M I` (it follows from
         :math:`\prod_m (1-\tau_m)/\tau_m = 1`, gated on both arms in
-        ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``), and BOTH
+        ``tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py``), and BOTH
         endpoint values come from physics — so imposing both is an
         **over-determination**, a constraint on the interior solution, not an
         equation for a free parameter.  Zeroing ``D`` would merely force the
@@ -2034,7 +2034,7 @@ class MorelMontryAngularSweep(
         ⟹ What it legitimately is: a cheap, reference-free, pointwise
         **consistency** residual.  Its convergence under angular refinement
         is a property of the scheme worth pinning, and it is pinned — see
-        ``tests/sn/sweep/curvilinear/test_angular_endpoint_defect.py``, which
+        ``tests/gates/sn/sweep/curvilinear/test_angular_endpoint_defect.py``, which
         owns the measured ladder (do not copy those numbers here; that gate
         re-measures them).
 

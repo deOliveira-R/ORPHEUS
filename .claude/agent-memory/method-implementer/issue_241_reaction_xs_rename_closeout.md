@@ -55,7 +55,7 @@ name:
   param + its `sig_t_chain` local (`sweep_cache.py` 407/460); every
   `sig_t=` keyword in `loss_representation.py` (768/1057/1131/1311/1380/3367)
   that feeds `_ApplyOperands`/`_SolveOperands` dataclasses or
-  `walk_full`/`walk_windowed`; ALL `sig_t=` across `tests/derivations`,
+  `walk_full`/`walk_windowed`; ALL `sig_t=` across `tests/gates/derivations`,
   `orpheus/derivations`, `data/macro_xs`, CellXS/Mixture constructors — these
   are NOT scheme-method calls.
 
@@ -80,7 +80,7 @@ per-cell update/residual"; the "DEFERRED to #241" note rewritten to "DONE
 
 ## THE ONE SURPRISE — the source-hash sentinel (re-hashed, documented)
 
-`tests/sn/sweep/core/test_cell_kernel_batch.py::TestKernelSourceOfRecord`
+`tests/gates/sn/sweep/core/test_cell_kernel_batch.py::TestKernelSourceOfRecord`
 sha256-pins the SOURCE TEXT of `DiamondDifference.cell_kernel_batch` /
 `residual_kernel_batch` as "the FP reduction tree of record". The rename
 changed the body's source TEXT (param `sigt_cells`→`reaction_xs` + the
@@ -118,15 +118,15 @@ reaction_xs=`; the `_sig_t()` Σ_t-field HELPER name KEPT — caller-side).
 
 ## GATES (all as expected)
 
-- **`tests/sn/spatial` + `tests/sn/sweep/core` + `tests/sn/sweep/cartesian_2d`
+- **`tests/gates/sn/spatial` + `tests/gates/sn/sweep/core` + `tests/gates/sn/sweep/cartesian_2d`
   + LD MMS (2d+slab)**: 596 passed (the 2 sentinel-hash reds were the rename
   artefact; FIXED by the re-hash → re-ran the 2 sentinels = 2 passed; touched-
   test re-run 98 passed).
-- **`tests/sn/operators`**: 505 passed, 7 FAILED = the documented baseline
+- **`tests/gates/sn/operators`**: 505 passed, 7 FAILED = the documented baseline
   (5 sphere snapshot #250 — 3 `test_vacuum_bulk_bit_identical_1d[*-SPH]` +
   2 `test_sphere_{1g,2g}_apply_bit_identical`; 2 `mu_y` #232 — `Face 'ymin'`).
   ZERO new failures.
-- **DD strict regression** (`tests/sn/regression -W
+- **DD strict regression** (`tests/gates/sn/regression -W
   error::...DriftWarning`): 13 passed, 13 within-tol DriftWarnings (harness
   reports within-tol drifts as warnings, NOT escalated despite `-W error`) —
   IDENTICAL pre-existing baseline ULP values (e.g. `2d_2g_p1_aniso` scalar_flux

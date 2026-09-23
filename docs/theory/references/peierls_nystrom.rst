@@ -137,7 +137,7 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   :math:`K_{\rm bc} = G \cdot R \cdot P` reproduces the legacy
   :mod:`~orpheus.derivations.continuous.peierls_nystrom.slab` :math:`E_2` / :math:`E_3` bilinear form
   bit-exactly (rtol 1e-13) — see
-  ``tests/derivations/test_peierls_rank2_bc.py``. Solid cyl/sph
+  ``tests/gates/derivations/test_peierls_rank2_bc.py``. Solid cyl/sph
   with ``reflection="white"`` collapse to the rank-1 Mark form
   (:math:`R = (I - 0)^{-1} = 1`), preserving bit-exact regression.
   **Phase F.4 (hollow cylinder).** Extended rank-2 white to
@@ -195,7 +195,7 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   :math:`\sum_j K_{ij} \cdot 1 = \Sigma_t\,\varphi_d(r_i)` is gated by
   ``TestSlabKernelRowSum``, ``TestCylinderKernelRowSum``, and
   ``TestSphereKernelRowSum`` in
-  :mod:`tests.derivations.test_peierls_reference`. Because vacuum BC is
+  :mod:`tests.gates.derivations.test_peierls_reference`. Because vacuum BC is
   :math:`R = 0` in the closure tensor network
   :math:`K_{\rm bc} = G\cdot R\cdot P`, this closes volume-kernel
   verification at the flux level. Full derivations live at
@@ -224,7 +224,7 @@ per-method generators (``generate_peierls_nystrom_matrix`` and
 siblings), which were deleted at ``045afeca``.
 
 .. note:: **What the capability-matrix gate does and does not check.**
-   ``tests/derivations/test_capability_matrices.py`` pins
+   ``tests/gates/derivations/test_capability_matrices.py`` pins
    ``@pytest.mark.foundation`` software invariants of the documentation
    infrastructure: the generator's ``--check`` mode exits 0 only when the
    *checked-in* ``.inc.rst`` matches what ``capability_rows()`` renders (so a
@@ -272,8 +272,8 @@ siblings), which were deleted at ``045afeca``.
 All rows carry ``vv_level = "L1"``, ``equation_labels`` include
 ``peierls-unified`` and — for F.4 cases —
 :math:numref:`hebert-3-323`. Regressions land in
-``tests/derivations/test_peierls_rank2_bc.py`` (F.4 cases) and
-``tests/derivations/test_peierls_reference.py`` (slab rank-2).
+``tests/gates/derivations/test_peierls_rank2_bc.py`` (F.4 cases) and
+``tests/gates/derivations/test_peierls_reference.py`` (slab rank-2).
 
 Class A — two-surface (F.4 applies)
 ------------------------------------
@@ -731,7 +731,7 @@ Subsection — Verification status
 --------------------------------
 
 The active slab-polar path is gated by two L1 tests in
-:mod:`tests.derivations.test_peierls_reference`:
+:mod:`tests.gates.derivations.test_peierls_reference`:
 
 - :class:`TestSlabPolarReferenceEquivalence.test_adaptive_polar_matches_E1_reference`
   — pointwise agreement :math:`K_{\rm polar}[i,j] = \Sigma_t\,K_{E_1}[i,j]`
@@ -752,7 +752,7 @@ The active slab-polar path is gated by two L1 tests in
 
 These close the volume-kernel verification for slab-polar at machine
 precision. The white-BC closure side is separately covered by
-:class:`tests.derivations.test_peierls_rank2_bc` which exercises
+:class:`tests.gates.derivations.test_peierls_rank2_bc` which exercises
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry._build_closure_operator_rank2_white`'s
 slab branch against the Wigner–Seitz-exact
 :math:`E_2/E_3` bilinear form.
@@ -861,7 +861,7 @@ for the diagnostic cascade (Probes A/B/D, the underconvergent GL
 branch, the closed-form :math:`\tfrac12 E_2(\tau)` fix). Both
 unified-vs-native paths now agree bit-exactly on the shipped fixture;
 the parity-gate test
-:class:`tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
+:class:`tests.gates.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
 enforces ``rel_diff < 10^{-10}`` as a regression guard.
 
 
@@ -938,7 +938,7 @@ them breaks the public contract.
        ``(n_regions, 1)`` + synthesise ``chi=1`` for every 1G
        problem has no pedagogical or maintenance benefit. The
        wrapper is 25 lines and is bit-exact regression-gated by
-       :class:`~tests.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`.
+       :class:`~tests.gates.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`.
    * - :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution`
      - The canonical solution dataclass returned by both
        :func:`solve_peierls_1g` and :func:`solve_peierls_mg`.
@@ -1060,7 +1060,7 @@ independently-developed algorithm.
      - Permitted callers
    * - :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
      - Only (a)
-       :class:`~tests.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
+       :class:`~tests.gates.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
        — the parity gate that keeps unified honest, and (b) anyone
        who sets ``ORPHEUS_SLAB_VIA_E1=1`` (explicit bisection /
        testing). Production references go through
@@ -1118,7 +1118,7 @@ landed on 2026-04-24**, generalising the 1-group driver
 and :math:`\chi`-weighted fission. :func:`solve_peierls_1g` is now a
 25-line thin wrapper over :func:`solve_peierls_mg` with
 :math:`n_g = 1` and synthesised :math:`\chi = 1`; a bit-exact
-regression test (:class:`tests.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`)
+regression test (:class:`tests.gates.derivations.test_peierls_multigroup.TestMGNg1BitMatch1G`)
 enforces that the ng=1 MG path reproduces every legacy 1G k_eff and
 flux value to numerical zero.
 
@@ -1270,7 +1270,7 @@ Nyström assembly.
 **Verification gate.** The source-indexing is pinned by the promoted
 intrinsic-property test *"a non-fissile region's* χ *must not affect*
 :math:`k_{\rm eff}`*"* (``@pytest.mark.l1``,
-``@pytest.mark.catches("ERR-063")``, in ``tests/derivations/``,
+``@pytest.mark.catches("ERR-063")``, in ``tests/gates/derivations/``,
 promoted from
 ``derivations/diagnostics/diag_err063_probe_e_intrinsic_property.py``).
 Its cylinder and sphere negative legs assert that flipping a
@@ -1416,7 +1416,7 @@ tracked separately under
 `Issue #140 <https://github.com/deOliveira-R/ORPHEUS/issues/140>`_.
 The registered cases are **buildable and reproducible** as established
 by the smoke tests in
-:class:`tests.derivations.test_peierls_multigroup.TestMG2GHollowRegistration`.
+:class:`tests.gates.derivations.test_peierls_multigroup.TestMG2GHollowRegistration`.
 
 
 Subsection — Cost characteristics
@@ -2728,7 +2728,7 @@ at machine precision (rel tol :math:`10^{-10}`) by
   (curvilinear, small-N with the unified adaptive primitive
   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel_adaptive`),
 
-in :mod:`tests.derivations.test_peierls_reference`. Agreement at
+in :mod:`tests.gates.derivations.test_peierls_reference`. Agreement at
 :math:`10^{-10}` across three independently-constructed references
 (slab closed-form :math:`E_2`, cylinder Bickley-:math:`\mathrm{Ki}_2`
 quadrature, sphere :math:`\mu`-quadrature) together with the unified
@@ -2813,12 +2813,12 @@ for the uniform cell. **Lesson:** two independent derivations agreeing
 at :math:`10^{-39}` is worthless evidence if both share an upstream
 identity. Cataloged as **ERR-032** in
 :doc:`the error catalog </theory/verification/error_catalog>`; caught by ``TestSlabKernelRowSum``
-(:mod:`tests.derivations.test_peierls_reference`).
+(:mod:`tests.gates.derivations.test_peierls_reference`).
 
 **Testing leverage.** Because :math:`\varphi_{\rm white}` is spatially
 constant, it supports two precise tests of the Peierls white-BC
 tensor-network machinery (see
-:mod:`tests.derivations.test_peierls_reference`):
+:mod:`tests.gates.derivations.test_peierls_reference`):
 
 1. **Factor-level closed forms** (machine-precision gates in
    ``TestSlabPescClosedForm`` and ``TestSlabGbcClosedForm``):
@@ -3048,7 +3048,7 @@ debate is preserved in
 <https://github.com/deOliveira-R/ORPHEUS/issues/100#issuecomment-4348744491>`_;
 the live capability matrix is at
 :ref:`theory-peierls-capabilities`. The Peierls-vs-CP white-BC
-parity test is ``tests/cp/test_peierls_sphere_flux.py``.
+parity test is ``tests/gates/cp/test_peierls_sphere_flux.py``.
 
 
 Rank-N (Marshak / Gelbard DP\ :sub:`N-1`) skeleton — WIP
@@ -3083,7 +3083,7 @@ the mode-0 contribution is routed through the existing rank-1
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_white_bc_correction`,
 preserving bit-exact regression at
 ``rtol = 1e-14`` (gated by
-``tests/derivations/test_peierls_rank_n_bc.py::test_rank1_bit_exact_recovery``).
+``tests/gates/derivations/test_peierls_rank_n_bc.py::test_rank1_bit_exact_recovery``).
 The rank-1 **structural** decomposition
 :math:`K_{\rm bc}(N) - K_{\rm bc}(N-1) = u_{N-1} \otimes v_{N-1}`
 is also verified (``test_rank_n_cross_mode_diagonal``): each
@@ -3166,7 +3166,7 @@ the dimensionless factor :math:`(\rho_{\max}/R)^2` carried in
 The :math:`(\rho_{\max}/R)^2` factor is :math:`1` at :math:`r = 0`
 in the sphere (every ray has :math:`\rho_{\max} \equiv R`) and only
 matters off-centre. The conservation gate
-``tests/derivations/test_peierls_rank_n_conservation.py`` pins the
+``tests/gates/derivations/test_peierls_rank_n_conservation.py`` pins the
 identity :math:`K \cdot \mathbf 1 = \Sigma_t\,\mathbf 1` for a pure
 absorber, which the Jacobian fix preserves uniformly across
 :math:`R`.
@@ -3288,7 +3288,7 @@ zero-absorption conservation pair
 :math:`W_{oo} + W_{io} = W_{oi} = 1`, :math:`W_{ii} = 0` holds in
 both geometries and is regressed by
 ``test_hollow_{cyl,sph}_transmission_zero_absorption_conservation``
-(in :file:`tests/derivations/test_peierls_rank2_bc.py`).
+(in :file:`tests/gates/derivations/test_peierls_rank2_bc.py`).
 
 Residuals at default quadrature (2 panels × p_order=4, n_angular=24,
 n_rho=24, n_surf_quad=24, dps=15) — production data, kept here as
@@ -3652,7 +3652,7 @@ itself sign-flips or grows in magnitude under refinement at
 :math:`\mathcal Q` and no rank-N comparison there is admissible.
 
 The helper
-``tests.cp.test_peierls_rank_n_protocol.assert_rank_n_structural_win``
+``tests.gates.cp.test_peierls_rank_n_protocol.assert_rank_n_structural_win``
 raises :exc:`AssertionError` on any of S1–S5 failing and returns a
 ``StabilityReport`` with the full signed-error trajectory; pinning
 tests cover six reference points
@@ -3773,7 +3773,7 @@ Issue #132). The active resolution path is the Hébert
 below).
 
 The investigation is pinned by the L1 test suite at
-:file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
+:file:`tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py`
 (14 passing + 2 ``xfail strict=True`` regression-pinning the
 catastrophe). The L0 catalog entry is **ERR-030** in
 :doc:`the error catalog </theory/verification/error_catalog>`. The probe-cascade hypothesis
@@ -4046,7 +4046,7 @@ the historical calibration. Calls with ``n_bc_modes ≥ 2`` on
 they do not raise, but they are **not safe**: the closure is
 structurally inconsistent in MR and quietly produces sign-flip
 errors with no diagnostic. The new XFAIL-strict tests at
-:file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
+:file:`tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py`
 (``test_class_b_mr_catastrophe_sphere_1g_2r_rank2``,
 ``test_class_b_mr_catastrophe_cylinder_1g_2r_rank2``) pin the
 catastrophe magnitude so that any future improvement (or further
@@ -4140,7 +4140,7 @@ The probe cascade (``diag_class_b_rank_n_probe.py`` and its probes B–G,
 showing the catastrophe is structural — 0.022 % shift) were retired at
 ``f36572c8``; recover one with
 ``git show f36572c8^:scratch/derivations/diagnostics/<file>``. The
-cascade is promoted as ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
+cascade is promoted as ``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
 the published 1G/1R table (``test_class_b_1g_1r_reproduces_published_table``),
 the multi-region routing invariance (``test_class_b_mr_routing_invariance_uniform_sigma``,
 probe C), the strict-xfail catastrophe pins that flip when Issue #132
@@ -4149,7 +4149,7 @@ probe G, ``catches("ERR-030")``) and the 2G/2R rank-1 Mark floor
 (``test_class_b_2g_2r_rank1_mark_floor_pinned``).
 
 L1 test pinning is at
-:file:`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py`
+:file:`tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py`
 (14 pass + 2 ``xfail strict=True``):
 ``test_class_b_mr_catastrophe_sphere_1g_2r_rank2`` and the cylinder
 analog pin the catastrophe magnitude so any future improvement (or
@@ -4306,7 +4306,7 @@ Mark uniformity assumption holds. **The 1G/2R case retains a stable
 +10.7 % overshoot at both BASE and RICH quadrature** — confirmed
 structural, not numerical.
 
-Gated by ``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_recovers_kinf_rich``
+Gated by ``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_recovers_kinf_rich``
 (``slow``; 1G/1R, 2G/1R and 2G/2R within 0.05 %) and
 ``::test_class_b_sphere_hebert_heterogeneous_overshoot_known`` (BASE,
 1G/2R). The original reproducer ``diag_sphere_hebert_rich_check.py``
@@ -4333,7 +4333,7 @@ to 0.6485 (verified up to 64 sub-regions, measured by the scan probe
 ``9a44dd0f`` and retired at ``f36572c8``:
 ``git show f36572c8^:scratch/derivations/diagnostics/diag_sphere_geometric_series_thicker_cell_scan.py``;
 the overshoot it explains is pinned by
-``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_heterogeneous_overshoot_known``),
+``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_heterogeneous_overshoot_known``),
 so the +10 % overshoot is NOT a "pointwise vs flat-flux CP" artifact
 — it is a real Mark-closure limitation.
 
@@ -4375,7 +4375,7 @@ dependence:
      - **+6.58 %**
 
 Gated by
-``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_chi_dependence``
+``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_sphere_hebert_chi_dependence``
 (parametrised over the fast, mixed and thermal emission spectra, each
 row to ±1 %). The original reproducer ``diag_sphere_chi_dependence_hebert.py``
 (added at ``76b11e88``) was retired at ``f36572c8``
@@ -4436,7 +4436,7 @@ extension mirrors the sphere chord-piecewise integration with the
 2-D :math:`h = R\sin\alpha` impact-parameter geometry. Verified to
 :math:`<5\times10^{-3}` against independent Monte Carlo. Shipped as
 :func:`compute_P_ss_cylinder` with 16 foundation tests at
-``tests/cp/test_cylinder_pss.py``.
+``tests/gates/cp/test_cylinder_pss.py``.
 
 **Issue #112 Phase C — corrected 3-D G_bc for cylinder**
 
@@ -4521,15 +4521,15 @@ promoted and deleted at ``c196f0ca``; ``diag_cylinder_hebert_pss.py``,
 ``diag_cylinder_hebert_diagnose_residual.py`` and
 ``diag_cylinder_g_bc_3d_patched_test.py`` were retired at ``f36572c8``
 (``git show f36572c8^:scratch/derivations/diagnostics/<file>``). Their
-gates: ``tests/cp/test_cylinder_pss.py`` (the :math:`P_{ss}` primitive,
+gates: ``tests/gates/cp/test_cylinder_pss.py`` (the :math:`P_{ss}` primitive,
 against an independent Monte Carlo estimate),
-``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_cylinder_hebert_recovers_kinf``
+``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py::test_class_b_cylinder_hebert_recovers_kinf``
 and ``::test_class_b_cylinder_hebert_heterogeneous_overshoot_known``, and
-``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py::test_correct_form_matches_production``
+``tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py::test_correct_form_matches_production``
 (the corrected 3-D :math:`G_{bc}` the patched test trialled);
 derivation:
 :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d` (pinned by
-``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``);
+``tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``);
 memory:
 :file:`.claude/agent-memory/numerics-investigator/issue_132_cylinder_hebert.md`.
 
@@ -4579,7 +4579,7 @@ Code reference
 Test reference
 --------------
 
-``tests/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
+``tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py``:
 
 - ``test_class_b_sphere_hebert_recovers_kinf`` — passes at <1.5 %
   tolerance for 1G/1R, 2G/1R, 2G/2R sphere
@@ -4724,7 +4724,7 @@ tridiagonal :math:`M` against direct integration at :math:`N = 1,
 rank, lives in :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular`. The
 paired symbolic-vs-numpy parity test (consuming the SymPy origin as
 a contract) lives in
-:file:`tests/derivations/test_peierls_specular_symbolic.py`.
+:file:`tests/gates/derivations/test_peierls_specular_symbolic.py`.
 
 R_specular ladder
 -----------------
@@ -4946,7 +4946,7 @@ homogeneous (both -0.16 %--0.31 %).
 See :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev` for the full
 SymPy derivation and verification of the Knyazev expansion; the
 contract is pinned by
-``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
+``tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
 
 Convergence — homogeneous slab (per-face block-diagonal closure)
 ----------------------------------------------------------------
@@ -5056,10 +5056,10 @@ Monotonic improvement; rank-1 bit-equals Mark legacy in the
 dominant eigenvalue.
 
 See :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.slab` for the SymPy
-derivation and ``tests/derivations/test_peierls_specular_slab_symbolic.py``
+derivation and ``tests/gates/derivations/test_peierls_specular_slab_symbolic.py``
 for the math-origin contract; the
 ``test_slab_mark_decomposes_into_four_per_face_blocks`` test (in
-``tests/derivations/test_peierls_specular_bc.py``) covers the
+``tests/gates/derivations/test_peierls_specular_bc.py``) covers the
 algebraic identity locking the per-face decomposition end-to-end.
 
 Verification posture
@@ -5086,7 +5086,7 @@ Tests
 Foundation tests for :math:`R_{\rm spec}` (rank-1 = identity, the
 :math:`2\,M\,R = I` partial-current contract at :math:`N = 1, \ldots, 5`,
 and the dense rank-2 :math:`R = \frac{1}{2}[[3, -3], [-3, 9]]`
-pin) live in :file:`tests/derivations/test_peierls_specular_bc.py`
+pin) live in :file:`tests/gates/derivations/test_peierls_specular_bc.py`
 alongside the end-to-end k\ :sub:`eff` ladders. The end-to-end
 suite covers (a) sphere/cyl/slab rank-1 reduction to Mark legacy,
 (b) sphere/cyl/slab rank-N monotonic convergence within 0.5 % of
@@ -5552,7 +5552,7 @@ multi-bounce specular at all three geometries. The
 because the SymPy 4/4 verifications in
 :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` pass against
 Sanchez 1986 :cite:`SanchezTTSP1986` Eq. (A6) (pinned by
-``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``),
+``tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py``),
 but the Sanchez↔ORPHEUS
 Jacobian conversion and the diagonal singularity remain open.
 
@@ -5599,7 +5599,7 @@ References and further reading
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular` — SymPy derivation +
   symbolic verification of the closed-form :math:`M` and the
   :math:`2\,M\,R = I` contract (paired numpy parity test in
-  :file:`tests/derivations/test_peierls_specular_symbolic.py`)
+  :file:`tests/gates/derivations/test_peierls_specular_symbolic.py`)
 - ``boundary="specular"`` — user-facing string in
   :func:`solve_peierls_1g` / :func:`solve_peierls_mg`
 
@@ -5623,7 +5623,7 @@ quadrature,
 :math:`\max_i |\Sigma_t - \sum_j K_{ij}\,\Sigma_t(r_j)| < 10^{-3}`
 at :math:`r_i \le R/2`. Tested in
 ``TestRowSumIdentity.test_interior_row_sum_equals_sigma_t`` in
-``tests/derivations/test_peierls_cylinder_prefactor.py``.
+``tests/gates/derivations/test_peierls_cylinder_prefactor.py``.
 
 **Sanchez–McCormick 1982 tie-point.** For a bare 1-G homogeneous
 cylinder with :math:`\Sigma_t = 1` cm⁻¹,
@@ -5635,7 +5635,7 @@ polar-quadrature refinement. 0.42 % offset from unity reflects the
 ambiguous scatter/fission split in the Sanchez problem (see
 :ref:`peierls-cylinder-row-sum`). Tested in
 ``TestSanchezTiePoint.test_k_eff_at_R_equals_1_dot_9798`` in
-``tests/derivations/test_peierls_cylinder_eigenvalue.py``.
+``tests/gates/derivations/test_peierls_cylinder_eigenvalue.py``.
 
 **Row-sum identity (multi-region).** On a two-annulus cylinder
 with :math:`(r_1, R) = (3, 10)` MFP,
@@ -5644,7 +5644,7 @@ with :math:`(r_1, R) = (3, 10)` MFP,
 :math:`\sum_j K_{ij}\,\Sigma_t(r_j) = \Sigma_t(r_i)` holds to
 0.5 % at every interior observer. Tested in
 ``TestMultiRegionKernel.test_K_applied_to_sig_t_gives_local_sig_t``
-in ``tests/derivations/test_peierls_cylinder_multi_region.py``.
+in ``tests/gates/derivations/test_peierls_cylinder_multi_region.py``.
 
 **Vacuum-BC thick-cylinder limit.** As :math:`R \to \infty`,
 leakage vanishes and :math:`k_{\rm eff} \to k_\infty = 1.5`.
@@ -5675,7 +5675,7 @@ verbatim:
   :math:`\max_i |\Sigma_t - \sum_j K_{ij}| < 10^{-3}` at
   :math:`r_i \le R/2`. Tested in
   ``TestSphereRowSumIdentity.test_interior_row_sum_equals_sigma_t``
-  in ``tests/derivations/test_peierls_sphere_prefactor.py``.
+  in ``tests/gates/derivations/test_peierls_sphere_prefactor.py``.
 - **Vacuum-BC thick-sphere limit.** At :math:`R = 30` MFP,
   :math:`|k_{\rm eff} - k_\infty|/k_\infty < 10^{-2}`. Monotone
   growth in :math:`R` on :math:`R \in \{1.5, 3, 6, 12, 24\}` MFP.
@@ -5684,7 +5684,7 @@ verbatim:
   CP :math:`k_{\rm eff}` agrees with Peierls to < 2 %, and the
   volume-weighted normalised flux profiles agree to L2 < 5 %.
   Tested in ``TestCPvsPeierlsSphereAtThickR`` in
-  ``tests/cp/test_peierls_sphere_flux.py``.
+  ``tests/gates/cp/test_peierls_sphere_flux.py``.
 
 The rank-1 white-BC deficit is bounded by Issue #103 (N1); see
 :ref:`issue-100-retraction` in :doc:`/theory/references/peierls` for
@@ -5906,7 +5906,7 @@ identities are already implemented as
 :func:`~orpheus.derivations.common.kernels.e_n_derivative` and
 :func:`~orpheus.derivations.common.kernels.ki_n_derivative`, and they
 are tested term-by-term at L0 by
-``tests/derivations/test_kernels.py`` via finite-difference
+``tests/gates/derivations/test_kernels.py`` via finite-difference
 agreement with the direct mpmath evaluators
 :func:`~orpheus.derivations.common.kernels.e_n_mp` and
 :func:`~orpheus.derivations.common.kernels.ki_n_mp`. Passing up the ladder
@@ -7775,7 +7775,7 @@ responsible for choosing a sensible variant.
 Numerical evidence
 ~~~~~~~~~~~~~~~~~~
 
-The L0 test module at ``tests/derivations/test_quadrature.py`` covers six
+The L0 test module at ``tests/gates/derivations/test_quadrature.py`` covers six
 configurations; the three most informative are reproduced here. All
 integrals are evaluated against either an analytical closed form or an
 ``mpmath.quad`` ground truth at 50-digit working precision.
@@ -7853,7 +7853,7 @@ Three properties of the substitution are visible in this table:
    is a singularity to absorb, not as a default replacement.
 
 These numbers are fully reproducible from
-``tests/derivations/test_quadrature.py``; the originating diagnostic,
+``tests/gates/derivations/test_quadrature.py``; the originating diagnostic,
 ``diag_phase5_round3_visibility_cone_quad.py``, was deleted at
 ``15486f66`` and is recovered as shown above.
 
@@ -8131,7 +8131,7 @@ through :func:`observer_angular_quadrature` (Q3 migration). The
 surface-centred :math:`\mathrm{Ki}_{1}/d` form is preserved for
 backward compatibility with the rank-1 Mark closure tests
 (``test_specular_*_cylinder_*`` in
-``tests/derivations/test_peierls_specular_bc.py``); migrating those
+``tests/gates/derivations/test_peierls_specular_bc.py``); migrating those
 four sites to the new recipe was the L3 work that landed this
 section. The recipe **does not** unify the surface- and
 observer-centred forms (they have different kink math) and **does
@@ -9310,7 +9310,7 @@ Regression gates
 ----------------
 
 The factored form is gated by three classes of tests in
-``tests/derivations/test_peierls_closure_operator.py`` (foundation
+``tests/gates/derivations/test_peierls_closure_operator.py`` (foundation
 tests, software-invariant contracts):
 
 1. **Algebraic consistency**:

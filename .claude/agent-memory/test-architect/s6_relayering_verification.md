@@ -95,15 +95,15 @@ inheritance), **value-ground** (structurally-independent reference), **principle
 
 | Anchor | File::test (worktree-relative) | Class | Gates stage | Stays |
 | ------ | ------------------------------ | ----- | ----------- | ----- |
-| **A2D-1 source-hash** | `tests/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` (`EXPECTED_SHA256` of `inspect.getsource(StreamingOperator._apply_2d_cartesian)`, `operator.py:1306-1310`) | bit-identity (source text) | **S6.3** (body moves) | **REGENERATES at S6.3** — see §2. Stays byte-free through S6.2/S6.4. |
-| **affine-carve golden** | `tests/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 params: `si_2d_p1_aniso_het` / `krylov_2d_p1_aniso_het` / `si_slab_2g_het`; sha256 of converged `bulk.values` + `phi`; `-O`-safe `raise AssertionError`) | bit-identity (output bytes, end-to-end) | **ALL S6 stages** | **STAYS byte-identical** — S6 does NOT change FP-association of the default path (Fork B1: window stays the d=2 default, scan stays d=1). If S6 ever flips a default, REGENERATE per the scan-march Fork-B2 discipline ([[scan-march-verification]] §G5). For S6.2–S6.5 as designed: byte-identical. |
-| **window≡full SWEEP** | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` (4 cases incl. NON-SQUARE 12×7, 5×9; `np.testing.assert_array_equal`) | bit-identity | **S6.3/S6.4** (the OUTPUT-identity oracle the A2D-1 regen leans on) | **STAYS** — pins `MovingFrontierWindow.loss_action ≡ FullFieldWavefront.loss_action` after the bodies move into representations. |
-| **window≡full MATVEC** | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_matvec_window_equals_full_field_end_to_end` (same 4 cases; bulk residual + boundary-block residual, `assert_array_equal`) | bit-identity | **S6.3** (the matvec OUTPUT oracle) | **STAYS** — this is the test that proves the relocated `_apply_2d_cartesian` body produces byte-identical output. |
-| **window≡full solve/residual (d=1/2/3)** | `tests/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (synthetic shapes incl. non-square (12,7),(5,9) + d=3 (3,2,3),(4,3,2)) | bit-identity | **S6.3/S6.4** | **STAYS** — d-generic window≡full at the graph layer. |
-| **ScanMarch G2.c (residual≡oracle)** | `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::test_scanmarch_residual_equals_oracle` + `::test_scanmarch_sweep_equals_oracle` (`_NULP_BOUND`, NON-SQUARE 12×7/5×9, LS-4, 2G het aniso) | principled-equiv (nulp, cross-schedule) | **S6.2/S6.3** (the renamed `loss_action`) | **STAYS as principled-equiv** — `ScanMarch.loss_action ≡ FullFieldWavefront.loss_action` at nulp. NOT bit-identity (row-march vs anti-diagonal differ at FP-association BY CONSTRUCTION). The renamed gate of S6.8. |
-| **SI≡Krylov≡k_inf (value-ground)** | `tests/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux` + `::test_default_entry_hits_kinf` + `::test_2g_eigenvector` + `::test_homogeneous_exact` | value-ground (closed-form k_inf transfer-matrix; ≥2G) | **ALL S6 stages** (esp. S6.5, both doors must still converge to k_inf) | **STAYS** — the eigenvalue structural ground; ≥2G non-flat (cardinal rule). |
-| **L7 φ=Q/Σ_t d=2** | `tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` (`np.linalg.solve` 2×2) | value-ground | underpins G2.c transitively | **STAYS** (vv §1.5: ULP-distance necessary-never-sufficient). |
-| **L8 k_inf=1.875 d=1** | `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` | value-ground | underpins G2.c transitively | **STAYS**. |
+| **A2D-1 source-hash** | `tests/gates/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` (`EXPECTED_SHA256` of `inspect.getsource(StreamingOperator._apply_2d_cartesian)`, `operator.py:1306-1310`) | bit-identity (source text) | **S6.3** (body moves) | **REGENERATES at S6.3** — see §2. Stays byte-free through S6.2/S6.4. |
+| **affine-carve golden** | `tests/gates/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 params: `si_2d_p1_aniso_het` / `krylov_2d_p1_aniso_het` / `si_slab_2g_het`; sha256 of converged `bulk.values` + `phi`; `-O`-safe `raise AssertionError`) | bit-identity (output bytes, end-to-end) | **ALL S6 stages** | **STAYS byte-identical** — S6 does NOT change FP-association of the default path (Fork B1: window stays the d=2 default, scan stays d=1). If S6 ever flips a default, REGENERATE per the scan-march Fork-B2 discipline ([[scan-march-verification]] §G5). For S6.2–S6.5 as designed: byte-identical. |
+| **window≡full SWEEP** | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` (4 cases incl. NON-SQUARE 12×7, 5×9; `np.testing.assert_array_equal`) | bit-identity | **S6.3/S6.4** (the OUTPUT-identity oracle the A2D-1 regen leans on) | **STAYS** — pins `MovingFrontierWindow.loss_action ≡ FullFieldWavefront.loss_action` after the bodies move into representations. |
+| **window≡full MATVEC** | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_matvec_window_equals_full_field_end_to_end` (same 4 cases; bulk residual + boundary-block residual, `assert_array_equal`) | bit-identity | **S6.3** (the matvec OUTPUT oracle) | **STAYS** — this is the test that proves the relocated `_apply_2d_cartesian` body produces byte-identical output. |
+| **window≡full solve/residual (d=1/2/3)** | `tests/gates/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (synthetic shapes incl. non-square (12,7),(5,9) + d=3 (3,2,3),(4,3,2)) | bit-identity | **S6.3/S6.4** | **STAYS** — d-generic window≡full at the graph layer. |
+| **ScanMarch G2.c (residual≡oracle)** | `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::test_scanmarch_residual_equals_oracle` + `::test_scanmarch_sweep_equals_oracle` (`_NULP_BOUND`, NON-SQUARE 12×7/5×9, LS-4, 2G het aniso) | principled-equiv (nulp, cross-schedule) | **S6.2/S6.3** (the renamed `loss_action`) | **STAYS as principled-equiv** — `ScanMarch.loss_action ≡ FullFieldWavefront.loss_action` at nulp. NOT bit-identity (row-march vs anti-diagonal differ at FP-association BY CONSTRUCTION). The renamed gate of S6.8. |
+| **SI≡Krylov≡k_inf (value-ground)** | `tests/gates/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux` + `::test_default_entry_hits_kinf` + `::test_2g_eigenvector` + `::test_homogeneous_exact` | value-ground (closed-form k_inf transfer-matrix; ≥2G) | **ALL S6 stages** (esp. S6.5, both doors must still converge to k_inf) | **STAYS** — the eigenvalue structural ground; ≥2G non-flat (cardinal rule). |
+| **L7 φ=Q/Σ_t d=2** | `tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` (`np.linalg.solve` 2×2) | value-ground | underpins G2.c transitively | **STAYS** (vv §1.5: ULP-distance necessary-never-sufficient). |
+| **L8 k_inf=1.875 d=1** | `tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` | value-ground | underpins G2.c transitively | **STAYS**. |
 
 **Collection-verified this session** (`-O`, `PYTHONPATH=<worktree>`,
 `pytest --collect-only`) — the A2D-1 pin, the 3-case affine golden, the 4-case window≡full
@@ -173,7 +173,7 @@ living inside `_apply_1d`/`_apply_2d_cartesian` and asserted nowhere at the repr
 boundary. S6.3 exposes `loss_action` as the representation's public method returning
 `(L+C)ψ`; pin BOTH halves of `op.apply(ψ) = loss_action(op, ψ) − σ_t·ψ.bulk`.
 
-**File:** NEW `tests/sn/operators/test_loss_action_convention.py` (foundation; `-O`-safe).
+**File:** NEW `tests/gates/sn/operators/test_loss_action_convention.py` (foundation; `-O`-safe).
 
 **Spec (drop-in-ready shape, ≥2G het — vv §1-group-degeneracy + §H2):**
 
@@ -236,7 +236,7 @@ identity (`is`). It MUST FAIL on current code (two `default_for` calls → two i
 PASS after S6.5 — a genuine tripwire, not a tautology.
 
 **File (drop-in-ready, exact path):**
-`tests/sn/operators/test_one_representation_instance.py`
+`tests/gates/sn/operators/test_one_representation_instance.py`
 
 ```python
 r"""S6.5 — the 'one representation instance' discriminating test (#222 capstone).
@@ -267,7 +267,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 # (import the project's standard 2-D Cartesian builders; mirror test_keff_2d / the
 #  _build_2d helper in test_affine_carve_bit_identity.py — fuel|moderator, LS-4, 2G.)
-from tests.sn._fixtures... import build_2d_cartesian_loss_operands  # ← reuse existing builder
+from tests.gates.sn._fixtures... import build_2d_cartesian_loss_operands  # ← reuse existing builder
 
 
 def _build_invertible_2d():
@@ -355,7 +355,7 @@ still looks plausible (the spatial part is right; only the curvilinear angular
 redistribution adjoint is missing).
 
 **EXISTING coverage (NAMED — use it, do NOT write a new numerical reciprocity test):**
-`tests/sn/operators/test_g_adjoint_reciprocity.py::test_g_adjoint_reciprocity_full_block`
+`tests/gates/sn/operators/test_g_adjoint_reciprocity.py::test_g_adjoint_reciprocity_full_block`
 — parametrized over `["slab", "sphere", "cyl", "slab_2g", "sphere_2g"]` (collection-
 verified this session). The **sphere** and **cyl** cases drive `A.H.apply(phi)` through
 `apply_transpose → sweep_strategy.residual_transpose → _apply_1d_transpose →
@@ -401,13 +401,13 @@ loop after the rename. VERIFIED THIS SESSION:
   `LC.apply − Σ gᵢ.apply` (`solver.py:230-257` `_within_group_krylov`). So the load-bearing
   contract is `LC.apply` (the composite `InvertibleOperator.apply` → its `.streaming`
   leaf's `apply` → `loss_action`). The `as_scipy_linop` adapter is exercised by the
-  diffusion BiCGSTAB path + `tests/numerics/test_operator.py`.
+  diffusion BiCGSTAB path + `tests/gates/numerics/test_operator.py`.
 
 **Gate (NAME the existing tests — the round-trip is covered transitively):**
-- **SN Krylov inner:** `tests/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux`
+- **SN Krylov inner:** `tests/gates/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux`
   (drives the GMRES inner via `_within_group_krylov` → `LC.apply` → `loss_action` post-S6).
   This is the load-bearing SN gate (the inner actually runs GMRES on `(L+C−S−B)`).
-- **`as_scipy_linop` adapter itself:** `tests/numerics/test_operator.py` (the adapter's own
+- **`as_scipy_linop` adapter itself:** `tests/gates/numerics/test_operator.py` (the adapter's own
   unit coverage — `CAP_APPLY` requirement, `matvec`=`op.apply`, `rmatvec`=`op.apply_transpose`).
   This pins the adapter contract the rename must not break.
 - **Diffusion BiCGSTAB co-tenant:** the diffusion solver round-trips through the SAME
@@ -416,7 +416,7 @@ loop after the rename. VERIFIED THIS SESSION:
   shared adapter must keep its contract — assert no diffusion regression.)
 
 **S6.7 action:** after the S6.2 rename + S6.3 move, run the Krylov eigenvalue gate
-(`test_keff_2d::test_si_krylov_heterogeneous_2g_nonflat_flux`) + `tests/numerics/test_operator.py`
+(`test_keff_2d::test_si_krylov_heterogeneous_2g_nonflat_flux`) + `tests/gates/numerics/test_operator.py`
 `-O`-green. If green, the round-trip survives the rename. No NEW test required — the
 contract (`op.apply` stable) is already covered; STATE this in the S6.7 commit rather than
 adding a redundant gate.
@@ -449,7 +449,7 @@ adding a redundant gate.
 
 | Stage | Gates that MUST stay green | NEW test(s) turning green | bit-id vs principled | `-O`-safety note |
 | ----- | -------------------------- | ------------------------- | -------------------- | ---------------- |
-| **S6.2** rename `SweepStrategy→SpatialRepresentation`, `residual→loss_action`, `residual_transpose→loss_action_transpose` (bodies still delegate to `_apply_*`) | A2D-1 (UNCHANGED — body not moved yet); affine-carve golden (byte-id); `window≡full` sweep+matvec; ScanMarch G2.c (renamed `loss_action`); SI≡Krylov≡k_inf; `test_g_adjoint_reciprocity` (after Mode-8 fix); `tests/numerics/test_operator.py` | (rename touches every call site; the §4 one-instance test stays `xfail`) | **bit-identity** (pure rename, zero behavior change) | Confirm no NEW bare assert; the renamed gate names update in `test_scan_march_equivalence.py` + `test_2d_full_field_oracle.py` |
+| **S6.2** rename `SweepStrategy→SpatialRepresentation`, `residual→loss_action`, `residual_transpose→loss_action_transpose` (bodies still delegate to `_apply_*`) | A2D-1 (UNCHANGED — body not moved yet); affine-carve golden (byte-id); `window≡full` sweep+matvec; ScanMarch G2.c (renamed `loss_action`); SI≡Krylov≡k_inf; `test_g_adjoint_reciprocity` (after Mode-8 fix); `tests/gates/numerics/test_operator.py` | (rename touches every call site; the §4 one-instance test stays `xfail`) | **bit-identity** (pure rename, zero behavior change) | Confirm no NEW bare assert; the renamed gate names update in `test_scan_march_equivalence.py` + `test_2d_full_field_oracle.py` |
 | **S6.3** move walk OFF operator (`apply = loss_action − σ_t·ψ`); delete `_apply_*`; `loss_action_transpose` carries `closure.angular_adjoint` | affine-carve golden (byte-id, OUTPUT); **`window≡full` MATVEC oracle** (the output-identity proof for the relocated body); ScanMarch G2.c; SI≡Krylov≡k_inf; **`test_g_adjoint_reciprocity` sphere/cyl/sphere_2g** (curvilinear-transpose hazard, §5 — Mode-8-fixed) | **§3 loss_action convention pin** (`(L+C)ψ` + `−C` glue + pure-z + zero-source); **§5 relocation-identity pin** (`loss_action_transpose ≡ _apply_1d_transpose` on sphere) | **A2D-1 source-hash REGENERATES** (§2 — same commit, output-identity via oracle); everything else **bit-identity** (relocation is byte-preserving) | §3/§4/§5 tests `-O`-safe (`np.testing`/`pytest.fail`); MIGRATE `test_g_adjoint_reciprocity` off bare assert FIRST |
 | **S6.4** `_OctantWalk2D` base; `MovingFrontierWindow`+`ScanMarch` provide only `_interior_walk`; retire the two Fork-B1 IOU twins | `window≡full` sweep+matvec (bit-id, the shared frame must be byte-preserving); ScanMarch G2.c; affine-carve golden | (none new — consolidation; the §4 one-instance test still `xfail`) | **bit-identity** (extract-shared-frame refactor); retirement audit = the two IOU notes (`operator.py:1828` + `sweep.py`) gone | grep the IOU comment strings → expect zero; no new asserts |
 
@@ -472,7 +472,7 @@ construction-level proof Smell #16 is closed.
 ---
 
 ## 9. Deselect / standing reds (inherited)
-- **DESELECT** `tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
+- **DESELECT** `tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
   (#212 `continuous_get` hang).
 - Held reds untouched by the 2-D-gated re-layering: **#206** cyl-matvec (deferred
   curvilinear adjoint — note S6.3 routes the curvilinear transpose through
@@ -509,6 +509,6 @@ construction-level proof Smell #16 is closed.
 - `orpheus/numerics/operator.py:1661-1711` — `as_scipy_linop` wraps `op.apply`/`op.apply_transpose` (§6).
 - `orpheus/numerics/iteration.py:755` — `KrylovAcceleration` builds its own `spla.LinearOperator(matvec=A_matvec→LC.apply)` (§6 nuance).
 - `orpheus/sn/solver.py:230-257` — `_within_group_krylov` (`matvec = LC.apply − Σ gᵢ.apply`).
-- `tests/sn/operators/test_streaming_operator.py:1306-1310` — `EXPECTED_SHA256` A2D-1 pin (§2 regen target).
-- `tests/sn/operators/test_g_adjoint_reciprocity.py:191-215` — `test_g_adjoint_reciprocity_full_block` (sphere/cyl curvilinear-transpose coverage; bare assert at :212 — Mode-8, §5).
+- `tests/gates/sn/operators/test_streaming_operator.py:1306-1310` — `EXPECTED_SHA256` A2D-1 pin (§2 regen target).
+- `tests/gates/sn/operators/test_g_adjoint_reciprocity.py:191-215` — `test_g_adjoint_reciprocity_full_block` (sphere/cyl curvilinear-transpose coverage; bare assert at :212 — Mode-8, §5).
 ```

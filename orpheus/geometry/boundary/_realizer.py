@@ -217,7 +217,7 @@ class BoundaryRealizer(Protocol[MethodSpaceT_contra]):
 # ``realize_boundary_law`` → its realizer); this walker is the rank-N
 # composition entry point (the Marshak ``0.3·Reflective + 0.7·White``
 # partial-current BC), exercised by the law-composition wall
-# ``tests/geometry/test_law_composition.py``. Moved here from
+# ``tests/gates/geometry/test_law_composition.py``. Moved here from
 # ``orpheus.sn.boundary`` at #290 P7b, when the second functional
 # realizer (diffusion, #290 P3) made the walk's realizer-genericity
 # real: the walk (LawSum/LawScaled → OperatorSum/ScaledOperator) is

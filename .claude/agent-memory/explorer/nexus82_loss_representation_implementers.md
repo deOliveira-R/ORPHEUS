@@ -87,7 +87,7 @@ i.e. `L` is realised as `(L+C)|_{σ=0}`, not as `(L+C) − C`. The two are equal
 `loss-rep-affine`**, so the equation is still true and still gated — but as the
 *justifying identity*, not as transcribed arithmetic. `grep` for the subtraction returns
 nothing in `orpheus/`. The change is #257 S8b; the gate that pins the new mechanism is
-`tests/sn/operators/test_streaming_operator_decomposition.py::TestPureLIsLossActionAtZeroSigma`,
+`tests/gates/sn/operators/test_streaming_operator_decomposition.py::TestPureLIsLossActionAtZeroSigma`,
 whose docstring records that this class once pinned *the opposite*.
 
 Stale prose that inherits it (all present-tense-false): `loss_representation/__init__.py`

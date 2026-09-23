@@ -101,7 +101,7 @@ or `boundary="white_hebert"` (cyl rank-1, scalar Hébert).
   - `compute_T_specular_sphere(radii, sig_t, N, n_quad=64)` (~95 lines)
   - `closure="specular_multibounce"` dispatch (~95 lines, sphere-only)
   - Updated error message at end of `_build_full_K_per_group`
-- `tests/derivations/test_peierls_specular_bc.py`:
+- `tests/gates/derivations/test_peierls_specular_bc.py`:
   - `thin_sphere_fuelA_like_1G` fixture
   - `test_specular_multibounce_rank1_equals_hebert` (PASS)
   - `test_specular_multibounce_thin_sphere_lifts_plateau` (PASS)

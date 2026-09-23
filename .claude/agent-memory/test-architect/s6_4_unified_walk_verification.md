@@ -146,16 +146,16 @@ session). Class: **bit-identity** (free inheritance) | **value-ground**
 
 | Anchor | File::test (worktree-relative) | Class | Gates sub-step | Why load-bearing for S6.4 |
 | ------ | ------------------------------ | ----- | -------------- | ------------------------- |
-| **window≡full SWEEP** | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` (4 cases incl. NON-SQUARE 12×7, 5×9; `np.testing.assert_array_equal` of angular + scalar + moment) | bit-identity | **(b),(c),(d)** | **THE proof the kernel-parameterized walk reproduces the SWEEP direction.** After `sweep_octant_group`'s frame moves into `_OctantWalk2D`, this must stay byte-identical. NON-SQUARE catches an x↔y swap in the shared walk (a SQUARE octant snapshot is x↔y-blind, [[phase5a_5c_angular_windowing_lessons]] THE TRAP analogue). |
-| **window≡full MATVEC** | `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_matvec_window_equals_full_field_end_to_end` (same 4 cases; bulk residual + boundary-block residual, `assert_array_equal`) | bit-identity | **(a),(c),(d)** | **THE proof the shared walk reproduces the MATVEC direction.** After the window/full-field matvec octant frames move into `_OctantWalk2D`, byte-identical. The output-identity oracle the A2D-1 regen leans on (§2). |
-| **sweep-graph window≡full d1/d2/d3** | `tests/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (shapes incl. NON-SQUARE (16,64),(12,7),(5,9) + synthetic d=3 (3,2,3),(4,3,2)) | bit-identity | **(c),(d)** | d-generic window≡full at the GRAPH layer — pins the DAG-cache move (§3) produces byte-identical graphs. The d=3 synthetic admission proves `_OctantWalk2D` ⊕ DAG-cache stays general (no d=2 hardcode crept in). |
-| **ScanMarch G2.c** | `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::test_scanmarch_residual_equals_oracle` + `::test_scanmarch_sweep_equals_oracle` + `::test_scanmarch_moment_equals_window` (`_NULP_BOUND`, NON-SQUARE 12×7/5×9, LS-4, 2G het aniso) | principled-equiv (nulp, cross-schedule) | **(a),(b),(c),(d)** | `ScanMarch.{loss_action,sweep} ≡ FullFieldWavefront` at nulp. When the scanmarch octant frame + boundary block move into `_OctantWalk2D` (the row-march interior walk stays the scanmarch `_interior_walk`), this stays nulp-green. NOT bit-id (FP-association by construction). |
-| **affine-carve golden** | `tests/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 params `si_2d_p1_aniso_het`/`krylov_2d_p1_aniso_het`/`si_slab_2g_het`; sha256 of converged `bulk.values`+`phi`; `-O`-safe `raise`) | bit-identity (end-to-end output) | **ALL** | End-to-end converged-flux byte-identity. S6.4 forks no default → byte-identical. If ever flips a default, REGENERATE per the Fork-B2 discipline ([[scan-march-verification]] §G5). |
-| **SI≡Krylov≡k_inf** | `tests/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux` + `::test_default_entry_hits_kinf` + `::test_2g_eigenvector` + `::test_homogeneous_exact` | value-ground (closed-form k_inf transfer-matrix; ≥2G non-flat) | **ALL** (the eigenvalue ground; both sweep + matvec converge to k_inf) | The structurally-independent VALUE the bit-identity oracles inherit from (vv §1.5: ULP-distance necessary-never-sufficient). |
-| **loss_action convention pin** | `tests/sn/operators/test_loss_action_convention.py::test_loss_action_is_full_loss_LpC_flat_reflective` + `::test_apply_equals_loss_action_minus_independent_collision_het` (`[slab_2g]`,`[cart2d_2g]`) | value-ground + bit-identity glue | **(a),(b)** | Pins `loss_action` returns `(L+C)ψ` (NOT `L·ψ`) and `op.apply = loss_action − σ_t·ψ.bulk`. The shared walk MUST preserve this convention — `cart2d_2g` drives the 2-D octant frame the carve touches. |
-| **L7 φ=Q/Σ_t d=2** | `tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` | value-ground | underpins G2.c transitively | STAYS. |
-| **L8 k_inf=1.875 d=1** | `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` | value-ground | underpins G2.c transitively | STAYS. |
-| **A2D-1 source-hash** | `tests/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` (`sha256(getsource(MovingFrontierWindow.loss_action))`, `:1321/:1333`) | bit-identity (source text) | **(a)** (body moves) | **REGENERATES at (a)** — see §2 + the RETIRE recommendation. |
+| **window≡full SWEEP** | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_sweep_window_equals_full_field_end_to_end` (4 cases incl. NON-SQUARE 12×7, 5×9; `np.testing.assert_array_equal` of angular + scalar + moment) | bit-identity | **(b),(c),(d)** | **THE proof the kernel-parameterized walk reproduces the SWEEP direction.** After `sweep_octant_group`'s frame moves into `_OctantWalk2D`, this must stay byte-identical. NON-SQUARE catches an x↔y swap in the shared walk (a SQUARE octant snapshot is x↔y-blind, [[phase5a_5c_angular_windowing_lessons]] THE TRAP analogue). |
+| **window≡full MATVEC** | `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py::test_matvec_window_equals_full_field_end_to_end` (same 4 cases; bulk residual + boundary-block residual, `assert_array_equal`) | bit-identity | **(a),(c),(d)** | **THE proof the shared walk reproduces the MATVEC direction.** After the window/full-field matvec octant frames move into `_OctantWalk2D`, byte-identical. The output-identity oracle the A2D-1 regen leans on (§2). |
+| **sweep-graph window≡full d1/d2/d3** | `tests/gates/sn/sweep/core/test_sweep_graph_window_equivalence.py::test_solve_window_equals_full_field` + `::test_residual_window_equals_full_field` (shapes incl. NON-SQUARE (16,64),(12,7),(5,9) + synthetic d=3 (3,2,3),(4,3,2)) | bit-identity | **(c),(d)** | d-generic window≡full at the GRAPH layer — pins the DAG-cache move (§3) produces byte-identical graphs. The d=3 synthetic admission proves `_OctantWalk2D` ⊕ DAG-cache stays general (no d=2 hardcode crept in). |
+| **ScanMarch G2.c** | `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::test_scanmarch_residual_equals_oracle` + `::test_scanmarch_sweep_equals_oracle` + `::test_scanmarch_moment_equals_window` (`_NULP_BOUND`, NON-SQUARE 12×7/5×9, LS-4, 2G het aniso) | principled-equiv (nulp, cross-schedule) | **(a),(b),(c),(d)** | `ScanMarch.{loss_action,sweep} ≡ FullFieldWavefront` at nulp. When the scanmarch octant frame + boundary block move into `_OctantWalk2D` (the row-march interior walk stays the scanmarch `_interior_walk`), this stays nulp-green. NOT bit-id (FP-association by construction). |
+| **affine-carve golden** | `tests/gates/sn/solve/test_affine_carve_bit_identity.py::test_converged_flux_bit_identical_after_affine_carve` (3 params `si_2d_p1_aniso_het`/`krylov_2d_p1_aniso_het`/`si_slab_2g_het`; sha256 of converged `bulk.values`+`phi`; `-O`-safe `raise`) | bit-identity (end-to-end output) | **ALL** | End-to-end converged-flux byte-identity. S6.4 forks no default → byte-identical. If ever flips a default, REGENERATE per the Fork-B2 discipline ([[scan-march-verification]] §G5). |
+| **SI≡Krylov≡k_inf** | `tests/gates/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux` + `::test_default_entry_hits_kinf` + `::test_2g_eigenvector` + `::test_homogeneous_exact` | value-ground (closed-form k_inf transfer-matrix; ≥2G non-flat) | **ALL** (the eigenvalue ground; both sweep + matvec converge to k_inf) | The structurally-independent VALUE the bit-identity oracles inherit from (vv §1.5: ULP-distance necessary-never-sufficient). |
+| **loss_action convention pin** | `tests/gates/sn/operators/test_loss_action_convention.py::test_loss_action_is_full_loss_LpC_flat_reflective` + `::test_apply_equals_loss_action_minus_independent_collision_het` (`[slab_2g]`,`[cart2d_2g]`) | value-ground + bit-identity glue | **(a),(b)** | Pins `loss_action` returns `(L+C)ψ` (NOT `L·ψ`) and `op.apply = loss_action − σ_t·ψ.bulk`. The shared walk MUST preserve this convention — `cart2d_2g` drives the 2-D octant frame the carve touches. |
+| **L7 φ=Q/Σ_t d=2** | `tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` | value-ground | underpins G2.c transitively | STAYS. |
+| **L8 k_inf=1.875 d=1** | `tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py::test_cumprod_path_hits_analytical_kinf` | value-ground | underpins G2.c transitively | STAYS. |
+| **A2D-1 source-hash** | `tests/gates/sn/operators/test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin::test_apply_2d_cartesian_source_hash_unchanged` (`sha256(getsource(MovingFrontierWindow.loss_action))`, `:1321/:1333`) | bit-identity (source text) | **(a)** (body moves) | **REGENERATES at (a)** — see §2 + the RETIRE recommendation. |
 
 The two `window≡full` oracles (SWEEP + MATVEC) are the LOAD-BEARING pair: they prove
 the ONE kernel-parameterized walk reproduces BOTH directions byte-for-byte. Every
@@ -223,7 +223,7 @@ mesh-SHAPE by an accessor the family OWNS. VERIFIED only `_DAGWavefront` uses it
 
 ### (a) Structural test — the mesh no longer exposes `sweep_graphs` (illegal-states-unrepresentable)
 
-**File:** NEW `tests/sn/geometry/test_dag_ownership.py` (foundation; `-O`-safe).
+**File:** NEW `tests/gates/sn/geometry/test_dag_ownership.py` (foundation; `-O`-safe).
 
 ```python
 @pytest.mark.foundation
@@ -334,7 +334,7 @@ It MUST FAIL on current 3×-duplicated code and PASS after the carve — a genui
 tripwire, NOT a tautology. Two designs; ship the SPY (it directly observes the
 "one walk" claim).
 
-**File (drop-in, exact path):** `tests/sn/operators/test_one_octant_walk.py`
+**File (drop-in, exact path):** `tests/gates/sn/operators/test_one_octant_walk.py`
 
 ```python
 r"""S6.4 — the 'one walk' discriminating test (#222).
@@ -359,7 +359,7 @@ import pytest
 
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
-from tests.sn._fixtures... import build_2d_cartesian_loss_operands  # reuse the affine-golden builder
+from tests.gates.sn._fixtures... import build_2d_cartesian_loss_operands  # reuse the affine-golden builder
 
 
 @pytest.mark.foundation
@@ -442,8 +442,8 @@ Beyond the end-to-end oracles, add a CHEAP per-sub-step pin that the body did NO
 change when it moved into `_OctantWalk2D` — a direct equivalence at the
 representation boundary on a het-aniso ≥2G config (Mode-9: NOT the degenerate box).
 
-**File:** extend `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py` (the
-oracle home) OR a new `tests/sn/operators/test_octant_walk_relocation.py`.
+**File:** extend `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py` (the
+oracle home) OR a new `tests/gates/sn/operators/test_octant_walk_relocation.py`.
 
 ```python
 @pytest.mark.foundation
@@ -484,7 +484,7 @@ CONSTRAINT (the brief; the boolean-flag anti-pattern, `coding-elegance` Smell #3
 `apply_windowed`/`residual_windowed`/the row-march scan) + an EMIT policy, **NOT a
 boolean `is_solve` flag**. Gate the design so the carve cannot degrade into a flag.
 
-**File:** `tests/sn/operators/test_one_octant_walk.py` (same file as §4).
+**File:** `tests/gates/sn/operators/test_one_octant_walk.py` (same file as §4).
 
 ```python
 @pytest.mark.foundation
@@ -576,7 +576,7 @@ green is the construction-level proof the lockstep duplication is closed.
 ---
 
 ## 9. Deselect / standing reds (inherited)
-- **DESELECT** `tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
+- **DESELECT** `tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
   (#212 `continuous_get` hang).
 - Held reds untouched by the 2-D-Cartesian octant-frame carve: **#206** cyl-matvec
   (deferred curvilinear adjoint — S6.4 does NOT touch the curvilinear 1-D
@@ -608,13 +608,13 @@ green is the construction-level proof the lockstep duplication is closed.
 - `orpheus/sn/sweep.py:1451` — `_sweep_full_field` (oracle sweep counterpart).
 - `orpheus/sn/spatial/diamond.py:273` — `cell_kernel_batch` (SOLVE kernel); `:331` — `residual_kernel_batch` (APPLY kernel). The fork point.
 - `orpheus/sn/geometry.py:343` (cyl) + `:350` (sph) — `self.sweep_graphs = None` (the None-slot S6.4 removes); `:1377` — the Cartesian DAG build (moves to the family accessor).
-- `tests/sn/operators/test_streaming_operator.py:1321/:1333` — A2D-1 `EXPECTED_SHA256` on `getsource(MovingFrontierWindow.loss_action)` (§2 retire/retarget target).
-- `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py:77/:101` — window≡full SWEEP + MATVEC oracles (4 cases incl. NON-SQUARE 12×7/5×9).
-- `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:93/:118/:168` — ScanMarch G2.c (sweep/moment/residual ≡ oracle, nulp).
-- `tests/sn/sweep/core/test_sweep_graph_window_equivalence.py:197/:219` — sweep-graph window≡full solve/residual d1/d2/d3 (synthetic admission).
-- `tests/sn/solve/test_affine_carve_bit_identity.py:148` — the end-to-end sha256 golden (3 params).
-- `tests/sn/operators/test_loss_action_convention.py` — `[slab_2g]`/`[cart2d_2g]` the `(L+C)ψ` + `−C` glue pin (§1).
-- `tests/sn/operators/test_g_adjoint_reciprocity.py:210+` — the curvilinear reciprocity sentinel (Mode-8-fixed at S6.3a; stays as regression, NOT re-carved by S6.4).
+- `tests/gates/sn/operators/test_streaming_operator.py:1321/:1333` — A2D-1 `EXPECTED_SHA256` on `getsource(MovingFrontierWindow.loss_action)` (§2 retire/retarget target).
+- `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py:77/:101` — window≡full SWEEP + MATVEC oracles (4 cases incl. NON-SQUARE 12×7/5×9).
+- `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py:93/:118/:168` — ScanMarch G2.c (sweep/moment/residual ≡ oracle, nulp).
+- `tests/gates/sn/sweep/core/test_sweep_graph_window_equivalence.py:197/:219` — sweep-graph window≡full solve/residual d1/d2/d3 (synthetic admission).
+- `tests/gates/sn/solve/test_affine_carve_bit_identity.py:148` — the end-to-end sha256 golden (3 params).
+- `tests/gates/sn/operators/test_loss_action_convention.py` — `[slab_2g]`/`[cart2d_2g]` the `(L+C)ψ` + `−C` glue pin (§1).
+- `tests/gates/sn/operators/test_g_adjoint_reciprocity.py:210+` — the curvilinear reciprocity sentinel (Mode-8-fixed at S6.3a; stays as regression, NOT re-carved by S6.4).
 
 ---
 
@@ -666,7 +666,7 @@ the load-time import cycle) is sub-step (f).
 `loss_representation.py:501`, `diamond.py` def-site docstrings, and the
 **`cell_update.py:777-779` round-trip-contract example is a DOCSTRING, NOT a
 runtime consumer** — confirmed by reading the surrounding `residual_batch`
-docstring). TEST call sites: `tests/sn/sweep/core/test_cell_update_batch.py` (15+
+docstring). TEST call sites: `tests/gates/sn/sweep/core/test_cell_update_batch.py` (15+
 direct `DiamondDifference().update_batch(...)` / `.residual_batch(...)` calls),
 `test_sweep_graph.py`, `test_sweep_graph_nd_admission.py`,
 `test_streaming_operator.py`. So the brief's "(e) makes the CellUpdate override
@@ -802,7 +802,7 @@ the parameterized walk via `inspect.getsource`). `-O`-safe (`pytest.fail`).
 
 | Gate | Mechanism | Pass condition |
 | ---- | --------- | -------------- |
-| Clean collection under `-O` | `python -O -m pytest --collect-only tests/sn` | exit 0, zero ImportError/collection errors |
+| Clean collection under `-O` | `python -O -m pytest --collect-only tests/gates/sn` | exit 0, zero ImportError/collection errors |
 | **Zero `from orpheus.sn.sweep import` survivors** (grep-gate) | `grep -rn "from orpheus.sn.sweep import\|orpheus\.sn\.sweep\." orpheus/ tests/` (excl. `sweep.py` if a thin re-export shim is kept ≤1 merge cycle) | zero in `orpheus/` PRODUCTION; tests rewired to `spatial/scan` + `loss_representation` homes |
 | Full anchor set green | window≡full SWEEP+MATVEC, sweep-graph window≡full d1/d2/d3, ScanMarch G2.c, affine-carve golden sha256, SI≡Krylov≡k_inf, loss_action convention pin, the §4 one-walk SPY (now imports `_OctantWalk` from its NEW home in `loss_representation.py`) | all green, byte-identical (relocation preserves FP-reduction tree exactly) |
 | Sphinx `:func:`/`:mod:` roles updated | rebuild `sphinx-build docs docs/_build/html -W` | clean build, zero "py:func reference target not found" for relocated symbols |

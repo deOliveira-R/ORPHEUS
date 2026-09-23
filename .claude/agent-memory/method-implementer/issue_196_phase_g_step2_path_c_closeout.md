@@ -161,7 +161,7 @@ vs principled-equivalence":**
 
 `xfail(strict=True)` marker REMOVED from
 `test_phase_e_trajectory_resolvent_flux_shape_crosscheck` in
-`tests/sn/test_phase_c_crosscheck.py`.  The test now compares
+`tests/gates/sn/test_phase_c_crosscheck.py`.  The test now compares
 the regenerated SN snapshot flux shape against Variant α at
 `rtol_per_cell ∈ {8e-2, 1.2e-1}` (the post-Phase-E budgets).
 
@@ -171,13 +171,13 @@ the regenerated SN snapshot flux shape against Variant α at
 |---|---|---|
 | `orpheus/sn/sweep.py` | 469-595 | spherical sweep: Carlson seed source fix (`Q_bar = 0.5 · Σ_t · φ_0_prev`) + pole-face IC fix (`ψ_face_in = ψ_pole_prev[n]` on outward sweeps from i=0) + `psi_bc` cache update at sweep return. |
 | `orpheus/sn/sweep.py` | 678-779 | cylindrical sweep: analogous Carlson seed source + per-level pole-face IC fixes; cache keyed `psi_pole_cyl` / `phi_0_prev_cyl` to avoid collision with spherical. |
-| `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py` | NEW 232 lines | L0 streaming-equilibrium gauntlet (sphere 12 cases + cylinder 12 cases + Pomraning pole 2 cases) tagged `@pytest.mark.l0 @pytest.mark.verifies("hebert-3-432") @pytest.mark.catches("ERR-048")`. |
-| `tests/sn/test_phase_c_crosscheck.py` | 608-638 | removed `xfail(strict=True)` decorator from `test_phase_e_trajectory_resolvent_flux_shape_crosscheck`. |
-| `tests/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
-| `tests/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz` | REGENERATED | corrected SI fixed point. |
-| `tests/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
-| `tests/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
-| `tests/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz` | REGENERATED | corrected SI fixed point. |
+| `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py` | NEW 232 lines | L0 streaming-equilibrium gauntlet (sphere 12 cases + cylinder 12 cases + Pomraning pole 2 cases) tagged `@pytest.mark.l0 @pytest.mark.verifies("hebert-3-432") @pytest.mark.catches("ERR-048")`. |
+| `tests/gates/sn/test_phase_c_crosscheck.py` | 608-638 | removed `xfail(strict=True)` decorator from `test_phase_e_trajectory_resolvent_flux_shape_crosscheck`. |
+| `tests/gates/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
+| `tests/gates/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz` | REGENERATED | corrected SI fixed point. |
+| `tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
+| `tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz` | REGENERATED | corrected SI fixed point. |
+| `tests/gates/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz` | REGENERATED | corrected SI fixed point. |
 | `.claude/skills/vv-principles/error_catalog.md` | NEW ERR-048 + ERR-026 row 7 update | full catalog entry per the standard template; ERR-026 manifestation table updated to show #6 + #7 closed. |
 
 ## Decisions
@@ -266,7 +266,7 @@ the regenerated SN snapshot flux shape against Variant α at
 ## Pointers
 
 - Production code: `orpheus/sn/sweep.py:469-595, 678-779`
-- L0 streaming-equilibrium gauntlet: `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+- L0 streaming-equilibrium gauntlet: `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py`
 - Isolation diagnostic: `derivations/diagnostics/diag_phase_g_step2_two_bugs_isolation.py`
 - Symbolic walkthrough: `.claude/agent-memory/numerics-investigator/issue_196_phase_g_step2_minimal_reproducer.md`
 - Literature anchor: `.claude/agent-memory/literature-researcher/morel_1989_si_vs_apply_equivalence.md`

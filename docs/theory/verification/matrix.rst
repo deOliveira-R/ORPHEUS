@@ -114,6 +114,7 @@ Module × level grid
    cp/test_sphere, 0, 9, 0, 0, 0, 0
    cp/test_sphere_pss, 22, 0, 0, 0, 0, 0
    cp/test_verification, 4, 25, 5, 0, 0, 0
+   cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
@@ -559,7 +560,6 @@ Module × level grid
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
-   test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 6, 0
@@ -1622,11 +1622,11 @@ taxonomy.
    :header: File, Unmarked tests
    :widths: 60, 10
 
-   ``tests/numerics/test_riesz_legs.py``, 8
-   ``tests/numerics/test_frame.py``, 5
-   ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
-   ``tests/numerics/test_iteration_record.py``, 4
-   ``tests/numerics/test_symmetry.py``, 2
-   ``tests/sn/sweep/core/test_cache.py``, 2
-   ``tests/sn/angular/test_redistribution.py``, 1
+   ``tests/gates/numerics/test_riesz_legs.py``, 8
+   ``tests/gates/numerics/test_frame.py``, 5
+   ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, 5
+   ``tests/gates/numerics/test_iteration_record.py``, 4
+   ``tests/gates/numerics/test_symmetry.py``, 2
+   ``tests/gates/sn/sweep/core/test_cache.py``, 2
+   ``tests/gates/sn/angular/test_redistribution.py``, 1
 

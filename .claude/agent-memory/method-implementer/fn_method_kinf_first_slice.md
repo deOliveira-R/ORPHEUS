@@ -68,7 +68,7 @@ medium, problem 44) from Sood/Forster/Parsons LA-13511 (1999).
 
 ### Tests
 
-* `tests/derivations/test_fn_la13511_kinf.py` (250 LoC, 17 tests)
+* `tests/gates/derivations/test_fn_la13511_kinf.py` (250 LoC, 17 tests)
   — All tests `@pytest.mark.foundation`. Test-class breakdown:
   - 7 Branch-1 SymPy gates (one per `derive_*`).
   - 3 Branch-2 reference-value gates (PUa-1-0-IN k_inf, PU-2-0-IN
@@ -241,7 +241,7 @@ benefit `algebra-of-record` claims.
 ## Manifest check
 
 - [x] Branch-1 SymPy module under `orpheus/derivations/continuous/fn_method/origins/`
-- [x] Foundation-tagged test gate at `tests/derivations/test_fn_la13511_kinf.py`
+- [x] Foundation-tagged test gate at `tests/gates/derivations/test_fn_la13511_kinf.py`
 - [x] Branch-2 production solver at `orpheus/derivations/continuous/fn_method/multi_group/`
 - [x] L1 cross-check test against `kinf_homogeneous` (structurally
       independent — Eq 76 closed form vs eigvals of A^{-1}F)

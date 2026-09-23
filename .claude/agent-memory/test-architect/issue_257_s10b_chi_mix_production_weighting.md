@@ -64,7 +64,7 @@ required. Audit trail (HEAD 1d4df67):
     byte-identity, NOT a value change).
 - `pwr_like_mix` consumers: **zero** (grep `pwr_like_mix` across
   `tests/ orpheus/` returns only its `def`).
-- `uo2_fuel` consumers: exactly one — `tests/sn/operators/test_solver_components.py:556`
+- `uo2_fuel` consumers: exactly one — `tests/gates/sn/operators/test_solver_components.py:556`
   inside the `solver_421g` fixture. That fixture feeds ONLY
   `TestPerformanceBaseline::test_profile_421g` (and `test_profile_components`
   uses `solver_2g`, not 421g). `test_profile_421g` is a PROFILING test:
@@ -73,7 +73,7 @@ required. Audit trail (HEAD 1d4df67):
   never has its converged value pinned.
 - `examples/` demos call recipes but `pyproject.toml` sets
   `testpaths = ["tests"]` → examples are NEVER pytest-collected → no pin.
-- `tests/data/test_cross_section_data.py` imports only `_AMU_TO_G` /
+- `tests/gates/data/test_cross_section_data.py` imports only `_AMU_TO_G` /
   `_number_density` from `recipes` (the number-density helper) — no
   multi-fissile recipe, no χ pin.
 
@@ -96,7 +96,7 @@ be the sole re-baseline candidate. Treat the EMPTY list as
 
 ## Gates (5)
 
-Test file: `tests/data/test_chi_mix_production_weighting.py`
+Test file: `tests/gates/data/test_chi_mix_production_weighting.py`
 (`@pytest.mark.foundation` — the convex-average law has NO theory
 `:label:`; foundation carries NO `verifies(...)` per [[feedback_vv_tagging]]).
 The simplex-preservation interlock (gate 1) REUSES S10a's
@@ -257,22 +257,22 @@ VALUE on single-fissile/synthetic fixtures — those use xs_library
 
 ```
 .venv/bin/python -O -m pytest \
-  tests/data/test_chi_mix_production_weighting.py \
-  tests/data/test_chi_invariant_enforcement.py \
-  tests/data/test_emission_spectrum.py \
-  tests/data/test_mixture.py \
-  tests/data/test_cross_section_data.py \
-  tests/sn/operators/test_fission_operator.py \
-  tests/sn/operators/test_fission_kernel_crosscheck.py \
-  tests/sn/verification/analytical/test_kinf_homogeneous.py \
-  tests/sn/regression/test_dd_regression.py \
+  tests/gates/data/test_chi_mix_production_weighting.py \
+  tests/gates/data/test_chi_invariant_enforcement.py \
+  tests/gates/data/test_emission_spectrum.py \
+  tests/gates/data/test_mixture.py \
+  tests/gates/data/test_cross_section_data.py \
+  tests/gates/sn/operators/test_fission_operator.py \
+  tests/gates/sn/operators/test_fission_kernel_crosscheck.py \
+  tests/gates/sn/verification/analytical/test_kinf_homogeneous.py \
+  tests/gates/sn/regression/test_dd_regression.py \
   -p no:cacheprovider \
   -k "not (sphere_1g_apply_bit_identical or sphere_2g_apply_bit_identical)"
 ```
 
 - The `-k` excludes the 5 stale SPHERE snapshots (#250, main baseline-red
   w/ #232).
-- If the keff suite is widened: `--deselect tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
+- If the keff suite is widened: `--deselect tests/gates/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff`
   (#212 `continuous_get` hang).
 - These reds are PRE-EXISTING on the branch (NOT S10b) — confirm at
   clean HEAD before crediting any red to S10b.

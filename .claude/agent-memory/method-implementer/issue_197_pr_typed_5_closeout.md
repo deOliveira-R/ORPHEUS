@@ -23,7 +23,7 @@ return.").
 | `SNFixedSourceResult` + `SNResult` RETIRED | DONE | grep returns no class hits |
 | `dataclass` import dropped from `solver.py` | DONE | line 34 |
 | `__init__.py` re-exports updated | DONE | `orpheus/sn/__init__.py` exports `Solution`, `IterationHistory`, `SolutionDiff` |
-| Foundation tests | DONE | `tests/sn/test_solution.py` (31 tests) |
+| Foundation tests | DONE | `tests/gates/sn/test_solution.py` (31 tests) |
 | Test fixture migration (`result.scalar_flux` → `.values`) | DONE | 18 SN test files migrated via sed |
 | Legacy `result.keff_history` accessor preserved (property) | DONE | `solution.py` — `Solution.keff_history` returns `list[float]` |
 | Sphinx narrative update | DONE | `docs/theory/index_convention.rst` — "Iteration state" + "Solution-class container" sections rewritten |
@@ -56,7 +56,7 @@ the brief's 300-500 LoC budget for production code.
 ### §3.1 New foundation tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_solution.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_solution.py -q
 ...............................                                          [100%]
 31 passed, 1 warning in 0.35s
 ```
@@ -86,7 +86,7 @@ Test class coverage:
 ### §3.2 Regression suite
 
 ```
-$ .venv/bin/python -m pytest tests/sn/regression/ -q
+$ .venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ...........                                                              [100%]
 11 passed, 3 warnings in 71.79s
 ```
@@ -99,7 +99,7 @@ zero-flux iterations (unrelated to PR-TYPED-5).
 ### §3.3 Typed-fields + scattering operator tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_typed_fields.py tests/sn/test_typed_sources.py tests/sn/test_harmonic_moment_field.py tests/sn/test_scattering_operator.py tests/sn/test_legendre_moment_scattering.py tests/sn/test_streaming_operator.py tests/sn/test_collision_operator.py tests/sn/test_streaming_operator_decomposition.py tests/sn/test_snstreamingoperator.py tests/sn/test_unified_sweep_dispatch.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/test_typed_fields.py tests/gates/sn/test_typed_sources.py tests/gates/sn/test_harmonic_moment_field.py tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_legendre_moment_scattering.py tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_collision_operator.py tests/gates/sn/test_streaming_operator_decomposition.py tests/gates/sn/test_snstreamingoperator.py tests/gates/sn/test_unified_sweep_dispatch.py -q
 .....................................................................   [100%]
 285 passed, 1 warning in 1.51s
 ```
@@ -110,7 +110,7 @@ field, source, scattering, or streaming-operator contracts.
 ### §3.4 Solver-components + 2D-octant tests
 
 ```
-$ .venv/bin/python -m pytest tests/sn/test_solver_components.py tests/sn/test_2d_octant_sweep_equivalence.py -q --deselect tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference
+$ .venv/bin/python -m pytest tests/gates/sn/test_solver_components.py tests/gates/sn/test_2d_octant_sweep_equivalence.py -q --deselect tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference
 ...............................................                          [100%]
 47 passed, 1 deselected, 1 warning in 241.69s (0:04:01)
 ```
@@ -122,7 +122,7 @@ pre-existing failure carried over from PR-TYPED-4 (shape mismatch in
 ### §3.5 Sweep-cache (Picard convergence diagnostic)
 
 ```
-$ .venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py -q
+$ .venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py -q
 ...                                                                       [100%]
 1 skipped, ... passed
 ```
@@ -183,7 +183,7 @@ discrimination contract (`is_eigenvalue` vs `is_fixed_source`).
     property: `keff_history` returns `list[float]` (one-cycle compat).
   - `SolutionDiff` — `keff_abs: float | None`, `angular_flux_linf`,
     `scalar_flux_linf`, `within_tolerance: bool`.
-- **`tests/sn/test_solution.py`** (~370 LoC, 31 tests) — foundation-
+- **`tests/gates/sn/test_solution.py`** (~370 LoC, 31 tests) — foundation-
   tagged contract tests covering construction, mesh-identity contract,
   discrimination, diagnostics, reaction-rate math, comparison.
 
@@ -212,31 +212,31 @@ The pattern `result.scalar_flux[...]` / `result.scalar_flux.mean(...)`
 becomes `result.scalar_flux.values[...]` / `.mean()` / etc. Same for
 `angular_flux`. 18 files migrated via sed pass:
 
-- `tests/sn/test_mms_curvilinear.py`
-- `tests/sn/test_spherical.py`
-- `tests/sn/test_solver_components.py`
-- `tests/sn/test_phase_c_mms.py`
-- `tests/sn/test_2d_octant_sweep_equivalence.py`
-- `tests/sn/test_heterogeneous_transport.py`
-- `tests/sn/test_mms.py`
-- `tests/sn/test_properties.py`
-- `tests/sn/test_mms_2d.py`
-- `tests/sn/test_cylindrical.py`
-- `tests/sn/l1_analytical/test_kinf_homogeneous.py`
-- `tests/sn/test_mms_heterogeneous.py`
-- `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
-- `tests/sn/test_mms_aniso.py`
-- `tests/sn/regression/_generate_snapshots.py`
-- `tests/sn/regression/test_dd_regression.py`
-- `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
-- `tests/sn/spatial/test_sweep_cache.py`
+- `tests/gates/sn/test_mms_curvilinear.py`
+- `tests/gates/sn/test_spherical.py`
+- `tests/gates/sn/test_solver_components.py`
+- `tests/gates/sn/test_phase_c_mms.py`
+- `tests/gates/sn/test_2d_octant_sweep_equivalence.py`
+- `tests/gates/sn/test_heterogeneous_transport.py`
+- `tests/gates/sn/test_mms.py`
+- `tests/gates/sn/test_properties.py`
+- `tests/gates/sn/test_mms_2d.py`
+- `tests/gates/sn/test_cylindrical.py`
+- `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py`
+- `tests/gates/sn/test_mms_heterogeneous.py`
+- `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
+- `tests/gates/sn/test_mms_aniso.py`
+- `tests/gates/sn/regression/_generate_snapshots.py`
+- `tests/gates/sn/regression/test_dd_regression.py`
+- `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+- `tests/gates/sn/spatial/test_sweep_cache.py`
 
 Files NOT migrated (unaffected):
-- `tests/moc/test_*.py` — these use `MoCResult`, distinct from
+- `tests/gates/moc/test_*.py` — these use `MoCResult`, distinct from
   `Solution`.
 - `orpheus/plotting.py` — handles `MoCResult` and `MCResult`,
   unaffected.
-- `tests/sn/test_phase_c_crosscheck.py` — uses `result.keff` only.
+- `tests/gates/sn/test_phase_c_crosscheck.py` — uses `result.keff` only.
 
 ### §4.4 Modified docs
 
@@ -554,7 +554,7 @@ result.scalar_flux → result.scalar_flux.values (and likewise for
 angular_flux). The pattern is uniform; .values is the canonical raw-
 data accessor on the typed field.
 
-31 new foundation tests in tests/sn/test_solution.py cover the typed
+31 new foundation tests in tests/gates/sn/test_solution.py cover the typed
 return contract: mesh-identity rejection (3 cases), discrimination
 (is_eigenvalue vs is_fixed_source), dominance_ratio math (single /
 multiple / zero-prev), convergence flag delegation, keff_history_list

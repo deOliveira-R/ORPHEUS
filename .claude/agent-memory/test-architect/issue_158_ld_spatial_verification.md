@@ -10,8 +10,8 @@ metadata:
 > **ORIENTATION (2026-06-14).** Increment A has LANDED on
 > `feature/sn-space-angle-tier2` (HEAD `3f0cbc2`; LD module
 > `orpheus/sn/spatial/linear_discontinuous.py`, gate-1
-> `tests/sn/spatial/test_linear_discontinuous.py`, MMS gate
-> `tests/sn/verification/mms/test_mms_ld_slab.py`). The §below "INCREMENT A
+> `tests/gates/sn/spatial/test_linear_discontinuous.py`, MMS gate
+> `tests/gates/sn/verification/mms/test_mms_ld_slab.py`). The §below "INCREMENT A
 > SHIPPED" reconciles what landed vs the original plan. The Increment-B
 > section (the affine-scan bonus) is the CURRENT pre-impl deliverable — read
 > it FIRST if you are gating Increment B. The original pre-impl plan (the
@@ -46,7 +46,7 @@ What landed vs the original 5-gate plan (read before extending):
   through the high-level driver — NO direct `SNMesh`/`SNSolver`
   construction needed (my original skeleton's workaround is obsolete).
 - **Gate 1 (round-trip + linear-exactness) shipped + STRENGTHENED.** The
-  shipped `tests/sn/spatial/test_linear_discontinuous.py` adds a
+  shipped `tests/gates/sn/spatial/test_linear_discontinuous.py` adds a
   `TestLDLinearExactness` oracle I did not spec: LD reproduces ψ=a+bx to
   machine precision (cell-avg AND outflow). This is the
   structurally-independent correctness gate that catches the LM-1989
@@ -67,12 +67,12 @@ What landed vs the original 5-gate plan (read before extending):
 **Live baselines (worktree of `feature/sn-space-angle-tier2` @ `3f0cbc2`,
 2026-06-14, `.venv/bin/python -O -m pytest`):**
 ```
-tests/sn/spatial/test_linear_discontinuous.py tests/sn/verification/mms/test_mms_ld_slab.py
+tests/gates/sn/spatial/test_linear_discontinuous.py tests/gates/sn/verification/mms/test_mms_ld_slab.py
   → 21 passed, 1 xfailed in 6.54s
   (the 1 xfailed = test_ld_thick_diffusive_limit_xfail — the Increment-C
    diffusion-limit tripwire; stays xfail through Increment B.)
 
-tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"
+tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
   → 505 passed, 1 skipped, 4 xfailed in 81.29s
   (the DD strict bit-identity gate — Increment B's negative control.)
 ```
@@ -166,22 +166,22 @@ and source emission must stay byte-for-byte.
 **The pin (NO new test file — this IS the invocation, confirmed live
 2026-06-14 at the LD-branch HEAD = 505/1/4):**
 ```
-.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
 ```
 After the Increment-B landing this MUST still be **505 passed / 1 skipped /
 4 xfailed** (re-confirm the 4 xfailed ids are the SAME pre-existing standing
 reds — #206 cyl-matvec etc. — NOT newly introduced).
 
 **Which snapshots specifically (the DD-bit-id-bearing tests in that
-surface):** `tests/sn/sweep/core/test_sweep_regression.py` (the slab/sphere/
+surface):** `tests/gates/sn/sweep/core/test_sweep_regression.py` (the slab/sphere/
 cyl DD scan snapshots, pinned `rtol=1e-12`) — these exercise the EXACT three
 sites the carve touches: the `b` emission (the source half of the scan
 recurrence), `cell_average_from_faces` (the `½(in+out)` fold at
 `loss_representation.py:2570/2735`), and `affine_scan_coefficients` (the
 `CollisionCache` σ_t stratum). If the carve regroups DD's ops (e.g. folds the
 factor-2 differently, or reorders the weighted-mean), the `DriftWarning`
-escalates to error HERE. **Why NOT `tests/sn/regression/`:** its
+escalates to error HERE. **Why NOT `tests/gates/sn/regression/`:** its
 `conftest.py:pytest_configure` forces `simplefilter("always", DriftWarning)`
 + an `always::…DriftWarning` ini line → shadows `-W error`, INERTING the
 escalation there. The strict gate runs on `sweep/core`+`solve` (no override —
@@ -205,7 +205,7 @@ its catcher.
 (was `FullFieldWavefront` in Increment A).
 
 **⭐ THE INCREMENT-A TEST THAT MUST BE UPDATED (NOT added-alongside):**
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_full_field_wavefront`.
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_full_field_wavefront`.
 It currently asserts (lines 55-59):
 ```python
 if not isinstance(default_for(ld_mesh), FullFieldWavefront):
@@ -249,9 +249,9 @@ registry ORDER (CumprodScan first), not by mutual exclusion of `supports`.
 == ScanMarch`.
 
 **Pinned by (existing):**
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_*`
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_*`
 (the DD half) +
-`tests/sn/sweep/core/test_unified_sweep_dispatch.py::TestDispatchSelectsStrategy`
+`tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py::TestDispatchSelectsStrategy`
 (if present — confirm it still pins DD slab/sphere/cyl→CumprodScan and 2-D→
 ScanMarch). **No NEW test needed if those already cover the DD selection** —
 B3 is the assertion that they STAY green. The B1 strict-bit-id snapshots
@@ -287,7 +287,7 @@ path is fully visible. (The slope-SOURCE sign — the other half of the trap —
 stays untested until Increment C; gate B4 documents this scope.)
 
 **New test:**
-`tests/sn/spatial/test_linear_discontinuous.py::TestLDKernel::test_group2_equals_group3_scan_flat`
+`tests/gates/sn/spatial/test_linear_discontinuous.py::TestLDKernel::test_group2_equals_group3_scan_flat`
 (co-locate with the existing `test_group1_equals_group2_flat`). For a slab
 cell with `(|μ|, h, Σ_t, ψ_in)`:
 - group 2 (÷V): `cell_kernel_batch(psi_in, s_axes=(2|μ|/h,), sigt, Q_cells)`
@@ -337,7 +337,7 @@ shipped code did NOT override.** For Increment B this is the moment to land
 the override, because B6 (two-paths) on a flat/sin problem is Mode-9-
 degenerate-blind (a smooth single-scale sin field can make the scan and DAG
 reduction trees accidentally close). **NEW test (the stress companion):**
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_stress_converges_second_order`.
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_stress_converges_second_order`.
 Markers `@pytest.mark.l1 @pytest.mark.slow @pytest.mark.verifies("ld-cartesian-1d",
 "ld-slab")`. Drives `solve_sn_fixed_source(LD)` (→ CumprodScan after B) on
 the STRESS ansatz; ladder `n_cells=[20,40,80,160]`; assert `orders[-1]>1.95
@@ -441,7 +441,7 @@ single-sweep nULP gate (sharp, fixed-depth) AND the end-to-end converged
 `rtol=1e-9` gate (the production claim).
 
 **New test:**
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle`.
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle`.
 Markers `@pytest.mark.l1 @pytest.mark.verifies("ld-cartesian-1d")`.
 
 **STRESSING CONFIG (the brief's (d) — Mode-9 degenerate-blindness defense):**
@@ -580,8 +580,8 @@ already in practice — this just names the principle.)
   `…_routes_to_cumprod_scan`, flip the expected type. The mutual-exclusion
   flips too: `CumprodScan.supports(ld_mesh)` becomes `True` after B.
 - **DD strict bit-identity (B1) is the negative control:** `pytest
-  tests/sn/sweep/core tests/sn/solve -W
-  "error::tests.sn.regression._regression_assert.DriftWarning"` MUST stay
+  tests/gates/sn/sweep/core tests/gates/sn/solve -W
+  "error::tests.gates.sn.regression._regression_assert.DriftWarning"` MUST stay
   505/1/4 (confirmed live 2026-06-14). Snapshots = `test_sweep_regression.py`
   (DD slab/sphere/cyl scan). The moved `b` emission MUST reproduce DD's
   `2.0·QV·inv_denom` op-order byte-exact (single-source scheme method; DD =
@@ -645,8 +645,8 @@ Env: `CLAUDE_ENVIRONMENT=` (Host) → `.venv/bin/python -O -m pytest`.
 DD round-trip (the gate-1 model) is green:
 ```
 .venv/bin/python -O -m pytest \
-  tests/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg \
-  tests/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_multi_group_heterogeneous -q
+  tests/gates/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg \
+  tests/gates/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_multi_group_heterogeneous -q
 → 20 passed, 1 warning in 0.37s
 ```
 (the warning is the `-O`-strips-bare-assert PytestConfigWarning — vv Mode 8;
@@ -655,12 +655,12 @@ under `-O`. Confirmed.)
 
 DD-no-regression strict gate (gate 5) — the exact invocation, currently GREEN:
 ```
-.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve -q \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve -q \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
 → 505 passed, 1 skipped, 4 xfailed, 2 warnings in 83.15s
 ```
 
-Why NOT `tests/sn/regression/`: its `conftest.py:pytest_configure` calls
+Why NOT `tests/gates/sn/regression/`: its `conftest.py:pytest_configure` calls
 `warnings.simplefilter("always", DriftWarning)` AND adds an
 `always::…DriftWarning` ini line → the `always` filter shadows `-W error`,
 making the escalation INERT there. The strict bit-identity gate MUST run on
@@ -672,8 +672,8 @@ in sweep/core + solve).
 Existing slab MMS + 2G heterogeneous MMS green:
 ```
 .venv/bin/python -O -m pytest \
-  tests/sn/verification/mms/test_mms.py::test_sn_1d_slab_mms_converges_second_order \
-  tests/sn/verification/mms/test_mms_heterogeneous.py -q
+  tests/gates/sn/verification/mms/test_mms.py::test_sn_1d_slab_mms_converges_second_order \
+  tests/gates/sn/verification/mms/test_mms_heterogeneous.py -q
 → 5 passed, 2 warnings in 2.35s
 ```
 
@@ -755,20 +755,20 @@ SAME per-cell linear system: `residual(update(...).cell_average_flux, ...)`
 vanishes to FP noise.
 
 **Pinned by (existing, for DD):**
-`tests/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg`
+`tests/gates/sn/sweep/core/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg`
 (parametrized over 5 geometries) +
 `::test_residual_zero_multi_group_heterogeneous` (×{1,2,4}G, heterogeneous XS).
 This is exactly the round-trip the brief asks LD to mirror.
 
 **New test (catches LD):**
-`tests/sn/spatial/test_linear_discontinuous.py::TestLDRoundTrip` — mirror DD's
+`tests/gates/sn/spatial/test_linear_discontinuous.py::TestLDRoundTrip` — mirror DD's
 `TestResidual` structure for the LD occupant alone. LD is `is_linear` (per
 Lewis & Miller §5.3 the LD closure IS linear in source + upstream), so keep
 the linearity-in-cell_avg and affine-in-source companions from DD's
 `TestResidual` (modes 4 + 5 catchers).
 
-**File path:** `tests/sn/spatial/test_linear_discontinuous.py` (the new
-home; `tests/sn/spatial/` exists). Markers: `@pytest.mark.foundation` (no
+**File path:** `tests/gates/sn/spatial/test_linear_discontinuous.py` (the new
+home; `tests/gates/sn/spatial/` exists). Markers: `@pytest.mark.foundation` (no
 `verifies` — it pins a software contract, not an equation; mirrors DD's
 `TestResidual`).
 
@@ -799,12 +799,12 @@ of LD (DD is the structurally-independent reference here — its fast-scan
 answer is already bit-identity-pinned by gate 5's regression snapshots).
 
 **Pinned by (existing):** the SELECTION half is
-`tests/sn/sweep/core/test_unified_sweep_dispatch.py::TestDispatchSelectsStrategy`
+`tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py::TestDispatchSelectsStrategy`
 (slab/sphere/cyl → `CumprodScan`). NO existing test routes DD through a
 per-cell walk and compares to the scan — gate 2 is genuinely NEW.
 
 **New test (catches the seam):**
-`tests/sn/sweep/core/test_unified_sweep_dispatch.py::TestOneDimPerCellSeam`
+`tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py::TestOneDimPerCellSeam`
 (co-locate with the dispatch contract it extends). Two sub-tests:
 1. **Selection pin** — a 1-D mesh with `cell_update=LinearDiscontinuous()`
    makes `default_for(mesh)` return `OneDimPerCellWalk` (and a 1-D mesh with
@@ -855,12 +855,12 @@ so it isolates the spatial order. MMS = the math/flux-shape pillar (NOT
 eigenvalue).
 
 **Pinned by (existing, for DD):**
-`tests/sn/verification/mms/test_mms.py::test_sn_1d_slab_mms_converges_second_order`
+`tests/gates/sn/verification/mms/test_mms.py::test_sn_1d_slab_mms_converges_second_order`
 (1G) + `test_mms_heterogeneous.py::test_sn_heterogeneous_mms_converges_second_order`
 (2G heterogeneous continuous-Σ). The LD gate is a SIBLING.
 
 **New test (catches LD spatial order):**
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_converges_second_order`.
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_converges_second_order`.
 Markers: `@pytest.mark.l1 @pytest.mark.slow @pytest.mark.verifies(...)` with
 LD-specific equation labels (the LD theory page MUST add
 `:label: ld-cartesian-1d` / `ld-slab` — flag to the archivist; the
@@ -943,7 +943,7 @@ is gate 4 + the deferred #235 angular floor.
 
 **Claim:** characterization (L1, NO `verifies` — pins a limitation, not a
 correctness claim). The existing gate
-`tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
+`tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
 pins the DD pole-cell as LOWER-bounded first order with NO upper bound. A
 higher-order scheme (LD) should make the pole order rise — and the gate
 STAYS GREEN by construction (`order 2.0 > 0.8 lower bound`), DOCUMENTING the
@@ -988,8 +988,8 @@ NOT perturb DD's reduction tree. The negative control for the whole carve.
 
 **The strict live gate (confirmed green above):**
 ```
-.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
 ```
 505 passed / 1 skipped / 4 xfailed at HEAD. After the LD landing this MUST
 still be 505/… green (the 4 xfailed are pre-existing standing reds, NOT
@@ -1006,7 +1006,7 @@ scan reps for DD meshes (a registry-ordering regression the bit-identity
 snapshots would ALSO catch, but this localizes it to the selection layer).
 `pytest.fail` on mismatch (-O-safe).
 
-**Why these two dirs and not `tests/sn/regression/`:** see Live-evidence
+**Why these two dirs and not `tests/gates/sn/regression/`:** see Live-evidence
 §. The `regression/` conftest forces `always::DriftWarning` → `-W error`
 inert there; `sweep/core` + `solve` carry no override (FINDING-1).
 
@@ -1074,12 +1074,12 @@ All three NEW test files below collect today (imports of the not-yet-existing
 tests so collection does not ImportError). Each is `@pytest.mark.skip(reason=
 "SUT not yet implemented (#158 LinearDiscontinuous + OneDimPerCellWalk)")`.
 
-### `tests/sn/spatial/test_linear_discontinuous.py` (GATE 1)
+### `tests/gates/sn/spatial/test_linear_discontinuous.py` (GATE 1)
 
 ```python
 """GATE 1 — LinearDiscontinuous per-cell round-trip (lockstep), isolated.
 
-Mirror of tests/sn/sweep/core/test_diamond.py::TestResidual for the LD
+Mirror of tests/gates/sn/sweep/core/test_diamond.py::TestResidual for the LD
 occupant: solve update(...) → feed the solved state to residual(...) →
 residual vanishes to FP noise. Proves update/residual describe ONE per-cell
 linear system (L21). LD is is_affine_scannable=False (couples two face
@@ -1101,7 +1101,7 @@ _SKIP = pytest.mark.skip(
 def _ld_slab_visit_inputs(n_groups: int = 2):
     """Heterogeneous slab visit + inputs for the LD round-trip.
 
-    Mirrors tests/sn/sweep/core/test_diamond.py::_slab_visit_inputs but for
+    Mirrors tests/gates/sn/sweep/core/test_diamond.py::_slab_visit_inputs but for
     the LD strategy. source is already weight-normalised (Q·chord·1/Σw) per
     the CellUpdate contract.
     """
@@ -1212,10 +1212,10 @@ class TestLDTraits:
         assert CellUpdateBase.registry["linear_discontinuous"] is LinearDiscontinuous
 ```
 
-### `tests/sn/sweep/core/test_unified_sweep_dispatch.py` ADDITIONS (GATE 2 + the gate-5 selection pin)
+### `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py` ADDITIONS (GATE 2 + the gate-5 selection pin)
 
 ```python
-# ─── append to tests/sn/sweep/core/test_unified_sweep_dispatch.py ───
+# ─── append to tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py ───
 # GATE 2 (seam-opening control) + GATE 5 selection-no-regression.
 
 _SKIP_LD = pytest.mark.skip(
@@ -1321,7 +1321,7 @@ class TestOneDimPerCellSeam:
             pytest.fail("DD 2-D mesh no longer selects ScanMarch (registry regression)")
 ```
 
-### `tests/sn/verification/mms/test_mms_ld_slab.py` (GATE 3)
+### `tests/gates/sn/verification/mms/test_mms_ld_slab.py` (GATE 3)
 
 ```python
 """GATE 3 — LinearDiscontinuous slab-Cartesian MMS, O(h²) spatial order.
@@ -1427,7 +1427,7 @@ def test_sn_1d_slab_ld_mms_second_group_coupling():
 ### GATE 4 — no new mandatory test (run the existing #233 gate with LD)
 
 The existing
-`tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
+`tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
 (4 tests, lower-bound `> 0.8` pole order, no upper bound) is ALREADY
 LD-ready by construction. The LD task RUNS it on an LD curvilinear mesh and
 records the measured pole order in the closeout. OPTIONAL forward tripwire
@@ -1464,9 +1464,9 @@ def test_sphere_pole_LD_lifts_toward_second_order():
   reduction trees (sequential loop vs parallel-prefix cumprod); drift
   bounded by reduction-depth nx × ULP. (#206 Phase-C precedent.)
 - **DD-no-regression is already pinned by EXISTING tests:** the strict gate
-  is `pytest tests/sn/sweep/core tests/sn/solve -W
-  "error::tests.sn.regression._regression_assert.DriftWarning"` (NOT
-  `tests/sn/regression/` — its conftest forces `always::DriftWarning`,
+  is `pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W
+  "error::tests.gates.sn.regression._regression_assert.DriftWarning"` (NOT
+  `tests/gates/sn/regression/` — its conftest forces `always::DriftWarning`,
   inerting `-W error`). Currently 505 passed / 1 skipped / 4 xfailed.
   Plus a NEW selection-no-regression assertion that DD meshes still pick
   CumprodScan/ScanMarch after the registry edit.

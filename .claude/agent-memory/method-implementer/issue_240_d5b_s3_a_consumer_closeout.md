@@ -9,7 +9,7 @@ metadata:
 
 **Branch** `feature/sn-space-angle-tier2` (S3-A0 done + committed `d313d16`/`96dfc96`).
 **NOT committed; NO code written this session.** Host env, `.venv/bin/python -O`.
-Canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## STATUS — pre-reads DONE, full seam verification DONE, STOPPED at a fork
 
@@ -43,7 +43,7 @@ SOURCE seam, and the operator-composition layer that subtracts `−S` does not
 route a slope source into the cell system:
 
 ### Fact 1 — the GATE 1 leg 1a tripwire (#37) uses KRYLOV, not SI.
-`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail`
+`tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail`
 (`:257-265`) drives BOTH DD and LD with `inner_solver="krylov"`. So the 1-D leg's
 SUT is the d=1 Krylov **matvec**, not the SI scan. (The brief's "1-D #37 via the
 existing d=1 krylov-slab matvec" matches this.)

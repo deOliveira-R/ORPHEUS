@@ -6,8 +6,8 @@ DELETED with the frozenset at W2 — it could only run while
 ``op.capabilities`` existed, and its job (licensing the deletion) is
 done. What remains is its permanent successor: the direct two-axis
 contract, referencing NO frozenset, shared by the numerics enumeration
-(``tests/numerics/test_operator_capability_predicates.py``) and the
-SN/transport enumeration (``tests/sn/operators/test_capability_survival.py``)
+(``tests/gates/numerics/test_operator_capability_predicates.py``) and the
+SN/transport enumeration (``tests/gates/sn/operators/test_capability_survival.py``)
 so the keystone contract lives in ONE place (Cardinal Rule 2).
 
 **Why explicit ``raise``, not ``assert``.** This is a plain helper module,

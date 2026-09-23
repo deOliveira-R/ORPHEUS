@@ -44,12 +44,12 @@ is no group Gauss-Seidel / thermal iteration anywhere; the only G-S is over
 sweep octants (`_select_si_resolvent`).
 
 **The #196 gate** (= ERR-026 manifestation #7 catchers,
-`tests/sn/eigenvalue/test_keff_curvilinear.py`:
+`tests/gates/sn/eigenvalue/test_keff_curvilinear.py`:
 `test_si_krylov_eigenvalue_equivalence_{sphere,cylinder}`) runs **2G
 heterogeneous** by design ("not a homogeneous/1G degenerate"). Known real
 curvilinear×multigroup interactions: sphere-4g-krylov xfail (unpreconditioned
 GMRES, #200) and the curvilinear MG inner-tol amplification memo (header of
-`tests/sn/verification/analytical/test_kinf_homogeneous.py`).
+`tests/gates/sn/verification/analytical/test_kinf_homogeneous.py`).
 
 **AGENT.md drift note:** the durable-shape section still says the within-group
 factory is `_within_group_triple` (solver.py). Since the B.2d coupled-block

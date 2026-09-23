@@ -99,7 +99,7 @@ Lines of code delta (top 3 files):
    (sphere + cylinder via per-level loop). `_sweep_2d_wavefront`
    preserved bit-identical.
 
-8. `tests/sn/spatial/test_diamond.py` — slab bit-identity tests
+8. `tests/gates/sn/spatial/test_diamond.py` — slab bit-identity tests
    re-baselined `np.array_equal → np.allclose(rtol=1e-13)` per
    migration-endpoint clause; cyl-degenerate FP-noise level
    relaxed (the `|μ|·A_total·ψ^s_in` term is now retained as the
@@ -108,28 +108,28 @@ Lines of code delta (top 3 files):
    `face_area_downstream=1.0`. Reference to deleted
    `cell_balance_terms_degenerate` removed.
 
-9. `tests/sn/spatial/test_cell_update_protocol.py` —
+9. `tests/gates/sn/spatial/test_cell_update_protocol.py` —
    `test_cell_visit_default_downstream_zero` (renamed from `_none`)
    pins the new contract; the "slab discriminator" test rewritten
    to pin neutral-curvature values.
 
-10. `tests/sn/test_snmesh_consumes_reduced.py` — slab + cyl-degen
+10. `tests/gates/sn/test_snmesh_consumes_reduced.py` — slab + cyl-degen
     `face_area_downstream` assertion updated (1.0 / 0.0 replacing
     None).
 
-11. `tests/sn/test_cartesian.py` — ERR-025 recurrence regression
+11. `tests/gates/sn/test_cartesian.py` — ERR-025 recurrence regression
     test rewritten to test `DiamondDifference.update` directly
     (cumprod intermediary retired).
 
-12. `tests/sn/test_cylindrical.py`, `tests/sn/test_spherical.py` —
+12. `tests/gates/sn/test_cylindrical.py`, `tests/gates/sn/test_spherical.py` —
     import retired `_sweep_1d_*` updated to `_sweep_1d_curvilinear`.
 
-13. `tests/sn/test_unified_sweep_dispatch.py` — dispatch contract
+13. `tests/gates/sn/test_unified_sweep_dispatch.py` — dispatch contract
     tests rewritten: 1-D vs 2-D split at the top level; the
     pre-Step-2.5 "cumprod fast path preconditions" gating logic
     is retired.
 
-14. `tests/geometry/test_reduced_operator.py` — slab
+14. `tests/gates/geometry/test_reduced_operator.py` — slab
     `streaming_terms` test pins neutral curvature values.
 
 ## Mechanism criteria — verbatim greps
@@ -146,35 +146,35 @@ Pre-fix `wc -l` was 818, delta -523.)
 
 ## Test paste-back (verbatim per L12)
 
-### `pytest tests/sn/spatial/test_diamond.py`
+### `pytest tests/gates/sn/spatial/test_diamond.py`
 
 ```
-tests/sn/spatial/test_diamond.py::TestTraits::test_is_linear_true PASSED
-tests/sn/spatial/test_diamond.py::TestTraits::test_is_positivity_preserving_false PASSED
-tests/sn/spatial/test_diamond.py::TestTraits::test_traits_accessible_on_instance PASSED
-tests/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_first_cell_bit_identical PASSED
-tests/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_interior_cell_bit_identical PASSED
-tests/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_negative_ordinate_bit_identical PASSED
-tests/sn/spatial/test_diamond.py::TestBitIdenticalCurvilinear::test_spherical_outward_bit_identical PASSED
-tests/sn/spatial/test_diamond.py::TestBitIdenticalCurvilinear::test_spherical_inward_bit_identical PASSED
-tests/sn/spatial/test_diamond.py::TestCylindricalDegenerate::test_degenerate_cell_synthetic PASSED
-tests/sn/spatial/test_diamond.py::TestCylindricalDegenerate::test_degenerate_does_not_consume_psi_spatial_in PASSED
-tests/sn/spatial/test_diamond.py::TestPositivityFailure::test_thin_cell_large_source_can_produce_negative_outgoing PASSED
-tests/sn/spatial/test_diamond.py::TestCellUpdateBaseRegistry::test_diamond_difference_registered PASSED
-tests/sn/spatial/test_diamond.py::TestCellUpdateBaseRegistry::test_diamond_difference_factory_returns_concrete PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[slab] PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[sphere_outward] PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[sphere_inward] PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[cylinder] PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[cylinder_degenerate] PASSED
-tests/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_multi_group_heterogeneous[1-slab] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestTraits::test_is_linear_true PASSED
+tests/gates/sn/spatial/test_diamond.py::TestTraits::test_is_positivity_preserving_false PASSED
+tests/gates/sn/spatial/test_diamond.py::TestTraits::test_traits_accessible_on_instance PASSED
+tests/gates/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_first_cell_bit_identical PASSED
+tests/gates/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_interior_cell_bit_identical PASSED
+tests/gates/sn/spatial/test_diamond.py::TestBitIdenticalSlab::test_slab_negative_ordinate_bit_identical PASSED
+tests/gates/sn/spatial/test_diamond.py::TestBitIdenticalCurvilinear::test_spherical_outward_bit_identical PASSED
+tests/gates/sn/spatial/test_diamond.py::TestBitIdenticalCurvilinear::test_spherical_inward_bit_identical PASSED
+tests/gates/sn/spatial/test_diamond.py::TestCylindricalDegenerate::test_degenerate_cell_synthetic PASSED
+tests/gates/sn/spatial/test_diamond.py::TestCylindricalDegenerate::test_degenerate_does_not_consume_psi_spatial_in PASSED
+tests/gates/sn/spatial/test_diamond.py::TestPositivityFailure::test_thin_cell_large_source_can_produce_negative_outgoing PASSED
+tests/gates/sn/spatial/test_diamond.py::TestCellUpdateBaseRegistry::test_diamond_difference_registered PASSED
+tests/gates/sn/spatial/test_diamond.py::TestCellUpdateBaseRegistry::test_diamond_difference_factory_returns_concrete PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[slab] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[sphere_outward] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[sphere_inward] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[cylinder] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_at_solved_cell_avg[cylinder_degenerate] PASSED
+tests/gates/sn/spatial/test_diamond.py::TestResidual::test_residual_zero_multi_group_heterogeneous[1-slab] PASSED
 ... (45 more PASSED, all from TestResidual parametrised cases)
 ======================== 53 passed, 1 warning in 0.57s =========================
 ```
 
 (53/53 pass.)
 
-### `pytest tests/sn/regression/`
+### `pytest tests/gates/sn/regression/`
 
 **Pre-regen (commits 1-3 only)**: 9 PASS + 2 FAIL (slab homogeneous
 + slab 3reg drift at rtol=1e-12). Pre-regen output (slab failure
@@ -211,7 +211,7 @@ Slab-only re-run after regen:
 Full regression post-regen pending at memo-write time (running in
 background; will paste back on completion).
 
-### `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+### `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py`
 
 ```
 ..........................                                               [100%]
@@ -235,7 +235,7 @@ The Phase G Step 2 Path C pole-face IC + Carlson seed source fixes
 (via `psi_bc["psi_pole"]` and `psi_bc["phi_0_prev"]` keys) are
 preserved verbatim in `_sweep_1d_curvilinear`.
 
-### `pytest tests/sn/ -q`
+### `pytest tests/gates/sn/ -q`
 
 Full SN suite run pending at memo-write time. The verified subsets:
 
@@ -380,8 +380,8 @@ BUG, not for an intentional contract re-baseline).
 
 ## Addendum (main-agent L12 verification, 2026-05-13)
 
-The "full `pytest tests/sn/ -q` run pending bg completion" language
-in §"`pytest tests/sn/ -q`" above is exactly the L12 closeout-time-
+The "full `pytest tests/gates/sn/ -q` run pending bg completion" language
+in §"`pytest tests/gates/sn/ -q`" above is exactly the L12 closeout-time-
 substitution tell flagged in `.claude/lessons.md` L12. The main agent
 independently re-ran the verification per the L12 discipline and
 caught **two regressions** the closeout's "subtotal verified: 295/295"
@@ -389,9 +389,9 @@ missed:
 
 ### Regression 1 — test collection error: `_solve_recurrence` import
 
-**Symptom**: `pytest tests/sn/ -q` fails at collection with
+**Symptom**: `pytest tests/gates/sn/ -q` fails at collection with
 `ImportError: cannot import name '_solve_recurrence' from
-'orpheus.sn.sweep'`. Origin: `tests/sn/test_sweep_regression.py:42`
+'orpheus.sn.sweep'`. Origin: `tests/gates/sn/test_sweep_regression.py:42`
 imports `_solve_recurrence, _outgoing, transport_sweep`; commit
 `fa0fa2c` (Step 2.5 commit 3) deleted `_solve_recurrence` and
 `_outgoing` (the retired cumprod helpers). The test file contains
@@ -412,7 +412,7 @@ test under a renamed `TestScatteringConvergence` class.
 
 ### Regression 2 — `transport_sweep` dispatch on `Mesh2D(ny=1)`
 
-**Symptom**: `tests/sn/test_sweep_regression.py::TestSNMesh::test_sweep_1d_2d_consistency`
+**Symptom**: `tests/gates/sn/test_sweep_regression.py::TestSNMesh::test_sweep_1d_2d_consistency`
 FAILS with `ValueError: iter_cell_visits is only defined for meshes
 with a ReducedStreamingOperator`. The test PASSED at Phase F tip
 (verified via `git stash` + checkout to `b0cc1b1` + rerun: 1 passed
@@ -449,7 +449,7 @@ return _sweep_2d_wavefront(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
 ### Verbatim re-verification (main-agent re-run)
 
 ```
-tests/sn/test_sweep_regression.py  8 passed, 2 warnings in 7.40s
+tests/gates/sn/test_sweep_regression.py  8 passed, 2 warnings in 7.40s
 ```
 
 ### Concept-count audit revision

@@ -45,7 +45,7 @@ manifestation #6 remains ACTIVE at the L0 verification level.
 
 ### Output A — per-cell-per-ordinate ψ comparison (k-eigenvalue)
 
-Script: `tests/sn/diagnostics/phase_g_step2_01_psi_comparison.py`.
+Script: `tests/gates/sn/diagnostics/phase_g_step2_01_psi_comparison.py`.
 Snapshot: `/tmp/phase_g_step2_psi.npz`.
 
 Test problem: sphere_2g_3reg n=40, GL-8, reflective BC. Phase F closeout
@@ -68,7 +68,7 @@ their k_eff agreement to 0.3% is incidental.
 
 ### Output B — apply-matvec residual at each fixed point
 
-Script: `tests/sn/diagnostics/phase_g_step2_02_sncell_residual.py`.
+Script: `tests/gates/sn/diagnostics/phase_g_step2_02_sncell_residual.py`.
 
 Not load-bearing — the apply-matvec consumes ψ via
 `solution_to_angular_flux_spherical` which fills inward-at-outer slots
@@ -78,7 +78,7 @@ The fixed-source attribution test below replaces this.
 
 ### Output C — fixed-source SI vs Krylov at MATCHED Q (DECISIVE)
 
-Script: `tests/sn/diagnostics/phase_g_step2_04_fixed_source.py`.
+Script: `tests/gates/sn/diagnostics/phase_g_step2_04_fixed_source.py`.
 Snapshot: `/tmp/phase_g_step2_fixed_source.npz`.
 
 **This is the cleanest H1 vs H2 discriminator** — Q is externally
@@ -116,7 +116,7 @@ r = 0 for the sphere — Krylov agrees.
 
 ### Output D — structural code-walk audit
 
-Script + AUDIT_TEXT: `tests/sn/diagnostics/phase_g_step2_03_closure_audit.py`.
+Script + AUDIT_TEXT: `tests/gates/sn/diagnostics/phase_g_step2_03_closure_audit.py`.
 
 Three structural differences identified:
 
@@ -165,7 +165,7 @@ structural divergence.
 
 ## L0 streaming-equilibrium failure — the smoking gun
 
-Script: `tests/sn/diagnostics/phase_g_step2_05_homogeneous.py`.
+Script: `tests/gates/sn/diagnostics/phase_g_step2_05_homogeneous.py`.
 
 Test problem: **homogeneous mixture B** (Σ_t = 2, Σ_s = 1.9, no
 fission) **sphere of 2 cm**, **reflective BC**, **isotropic Q = 1**,
@@ -390,7 +390,7 @@ streaming-equilibrium at the pole even with Phase F Carlson seed".
   MR k-eigenvalue tests use generous tolerances, (c) L1 MMS rate (~1.3)
   was attributed to "ERR-026 pre-Phase-F" and not isolated.
 - Test that catches it: a NEW
-  `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py` —
+  `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py` —
   the 1G homogeneous reflective sphere fixed-source test with the
   analytical Q/Σ_a comparison. Should be promoted from the diagnostic
   script in this memo.
@@ -401,10 +401,10 @@ streaming-equilibrium at the pole even with Phase F Carlson seed".
 
 ## Diagnostic scripts (to promote)
 
-All under `tests/sn/diagnostics/`:
+All under `tests/gates/sn/diagnostics/`:
 
 1. `phase_g_step2_00_baseline.py` — verifies Step 1 didn't perturb
-   the Phase F baseline. **PROMOTE** to `tests/sn/regression/` as a
+   the Phase F baseline. **PROMOTE** to `tests/gates/sn/regression/` as a
    guard against future drift.
 2. `phase_g_step2_01_psi_comparison.py` — per-cell-per-ordinate ψ_si
    vs ψ_kr on k-eigenvalue. **PROMOTE** as a permanent regression for
@@ -417,7 +417,7 @@ All under `tests/sn/diagnostics/`:
    attribution at matched Q. **PROMOTE** as a Step 2 regression.
 6. `phase_g_step2_05_homogeneous.py` — L0 streaming-equilibrium on
    curvilinear SI. **PROMOTE PRIORITY**: this catches the missing
-   L0 gate. Move to `tests/sn/spatial/test_streaming_equilibrium_curvilinear.py`
+   L0 gate. Move to `tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py`
    and tag `@pytest.mark.l0 @pytest.mark.catches("ERR-026")`. The
    test should ASSERT that BOTH SI and Krylov pass with rtol=1e-6.
    Currently SI FAILS by 22% → this test, once promoted, is an active

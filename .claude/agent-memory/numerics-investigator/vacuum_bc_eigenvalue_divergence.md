@@ -10,7 +10,7 @@ metadata:
 **Date**: 2026-05-26
 **Branch**: refactor/moment-space-and-layering @ 8e5a263
 **Base failing branch**: refactor/sn-operator-algebra @ 62994ad
-**Failing test**: tests/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective
+**Failing test**: tests/gates/sn/test_boundary_conditions.py::TestSNBCSweepBehavior::test_vacuum_keff_lower_than_reflective
 **Investigator constraint**: Bash execution and Write permissions BOTH blocked mid-session. No pytest run, no reproducer file written, no diagnostic cascade promoted. Investigation is **STATIC ANALYSIS ONLY**. Root cause NOT proved; hypotheses narrowed.
 
 ## Failure signature (per briefing — UNVERIFIED in this session because pytest not runnable)
@@ -61,7 +61,7 @@ Resolved through static reading of:
 **VERIFIED CONVENTION-CLEAN** (post-A1 commit de8822d, ERR-049 fix):
 - `q_ext_per_ord.values` = `Q_iso / sum_w` broadcast to N (per-ordinate density).
 - `transport_sweep` does NOT apply `/W` internally (the pre-A1 `weight_norm = 1/W` line is GONE — verified sweep.py:393-398 `QV_per_ord = Q_per_ord * V` only).
-- L1 `tests/sn/test_invertible_operator.py::TestInvertibleSolveBridgeRegression` confirms the SI carve gives correct k_inf for REFLECTIVE on slab/sphere/cylinder × {2eg, 4eg}.
+- L1 `tests/gates/sn/test_invertible_operator.py::TestInvertibleSolveBridgeRegression` confirms the SI carve gives correct k_inf for REFLECTIVE on slab/sphere/cylinder × {2eg, 4eg}.
 
 ### Convergence flag is COSMETICALLY wrong
 `solve_sn` at solver.py:992-996 sets `history = IterationHistory(..., converged=True)` UNCONDITIONALLY. It does not consult `solver.converged(...)`. So the briefing's "n_outer=64 (cap hit) but converged=True" is the hardcoded True, NOT a false-positive convergence-criterion firing.
@@ -150,7 +150,7 @@ Specifically, set `external_source = (1.0, 0.0)` per cell (only g0 source). The 
 """Diagnostic: SN vacuum-BC eigenvalue divergence — minimal reproducer.
 
 Was derivations/diagnostics/diag_vacuum_bc_eigenvalue_divergence.py, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
-ERR-052 is caught by tests/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_power_iteration_renormalises_to_unit_production_rate.
+ERR-052 is caught by tests/gates/sn/operators/test_boundary_conditions.py::TestSNBCSweepBehavior::test_power_iteration_renormalises_to_unit_production_rate.
 """
 from __future__ import annotations
 import warnings
@@ -210,7 +210,7 @@ def test_vacuum_bc_keff_below_kinf():
 
 ## Files referenced
 
-- `tests/sn/test_boundary_conditions.py:135-167` (failing test)
+- `tests/gates/sn/test_boundary_conditions.py:135-167` (failing test)
 - `orpheus/sn/solver.py:881-1006` (solve_sn entry, hardcoded `converged=True` at line 992-996)
 - `orpheus/sn/solver.py:446-562` (_solve_source_iteration — R-1 Step E carve)
 - `orpheus/sn/solver.py:432-442` (converged() criterion — denormalised-FP fooling latent bug)

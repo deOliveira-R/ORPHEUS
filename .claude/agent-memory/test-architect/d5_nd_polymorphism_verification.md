@@ -56,21 +56,21 @@ SHAPES the carve (the proactive L17 cross-strategy/cross-dim dispatch).
 ## Baselines (live @ HEAD `0cc0cbf`, `-O`)
 
 ```
-tests/sn/spatial/test_linear_discontinuous.py tests/sn/verification/mms/test_mms_ld_slab.py
+tests/gates/sn/spatial/test_linear_discontinuous.py tests/gates/sn/verification/mms/test_mms_ld_slab.py
   → 24 passed, 1 xfailed   (the 1 xfail = test_ld_thick_diffusive_limit_xfail)
 
-tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"
+tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
   → 505 passed, 1 skipped, 4 xfailed   (the DD strict bit-id gate = D5's negative control)
 ```
 
-Route-around the 7 pre-existing reds; NEVER run all of `tests/sn` (#212 hang):
+Route-around the 7 pre-existing reds; NEVER run all of `tests/gates/sn` (#212 hang):
 ```
 -k "not (vacuum_bulk_bit_identical_1d and SPH) and not (sphere_1g_apply_bit_identical \
     or sphere_2g_apply_bit_identical) and not test_2d_mesh_resolution \
     and not two_d_cartesian_loss_action"
 ```
-Target dirs: `tests/sn/operators tests/sn/spatial tests/sn/sweep/core
-tests/sn/sweep/cartesian_2d tests/sn/solve`.
+Target dirs: `tests/gates/sn/operators tests/gates/sn/spatial tests/gates/sn/sweep/core
+tests/gates/sn/sweep/cartesian_2d tests/gates/sn/solve`.
 
 ---
 
@@ -182,7 +182,7 @@ slope coupling".
 NOT select `ScanMarch`; it EITHER selects the wavefront (`MovingFrontierWindow`
 or `FullFieldWavefront`) OR construction raises with a structural reason.
 
-**File:** EXTEND `tests/sn/sweep/core/test_unified_sweep_dispatch.py::TestD3SupportsMatrix`
+**File:** EXTEND `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py::TestD3SupportsMatrix`
 (confirmed live @ `:197`). **Crucial:** the existing `_fake` helper
 (`:215-225`) ALWAYS supplies `scheme=SimpleNamespace(is_affine_scannable=True)`
 — it CANNOT exercise the LD-multi-D case. **ADD a NEW fake variant** with
@@ -280,7 +280,7 @@ re-associates. Generic over DD AND Step (both slopeless → both fold).
 **Claim:** software invariant (foundation). The genericised ScanMarch row-march
 ≡ the d-generic full-field DD kernel, on the SAME 2-D config.
 
-**File:** the EXISTING `tests/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::
+**File:** the EXISTING `tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py::
 test_scanmarch_sweep_equals_oracle` (`:104`) + `test_scanmarch_residual_equals_oracle`
 (matvec leg) ALREADY pin this and are DD-verified. **D5a.1 is the assertion
 they STAY green through the fold** (the rewrite must not change the value).
@@ -311,7 +311,7 @@ the oracle also re-routed — though here only ScanMarch changes, so D5a.1 IS a
 true cross-check). Still, PAIR with a frozen-reference gate so a fold bug that
 preserves the ScanMarch≡oracle relation but shifts the value is caught.
 
-**File:** EXTEND `tests/sn/operators/test_streaming_operator.py::
+**File:** EXTEND `tests/gates/sn/operators/test_streaming_operator.py::
 TestT4bPreT4RegressionSnapshot` with a `cart2d` apply arm (the `cart2d_*_apply_*`
 snapshots EXIST in `pre_t4_snapshots.npz`, frozen pre-#240, currently
 UNCONSUMED — per the Step-A note §2a). bulk →
@@ -340,10 +340,10 @@ reconstructs from the same `2ψ̄−in` faces).
 power-of-2-exact: `0.5·in+0.5·out ≡ 0.5·(in+out)`, `2·QV·inv ≡ QV·inv/0.5`).
 The fold must NOT leak into the solve path.
 
-**Pin:** `python -O -m pytest tests/sn/sweep/core tests/sn/solve -W
-"error::tests.sn.regression._regression_assert.DriftWarning"` MUST stay
+**Pin:** `python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve -W
+"error::tests.gates.sn.regression._regression_assert.DriftWarning"` MUST stay
 **505 passed / 1 skipped / 4 xfailed** (confirmed live this session). The
-`tests.sn.regression...` path is load-bearing (`orpheus.sn...` silently fails
+`tests.gates.sn.regression...` path is load-bearing (`orpheus.sn...` silently fails
 to escalate — FINDING-1, [[issue_206_phase_c_verification]]). Re-confirm the
 4 xfailed ids are the SAME pre-existing reds (#206 cyl-matvec etc.).
 
@@ -424,7 +424,7 @@ def test_cell_kernel_batch_admits_multi_d(self):
 system: `residual_kernel_batch` at the `psi_bar` `cell_kernel_batch` solves
 for vanishes to FP noise.
 
-**File:** `tests/sn/spatial/test_linear_discontinuous.py::TestLDKernel` — add
+**File:** `tests/gates/sn/spatial/test_linear_discontinuous.py::TestLDKernel` — add
 `test_residual_zero_at_solved_cell_avg_2d` mirroring the existing
 `test_group1_equals_group2_flat`/round-trip structure but for `s_axes=(s_x, s_y)`.
 - **Config:** `n_groups ∈ {1, 2}` HETEROGENEOUS per-group `sigt_cells`
@@ -448,8 +448,8 @@ manufactured 2-D solution at O(h²). **MMS = the math/flux-shape pillar; it
 does NOT and CANNOT prove an eigenvalue (vv hierarchical taxonomy) — there is
 NO LD eigenvalue gate.**
 
-**File:** `tests/sn/verification/mms/test_mms_ld_slab.py` is 1-D; add a NEW
-file `tests/sn/verification/mms/test_mms_ld_2d.py` (the 2-D LD home).
+**File:** `tests/gates/sn/verification/mms/test_mms_ld_slab.py` is 1-D; add a NEW
+file `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (the 2-D LD home).
 - **Driver:** `solve_sn_fixed_source(materials, Mesh2D(...), quadrature, Q,
   scheme=LinearDiscontinuous())` — the `scheme=` kwarg threads end-to-end
   (confirmed `solver.py:1972` → `_as_sn_mesh(... scheme=scheme)`). The 2-D LD
@@ -825,7 +825,7 @@ SECOND instance or a caught production bug.
    LD suite (24p/1xf) all stay green.
 6. **D6 dispatch** — mint `ld-cartesian-1d`, `ld-slab`, `ld-cartesian-2d`;
    expand the LD theory `.. todo:` stub.
-7. Route around the 7 pre-existing reds; NEVER run all `tests/sn` (#212).
+7. Route around the 7 pre-existing reds; NEVER run all `tests/gates/sn` (#212).
 
 ---
 

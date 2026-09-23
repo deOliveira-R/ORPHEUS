@@ -58,7 +58,7 @@ Layout
 * :mod:`.origins` — Branch-1 SymPy: closed-form derivations of the
   Galerkin algebra, low-order :math:`A_{m,n}` and :math:`B_{m,n}`
   matrix elements, and the block-matrix linearization. Foundation
-  tests at ``tests/derivations/test_galerkin_spectral_symbolic.py``.
+  tests at ``tests/gates/derivations/test_galerkin_spectral_symbolic.py``.
 * :mod:`.core` — shared production primitives: numerical evaluation
   of the Carlvik recurrences (:mod:`.core.carlvik_recurrences`) and
   assembly of the Eq.(3) / Eq.(4) matrices

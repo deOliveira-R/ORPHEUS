@@ -467,7 +467,7 @@ All eight extend :class:`ValueError` (via the
 existing ``except ValueError`` consumers. The
 ``@pytest.mark.catches("ERR-NNN")`` decorators on the relevant
 fault-injection tests in
-:mod:`tests.geometry.test_bc_universal_invariants` pin the error
+:mod:`tests.gates.geometry.test_bc_universal_invariants` pin the error
 firing under the right conditions.
 
 
@@ -536,7 +536,7 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
 The pre-Wave-7 ``mixed.py`` submodule (carrying the now-retired
 ``MixedBoundaryOperator``) was **deleted in Wave 11**; the registry
 no longer contains a ``"mixed"`` key and a test pins that absence
-(:func:`tests.geometry.test_boundary.test_registry_contains_all_primitives`).
+(:func:`tests.gates.geometry.test_boundary.test_registry_contains_all_primitives`).
 
 The Wave-7 deprecated aliases (``VacuumBoundaryOperator``,
 ``SpecularBoundaryOperator``, ``WhiteBoundaryOperator``,

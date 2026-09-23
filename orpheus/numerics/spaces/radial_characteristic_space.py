@@ -153,7 +153,7 @@ at every tolerance, in every regime). With
 :math:`G_{\rm sd} = V_{\rm cell}` the seed rows carry metric weight and
 move **out** of that invariance group: a seed-row (:math:`A_{\rm ss}`)
 sign flip now REDs G-reciprocity — the Mode-12-closure gate
-:func:`tests.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
+:func:`tests.gates.sn.sweep.curvilinear.test_282_direct_seed_fixed_point.test_mode12_g_reciprocity_catches_a_seed_row_flip`
 — while the unmutated nonzero-seed reciprocity holds
 :math:`< 10^{-12}`. The direct-solver closed-form pin (§16.B), the
 solve∘apply residual over the full augmented field (§16.C), and 2.5b's

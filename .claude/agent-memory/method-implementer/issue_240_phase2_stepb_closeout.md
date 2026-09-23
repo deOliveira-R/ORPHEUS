@@ -54,15 +54,15 @@ in that coefficient, the leaf sum is value-correct-by-coincidence; override
 
 ## Verification result (HOST .venv/bin/python -O)
 
-- Teeth gate `tests/sn/operators/test_removal_form_matvec_sweep.py`: **19 passed, 1
+- Teeth gate `tests/gates/sn/operators/test_removal_form_matvec_sweep.py`: **19 passed, 1
   xfailed** (the 7 strict-xfail-until-override teeth — 4× `apply_is_M_of_C_sigma` +
   3× `apply_transpose_is_M_transpose` — FLIPPED to plain pass; `_XFAIL_UNTIL_OVERRIDE`
   marker REMOVED; the 1 xfail is the `#200` k_inf solver-entry stub that stays xfail).
-- Comprehensive: `tests/sn/operators spatial sweep/core sweep/cartesian_2d solve` with
+- Comprehensive: `tests/gates/sn/operators spatial sweep/core sweep/cartesian_2d solve` with
   route-arounds → **1080 passed, 6 skipped, 7 deselected, 5 xfailed, 0 failed** (147 s).
-- Strict DriftWarning gate `tests/sn/sweep/core tests/sn/solve -W error::...DriftWarning`
+- Strict DriftWarning gate `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::...DriftWarning`
   → **505 passed, 1 skipped, 4 xfailed** (after the 3 re-baselines below).
-- `tests/sn/regression` → 13 passed (pre-existing 6921-ULP SI 2-D DriftWarning within
+- `tests/gates/sn/regression` → 13 passed (pre-existing 6921-ULP SI 2-D DriftWarning within
   tol, NOT mine — SI rides solve not apply).
 - G-adjoint reciprocity `test_g_adjoint_reciprocity.py` → 25 passed, 4 xfailed (`.H`
   wiring intact: `A=L+C−B` routes `(L+C).apply`/`.apply_transpose` through the override;
@@ -74,13 +74,13 @@ The override drops the `(x − σψ) + σψ` round-trip the leaf sum carried →
 accurate path, so APPLY snapshots captured pre-override re-associate. SWEEP/SOLVE
 snapshots UNTOUCHED (they ride `solve`, not `apply` — slab/sphere stay bit-identical).
 
-1. `tests/sn/_data/affine_carve_baseline/matvec_bulk_{SPH,CYL}.npy` re-captured
+1. `tests/gates/sn/_data/affine_carve_baseline/matvec_bulk_{SPH,CYL}.npy` re-captured
    (`(L+C).apply` matvec leg: SPH 1 ULP, CYL 4 ULP). SLB bit-identical (not re-captured).
-2. `tests/sn/_data/bc_extraction_baseline/vacuum_bulk_CYL_seed{0,1,2}.npy` re-captured
+2. `tests/gates/sn/_data/bc_extraction_baseline/vacuum_bulk_CYL_seed{0,1,2}.npy` re-captured
    (vacuum `(L+C).apply` bulk: seed0 46 ULP / rel 3.93e-17 on a near-zero output element,
    seed1 2, seed2 6). SLB bit-identical, SPH stays the pre-existing structural red
    #195/#209 (~1e15 ULP) — NOT re-captured.
-3. `tests/sn/solve/test_affine_carve_bit_identity.py` GOLDEN: the TWO
+3. `tests/gates/sn/solve/test_affine_carve_bit_identity.py` GOLDEN: the TWO
    `krylov_2d_p1_aniso_het` sha256 hashes regenerated (2-D Krylov: the ≤5-ULP 2-D apply
    accumulated through GMRES inner_tol=1e-12 → converged bytes shift at ~1e-12). Verified
    structurally-independent: Krylov-2D converged φ ≡ SI-2D φ (which is bit-identical to

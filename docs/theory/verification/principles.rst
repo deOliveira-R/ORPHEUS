@@ -6,8 +6,9 @@ Verification Principles
 
 .. This page is the designated single owner of the verification
    doctrine — the claim-layer taxonomy, the normative L0..L3 ladder
-   (+ foundation + the L4 ruling), the three reference pillars, and
-   the map relating the classification systems. Authored at task #10
+   (+ foundation + the L4 ruling), the layout of ``tests/`` by
+   regimen, the three reference pillars, and the map relating the
+   classification systems. Authored at task #10
    stage V5 from the ``vv-principles`` skill + its reference.md,
    integrating the sections parked here at stages V2/V3. The
    operational twin of this page is the ``vv-principles`` skill
@@ -190,7 +191,7 @@ with one orthogonal bucket and one parallel track::
    ORTHOGONAL TO THE LADDER
      foundation                   software invariants with no physics equation
 
-Every test in ``tests/`` declares its rung via ``pytest`` markers;
+Every gate in ``tests/gates/`` declares its rung via ``pytest`` markers;
 the declaration mechanics, the tagging-precedence chain, and the
 audit that enforces them are the :doc:`harness` contract. What
 follows is the *meaning* of each rung — what it proves, and just as
@@ -327,6 +328,206 @@ a general lens — the measured functional's invariance group
 contains the error class (Mode 12,
 :ref:`below <verification-failure-modes>`) — degenerate enough to
 deserve its own named rule.
+
+
+.. _vv-test-suite-layout:
+
+Where a case lives — one folder per regimen
+===========================================
+
+Everything that checks ORPHEUS lives under ``tests/``, and the first
+level below it is the **regimen** of a suite: how the suite is run,
+how its cases depend on one another, and what the result of one case
+means. What a case is *about* is not a folder. Its V&V level, whether
+it is a foundation test, the equation it verifies and the catalogued
+bug it catches are markers on the test (the :doc:`harness` contract),
+because each is a property of one test, not of a file.
+
+Why the folder is the regimen and the kind is a marker
+------------------------------------------------------
+
+A folder boundary is worth drawing only where something changes when
+it is crossed. Three things change between regimens:
+
+- the **runner**: pytest for the gates; a harness that builds the
+  project at chosen commits and times each case in separate processes
+  for performance;
+- the **cadence**: every commit, or on demand;
+- the **meaning of a result**: a verdict, or a measurement that is kept
+  with its history and read against it.
+
+A marker changes none of the three, so markers cannot separate
+regimens. Between the *kinds* of a pass/fail check (term verification,
+equation verification, integration, a foundation invariant, a check of
+the repository's own integrity) none of the three changes: each is run
+by pytest on every commit, and a red one is a defect. The kind
+therefore stays a marker, recorded per test.
+
+A folder per kind would also contradict the tree. `[M]` 2026-09-22, an
+AST pass over the 546 files ``tests/gates/**/test_*.py`` collecting
+every ``pytest.mark.<name>`` attribute in each file: 325 files carry
+only ``foundation``, 154 carry only a level marker (``l0`` to ``l3``),
+**66 carry both**, and 1 carries neither. A file is of more than one
+kind in 66 of 546 cases, so a ``verification/`` or ``foundation/``
+folder would be a second definition of the marker, disagreeing with
+the first. The pass/fail subtree is therefore named for its regimen,
+``gates/``: a *gate* is the project's word for a pass/fail check, and
+the continuous-integration workflow that runs a subset of them is
+named ``gates`` (the git workflow page, "Continuous integration").
+
+Everything lives under one root, not in sibling top-level folders
+such as a ``validation/`` beside ``tests/``: a sibling would read as
+if validation were not a test (the user's ruling, 2026-09-22). The one
+root also keeps every regimen inside the surfaces that search the
+tests: a retirement audit greps ``tests/`` for a symbol's consumers,
+and the Nexus graph analyses all of ``tests/`` with no further
+configuration (``.nexus/config.toml``).
+
+Two things stay at the root because any regimen may use them:
+``tests/_harness/`` (the V&V registry and its audit, the shared
+reference and cross-section helpers, the pyright ratchet; imported as
+``tests._harness``) and ``tests/conftest.py`` (the collection hooks
+that tag every gate with its level).
+
+The regimens
+------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 13 13 20 22 14 18
+
+   * - Folder
+     - Regimen
+     - Dependence among cases
+     - The result of a case
+     - Cadence
+     - Runner
+   * - ``gates/``
+     - pass/fail
+     - a directed acyclic graph: each test declares the tests it rests
+       on, ``@pytest.mark.rests_on(*test_ids)``
+     - pass or fail; a red is a defect
+     - every commit
+     - pytest; ``testpaths = ["tests/gates"]`` in ``pyproject.toml``
+   * - ``performance/``
+     - measured, advisory
+     - none; each case rests on the verification of the capability it
+       exercises
+     - wall time, memory or a count, with the accuracy of the answer
+       beside it, kept per commit
+     - on demand
+     - airspeed velocity (asv)
+   * - ``validation/``
+     - measured, judged across the suite
+     - none; the same
+     - C/E (calculated over experimental) against an experiment, with
+       both uncertainties, kept per commit
+     - on demand, before a release
+     - not chosen
+
+A folder is created when its first case lands, so an absent folder
+means that the regimen has no case yet; it is never an empty place to
+search. `[M]` 2026-09-22: ``tests/gates/`` is the only regimen folder
+in the tree. The first validation cases are the ICSBEP and IRPhE
+comparisons of `#146 <https://github.com/deOliveira-R/ORPHEUS/issues/146>`__.
+
+``tests/gates/`` itself is laid out by what each gate exercises. Its
+top level holds nine test files: eight check the repository's own
+integrity (the layer-import contract, the generated harness, the
+docstring cross-references, the pyright ratchet, the error-catalogue
+reconciliation and its pending-port placeholders, the elegance-debt
+ledger, the V&V harness audit), and the ninth, ``test_convergence.py``,
+is an S\ :sub:`N`-versus-CP consistency check. Below it, 11 of its 13
+folders mirror a package of ``orpheus/`` (``tests/gates/sn/`` gates
+``orpheus/sn/``); ``tools/`` gates the repository's ``tools/``; and
+``cross_method/`` holds the agreement gates between ORPHEUS's own
+methods (:doc:`cross_method`). A bare ``python -O -m pytest`` collects
+``tests/gates/`` and nothing else, because ``testpaths`` names it; the
+``-O`` is the canonical invocation (the :doc:`harness` contract).
+
+Only verification stacks
+------------------------
+
+The cases of the gates form a graph. A capability's tests are ordered
+by what each exercises, each rung resting on the verified rungs below
+it (the ladder of :ref:`vv-level-ladder`, applied to one capability),
+and each test declares its supports with
+``@pytest.mark.rests_on(*test_ids)``, pytest node ids of the tests it
+rests on. A failure is then localised by the lowest red rung. The
+marker is registered in ``pyproject.toml``; the collection machinery
+that would turn a red support into an invalidated reading of its
+dependants, rather than a second failure, is not built, and is the
+open work of `#358 <https://github.com/deOliveira-R/ORPHEUS/issues/358>`__.
+
+Validation and performance have no such graph. Their cases are a
+flat set: one validation case compares one experiment, and a second
+experiment neither supports nor refutes it. (Validation cases can be
+grouped as single-effect or integral-effect, but that grouping is an
+attribute of a case, not a dependence between cases.) One performance
+case times one workload. Each flat case rests on verification all the
+same, at the level of the **capability** it exercises: a validation
+case of a 2-D Cartesian multigroup S\ :sub:`N` eigenvalue with
+reflective boundaries rests on the subgraph of gates that verifies
+that capability, not on one test. The suite's existing capability
+axis is the ``cap(name)`` marker (the S\ :sub:`N` capability tiers in
+``pyproject.toml``); how a flat case declares its capability-level
+support is an open question of `#358 <https://github.com/deOliveira-R/ORPHEUS/issues/358>`__.
+
+The order follows. The gates run first. Validation and performance run
+after the gates are green, and in parallel with each other, because
+neither rests on the other. The necessity chain above is why the order
+is not optional: an L3 agreement over unverified L0 to L2 is accidental
+agreement, and a timing of a wrong answer measures nothing, which is
+why a performance case records the accuracy of its answer beside its
+cost.
+
+Why there is no code-to-code (L4) suite
+---------------------------------------
+
+ORPHEUS keeps no suite that compares its answers with another code's
+(the user's ruling, 2026-09-22). Code-to-code agreement produces no
+correctness information (:ref:`verification-l4-ruling`), and keeping
+another code's results in the repository costs maintenance (its
+inputs, its version, its outputs) for evidence that cannot change a
+verdict. L4 is named on this page only so that it is not mistaken for
+verification.
+
+Two things that look like L4 are not affected by the ruling:
+
+- The **agreement gates between ORPHEUS's own methods**
+  (``tests/gates/cross_method/``) are gates. Each method is
+  independently pinned to its own reference, and the pair gate
+  consumes those references, which is why the L4 ruling's refinement
+  tags it L1. `[M]` 2026-09-22: the folder's tests carry 11 ``l1`` and
+  7 ``foundation`` marker decorations, and no L4 marker exists in
+  ``pyproject.toml``.
+- A **published lattice problem** (C5G7, the VERA progression
+  problems; the lattice community calls these "benchmarks") is L4 when
+  it is compared with another code's answer, which is not kept, and
+  L3 when it is compared with a measurement, which belongs in
+  ``validation/``.
+
+"Benchmark" has three meanings in the field: a performance run, a
+code-to-code comparison and a published problem. The binding
+vocabulary (:ref:`vv-vocabulary`) reserves *benchmark* for the second
+alone; the first is a *performance case*, and the third is a
+*published problem*, classified by what it is compared with.
+
+Where a new case goes
+---------------------
+
+- It asserts something that must hold on every commit: ``gates/``, in
+  the folder of the package it exercises, with its level or
+  ``foundation`` marker, its ``verifies(...)`` or ``catches(...)``
+  markers where they apply, and its ``rests_on`` edges.
+- It measures a cost that varies from run to run (wall time, memory):
+  ``performance/``, never a gate. A cost that is exactly reproducible
+  (a call count, an iteration count) is a gate.
+- It compares with an experiment: ``validation/``.
+- It compares with another code: nowhere (the section above).
+- A probe that has not yet earned a place: ``scratch/derivations/diagnostics/``,
+  outside ``tests/`` and outside the graph, triaged by
+  ``tests/gates/derivations/_promotion_policy.md``.
 
 
 .. _verification-evidence-classes:
@@ -605,7 +806,7 @@ against an external truth); the reference is *semi-analytical*
 (transcendental transfer-matrix root, solved by a double-precision
 Brent root-find) at tier *T2*, committed to operator form
 ``"diffusion"``; and the consuming
-tests in :mod:`tests.diffusion.test_continuous_reference` assert
+tests in :mod:`tests.gates.diffusion.test_continuous_reference` assert
 the form match and carry the L1 marker. Five coordinates, one
 claim, no ambiguity about what has been proven.
 

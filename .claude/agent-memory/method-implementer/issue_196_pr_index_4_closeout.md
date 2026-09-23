@@ -34,10 +34,10 @@ internal contract not user-facing; bit-identity preserved).
  orpheus/sn/spatial/cell_update.py            |  12 ++-
  orpheus/sn/spatial/diamond.py                |  31 ++++--
  orpheus/sn/sweep.py                          | 107 ++++++++++++-------
- tests/numerics/test_iteration.py             |  30 ++++--
- tests/sn/test_2d_octant_sweep_equivalence.py |  62 +++++++----
- tests/sn/test_fission_operator.py            |  58 +++++++---
- tests/sn/test_scattering_operator.py         | 151 ++++++++++++++++++---------
+ tests/gates/numerics/test_iteration.py             |  30 ++++--
+ tests/gates/sn/test_2d_octant_sweep_equivalence.py |  62 +++++++----
+ tests/gates/sn/test_fission_operator.py            |  58 +++++++---
+ tests/gates/sn/test_scattering_operator.py         | 151 ++++++++++++++++++---------
  10 files changed, 506 insertions(+), 178 deletions(-)
 ```
 
@@ -55,7 +55,7 @@ principled).
 ### §2.1 Regression suite (load-bearing bit-identity gate)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -71,18 +71,18 @@ isotropic + P1-anisotropic. The layout flips are view-only transposes
 ### §2.2 Operator-leaf test suites
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_fission_operator.py \
-  tests/sn/test_scattering_operator.py \
-  tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_snstreamingoperator.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_fission_operator.py \
+  tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_snstreamingoperator.py -q
 ```
 
 Final pieces (rerun after individual updates):
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_scattering_operator.py tests/sn/test_fission_operator.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_fission_operator.py -q
 ```
 
 ```
@@ -91,7 +91,7 @@ Final pieces (rerun after individual updates):
 ```
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_snstreamingoperator.py tests/sn/test_streaming_operator.py tests/sn/test_streaming_operator_decomposition.py tests/sn/test_collision_operator.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_snstreamingoperator.py tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_streaming_operator_decomposition.py tests/gates/sn/test_collision_operator.py -q
 ```
 
 ```
@@ -108,9 +108,9 @@ verified under PR-INDEX-4.
 ### §2.3 Spatial gates
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py \
-  tests/sn/spatial/test_ordinate_scan.py \
-  tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py \
+  tests/gates/sn/spatial/test_ordinate_scan.py \
+  tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -124,7 +124,7 @@ verified under PR-INDEX-4.
 ### §2.4 L0 streaming-equilibrium curvilinear
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 ```
 
 ```
@@ -140,7 +140,7 @@ under PR-INDEX-4's bridges.
 ### §2.5 Cylinder apply-matvec invariants
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_apply_matvec_cylinder_invariants.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py -q
 ```
 
 ```
@@ -154,8 +154,8 @@ hold.
 ### §2.6 2-D wavefront equivalence + unified dispatch
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_2d_octant_sweep_equivalence.py \
-  tests/sn/test_unified_sweep_dispatch.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_2d_octant_sweep_equivalence.py \
+  tests/gates/sn/test_unified_sweep_dispatch.py -q
 ```
 
 ```
@@ -173,7 +173,7 @@ flow.  All 7 unified dispatch tests PASS.
 ### §2.7 Phase C gates + sweep_operator inconsistency
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_phase_c_gates.py tests/sn/test_sweep_operator_inconsistency.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_phase_c_gates.py tests/gates/sn/test_sweep_operator_inconsistency.py -q
 ```
 
 ```
@@ -188,8 +188,8 @@ assertion is the wrong gate now).  Not caused by PR-INDEX-4.
 ### §2.8 Solver components (minus pre-existing snapshot failure)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_solver_components.py -q \
-  --deselect 'tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference'
+.venv/bin/python -m pytest tests/gates/sn/test_solver_components.py -q \
+  --deselect 'tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference'
 ```
 
 ```
@@ -203,7 +203,7 @@ deselected per PR-INDEX-3 closeout §8.1 / §9.5).
 ### §2.9 Numerics iteration
 
 ```bash
-.venv/bin/python -m pytest tests/numerics/test_iteration.py -q
+.venv/bin/python -m pytest tests/gates/numerics/test_iteration.py -q
 ```
 
 ```
@@ -228,17 +228,17 @@ Pending verbatim CP paste-back — will be appended by the gate-keeper
 when the suite completes:
 
 ```bash
-.venv/bin/python -m pytest tests/cp/ -q
+.venv/bin/python -m pytest tests/gates/cp/ -q
 ```
 
 ### §2.11 Full SN suite (minus 3 long-running tests)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/ \
-  --ignore=tests/sn/spatial/test_streaming_equilibrium_curvilinear.py \
-  --ignore=tests/sn/spatial/test_apply_matvec_cylinder_invariants.py \
-  --ignore=tests/sn/test_phase_c_crosscheck.py \
-  --ignore=tests/sn/test_solver_components.py -q
+.venv/bin/python -m pytest tests/gates/sn/ \
+  --ignore=tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py \
+  --ignore=tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py \
+  --ignore=tests/gates/sn/test_phase_c_crosscheck.py \
+  --ignore=tests/gates/sn/test_solver_components.py -q
 ```
 
 Suite started at 16:31, still running at memo authoring time. The 3
@@ -602,11 +602,11 @@ Two test failures observed during the verification gates are
 PRE-EXISTING (carried forward from PR-INDEX-3 baseline — confirmed
 via PR-INDEX-3 closeout §9.5):
 
-1. `tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
+1. `tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
    — 2-D Cartesian saved snapshot drift.  Was failing before
    PR-INDEX-4.  Deselected in §2.8 to isolate scope.
 
-2. `tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
+2. `tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux`
    — asserts `sweep_err > 0.2` (ERR-026 evidence); measured value
    `1.6e-14`.  Was failing before PR-INDEX-4 because ERR-026 has been
    substantially closed.  Needs Issue follow-up to update or remove.

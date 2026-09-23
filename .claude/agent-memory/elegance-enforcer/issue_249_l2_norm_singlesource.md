@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-`tests/sn/_test_helpers.py` + `tests/sn/verification/mms/*` — #249, the MUST-FIX I
+`tests/gates/sn/_test_helpers.py` + `tests/gates/sn/verification/mms/*` — #249, the MUST-FIX I
 (elegance-enforcer) raised in #236 Phase 3 ([[issue-236-phase3-st5-separability-gate]]).
 Test-only, bit-identical. VERDICT: **PASS-WITH-NITS** (no blocking; 2 do-now nits).
 Ran green: non-slow mms/ `25 passed in 58s`; migrated slow spot-check (delegated sphere

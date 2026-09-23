@@ -5,7 +5,7 @@ This module is the **algebra-of-record** for the
 :mod:`...singular_eigenfunction.cylinder.one_group` Branch-2 production
 solver. Each ``derive_*()`` function pins one identity from
 :cite:`WestfallMetcalf1973` symbolically; the matching foundation tests live
-at :mod:`tests.derivations.test_singular_eigenfunction_cylinder`.
+at :mod:`tests.gates.derivations.test_singular_eigenfunction_cylinder`.
 
 The Westfall-Metcalf chain of derivations (Eqs. 1-8 of the paper)
 proceeds in three stages, all of which we re-derive symbolically:
@@ -753,7 +753,7 @@ def derive_bare_cylinder_criticality_condition() -> dict:
 
     SymPy structural verification HERE; numerical evaluation in the
     test gate
-    :func:`tests.derivations.test_singular_eigenfunction_cylinder.test_solver_matches_sood_ua_1_0_cy_to_1e5`
+    :func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_solver_matches_sood_ua_1_0_cy_to_1e5`
     and Branch-2 cross-check tests.
     """
     mu, R, c = sp.symbols("mu R c", positive=True, real=True)

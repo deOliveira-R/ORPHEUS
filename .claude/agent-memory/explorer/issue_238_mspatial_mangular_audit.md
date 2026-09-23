@@ -63,7 +63,7 @@ So today nothing applies the leaves separately — everything uses fused `loss_a
 
 ## Test surface (all that pins the split)
 
-Module `tests/sn/operators/test_streaming_operator.py` is `pytestmark =
+Module `tests/gates/sn/operators/test_streaming_operator.py` is `pytestmark =
 pytest.mark.foundation`. NO `@pytest.mark.verifies(...)` / `@pytest.mark.catches(...)`
 on ANY M_spatial/M_angular_redist test → deleting/rewiring them dangles NO equation
 `tests` edge and NO ERR-NNN coverage.
@@ -88,11 +88,11 @@ Classes that exercise the leaves (the rewire/delete list):
 - `TestT4bMSpatialStandaloneApply` (op.py:1236) — per-direction summand sum == unified.
   Pure orphan-internal (tests `_SpatialSweepDirection.apply`) — delete with the split.
 
-`tests/sn/_test_helpers.py:_LC_matvec` (line 322) does NOT depend on the split — it calls
+`tests/gates/sn/_test_helpers.py:_LC_matvec` (line 322) does NOT depend on the split — it calls
 `(L+C).apply` (fused). The graph "reference" edge from `_LC_matvec` → `_compute_decomposition`
 is a DOCSTRING mention (line 330), not a call. Survives untouched.
 
-`tests/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py` — private test-support
+`tests/gates/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py` — private test-support
 (mesh builders `_sphere_mesh`/`_cylinder_mesh`/`_slab_for_snapshot_arm` + a pre-T.4
 snapshot capture); consumed ONLY by test_streaming_operator.py. Builders survive; the
 snapshot-decomposition docstring (line 6/254) is stale-if-split-goes.

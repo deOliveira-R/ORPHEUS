@@ -10,7 +10,7 @@ Displacement siblings, `Displacement.sibling_of`, the G-C4 torsor-mint gate,
 and every `flux−flux → …Displacement` row below describe machinery retired
 with the cone carve — flux lives in V and a ψ½ difference is the same flux
 class, signed (per-locus distinctness now pinned by
-`tests/sn/mesh/test_radial_characteristic_split_leaves.py`). The split-space /
+`tests/gates/sn/mesh/test_radial_characteristic_split_leaves.py`). The split-space /
 flux-pair / composite content stands.
 
 # Verifying B.1a / B.1b — the relaxed `Composite` base + the additive ray-block split
@@ -68,7 +68,7 @@ where an offset bug lives, and why G-B's fingerprint is arange-per-slot.
 |---|---|---|---|---|---|
 | **G-A1** | System-A guard RELOCATED, message-identical: a non-BulkField interior / non-BoundaryField boundary on a `FullField` still raises the SAME `TypeError` — now from `FullField.__post_init__` | POSITIVE control (valid `FullField(AngularFlux,AngularBoundaryFlux)` constructs) + NEGATIVE VALUE `match="bulk must be a BulkField"` / `"boundary must be a BoundaryField"` (N1: assert the raised MESSAGE, not "some TypeError") | monkeypatch `FullField.__post_init__` → variant dropping the isinstance guards (keeps `super()`+ψ½) → negative stops raising | `full_field.py:557` | negative test constructs instead of raising |
 | **G-A2** | Base RELAXATION took effect: `Composite` NOW admits a non-Bulk/non-Boundary `Field` pair | `Composite(interior=RadialCharacteristicFlux, boundary=RadialCharacteristicFlux)` on ONE sphere mesh CONSTRUCTS (both leaves are `Field`, neither Bulk/Boundary) | re-add `isinstance(interior, BulkField)` raise to `Composite.__post_init__` | `full_field.py:226` | the non-Bulk construction REDs `"bulk must be a BulkField"` (proves the check genuinely LEFT the base) |
-| **G-A3** | Base RETAINS its Field-level guards (relaxation didn't over-reach) + A2.2 scalar stays green | non-Composite partner `a + 42 → match="same-class partner"`; mesh-mismatch (two distinct meshes) `→ match="share mesh identity"`; **`tests/transport/test_composite.py` stays 0-red** (regression-guard) | monkeypatch `Composite.__post_init__` → drop the base mesh check → the mismatch construction succeeds | `full_field.py:242` | mesh-mismatch stops raising (mesh guard proven still load-bearing on the base) |
+| **G-A3** | Base RETAINS its Field-level guards (relaxation didn't over-reach) + A2.2 scalar stays green | non-Composite partner `a + 42 → match="same-class partner"`; mesh-mismatch (two distinct meshes) `→ match="share mesh identity"`; **`tests/gates/transport/test_composite.py` stays 0-red** (regression-guard) | monkeypatch `Composite.__post_init__` → drop the base mesh check → the mismatch construction succeeds | `full_field.py:242` | mesh-mismatch stops raising (mesh guard proven still load-bearing on the base) |
 | **G-B1** ★ | **THE split-fidelity keystone (forward):** per-(level,sign) `interior.leg == unified.cells` AND `boundary.leg == unified.corner`, bit-identical | unified buffer = `np.arange(space.shape[0])` (L20 fingerprint) → each `(level,sign,part)` slot is a KNOWN unique contiguous range; assert `array_equal` against BOTH the split leaf AND the hand-known arange range | (a) sign-swap; (b) cells↔corner; (c) wrong-offset; (d) **per-level offset `2*pos→pos` / `2*level`** in the split projection/space | split projection + `radial_characteristic_space.py` split-`for_levels` layout | wrong fingerprint (see split-fidelity ledger) |
 | **G-B2** | Recompose (reverse) is EXACT: `recompose(interior, boundary).values == unified.values` | `array_equal` against the original unified arange buffer (lossless + invertible) | recompose drops / mis-orders a leg | split recompose fn | round-trip buffer differs O(1) |
 | **G-B3** | Metric-partition (ERR-067-adjacent gauge): interior metric per leg == `tile(V_cell, ng)`; boundary == `full(ng, V_cell[-1])`; interleaved sum == unified `inner_product_weights` | HAND-KNOWN formula on the sphere's non-uniform `V_cell = [0.065, 0.458, 1.244, 2.422]` (confirmed distinct) — `tile(V,ng) ≠ full(*, V[-1])`; **assert the weight ARRAY** (Mode-12-safe, not a scalar) | (a) interior metric uses `corner_gauge`; (b) boundary metric uses `V_cell` | `radial_characteristic_space.py:332-340` split | metric weight array differs (V_cell vs V(R)) |
@@ -183,15 +183,15 @@ relaxed-base multi-instantiation crux).
 
 ## Homes · config · acceptance
 
-- **G-A1** → extend `tests/transport/test_full_field.py` (System-A guard). **G-A2/G-A3**
-  → extend `tests/transport/test_composite.py` (base relaxation + retained guards).
+- **G-A1** → extend `tests/gates/transport/test_full_field.py` (System-A guard). **G-A2/G-A3**
+  → extend `tests/gates/transport/test_composite.py` (base relaxation + retained guards).
   `pytestmark = pytest.mark.foundation` (both files already are).
-- **G-B + G-C** → NEW `tests/transport/test_radial_characteristic_composite.py`
+- **G-B + G-C** → NEW `tests/gates/transport/test_radial_characteristic_composite.py`
   (`@pytest.mark.foundation`). Sphere-GL S4 fixture imported from
-  `tests/sn/_test_helpers.py` (`_sphere`, `_cyl_level_symmetric`, `_cyl_product`,
+  `tests/gates/sn/_test_helpers.py` (`_sphere`, `_cyl_level_symmetric`, `_cyl_product`,
   `_slab`) exactly as `test_radial_characteristic_carrier.py` does; the multi-level
   synthetic space built directly via the split `for_levels`. (Alternative co-location
-  `tests/sn/operators/` if the main agent prefers SN-side; the carrier lives in
+  `tests/gates/sn/operators/` if the main agent prefers SN-side; the carrier lives in
   `orpheus/transport/`, so transport mirrors the code home — brief's proposal kept.)
 - **Config invariants:** carrying = sphere-GL S4 ONLY; cyl/slab = non-carrying CONTROL
   (must RAISE). **≥2G on every value row** (ng=2). Canonical `-O`;
@@ -206,7 +206,7 @@ relaxed-base multi-instantiation crux).
   new `RadialCharacteristicComposite` must FAIL `isinstance(_, FullField)` and its ray
   leaves must FAIL `isinstance(_, BoundaryField)` (the existing `FaceField`-sibling
   discipline, `_bases.py:1115`).
-- **End-to-end acceptance:** `tests/transport` + `tests/sn -m "not slow"` 0-red +
+- **End-to-end acceptance:** `tests/gates/transport` + `tests/gates/sn -m "not slow"` 0-red +
   ratchet transport:1 + `sphinx -W`. The load-bearing deliverables are **G-B1
   (split-fidelity, arange + multi-level crux)** and **G-C1 (the 3rd non-Bulk/Boundary
   multi-instantiation)** — together they LICENSE the additive split + the unified

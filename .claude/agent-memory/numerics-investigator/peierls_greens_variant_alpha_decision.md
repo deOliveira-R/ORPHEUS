@@ -171,4 +171,4 @@ piecewise τ(µ)):
 - Plan 2: `.claude/plans/peierls-greens-function-approach.md`
 - Existing kernel-level SymPy: `orpheus/derivations/continuous/peierls/origins/specular/continuous_mu.py` (V1–V4: kernel form identities)
 - B3 SymPy target: `orpheus/derivations/continuous/peierls/origins/specular/greens_function.py` (V_α1–V_α3: operator-level identities)
-- B3 test gate: `tests/derivations/test_peierls_greens_function_symbolic.py`
+- B3 test gate: `tests/gates/derivations/test_peierls_greens_function_symbolic.py`

@@ -25,7 +25,7 @@ carve lands; they are what "elegant" looks like for this family.
   SYMBOLIC derivation-of-record (`orpheus/derivations/discrete/sn/dsa.py`
   `build_consistent_dd_system`, which PROVES Larsen (23a-f)/(27)/(38)/(39) rather
   than transcribing). Independent structural reference, not a self-snapshot — verify
-  the pin exists (`tests/sn/acceleration/test_dsa_low_order.py::TestProductionTie`).
+  the pin exists (`tests/gates/sn/acceleration/test_dsa_low_order.py::TestProductionTie`).
 - **The 3-P0-frame anti-mint verdict** (R = `integrate_angular` = the ℓ=0 analysis
   face of `Quadrature.angular_frame(0)`; P = the `/Σw` normalized isotropic
   injection = the ℓ=0 reconstruction). MINT NOTHING — a third moment-0 spelling is

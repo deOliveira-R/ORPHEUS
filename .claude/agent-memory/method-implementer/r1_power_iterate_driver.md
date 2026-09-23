@@ -96,7 +96,7 @@ text across the original 11 loops, see "Variation analysis" below).
 
 ## Foundation tests
 
-`tests/derivations/test_trajectory_resolvent_power_iterate.py` — 6
+`tests/gates/derivations/test_trajectory_resolvent_power_iterate.py` — 6
 foundation-tagged tests that pin the driver's universal book-keeping
 in isolation from any geometry:
 
@@ -117,13 +117,13 @@ in isolation from any geometry:
 ## Test results
 
 Pre-refactor (HEAD `main`):
-- `tests/derivations/test_peierls_greens_function_*`: 205 passed
-- `tests/cross_method/`: 84 passed
+- `tests/gates/derivations/test_peierls_greens_function_*`: 205 passed
+- `tests/gates/cross_method/`: 84 passed
 
 Post-refactor (`refactor/r1-power-iterate-driver`):
-- `tests/derivations/test_peierls_greens_function_*`: **205 passed**
-- `tests/cross_method/`: **84 passed**
-- `tests/derivations/test_trajectory_resolvent_power_iterate.py`:
+- `tests/gates/derivations/test_peierls_greens_function_*`: **205 passed**
+- `tests/gates/cross_method/`: **84 passed**
+- `tests/gates/derivations/test_trajectory_resolvent_power_iterate.py`:
   **6 passed** (new — driver foundation tests)
 
 Sphinx `-W -b html`: clean build (no warnings).
@@ -141,7 +141,7 @@ Sphinx `-W -b html`: clean build (no warnings).
   (hollow sphere 1G + MG loops)
 - MOD `orpheus/derivations/continuous/trajectory_resolvent/greens_function_annulus.py`
   (annulus 1G + MG loops)
-- NEW `tests/derivations/test_trajectory_resolvent_power_iterate.py`
+- NEW `tests/gates/derivations/test_trajectory_resolvent_power_iterate.py`
 
 Net: 11 power-iteration loops collapsed to 1 driver + 11 small
 `_step` closures. Geometry files lost ~32 LOC each (init + loop

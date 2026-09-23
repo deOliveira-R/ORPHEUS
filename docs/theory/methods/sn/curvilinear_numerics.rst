@@ -104,7 +104,7 @@ took two passes at the closure:
   symmetric closure) with the sweep-as-``solve`` as preconditioner.
   This closes ERR-026 on **constant-source reflective-BC
   problems** — the canonical
-  :file:`tests/sn/test_sweep_operator_inconsistency.py` regression
+  :file:`tests/gates/sn/test_sweep_operator_inconsistency.py` regression
   suite confirms the krylov path gives the analytical flat flux
   to round-off where the sweep does not.
 * **Wave E Round 3** (Issue #98 follow-up) closed the BC-faithfulness
@@ -149,7 +149,7 @@ correct for constant-source problems but not the right default
 for MMS.
 
 The two ``xfail-strict`` tripwires at
-``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``
+``tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py``
 remain ``xfail`` through Round 3 with updated reason strings
 reflecting the partial closure.  Full ERR-026 closure on MMS
 depends on a follow-up that extrapolates the curvilinear
@@ -198,7 +198,7 @@ The retired symbols are:
 * The ``boundary_face_flux`` field on
   :class:`~orpheus.sn.problem.SNProblem`
 * The 21 foundation tests at
-  :file:`tests/sn/sweep/test_boundary_face_flux.py`
+  :file:`tests/gates/sn/sweep/test_boundary_face_flux.py`
 
 See :ref:`sn-sweep-frame-apply-matvec` for the replacement
 architecture. The Phase A subsection is preserved as historical
@@ -449,7 +449,7 @@ cell centre :math:`\rightarrow \ldots \rightarrow` pole face
    as source-of-truth.  The
    ``@pytest.mark.verifies("hebert-3-43X")`` wiring on the L0
    algebraic-identity tests in
-   :file:`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` is tracked
+   :file:`tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py` is tracked
    at Issue #194; without that wiring the labels appear in the V&V
    audit as "documented but not tested" (orphan labels).
 
@@ -563,7 +563,7 @@ analytical reference** in the
 identity :math:`(L \cdot \psi_{\text{flat}})_{n,i,g} = \Sigma_t
 \cdot \psi_{n,i,g}` is verifiable by exact algebra on the discrete
 operator, no numerical quadrature required.  The L0 foundation test
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_flat_psi_identity_reflective`
+:func:`tests.gates.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_flat_psi_identity_reflective`
 pins this identity at machine precision (``rtol=1e-13``).
 
 The corrected injection-point story
@@ -580,7 +580,7 @@ spatial pole-face initial condition** at the then-production
 identified as the Phase C Carlson seed location.
 
 The numerics-investigator diagnostic
-(:file:`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`)
+(:file:`tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`)
 falsified that hypothesis empirically.  Four interventions tested
 against the M-M failing configuration on the flat-:math:`\psi`
 probe:
@@ -647,7 +647,7 @@ broadcast-cell-centre seed ``[D]``.  This is the
 canonical, not as a coincidental match on a degenerate probe.
 
 The pinning test for this structural distinction is
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_vacuum_BC_flat_source_nx_3`
+:func:`tests.gates.sn.sweep.curvilinear.test_psi_half_angle_seed.TestCarlsonFlatPsiAlgebraicIdentity.test_carlson_vacuum_BC_flat_source_nx_3`
 — a vacuum-BC hand calculation on the Carlson inward sweep
 (``rtol=1e-13``) whose values are distinct from the degenerate
 broadcast-cell-centre seed.  Without this test a future
@@ -700,7 +700,7 @@ How the wrong seed survived Phase B
 ------------------------------------
 
 The zero seed survived Phase B's L1 flat-flux-identity test
-(``tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py``,
+(``tests/gates/sn/l1_analytical/test_pole_closure_flat_flux_identity.py``,
 deleted with the Legacy/BFF closures it compared — a path literal, not a
 live file)
 because that test compared the three closures (Legacy / BFF /
@@ -849,9 +849,9 @@ operator-algebra operations of
   — both operations are linear in the input :math:`\psi`.
 
 The foundation test
-:func:`tests.sn.sweep.curvilinear.test_psi_half_angle_seed.TestSeedLinearity.test_carlson_inward_sweep_is_linear`
+:func:`tests.gates.sn.sweep.curvilinear.test_psi_half_angle_seed.TestSeedLinearity.test_carlson_inward_sweep_is_linear`
 pins the linearity directly; the operator-level linearity gate
-in :file:`tests/sn/test_streaming_operator.py` pins it transitively
+in :file:`tests/gates/sn/test_streaming_operator.py` pins it transitively
 at the matvec boundary (``rtol=1e-12`` — relaxed from the
 pre-Phase-D ``rtol=1e-13`` to absorb ~10×ULP non-associativity
 drift, justified by the three principled-relaxation criteria of
@@ -952,7 +952,7 @@ Empirical Gate 1.1 outcome (Phase D — full 12-cell crosstab)
 The Phase D acceptance gate is Gate 1.1 on **all three** pole
 closures across both curvilinear geometries and both :math:`\Sigma_t`
 values.  The parametrised test
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_apply_curvilinear_per_ordinate_flat_flux_residual`
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_apply_curvilinear_per_ordinate_flat_flux_residual`
 produces the 12-cell crosstab:
 
 .. list-table:: Gate 1.1 outcome under Phase D Carlson seed (2026-05-12)
@@ -1062,7 +1062,7 @@ exact value the matvec passes into the BC trace law:
    array passed to it during one matvec call.
 #. Independently reconstruct the WDD-propagated outflow trace via
    a reference implementation
-   (:func:`tests.sn.sweep.core.test_phase_c_gates._outflow_at_boundary_for_sphere_from_bulk`).
+   (:func:`tests.gates.sn.sweep.core.test_phase_c_gates._outflow_at_boundary_for_sphere_from_bulk`).
 #. Assert the captured BC apply input matches the reference to
    ``rtol=1e-14`` — exactly bit-equal up to FP non-associativity.
 
@@ -1078,7 +1078,7 @@ The strengthening matters because the Phase D matvec now calls
    :ref:`affine-bc-form` contract.
 
 The capture-and-compare test
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``) **locates the
 Phase C call by shape and content matching**: of the two captured
 inputs, the one whose shape matches ``(N, ng)`` and whose values
@@ -1166,7 +1166,7 @@ follow-up paths (higher-order pole-face spatial closure, or a
 output rather than the cell-centred input).
 
 The 4 ``xfail-strict`` ERR-026 tripwires
-(:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`,
+(:file:`tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py`,
 sphere + cylinder × isotropic + anisotropic ansatz) therefore
 **stay xfail** through Phase D Step 3.  They will ``xpass`` under
 the Phase D defaults (which is what triggers the deferred Step 5
@@ -1196,7 +1196,7 @@ The full Phase D footprint (per the closeout memo at
 * :mod:`orpheus.sn.sweep.psi_half_angle_seed` — Protocol family
   + ABC + 2 strategies (``ZeroSeed`` + ``CarlsonInwardSweep``)
   + ``CarlsonSweepContext`` dataclass.
-* :file:`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py` — 25
+* :file:`tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py` — 25
   foundation + L0 + L1 tests covering Protocol conformance,
   registry/self-registration, immutability, shape contract,
   bit-identity for ``ZeroSeed``, L0 algebraic identities
@@ -1225,10 +1225,10 @@ The full Phase D footprint (per the closeout memo at
   :class:`MorelMontryAngularSweep`.
 * :mod:`orpheus.sn.solver` — curvilinear default ``inner_solver``
   flipped to ``"krylov"``.
-* :file:`tests/sn/sweep/core/test_phase_c_gates.py` (``tests/sn/`` at the
+* :file:`tests/gates/sn/sweep/core/test_phase_c_gates.py` (``tests/gates/sn/`` at the
   time; moved by the taxonomy reorg ``105ce125``) — Gate 1.5 strengthened
   with capture-and-compare.
-* :file:`tests/sn/test_streaming_operator.py` (post-D-K successor
+* :file:`tests/gates/sn/test_streaming_operator.py` (post-D-K successor
   to the retired ``test_snstreamingoperator.py``) — 3 tests updated
   (one test docstring rewritten to pin the Phase D fix; two
   bit-identity tests threaded with ``problem.pole_angular_closure``;
@@ -1248,7 +1248,7 @@ The agent-memory trail for Phase D session reproducibility:
   ``.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md``
   — what shipped + 3 deviations + V&V evidence chain.
 * Diagnostic script:
-  :file:`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+  :file:`tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
   — self-contained CLI probe reproducing the diagnostic table.
 
 
@@ -1309,7 +1309,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      gate (see :ref:`sn-phase-f-residual-o-h-open` and
      :ref:`sn-issue-196-eigenvalue-equivalence`).  The Phase E
      flux-shape sentinel
-     (:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`)
+     (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`)
      **no longer xfails** — it runs as a plain L1 test, the
      structurally-independent Variant-α anchor.
 
@@ -1592,7 +1592,7 @@ Equivalence on the converged eigenmode
 --------------------------------------
 
 Foundation test
-:func:`tests.sn.sweep.core.test_sweep_vs_apply_consistency`
+:func:`tests.gates.sn.sweep.core.test_sweep_vs_apply_consistency`
 pins the source-vs-:math:`\psi` equivalence directly: for any
 flat-:math:`\psi` field ``ψ_const`` with ``bc_outer_value =
 ψ_const`` (reflective) and ``Q_1d = Σ_t · Σw · ψ_const`` (the
@@ -1837,7 +1837,7 @@ Files touched by Phase F
 
 **Tests added**
 
-* :func:`tests.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
+* :func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
   — **Gate 1.6**, the dual of Gate 1.1 for the SI/sweep path.
   Parametrised over geometry (sphere × cylinder) and
   :math:`\Sigma_t \in \{0.5, 1.5\}`.  Pins
@@ -1848,7 +1848,7 @@ Files touched by Phase F
   ``@pytest.mark.catches("ERR-026")`` — see
   :ref:`sn-phase-f-test-wiring` for the proposed extension to
   the Phase F equation labels.
-* :file:`tests/sn/sweep/core/test_sweep_vs_apply_consistency.py` —
+* :file:`tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py` —
   NEW file, **57 foundation tests** pinning:
 
   #. Apply-path vs sweep-path Carlson seed bit-equivalence on
@@ -1864,7 +1864,7 @@ Files touched by Phase F
 
 **Updated tests**
 
-* :func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+* :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
   — *(Phase-F action, since superseded.)* Phase F updated the
   ``xfail-strict`` reason string from *"UNRESOLVED structural
   discrepancy with hypothesised pole issue"* to *"Phase F closed
@@ -1879,12 +1879,12 @@ Files touched by Phase F
 * 6 curvilinear regression snapshots regenerated under the
   Phase F fix:
 
-  * ``tests/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz``
-  * ``tests/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz``
-  * ``tests/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz``
-  * ``tests/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz``
-  * ``tests/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz``
-  * ``tests/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz``
+  * ``tests/gates/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz``
+  * ``tests/gates/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz``
+  * ``tests/gates/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz``
+  * ``tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz``
+  * ``tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz``
+  * ``tests/gates/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz``
 
   Bit-identity break is principled per the
   ``vv-principles`` *"Bit-identity vs principled-equivalence"*
@@ -1957,7 +1957,7 @@ logged in ``error_catalog.rst`` as **ERR-026 manifestation #7**:
 
 That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
 #196**.  The Phase E flux-shape sentinel
-:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
 **no longer xfails** — it runs as a plain L1 test (the
 structurally-independent Variant-α anchor; see
 :ref:`sn-issue-196-eigenvalue-equivalence`).  The two viable
@@ -2045,7 +2045,7 @@ as :eq:`hebert-3-434` and :eq:`hebert-3-435` but with the
 sweep-path source substitution made explicit.
 
 The new Gate 1.6 test
-:func:`tests.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
 already carries
 ``@pytest.mark.verifies("dd-curvilinear-scalar")`` and
 ``@pytest.mark.catches("ERR-026")``.  Per the project's
@@ -2267,7 +2267,7 @@ ordinates (see
 checked at landing against the dense-probe transpose oracle
 ``diag_p42_adjoint_oracle.py``, a probe that was not preserved in git; the
 standing gate is
-``tests/sn/sweep/core/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame``).
+``tests/gates/sn/sweep/core/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame``).
 
 .. _sn-coupled-pole-mu-level-invariant:
 
@@ -2374,13 +2374,13 @@ something either site enforces alone.
 structurally blind to a cross-level regression, the invariant is pinned
 *directly* — not through any flux or eigenvalue, but as a property of the
 derived mirror pairing itself — by the foundation test
-:func:`tests.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_intra_level_signflip_partner`.
+:func:`tests.gates.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_intra_level_signflip_partner`.
 It asserts all three equalities of
 :eq:`sn-coupled-pole-mu-level-invariant-eq` (intra-level membership,
 :math:`\mu_x` sign-flip, :math:`\mu_y,\mu_z` held) over the
 ``gauss_legendre`` / ``level_symmetric`` / ``product`` cubatures the
 curvilinear sweep actually uses; the sibling
-:func:`~tests.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_an_involution`
+:func:`~tests.gates.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_an_involution`
 pins ``mirror ∘ mirror = id`` (the partner relation is symmetric — a
 necessary corollary of the sign-flip).  Both are
 ``@pytest.mark.foundation``; the first carries
@@ -2913,12 +2913,12 @@ Session trail (V&V audit trail)
   decomposition and the seed fix) were retired at ``f36572c8``; recover
   one with ``git show f36572c8^:derivations/diagnostics/<file>``.
   What they asked is gated by
-  ``tests/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
+  ``tests/gates/sn/verification/mms/test_mms_curvilinear.py::test_sn_spherical_mms_converges_second_order``
   and ``::test_sn_cylindrical_mms_converges_second_order`` (probe 1: the
   error falls at second order, it does not plateau),
-  ``tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``
+  ``tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``
   (probe 2: the pole-cell order is bounded below, so a growing spike
-  reds it), and ``tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py``
+  reds it), and ``tests/gates/sn/verification/mms/test_curvilinear_operator_admits_mms.py``
   (probe 3, promoted 2026-06-12: the per-ordinate residual of the
   operator on the manufactured solution decays). Probes 4 and 5 drove a
   matvec that the operator-algebra carve retired; their finding is
@@ -2931,20 +2931,20 @@ Verification chain
 
 The ERR-058 fix is pinned by, in order of structural decisiveness:
 
-#. :func:`tests.sn.verification.mms.test_curvilinear_operator_admits_mms.test_operator_admits_isotropic_mms_per_ordinate`
+#. :func:`tests.gates.sn.verification.mms.test_curvilinear_operator_admits_mms.test_operator_admits_isotropic_mms_per_ordinate`
    (``@pytest.mark.l1`` + ``catches("ERR-058")``) — the fast
    per-ordinate volume-weighted operator-admission gate (the structurally
    decisive check, immune to the telescoping blindness).
-#. :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
+#. :func:`tests.gates.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
    and
-   :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
+   :func:`tests.gates.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
    (``catches("ERR-058")``) — the end-to-end L1 ladders whose
    ``xfail`` markers came off with this fix; they ``verifies`` the
    :eq:`sn-mms-spherical-psi` / :eq:`sn-mms-spherical-qext` /
    :eq:`sn-mms-cylindrical-psi` / :eq:`sn-mms-cylindrical-qext` labels.
 #. The flat-flux and streaming-equilibrium gates pin the flat-field
    exactness BOTH fixes preserve (so they did not regress).
-#. :func:`tests.sn.operators.test_g_adjoint_reciprocity` — pins the
+#. :func:`tests.gates.sn.operators.test_g_adjoint_reciprocity` — pins the
    strategy-owned seed adjoints.
 
 .. note::
@@ -3097,9 +3097,9 @@ The permanent regression gate (Issue #196)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The manifestation-#7 catcher is
-:func:`tests.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_sphere`
+:func:`tests.gates.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_sphere`
 and
-:func:`tests.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_cylinder`,
+:func:`tests.gates.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_cylinder`,
 each carrying ``@pytest.mark.catches("ERR-026")``.  Configuration:
 heterogeneous 2-group fuel|moderator (region A inner, region B outer,
 n=10+10), solved twice under ``inner_solver="source_iteration"`` and
@@ -3163,7 +3163,7 @@ legs:
   medium :math:`k_\infty=\nu\Sigma_f/\Sigma_a` is an analytical
   (closed-form) eigenvalue the SN snapshots must reproduce.
 * The **Variant-α Green's-function cross-check**
-  (:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`),
+  (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`),
   now a plain L1 test (xfail removed), which compares the SN flux-shape
   snapshot against the composite-GL trajectory-resolvent reference
   within 8 % (sphere) / 12 % (cylinder).  This reference is a

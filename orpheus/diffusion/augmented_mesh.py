@@ -75,7 +75,7 @@ That is exactly the DSA construction path (#2): :math:`A_{\rm diff}`
 assembles on the promoted mesh, sharing the geometry with the SN sweep
 it accelerates.
 
-Layer (``tests/test_layer_imports.py``): L3 ``diffusion``. Imports
+Layer (``tests/gates/test_layer_imports.py``): L3 ``diffusion``. Imports
 ``geometry`` (laws), ``numerics`` (spaces), ``transport`` (the
 MaterialMesh base + axis helpers + the shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body),

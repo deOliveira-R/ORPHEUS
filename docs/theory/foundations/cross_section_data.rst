@@ -705,7 +705,7 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
       with NJOY Eq. (242).  It states the format, not a solver claim, so
       there is nothing here for a solver test to falsify; its verifiable
       content is the ratio-invariance property named in the paragraph
-      below, whose gate is ``tests/data/test_n2n_yield_convention.py``.
+      below, whose gate is ``tests/gates/data/test_n2n_yield_convention.py``.
    .. vv-status: gendf-mf6-yield-per-order documented
 
    One yield per **incident** energy multiplies the entire emission
@@ -751,7 +751,7 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
    see it, because ``compute_macro_xs`` *derives* ``SigT`` from the very
    identity that guard then checks — a real regression guard against a
    derivation typo, and structurally blind to a wrong input convention.
-   The gates are ``tests/data/test_n2n_yield_convention.py``, whose
+   The gates are ``tests/gates/data/test_n2n_yield_convention.py``, whose
    end-to-end legs read :math:`4\times` under the pre-#427 ingest.
 
    ⚠ **Regenerate the HDF5 store after any change to this module.**
@@ -1016,7 +1016,7 @@ of these three:
        :math:`y \equiv 2`, and
        :ref:`the one-yield-per-stack rule <mf6-one-yield-per-stack>` —
        that one yield is divided out of every order by one diagonal)
-     - the gate is ``tests/data/test_n2n_yield_convention.py``
+     - the gate is ``tests/gates/data/test_n2n_yield_convention.py``
    * - **removal is counted ONCE**, on the absorption side
      - ``orpheus/data/macro_xs/mixture.py:658`` for
        :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigT`
@@ -1053,7 +1053,7 @@ the eigenvalue posing can decide where to group.
    module-level ``_N2N_MULTIPLICITY`` (``orpheus/mc/solver.py:36``) is a
    ``float()`` of that same ``ClassVar``, hoisted only to keep the
    walk's dtype path unbroken.  A census test
-   (``tests/transport/test_n2n_multiplicity_census.py``) walks the tree's
+   (``tests/gates/transport/test_n2n_multiplicity_census.py``) walks the tree's
    AST and refuses a further literal spelling of it.
 
 Why it is its own channel and not folded into ``SigS``
@@ -1190,7 +1190,7 @@ the channel's yield (:attr:`TransferKernel.multiplicity
    every entry in :doc:`/theory/verification/error_catalog` is titled:
    by the defect, not by the state.  The defect was fixed at #23, the
    catcher is
-   ``tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``, and
+   ``tests/gates/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``, and
    that catcher still has teeth.  It is, however,
    ``@pytest.mark.slow``, so the project's canonical ``-m "not slow"``
    gate does not run it (`#405
@@ -1947,10 +1947,10 @@ Per-component validation for U-235 at 294K (10 sigma-zeros):
 
    The :math:`\ell \ge 1` moments have **no** ``.m`` counterpart and are
    outside this table's reach by construction.  What pins them instead
-   landed with the schema: ``tests/data/test_hdf5_store.py`` (the
+   landed with the schema: ``tests/gates/data/test_hdf5_store.py`` (the
    round-trip ``load ∘ save = id``, ``array_equal`` on every field,
    plus the stale-layout refusal) and
-   ``tests/data/test_ingest_ledger.py`` (a pre-step-1 digest of all 13
+   ``tests/gates/data/test_ingest_ledger.py`` (a pre-step-1 digest of all 13
    isotopes, pinning that the change *appended* orders and moved no
    stored value) — together with the physics bound in
    :ref:`the one-yield-per-stack rule <mf6-one-yield-per-stack>`.
@@ -1978,7 +1978,7 @@ zero (the **null spectrum**) for a non-fissile material:
    law of the fission emission spectrum (Σχ=1, χ≥0 for producing; χ≡0 for
    non-producing). A probability-distribution invariant carried by the
    EmissionSpectrum type, gated by the foundation tests
-   ``tests/data/test_emission_spectrum.py`` (``assert_normalized`` positive /
+   ``tests/gates/data/test_emission_spectrum.py`` (``assert_normalized`` positive /
    negative legs + ``assert_null``). A definitional law, not a solver claim.
 
 ORPHEUS encodes this law in
@@ -2110,7 +2110,7 @@ coincide to leading order; pinning ``rtol=0`` removes any ambiguity).
 Both ends of this band are pinned by foundation tests
 (``test_one_ulp_residual_passes`` mirrors the 2.22e-16 residual and must
 NOT raise; ``test_off_by_1e6_raises`` injects the :math:`10^{-6}` error
-and must raise) in ``tests/data/test_emission_spectrum.py``.
+and must raise) in ``tests/gates/data/test_emission_spectrum.py``.
 
 The **null** spectrum is held to a stricter standard.
 :meth:`~orpheus.data.emission_spectrum.EmissionSpectrum.assert_null`
@@ -2203,7 +2203,7 @@ predicates coincide: the production XS is computed as
 :math:`\nu\Sigma_f > 0 \;\Leftrightarrow\; \Sigma_f > 0`. On the real
 GENDF path, keying on either predicate gives the same answer. This is
 proven on shipped data by ``TestRealGendfConstructs`` in
-``tests/data/test_chi_invariant_enforcement.py``: U-235 reports
+``tests/gates/data/test_chi_invariant_enforcement.py``: U-235 reports
 ``is_producing`` and its 2.22e-16-residual spectrum passes the simplex
 clause; O-016 and H-001 report *not* ``is_producing`` and their
 genuinely-zero spectra pass the null clause.
@@ -2212,7 +2212,7 @@ The two predicates **diverge** for a synthetic fixture that sets the
 production XS directly while leaving the fission XS at zero — a
 *production-bearing but non-fissile* material. The canonical instance is
 the trajectory-resolvent billiard reference solver
-(``tests/derivations/test_trajectory_resolvent_billiard.py``), which
+(``tests/gates/derivations/test_trajectory_resolvent_billiard.py``), which
 builds a multiplying medium by setting ``SigP = νΣ_f > 0`` and
 ``SigF = 0`` (the billiard solver reads ``SigP`` and ``chi`` to build
 the fission source; it never reads ``SigF``). For this fixture:
@@ -2273,7 +2273,7 @@ dead value explicit. Nothing observable depends on it.
 
 This inertness is not asserted — it is **proven** by the byte-identical
 diamond-difference regression in
-``tests/sn/regression/test_dd_regression.py``. That gate pins the SN
+``tests/gates/sn/regression/test_dd_regression.py``. That gate pins the SN
 flux/eigenvalue snapshots with an exact-equality contract. After zeroing
 the non-fissile spectra, every snapshot reproduces bit-for-bit (no
 snapshot moved). A moved snapshot would have meant :math:`\chi` was *not*
@@ -2365,7 +2365,7 @@ so the gates are ``@pytest.mark.foundation`` and carry no
 
    * - Gate
      - What it pins
-   * - ``tests/data/test_emission_spectrum.py``
+   * - ``tests/gates/data/test_emission_spectrum.py``
      - The **intrinsic** simplex / null law on the value-object itself
        (vv anti-pattern #11, both legs): each validator gets a positive
        leg (correct instance MUST NOT raise) and a negative leg (broken
@@ -2373,7 +2373,7 @@ so the gates are ``@pytest.mark.foundation`` and carry no
        hand (L11 structural independence — never via the production
        builder the guard protects). Includes the tolerance-band legs
        and the ndarray-subclass zero-ripple legs.
-   * - ``tests/data/test_chi_invariant_enforcement.py``
+   * - ``tests/gates/data/test_chi_invariant_enforcement.py``
      - The **container** cross-check: for each of ``Mixture`` and
        ``Isotope``, both branches (producing → simplex, non-producing →
        null) and both legs, plus ``test_non_producing_nonzero_raises``
@@ -2386,7 +2386,7 @@ assertion routes through ``pytest.raises`` / ``np.testing.*`` (or the
 ``_require`` helper that wraps ``pytest.fail``) rather than a bare
 ``assert`` — so no leg is silently stripped under ``-O`` (vv failure
 mode 8, the compiled-out assertion). The byte-identical DD regression
-(``tests/sn/regression/test_dd_regression.py``) is the third leg: it
+(``tests/gates/sn/regression/test_dd_regression.py``) is the third leg: it
 proves the precursor zeroing of dead non-fissile :math:`\chi` changed no
 solver output.
 

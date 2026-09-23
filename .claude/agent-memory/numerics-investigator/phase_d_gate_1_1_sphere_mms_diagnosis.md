@@ -9,8 +9,8 @@ type: project
 **Branch**: `refactor/sn-operator-algebra` 2026-05-12. Phase D Step 2
 of the plan at `/home/vscode/.claude/plans/structured-booping-parrot.md`.
 
-**Diagnostic script**: `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
-— self-contained CLI probe; run with `python tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`.
+**Diagnostic script**: `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+— self-contained CLI probe; run with `python tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`.
 
 **Headline finding**: the Phase D hypothesis ("Carlson coupled-pole
 inward μ = −1 sweep closes Gate 1.1") is empirically CONFIRMED on the
@@ -323,7 +323,7 @@ The diagnostic SHOULD be promoted in two forms after Phase D ships:
   flat-flux test under M-M closure on reflective sphere that asserts
   `max|residual| ≤ 1e-12`. This is the Gate 1.1 MMS xfail-strict
   marker removal (Phase D plan §5a). It already exists as a
-  parametrised xfail in `tests/sn/test_phase_c_gates.py`; Phase D
+  parametrised xfail in `tests/gates/sn/test_phase_c_gates.py`; Phase D
   removes the xfail marker.
 
 * **Promote-as-pytest** the structural-independence safeguard: a
@@ -331,7 +331,7 @@ The diagnostic SHOULD be promoted in two forms after Phase D ships:
   produces a residual field that is structurally distinct from a
   naive ψ_cell-broadcast seed). This is a NEW gate the diagnostic
   identifies; the Phase D plan should add it as a regression test in
-  `tests/sn/spatial/test_pole_face_initial_condition.py` (or
+  `tests/gates/sn/spatial/test_pole_face_initial_condition.py` (or
   whatever the new test module is named).
 
 ## 9. Phase D plan deviations summary
@@ -350,12 +350,12 @@ code architecture mis-identified the injection point.
 
 ## Pointers
 
-* **Diagnostic script**: `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+* **Diagnostic script**: `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
 * **Production code site**:
   `orpheus/sn/spatial/pole_angular_closure.py:411`
   (`psi_half_left = np.zeros(...)`)
 * **Existing Phase C empirical test**:
-  `tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual`
+  `tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual`
   parametrised over `mms` × `sphere` × Σ_t — currently xfail(strict=False).
 * **Literature memo this corrects**:
   `.claude/agent-memory/literature-researcher/phase_d_carlson_coupled_pole.md`

@@ -33,7 +33,7 @@ r_c=0.48255) with **Sood Table 10** (Pu r_c=0.43014).
 9.2e-5 relative**. The reflected-slab F_N solver is bug-free; the
 "34% gap" was a literature-table mismatch.
 
-Promoted to: `tests/derivations/test_fn_sood_table10_symmetric_pu_h2o.py`
+Promoted to: `tests/gates/derivations/test_fn_sood_table10_symmetric_pu_h2o.py`
 (3 tests: literal Sood Table 10 cross-check + Δ-scaling sanity +
 Wave 2-A geometry-mismatch documentation).
 
@@ -74,7 +74,7 @@ Single-line change in
 | 2.00  | 0.3520        | 0.357551       | 0.357551       | 1.1e-6       |
 
 **Worst-case post-fix: 4e-7 relative** across all 10 Atalay Table 1
-entries. Pinned at 1e-5 absolute by `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`.
+entries. Pinned at 1e-5 absolute by `tests/gates/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`.
 
 ## Slab/sphere critical thicknesses
 
@@ -145,15 +145,15 @@ singularity.
   μ = tanh(t) substitution + module docstring update.
 
 ## Tests
-- `tests/derivations/test_case_method_z0.py` (NEW): 11 ERR-037
+- `tests/gates/derivations/test_case_method_z0.py` (NEW): 11 ERR-037
   regression tests at 1e-5 absolute.
-- `tests/derivations/test_fn_sood_table10_symmetric_pu_h2o.py` (NEW):
+- `tests/gates/derivations/test_fn_sood_table10_symmetric_pu_h2o.py` (NEW):
   3 tests pinning Sood Table 10 (symmetric) cross-check + Wave 2-A
   geometry-mismatch documentation.
-- `tests/derivations/test_case_method_slab.py`: tolerances tightened
+- `tests/gates/derivations/test_case_method_slab.py`: tolerances tightened
   (R=0: 5e-2 → 2e-2; R>0: 1e-1 → 5e-2; f_1=0.10: 2e-2 → 3e-2 to
   cover residual K_j gap at c=2.00).
-- `tests/derivations/test_case_method_sphere.py`: tolerance tightened
+- `tests/gates/derivations/test_case_method_sphere.py`: tolerance tightened
   Sood Ua-1-0-SP from 1e-2 → 1e-4 (achieved 0.001%).
 
 ## Skill / catalog

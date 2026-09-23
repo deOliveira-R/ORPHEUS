@@ -55,7 +55,7 @@ strategy preserved (`:2050,2122` — sweep/matvec stay ONE discrete system, not 
 
 **AXIS-5 — B2 tripwire + frozen mesh-holder assertion (PASS, sufficient).** `TestOneDimScanWalkFrame` is a
 faithful clone of the established `test_octant_walk_is_kernel_parameterized_not_boolean`
-(`tests/sn/operators/test_one_octant_walk.py:84-119`): identical `smells={"is_solve","is_apply","is_matvec"}`,
+(`tests/gates/sn/operators/test_one_octant_walk.py:84-119`): identical `smells={"is_solve","is_apply","is_matvec"}`,
 same AST walk over Name/Attribute/arg/keyword identifiers, `-O`-safe `pytest.fail`. `test_frame_resolves_as_
 frozen_mesh_holder` pins frozen + `fields==["mesh"]` — the structural mirror of `_OctantWalk`. Correct
 + sufficient for Phase B; it is the anti-degradation guard that stops the Phase-C matvec attachment from
@@ -91,7 +91,7 @@ re-indent (the free fns had 2 blank lines; collapsed to 0). 3-line fix; not a co
 
 Files: `loss_representation.py` (1719-2210 the frame; 726/1246 callers; 1675 `_initial_guess_values` kept;
 8/696/1632 internal docstring refs updated), `operator.py:1116`, `scan.py:41`, `sweep_cache.py:76`
-(`:func:`→`:meth:` updated), `tests/sn/sweep/core/test_unified_sweep_dispatch.py:396-457` (B2 gate).
+(`:func:`→`:meth:` updated), `tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py:396-457` (B2 gate).
 MISSED docs: `loss_representations.rst:273`, `index_convention.rst:1176,1422`.
 
 Related: [[a1_diamond_face_closure_seam]] + [[scanmarch_2d_diamond_closure_routing]] (the #206 A-series

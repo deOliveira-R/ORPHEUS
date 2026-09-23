@@ -34,7 +34,7 @@ The verbs, the mixin, and the operator:
   owns it, kept for the signature's legibility) and
   :class:`~orpheus.transport.operators.fission.FissionMomentOperator`'s
   layout admission (a shape, not a carrier). The AST census
-  (``tests/transport/test_no_carrier_dispatch.py``) names both.
+  (``tests/gates/transport/test_no_carrier_dispatch.py``) names both.
 * :func:`lift_bulk_action` — *a bulk action enters the composite by
   extension-by-zero on the trace*: run the interior body, emit the zero
   trace of the operand's boundary class in the output role.

@@ -241,7 +241,7 @@ class DiffusionBoundaryRealizer:
         ``float(law.albedo)``; every arm returned exactly
         ``law.response_kernel.amplitude``, which is why the B1 gate could
         pin the two bit-identical law by law
-        (``tests/geometry/test_boundary_factors.py``). Collapsing it
+        (``tests/gates/geometry/test_boundary_factors.py``). Collapsing it
         states the reason the arms looked alike: **at P1 the angular
         geometry map is integrated out of the half-range moments**, so
         a specular mirror, a Lambertian average, an identity and a null

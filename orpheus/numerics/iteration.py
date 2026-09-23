@@ -112,7 +112,7 @@ Carlson coupled-pole seed (the sweep reads the level's :math:`\psi` at
 :math:`\mu = -1` from it; lesson L21).  A dropped / zeroed / stale seed
 is a WRONG-FIXED-POINT bug there, not a rate change.  The fast always-on
 catcher is the Mode-11 path-spy
-``tests/sn/solve/test_seed_threading_spy.py`` (route-invariant across the
+``tests/gates/sn/solve/test_seed_threading_spy.py`` (route-invariant across the
 step-3 rewire); the value catcher is the ``@slow`` het-2G sphere
 SI≡Krylov equivalence gate.  Bare-ndarray rhs paths ignore the seed
 downstream (the synthetic L0 tests have no seed dependency).
@@ -408,7 +408,7 @@ def _l2_norm(x) -> float:
 # no diagnostics, as before). The norm CONVENTION (interior-leaf space
 # ``l2``, not the whole-composite flat norm) lives with its chooser,
 # ``Composite.principal_bulk_leaf``, and is pinned by
-# :mod:`tests.numerics.test_si_diagnostic_trajectory`.
+# :mod:`tests.gates.numerics.test_si_diagnostic_trajectory`.
 
 
 # ───────────────────────────────────────────────────────────────────────

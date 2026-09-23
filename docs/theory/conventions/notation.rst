@@ -68,7 +68,7 @@ Phase space and fields
        (:meth:`~orpheus.numerics.quadrature.directional.Quadrature.gauss_legendre`),
        :math:`W = 4\pi` for the sphere rules (``lebedev``,
        ``level_symmetric``, ``product``). Enforced in
-       ``tests/numerics/test_quadrature_directional.py``.
+       ``tests/gates/numerics/test_quadrature_directional.py``.
    * - :math:`\mu`
      - ``mu_x`` (slab); ``mu_z`` (axial cosine)
      - Direction cosines. The 1-D slab sweeps along :math:`x`
@@ -285,7 +285,7 @@ from each other, or from itself.
      - With fast → thermal ordering, the **stored** downscatter
        matrix is **upper-triangular**; the **acting** transpose is
        lower-triangular. Enforced:
-       ``tests/data/test_gendf_canonical_order.py::``
+       ``tests/gates/data/test_gendf_canonical_order.py::``
        ``test_downscatter_is_upper_triangular``.
      - A text's "the scattering matrix is lower-triangular" is
        meaningless until its row convention and group ordering are
@@ -309,7 +309,7 @@ from each other, or from itself.
      - Hébert carries :math:`4\pi` in (3.30) but :math:`2` in
        (3.425) — the same object, silently tied to dimensionality.
        ERR-039 and ERR-051 were this class; the catchers live in
-       ``tests/numerics/`` (:math:`\Pi R = 4\pi I`, not :math:`I`).
+       ``tests/gates/numerics/`` (:math:`\Pi R = 4\pi I`, not :math:`I`).
    * - 5 — the :math:`\alpha` recursion
      - One spelling, derived in
        :doc:`/theory/methods/sn/curvilinear_one_group`.

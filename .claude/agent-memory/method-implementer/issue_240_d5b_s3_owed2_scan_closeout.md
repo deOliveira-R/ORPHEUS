@@ -8,7 +8,7 @@ metadata:
 # #240 D5b-S3 OWED-2 — the d=1 LD moment SCAN (the sweep-side ERR-061 analog)
 
 **Branch** `feature/sn-space-angle-tier2`. **NOT committed** (main agent commits).
-Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/sn` (#212).
+Host env `.venv/bin/python`; canonical `python -O -m pytest`; NEVER all `tests/gates/sn` (#212).
 
 ## STATUS — DONE + VERIFIED. The last D5b-S3 blocker is closed.
 
@@ -99,7 +99,7 @@ Verified against a from-scratch dense d=1 chain (FACE/PBAR/PHAT all match to
 
 3 red tests → GREEN (full LD slab file):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_slab.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/verification/mms/test_mms_ld_slab.py -q
 7 passed, 1 warning in 16.67s
 ```
 (`test_sn_1d_slab_ld_mms_converges_second_order`, `test_sn_1d_slab_ld_mms_krylov_matches_si`,
@@ -107,8 +107,8 @@ $ .venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_slab.py -q
 
 GATE 4 (DD/Step byte-identity — the negative control):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-    -W "error::tests.sn.regression._regression_assert.DriftWarning" -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+    -W "error::tests.gates.sn.regression._regression_assert.DriftWarning" -q
 513 passed, 1 skipped, 4 xfailed, 2 warnings in 85.22s
 ```
 IDENTICAL pre/post, no DriftWarning, no golden moved (the fix is a NO-OP at
@@ -125,18 +125,18 @@ limit-consistent value, rel<0.05. The scan recovers the diffusion limit too.
 
 GATE 2 (2-D LD MMS — NOT touched, the negative control for the 2-D path):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/verification/mms/test_mms_ld_2d.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/verification/mms/test_mms_ld_2d.py -q
 3 passed, 1 warning in 332.40s
 ```
 
 spatial dir (the LD foundation + primitive):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial -q
 70 passed, 1 warning in 66.70s
 ```
 spatial + operators (the documented PRE-EXISTING reds, ZERO new):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial tests/sn/operators -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial tests/gates/sn/operators -q
 7 failed, 575 passed, 4 skipped, 1 xfailed
 ```
 The 7: sphere 1-D matvec SPH ×3 (`test_vacuum_bulk_bit_identical_1d[0/1/2-SPH]`)
@@ -149,19 +149,19 @@ they are sphere matvec + 2-D mu_y BC). ZERO new failures.
 
 numerics + transport + sweep cache:
 ```
-$ .venv/bin/python -O -m pytest tests/numerics tests/transport tests/sn/sweep/core/test_sweep_cache.py -q
+$ .venv/bin/python -O -m pytest tests/gates/numerics tests/gates/transport tests/gates/sn/sweep/core/test_sweep_cache.py -q
 875 passed, 1 skipped, 1 warning in 1.47s
 ```
 eigenvalue + l1_analytical + primitives (DD eigenvalue rides the SI scan):
 ```
-$ .venv/bin/python -O -m pytest tests/sn/eigenvalue tests/sn/l1_analytical tests/sn/primitives -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/eigenvalue tests/gates/sn/l1_analytical tests/gates/sn/primitives -q
 354 passed, 6 warnings in 164.07s
 ```
 LD foundation + _ubld refactor pins:
 ```
-$ .venv/bin/python -O -m pytest tests/sn/spatial/test_ld_ubld_symbolic.py \
-    tests/sn/spatial/test_ld_ubld_primitive.py tests/sn/spatial/test_linear_discontinuous.py \
-    tests/sn/spatial/test_ld_slope_frame.py -q
+$ .venv/bin/python -O -m pytest tests/gates/sn/spatial/test_ld_ubld_symbolic.py \
+    tests/gates/sn/spatial/test_ld_ubld_primitive.py tests/gates/sn/spatial/test_linear_discontinuous.py \
+    tests/gates/sn/spatial/test_ld_slope_frame.py -q
 6 + 11 + 21 + 2 = 40 passed
 ```
 

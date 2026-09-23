@@ -32,12 +32,12 @@ Per `vv-principles` §"Hierarchical claim taxonomy", each D-G test row is gated 
 |---|---|---|---|
 | Convergence-order | `test_sn_p1_aniso_mms_converges_second_order` (existing L1 MMS) | MMS | `build_p1_aniso_mms_case` source-driven |
 | Convergence-order | `test_mms_curvilinear_aniso_dd_convergence` (existing L1) | MMS | curvilinear MMS source-driven |
-| Flux-shape | `tests/sn/regression/test_dd_regression.py` (existing) | Closed-form via cross-check | DD snapshot was originally pinned against analytical + Lewis-Miller benchmarks |
+| Flux-shape | `tests/gates/sn/regression/test_dd_regression.py` (existing) | Closed-form via cross-check | DD snapshot was originally pinned against analytical + Lewis-Miller benchmarks |
 | Flux-shape | 2-D octant equivalence snapshots (existing 6 cases) | Closed-form fixed-source + DD self-consistency | snapshots pin geometry-resolved expected fluxes |
-| Eigenvalue | `tests/sn/l1_analytical/test_kinf_homogeneous.py` (existing) | Closed-form | `k_inf = λ_max(A⁻¹F)`, transfer matrix |
-| Bit-identity (algebra) | `tests/transport/fields/test_boundary_flux.py::test_arithmetic_round_trip` (NEW) | Self-consistency | Field ABC dunder math |
-| Equivalence (sweep) | `tests/sn/test_sweep_scratch_split.py` (NEW) | Pre-D-G regression baseline | captured-output comparison |
-| Type-discipline | `tests/sn/test_boundary_flux_immutability_invariant.py` (NEW) | Software invariant | FrozenInstanceError gate |
+| Eigenvalue | `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py` (existing) | Closed-form | `k_inf = λ_max(A⁻¹F)`, transfer matrix |
+| Bit-identity (algebra) | `tests/gates/transport/fields/test_boundary_flux.py::test_arithmetic_round_trip` (NEW) | Self-consistency | Field ABC dunder math |
+| Equivalence (sweep) | `tests/gates/sn/test_sweep_scratch_split.py` (NEW) | Pre-D-G regression baseline | captured-output comparison |
+| Type-discipline | `tests/gates/sn/test_boundary_flux_immutability_invariant.py` (NEW) | Software invariant | FrozenInstanceError gate |
 
 **Pillar selection notes:**
 
@@ -58,26 +58,26 @@ Run ONCE on the pre-D-G tree (the HEAD that precedes the first D-G commit). The 
 ```bash
 # From repo root with .venv active. -O is canonical (per
 # feedback_default_test_mode_is_optimize).
-mkdir -p tests/sn/regression
+mkdir -p tests/gates/sn/regression
 python -O -m pytest tests/ \
     --tb=no -q \
     --no-header \
     -o "console_output_style=count" \
-    > tests/sn/regression/_pre_dg_baseline.txt 2>&1 \
+    > tests/gates/sn/regression/_pre_dg_baseline.txt 2>&1 \
     || true   # capture failures; do NOT exit on non-zero
 
 # Capture pass/fail set with EXACT test node IDs and result codes.
 # This is the comparison artifact.
 python -O -m pytest tests/ \
-    --co -q                            > tests/sn/regression/_pre_dg_collected.txt
+    --co -q                            > tests/gates/sn/regression/_pre_dg_collected.txt
 python -O -m pytest tests/ \
     --tb=no -rN -q --no-header        2>&1 \
     | grep -E "^(PASSED|FAILED|ERROR|SKIPPED) " \
-    | sort -u                          > tests/sn/regression/_pre_dg_pass_fail.txt \
+    | sort -u                          > tests/gates/sn/regression/_pre_dg_pass_fail.txt \
     || true
 ```
 
-The file `tests/sn/regression/_pre_dg_pass_fail.txt` is the LOAD-BEARING artifact. It MUST be committed in the prep commit IMMEDIATELY BEFORE the first D-G code change.
+The file `tests/gates/sn/regression/_pre_dg_pass_fail.txt` is the LOAD-BEARING artifact. It MUST be committed in the prep commit IMMEDIATELY BEFORE the first D-G code change.
 
 ### 2.2 The re-runnable gate
 
@@ -92,7 +92,7 @@ python -O -m pytest tests/ \
     || true
 
 # The gate: diff must be EMPTY.
-diff tests/sn/regression/_pre_dg_baseline_pass_fail.txt /tmp/_post_dg_pass_fail.txt
+diff tests/gates/sn/regression/_pre_dg_baseline_pass_fail.txt /tmp/_post_dg_pass_fail.txt
 GATE_STATUS=$?
 if [ $GATE_STATUS -ne 0 ]; then
     echo "D-G regression-set DRIFT detected. Pre-existing failures changed."
@@ -106,15 +106,15 @@ The MMS gates are L1 numerical-correctness pins that MUST be green under both pr
 
 ```bash
 python -O -m pytest \
-    tests/sn/test_mms_aniso.py \
-    tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py \
-    tests/sn/l1_analytical/test_kinf_homogeneous.py \
-    tests/sn/l1_analytical/test_kinf_homogeneous_tolerance.py \
-    tests/sn/regression/test_dd_regression.py \
-    tests/sn/test_2d_octant_sweep_equivalence.py \
-    tests/sn/test_boundary_flux_arithmetic.py \
-    tests/sn/test_angular_flux_with_boundary.py \
-    tests/sn/test_invertible_operator.py \
+    tests/gates/sn/test_mms_aniso.py \
+    tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py \
+    tests/gates/sn/l1_analytical/test_kinf_homogeneous.py \
+    tests/gates/sn/l1_analytical/test_kinf_homogeneous_tolerance.py \
+    tests/gates/sn/regression/test_dd_regression.py \
+    tests/gates/sn/test_2d_octant_sweep_equivalence.py \
+    tests/gates/sn/test_boundary_flux_arithmetic.py \
+    tests/gates/sn/test_angular_flux_with_boundary.py \
+    tests/gates/sn/test_invertible_operator.py \
     -v --tb=short
 ```
 
@@ -139,7 +139,7 @@ The pre-D-G baseline captures the exact failure set; the gate diff catches:
 
 Below are the THREE new test modules D-G requires. Each is specified as a pytest skeleton — the main agent implements the bodies during D-G turn-by-turn.
 
-### 3.1 `tests/transport/fields/test_boundary_flux.py` — pure Field algebra + flat-buffer + FaceLayout
+### 3.1 `tests/gates/transport/fields/test_boundary_flux.py` — pure Field algebra + flat-buffer + FaceLayout
 
 ```python
 """L0/L2 — BoundaryFlux pure-Field algebra, FaceLayout slice views, and
@@ -173,7 +173,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D, Region, RegionMesh, StructuredG
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from tests.sn._test_helpers import placeholder_materials
+from tests.gates.sn._test_helpers import placeholder_materials
 
 
 pytestmark = [pytest.mark.foundation]
@@ -424,7 +424,7 @@ class TestConstruction:
         ...
 ```
 
-### 3.2 `tests/sn/test_sweep_scratch_split.py` — sweep output equivalence after the buffer split
+### 3.2 `tests/gates/sn/test_sweep_scratch_split.py` — sweep output equivalence after the buffer split
 
 ```python
 """L1 — Sweep output bit-identity (or principled-equivalent) AFTER
@@ -484,7 +484,7 @@ class TestReflectiveBCStatePersistence:
         outgoing face state (reflective BC reads stale zeros instead
         of the previous iter's outgoing).
 
-        Snapshot: `tests/sn/regression/snapshots/dg_2d_reflective_2iter.npz`
+        Snapshot: `tests/gates/sn/regression/snapshots/dg_2d_reflective_2iter.npz`
         captured pre-D-G as the bit-identity gate.
         """
         ...
@@ -619,8 +619,8 @@ class TestPerOrdinateFlatFluxResidual:
 # ───────────────────────────────────────────────────────────────────────
 
 class TestMMSGatesPostDG:
-    """The L1 MMS tests live in tests/sn/test_mms_aniso.py and
-    tests/sn/l1_analytical/. They are not re-implemented here, but
+    """The L1 MMS tests live in tests/gates/sn/test_mms_aniso.py and
+    tests/gates/sn/l1_analytical/. They are not re-implemented here, but
     THIS module records the contract that those gates must stay green
     at every D-G commit (the targeted MMS sub-gate per §2.3 of the
     memo).
@@ -641,7 +641,7 @@ class TestMMSGatesPostDG:
         ...
 ```
 
-### 3.3 `tests/sn/test_boundary_flux_immutability_invariant.py` — frozen-instance gate
+### 3.3 `tests/gates/sn/test_boundary_flux_immutability_invariant.py` — frozen-instance gate
 
 ```python
 """L0 — BoundaryFlux is functionally immutable post-D-G.
@@ -805,7 +805,7 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: the pre-D-G mutable write-through pattern coupled the partner reads directly to the sweep writes via shared mutable ndarray. Post-D-G immutable BoundaryFlux requires explicit fresh-construction between sweep calls.
 
-**Detection**: `tests/sn/test_sweep_scratch_split.py::TestReflectiveBCStatePersistence::test_2d_reflective_bc_two_iterations_match_legacy` AND `::test_2d_reflective_bc_converged_solution_match`.
+**Detection**: `tests/gates/sn/test_sweep_scratch_split.py::TestReflectiveBCStatePersistence::test_2d_reflective_bc_two_iterations_match_legacy` AND `::test_2d_reflective_bc_converged_solution_match`.
 
 **Why it hides**: a single sweep call produces the correct answer; the bug only manifests after the SECOND sweep call (where the reflective partner reads stale state). Single-iteration regression tests would pass.
 
@@ -817,7 +817,7 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: 2-D has four faces with different per-face shapes — `(N, ng, ny)` for x-faces, `(N, ng, nx)` for y-faces. A FaceLayout slot whose `shape` field is `(N, ng, nx)` but whose `flat_size` is computed as `N*ng*ny` (a typo / convention drift) silently mis-maps.
 
-**Detection**: `tests/transport/fields/test_boundary_flux.py::TestFaceLayoutSliceViews::test_face_shapes_match_per_geometry` AND `::test_total_size_consistent_with_face_sizes`. The 2-D snapshot match in `TestOutputEquivalenceVsPreDG::test_2d_snapshot_match` is the integration-level catch.
+**Detection**: `tests/gates/transport/fields/test_boundary_flux.py::TestFaceLayoutSliceViews::test_face_shapes_match_per_geometry` AND `::test_total_size_consistent_with_face_sizes`. The 2-D snapshot match in `TestOutputEquivalenceVsPreDG::test_2d_snapshot_match` is the integration-level catch.
 
 **Why it hides**: 1-D tests pass (only two faces, both shape `(N, ng)` — a slot mis-map is structurally impossible); the bug is gated on dimensionality.
 
@@ -829,7 +829,7 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: the sweep operator's call signature is `sweep(Q, sig_t, sn_mesh, boundary_flux)` pre-D-G. Post-D-G it needs to be `sweep(Q, sig_t, sn_mesh, boundary_flux, sweep_scratch)` where `sweep_scratch` is owned by the SNSweepOperator instance (or by the InvertibleOperator that wraps it). If the carve writes `sweep_scratch = SweepScratch.zeros_for_mesh(sn_mesh)` INSIDE the sweep function body, the cache is rebuilt every call.
 
-**Detection**: `tests/sn/test_sweep_scratch_split.py::TestInteriorWavefrontCacheLocation::test_sweep_scratch_persists_across_iterations`.
+**Detection**: `tests/gates/sn/test_sweep_scratch_split.py::TestInteriorWavefrontCacheLocation::test_sweep_scratch_persists_across_iterations`.
 
 **Why it hides**: correctness tests pass (the values are correct; only allocation count is wrong). A correctness-only gate would not catch this — the gate must inspect object identity across iterations.
 
@@ -839,7 +839,7 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: the legacy `_validate_partner` had a `self.mesh is not other.mesh` check; this MUST be preserved as an override in the new BoundaryFlux class, OR the space construction must encode the mesh identity (e.g. space name including a mesh hash).
 
-**Detection**: `tests/transport/fields/test_boundary_flux.py::TestMeshBindingRejection::test_cross_mesh_add_rejected`.
+**Detection**: `tests/gates/transport/fields/test_boundary_flux.py::TestMeshBindingRejection::test_cross_mesh_add_rejected`.
 
 **Why it hides**: same-mesh tests pass; cross-mesh is a programmer error that only fires in multi-mesh contexts (rare in unit tests, common in adjoint / sensitivity workflows).
 
@@ -851,7 +851,7 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: the `boundary_face_layout` property on SNMesh is implemented as a thin rename of the legacy `xmin_xmax_buf`/`ymin_ymax_buf` shapes. The interior cells live INSIDE BoundaryFlux because the FaceLayout includes them.
 
-**Detection**: `tests/transport/fields/test_boundary_flux.py::TestFaceLayoutSliceViews::test_no_interior_cells_in_layout` AND `tests/sn/test_sweep_scratch_split.py::TestInteriorWavefrontCacheLocation::test_2d_boundary_flux_size_is_face_only`.
+**Detection**: `tests/gates/transport/fields/test_boundary_flux.py::TestFaceLayoutSliceViews::test_no_interior_cells_in_layout` AND `tests/gates/sn/test_sweep_scratch_split.py::TestInteriorWavefrontCacheLocation::test_2d_boundary_flux_size_is_face_only`.
 
 **Why it hides**: every sweep test passes (the buffers are just renamed; the math is identical). The carve appears complete but actually delivered NONE of the memory-churn benefit.
 
@@ -861,13 +861,13 @@ Per `vv-principles` failure-mode taxonomy and `numerical-bug-signatures` recogni
 
 **Mechanism**: dataclass replace COPIES all unmodified fields by default, so this should not happen. But if a subclass overrides `__init__` non-standardly, the replace can silently drop fields.
 
-**Detection**: `tests/sn/test_boundary_flux_immutability_invariant.py::TestFunctionalConstructionPath::test_replace_creates_new_instance` (asserts mesh, layout preserved).
+**Detection**: `tests/gates/sn/test_boundary_flux_immutability_invariant.py::TestFunctionalConstructionPath::test_replace_creates_new_instance` (asserts mesh, layout preserved).
 
 ### Rank 7 — Field-ABC l2 norm uses unit-uniform metric, ignores FaceLayout
 
 **Failure mode**: `bf.l2` calls `self.space.norm(self.values)`. The inherited Field uses `FunctionSpace.norm` which uses `inner_product_weights`. For BoundaryFlux on a flat buffer, the metric depends on which face is which — quadrature weights apply on the angular axis, area measure on the spatial axis. If the FunctionSpace's weights are NOT FaceLayout-aware, `bf.l2` returns a Euclidean norm rather than the L²-of-trace norm.
 
-**Detection**: `tests/transport/fields/test_boundary_flux.py::TestFieldAlgebraInherited::test_l2_via_inherited_property`.
+**Detection**: `tests/gates/transport/fields/test_boundary_flux.py::TestFieldAlgebraInherited::test_l2_via_inherited_property`.
 
 **Mitigation**: D-G may ship with a Euclidean fallback (the legacy code did not expose `.l2`); the convention is documented in the test docstring. If the FaceLayout-aware metric is in scope for D-G, the test pins the formula.
 
@@ -891,8 +891,8 @@ The refactor is a clear application of `coding-elegance` Pattern 3 (named interm
 
 **SATISFIED, with caveats.** The reference structure:
 
-- **L1 MMS gates** (`tests/sn/test_mms_aniso.py`, `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`) ARE structurally independent of the BoundaryFlux storage — the manufactured-source machinery in `orpheus.derivations.continuous.mms.sn` constructs Q^ext without touching boundary buffers. These are the load-bearing references for D-G.
-- **k_inf homogeneous eigenvalue** (`tests/sn/l1_analytical/test_kinf_homogeneous.py`) — closed-form transfer-matrix reference, structurally independent.
+- **L1 MMS gates** (`tests/gates/sn/test_mms_aniso.py`, `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`) ARE structurally independent of the BoundaryFlux storage — the manufactured-source machinery in `orpheus.derivations.continuous.mms.sn` constructs Q^ext without touching boundary buffers. These are the load-bearing references for D-G.
+- **k_inf homogeneous eigenvalue** (`tests/gates/sn/l1_analytical/test_kinf_homogeneous.py`) — closed-form transfer-matrix reference, structurally independent.
 - **Pre-D-G regression snapshots** — captured at the pre-D-G HEAD. They are NOT structurally independent of the pre-D-G implementation (they ARE the pre-D-G implementation's output), but their EXISTENCE establishes the "old value" against which the "new value" is compared at the ULP level. The L1 MMS gates establish that the pre-D-G output WAS correct in the first place; the snapshot match establishes that the post-D-G output reproduces it.
 
 The combined evidence chain — L1 MMS proves the pre-D-G output is correct; snapshots prove the post-D-G output matches the pre-D-G output to ULP — closes the verification loop.
@@ -938,15 +938,15 @@ These tests MUST stay green at every D-G sub-commit. They are the structurally-i
 
 | Test file | Why load-bearing for D-G |
 |---|---|
-| `tests/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | P1 anisotropic MMS on slab — exercises angular-coupling through reflective BC; load-bearing for 1-D BoundaryFlux refactor (xmin/xmax face slots). |
-| `tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | Curvilinear MMS — exercises sphere/cylinder BoundaryFlux (xmax-only face). |
-| `tests/sn/l1_analytical/test_kinf_homogeneous.py` | k_inf eigenvalue — closed-form transfer matrix; eigenvalue claim layer (not provable by MMS). |
-| `tests/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` | Tolerance pin on k_inf — catches regression in iteration-level numerics. |
-| `tests/sn/regression/test_dd_regression.py` | Frozen DD snapshots (slab/sphere/cylinder, 1G/2G, homog/3-region) — flux-shape claims. |
-| `tests/sn/test_2d_octant_sweep_equivalence.py` | 2-D octant equivalence — THE load-bearing test for the 2-D buffer split (since the conflation lives in 2-D). All 6 snapshots must stay green. |
-| `tests/sn/test_boundary_flux_arithmetic.py` | Pre-D-G BoundaryFlux algebra tests — these will migrate to `tests/transport/fields/test_boundary_flux.py` during D-G but the pre-D-G versions must stay green until the migration commit. |
-| `tests/sn/test_angular_flux_with_boundary.py` | AngularFlux carrying BoundaryFlux — D-G preserves the legacy `AngularFlux.boundary` field (D-H retires it). Must stay green. |
-| `tests/sn/test_invertible_operator.py` | `(L+C).solve` consumes/produces AngularFlux with `.boundary` — exercises the full sweep with new BoundaryFlux. |
+| `tests/gates/sn/test_mms_aniso.py::test_sn_p1_aniso_mms_converges_second_order` | P1 anisotropic MMS on slab — exercises angular-coupling through reflective BC; load-bearing for 1-D BoundaryFlux refactor (xmin/xmax face slots). |
+| `tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py` | Curvilinear MMS — exercises sphere/cylinder BoundaryFlux (xmax-only face). |
+| `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py` | k_inf eigenvalue — closed-form transfer matrix; eigenvalue claim layer (not provable by MMS). |
+| `tests/gates/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` | Tolerance pin on k_inf — catches regression in iteration-level numerics. |
+| `tests/gates/sn/regression/test_dd_regression.py` | Frozen DD snapshots (slab/sphere/cylinder, 1G/2G, homog/3-region) — flux-shape claims. |
+| `tests/gates/sn/test_2d_octant_sweep_equivalence.py` | 2-D octant equivalence — THE load-bearing test for the 2-D buffer split (since the conflation lives in 2-D). All 6 snapshots must stay green. |
+| `tests/gates/sn/test_boundary_flux_arithmetic.py` | Pre-D-G BoundaryFlux algebra tests — these will migrate to `tests/gates/transport/fields/test_boundary_flux.py` during D-G but the pre-D-G versions must stay green until the migration commit. |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | AngularFlux carrying BoundaryFlux — D-G preserves the legacy `AngularFlux.boundary` field (D-H retires it). Must stay green. |
+| `tests/gates/sn/test_invertible_operator.py` | `(L+C).solve` consumes/produces AngularFlux with `.boundary` — exercises the full sweep with new BoundaryFlux. |
 
 ---
 
@@ -954,7 +954,7 @@ These tests MUST stay green at every D-G sub-commit. They are the structurally-i
 
 Per `feedback_retirement_means_test_migration`:
 
-- `tests/sn/test_boundary_flux_arithmetic.py` — migrates to `tests/transport/fields/test_boundary_flux.py`. The MIGRATION re-writes the legacy mutable-write tests (`bf.xmin_face[...] = 1.0`) to the new flat-buffer functional path (`dataclasses.replace(bf, values=updated_flat)`). The migration commit retires the legacy test file AS the new tests land green.
+- `tests/gates/sn/test_boundary_flux_arithmetic.py` — migrates to `tests/gates/transport/fields/test_boundary_flux.py`. The MIGRATION re-writes the legacy mutable-write tests (`bf.xmin_face[...] = 1.0`) to the new flat-buffer functional path (`dataclasses.replace(bf, values=updated_flat)`). The migration commit retires the legacy test file AS the new tests land green.
 
 - The legacy file's tests for `__add__`, `__sub__`, `__mul__`, etc. become foundation tests on the inherited Field algebra (the algebra is correct by inheritance from Field; the migrated tests verify the inheritance is wired).
 
@@ -966,15 +966,15 @@ Per `feedback_retirement_means_test_migration`:
 
 | Legacy behavior | Pinned by | Migration disposition |
 |---|---|---|
-| Mutable write-through (`bf.xmin_face[...] = ...`) | `tests/sn/test_boundary_flux_arithmetic.py` (writes to `xmin_face`, `xmax_face`) | RETIRE pre-D-G tests; replace with frozen-instance tests in `test_boundary_flux_immutability_invariant.py`. |
-| Per-face named-buffer accessor (`bf.xmin_face`, `bf.xmax_face`) | `tests/sn/test_boundary_flux_arithmetic.py` (asserts on `out.xmin_face`) | MIGRATE — accessor becomes `bf.faces['xmin'].values`. New test asserts equivalent shapes/values. |
-| 2-D combined buffer (`bf.xmin_xmax_buf`) | `tests/sn/test_boundary_flux_arithmetic.py::test_add_2d_cartesian_propagates_to_both_buffers` AND sweep tests | RETIRE the legacy attribute access; verify the data lives in flat buffer + SweepScratch via the SweepScratch split tests. |
-| Geometry-conditional `zeros(mesh)` factory | `tests/sn/test_boundary_flux_arithmetic.py::_slab_mesh / _sphere_mesh / _cylinder_mesh fixtures` | MIGRATE — factory renames to `BoundaryFlux.zeros_for_sn_mesh(mesh)` (or stays as `zeros` — verify the new API in `test_boundary_flux.py::TestConstruction`). |
-| Cross-mesh rejection | `tests/sn/test_boundary_flux_arithmetic.py::test_cross_mesh_add_rejected` | PRESERVE — copy verbatim into `tests/transport/fields/test_boundary_flux.py::TestMeshBindingRejection`. |
-| Algebra dunder distributivity | `tests/sn/test_boundary_flux_arithmetic.py::test_distributive_property` | PRESERVE — copy into new test file; behavior must be unchanged. |
-| SI-driver convergence with reflective BC | `tests/sn/test_2d_octant_sweep_equivalence.py::*_reflective_*` snapshots | PRESERVE — these are the load-bearing snapshots for the reflective BC partner read AT THE ITERATION LEVEL. |
-| Reflective BC face read after sweep | `tests/sn/test_2d_octant_sweep_equivalence.py` AND DD-regression snapshots | PRESERVE + ADD targeted test `test_2d_reflective_bc_two_iterations_match_legacy` in `test_sweep_scratch_split.py`. |
-| Persistent buffer survives across `(L+C).solve` calls | `tests/sn/test_invertible_operator.py` | PRESERVE — the InvertibleOperator's `_copy_boundary_face_state` helper at `operator.py:2680-2697` is the load-bearing seed-from-rhs path; D-G changes the helper's body but the test contract stays. |
+| Mutable write-through (`bf.xmin_face[...] = ...`) | `tests/gates/sn/test_boundary_flux_arithmetic.py` (writes to `xmin_face`, `xmax_face`) | RETIRE pre-D-G tests; replace with frozen-instance tests in `test_boundary_flux_immutability_invariant.py`. |
+| Per-face named-buffer accessor (`bf.xmin_face`, `bf.xmax_face`) | `tests/gates/sn/test_boundary_flux_arithmetic.py` (asserts on `out.xmin_face`) | MIGRATE — accessor becomes `bf.faces['xmin'].values`. New test asserts equivalent shapes/values. |
+| 2-D combined buffer (`bf.xmin_xmax_buf`) | `tests/gates/sn/test_boundary_flux_arithmetic.py::test_add_2d_cartesian_propagates_to_both_buffers` AND sweep tests | RETIRE the legacy attribute access; verify the data lives in flat buffer + SweepScratch via the SweepScratch split tests. |
+| Geometry-conditional `zeros(mesh)` factory | `tests/gates/sn/test_boundary_flux_arithmetic.py::_slab_mesh / _sphere_mesh / _cylinder_mesh fixtures` | MIGRATE — factory renames to `BoundaryFlux.zeros_for_sn_mesh(mesh)` (or stays as `zeros` — verify the new API in `test_boundary_flux.py::TestConstruction`). |
+| Cross-mesh rejection | `tests/gates/sn/test_boundary_flux_arithmetic.py::test_cross_mesh_add_rejected` | PRESERVE — copy verbatim into `tests/gates/transport/fields/test_boundary_flux.py::TestMeshBindingRejection`. |
+| Algebra dunder distributivity | `tests/gates/sn/test_boundary_flux_arithmetic.py::test_distributive_property` | PRESERVE — copy into new test file; behavior must be unchanged. |
+| SI-driver convergence with reflective BC | `tests/gates/sn/test_2d_octant_sweep_equivalence.py::*_reflective_*` snapshots | PRESERVE — these are the load-bearing snapshots for the reflective BC partner read AT THE ITERATION LEVEL. |
+| Reflective BC face read after sweep | `tests/gates/sn/test_2d_octant_sweep_equivalence.py` AND DD-regression snapshots | PRESERVE + ADD targeted test `test_2d_reflective_bc_two_iterations_match_legacy` in `test_sweep_scratch_split.py`. |
+| Persistent buffer survives across `(L+C).solve` calls | `tests/gates/sn/test_invertible_operator.py` | PRESERVE — the InvertibleOperator's `_copy_boundary_face_state` helper at `operator.py:2680-2697` is the load-bearing seed-from-rhs path; D-G changes the helper's body but the test contract stays. |
 
 ---
 
@@ -982,14 +982,14 @@ Per `feedback_retirement_means_test_migration`:
 
 D-G ships when:
 
-1. ✅ Pre-D-G baseline pass/fail captured to `tests/sn/regression/_pre_dg_baseline_pass_fail.txt` (committed prep step).
-2. ✅ `tests/transport/fields/test_boundary_flux.py` green at every D-G sub-commit.
-3. ✅ `tests/sn/test_sweep_scratch_split.py` green at every D-G sub-commit.
-4. ✅ `tests/sn/test_boundary_flux_immutability_invariant.py` green at every D-G sub-commit.
+1. ✅ Pre-D-G baseline pass/fail captured to `tests/gates/sn/regression/_pre_dg_baseline_pass_fail.txt` (committed prep step).
+2. ✅ `tests/gates/transport/fields/test_boundary_flux.py` green at every D-G sub-commit.
+3. ✅ `tests/gates/sn/test_sweep_scratch_split.py` green at every D-G sub-commit.
+4. ✅ `tests/gates/sn/test_boundary_flux_immutability_invariant.py` green at every D-G sub-commit.
 5. ✅ Re-runnable bit-identity gate (§2.2 diff) produces empty diff at every D-G sub-commit.
 6. ✅ Targeted L1 MMS sub-gate (§2.3) green at every D-G sub-commit.
 7. ✅ Pre-existing 10 DD-regression failures stay at the same failure set.
-8. ✅ `tests/sn/test_boundary_flux_arithmetic.py` retired in the final D-G commit (the new test file supersedes it).
+8. ✅ `tests/gates/sn/test_boundary_flux_arithmetic.py` retired in the final D-G commit (the new test file supersedes it).
 
 ---
 
@@ -1001,7 +1001,7 @@ D-G ships when:
 
 3. **`InvertibleOperator._copy_boundary_face_state` at `operator.py:2680-2697` — does it survive D-G or get rewritten?** The helper currently does mutable write-through (`dst.xmin_face[...] = src.xmin_face`). Post-D-G immutable BoundaryFlux requires `dst = dataclasses.replace(dst, values=src.values)` or just `dst = src`. The helper becomes a one-line copy or vanishes. Recommend: vanish, replace call site with direct assignment.
 
-4. **Should the migration test file path be `tests/transport/fields/test_boundary_flux.py` (per plan) or `tests/transport/fields/test_boundary_face_flux.py` for the BoundaryFaceFlux per-face wrapper?** Plan §3.4 distinguishes `BoundaryFlux` (over-all-faces) from `BoundaryFaceFlux` (one face). Recommend: single test file `test_boundary_flux.py` covering both; if `BoundaryFaceFlux` gets significant API surface, split later.
+4. **Should the migration test file path be `tests/gates/transport/fields/test_boundary_flux.py` (per plan) or `tests/gates/transport/fields/test_boundary_face_flux.py` for the BoundaryFaceFlux per-face wrapper?** Plan §3.4 distinguishes `BoundaryFlux` (over-all-faces) from `BoundaryFaceFlux` (one face). Recommend: single test file `test_boundary_flux.py` covering both; if `BoundaryFaceFlux` gets significant API surface, split later.
 
 ---
 
@@ -1011,8 +1011,8 @@ D-G ships when:
 - Pre-D-G implementation: `orpheus/sn/boundary_flux.py` (lines 34-43 mutability rationale; lines 96-98 2-D buffer conflation).
 - 2-D sweep: `orpheus/sn/sweep.py:697-858` (`_sweep_2d_wavefront`) — the BC apply at lines 819-831 and the persistent buffer scatter at lines 854-855.
 - InvertibleOperator boundary copy: `orpheus/sn/operator.py:2680-2697`.
-- L1 MMS gates: `tests/sn/test_mms_aniso.py`, `tests/sn/l1_analytical/`.
-- Regression snapshots: `tests/sn/regression/snapshots/` (6 2-D + 6 1-D snapshots).
+- L1 MMS gates: `tests/gates/sn/test_mms_aniso.py`, `tests/gates/sn/l1_analytical/`.
+- Regression snapshots: `tests/gates/sn/regression/snapshots/` (6 2-D + 6 1-D snapshots).
 - `vv-principles` skill: claim taxonomy, three pillars, bit-identity vs principled-equivalence, ERR-006/026 curvilinear sweep bugs.
 - `numerical-bug-signatures` skill: Signature 1 (curvilinear refinement), recognition catalog for reflective-BC partner reads.
 

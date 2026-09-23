@@ -6,7 +6,7 @@ shared across SN, CP, MoC, diffusion, Pn — fields, sources, problems,
 solver protocols — without binding to any one method's discretisation
 machinery.
 
-Layer rules (enforced by ``tests/test_layer_imports.py``):
+Layer rules (enforced by ``tests/gates/test_layer_imports.py``):
 
 * ``transport`` imports from ``numerics`` (L1), ``geometry`` /
   ``data`` (input), and standard library / numpy / scipy. It does

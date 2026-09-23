@@ -237,11 +237,11 @@ as_scipy_linop(op: LinearOperator, shape, dtype=float) → scipy LinearOperator
 
 ### 1.13 Tests for the algebra
 
-- `tests/numerics/test_operator.py` (699 lines) — foundation-tagged
+- `tests/gates/numerics/test_operator.py` (699 lines) — foundation-tagged
   invariants for every composer and every leaf. The protocol
   contracts are gated here.
-- `tests/numerics/test_iteration.py` (462 lines) — see §3.4 below.
-- `tests/numerics/test_diagonal_operator.py`,
+- `tests/gates/numerics/test_iteration.py` (462 lines) — see §3.4 below.
+- `tests/gates/numerics/test_diagonal_operator.py`,
   `test_tensor_product_operator.py`,
   `test_permutation_operator.py`,
   `test_periodic_wrap_operator.py`,
@@ -458,7 +458,7 @@ There is **no `PreconditionedGMRES`** wrapper class anywhere in
 home for a `PreconditionedGMRES(L, q, M=...)` LinearOperator-aware
 wrapper does not exist yet.
 
-### 3.4 Tests (`tests/numerics/test_iteration.py`, 462 lines)
+### 3.4 Tests (`tests/gates/numerics/test_iteration.py`, 462 lines)
 
 - `test_source_iteration_recovers_direct_solve` (L0, 4×4 dense
   matrices) — line 92.
@@ -792,7 +792,7 @@ Pin these to memory before writing the next sub-agent brief:
    `(L, S, F, q_ext)` and `(L, S, F)` respectively — exactly the
    Step-3 target shape. The test
    `test_keigenvalue_matches_solve_sn_2g_slab`
-   (`tests/numerics/test_iteration.py:328`) is the L1 gate that
+   (`tests/gates/numerics/test_iteration.py:328`) is the L1 gate that
    PROVES the SN triple works with these primitives today.
 
 4. **Do NOT reinvent `S = R · Λ · M`.** The composition exists
@@ -942,9 +942,9 @@ Pin these to memory before writing the next sub-agent brief:
   (796 lines, the algebra-of-record narrative)
 - `/Users/rodrigo/git/nuclear/ORPHEUS/docs/theory/discrete_ordinates.rst`
   (5100+ lines, SN labels listed in §6.2)
-- `/Users/rodrigo/git/nuclear/ORPHEUS/tests/numerics/test_iteration.py`
+- `/Users/rodrigo/git/nuclear/ORPHEUS/tests/gates/numerics/test_iteration.py`
   (462 lines)
-- `/Users/rodrigo/git/nuclear/ORPHEUS/tests/numerics/test_operator.py`
+- `/Users/rodrigo/git/nuclear/ORPHEUS/tests/gates/numerics/test_operator.py`
   (699 lines)
 
 ---

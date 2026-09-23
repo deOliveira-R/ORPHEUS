@@ -43,9 +43,9 @@ of `__init__.py` into per-BC submodules.
    universal invariants as no-op defaults; abstract `apply(psi_out, *args, **kwargs)`;
    `realize(method_space)` raises `NotImplementedError` (Wave 5 wires
    the realiser).
-5. NEW `tests/geometry/test_bc_errors.py` — 11 foundation tests
+5. NEW `tests/gates/geometry/test_bc_errors.py` — 11 foundation tests
    (one per error class + base + 2 default-kwarg contracts).
-6. NEW `tests/geometry/test_boundary_trace_law.py` — 17 foundation
+6. NEW `tests/gates/geometry/test_boundary_trace_law.py` — 17 foundation
    tests covering ABC non-instantiability, stub-concrete construction,
    `__call__` delegation, default-property contract, no-op `assert_*`,
    `realize` Wave 5 deferral, registry self-registration, and
@@ -61,12 +61,12 @@ of `__init__.py` into per-BC submodules.
 
 - Wave 3 NEW: 28 tests (11 in `test_bc_errors.py` + 17 in
   `test_boundary_trace_law.py`); all `@pytest.mark.foundation`.
-- Regression `tests/geometry/` + `tests/numerics/`: **652/652 pass**
+- Regression `tests/gates/geometry/` + `tests/gates/numerics/`: **652/652 pass**
   in 1.05s (no regression from Wave 2 baseline of 624).
 - Import-site smoke (`test_boundary.py` + `test_registry_mixin.py` +
   `test_angular_average_operator.py` + `test_snstreamingoperator.py`):
   **84/84 pass** in 1.1s.
-- `tests/sn/` full directory (non-slow): exit code 0.
+- `tests/gates/sn/` full directory (non-slow): exit code 0.
 
 ## Architecture decisions
 

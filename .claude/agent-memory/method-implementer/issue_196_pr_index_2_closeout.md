@@ -5,7 +5,7 @@
 **Scope**: `orpheus/sn/spatial/sweep_cache.py` (cache storage layout flip
 + `from_geometry` rewrite), `orpheus/sn/sweep.py` (remove `np.swapaxes`
 slab transpose + `.T` curvilinear transpose at cache-read sites), test
-fixture + assertion updates at `tests/sn/spatial/test_sweep_cache.py`,
+fixture + assertion updates at `tests/gates/sn/spatial/test_sweep_cache.py`,
 solver-side σ_t transpose at the `from_geometry` call sites
 (`orpheus/sn/solver.py`).
 
@@ -15,7 +15,7 @@ solver-side σ_t transpose at the `from_geometry` call sites
  orpheus/sn/solver.py                 |  11 +++-
  orpheus/sn/spatial/sweep_cache.py    | 118 +++++++++++++++++++++++------------
  orpheus/sn/sweep.py                  |  38 +++++------
- tests/sn/spatial/test_sweep_cache.py |  82 +++++++++++++++---------
+ tests/gates/sn/spatial/test_sweep_cache.py |  82 +++++++++++++++---------
  4 files changed, 156 insertions(+), 93 deletions(-)
 ```
 
@@ -23,10 +23,10 @@ NO new files. NO regression snapshots regenerated.
 
 ## §2 Test paste-back
 
-### §2.1 `tests/sn/spatial/test_sweep_cache.py` verbose
+### §2.1 `tests/gates/sn/spatial/test_sweep_cache.py` verbose
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py -v
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py -v
 ```
 
 ```
@@ -38,34 +38,34 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 28 items
 
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
-tests/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
-tests/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
-tests/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
-tests/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
-tests/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
 
 =================== 27 passed, 1 skipped, 1 warning in 0.81s ===================
 ```
@@ -78,7 +78,7 @@ hold at `rtol=1e-13`.
 ### §2.2 ordinate_scan + joint_batch
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_ordinate_scan.py tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_ordinate_scan.py tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -92,7 +92,7 @@ test remain green — PR-INDEX-2 didn't touch `scan.py`.
 ### §2.3 Regression suite (load-bearing bit-identity gate)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -114,7 +114,7 @@ NOT introduced by this PR.
 ### §2.4 L0 streaming-equilibrium curvilinear
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 ```
 
 ```

@@ -68,7 +68,7 @@ the round-trip tolerates).
 - S2 mutation score measured for diamond.py ONLY (the spike module).
   Other tier modules (collision/streaming/scattering/sweep_cache/pole_
   angular_closure) NOT yet mutation-validated — per-capability recipe in
-  tests/_mutation/README.md; future work to score each tier's module.
+  tests/gates/_mutation/README.md; future work to score each tier's module.
 
 ## Thin-wrapper pattern for parametrized-matrix sentinels
 To pin ONE cheap config without marking a whole stacked-parametrize

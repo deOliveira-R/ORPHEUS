@@ -55,7 +55,7 @@ The closed-form decomposition is justified by associativity:
   numpy implementation is one valid backend.
 
 The algebraic-theorem test suite at
-``tests/sn/sweep/core/test_ordinate_scan.py`` pins these invariants —
+``tests/gates/sn/sweep/core/test_ordinate_scan.py`` pins these invariants —
 the theorems justify the implementation, not the other way around.
 
 References

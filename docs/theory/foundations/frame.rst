@@ -298,7 +298,7 @@ Key Facts
   .. (vv-status rationale) Structural invariant: the general Galerkin
      idempotency-on-coefficients schema M R = c_V I. Its SN concrete instance
      (c_V = 4π) is :eq:`pi-r-equals-4pi-i`, the L1-verified form — the canonical
-     pin ``tests/numerics/test_spherical_harmonic_space.py`` ``verifies("pi-r-equals-4pi-i")``
+     pin ``tests/gates/numerics/test_spherical_harmonic_space.py`` ``verifies("pi-r-equals-4pi-i")``
      constructs Π R = 4π I at multiple L / Lebedev orders. Not a separate solver claim.
   .. vv-status: galerkin-frame-idempotency documented
 
@@ -507,7 +507,7 @@ table, :math:`O(N K^2)`, as
    a named intermediate, not a solver claim. Its shipped computation is
    FrameBase.discrete_gram (einsum over the CACHED table); the value is
    pinned per family by ``test_parseval_dressing_installed_on_diagonal_frames``
-   in ``tests/numerics/test_frame.py`` (which reads the diagonal back out
+   in ``tests/gates/numerics/test_frame.py`` (which reads the diagonal back out
    of it) and, for the SH basis, by the closed-form
    :eq:`real-sh-discrete-orthogonality` gate.
 .. vv-status: frame-discrete-gram documented
@@ -554,7 +554,7 @@ representable as :math:`\psi = S_0 c` for some coefficient vector
    separate implementing symbol to gate: it is the reason the Parseval
    metric is G⁻¹, and it is what the isometry gate
    ``test_parseval_analysis_is_an_isometry_onto_its_image``
-   (``tests/numerics/test_frame.py``, 6 sphere families) measures the
+   (``tests/gates/numerics/test_frame.py``, 6 sphere families) measures the
    consequence of.
 .. vv-status: frame-analysis-is-the-gram documented
 
@@ -616,7 +616,7 @@ inner product :math:`\langle\cdot,\cdot\rangle_\star` with
    ``test_parseval_reds_under_the_pre_repair_continuum_metric`` and the
    dense arm's
    ``test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics``
-   (``tests/numerics/test_frame.py``).
+   (``tests/gates/numerics/test_frame.py``).
 .. vv-status: frame-parseval-isometry documented
 
 
@@ -1009,7 +1009,7 @@ constant,
    :eq:`sh-addition-theorem-reconstruction`), not a solver claim. It is
    what collapses the general adjoints to M* = R/W and R* = W·M, and it
    is measured directly (max relative deviation over live ℓ) by
-   ``test_parseval_frame_square_closes`` in ``tests/numerics/test_frame.py``,
+   ``test_parseval_frame_square_closes`` in ``tests/gates/numerics/test_frame.py``,
    whose ``verifies`` marker targets
    :eq:`hilbert-adjoint-equals-metric-times-S0`.
 .. vv-status: frame-square-closure-sh documented
@@ -1265,7 +1265,7 @@ one is a lesson worth carrying:
    gates, which is precisely why the metric had to be right before they
    land.
 
-**What catches it now.** ``tests/numerics/test_frame.py`` grew a
+**What catches it now.** ``tests/gates/numerics/test_frame.py`` grew a
 ``test_parseval_*`` family: the diagonal dressing pin (the installed
 metric is :math:`1/G_{kk}` on live slots and exactly :math:`0` on dead
 ones), the isometry over the six ``DIAGONAL`` sphere families, the
@@ -1465,7 +1465,7 @@ reaction rate** in each region and group,
    volume-integrated reaction rate. A derivation-decomposition step of
    the rate-preservation claim (:eq:`sn-homogenization-rate-preservation`),
    which is the verifiable solver claim (L0 gate
-   ``tests.sn.test_homogenization``); this is its premise, not a separate
+   ``tests.gates.sn.test_homogenization``); this is its premise, not a separate
    claim.
 .. vv-status: sn-homogenization-fine-rate documented
 
@@ -1849,7 +1849,7 @@ model can only carry one value per coarse cell :math:`R`, so the
    space). The implementing object is
    :class:`~orpheus.numerics.basis.IndicatorBasis`; the verifiable content
    is the membership-table / Gram bit-identity gated by
-   ``tests.numerics.test_indicator_basis``, not a solver claim.
+   ``tests.gates.numerics.test_indicator_basis``, not a solver claim.
 .. vv-status: sn-homogenization-coarse-space documented
 
 the span of the **coarse-cell indicators** (the piecewise-constant /
@@ -1868,7 +1868,7 @@ does not: rate preservation forces the residual to be tested against the
    indicators χ_R = φ·1_R. The implementing object is
    :class:`~orpheus.numerics.basis.WeightedIndicatorBasis`; the verifiable
    content is the weighted-analysis bit-identity gated by
-   ``tests.numerics.test_weighted_indicator_basis`` and the Mode-11
+   ``tests.gates.numerics.test_weighted_indicator_basis`` and the Mode-11
    routing sentinel, not a solver claim.
 .. vv-status: sn-homogenization-test-functions documented
 
@@ -2027,8 +2027,8 @@ therefore the **bilinear** form
    that keeps k_eff first-order stationary — is now a VERIFIED solver
    claim, not documented-only. Solution.homogenize / Solution.condense
    build the collapse under the ``adjoint=`` parameter, and the
-   full-taxonomy discriminator gates C1 (tests.sn.test_homogenization)
-   and C4 (tests.sn.test_condensation) stack
+   full-taxonomy discriminator gates C1 (tests.gates.sn.test_homogenization)
+   and C4 (tests.gates.sn.test_condensation) stack
    verifies("sn-homogenization-bilinear") against structurally-
    independent per-region hand rules. The label is covered by tests, so
    it carries no ``documented`` sentinel.
@@ -2202,9 +2202,9 @@ The homogenization map is the frame's **coefficient-extraction verb**
    homogenization map as the inverse-Gram ∘ analysis coefficient
    extraction (``FrameBase.project``) of the Petrov-Galerkin frame.
    Each factor is a Frame primitive whose bit-identity is gated by
-   ``tests.numerics.test_indicator_basis`` /
-   ``tests.numerics.test_weighted_indicator_basis`` /
-   ``tests.numerics.test_frame``; the Mode-11 sentinel
+   ``tests.gates.numerics.test_indicator_basis`` /
+   ``tests.gates.numerics.test_weighted_indicator_basis`` /
+   ``tests.gates.numerics.test_frame``; the Mode-11 sentinel
    ``test_homogenize_routes_through_the_petrov_galerkin_frame`` pins that
    ``homogenize`` actually calls them. Not a separate solver claim.
 .. vv-status: sn-homogenization-frame-projector documented
@@ -2444,7 +2444,7 @@ section.
 Verification
 ~~~~~~~~~~~~
 
-The gate is :mod:`tests.sn.test_homogenization` (level **L0**, term
+The gate is :mod:`tests.gates.sn.test_homogenization` (level **L0**, term
 verification — it checks the defining identity term-by-term, not a
 solver claim). Its load-bearing test asserts the rate-preservation
 identity :eq:`sn-homogenization-rate-preservation` directly:
@@ -2536,7 +2536,7 @@ contract itself — the ``ng``-consistency check, the volume measure, the
 XS-field build, and the ``SNProblem(MaterialMesh)`` data/behavior split
 (including a bit-identity check that ``SNProblem``'s inherited data block
 matches a standalone ``MaterialMesh``) — is gated separately by
-:mod:`tests.transport.test_material_mesh`.
+:mod:`tests.gates.transport.test_material_mesh`.
 
 
 .. _sn-energy-condensation:
@@ -2613,7 +2613,7 @@ reaction rate of any vector channel is
    :eq:`energy-condensation-counting-measure`). A
    derivation-decomposition premise of the rate-preservation claim
    (:eq:`energy-condensation-rate-preservation`), which is the verifiable
-   claim (L1 gate ``tests.data.test_mixture_condense``).
+   claim (L1 gate ``tests.gates.data.test_mixture_condense``).
 .. vv-status: energy-condensation-fine-rate documented
 
 with :math:`\varphi_g` the per-material representative flux (the test
@@ -2837,7 +2837,7 @@ collapses identically. In the code
      verbatim").
 
    The regression gate
-   ``tests.data.test_mixture_condense::TestG3ScatteringTwoAxisCollapse``
+   ``tests.gates.data.test_mixture_condense::TestG3ScatteringTwoAxisCollapse``
    reds on all three because its in-scatter-rate reference loop sums the
    sink and flux-averages the source *explicitly* (a hand-coded double
    ``for`` over fine groups — structurally independent of the production
@@ -2866,7 +2866,7 @@ the simplex. The rate-preserving choice is the **pure birth-group sum**
    the data-layer ``Mixture`` invariant; this label is the collapse
    formula, not a separate solver claim. Since CS4c step 4 the COUPLING
    with the νΣf channel is additionally gated end-to-end by G-F1
-   (``tests/transport/test_kernels.py::TestFissionCondensationGF1``) —
+   (``tests/gates/transport/test_kernels.py::TestFissionCondensationGF1``) —
    see the admonition below.
 .. vv-status: energy-condensation-chi-collapse documented
 
@@ -2901,7 +2901,7 @@ the simplex. The rate-preserving choice is the **pure birth-group sum**
       law because the PAIRING is what a wrong-morphism swap breaks and
       neither factor's own gate can see. Not a solver claim (no
       eigenvalue, no flux). Its verifiable content is the L1 gate
-      ``tests/transport/test_kernels.py::TestFissionCondensationGF1::test_law_ruled_morphism_pair``
+      ``tests/gates/transport/test_kernels.py::TestFissionCondensationGF1::test_law_ruled_morphism_pair``
       (rtol 1e-14) with THREE measured wrong-morphism negative controls
       and an ASSERTED activation precondition; see the prose below.
    .. vv-status: energy-condensation-fission-dyad documented
@@ -3557,9 +3557,9 @@ which is exactly where the novelty belongs — a basis, not a frame.
 Verification
 ~~~~~~~~~~~~
 
-The gates are :mod:`tests.data.test_energy_grid`,
-:mod:`tests.data.test_mixture_condense`, and
-:mod:`tests.sn.test_condensation`. The two solver-facing claims carry
+The gates are :mod:`tests.gates.data.test_energy_grid`,
+:mod:`tests.gates.data.test_mixture_condense`, and
+:mod:`tests.gates.sn.test_condensation`. The two solver-facing claims carry
 ``@pytest.mark.verifies`` markers tying them to the equations above:
 
 * ``energy-condensation-rate-preservation``
@@ -3846,7 +3846,7 @@ so :math:`M R = \mathrm{diag}(4\pi/(2\ell+1))`. Composing with the
 reconstruction face's :math:`(2\ell+1)` factor (the addition-theorem
 weight) yields :math:`M R = 4\pi I` — the L1 identity that the
 test
-``tests/numerics/test_spherical_harmonic_space.py``
+``tests/gates/numerics/test_spherical_harmonic_space.py``
 verifies at :math:`L = 2,\,3,\,4` (see :eq:`pi-r-equals-4pi-i` in
 :ref:`spherical-harmonics`). This :math:`4\pi` is the frame's
 normalisation scalar :math:`c_V`, and it is **not** a tightness
@@ -3913,7 +3913,7 @@ description changes.
 
    A **different sense of "tight"** is used for quadrature rules on the
    operator-algebra page (:ref:`scattering-binding-cs4c`, the tightness
-   gate ``tests/transport/frames/test_binding_tightness.py``): a rule is
+   gate ``tests/gates/transport/frames/test_binding_tightness.py``): a rule is
    called tight there when it is exact enough that binding is
    multiplicative. That is a quadrature-exactness property, not a frame
    bound, and the naming collision is issue #494.
@@ -3978,7 +3978,7 @@ arguments). Two classical theorems pin its spectrum.
    §1.6; Lewis & Miller 1993 §4.7); it is a transcription, not a
    solver claim. The implementing kernel R∘Λ∘M is pinned by the
    0-ULP windowed-vs-full crosscheck
-   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and the
+   ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` and the
    addition-theorem identity :eq:`real-sh-addition-theorem`.
 
 **Funk–Hecke theorem.** For any zonal kernel
@@ -4034,7 +4034,7 @@ diagonal of eigenvalues. The discrete ORPHEUS scattering kernel is
 .. (vv-status rationale) Representational identity: the anisotropic scattering
    kernel written as the spectral theorem S = R∘Λ∘M = UΣU*. The implementing
    kernel R∘Λ∘M is pinned by the 0-ULP windowed-vs-full crosscheck
-   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and the
+   ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` and the
    addition-theorem identity :eq:`real-sh-addition-theorem` (same kernel as the
    sibling :eq:`scattering-zonal-kernel`). A spectral-theorem framing, not a
    separate solver claim.
@@ -4260,7 +4260,7 @@ INADMISSIBLE, and the sentence it was defended with — *"the dressed end
 would move* :math:`\Lambda`\ *'s Hilbert adjoint on 10 of 33 rows (the
 dense-Gram rows)"* — does not survive re-measurement. Three findings,
 each with its denominator
-(``tests/transport/frames/test_moment_metric_fork_premise.py``, `[M]`
+(``tests/gates/transport/frames/test_moment_metric_fork_premise.py``, `[M]`
 2026-09-07 on ``main`` @ ``79d2944a``, probes ``scratch/_step6_2c/``
 ``p3_scan_161.py`` / ``p4_lambda_adjoint.py`` / ``p8_parseval.py`` /
 ``p9_on_range.py``):
@@ -4351,11 +4351,11 @@ The identity the step installs:
    off the frame, and it is the shared end of every moment-space operator
    and the head factor of every moment field. Not a solver claim — no
    eigenvalue, no flux. The verifiable content is the foundation gate
-   ``tests/transport/frames/test_moment_space_is_read_off_the_frame.py``
+   ``tests/gates/transport/frames/test_moment_space_is_read_off_the_frame.py``
    (the ROUTE / METRIC / DOOR trio) plus the composability guard
    ``A.domain == B.codomain`` it leans on, and — since the head became
    axis-built — the hub/frame agreement gate
-   ``tests/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``.
+   ``tests/gates/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``.
 .. vv-status: moment-space-read-off-the-frame documented
 
 .. note::
@@ -4431,7 +4431,7 @@ the wrong-structure one).
    assertion that could adjudicate nothing on the 2026-09-02 tree is,
    on this one, exactly the discriminating instrument — which is why the
    hub/frame agreement gate can assert ``==`` and mean it
-   (``tests/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``).
+   (``tests/gates/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``).
 
 The size of the fork is **draw-free and exact**, not a sampled number. On
 a degree-exact full-sphere rule the discrete Gram reproduces the continuum
@@ -4757,7 +4757,7 @@ so no cache lookup can reach across. What they share is *identity*, which
 under structural equality is the whole of what a composability guard asks.
 Within each owner the object is interned (``is``), across them it is
 ``==`` — gated in
-``tests/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``.
+``tests/gates/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py``.
 
 ⚠ **The refusal that had to be re-keyed, and why it is a hazard worth
 naming (H-6).** ``moment_space_on`` used to refuse a non-per-ordinate
@@ -4794,7 +4794,7 @@ width 1 — ruling O-5 at both widths. So the tail's metric is no longer a gap:
 it is the scheme's cell mass, the same measure the *angular* field's tail
 carries, and the moment field's norm is its energy on every factor (ruling
 R-6.2c-1's ONE-space principle, applied to the tail). Gated in
-``tests/numerics/test_spatial_moment_tail_is_the_schemes_axis.py``.
+``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py``.
 
 Truncation is the same rule applied to a *lower* order.
 :meth:`HarmonicMomentFlux.truncate
@@ -4840,7 +4840,7 @@ layout-agnostic rather than hard-coded to the harmonics'
 The gates, and the input each one rejects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``tests/transport/frames/test_moment_space_is_read_off_the_frame.py``,
+``tests/gates/transport/frames/test_moment_space_is_read_off_the_frame.py``,
 ``@pytest.mark.foundation``. Three gates, each with a shipped-or-constructible
 input it rejects (``plan-authoring`` §6c — a gate that lands with no case
 to catch is green by construction):
@@ -4885,7 +4885,7 @@ the door and the seven producers are one step, not two
 
 One existing gate was **demoted** by the step and is retained with a
 narrower description:
-``tests/transport/frames/test_harmonic_frame.py::test_moment_codomain_content_equals_the_carrier_mint``
+``tests/gates/transport/frames/test_harmonic_frame.py::test_moment_codomain_content_equals_the_carrier_mint``
 compared a face's moment codomain against the carrier's own mint, and
 both sides now derive from one source, so no input can make them
 disagree (``coding-standards``, the single-sourcing demotion). It keeps
@@ -5887,10 +5887,10 @@ The two architectural payoffs:
   algebra (see :ref:`operator-algebra` and the tensor-product
   section there).
 * **One V&V chain per discipline**. The Galerkin idempotency tests
-  in :file:`tests/numerics/test_spherical_harmonic_space.py` cover
+  in :file:`tests/gates/numerics/test_spherical_harmonic_space.py` cover
   every :class:`~orpheus.numerics.frame.GalerkinFrame` consumer, not
   just SN. The forward Petrov-Galerkin frames now carry their own
-  rate-preservation **L0** gates (:mod:`tests.sn.test_homogenization` —
+  rate-preservation **L0** gates (:mod:`tests.gates.sn.test_homogenization` —
   the per-channel rate identity, the φV-vs-dV discriminator, and the
   Mode-11 routing sentinel; :ref:`sn-homogenization-verification`). The adjoint-weighted
   (:math:`\varphi^* \ne \varphi`) collapse now carries its own
@@ -5942,7 +5942,7 @@ functional
 .. (Wired P6, #281 — no vv-status sentinel.) The eigenvalue-consistent
    (adjoint-weighted, φ*≠φ) collapse is BUILT: Solution.homogenize /
    Solution.condense implement it under ``adjoint=``. C1
-   (tests.sn.test_homogenization) and C4 (tests.sn.test_condensation)
+   (tests.gates.sn.test_homogenization) and C4 (tests.gates.sn.test_condensation)
    stack verifies("sn-homogenization-adjoint-weighted") against
    structurally-independent per-region hand rules, and C2 pins the
    first-order-stationary keff signature. Covered by tests — no
@@ -6248,7 +6248,7 @@ Numerical evidence
 ==================
 
 The L1-tagged tests in
-:file:`tests/numerics/test_spherical_harmonic_space.py` verify the
+:file:`tests/gates/numerics/test_spherical_harmonic_space.py` verify the
 Galerkin discipline's invariants on the spherical-harmonic
 :class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` /
 ``reconstruction`` faces:
@@ -6272,7 +6272,7 @@ Galerkin discipline's invariants on the spherical-harmonic
    :math:`\|M\psi\|_{G^{-1}} = \|\psi\|_W` on band-limited input and
    the closure :math:`M^* = R/W`, :math:`R^* = W\,M`, verified over
    six sphere quadrature families in
-   :file:`tests/numerics/test_frame.py` — with a loaded-not-blind
+   :file:`tests/gates/numerics/test_frame.py` — with a loaded-not-blind
    negative leg that re-installs the pre-F-0 metric and measures the
    ratio it produces. Table:
    :ref:`frame-parseval-numerical-evidence`.
@@ -6285,7 +6285,7 @@ predicates) and are tagged accordingly. The **forward** Petrov-Galerkin frames n
 **L0** numerical evidence — the per-channel rate-preservation identity,
 the φV-vs-dV (flux- vs volume-weighting) discriminator, the simplex /
 production-weight :math:`\chi` gates, and the Mode-11 routing sentinel —
-in :mod:`tests.sn.test_homogenization`
+in :mod:`tests.gates.sn.test_homogenization`
 (:ref:`sn-homogenization-verification`),
 together with the condensation gates of :ref:`sn-energy-condensation`.
 The adjoint-weighted (:math:`\varphi^* \ne \varphi`) collapse now ships
@@ -6571,7 +6571,7 @@ head axis's generator, with :meth:`GalerkinFrame.at_order
 (:ref:`frame-at-order`). `[M]` the converged flux, the residual trajectory
 and ``n_inner`` are unchanged; what moves is the SI increment DIAGNOSTIC —
 ``‖Δφ‖`` by 91.6 % and ρ by 3.85 % relative — pinned for the first time by
-``tests/sn/solve/test_windowed_si_diagnostic_trajectory.py``.
+``tests/gates/sn/solve/test_windowed_si_diagnostic_trajectory.py``.
 
 References
 ==========

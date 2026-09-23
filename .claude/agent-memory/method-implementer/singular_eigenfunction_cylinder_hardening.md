@@ -84,7 +84,7 @@ correct path; it's now shipped at well below 1e-5.
       structural identity behind `_build_M_A_phi`.
 
 ### Tests
-- `tests/derivations/test_singular_eigenfunction_cylinder.py`
+- `tests/gates/derivations/test_singular_eigenfunction_cylinder.py`
   (230 insertions, 109 deletions):
     - Tightened Sood Ua-1-0-CY L1 from 2% to **1e-5** (achieves
       3e-7 in practice).
@@ -93,7 +93,7 @@ correct path; it's now shipped at well below 1e-5.
     - Convergence test rewritten: monotone-decrease + n=12 < 1e-5
       + n=24 < 1e-6.
     - New foundation gate `test_v_se_cyl_8_singular_subtraction`.
-- `tests/derivations/test_singular_eigenfunction_cylinder_xverif.py`
+- `tests/gates/derivations/test_singular_eigenfunction_cylinder_xverif.py`
   (98 insertions, 51 deletions):
     - WM-72 ↔ Variant α agreement tightened from 2% to 1e-5 R_c +
       k_eff ≤ 1e-3 floor.

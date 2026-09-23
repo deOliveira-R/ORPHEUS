@@ -141,7 +141,7 @@ experiments.
   - `test_h_at_c1_case_zweifel_table` — H(μ) matches Table 4-1
   - `test_h_c1_conservation_identity` — ∫H dμ = 2 at c=1
 
-Both tests are **candidates for promotion to `tests/cp/`** if an
+Both tests are **candidates for promotion to `tests/gates/cp/`** if an
 H-function utility ever lands in production (presently it does not,
 so they can stay in diagnostics).
 

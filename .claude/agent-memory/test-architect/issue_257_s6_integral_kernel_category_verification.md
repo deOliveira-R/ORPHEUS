@@ -51,7 +51,7 @@ PRE-IMPL). Extends [[issue-257-s5-functional-category-verification]]
   OUTSIDE the kernel (`build_aniso_source:784`).
 
 ## Deliverable files (4) — ALL collect under `-O`, probe-guarded
-- `tests/transport/_integral_kernel_helpers.py` — shared. `require()`
+- `tests/gates/transport/_integral_kernel_helpers.py` — shared. `require()`
   (-O-firing pytest.fail), `require_integral_kernel_operator()` (probes
   transport.integral_kernel_operator / numerics.* / transport.kernel_operator),
   `require_production_rate_property(op)`/`require_scattering_kernel_property(op)`
@@ -59,7 +59,7 @@ PRE-IMPL). Extends [[issue-257-s5-functional-category-verification]]
   change ONE func if the property name differs),
   `hand_derived_fission_emission(χ,νΣf,φ)` (explicit Python double-loop,
   NO numpy reduction = structurally-indep ref for Part B).
-- `tests/transport/test_integral_kernel_category.py` — Spec A (foundation).
+- `tests/gates/transport/test_integral_kernel_category.py` — Spec A (foundation).
   Reuses S5 `_functional_helpers` (cartesian_2d_mesh nx≠ny, asymmetric
   νΣf). Builds F+S from small SNSolver fixtures (placeholder_materials has
   ZERO fission/scatter → can't satisfy Protocol; needs real data).
@@ -72,7 +72,7 @@ PRE-IMPL). Extends [[issue-257-s5-functional-category-verification]]
   ⭐ runtime_checkable defense-in-depth: EVERY neg also asserts kernel-attr
   ABSENCE directly (isinstance only checks PRESENCE → incidental same-name
   attr could fool it).
-- `tests/sn/operators/test_fission_kernel_crosscheck.py` — Spec B (foundation).
+- `tests/gates/sn/operators/test_fission_kernel_crosscheck.py` — Spec B (foundation).
   4G fissile fixture (mixture A 4g: νΣf=[.014,.026,.125,.245] χ=[.6,.35,.05,0]
   per-group ASYMMETRIC → Mode-2 detectable; +mixture B moderator =
   heterogeneous). **B.1 CORRECTNESS** = `F.apply(φ)` vs hand-loop emission
@@ -85,7 +85,7 @@ PRE-IMPL). Extends [[issue-257-s5-functional-category-verification]]
   `(νΣf*x).sum(axis=0,keepdims)` `operator.py:1776`; χ broadcast = RankOne
   `left*inner`) + production_rate-carries-νΣf (vs total_cross_section).
   Mode-11: reads `op.production_rate` OFF the live op.
-- `tests/sn/operators/test_scattering_kernel_crosscheck.py` — Spec C
+- `tests/gates/sn/operators/test_scattering_kernel_crosscheck.py` — Spec C
   (foundation). P1+heterogeneous(2-mat asym P0+P1)+2G fixture (ℓ≥1
   exercised). **EQUIVALENCE/de-risk ONLY** (⭐ DEMARCATED L11: physics
   ref = the EXISTING aniso MMS gate `test_curvilinear_aniso_scattering_p1.py`,
@@ -131,21 +131,21 @@ GREEN live @ HEAD 7b463bb, 33p)
   bc the asserts are skipped-but-the-test-still-collects-green — a Mode-8
   caveat the method-implementer should migrate to np.testing at touch).
   Plus `::TestProtocolCompliance` (fission caps unchanged).
-- `tests/transport/test_functional_category.py` (S5, stays green).
+- `tests/gates/transport/test_functional_category.py` (S5, stays green).
 
 ## Recommended `python -O` selection (route around baseline reds)
 ```
 .venv/bin/python -O -m pytest \
-  tests/transport/test_integral_kernel_category.py \
-  tests/sn/operators/test_fission_kernel_crosscheck.py \
-  tests/sn/operators/test_scattering_kernel_crosscheck.py \
-  tests/sn/operators/test_scattering_operator.py \
-  tests/sn/operators/test_fission_operator.py \
-  tests/sn/operators/test_legendre_moment_scattering.py \
-  tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py \
-  tests/transport/test_functional_category.py
+  tests/gates/transport/test_integral_kernel_category.py \
+  tests/gates/sn/operators/test_fission_kernel_crosscheck.py \
+  tests/gates/sn/operators/test_scattering_kernel_crosscheck.py \
+  tests/gates/sn/operators/test_scattering_operator.py \
+  tests/gates/sn/operators/test_fission_operator.py \
+  tests/gates/sn/operators/test_legendre_moment_scattering.py \
+  tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py \
+  tests/gates/transport/test_functional_category.py
 ```
-NEVER all of `tests/sn` (#212 `continuous_get` hang). Baseline reds to
+NEVER all of `tests/gates/sn` (#212 `continuous_get` hang). Baseline reds to
 route around if widening: #250 SPHERE snapshots ×5, #232 mu_y ×2.
 
 ## vv failure modes flagged (NO new mode, NO ERR)

@@ -8,7 +8,7 @@ metadata:
 # #240/#38/#37 D5b-S1 Branch 1 — d-generic UBLD SymPy reference (PASS-WITH-NITS)
 
 Branch `feature/sn-space-angle-tier2`, MAIN checkout. Files: `orpheus/derivations/discrete/sn/ld_ubld.py`
-(SymPy d-generic Kronecker assembler, SHIPS NOTHING) + `tests/sn/spatial/test_ld_ubld_symbolic.py`
+(SymPy d-generic Kronecker assembler, SHIPS NOTHING) + `tests/gates/sn/spatial/test_ld_ubld_symbolic.py`
 (6 `@foundation` oracles, all green; CLI 5 derivations all symbolic-zero). The multi-D analog of LD on a
 Cartesian cell = BILINEAR/TRILINEAR DG-P1 (UBLD), 2^d moments, NOT simplex-P1 (Adams-2001: simplex FAILS
 thick diffusion limit on quads, bilinear PASSES; the `xy` cross moment is the load-bearing term).

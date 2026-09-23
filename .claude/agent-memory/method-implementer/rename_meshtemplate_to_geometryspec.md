@@ -39,11 +39,11 @@ orpheus/derivations/continuous/sood_registry/__init__.py
 orpheus/derivations/continuous/sood_registry/atalay1997.py
 orpheus/derivations/continuous/sood_registry/builders.py
 orpheus/derivations/continuous/sood_registry/la13511.py
-tests/cross_method/adapters.py
-tests/cross_method/cases.py
-tests/cross_method/protocol.py
-tests/cross_method/test_eigenvalue.py
-tests/derivations/test_sood_registry_compatibility.py
+tests/gates/cross_method/adapters.py
+tests/gates/cross_method/cases.py
+tests/gates/cross_method/protocol.py
+tests/gates/cross_method/test_eigenvalue.py
+tests/gates/derivations/test_sood_registry_compatibility.py
 docs/theory/sood_registry.rst
 ```
 
@@ -51,9 +51,9 @@ Net: 214 insertions / 210 deletions.
 
 ## Verification
 
-* `pytest tests/cross_method/ tests/derivations/test_sood_registry_compatibility.py`:
+* `pytest tests/gates/cross_method/ tests/gates/derivations/test_sood_registry_compatibility.py`:
   194/194 pass identically.
-* Wider sweep (`tests/cross_method/ + sood_registry suite + fn_la13511 +
+* Wider sweep (`tests/gates/cross_method/ + sood_registry suite + fn_la13511 +
   carlvik_galerkin`): 344/344 pass, 12 skipped (pre-existing stub skips).
 * `sphinx-build -W --keep-going`: exit 0, clean.
 * `grep -rn "MeshTemplate\|mesh_template" orpheus/ tests/ docs/`: only
@@ -90,7 +90,7 @@ Small renames for consistency (within already-touched files):
 * Local `template = ...` -> `spec = ...` in `_sphere_R_cm`,
   `_slab_L_full_cm`
 * `base_template`, `new_template` -> `base_spec`, `new_spec` in
-  `tests/cross_method/test_eigenvalue.py::_shadow_with_thickness_mfp`
+  `tests/gates/cross_method/test_eigenvalue.py::_shadow_with_thickness_mfp`
 * `has_inline_template` -> `has_inline_spec` in `CrossMethodCase.__post_init__`
 
 ## Branch hygiene incident

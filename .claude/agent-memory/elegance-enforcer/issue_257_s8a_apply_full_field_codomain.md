@@ -72,7 +72,7 @@ Retirement = test rewiring, not deletion.
 
 ## C5 test (brief axis #5) — genuine intrinsic-property gate
 
-`tests/sn/operators/test_apply_full_field_codomain.py` (foundation, 14✓+1xfail). NOT shallow: C5a probes the
+`tests/gates/sn/operators/test_apply_full_field_codomain.py` (foundation, 14✓+1xfail). NOT shallow: C5a probes the
 DEFINING property (`type(out) is FullField and not isinstance(.,TimedFullField)`) across slab/sphere/cylinder
 + across input history_depth 0..4 (the timeless codomain is depth-independent) + Mode-11 aware (calls `.apply`
 DIRECTLY because the matvec leaf has zero graph callers — a solve-only test routes around it). C5b pins the

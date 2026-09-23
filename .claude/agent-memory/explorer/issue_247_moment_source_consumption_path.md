@@ -328,18 +328,18 @@ generator — confirming the docstring: *"This entry point exists for L1
 verification via MMS, not for engineering problems"* (`solver.py:2032-2036`). Each
 passes a **flat** `np.ndarray` or a vacuum `TimedFullField` today. Representative
 buckets (file:line — all FLAT/vacuum, the existing path):
-- `tests/sn/verification/mms/test_mms*.py` (slab/2d/aniso/curvilinear/het/LD): the
+- `tests/gates/sn/verification/mms/test_mms*.py` (slab/2d/aniso/curvilinear/het/LD): the
   MMS gates — flat per-ordinate `Q` from `mms/sn.py`. The LD-2-D gates
   (`test_mms_ld_2d.py:46/92/193/232/323/386`) are the ones that WOULD exercise a
   moment `Q̂` once #247 lands (today flat; comment `test_mms_ld_2d.py:320` notes the
   deferral).
-- `tests/sn/solve/test_fixed_source_*.py`, `test_si_single_primitive_contract.py:98`,
+- `tests/gates/sn/solve/test_fixed_source_*.py`, `test_si_single_primitive_contract.py:98`,
   `test_fixed_source_2d_equivalence.py:58/116`, `test_d3_admission.py:129/171`,
   `test_2d_anisotropic_windowing.py:101`, `test_affine_carve_bit_identity.py:169` —
   all flat.
-- `tests/sn/verification/analytical/test_mms_prescribed_inflow.py:74` — the
+- `tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py:74` — the
   non-vacuum `TimedFullField` boundary path (still scalar-per-face inflow).
-- `tests/sn/regression/_generate_snapshots.py:575` — the baseline generator (flat).
+- `tests/gates/sn/regression/_generate_snapshots.py:575` — the baseline generator (flat).
 - `derivations/diagnostics/*` and `scratch/derivations/diagnostics/*` — flat.
 
 **Backward-compat verdict (CONFIRMED)**: a typed-union widening — accept the

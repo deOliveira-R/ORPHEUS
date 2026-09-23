@@ -37,7 +37,7 @@ NO discretization. The claim layers therefore are:
 
 Cardinal-rule check (`vv-principles` §"1-group degeneracy"): the
 existing L1 gates already contain ≥2G heterogeneous mesh-refined cases
-(`tests/sn/test_mms_aniso.py`, `tests/sn/l1_analytical/...`). Phase 3
+(`tests/gates/sn/test_mms_aniso.py`, `tests/gates/sn/l1_analytical/...`). Phase 3
 inherits this coverage; the gates checklist below pins these as STRICT
 green at every commit.
 
@@ -47,7 +47,7 @@ green at every commit.
 
 ### 1.1 Test file path
 
-`tests/test_layer_imports.py` (top-level — the test is cross-cutting;
+`tests/gates/test_layer_imports.py` (top-level — the test is cross-cutting;
 it walks the whole `orpheus/` tree).
 
 ### 1.2 Test mechanism
@@ -400,21 +400,21 @@ initial failure list (§1.6) is the migration to-do.
 
 **Tests that MUST stay green at every commit**:
 
-- `tests/numerics/test_operator.py` — pins the `_AdjointOperator`
+- `tests/gates/numerics/test_operator.py` — pins the `_AdjointOperator`
   machinery that reads `inner.range` at lines 511-516 of
   `operator.py`. The rename touches this read site directly.
-- `tests/numerics/test_projection_operators.py` — `MomentProjection`
+- `tests/gates/numerics/test_projection_operators.py` — `MomentProjection`
   currently exposes BOTH `.codomain` and `.range` (transitional dual);
   the rename retires `.range`.
-- `tests/numerics/test_spherical_harmonic_space.py` — the new test
+- `tests/gates/numerics/test_spherical_harmonic_space.py` — the new test
   at line 422 (`test_moment_projection_codomain_is_spherical_harmonic_space`)
   reads `.codomain` directly; no change needed.
-- `tests/numerics/test_space.py` — `FunctionSpace` is the upstream
+- `tests/gates/numerics/test_space.py` — `FunctionSpace` is the upstream
   type carrying the attribute; the rename propagates to it.
-- `tests/sn/test_scattering_operator.py` — `ScatteringOperator` reads
+- `tests/gates/sn/test_scattering_operator.py` — `ScatteringOperator` reads
   operator `.range` / `.codomain` in its adjoint machinery; pin.
 - All Krylov / SI tests that exercise `_AdjointOperator.apply`
-  indirectly (i.e. `tests/numerics/test_iteration_angular_flux.py`).
+  indirectly (i.e. `tests/gates/numerics/test_iteration_angular_flux.py`).
 
 **Tests at risk**:
 
@@ -429,7 +429,7 @@ initial failure list (§1.6) is the migration to-do.
   carry equation labels, not attribute names).
 - Test fixtures that construct mock operators with a hand-coded
   `.range` attribute MUST update to `.codomain` (e.g. dataclass
-  test doubles in `tests/numerics/test_operator.py`).
+  test doubles in `tests/gates/numerics/test_operator.py`).
 
 **New V&V test BEFORE this step**: NO. The existing tests already
 pin the contract. The rename is mechanical — exhaustive grep + the
@@ -458,17 +458,17 @@ drift post-P3.5 is a bug, not a refactor artefact.
 
 **Tests that MUST stay green at every commit**:
 
-- `tests/numerics/` ENTIRE suite — STRICT bit-identical. The
+- `tests/gates/numerics/` ENTIRE suite — STRICT bit-identical. The
   reorganisation moves modules; imports follow. Any test that
   imports `from orpheus.numerics.space import FunctionSpace` MUST
   continue working (either via direct rewire or a back-compat
   re-export shim in `numerics/__init__.py`).
-- `tests/numerics/test_spherical_harmonic_space.py` — moved to
+- `tests/gates/numerics/test_spherical_harmonic_space.py` — moved to
   `numerics/spaces/`; the test file path is unchanged (it lives in
   `tests/`); the production-side import is now
   `from orpheus.numerics.spaces.spherical_harmonic_space import ...`.
-- `tests/sn/regression/test_dd_regression.py` — STRICT bit-identical.
-- All L1 MMS gates (`tests/sn/test_mms_aniso.py`, curvilinear analog).
+- `tests/gates/sn/regression/test_dd_regression.py` — STRICT bit-identical.
+- All L1 MMS gates (`tests/gates/sn/test_mms_aniso.py`, curvilinear analog).
 
 **Tests at risk**:
 
@@ -489,7 +489,7 @@ does not touch FP reduction trees. The plan's "spherical_harmonics.py
 shim deletion + four sn-quadrature delegator rewire" is the ONE risk
 point: the delegators MUST consume the same `evaluate_real_sh`
 function (now via `SphericalHarmonicBasis.evaluate`), bit-identical.
-Verify by re-running `tests/numerics/test_spherical_harmonics.py`
+Verify by re-running `tests/gates/numerics/test_spherical_harmonics.py`
 post-rewire — it carries L0/L1 tests against fixed expected values
 (the SH evaluator itself is unchanged).
 
@@ -497,26 +497,26 @@ post-rewire — it carries L0/L1 tests against fixed expected values
 
 **Tests that MUST stay green at every commit**:
 
-- `tests/sn/test_typed_fields.py` — pins `ScalarFlux`, `AngularFlux`,
+- `tests/gates/sn/test_typed_fields.py` — pins `ScalarFlux`, `AngularFlux`,
   `HarmonicMomentField` dunder algebra. The L2 base must satisfy
   these tests after migration; SN-specific behaviour (e.g.
   `from_flat_with_traces`) tested on the L3 adapter.
-- `tests/sn/test_angular_flux_with_boundary.py` — currently pins
+- `tests/gates/sn/test_angular_flux_with_boundary.py` — currently pins
   `AngularFlux.from_flat_with_traces` (lines 248, 258, 274, 281, 290,
   304). After CC.4 resolution (see §3 below), this test moves to
-  `tests/sn/test_angular_flux_b1pp_adapter.py` OR keeps its current
+  `tests/gates/sn/test_angular_flux_b1pp_adapter.py` OR keeps its current
   path with the test now exercising the L3 adapter. STRICT
   bit-identical.
-- `tests/sn/test_harmonic_moment_field.py` — pins
+- `tests/gates/sn/test_harmonic_moment_field.py` — pins
   `HarmonicMomentField` algebra. After P3.3 the class lives in
   `transport/fields/`; tests follow.
-- `tests/numerics/test_iteration_angular_flux.py` (line 35) imports
+- `tests/gates/numerics/test_iteration_angular_flux.py` (line 35) imports
   `AngularFlux` and exercises the cross-package `_ravellable`
   Protocol. After the split, this test consumes the L2 base
   `AngularFlux` (the duck-typed Protocol the Krylov inner loop reads
   has no eq-map dependency). STRICT bit-identical.
-- `tests/sn/test_scattering_operator.py` — STRICT bit-identical.
-- `tests/sn/regression/test_dd_regression.py` — STRICT bit-identical.
+- `tests/gates/sn/test_scattering_operator.py` — STRICT bit-identical.
+- `tests/gates/sn/regression/test_dd_regression.py` — STRICT bit-identical.
 - All L1 MMS gates.
 
 **Tests at risk**:
@@ -529,14 +529,14 @@ post-rewire — it carries L0/L1 tests against fixed expected values
 
 **New V&V test BEFORE this step**:
 
-- **YES** — write a new test `tests/transport/fields/test_angular_flux_base_algebra.py`
+- **YES** — write a new test `tests/gates/transport/fields/test_angular_flux_base_algebra.py`
   that exercises ONLY the L2 algebra (storage, dunders,
   `integrate_angular`) of the new `transport/fields/angular_flux.py`
   base class. This is the pin that says "the L2 base is functionally
   complete without the SN adapter." Per `lessons-L7`-style "tests
   before optimization" — write the L2-only test BEFORE moving the
   class, so the test is the contract.
-- **YES** — write a new test `tests/transport/fields/test_harmonic_moment_field_base.py`
+- **YES** — write a new test `tests/gates/transport/fields/test_harmonic_moment_field_base.py`
   for the same reason on `HarmonicMomentField`. The plan-§P3.3
   forced dependency cleanup introduces a `SpatialGroupMesh` Protocol;
   the test pins the Protocol contract (the L2 base reads only
@@ -553,13 +553,13 @@ boundary-allocation strategy (see §3 below).
 
 **Tests that MUST stay green at every commit**:
 
-- `tests/numerics/test_iteration.py` — current `SourceIteration` +
+- `tests/gates/numerics/test_iteration.py` — current `SourceIteration` +
   `KEigenvalue` tests. After P3.4 the classes live in
   `numerics/solvers/`; tests follow path.
-- `tests/numerics/test_iteration_angular_flux.py` — STRICT
+- `tests/gates/numerics/test_iteration_angular_flux.py` — STRICT
   bit-identical; the Krylov path is unchanged.
-- `tests/sn/test_scattering_operator.py` — STRICT bit-identical.
-- `tests/sn/regression/test_dd_regression.py` — STRICT bit-identical
+- `tests/gates/sn/test_scattering_operator.py` — STRICT bit-identical.
+- `tests/gates/sn/regression/test_dd_regression.py` — STRICT bit-identical
   AT THE NUMERICAL LEVEL; per §A.3 of the Phase 1 plan, criterion 3
   (FP-non-associativity bound) applies. The new
   `CriticalityProblem + PowerIteration` wiring goes through
@@ -567,7 +567,7 @@ boundary-allocation strategy (see §3 below).
   reconstructed but the FP reduction tree should be identical
   (renames only).
 - L1 MMS gates — STRICT bit-identical.
-- `tests/homogeneous/` (if it exists) — `homogeneous/solver.py:26`
+- `tests/gates/homogeneous/` (if it exists) — `homogeneous/solver.py:26`
   imports `power_iteration`; CC.8 retires this and rewires to
   `KEigenvalue`. Bit-identity AT FP-non-assoc bound (per
   `vv-principles`).
@@ -584,13 +584,13 @@ boundary-allocation strategy (see §3 below).
 
 **New V&V test BEFORE this step**:
 
-- **YES** — write `tests/transport/problems/test_criticality_problem.py`
+- **YES** — write `tests/gates/transport/problems/test_criticality_problem.py`
   that pins the declarative `(A_loss, F)` triple → `PowerIteration`
   → keff path against a structurally-independent analytical
   reference (homogeneous infinite medium k_inf = νΣ_f/Σ_a, multi-
   group, ≥2G per cardinal rule). This is a NEW L1 verification
   test — it pins the new wiring before the SN solver rewires.
-- **YES** — write `tests/transport/problems/test_fixed_source_problem.py`
+- **YES** — write `tests/gates/transport/problems/test_fixed_source_problem.py`
   pinning the `(L, S, F, q) + SourceIteration` path against a
   similar reference. Per `vv-principles` §"L1 without L0 = compensating
   errors" — these tests pin the new construction site against an
@@ -606,7 +606,7 @@ apply:
 1. **Principled**: each new intermediate (`Problem`, `Solver`,
    `PowerIteration.solve`) is a named, inspectable object. SATISFIED.
 2. **Structurally-independent reference**: the new
-   `tests/transport/problems/test_criticality_problem.py` pins keff
+   `tests/gates/transport/problems/test_criticality_problem.py` pins keff
    against k_inf for homogeneous reflective — analytical limit. The
    curvilinear / heterogeneous snapshots inherit the existing L1 MMS
    gates as references. SATISFIED.
@@ -626,7 +626,7 @@ DO NOT loosen snapshot tolerances.
   same bit-identity-or-FP-bound rule.
 - L1 / L0 / L2 gates above — unaffected (kinetics doesn't intersect
   the transport pipeline directly).
-- `tests/transport/problems/test_initial_value_problem.py` — NEW
+- `tests/gates/transport/problems/test_initial_value_problem.py` — NEW
   (see below).
 
 **Tests at risk**:
@@ -639,12 +639,12 @@ DO NOT loosen snapshot tolerances.
 
 **New V&V test BEFORE this step**:
 
-- **YES** — write `tests/numerics/solvers/test_time_stepping.py`
+- **YES** — write `tests/gates/numerics/solvers/test_time_stepping.py`
   pinning each time-stepper primitive (BDF1, BDF2, Crank-Nicolson)
   against analytical references (decay-equation closed form for
   BDF1; oscillator for higher orders). This is L1 verification;
   pillar: closed-form (Branch 1A).
-- **YES** — write `tests/transport/problems/test_initial_value_problem.py`
+- **YES** — write `tests/gates/transport/problems/test_initial_value_problem.py`
   pinning the declarative `InitialValueProblem + TimeStepper`
   composition against the same analytical references.
 
@@ -688,14 +688,14 @@ Per plan §P3.3 "AngularFlux design note":
 
 Identified by reading the worktree:
 
-- `tests/sn/test_typed_fields.py::TestAngularFlux` (lines 153-205).
+- `tests/gates/sn/test_typed_fields.py::TestAngularFlux` (lines 153-205).
   Pins shape invariant, arithmetic, `integrate_angular`,
   `at_ordinate` — all pure L2 algebra. After the split, these tests
-  EITHER (a) move to `tests/transport/fields/test_angular_flux.py`
-  to consume the L2 base directly, OR (b) stay in `tests/sn/` but
+  EITHER (a) move to `tests/gates/transport/fields/test_angular_flux.py`
+  to consume the L2 base directly, OR (b) stay in `tests/gates/sn/` but
   import from `orpheus.transport.fields.angular_flux` (the cross-
   package import is now legal — L3 tests using L2 base is fine).
-- `tests/numerics/test_iteration_angular_flux.py::TestRavellableProtocol`
+- `tests/gates/numerics/test_iteration_angular_flux.py::TestRavellableProtocol`
   (lines 63-128). Pins the duck-typed `_ravellable` Protocol
   (`__ravel__`, `_unravel_like`, `zeros_like`, `_l2_norm`). Per CC.7
   the Krylov / SI primitives consume this Protocol — the L2 base
@@ -704,14 +704,14 @@ Identified by reading the worktree:
 
 ### 3.3 Tests that pin the L3 B1''-eq-map machinery
 
-- `tests/sn/test_angular_flux_with_boundary.py` lines 243-310 — pins
+- `tests/gates/sn/test_angular_flux_with_boundary.py` lines 243-310 — pins
   `from_flat_with_traces` round-trip (lines 248, 258, 274), face
   decoder (line 281), error-message contract (line 304). All
   exercise the SN B1''-eq-map.
 - The same file probably tests `to_flat_with_traces` round-trip at
   line 285-295 (visible in grep — `flat_out = psi.to_flat_with_traces()`).
 
-These tests move to `tests/sn/test_angular_flux_b1pp_adapter.py` (a
+These tests move to `tests/gates/sn/test_angular_flux_b1pp_adapter.py` (a
 new file), or stay in their current location with imports updated.
 Recommend the SAME file path renamed only if the symbol set changes
 (it does: the import is now `from orpheus.sn.angular_flux_b1pp_adapter
@@ -766,7 +766,7 @@ subsystem boundaries"; this is a typed-field carve crossing
    `numerics/`, `geometry/`, `transport/` (post-AngularFlux-move)?
 2. Audit every consumer of `AngularFlux.from_flat_with_traces` and
    `to_flat_with_traces`. Confirm they are all in `sn/` or
-   `tests/sn/`.
+   `tests/gates/sn/`.
 3. Audit every consumer of the L2-only algebra (`integrate_angular`,
    `<<`, `__call__`, dunders) — confirm whether any cross-package
    tests rely on the L3 method surface.
@@ -785,12 +785,12 @@ expressed as "what could go wrong AND what fingerprint catches it."
 
 | Rank | Step | Specific failure mode | Detection / catching test |
 |---|---|---|---|
-| **1 (highest)** | **P3.4 — Problem/Solver split + `power_iteration` retirement** | The `homogeneous/solver.py:26` import of `power_iteration` REWIRES to `KEigenvalue` (new name `PowerIteration`); the wiring of the outer eigenvalue loop changes call-site reconstruction (per memo §C2: `sn/solver.py:499, 539` and `:618, 659, 1452, 1484` all become Problem-construction sites). Risk: a convention drift (Failure Mode #6) in the new declarative `(L, S, F)` triple vs the imperative legacy wiring — e.g. fission operator F at `homogeneous` is constructed differently because the old `power_iteration` accepted a raw callable, the new `CriticalityProblem` accepts a typed `LinearOperator`. The bug fingerprint: 1G works (k = νΣ_f/Σ_a degeneracy), 2G+heterogeneous diverges or shifts by O(1). | (a) New L1 verification at `tests/transport/problems/test_criticality_problem.py` pinning k against k_inf for ≥2G homogeneous reflective; (b) `tests/sn/regression/test_dd_regression.py` slab-2G snapshots STRICT bit-identical (rtol=1e-12); (c) `tests/homogeneous/` keff against analytical limit. |
-| **2** | **P3.6 — `kinetics/` restructure** | Time-stepping primitives (BDF1, BDF2, Crank-Nicolson) extracted and called via new `InitialValueProblem + TimeStepper` composition. Risk: any of (sign flip on the time-derivative; missing precursor source coupling; wrong staggering of fast/thermal flux) — all Modes #1, #3, #4. Existing kinetics tests are likely L4 (code-to-code), so an L0/L1 reference must be NEW. | NEW L1 verification at `tests/numerics/solvers/test_time_stepping.py` (decay equation, oscillator) and `tests/transport/problems/test_initial_value_problem.py`. The new tests pin against analytical decay / oscillator solutions BEFORE the restructure. Existing kinetics tests rewire and remain green. |
-| **3** | **P3.3 — `AngularFlux` split + BoundaryFlux co-promote** | If Option B is chosen (boundary deferred to adapter), an L2 consumer that instantiates `AngularFlux` without going through the SN adapter gets a half-constructed object — `boundary=None` at L2 level, no auto-allocate. Risk: silent NaN propagation through subsequent reductions; Mode #2/#3 (variable swap / missing factor). | (a) NEW L2 test `tests/transport/fields/test_angular_flux_base_algebra.py` with explicit `boundary=...` and explicit `boundary=None` assertion — make the contract explicit. (b) `tests/numerics/test_iteration_angular_flux.py::test_zeros_like_returns_angular_flux` (line 115) MUST verify `zero_psi.boundary` is non-None — this is the existing L0 contract that prevents the silent-NaN failure mode. (c) Option A (promote BoundaryFlux) sidesteps the entire risk and is the recommended path. |
+| **1 (highest)** | **P3.4 — Problem/Solver split + `power_iteration` retirement** | The `homogeneous/solver.py:26` import of `power_iteration` REWIRES to `KEigenvalue` (new name `PowerIteration`); the wiring of the outer eigenvalue loop changes call-site reconstruction (per memo §C2: `sn/solver.py:499, 539` and `:618, 659, 1452, 1484` all become Problem-construction sites). Risk: a convention drift (Failure Mode #6) in the new declarative `(L, S, F)` triple vs the imperative legacy wiring — e.g. fission operator F at `homogeneous` is constructed differently because the old `power_iteration` accepted a raw callable, the new `CriticalityProblem` accepts a typed `LinearOperator`. The bug fingerprint: 1G works (k = νΣ_f/Σ_a degeneracy), 2G+heterogeneous diverges or shifts by O(1). | (a) New L1 verification at `tests/gates/transport/problems/test_criticality_problem.py` pinning k against k_inf for ≥2G homogeneous reflective; (b) `tests/gates/sn/regression/test_dd_regression.py` slab-2G snapshots STRICT bit-identical (rtol=1e-12); (c) `tests/gates/homogeneous/` keff against analytical limit. |
+| **2** | **P3.6 — `kinetics/` restructure** | Time-stepping primitives (BDF1, BDF2, Crank-Nicolson) extracted and called via new `InitialValueProblem + TimeStepper` composition. Risk: any of (sign flip on the time-derivative; missing precursor source coupling; wrong staggering of fast/thermal flux) — all Modes #1, #3, #4. Existing kinetics tests are likely L4 (code-to-code), so an L0/L1 reference must be NEW. | NEW L1 verification at `tests/gates/numerics/solvers/test_time_stepping.py` (decay equation, oscillator) and `tests/gates/transport/problems/test_initial_value_problem.py`. The new tests pin against analytical decay / oscillator solutions BEFORE the restructure. Existing kinetics tests rewire and remain green. |
+| **3** | **P3.3 — `AngularFlux` split + BoundaryFlux co-promote** | If Option B is chosen (boundary deferred to adapter), an L2 consumer that instantiates `AngularFlux` without going through the SN adapter gets a half-constructed object — `boundary=None` at L2 level, no auto-allocate. Risk: silent NaN propagation through subsequent reductions; Mode #2/#3 (variable swap / missing factor). | (a) NEW L2 test `tests/gates/transport/fields/test_angular_flux_base_algebra.py` with explicit `boundary=...` and explicit `boundary=None` assertion — make the contract explicit. (b) `tests/gates/numerics/test_iteration_angular_flux.py::test_zeros_like_returns_angular_flux` (line 115) MUST verify `zero_psi.boundary` is non-None — this is the existing L0 contract that prevents the silent-NaN failure mode. (c) Option A (promote BoundaryFlux) sidesteps the entire risk and is the recommended path. |
 | **4** | **P3.5 — `range` → `codomain` rename** | A reference to `op.range` survives the rename and silently shadows Python's builtin `range(...)` — likely produces `TypeError` at runtime, not a numerical bug. But: a fixture that constructs a mock operator with `.range` and the production reads `.codomain` produces an `AttributeError` at use site, possibly only under a rarely-exercised path. | (a) The P3.1 linter does NOT catch this (it's an attribute, not an import). (b) Comprehensive `grep -nE '\.range\b'` audit (per `lessons-L20`) gating the rename commit. (c) Full pytest suite run AFTER the rename — the `AttributeError` surface in any test that exercises the operator algebra. (d) Static analysis (mypy / pyright in strict mode) flags the rename gaps if type stubs are kept current. |
-| **5** | **P3.2 — `numerics/` reorganisation** | The `spherical_harmonics.py` shim retirement + four sn-quadrature delegators rewire. Risk: a delegator imports from the shim and breaks when the shim deletes; OR the new `SphericalHarmonicBasis.evaluate` API has a different signature than `evaluate_real_sh` and the rewire silently does the wrong thing. | (a) `tests/numerics/test_spherical_harmonics.py` STRICT bit-identical (it tests the SH evaluator against fixed expected values). (b) `tests/sn/test_quadrature.py::TestProductQuadrature` — pins the per-quadrature delegators (`tests/numerics/test_quadrature_directional.py:75, 393` IS a likely consumer; verify at P3.2 time). (c) Run `pytest -q tests/numerics/test_spherical_harmonics.py tests/sn/` after the shim deletion. |
-| **6** | **P3.1 — Import-linter** | Risk: a TYPE_CHECKING tolerance bug allows a real import edge to slip through; OR the WHITELIST accumulates stale entries that mask real violations. | The linter parametrises per-module so failures are isolated. Coverage gap can be audited via `pytest -q tests/test_layer_imports.py --collect-only` to confirm every `orpheus/**/*.py` is in the test set. Stale whitelist entries: each carries a `RETIRE_IN_PX.X` comment; a follow-up audit (out of Phase 3 scope) verifies whether each is still load-bearing. |
+| **5** | **P3.2 — `numerics/` reorganisation** | The `spherical_harmonics.py` shim retirement + four sn-quadrature delegators rewire. Risk: a delegator imports from the shim and breaks when the shim deletes; OR the new `SphericalHarmonicBasis.evaluate` API has a different signature than `evaluate_real_sh` and the rewire silently does the wrong thing. | (a) `tests/gates/numerics/test_spherical_harmonics.py` STRICT bit-identical (it tests the SH evaluator against fixed expected values). (b) `tests/gates/sn/test_quadrature.py::TestProductQuadrature` — pins the per-quadrature delegators (`tests/gates/numerics/test_quadrature_directional.py:75, 393` IS a likely consumer; verify at P3.2 time). (c) Run `pytest -q tests/gates/numerics/test_spherical_harmonics.py tests/gates/sn/` after the shim deletion. |
+| **6** | **P3.1 — Import-linter** | Risk: a TYPE_CHECKING tolerance bug allows a real import edge to slip through; OR the WHITELIST accumulates stale entries that mask real violations. | The linter parametrises per-module so failures are isolated. Coverage gap can be audited via `pytest -q tests/gates/test_layer_imports.py --collect-only` to confirm every `orpheus/**/*.py` is in the test set. Stale whitelist entries: each carries a `RETIRE_IN_PX.X` comment; a follow-up audit (out of Phase 3 scope) verifies whether each is still load-bearing. |
 | **7 (lowest)** | **P3.0 — Documentation** | Risk: stale docs after package moves. Mitigation: the Sphinx build catches dead `:mod:` references via `-W` warnings. | `sphinx-build -W docs docs/_build/html` is the gate. |
 
 ### 4.1 Concurrence with the REVISED sequencing
@@ -837,11 +837,11 @@ the `BoundaryFlux` Option-A-vs-B question identified in §3.4.
 - Phase 1 QA review: `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/moment-space-and-layering/.claude/agent-memory/qa/phase1_moment_space_review.md`
 - Lessons load-bearing for Phase 3: L11 (structural-independence-via-elimination-of-FP), L17 (convention crosswalk before carve), L18 (Pattern 7 at the producer), L20 (retirement requires dependency audit)
 - Skills: `vv-principles`, `coding-elegance` Pattern 7, `algebra-of-record` (for the L0/derivations classification), `subagent-handoff-protocol` (for proactive explorer dispatches at P3.3 / P3.4)
-- The P3.1 test file path: `tests/test_layer_imports.py`
+- The P3.1 test file path: `tests/gates/test_layer_imports.py`
 - The new V&V test paths (created BEFORE each step that needs them):
-  - P3.3: `tests/transport/fields/test_angular_flux_base_algebra.py`, `tests/transport/fields/test_harmonic_moment_field_base.py`
-  - P3.4: `tests/transport/problems/test_criticality_problem.py`, `tests/transport/problems/test_fixed_source_problem.py`
-  - P3.6: `tests/numerics/solvers/test_time_stepping.py`, `tests/transport/problems/test_initial_value_problem.py`
+  - P3.3: `tests/gates/transport/fields/test_angular_flux_base_algebra.py`, `tests/gates/transport/fields/test_harmonic_moment_field_base.py`
+  - P3.4: `tests/gates/transport/problems/test_criticality_problem.py`, `tests/gates/transport/problems/test_fixed_source_problem.py`
+  - P3.6: `tests/gates/numerics/solvers/test_time_stepping.py`, `tests/gates/transport/problems/test_initial_value_problem.py`
 
 ## Self-improvement entries
 

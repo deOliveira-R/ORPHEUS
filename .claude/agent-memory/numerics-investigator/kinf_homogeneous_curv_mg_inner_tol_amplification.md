@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-`tests/sn/l1_analytical/test_kinf_homogeneous` 4-case failure (sphere/cylinder × 2eg/4eg) at rtol=1e-9 (drift 1.2e-9 to 2.7e-8) on branch `refactor/sn-operator-algebra` (HEAD `43bb8e0`) is **convergence-tolerance**, NOT a solver bug.
+`tests/gates/sn/l1_analytical/test_kinf_homogeneous` 4-case failure (sphere/cylinder × 2eg/4eg) at rtol=1e-9 (drift 1.2e-9 to 2.7e-8) on branch `refactor/sn-operator-algebra` (HEAD `43bb8e0`) is **convergence-tolerance**, NOT a solver bug.
 
 **Why:** Mechanism is the well-known SI residual ≠ gap-to-fixed-point relation. Within-group SI termination `‖φ_n − φ_{n−1}‖ / ‖φ_n‖ < inner_tol` bounds the residual, but the gap to the true within-group fixed point is `gap ≈ ρ/(1−ρ) × residual`, where ρ = within-group SI spectral radius ≈ `c_within = Σ_(s,g→g) / Σ_(t,g)`. For the 2eg test problem the thermal group has c_within = 0.9 → amplification 9; power iteration coupling re-amplifies into k_eff.
 
@@ -21,7 +21,7 @@ metadata:
 - **Option B — test-side fix**: in `test_kinf_homogeneous`, pass `inner_tol=1e-12` (or use `inner_solver="krylov"`). Minimal blast radius; respects "test calibrates to solver tolerances per fixture".
 - **Option C — rtol relaxation**: bump test rtol from 1e-9 to 5e-7. NOT RECOMMENDED — papers over the bias rather than pinning the convergence-tolerance model; loses sharpness against future bug regressions.
 
-**Diagnostic test promoted:** `derivations/diagnostics/diag_kinf_curv_mg_02_inner_tol_amplification.py` (8 tests, ~6 min total) pins both (i) the drift collapses at tight tolerance and (ii) Krylov matches at default. Both are structural-independence pins against future SI/Krylov drift. Promote to `tests/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` as a companion regression gate to `test_kinf_homogeneous` if Option A or B is adopted. [not preserved (never tracked); promoted into `tests/sn/verification/analytical/test_kinf_homogeneous_tolerance.py`]
+**Diagnostic test promoted:** `derivations/diagnostics/diag_kinf_curv_mg_02_inner_tol_amplification.py` (8 tests, ~6 min total) pins both (i) the drift collapses at tight tolerance and (ii) Krylov matches at default. Both are structural-independence pins against future SI/Krylov drift. Promote to `tests/gates/sn/l1_analytical/test_kinf_homogeneous_tolerance.py` as a companion regression gate to `test_kinf_homogeneous` if Option A or B is adopted. [not preserved (never tracked); promoted into `tests/gates/sn/verification/analytical/test_kinf_homogeneous_tolerance.py`]
 
 **Step 3 (R-1 migration) implication:** The 1.2e-7 drift is NOT carried forward as a real bug by the operator-typed migration. The migration is safe to land. After Step 3 lands, re-running the spectrum cross-check at tight tolerance verifies the typed `AngularFlux` does not perturb the within-group fixed point — but that's a regression check, not a fix prerequisite.
 

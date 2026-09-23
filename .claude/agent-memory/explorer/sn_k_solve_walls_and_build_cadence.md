@@ -8,8 +8,8 @@ metadata:
 Measured 2026-09-12 at `b0fd3e7e` for step 2 (R-cc6) of the consumers campaign; full census
 `scratch/_consumers/explorer_step2_census.md` (untracked — re-derive via the probes named there).
 
-- **No bit-exact wall on the forward k-solve.** `tests/sn/regression/snapshots/*.npz` (10 eigen
-  cases, all L=0), `tests/sn/_data/finalize_reconstruction_448/*` (8 arms × L∈{0,1}) and
+- **No bit-exact wall on the forward k-solve.** `tests/gates/sn/regression/snapshots/*.npz` (10 eigen
+  cases, all L=0), `tests/gates/sn/_data/finalize_reconstruction_448/*` (8 arms × L∈{0,1}) and
   `affine_carve_converged/*` all assert `assert_regression(kind="iterative")` =
   `allclose(SAFETY × conv_tol)`. The only `nulp=1`/`array_equal` walls are operator-level on
   `L + C` (`walk_matvec_*.npz`, `affine_carve_baseline/*.npy`, `pre_t4_snapshots.npz`) and the

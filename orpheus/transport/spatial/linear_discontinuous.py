@@ -19,7 +19,7 @@ reason a non-DD spatial scheme can lift the curvilinear pole-cell ``O(h)`` floor
    Full LD therefore **recovers the thick-diffusion limit** —
    :class:`LinearDiscontinuous` declares ``diffusion_limit_consistent = True``
    and the limit is PINNED (no longer xfail) by
-   ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
+   ``tests/gates/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
    (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G).  ⚠ Remaining gap
    (Issue #247): the EXTERNAL slope source :math:`\hat Q^{\rm ext}` is still
    zeroed — the scattering channel EXERCISES the slope-source code path but does
@@ -48,7 +48,7 @@ inconsistent).  The system ORPHEUS uses was regenerated symbolically with SymPy
 and validated against the strongest oracle — **LD is exact on a linear-in-x
 flux** (``ψ̄, ψ̂, ψ_out`` recovered to machine precision for any
 :math:`\psi = a + bx`) — the foundation tests in
-``tests/transport/spatial/test_linear_discontinuous.py``.
+``tests/gates/transport/spatial/test_linear_discontinuous.py``.
 
 The Schur-complement scalar contract
 ====================================
@@ -456,7 +456,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     # on geometry, NOT by an ``if d==1`` in the kernel.  The ÷V dense system is
     # SCALE-FREE (fed unit widths ``hs = [1, …]`` and ``mus = [g_0, …]``); at d=1
     # it is EXACTLY ``d1_closed_form``'s 2×2 (proven == by
-    # ``tests/transport/spatial/test_ld_ubld_primitive.py``).
+    # ``tests/gates/transport/spatial/test_ld_ubld_primitive.py``).
 
     def _ubld_system(
         self,
@@ -638,7 +638,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         every d: at d=1 the system is the LD ``2×2`` whose Schur complement is
         :func:`~orpheus.transport.spatial._ubld.d1_closed_form` (the L16 production
         scan's fast path), proven equal by
-        ``tests/transport/spatial/test_ld_ubld_primitive.py``.
+        ``tests/gates/transport/spatial/test_ld_ubld_primitive.py``.
 
         STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
         ``2^{d-1}``-moment faces; a scalar at d=1) and scatters the outgoing

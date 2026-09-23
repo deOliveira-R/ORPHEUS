@@ -276,7 +276,7 @@ where the WDD cell update's denominator picks up the collision term:
    cell-update denominator, showing Σ_t,g·V_i as the SOLE group-diagonal door.
    Not a solver claim; the denominator assembly is pinned by the
    ``@pytest.mark.foundation`` gates
-   ``tests/sn/sweep/core/test_cell_balance_for_streaming.py`` and
+   ``tests/gates/sn/sweep/core/test_cell_balance_for_streaming.py`` and
    ``test_cache.py::test_cache_populator_matches_cell_balance_for_streaming``
    (the cache's populated denominator vs a direct call to
    ``cell_balance_for_streaming`` at rtol=1e-14; renamed from
@@ -412,7 +412,7 @@ curvilinear problem with no new code path.
      a live limitation, retired 2026-08-10.** From 2026-05-19 the 4-group
      homogeneous sphere was the xfail'd cell of the coordinates × groups ×
      drivers grid in
-     :file:`tests/sn/verification/analytical/test_kinf_homogeneous.py`, on
+     :file:`tests/gates/sn/verification/analytical/test_kinf_homogeneous.py`, on
      the grounds that it exceeded the unpreconditioned GMRES iteration
      budget.  The cell now passes and is gated like every other, agreeing
      with the closed-form reference at :math:`\mathrm{rel} = 3.6\times
@@ -441,7 +441,7 @@ coupling at all), and the flux-shape and equivalence gates are
 heterogeneous by design.
 
 * **Closed-form eigenvalue, full matrix.**
-  :file:`tests/sn/verification/analytical/test_kinf_homogeneous.py`
+  :file:`tests/gates/sn/verification/analytical/test_kinf_homogeneous.py`
   recovers the analytical
   :math:`\kinf = \lambda_{\max}(\mathbf{\Sigma}_a^{-1}\chi\,\nu\Sigma_f^\top)`
   (:ref:`mg-eigenvalue-problem`) on {slab, sphere, cylinder} ×
@@ -462,7 +462,7 @@ heterogeneous by design.
   flux-*shape* evidence the eigenvalue rows cannot supply.
 * **Path equivalence, heterogeneous 2G.**  The #196 permanent gate
   (:ref:`sn-issue-196-eigenvalue-equivalence`,
-  :file:`tests/sn/eigenvalue/test_keff_curvilinear.py`) asserts
+  :file:`tests/gates/sn/eigenvalue/test_keff_curvilinear.py`) asserts
   SI :math:`\equiv` Krylov on 2-group fuel|moderator sphere *and*
   cylinder — :math:`|\Delta k| < 10^{-7}` (observed floor
   :math:`\sim 10^{-11}`), per-group eigenvector shape agreement, and
@@ -481,7 +481,7 @@ heterogeneous by design.
    :class: important
 
    The curvilinear MMS suites
-   (:file:`tests/sn/verification/mms/test_mms_curvilinear.py` and
+   (:file:`tests/gates/sn/verification/mms/test_mms_curvilinear.py` and
    the anisotropic family) are **1-group**.  Multigroup curvilinear
    correctness rides the eigenvalue, analytical, and equivalence
    chains above — there is no manufactured-solution gate on the

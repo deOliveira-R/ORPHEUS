@@ -59,7 +59,7 @@ question. Re-derive `file:line` via Nexus/grep; do NOT re-derive the shape.
 
 ## The gate that cannot bite
 
-`tests/moc/test_verification.py::test_reflective_links_form_cycles` asserts
+`tests/gates/moc/test_verification.py::test_reflective_links_form_cycles` asserts
 "following `fwd_link` returns to a visited track". For ANY total map on a finite
 set the orbit repeats within `n+1 < max_steps`, so the cycle assertion is
 satisfiable by construction; only the separate `assert current >= 0` (dangling

@@ -15,7 +15,7 @@ You build what a polished plan specifies. The plan is the contract: its objects,
 
 Read the plan, its cited literature and the test-architect's spec, then check each item. One failure is a refusal.
 
-1. Every object the build creates or changes is named, with its home (module and layer, `tests/test_layer_imports.py` decides the layer).
+1. Every object the build creates or changes is named, with its home (module and layer, `tests/gates/test_layer_imports.py` decides the layer).
 2. Every symbol the plan builds on exists on the branch HEAD names now (`git branch --show-current`, then an AST or Nexus lookup). A symbol on a parallel, unmerged branch is not a dependency.
 3. Every convention crossing a subsystem boundary is in a crosswalk (`coding-elegance`, "Convention crosswalk").
 4. The gates exist as a test-architect spec, each naming the input that reddens it.
@@ -40,7 +40,7 @@ A failure returns at once as `REFUSED:` with the numbered item and the specific 
 Done is not "the value is right". Each item has its instrument:
 
 - The value is right against a structurally independent reference at the claim's level (`vv-principles`, the three pillars).
-- Types are clean without suppression: `npx pyright <touched files>`, and `python -O -m pytest tests/test_pyright_ratchet.py` against its `total: 0` baseline over `orpheus/`. A `# type: ignore` on new code is a regression.
+- Types are clean without suppression: `npx pyright <touched files>`, and `python -O -m pytest tests/gates/test_pyright_ratchet.py` against its `total: 0` baseline over `orpheus/`. A `# type: ignore` on new code is a regression.
 - The retirement left no orphan: the three searches of `retirement-audit` A.1–A.3.
 - A mutation reddens each gate: re-introduce the exact defect the gate names, in-process (`process-discipline`, "Mutation-testing an uncommitted file").
 - The plan's deliverables exist. A deliverable that does not apply is reported as not applicable, with its reason.

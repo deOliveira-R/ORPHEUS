@@ -83,8 +83,8 @@ true error by 1/(1−ρ) as the dominance ratio ρ→1 (near-critical, DSA-accel
 restriction substrate) but is NOT the convergence metric. A CoupledOperator's block-solve
 convergence test SHOULD measure the block residual, not the increment.
 
-Diagnostics (self-contained, promotable to `tests/sn/operators/test_psi_half_coupling.py`):
-`derivations/diagnostics/diag_coupled_01_psi_half_block_structure.py` (triangular certificate + [not preserved (never tracked); promoted into `tests/sn/operators/test_psi_half_coupling.py`]
+Diagnostics (self-contained, promotable to `tests/gates/sn/operators/test_psi_half_coupling.py`):
+`derivations/diagnostics/diag_coupled_01_psi_half_block_structure.py` (triangular certificate + [not preserved (never tracked); promoted into `tests/gates/sn/operators/test_psi_half_coupling.py`]
 S-carries-lagged-coupling + ρ≤c + folded-nilpotent, 4 gates) and
 `diag_coupled_02_wrap_vs_extract.py` (welded=exact-inverse + extract=principled-not-bit-identical,
 2 gates). All 6 green under `-O`. Backs [[curvilinear-inverse-seed-taxonomy]], [[lessons-L14]].

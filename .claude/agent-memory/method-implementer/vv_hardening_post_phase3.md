@@ -18,23 +18,23 @@ the 6 geometry files including all `slow` variants) passes in
 
 ## Files modified (test files only — production code untouched)
 
-- `tests/derivations/test_peierls_greens_function_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_solver.py`
   — added `test_grazing_ray_stability_sphere`.
-- `tests/derivations/test_peierls_greens_function_cylinder_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py`
   — added `test_grazing_ray_stability_cylinder`.
-- `tests/derivations/test_peierls_greens_function_slab_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_slab_solver.py`
   — added Nyström import; added
     `test_alpha_zero_vacuum_agrees_with_nystrom_slab` (Task 2);
     added `test_grazing_ray_stability_slab`.
-- `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py`
   — added `test_off_diagonal_intermediate_alpha_slab_asym`
     (parametrized ×2);
     added `test_grazing_ray_stability_slab_asym`.
-- `tests/derivations/test_peierls_greens_function_hollow_sphere_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_hollow_sphere_solver.py`
   — added `test_off_diagonal_intermediate_alpha_hollow_sphere`
     (parametrized ×2);
     added `test_grazing_ray_stability_hollow_sphere`.
-- `tests/derivations/test_peierls_greens_function_annulus_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_annulus_solver.py`
   — added `test_off_diagonal_intermediate_alpha_annulus`;
     added `test_grazing_ray_stability_annulus`.
 

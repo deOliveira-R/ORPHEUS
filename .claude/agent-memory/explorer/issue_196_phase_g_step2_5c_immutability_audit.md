@@ -614,7 +614,7 @@ for m_local, global_n in enumerate(ordinates_in_level):
   `residual` and as the per-cell L1 oracle (degenerate cylindrical
   cells still take this path).
 - The Pattern 2 dual-view test
-  (`tests/sn/spatial/test_cell_balance.py` + scan tests) — the cache
+  (`tests/gates/sn/spatial/test_cell_balance.py` + scan tests) — the cache
   is derived from `cell_balance_terms` so the dual-view assertion
   becomes `cache_driven_sweep(...) == cell_update.update(...).cell_average_flux`
   by construction.

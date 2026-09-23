@@ -121,7 +121,7 @@ not `function`.
   (quoted in full under `hebert-3-432` above) explicitly declares this label to be
   owned by the `orpheus.sn.sweep.psi_half_angle_seed` module docstring as *"the
   canonical algebra-of-record"*, with the test wiring
-  (`tests/sn/sweep/curvilinear/test_psi_half_angle_seed.py`) tracked at Issue #194.
+  (`tests/gates/sn/sweep/curvilinear/test_psi_half_angle_seed.py`) tracked at Issue #194.
 - **what the equation says**: the DD cell-average update of the inward
   starting-direction march — `φ̄_i = (Δr_i·Q̄_i + 2·φ̄_{i+1/2}) / (Δr_i·Σ_i + 2)`.
 - **implementers** (complete list, each verified to resolve):
@@ -270,7 +270,7 @@ not `function`.
   > the already-verified multi-D DD closure (dd-cartesian-2d) at psi_c = 0 — an
   > algebraic rearrangement, not a new solver claim. Its content is that every
   > null vector has this SHAPE, which is asserted end-to-end by the foundation
-  > suite tests/sn/operators/test_loss_kernel_gauge.py: the constructed basis is
+  > suite tests/gates/sn/operators/test_loss_kernel_gauge.py: the constructed basis is
   > annihilated by the PRODUCTION matvec
   > (test_EVERY_basis_vector_is_annihilated_by_the_production_matvec) and its
   > dimension equals a dense SVD of the assembled operator
@@ -314,7 +314,7 @@ not `function`.
   > *"(vv-status rationale) Structural identity: a combinatorial count derived
   > from dd-null-balance-combinatorial, carrying no solver claim. It is
   > nonetheless doubly gated by the foundation suite
-  > tests/sn/operators/test_loss_kernel_gauge.py — **the law is evaluated without
+  > tests/gates/sn/operators/test_loss_kernel_gauge.py — **the law is evaluated without
   > building a vector by `predicted_kernel_dimension`** and compared BOTH against the
   > rank the construction's SVD finds
   > (test_the_dimension_matches_the_combinatorial_counting_law) and against a
@@ -537,7 +537,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
   `sweep-cumprod-solution`) both point at it as their terminal result:
   > *"Not a standalone solver claim; the terminal result — **the recurrence itself** —
   > is pinned against **the symbolic derivation** by
-  > `tests/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation`."*
+  > `tests/gates/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation`."*
   ⭐ *"the symbolic derivation"* is the pointer that resolves this equation.
 - **what the equation says**: the DD slab face recurrence `ψ_out = a_i·ψ_in + b_i`,
   obtained by substituting the DD closure `ψ_out = 2ψ_avg − ψ_in` into
@@ -626,7 +626,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
     the theorem licenses.
   - `orpheus.numerics.quadrature.directional.Quadrature.spherical_harmonics`
     — `orpheus/numerics/quadrature/directional.py:477` — the surface the claiming
-    gate (`tests/sn/operators/test_solver_components.py:564`) actually calls; it
+    gate (`tests/gates/sn/operators/test_solver_components.py:564`) actually calls; it
     delegates to the basis table.
 - **candidate, weaker**: `MirrorEvenSphericalHarmonicBasis` (`:397`) subclasses the
   basis and masks the σ_y-odd slots — it inherits the convention rather than
@@ -649,7 +649,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
   `b = 2Δx(Q/W)/(2μ + ΔxΣ_t)` — the ERR-025 record: the `1/W` belongs in the source,
   once, and dropping it hid behind eigenvalue invariance.
 - **decisive evidence — the claiming gate**:
-  `tests/sn/sweep/slab/test_dd_recurrence.py:37`
+  `tests/gates/sn/sweep/slab/test_dd_recurrence.py:37`
   `@pytest.mark.verifies("normalization-dd-source-coefficient")` on
   `test_dd_per_cell_recurrence_matches_symbolic_derivation`, which builds
   `source = Q_val * dx_val / W` (`:96`, comment *"The contract source is
@@ -792,7 +792,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
      flat-flux equilibrium (ERR-058 b — O(1) wrong off equilibrium, floored the
      curvilinear MMS at ~0.04 L2 independent of mesh, Issue #195)"*, followed by
      *"Route (a) (#282, ruling R10) **retired the whole strategy family**"*.
-  2. The **claiming gate itself** (`tests/sn/sweep/core/test_phase_c_gates.py:888-895`)
+  2. The **claiming gate itself** (`tests/gates/sn/sweep/core/test_phase_c_gates.py:888-895`)
      says: *"the seed-strategy zoo is retired … the old test compared it against the
      retired `CarlsonInwardSweep` STRATEGY wrapper on a flat-ψ probe — a
      self-comparison"* — so the gate no longer compares the twins at all.
@@ -858,7 +858,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
     docstring says *"For purely scattering media this reduces to `Σ_s/Σ_t ≤ 1`."*
     So it implements the equation's `c` exactly in the non-multiplying case and a
     documented generalisation otherwise. The claiming gate
-    (`tests/sn/verification/analytical/test_si_convergence_rate.py:289`) uses it:
+    (`tests/gates/sn/verification/analytical/test_si_convergence_rate.py:289`) uses it:
     `c_max = float(np.max(np.asarray(m.scattering_ratio)))`.
   - `orpheus.numerics.convergence._budget_from_law`
     — `orpheus/numerics/convergence.py:299` — **the single home of identity (b)**:
@@ -912,7 +912,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
      the operator-admits trick"* and describes the cylinder row as
      *"explicit `Y_1^m` moment-sum, **independent of the production `R Λ M` einsum**"*.
   2. **The claiming test builds it inline and says why**
-     (`tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py:218-259`):
+     (`tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py:218-259`):
      *"The hand-reference assembles the moment sum by an INDEPENDENT explicit loop
      over the `spherical_harmonics` table, **NOT the production frame
      analysis/reconstruction faces / `LegendreMomentScattering` einsums** — so a
@@ -936,7 +936,7 @@ NNN–NNN" citations are dead addresses — `sweep.py` no longer exists.
   whose only legitimate home is the oracle side of a gate.)
 - **⚠ what would change this verdict**: if the project decides a *test-tree* function
   is a legal `implements` origin, the honest implementer is
-  `tests.sn.verification.mms.test_curvilinear_aniso_scattering_p1.test_cylindrical_p1_source_matches_hand_reference`
+  `tests.gates.sn.verification.mms.test_curvilinear_aniso_scattering_p1.test_cylindrical_p1_source_matches_hand_reference`
   itself (a `function` node). I do not recommend it — a test is the *claimer*, and an
   `implements` edge from the same node that carries the `verifies` marker makes the
   claim circular.

@@ -1,6 +1,6 @@
 ---
 name: issue-257-s9-boundary-moment-honesty-closeout
-description: "#257 S9 — production MMS boundary-source honesty + the LD coherent-promise gate. SN2DCartesianLDStressMMSCase.prescribed_inflow now EMITS the moment-resolved face slot (slot-0 transverse cell AVERAGE, slot-1 bare transverse P1 slope) via a case-owned leggauss-only _project_inflow_to_face_moments, gated on face_moment_count>1 (DD/Step byte-identical). Diagnostic promoted to tests/sn/verification/mms/test_ld_2d_boundary_promise.py (coherent-promise gate + sub-floor verdict pins + Mode-11 sentinel). #251 GATE-B/C legs re-targeted onto the production producer. NO new field type (#263), NO value gate (sub-floor), NO DD/Step change. Branch feature/field-typed-operator-algebra, HEAD 8e0a2cf. NOT committed."
+description: "#257 S9 — production MMS boundary-source honesty + the LD coherent-promise gate. SN2DCartesianLDStressMMSCase.prescribed_inflow now EMITS the moment-resolved face slot (slot-0 transverse cell AVERAGE, slot-1 bare transverse P1 slope) via a case-owned leggauss-only _project_inflow_to_face_moments, gated on face_moment_count>1 (DD/Step byte-identical). Diagnostic promoted to tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py (coherent-promise gate + sub-floor verdict pins + Mode-11 sentinel). #251 GATE-B/C legs re-targeted onto the production producer. NO new field type (#263), NO value gate (sub-floor), NO DD/Step change. Branch feature/field-typed-operator-algebra, HEAD 8e0a2cf. NOT committed."
 metadata:
   type: project
 ---
@@ -62,7 +62,7 @@ vs cell-CENTRE, expected). LD slots `(24,2,6,2)`/`(24,2,8,2)`.
 ## DELIVERABLE 2 — promote the diagnostic to a permanent gate
 
 `derivations/diagnostics/diag_s9_ld_boundary_slope_optical_sweep.py` (untracked,
-numerics-investigator) → `tests/sn/verification/mms/test_ld_2d_boundary_promise.py`
+numerics-investigator) → `tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py`
 (REMOVED the diagnostic; it was untracked, plain `rm`, NOT a git op). Carried
 over the 4 tests, Mode-8 fix (bare-`assert` order-band → `pytest.fail`; the
 `np.testing` sentinel kept), rich module docstring kept (the durable verdict +
@@ -89,7 +89,7 @@ clears (the new file is 0/0).
 
 ## DELIVERABLE 3 — re-target #251 Leg-B gates onto the PRODUCTION producer (GATE B + C)
 
-In `tests/sn/verification/mms/test_mms_ld_2d.py`:
+In `tests/gates/sn/verification/mms/test_mms_ld_2d.py`:
 - **GATE B** — added a leg to `test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`
   (foundation): the PRODUCTION `case.prescribed_inflow(sn)` emits a slot whose
   SLOT-1 (on each face's inflow ordinates) == the leggauss reference at machine
@@ -178,23 +178,23 @@ typed `SpatialMomentSpace` moment-axis predicate is **#246**, NOT S9.
 #   promotion; the new test file is 0/0; 0 new `# type: ignore`).
 
 # (2) .venv/bin/python -O -m pytest -q
-#     tests/sn/verification/mms/test_ld_2d_boundary_promise.py
-#     tests/sn/verification/mms/test_mms_ld_2d.py
+#     tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py
+#     tests/gates/sn/verification/mms/test_mms_ld_2d.py
 35 passed, 1 warning in 639.71s (0:10:39)
 #   (#251 baseline was 31; +4 from the promoted module's 4 gate FUNCTIONS:
 #   coherent-promise + 6-param + 3-param verdict pins + Mode-11 sentinel;
 #   minus the deselected — net 35.)
 
 # (3) .venv/bin/python -O -m pytest -q
-#     tests/sn/verification/mms tests/sn/sweep/core tests/sn/solve
-#     --deselect tests/sn/solve/test_keff_slab.py::test_heterogeneous_absolute_keff
+#     tests/gates/sn/verification/mms tests/gates/sn/sweep/core tests/gates/sn/solve
+#     --deselect tests/gates/sn/solve/test_keff_slab.py::test_heterogeneous_absolute_keff
 590 passed, 1 skipped, 4 xfailed, 3 warnings in 802.26s (0:13:22)
 #   ZERO failures, ZERO non-baseline reds (route around #250/#232/#212).
 
 # GATE D — DriftWarning strict (DD/Step + scalar-inflow byte-identity):
-# .venv/bin/python -O -m pytest -q tests/sn/sweep/core tests/sn/solve
-#   -W "error::tests.sn.regression._regression_assert.DriftWarning"
-#   --deselect tests/sn/solve/test_keff_slab.py::test_heterogeneous_absolute_keff
+# .venv/bin/python -O -m pytest -q tests/gates/sn/sweep/core tests/gates/sn/solve
+#   -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
+#   --deselect tests/gates/sn/solve/test_keff_slab.py::test_heterogeneous_absolute_keff
 520 passed, 1 skipped, 4 xfailed, 2 warnings in 88.04s (0:01:28)
 #   = EXACTLY the #251/#247 baseline (520/1/4); NO DriftWarning fired, NO golden
 #   moved — the moment-tail emission affects ONLY LD; DD/Step byte-identical.
@@ -204,7 +204,7 @@ typed `SpatialMomentSpace` moment-axis predicate is **#246**, NOT S9.
 #   == True  (DD slots (24,2,6)/(24,2,8), no moment axis, bit-for-bit).
 
 # 1-D prescribed-inflow MMS (slab/sphere, own prescribed_inflow, untouched):
-#   tests/sn/verification/analytical/test_mms_prescribed_inflow.py → 4 passed.
+#   tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py → 4 passed.
 ```
 
 ## ELEGANCE / DOCS / DECISION POINTS (for elegance + qa)
@@ -235,13 +235,13 @@ typed `SpatialMomentSpace` moment-axis predicate is **#246**, NOT S9.
 - `orpheus/derivations/continuous/mms/sn.py` — `prescribed_inflow` gated
   scalar-vs-moment build + NEW `_project_inflow_to_face_moments` (leggauss-only,
   L11) + 4 stale-prose docstring updates.
-- `tests/sn/verification/mms/test_ld_2d_boundary_promise.py` — NEW (promoted
+- `tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py` — NEW (promoted
   diagnostic: coherent-promise gate + 2 verdict pins + Mode-11 sentinel; relative
   sibling import).
-- `tests/sn/verification/mms/test_mms_ld_2d.py` — GATE B leg (production-producer
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py` — GATE B leg (production-producer
   stamp) + NEW GATE C gate (projector single-source) + `_solve_with_boundary_slope`
   re-baseline fix (None→test-side scalar).
-- `tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py` — stale docstring update.
+- `tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py` — stale docstring update.
 - REMOVED `derivations/diagnostics/diag_s9_ld_boundary_slope_optical_sweep.py`
   (untracked; promoted).
 

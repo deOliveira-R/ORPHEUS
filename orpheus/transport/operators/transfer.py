@@ -35,7 +35,7 @@ the TERM.** The two terms of the algebra are thin role subclasses —
 content is two class constants (which ``Mixture`` channel the tier-2
 mint reads, and which P0 energy binding the lift derives) and the role
 name; every verb lives HERE or on the lift base, once. An AST
-gate (``tests/transport/test_transfer_roles.py``) asserts the roles define
+gate (``tests/gates/transport/test_transfer_roles.py``) asserts the roles define
 nothing else, so the twin path the carve removed cannot regrow one
 override at a time.
 
@@ -437,7 +437,7 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
     (:math:`\Lambda` then the minted source-reconstruction face) on the
     moment end; both end at the base's producer-side combine. The two
     routes share :math:`\Lambda` and the frame's :math:`R` and agree
-    bit-for-bit (``tests/sn/operators/test_scattering_kernel_crosscheck.py``;
+    bit-for-bit (``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``;
     the choice is legibility at the call site —
     ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``).
 

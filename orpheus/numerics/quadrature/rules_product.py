@@ -492,7 +492,7 @@ def spherical_product(
     # because a pushforward drops both (a map need not preserve either, and
     # this one is what the two derivations above are theorems ABOUT).
     # `[M]` bit-identical with the hand loop it replaced on every shipped
-    # configuration (see ``tests/numerics/test_rules_product.py``).
+    # configuration (see ``tests/gates/numerics/test_rules_product.py``).
     measure = (polar * azimuthal).pushforward(archimedes("z")).with_metadata(
         # COMPUTED from the factors by the three generator checks above
         # — never a declared literal. This module shipped three false

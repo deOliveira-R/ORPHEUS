@@ -814,10 +814,10 @@ For this reason, the slow 2G 2-region convergence test is marked
    :class:`orpheus.derivations.continuous.peierls_nystrom.slab.PeierlsSlabSolution` — result container
    with barycentric interpolation for flux evaluation at arbitrary points.
 
-   ``tests/derivations/test_peierls_convergence.py`` — L0 self-convergence
+   ``tests/gates/derivations/test_peierls_convergence.py`` — L0 self-convergence
    and eigenvalue agreement tests.
 
-   ``tests/cp/test_peierls_flux.py`` — L1 CP flux convergence against
+   ``tests/gates/cp/test_peierls_flux.py`` — L1 CP flux convergence against
    the Peierls reference.
 
 
@@ -1194,7 +1194,7 @@ sorts all such roots in :math:`(0, \rho)`, evaluates
 :math:`\tau = \Sigma_t\,\rho` for speed.
 
 The walker is L0-verified against closed-form traversals in
-``tests/derivations/test_peierls_cylinder_multi_region.py``:
+``tests/gates/derivations/test_peierls_cylinder_multi_region.py``:
 ``TestOpticalDepthAlongRay`` covers the homogeneous short-circuit,
 a ray staying in the outer annulus, a ray crossing one inner
 boundary, a ray through the axis traversing three annular
@@ -1215,7 +1215,7 @@ any future Schur-complemented white-BC boundary closure (see
 :ref:`peierls-cylinder-white-bc` below), where the relevant
 variable is the chord impact parameter :math:`y`, not the
 observer-centred :math:`\rho`. Its L0 tests live in
-``tests/derivations/test_peierls_cylinder_geometry.py``.
+``tests/gates/derivations/test_peierls_cylinder_geometry.py``.
 
 .. _peierls-cylinder-row-sum:
 
@@ -1245,7 +1245,7 @@ probability :math:`\Sigma_t\,P_{\rm esc}(r_i)` times :math:`\Sigma_t`
 Eq. 3.101), and for :math:`R = 10` MFP this deficit is
 :math:`< 10^{-3}` at :math:`r_i \le R/2`. Tested in
 ``TestRowSumIdentity.test_interior_row_sum_equals_sigma_t`` in
-``tests/derivations/test_peierls_cylinder_prefactor.py``.
+``tests/gates/derivations/test_peierls_cylinder_prefactor.py``.
 
 **Multi-region cylinder.** The naive "apply :math:`K` to
 :math:`q \equiv 1`" identity **fails** when :math:`\Sigma_t` is
@@ -1410,8 +1410,8 @@ at the surface). The multi-region identity
 \Sigma_{t,{\rm outer}}) = (0.8, 1.4)` two-annulus problem.
 Tested in
 ``TestRowSumIdentity`` and ``TestMultiRegionKernel`` in
-``tests/derivations/test_peierls_cylinder_prefactor.py`` and
-``tests/derivations/test_peierls_cylinder_multi_region.py``.
+``tests/gates/derivations/test_peierls_cylinder_prefactor.py`` and
+``tests/gates/derivations/test_peierls_cylinder_multi_region.py``.
 
 .. list-table:: Cylindrical Peierls verification summary
    :header-rows: 1
@@ -1503,18 +1503,18 @@ sorting crossings, making the bare-cylinder case
    ``geometry=_pg.CYLINDER_1D`` and ``boundary="vacuum"`` for the
    vacuum-BC closure described above).
 
-   ``tests/derivations/test_peierls_cylinder_geometry.py`` — L0
+   ``tests/gates/derivations/test_peierls_cylinder_geometry.py`` — L0
    tests for ``composite_gl_y`` and ``optical_depths_pm``.
 
-   ``tests/derivations/test_peierls_cylinder_prefactor.py`` — L0
+   ``tests/gates/derivations/test_peierls_cylinder_prefactor.py`` — L0
    row-sum-identity tests (homogeneous).
 
-   ``tests/derivations/test_peierls_cylinder_multi_region.py`` —
+   ``tests/gates/derivations/test_peierls_cylinder_multi_region.py`` —
    L0 multi-region optical-depth walker, Lagrange-basis
    foundation tests, and the multi-region
    :math:`\sum_j K_{ij}\,\Sigma_t(r_j) = \Sigma_t(r_i)` identity.
 
-   ``tests/derivations/test_peierls_cylinder_eigenvalue.py`` — L1
+   ``tests/gates/derivations/test_peierls_cylinder_eigenvalue.py`` — L1
    Sanchez tie-point and thick-cylinder limit eigenvalue tests.
 
 
@@ -1712,7 +1712,7 @@ the ray with the outer sphere,
 
 **identical** to the cylinder :eq:`peierls-cylinder-rho-max`.
 Verified by ``TestSphereRhoMax`` in
-``tests/derivations/test_peierls_sphere_geometry.py``, which covers
+``tests/gates/derivations/test_peierls_sphere_geometry.py``, which covers
 the radial-outward ray (:math:`\rho_{\max} = R - r`), the
 radial-inward through-diameter ray (:math:`\rho_{\max} = R + r`),
 the tangential ray from the centre (:math:`\rho_{\max} = R`), and
@@ -1804,7 +1804,7 @@ construction:
   a flat-source CP-vs-CP comparison. The Phase-A Peierls-vs-CP
   flux-shape test
   (``TestCPvsPeierlsSphereAtThickR.test_flux_shape_agrees_at_thick_R``
-  in ``tests/cp/test_peierls_sphere_flux.py``) is the first-order
+  in ``tests/gates/cp/test_peierls_sphere_flux.py``) is the first-order
   check that the CP flat-source approximation recovers the correct
   pointwise flux in the thick-sphere limit where the approximation
   is asymptotically exact.
@@ -1844,7 +1844,7 @@ total number of radial Nyström unknowns is
 directly).
 
 Verified by ``TestSphereCompositeRadialGL`` in
-``tests/derivations/test_peierls_sphere_geometry.py``: the weighted
+``tests/gates/derivations/test_peierls_sphere_geometry.py``: the weighted
 integrals :math:`\int_0^R 1\,\mathrm dr = R` and
 :math:`\int_0^R 4\pi r^{2}\,\mathrm dr = \tfrac{4}{3}\pi R^{3}`
 recover the analytic values to machine precision under the
@@ -1951,7 +1951,7 @@ the walker itself — which only sees the 1-D radial :math:`\Sigma_t`
 profile and the 1-D chord algebra — is reusable verbatim.
 
 L0-verified against closed-form traversals in
-``tests/derivations/test_peierls_sphere_geometry.py``:
+``tests/gates/derivations/test_peierls_sphere_geometry.py``:
 
 - ``TestSphereOpticalDepthAlongRay.test_homogeneous_1region_linear_in_rho``
   — short-circuit :math:`\tau = \Sigma_t\,\rho` for a bare sphere.
@@ -1992,7 +1992,7 @@ probability weighted by :math:`\Sigma_t`). For :math:`R = 10` MFP,
 :math:`\max_i |\Sigma_t - \sum_j K_{ij}| < 10^{-3}` at
 :math:`r_i \le R/2`. Tested in
 ``TestSphereRowSumIdentity.test_interior_row_sum_equals_sigma_t``
-in ``tests/derivations/test_peierls_sphere_prefactor.py``.
+in ``tests/gates/derivations/test_peierls_sphere_prefactor.py``.
 
 The deficit is **monotone increasing** from centre to surface
 (``test_deficit_grows_toward_boundary``), and shrinks under
@@ -2137,7 +2137,7 @@ Physically: a uniform isotropic inward partial current of strength
 :math:`\psi_{\rm in} = J^{-}/\pi`, integrated gives :math:`4\pi \cdot
 J^{-}/\pi = 4 J^{-}`). This limit is tested in
 ``TestSphereGBCVacuumLimit.test_vacuum_G_bc_is_four`` in
-``tests/derivations/test_peierls_sphere_prefactor.py``: a
+``tests/gates/derivations/test_peierls_sphere_prefactor.py``: a
 :math:`\Sigma_t R = 10^{-8}` sphere gives
 :math:`G_{\rm bc} = 4` to :math:`10^{-5}` at every interior
 observer.
@@ -2552,27 +2552,27 @@ the multi-annulus walker and computes :math:`\tau_{\rm surf} =
    and ``boundary="vacuum"`` for the scaffold-level verification
    gate.
 
-   ``tests/derivations/test_peierls_sphere_geometry.py`` — 17 L0
+   ``tests/gates/derivations/test_peierls_sphere_geometry.py`` — 17 L0
    tests for angular/radial geometry primitives, the composite
    Gauss–Legendre builder, the :math:`\rho_{\max}` closed forms,
    the :math:`r'` closed forms, and the multi-annulus
    optical-depth walker.
 
-   ``tests/derivations/test_peierls_sphere_prefactor.py`` — 6 L0
+   ``tests/gates/derivations/test_peierls_sphere_prefactor.py`` — 6 L0
    tests for the row-sum identity (homogeneous and
    white-BC-corrected), and the :math:`G_{\rm bc}` vacuum-limit
    sanity check.
 
-   ``tests/derivations/test_peierls_sphere_eigenvalue.py`` — 4 L1
+   ``tests/gates/derivations/test_peierls_sphere_eigenvalue.py`` — 4 L1
    tests: vacuum-BC thick limit, :math:`k_{\rm eff}(R)`
    monotonicity, quadrature convergence, white-BC thick-limit
    sanity.
 
-   ``tests/derivations/test_peierls_sphere_white_bc.py`` — 4 L1
+   ``tests/gates/derivations/test_peierls_sphere_white_bc.py`` — 4 L1
    tests pinning the rank-1 closure error at :math:`R \in \{1, 2,
    5, 10\}` MFP (Issue #103 bounds).
 
-   ``tests/cp/test_peierls_sphere_flux.py`` — 4 L1 tests for
+   ``tests/gates/cp/test_peierls_sphere_flux.py`` — 4 L1 tests for
    Peierls self-convergence and CP-vs-Peierls flux / eigenvalue
    agreement at :math:`R = 10` MFP.
 

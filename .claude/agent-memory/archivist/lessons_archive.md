@@ -187,7 +187,7 @@ shipped. Three faces:
 - **In a CLAIM-CLASSIFICATION correction sweep (classify each repeated site
   A/B/C, correct only the false class), the SAME phrase can be TRUE at one site
   and FALSE at another — the discriminator is a LIVE config detail, not the
-  prose.** Worked (#280 Phase 2.5b, `discrete_ordinates.rst` + `tests/sn/`): the
+  prose.** Worked (#280 Phase 2.5b, `discrete_ordinates.rst` + `tests/gates/sn/`): the
   recurring claim "the cylinder α-dome telescopes the seed away / was already
   exact" is a FALSE mis-attribution for a **product** quadrature (the starting
   direction coincides with the first-swept ordinate #229, so
@@ -1674,7 +1674,7 @@ a clean intra-repo relocation + pedagogical reflow. Disciplines:
   Homog/cond theory (rate preservation, the PG-frame derivation, the
   metric-fold-vs-bilinear adjoint argument, fractional-overlap, the
   asymmetry law, AND the verification gates — they verify the GENERAL
-  property even when the tests live under `tests.sn.*`) → the theory
+  property even when the tests live under `tests.gates.sn.*`) → the theory
   page. Only the SN-LAYER orchestration stays in the stub: which driver
   invokes it (`Solution.homogenize`→`MaterialMesh`→re-promote loop;
   `Solution.condense`→per-material representative spectrum→`dict[int,
@@ -3962,7 +3962,7 @@ contradicting its own body** — `BasisSpace.solve_critical` documented a
 
 **A retirement DEMOTED a gate, again (L-044's rule, live).** The
 `reduced_operator` docstring credited
-`tests/geometry/test_reduced_operator.py` with hash-equality "vs the
+`tests/gates/geometry/test_reduced_operator.py` with hash-equality "vs the
 legacy SNMesh setup methods". Those methods are gone; the test now
 compares `spherical_streaming(mesh, quad)` against `sn_mesh.reduced.*`
 — the value that same factory produced, through the mesh constructor —
@@ -4082,14 +4082,14 @@ costs to re-point them.
 
 **A retirement DEMOTED a gate, again — and a sibling agent proved it
 independently.** `structured_geometry.rst` credited
-`tests/geometry/test_reduced_operator.py` with bit-identity "vs the
+`tests/gates/geometry/test_reduced_operator.py` with bit-identity "vs the
 legacy SNMesh setup methods"; those methods are gone and `SNMesh.__init__`
 now calls the factories itself, so the surviving legs compare a fresh
 factory call against the value that same factory produced. Fix: past-tense
 the history, `.. warning::` the demotion, name the gates that DO carry the
 math (`sphere_*`/`cyl_*` regression snapshots,
 `test_tau_producer_equivalence.py`, `test_alpha_closed_form.py`). A
-concurrent `tests/geometry/` pass was simultaneously renaming those legs
+concurrent `tests/gates/geometry/` pass was simultaneously renaming those legs
 to `test_*_is_the_factory_value` with a docstring reading "`array_equal(x,
 x)` for any face-area math whatsoever" — same verdict, reached
 separately. **When you suspect a gate was demoted, say so in the doc; the
@@ -4134,7 +4134,7 @@ that reddens X and Y, never by topical adjacency.** Corollaries:
   `redist_dAw` → `test_streaming_equilibrium_curvilinear.py`'s L0
   `φ = Q/(Σ_t(1−c))` identity — and NOT the flat-flux identity, which
   recomputes `ΔA/w` instead of reading the production array;
-  `face_areas` → `tests/geometry/test_geometry.py` on the producer
+  `face_areas` → `tests/gates/geometry/test_geometry.py` on the producer
   `compute_areas_1d`. A single "these gates cover it" sentence cannot
   be true at that granularity.
 * **The SAME gate cited for TWO different claims can be right once and
@@ -4422,7 +4422,7 @@ now opens `⚠ THE SENTINEL'S PRECONDITION EXPIRED AT G6.3 step 3b AND THE
 DIRECTIVE BELOW IS NOW REMOVABLE — left in place only because
 un-sentineling re-categorises a GENERATED artefact and is owed the
 regeneration`, quotes the superseded rationale verbatim as history, and
-names the exact gate (`tests/sn/operators/test_lambertian_chain.py::
+names the exact gate (`tests/gates/sn/operators/test_lambertian_chain.py::
 TestReciprocityAgainstTheMirrorFace::test_H_is_pointwise_the_mirror_face_kernel`).
 Zero false text, zero silent V&V-category change, next session has the
 whole decision. Contrast the two failure modes it avoids: flipping the
@@ -5081,7 +5081,7 @@ own grep of the 15 `tests/` files mentioning `psi_half` for an assert-on-the-sam
 
 ### What the tree actually said
 
-`tests/sn/sweep/curvilinear/test_psi_half_positivity.py` — **19 `foundation` rows, committed
+`tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py` — **19 `foundation` rows, committed
 the same day**, and it is a CHARACTERISATION module whose docstring *pre-emptively refutes the
 `−77` framing*: `[M]` on a heterogeneous 2G cylinder with the **marched ψ½ seed** (the
 production value path) ψ̂ is strictly **POSITIVE** — `+0.1337/+0.1286/+0.1287` at
@@ -5134,7 +5134,7 @@ warnings were live, because it gates **Python-domain roles**, not `:ref:`.
 
 9 production `.py` files touched, all proved DOC-ONLY by AST comparison against `HEAD` with
 docstrings stripped. The `-E` build regenerated `docs/theory/verification/matrix.rst`
-(9544 → 9628 tests) absorbing rows from **another agent's uncommitted `tests/sn/sweep/` work**
+(9544 → 9628 tests) absorbing rows from **another agent's uncommitted `tests/gates/sn/sweep/` work**
 (`test_psi_half_positivity` +19, `test_angular_cell_partition` +56,
 `test_tau_producer_equivalence` 5→14) — the L-008 by-product: never revert it, report it.
 
@@ -5230,7 +5230,7 @@ The sharp part: `max(3, N−1)` is **right at S2, S12, S16, S18** and wrong at S
 made salient**. A spot-check drawn from the stale claim's own neighbourhood is biased toward
 confirming it. (vv #13's congruence-class disguise, one level up: not a sampled group but a
 sampled *parameter grid*.) I published this as its own ⚠ and pointed at the sweeping gate
-`tests/numerics/test_advertised_degree_is_measured.py` (verified: it sweeps S2…S18).
+`tests/gates/numerics/test_advertised_degree_is_measured.py` (verified: it sweeps S2…S18).
 
 ⟹ And the fix for the drift is **not a better number** — it is a POINTER. The SSOT
 (`docs/theory/methods/sn/angular_quadrature.rst` `quadrature-ls-positivity` +
@@ -5629,15 +5629,15 @@ correct are enumerable, which is precisely what an inference cannot know.
 
 Three test-module docstrings assert the retired mechanism. All three were left alone and reported:
 
-* `tests/sn/operators/test_loss_action_convention.py:3-9,20-22` — "*the operator's `apply` applies
+* `tests/gates/sn/operators/test_loss_action_convention.py:3-9,20-22` — "*the operator's `apply` applies
   the ONLY algebra glue, the Resolution-A collision subtraction*" and "*`apply` is DEFINED as
   `loss_action − σ_t·ψ`*". ⭐ Its own **function**-level docstring (`:133,:141`) is already correct
   ("the **+C glue**", "the affine relation") — the module header lags the body it introduces.
-* `tests/sn/operators/test_streaming_operator.py:8-19` — a `:=` **definition** section titled
+* `tests/gates/sn/operators/test_streaming_operator.py:8-19` — a `:=` **definition** section titled
   "Resolution A — subtractive definition", plus "*L carries σ_t at constructor time*".
   `[M]` `StreamingOperator` is a dataclass with **one** field (`sn_mesh`) and no `sigma_t` attribute.
   A docstring asserting a constructor signature that does not exist is the loudest class of stale.
-* `tests/sn/sweep/core/test_phase_c_gates.py:22,25,371` — names `:class:`CollisionOperator``
+* `tests/gates/sn/sweep/core/test_phase_c_gates.py:22,25,371` — names `:class:`CollisionOperator``
   (`[M]` retired at #261, importable from nowhere) and attributes the composite matvec to the leaf
   sum. Its *conclusion* `(L+C).apply(ψ) = M(ψ;σ_t)` is TRUE; only the mechanism is stale.
 
@@ -5968,7 +5968,7 @@ carries zero `currentmodule`):
 |---|---|---|---|
 | `orpheus.geometry.boundary.BoundaryOperator` | `class` | `(False,'missing')` | **DECLINED** |
 | `orpheus.sn.geometry.SNMesh` | `class` | `(False,'missing')` | **DECLINED** |
-| `tests.sn.test_snstreamingoperator.test_apply_…` | `func` | `(False,'missing')` | **DECLINED** |
+| `tests.gates.sn.test_snstreamingoperator.test_apply_…` | `func` | `(False,'missing')` | **DECLINED** |
 | `orpheus.sn.spatial.pole_angular_closure` | **mod** | `(False,'missing')` | **DEAD** ✅ |
 
 `judge()`'s last clause re-checks the target's HEAD *carrying the original role*:
@@ -6052,8 +6052,8 @@ attribute. The four have different repairs and only one of them is "de-role".
 
 The ruling fixes roles. It does not touch the *other* present-tense claim a history block makes:
 a ``tests/…/foo.py`` **path**. `[M]` in the ERR-026 entry, **14 of 14** distinct `tests/*.py` paths
-no longer exist (`tests/sn/spatial/` → `tests/sn/sweep/`, `tests/sn/l1_analytical/` →
-`tests/sn/verification/…`). Catalogue-wide: **40 of 100** distinct raw file paths written as
+no longer exist (`tests/gates/sn/spatial/` → `tests/gates/sn/sweep/`, `tests/gates/sn/l1_analytical/` →
+`tests/gates/sn/verification/…`). Catalogue-wide: **40 of 100** distinct raw file paths written as
 literals are gone — 31 of 72 `tests/`, 9 of 24 `orpheus/`. A raw path warns at no severity, is
 invisible to the xref gate (which judges roles), and to nexus (which judges targets).
 
@@ -6167,7 +6167,7 @@ I added `positive-cone-definition` because the cone is the page's new subject).
 ### (d) ⭐⭐ REPRODUCE the witness, and the reproduction may REFUTE the gate's own prose.
 
 The ruling's decisive measurement is *"DD does not preserve K, so a ψ≥0 type would refuse
-production output"*. The gate `tests/sn/solve/test_cone_membership_witness.py` freezes
+production output"*. The gate `tests/gates/sn/solve/test_cone_membership_witness.py` freezes
 `min ψ = −6.399383e-01`. I reproduced it through the public entry — exact to the digit —
 **and the gate's docstring is wrong about its own fixture**: it says the pair differs in
 *"ONE parameter (`nx`) … half the optical cell size"*, but `_solve(nx=2, width=20)` and
@@ -6334,7 +6334,7 @@ opened with `.. important:: Single source of truth … Edited there, consumed he
 ### 4. ⚠ Two agreeing sources can both be wrong about a DATE — git is the arbiter
 
 The brief said the byte gate held *"dated 2026-08-21"*, and
-`tests/sn/architecture/test_monomorphic_leaves.py:668` independently says
+`tests/gates/sn/architecture/test_monomorphic_leaves.py:668` independently says
 *"CS1 step 3b (2026-08-21)"*. `[M]` `git log --date=short` puts every CS1 commit
 (`1afff47b` … `6da1b23c`) on **2026-08-20**, and the session date was 2026-08-20 —
 i.e. both surfaces carry a FUTURE date. Two independent agreeing sources felt like
@@ -6625,7 +6625,7 @@ for staleness turned into the strongest single piece of corroboration on the pag
   `√(G_jj G_kk)`". `[M]` relative to the C–S scale they are **0.9347**; **0.5774** is
   relative to the largest DIAGONAL. Verdict unaffected (threshold `1e-10`), but the
   *stated normalisation* is wrong and the same wording is copied into two
-  `tests/numerics/test_frame.py` docstrings. ⟹ when a docstring quotes a ratio, check
+  `tests/gates/numerics/test_frame.py` docstrings. ⟹ when a docstring quotes a ratio, check
   WHICH denominator — two plausible ones differ by 1.6× here.
 - **`spherical_harmonic_space.py`** class docstring's `inner_product_weights` parameter
   still says "row ℓ holds 4π/(2ℓ+1)". `from_L`'s docstring WAS updated by the F-0 commit;
@@ -7048,7 +7048,7 @@ Three things worth carrying:
 
 ### 7. Numbers re-derived rather than relayed
 
-- The byte gate: the plan says "D5 8/8". Ran it — `tests/homogeneous/test_byte_stability.py`,
+- The byte gate: the plan says "D5 8/8". Ran it — `tests/gates/homogeneous/test_byte_stability.py`,
   **8 passed**, and its own fixture docstring says *"exhaustive over what the tree
   ships"*, which is the phrase the row now uses.
 - The GL8 correction: the plan's banner said the probe's ladder "skipped GL8". My
@@ -7687,7 +7687,7 @@ before writing the headline** — the code was more careful than the brief's sum
 ### 8. ⭐⭐ NAMING THE *FORCING* IS THE LOAD-BEARING CONTENT OF AN UN-WELD DOC
 
 A reader who takes a Pattern-2 twin for carelessness will re-introduce it. `[M]` by AST over
-`tests/test_layer_imports.py`: `transport` ∈ L2, `sn` ∈ L3,
+`tests/gates/test_layer_imports.py`: `transport` ∈ L2, `sn` ∈ L3,
 `FORBIDDEN_EDGES["transport"] = L3_PACKAGES`, enforced per module by a
 `@pytest.mark.foundation` parametrized gate. **The scheme could not call the closure — it
 could only re-spell the relation.** So the repair is not "delete the copy", it is "move the
@@ -8151,7 +8151,7 @@ so BOTH halves must be stated together.
 
 ### 3. ⭐⭐ The gate's OWN roster said "EXHAUSTIVE … these are the four `Quadrature` classmethod factories" — `[M]` there are FIVE
 
-`_RULES` in `tests/numerics/test_axis_generator.py` invokes vv-principles #31's
+`_RULES` in `tests/gates/numerics/test_axis_generator.py` invokes vv-principles #31's
 finite-roster corollary *by name* and lists `gauss_legendre / level_symmetric /
 product / lebedev`. `[M]`
 `[n for n,v in vars(Quadrature).items() if isinstance(v, classmethod)]` = **5** —
@@ -8259,7 +8259,7 @@ a `find` gave a 204-char fragment that trivially "passed").
 - **The `_RULES` roster gap** (§3 above) — `folded_product` missing from a
   self-declared-exhaustive roster.
 - **Two new gates land UNMARKED.** `[M]` the matrix's `unmarked` count went
-  **8 → 10**; `tests/sn/angular/test_redistribution.py` tags per-test with
+  **8 → 10**; `tests/gates/sn/angular/test_redistribution.py` tags per-test with
   `@pytest.mark.foundation` and its module docstring says so, but
   `TestG9TheProtocolDeclaresWhatItsConsumersRead`'s two methods carry no marker.
   The module docstring is therefore present-tense-false about its own contents.
@@ -8290,7 +8290,7 @@ page shipped saying *"the gap is reported, not repaired here"* about a gap that
 was repaired in the same batch.
 
 `[M]` the live roster: `vars(Quadrature)` + `isinstance(v, classmethod)` = 5, and
-`tests/numerics/test_axis_generator.py::_RULES` now carries all five including
+`tests/gates/numerics/test_axis_generator.py::_RULES` now carries all five including
 `folded_product(4,8)`. TWO sites on `spaces.rst` were present-tense-false (the G4
 gate row's ⚠ block, and a `(vv-status rationale)` comment saying "four of the
 five").
@@ -9242,7 +9242,7 @@ for the shipped `a = y` ordering. **The rank is what carries the argument** — 
 
 1. `orpheus/numerics/manifold.py` `__all__` omits **`Ball`** and **`FundamentalDomain`** — `[M]`
    `[c for c in Manifold.__subclasses__() if c.__name__ not in __all__]` = both, while
-   `tests/numerics/test_manifold.py:40` imports them by name. Two public variants outside the
+   `tests/gates/numerics/test_manifold.py:40` imports them by name. Two public variants outside the
    declared public surface.
 2. `AngularRedistribution.mu_start_per_level` holds a **radial** cosine `η = −sinθ_p`, not a
    polar `μ`; and its docstring spells the level's polar cosine `ξ_p`, while `ξ` elsewhere is
@@ -9660,7 +9660,7 @@ gated by nothing; the check's predicate is *call depth zero*, not the spelling.
 `[M]` over `orpheus/`: `Quotient.reference` has **one** production reader
 (`registry.py:965`) while `quotient_map` and `orbit_coordinates` have **zero** outside
 their own module — ten and three occurrences respectively, all in
-`tests/numerics/test_manifold.py`. So half of 3.1 is CONSUMED and half is a
+`tests/gates/numerics/test_manifold.py`. So half of 3.1 is CONSUMED and half is a
 capability. Stated in Key Facts, the new section's `.. warning::`, the ERR-080 block
 and the changelog row, per L-079's three-places rule for a zero-consumer mint.
 
@@ -9817,7 +9817,7 @@ criterion.
 ### (e) ⭐ Reading the tests to write the doc surfaced an UNDOCUMENTED asymmetry
 older than the step
 
-`tests/transport/frames/test_harmonic_frame.py` asserts `face.codomain ==
+`tests/gates/transport/frames/test_harmonic_frame.py` asserts `face.codomain ==
 HarmonicMomentFlux.zeros_for_mesh_and_L(m, L).space`. `[M]` on a 2-group slab at
 `L = 0,1,2` that is `True` at every order **and the two heads' metrics differ at
 every order** — the face's head is the frame's *dressed* `basis_space` (matrix
@@ -9934,7 +9934,7 @@ leaks trace to a line I added (checked by matching each leak's stripped context
 against my diff's `+` lines).
 
 **(f) ⭐ The test tree MOVED under me mid-session, and the moving part was the
-evidence I was about to cite.** At my first census `tests/numerics/test_legendre_basis.py`
+evidence I was about to cite.** At my first census `tests/gates/numerics/test_legendre_basis.py`
 and `test_descent.py` **did not exist** (the ERR-080 gate's docstring names them in the
 present tense); by the final build both ship (15/32 and 9/20 rows) and
 `numerics/test_manifold` had gone 70 → **108** rows. ⟹ re-run every count against the
@@ -10695,7 +10695,7 @@ the second only by running the gate: (1) the build regenerated
 `.claude/skills/vv-principles/error_index.md` from **80 entries · 0 uncaught** to
 **81 entries · 1 uncaught** with a new "⛔ Uncaught" heading (correct, generated, never
 hand-edit); and (2) `[M]`
-`tests/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test`
+`tests/gates/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test`
 goes **RED** — *"1 catalogued defect(s) have no `@pytest.mark.catches`: ['ERR-081']"*.
 Its docstring offers *"or say in the entry why no test can exist"*, but the assertion
 is `_catalogue_ids() - _marker_ids()` and parses no exemption, so the marker is
@@ -10775,7 +10775,7 @@ ERR-023's *title* reads present-tense.
 
 ERR-023 is titled *"MC solver silently ignores Sig2 (n,2n) reactions"*. #428's own body
 quoted that title as evidence MC might still be broken. `[M]` the defect was fixed at
-#23, the catcher (`tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical`) still
+#23, the catcher (`tests/gates/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical`) still
 has teeth — and it is `@pytest.mark.slow`, so the canonical `-m "not slow"` gate never
 runs it (#405). Shipped as a `.. warning::` naming all three facts.
 
@@ -11556,7 +11556,7 @@ All three read **0** here.
 
 ### Reported, not edited
 
-`tests/numerics/test_space_of_axes.py:244` still names `FunctionSpace._broadcast_metric` in
+`tests/gates/numerics/test_space_of_axes.py:244` still names `FunctionSpace._broadcast_metric` in
 a docstring; the carve updated three other docstrings in that same file and missed it. The
 independence ARGUMENT it makes is intact (and stronger post-6.2a) — only the symbol died.
 
@@ -12112,7 +12112,7 @@ the consumed objects live (and a save state)."*
 
 ### 1. The brief's named staleness target measured **0**
 
-The brief's item 5 said *"D5's module docstring (`tests/homogeneous/
+The brief's item 5 said *"D5's module docstring (`tests/gates/homogeneous/
 test_byte_stability.py`) describes the pre-wiring/pre-coda path; re-tense
 whatever names the carrier or `_assemble_loss_operator` as present."*
 
@@ -12139,7 +12139,7 @@ adjacent rather than absent.
 
 ### 2. A docstring QUOTING a sibling docstring — an ungated cross-file dependency
 
-`tests/homogeneous/test_coda_anchors.py`'s class docstring justified its own
+`tests/gates/homogeneous/test_coda_anchors.py`'s class docstring justified its own
 eight-case sweep by quoting the tree's other A-level pin verbatim:
 
 > Today the tree pins :math:`A` on ONE case
@@ -12167,7 +12167,7 @@ file** as part of any pass over either file.
 The page said, in two places, that the ×2-pose mutation *"requires the rates to
 move with it"* and that its gate asserts *rates move, ratio stays*.
 
-`[M]` `tests/homogeneous/test_operator_spaces.py::test_the_space_measure_is_consulted`
+`[M]` `tests/gates/homogeneous/test_operator_spaces.py::test_the_space_measure_is_consulted`
 (**G2.5**) asserts, bit-exactly (×2 and ÷2 are exact in binary FP):
 
 | quantity | assertion |
@@ -12798,7 +12798,7 @@ The section said *"implemented at `SNSolver.__init__`"* + a quoted `if __debug__
 its `(vv-status rationale)` named that assert as the pin. Retiring it, the natural sentence is
 *"its only pin was an `assert` the `-O` runner strips."* **Both halves needed care:**
 
-* `[M]` `tests/sn/primitives/test_cell_flattening_invariant.py` **already existed** — its own
+* `[M]` `tests/gates/sn/primitives/test_cell_flattening_invariant.py` **already existed** — its own
   docstring says *"Promoted from the ``__debug__`` block in ``SNSolver.__init__`` (PR-INDEX-3
   era)"*, `@pytest.mark.foundation`, three synthetic shapes, and **no `verifies` marker by
   design** (*"no L0/L1/L2 theory-page label is needed"*). So the invariant had a real gate for
@@ -13304,7 +13304,7 @@ reachable witness*) as the reason the column exists at all.
   `documented` sentinels **582 → 584**; `audit._scan_theory_equations` **0
   violations**. Both new labels are structural definitions of numerics TYPES
   (siblings of `pencil-family`), sentineled with rationales naming
-  `tests/numerics/test_gauge.py`.
+  `tests/gates/numerics/test_gauge.py`.
 * every NEGATIVE claim re-verified at the END, with HEAD + working-set unchanged.
 
 ### Quality self-assessment
@@ -13313,7 +13313,7 @@ line) · cross-refs 5 (50 resolved, 0 dead) · numerical evidence 5 (every liter
 re-derived this session; 2 corrections) · failed approaches 4 (the refuted
 interior-kernel leg, S1/S2 refutations, the fifth-layer trap) · code traceability
 5 · derivation source 3 — no `derivations/` script exists for the gauge algebra;
-the laws live in `tests/numerics/test_gauge.py`, which is the right home for a
+the laws live in `tests/gates/numerics/test_gauge.py`, which is the right home for a
 type's defining laws but is NOT a SymPy algebra-of-record.
 
 ## L-110 — Consumers campaign step 3, unit U2: the SN Solution's own reshape (2026-09-17)
@@ -13331,7 +13331,7 @@ claim about the TREE, and `git status` is the one-command refutation.
 
 The brief and `solution.py`'s fresh docstring both said *"`[M]` 7.4e-11 relative …
 (worst of 16 finalize cases; the artefacts were re-baselined with that ratio recorded,
-U2e)"*. `[M]` `git status --porcelain -- tests/sn/_data/ tests/sn/regression/snapshots/`
+U2e)"*. `[M]` `git status --porcelain -- tests/gates/sn/_data/ tests/gates/sn/regression/snapshots/`
 returns **0 lines** — nothing was re-baselined; `git log -3` on the finalize dir stops at
 `6379e9ab` (#448). So the sentence described a step that had not happened.
 
@@ -13866,7 +13866,7 @@ within-group operator equation`); grep the count-word; triage every hit by REFER
 Written into `index.rst`, `slab_one_group.rst` (twice) and `slab_multigroup.rst`: *"every fixture
 in this chapter is Σ₂ₙ ≡ 0, so no number moved."* **False.** `adjoint.rst` carries the
 Be-reflected fast-slab (n,2n) anisotropy ladder, and
-`tests/sn/eigenvalue/test_keff_estimator_gate.py` plus the finalize reconstruction gate INJECT a
+`tests/gates/sn/eigenvalue/test_keff_estimator_gate.py` plus the finalize reconstruction gate INJECT a
 nonzero `Sig2`.
 
 The replacement is a census anyone can re-run:

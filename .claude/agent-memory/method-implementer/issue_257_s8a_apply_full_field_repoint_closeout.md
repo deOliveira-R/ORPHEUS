@@ -77,7 +77,7 @@ increment, not a state advance; and there's no time-stepping consumer).
    BOTH carriers, principled (it's exactly what `_recombine` is for). Resolved 7 `test_g_adjoint_reciprocity` failures.
 
 ## NEW catcher — C5 (the deliverable I wrote)
-`tests/sn/operators/test_apply_full_field_codomain.py` (`@pytest.mark.foundation`, 14 pass + 1 xfail,
+`tests/gates/sn/operators/test_apply_full_field_codomain.py` (`@pytest.mark.foundation`, 14 pass + 1 xfail,
 all `-O`-firing via `pytest.fail`/`np.testing`/`pytest.raises` — Mode 8 clean):
 - **C5a** — every leaf `L/C/S/F/B.apply` (+ `L/C/B.apply_transpose`) returns `type(out) is FullField`
   + `not isinstance(out, TimedFullField)` + no `history_*` attr, per geometry, for every input

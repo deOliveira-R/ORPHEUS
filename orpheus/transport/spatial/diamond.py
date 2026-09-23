@@ -127,7 +127,7 @@ def _cell_balance_n1(
     spelling).  [M] bit-identical to the retired scalar form on both the
     curvilinear and slab packets (the pre-retirement equivalence gates,
     re-pointed as hand-written literal pins in
-    ``tests/sn/sweep/core/test_cell_balance_for_streaming.py``).
+    ``tests/gates/sn/sweep/core/test_cell_balance_for_streaming.py``).
 
     P4.9a row 3: the angular contributions arrive ASSEMBLED from the
     caller (the SN walk builds ``(ΔA/w)·c_out`` / ``(ΔA/w)·c_in·ψ^a``

@@ -45,7 +45,7 @@ pure first-flight P_cell, white BC returns P_inf = P_cell + rank-1 outer product
   under refinement" = balance/normalization inconsistency, not underconvergence. Likely a
   missing ~pi solid-angle factor in `_setup_spherical` (`y_wts*=y_pts`) / `_compute_radial_rcp`
   spherical path — present as a clue, not a confirmed fix.
-- INVISIBLE to the suite: `tests/cp/test_properties.py::test_row_sums` +
+- INVISIBLE to the suite: `tests/gates/cp/test_properties.py::test_row_sums` +
   `test_verification.py::test_row_sums_multigroup` DO assert rowsum=1 for spherical, but every
   fixture is R=1, SigT<=2 → tau<=2, below onset. All 9 `cp_sph1D_*` eigenvalue cases are tau<=2
   too. Classic vv-principles H2: the conservation gate runs only where the invariant happens to

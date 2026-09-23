@@ -35,7 +35,7 @@ this session by reading the diff:
   `.sign_x`/`.sign_y`/`.streams_in_2d` → `AttributeError`.
 
 **Live red count at HEAD (with the dirty tree), `python -O`:**
-`tests/sn/sweep/core/ + cartesian_2d/` = **7 failed, 464 passed, 2 skipped,
+`tests/gates/sn/sweep/core/ + cartesian_2d/` = **7 failed, 464 passed, 2 skipped,
 4 xfailed**. The 7 reds: 4 in `test_sweep_schedule.py` (the `.sign_x` ones),
 3 in `test_scan_march_end_to_end.py` + `test_affine_carve_bit_identity.py`
 (`si_2d_p1_aniso_het` case + G4.a + G4.b — these go through the broken
@@ -239,7 +239,7 @@ shim is fully retired (coding-elegance aggressive-retirement + the user's
 The carve is naturally three commits (a)/(b)/(c). Run order + expected counts
 (`python -O`, sequential — xdist deadlocks per [[sn-taxonomy-reorg-mapping]]):
 
-**Baseline NOW (dirty tree, HEAD `0036acc`):** `tests/sn/sweep/core/ +
+**Baseline NOW (dirty tree, HEAD `0036acc`):** `tests/gates/sn/sweep/core/ +
 cartesian_2d/` = **7 failed, 464 passed, 2 skipped, 4 xfailed** (the 7 reds
 are the in-flight shim breakage, §SURPRISE). The smaller schedule+graph+
 streaming batch (`test_sweep_schedule.py test_sweep_graph.py
@@ -258,7 +258,7 @@ the 7-red figure as the schedule reality.
   the schedule un-breaks the reflective path). (4)
   `test_affine_carve_bit_identity.py` (`si_2d_p1_aniso_het` flips green —
   same reflective-schedule path; **byte-identical**, NO regeneration). (5) full
-  `tests/sn/sweep/core/ + cartesian_2d/`.
+  `tests/gates/sn/sweep/core/ + cartesian_2d/`.
 - AFTER (expected): **0 failed**, ~466-470 passed + the NEW d=3 pins (≥3). The
   4 xfailed stay xfailed.
 - ⚠ The 4 schedule reds that are bare-`assert`-elsewhere and pass under `-O`
@@ -267,9 +267,9 @@ the 7-red figure as the schedule reality.
   confirm the migrated assertions are live (Mode-8).
 
 **Commit (b) — `SNMesh.streaming(axis)` d-generic:**
-- Anchor suites: `tests/sn/sweep/core/test_sweep_regression.py` (G-b1/G-b2,
+- Anchor suites: `tests/gates/sn/sweep/core/test_sweep_regression.py` (G-b1/G-b2,
   the `TestSNMesh` stencil tests — MUST stay green, bit-id by construction),
-  `tests/sn/primitives/test_snmesh_consumes_reduced.py` (G-b4, the `streaming_x
+  `tests/gates/sn/primitives/test_snmesh_consumes_reduced.py` (G-b4, the `streaming_x
   is not None` pins `:174-175`).
 - BEFORE/AFTER: **byte-identical** — `mu_x IS axis_cosines(0)` (a `@property`
   view, confirmed `directional.py:294-302`), so the `range(ndim)` tuple build
@@ -287,7 +287,7 @@ the 7-red figure as the schedule reality.
   hash `test_streaming_operator.py::TestT4dApply2DCartesianSourceHashPin`
   (untouched — `supports` is not in `_apply_2d_cartesian`'s source). (4)
   `test_scan_march_end_to_end.py` (G6 end-to-end — d=2 default still ScanMarch).
-  (5) `tests/sn/eigenvalue/test_keff_2d.py` (the eigenvalue safety leg).
+  (5) `tests/gates/sn/eigenvalue/test_keff_2d.py` (the eigenvalue safety leg).
 - `test_affine_carve_bit_identity.py + test_scan_march_end_to_end.py +
   test_streaming_operator.py` clean-tree baseline this session = **68 passed**
   + the 3 (a)-red ones; after (a)+(c): all 71 green.

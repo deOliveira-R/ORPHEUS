@@ -168,7 +168,7 @@ different.
 Phase D was scoped to the apply-matvec path because Gate 1.1 MMS
 runs through the apply-matvec via `SNStreamingOperator.apply` (the
 xfail-strict marker on
-`tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual`
+`tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual`
 parametrised over the M-M closure). Phase D's
 `MorelMontryAngularSweep` Carlson-seed default (`geometry.py:188-191`)
 closes Gate 1.1 perfectly for the apply-matvec — confirmed by
@@ -330,7 +330,7 @@ but should ship in the same Phase F change.
 
 ### 4.3 Bit-identity break — expected and unavoidable
 
-The 6 curvilinear regression snapshots (`tests/sn/regression/snapshots/`)
+The 6 curvilinear regression snapshots (`tests/gates/sn/regression/snapshots/`)
 were SI-generated. The Carlson fix in the sweep path will change
 their values. The regression contract per `vv-principles` §"Bit-
 identity vs principled-equivalence" requires:
@@ -410,17 +410,17 @@ After implementing the fix in `_sweep_1d_spherical`:
 3. **Phase D Gate 1.1 (apply-matvec) regression**: must STAY GREEN.
    The fix is in the SI/sweep path; the apply-matvec was not
    touched. Run:
-   `pytest tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual -v`.
+   `pytest tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual -v`.
 
 4. **NEW Gate 1.6 (sweep-path per-ordinate flat-flux residual)**:
    the dual of Gate 1.1 — flat-ψ probe through the sweep path
    (not the apply-matvec) must satisfy `L·ψ = Σ_t·ψ` per ordinate
    to ~1e-12. Promote this from a diagnostic script to a
-   permanent test at `tests/sn/spatial/test_sweep_carlson_seed.py`
+   permanent test at `tests/gates/sn/spatial/test_sweep_carlson_seed.py`
    or similar.
 
 5. **Phase E flux-shape sentinel**:
-   `tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+   `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
    should xpass after the fix; remove the xfail marker.
 
 6. **Curvilinear regression snapshots**: 6 curvilinear snapshots
@@ -431,9 +431,9 @@ After implementing the fix in `_sweep_1d_spherical`:
    - cylinder_homogeneous_1g_ls4
    - cylinder_homogeneous_2g_ls4
    - cylinder_2g_3reg_ls4
-   Generate via `python -m tests.sn.regression._generate_snapshots
+   Generate via `python -m tests.gates.sn.regression._generate_snapshots
    --case ...` (or the equivalent CLI; the framework already
-   regenerates on `pytest tests/sn/regression -v --regen`).
+   regenerates on `pytest tests/gates/sn/regression -v --regen`).
    Verify each regenerated snapshot passes Gate 4.2 k_eff
    tolerance AND the new flux-shape sentinel.
 
@@ -444,7 +444,7 @@ After implementing the fix in `_sweep_1d_spherical`:
    Krylov gap (k_eff 1.358 vs 1.385 at n=40) is the *manifestation*
    of the bug — post-fix, the SI value must match Krylov's.
    This becomes a new structural invariant test:
-   `tests/sn/spatial/test_sweep_vs_apply_consistency.py`.
+   `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`.
 
 ## 7. Files referenced
 

@@ -9,7 +9,7 @@ metadata:
 
 Branch `refactor/sn-foundation-cleanup`, UNCOMMITTED. Scope: `orpheus/sn/solver.py`
 (`_build_fixed_source_rhs` typed-union validation + `_lift_external_source_to_moments`
-widening) and the `#247` block of `tests/sn/verification/mms/test_mms_ld_2d.py`
+widening) and the `#247` block of `tests/gates/sn/verification/mms/test_mms_ld_2d.py`
 (lines ~486-1037).
 
 ## Summary Verdict

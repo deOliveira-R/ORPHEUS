@@ -65,7 +65,7 @@ Verification claim count
 
 Each ``derive_*()`` function below returns a dict with a ``"pass"``
 flag and is gated by a ``@pytest.mark.foundation`` test in
-:mod:`tests.derivations.test_fn_la13511_slab_flux_symbolic` and the
+:mod:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic` and the
 sphere analog. The claim count is:
 
 * :func:`derive_slab_kll_phi_eq7_structure` — KLL Eq. 7 has the

@@ -54,7 +54,7 @@ sign for rank-N and the opposite for F.4 and reports a false structural win. **M
 agreement is not enough — the SIGN must agree.**
 
 - Gate before shipping any closure: `assert_rank_n_structural_win(...)` in
-  `tests/cp/test_peierls_rank_n_protocol.py` (it refuses fewer than two quadratures).
+  `tests/gates/cp/test_peierls_rank_n_protocol.py` (it refuses fewer than two quadratures).
 - Protocol tracked by **#123, OPEN** (verified 2026-09-21). The three falsified closure
   directions with their structural reasons: `_archive/direction_c_pca_rich_adaptive.md`,
   `_archive/direction_q_lambert_marshak_derivation.md`, `frame_5_qmc_quadrature.md`.

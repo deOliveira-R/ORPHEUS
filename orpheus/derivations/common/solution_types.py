@@ -80,7 +80,7 @@ The ``metadata`` field is open-ended on purpose: every solver carries
 its own diagnostic vocabulary, and forcing a closed schema would
 trade structural simplicity for premature standardisation. The
 canonical names expected by the cross-method protocol
-(:mod:`tests.cross_method.adapters`) are documented per-adapter; new
+(:mod:`tests.gates.cross_method.adapters`) are documented per-adapter; new
 solvers SHOULD follow precedent but aren't structurally constrained
 to.
 

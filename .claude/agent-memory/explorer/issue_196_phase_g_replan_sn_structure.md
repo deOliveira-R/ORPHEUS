@@ -357,21 +357,21 @@ the partner ordinate. White returns the angular average.
 
 ### 5.1 Regression snapshots (the algebra-of-record gate)
 
-Location: `tests/sn/regression/snapshots/`
+Location: `tests/gates/sn/regression/snapshots/`
 
-Snapshot inventory (from `tests/sn/regression/snapshots/*.npz`):
+Snapshot inventory (from `tests/gates/sn/regression/snapshots/*.npz`):
 - `2d_1g_LS4_dd_15x15.npz`
 - 6 × `2d_octant_equivalence_*.npz`
 - 3 × `cyl_*.npz`
 - Plus spherical snapshots (further in directory listing).
 
-Driver: `tests/sn/regression/test_dd_regression.py:32-46` —
+Driver: `tests/gates/sn/regression/test_dd_regression.py:32-46` —
 re-runs each case, asserts `np.array_equal` against the frozen
 `.npz`.
 
 ### 5.2 Variant α cross-checks (Gate 4.2 / Phase E sentinel)
 
-File: `tests/sn/test_phase_c_crosscheck.py`
+File: `tests/gates/sn/test_phase_c_crosscheck.py`
 
 Notable cases:
 - Lines 151-291: SN snapshot k_eff vs `trajectory_resolvent` Variant α
@@ -383,7 +383,7 @@ Notable cases:
 
 ### 5.3 Streaming operator core tests
 
-File: `tests/sn/test_snstreamingoperator.py` — bit-identity vs legacy
+File: `tests/gates/sn/test_snstreamingoperator.py` — bit-identity vs legacy
 matvec, reciprocity round-off, linearity probes, capability checks.
 
 Key tests:
@@ -399,12 +399,12 @@ Key tests:
 
 ### 5.4 Phase C gates (sphere/cyl L0 + flat-flux invariants)
 
-File: `tests/sn/test_phase_c_gates.py` — Gate 1.1 (flat flux on
+File: `tests/gates/sn/test_phase_c_gates.py` — Gate 1.1 (flat flux on
 homogeneous reflective sphere), Gate 1.6 (verifies decorators), etc.
 
 ### 5.5 SI-vs-Krylov manifestation
 
-File: `tests/sn/test_sweep_operator_inconsistency.py` — pins the
+File: `tests/gates/sn/test_sweep_operator_inconsistency.py` — pins the
 Krylov-vs-sweep deviation on collisionless reflective slab,
 demonstrating Manifestation #7's symptomatic form. `:167-188` tests
 that Krylov gives exact flat flux while the sweep deviates.
@@ -412,25 +412,25 @@ that Krylov gives exact flat flux while the sweep deviates.
 ### 5.6 BC tests
 
 Files:
-- `tests/sn/test_boundary_conditions.py`
-- `tests/sn/test_snmesh_realizer_wiring.py` (10 tests — Wave 8 / C188 wiring)
-- `tests/sn/test_method_space.py`
-- `tests/sn/test_angular_average_operator.py`
+- `tests/gates/sn/test_boundary_conditions.py`
+- `tests/gates/sn/test_snmesh_realizer_wiring.py` (10 tests — Wave 8 / C188 wiring)
+- `tests/gates/sn/test_method_space.py`
+- `tests/gates/sn/test_angular_average_operator.py`
 
 ### 5.7 Sweep vs apply consistency
 
-File: `tests/sn/spatial/test_sweep_vs_apply_consistency.py` — the
+File: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` — the
 direct gate for Manifestation #7's resolution.
 
 ### 5.8 Phase G Step 2 diagnostics (the prior failed attempt)
 
 Files (5 diagnostic scripts):
-- `tests/sn/diagnostics/phase_g_step2_00_baseline.py`
-- `tests/sn/diagnostics/phase_g_step2_01_psi_comparison.py`
-- `tests/sn/diagnostics/phase_g_step2_02_sncell_residual.py`
-- `tests/sn/diagnostics/phase_g_step2_03_closure_audit.py`
-- `tests/sn/diagnostics/phase_g_step2_04_fixed_source.py`
-- `tests/sn/diagnostics/phase_g_step2_05_homogeneous.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_00_baseline.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_01_psi_comparison.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_02_sncell_residual.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_03_closure_audit.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_04_fixed_source.py`
+- `tests/gates/sn/diagnostics/phase_g_step2_05_homogeneous.py`
 
 These document the prior attempt's evidence chain and live next to
 the `numerics-investigator` memo at

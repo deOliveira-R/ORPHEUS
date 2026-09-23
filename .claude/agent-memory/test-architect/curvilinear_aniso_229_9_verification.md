@@ -117,11 +117,11 @@ than L0+L1. Defer with a one-line #9 closeout note, don't build now.
 
 **#9 LANDED 2026-06-13** (branch `fix/curvilinear-aniso-pole-and-clamp`,
 parallel to W1 `b2d8a6d`). Files: L0 =
-`tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py` (2 `@l0`
+`tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py` (2 `@l0`
 + `verifies("pn-scatter","flux-moments")` — sphere SH-table-indep + cyl
 explicit-Y₁ᵐ-sum, both per-ord vs hand-ref + `peak>1e-6` neg-control); L1 =
 `TestSphereP1DirectionalEigenvalue` in
-`tests/sn/eigenvalue/test_keff_curvilinear.py` (2 `@l1`+`verifies
+`tests/gates/sn/eigenvalue/test_keff_curvilinear.py` (2 `@l1`+`verifies
 ("pn-scatter")` — het-vac-sphere sign+band, homog-vac leakage-monotone
 R4>R25). ⭐ ONE SPEC CORRECTION: the L1 leakage rows REQUIRE `BC.vacuum`
 outer — the `curvilinear_homogeneous_mesh`/`_two_region_mesh` helpers

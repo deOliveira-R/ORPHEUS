@@ -30,14 +30,14 @@ Closes the **slope-UNKNOWN** half of the LM-1989 slope-row sign trap in d≥2.
   - `build_2d_cartesian_ld_stress_mms_case(...)` — factory (non-square 1.3×0.9,
     2G c=(1.0,0.4), default level-symmetric S4 / no pure-z; pass Lebedev for the
     pure-z matvec gate).
-- `tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py` (NEW, 8 foundation
+- `tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py` (NEW, 8 foundation
   tests): SymPy substitution identity (`@verifies("ld-cartesian-2d",
   "transport-cartesian-2d")`) + INDEPENDENT finite-difference residual check
   (structural independence vs SymPy's own `diff`, L11) + φ=A + slope-driver
   per-axis activation + B,C-break-x↔y-reflection + Branch2==Branch1 source
   cross-check (1.5e-16) + prescribed-inflow non-vanishing + structural-
   independence-of-LD-kernel guard.
-- `tests/sn/verification/mms/test_mms_ld_2d.py` (+177): D5b.2 headline
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (+177): D5b.2 headline
   (`test_ld_2d_stress_converges_second_order`, `@l1 @slow
   @verifies("ld-cartesian-2d","transport-cartesian-2d")`) + D5b.4 matvec twin
   (`test_ld_2d_stress_krylov_equals_si`, `@l1 @verifies("ld-cartesian-2d")`) +
@@ -113,14 +113,14 @@ per-axis identically). Strengthened MMS catches all three definitively.
 
 ## Gate results
 
-- `python -O -m pytest tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py`
+- `python -O -m pytest tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py`
   → **8 passed** (the foundation/L11 derive gate).
-- `python -O -m pytest tests/sn/verification/mms tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py`
+- `python -O -m pytest tests/gates/sn/verification/mms tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py`
   → **50 passed** (459s; includes D5b.2 headline O(h²) order=2.00,
   D5b.4 Krylov≡SI, D5b.3-stress FFW≡MFW + all pre-existing MMS).
-- No-regression: `python -O -m pytest tests/sn/spatial tests/sn/sweep/core
-  tests/sn/sweep/cartesian_2d tests/sn/solve -W
-  "error::tests.sn.regression._regression_assert.DriftWarning"` →
+- No-regression: `python -O -m pytest tests/gates/sn/spatial tests/gates/sn/sweep/core
+  tests/gates/sn/sweep/cartesian_2d tests/gates/sn/solve -W
+  "error::tests.gates.sn.regression._regression_assert.DriftWarning"` →
   **632 passed, 2 skipped, 4 xfailed** (DriftWarning gate clean).
 - Sphinx `-b html` → build succeeded (only pre-existing test-file
   SyntaxWarnings; `ld-cartesian-2d` label present in HTML, 3 hits; no

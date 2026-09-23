@@ -18,7 +18,7 @@ type: project
 - Cylindrical Q^ext_n: `η A' + η² B' + ξ² B/r + (Σ_t-Σ_s) A + Σ_t η B`. The `ξ² B/r` term is the cylindrical analog. Derivation handles `ξ = ξ(η,φ)` and `ψ = ψ(r,η(θ,φ))` correctly: `∂(ξψ)/∂φ = (∂ξ/∂φ)ψ + ξ(∂ψ/∂φ) = η·(A+Bη) + ξ·(-Bξ)` then `-(1/r)∂(ξψ)/∂φ` cancels the streaming `ηA/r + η²B/r` and leaves `ξ²B/r`.
 - Choice of B(r): `(r/R)(1-r/R)cos(πr/R)`. Vanishes at r∈{0,R} via the `r(R-r)` envelope. The cosine factor is non-trivial and produces extrema at r=R/3 (cos(π/3)=1/2), avoiding the trivial r=R/2 zero of cos(π·1/2). The non-zero-redistribution test gate exercises r=R/3 specifically.
 
-**Bug-revealing potential**: the isotropic curvilinear MMS test in `tests/sn/test_mms_curvilinear.py` is currently FAILING on main with orders ≈ 0 instead of O(h²) (errors flatlining at 0.107-0.111 across n_cells=10,20,40,80,160). This is exactly ERR-026 (curvilinear sweep WDD wrong fixed point). The Phase-0 main-agent task to write the consumer `tests/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py` will determine whether ERR-026 also fails the anisotropic case (expected: yes, possibly with different order signature so the pair narrows down where in the sweep the bug lives).
+**Bug-revealing potential**: the isotropic curvilinear MMS test in `tests/gates/sn/test_mms_curvilinear.py` is currently FAILING on main with orders ≈ 0 instead of O(h²) (errors flatlining at 0.107-0.111 across n_cells=10,20,40,80,160). This is exactly ERR-026 (curvilinear sweep WDD wrong fixed point). The Phase-0 main-agent task to write the consumer `tests/gates/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py` will determine whether ERR-026 also fails the anisotropic case (expected: yes, possibly with different order signature so the pair narrows down where in the sweep the bug lives).
 
 **4 new equation labels** in `docs/theory/discrete_ordinates.rst` §"Curvilinear anisotropic MMS — angular redistribution probe":
 
@@ -29,7 +29,7 @@ type: project
 
 V&V matrix auto-regenerated; each label shows 1 test (foundation-tagged via `@pytest.mark.verifies`).
 
-**12 foundation tests** at `tests/derivations/test_sn_mms_anisotropic_symbolic.py`:
+**12 foundation tests** at `tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py`:
 
 - 4 spherical: substitution identity, redistribution non-vanish, BC vanish, overall pass.
 - 4 cylindrical: same structure.
@@ -42,6 +42,6 @@ Total runtime: 3.6 s. Sphinx -W clean for the new section (pre-existing warnings
 1. `feat(mms)`: Branch 1 SymPy + Branch 2 numpy + 12 foundation tests (1087 lines added).
 2. `docs(theory)`: §"Curvilinear anisotropic MMS" + 4 equation labels (172 lines added; matrix.rst auto-regenerated +10 lines).
 
-**Out of scope (explicit)**: consumer L1 convergence test (`tests/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py`) is Phase-0 main-agent work; not modifying the existing isotropic factories; not touching the SN reshape (Issues 1-18 of `.claude/plans/sn_reshape.md`); not 2D Cartesian / P1 aniso MMS (those exist).
+**Out of scope (explicit)**: consumer L1 convergence test (`tests/gates/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py`) is Phase-0 main-agent work; not modifying the existing isotropic factories; not touching the SN reshape (Issues 1-18 of `.claude/plans/sn_reshape.md`); not 2D Cartesian / P1 aniso MMS (those exist).
 
 **Frame finding (cross-domain-frames)**: the `(1-μ²)B/r` ↔ `ξ²B/r` mapping is structurally a **connection coefficient** (Christoffel-symbol analog for the angular phase-space) — both terms come from how the radial direction cosine rotates with position in the curved geometry. The candidate frame `candidate_cylindrical_connection.md` in `cross-domain-frames` SKILL is now empirically supported by this mapping; the spherical `(1-μ²)/r ∂_μ` and cylindrical `-(1/r)∂_φ(ξ·)` are the same operator viewed in two coordinate charts on SO(3). Worth elevating from candidate to validated if the user wants to pull the abstraction up to a shared "angular-redistribution kernel" primitive.

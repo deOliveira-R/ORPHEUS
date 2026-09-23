@@ -51,7 +51,7 @@ R(ψ; σ_t) := M(ψ; σ_t) − L_naïve(ψ) − σ_t·ψ
            ∝ Δseed = -dr · σ_t · (Σw · φ_face − φ_0) / (Σw · (dr·σ_t + 2))
 ```
 
-This is **factored**: zero iff σ_t = 0 OR `φ_0/Σw = φ_face` (flat ψ at the outer BC). The flat-ψ cancellation is WHY the prior fixed-source diagnostic (`tests/sn/diagnostics/phase_g_step2_04_fixed_source.py` against the converged fixed point) appeared to agree even though the operator is structurally non-affine.
+This is **factored**: zero iff σ_t = 0 OR `φ_0/Σw = φ_face` (flat ψ at the outer BC). The flat-ψ cancellation is WHY the prior fixed-source diagnostic (`tests/gates/sn/diagnostics/phase_g_step2_04_fixed_source.py` against the converged fixed point) appeared to agree even though the operator is structurally non-affine.
 
 **Verbatim symbolic equation** (from `derivations/diagnostics/diag_LC_decomposition_sn.py:derive_spherical_carlson_seed_symbolic`): [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_sn.py`]
 
@@ -281,7 +281,7 @@ class CollisionOperator(LinearOperatorMixin):
 
 ### Verification test (already written)
 
-`derivations/diagnostics/diag_LC_decomposition_resolution.py` — 10 tests, all PASS at rel_residual = 0.0 across {CART, SPH, CYL} × {3 random seeds}. Promote to `tests/sn/test_streaming_operator_decomposition.py` after the StreamingOperator lands; tag `@pytest.mark.l0`. [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_resolution.py`]
+`derivations/diagnostics/diag_LC_decomposition_resolution.py` — 10 tests, all PASS at rel_residual = 0.0 across {CART, SPH, CYL} × {3 random seeds}. Promote to `tests/gates/sn/test_streaming_operator_decomposition.py` after the StreamingOperator lands; tag `@pytest.mark.l0`. [gone: `git show a614610f^:derivations/diagnostics/diag_LC_decomposition_resolution.py`]
 
 ### Why this is the right answer architecturally
 
@@ -359,7 +359,7 @@ The next method-implementer dispatch can take this verdict directly:
 
 1. **Implement** `StreamingOperator.apply` with the subtractive body shown in §"Class signature" above. The matvec is unchanged; the change is at the wrapper level.
 
-2. **Test** with `tests/sn/test_streaming_operator_decomposition.py` (promoted from `diag_LC_decomposition_resolution.py`) — bit-exact at `rtol=1e-14` across slab/sphere/cylinder.
+2. **Test** with `tests/gates/sn/test_streaming_operator_decomposition.py` (promoted from `diag_LC_decomposition_resolution.py`) — bit-exact at `rtol=1e-14` across slab/sphere/cylinder.
 
 3. **Sphinx narrative**: extend `docs/theory/operator_algebra.rst` with one paragraph naming the discrete L's σ_t-parametrisation as a property of Hébert's M-M angular closure (cite Eq. 3.432-3.435). The user's algebra `(L+C-S-F/k)` still reads as math; the constructor signature `StreamingOperator(sn_mesh, σ_t)` carries the discretisation's parameter.
 

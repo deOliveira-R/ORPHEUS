@@ -6,7 +6,7 @@ recursion + critical-condition identities.
 
 Naming convention: ``derive_<topic>_<form>()`` returns a dict with a
 PASS flag whose foundation is verified by a 1:1 corresponding test in
-:mod:`tests.derivations`.
+:mod:`tests.gates.derivations`.
 
 Modules
 -------

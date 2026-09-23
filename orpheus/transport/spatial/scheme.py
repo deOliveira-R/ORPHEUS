@@ -925,7 +925,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     reading and the CFD Péclet blend are
     ``docs/theory/foundations/discretization.rst §discretization-closures``;
     the Σ-statelessness teeth are
-    :mod:`tests.transport.spatial.test_scheme_reaction_rate_contract`.
+    :mod:`tests.gates.transport.spatial.test_scheme_reaction_rate_contract`.
 
     Generic affine reconstruction ops
     =================================
@@ -958,7 +958,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     At ``w=½`` (Diamond Difference) the scan SOLVE ops are **byte-identical**
     to the pre-coefficient-model closures (``÷½`` is an exact power-of-2
     ``×2``), so DD's scan snapshots stay strict (the
-    ``tests/sn/sweep/core -W error::DriftWarning`` gate).  DD's matvec APPLY is
+    ``tests/gates/sn/sweep/core -W error::DriftWarning`` gate).  DD's matvec APPLY is
     a deliberate principled ~1-ULP re-baseline onto the ÷V kernel (one uniform
     matvec kernel, no per-scheme flag), sanctioned by ``vv-principles``
     §"Bit-identity vs principled-equivalence"; the same governs LD's ×V-scan vs

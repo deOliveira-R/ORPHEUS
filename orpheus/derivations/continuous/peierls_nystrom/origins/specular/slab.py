@@ -115,7 +115,7 @@ Pinned numerically against the production
 :func:`compute_P_esc_outer`/:func:`compute_G_bc_outer` (slab branches)
 at mode 0, plus the algebraic
 :math:`2\,M_{\rm blockdiag}\,R_{\rm slab} - I = 0` per-face contract,
-by ``tests/derivations/test_peierls_specular_slab_symbolic.py``.
+by ``tests/gates/derivations/test_peierls_specular_slab_symbolic.py``.
 
 Future work — :math:`n \ge 1` slab specular
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

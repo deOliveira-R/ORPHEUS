@@ -19,7 +19,7 @@ follows.
 ### Targeted 3-file gate
 
 ```
-.venv/bin/python -O -m pytest tests/sn/test_streaming_operator.py tests/sn/test_invertible_operator.py tests/sn/test_b1pp_verification.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_invertible_operator.py tests/gates/sn/test_b1pp_verification.py -q
 ```
 
 ```
@@ -32,7 +32,7 @@ Pre-migration baseline (captured before edits): `9 failed, 86 passed,
 ### Broader 7-file gate
 
 ```
-.venv/bin/python -O -m pytest tests/sn/test_streaming_operator.py tests/sn/test_streaming_operator_decomposition.py tests/sn/test_invertible_operator.py tests/sn/test_b1pp_verification.py tests/sn/test_phase_c_gates.py tests/sn/test_2d_l2_matvec_correctness.py tests/sn/test_2d_l2_face_view_unit_source.py -q
+.venv/bin/python -O -m pytest tests/gates/sn/test_streaming_operator.py tests/gates/sn/test_streaming_operator_decomposition.py tests/gates/sn/test_invertible_operator.py tests/gates/sn/test_b1pp_verification.py tests/gates/sn/test_phase_c_gates.py tests/gates/sn/test_2d_l2_matvec_correctness.py tests/gates/sn/test_2d_l2_face_view_unit_source.py -q
 ```
 
 ```
@@ -64,7 +64,7 @@ See §4 for L12 brief-precondition honesty.
 
 ## 3 — Per-file edit summary
 
-### `tests/sn/test_streaming_operator.py`
+### `tests/gates/sn/test_streaming_operator.py`
 
 * **DELETED** `class TestApplyShape` (2 tests × 3 geometries = 6
   parametrized cases). The bare-ndarray shape contract retires; the
@@ -93,7 +93,7 @@ Lines net: ~22 deleted (TestApplyShape + helper), ~10 deleted (old
 `GEOMETRIES_1D` block), ~16 added (moved-up block + linearity body
 re-formed).
 
-### `tests/sn/test_b1pp_verification.py`
+### `tests/gates/sn/test_b1pp_verification.py`
 
 * **MIGRATED** `test_b1pp_lplusc_is_full_rank`: replaced
   `matvec(psi: np.ndarray)` with a TimedFullField-bridged version
@@ -130,7 +130,7 @@ re-formed).
 Lines net: ~120 added (3 migrations + restriction-helper inline);
 ~80 deleted (legacy packed-vector probing).
 
-### `tests/sn/test_invertible_operator.py`
+### `tests/gates/sn/test_invertible_operator.py`
 
 * **ADDED** one new test method `test_apply_rejects_bare_ndarray` on
   `class TestSolve`, decorated `@pytest.mark.foundation` +
@@ -283,9 +283,9 @@ cylinder builder's quadrature.
 
 ## 7 — Files changed
 
-- `tests/sn/test_streaming_operator.py` — refactored, deletions
-- `tests/sn/test_b1pp_verification.py` — 3 migrations, 1 import added
-- `tests/sn/test_invertible_operator.py` — 1 new xfail negative test
+- `tests/gates/sn/test_streaming_operator.py` — refactored, deletions
+- `tests/gates/sn/test_b1pp_verification.py` — 3 migrations, 1 import added
+- `tests/gates/sn/test_invertible_operator.py` — 1 new xfail negative test
 
 No production-code edits. No edits to other tests files (per brief
 constraint).

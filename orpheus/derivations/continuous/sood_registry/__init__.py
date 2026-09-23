@@ -28,10 +28,10 @@ Each :class:`La13511Case` carries:
   reference tabulates.
 * **Provenance**: Sood table number + primary reference + notes.
 
-Tests live in ``tests/derivations/`` and import case + solver(s),
+Tests live in ``tests/gates/derivations/`` and import case + solver(s),
 producing the value to compare. See e.g.
-``tests/derivations/test_fn_la13511_kinf.py`` for the F_N consumer
-or ``tests/derivations/test_sood_registry_compatibility.py`` for the
+``tests/gates/derivations/test_fn_la13511_kinf.py`` for the F_N consumer
+or ``tests/gates/derivations/test_sood_registry_compatibility.py`` for the
 production-protocol smoke gates.
 
 Module layout

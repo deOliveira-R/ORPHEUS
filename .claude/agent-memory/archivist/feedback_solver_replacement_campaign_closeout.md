@@ -90,7 +90,7 @@ Gates that MATTER here beyond the standard `-E -W`/audit: (a) the
 `:noindex:`-whole-package plain-text discovery ([[lessons]] L-002
 sharpening — import-verify every symbol, the api page governs the
 link); (b) preserve the two verifies-target labels (`diffusion-coefficient`
-in `tests/data/`, `diffusion-mms` in `tests/diffusion/`) — grep tree-wide
+in `tests/gates/data/`, `diffusion-mms` in `tests/gates/diffusion/`) — grep tree-wide
 for verifies(), not just the module's own test dir. See also
 [[feedback-capstone-root-cause-ruling]] (structural-WHY retrofit) and the
 AGENT.md Close-Out Narrative Arc (the FALSIFICATION variant; this one is

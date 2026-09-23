@@ -76,8 +76,8 @@ moment, not regime-specific.
 
 ## Deliverable
 
-`derivations/diagnostics/diag_s9_ld_boundary_slope_optical_sweep.py` (11 tests, [not preserved (never tracked); promoted into `tests/sn/verification/mms/test_ld_2d_boundary_promise.py`]
-~163s under -O). PROMOTE to `tests/sn/verification/mms/` as the S9 verdict-pin
+`derivations/diagnostics/diag_s9_ld_boundary_slope_optical_sweep.py` (11 tests, [not preserved (never tracked); promoted into `tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py`]
+~163s under -O). PROMOTE to `tests/gates/sn/verification/mms/` as the S9 verdict-pin
 (if the LD boundary closure ever changes so mom beats flat above-floor, the
 verdict must be revisited). ⚠ Promotion MUST convert the bare-`assert` gate
 logic to `np.testing`/`pytest.fail` (Mode-8: -O strips bare asserts; verified

@@ -11,7 +11,7 @@ PASS-WITH-NITS (`feature/field-typed-operator-algebra`, HEAD `505e1b7`, pre-comm
 bit-identical). Diff = 1 import (`material_xs_field.py:93`, runtime not TYPE_CHECKING) + 3 `@property`
 accessors (`total_cross_section_field` / `absorption_cross_section_field` / `fission_production_field` at :398-408 — ASYMMETRIC: the fission lens drops the `_cross_section` infix because νΣf is a production quantity, verified vs source @S5 review; the earlier "fission_production_cross_section_field" spelling here was WRONG), each
 `CrossSectionField.from_mesh(<raw cached view>, self.mesh)`. The FIELD-SIDE half of the S3 promotion
-`C = M[σ_t]`. Test `tests/sn/test_material_xs_field_typed.py` 10✓ in 0.48s. No new pyright errors;
+`C = M[σ_t]`. Test `tests/gates/sn/test_material_xs_field_typed.py` 10✓ in 0.48s. No new pyright errors;
 2 pre-existing `cells_by_material` errors untouched (out of diff range).
 
 **Why:** S2 of the #257 coefficient-field campaign (plan `.claude/plans/issue_257_coefficient_field_promotion.md`);

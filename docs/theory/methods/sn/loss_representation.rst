@@ -308,7 +308,7 @@ every representation:
    realisation the same mistake produced the mirror-image defect, a
    :math:`C` counted *twice*.
 
-   The convention is pinned by ``tests/sn/operators/test_loss_action_convention.py``: the
+   The convention is pinned by ``tests/gates/sn/operators/test_loss_action_convention.py``: the
    non-tautological anchor checks that for a flat reflective field
    :math:`L\psi_{\rm flat} = 0`, so :math:`(L+C)\psi = \sigma_t\psi` —
    proving the action is the *full* :math:`(L+C)` loss, not bare
@@ -354,7 +354,7 @@ every representation:
    threads into the WDD sweep — and returns
    ``loss_action(self.sigma, psi)`` directly, in place of the inherited
    :class:`~orpheus.numerics.operator.OperatorSum` leaf sum. It is what
-   ``tests/sn/operators/test_removal_form_matvec_sweep.py`` verifies under
+   ``tests/gates/sn/operators/test_removal_form_matvec_sweep.py`` verifies under
    this label.
 
 .. implements:: loss-rep-resolution-a
@@ -780,7 +780,7 @@ Because the carve preserves the matvec *value* and only re-associates the
 floating-point reduction, it is verified as a #240-Phase-2-Step-A-shape
 change (a value-preserving re-association), against the
 :ref:`vv-principles three criteria <loss-rep-bit-vs-principled>`. The gate is
-``tests/sn/operators/test_removal_form_matvec_sweep.py``, ``foundation``-tagged
+``tests/gates/sn/operators/test_removal_form_matvec_sweep.py``, ``foundation``-tagged
 and ``verifies("loss-rep-resolution-a")`` (the carve *sharpens* the existing
 Resolution-A equation rather than minting a new label — the composite-owns-its-matvec
 convention is the same :eq:`loss-rep-resolution-a` glue, now single-sourcing
@@ -1168,8 +1168,8 @@ Verification — the gates and the sweep-inverse-contract discharge
 -----------------------------------------------------------------
 
 The assembly mode is pinned by three gate families (in
-``tests/sn/sweep/test_assembly_mode.py`` and the diffusion
-``TestAssemblyMode`` class in ``tests/diffusion/test_operators.py``):
+``tests/gates/sn/sweep/test_assembly_mode.py`` and the diffusion
+``TestAssemblyMode`` class in ``tests/gates/diffusion/test_operators.py``):
 
 * **G1 — object-level matvec equivalence.** ``assembled @ x ≡ apply(x)``
   per ordinate × group × geometry, on heterogeneous, non-uniform-mesh,
@@ -2258,7 +2258,7 @@ Protocol (kept symmetric with the other three capability traits). The
 check and then read *truthy* in ``supports``, re-opening a **narrower**
 instance of the very silent-misroute the trait was minted to close. That
 footgun is shut by ``TestCapabilityTraitsAreGenuineBools`` in
-``tests/sn/sweep/core/test_discretization_scheme_protocol.py``: every
+``tests/gates/sn/sweep/core/test_discretization_scheme_protocol.py``: every
 *registered* production scheme is asserted to declare all four capability
 traits as a **genuine** ``bool`` (``isinstance(value, bool)`` — rejecting both
 truthy ``int`` and ``np.bool_``), so a non-bool trait fails the foundation
@@ -2302,7 +2302,7 @@ Problem selects, not any computed value), its gates are **selection** and
 invariants, no theory ``:label:``) and ``-O``-safe (``pytest.fail``, never
 bare ``assert`` — vv-principles failure Mode 8). Two test files carry them:
 
-* In ``tests/sn/sweep/core/test_unified_sweep_dispatch.py``,
+* In ``tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py``,
   ``TestD3SupportsMatrix`` pins the routing honesty four ways:
 
   - ``test_scan_march_refuses_2d_non_facewise_scheme_fake`` — on a synthetic
@@ -2333,7 +2333,7 @@ bare ``assert`` — vv-principles failure Mode 8). Two test files carry them:
   is LD. Were they to coincide on LD, the conflation that drove the misroute
   would still be latent.
 
-* In ``tests/sn/sweep/core/test_discretization_scheme_protocol.py``,
+* In ``tests/gates/sn/sweep/core/test_discretization_scheme_protocol.py``,
   ``TestCapabilityTraitsAreGenuineBools`` is the genuine-``bool`` teeth that
   shut the ``@runtime_checkable`` presence-only footgun (above).
 
@@ -2583,7 +2583,7 @@ DAG, forking **only** at orientation:
 
 Phase 2.5a landed this frame, **bit-identical in BOTH orientations**
 (the frozen ``walk_matvec_*`` snapshots are the anchor;
-``tests/sn/sweep/core/test_one_dim_loop_walk.py`` carries a wrap-spy
+``tests/gates/sn/sweep/core/test_one_dim_loop_walk.py`` carries a wrap-spy
 proving both orientations execute the *one* frame, plus an **AST
 tripwire** banning ``is_adjoint`` / ``is_forward`` / ``is_transpose``
 / ``is_reverse`` identifiers — orientation is an **OBJECT**, never a
@@ -3662,7 +3662,7 @@ as the system to solve; the WDD sweep is invoked only as a
 preconditioner that accelerates the Krylov iteration without
 poisoning the converged solution with its closure bias.  ERR-026
 closes when Wave E lands; the 2 xfail-strict tripwires at
-:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
+:file:`tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py`
 are the gating bug-catchers for that closure.
 
 Wave E and beyond — landed and forward
@@ -3685,8 +3685,8 @@ Wave E and beyond — landed and forward
   <orpheus.sn.operators.streaming.StreamingCollisionOperator.apply_transpose>`,
   single-sourced through the representation's
   ``loss_action_transpose``); the reciprocity gates live in
-  :file:`tests/sn/operators/test_streaming_operator.py` and
-  :file:`tests/sn/sweep/core/test_phase_c_gates.py` Gate 1.3.
+  :file:`tests/gates/sn/operators/test_streaming_operator.py` and
+  :file:`tests/gates/sn/sweep/core/test_phase_c_gates.py` Gate 1.3.
 
 The carve arc (the WHY of the final shape)
 ------------------------------------------

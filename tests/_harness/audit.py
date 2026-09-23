@@ -77,18 +77,18 @@ def _module_of(file_path: str) -> str:
 
     The nested tests/ layout (issue #77) groups files by solver
     module, so multiple files share a basename (e.g. both
-    ``tests/cp/test_properties.py`` and ``tests/sn/test_properties.py``
+    ``tests/gates/cp/test_properties.py`` and ``tests/gates/sn/test_properties.py``
     have stem ``test_properties``). Collapsing them to the bare stem
     hides the per-module breakdown, so the grid uses the
     ``parent/stem`` form — e.g. ``cp/test_properties`` — when the
-    file lives below a subfolder of ``tests/``. Files at the
-    ``tests/`` root (``test_pending_ports``,
-    ``test_vv_harness_audit``, ``test_convergence``) keep their
+    file lives below a subfolder of ``tests/gates/``. Files at the
+    ``tests/gates/`` root (``test_pending_ports``,
+    ``test_vv_harness_audit``) keep their
     bare stem since there is no parent folder to disambiguate.
     """
     p = Path(file_path)
     parent = p.parent.name
-    if parent and parent != "tests":
+    if parent and parent not in ("tests", "gates"):
         return f"{parent}/{p.stem}"
     return p.stem
 

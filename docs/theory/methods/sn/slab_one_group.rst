@@ -272,7 +272,7 @@ product:
    property of the operator-transpose pairing under the discrete L² inner
    product, not a solver claim.  Its verifiable content is the foundation
    reciprocity gate ⟨(L+C)ψ,φ⟩=⟨ψ,(L+C)ᵀφ⟩
-   (``tests/sn/sweep/core/test_phase_c_gates.py`` Gate 1.3, ``@pytest.mark.foundation``)
+   (``tests/gates/sn/sweep/core/test_phase_c_gates.py`` Gate 1.3, ``@pytest.mark.foundation``)
    plus the linearity gate it rides on
    (``test_streaming_operator.py::TestLinearity.test_apply_is_linear``);
    the gates are unwired, so the label stays ``documented`` with the
@@ -295,10 +295,10 @@ unit basis vectors and returned the explicit transpose; that path
 retired with the bundled ``SNStreamingOperator`` class in D-K.)
 
 Reciprocity gating today: the foundation linearity gate
-:func:`tests.sn.operators.test_streaming_operator.TestLinearity.test_apply_is_linear`
+:func:`tests.gates.sn.operators.test_streaming_operator.TestLinearity.test_apply_is_linear`
 catches non-linearity in :meth:`apply`, and the Resolution A bit-exact
 decomposition gate
-:file:`tests/sn/test_streaming_operator_decomposition.py` catches
+:file:`tests/gates/sn/test_streaming_operator_decomposition.py` catches
 :math:`(L+C).{\rm apply} \neq M(\psi;\sigma_t)` drift.
 
 The typed carrier
@@ -421,7 +421,7 @@ using **cumulative products**.  Define:
    DD recurrence :eq:`dd-recurrence`.  Not a standalone solver claim; the
    terminal result — the recurrence itself — is pinned against the symbolic
    derivation by
-   ``tests/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``.
+   ``tests/gates/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``.
 .. vv-status: sweep-cumprod-factors documented
 
 Then the incoming face flux at cell :math:`i+1` is:
@@ -434,7 +434,7 @@ Then the incoming face flux at cell :math:`i+1` is:
 .. (vv-status rationale) Derivation step: the closed-form (cumprod) solution of
    the DD recurrence :eq:`dd-recurrence`, built from the factors above.  Not a
    standalone solver claim; the terminal recurrence it solves is pinned by
-   ``tests/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``,
+   ``tests/gates/sn/sweep/slab/test_dd_recurrence.py::test_dd_per_cell_recurrence_matches_symbolic_derivation``,
    and the sweep it realises is exercised by the slab MMS / regression suites.
 .. vv-status: sweep-cumprod-solution documented
 
@@ -469,7 +469,7 @@ Generic affine outflow reconstruction
    cell-average blend.  Its verifiable content — the exact-inverse round-trip,
    the DD w=½ byte-identity, the LD w=1/(1+k) algebraic equality — is the
    ``@pytest.mark.foundation`` unit gate
-   :mod:`tests.transport.spatial.test_affine_closure`; foundation software-
+   :mod:`tests.gates.transport.spatial.test_affine_closure`; foundation software-
    invariant tests carry no ``verifies(...)`` by design.
 .. vv-status: sn-affine-outgoing-face-reconstruction-eq documented
 
@@ -510,7 +510,7 @@ the algebraic inverse of
 made the trio (``source_emission`` / ``cell_average`` /
 ``outgoing_face_from_average``) generic advection–reaction reconstructions
 (diffusion-consumable, retiring the dangling ``affine_closure`` module).  The
-unit gate is :mod:`tests.transport.spatial.test_affine_closure`: the exact-inverse
+unit gate is :mod:`tests.gates.transport.spatial.test_affine_closure`: the exact-inverse
 round-trip :math:`\bar\psi(\,\psi_{\rm in}, \psi_{\rm out}(\psi_{\rm in}, \bar\psi)\,) = \bar\psi`,
 the DD :math:`w = \tfrac12` byte-identity, and the LD :math:`w = 1/(1+k)`
 algebraic equality.
@@ -724,7 +724,7 @@ iterate :math:`\psi_n`:
    field).  A definitional
    iteration, not a per-term solver claim.  Its convergence to the correct
    fixed point and rate ρ_J=c are pinned by the L1 closed-form anchor
-   ``tests/sn/verification/analytical/test_si_convergence_rate.py``.
+   ``tests/gates/sn/verification/analytical/test_si_convergence_rate.py``.
 .. vv-status: si-jacobi-fixed-point documented
 
 The iteration matrix is therefore
@@ -746,7 +746,7 @@ single-source-of-truth builder):
    metric of the source iteration (the 10⁻³⁰ floor guards the first-iterate
    divide).  It defines the stopping test, not a physics claim; its downstream
    effect (SI drives the residual below tol at the rate ρ_J=c) is pinned by
-   ``tests/sn/verification/analytical/test_si_convergence_rate.py``.
+   ``tests/gates/sn/verification/analytical/test_si_convergence_rate.py``.
 .. vv-status: si-convergence-residual documented
 
 with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
@@ -818,7 +818,7 @@ Krylov).
    per-collision parameter :math:`c_g = (\Sigma_{s,g} +
    \nu\Sigma_{f,g})/\Sigma_{t,g}` (it folds in fission emission for a
    multiplying medium).  The L1 rate anchor
-   :func:`tests.sn.verification.analytical.test_si_convergence_rate.test_si_jacobi_rate_matches_scattering_ratio`
+   :func:`tests.gates.sn.verification.analytical.test_si_convergence_rate.test_si_jacobi_rate_matches_scattering_ratio`
    pins :math:`n_{\rm Jacobi}` against ``log(tol)/log(c_max)`` using
    the Case–Zweifel form and accepts a 0.6–1.2 band: the measured
    B-2g slab count was **655** against a predicted
@@ -960,12 +960,12 @@ The slab one-group machine is pinned by the slab slice of
 
 * **Balance / closure**: the DD balance :eq:`dd-cartesian-1d` and
   recurrence :eq:`dd-recurrence` carry ``verifies`` markers from the
-  slab MMS ladder (``tests/sn/verification/mms/test_mms.py``,
+  slab MMS ladder (``tests/gates/sn/verification/mms/test_mms.py``,
   ``test_mms_ld_slab.py``) and the recurrence unit gate
-  (``tests/sn/sweep/slab/test_dd_recurrence.py``).
+  (``tests/gates/sn/sweep/slab/test_dd_recurrence.py``).
 * **Rate**: the SI spectral rate :eq:`si-spectral-rate` is pinned by
   the L1 closed-form anchor
-  ``tests/sn/verification/analytical/test_si_convergence_rate.py``
+  ``tests/gates/sn/verification/analytical/test_si_convergence_rate.py``
   (structurally independent: the rate is a property of the cross
   sections, not of another solver).
 * **Order vs implementation**: a scheme's convergence order is a

@@ -50,8 +50,8 @@ load-bearing.
 
 Files: `orpheus/numerics/projection.py:616–632`,
 `orpheus/sn/scattering.py:639`,
-`tests/numerics/test_projection_operators.py:151,161,171,201,284,415,469`,
-`tests/numerics/test_spherical_harmonic_space.py:380`.
+`tests/gates/numerics/test_projection_operators.py:151,161,171,201,284,415,469`,
+`tests/gates/numerics/test_spherical_harmonic_space.py:380`.
 
 Production callers of `HarmonicMomentReconstruction.from_Y`:
 - `orpheus/sn/scattering.py:639` — `build_aniso_source` builds R from
@@ -249,7 +249,7 @@ reviewers know the tradeoff was made consciously.
 ### A7 🟢 P1.7 retirement scope is principled, NOT overreach
 
 Files: `orpheus/sn/solver.py:838–862` (the retirement note),
-`tests/sn/test_fixed_source_g1.py:307–360`.
+`tests/gates/sn/test_fixed_source_g1.py:307–360`.
 
 The user asked: was deleting `_build_rhs_{spherical,cylindrical}`
 overreach beyond the moment-space scope? P1.7 carves all three.
@@ -326,7 +326,7 @@ also retires (A2); otherwise it's defensible.
 
 ### B1 🔴 `test_from_spherical_harmonic_space_roundtrip` is an L4-style code-to-code check, NOT verification
 
-File: `tests/numerics/test_spherical_harmonic_space.py:357–387`.
+File: `tests/gates/numerics/test_spherical_harmonic_space.py:357–387`.
 
 The test asserts
 `np.array_equal(M_new.apply(psi), M_legacy.apply(psi))` — two
@@ -369,7 +369,7 @@ matrix `python -m tests._harness.audit` will print — "ERR-039 has
 
 ### B2 🟢 The unit-vector cross-check in `test_R_equals_2l_plus_1_times_S0` IS structurally independent
 
-File: `tests/numerics/test_spherical_harmonic_space.py:191–202`.
+File: `tests/gates/numerics/test_spherical_harmonic_space.py:191–202`.
 
 The previous (un-shipped) per-ℓ Python-loop check accumulated
 `(2*l+1) * Y[:, l, m_off] * c[l, m_off]` and compared to
@@ -395,7 +395,7 @@ would be caught at exactly one of the (L+1)² entries.)
 
 ### B3 🟢 The 5 API/type tests dropping `@pytest.mark.verifies` is the correct call
 
-File: `tests/numerics/test_spherical_harmonic_space.py:329–354,
+File: `tests/gates/numerics/test_spherical_harmonic_space.py:329–354,
 357–387, 443–472`.
 
 Tests that check "the codomain is a SphericalHarmonicSpace", "the
@@ -418,7 +418,7 @@ exists precisely for these.
 
 ### B4 🟢 The `assert not hasattr` retirement test is acceptable
 
-File: `tests/sn/test_fixed_source_g1.py:333–342`.
+File: `tests/gates/sn/test_fixed_source_g1.py:333–342`.
 
 Concern raised: "what if a future contributor accidentally
 re-introduces `_build_rhs_*` with a different name?"
@@ -499,9 +499,9 @@ via `.H` through the generic adjoint machinery.
 The original ERR-039 test (`TestApplyTransposeIsWWeightedAdjoint`)
 referenced in the catalog at line 2943 has been RENAMED to
 `TestApplyTransposeIsRepresentationTranspose` (in
-`tests/numerics/test_projection_operators.py:236`) and joined by
+`tests/gates/numerics/test_projection_operators.py:236`) and joined by
 `TestHilbertAdjointViaGenericMachinery` plus the new full file
-`tests/numerics/test_spherical_harmonic_space.py`.
+`tests/gates/numerics/test_spherical_harmonic_space.py`.
 
 **Action**: append a Phase-1 follow-up to the ERR-039 entry:
 
@@ -517,7 +517,7 @@ referenced in the catalog at line 2943 has been RENAMED to
 >
 > All three differ by diagonal multiplications; conflating any pair
 > hides bugs. The endpoint is `test_T_carries_w_n_and_H_carries_g_C`
-> at `tests/numerics/test_spherical_harmonic_space.py:393–435`,
+> at `tests/gates/numerics/test_spherical_harmonic_space.py:393–435`,
 > which pins both adjoint identities against the production code.
 
 Then leave the status as "FIXED". Do NOT open as a new ERR — this
@@ -567,7 +567,7 @@ carries an implicit metric (the 4π/(2ℓ+1) Gram diagonal) which
 modifies the discrete identity by a factor of 4π.
 
 **How it hid:** The method was never called against the production
-(Π, R) pair. The sole call site (`tests/numerics/test_projection_operators.py:368–381`,
+(Π, R) pair. The sole call site (`tests/gates/numerics/test_projection_operators.py:368–381`,
 since deleted) deliberately built a NON-orthogonal Y matrix so the
 method would raise — testing that the method **detects violations**,
 not that it **describes the correct invariant**. Net effect: the
@@ -583,7 +583,7 @@ identity was confirmed.
 
 **Fix:** Delete the method and its sole caller (P1.6). The genuine
 identity is now pinned by `test_pi_R_is_4pi_identity_on_band_limited`
-(tests/numerics/test_spherical_harmonic_space.py:208–232) and the
+(tests/gates/numerics/test_spherical_harmonic_space.py:208–232) and the
 sibling test in test_projection_operators.py:194–231.
 
 **Lesson:** When a verification method ships with NO production caller,
@@ -597,7 +597,7 @@ is a discipline failure that hides convention drift indefinitely.
 This generalizes: every contract-validation method needs both a
 positive and a negative test, or its claim cannot be trusted.
 
-**Test reference:** `tests/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`.
+**Test reference:** `tests/gates/numerics/test_spherical_harmonic_space.py::test_pi_R_is_4pi_identity_on_band_limited`.
 Tagged `@pytest.mark.l1` and `@pytest.mark.catches("ERR-048")`.
 ```
 
@@ -693,7 +693,7 @@ Lower priority (notes only):
 
 **Phase 1's mathematical content (the ERR-039 endpoint) is solid.**
 The five identity tests at
-`tests/numerics/test_spherical_harmonic_space.py:84–270` pin the
+`tests/gates/numerics/test_spherical_harmonic_space.py:84–270` pin the
 production semantics against structurally-independent references
 (Lebedev semi-analytical Gram diagonal; closed-form algebraic
 identities; the unit-vector bit-exact cross-check). The R, Π^T, Π*

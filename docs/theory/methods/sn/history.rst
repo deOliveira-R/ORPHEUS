@@ -191,12 +191,12 @@ them.  Trust ``git``, not this column.
        onto the record, the outcome or the certificate, or retired with
        the view's own rows;
        the entry-ledger gate
-       (``tests/sn/solve/test_every_entry_gauges_its_trace.py``; ``[M]``
+       (``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``; ``[M]``
        five gate functions, 11 reads) now matches ``certificate.gauge``
        against :class:`~orpheus.numerics.outcome.Measured`, and the view's
-       ``tests/sn/primitives/test_solution.py`` rows were replaced by
-       record rows in ``tests/numerics/test_iteration_record.py`` and
-       ``dominance_ratio`` rows in ``tests/numerics/test_outcome.py``.
+       ``tests/gates/sn/primitives/test_solution.py`` rows were replaced by
+       record rows in ``tests/gates/numerics/test_iteration_record.py`` and
+       ``dominance_ratio`` rows in ``tests/gates/numerics/test_outcome.py``.
        Full account: :ref:`sn-the-record-answers-for-its-own-level`.
      - #461
      - ``71612439`` (branch ``refactor/consumers-step3-u6``, ff-merged to
@@ -358,7 +358,7 @@ them.  Trust ``git``, not this column.
        hub, and consistent on a :math:`\sigma`-variant, whose removal
        term already read the datum.  This RULES the "recorded, not ruled"
        inconsistency of unit C3a.
-       New gates: ``tests/sn/solve/test_subcritical_multiplying_source.py``
+       New gates: ``tests/gates/sn/solve/test_subcritical_multiplying_source.py``
        (6 rows), ``test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
        (the §6c witness, **ERR-085**'s catcher), plus the ``D`` legs on
        the diffusion reach gate and the datum's read-set row.
@@ -463,9 +463,9 @@ them.  Trust ``git``, not this column.
        stratum the walk consumes, rather than the memo re-homing onto the
        operator), which is why the prediction is kept rather than
        tense-flipped.
-       New gates: ``tests/numerics/test_pencil.py``,
-       ``tests/numerics/test_posing.py``,
-       ``tests/sn/architecture/test_posing.py`` (AC-a — no Strategy token
+       New gates: ``tests/gates/numerics/test_pencil.py``,
+       ``tests/gates/numerics/test_posing.py``,
+       ``tests/gates/sn/architecture/test_posing.py`` (AC-a — no Strategy token
        on the Problem chain).
        Full account: :ref:`the-operator-pencil` (the general theory) and
        :ref:`sn-the-problem-poses-its-pencil` (the S\ :sub:`N` half).
@@ -550,7 +550,7 @@ them.  Trust ``git``, not this column.
        :math:`\sigma_t` reaches the diffusion *removal* term (``[M]``
        keff ``0.26290298 → 0.01802733`` under :math:`\times 3`) and not
        the *leakage* term, because :math:`D = 1/(3\Sigma_{\rm tr})` is
-       gathered per-material.  ``tests/diffusion/test_sigma_variant_reach.py``
+       gathered per-material.  ``tests/gates/diffusion/test_sigma_variant_reach.py``
        pins reachability only.
        ✅ **REMEDIED 2026-09-14** by unit C3b-2 (the row above): the
        per-cell :math:`D` is derived from the hub's datum and the
@@ -655,7 +655,7 @@ them.  Trust ``git``, not this column.
        for one of the two shipped schedules — a twin in the Cardinal
        Rule 2 sense, tracked as **R7 of the operator/strategy campaign**
        and pinned by an ``xfail(strict=True)`` row in
-       ``tests/sn/architecture/test_stage_separation.py``.  The
+       ``tests/gates/sn/architecture/test_stage_separation.py``.  The
        principled half of the defect is prior to the measurement: a
        *posing* has no schedule, so a record naming one :math:`M` is
        answering a question it was never asked.
@@ -887,7 +887,7 @@ them.  Trust ``git``, not this column.
        re-keyed rather than deleted (the corpus account is
        :ref:`the SN chapter's moment-factor section <spatial-moment-space>`).
        The new gate is
-       ``tests/numerics/test_spatial_moment_tail_is_the_schemes_axis.py``
+       ``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py``
        — the axis-built tail, the O-5 agreement at both widths, the
        Parseval row with a Euclidean-tail negative control, the
        slopeless refusal, the ``scalar_flux`` / ``truncate`` round trip,
@@ -956,7 +956,7 @@ them.  Trust ``git``, not this column.
        **(5) The gate that did not exist.**  That movement was seen by
        NOTHING: the tree's one SI-trajectory pin refuses a windowed
        fixture by construction.
-       ``tests/sn/solve/test_windowed_si_diagnostic_trajectory.py``
+       ``tests/gates/sn/solve/test_windowed_si_diagnostic_trajectory.py``
        closes it — a ROUTE leg (a counting spy proving the norms came
        from the moment space, asserted EXACT against the record's own
        length), a VALUE leg at ``rtol = 1e-9``, and a DISCRIMINATION leg
@@ -1090,9 +1090,9 @@ them.  Trust ``git``, not this column.
        interval quoted for it is one fixture's reading.  The gate
        asserts a **floor** (``delta >= 1e-3``) for exactly that reason.
        That pair is how the sweep-tier helper
-       ``tests/sn/_test_helpers.py::reflect_outflow_into_inflow`` is now
+       ``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow`` is now
        spelled, on production's own live verb; the anchor gate is
-       ``tests/sn/operators/test_reflect_helper_reexpression.py``.
+       ``tests/gates/sn/operators/test_reflect_helper_reexpression.py``.
        **(4) One behaviour MOVED rather than died.**  Until this item
        ``reflect_rows_inplace`` filtered its ``faces`` argument against
        its own rows *before* reaching the trace core, so a face that is
@@ -1210,7 +1210,7 @@ them.  Trust ``git``, not this column.
        ``FullFieldSpace`` — after which the admission is the ordinary
        composability guard on the bound end and an alien carrier cannot
        be typed at all.  The ledger of such tokens is itself a gate
-       (``tests/test_elegance_debt_is_tagged.py``): it requires the issue
+       (``tests/gates/test_elegance_debt_is_tagged.py``): it requires the issue
        number on the token's line and a retiring sentence within three
        lines, and it REFUSES an empty ledger — a gate over an empty set
        is vacuously green, so it had to land with the first token.
@@ -1268,7 +1268,7 @@ them.  Trust ``git``, not this column.
        ``max_inner`` instead of linear in it: the carrier mints once per
        key, and the products that remain are the frame's own codomain
        mints, which the iteration does not multiply.  Gated in
-       ``tests/sn/mesh/test_hub_owns_the_moment_space.py`` — four
+       ``tests/gates/sn/mesh/test_hub_owns_the_moment_space.py`` — four
        ``@pytest.mark.foundation`` rows (one object per key read by the
        factory AND by ``space_on``; the typed refusal; the boundary
        guard holding the hub's object on a real windowed solve; the
@@ -1361,7 +1361,7 @@ them.  Trust ``git``, not this column.
        ``nulp = 4``; ⛔ ``np.array_equal`` would be a **false red** —
        **0 of 8** rows are bit-equal over a full seed sweep.  The ladder
        re-measures itself in
-       ``tests/numerics/test_tensor_product_metric_is_factored.py``;
+       ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``;
        read it there rather than from this row.
        **(4) What the SOLVER sees, measured.**  ``[M]`` on the 2-D
        windowed SI driver at ``max_inner = 12``, today versus the
@@ -1431,7 +1431,7 @@ them.  Trust ``git``, not this column.
        DIFFERENT names.  The second is Q-T4 realized: an axis product is not a
        different *kind* of space.  Full table:
        :ref:`spaces-identity-bridge`.  The laws are anchored in
-       ``tests/numerics/test_space_identity_is_structural.py``, written
+       ``tests/gates/numerics/test_space_identity_is_structural.py``, written
        PRE-carve so the flip inherits a measured baseline rather than a
        hoped-for one; its row count is regenerated in
        :doc:`the V&V matrix </theory/verification/matrix>`.
@@ -1519,7 +1519,7 @@ them.  Trust ``git``, not this column.
        surviving bodies are the channel field's ``add_p0_source``, the
        construction-selected ``_redistribute_ordinates``, and the
        producer-side combine.  ``_reflect_outflow_into_inflow`` moved out of
-       production to ``tests/sn/_test_helpers.py`` (``[M]`` its finalize
+       production to ``tests/gates/sn/_test_helpers.py`` (``[M]`` its finalize
        call was INERT on a converged exit: 2.0e-13 / 2.3e-15 /
        bit-identical on vacuum), and the write-only ``_boundary_flux``
        buffer went with it.  ⛔ ``max_outer = 0`` now RAISES: the finalize
@@ -1531,7 +1531,7 @@ them.  Trust ``git``, not this column.
        both orders; the truncated-exit diagnostic now falls by 1.43 × 10⁷
        (:math:`L = 0`) and 3.46 × 10⁷ (:math:`L = 1`) over the same budget
        sweep.  New gate module
-       ``tests/sn/solve/test_eigenvalue_finalize_reconstruction.py``, over
+       ``tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py``, over
        a registry of ``[M]`` **8** arms (slab vacuum / reflective /
        live-\ :math:`\ell\ge1`-\ :math:`(n,2n)`, coupled sphere and
        cylinder, 2-D Cartesian windowed under Jacobi and under boundary
@@ -1646,7 +1646,7 @@ them.  Trust ``git``, not this column.
        constructor to call) and ``isotropic_binding`` (which P0 energy
        binding to lift) — with the tier-2 mint and the exact constructor
        both on the core.  An AST gate
-       (``tests/transport/test_transfer_roles.py``, two filters plus a
+       (``tests/gates/transport/test_transfer_roles.py``, two filters plus a
        validated positive control) keeps a twin from regrowing one
        override at a time.  The channel constant :math:`\nu_{2n}` moves
        from a ``ClassVar`` to
@@ -2235,7 +2235,7 @@ them.  Trust ``git``, not this column.
        space becomes MANDATORY — the in-tree precedent every later phase
        of the campaign was measured against.  That none of this moved a value
        was **measured, not assumed**: the byte gate
-       ``tests/homogeneous/test_byte_stability.py`` holds the homogeneous
+       ``tests/gates/homogeneous/test_byte_stability.py`` holds the homogeneous
        solve bit-exactly across the rewiring on **8 of 8** rows —
        exhaustive over the producing mixtures the tree ships — and the
        frozen reaction-rate references moved 0 ULP.  ⭐ **The review round's own findings are the
@@ -2467,7 +2467,7 @@ them.  Trust ``git``, not this column.
        every admitted geometry rides route (a)'s forward substitution
        with genuine independent seeds.  Guarded by the 16-row
        admission module
-       (``tests/sn/mesh/test_cylindrical_quadrature_admission.py``)
+       (``tests/gates/sn/mesh/test_cylindrical_quadrature_admission.py``)
        and a 10/10 mutation battery (positive control first).
        Follow-ons filed: #338 (Gauss–Lobatto sphere-side admission
        interaction), #339 (the LS double-fold capability).
@@ -2988,7 +2988,7 @@ them.  Trust ``git``, not this column.
        forward's codomain back to its domain), joining the sum / scaled
        / product / ``.H``-swap annotations. A **pyright-only pin bank**
        ``_composition_algebra_return_type_static_pins``
-       (``tests/sn/operators/test_operators_apply_typed.py``)
+       (``tests/gates/sn/operators/test_operators_apply_typed.py``)
        ``assert_type``-pins what *every* composition surface returns —
        sums, scaled, products, the ``.H`` adjoint carrier-swap, and the
        **algebra-closed vs wrap-delegate** inverse kinds (permutation /
@@ -3154,7 +3154,7 @@ them.  Trust ``git``, not this column.
        (byte-identical :math:`k_\infty` / flux; the landed SymPy pins
        untouched); ``dense_per_material`` re-documented as the storage-side
        oracle (zero production consumers). Gates:
-       ``tests/numerics/test_matrix_inverse_operator.py`` + extensions;
+       ``tests/gates/numerics/test_matrix_inverse_operator.py`` + extensions;
        **14 mutations verified**, pyright ratchet exactly 148. See
        :ref:`matrix-inverse-operator` (:doc:`/theory/foundations/operator_inverse_family`).
      - #226 / #285
@@ -3204,8 +3204,8 @@ them.  Trust ``git``, not this column.
        driver's ρ-blind increment, Signature 9) and **drives** a refinement
        loop to meet it — a check-only design would false-raise for every
        :math:`\rho>1/2`. Gates:
-       ``tests/numerics/test_green_operator.py`` +
-       ``tests/sn/operators/test_green_operator_sn.py`` (het-2G vacuum slab
+       ``tests/gates/numerics/test_green_operator.py`` +
+       ``tests/gates/sn/operators/test_green_operator_sn.py`` (het-2G vacuum slab
        with a trace-consistent manufactured anchor resolving the #284 source
        subspace); **14 mutations verified**. See :ref:`green-operator`
        (:doc:`/theory/foundations/operator_inverse_family`).
@@ -3245,7 +3245,7 @@ them.  Trust ``git``, not this column.
        seeded-apply becomes a structural mixin or stays per-leaf convention
        is `#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_
        (folded into steps 4–5). Gates:
-       ``tests/sn/solve/test_seed_threading_spy.py`` (Mode-11 path spy,
+       ``tests/gates/sn/solve/test_seed_threading_spy.py`` (Mode-11 path spy,
        route-invariant across the rewire; M-SEED-DROP/ZERO/STALE + M-PROBE
        teeth) and
        ``test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection``
@@ -3287,7 +3287,7 @@ them.  Trust ``git``, not this column.
        :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` block
        coisometry ``@`` the forward's inverse), whose fused ``apply`` ≡ the
        deforested oracle at :math:`1.8\times10^{-16}`.  Gates:
-       ``tests/sn/solve/test_gauss_seidel_reification.py`` (W2 round-trip /
+       ``tests/gates/sn/solve/test_gauss_seidel_reification.py`` (W2 round-trip /
        split-exactness / FP-invariance + M-SPLIT-DIR / M-SPLIT-PART
        mutations) and ``test_2d_windowed_product_equals_post_projection``.
        See :ref:`si-gauss-seidel-reification` and

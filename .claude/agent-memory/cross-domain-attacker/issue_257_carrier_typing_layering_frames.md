@@ -24,7 +24,7 @@ upgrades "irreducible" from assertion to theorem.
   imports. iteration.py:170/240 explicitly: "numerics MUST NOT import
   transport."
 - Barrier is `FORBIDDEN_EDGES["numerics"] = L2|L3` in
-  `tests/test_layer_imports.py:55` — an enforced parametrized test.
+  `tests/gates/test_layer_imports.py:55` — an enforced parametrized test.
 - Biproduct ALREADY named + implemented: `operator.py:109-120` types
   operators as 2×2 block matrices "by the biproduct theorem";
   `FullFieldSpace = V_bulk ⊕ V_trace` with block-diagonal metric

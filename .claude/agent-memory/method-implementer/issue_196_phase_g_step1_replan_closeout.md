@@ -85,7 +85,7 @@ carries `residual` alongside the long-standing `update`.
 
 ## Test code changes
 
-### `tests/sn/spatial/test_diamond.py`
+### `tests/gates/sn/spatial/test_diamond.py`
 
 Added `TestResidual` class with **40 new parametrized tests** covering
 the apply-direction contract:
@@ -114,7 +114,7 @@ variant is included to exercise the degenerate regime explicitly but
 the 2G/4G variants are what make the heterogeneous claim load-bearing
 (`vv-principles` hygiene rule H1).
 
-### `tests/sn/spatial/test_cell_update_protocol.py`
+### `tests/gates/sn/spatial/test_cell_update_protocol.py`
 
 Added `residual` implementations on the two synthetic strategies that
 satisfy the Protocol:
@@ -127,7 +127,7 @@ satisfy the Protocol:
 Both are physically meaningful only to the extent that the round-trip
 identity holds (which they do by construction).
 
-### `tests/sn/test_cell_update_batch.py`
+### `tests/gates/sn/test_cell_update_batch.py`
 
 Added `residual` implementation on the synthetic `_NoBatchStrategy`
 stub (`CellUpdateBase` subclass) so it instantiates after the new
@@ -138,7 +138,7 @@ stub (`CellUpdateBase` subclass) so it instantiates after the new
 ### Regression bit-identity preserved at rtol=1e-12
 
 ```
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ...........                                                              [100%]
 11 passed, 3 warnings in 486.01s (0:08:06)
 ```
@@ -159,22 +159,22 @@ well below the existing `rtol=1e-12` contract.
 `test_diamond.py`
 
 ```
-.venv/bin/python -m pytest tests/sn/spatial/test_diamond.py -v
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_diamond.py -v
 ========================= 53 passed, 1 warning in 0.38s =========================
 ```
 
 ### Full spatial test suite — 178 tests
 
 ```
-.venv/bin/python -m pytest tests/sn/spatial/ -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/ -q
 178 passed, 1 warning in 5.28s
 ```
 
 ### Other CellUpdate consumers
 
 ```
-.venv/bin/python -m pytest tests/sn/test_cell_update_batch.py \
-  tests/sn/test_unified_sweep_dispatch.py tests/numerics/test_registry_mixin.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_cell_update_batch.py \
+  tests/gates/sn/test_unified_sweep_dispatch.py tests/gates/numerics/test_registry_mixin.py -q
 29 passed, 1 warning in 0.34s
 ```
 
@@ -264,7 +264,7 @@ attempt's Cardinal Rule 1 violation).
   domain quantity: `numer_upstream` IS the upstream contribution to
   the per-cell balance), verified vs structurally-independent
   references (L0 streaming-equilibrium implied; L1 analytical tests
-  in `tests/sn/l1_analytical/`; the existing regression contract at
+  in `tests/gates/sn/l1_analytical/`; the existing regression contract at
   `rtol=1e-12`), and the drift is bounded by FP non-associativity
   (single addition reordering, ≪ 1 ULP at double precision).
 - `coding-elegance` Pattern 2 enforcement — the `cell_balance_terms`

@@ -31,7 +31,7 @@ page-by-page property, not a corpus property — do not budget on the prior page
    `` :: `` literal blocks before anything else.
 2. ⭐ **The test module's own `pytestmark = pytest.mark.verifies(...)` COMMENTS.** These are
    authored, greppable, and frequently name the exact symbol whose breakage reds the gate —
-   e.g. `tests/cp/test_properties.py:36-38`: *"test_reciprocity also pins the rearranged
+   e.g. `tests/gates/cp/test_properties.py:36-38`: *"test_reciprocity also pins the rearranged
    lower-triangle form the code uses to fill P_ji (**a factor error in `_normalize_rcp`
    breaks the identity**)"*. That single comment settled `reciprocity-lower-triangle`.
    **This surface is not in the brief's method and is the one I would reach for first next

@@ -61,8 +61,8 @@ on `(name,shape)`. Gaps:
   cls(values=,space=,mesh=)` — no separate `layout=` kwarg.
 
 ## Direct `BoundaryFlux(...)` ctor sites (pass space=/layout=): ONLY 2, both tests
-- tests/transport/fields/test_boundary_flux.py:366 (space built :364)
-- tests/sn/sweep/core/test_phase_c_gates.py:159 (space built :155-157)
+- tests/gates/transport/fields/test_boundary_flux.py:366 (space built :364)
+- tests/gates/sn/sweep/core/test_phase_c_gates.py:159 (space built :155-157)
 Everything else uses factories.
 
 ## `.layout`-on-field reads that break if layout moves field→space

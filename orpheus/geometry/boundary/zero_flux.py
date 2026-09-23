@@ -30,7 +30,7 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
     has the closed-form sine mode vanishing exactly at the physical
     surface (no extrapolation length). It is an excellent TEST /
     reference condition (every analytic sine anchor in
-    ``tests/diffusion`` is derived under it) but it is **not a
+    ``tests/gates/diffusion`` is derived under it) but it is **not a
     physical transport boundary**: no material or void outside the
     domain produces it.
 

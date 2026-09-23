@@ -473,7 +473,7 @@ group :math:`g` from all groups :math:`g'`:
 .. Representational convention identity: the in-scatter sum equals the transpose
 .. matvec Sig_s^T phi (the from-row / to-column convention). Its terminal use is
 .. the removal matrix (removal-matrix), verified end-to-end by the multi-group
-.. homogeneous chain (tests/homogeneous/test_homogeneous.py verifies
+.. homogeneous chain (tests/gates/homogeneous/test_homogeneous.py verifies
 .. "removal-matrix", >=2 groups per the ERR-002 warning). A convention identity,
 .. not a separate solver claim.
 
@@ -1187,7 +1187,7 @@ is minted from it and from nothing else.
    still mints a space that is ``==``
    :attr:`HomogeneousProblem.space
    <orpheus.homogeneous.solver.HomogeneousProblem.space>`, and the
-   identity-bridge gate (``tests/homogeneous/test_operator_spaces.py``
+   identity-bridge gate (``tests/gates/homogeneous/test_operator_spaces.py``
    G2.1) keeps that equality honest — the two spellings route through
    the same energy-arm rule and the same one-cell volume, so they cannot
    silently diverge.
@@ -1753,7 +1753,7 @@ delegate to — are verified against a **transport-unrelated, hand-derived
 closed-form eigenproblem** — :math:`\mathbf{M} =
 V\operatorname{diag}(\lambda)V^{-1}` with chosen eigenpairs, and the rank-1
 closed form :math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
-``tests/numerics/test_eigenvalue.py`` (the closed-form eigenproblem, the direct
+``tests/gates/numerics/test_eigenvalue.py`` (the closed-form eigenproblem, the direct
 ``dominant_eigenpair`` surface with its one-home relocation proofs, and the RQI
 gates).  This is a **closed-form** reference: V&V pillar 1, the *only* pillar
 that proves an eigenvalue (MMS is source-driven and cannot).  No reference
@@ -1804,7 +1804,7 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
    lives.  Every symbol that executes this equation's arithmetic is
    declared, not only the canonical one: a test is adjudicated against the
    transcription it actually ran, and
-   ``tests/homogeneous/test_homogeneous.py::test_post_solve_production_rate_is_100``
+   ``tests/gates/homogeneous/test_homogeneous.py::test_post_solve_production_rate_is_100``
    runs all three.  (The solver's own body carried the ``phi * (100 / …)``
    update by hand until U1; the arithmetic is unchanged — see the
    byte-stability pin below.  And until the CS4c coda, 2026-09-08, both of
@@ -1945,7 +1945,7 @@ re-running the retired expression beside the shipped one on the fissile
 ``A`` family at 1, 2 and 4 groups: the flux is ``np.array_equal`` on
 **3 of 3**, :math:`k_\infty` compares ``==``, and both condensed rates
 compare ``==``.  The standing adjudicator is
-``tests/homogeneous/test_byte_stability.py``, which pins
+``tests/gates/homogeneous/test_byte_stability.py``, which pins
 :math:`k_\infty`, the flux **bytes** and both rates against a capture
 taken at ``24a991ba`` — a capture whose whole value is that it predates
 every campaign that has since claimed to move no bytes.

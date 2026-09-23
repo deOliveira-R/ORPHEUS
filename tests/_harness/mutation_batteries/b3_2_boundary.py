@@ -2,7 +2,7 @@ r"""B3.2 mutation harness — an in-process pytest plugin proving gate teeth.
 
 Usage (SERIAL, canonical ``-O``)::
 
-    ORPHEUS_B32=N1 .venv/bin/python -O -m pytest tests/sn/operators \
+    ORPHEUS_B32=N1 .venv/bin/python -O -m pytest tests/gates/sn/operators \
         -p no:randomly -p tests._harness.mutation_batteries.b3_2_boundary -q
 
 ``ORPHEUS_B32`` unset ⇒ the CONTROL leg: nothing is patched, everything must be
@@ -22,10 +22,10 @@ its measured colour (``scratch/b3_2_migration.md`` §2).
 
 Moved out of ``scratch/`` at **B3.5** (2026-08-14): tracked-but-in-a-holding-pen
 is not discoverable, and `[M]` the evaporation failure had by then happened a
-SECOND time — ``tests/sn/operators/__pycache__/`` still carries
+SECOND time — ``tests/gates/sn/operators/__pycache__/`` still carries
 ``conftest_mutate_kernel.*.pyo`` and ``conftest_mutate_pr.*.pyo`` whose sources
 were never tracked at all. See ``README.md`` in this package for the mechanism's
-boundary against ``tests/_mutation/`` (cosmic-ray), which is a different tool
+boundary against ``tests/gates/_mutation/`` (cosmic-ray), which is a different tool
 answering a different question and whose revert step is a ``git checkout``.
 
 Each mutation is the plausible transcription of a real B3.2 hazard, NOT an
@@ -269,7 +269,7 @@ def _bite_fingerprint() -> str:
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.timed_full_field import TimedFullField
-        from tests.sn._test_helpers import placeholder_materials
+        from tests.gates.sn._test_helpers import placeholder_materials
 
         geom = StructuredGeometry(
             geometry="SLB",

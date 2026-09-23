@@ -248,7 +248,7 @@ non-dataclass base); PEP-696 `default=` runs natively on the Py-3.14 host with
 
 ## THE APPROVAL CONDITION that recurs on EVERY ratchet-improving carve
 
-`tests/test_pyright_ratchet.py` FAILS on IMPROVEMENT (by design — forces lock-in):
+`tests/gates/test_pyright_ratchet.py` FAILS on IMPROVEMENT (by design — forces lock-in):
 `pyright error count DECREASED (module: numerics: 5 -> 0)`. The carve is NOT
 landable until `python -m tests._harness.pyright_ratchet --update` re-tightens the
 baseline (numerics 5→0, total 115→110) and that baseline change is committed WITH

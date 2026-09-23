@@ -29,7 +29,7 @@ The Phase D plan's original architecture — a `PoleFaceInitialCondition` Protoc
   - `CarlsonSweepContext` dataclass bundling `(sigma_t, dr, mu_quad, weights, bc_outer_value)`
   - 4 new equation labels: `hebert-3-432`, `hebert-3-432-source`, `hebert-3-434`, `hebert-3-435`
   - L=0 isotropic-only WARNING block (Mode-6 convention-drift risk if scattering moves into L)
-- **`tests/sn/spatial/test_psi_half_angle_seed.py`** (~480 LOC, 25 tests):
+- **`tests/gates/sn/spatial/test_psi_half_angle_seed.py`** (~480 LOC, 25 tests):
   - Foundation: Protocol conformance, registry, immutability, shape contract
   - L0: bit-identity for ZeroSeed, flat-ψ algebraic identity (reflective + varying C + vacuum nx=3 hand calc), multi-region σ_t step
   - L1: linearity for both seeds, structural independence (Carlson vs ZeroSeed differ on vacuum-BC probe), M-M default seed pinning
@@ -51,10 +51,10 @@ The Phase D plan's original architecture — a `PoleFaceInitialCondition` Protoc
 
 ### Test gates
 
-- **Gate 1.5 strengthened** (`tests/sn/test_phase_c_gates.py`, commit `6dc9268`):
+- **Gate 1.5 strengthened** (`tests/gates/sn/test_phase_c_gates.py`, commit `6dc9268`):
   - From `apply(0)=0` probe to capture-and-compare with positional discrimination of two BC apply calls per matvec
   - Asserts BOTH `bc_outer.apply` inputs match independent references at `rtol=atol=1e-14`
-- **Gate 4.2 full implementation** (`tests/sn/test_phase_c_crosscheck.py`, commit `718f568`):
+- **Gate 4.2 full implementation** (`tests/gates/sn/test_phase_c_crosscheck.py`, commit `718f568`):
   - Replaces Phase C SKIP placeholder with 5 P0 snapshots cross-checked against bare `solve_greens_function_*` calls
   - Homogeneous closed cases: rtol < 1e-9 (V_α1 / V_α1_cyl machine-precision)
   - Heterogeneous closed cases: rtol ≤ 1e-1 MAGNITUDE-class (V_α1 flat-eigenvector closure doesn't apply per-region)
@@ -76,7 +76,7 @@ The Phase D plan's original architecture — a `PoleFaceInitialCondition` Protoc
 
 ### Marker reason updates
 
-- **`tests/sn/test_mms_curvilinear.py`** + **`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`** (commit `978b066`):
+- **`tests/gates/sn/test_mms_curvilinear.py`** + **`tests/gates/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`** (commit `978b066`):
   - All 4 ERR-026 xfail-strict marker reason strings updated to attribute the failure to L1 magnitude (Issue #195), NOT to per-ordinate identity (Phase D closed) or convergence rate (Phase D closed)
 - **`.claude/skills/vv-principles/error_catalog.md`** (commit `978b066`):
   - ERR-026 entry extended with "What Wave H Phase D added" subsection
@@ -91,7 +91,7 @@ The Phase D plan (at `/home/vscode/.claude/plans/structured-booping-parrot.md`) 
 - Injection at `operator.py:734-740` `psi_face_in = fi[:, outgoing_mask, i0, 0].copy()` (the WDD outward-sweep pole-face IC)
 - Output shape `(ng, n_outgoing)` per ordinate
 
-**Phase D Step 2 diagnostic finding** (`tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py` + `.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md`):
+**Phase D Step 2 diagnostic finding** (`tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py` + `.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md`):
 
 | Intervention | What it changes | max\|residual\| |
 |---|---|---|
@@ -223,7 +223,7 @@ Wave H Phase A+B+C+D campaign: **COMPLETE** with ERR-026 narrowed-scope PARTIAL 
 - **Phase D plan**: `/home/vscode/.claude/plans/structured-booping-parrot.md` (in container; not committed to repo)
 - **Literature memo**: `.claude/agent-memory/literature-researcher/phase_d_carlson_coupled_pole.md`
 - **Diagnostic memo**: `.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md`
-- **Diagnostic script**: `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+- **Diagnostic script**: `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
 - **Step 3 closeout**: `.claude/agent-memory/method-implementer/issue_168_phase_d_step3_closeout.md`
 - **Step 4b closeout**: `.claude/agent-memory/method-implementer/issue_168_phase_d_step4_closeout.md`
 - **Phase C closeout** (predecessor): `.claude/agent-memory/method-implementer/issue_168_phase_c_closeout.md`

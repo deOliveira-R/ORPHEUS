@@ -25,8 +25,8 @@ consumes) are preserved.
 ```
  orpheus/sn/operator.py               | 153 +++++++++++++++++++------
  orpheus/sn/solver.py                 |  79 +++++++--------
- tests/sn/test_phase_c_gates.py       |  16 ++-
- tests/sn/test_snstreamingoperator.py |  11 +-
+ tests/gates/sn/test_phase_c_gates.py       |  16 ++-
+ tests/gates/sn/test_snstreamingoperator.py |  11 +-
  4 files changed, 165 insertions(+), 94 deletions(-)
 ```
 
@@ -44,7 +44,7 @@ contracts (those flipped in PR-INDEX-4 and stay).
 ### §2.1 Regression suite (load-bearing bit-identity gate)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -61,7 +61,7 @@ isotropic + P1-anisotropic. The flip is view-only at every site
 verification gate for curvilinear matvec geometry)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 ```
 
 ```
@@ -76,11 +76,11 @@ to machine precision under the principled layout.
 ### §2.3 Operator-leaf suites
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_scattering_operator.py \
-  tests/sn/test_fission_operator.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_fission_operator.py -q
 ```
 
 ```
@@ -90,7 +90,7 @@ to machine precision under the principled layout.
 ### §2.4 SNStreamingOperator suite (the FD-matvec architectural test)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_snstreamingoperator.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_snstreamingoperator.py -q
 ```
 
 ```
@@ -106,7 +106,7 @@ were updated from `(ng, N, nx, 1)` → `(N, ng, nx, 1)` and from
 ### §2.5 Phase C gates (Carlson seed + BC contract)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_phase_c_gates.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_phase_c_gates.py -q
 ```
 
 ```
@@ -125,18 +125,18 @@ PR-INDEX-7 layout.
 ### §2.6 Comprehensive SN core test set
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_snstreamingoperator.py \
-  tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_scattering_operator.py \
-  tests/sn/test_fission_operator.py \
-  tests/sn/test_phase_c_gates.py \
-  tests/sn/test_phase_c_mms.py \
-  tests/sn/test_phase_c_crosscheck.py \
-  tests/sn/test_quadrature.py \
-  tests/sn/test_2d_octant_sweep_equivalence.py \
-  tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/test_snstreamingoperator.py \
+  tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_fission_operator.py \
+  tests/gates/sn/test_phase_c_gates.py \
+  tests/gates/sn/test_phase_c_mms.py \
+  tests/gates/sn/test_phase_c_crosscheck.py \
+  tests/gates/sn/test_quadrature.py \
+  tests/gates/sn/test_2d_octant_sweep_equivalence.py \
+  tests/gates/sn/regression/ -q
 ```
 
 ```
@@ -150,9 +150,9 @@ that's been closing across recent waves).
 ### §2.7 Boundary + method space + solver components
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_boundary_conditions.py \
-  tests/sn/test_method_space.py \
-  tests/sn/test_solver_components.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_boundary_conditions.py \
+  tests/gates/sn/test_method_space.py \
+  tests/gates/sn/test_solver_components.py -q
 ```
 
 ```
@@ -170,9 +170,9 @@ My PR-INDEX-7 doesn't touch `transport_sweep` (verified via
 ### §2.8 2D octant + phase C cross-check + MMS
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_2d_octant_sweep_equivalence.py \
-  tests/sn/test_phase_c_crosscheck.py \
-  tests/sn/test_phase_c_mms.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_2d_octant_sweep_equivalence.py \
+  tests/gates/sn/test_phase_c_crosscheck.py \
+  tests/gates/sn/test_phase_c_mms.py -q
 ```
 
 ```
@@ -200,7 +200,7 @@ sense). Out of scope for PR-INDEX-7.
 ### §2.7 CP suite no-touch verification
 
 ```bash
-.venv/bin/python -m pytest tests/cp/ -q
+.venv/bin/python -m pytest tests/gates/cp/ -q
 ```
 
 (In-flight; CP module is untouched per §C anti-rec — `git diff --stat
@@ -394,9 +394,9 @@ to principled if the typed-field dataclass migration's
 
 Two diagnostic CLI probes mirror the matvec body's `fi[:, mask, i, 0]`
 indexing:
-- `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py` (used as
-  a CLI tool: `python tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`).
-- `tests/sn/diagnostics/phase_g_step2_03_closure_audit.py` (CLI
+- `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py` (used as
+  a CLI tool: `python tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`).
+- `tests/gates/sn/diagnostics/phase_g_step2_03_closure_audit.py` (CLI
   probe).
 
 These are NOT collected by pytest (verified with
@@ -406,7 +406,7 @@ artifacts. Updating them is OUT OF SCOPE for PR-INDEX-7;
 flagged for a future cleanup wave OR for the typed-field
 contract resume (§10).
 
-### §9.3 `tests/sn/test_phase_c_gates.py:448` PR-INDEX-3 stale-index fix
+### §9.3 `tests/gates/sn/test_phase_c_gates.py:448` PR-INDEX-3 stale-index fix
 
 Drive-by fix: `ng = sig_t.shape[2]` was a residual from the
 pre-PR-INDEX-3 layout (when `sig_t` was `(nx, ny, ng)`). After
@@ -430,7 +430,7 @@ adapters removed = 3.
 ### §9.6 Pre-existing test failure: `test_solver_components.py::TestTransportSweep::test_matches_saved_reference`
 
 ```bash
-$ .venv/bin/python -m pytest tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference -v
+$ .venv/bin/python -m pytest tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference -v
 ...
 E       AssertionError:
 E       Not equal to tolerance rtol=1e-14, atol=0
@@ -440,12 +440,12 @@ E       (shapes (2, 6, 4), (6, 4, 2) mismatch)
 
 This is a **PR-INDEX-5-era stale fixture**, NOT caused by PR-INDEX-7:
 
-- The saved reference file `tests/sn/sweep_ref_2g.npy` (committed
+- The saved reference file `tests/gates/sn/sweep_ref_2g.npy` (committed
   `b4b4bc6` in April 2026) is in the LEGACY `(nx, ny, ng)` layout.
 - Production `transport_sweep` returns `(ng, nx, ny)` principled per
   PR-INDEX-5's public API flip.
-- The `tests/sn/regression/` snapshots were regenerated under
-  PR-INDEX-5 (the load-bearing gate), but `tests/sn/sweep_ref_2g.npy`
+- The `tests/gates/sn/regression/` snapshots were regenerated under
+  PR-INDEX-5 (the load-bearing gate), but `tests/gates/sn/sweep_ref_2g.npy`
   is in a non-regression-folder location and was missed.
 - My PR-INDEX-7 does NOT touch `transport_sweep` or its output shape.
 
@@ -456,7 +456,7 @@ principled layout. Out of scope for PR-INDEX-7. Filed as the
 ### §9.5 Pre-existing test failure: `test_spherical_sweep_vs_bicgstab_flat_flux`
 
 ```bash
-$ .venv/bin/python -m pytest tests/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux -v
+$ .venv/bin/python -m pytest tests/gates/sn/test_sweep_operator_inconsistency.py::test_spherical_sweep_vs_bicgstab_flat_flux -v
 ...
 E       AssertionError: Sweep error 1.6431e-14 is suspiciously small — has the sweep bug been fixed? If so, remove ERR-026.
 E       assert np.float64(1.6431300764452317e-14) > 0.2

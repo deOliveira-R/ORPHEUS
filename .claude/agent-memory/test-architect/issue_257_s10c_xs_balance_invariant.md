@@ -72,11 +72,11 @@ Exempt set (re-verified, NEVER asserted on):
   `_mix_iso_at_c(1.30)` residual **0.0979 == SigF** (the `νΣf=(c−1)·Σt` for
   c>1, Σf=0 criticality-parameter encoding, `atalay1997.py:84`). c=1.10→0.0326,
   c=1.05→0.0163. Documented, source-commented, intentional.
-- 4 structural scaffolds (`placeholder_materials` `tests/sn/_test_helpers.py:115`,
-  `_mix` `tests/sn/primitives/test_snmesh_materials_pr_typed_0.py:29`,
-  `_trivial_materials` `tests/sn/sweep/core/test_sweep_cache.py:59`) — build
+- 4 structural scaffolds (`placeholder_materials` `tests/gates/sn/_test_helpers.py:115`,
+  `_mix` `tests/gates/sn/primitives/test_snmesh_materials_pr_typed_0.py:29`,
+  `_trivial_materials` `tests/gates/sn/sweep/core/test_sweep_cache.py:59`) — build
   `Mixture(...)` DIRECTLY, bypass any factory.
-- billiard `_mixture_from_xs` (`tests/derivations/test_trajectory_resolvent_billiard.py:103`)
+- billiard `_mixture_from_xs` (`tests/gates/derivations/test_trajectory_resolvent_billiard.py:103`)
   — SigP-carrier, SigF=0.
 - MMS BALANCES (manufactures external SOURCE, sets SigC=Σt−rowsum(Σs)).
 
@@ -89,7 +89,7 @@ violator — a vast dead-band. A single-step reduction-depth bound
 (`reduction_depth × ULP` ≈ 5·2.2e-16 ≈ 1.1e-15) explains every balancer
 residual; 1e-9 is conservative with ~6 orders of headroom.
 
-## Gates (file `tests/data/test_mixture_xs_balance.py`, foundation, -O-clean)
+## Gates (file `tests/gates/data/test_mixture_xs_balance.py`, foundation, -O-clean)
 
 | Gate | What | Pillar / mode | Teeth |
 |------|------|---------------|-------|
@@ -135,16 +135,16 @@ Optionally add a `Mixture.n2n_out_xs` property (= `rowsum(Sig2)`) mirroring
 ## Regression command (route around #250/#232/#212)
 
 ```
-.venv/bin/python -O -m pytest tests/data/ \
+.venv/bin/python -O -m pytest tests/gates/data/ \
   -k "not (sphere and snapshot)" \
-  --deselect tests/sn/cartesian/test_keff_slab.py::test_heterogeneous_absolute_keff \
+  --deselect tests/gates/sn/cartesian/test_keff_slab.py::test_heterogeneous_absolute_keff \
   -p no:cacheprovider
 ```
 S10c touches ONLY `orpheus/data/macro_xs/mixture.py` + the new test file →
-blast is the `tests/data/` tree. #250 (stale SPHERE snapshots) / #232 / #212
+blast is the `tests/gates/data/` tree. #250 (stale SPHERE snapshots) / #232 / #212
 (`continuous_get` hang in `test_heterogeneous_absolute_keff`) are in
-`tests/sn/`, OUTSIDE the blast. The route-arounds matter only if a fuller
-sweep is run; for the targeted gate just run `tests/data/`.
+`tests/gates/sn/`, OUTSIDE the blast. The route-arounds matter only if a fuller
+sweep is run; for the targeted gate just run `tests/gates/data/`.
 
 ## No new vv mode, no ERR (old SigT had no bug — it's the canonical line;
 the gap was the MISSING invariant on synthetic tables). Next free ERR-064.

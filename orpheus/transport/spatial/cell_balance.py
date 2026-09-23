@@ -74,7 +74,7 @@ numer_upstream)``.  Same algebra, two consumers (Pattern 2 — no
 twin paths).
 
 See :mod:`orpheus.transport.spatial.cell_balance` test gate at
-``tests/sn/sweep/core/test_cell_balance_for_streaming.py``.
+``tests/gates/sn/sweep/core/test_cell_balance_for_streaming.py``.
 """
 
 from __future__ import annotations

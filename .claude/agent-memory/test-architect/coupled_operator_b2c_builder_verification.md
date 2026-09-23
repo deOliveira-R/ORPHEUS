@@ -100,7 +100,7 @@ uncommitted file — L4).
 **Claim-layer / pillar (gate on `vv-principles`).** c1 = data-type re-label (structural + bit-id
 value). c2-centrepiece = a **construction-equivalence** (grid vs the production fused loss);
 its FORWARD-value grounding is INHERITED (the fused loss IS the production loss, already
-end-to-end anchored — φ=Q/Σ_t, k_inf — by the existing `tests/sn` wall). The grid cannot SOLVE
+end-to-end anchored — φ=Q/Σ_t, k_inf — by the existing `tests/gates/sn` wall). The grid cannot SOLVE
 at B.2c (`is_invertible=False`; the block solve is step-5), so **no new eigenvalue/fixed-source
 anchor is proven here** — E4 solve-anchors DEFER to B.2d (RULING R1). The centrepiece's
 forward-equivalence to the anchored fused loss is the B.2c structural tie.
@@ -112,7 +112,7 @@ forward-equivalence to the anchored fused loss is the B.2c structural tie.
 ### F1 — `_full_loss_case` OMITS `B_b_adapter`; the centrepiece must build its OWN complete fused loss
 
 The brief claims the fused reference is "`LC − S − a_ba_adapter − (B_a + B_b_adapter)` — exactly
-`_full_loss_case`'s spelling." **WRONG.** `tests/sn/operators/test_g_adjoint_reciprocity.py::_full_loss_case`
+`_full_loss_case`'s spelling." **WRONG.** `tests/gates/sn/operators/test_g_adjoint_reciprocity.py::_full_loss_case`
 (:528-542) spells **`(L+C) − S − SNBoundaryOperator(sn) − a_ba_adapter`** — `B_a` ALONE, no
 `B_b_adapter`. (It doesn't need B_b: reciprocity `⟨Aψ,φ⟩_G = ⟨ψ,A.Hφ⟩_G` holds for WHATEVER A
 is posed — its own NOTE R2 at :495.) But the grid's **(B,B) = `A_BB − B_b`**, so the fused ray
@@ -175,7 +175,7 @@ composite re-type per F2, and A_AB needs a domain swap PLUS a codomain re-type b
 
 ## c1 gates — the grid-entry re-types (bit-id INHERITANCE, `array_equal`)
 
-Extend `tests/sn/operators/test_psi_half_coupling.py::TestA_BB_RadialBVP` and
+Extend `tests/gates/sn/operators/test_psi_half_coupling.py::TestA_BB_RadialBVP` and
 `::TestA_AB_SeedInjection` (the re-points below ARE these gates, re-expressed on composite I/O).
 
 - **G-c1.1 — A_BB four-surface re-type ≡ old unified value.** For each of
@@ -201,7 +201,7 @@ Extend `tests/sn/operators/test_psi_half_coupling.py::TestA_BB_RadialBVP` and
 
 ## c2 gates — the builder
 
-Home: NEW `tests/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (the step-4 4d.2 home).
+Home: NEW `tests/gates/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (the step-4 4d.2 home).
 
 - **G-c2.1 — P1 alignment by construction + the RUNTIME proof (F2).** `op, space =
   build_coupled_system(sn, mat_xs)` on the carrying sphere: `space` is a `CoupledSpace` over
@@ -290,7 +290,7 @@ Home: NEW `tests/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (th
   `.to_unified()`). This IS G-c1.3 (F4; step-4 memo's "unaffected" was 4d.0-scoped).
 
 **STAY (do NOT touch):**
-- `tests/numerics/test_coupled_operator.py` (39, synthetic) — **0 ψ½/SN/build_coupled
+- `tests/gates/numerics/test_coupled_operator.py` (39, synthetic) — **0 ψ½/SN/build_coupled
   references** (grep-confirmed). The N-general machinery is CONSUMED by the builder, not
   changed. **NO changes.**
 - `TestRegressionFloor` + `_dense`/`_blocks`/`_template`/`_loss` (FullField layout) — the fused
@@ -362,11 +362,11 @@ Home: NEW `tests/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (th
 ## Result contract
 
 NEW file: `orpheus/sn/coupled_system.py` (`build_coupled_system`). NEW gate class:
-`tests/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (G-c2.1–c2.6). Extensions:
+`tests/gates/sn/operators/test_psi_half_coupling.py::TestCoupledBuilder` (G-c2.1–c2.6). Extensions:
 `TestA_BB_RadialBVP`/`TestA_AB_SeedInjection` in `test_psi_half_coupling.py` +
 `TestA_BB_RadialBVP` in `test_ray_operator.py` (the c1 re-points = G-c1.1–c1.3). Every tooth
 mutation-verified in-process under `-O`. End-to-end acceptance: `psi_half + ray_operator +
-g_adjoint` green + full `tests/sn -m "not slow"` + `tests/numerics` (UNCHANGED, 39) + ratchet
+g_adjoint` green + full `tests/gates/sn -m "not slow"` + `tests/gates/numerics` (UNCHANGED, 39) + ratchet
 `transport:1` + sphinx -W. **Load-bearing deliverables:** the **grid≡fused centrepiece
 (G-c2.3, F1's complete fused loss, per-row tolerances)** + the **F2 runtime-apply proof
 (G-c2.1)** + the **forward block-`.H` reciprocity (G-c2.5, the Mode-12 real-member catcher)**.

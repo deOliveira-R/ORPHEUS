@@ -143,7 +143,7 @@ reflection step itself).
 
 Successive ratios hit :math:`4.00\pm0.02`, i.e. the measured order
 is exactly the design order of diamond difference.  The L1 test
-:func:`tests.sn.verification.mms.test_mms.test_sn_1d_slab_mms_converges_second_order`
+:func:`tests.gates.sn.verification.mms.test_mms.test_sn_1d_slab_mms_converges_second_order`
 asserts a slightly loose ``order > 1.9`` bracket to leave room for
 round-off at the finest mesh.
 
@@ -349,7 +349,7 @@ Gauss--Legendre :math:`S_{16}`):
 Both groups hit the design order independently, confirming
 that the multigroup scatter coupling is correctly exercised.
 The L1 test
-:func:`tests.sn.verification.mms.test_mms_heterogeneous.test_sn_heterogeneous_mms_converges_second_order`
+:func:`tests.gates.sn.verification.mms.test_mms_heterogeneous.test_sn_heterogeneous_mms_converges_second_order`
 asserts ``> 1.9`` to leave round-off headroom at the finest
 mesh.
 
@@ -479,13 +479,13 @@ diamond-difference design order.
   :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesianMMSCase` and
   :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_mms_case`.
 - Test:
-  :func:`tests.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_mms_converges_second_order`.
+  :func:`tests.gates.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_mms_converges_second_order`.
 - Sweep:
   :func:`orpheus.sn.loss_representation._sweep_jacobi` (the 2D diamond-difference
   kernel verified by this test).
 
 **Why this test matters.**  The existing 2D SN tests
-(:mod:`tests.sn.sweep.cartesian_2d.test_discrete_ordinates_2d`) are L2 self-convergence
+(:mod:`tests.gates.sn.sweep.cartesian_2d.test_discrete_ordinates_2d`) are L2 self-convergence
 tests with real cross sections that verify the solver as a black box.
 This MMS test is more incisive: it provides a **closed-form reference
 flux** and asserts the **design convergence order** of the spatial
@@ -599,7 +599,7 @@ Both groups achieve the design :math:`\mathcal O(h^{2})` rate.
   :class:`orpheus.derivations.continuous.mms.sn.SN2DCartesian2GHeterogeneousMMSCase`
   and :func:`orpheus.derivations.continuous.mms.sn.build_2d_cartesian_heterogeneous_mms_case`.
 - Test:
-  :func:`tests.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
+  :func:`tests.gates.sn.verification.mms.test_mms_2d.test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order`.
 
 
 .. _sn-mms-p1-verification:
@@ -675,7 +675,7 @@ streaming of :math:`B(x)`.
   :class:`orpheus.derivations.continuous.mms.sn.SNP1AnisoMMSCase` and
   :func:`orpheus.derivations.continuous.mms.sn.build_p1_aniso_mms_case`.
 - Test:
-  :func:`tests.sn.verification.mms.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
+  :func:`tests.gates.sn.verification.mms.test_mms_aniso.test_sn_p1_aniso_mms_converges_second_order`.
 - P1 assembly: the collision gain's :math:`\ell \ge 1` body,
   ``TransferOperator._redistribute_ordinates``, reached through
   :meth:`~orpheus.transport.operators.transfer.TransferOperator.apply`
@@ -791,9 +791,9 @@ sufficient evidence for the full sweep; both are required.
   :func:`orpheus.derivations.continuous.mms.sn.build_spherical_mms_case`,
   :func:`orpheus.derivations.continuous.mms.sn.build_cylindrical_mms_case`.
 - Tests:
-  :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
+  :func:`tests.gates.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
   (sphere) and
-  :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
+  :func:`tests.gates.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
   (cylinder), both ``catches("ERR-058")``.  **Their ``xfail`` markers
   came off 2026-06-12 with the ERR-058 closure-seed fix** (Issue #195).
   Post-fix the ladders are clean second-order with SI :math:`\equiv`
@@ -959,7 +959,7 @@ analogue,
 
 uses the same acceptance criterion on the cylindrical-aniso
 ansatz.  Both labels are consumed by the
-:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
+:file:`tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py`
 gate-3 tests, which **stay ``xfail``** — but, post-ERR-058 (Issue
 #195), no longer for the wrong-fixed-point reason.  The ERR-058
 closure-seed fix recovered :math:`\mathcal{O}(h^2)` *spatial*
@@ -988,7 +988,7 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   :func:`orpheus.derivations.continuous.mms.sn.derive_cylindrical_anisotropic_mms`
   substitute the ansatz into the transport operator symbolically and
   prove ``simplify(LHS - RHS) == 0``. Foundation tests:
-  :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py` (one
+  :file:`tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py` (one
   ``@pytest.mark.foundation`` test per ``derive_*`` function).
 - **Branch 2 (vectorised numpy)**:
   :class:`orpheus.derivations.continuous.mms.sn.SNSphericalAnisotropicMMSCase`
@@ -1002,7 +1002,7 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   :math:`Q^{\text{ext}}_n(r_i)` (via :func:`sympy.lambdify`) to
   :math:`\sim 10^{-16}` (max absolute) on a sample mesh in both
   geometries. Tested in
-  :func:`tests.derivations.test_sn_mms_anisotropic_symbolic.test_spherical_aniso_numerical_qext_matches_sympy`
+  :func:`tests.gates.derivations.test_sn_mms_anisotropic_symbolic.test_spherical_aniso_numerical_qext_matches_sympy`
   and the cylindrical sibling.
 
 **Code pointers**
@@ -1015,9 +1015,9 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   :func:`orpheus.derivations.continuous.mms.sn._spherical_anisotropic_symbolic`,
   :func:`orpheus.derivations.continuous.mms.sn._cylindrical_anisotropic_symbolic`.
 - Foundation tests:
-  :file:`tests/derivations/test_sn_mms_anisotropic_symbolic.py`.
+  :file:`tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py`.
 - Consumer L1 convergence test (Phase-0 work, separate branch):
-  ``tests/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py``
+  ``tests/gates/sn/_l1/test_mms_spherical_anisotropic_dd_convergence_O_h2.py``
   (planned).
 
 
@@ -1214,7 +1214,7 @@ is **mis-cited and 100 % spurious on physical fields**:
 
       What the cylinder actually does was measured and committed on the
       same day, in
-      ``tests/sn/sweep/curvilinear/test_psi_half_positivity.py``
+      ``tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py``
       (19 ``foundation`` rows; a CHARACTERISATION module — no row
       carries ``verifies(...)``, because there is no equation whose
       truth they establish).  On a heterogeneous 2-region, 2-group
@@ -1311,9 +1311,9 @@ is **mis-cited and 100 % spurious on physical fields**:
 
       **What is gated, and where.**  The two curvilinear *scalar*-flux
       positivity gates
-      (``tests/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
+      (``tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py``
       ``::test_ciii_coarse_sphere_fixed_source_finite_positive``,
-      ``tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
+      ``tests/gates/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
       ``::test_unclamped_sphere_flux_strictly_positive``) are **sphere
       only** — they are what item 3 below rests on.  The
       :math:`\hat\psi` sign, on both seed regimes and on both arms, is
@@ -1442,11 +1442,11 @@ the closed-form :math:`k_\infty = 1.875`.  One snapshot
 (:math:`k\;1.380766 \to 1.381001`); the two flat snapshots drift only
 in the FP tail and were not regenerated.
 
-**W1 gates.** ``tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
+**W1 gates.** ``tests/gates/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py``
 (closure-unit :math:`\tau`-independence on flat fields; converged
 homogeneous-reflective iso anchored to :math:`k_\infty`; unclamped
 positivity) + the W1 ``@slow`` aniso gates appended to
-``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``
+``tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py``
 (the S32 clean-:math:`\mathcal{O}(h^2)` full-ladder claim; the S16
 coarse-rate-cleaner-unclamped discriminator; the floor-scales-with-
 quadrature pin).  Landed in commit ``b2d8a6d``.
@@ -1519,7 +1519,7 @@ leaves the floor **flat** (`[M]` 1.90e-2, 1.91e-2, 1.91e-2 at
    :math:`5.4\times` at :math:`n_\varphi = 8` and *steepened* the
    azimuthal scaling, before the Q5.6.4 τ work touched anything.  The
    live ladder is the gate's own docstring
-   (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``)
+   (``tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py``)
    — read it there rather than trusting a copy on this page.
 
 **Why it is structurally blocked.**  Product and level-symmetric
@@ -1745,7 +1745,7 @@ The characterization gate (#233)
 Per the vv-principles "pin what is TRUE + protect the floor WITHOUT
 calcifying the limitation" discipline, W2 ships a **characterization**
 gate, not a fix gate
-(``tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``,
+(``tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py``,
 commit ``255eba4``):
 
 * **Guarantee tests** (carry ``verifies("dd-curvilinear-scalar", ...)``,
@@ -1894,8 +1894,8 @@ leakage-monotone control
 pin).  These are the **first curvilinear exercise** of the
 geometry-agnostic ``pn-scatter`` / ``flux-moments`` labels (prior tests
 were 2-D Cartesian only).  L0 lands in
-``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
-L1 in ``tests/sn/eigenvalue/test_keff_curvilinear.py::TestSphereP1DirectionalEigenvalue``
+``tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
+L1 in ``tests/gates/sn/eigenvalue/test_keff_curvilinear.py::TestSphereP1DirectionalEigenvalue``
 (commit ``d5878e9``).  L2 is deferred (subsumed by L0+L1; a
 :math:`P_1`-convergence L2 needs the :math:`\sigma_{s1}`-MMS source and
 rides the same #229 floor).
@@ -2157,11 +2157,11 @@ Because the catch is catastrophic (NaN/inf), there is no false-green regime for
 this closure to hide in — a stronger guarantee than the subtle-cancellation
 scenario the strengthening was originally designed against.
 
-The foundation gate is :mod:`tests.derivations.test_sn_mms_ld_2d_stress_symbolic`
+The foundation gate is :mod:`tests.gates.derivations.test_sn_mms_ld_2d_stress_symbolic`
 (the SymPy substitution identity, an INDEPENDENT finite-difference residual check
 that does not reuse SymPy's own ``diff`` — L11, the Branch-2 :math:`\equiv`
 Branch-1 source cross-check, and the Mode-7 activation / x↔y-asymmetry checks);
-the end-to-end L1 gates are :mod:`tests.sn.verification.mms.test_mms_ld_2d`
+the end-to-end L1 gates are :mod:`tests.gates.sn.verification.mms.test_mms_ld_2d`
 (``test_ld_2d_stress_converges_second_order`` — the headline :math:`O(h^2)` +
 value band, ``@l1`` ``@verifies("ld-cartesian-2d", "transport-cartesian-2d")``;
 ``test_ld_2d_stress_krylov_equals_si`` — the L14 matvec twin on the stress
@@ -2323,7 +2323,7 @@ moment is the **bare per-volume Legendre coefficient**:
 .. (V&V scope note) definition: the Leg-A projection NORMALIZATION
 .. convention (bare per-volume Legendre coefficient; the mass matrix supplies
 .. the theta/h weighting downstream). Wired to the foundation gate
-.. ``tests/sn/verification/mms/test_mms_ld_2d.py::test_projection_slot0_is_cell_average_not_centre``
+.. ``tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_projection_slot0_is_cell_average_not_centre``
 .. (slot-0 IS the cell average — the normalization convention pinned against
 .. an independent fine-quadrature average).
 
@@ -2351,7 +2351,7 @@ hand-derivable in closed form:
 .. coefficients of a bilinear source — the structurally-independent (Branch-1)
 .. reference the quadrature projector is pinned against. Wired to the
 .. foundation gate
-.. ``tests/sn/verification/mms/test_mms_ld_2d.py::test_tensor_legendre_projection_matches_hand_polynomial``
+.. ``tests/gates/sn/verification/mms/test_mms_ld_2d.py::test_tensor_legendre_projection_matches_hand_polynomial``
 .. (reproduced to ``atol=1e-13``).
 
 These four numbers are the structurally-independent reference for the projector
@@ -2654,7 +2654,7 @@ Sources and gates
 The production change is in :func:`orpheus.sn.solver._build_fixed_source_rhs`
 (the typed-union validation) and ``_lift_external_source_to_moments`` (the
 slope-thread arm), both confined to ``solver.py``.  The end-to-end gates live in
-:mod:`tests.sn.verification.mms.test_mms_ld_2d` (the #247 block):
+:mod:`tests.gates.sn.verification.mms.test_mms_ld_2d` (the #247 block):
 ``test_ld_2d_external_slope_source_threaded_through_lift`` (the foundation
 structural teeth), ``..._converges_second_order`` and ``..._improves_on_flat``
 (the L1 necessary + positive legs), ``..._sign_mutation_reddens`` (M1–M3),
@@ -3110,8 +3110,8 @@ principled ranks and nothing in between.
 
 **The bit-identity guard.**  The DEFAULT scalar-inflow path must stay
 bit-identical after the trace widening, verified three ways: the strict
-``DriftWarning`` regression gate over ``tests/sn/sweep/core`` and
-``tests/sn/solve`` (no golden moved — the moment-tail widening leaves the
+``DriftWarning`` regression gate over ``tests/gates/sn/sweep/core`` and
+``tests/gates/sn/solve`` (no golden moved — the moment-tail widening leaves the
 DD/Step and scalar-inflow trace untouched, because ``face_moment_tail(1) == ()``
 is the negative control); the existing 1-D prescribed-inflow MMS (byte-identical
 by construction — a 1-D face has :math:`n_{\rm face} = 1`); and the explicit
@@ -3153,7 +3153,7 @@ The production change spans three files: the storage lever in
 capture-collapse DROP sites in :mod:`orpheus.sn.loss_representation`; and the
 producer
 :meth:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow`.
-The end-to-end gates live in :mod:`tests.sn.verification.mms.test_mms_ld_2d` (the
+The end-to-end gates live in :mod:`tests.gates.sn.verification.mms.test_mms_ld_2d` (the
 #251 block): ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (the
 foundation structural teeth — the stamp / production-change proof),
 ``test_ld_2d_boundary_slope_sign_mutation_reddens`` (the L1 consumption proof,
@@ -3249,7 +3249,7 @@ moment-resolved (``mom``) inflow:
 
 The orders are indistinguishable: the slope is a sub-floor refinement, not a
 deficiency repair.  This is the
-:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_first_cell_row_already_second_order`
+:func:`~tests.gates.sn.verification.mms.test_ld_2d_boundary_promise.test_first_cell_row_already_second_order`
 gate (``@l1``, ``@verifies("ld-cartesian-2d")`` — the label is REUSED, S9
 mints none): it fails iff the first-cell-row flat order drops below
 :math:`1.85`, which would mean the average inflow is :math:`O(h)`-deficient at
@@ -3270,9 +3270,9 @@ non-trivial" hypothesis — makes the converged flux MONOTONICALLY WORSE
 (:math:`+17\%` at :math:`20\times`, still :math:`O(h^2)`), never better.  The
 sub-floor wall is FUNDAMENTAL to a boundary-trace moment, not an artefact of
 the cheap regime; these are the
-:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_optical_sweep_slope_never_beats_floor`
+:func:`~tests.gates.sn.verification.mms.test_ld_2d_boundary_promise.test_optical_sweep_slope_never_beats_floor`
 and
-:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_amplified_boundary_slope_still_subfloor`
+:func:`~tests.gates.sn.verification.mms.test_ld_2d_boundary_promise.test_amplified_boundary_slope_still_subfloor`
 verdict pins (``@slow`` ``@l1``).
 
 Producer honesty: the MMS case emits the moment slot
@@ -3321,7 +3321,7 @@ slope would double-apply the mass, a TRUE bug.  Because the case projector and
 the test-side ``_face_transverse_legendre`` are deliberately INDEPENDENT
 implementations of the same projection, their machine-precision agreement is a
 single-source check (Cardinal Rule 2), pinned by the new foundation gate
-:func:`~tests.sn.verification.mms.test_mms_ld_2d.test_case_projector_agrees_with_test_face_projector`;
+:func:`~tests.gates.sn.verification.mms.test_mms_ld_2d.test_case_projector_agrees_with_test_face_projector`;
 a shared import would make that check tautological and let a double-applied mass
 slip through.  The threading is then pinned end to end by the GATE-B leg added
 to ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (the
@@ -3352,7 +3352,7 @@ sits squarely in the **companion-unavailable branch** Leg B opened.  The
 transverse boundary-slope moment is *activated-but-unconstrained*: its code path
 is genuinely exercised (projected, threaded, stored, reframed per octant,
 consumed by the cell update — the Mode-11 sentinel
-:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_slope_toggle_reaches_inflow_to_moments`
+:func:`~tests.gates.sn.verification.mms.test_ld_2d_boundary_promise.test_slope_toggle_reaches_inflow_to_moments`
 confirms slot 1 reaches the production consumer and the converged flux differs,
 so the toggle is non-vacuous), yet its contribution to the converged flux is
 sub-floor for ANY value claim.
@@ -3435,7 +3435,7 @@ gated scalar-vs-moment build plus the new case-owned ``leggauss`` projector
 (the boundary cochain, the trace, the consumer ``_inflow_to_moments``, and
 DD/Step are all UNCHANGED — Leg B already landed the consumption path).  The
 coherent-promise gate and the verdict pins live in
-:mod:`tests.sn.verification.mms.test_ld_2d_boundary_promise`:
+:mod:`tests.gates.sn.verification.mms.test_ld_2d_boundary_promise`:
 ``test_first_cell_row_already_second_order`` (``@l1``
 ``@verifies("ld-cartesian-2d")`` — the coherent-promise lock),
 ``test_optical_sweep_slope_never_beats_floor`` and
@@ -3444,7 +3444,7 @@ sub-floor verdict pins guarding the no-value-gate conclusion across optical
 depth and amplitude), and ``test_slope_toggle_reaches_inflow_to_moments``
 (``@foundation`` — the Mode-11 sentinel proving the toggle is non-vacuous).  The
 producer-stamp leg lives in
-:mod:`tests.sn.verification.mms.test_mms_ld_2d`:
+:mod:`tests.gates.sn.verification.mms.test_mms_ld_2d`:
 ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (GATE B — the
 production producer's slot 1 equals the ``leggauss`` reference) and
 ``test_case_projector_agrees_with_test_face_projector`` (GATE C — the
@@ -3870,27 +3870,27 @@ numpy production, structurally-independent L1 cross-check).
      - Slab substitution identity ``simplify(W·LHS − Σ_s φ − Q) == 0``
      - foundation
      - MMS (1C)
-     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_substitution_identity`
+     - PASS — :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_substitution_identity`
    * - V_nonvac-sph
      - Sphere substitution identity (reuses the 3.6 spherical residual)
      - foundation
      - MMS (1C)
-     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_substitution_identity`
+     - PASS — :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_substitution_identity`
    * - Decision-A pin
      - Parameterised :math:`A=B=` ``None`` reproduces 3.6 vacuum shapes byte-for-byte
      - foundation
      - regression
-     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`
+     - PASS — :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`
    * - L1 xcheck (slab)
      - Branch-2 numpy :math:`Q^{\text{ext}}` == lambdified SymPy (≤1e-13)
      - foundation
      - MMS (1C)
-     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
+     - PASS — :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
    * - L1 xcheck (sphere)
      - Branch-2 numpy :math:`Q^{\text{ext}}` == lambdified SymPy (≤1e-13)
      - foundation
      - MMS (1C)
-     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_sphere_nonvacuum_numerical_qext_matches_sympy`
+     - PASS — :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_sphere_nonvacuum_numerical_qext_matches_sympy`
    * - T1 (slab 1g)
      - DD :math:`\mathcal{O}(h^2)` + converged value + inflow honoured
      - L1
@@ -3911,7 +3911,7 @@ numpy production, structurally-independent L1 cross-check).
      - Inflow honoured at :math:`r=R` + redistribution source live (green now)
      - foundation
      - structural
-     - PASS — :func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
+     - PASS — :func:`tests.gates.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
    * - T4 (Mode 9)
      - SI-Jacobi ≡ SI-Gauss-Seidel ≡ Krylov honour ``q.boundary``
      - foundation
@@ -4039,7 +4039,7 @@ the scalar moment:
            = A(x).
 
 This discrete identity is verified directly in
-:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_phi_equals_A_under_quadrature`
+:func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_phi_equals_A_under_quadrature`
 (≤1e-14 on a sample mesh). The reference scalar flux for the
 convergence rows is therefore :math:`\phi_{\text{chosen}}(x) = A(x)`,
 which — because :math:`a_0>0` — is **non-zero at the boundary**.
@@ -4176,7 +4176,7 @@ place**:
 which now takes optional ``A=None, B=None`` arguments. With no
 arguments it reproduces the Phase 3.6 vacuum shapes byte-for-byte (the
 decision-A regression pin verifies this in
-:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`);
+:func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`);
 with the 4.6 non-vacuum shapes it re-proves the residual for free
 (:func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_spherical_mms`).
 This is Cardinal Rule 2 in action — one source of truth for the
@@ -4206,7 +4206,7 @@ prefactor: :math:`A` has no :math:`1/r` companion in the operator, so
 :math:`A(0) = a_0` finite is perfectly regular at the pole, and
 :math:`a_0>0` makes :math:`A(R)\neq 0` (non-vacuum). HAZARD H1 is
 verified in
-:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_pole_regularity_and_nonvacuum`
+:func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_pole_regularity_and_nonvacuum`
 (:math:`B(0)=0`, :math:`A(0)=\tfrac12`, :math:`B(R)\neq 0`; concretely
 at :math:`kR=\pi/2`: :math:`A(R)=\tfrac34`, :math:`B(R)=\tfrac{3}{10}`).
 
@@ -4222,7 +4222,7 @@ face**. That non-zero trace is what lights up the prescribed-inflow
 ``q.boundary`` path. Strip :math:`a_0` back to zero and 4.6 degenerates
 to Phase 3.6 (vacuum-automatic). The non-vacuum-ness is pinned by the
 foundation test
-:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_ansatz_nonvanishing_at_faces`
+:func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_ansatz_nonvanishing_at_faces`
 (:math:`A(0)=a_0>0`) so the verification cannot silently drift back to
 the vacuum regime.
 
@@ -4424,7 +4424,7 @@ T3 (sphere) — the retired ``xfail(strict)`` and the angular floor
    stagnation evidence.
 
 The sphere row
-(:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_mms_prescribed_inflow_sphere_activates_redistribution`)
+(:func:`tests.gates.sn.verification.analytical.test_mms_prescribed_inflow.test_mms_prescribed_inflow_sphere_activates_redistribution`)
 shipped ``@pytest.mark.xfail(strict=True)`` with ``catches("ERR-026")``
 (the marker is retired; the ``catches`` tag remains).  The reason was
 **not** that the non-vacuum machinery fails.
@@ -4484,7 +4484,7 @@ budget of the anisotropic ansatz under fixed quadrature.
 **T3g — the green structural companion.** Because T3 is xfail (now on
 #229), it provides *no live* convergence coverage of the 4.6 machinery.
 The green companion
-:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
+:func:`tests.gates.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
 fills that gap with two non-convergence-dependent claims that pass
 *now*: (1) the prescribed inflow at :math:`r=R` is honoured per inflow
 ordinate (:math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W` with :math:`A(R)
@@ -4527,7 +4527,7 @@ of one affine operator agree on one RHS, which is a software invariant
 with no equation label to link, so the gate carries no ``verifies()``.
 
 T4
-(:func:`tests.sn.verification.analytical.test_prescribed_inflow_consistency.test_prescribed_inflow_consistency_si_jacobi_gs_krylov`)
+(:func:`tests.gates.sn.verification.analytical.test_prescribed_inflow_consistency.test_prescribed_inflow_consistency_si_jacobi_gs_krylov`)
 runs two configs. The ``slab_1d`` config (SI is always Jacobi in 1-D)
 makes **SI ≡ Krylov** the discriminating pair. The
 ``cart2d_reflective_y`` config adds reflective-:math:`y` faces so
@@ -4572,7 +4572,7 @@ Following the ``algebra-of-record`` discipline:
   :func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_spherical_mms`.
   Each ``derive_*`` proves ``simplify(W·LHS − Σ_s·φ − Q_closed) == 0``.
   Foundation gate:
-  :file:`tests/derivations/test_sn_mms_nonvacuum_symbolic.py`.
+  :file:`tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py`.
 - **Branch 2 (vectorised numpy).** The factories
   :class:`~orpheus.derivations.continuous.mms.sn.SNSlabNonVacuumMMSCase`
   and
@@ -4597,7 +4597,7 @@ Following the ``algebra-of-record`` discipline:
   ``lambdify``-d SymPy, Branch 2 is hand-written numpy — so agreement
   catches a copy error between the symbolic derivation and the
   numerical implementation. Tested in
-  :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
+  :func:`tests.gates.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
   and the spherical sibling.
 
 **Structural independence (L11).** The chosen scalar flux
@@ -4634,9 +4634,9 @@ Richardson self-test.
 The reference is produced by
 :func:`orpheus.derivations.continuous.cases.sn.derive_sn_heterogeneous_continuous`
 and consumed by
-:func:`tests.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
+:func:`tests.gates.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_case_eigenvalue`
 (eigenvalue) and
-:func:`tests.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_flux_shape`
+:func:`tests.gates.sn.eigenvalue.test_heterogeneous_transport.test_sn_2region_reflective_flux_shape`
 (scalar flux shape). The Phase 2.1a smooth-:math:`\Sigma` MMS
 test verifies the **spatial operator** at :math:`\mathcal O(h^{2})`
 design order; this section's Case method verifies the
@@ -5045,7 +5045,7 @@ Spatial and Angular Convergence
 
 The diamond-difference scheme converges at :math:`O(h^2)` with mesh
 refinement.  Gauss--Legendre quadrature shows spectral convergence in
-angle.  Both are verified in ``tests/sn/eigenvalue/test_keff_slab.py``
+angle.  Both are verified in ``tests/gates/sn/eigenvalue/test_keff_slab.py``
 (``test_spatial_convergence`` and ``test_angular_convergence``).
 
 Property Tests
@@ -5061,7 +5061,7 @@ For all geometries:
 
 Run the full suite::
 
-   python -O -m pytest tests/sn -m "not slow"
+   python -O -m pytest tests/gates/sn -m "not slow"
 
 
 Numerical Sensitivities
@@ -5179,8 +5179,8 @@ The certification gates
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The battery lives in
-``tests/sn/solve/test_sn_adjoint_certification.py`` (P1.3/P1.4/P1.5 +
-the sphere vector row) and ``tests/sn/solve/test_sn_adjoint_entries.py``
+``tests/gates/sn/solve/test_sn_adjoint_certification.py`` (P1.3/P1.4/P1.5 +
+the sphere vector row) and ``tests/gates/sn/solve/test_sn_adjoint_entries.py``
 (P1.2 duality + the entry packaging).  Every value gate is **L1**;
 bi-orthogonality is **foundation** (an intrinsic algebraic law, no
 theory ``:label:``).  Every reference is structurally independent —
@@ -5311,10 +5311,10 @@ exact SymPy identity in
 :mod:`orpheus.derivations.common.homogenization` (theorems T0–T6,
 proof-welded to the production builder); the gates below check the
 production floats against **structurally-independent per-region hand
-rules**.  The battery lives in ``tests/sn/test_homogenization.py``
+rules**.  The battery lives in ``tests/gates/sn/test_homogenization.py``
 (§4.0 / C1 / C2 / C3 / Cχ, plus the T4 balance pin),
-``tests/sn/test_condensation.py`` (C4 / C5), and
-``tests/data/test_mixture_condense.py`` (T6a at the data level).
+``tests/gates/sn/test_condensation.py`` (C4 / C5), and
+``tests/gates/data/test_mixture_condense.py`` (T6a at the data level).
 
 .. list-table:: Adjoint-weighted collapse (P6, #281; measured)
    :header-rows: 1

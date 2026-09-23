@@ -87,7 +87,7 @@ All in `derivations/diagnostics/`, retired at `f36572c8` (R19); recover with `gi
 
 ## Related context
 
-- Phase F.4 N=1 proven at sphere: k_eff = k_inf to 3% at r_0/R=0.3 (`tests/derivations/test_peierls_rank2_bc.py`).
+- Phase F.4 N=1 proven at sphere: k_eff = k_inf to 3% at r_0/R=0.3 (`tests/gates/derivations/test_peierls_rank2_bc.py`).
 - Sanchez-McCormick 1982 NSE 80, 481-535 §III.F — canonical rank-N per-face math.
 - Mode primitives live in `orpheus/derivations/peierls_geometry.py` lines 1631-2165.
 - W rank-N at lines 2921-3050.

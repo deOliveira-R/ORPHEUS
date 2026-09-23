@@ -32,8 +32,8 @@ absorbed by the asymmetric solver's iteration scaffolding.
 | File | Status | Net lines | Purpose |
 |------|--------|-----------|---------|
 | `orpheus/derivations/continuous/peierls_greens_function/greens_function_slab.py` | rewritten | −495 / +245 | Public API (`SlabGreensResult`, `SlabGreensMGResult`, `solve_greens_function_slab{,_mg}`) preserved as re-wrappers; deleted `_apply_operator_slab`, `_first_leg_chord_slab`, `_bounce_period_chord_slab`, all `scipy.interpolate` and quadrature imports |
-| `tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py` | modified | +20 / −37 | Repurposed `test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy` → `test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix` (≤ 1e-12 rtol bit-equal gate, tagged `@pytest.mark.catches("ERR-035")`); updated `test_rank2_symmetric_BC_agrees_with_phase3a_at_endpoints` docstring; updated test-strategy header |
-| `tests/derivations/test_peierls_greens_function_slab_solver.py` | modified | +37 / −22 | `test_alpha_zero_convergence_floor` re-pinned with new ~9e-6 floor and 5e-5 gate (was 5e-4 / 1e-3); docstring updated with ERR-034 + ERR-035 history |
+| `tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py` | modified | +20 / −37 | Repurposed `test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy` → `test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix` (≤ 1e-12 rtol bit-equal gate, tagged `@pytest.mark.catches("ERR-035")`); updated `test_rank2_symmetric_BC_agrees_with_phase3a_at_endpoints` docstring; updated test-strategy header |
+| `tests/gates/derivations/test_peierls_greens_function_slab_solver.py` | modified | +37 / −22 | `test_alpha_zero_convergence_floor` re-pinned with new ~9e-6 floor and 5e-5 gate (was 5e-4 / 1e-3); docstring updated with ERR-034 + ERR-035 history |
 | `docs/theory/peierls_greens.rst` | modified | +35 / −36 | Updated Phase-3A intro to reference delegation; rewrote `peierls-greens-slab-T` equation as first-principles single-transit form with cross-link to rank-2 monodromy; rewrote "Phase-3A rank-1 algebraic discrepancy" section as `_peierls-greens-slab-asym-err035-fix` with FIXED status; updated convergence-floor narrative; cleaned `alpha_per_period` extension narrative |
 | `.claude/skills/vv-principles/error_catalog.md` | modified | +33 / −14 | ERR-035 status flipped from "DOCUMENTED, fix deferred" to "FIXED 2026-05-02", with full fix description + side-effects (vacuum-floor improvement, sphere/cylinder bit-equality preservation) |
 
@@ -44,19 +44,19 @@ wrapper is ~75 lines).
 ## Test results — full 116-test gate
 
 ```
-pytest tests/derivations/test_peierls_greens_function_solver.py \
-       tests/derivations/test_peierls_greens_function_vacuum.py \
-       tests/derivations/test_peierls_greens_function_xverif.py \
-       tests/derivations/test_peierls_greens_function_xverif_ps1982.py \
-       tests/derivations/test_peierls_greens_function_mg.py \
-       tests/derivations/test_peierls_greens_function_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_symbolic.py \
-       tests/derivations/test_peierls_greens_function_cylinder_solver.py \
-       tests/derivations/test_peierls_variant_alpha_core.py \
-       tests/derivations/test_peierls_greens_function_slab_symbolic.py \
-       tests/derivations/test_peierls_greens_function_slab_solver.py \
-       tests/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py \
-       tests/derivations/test_peierls_greens_function_slab_asymmetric_solver.py
+pytest tests/gates/derivations/test_peierls_greens_function_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_vacuum.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif.py \
+       tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py \
+       tests/gates/derivations/test_peierls_greens_function_mg.py \
+       tests/gates/derivations/test_peierls_greens_function_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py \
+       tests/gates/derivations/test_peierls_variant_alpha_core.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_solver.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py \
+       tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py
 ======================= 116 passed in 202.66s (0:03:22) ========================
 ```
 

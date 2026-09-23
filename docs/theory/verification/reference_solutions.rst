@@ -220,7 +220,7 @@ families of special functions. They are the atomic building blocks
 of every integral-transport reference solution, so their
 identities and special values are verified as **L0
 term-verification tests** in
-:mod:`tests.derivations.test_kernels` before any higher-level
+:mod:`tests.gates.derivations.test_kernels` before any higher-level
 reference is built on top of them.
 
 Exponential integral :math:`E_n(x)`
@@ -237,7 +237,7 @@ Canonical definition (Abramowitz & Stegun 5.1.4):
 .. (vv-status rationale) definition: the canonical A&S 5.1.4 defining integral
 .. of the exponential integral. Definitional — the implementing evaluator
 .. ``kernels.e_n`` is pinned by the derived identities (special values,
-.. derivative, full-line integral) in ``tests.derivations.test_kernels``.
+.. derivative, full-line integral) in ``tests.gates.derivations.test_kernels``.
 .. vv-status: en-definition documented
 
 .. math::
@@ -274,10 +274,10 @@ Evaluated to arbitrary precision by
 :func:`mpmath.expint`) and by :func:`scipy.special.expn` at double
 precision. Both engines are exercised against the three identities
 above in
-:func:`tests.derivations.test_kernels.test_en_closed_form_at_zero`,
-:func:`~tests.derivations.test_kernels.test_en_derivative_identity`,
+:func:`tests.gates.derivations.test_kernels.test_en_closed_form_at_zero`,
+:func:`~tests.gates.derivations.test_kernels.test_en_derivative_identity`,
 and
-:func:`~tests.derivations.test_kernels.test_en_full_line_integral`.
+:func:`~tests.gates.derivations.test_kernels.test_en_full_line_integral`.
 
 
 Bickley–Naylor function :math:`\mathrm{Ki}_n(x)`
@@ -295,7 +295,7 @@ Canonical definition (Bickley & Naylor 1935; A&S 11.2):
 .. defining integral. Definitional — the implementing evaluator
 .. ``kernels.ki_n`` (via the ``u = tan(theta)`` substitution) is pinned by the
 .. derived special-value and derivative identities in
-.. ``tests.derivations.test_kernels``.
+.. ``tests.gates.derivations.test_kernels``.
 .. vv-status: kin-definition documented
 
 The integrand has an essential singularity at :math:`\theta = \pi/2`
@@ -330,11 +330,11 @@ Derivative identity (A&S 11.2.11, with the convention
    \mathrm{Ki}_n'(x) \;=\; -\mathrm{Ki}_{n-1}(x).
 
 Both identities are exercised in
-:func:`tests.derivations.test_kernels.test_kin_closed_form_at_zero`,
-:func:`~tests.derivations.test_kernels.test_kin_derivative_identity`,
+:func:`tests.gates.derivations.test_kernels.test_kin_closed_form_at_zero`,
+:func:`~tests.gates.derivations.test_kernels.test_kin_derivative_identity`,
 and (for :math:`n = 1`, where the derivative hits the modified
 Bessel function)
-:func:`~tests.derivations.test_kernels.test_kin1_derivative_is_bessel_k0`.
+:func:`~tests.gates.derivations.test_kernels.test_kin1_derivative_is_bessel_k0`.
 
 
 Legacy naming discrepancy in ``BickleyTables`` (historical)
@@ -591,7 +591,7 @@ Three interlinked systems flow from one source:
 
    orpheus/derivations/      SymPy derivations (single source of truth — library)
         │
-        ├──→ tests/           pytest imports reference values, runs solvers
+        ├──→ tests/gates/     pytest imports reference values, runs solvers
         │
         └──→ docs/_generated/ RST fragments with LaTeX + results tables
 

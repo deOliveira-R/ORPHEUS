@@ -6,7 +6,7 @@ metadata:
 ---
 
 W2 of the curvilinear-aniso program (branch `fix/curvilinear-aniso-pole-and-clamp`,
-W1=`b2d8a6d`). File: `tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
+W1=`b2d8a6d`). File: `tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py`
 (4 tests, `@l1`, GREEN under `.venv/bin/python -O`). DISTINCT from W1 (angular
 τ-clamp) and #229 (angular half-angle-thread interpolation floor) — this is the
 **spatial** central-cell closure `dd-curvilinear-scalar` (Hébert §3.9.4 / Stacey

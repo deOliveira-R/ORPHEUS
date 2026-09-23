@@ -28,7 +28,7 @@ single-source-of-truth helper (`assert_regression`) carrying two layers:
 encoded no claim about what the solver promised; the slab floor was too
 tight for FP-non-associativity (~1e-11) and the curvilinear band papered
 over a since-fixed bug. The principled gate IS the claim. Implemented at
-`tests/sn/regression/_regression_assert.py`.
+`tests/gates/sn/regression/_regression_assert.py`.
 
 **How to apply (load-bearing details):**
 - Read `conv_tol` off the run config (the dict that drove the solve),

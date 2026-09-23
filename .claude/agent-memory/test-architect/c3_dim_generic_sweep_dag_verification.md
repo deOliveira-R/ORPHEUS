@@ -17,7 +17,7 @@ optimizations plug in WITHOUT changing the spine's value: **(a) cumprod
 parallel-prefix scan** (`ordinate_scan`/`_sweep_1d_unified`, Blelloch §1.5
 `cumprod_a·(psi_0+cumsum(b/cumprod_a))`) is the **d=1 OPTIMIZATION** (default-selected
 for d=1 production); **(b) `_MovingFrontier` storage-B window** is the **d≥2
-OPTIMIZATION** (pinned ≡ full-field by `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`).
+OPTIMIZATION** (pinned ≡ full-field by `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`).
 So 1-D is NO LONGER "untouched" — it is a REAL spine compute path validated against
 its cumprod optimization. 2-D stays BIT-IDENTICAL (refactor); synthetic-3-D = SHAPE
 ADMISSION only.
@@ -35,7 +35,7 @@ real spine pins B6), NEW-4 (d≥2 oracle confirmation).
 ## NEW-1..4 (EXPANDED scope — 2 UNCOMMITTED stub files, for main-agent review)
 
 **NEW-1 wavefront(1-D)≡cumprod(1-D) oracle** — file
-`tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py` (NEW). DECISION:
+`tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py` (NEW). DECISION:
 **PRINCIPLED-EQUIVALENCE at nulp, NOT bit-identity.** The cumprod scan
 (parallel-prefix reduction TREE over all nx cells) and the wavefront
 forward-substitution walk (nx sequential cell-by-cell) compute the SAME affine
@@ -67,14 +67,14 @@ pytest.fail` (catches "wavefront accidentally became d=1 default, 1-D got slow" 
 2× bound is FAR below expected cumprod O(N/logN)-vs-sequential ratio). xfail pre-carve.
 
 **NEW-3 d=1 real spine pins (B6)** — ADDED to
-`tests/sn/sweep/core/test_sweep_graph_nd_admission.py`. d=1 is now a REAL wavefront
+`tests/gates/sn/sweep/core/test_sweep_graph_nd_admission.py`. d=1 is now a REAL wavefront
 compute path: **B6a** octant count 2=2^1 (`[(-1,),(+1,)]`, exact order, PASSES today);
 **B6b** `from_cartesian((nx,))` builds nx levels, ONE cell/level (singleton chain;
 `Σ(n−1)+1=(nx−1)+1=nx`; (+1,) ⟹ cell i==ℓ; total coverage), nx∈{5,8,12} both octants;
 **B6c** d-generic kernel at d=1 → `denom=σ_t+s_x` single-axis, hand oracle (PASSES
 today). B6b xfail pre-carve (needs builder).
 
-**NEW-4 d≥2 oracle CONFIRMED EXISTS** — `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`
+**NEW-4 d≥2 oracle CONFIRMED EXISTS** — `tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`
 (LIVE, foundation). 2 parametrized tests × 4 CASES `[(8,8,4,2,reflective),(8,8,4,2,vacuum),
 (12,7,6,2,reflective),(5,9,4,4,reflective)]` (≥2G + het random Σ_t + random inflow + NON-SQUARE
 12×7/5×9). Key assertions PASTED:
@@ -90,7 +90,7 @@ d≥2 opt) against the d-generic spine. Both share `DiamondDifference.cell_kerne
 **STUB STATE (both UNCOMMITTED, -O verified):** admission file = 6 passed + 26 xfailed
 (builder-gated via shared `_needs_spine = xfail(strict=False, not hasattr(...,'from_cartesian'))`);
 equivalence file = 2 passed (anchor + import guard) + 3 xfailed (spine rows). Whole
-`tests/sn/sweep/core/` = **401 passed, 1 skipped, 33 xfailed, 0 failed (6.1s, -O)** —
+`tests/gates/sn/sweep/core/` = **401 passed, 1 skipped, 33 xfailed, 0 failed (6.1s, -O)** —
 no regression. xfails FLIP to xpass automatically when `from_cartesian` lands.
 
 ⭐ **API SPELLINGS CONFIRMED LIVE (only adapters change if carve differs):** cumprod path
@@ -105,7 +105,7 @@ label=<d-tuple>)` (spine builder; only `from_cartesian_2d` exists at HEAD).
 
 **How to apply (the moat that already exists, branch `worktree-sn-nd-layout`):**
 
-- **The load-bearing d=2 oracle is `tests/sn/sweep/core/test_sweep_graph.py::
+- **The load-bearing d=2 oracle is `tests/gates/sn/sweep/core/test_sweep_graph.py::
   TestApplyMatchesLegacyInlined::test_per_cell_loop_equivalence`** — a
   STRUCTURALLY-INDEPENDENT hand-written per-ordinate Python loop
   (`_hand_run_legacy_inlined`) vs `graph.apply`, on NON-SQUARE (3,4)/(4,3),
@@ -145,7 +145,7 @@ f994a0c):** #206 cyl-matvec (27 xfailed in `test_unified_matvec_cylinder.py`),
 `sn_taxonomy_reorg_mapping` so sequential).
 
 **UNCOMMITTED stub written (for main-agent review):**
-`tests/sn/sweep/core/test_sweep_graph_nd_admission.py` — B1 octant count,
+`tests/gates/sn/sweep/core/test_sweep_graph_nd_admission.py` — B1 octant count,
 B2 d=3 build, B3 level count, B4 hyperplane membership+coverage, B5 3-axis
 kernel reduction, C non-square d=2 equivalence vs legacy. Wired to the ASSUMED
 C3 API `from_cartesian(shape, *, label=<sign-tuple>)` via 3 adapter helpers

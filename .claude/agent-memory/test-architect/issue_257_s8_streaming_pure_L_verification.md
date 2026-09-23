@@ -61,7 +61,7 @@ as the leaf instead of `loss_action−σ·ψ`.
 
 ## B. Legacy-pinning inventory (what currently pins `(L+C)−C` / σ-on-L / timed codomain)
 **BREAK BY DESIGN — re-baseline/migrate (the L20 retirement scope):**
-- ⭐ `tests/sn/operators/test_streaming_operator_decomposition.py` — THE file most
+- ⭐ `tests/gates/sn/operators/test_streaming_operator_decomposition.py` — THE file most
   affected. `TestResolutionADecomposition` (`(L+C).apply≡M` bit-exact) STAYS GREEN by
   construction (the composite still = M). But `TestSubtractiveDefinition` (pins
   `L.apply.bulk == M.bulk − σ_t·ψ.bulk` — the `(L+C)−C` subtractive form, `array_equal`)
@@ -143,7 +143,7 @@ as the leaf instead of `loss_action−σ·ψ`.
 
 ## D. L1/MMS structural backstop (must STAY GREEN — the real correctness ground)
 The composition change must NOT move the converged-to limit (anti-pattern #5). Exact paths:
-- `tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py` + `test_curvilinear_aniso_convergence.py`
+- `tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py` + `test_curvilinear_aniso_convergence.py`
   (`catches("ERR-026")`) — the curvilinear streaming closure MMS, the load-bearing
   redistribution backstop. ⭐ The streaming carve is closest to THIS math.
 - `test_mms_ld_slab.py`, `test_mms_ld_2d.py`, `test_mms.py`, `test_mms_aniso.py`,
@@ -202,7 +202,7 @@ S8a land bit-identical (a clean checkpoint) before the value-moving S8b.
 ## Route-around reds (baseline, NOT ours — every gate)
 `-k "not (sphere_1g_apply or sphere_2g_apply)"` (#250 5 stale SPHERE snapshots) + the
 #232 mu_y 2 + `--deselect …test_keff_slab::test_heterogeneous_absolute_keff` (#212 hang).
-NEVER run all `tests/sn` (#212). 7 baseline reds total; every stage keeps exactly these.
+NEVER run all `tests/gates/sn` (#212). 7 baseline reds total; every stage keeps exactly these.
 
 Extends [[issue-257-s3-multiplication-operator-verification]] (C=M[σ_t] promotion) +
 [[issue-257-s6-integral-kernel-category-verification]] (S/F as typed Kernels) +

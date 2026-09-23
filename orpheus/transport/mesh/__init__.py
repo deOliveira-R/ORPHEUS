@@ -10,7 +10,7 @@ data. :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
 mesh+materials carrier that every method-specific mesh subclasses (e.g.
 ``SNProblem(MaterialMesh)``) — lands here in the same campaign.
 
-Layer (per ``tests/test_layer_imports.py``): L2 ``transport``. These
+Layer (per ``tests/gates/test_layer_imports.py``): L2 ``transport``. These
 modules import only ``geometry`` / ``numerics`` / ``data`` (and sibling
 ``transport`` modules); they do NOT import any L3 method package — that
 is precisely what made the promotion possible.

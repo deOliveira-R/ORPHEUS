@@ -43,7 +43,7 @@ NOT an `AttributeError` deep in the sweep). Mutation-teeth: the same
 ## Hazard 2 — the VERBATIM move trips the layer-imports gate it is
 meant to SATISFY, via a TYPE_CHECKING import.
 
-`tests/test_layer_imports.py` parses runtime AST imports AND records
+`tests/gates/test_layer_imports.py` parses runtime AST imports AND records
 `TYPE_CHECKING` `ImportFrom` (it visits the TC block). Its TC-tolerance
 (`:148`) exempts ONLY source packages in `L1|L2` (`numerics`/
 `transport`). `geometry`/`data` are **INPUT** packages — **NOT
@@ -100,7 +100,7 @@ STRING that names the old module path — user-facing) must be
 grep-updated; Sphinx `-W` catches a ref that no longer RESOLVES but
 NOT one that resolves by coincidence, so the explicit grep is required
 alongside `-W`. Watch for a STALE test-path pointer in a docstring
-(here `tests/sn/test_boundary_realize.py` no longer exists; the tests
-are in `tests/geometry/test_law_composition.py`). When a concurrent
+(here `tests/gates/sn/test_boundary_realize.py` no longer exists; the tests
+are in `tests/gates/geometry/test_law_composition.py`). When a concurrent
 cleanup touches the SAME `__init__.py` seam, flag the one test file
 that imports across BOTH tendrils and run it only after both land.

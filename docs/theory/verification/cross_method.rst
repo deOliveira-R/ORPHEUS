@@ -37,21 +37,21 @@ copy-pasting ~50 lines across two files.
 
 The cross-method protocol fixes that. It defines:
 
-1. an abstract :class:`~tests.cross_method.protocol.CrossMethodCase`
+1. an abstract :class:`~tests.gates.cross_method.protocol.CrossMethodCase`
    that bundles a registry case (``La13511Case`` etc.) with
    per-solver tolerances, claim layer, and verification pillar;
-2. a :class:`~tests.cross_method.protocol.SolverAdapter` Protocol
+2. a :class:`~tests.gates.cross_method.protocol.SolverAdapter` Protocol
    that every solver wraps to (``solve(case) -> ScalarResult``);
-3. populated case sets in :mod:`tests.cross_method.cases` covering
+3. populated case sets in :mod:`tests.gates.cross_method.cases` covering
    bare-critical slab/sphere, reflected slab, and closed-sphere
    k_inf;
 4. parametrised test gates in
-   :mod:`tests.cross_method.test_eigenvalue` running every
+   :mod:`tests.gates.cross_method.test_eigenvalue` running every
    (case × adapter) pair plus pairwise agreement gates.
 
 Adding a new solver to the regression net is now ≤ 50 lines: write
 the adapter, register it in
-:data:`~tests.cross_method.adapters.ADAPTERS_BY_NAME`, opt the
+:data:`~tests.gates.cross_method.adapters.ADAPTERS_BY_NAME`, opt the
 relevant cases in via their ``tolerances`` map.
 
 V&V level mapping
@@ -67,8 +67,8 @@ proves *correctness*, not *agreement*.
 In practice the ORPHEUS test harness exposes L0..L3 + foundation as
 markers; L4 is not registered. The convention in shipped
 cross-method gates
-(:mod:`tests.derivations.test_fn_la13511_slab_xverif`,
-:mod:`tests.derivations.test_fn_la13511_sphere_xverif`) is to tag
+(:mod:`tests.gates.derivations.test_fn_la13511_slab_xverif`,
+:mod:`tests.gates.derivations.test_fn_la13511_sphere_xverif`) is to tag
 them as **L1** because:
 
 * each individual method is L1-verified against analytical truth in
@@ -104,7 +104,7 @@ pairwise agreement therefore CANNOT be tighter than the looser of
 the two without one method being calibrated against the other (the
 contamination mechanism).
 
-The :func:`~tests.cross_method.protocol.agreement_tolerance` helper
+The :func:`~tests.gates.cross_method.protocol.agreement_tolerance` helper
 implements this rule:
 
 .. code-block:: python
@@ -120,7 +120,7 @@ declares its tolerance at the conservative bound.
 Pillar tags — what each truth supports
 --------------------------------------
 
-Every :class:`~tests.cross_method.protocol.CrossMethodCase` carries
+Every :class:`~tests.gates.cross_method.protocol.CrossMethodCase` carries
 a ``pillar`` field per
 the ``vv-principles`` skill §"The three pillars of verification":
 
@@ -138,7 +138,7 @@ the ``vv-principles`` skill §"The three pillars of verification":
 * ``"ancillary"`` — RESERVED for L4-only references that don't
   back a pillar (e.g. another ORPHEUS solver). The protocol
   REJECTS ``ancillary`` truth values via a foundation gate
-  (:func:`tests.cross_method.test_eigenvalue.test_case_pillar_is_not_ancillary`)
+  (:func:`tests.gates.cross_method.test_eigenvalue.test_case_pillar_is_not_ancillary`)
   to prevent reference contamination.
 
 Truth traceability
@@ -172,7 +172,7 @@ families cover them, and what truth backs each — lives with the
 other cross-suite results at :ref:`verification-cross-method-coverage`.
 The live (case × adapter) matrix with current totals is printed by
 the
-:func:`~tests.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
+:func:`~tests.gates.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
 foundation gate on every run.
 
 Adding a new solver
@@ -182,7 +182,7 @@ A typical workflow for adding e.g. ``spectral_resolvent`` to the
 slab regression net:
 
 1. Write a ``SpectralResolventSlabAdapter`` dataclass in
-   :mod:`tests.cross_method.adapters`. Required attributes:
+   :mod:`tests.gates.cross_method.adapters`. Required attributes:
    ``name``, ``method``, ``geometry``. Required method:
    ``solve(case) -> ScalarResult``.
 
@@ -199,20 +199,20 @@ slab regression net:
    * returns a :class:`ScalarResult` with the right ``tag``.
 
 3. Register the adapter in
-   :data:`~tests.cross_method.adapters.ADAPTERS_BY_NAME`.
+   :data:`~tests.gates.cross_method.adapters.ADAPTERS_BY_NAME`.
 
 4. Opt cases in by adding the adapter name + tolerance to each
    case's ``tolerances`` mapping. The
-   :func:`tests.cross_method.test_eigenvalue.test_case_tolerance_adapters_exist`
+   :func:`tests.gates.cross_method.test_eigenvalue.test_case_tolerance_adapters_exist`
    foundation gate enforces consistency.
 
 5. Add a per-adapter ``test_*_matches_truth`` rule in
-   :mod:`tests.cross_method.test_eigenvalue` if you want a per-
+   :mod:`tests.gates.cross_method.test_eigenvalue` if you want a per-
    case truth gate.
 
 6. Optionally add pairwise agreement gates against existing
    adapters. Use
-   :func:`~tests.cross_method.protocol.agreement_tolerance` for
+   :func:`~tests.gates.cross_method.protocol.agreement_tolerance` for
    the tolerance.
 
 Adding a new case
@@ -247,7 +247,7 @@ lands and lifts the schema to the paper-agnostic ``PaperCase``, the
 seam.
 
 Until wave3 implementation begins, the cross-method protocol stays
-in :mod:`tests.cross_method` and uses the existing
+in :mod:`tests.gates.cross_method` and uses the existing
 :class:`La13511Case` as the case pointer.
 
 Multi-group cross-method coverage gap (acknowledged)
@@ -266,7 +266,7 @@ honestly:
   1G fixture; adding 2G/4G fixtures is the natural next extension.
 * **k_inf cases via fn_method's ``compute_kinf_*``** (1G/2G/mG
   closed forms) are tested in the per-method file
-  :mod:`tests.derivations.test_fn_la13511_kinf` against
+  :mod:`tests.gates.derivations.test_fn_la13511_kinf` against
   ``kinf_homogeneous`` (the structurally-independent companion
   identity). Those gates are L1; not duplicated in the cross-
   method protocol.

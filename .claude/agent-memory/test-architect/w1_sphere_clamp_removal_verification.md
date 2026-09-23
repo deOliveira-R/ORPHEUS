@@ -11,9 +11,9 @@ Eq.42/43, exact-on-linear-in-μ). CYLINDER `:760` KEEPS clamp (structural
 `τ_raw=0` ÷0 block). `tau_mm` single-sourced → SI sweep + Krylov matvec both
 inherit. Gate set DESIGNED + measured 2026-06-13 (temp-edit + REVERT; production
 left clamped for user to land). Files:
-`tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py` (Gates 1a/1b/4) +
+`tests/gates/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py` (Gates 1a/1b/4) +
 W1 section appended to
-`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py` (Gate 2).
+`tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py` (Gate 2).
 
 ## ⭐ TWO REFUTATIONS of `.claude/plans/curvilinear_aniso_pole_clamp_program.md`
 
@@ -83,7 +83,7 @@ sphere cases, two classes:
   Q: sphere_2g_p1_aniso does NOT meaningfully shift (it's flat).
 - **BIT-IDENTICAL (10)**: ALL non-sphere (slab/cyl/2D) — confirms W1 touches
   sphere closure ONLY. Regen command (user, on W1 build): `python -m
-  tests.sn.regression._generate_snapshots --case sphere_2g_3reg_dd_n40`.
+  tests.gates.sn.regression._generate_snapshots --case sphere_2g_3reg_dd_n40`.
 
 ## Reusable lessons
 

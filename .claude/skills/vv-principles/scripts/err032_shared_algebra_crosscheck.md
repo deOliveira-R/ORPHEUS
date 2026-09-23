@@ -42,5 +42,5 @@ structural independence is the canonical worked example here).
 
 **References.** ERR-032 in `error_catalog.md`; main agent
 lessons L11 (`docs/development/evidence/lessons.md#l11-structural-independence`; `vv-principles` #7); commit `2538cfe` (introduced); the row-sum L1
-test `tests/derivations/test_peierls_reference.py::TestSlabKernelRowSum`
+test `tests/gates/derivations/test_peierls_reference.py::TestSlabKernelRowSum`
 (`@pytest.mark.catches("ERR-032")`).

@@ -165,7 +165,7 @@ def _build_continuous_registry() -> tuple[
     So the walk stays and its three silent failure modes are closed
     instead. Each was silent because the walk's *aggregate output* was
     never a declared artifact; the gate in
-    ``tests/derivations/test_continuous_registry_lazy.py`` makes it one.
+    ``tests/gates/derivations/test_continuous_registry_lazy.py`` makes it one.
     """
     import importlib
     import pkgutil

@@ -33,7 +33,7 @@ owes; then the two boundary cases.
 
 **C. Migration — a retirement that only deletes loses coverage.**
 
-12. **Test migration.** Behavioral test (correctness contract): rewire to the successor. API-smoke test: delete. Characterization test: keep under `tests/<module>/characterization/`. check: `grep -rn "<symbol>" tests/`. tell: a delete-only diff.
+12. **Test migration.** Behavioral test (correctness contract): rewire to the successor. API-smoke test: delete. Characterization test: keep under `tests/gates/<module>/characterization/`. check: `grep -rn "<symbol>" tests/`. tell: a delete-only diff.
 13. **Marker migration.** A retired test takes its `catches(...)` / `verifies(...)` markers with it; re-tag the successor asserting the same invariant. check: grep the catalog and the `tests/_harness` registry with the code grep. tell: the catalog names a dead test class; the audit reads "MISSING".
 
 **D. What a retirement silently does to the surviving gates.**

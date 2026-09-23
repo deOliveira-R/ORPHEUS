@@ -24,7 +24,7 @@ agreement.
   Local PDF in `scratch/literature/`.
 * **Garcia, R.D.M. et al. (2021).** Multi-region sphere P_N. The
   primary truth set ORPHEUS already cross-checks against in
-  `tests/derivations/test_trajectory_resolvent_garcia2021.py`.
+  `tests/gates/derivations/test_trajectory_resolvent_garcia2021.py`.
   Local PDF in `scratch/literature/`.
 * **Davison, B. (1957).** *Neutron Transport Theory*. Oxford, chs 9–11.
   The textbook foundational reference for the P_N method.

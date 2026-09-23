@@ -38,7 +38,7 @@ Key Facts
   .. (vv-status rationale) The addition-theorem identity is the
      load-bearing structural identity that the convention is
      designed to make literal. Verified at :math:`\ell \le 3` by
-     ``tests/sn/operators/test_solver_components.py::TestAnisotropicScattering
+     ``tests/gates/sn/operators/test_solver_components.py::TestAnisotropicScattering
      ::test_spherical_harmonics_addition_theorem_L3``.
   .. vv-status: real-sh-addition-theorem documented
 
@@ -116,7 +116,7 @@ in the form
    reconstruction with the (2ℓ+1) factor outside the basis (Bell & Glasstone
    1970 §1.6; Lewis & Miller 1993 §4.7). The reconstruction face R it defines is
    pinned by the R∘Λ∘M kernel crosscheck
-   (``tests/sn/operators/test_scattering_kernel_crosscheck.py``) and
+   (``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``) and
    :eq:`sh-addition-theorem-reconstruction`. A convention definition, not a
    solver claim.
 .. vv-status: sh-pl-scattering-reconstruction documented
@@ -178,7 +178,7 @@ The anisotropic scattering source is the integral operator
    anisotropic scattering integral operator (a zonal kernel on S²), the same
    operator as frame.rst :eq:`scattering-zonal-kernel`. Its implementing kernel
    R∘Λ∘M is pinned by the 0-ULP crosscheck
-   ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. A definition,
+   ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``. A definition,
    not a solver claim.
 .. vv-status: sh-aniso-scattering-operator documented
 
@@ -382,7 +382,7 @@ it is not tight at all (`[M]` 2026-09-22,
 ``scratch/_definitions/tightness_probe2.py``;
 :ref:`frame-sh-tightness-measured`). The identity itself is verified at :math:`L=2,\,3,\,4` against
 Lebedev quadratures of order :math:`7,\,13,\,17` by the L1 test
-``tests/numerics/test_spherical_harmonic_space.py``.
+``tests/gates/numerics/test_spherical_harmonic_space.py``.
 
 
 The four operators ERR-039 originally conflated
@@ -767,7 +767,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    orbit space :math:`S^2/O(2)_x`, and the surviving harmonics are that
    quotient's **trivial isotypic component**
    :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. `[M]` the gate
-   ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
+   ``tests/gates/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
    went from three ``xfail(strict=True)`` rows to green, and
    :math:`P_{\ge 2}` scattering on a 1-D chart returns the analytic
    answer at every order (:ref:`sh-legendre-is-the-1d-family`).
@@ -789,8 +789,8 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    space admits.
 
 These identities are pinned by
-``tests/numerics/test_spherical_harmonic_space.py`` and
-``tests/numerics/test_frame.py`` (the
+``tests/gates/numerics/test_spherical_harmonic_space.py`` and
+``tests/gates/numerics/test_frame.py`` (the
 ``@pytest.mark.catches("ERR-039")`` suites; the Parseval-metric arm is
 the ``test_parseval_*`` family, including the loaded-not-blind
 negative leg that re-installs the pre-F-0 continuum metric in-process
@@ -803,10 +803,10 @@ and measures the ratio it produces).
    Each is nevertheless pinned by a live L1 gate against an independent
    closed-form einsum — ``test_T_carries_w_n_and_H_carries_the_parseval_metric``
    and ``test_H_equals_parseval_metric_times_S0`` in
-   ``tests/numerics/test_spherical_harmonic_space.py``, plus
+   ``tests/gates/numerics/test_spherical_harmonic_space.py``, plus
    ``test_parseval_frame_square_closes`` (6 sphere families) and
    ``test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces`` in
-   ``tests/numerics/test_frame.py``.
+   ``tests/gates/numerics/test_frame.py``.
 .. vv-status: hilbert-adjoint-equals-metric-times-S0 documented
 .. vv-status: moment-projection-transpose-T documented
 
@@ -1225,7 +1225,7 @@ the SN ordinate axis layout. Two issues drove the lift to
 
 The lift was a pure rename + module relocation; the implementation
 is bit-identical to the legacy code (regression snapshots at
-``tests/sn/regression/snapshots/`` survive unchanged).
+``tests/gates/sn/regression/snapshots/`` survive unchanged).
 
 
 References

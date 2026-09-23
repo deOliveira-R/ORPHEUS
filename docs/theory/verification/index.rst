@@ -46,12 +46,13 @@ The chapters
    * - :doc:`principles`
      - The evidence doctrine: verification vs validation,
        structural independence, the claim-layer taxonomy, the
-       normative L0–L3 ladder (+ foundation + the L4 ruling), the
-       three reference pillars, how the classification systems
+       normative L0–L3 ladder (+ foundation + the L4 ruling), where
+       each case lives (``tests/`` by regimen), the three reference
+       pillars, how the classification systems
        relate, the retired-Richardson record, the failure-mode
        catalogue, and the error-catalog contract.
      - Designing a verification strategy; judging what evidence a
-       claim needs and what a reference can prove.
+       claim needs and what a reference can prove; placing a new case.
    * - :doc:`harness`
      - The test-harness contract: the ladder definition table,
        marker conventions, the tagging-precedence chain, the audit

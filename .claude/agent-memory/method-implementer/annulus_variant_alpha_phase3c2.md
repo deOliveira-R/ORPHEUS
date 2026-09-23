@@ -19,9 +19,9 @@ memo`.
 - `orpheus/derivations/continuous/peierls_greens_function/greens_function_annulus.py`
   (Branch-2 production: `solve_greens_function_annulus`,
   `solve_greens_function_annulus_mg`)
-- `tests/derivations/test_peierls_greens_function_annulus_symbolic.py`
+- `tests/gates/derivations/test_peierls_greens_function_annulus_symbolic.py`
   (22 foundation-tagged SymPy gates)
-- `tests/derivations/test_peierls_greens_function_annulus_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_annulus_solver.py`
   (11 L1-tagged solver gates)
 - `.claude/agent-memory/method-implementer/annulus_variant_alpha_phase3c2.md`
   (this file)

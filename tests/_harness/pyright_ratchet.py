@@ -10,7 +10,7 @@ module is the single source for both sides of that contract:
   ``orpheus`` subpackage (the burn-down axis from the issue).
 - ``python -m tests._harness.pyright_ratchet --update`` — regenerate
   the checked-in baseline after an intentional improvement.
-- ``tests/test_pyright_ratchet.py`` — compare live counts against the
+- ``tests/gates/test_pyright_ratchet.py`` — compare live counts against the
   baseline (both directions: increase = regression, decrease =
   baseline must be tightened so the ratchet stays taut).
 

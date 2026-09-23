@@ -17,9 +17,9 @@ Branch: `feature/peierls-greens-cylinder`. Predecessor commit:
 - `orpheus/derivations/continuous/peierls_greens_function/greens_function_hollow_sphere.py`
   (Branch-2 production: `solve_greens_function_hollow_sphere`,
   `solve_greens_function_hollow_sphere_mg`)
-- `tests/derivations/test_peierls_greens_function_hollow_sphere_symbolic.py`
+- `tests/gates/derivations/test_peierls_greens_function_hollow_sphere_symbolic.py`
   (18 foundation-tagged SymPy gates)
-- `tests/derivations/test_peierls_greens_function_hollow_sphere_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_hollow_sphere_solver.py`
   (11 L1-tagged solver gates)
 - `.claude/agent-memory/method-implementer/hollow_sphere_variant_alpha_phase3c1.md`
   (this file)

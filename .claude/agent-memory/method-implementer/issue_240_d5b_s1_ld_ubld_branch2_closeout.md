@@ -35,7 +35,7 @@ ONE source of truth, plus the collapse of the three production 1-D LD views
    - `_schur_terms` (×V per-cell) → `cf.schur_xV(h, s_bar, s_hat, psi_in)`.
    - `_kernel_terms` (÷V DAG kernel) → `cf.eff_denom`, `cf.kernel_rhs`, `cf.w`.
    - `affine_scan_coefficients` (×V scan) → `cf.scan_xV(V_full)`.
-3. **NEW Branch-2 gate:** `tests/sn/spatial/test_ld_ubld_primitive.py` — 10
+3. **NEW Branch-2 gate:** `tests/gates/sn/spatial/test_ld_ubld_primitive.py` — 10
    `@pytest.mark.foundation` tests, `-O`-safe (`np.testing` / `pytest.fail`,
    the `_require` helper; NO bare assert — Mode 8). Three groups:
    - `TestPrimitiveMatchesSymbolic` (4): numpy d=1 A/M/G/F_out == symbolic
@@ -77,7 +77,7 @@ streaming-over-volume. Every view's coefficients are an algebraic function of
 
 Single-sourcing means ONE reduction tree; the three views used DIFFERENT
 reduction trees before, so re-baselining ≥2 of them is INHERENT. The decision:
-- **The strict gate `tests/sn/sweep/core tests/sn/solve` carries NO LD
+- **The strict gate `tests/gates/sn/sweep/core tests/gates/sn/solve` carries NO LD
   numerical golden** — its LD items are STRUCTURAL only (routing / trait probes
   / "refuses 2d LD"); its numerical snapshots are DD-only = the BIT-IDENTICAL
   NEGATIVE CONTROL. It stayed `513 passed / 1 skipped / 4 xfailed` pre==post

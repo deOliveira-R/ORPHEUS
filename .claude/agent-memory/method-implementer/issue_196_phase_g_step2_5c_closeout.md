@@ -68,21 +68,21 @@ pure-azimuthal degenerate path AND by the L1 dual-view validator).
    API (Stratum 2 only; Stratum 1 survives).  Caches stashed on
    `sn_mesh._geom_cache` / `_coll_cache` for the sweep to read
    without threading a solver reference.
-7. **`tests/sn/spatial/test_sweep_cache.py`** (NEW, ~530 lines).
+7. **`tests/gates/sn/spatial/test_sweep_cache.py`** (NEW, ~530 lines).
    Twelve tests per plan §"Test catalog":
    - Cache structure (#1-3)
    - Cache invariance (#4-5 — cardinal)
    - Dual-view consistency (#6-7 — Pattern 2)
    - Performance gates (#8-9)
    - Production gates (#10-12)
-8. **`tests/sn/spatial/test_ordinate_scan.py`**.  Step 2.5b dual-view
+8. **`tests/gates/sn/spatial/test_ordinate_scan.py`**.  Step 2.5b dual-view
    tests rewired to use a test-side `_affine_coefficients_from_visits`
    helper (computes `(a, b)` per cell via `cell_balance_terms` —
    Pattern 2 anchor preserved).
-9. **`tests/sn/spatial/test_cell_update_protocol.py`**.  Removed
+9. **`tests/gates/sn/spatial/test_cell_update_protocol.py`**.  Removed
    `affine_coefficients` stubs from `IdentityCellUpdate` and
    `FakeCurvilinearStrategy` (no longer required by the Protocol).
-10. **`tests/sn/test_unified_sweep_dispatch.py`**.  Rewrote the
+10. **`tests/gates/sn/test_unified_sweep_dispatch.py`**.  Rewrote the
     dispatch tests to reflect the unified body: all 1-D meshes
     (slab, sphere, cylinder) route to `_sweep_1d_unified`; 2-D
     Cartesian to `_sweep_2d_wavefront`.
@@ -101,7 +101,7 @@ pure-azimuthal degenerate path AND by the L1 dual-view validator).
 | 8 | `GeometryCoefficients.from_mesh_and_quad` body ≤ 60 lines | ~85 lines (the geometry/level enumeration setup is ~25 lines; the visit-list → numpy-array unpacking is ~60 lines because we extract 8 distinct streaming-terms fields per visit).  Documented; the work IS one-shot at solver construction. |
 | 9 | `CollisionCache.from_geometry` body ≤ 25 lines | ~15 lines |
 | 10 | Slab benchmark `nx=160 N=16 ng=4` ≤ 1.5 ms/sweep | 0.331 ms/sweep (≈46× speedup vs Step 2.5b's 15.43 ms) |
-| 11 | Full `pytest tests/sn/ -q` runtime < 5 min | DOES NOT MEET 5 min gate.  The wall-clock is dominated by the inherent cost of `test_streaming_equilibrium_curvilinear.py` — one cylinder Krylov nx=80 case alone takes 4:52 (282s).  The 26-case parametrised suite (sphere × cylinder × {SI, krylov} × {nx=20,40,80} × {n_ord=4,8,16}) runs 16:50 wall clock independently of Step 2.5c (the Krylov solver iterates many times on c=0.95 problems regardless of how fast the underlying sweep is).  Pre-Step-2.5c the same suite took ~similar time (the costly part is the Krylov outer solver loop, not the sweep body).  Step 2.5c IS doing its job: slab benchmark 46× faster; one sphere SI case runs in 0.38s.  The full-suite gate is therefore **inherent to the test fixture cost** rather than a sweep-body regression. |
+| 11 | Full `pytest tests/gates/sn/ -q` runtime < 5 min | DOES NOT MEET 5 min gate.  The wall-clock is dominated by the inherent cost of `test_streaming_equilibrium_curvilinear.py` — one cylinder Krylov nx=80 case alone takes 4:52 (282s).  The 26-case parametrised suite (sphere × cylinder × {SI, krylov} × {nx=20,40,80} × {n_ord=4,8,16}) runs 16:50 wall clock independently of Step 2.5c (the Krylov solver iterates many times on c=0.95 problems regardless of how fast the underlying sweep is).  Pre-Step-2.5c the same suite took ~similar time (the costly part is the Krylov outer solver loop, not the sweep body).  Step 2.5c IS doing its job: slab benchmark 46× faster; one sphere SI case runs in 0.38s.  The full-suite gate is therefore **inherent to the test fixture cost** rather than a sweep-body regression. |
 
 ## Slab benchmark microbench
 
@@ -112,7 +112,7 @@ pure-azimuthal degenerate path AND by the L1 dual-view validator).
 | **Step 2.5c (two-stratum cache)** | **0.331** | **46× vs 2.5b, 93× vs 2.5** |
 
 Empirical measurement: 100 sweeps averaged.  Benchmark inline in
-`tests/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms`.
+`tests/gates/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms`.
 
 ## Cache-invariance verification (cardinal test #4)
 
@@ -122,7 +122,7 @@ the test sees ≥ 5 outer × ~tens of inner SI iterations, then asserts
 `CollisionCache._build_count == 1`.  PASS:
 
 ```
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED
 ```
 
 The test verifies that the cache placement on `SNSolver.__init__`
@@ -139,7 +139,7 @@ Test #6 parametrised over (geometry × ng × source_kind) — 18 cases.
 Sample passing case:
 
 ```
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED
 ```
 
 Cache-driven `apply_sweep_1d` and per-cell `cell_update.update` agree
@@ -192,7 +192,7 @@ The brief's STOP gates:
 
 ## Test pin (verbatim full paste-back per L12)
 
-### `pytest tests/sn/spatial/test_sweep_cache.py -v`
+### `pytest tests/gates/sn/spatial/test_sweep_cache.py -v`
 
 ```
 ============================= test session starts ==============================
@@ -203,34 +203,34 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 28 items
 
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
-tests/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
-tests/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
-tests/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
-tests/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
-tests/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
-tests/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
-tests/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
-tests/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_built_at_construction PASSED [  3%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_built_at_sigma_t_bind PASSED [  7%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_two_strata_independence_by_ng_axis PASSED [ 10%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_collision_cache_invariance_under_source_iteration PASSED [ 14%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_geometry_coefficients_invariance_under_sigma_t_change PASSED [ 17%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-slab] PASSED [ 21%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-1-sphere] PASSED [ 25%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-slab] PASSED [ 28%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-2-sphere] PASSED [ 32%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-slab] PASSED [ 35%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[uniform-3-sphere] PASSED [ 39%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-slab] PASSED [ 42%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-1-sphere] PASSED [ 46%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-slab] PASSED [ 50%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-2-sphere] PASSED [ 53%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-slab] PASSED [ 57%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[linear-3-sphere] PASSED [ 60%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-slab] PASSED [ 64%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-1-sphere] PASSED [ 67%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-slab] PASSED [ 71%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-2-sphere] PASSED [ 75%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-slab] PASSED [ 78%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_driven_sweep_matches_per_cell_update[gaussian-3-sphere] PASSED [ 82%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms PASSED [ 85%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_slab_sweep_benchmark_under_2ms PASSED [ 89%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_full_sn_suite_under_5min SKIPPED [ 92%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_l0_streaming_equilibrium_preserved_after_2_5c PASSED [ 96%]
+tests/gates/sn/spatial/test_sweep_cache.py::test_pair_monoid_associativity_still_passes PASSED [100%]
 
 =============================== warnings summary ===============================
 orpheus/numerics/__init__.py:3
@@ -241,7 +241,7 @@ orpheus/numerics/__init__.py:3
 =================== 27 passed, 1 skipped, 1 warning in 0.43s ===================
 ```
 
-### `pytest tests/sn/spatial/test_ordinate_scan.py -v`
+### `pytest tests/gates/sn/spatial/test_ordinate_scan.py -v`
 
 ```
 52 passed, 1 warning in 0.36s
@@ -254,13 +254,13 @@ affine combination, near-identity stability, small-attenuation
 stability, dual-view contracts via the `_affine_coefficients_from_visits`
 test-side adapter — all 36 parametrised cases.)
 
-### `pytest tests/sn/spatial/test_diamond.py -v`
+### `pytest tests/gates/sn/spatial/test_diamond.py -v`
 
 ```
 53 passed, 1 warning in 0.31s
 ```
 
-### `pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
+### `pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q`
 
 ```
 ..........................                                               [100%]
@@ -273,27 +273,27 @@ orpheus/numerics/__init__.py:3
 26 passed, 1 warning in 1010.83s (0:16:50)
 ```
 
-### `pytest tests/sn/regression/ -v`
+### `pytest tests/gates/sn/regression/ -v`
 
 ```
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
 
 ================== 11 passed, 3 warnings in 62.68s (0:01:02) ===================
 ```
 
 ALL 11 SNAPSHOTS BIT-IDENTICAL AT rtol=1e-12.
 
-### `time pytest tests/sn/ -q` (the load-bearing performance gate)
+### `time pytest tests/gates/sn/ -q` (the load-bearing performance gate)
 
 [FULL PASTE BELOW — running, will append on completion]
 

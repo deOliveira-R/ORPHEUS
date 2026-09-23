@@ -105,7 +105,7 @@ used by the test harness (see :doc:`/theory/verification/harness`).
 Test suite
 ==========
 
-The CP test tree (``tests/cp/``) verifies the implementation against
+The CP test tree (``tests/gates/cp/``) verifies the implementation against
 analytical eigenvalues computed independently by the derivation
 modules; the auto-generated :doc:`matrix` carries the current
 per-module test counts.
@@ -137,15 +137,15 @@ Eigenvalue Verification Cases
      - Derivation
    * - Slab (:math:`E_3`)
      - :math:`< 10^{-6}`
-     - ``tests/cp/test_slab.py``
+     - ``tests/gates/cp/test_slab.py``
      - ``orpheus/derivations/continuous/flat_source_cp/slab.py``
    * - Cylinder (:math:`\text{Ki}_4`)
      - :math:`< 10^{-5}`
-     - ``tests/cp/test_cylinder.py``
+     - ``tests/gates/cp/test_cylinder.py``
      - ``orpheus/derivations/continuous/flat_source_cp/cylinder.py``
    * - Sphere (:math:`e^{-\tau}`)
      - :math:`< 10^{-5}`
-     - ``tests/cp/test_sphere.py``
+     - ``tests/gates/cp/test_sphere.py``
      - ``orpheus/derivations/continuous/flat_source_cp/sphere.py``
 
 Historically, the cylinder/sphere tolerances were 10× looser
@@ -160,12 +160,12 @@ absolute accuracy; the declared ``< 1e-5`` tolerance is now
 (~:math:`10^{-7}`, same kernel on both sides).  See
 :ref:`ki-table-construction` for the full postmortem.  The old
 convergence-with-table-size regression
-``tests/cp/test_verification.py::TestKi4Resolution`` was replaced by
+``tests/gates/cp/test_verification.py::TestKi4Resolution`` was replaced by
 ``test_ki3_kernel_is_insensitive_to_n_ki_table``: ``n_ki_table``
 is now a no-op and ``keff`` is bit-identical across
 ``{5000, 20000, 40000}``.
 
-Additionally, **algebraic property tests** (``tests/cp/test_properties.py``)
+Additionally, **algebraic property tests** (``tests/gates/cp/test_properties.py``)
 are run for all three coordinate systems:
 
 - **Row sums** :math:`= 1` (neutron conservation)
@@ -177,7 +177,7 @@ are run for all three coordinate systems:
 Extended Verification (CP-20260405-005)
 ---------------------------------------
 
-31 additional tests in ``tests/cp/test_verification.py`` closing 9 QA gaps:
+31 additional tests in ``tests/gates/cp/test_verification.py`` closing 9 QA gaps:
 
 - **L0 P_inf comparison** (G-1): element-by-element solver vs derivation
   (tolerance :math:`< 10^{-10}`)
@@ -194,8 +194,8 @@ Extended Verification (CP-20260405-005)
   no-self-scatter in 1; GS/Jacobi eigenvalue agreement
 - **Ki4 table resolution** (W-6): diminishing returns from 5k to 40k points
 
-Plus 36 diagnostic tests in ``tests/cp/test_diagnostics.py``.
+Plus 36 diagnostic tests in ``tests/gates/cp/test_diagnostics.py``.
 
 ::
 
-   pytest tests/cp/ -v
+   pytest tests/gates/cp/ -v

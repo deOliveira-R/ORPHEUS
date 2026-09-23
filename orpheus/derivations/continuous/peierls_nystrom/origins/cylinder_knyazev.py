@@ -74,7 +74,7 @@ The shipped primitives live in :mod:`peierls_geometry` as
 :func:`compute_P_esc_cylinder_3d_mode` and
 :func:`compute_G_bc_cylinder_3d_mode`. They are pinned to this
 SymPy origin by
-``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``
+``tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py``
 which numerically verifies the polar integral identity
 (:eq:`peierls-cyl-knyazev-polar-id`) and bit-equates the production
 output with the lambdified symbolic expansion.

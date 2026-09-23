@@ -214,7 +214,7 @@ the τ trichotomy is now a gated THEOREM per family, not the predicate.
 load-bearing (default argsort agrees with stable below 24 — small arrays fall
 to insertion sort). The "decided by rounding noise" premise is DEAD (ties are
 exact post-E3). (iii) `_XFAIL_326` = 3 strict rows in
-`tests/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (full product
+`tests/gates/sn/sweep/curvilinear/test_azimuthal_mirror_symmetry.py` (full product
 hom/het + LS4; a NON-xfailed reachability sibling pins defect ∈ (1e-13, 2.0]).
 (iv) LS keeps a BARE argsort (`rules_sphere.py`, exact 4-to-1 ties, no gate);
 the plan's ruling resolves LS-cylinder by MIGRATION to `folded_product` at the

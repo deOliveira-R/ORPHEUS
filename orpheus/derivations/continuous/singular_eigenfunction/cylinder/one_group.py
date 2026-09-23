@@ -128,7 +128,7 @@ Wall-clock timings on a typical container CPU:
 2.00         0.668613               0.6686131 (8e-8 rel)    ≤ 0.1 s
 ==========   ===================   =====================   ================
 
-(See ``tests/derivations/test_singular_eigenfunction_cylinder.py``
+(See ``tests/gates/derivations/test_singular_eigenfunction_cylinder.py``
 ``test_wm72_table_ii_six_configurations`` for the full pinning.)
 
 """

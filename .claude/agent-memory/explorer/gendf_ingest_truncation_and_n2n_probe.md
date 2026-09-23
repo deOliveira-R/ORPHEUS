@@ -21,7 +21,7 @@ across channels; the honest ℓ=1,2-only arm needs no elastic re-read, the ℓ�
 **`load_isotope` never touches the tape.** It reads `micro_xs/<name>.h5`, which stores only
 what `Isotope` holds. Tape-only data comes from `_parse_gendf(_GXS_DIR/"X.GXS")` (~2 s,
 275k cards for Be-9) + `_extract_mf6(mt, temp_idx, m)` → `(ifrom, ito, {(ℓ, iσ₀): vals})`,
-1-based NJOY thermal-first indices; `tests/data/test_n2n_yield_convention.py` is the
+1-based NJOY thermal-first indices; `tests/gates/data/test_n2n_yield_convention.py` is the
 worked example of driving these privately.
 
 **Two silent traps for anyone augmenting `Mixture.SigS`:**

@@ -424,7 +424,7 @@ class FrameBase(ABC):
         closes with one scalar (`[M]` closure ≤1e-15 across every shipped
         sphere family; the pre-F-0 stored continuum metric was the WRONG
         side — off the physical adjoint by exactly :math:`(4\pi/(2\ell+1))^2`
-        per ℓ. Live witnesses: ``tests/numerics/test_frame.py``'s
+        per ℓ. Live witnesses: ``tests/gates/numerics/test_frame.py``'s
         ``test_parseval_*`` suite, whose negative leg re-installs the
         pre-repair metric in-process; discovery record
         ``scratch/probe_f1_parseval.py`` — note the probe reads the frame's
@@ -878,7 +878,7 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
 
     Both operators are constructed together at this one site (the
     two-inductions clause); the tightness gate
-    (``tests/numerics/test_axis_marginal.py``) pins the minted kernels
+    (``tests/gates/numerics/test_axis_marginal.py``) pins the minted kernels
     against the literal frame's face contents, and the gram-derivation
     gate pins the divisor against :attr:`FrameBase.discrete_gram`.
 

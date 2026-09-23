@@ -981,7 +981,7 @@ class StreamingCollisionOperator(
         # ── The outflow defect rows of the rhs (ERR-071) ──────────────
         # The forward's outflow-trace row is the DEFECT ``streamed −
         # ψ_out`` (sign pinned by the round-trip identity gate,
-        # ``tests/sn/operators/test_sweep_inverse_identity.py``), so
+        # ``tests/gates/sn/operators/test_sweep_inverse_identity.py``), so
         # the EXACT inverse emits ``ψ_out = streamed − rhs_out``.  The
         # march writes ``streamed`` into the buffer's outflow slots —
         # clobbering the seeded rhs copy — so the rhs's outflow-row

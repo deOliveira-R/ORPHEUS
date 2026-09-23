@@ -11,7 +11,7 @@ metadata:
 `transport_operator_matvec_cylindrical` and `solution_to_angular_flux_cylindrical`
 no longer exist in `orpheus/sn/operator.py` (unified WDD matvec landed).
 ERR-049 (Signature 1) is in `tests/l0_error_catalog.md`; the promoted gate is
-`tests/sn/test_unified_matvec_cylinder.py` (curvilinear subtree). The remaining
+`tests/gates/sn/test_unified_matvec_cylinder.py` (curvilinear subtree). The remaining
 cylinder matvec/sweep-unification work is **Issue #206** (open: "Unify
 matvec/sweep WDD recurrence machinery — single source of truth for denom/a/b";
 `test_unified_cylinder_matches_hand_reference` is its known-bad). This note keeps

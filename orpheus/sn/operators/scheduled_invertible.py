@@ -254,7 +254,7 @@ class ScheduledInvertibleOperator(
         value-guard is placed here (a threshold would be arbitrary and an
         exact-zero test rejects legitimate FP-dust round-trips); the
         honest-scope witness is the W2 off-domain characterization pin
-        (``tests/sn/solve/test_gauss_seidel_reification.py``), and the
+        (``tests/gates/sn/solve/test_gauss_seidel_reification.py``), and the
         production catcher for a future off-domain consumer is the
         end-of-solve certificate that caught ERR-071 itself.  The bare
         :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` sweep

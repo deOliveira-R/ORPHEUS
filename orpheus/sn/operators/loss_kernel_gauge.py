@@ -572,7 +572,7 @@ def predicted_kernel_dimension(problem: "SNProblem") -> int:
     the combinatorics of §3 and returns an integer, while the gauge walks the
     generators and takes an SVD.  Agreement between them is evidence that
     neither has a bookkeeping error; it is what
-    :func:`~tests.sn.operators.test_loss_kernel_gauge` asserts in place of the
+    :func:`~tests.gates.sn.operators.test_loss_kernel_gauge` asserts in place of the
     dense SVD at sizes where the dense SVD is not viable.
 
     Counts the **R** component only, matching :class:`LossKernelGauge`'s scope —

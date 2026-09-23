@@ -27,9 +27,9 @@ r_c = 2.4248249802 mfp (c = 1.30) at ≤ 1e-5.
   (Branch-1 SymPy, 5 derive_*() functions).
 - `orpheus/derivations/continuous/fn_method/sphere/one_group.py`
   (REWRITTEN — was PS-1982 wrapper, now true F_N).
-- `tests/derivations/test_fn_la13511_sphere.py` (REWRITTEN — was 4
+- `tests/gates/derivations/test_fn_la13511_sphere.py` (REWRITTEN — was 4
   SymPy gates + 1 slow Sood gate; now 11 foundation tests).
-- `tests/derivations/test_fn_la13511_sphere_xverif.py` (REWRITTEN —
+- `tests/gates/derivations/test_fn_la13511_sphere_xverif.py` (REWRITTEN —
   was 1 PS-1982/Variant α weak cross-check; now 3 L1 cross-checks).
 
 ### Modified

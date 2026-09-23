@@ -54,7 +54,7 @@ outward; 99.9 % of the effect is Be-9's; the ladder converges by
 §sn-n2n-p0-truncation. That measurement is what retired the twin: the
 two terms are now two instances of one binding, and this module is the
 role — its channel constant, its P0 binding and its name, no code (an
-AST gate, ``tests/transport/test_transfer_roles.py``, keeps it so).
+AST gate, ``tests/gates/transport/test_transfer_roles.py``, keeps it so).
 
 The action is the core's, on the composite ``FullField`` of the
 binding's own domain (bulk emission; zero trace), through the body the

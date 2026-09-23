@@ -156,7 +156,7 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     tidier to read and is exactly wrong: :class:`SpecularReemission` already
     carries ``is_adjointable``, so the extra member would make it satisfy
     :class:`BoundaryGeometryMap` structurally — collapsing the tier
-    disjointness that ``tests/geometry/test_boundary_factors.py`` asserts
+    disjointness that ``tests/gates/geometry/test_boundary_factors.py`` asserts
     precisely to stop a response from posing as a geometry. That test is the
     guard against the very conflation this campaign corrected, and a
     convenience member is not worth disarming it.
@@ -276,7 +276,7 @@ class SNBoundaryOperator(LinearOperator):
 
     Since **B3.4c** the factor tier and the realized operator agree on that
     question, and a registry-wide gate holds them together
-    (``tests/geometry/test_bc_universal_invariants.py``). They had drifted:
+    (``tests/gates/geometry/test_bc_universal_invariants.py``). They had drifted:
     ``SpatialWrap.is_adjointable`` declared ``False`` while the operator
     realizing periodic answered ``True``, so a consumer got opposite answers
     depending on which it asked — the declaration was reporting an unbuilt
@@ -1160,7 +1160,7 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         retired it with 0 production callers: it is this verb through the
         Jacobi split's ``upper`` half (every inflow row of every face) after
         zeroing the inflow rows, which is how the sweep-tier gates' helper
-        ``tests/sn/_test_helpers.py::reflect_outflow_into_inflow`` spells it
+        ``tests/gates/sn/_test_helpers.py::reflect_outflow_into_inflow`` spells it
         (`[M]` bit-identical to the retired assignment on 4/4 geometries).
         """
         faces = tuple(faces)

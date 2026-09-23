@@ -48,7 +48,7 @@ gated on R1+R2 bedding-in.
   Variant α. Footnote citations to Birkhoff 1927, Sinai 1970,
   Chernov-Markarian 2006.
 - 15 foundation tests at
-  `tests/derivations/test_trajectory_resolvent_billiard.py`. Pin
+  `tests/gates/derivations/test_trajectory_resolvent_billiard.py`. Pin
   `float.hex` equality of every `k_eff` and `np.array_equal` of
   every `psi`/`phi` across all 6 geometries × {1G, MG} +
   sphere_mr + fixed-source.
@@ -196,7 +196,7 @@ Commit 1:
 - MOD `orpheus/derivations/continuous/trajectory_resolvent/__init__.py`
   (export Billiard, CriticalSolution, FluxSolution)
 - MOD `docs/theory/trajectory_resolvent.rst` (+390 lines new theory)
-- NEW `tests/derivations/test_trajectory_resolvent_billiard.py` (15 tests)
+- NEW `tests/gates/derivations/test_trajectory_resolvent_billiard.py` (15 tests)
 
 Commit 2:
 - MOD `orpheus/derivations/continuous/peierls_nystrom/geometry.py`

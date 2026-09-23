@@ -130,7 +130,7 @@ architectural cleanup landed).
   smaller).
 
 ### Phase 5 — L14 verification gates + closeout (this phase)
-- `tests/sn/test_b1pp_verification.py` added — 12 tests (L0 + L1)
+- `tests/gates/sn/test_b1pp_verification.py` added — 12 tests (L0 + L1)
   verifying B1'' correctness directly through the (L+C) operator
   algebra: full-rank, well-conditioned, GMRES convergence at
   FP-noise, constant-flux → σ_t collapse, decode↔encode roundtrip.
@@ -143,7 +143,7 @@ architectural cleanup landed).
 ### Direct B1'' L1 gate (Phase 5 — new)
 
 ```
-tests/sn/test_b1pp_verification.py — 12 passed
+tests/gates/sn/test_b1pp_verification.py — 12 passed
 ```
 
 - ``test_b1pp_lplusc_is_full_rank[cylinder/sphere/slab]`` — dense
@@ -163,14 +163,14 @@ tests/sn/test_b1pp_verification.py — 12 passed
 ### Existing L1/L0 anchors (unchanged or principled-equivalence)
 
 ```
-tests/sn/regression/                                     11/11 passed (bit-identical)
-tests/sn/test_streaming_operator_decomposition.py        52 passed, 9 xfailed
-tests/sn/test_streaming_operator.py                      30 passed, 9 xfailed
-tests/sn/test_phase_c_gates.py                           26 passed, 4 xpassed
-tests/sn/test_unified_matvec_sphere.py                   20/20 passed
-tests/sn/test_unified_matvec_cylinder.py                 31/31 passed (slow L1 included)
-tests/sn/test_unified_matvec_slab.py                     6/6 passed
-tests/sn/spatial/test_apply_matvec_cylinder_invariants.py  24/24 passed
+tests/gates/sn/regression/                                     11/11 passed (bit-identical)
+tests/gates/sn/test_streaming_operator_decomposition.py        52 passed, 9 xfailed
+tests/gates/sn/test_streaming_operator.py                      30 passed, 9 xfailed
+tests/gates/sn/test_phase_c_gates.py                           26 passed, 4 xpassed
+tests/gates/sn/test_unified_matvec_sphere.py                   20/20 passed
+tests/gates/sn/test_unified_matvec_cylinder.py                 31/31 passed (slow L1 included)
+tests/gates/sn/test_unified_matvec_slab.py                     6/6 passed
+tests/gates/sn/spatial/test_apply_matvec_cylinder_invariants.py  24/24 passed
 ```
 
 The 9 xfailed in `test_streaming_operator_decomposition.py` and 9 in
@@ -180,14 +180,14 @@ SN-bundle-vs-(L+C) packed-format mismatch that retires at Step 7.
 ### Twin-path L14 standoff status (xfail strict)
 
 ```
-tests/sn/test_l1_standoff_slab_cylinder.py::test_cylinder_l1_sweep_vs_krylov_twin_path
+tests/gates/sn/test_l1_standoff_slab_cylinder.py::test_cylinder_l1_sweep_vs_krylov_twin_path
   XFAIL (strict) — cylinder twin-path rel ≈ 4.07e-3
   Reason: solve_sn routes through SNStreamingOperator (legacy bundle,
   retires Step 7). The B1'' fix lives on StreamingOperator (the new
   Resolution A leaf); see test_b1pp_verification.py for the direct
   (L+C) verification.
 
-tests/sn/test_l1_standoff_slab_cylinder.py::test_cylinder_l1_refinement_both_paths[20/40/80]
+tests/gates/sn/test_l1_standoff_slab_cylinder.py::test_cylinder_l1_refinement_both_paths[20/40/80]
   XFAIL (strict) — same reason
 ```
 

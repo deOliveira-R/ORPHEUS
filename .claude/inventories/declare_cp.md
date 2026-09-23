@@ -42,7 +42,7 @@ here, rather than repeating it per equation):
 - **rationale comment on the page**: none (no `.. (vv-status rationale)` block within
   ±30 lines; the nearest one on the page is at line 1108 and belongs to
   `self-collision-probability-slab`). The authored evidence is instead the module-level
-  `pytestmark = pytest.mark.verifies(...)` in `tests/cp/test_verification.py:108`, whose
+  `pytestmark = pytest.mark.verifies(...)` in `tests/gates/cp/test_verification.py:108`, whose
   own comment says the label is "exercised by the per-geometry CP eigenvalue tests" as
   part of "the integral-transport derivation chain underlying every CP matrix
   computation".
@@ -88,8 +88,8 @@ here, rather than repeating it per equation):
 - **rationale comment on the page**: none as a `.. (vv-status rationale)` block, but the
   page names the code inline and unambiguously: *"In the code:
   ``P_out = 1 - P_cell.sum(axis=1)`` (:meth:`CPMesh._apply_white_bc`). Verified by
-  ``tests/cp/test_properties.py::test_row_sums`` for all three coordinate systems."*
-  The test module's own `pytestmark` comment (`tests/cp/test_properties.py:34`) repeats
+  ``tests/gates/cp/test_properties.py::test_row_sums`` for all three coordinate systems."*
+  The test module's own `pytestmark` comment (`tests/gates/cp/test_properties.py:34`) repeats
   it: `"complementarity",  # test_row_sums: sum_j P_ij + P_out = 1`.
 - **what the equation says**: within one cell, the within-cell collision probabilities
   out of region `i` plus the escape probability sum to one — so the escape probability
@@ -115,7 +115,7 @@ here, rather than repeating it per equation):
 - **rationale comment on the page**: none as a `.. (vv-status rationale)` block. The
   authored knowledge is (a) the page's own "Practical consequence" paragraph naming
   `:meth:`CPMesh._normalize_rcp``, and (b) the `pytestmark` comment at
-  `tests/cp/test_properties.py:35`:
+  `tests/gates/cp/test_properties.py:35`:
   `"reciprocity",      # test_reciprocity: Sigma_t V P_ij = Sigma_t V P_ji`.
 - **what the equation says**: detailed balance — the reduced quantity
   `r_ij ≡ Σ_t,i V_i P_ij^cell` is **symmetric**, because a chord traversed i→j is the
@@ -145,7 +145,7 @@ here, rather than repeating it per equation):
   `grep -rni "reciprocit" orpheus/ --include=*.py` returns **zero** hits in `orpheus/cp/`
   and zero CP-relevant guards anywhere (the hits are Peierls-Nyström
   `CurvilinearGeometry.reciprocity_factor`, an unrelated surface-area ratio, plus SN
-  adjoint prose). Enforcement lives only in `tests/cp/test_properties.py::test_reciprocity`.
+  adjoint prose). Enforcement lives only in `tests/gates/cp/test_properties.py::test_reciprocity`.
 
 ---
 
@@ -155,7 +155,7 @@ here, rather than repeating it per equation):
 - **rationale comment on the page**: none as a `.. (vv-status rationale)` block. The
   page says: *"In the code, :meth:`CPMesh._normalize_rcp` divides the reduced collision
   probability by Σ_t,i V_i for each row."* And the test module states it as a pinning
-  claim (`tests/cp/test_properties.py:36-38`): *"test_reciprocity also pins the
+  claim (`tests/gates/cp/test_properties.py:36-38`): *"test_reciprocity also pins the
   rearranged lower-triangle form the code uses to fill P_ji (**a factor error in
   `_normalize_rcp` breaks the identity**)"*.
 - **what the equation says**: the rearranged reciprocity — `P_ji = P_ij · (Σ_t,i V_i)/(Σ_t,j V_j)`
@@ -191,7 +191,7 @@ here, rather than repeating it per equation):
   white-BC transform::  `# White-BC closure (geometry-agnostic)` / `P_in = sig_t * V *
   P_out / S_cell`"*, and names the surface-area accessor
   (``mesh.areas[-1]``, :func:`~geometry.coord.compute_areas_1d`). The
-  `tests/cp/test_verification.py` `pytestmark` comment adds that this label is one of the
+  `tests/gates/cp/test_verification.py` `pytestmark` comment adds that this label is one of the
   "B.2 additions (issue #87)" whose correctness is implied by a converged `k` matching the
   analytical CP eigenvalue to 1e-8.
 - **what the equation says**: the probability that a neutron entering the cell isotropically
@@ -254,8 +254,8 @@ here, rather than repeating it per equation):
   pointer in the prose immediately below the equation: *"This formula is **identical for
   all three geometries** when expressed in terms of V_i and S. It is implemented in the
   white-BC transform selected from :attr:`CPMesh.BC_REGISTRY` and independently in all
-  three derivation scripts."* Plus `tests/cp/test_verification.py:86` and
-  `tests/cp/test_slab.py:16` and `tests/cp/test_peierls_flux.py:31` carry it in their
+  three derivation scripts."* Plus `tests/gates/cp/test_verification.py:86` and
+  `tests/gates/cp/test_slab.py:16` and `tests/gates/cp/test_peierls_flux.py:31` carry it in their
   `verifies(...)` lists, and `orpheus/derivations/continuous/flat_source_cp/slab.py:131`
   names it in the verification case's own `labels` list.
 - **what the equation says**: the infinite-lattice CP matrix — the within-cell matrix plus
@@ -295,7 +295,7 @@ here, rather than repeating it per equation):
   equation rather than a defect: it is the *derivation* of `p-inf` (the geometric series
   `1 + P_in,out + P_in,out² + ⋯`), and its second line **is** `p-inf`.
 - **rationale comment on the page**: none as a `.. (vv-status rationale)` block. The
-  authored pointer is the `pytestmark` comment at `tests/cp/test_properties.py:39-41`:
+  authored pointer is the `pytestmark` comment at `tests/gates/cp/test_properties.py:39-41`:
   *"test_row_sums builds P_inf via the white-BC geometric series and asserts row sums = 1;
   **a sign flip in the series makes the row sum != 1**"*.
 - **what the equation says**: summing the escape→re-enter→escape geometric series in
@@ -312,7 +312,7 @@ here, rather than repeating it per equation):
   with an overlapping implementer set. That is correct — they are the same closed form,
   one stated and one derived — and it is why `cp-infinite-lattice-sum` carries only 4
   claims while `p-inf` carries 25. Do not "de-duplicate" by declaring only one; the
-  4 claims on `cp-infinite-lattice-sum` are made by `tests/cp/test_properties.py`, a
+  4 claims on `cp-infinite-lattice-sum` are made by `tests/gates/cp/test_properties.py`, a
   different file from `p-inf`'s 25.
 - **confidence**: high.
 
@@ -426,8 +426,8 @@ here, rather than repeating it per equation):
   `self-collision-probability-slab`, not to this one; it reads verbatim:
   > `.. (vv-status rationale: definitional normalisation P_ii = r_ii/tau_i`
   > `   of the wired reduced form self-slab (a verifies-target of`
-  > `   tests/cp/test_slab.py); the optical limits below are pinned by`
-  > `   tests/cp/test_verification.py::TestOpticalLimits.)`
+  > `   tests/gates/cp/test_slab.py); the optical limits below are pinned by`
+  > `   tests/gates/cp/test_verification.py::TestOpticalLimits.)`
   For `self-double-integral` itself the authored pointer is in the derivation prose: the
   evaluation ends *"which is exactly the reduced form :eq:`self-slab` and,
   **character-for-character, the solver line** ``rcp[i, i] += sti * t[i] - (0.5 -

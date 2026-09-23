@@ -129,8 +129,8 @@ the rest).
 | Suite                                | Pre   | Post          |
 | ------------------------------------ | ----- | ------------- |
 | Primary 9-file Variant α gate        | 65/65 | 65/65         |
-| `tests/cp/test_*peierls*.py`         | 24/24 | 24/24         |
-| Broader `tests/derivations/test_peierls_*.py` | 625 collected, exit 0 | 625 collected, exit 0 |
+| `tests/gates/cp/test_*peierls*.py`         | 24/24 | 24/24         |
+| Broader `tests/gates/derivations/test_peierls_*.py` | 625 collected, exit 0 | 625 collected, exit 0 |
 | `sphinx-build -W`                    | clean | clean         |
 
 Accuracy floors preserved (the primary suite re-runs at the same
@@ -178,7 +178,7 @@ Phase-3 will land:
   `orpheus/derivations/continuous/peierls_greens_function/origins/specular/greens_function_slab.py`.
 - Re-exports added to
   `peierls_greens_function/origins/specular/__init__.py`.
-- Tests at `tests/derivations/test_peierls_greens_function_slab_symbolic.py` /
+- Tests at `tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py` /
   `..._slab_solver.py` / `..._slab_xverif.py`.
 - Sphinx narrative at `docs/theory/peierls_greens.rst` (extended).
 

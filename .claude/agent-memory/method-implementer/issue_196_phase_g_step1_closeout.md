@@ -60,20 +60,20 @@ metadata:
 
 **Tests**
 
-- NEW `tests/sn/spatial/test_sncell_operator.py` — 83 tests filled
+- NEW `tests/gates/sn/spatial/test_sncell_operator.py` — 83 tests filled
   in.  All pass.  Covers Gates 1 (bit-identity slab + sphere +
   cylinder + cyl-degenerate), 2 (apply-solve round-trip at
   `rtol=1e-12`), 3 (capability surface), 4 (geometry coverage as
   parametrize on Gates 1-3).
 
-- NEW `tests/sn/spatial/test_angular_redistribution.py` — 85 tests
+- NEW `tests/gates/sn/spatial/test_angular_redistribution.py` — 85 tests
   filled in + 4 skipped.  Covers Gate 3 (capabilities), Gate 6 #3
   (Carlson seed equivalence — 54 tests), Gate 6 #4 (flat-flux
   closure — 16 tests), Gate 6 #5 (linearity in input — 12 tests).
   The 4 skipped tests are the round-trip class deferred until
   `CAP_SOLVE` ships in a later step.
 
-- `tests/sn/spatial/test_sweep_vs_apply_consistency.py` extended —
+- `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` extended —
   Phase F twin-path defense test body filled in (currently
   xfail-strict=False under Step 1 because the call sites haven't
   been unified yet; transitions to xpass at Step 2).  Step 2
@@ -137,9 +137,9 @@ plumbing, no float-reduction-tree change, no algorithmic change).
 
 - **Created**: `orpheus/sn/spatial/operators.py` (~440 lines)
 - **Updated**: `orpheus/sn/spatial/__init__.py` (added 2 exports)
-- **Created**: `tests/sn/spatial/test_sncell_operator.py` (~500 lines, 83 tests + 0 skip)
-- **Created**: `tests/sn/spatial/test_angular_redistribution.py` (~370 lines, 85 tests + 4 skip)
-- **Updated**: `tests/sn/spatial/test_sweep_vs_apply_consistency.py` (Phase F twin-path defense body filled, Step 2 gate marked skip)
+- **Created**: `tests/gates/sn/spatial/test_sncell_operator.py` (~500 lines, 83 tests + 0 skip)
+- **Created**: `tests/gates/sn/spatial/test_angular_redistribution.py` (~370 lines, 85 tests + 4 skip)
+- **Updated**: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` (Phase F twin-path defense body filled, Step 2 gate marked skip)
 
 ## What this does NOT close
 
@@ -230,8 +230,8 @@ Two atomic commits per Step 1's deliverable spec:
 - Step 1 gate design: `.claude/agent-memory/test-architect/issue_196_phase_g_step1_verification_gates.md`
 - Phase F closeout: `.claude/agent-memory/method-implementer/issue_168_phase_f_closeout.md`
 - Production: `orpheus/sn/spatial/operators.py`
-- Tests: `tests/sn/spatial/test_sncell_operator.py`, `tests/sn/spatial/test_angular_redistribution.py`
-- Twin-path defense: `tests/sn/spatial/test_sweep_vs_apply_consistency.py`
+- Tests: `tests/gates/sn/spatial/test_sncell_operator.py`, `tests/gates/sn/spatial/test_angular_redistribution.py`
+- Twin-path defense: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`
 
 ## Linked memories
 

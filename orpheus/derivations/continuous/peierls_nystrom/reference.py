@@ -420,7 +420,7 @@ def slab_uniform_source_white_bc_analytical(
        and
        :math:`G_{\rm bc}(x) = 2\,[E_2(\Sigma_t x) + E_2(\Sigma_t(L-x))]`.
 
-    See the companion tests in :mod:`tests.derivations.test_peierls_reference`.
+    See the companion tests in :mod:`tests.gates.derivations.test_peierls_reference`.
 
     References
     ----------

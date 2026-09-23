@@ -256,7 +256,7 @@ collision in :math:`j` without leaving the cell.  **Complementarity**:
 
 where :math:`P_{i,\text{out}}` is the escape probability.  In the code:
 ``P_out = 1 - P_cell.sum(axis=1)`` (:meth:`CPMesh._apply_white_bc`).
-Verified by ``tests/cp/test_properties.py::test_row_sums`` for all three
+Verified by ``tests/gates/cp/test_properties.py::test_row_sums`` for all three
 coordinate systems.
 
 
@@ -323,8 +323,8 @@ different sizes and cross sections.
 This halves the computation cost.  In the code,
 :meth:`CPMesh._normalize_rcp` divides the reduced collision probability
 by :math:`\Sigt{i} V_i` for each row.  Reciprocity is verified by
-``tests/cp/test_properties.py::test_reciprocity`` and extended to multi-group
-by ``tests/cp/test_verification.py::TestMultiGroupProperties::test_reciprocity_multigroup``.
+``tests/gates/cp/test_properties.py::test_reciprocity`` and extended to multi-group
+by ``tests/gates/cp/test_verification.py::TestMultiGroupProperties::test_reciprocity_multigroup``.
 
 
 Escape and Re-entry (White Boundary Condition)
@@ -662,7 +662,7 @@ substitute complementarity :eq:`complementarity` for both sums:
    &= (1 - P_{i,\text{out}})
      + P_{i,\text{out}} \frac{1 - P_{\text{in,out}}}{1 - P_{\text{in,out}}} = 1
 
-Verified numerically by ``tests/cp/test_properties.py::test_row_sums``.
+Verified numerically by ``tests/gates/cp/test_properties.py::test_row_sums``.
 
 .. warning::
 
@@ -867,10 +867,10 @@ in :eq:`ki3-def`) and :math:`\text{Ki}_3(x) \to 0` exponentially.
    canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}`. The legacy naming
    is preserved in this theory page for cross-consistency with
    existing ``verifies("ki3-def")`` decorators on
-   ``tests/cp/test_cylinder.py``,
-   ``tests/derivations/test_cp_geometry.py``,
-   ``tests/cp/test_verification.py``, and
-   ``tests/derivations/test_peierls_cylinder_prefactor.py``. See
+   ``tests/gates/cp/test_cylinder.py``,
+   ``tests/gates/derivations/test_cp_geometry.py``,
+   ``tests/gates/cp/test_verification.py``, and
+   ``tests/gates/derivations/test_peierls_cylinder_prefactor.py``. See
    :doc:`/theory/verification/reference_solutions` §"Legacy naming
    discrepancy in ``BickleyTables``" for the full postmortem.
 
@@ -1295,15 +1295,15 @@ The normalised self-collision probability is
 .. vv-status: self-collision-probability-slab documented
 .. (vv-status rationale: definitional normalisation P_ii = r_ii/tau_i
    of the wired reduced form self-slab (a verifies-target of
-   tests/cp/test_slab.py); the optical limits below are pinned by
-   tests/cp/test_verification.py::TestOpticalLimits.)
+   tests/gates/cp/test_slab.py); the optical limits below are pinned by
+   tests/gates/cp/test_verification.py::TestOpticalLimits.)
 
 For **thick regions** (:math:`\tau_i \to \infty`): :math:`E_3(\tau_i) \to 0`,
 so :math:`P_{ii} \to 1 - 1/(2\tau_i) \to 1`.  For **thin regions**
 (:math:`\tau_i \to 0`): :math:`E_3(0) - E_3(\tau_i) \approx \tau_i E_2(0)
 = \tau_i` (since :math:`dE_3/d\tau = -E_2`), so
 :math:`P_{ii} \to 1 - 1 = 0`.  Tested by
-``tests/cp/test_verification.py::TestOpticalLimits``.
+``tests/gates/cp/test_verification.py::TestOpticalLimits``.
 
 In the solver code (:meth:`CPMesh._compute_slab_rcp`)::
 
@@ -1647,7 +1647,7 @@ and the within-cell CP is :math:`P_{ij}^{\text{cell}} = r_{ij} /
 
 Implemented in :meth:`CPMesh._compute_slab_rcp`.  Verified element-by-element
 against ``orpheus/derivations/continuous/flat_source_cp/slab.py::_slab_cp_matrix`` by
-``tests/cp/test_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
+``tests/gates/cp/test_verification.py::TestDirectPinfComparison::test_slab_pinf_matches_derivation``
 (tolerance :math:`< 10^{-10}`).
 
 
@@ -2028,7 +2028,7 @@ Implemented by :func:`~numerics.eigenvalue.power_iteration` via the
       parameter, making it impossible to construct test materials with
       nonzero (n,2n).
 
-      **Test:** ``tests/cp/test_verification.py::TestN2N::test_n2n_solver_keff_matches_analytical``.
+      **Test:** ``tests/gates/cp/test_verification.py::TestN2N::test_n2n_solver_keff_matches_analytical``.
 
       **Lesson:** When adding a new reaction type, trace it through BOTH
       the transport solve AND the eigenvalue estimate.  Test with the
@@ -2104,7 +2104,7 @@ The inner iteration solves the fixed-point equation:
 .. inner fixed point. Its converged content (the group flux under within-
 .. group self-scatter) is pinned by the multigroup CP eigenvalue reference
 .. grids; the inner-iteration structure is exercised by
-.. ``tests/cp/test_verification.py::TestGSInnerIterations`` (ERR-016). The
+.. ``tests/gates/cp/test_verification.py::TestGSInnerIterations`` (ERR-016). The
 .. equation itself is a governing-iteration statement, not a distinct
 .. sign-pinned output.
 .. vv-status: cp-within-group-fixed-point documented
@@ -2143,7 +2143,7 @@ Thermal groups (ratio ~0.6--0.9) need 3--8 inner iterations; fast groups
    corrected residual, thermal groups genuinely require multiple inner
    iterations; fast groups converge in 1.
 
-   **Tests:** ``tests/cp/test_verification.py::TestGSInnerIterations`` ---
+   **Tests:** ``tests/gates/cp/test_verification.py::TestGSInnerIterations`` ---
    ``test_thermal_needs_more_inner_than_fast`` (thermal > fast inner
    counts), ``test_gs_eigenvalue_matches_jacobi`` (same eigenvalue),
    ``test_no_self_scatter_one_inner`` (zero diagonal in :math:`\Sigma_s`
@@ -2231,7 +2231,7 @@ is a gap, not a boundary: CP's collision-probability balance is expressible,
 and SN already ships the analogous number.
 
 Both modes converge to the **same eigenvalue and flux distribution**
-(``tests/cp/test_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
+(``tests/gates/cp/test_verification.py::TestGSInnerIterations::test_gs_eigenvalue_matches_jacobi``).
 
 .. list-table:: Solver mode comparison
    :header-rows: 1
@@ -2415,7 +2415,7 @@ Both tabulated the functions identically:
    every cylindrical flat-source CP reference value for the life
    of the project.
 
-The old ``tests/cp/test_verification.py::TestKi4Resolution`` confirmed
+The old ``tests/gates/cp/test_verification.py::TestKi4Resolution`` confirmed
 that increasing from 5 000 to 40 000 points produced diminishing
 returns (validating the legacy 20 000 default). It was replaced in
 Phase B.4 by
@@ -2454,7 +2454,7 @@ Equal-Volume Mesh Subdivision
 .. radius for cylindrical zone subdivision. Its verifiable content — that
 .. the edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its CYL row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
@@ -2479,7 +2479,7 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 .. :eq:`equal-volume-radius-cylindrical`. Its verifiable content — that the
 .. edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its SPH row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is

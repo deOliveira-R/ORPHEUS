@@ -101,7 +101,7 @@ that drops the 2nd top-level arg from `StreamingOperator(...)` only.
   nULP `6`→`2048` (the leaf sum is now `loss_action(0)+σ·ψ` vs override `loss_action(σ)`;
   rel<1e-14 guard is the real ground). The STRUCTURAL teeth gate (`op.apply==M(σ_r)`
   `array_equal`) STAYS GREEN (the composite override is unchanged, byte-id).
-- `tests/sn/_data/bc_extraction_2d_baseline/vacuum_bulk_2d_seed{0,1,2}.npy`:
+- `tests/gates/sn/_data/bc_extraction_2d_baseline/vacuum_bulk_2d_seed{0,1,2}.npy`:
   RE-CAPTURED to the pure-L value (`--capture-baseline`); verified `== (L+C).apply.bulk−σ·ψ`
   to ≤64 ULP (the affine relation, structural ground = byte-id composite). The
   `test_vacuum_bulk_bit_identical` foundation gate's STRICT `array_equal` is RESTORED
@@ -114,7 +114,7 @@ that drops the 2nd top-level arg from `StreamingOperator(...)` only.
   `test_krylov_curvilinear_precond_safety.py`, `test_b1pp_verification.py`,
   `_capture_pre_t4_snapshots.py`, `diag_s69_scanmarch_vs_window_bench.py`.
 
-**New catcher (C1):** `tests/sn/operators/test_pure_L_sigma_free.py` (`@foundation`,
+**New catcher (C1):** `tests/gates/sn/operators/test_pure_L_sigma_free.py` (`@foundation`,
 9 tests): C1 σ-freedom (`L.apply` byte-id across C(σ_a)/C(σ_b), per-geom, Mode-11
 DIRECT `L.apply`), no-σ-surface (`not hasattr sigma_t`), + the Mode-11 MUTATION
 TEETH (monkeypatch a σ-leaking `streaming_action` stub → C1's σ-free invariant

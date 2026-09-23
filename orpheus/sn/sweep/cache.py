@@ -422,7 +422,7 @@ class CollisionCache:
     eigenvalue solve, ...), :meth:`from_geometry` is called EXACTLY ONCE.
     The :attr:`_build_count` class variable instruments this — pinning the
     invariant in
-    ``tests/sn/sweep/core/test_cache.py::test_collision_cache_invariance_under_source_iteration``.
+    ``tests/gates/sn/sweep/core/test_cache.py::test_collision_cache_invariance_under_source_iteration``.
 
     Storage: ``(N, ng, nx)`` per field × 3 fields × 8 bytes.  Canonical
     ``(N=16, ng=2, nx=160)`` problem ≈ 240 kB.

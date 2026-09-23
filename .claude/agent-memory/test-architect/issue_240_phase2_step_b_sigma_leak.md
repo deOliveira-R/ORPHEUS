@@ -9,7 +9,7 @@ metadata:
 
 **Status:** PRE-IMPLEMENTATION. Branch `feature/sn-space-angle-tier2`,
 HEAD `28d76c9` (Step A `d717d4d` LANDED). Host env, canonical `python -O`.
-Spec stub file WRITTEN + verified GREEN: `tests/sn/operators/test_removal_form_matvec_sweep.py`
+Spec stub file WRITTEN + verified GREEN: `tests/gates/sn/operators/test_removal_form_matvec_sweep.py`
 (12 passed / 8 xfailed under `-O`, fully Mode-8-clean).
 
 ## ⭐⭐ THE PREMISE CORRECTION (the headline — established by probe this session)
@@ -81,7 +81,7 @@ sweep claim is carried by the STRUCTURAL teeth gate (a) `apply==M(σ_r)` (does
 NOT round-trip) + the existing `TestInvertibleSolveBridgeRegression` fixed-point
 bridge (production σ).
 
-## THE GATE FILE: `tests/sn/operators/test_removal_form_matvec_sweep.py`
+## THE GATE FILE: `tests/gates/sn/operators/test_removal_form_matvec_sweep.py`
 
 `@pytest.mark.foundation` + `verifies("loss-rep-resolution-a")`. NO `catches`.
 4 groups:
@@ -133,9 +133,9 @@ geometry. 2-D = NON-SQUARE 4×5 `level_symmetric` (genuine mu_y, #214-safe; x↔
 
 ## RE-BASELINE / STRICT GATE
 
-The strict DriftWarning gate: `python -O -m pytest tests/sn/sweep/core
-tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"`
-(the `tests.sn.regression...` path — `orpheus.sn...` is WRONG, silently fails to
+The strict DriftWarning gate: `python -O -m pytest tests/gates/sn/sweep/core
+tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"`
+(the `tests.gates.sn.regression...` path — `orpheus.sn...` is WRONG, silently fails to
 escalate; bare `error::DriftWarning`→AttributeError). DD SWEEP/SOLVE snapshots
 STAY STRICT (apply re-association doesn't touch solve). APPLY snapshots that pin
 `(L+C).apply` (slab/cart2d via `TestT4bPreT4RegressionSnapshot`) → already
@@ -144,10 +144,10 @@ NOTE: the production path is σ_C==σ_t where slab/sphere are BIT-ID, cyl/2D ≤
 → existing apply snapshots that touch cyl/2D may need the kind=direct nULP if
 they were strict; slab stays strict. Confirm at impl.
 
-## ROUTE-AROUNDS (7 pre-existing reds; NEVER all tests/sn — #212 hang)
+## ROUTE-AROUNDS (7 pre-existing reds; NEVER all tests/gates/sn — #212 hang)
 `-k "not (vacuum_bulk_bit_identical_1d and SPH) and not (sphere_1g_apply_bit_identical
 or sphere_2g_apply_bit_identical) and not test_2d_mesh_resolution and not
-two_d_cartesian_loss_action"`. Green floor: tests/sn/operators+spatial = 507p/4skip
+two_d_cartesian_loss_action"`. Green floor: tests/gates/sn/operators+spatial = 507p/4skip
 (+ the 2 #214 reds route around). New file: 12p/8xf under -O.
 
 ## Cross-links

@@ -688,7 +688,7 @@ Rayleigh quotient (grand report §36.1 line 6740, §21.2).
 The explorer's 7-step migration assumed seven new operator types.
 With the four-operator target the path collapses to **5 steps**.
 Each step is independently committable; each preserves the 11
-regression snapshots in `tests/sn/regression/snapshots/` (with
+regression snapshots in `tests/gates/sn/regression/snapshots/` (with
 principled bit-identity breaks documented per `vv-principles`
 §"Bit-identity vs principled-equivalence").
 
@@ -723,13 +723,13 @@ green at machine precision on non-flat ψ — manifestation #7
 dissolves **by construction**. (b) Phase E sentinel
 (`test_phase_e_trajectory_resolvent_flux_shape_crosscheck`) xpasses
 and the strict marker can be removed. (c) The 11 regression
-snapshots in `tests/sn/regression/snapshots/` are regenerated under
+snapshots in `tests/gates/sn/regression/snapshots/` are regenerated under
 the unified closure — principled bit-identity break per
 `vv-principles`, because:
   - the named intermediate is "WDD closure across both apply and
     solve",
   - the structurally-independent reference is the MMS L1 convergence
-    test (`tests/sn/test_mms_*.py`) which is unchanged.
+    test (`tests/gates/sn/test_mms_*.py`) which is unchanged.
 
 **Closes**: **Issue #196 manifestation #7** by construction.
 **Independently committable**: yes (it's a single closure decision

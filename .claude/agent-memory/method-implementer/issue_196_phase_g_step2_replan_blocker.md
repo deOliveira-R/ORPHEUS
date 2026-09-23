@@ -166,7 +166,7 @@ These remain blocked pending architectural guidance.
 - Step 2 attempted diff: `/tmp/step2_separate_pass_attempt.diff`
 - Replan: `.claude/plans/issue_196_phase_g_replan.md`
 - Phase F closeout: `.claude/agent-memory/method-implementer/issue_168_phase_f_closeout.md`
-- L0 diagnostic test: `tests/sn/diagnostics/phase_g_step2_05_homogeneous.py`
+- L0 diagnostic test: `tests/gates/sn/diagnostics/phase_g_step2_05_homogeneous.py`
 - Spherical sweep (canonical target): `orpheus/sn/sweep.py:397-595`
 - Spherical apply matvec: `orpheus/sn/operator.py:571-838`
 - M-M strategy: `orpheus/sn/spatial/pole_angular_closure.py:340-458`

@@ -83,7 +83,7 @@ converged O(h²) to ~1 — the methods solved DIFFERENT equations.
 
 ### Test additions
 
-4. **ADDED** `tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual`
+4. **ADDED** `tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual`
    — Phase F Gate 1.6. The DUAL of Gate 1.1 (apply path): pins that
    the apply-path `CarlsonInwardSweep` and the sweep-path
    `carlson_inward_sweep_from_source` produce IDENTICAL seeds on
@@ -91,7 +91,7 @@ converged O(h²) to ~1 — the methods solved DIFFERENT equations.
    Σw = 2 (Hébert convention). 4 parameter cases (2 geom × 2 σ_t)
    all GREEN.
 
-5. **ADDED** `tests/sn/spatial/test_sweep_vs_apply_consistency.py`
+5. **ADDED** `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py`
    — 57 foundation tests pinning the apply-vs-sweep Carlson seed
    equivalence + linearity in `Q_bar` + linearity in `bc_outer_value`
    + SI-vs-Krylov keff agreement on homogeneous reflective sphere.
@@ -99,12 +99,12 @@ converged O(h²) to ~1 — the methods solved DIFFERENT equations.
 
 6. **REGENERATED** 6 curvilinear regression snapshots under the
    Phase F fix:
-   - `tests/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz`
-   - `tests/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz`
-   - `tests/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz`
-   - `tests/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz`
-   - `tests/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz`
-   - `tests/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz`
+   - `tests/gates/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz`
+   - `tests/gates/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz`
+   - `tests/gates/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz`
+   - `tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz`
+   - `tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz`
+   - `tests/gates/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz`
    Bit-identity break is principled per `vv-principles` §"Bit-identity
    vs principled-equivalence": the new seed is the canonical Hébert
    value (replaces the diagnosed wrong zero); structurally-independent
@@ -159,14 +159,14 @@ asymmetry, not a structural divergence.
 
 | Test set | Status |
 |---|---|
-| `tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual` (Gate 1.1, Phase D) | **GREEN** (8 passed, 4 xpassed — no regression) |
-| `tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual` (NEW Gate 1.6) | **GREEN** (4 passed) |
-| `tests/sn/spatial/test_psi_half_angle_seed.py` (Phase D foundation) | **GREEN** (24 passed) |
-| `tests/sn/spatial/test_sweep_vs_apply_consistency.py` (NEW Phase F) | **GREEN** (57 passed) |
-| `tests/sn/regression/` (snapshot bit-identity) | **GREEN** (regenerated 6 curvilinear; all 11 pass) |
-| `tests/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck` (Gate 4.2 k_eff) | **GREEN** (5 passed at Phase E rtols) |
-| `tests/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck` (flux-shape sentinel) | **XFAIL** (still strict; reason updated to reflect Phase F's partial closure) |
-| `tests/sn/regression/ tests/sn/test_phase_c_gates.py tests/sn/spatial/` (full SN gate+regression) | **170 passed, 4 xpassed** in 470 s |
+| `tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual` (Gate 1.1, Phase D) | **GREEN** (8 passed, 4 xpassed — no regression) |
+| `tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual` (NEW Gate 1.6) | **GREEN** (4 passed) |
+| `tests/gates/sn/spatial/test_psi_half_angle_seed.py` (Phase D foundation) | **GREEN** (24 passed) |
+| `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` (NEW Phase F) | **GREEN** (57 passed) |
+| `tests/gates/sn/regression/` (snapshot bit-identity) | **GREEN** (regenerated 6 curvilinear; all 11 pass) |
+| `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_d_trajectory_resolvent_crosscheck` (Gate 4.2 k_eff) | **GREEN** (5 passed at Phase E rtols) |
+| `tests/gates/sn/test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck` (flux-shape sentinel) | **XFAIL** (still strict; reason updated to reflect Phase F's partial closure) |
+| `tests/gates/sn/regression/ tests/gates/sn/test_phase_c_gates.py tests/gates/sn/spatial/` (full SN gate+regression) | **170 passed, 4 xpassed** in 470 s |
 
 ## Files touched
 
@@ -174,10 +174,10 @@ asymmetry, not a structural divergence.
 |---|---|
 | `orpheus/sn/spatial/psi_half_angle_seed.py` | NEW free function `carlson_inward_sweep_from_source` (lines 358-416); `CarlsonInwardSweep.__call__` refactored to delegate; `__all__` extended |
 | `orpheus/sn/sweep.py` | Line 102: NEW import; lines 472-516: spherical Carlson seed (replaces 3-line zero init); lines 632-666: cylindrical per-level Carlson seed (replaces 3-line zero init inside level loop) |
-| `tests/sn/test_phase_c_gates.py` | NEW Gate 1.6 test + import of `transport_sweep` (lines 47, 549-700) |
-| `tests/sn/spatial/test_sweep_vs_apply_consistency.py` | NEW file (200 lines, 57 tests) |
-| `tests/sn/test_phase_c_crosscheck.py` | Updated xfail reason on flux-shape sentinel (lines 611-637) |
-| `tests/sn/regression/snapshots/*.npz` | 6 curvilinear snapshots regenerated |
+| `tests/gates/sn/test_phase_c_gates.py` | NEW Gate 1.6 test + import of `transport_sweep` (lines 47, 549-700) |
+| `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py` | NEW file (200 lines, 57 tests) |
+| `tests/gates/sn/test_phase_c_crosscheck.py` | Updated xfail reason on flux-shape sentinel (lines 611-637) |
+| `tests/gates/sn/regression/snapshots/*.npz` | 6 curvilinear snapshots regenerated |
 
 ## ERR-026 manifestation update
 

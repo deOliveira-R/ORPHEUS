@@ -21,9 +21,9 @@ to FULL retirement** held: I retired `loss_action_decomposed` + the `emit_angula
 
 The discriminator: does the curvilinear MMS cover the angular-redistribution correctness?
 
-- `tests/sn/verification/mms/test_mms_curvilinear.py` does NOT (it uses the ISOTROPIC ansatz
+- `tests/gates/sn/verification/mms/test_mms_curvilinear.py` does NOT (it uses the ISOTROPIC ansatz
   `ψ_n(r)=A(r)/W` which NULLS the angular redistribution — Mode-7, declared in its docstring).
-- `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py` DOES: the ANISOTROPIC ansatz
+- `tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py` DOES: the ANISOTROPIC ansatz
   `ψ_n(r)=(A(r)+B(r)μ_n)/W` explicitly ACTIVATES `(1-μ²)B/r` (sphere) / `ξ²B/r` (cylinder) — its
   docstring states the pairing rationale verbatim: "If the isotropic companion passes and these
   fail, the bug is in the angular-redistribution path." These run the FULL curvilinear `(L+C)`
@@ -62,7 +62,7 @@ Keeping the machinery alive solely to feed a structural test = the same orphan s
 - Docstring repoints: `loss_action` (ScanMarch) "1-D → operator.M_spatial degeneration" →
   "1-D → `_OneDimScanWalk._apply_walk`"; `out_ang` comment trimmed.
 
-### tests/sn/operators/test_streaming_operator.py (deleted 5 classes, kept 2)
+### tests/gates/sn/operators/test_streaming_operator.py (deleted 5 classes, kept 2)
 - DELETED: `TestT4bMSpatialStructure`, `TestT4bAlgebraDecompositionInvariantSlab`,
   `TestT4cAlgebraDecompositionInvariantCurvilinear`, `TestT5MaterializeInverseCache`,
   `TestT4bMSpatialStandaloneApply`. Removed the unused `_LC_matvec` import. Rewrote the section
@@ -75,7 +75,7 @@ Keeping the machinery alive solely to feed a structural test = the same orphan s
   redundant" → delete.
 
 ### A SURPRISE NOT IN THE BRIEF — a SECOND live consumer file
-`tests/sn/operators/test_streaming_operator_decomposition.py` (the brief named only
+`tests/gates/sn/operators/test_streaming_operator_decomposition.py` (the brief named only
 `test_streaming_operator.py`). Its `TestResolutionADifferentFromPriorWrong::test_subtractive_L_differs_from_matvec_at_zero_sigma_t`
 reached into `_MSpatialOperatorSum._compute_decomposition(state)` at σ_t=0 to build a "matvec at
 σ_t=0" (bypassing `InvertibleOperator`'s σ>0 validation). REWIRED to
@@ -84,7 +84,7 @@ the fused `loss_action` IS the σ_t=0 matvec `M(ψ;0)`; routing through the repr
 bypasses the σ>0 validation. The other two classes in that file (`TestResolutionADecomposition`,
 `TestSubtractiveDefinition`) use only `L.apply`/`C.apply`/`_LC_matvec` — untouched. File passes.
 
-### tests/sn/_test_helpers.py + _capture_pre_t4_snapshots.py (stale docstring repoints)
+### tests/gates/sn/_test_helpers.py + _capture_pre_t4_snapshots.py (stale docstring repoints)
 Docstring/comment mentions of `_MSpatialOperatorSum._compute_decomposition` as "the canonical
 dual-emission body" were now WRONG (deleted) → repointed to `_OneDimScanWalk._apply_walk`. The
 `_capture_LpC_apply` fixture function still captures `(L+C).apply` (valid); only its
@@ -124,11 +124,11 @@ edits removed every dangling symbol cross-ref via grep and that all referenced l
 
 ## GATE OUTPUT (host `.venv/bin/python -O -m pytest`)
 
-- `tests/sn/operators tests/sn/spatial tests/sn/sweep/core tests/sn/solve` + the 2 curvilinear MMS
+- `tests/gates/sn/operators tests/gates/sn/spatial tests/gates/sn/sweep/core tests/gates/sn/solve` + the 2 curvilinear MMS
   files: **7 failed, 1096 passed, 6 skipped, 5 xfailed**. The 7 fails are EXACTLY the documented
   baseline reds (ZERO new): 5 stale sphere snapshots (#250 — `test_vacuum_bulk_bit_identical_1d[{0,1,2}-SPH]`
   + `test_sphere_{1g,2g}_apply_bit_identical`) + 2 mu_y (#232 — `Face 'ymin' requires genuine mu_y`).
-- DD strict regression `tests/sn/regression -W "error::…DriftWarning"`: **13 passed, 13 within-tol
+- DD strict regression `tests/gates/sn/regression -W "error::…DriftWarning"`: **13 passed, 13 within-tol
   DriftWarnings IDENTICAL to baseline ULP** — incl. the bit-identity proof
   `2d_2g_p1_aniso_dd_8x4_het_si: 6920 ULP / 9.81e-13 rel (within tol)`. This is THE production-
   byte-identical proof: deleting unused code moved NO snapshot, the strict gate passes at the SAME

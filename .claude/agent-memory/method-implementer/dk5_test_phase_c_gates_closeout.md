@@ -16,23 +16,23 @@ configfile: pyproject.toml
 plugins: dash-4.1.0, anyio-4.13.0
 collecting ... collected 17 items
 
-tests/sn/test_phase_c_gates.py::test_apply_linearity_under_sweep_frame[sphere_GL4_reflective] PASSED [  5%]
-tests/sn/test_phase_c_gates.py::test_apply_linearity_under_sweep_frame[cyl_LS4_reflective]    PASSED [ 11%]
-tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-mms-0.0] XFAIL [ 17%]
-tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-mms-0.5] XFAIL [ 23%]
-tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-mms-0.0]    XFAIL [ 29%]
-tests/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-mms-0.5]    XFAIL [ 35%]
-tests/sn/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame[sphere_GL4_reflective]       XFAIL [ 41%]
-tests/sn/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame[cyl_LS4_reflective]          XFAIL [ 47%]
-tests/sn/test_phase_c_gates.py::test_apply_face_fluxes_match_sweep_recurrence_spherical            PASSED [ 52%]
-tests/sn/test_phase_c_gates.py::test_bc_trace_contract_respected_by_matvec_vacuum_sphere           PASSED [ 58%]
-tests/sn/test_phase_c_gates.py::test_bc_trace_contract_respected_by_matvec_reflective_sphere       PASSED [ 64%]
-tests/sn/test_phase_c_gates.py::test_bc_trace_contract_capture_and_compare_sphere[vacuum]          PASSED [ 70%]
-tests/sn/test_phase_c_gates.py::test_bc_trace_contract_capture_and_compare_sphere[reflective]      PASSED [ 76%]
-tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-0.5]     PASSED [ 82%]
-tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-1.5]     PASSED [ 88%]
-tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-0.5]        PASSED [ 94%]
-tests/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-1.5]        PASSED [100%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_linearity_under_sweep_frame[sphere_GL4_reflective] PASSED [  5%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_linearity_under_sweep_frame[cyl_LS4_reflective]    PASSED [ 11%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-mms-0.0] XFAIL [ 17%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-mms-0.5] XFAIL [ 23%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-mms-0.0]    XFAIL [ 29%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-mms-0.5]    XFAIL [ 35%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame[sphere_GL4_reflective]       XFAIL [ 41%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_apply_transpose_reciprocity_under_sweep_frame[cyl_LS4_reflective]          XFAIL [ 47%]
+tests/gates/sn/test_phase_c_gates.py::test_apply_face_fluxes_match_sweep_recurrence_spherical            PASSED [ 52%]
+tests/gates/sn/test_phase_c_gates.py::test_bc_trace_contract_respected_by_matvec_vacuum_sphere           PASSED [ 58%]
+tests/gates/sn/test_phase_c_gates.py::test_bc_trace_contract_respected_by_matvec_reflective_sphere       PASSED [ 64%]
+tests/gates/sn/test_phase_c_gates.py::test_bc_trace_contract_capture_and_compare_sphere[vacuum]          PASSED [ 70%]
+tests/gates/sn/test_phase_c_gates.py::test_bc_trace_contract_capture_and_compare_sphere[reflective]      PASSED [ 76%]
+tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-0.5]     PASSED [ 82%]
+tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[sphere_GL4_reflective-1.5]     PASSED [ 88%]
+tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-0.5]        PASSED [ 94%]
+tests/gates/sn/test_phase_c_gates.py::test_sweep_curvilinear_per_ordinate_flat_flux_residual[cyl_LS4_reflective-1.5]        PASSED [100%]
 
 11 passed, 6 xfailed, 1 warning in 0.54s
 ```
@@ -127,7 +127,7 @@ the first call to `op.apply_transpose(phi_state)`.
 
 ## Manifest
 
-* **Migrated file**: `tests/sn/test_phase_c_gates.py` (10 construction
+* **Migrated file**: `tests/gates/sn/test_phase_c_gates.py` (10 construction
   sites + ~11 method calls → composite (L+C) consumed via TimedFullField).
 * **Imports retired**: `SNStreamingOperator` removed; the file now imports
   `StreamingOperator`, `CollisionOperator`, `MissingCapability`,

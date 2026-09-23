@@ -187,7 +187,7 @@ r-dependence reintroduces the singularity in a DIFFERENT location
 
 ## Promotion candidates
 
-- **Test 3 (HALF M1 hypothesis)** → `tests/derivations/test_peierls_specular_continuous_mu.py`
+- **Test 3 (HALF M1 hypothesis)** → `tests/gates/derivations/test_peierls_specular_continuous_mu.py`
   as `test_specular_matrix_limit_is_half_M1` — gates the 1/2 prefactor
   in any future production rewrite.
 - **Test 7 (closed form)** → same file, as

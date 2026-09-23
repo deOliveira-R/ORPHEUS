@@ -108,8 +108,8 @@ island's hardcoded ``e_per_fission`` power window and its
 ``fi /= max(|fi|)`` conditioning hack are both retired by this
 contract (#270 diffusion arm).
 
-Verification (the P5 gates, ``tests/diffusion/test_solver.py``)
-===============================================================
+Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
+=====================================================================
 
 * cross-engine: ``power_iteration`` ≡
   :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` on the

@@ -56,7 +56,7 @@ projection and passes the array). The projection lives test-side, structurally
 independent of production (L11): `leggauss` only, NEVER `_lift_*` nor any
 `_ubld`/`LinearDiscontinuous` method.
 
-## THE TESTS (`tests/sn/verification/mms/test_mms_ld_2d.py`, the #247 block)
+## THE TESTS (`tests/gates/sn/verification/mms/test_mms_ld_2d.py`, the #247 block)
 
 `-O`-safe (Mode 8): `np.testing.*` / `pytest.fail` / `pytest.raises` only, NO
 bare assert. The two projection foundation sub-gates (Deliverable 3) were already
@@ -110,12 +110,12 @@ the §0 trap — the smallest probed flip (xy, 6e-5) clears it by ~6000×.
 
 ```
 # Full LD-2-D + symbolic (incl. slow), AFTER the change:
-tests/sn/verification/mms/test_mms_ld_2d.py tests/derivations/test_sn_mms_ld_2d_stress_symbolic.py
+tests/gates/sn/verification/mms/test_mms_ld_2d.py tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py
   25 passed, 1 skipped, 1 warning in 427.26s   (baseline was 17 passed, 7 skipped)
 # net: +8 active gates (the #247 block); 1 skip = the #251 Leg B stub.
 
 # Bit-identity DriftWarning strict gate (the flat path is byte-identical):
-tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"
+tests/gates/sn/sweep/core tests/gates/sn/solve -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
   520 passed, 1 skipped, 4 xfailed, 2 warnings in 84.84s
 # NO DriftWarning fired, NO golden moved — the typed-union widening leaves the
 # flat/DD path untouched (the negative control).
@@ -183,7 +183,7 @@ surfaces (next free is ERR-063). None did.
 
 - `orpheus/sn/solver.py` — `_build_fixed_source_rhs` validation widening +
   docstring; `_lift_external_source_to_moments` slope-thread widening + docstring.
-- `tests/sn/verification/mms/test_mms_ld_2d.py` — the #247 block (6 new/impl
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py` — the #247 block (6 new/impl
   gates + the Leg B skip re-pointed to #251 + the existing-gate honest-scope
   docstring update). The two projection foundation sub-gates were already written.
 - `orpheus/derivations/continuous/mms/sn.py` — `SN2DCartesianLDStressMMSCase`

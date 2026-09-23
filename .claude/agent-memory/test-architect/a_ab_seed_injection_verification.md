@@ -66,7 +66,7 @@ Both equivalence gates are BIT-IDENTITY INHERITANCE, not fresh value claims
 
 ## The gate suite `TestA_AB_SeedInjection` (foundation; sphere-GL S4 only)
 
-Home: `tests/sn/operators/test_psi_half_coupling.py` (`pytest.mark.foundation`).
+Home: `tests/gates/sn/operators/test_psi_half_coupling.py` (`pytest.mark.foundation`).
 Reuse `_sphere`/`_graded_sphere`/`_loss`/`_template`/`_dense`/`_blocks`/
 `_ray_source`/`_ray_cotangent`/`_install_engine_spy` pattern. ≥2G every value
 row. `-O`-safe (`pytest.fail`/`np.testing`, never bare `assert`).

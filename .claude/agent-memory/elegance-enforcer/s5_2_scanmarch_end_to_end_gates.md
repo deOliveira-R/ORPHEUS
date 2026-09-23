@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-`tests/sn/solve/test_scan_march_end_to_end.py` (S5.2, #222) — **PASS clean, no conditions.**
+`tests/gates/sn/solve/test_scan_march_end_to_end.py` (S5.2, #222) — **PASS clean, no conditions.**
 The deferred end-to-end gates that drive FULL production solvers with ScanMarch FORCED, after
 the sweep/matvec-layer-only G2 nulp oracle. Four tests (G4.a aniso+het+vacuum, G4.b all-reflective
 ERR-056 shed pin, G6 k_inf anchor + SI≡Krylov het). Two reusable rulings:

@@ -6,7 +6,7 @@ explicit boundary.
 
 ## What migrated (count + sample tests)
 
-15 call-site migrations in `tests/sn/test_scattering_operator.py`:
+15 call-site migrations in `tests/gates/sn/test_scattering_operator.py`:
 
 - **`op.apply(psi)` sites — 11 sites** across 5 test classes:
   - `TestProtocolCompliance::test_apply_accepts_psi_shape` — psi now
@@ -40,7 +40,7 @@ Module-level imports added: `AngularFlux`, `PerOrdinateSource` from
 
 ## What didn't need migrating (already typed)
 
-- **`tests/sn/test_harmonic_moment_field.py`** — verified at line 454:
+- **`tests/gates/sn/test_harmonic_moment_field.py`** — verified at line 454:
   `psi = AngularFlux.from_mesh(psi_values, sn_mesh)` already typed.
   31/31 tests PASS. NO edits made to this file.
 - **`TestCompositeInvariants` (4 tests in test_scattering_operator.py)** —
@@ -100,22 +100,22 @@ After main-agent surgery: expected 91 PASS / 0 FAIL.
 
 ```
 $ /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest \
-      tests/sn/test_scattering_operator.py tests/sn/test_harmonic_moment_field.py \
+      tests/gates/sn/test_scattering_operator.py tests/gates/sn/test_harmonic_moment_field.py \
       --tb=no -v
 
 (tail of output)
 ======================== short test summary info ========================
-FAILED tests/sn/test_scattering_operator.py::TestProtocolCompliance::test_apply_accepts_psi_shape
-FAILED tests/sn/test_scattering_operator.py::TestApplySemantics::test_apply_isotropic_flux_p0_only
-FAILED tests/sn/test_scattering_operator.py::TestApplySemantics::test_apply_zero_psi_returns_zero
-FAILED tests/sn/test_scattering_operator.py::TestApplySemantics::test_apply_linearity
-FAILED tests/sn/test_scattering_operator.py::TestProducerSideNormalisation::test_typed_apply_returns_per_ordinate_already_normalised
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_p0_only_random_psi
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_p0_only_uniform_psi
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_with_pl_ge_1
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_with_nonzero_n2n
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_multigroup_cross_group_plus_diagonal
-FAILED tests/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_residual_zero_when_p0_diagonal_only_no_n2n
+FAILED tests/gates/sn/test_scattering_operator.py::TestProtocolCompliance::test_apply_accepts_psi_shape
+FAILED tests/gates/sn/test_scattering_operator.py::TestApplySemantics::test_apply_isotropic_flux_p0_only
+FAILED tests/gates/sn/test_scattering_operator.py::TestApplySemantics::test_apply_zero_psi_returns_zero
+FAILED tests/gates/sn/test_scattering_operator.py::TestApplySemantics::test_apply_linearity
+FAILED tests/gates/sn/test_scattering_operator.py::TestProducerSideNormalisation::test_typed_apply_returns_per_ordinate_already_normalised
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_p0_only_random_psi
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_p0_only_uniform_psi
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_with_pl_ge_1
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_with_nonzero_n2n
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_identity_multigroup_cross_group_plus_diagonal
+FAILED tests/gates/sn/test_scattering_operator.py::TestAlgebraicIdentity::test_residual_zero_when_p0_diagonal_only_no_n2n
 ================== 11 failed, 80 passed, 3 warnings in 0.69s ===================
 ```
 
@@ -126,7 +126,7 @@ ScatteringOperator.apply: unsupported input type AngularFlux`.
 
 ```
 $ grep -n "op.apply\|op.build_aniso_source\|scattering_op.apply\|
-  scattering_op.build_aniso_source" tests/sn/test_scattering_operator.py
+  scattering_op.build_aniso_source" tests/gates/sn/test_scattering_operator.py
 ```
 
 All remaining sites consume either:
@@ -196,5 +196,5 @@ remain. Migration is complete on the test-side.
 4. Migrate `_build_aniso_scattering` delegator helper at
    `orpheus/sn/solver.py:_build_aniso_scattering` + caller at
    solver.py:1203 to wrap `angular` as `AngularFlux` internally.
-5. Re-run `tests/sn/test_scattering_operator.py` + `tests/sn/test_harmonic_moment_field.py`
+5. Re-run `tests/gates/sn/test_scattering_operator.py` + `tests/gates/sn/test_harmonic_moment_field.py`
    — expected outcome: 91 PASS / 0 FAIL.

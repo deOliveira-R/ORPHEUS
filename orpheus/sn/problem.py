@@ -288,7 +288,7 @@ class SNProblem(MaterialMesh):
         self.quad = quadrature
         # Cell-update strategy. Defaults to :class:`DiamondDifference`, which
         # reproduces the inlined sweep math bit-identically (every regression
-        # snapshot at ``tests/sn/regression/snapshots/`` was generated with DD
+        # snapshot at ``tests/gates/sn/regression/snapshots/`` was generated with DD
         # and matches bit-for-bit through ``self.scheme.update(...)``).  Pass
         # ``scheme=LinearDiscontinuous()`` etc. to select another.
         self.scheme: DiscretizationSchemeBase = (
@@ -835,7 +835,7 @@ class SNProblem(MaterialMesh):
 
         Every carrier in the hierarchy promotes: ``mesh is None`` has ONE
         meaning (the d≥3 axis-native carrier, which promotes normally —
-        ``tests/transport/test_material_mesh_admission.py`` pins that every
+        ``tests/gates/transport/test_material_mesh_admission.py`` pins that every
         d≤2 constructor carries a mesh). The mesh-less infinite-medium
         1-cell carrier this method once refused with a typed
         ``ValueError`` (S7 G7.1) retired at the CS4c coda, 2026-09-08 —
@@ -1325,7 +1325,7 @@ class SNProblem(MaterialMesh):
         widened trial mint, ``is``-shared since CS4b S5), so ``G_bulk =
         V·w_n`` has one spelling in production; the ≤ 1 ULP gate that
         reproduces it is against a HAND-densified oracle
-        (``tests/sn/mesh/test_angular_bulk_space.py``), not a second
+        (``tests/gates/sn/mesh/test_angular_bulk_space.py``), not a second
         production copy. Cached: every
         consumer of one carrier reads the SAME instance; equal carriers
         mint ``==`` spaces through the derived name.
@@ -1447,7 +1447,7 @@ class SNProblem(MaterialMesh):
         leaf's carrier guard, 55 from the sweep's iterate wrap; the count
         grew as ``2·max_inner + 6``). With the hub owning it the count is
         INVARIANT in the iteration budget — gated in
-        ``tests/sn/mesh/test_hub_owns_the_moment_space.py``. The cache is
+        ``tests/gates/sn/mesh/test_hub_owns_the_moment_space.py``. The cache is
         keyed, not a bare property, because ``L`` and the width are the
         posing's truncation orders, chosen per binding.
 
@@ -1520,7 +1520,7 @@ class SNProblem(MaterialMesh):
         # ``G_bulk = V_cell·w_n [⊗ mass]`` lives per axis on that space,
         # reproducing the retired dense spelling at ≤ 1 ULP on every
         # metric face — gated by the hand-built dense oracle in
-        # ``tests/sn/mesh/test_angular_bulk_space.py``.
+        # ``tests/gates/sn/mesh/test_angular_bulk_space.py``.
         return FullFieldSpace.from_blocks(
             self.angular_trial_space,
             self.angular_trace,

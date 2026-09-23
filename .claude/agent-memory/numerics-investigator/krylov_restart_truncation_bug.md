@@ -91,9 +91,9 @@ The fix is **purely internal**. `keff_tol`/`flux_tol`/`inner_tol` semantics are 
 
 ## Cross-reference
 
-- Test file: `tests/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`
-- L1 anchor that passes (by coincidence): `tests/sn/test_krylov_curvilinear_precond_safety.py::test_identity_preconditioner_recovers_kinf[sphere]`
-- L1 anchor that passes (by tightness): `tests/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous[sphere-2eg-krylov]`
+- Test file: `tests/gates/sn/spatial/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`
+- L1 anchor that passes (by coincidence): `tests/gates/sn/test_krylov_curvilinear_precond_safety.py::test_identity_preconditioner_recovers_kinf[sphere]`
+- L1 anchor that passes (by tightness): `tests/gates/sn/l1_analytical/test_kinf_homogeneous.py::test_kinf_homogeneous[sphere-2eg-krylov]`
 - The 2026-05-26 max_inner bump from 300 → 1000 in `_TIGHT_KW` was a symptom-level patch for the same underlying bug at n_cells=10.
 
 ## Recommended ERR entry (post-fix)

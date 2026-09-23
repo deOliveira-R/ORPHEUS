@@ -80,9 +80,9 @@ comment over a multi-line `..  / .. / ..` continuation block.
 
 ---
 
-## L-005 -- Locating slow/timeout tests in tests/derivations
+## L-005 -- Locating slow/timeout tests in tests/gates/derivations
 
-The whole `tests/derivations` suite CANNOT be run in one bounded
+The whole `tests/gates/derivations` suite CANNOT be run in one bounded
 process to find the `Timeout (>60.0s)` tests: with `--timeout=60
 --timeout-method=signal` the per-test 60s stalls accumulate past any
 sane `gtimeout` wall (even `-n 6` xdist hit the 600s cap mid-run and
@@ -320,13 +320,13 @@ LIVE (not a false gate): perturb the committed baseline `.npy` by 1 ULP
 
 ## L-015 -- conftest filterwarnings overrides are SESSION-GLOBAL but do NOT cross-leak to sibling dirs (verify, don't assume)
 
-`tests/sn/regression/conftest.py::pytest_configure` does
+`tests/gates/sn/regression/conftest.py::pytest_configure` does
 `config.addinivalue_line("filterwarnings","always::DriftWarning")`, which
 makes `-W error::DriftWarning` INERT for that directory's own iterative DD
 snapshots (they emit 100s–10000s ULP drift but never fail under `-W error`).
-The fear: this leaks to a sibling gate (`tests/sn/sweep/core/`) co-collected
+The fear: this leaks to a sibling gate (`tests/gates/sn/sweep/core/`) co-collected
 in the same session → false green. EMPIRICALLY DISPROVEN 2026-06-14: with a
-1-ULP-perturbed `sweep/core` baseline AND `tests/sn/regression/` co-
+1-ULP-perturbed `sweep/core` baseline AND `tests/gates/sn/regression/` co-
 collected, the `sweep/core` A-NEW gate STILL FAILED under `-W error::
 DriftWarning` (per-item filterwarnings precedence: the `-W` CLI filter beats
 the conftest `addinivalue_line` for items OUTSIDE regression/). So a "the
@@ -494,8 +494,8 @@ When a kernel's input contract changes convention (#240: `SNMesh.streaming` /
 applying the diamond `2`), EVERY test that hand-feeds the kernel the OLD literal
 is now passing physically-wrong input. The diff author re-baselined the
 convention-encoding tests in the SAME directory as the code change
-(`tests/sn/sweep/core/`) but MISSED 3 sites in a SIBLING dir
-(`tests/sn/spatial/test_linear_discontinuous.py:272/303/340`, all
+(`tests/gates/sn/sweep/core/`) but MISSED 3 sites in a SIBLING dir
+(`tests/gates/sn/spatial/test_linear_discontinuous.py:272/303/340`, all
 `s_axes=(2.0*mu/h,)`). 2 of the 3 broke (the geometry-cross-checks
 `test_group1_equals_group2_flat` + `test_group3_equals_group2_scan_flat`: one
 arm feeds the stale literal to `cell_kernel_batch`, the other derives `g` from
@@ -995,7 +995,7 @@ fixed by `octant_moment_frame_signs` = ∏_a sign_a^{o_a} involution via `_refra
 
 1. **The headline correctness claim is REAL (L11 clean, NOT L4).** The
    from-scratch LM-1989 solver (`_independent_ld_slab` in
-   `tests/sn/spatial/test_ld_slope_frame.py`) is GENUINELY structurally
+   `tests/gates/sn/spatial/test_ld_slope_frame.py`) is GENUINELY structurally
    independent: hand-built cell 2×2 `[[σh+μ,μ],[-μ/θ,σh+μ/θ]]`, hand SI, NO
    ORPHEUS kernel. Verified live: sweep-frame=1.4717 (== ORPHEUS pre-fix
    bit-for-bit), global-frame=2.3080 (rel 2.3% vs ANALYTICAL diffusion 2.362).
@@ -1560,7 +1560,7 @@ in the deleted public adapter → refactor CONSOLIDATED 3 sites → 1, which is 
 2307→2297 (−10). `# type: ignore` delta −1 (removed `op.apply_transpose`), 0 added. Gates:
 138 Krylov/round-trip pass (-O); broad regression 7 reds = EXACTLY #250 SPH×5 (huge-ULP ~1e15
 while SLB sibling 1-ULP DriftWarning-pass = L-034 stale-snap) + #232 mu_y×2, all in
-tests/sn/operators/ with 0 refs to the changed code (orthogonal). No ERR (no bug caught).
+tests/gates/sn/operators/ with 0 refs to the changed code (orthogonal). No ERR (no bug caught).
 
 ---
 
@@ -1603,7 +1603,7 @@ ever becomes above-floor. Coherent-promise gate teeth = flat first-cell-row orde
 
 **DD byte-identity proven 3 ways:** (a) `np.array_equal(prod_DD.values, pre-S9 face_coords
 build)==True` (1344,); (b) GATE D strict `-W error::DriftWarning` 520/1/4 = baseline, NO
-DriftWarning fired; (c) no LD-stress consumer in tests/sn/sweep/core or solve (grep) → no
+DriftWarning fired; (c) no LD-stress consumer in tests/gates/sn/sweep/core or solve (grep) → no
 value/snapshot pin could shift. Gates: G1 35pass / G2 590pass,1skip,4xfail / GATE-D 520/1/4
 / pyright 2282 = baseline 0 net-new. Mode-8 clean (0 bare assert in new file or prod).
 NO blocker, NO false-green, NO ERR.
@@ -1637,7 +1637,7 @@ contract (χ gated by SAME region's νΣf). FALSE for `solve_peierls_mg`: its MG
 χ on non-fissile region B (the emission spectrum of fission BORN in A but emitted INTO B) is
 LOAD-BEARING. Direct probe: region-B χ [1,0]→[0,0] moves peierls k_eff `1.0985→0.5563` (1G/2R)
 / `1.1008→0.3856` (2G/2R) — O(1), not ULP. 7 L1 tests in
-`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py` (cylinder/sphere hebert overshoot +
+`tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py` (cylinder/sphere hebert overshoot +
 recovers_kinf[2G_2R]+RICH + mark_floor[cyl/sph]) FAIL under S10a, PASS at clean HEAD (proven
 via `git worktree add c6e21c0` + PYTHONPATH=worktree: 4+4 passed). Only RICH is @slow; other 6
 plain @l1. Closeout MISSED it — it relied on "0 EmissionSpectrum reds" (counts only guard
@@ -1955,7 +1955,7 @@ text shifts at the same logical error (#257 S8c:
 `test_krylov_curvilinear_precond_safety.py` L174 `gains` arg showed as both −1 and
 +1 — SAME error, per-file count 4==4 = net ZERO; the `LinearOperator[V@Krylov…]`
 render changed). The REAL net-new = +3, ALL in the standalone capture SCRIPT
-`tests/sn/_fixtures/wave_t_t3/_capture_pre_t3_snapshots.py` (L191 `aniso.values`
+`tests/gates/sn/_fixtures/wave_t_t3/_capture_pre_t3_snapshots.py` (L191 `aniso.values`
 ×2 + L204 `np.savez allow_pickle`).
 
 **Root cause = NoReturn→unreachable SUPPRESSION lift (PRE-EXISTING LATENT, not a
@@ -2172,7 +2172,7 @@ do NOT guess.
    `description="... Wave 8 will switch ..."` dataclass field, an f-string diagnostic, an assert
    message -- these are data the code may write to a snapshot / test-ID / error, so editing them
    is a behavioral change. The "never touch runtime strings" constraint PROTECTS you here: the
-   one genuinely-stale line in tests/geometry (`_generate_bc_equivalence_snapshots.py:159`) was a
+   one genuinely-stale line in tests/gates/geometry (`_generate_bc_equivalence_snapshots.py:159`) was a
    `description=` field -> untouchable despite the module docstring itself confirming Wave 8
    landed.
 2. **A load-bearing-gate "failure here HALTs Phase X" banner is a characterization RECORD, not a
@@ -2246,7 +2246,7 @@ VERDICT PASS; the ~50-claim page was faithful end-to-end. Three reusable techniq
    list lengths + `ADAPTERS_BY_NAME` (6) at runtime, don't eyeball.
 2. **A doc-RETITLE can be MORE accurate than the test's own name/docstring — verify against
    the live ASSERTION body.** V6 retitled the SN property "Flux symmetry"→"Flux flatness";
-   `tests/sn/primitives/test_properties.py::test_flux_symmetry` is NAMED "symmetry" and its
+   `tests/gates/sn/primitives/test_properties.py::test_flux_symmetry` is NAMED "symmetry" and its
    docstring says "must be symmetric about the center", but the LIVE assertion is
    `assert_allclose(flux, flux[0], rtol=1e-6)` ("homogeneous slab flux is exactly flat"). The
    retitle correctly describes the assertion, not the stale name. So a retitle-faithfulness
@@ -2573,7 +2573,7 @@ Cross-refs [[lessons-L024]], [[lessons-L058]] (Mode-12 verify-by-running),
 
 ## L-063 — a retired claim over "not-X" carries as many clauses as the partition has classes; and an over-powered mutation over-states coverage 60x
 
-**Context.** `tests/sn/operators/test_native_matvec.py` pin 5 read "face residual
+**Context.** `tests/gates/sn/operators/test_native_matvec.py` pin 5 read "face residual
 zero at NON-OUTFLOW ordinates (inflow ords get their value from the BC)". Wave O
 #208 O.4a.2 inverted the inflow half — the live gate
 `test_outer_face_inflow_slots_carry_the_identity` asserts `out[inflow] ==
@@ -2625,7 +2625,7 @@ pseudo-inverse round-trip) and every solver-level observable is designed-green
 `numerics/spaces/full_field_space.py:47-53` states the property and relies on it
 for the Moore–Penrose adjoint being exact.
 
-**The one catcher.** `tests/sn/operators/test_sweep_inverse_identity.py::
+**The one catcher.** `tests/gates/sn/operators/test_sweep_inverse_identity.py::
 TestSweepInverseIdentity::test_forward_of_inverse_is_identity_on_a_random_composite[cyl_product]`
 — asserts `back.boundary.face_view(face)[degenerate] == 0` where
 `degenerate = setdiff1d(arange(N), union(inflow, outflow))`. Its `cyl_product`
@@ -2694,7 +2694,7 @@ headroom and is NOT the #16 latent-false-red it superficially resembles.
 
 ### (b) ⭐ THE FINDING — independence has TWO axes and single-sourcing closes one silently
 
-`tests/geometry/test_specular_response_pins_to_geometry.py` says, in its module
+`tests/gates/geometry/test_specular_response_pins_to_geometry.py` says, in its module
 docstring: *"the two sides are derived by genuinely independent routes … Neither
 consults the other."*
 
@@ -2774,11 +2774,11 @@ retirement's blind spot.**
 ### (e) Level-marker note, PRE-EXISTING, worth carrying
 
 The renamed equation node has degree 29 / ~21 incoming `tests` edges, ALL from the
-file-level `verifies(...)` list on `tests/sn/primitives/test_quadrature.py` — of
+file-level `verifies(...)` list on `tests/gates/sn/primitives/test_quadrature.py` — of
 which only `TestReflectionIndices::test_x_reflection` and
 `::test_reflection_involution` touch the permutation at all; the rest are
 weight-sum, second-moment, α-dome and scattering-source rows. Meanwhile the
-STRONGEST gates for that equation (`tests/numerics/test_quadrature_directional.py`
+STRONGEST gates for that equation (`tests/gates/numerics/test_quadrature_directional.py`
 Q4.2/4.3/4.5/4.6/4.7/4.8) carry `pytestmark = [pytest.mark.foundation]` and
 deliberately no `verifies` — correct level discipline (E1), but it means the audit
 credits the wrong file. The rename inherited this; it did not create it. `#20`
@@ -2804,9 +2804,9 @@ prose truth.
 
 | scope | result | time |
 |---|---|---|
-| `tests/numerics/test_angular_face_trace_space.py` + `test_trace_restriction_operator.py` + `tests/sn/operators/` | 1301 passed, **2 failed** (the declared cart2d pair), 1 skipped, 6 xfailed | 21 s |
-| + `tests/geometry/` | 2074 passed, **3 failed** | 30 s |
-| `tests/test_docstring_xrefs.py` + `tests/test_pyright_ratchet.py` | 4 passed | 77 s |
+| `tests/gates/numerics/test_angular_face_trace_space.py` + `test_trace_restriction_operator.py` + `tests/gates/sn/operators/` | 1301 passed, **2 failed** (the declared cart2d pair), 1 skipped, 6 xfailed | 21 s |
+| + `tests/gates/geometry/` | 2074 passed, **3 failed** | 30 s |
+| `tests/gates/test_docstring_xrefs.py` + `tests/gates/test_pyright_ratchet.py` | 4 passed | 77 s |
 
 The **third** geometry red — `test_bc_equivalence_snapshot.py::
 TestWhiteXminPartial03GLSnapshot::test_matches_the_frozen_scaled_lambertian`,
@@ -2928,7 +2928,7 @@ landing:
 - `orpheus/numerics/operator.py:2475` (`checked_space_extent`, a SHARED
   production primitive): *"The redundancy is transitional: **G6.5 retires the
   lengths** in favour of the spaces (#330)."*
-- `tests/numerics/test_angular_face_trace_space.py:741`: *"…until **G6.5 retires
+- `tests/gates/numerics/test_angular_face_trace_space.py:741`: *"…until **G6.5 retires
   the former**."*
 
 G6.5 shipped and deliberately did NOT retire them — and the carve KNEW, because
@@ -2947,7 +2947,7 @@ returned exactly the two survivors out of 33 hits, in one command.
 
 - **Deck-arm refusal blast radius: zero consumers.** An in-process
   `_deck_kernel` wrapper logging every entry + the guard predicate over
-  `tests/sn/operators` + `tests/geometry` + the two numerics batteries:
+  `tests/gates/sn/operators` + `tests/gates/geometry` + the two numerics batteries:
   **1460 entries, 3 with the predicate TRUE**, and all three are
   refusal-expecting rows. Bonus: one of them is spaceless AND lopsided and
   still gets the BIJECTION message ⟹ the "guard placed AFTER the size check"
@@ -2976,7 +2976,7 @@ returned exactly the two survivors out of 33 hits, in one command.
   longer exists).
 - Every `SNMethodSpace.minimal` test consumer — cannot reach `_deck_kernel`
   (0 logged entries); stopped earlier by the same refusal.
-- `tests/geometry/test_reemission_closure.py:847`'s
+- `tests/gates/geometry/test_reemission_closure.py:847`'s
   `TraceRestrictionOperator.to_local` mention — genuinely past tense ("Until
   this carve … fell through to"). The carve's tense judgment was right.
 - The re-posed control in `test_specular_deck_chain.py` (a hand-built unbound
@@ -3004,7 +3004,7 @@ dict, which wants its own pass."*
 
 ### 1. The estimate was a NAME grep over a DIFFERENT type family — and it inflated 43x
 
-`[M]` `grep -rn '\.converged' tests/derivations/` = **87**, exactly the filed
+`[M]` `grep -rn '\.converged' tests/gates/derivations/` = **87**, exactly the filed
 number. Decomposed:
 
 | family | hits |
@@ -3039,7 +3039,7 @@ def _getattr(self, name):
 CS.__init__, CS.__getattribute__ = _init, _getattr
 ```
 
-Run over every consumer suite (`tests/cross_method` + the 4 `tests/derivations`
+Run over every consumer suite (`tests/gates/cross_method` + the 4 `tests/gates/derivations`
 facade modules), `python -O`, 140 passed / 250 s:
 
 ```
@@ -3177,7 +3177,7 @@ mutation mechanics), `vv-principles` #23 (the control must match the knob),
 `history.converged` assertion". The instrument handed to me was the
 `ConvergenceWarning` that landed in `d9b027d7`, escalated per the project's own
 published recipe: `python -O -m pytest -W error::ConvergenceWarning`. HEAD
-`4bcce0bd`, `tests/sn -m "not slow"`, SERIAL.
+`4bcce0bd`, `tests/gates/sn -m "not slow"`, SERIAL.
 
 **F0 — the recipe cannot run.** `[M]` Python's `-W` parser resolves an
 **undotted** category against `builtins`, so `warnings._setoption(
@@ -3186,7 +3186,7 @@ and pytest exits `ERROR ... AttributeError: module 'builtins' has no attribute
 'ConvergenceWarning'` with **zero tests collected**. Four sites publish that
 spelling — `orpheus/numerics/convergence.py:70` and `:107`, the **emitted
 warning message itself** at `orpheus/sn/solver.py:454`, and
-`tests/sn/solve/test_convergence_contract.py:26`. The working form is
+`tests/gates/sn/solve/test_convergence_contract.py:26`. The working form is
 `-W error::orpheus.numerics.convergence.ConvergenceWarning`.
 
 The sharp part is WHY no test caught it: `test_it_is_escalatable_to_an_error`
@@ -3523,8 +3523,8 @@ and substituted a different predicate), [[lessons-L029]] (circularity), Q5.6.4 /
 ## L-069
 
 **Task.** Judge whether 7 failing CYLINDER snapshot gates (3 modules,
-`tests/sn/_data/affine_carve_baseline/`, `tests/sn/_data/bc_extraction_baseline/`,
-`tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`) may legitimately be
+`tests/gates/sn/_data/affine_carve_baseline/`, `tests/gates/sn/_data/bc_extraction_baseline/`,
+`tests/gates/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz`) may legitimately be
 re-baselined. Deliverable `scratch/task51_cyl_snapshot_audit.md`.
 Verdict: **RE-BASELINE all 7**, with 2 blocking doc repairs.
 
@@ -3535,18 +3535,18 @@ is **already in the tree** (`git merge-base --is-ancestor` ⟹ YES), 6 commits
 after the value-moving carve. It did the diligence properly *inside its
 scope*: sha256 before/after, a per-artefact `τ := 0.7` sensitivity screen,
 an in-place correction of a falsified prediction. Its scope was
-`tests/sn/regression/snapshots/` — **one directory**. Its universal
+`tests/gates/sn/regression/snapshots/` — **one directory**. Its universal
 *"Verified by sha256 over all 23 snapshots … these are the only two that
 changed"* names its denominator honestly and is tree-wide FALSE: 7 more
-frozen references moved in 3 other directories. `tests/sn` instead of
-`tests/sn/regression` would have shown them in 0.2 s.
+frozen references moved in 3 other directories. `tests/gates/sn` instead of
+`tests/gates/sn/regression` would have shown them in 0.2 s.
 ⟹ **Before auditing a re-baseline decision, `git log` the snapshot's own
 directory for a commit that already made it.** The reds may be a
 re-baseline's REMAINDER, and then the question is completeness, not
 legitimacy.
 
 **The bundled-mechanism false blindness (→ `vv-principles` #25).** The same
-commit's case list, in `tests/sn/regression/_generate_snapshots.py`, carries
+commit's case list, in `tests/gates/sn/regression/_generate_snapshots.py`, carries
 an `[M]` marker and says *"folded_2x4 has M = 2 … the ω-midpoint partition is
 BIT-IDENTICAL to the retired η-midpoint one at M = 2 … **So this case's tau
 did not change at all**, and no M = 2 fixture can ever see a partition
@@ -3563,7 +3563,7 @@ DIFFERENTIAL.** In-process plugin rebinding
 `pole_angular_closure.morel_montry_tau_per_level` to the verbatim
 pre-`3dda18ca` body (sole sweep/matvec consumer resolves it as a module
 global, so one rebind covers the path). Bite check: the 7 go GREEN, plugin
-reports `invoked 10 times`. Then `tests/sn -m "not slow"` in BOTH arms:
+reports `invoked 10 times`. Then `tests/gates/sn -m "not slow"` in BOTH arms:
 `MUT 41 failed / 3014 passed` vs `BASE 16 failed / 3039 passed`. The
 symmetric difference was exact — 7 red only at HEAD, **32 red only under
 old-τ**, 9 red in both (another agent's quadrature scope).
@@ -3632,10 +3632,10 @@ blanket file-level marker scores identically to a single-purpose L0 gate).
 
 `[M]` **#334 confirmed and it is 50.5 % of the relation.**
 `quadrature-ordinate-permutation` → exactly **21** edges, all from
-`tests/sn/primitives/test_quadrature.py`, whose `pytestmark` (`:26-38`) names
+`tests/gates/sn/primitives/test_quadrature.py`, whose `pytestmark` (`:26-38`) names
 **9** equations. **34 files** have `edges == n_tests × n_equations` with
 `n_eqs > 1` (the file-level-`pytestmark` signature) and emit **1388 of 2748**.
-`tests/cp/test_verification.py` alone emits **575 = 20.9 %** of the entire V&V
+`tests/gates/cp/test_verification.py` alone emits **575 = 20.9 %** of the entire V&V
 relation from 23 tests × 25 equations.
 
 ### 2. The three false-ALIVE mechanisms, in ascending severity
@@ -3723,8 +3723,8 @@ report. Cause: `coverage json` emits **339 of 339** file keys RELATIVE while
 
 ### 6. The re-baseline adjudication query — prototyped, and it names task #51's answer
 
-`[M]` `tests/sn/regression/test_dd_regression.py` +
-`tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`: 27 passed,
+`[M]` `tests/gates/sn/regression/test_dd_regression.py` +
+`tests/gates/sn/sweep/curvilinear/test_tau_producer_equivalence.py`: 27 passed,
 **59.03 s bare → 85.58 s under coverage (1.45×)**. Joined:
 881 nodes touched by the regression snapshot, 174 by the non-regression pins,
 **174 by both**, **707 pinned by nothing else** (two-file denominator — state it).
@@ -4184,7 +4184,7 @@ slicing performs have call-site sets it never enumerated:
 
 ### 7. A partial ledger flip is not runnable until the marker is split (positive control run)
 
-`[M]` `python -O -m pytest tests/sn/architecture/test_monomorphic_leaves.py -q`
+`[M]` `python -O -m pytest tests/gates/sn/architecture/test_monomorphic_leaves.py -q`
 → `82 passed, **16 xfailed**`; `-rx` decomposes exactly as all three assemblies
 claim: 5 R1-annotation `[L,C,S,F,B]`, 3 R2-anonymous `[C,S,F]`, 8 R6
 `[B × 4 geometries × 2 carriers]`.
@@ -4429,9 +4429,9 @@ half that holds the coverage.
 ## L-074 — a guard hoisted to ONE home has as many arms as CALL SITES; and three "independent" comparisons that were one expression compared with itself
 
 CS4a-R Phase-1 gate review, 2026-08-21, `feature/cs1-energy-space` @ `a9a2d55a`.
-Gates: `tests/transport/test_kernels.py` (51 rows),
-`tests/homogeneous/test_operator_spaces.py` (19),
-`tests/sn/architecture/test_monomorphic_leaves.py` (85 + 14 xfail). All green
+Gates: `tests/gates/transport/test_kernels.py` (51 rows),
+`tests/gates/homogeneous/test_operator_spaces.py` (19),
+`tests/gates/sn/architecture/test_monomorphic_leaves.py` (85 + 14 xfail). All green
 under `.venv/bin/python -O -m pytest -p no:randomly`; D5 byte gate 8/8.
 
 **1. The hoisted-guard arm count (the digest rule A12).**
@@ -4439,7 +4439,7 @@ under `.venv/bin/python -O -m pytest -p no:randomly`; D5 byte gate 8/8.
 from FOUR sites — `fission.py:201`, `multiplication_operator.py:214`,
 `isotropic_scattering.py:263` and `:380`. Its gate,
 `test_energy_conformity_guard_three_rows`, exercises **F only**. Per-site
-no-op mutation (in-process plugin, `tests/transport/ + tests/homogeneous/ +
+no-op mutation (in-process plugin, `tests/gates/transport/ + tests/gates/homogeneous/ +
 the ledger`, 655 rows): **F → 1 red; C → 0; IsoS+IsoN2N → 0**. `grep -rn
 "energy extent" tests/` = **1 assertion**, in the F row. The C site is the one
 that passes a DIFFERENT expression (`self.coefficient.values.shape[0]` vs
@@ -4457,8 +4457,8 @@ for s in mix.SigS]`. Same expression, same object. G1.3's docstring licenses
 `[M]` transpose the kernel side ALONE → **2 reds** (G1.3 asymmetric row, G1.4);
 transpose BOTH (the shared-source defect = `SigS` stored `[g_to,g_from]`, a
 Mode-2/6 convention inversion) → **51/51 GREEN**, and the whole of
-`tests/transport/` is green. The convention IS pinned — but only in
-`tests/homogeneous/` (**17 reds**, incl. the L1 `test_kinf_exact` anchor and
+`tests/gates/transport/` is green. The convention IS pinned — but only in
+`tests/gates/homogeneous/` (**17 reds**, incl. the L1 `test_kinf_exact` anchor and
 the continuous reference). Same shape at G1.4: `dense_per_material` is
 `sig_s_legendre(mid)[0].T`, so `p0 == iso[mid].T` cancels to an identity; what
 G1.4 genuinely pins is the transpose CONVENTION between two named views and the
@@ -4511,7 +4511,7 @@ docstring's fixture rationale is measurably wrong in one clause: `make_mixture`
 DOES take `sig_s1`, and **all 12** shipped `get_mixture(region, ng_key)` pairs
 ship `len(SigS) = 2` (order 1). What IS true of it: `SigL = np.zeros(ng)`
 hardcoded, `Sig2` nnz 0 on all 12. The false clause is duplicated verbatim in
-`tests/sn/architecture/_config.py:88-93` — one wrong claim, two homes.
+`tests/gates/sn/architecture/_config.py:88-93` — one wrong claim, two homes.
 
 ---
 
@@ -4529,8 +4529,8 @@ read by ZERO production sites and ~12 test sites."*
 
 Grep first (`grep -rn --include='*.py' -w <field> orpheus tests scripts`,
 untruncated): **0 production readers**, **6 test assertions each** — 12 total,
-across `tests/geometry/test_reduced_operator.py:318,319,353,354,362,363` and
-`tests/sn/primitives/test_snmesh_consumes_reduced.py:88,89,97,98,115,116`.
+across `tests/gates/geometry/test_reduced_operator.py:318,319,353,354,362,363` and
+`tests/gates/sn/primitives/test_snmesh_consumes_reduced.py:88,89,97,98,115,116`.
 The brief's estimate confirmed exactly. Remaining hits are 3 constructor
 kwargs, 1 field decl, 2 docstrings and 1 comment.
 
@@ -5057,13 +5057,13 @@ Three mechanics generalise:
 
 ### Finding 1 — diffusion HANDLES the channel and has ZERO witnesses
 
-`[M]` `tests/diffusion` = **113 passed / 0 red** under ν₂ₙ: 2→1 **and** under
-the stronger 2→0, while `tests/homogeneous` reddens 7 in the same process (the
+`[M]` `tests/gates/diffusion` = **113 passed / 0 red** under ν₂ₙ: 2→1 **and** under
+the stronger 2→0, while `tests/gates/homogeneous` reddens 7 in the same process (the
 positive control). Cause, measured by instrumenting `Mixture.__post_init__` for
 the run: **625 mixtures constructed, 1 with nonzero `Sig2`** — and that one is
 `homo_2eg_n2n`, built as a side effect of the derivations registry, never handed
 to a diffusion solve. `_fixture_materials()`
-(`tests/diffusion/test_operators.py:103`) calls `make_mixture(...)` with no
+(`tests/gates/diffusion/test_operators.py:103`) calls `make_mixture(...)` with no
 `sig_2=`.
 
 ⭐ The shape worth carrying: `IsotropicN2N` appears in **4** diffusion tests, so
@@ -5081,7 +5081,7 @@ a Σ₂≠0 fixture lands.
 
 ### Finding 2 — an ERR whose only catcher the canonical gate deselects
 
-ERR-023's sole catcher is `tests/mc/test_gaps.py:718`, carrying
+ERR-023's sole catcher is `tests/gates/mc/test_gaps.py:718`, carrying
 `@pytest.mark.slow` **and** `@pytest.mark.catches("ERR-023")`. `[M]` at
 `-m "not slow"` the MC tree is 39 passed / 0 red under the mutation; run alone
 the same test FAILS in 84 s. So the test has real teeth and the gate that
@@ -5094,8 +5094,8 @@ to that file reddens it, and only the marker set says otherwise. → digest **E7
 
 ### Finding 3 — SN's ν₂ₙ is pinned at the operator tier, not end-to-end
 
-`[M]` `tests/sn/operators` = 8 red; `tests/sn/verification/analytical` = 57
-passed / **0** red; `tests/sn/eigenvalue` = 67 passed / **0** red. Two unrelated
+`[M]` `tests/gates/sn/operators` = 8 red; `tests/gates/sn/verification/analytical` = 57
+passed / **0** red; `tests/gates/sn/eigenvalue` = 67 passed / **0** red. Two unrelated
 causes:
 * `test_kinf_homogeneous` parametrizes `{"1eg","2eg","4eg"}` — the shipped
   derivation registry HAS a Σ₂≠0 member (`homo_2eg_n2n`) and the SN ladder skips
@@ -5111,7 +5111,7 @@ causes:
 
 ### Finding 4 — the census whose control validated the wrong stage → digest A17
 
-`tests/transport/test_n2n_multiplicity_census.py` claims *"a thirteenth literal
+`tests/gates/transport/test_n2n_multiplicity_census.py` claims *"a thirteenth literal
 home is unspellable without reddening this census"*. Its filter is two-stage:
 a **name-net** over the function body, then a **literal pattern**. `[M]` the net
 `("n2n","sig2","sig_2n","_2n")` misses `sig_2` — `derivations/`'s spelling — so
@@ -5664,7 +5664,7 @@ never both.
 - Arm A (text path), `articulation` 800 → 8000 on the real manifest, copy-aside first:
   `--check` rc 1 with `PROBLEM: .claude/rules/articulation.md: budget 8000 is 7292 tokens
   above ≈708, more than SLACK_MAX 400; lower it` and `18 targets, 1 problems, 0 drifted`;
-  `python -O -m pytest tests/test_harness_generated.py` → `1 failed … in 0.70s`. Restored
+  `python -O -m pytest tests/gates/test_harness_generated.py` → `1 failed … in 0.70s`. Restored
   by `cp`, both green (`0 problems, 0 drifted`; `1 passed`).
 - Arm B (agent path), explorer role block 300 → 8000, mutated **in-process** by handing
   `render_agent` a copied entry dict — no tracked file touched at all. Control leg

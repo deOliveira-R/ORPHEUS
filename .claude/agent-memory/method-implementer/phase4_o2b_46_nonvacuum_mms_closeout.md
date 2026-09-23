@@ -45,9 +45,9 @@ source-driven); NO adjoint.
 | File | What | Status |
 |------|------|--------|
 | `orpheus/derivations/continuous/mms/sn.py` | (edit) Branch-1 SymPy + Branch-2 factories | shipped |
-| `tests/derivations/test_sn_mms_nonvacuum_symbolic.py` | (new) foundation symbolic gate | 9 pass |
-| `tests/sn/verification/analytical/test_mms_prescribed_inflow.py` | (new) T1/T2/T3/T3g | 4 pass + 1 xfail |
-| `tests/sn/verification/analytical/test_prescribed_inflow_consistency.py` | (new) T4 (promotes the probe) | 2 pass |
+| `tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py` | (new) foundation symbolic gate | 9 pass |
+| `tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py` | (new) T1/T2/T3/T3g | 4 pass + 1 xfail |
+| `tests/gates/sn/verification/analytical/test_prescribed_inflow_consistency.py` | (new) T4 (promotes the probe) | 2 pass |
 | `docs/theory/discrete_ordinates.rst` | (edit) Sphinx stub + 4 `:label:` blocks | Sphinx -W clean |
 
 ### SymPy Branch-1 (decisions A + B)
@@ -95,9 +95,9 @@ marker. NOT the rich narrative (archivist deliverable). Sphinx `-W` build SUCCEE
 
 | Piece | Gate command (PYTHONPATH=worktree, `.venv/bin/python -O -m pytest`) | Result |
 |-------|------|--------|
-| 1 (T4) | `tests/sn/verification/analytical/test_prescribed_inflow_consistency.py` | **2 passed** |
-| 2 (symbolic) | `tests/derivations/test_sn_mms_nonvacuum_symbolic.py` | **9 passed** |
-| 2 (regression A) | `tests/derivations/test_sn_mms_anisotropic_symbolic.py` | **10 passed, 2 PRE-EXISTING failed** (see below) |
+| 1 (T4) | `tests/gates/sn/verification/analytical/test_prescribed_inflow_consistency.py` | **2 passed** |
+| 2 (symbolic) | `tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py` | **9 passed** |
+| 2 (regression A) | `tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py` | **10 passed, 2 PRE-EXISTING failed** (see below) |
 | 3 (T1/T2) | `…/test_mms_prescribed_inflow.py::test_mms_prescribed_inflow_slab_converges_second_order` | **2 passed** |
 | 4 (T3/T3g) | `…::test_mms_prescribed_inflow_sphere_*` | **1 xfailed (T3, strict) + 1 passed (T3g)** |
 | all 4.6 | the 3 new test files | **14 passed, 1 xfailed** |
@@ -127,11 +127,11 @@ redistribution source `(1−μ²)B/r` non-zero NOW.
 
 | Gate | Result |
 |------|--------|
-| `tests/sn/verification/mms/test_mms.py` (vacuum slab) | **2 passed** |
-| `tests/sn/verification/mms/test_mms_curvilinear.py` + `test_curvilinear_aniso_convergence.py` (xfail #195) | **1 passed, 6 xfailed** (unchanged — parameterization did NOT flip them) |
-| `tests/numerics/test_operator.py` + `tests/sn/operators/test_operator_block_role.py` | **80 passed** |
-| `tests/sn/ -k "fixed_source and not heterogeneous_absolute and not continuous_get"` | **16 passed** |
-| `tests/sn/verification/mms/test_mms_heterogeneous.py` (2g hetero vacuum) | SLOW — see "Open items" |
+| `tests/gates/sn/verification/mms/test_mms.py` (vacuum slab) | **2 passed** |
+| `tests/gates/sn/verification/mms/test_mms_curvilinear.py` + `test_curvilinear_aniso_convergence.py` (xfail #195) | **1 passed, 6 xfailed** (unchanged — parameterization did NOT flip them) |
+| `tests/gates/numerics/test_operator.py` + `tests/gates/sn/operators/test_operator_block_role.py` | **80 passed** |
+| `tests/gates/sn/ -k "fixed_source and not heterogeneous_absolute and not continuous_get"` | **16 passed** |
+| `tests/gates/sn/verification/mms/test_mms_heterogeneous.py` (2g hetero vacuum) | SLOW — see "Open items" |
 | Sphinx `-W` build | **build succeeded** (only pre-existing test-file SyntaxWarnings) |
 
 ## DEVIATIONS from the architecture decisions (flagged)
@@ -161,7 +161,7 @@ redistribution source `(1−μ²)B/r` non-zero NOW.
 
 ## PRE-EXISTING REDS (NOT caused by 4.6 — confirmed by `git stash` at clean HEAD)
 
-`tests/sn/verification/mms/test_mms_anisotropic_symbolic.py::test_spherical_aniso_numerical_qext_matches_sympy`
+`tests/gates/sn/verification/mms/test_mms_anisotropic_symbolic.py::test_spherical_aniso_numerical_qext_matches_sympy`
 and `::test_cylindrical_aniso_numerical_qext_matches_sympy` FAIL at clean HEAD
 `7ccc14a` (verified by stashing my `sn.py` edit and re-running — still red). Root
 cause: those tests slice `Q_numerical[:, :, 0, 0]` (shapes `(N,1)` vs `(N,nx)`

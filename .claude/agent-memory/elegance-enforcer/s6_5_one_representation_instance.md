@@ -58,7 +58,7 @@ vacuously on zero calls. Class-level patch == call-time instance-method
 resolution site (1-D meshes → `CumprodScan`). Correct spy-target migration.
 
 **Test-helper promotion:** `cart2d_2g_nonsquare`/`het_operands` moved from
-`test_one_octant_walk.py` to `tests/sn/_test_helpers.py` VERBATIM (byte-identical
+`test_one_octant_walk.py` to `tests/gates/sn/_test_helpers.py` VERBATIM (byte-identical
 bodies incl. rng seed 20260611) when the S6.5 tests became the 2nd consumer —
 textbook unify-after-two-instances.
 

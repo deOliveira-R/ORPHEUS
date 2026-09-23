@@ -94,7 +94,7 @@ requirement materialised.
 
 ## Test gate
 
-`tests/derivations/test_fn_method_moment_space.py` — 14
+`tests/gates/derivations/test_fn_method_moment_space.py` — 14
 foundation-tagged tests pinning:
 
 - Production-protocol input acceptance (`from_problem`)
@@ -126,7 +126,7 @@ All 14 tests pass in 0.79s. Total test suite: 192 baseline + 14 new
   problems use the existing function API.
 - **Migrating cross_method/adapters.py to use MomentSpace**: per the
   brief's "follow-up commit if cleaner" guidance, the `FNSlabAdapter` /
-  `FNSphereAdapter` adapters in `tests/cross_method/adapters.py` still
+  `FNSphereAdapter` adapters in `tests/gates/cross_method/adapters.py` still
   call the function-level API directly. Migrating them would buy
   documentation locality (the cross-method Sphinx sees `MomentSpace`
   rather than 6 separate function names) but no behavioural change.
@@ -153,7 +153,7 @@ recovery sequence:
    (`docs/theory/trajectory_resolvent.rst`,
    `orpheus/.../trajectory_resolvent/__init__.py`,
    `orpheus/.../trajectory_resolvent/billiard.py`,
-   `tests/derivations/test_trajectory_resolvent_billiard.py`).
+   `tests/gates/derivations/test_trajectory_resolvent_billiard.py`).
 3. `git checkout feat/fn-method-moment-space`.
 4. Confirm my files are back (`ls
    orpheus/derivations/continuous/fn_method/moment_space.py`).
@@ -198,14 +198,14 @@ empirical observation of variation patterns once 2 instances exist.
       `orpheus/derivations/continuous/fn_method/origins/*` —
       ungutted, ungrown by this work.
 - [x] Foundation-tagged test gate at
-      `tests/derivations/test_fn_method_moment_space.py`
+      `tests/gates/derivations/test_fn_method_moment_space.py`
       (14 tests, all passing).
 - [x] Branch-2 production code at
       `orpheus/derivations/continuous/fn_method/moment_space.py`
       (the class facade) + the existing function-level solvers
       it wraps.
 - [x] L1 cross-check tests pre-existing at
-      `tests/derivations/test_fn_la13511_*.py` — unchanged by this
+      `tests/gates/derivations/test_fn_la13511_*.py` — unchanged by this
       work; the class facade preserves them via bit-equality.
 - [x] Sphinx section with `:label:` cross-refs +
       `:mod:` cross-references at `docs/theory/fn_method.rst`

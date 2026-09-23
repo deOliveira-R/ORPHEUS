@@ -413,7 +413,7 @@ class Basis(ABC):
         slab's rule (``S^2/O2_x``, spent ``O2('x')``) against the
         full-sphere harmonics (``Trivial``) reads ``Trivial ⊇ O2('x')``
         **False**: ERR-080's pairing is a lattice verdict now, and nothing
-        yet refuses on it (``tests/numerics/test_basis_domain.py::test_e1``).
+        yet refuses on it (``tests/gates/numerics/test_basis_domain.py::test_e1``).
         """
         match self.domain:
             case Quotient(base=Sphere(), by=group):

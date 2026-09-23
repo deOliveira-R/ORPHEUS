@@ -375,7 +375,7 @@ hiding actual correctness regressions in the unrun tests.
 **How to apply:**
 
 1. **Add a full-suite-wall-clock gate** to closeouts when a refactor
-   touches the per-cell hot path. Target: full `pytest tests/sn/ -q`
+   touches the per-cell hot path. Target: full `pytest tests/gates/sn/ -q`
    under N minutes (project-specific N). If the new path is slower,
    STOP and surface the regression before claiming "complete".
 2. **Profile before claiming**. The Step 2.5b closeout claimed
@@ -945,7 +945,7 @@ Operational rules:
    "independent cross-check" to "twin-consistency check" (L4-class).
 
 Catalog: ERR-058 (mechanism + fixes). Promoted gate:
-`tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py`.
+`tests/gates/sn/verification/mms/test_curvilinear_operator_admits_mms.py`.
 
 ## L28 git checkout destroys
 
@@ -1823,7 +1823,7 @@ unless told to, and the failure is silent and confident.
 
 > `[M]` 2026-08-12, Q5.6.4. An `archivist` and a `test-architect` ran
 > concurrently. The archivist had drafted a correct line — *"no ψ̂ positivity
-> gate exists"* — then found `tests/sn/sweep/curvilinear/test_psi_half_positivity.py`,
+> gate exists"* — then found `tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py`,
 > concluded *"the gate landed 2026-08-11"*, and **withdrew its own correct
 > draft**. `git ls-files` says the path *"did not match any file(s) known to
 > git"*: it was the test-architect's in-flight work, created minutes earlier in

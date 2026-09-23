@@ -53,9 +53,9 @@ NO touches to `orpheus/cp/`, `orpheus/data/macro_xs/`, or
 ### §2.0 Pre-flight (Step 0)
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py \
-  tests/sn/spatial/test_ordinate_scan.py \
-  tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py \
+  tests/gates/sn/spatial/test_ordinate_scan.py \
+  tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -73,7 +73,7 @@ check green BEFORE any PR-INDEX-5 code change.
 # Inline check — every case must agree at rtol=1e-12 against the
 # OLD snapshot under a pure transpose.
 import numpy as np
-from tests.sn.regression._generate_snapshots import CASES, SNAPSHOT_DIR, run_case
+from tests.gates.sn.regression._generate_snapshots import CASES, SNAPSHOT_DIR, run_case
 
 for case in CASES:
     snap_file = SNAPSHOT_DIR / f'{case.name}.npz'
@@ -124,22 +124,22 @@ ALL 11 cases passed; regeneration proceeded.
 ### §2.2 Step 2 — regenerate snapshots
 
 ```bash
-.venv/bin/python -m tests.sn.regression._generate_snapshots
+.venv/bin/python -m tests.gates.sn.regression._generate_snapshots
 ```
 
 ```
-wrote  tests/sn/regression/snapshots/slab_2g_homogeneous_dd_n20.npz
-wrote  tests/sn/regression/snapshots/slab_2g_3reg_dd_n40.npz
-wrote  tests/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz
-wrote  tests/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz
-wrote  tests/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz
-wrote  tests/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz
-wrote  tests/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz
-wrote  tests/sn/regression/snapshots/slab_2g_p1_aniso_dd_n20.npz
-wrote  tests/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz
-wrote  tests/sn/regression/snapshots/2d_1g_LS4_dd_15x15.npz
-wrote  tests/sn/regression/snapshots/slab_fixed_source_dd_n20.npz
-generated 11 snapshot(s) in /Users/rodrigo/git/nuclear/ORPHEUS/tests/sn/regression/snapshots
+wrote  tests/gates/sn/regression/snapshots/slab_2g_homogeneous_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/slab_2g_3reg_dd_n40.npz
+wrote  tests/gates/sn/regression/snapshots/sphere_2g_homogeneous_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/sphere_2g_3reg_dd_n40.npz
+wrote  tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_LS4_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/cyl_1g_homogeneous_product_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/cyl_2g_3reg_LS4_dd_n40.npz
+wrote  tests/gates/sn/regression/snapshots/slab_2g_p1_aniso_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/sphere_2g_p1_aniso_dd_n20.npz
+wrote  tests/gates/sn/regression/snapshots/2d_1g_LS4_dd_15x15.npz
+wrote  tests/gates/sn/regression/snapshots/slab_fixed_source_dd_n20.npz
+generated 11 snapshot(s) in /Users/rodrigo/git/nuclear/ORPHEUS/tests/gates/sn/regression/snapshots
 ```
 
 **11 snapshots regenerated** in principled `(ng, nx, ny)` layout
@@ -147,38 +147,38 @@ natively. The `_slab_fixed_source` generator builder updated to
 emit `external_source` in principled `(N, ng, nx, ny)` shape.
 
 The 6 `2d_octant_equivalence_*` snapshots regenerated separately via
-`tests.sn.regression._generate_2d_octant_snapshots` after the
+`tests.gates.sn.regression._generate_2d_octant_snapshots` after the
 `_sweep_2d_wavefront` output flip — bit-identity-via-transpose
 verified per case before regeneration (nulp=64).
 
 ```
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_01_smoke_vacuum_1g_homog_uniformQ_LS4.npz
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_02_reflective_1g_homog_uniformQ_LS4.npz
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_03_l7_trap_mixedBC_2g_het_LS4.npz
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_04_vacuum_2g_het_gradientQ_LS6.npz
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_05_qaniso_mixedBC_2g_het_LS4.npz
-wrote  tests/sn/regression/snapshots/2d_octant_equivalence_06_purez_vacuum_1g_Lebedev5.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_01_smoke_vacuum_1g_homog_uniformQ_LS4.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_02_reflective_1g_homog_uniformQ_LS4.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_03_l7_trap_mixedBC_2g_het_LS4.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_04_vacuum_2g_het_gradientQ_LS6.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_05_qaniso_mixedBC_2g_het_LS4.npz
+wrote  tests/gates/sn/regression/snapshots/2d_octant_equivalence_06_purez_vacuum_1g_Lebedev5.npz
 generated 6 snapshot(s)
 ```
 
 ### §2.3 Step 3 — regression suite against NEW snapshots
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ -q
 ```
 
 ```
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
-tests/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_homogeneous_dd_n20] PASSED [  9%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_3reg_dd_n40] PASSED [ 18%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_homogeneous_dd_n20] PASSED [ 27%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_3reg_dd_n40] PASSED [ 36%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_LS4_dd_n20] PASSED [ 45%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_1g_homogeneous_product_dd_n20] PASSED [ 54%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[cyl_2g_3reg_LS4_dd_n40] PASSED [ 63%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_2g_p1_aniso_dd_n20] PASSED [ 72%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[sphere_2g_p1_aniso_dd_n20] PASSED [ 81%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[2d_1g_LS4_dd_15x15] PASSED [ 90%]
+tests/gates/sn/regression/test_dd_regression.py::test_dd_regression[slab_fixed_source_dd_n20] PASSED [100%]
 ================== 11 passed, 3 warnings in 248.63s (0:04:08) ==================
 ```
 
@@ -188,7 +188,7 @@ principled-layout snapshots.
 ### §2.4 2-D octant equivalence
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_2d_octant_sweep_equivalence.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_2d_octant_sweep_equivalence.py -q
 ```
 
 ```
@@ -203,12 +203,12 @@ cases each agree at nulp=64.
 ### §2.5 Operator-leaf suites
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_scattering_operator.py \
-  tests/sn/test_fission_operator.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_snstreamingoperator.py \
-  tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_fission_operator.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_snstreamingoperator.py \
+  tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py -q
 ```
 
 ```
@@ -226,9 +226,9 @@ test fixture is now principled.
 ### §2.6 Spatial gates
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_sweep_cache.py \
-  tests/sn/spatial/test_ordinate_scan.py \
-  tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_sweep_cache.py \
+  tests/gates/sn/spatial/test_ordinate_scan.py \
+  tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -241,7 +241,7 @@ benchmark (under 2 ms gate) still PASSES on PR-INDEX-5 layout.
 ### §2.7 Numerics iteration
 
 ```bash
-.venv/bin/python -m pytest tests/numerics/test_iteration.py -q
+.venv/bin/python -m pytest tests/gates/numerics/test_iteration.py -q
 ```
 
 ```
@@ -258,8 +258,8 @@ the bridges retired and the adapter bodies are now 2-3 lines.
 ### §2.8 Solver components
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_solver_components.py -q \
-  --deselect 'tests/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference'
+.venv/bin/python -m pytest tests/gates/sn/test_solver_components.py -q \
+  --deselect 'tests/gates/sn/test_solver_components.py::TestTransportSweep::test_matches_saved_reference'
 ```
 
 ```
@@ -276,9 +276,9 @@ principled.
 ### §2.9 Phase C gates + MMS + sweep-operator inconsistency
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_phase_c_gates.py \
-  tests/sn/test_phase_c_mms.py \
-  tests/sn/test_sweep_operator_inconsistency.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_phase_c_gates.py \
+  tests/gates/sn/test_phase_c_mms.py \
+  tests/gates/sn/test_sweep_operator_inconsistency.py -q
 ```
 
 ```
@@ -294,19 +294,19 @@ caused by PR-INDEX-5.
 ### §2.10 Bulk SN suite
 
 ```bash
-.venv/bin/python -m pytest tests/sn/regression/ \
-  tests/sn/test_2d_octant_sweep_equivalence.py \
-  tests/sn/test_scattering_operator.py \
-  tests/sn/test_fission_operator.py \
-  tests/sn/test_collision_operator.py \
-  tests/sn/test_snstreamingoperator.py \
-  tests/sn/test_streaming_operator.py \
-  tests/sn/test_streaming_operator_decomposition.py \
-  tests/sn/test_quadrature.py \
-  tests/sn/test_unified_sweep_dispatch.py \
-  tests/sn/spatial/test_sweep_cache.py \
-  tests/sn/spatial/test_ordinate_scan.py \
-  tests/sn/spatial/test_ordinate_scan_joint_batch.py -q
+.venv/bin/python -m pytest tests/gates/sn/regression/ \
+  tests/gates/sn/test_2d_octant_sweep_equivalence.py \
+  tests/gates/sn/test_scattering_operator.py \
+  tests/gates/sn/test_fission_operator.py \
+  tests/gates/sn/test_collision_operator.py \
+  tests/gates/sn/test_snstreamingoperator.py \
+  tests/gates/sn/test_streaming_operator.py \
+  tests/gates/sn/test_streaming_operator_decomposition.py \
+  tests/gates/sn/test_quadrature.py \
+  tests/gates/sn/test_unified_sweep_dispatch.py \
+  tests/gates/sn/spatial/test_sweep_cache.py \
+  tests/gates/sn/spatial/test_ordinate_scan.py \
+  tests/gates/sn/spatial/test_ordinate_scan_joint_batch.py -q
 ```
 
 ```
@@ -319,7 +319,7 @@ caused by PR-INDEX-5.
 ### §2.11 MMS 1D + 2D
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_mms.py tests/sn/test_mms_2d.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_mms.py tests/gates/sn/test_mms_2d.py -q
 ```
 
 ```
@@ -332,9 +332,9 @@ caused by PR-INDEX-5.
 ### §2.12 Properties + heterogeneous transport + Legendre moment scattering + cell-update-batch + sweep-graph
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_legendre_moment_scattering.py \
-  tests/sn/test_cell_update_batch.py \
-  tests/sn/test_sweep_graph.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_legendre_moment_scattering.py \
+  tests/gates/sn/test_cell_update_batch.py \
+  tests/gates/sn/test_sweep_graph.py -q
 ```
 
 ```
@@ -347,7 +347,7 @@ cases (nulp widened from 64 → 128 to absorb the principled-layout
 reference helper's additional per-cell scatter — documented in §9.2).
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_properties.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_properties.py -q
 ```
 
 ```
@@ -356,7 +356,7 @@ reference helper's additional per-cell scatter — documented in §9.2).
 ```
 
 ```bash
-.venv/bin/python -m pytest tests/sn/test_heterogeneous_transport.py -q
+.venv/bin/python -m pytest tests/gates/sn/test_heterogeneous_transport.py -q
 ```
 
 (Pending — the `_load_snapshot_scalar_flux` indexing flipped to
@@ -376,13 +376,13 @@ principled layout. If the gate-keeper wants to spend the runtime,
 the verbatim invocation is:
 
 ```bash
-.venv/bin/python -m pytest tests/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
+.venv/bin/python -m pytest tests/gates/sn/spatial/test_streaming_equilibrium_curvilinear.py -q
 ```
 
 ### §2.14 CP suite (must stay green)
 
 ```bash
-.venv/bin/python -m pytest tests/cp/test_slab.py tests/cp/test_cylinder.py -q
+.venv/bin/python -m pytest tests/gates/cp/test_slab.py tests/gates/cp/test_cylinder.py -q
 ```
 
 ```
@@ -416,7 +416,7 @@ reads, both of which were already principled post-PR-INDEX-2.
 | 6 | `compute_keff`, `compute_group_*_rate` consume principled φ via einsum | **PASS** | §6 inline + `solver.py:418, 447` use `"gxy,gxy->gxy"` etc. |
 | 7 | Step 1 bit-identity check: all 11 cases PASS via transpose | **PASS** | §2.1 verbatim print output |
 | 8 | Regression suite 11/11 PASS at rtol=1e-12 against NEW snapshots | **PASS** | §2.3 — `11 passed in 248.63s` |
-| 9 | Snapshot files updated in repo | **PASS** | `git diff --stat tests/sn/regression/snapshots/` shows 17 binary changes (11 main + 6 2D octant) |
+| 9 | Snapshot files updated in repo | **PASS** | `git diff --stat tests/gates/sn/regression/snapshots/` shows 17 binary changes (11 main + 6 2D octant) |
 | 10 | L0 streaming-equilibrium curvilinear 26/26 PASS | **PENDING** | Same reason as PR-INDEX-4 §2.4 — 17-min runtime; Step-1 transpose-bit-identity is the strong proxy |
 | 11 | Full SN suite green (modulo PR-INDEX-3/4 pre-existing failures) | **PASS** | §2.9, §2.10, §2.11, §2.12 — 363+ passes; 1 pre-existing failure carried forward |
 | 12 | CP suite still green | **PASS (subset)** | §2.14 — slab+cylinder 18/18 PASS; full architectural guarantee from `assemble_cell_xs` no-touch |
@@ -622,7 +622,7 @@ in §2.1.
   - `np.einsum("gxy,gxy->gxy", sig_p, phi)` in
     `compute_group_production_rate` (both operands principled).
   - `np.einsum("gxy,gxy,xy->", sig_p, flux, vol)` in the test
-    reference helpers (`tests/sn/test_solver_components.py`).
+    reference helpers (`tests/gates/sn/test_solver_components.py`).
   - `np.einsum("ngij,n->gij", psi_pure_z, weights_oct)` in the
     pure-z degenerate branch of `_sweep_2d_wavefront`.
   - `np.einsum("ngd,n->gd", psi_avg, weights_octant)` in
@@ -686,7 +686,7 @@ brief's higher-priority §C.3 anti-recommendation.
 ### §9.2 `test_sweep_graph.py` nulp budget widened 64 → 128
 
 The reference helper `_hand_run_legacy_inlined` in
-`tests/sn/test_sweep_graph.py` does the per-ordinate Python loop in
+`tests/gates/sn/test_sweep_graph.py` does the per-ordinate Python loop in
 principled `(ng, n_diag)` layout, which adds one extra per-cell
 scatter (`angular_flux[n, :, ii, jj] = psi_avg.T`) vs the legacy's
 per-cell vector assignment. This per-cell `.T` adds a small FP
@@ -746,8 +746,8 @@ failed.
 **PR-INDEX-6** (archivist):
 - Update test fixtures across the broader `tests/` tree that still
   carry legacy-shape assumptions (this PR caught all SN-tree
-  consumers; downstream consumers in `tests/derivations/`,
-  `tests/numerics/eigenvalue/`, etc. may still need a sweep).
+  consumers; downstream consumers in `tests/gates/derivations/`,
+  `tests/gates/numerics/eigenvalue/`, etc. may still need a sweep).
 - Write `docs/theory/index_convention.rst` — the principled-layout
   derivation table from plan §1.
 - Cross-reference from `docs/theory/operator_algebra.rst` and

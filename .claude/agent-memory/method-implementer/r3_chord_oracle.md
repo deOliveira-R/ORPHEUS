@@ -47,7 +47,7 @@ runs in the same order. IEEE-754 reproducibility then guarantees
 identical numerical output. Three layers of evidence:
 
 1. **Foundation tests at the operator level** (21 tests at
-   `tests/derivations/test_trajectory_resolvent_chord_oracle.py`):
+   `tests/gates/derivations/test_trajectory_resolvent_chord_oracle.py`):
    for each oracle and three alpha configurations, the
    `oracle.apply_operator(source, σ_t, n_traj_quad)` output is
    compared bit-for-bit (via `view(np.int64)`) against the legacy
@@ -58,12 +58,12 @@ identical numerical output. Three layers of evidence:
    closed/vacuum/asymmetric. Every k_eff is byte-equal to the pre-
    refactor baseline at `float.hex` precision (IEEE-754 exact-bit).
 3. **End-to-end test suites**:
-   - `tests/derivations/test_peierls_greens_function_*` (8 files,
+   - `tests/gates/derivations/test_peierls_greens_function_*` (8 files,
      93 tests) + `test_trajectory_resolvent_billiard.py` (15 tests) +
      `test_trajectory_resolvent_power_iterate.py` (6 tests) +
      new `test_trajectory_resolvent_chord_oracle.py` (21 tests) →
      **135 pass** (114 baseline + 21 new).
-   - `tests/cross_method/` (43 tests) + 4 xverif/Garcia/MG/MR test
+   - `tests/gates/cross_method/` (43 tests) + 4 xverif/Garcia/MG/MR test
      files → **126 pass** (zero regression).
 
 ## The chord-arithmetic concept made first-class

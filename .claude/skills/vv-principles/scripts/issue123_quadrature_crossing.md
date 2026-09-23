@@ -57,4 +57,4 @@ budget); Issue #121 (closed, Direction-C falsified by this
 gate); Issue #122 (closed, Direction-Q falsified by this gate);
 numerics-investigator agent memory L3 (lessons.md) and
 `direction_n_quadrature_baseline.md`;
-`tests/cp/test_peierls_rank_n_protocol.py::assert_rank_n_structural_win`.
+`tests/gates/cp/test_peierls_rank_n_protocol.py::assert_rank_n_structural_win`.

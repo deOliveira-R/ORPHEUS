@@ -92,14 +92,14 @@ activates the full Phase D fix.
 
 ### Test gate updates
 
-- `tests/sn/test_snstreamingoperator.py::test_apply_spherical_constant_flux_under_morel_montry_canonical_form`
+- `tests/gates/sn/test_snstreamingoperator.py::test_apply_spherical_constant_flux_under_morel_montry_canonical_form`
   was PINNING the Phase B bug (per-ordinate residual > 1 on flat ψ).
   Updated to pin Phase D fix: per-ordinate residual ≤ 1e-12.
-- `tests/sn/test_snstreamingoperator.py::test_apply_spherical_bit_identical_to_legacy`
+- `tests/gates/sn/test_snstreamingoperator.py::test_apply_spherical_bit_identical_to_legacy`
   and `_cylindrical` updated to thread `sn_mesh.pole_angular_closure`
   through the legacy fallback call (so the legacy and op-call paths
   use the same M-M closure).
-- `tests/sn/test_snstreamingoperator.py::test_apply_is_linear`
+- `tests/gates/sn/test_snstreamingoperator.py::test_apply_is_linear`
   tolerance relaxed from `rtol=1e-13` to `rtol=1e-12` to absorb
   ~10×ULP FP non-associativity drift on randomly-generated inputs
   introduced by the new Carlson sweep + BC realization arithmetic.
@@ -110,7 +110,7 @@ activates the full Phase D fix.
   flat-ψ identity), and dimensionally explainable (reduction depth
   grew by ~5-10 FP ops).
 
-### New foundation test module — `tests/sn/spatial/test_psi_half_angle_seed.py`
+### New foundation test module — `tests/gates/sn/spatial/test_psi_half_angle_seed.py`
 
 25 new tests covering:
 - Protocol conformance (×3) for `PsiHalfAngleSeed`
@@ -130,7 +130,7 @@ All 25 PASS.
 
 ### Gate 1.5 strengthened — capture-and-compare
 
-New parametrised test in `tests/sn/test_phase_c_gates.py`:
+New parametrised test in `tests/gates/sn/test_phase_c_gates.py`:
 `test_bc_trace_contract_capture_and_compare_sphere[vacuum|reflective]`.
 
 The test:
@@ -258,7 +258,7 @@ documents the work; the archivist expansion is the next step.
 
 ### NEW
 - `orpheus/sn/spatial/psi_half_angle_seed.py` — Protocol + ABC + 2 strategies
-- `tests/sn/spatial/test_psi_half_angle_seed.py` — 25 foundation+L0+L1 tests
+- `tests/gates/sn/spatial/test_psi_half_angle_seed.py` — 25 foundation+L0+L1 tests
 
 ### MODIFIED
 - `orpheus/sn/spatial/pole_angular_closure.py` — `MorelMontryAngularSweep`
@@ -270,8 +270,8 @@ documents the work; the archivist expansion is the next step.
   `CarlsonSweepContext` and pass to `pole_angular_closure`.
 - `orpheus/sn/geometry.py` — SNMesh default flipped to MorelMontryAngularSweep.
 - `orpheus/sn/solver.py` — curvilinear default inner_solver flipped to "krylov".
-- `tests/sn/test_phase_c_gates.py` — Gate 1.5 strengthening (capture-and-compare).
-- `tests/sn/test_snstreamingoperator.py` — 3 tests updated (1 docstring
+- `tests/gates/sn/test_phase_c_gates.py` — Gate 1.5 strengthening (capture-and-compare).
+- `tests/gates/sn/test_snstreamingoperator.py` — 3 tests updated (1 docstring
   rewritten for Phase D fix, 2 bit-identity tests threaded with
   sn_mesh.pole_angular_closure, 1 linearity tolerance relaxed).
 
@@ -298,7 +298,7 @@ not against the closed-form `L·ψ = Σ_t·ψ` identity.
 - **Phase D plan**: `/home/vscode/.claude/plans/structured-booping-parrot.md`
 - **Literature memo**: `.claude/agent-memory/literature-researcher/phase_d_carlson_coupled_pole.md`
 - **Diagnostic memo**: `.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md`
-- **Diagnostic script**: `tests/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
+- **Diagnostic script**: `tests/gates/sn/diagnostics/gate_1_1_sphere_mms_failure.py`
 - **Phase C closeout**: `.claude/agent-memory/method-implementer/issue_168_phase_c_closeout.md`
 - **PsiHalfAngleSeed Protocol**: `orpheus/sn/spatial/psi_half_angle_seed.py`
-- **Foundation tests**: `tests/sn/spatial/test_psi_half_angle_seed.py`
+- **Foundation tests**: `tests/gates/sn/spatial/test_psi_half_angle_seed.py`

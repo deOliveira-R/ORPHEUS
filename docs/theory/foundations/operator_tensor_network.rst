@@ -940,7 +940,7 @@ contract stated at the head of this section.  The recorded 10% drift
 belongs to the pre-algebra attempt, and **no post-landing reproduction
 of it is on record** — what is on record is that the current path is
 gated by the closed-form :math:`k_\infty` pillar
-(``tests/sn/verification/analytical/test_kinf_homogeneous.py``).  A
+(``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py``).  A
 future session wanting the causal story has to re-run the experiment on
 the landed form; this page does not answer it.
 
@@ -987,16 +987,16 @@ Wave T's verification chain combines three independent grounds:
 
    - **Closed-form pillar**: :math:`k_\infty = \nu\Sigma_f / \Sigma_a`
      on homogeneous reflective slab / sphere / cylinder. Verified at
-     ``tests/sn/verification/analytical/test_kinf_homogeneous.py``. This is the
+     ``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py``. This is the
      eigenvalue reference — MMS does NOT prove eigenvalues per
      the ``vv-principles`` skill §"What each pillar
      proves".
 
    - **MMS pillar**: P1 anisotropic manufactured-source convergence
-     at ``tests/sn/verification/mms/test_mms_aniso.py``,
-     ``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
-     ``tests/sn/verification/mms/test_mms_heterogeneous.py``, and
-     ``tests/sn/verification/mms/test_mms_2d.py``. The MMS source is structurally
+     at ``tests/gates/sn/verification/mms/test_mms_aniso.py``,
+     ``tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+     ``tests/gates/sn/verification/mms/test_mms_heterogeneous.py``, and
+     ``tests/gates/sn/verification/mms/test_mms_2d.py``. The MMS source is structurally
      independent of the operator-algebra path (derived by SymPy in
      ``orpheus/derivations/continuous/mms/sn.py``); it catches flux-shape and
      convergence-order errors that snapshot bit-identity cannot.

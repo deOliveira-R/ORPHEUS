@@ -69,7 +69,7 @@ DAG-family group-2 kernel). Verdict PASS-WITH-NITS; architecture sound.
   the SSOT) + scope the "verified" claim to what the test actually pins (solve direction).
 - **NIT-2 (CONCERN, do-now — Cardinal Rule 3, doc/reality conflict):** `affine_closure.py`
   docstring (lines 47-53 .note) says "The DD regression snapshots RE-BASELINE accordingly."
-  FALSE — the gate `tests/sn/{sweep/core,solve}` with DriftWarning-as-error is GREEN at
+  FALSE — the gate `tests/gates/sn/{sweep/core,solve}` with DriftWarning-as-error is GREEN at
   505/1skip/4xfail with NO re-baseline (DD byte-identical: w=½ makes generic ops exact
   power-of-2 scalings; x/0.5==x*2.0 bit-exact; residual reassoc bit-id on pinned power-of-2
   meshes). The principled-equiv caveat is RIGHT for LD (two-paths gate explicitly nULP),
@@ -88,7 +88,7 @@ DAG-family group-2 kernel). Verdict PASS-WITH-NITS; architecture sound.
     `cell_update.outgoing_face_from_average` + "reconstruct via the already-seamed diamond
     closure" — now the Cartesian arm rides residual_kernel_batch, curvilinear inlines. Stale.
   - DISCRIMINATOR applied: these are LIVE-role refs on current code = FIX. The 4th hit
-    `tests/sn/sweep/core/test_affine_carve_baseline.py:19` names the retired methods in a
+    `tests/gates/sn/sweep/core/test_affine_carve_baseline.py:19` names the retired methods in a
     HISTORICAL #206-Phase-A narrative but the gate is still live → softer; update since the
     gate is current, but lowest priority.
 - **NIT-4 (record only — algebra-of-record gap):** LD docstring + class claim
@@ -104,7 +104,7 @@ DAG-family group-2 kernel). Verdict PASS-WITH-NITS; architecture sound.
   `affine_closure` cross-check claim. Inc-C must add a Q̂≠0 equivalence pin.
 
 ## Gates run this review (all GREEN)
-- DD regression: `tests/sn/{sweep/core,solve}` -W DriftWarning-error → 505 passed/1skip/4xfail.
+- DD regression: `tests/gates/sn/{sweep/core,solve}` -W DriftWarning-error → 505 passed/1skip/4xfail.
 - LD: `test_linear_discontinuous.py` + `test_mms_ld_slab.py` → 24 passed/1xfail.
 - Curvilinear DD matvec (inline arm): cylinder+sphere matvec → 6 passed/27 xfailed (the 27
   = pre-existing #206 hand-ref divergence, untouched).

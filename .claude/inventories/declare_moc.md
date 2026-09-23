@@ -38,7 +38,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
     per-characteristic sweep used by the L1 MMS gate
     (`orpheus/derivations/continuous/mms/moc.py:249-368`). It re-implements the
     same segment kernel with a manufactured per-segment source; it is imported
-    by `tests/moc/test_mms.py`, which carries 3 of the 11 labels.
+    by `tests/gates/moc/test_mms.py`, which carries 3 of the 11 labels.
   - `orpheus.derivations.discrete.moc.equations.*` — SymPy derivations whose
     module docstring calls them "the derivation source-of-truth for the
     documented equations".
@@ -125,7 +125,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
 
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none. The nearest authored guidance is the
-  claiming test module's own comment, `tests/moc/test_verification.py:42-47`:
+  claiming test module's own comment, `tests/gates/moc/test_verification.py:42-47`:
   *"labels directly exercised by the L0 single-track tests (attenuation,
   optical-thickness) and by every MOC solve through the angular integral in the
   flux update (scalar-flux-integral)"* — i.e. the page's own author places this
@@ -165,7 +165,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
 
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none. The claiming test module names the
-  gate instead (`tests/moc/test_ray_tracing.py:22-24`): *"ray-circle — directly
+  gate instead (`tests/gates/moc/test_ray_tracing.py:22-24`): *"ray-circle — directly
   tested by test_ray_circle_{hit,miss,tangent,chord_length} (4 dedicated L0
   tests for the quadratic formula)"*.
 - **what the equation says**: a ray `(x_0,y_0) + s(cosφ, sinφ)` meets a circle
@@ -211,7 +211,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
 
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none. Claiming module's comment
-  (`tests/moc/test_ray_tracing.py:19-21`): *"effective-spacing — exercised by
+  (`tests/gates/moc/test_ray_tracing.py:19-21`): *"effective-spacing — exercised by
   test_volume_conservation which calls MOCMesh.effective_spacing(a_idx) and
   asserts that length * ts * omega_a sums to the geometric region area"*.
 - **what the equation says**: rays are laid at `t_k = t_min + (k+½)t_s^eff`
@@ -253,7 +253,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
 
 - **verdict**: DECLARABLE
 - **rationale comment on the page**: none. Claiming module's comment
-  (`tests/moc/test_ray_tracing.py:25-26`): *"pitch-recovery — directly tested by
+  (`tests/gates/moc/test_ray_tracing.py:25-26`): *"pitch-recovery — directly tested by
   test_moc_mesh_pitch_recovery (asserts pitch = r_cell * sqrt(pi) on factory
   output)"*.
 - **what the equation says**: the INVERSE Wigner-Seitz transform — recover the
@@ -352,7 +352,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
     ODE's exact solution rather than by forming `dψ/ds`. Declare it if you hold
     that "solves the ODE" implements the ODE; DROP it if you hold that the
     solution is owned by the separate `attenuation` label (which is on the same
-    lines). ⚠ Dropping it refutes `tests/moc/test_moc.py`'s claim on this label,
+    lines). ⚠ Dropping it refutes `tests/gates/moc/test_moc.py`'s claim on this label,
     since that module drives `solve_moc` and never touches `mms_sweep`; keeping
     it makes both claiming modules adjudicable.
 - **confidence**: high for `mms_sweep`, medium for `solve_fixed_source` — and
@@ -419,7 +419,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
     `orpheus/derivations/continuous/mms/moc.py:305` (identical weight),
     `:331`/`:363` (accumulation), `:366-368` (update, with the `4πQ/Σ_t`
     equilibrium term replaced by the analytic `⟨φ_ref⟩_i`). Implements the
-    Δψ half of Eq. 45 exactly; this is what `tests/moc/test_mms.py` executes.
+    Δψ half of Eq. 45 exactly; this is what `tests/gates/moc/test_mms.py` executes.
 - **considered and EXCLUDED**:
   - `orpheus.derivations.discrete.moc.equations.derive_scalar_flux_weight` —
     `equations.py:58-106` derives this equation step by step and ends
@@ -503,7 +503,7 @@ manufactured source), but whether `MOCSolver.solve_fixed_source` also implements
 it turns on a labelling question no measurement decides — the solver advances ψ
 by the ODE's *exact solution*, and that solution is the separate `attenuation`
 label sitting on the same lines. Keeping the solver makes both claiming test
-modules adjudicable; dropping it refutes `tests/moc/test_moc.py` on this label
+modules adjudicable; dropping it refutes `tests/gates/moc/test_moc.py` on this label
 for a reason that is about taste, not coverage. Two further scoping rulings are
 flagged in place rather than decided: whether the 12 flat-source
 `(q/Σ_t)(1-e^{-τ})` sites in the trajectory-resolvent Green's-function

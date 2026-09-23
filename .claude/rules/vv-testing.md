@@ -11,6 +11,10 @@ The *why* behind these — the V&V
 hierarchy, the six AI failure modes, structural independence — is the
 `vv-principles` skill.
 
+## Where a case goes
+
+A pass/fail check is a gate in `tests/gates/<package>/`, its kind a marker; a timing or an experimental comparison is not a gate. The regimens: `docs/theory/verification/principles.rst`, "Where a case lives".
+
 ## Canonical test invocation: `python -O -m pytest`
 
 ORPHEUS treats **`python -O -m pytest`** as the canonical invocation: the

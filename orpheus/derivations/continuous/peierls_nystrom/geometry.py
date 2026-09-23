@@ -1784,7 +1784,7 @@ def compute_G_bc_cylinder_3d(
     Reference: derived in
     :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d`; the math-origin
     contract is pinned by
-    ``tests/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
+    ``tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``.
     """
     if geometry.kind != "cylinder-1d":
         raise ValueError(
@@ -1987,7 +1987,7 @@ def compute_P_esc_cylinder_3d_mode(
 
     See :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev` for the
     SymPy derivation; the math-origin contract is pinned by
-    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
+    ``tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py``.
     """
     if geometry.kind != "cylinder-1d":
         raise ValueError(
@@ -2042,7 +2042,7 @@ def compute_G_bc_cylinder_3d_mode(
     :math:`\psi^{-}(\mu) = (b_n/\pi)\,\tilde P_n(\mu)` integrated over
     the full inward 4π solid angle (see SymPy derivation in
     :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev`; pinned by
-    ``tests/derivations/test_peierls_cylinder_knyazev_symbolic.py``).
+    ``tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py``).
 
     For :math:`n = 0`: :math:`c_0^0 = 1`, only the :math:`k = 0` term
     survives, and this reduces exactly to
@@ -2115,7 +2115,7 @@ def compute_P_ss_cylinder(
 
     See :func:`compute_P_ss_sphere` for the sphere analog. The
     cylinder formula is verified to <5e-3 against an independent
-    Monte Carlo estimate in ``tests/cp/test_cylinder_pss.py``.
+    Monte Carlo estimate in ``tests/gates/cp/test_cylinder_pss.py``.
 
     Parameters
     ----------
@@ -2700,7 +2700,7 @@ def compute_K_bc_specular_continuous_mu_sphere(
     T(\mu)` (no extra :math:`\mu` in numerator) — see
     :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu` (V2);
     pinned by
-    ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
+    ``tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
 
     **Why this fixes the Phase 4 pathology**. The integrand at
     :math:`\mu \to 0` has a removable simple pole: :math:`T(\mu) \sim
@@ -2752,7 +2752,7 @@ def compute_K_bc_specular_continuous_mu_sphere(
         inverse entirely.
     orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu : SymPy verification
         of Eq. (A6) and the µ-weight convention question. Pinned by
-        ``tests/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
+        ``tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py``.
     """
     radii = np.asarray(radii, dtype=float)
     sig_t = np.asarray(sig_t, dtype=float)
@@ -5390,7 +5390,7 @@ def build_white_bc_correction_rank_n(
        degrades thick-cell convergence. Conservation
        (:math:`K\cdot\mathbf 1 = \Sigma_t` for pure absorber) also
        **improves** with rank-N instead of degrading — see
-       ``tests/derivations/test_peierls_rank_n_conservation.py``.
+       ``tests/gates/derivations/test_peierls_rank_n_conservation.py``.
 
        **Remaining work** (tracked in Issue #112):
 

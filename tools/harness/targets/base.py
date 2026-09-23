@@ -5,7 +5,7 @@ lands, what shape it takes there, and whether it is loaded into every
 session. One implementation exists today; the Protocol is the seam the user
 required for the next one (ruling 2026-09-20), and its rent is
 the enforced boundary — the neutral modules import nothing below this file
-and name no harness, which ``tests/tools/test_harness_generator.py`` asserts.
+and name no harness, which ``tests/gates/tools/test_harness_generator.py`` asserts.
 """
 from __future__ import annotations
 

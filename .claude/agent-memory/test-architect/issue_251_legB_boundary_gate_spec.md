@@ -340,15 +340,15 @@ bit-identical after the trace widening. Three guards:
 
 1. **The strict DriftWarning regression gate** (the canonical strict-clean gate):
    ```
-   pytest tests/sn/sweep/core tests/sn/solve \
-     -W "error::tests.sn.regression._regression_assert.DriftWarning"
+   pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+     -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
    ```
    Baseline (Leg A closeout, live): 520 passed, 1 skipped, 4 xfailed. DD/Step
    (`n_face_moments == 1` → `_inflow_to_moments` is the identity) is byte-
    identical; the 2-D-LD scalar-inflow path (slot-1 still zeroed unless a
    moment-resolved trace is supplied) must not move.
 
-2. **The existing 1-D prescribed-inflow MMS** `tests/sn/verification/analytical/
+2. **The existing 1-D prescribed-inflow MMS** `tests/gates/sn/verification/analytical/
    test_mms_prescribed_inflow.py` (4 tests, slab + sphere — DD single-moment
    closures, `n_face_moments == 1` → identity widening) MUST stay GREEN
    (PROBED green now). The widening only triggers for `n_face_moments > 1` =
@@ -431,7 +431,7 @@ statements are not executed"). ALL new gates MUST use `np.testing.*` /
 Mirror the existing `test_mms_ld_2d.py` style (every gate there is -O-safe).
 
 **File**: REPLACE the `test_ld_2d_boundary_transverse_face_slope` skip stub at
-the END of `tests/sn/verification/mms/test_mms_ld_2d.py` (lines ~1022-1037) with
+the END of `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (lines ~1022-1037) with
 the real gates. The face projector can REUSE the existing
 `_project_scalar_to_tensor_legendre` helper's per-axis factor (a face is the 1-D
 transverse projection — the tensor projector's per-axis Legendre coefficient).
@@ -440,7 +440,7 @@ transverse projection — the tensor projector's per-axis Legendre coefficient).
 
 ## 10. THE GATES (xfail-strict until production lands the moment trace)
 
-In `tests/sn/verification/mms/test_mms_ld_2d.py`, replacing the #251 skip stub:
+In `tests/gates/sn/verification/mms/test_mms_ld_2d.py`, replacing the #251 skip stub:
 
 | Gate | Mark | State | What it proves |
 |------|------|-------|----------------|
@@ -469,16 +469,16 @@ to the producer stamp; the public re-target closes that) and flip xfail→plain.
 ## 11. Baseline (live @ HEAD d9396a2, branch refactor/sn-foundation-cleanup)
 
 ```
-pytest tests/sn/verification/mms/test_mms_ld_2d.py -q -m "not slow"
+pytest tests/gates/sn/verification/mms/test_mms_ld_2d.py -q -m "not slow"
   → 14 passed, 1 skipped, 3 deselected  (70s)   [1 skip = the #251 stub I replace]
-pytest tests/sn/verification/analytical/test_mms_prescribed_inflow.py -q
+pytest tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py -q
   → 4 passed  (0.5s)   [the bit-identity-by-construction baseline for D4]
 ```
 `per_axis = 2`, `ndim = 2`, `n_face_moments = per_axis^(d-1) = 2`,
 `AVERAGE_MOMENT = 0`, transverse face-moment order `[bar=0, slope=1]`. NEVER run
-all `tests/sn` (#212 hang at `test_keff_slab::test_heterogeneous_absolute_keff`);
-scope to `tests/sn/verification/mms` + `tests/sn/verification/analytical` +
-`tests/derivations`.
+all `tests/gates/sn` (#212 hang at `test_keff_slab::test_heterogeneous_absolute_keff`);
+scope to `tests/gates/sn/verification/mms` + `tests/gates/sn/verification/analytical` +
+`tests/gates/derivations`.
 
 ## 12. WHERE THE FACE-NORMALIZATION CRUX IS HARDER THAN THE BRIEF STATED
 

@@ -230,8 +230,8 @@ scalar trace carries cell-CENTRE; the projection's slot-0 is cell-AVERAGE
 The DD/Step (`per_axis==1` → `face_moment_count==1` → no moment axis) +
 the bulk moment tensor MUST stay byte-identical. The canonical strict gate:
 ```
-.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+.venv/bin/python -O -m pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
 ```
 Plus: the 6 #251 boundary gates stay GREEN; the bulk #247 gates
 (`test_ld_2d_external_slope_source_*`) stay GREEN; the 1-D prescribed-inflow MMS
@@ -305,7 +305,7 @@ Pre-read (file:line):
 - `orpheus/derivations/continuous/mms/sn.py:1542-1598`
   (`prescribed_inflow` — STILL builds scalar; the production completion target)
   + `:1387-1432` (`_drivers` — the projection source).
-- `tests/sn/verification/mms/test_mms_ld_2d.py:1050-1450` (the LIVE #251 gates +
+- `tests/gates/sn/verification/mms/test_mms_ld_2d.py:1050-1450` (the LIVE #251 gates +
   `_face_transverse_buffers`/`_face_transverse_legendre`/`_solve_with_boundary_slope`
   — re-target onto production, don't rebuild) + `:509` (`_project_scalar_to_tensor_legendre`
   — the bulk projector to single-source the face projection from).

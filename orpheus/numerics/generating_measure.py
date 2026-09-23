@@ -85,7 +85,7 @@ Jacobi **generalises** the first three: ``jacobi(0, 0)`` is Legendre,
 ``jacobi(-1/2, -1/2)`` is Chebyshev-1, ``jacobi(1/2, 1/2)`` is
 Chebyshev-2. That is not a remark — it is a *verification instrument*.
 Two independent constructions of the same measure must agree, and
-``tests/numerics/test_generating_measure.py`` asserts they do (measured:
+``tests/gates/numerics/test_generating_measure.py`` asserts they do (measured:
 nodes agree **bit-identically**, weights to 2.8e-17). The campaign's
 acceptance rule is that ≥2 realizations *prove* an implementation rather
 than merely pinning it; here the second realization is free.
@@ -431,7 +431,7 @@ class GeneratingMeasure:
 # ---------------------------------------------------------------------------
 #
 # Coefficients: Gautschi 2004 §1.3.  Each is verified against an
-# independent oracle in tests/numerics/test_generating_measure.py
+# independent oracle in tests/gates/numerics/test_generating_measure.py
 # (numpy leggauss / laggauss / hermgauss, scipy roots_jacobi /
 # roots_chebyu, and the Chebyshev-1 closed form), and the parameterised
 # families are additionally cross-checked against the constants they

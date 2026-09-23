@@ -51,7 +51,7 @@ arrives.
 
 * All 84 cross_method tests pass identically across all 4 commits.
 * `sphinx-build -W` clean across all 4 commits.
-* `tests/derivations/test_sood_registry_compatibility.py` (110 tests)
+* `tests/gates/derivations/test_sood_registry_compatibility.py` (110 tests)
   + `test_fn_la13511_kinf.py` + `test_fn_la13511_slab.py` +
   `test_fn_la13511_sphere.py` all clean — no regression in upstream
   consumers of MeshTemplate.
@@ -82,8 +82,8 @@ registry's stored cm value.
 Worked alongside R1 (parallel `power_iterate_variant_alpha` driver
 in `trajectory_resolvent/`). Zero file overlap: R0.5 touched only
 `orpheus/derivations/common/`, `orpheus/derivations/continuous/sood_registry/`,
-and `tests/cross_method/`. R1 touched only `trajectory_resolvent/`
-and added `tests/derivations/test_trajectory_resolvent_power_iterate.py`.
+and `tests/gates/cross_method/`. R1 touched only `trajectory_resolvent/`
+and added `tests/gates/derivations/test_trajectory_resolvent_power_iterate.py`.
 
 ## What did NOT land (Step 5 — deferred)
 
@@ -102,8 +102,8 @@ sphere adapter) arrives.
 - `orpheus/derivations/common/geometry_template.py` (NEW)
 - `orpheus/derivations/continuous/sood_registry/la13511.py`
   (MeshTemplate moved out, re-exported)
-- `tests/cross_method/protocol.py` (added inline fields + validation)
-- `tests/cross_method/cases.py` (closed-sphere case migrated)
-- `tests/cross_method/adapters.py` (helpers refactored, alpha_from_bc added)
-- `tests/cross_method/test_eigenvalue.py` (cross-method agreement
+- `tests/gates/cross_method/protocol.py` (added inline fields + validation)
+- `tests/gates/cross_method/cases.py` (closed-sphere case migrated)
+- `tests/gates/cross_method/adapters.py` (helpers refactored, alpha_from_bc added)
+- `tests/gates/cross_method/test_eigenvalue.py` (cross-method agreement
   tests use `_shadow_with_thickness_mfp` to mutate mesh_template)

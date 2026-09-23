@@ -17,7 +17,7 @@ type: project
 **Files created:**
 
 - `orpheus/derivations/continuous/sood_registry/cache.py` (NEW, ~350 NCSL incl. docstrings)
-- `tests/derivations/test_sood_registry_cache.py` (NEW, 15 foundation tests, 322 lines)
+- `tests/gates/derivations/test_sood_registry_cache.py` (NEW, 15 foundation tests, 322 lines)
 
 **Files modified:**
 
@@ -110,7 +110,7 @@ A buggy solver's wrong answer survives across runs until either (a) the SHA chan
 ## Manifest cross-check
 
 - [x] Branch-1 SymPy module: **N/A** — this is infrastructure, not a verified mathematical method. The cache stores other solvers' outputs; it does not derive equations.
-- [x] Foundation-tagged test gate: `tests/derivations/test_sood_registry_cache.py` (15 tests, all `@pytest.mark.foundation`).
+- [x] Foundation-tagged test gate: `tests/gates/derivations/test_sood_registry_cache.py` (15 tests, all `@pytest.mark.foundation`).
 - [x] Branch-2 production solver: `orpheus/derivations/continuous/sood_registry/cache.py`.
 - [x] L1 cross-check: the smoke test wraps `kinf_homogeneous` (transfer-matrix reference) and verifies byte-equal payload + value matches Sood truth at 1e-5. (NOT a structural-independence cross-check in the rigorous V&V sense — it's a smoke of the cache's plumbing against a known-good reference.)
 - [x] Sphinx stub: `docs/theory/sood_registry.rst` — new "Solver-output caching" section with TODO marker for archivist expansion.

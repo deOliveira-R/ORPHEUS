@@ -158,7 +158,7 @@ NONE for production.
 The vis-cone+u² substitution machinery (#3 above) MAY be useful as a
 component of any future continuous-µ work, but the per-pair K it produces
 is only meaningful OFF-DIAGONAL. As a permanent test it would be:
-`tests/derivations/test_peierls_specular_continuous_mu.py::test_visibility_cone_offdiag_qconvergence`
+`tests/gates/derivations/test_peierls_specular_continuous_mu.py::test_visibility_cone_offdiag_qconvergence`
 gated at machine precision for the listed off-diagonal pairs. **Defer
 promotion** until a working closure consumes this primitive.
 

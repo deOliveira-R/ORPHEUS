@@ -109,7 +109,7 @@ projector — `φ̄=A`-average, `φ̂_x=(h_x/2)∂_xA`-coeff, etc.).
 
 **Norm**: volume-weighted L2 PER MOMENT (`_l2_2d(phi_m[...,k]-ref[...,k],
 volumes)`), one error per moment slot per group. (NOTE: `volume_weighted_l2`
-named in the brief does NOT exist on THIS branch — `tests/sn/_test_helpers.py`
+named in the brief does NOT exist on THIS branch — `tests/gates/sn/_test_helpers.py`
 has no such symbol; the #249 hoist was on the #236 branch per memory. Use
 the local `_l2_2d` already in `test_mms_ld_2d.py`, or hoist it now.)
 
@@ -220,8 +220,8 @@ moment-resolved-bulk BRANCH; the flat branch must not move.
 
 Gate: the existing strict DriftWarning regression gate. Run
 ```
-pytest tests/sn/sweep/core tests/sn/solve \
-  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+pytest tests/gates/sn/sweep/core tests/gates/sn/solve \
+  -W "error::tests.gates.sn.regression._regression_assert.DriftWarning"
 ```
 (the canonical strict-clean gate from [[d5_nd_polymorphism_verification]]
 D5a.3 — baseline DD strict 505p/1s/4xf). Plus the existing LD bit-id
@@ -286,10 +286,10 @@ statements are not executed"). The NEW gate file MUST use `np.testing.*` /
 `pytest.fail` only — NO bare `assert` (it would be a false green under -O).
 Mirror the existing `test_mms_ld_2d.py` style.
 
-**File**: extend `tests/sn/verification/mms/test_mms_ld_2d.py` (the D5b LD
+**File**: extend `tests/gates/sn/verification/mms/test_mms_ld_2d.py` (the D5b LD
 2-D home) — the new gates are the S4 closeout of the same case. The
 projection-correctness foundation sub-gate could also live in
-`tests/sn/spatial/test_linear_discontinuous.py` (kernel-level) but the
+`tests/gates/sn/spatial/test_linear_discontinuous.py` (kernel-level) but the
 moment-SOURCE consumption is end-to-end → keep with the MMS gates.
 
 ## 9. Honest-scope docstring update (after production lands)
@@ -308,14 +308,14 @@ not a caught bug).
 ## 10. Baseline (live @ HEAD, branch refactor/sn-foundation-cleanup)
 
 ```
-pytest tests/sn/verification/mms/test_mms_ld_2d.py -q -m "not slow"
+pytest tests/gates/sn/verification/mms/test_mms_ld_2d.py -q -m "not slow"
   → 5 passed, 2 deselected  (35s)
 ```
 ERR ceiling = ERR-062 (the pure-z moment-broadcast, already gated here).
 `LinearDiscontinuous.theta == 1/3`, `spatial_basis_per_axis == 2`.
-NEVER run all `tests/sn` (#212 hang at
+NEVER run all `tests/gates/sn` (#212 hang at
 `test_keff_slab::test_heterogeneous_absolute_keff`); scope to
-`tests/sn/verification/mms` + `tests/derivations`.
+`tests/gates/sn/verification/mms` + `tests/gates/derivations`.
 
 ## 11. Self-improvement (Mode-10 reinforced)
 

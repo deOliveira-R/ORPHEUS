@@ -306,7 +306,7 @@ note above).
    (accuracy), because a bare equality reddens identically and hides the
    direction.
 
-   Gated by ``tests/numerics/test_advertised_degree_is_measured.py``, which
+   Gated by ``tests/gates/numerics/test_advertised_degree_is_measured.py``, which
    measures every production family against
    :eq:`quadrature-sphere-monomial` with the other three rules swept by the
    same body as controls.
@@ -327,7 +327,7 @@ note above).
    (:math:`S_2` bit-identical), re-baselined per principled-equivalence.
 
    The verification instrument is three-cornered
-   (``tests/numerics/test_level_symmetric_nodes.py``): the build-measured
+   (``tests/gates/numerics/test_level_symmetric_nodes.py``): the build-measured
    stamp, an independent monomial sweep, and frozen literals re-solved at
    50 digits — because with a build-measured stamp, "measured ==
    advertised" alone is two re-implementations of one gamma identity

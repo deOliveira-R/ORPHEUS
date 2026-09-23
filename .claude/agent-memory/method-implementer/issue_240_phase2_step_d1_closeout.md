@@ -1,6 +1,6 @@
 ---
 name: issue-240-phase2-step-d1-closeout
-description: #240 Phase 2 Step D1 — added the generic affine-scheme outflow reconstruction op `outgoing_face_from_average` (inverse of `cell_average`) and routed the 5 inlined DD/LD direct-reconstruction sites through it (single-source the realization-leak duplication, Cardinal Rule 2). DD sites BYTE-IDENTICAL; LD sites a principled ~1-ULP re-baseline (no snapshot needed re-baselining — LD has no bit-identity snapshots, only MMS/two-paths exactness). One source-of-record SHA gate updated (deliberate edit, byte-id preserved). NEVER all tests/sn (#212 hang).
+description: #240 Phase 2 Step D1 — added the generic affine-scheme outflow reconstruction op `outgoing_face_from_average` (inverse of `cell_average`) and routed the 5 inlined DD/LD direct-reconstruction sites through it (single-source the realization-leak duplication, Cardinal Rule 2). DD sites BYTE-IDENTICAL; LD sites a principled ~1-ULP re-baseline (no snapshot needed re-baselining — LD has no bit-identity snapshots, only MMS/two-paths exactness). One source-of-record SHA gate updated (deliberate edit, byte-id preserved). NEVER all tests/gates/sn (#212 hang).
 metadata:
   type: project
 ---
@@ -73,7 +73,7 @@ Imports added: `from .affine_closure import outgoing_face_from_average` in
 
 ## Test-of-record update (deliberate, byte-id preserved)
 
-`tests/sn/sweep/core/test_cell_kernel_batch.py::TestKernelSourceOfRecord` is a
+`tests/gates/sn/sweep/core/test_cell_kernel_batch.py::TestKernelSourceOfRecord` is a
 `inspect.getsource` sha256 pin on the two DD kernel BODIES (the FP-reduction-tree
 of record). The bodies' SOURCE TEXT changed (routed through the op) so the SHAs
 changed — the gate explicitly instructs "update EXPECTED in THIS commit if
@@ -85,10 +85,10 @@ all 503+ numerical regression snapshots stayed green with NO DriftWarning escala
 
 ## Gate results
 
-- **Strict DriftWarning gate** (CORRECT path `tests.sn.regression._regression_assert.DriftWarning`):
-  `tests/sn/sweep/core tests/sn/solve -W error::…DriftWarning` → **505 passed / 1 skipped /
+- **Strict DriftWarning gate** (CORRECT path `tests.gates.sn.regression._regression_assert.DriftWarning`):
+  `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::…DriftWarning` → **505 passed / 1 skipped /
   4 xfailed** (baseline restored after the SHA update). DD bit-identity confirmed.
-- **Full route-around set** (`tests/sn/operators spatial sweep/core sweep/cartesian_2d solve`
+- **Full route-around set** (`tests/gates/sn/operators spatial sweep/core sweep/cartesian_2d solve`
   with the 7-red `-k` filter): **1083 passed / 6 skipped / 7 deselected / 5 xfailed**, exit 0.
   Baseline was 1080; +3 = the new `test_affine_closure.py`. The ONE DriftWarning shown
   (`vacuum_bulk_SLB_seed1`, 1 ULP within tol nulp=5) is PRE-EXISTING — confirmed by
@@ -96,7 +96,7 @@ all 503+ numerical regression snapshots stayed green with NO DriftWarning escala
 - **LD scheme + MMS**: `test_linear_discontinuous.py` + `test_mms_ld_slab.py` →
   24 passed / 1 xfailed. LD reconstruction reduction-tree change preserves O(h²)
   linear exactness + group3≡group2 two-paths agreement.
-- **New unit test** `tests/sn/spatial/test_affine_closure.py` (3 `@pytest.mark.foundation`):
+- **New unit test** `tests/gates/sn/spatial/test_affine_closure.py` (3 `@pytest.mark.foundation`):
   exact-inverse round-trip (FP tol, w∈{½,1,0.3,array,random}); DD `w=½` byte-identity
   (`array_equal` via `pytest.fail` — Mode-8-clean under `-O`); LD `w=1/(1+k)` algebraic
   equality (FP tol). 3 passed.

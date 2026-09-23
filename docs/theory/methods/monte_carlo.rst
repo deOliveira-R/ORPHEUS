@@ -479,7 +479,7 @@ The probability of a neutron at :math:`\mathbf{r}_0` reaching distance
 
 .. (vv-status rationale) derivation step: the majorant free-flight survival
 .. function, the same exponential the free-flight sampler draws from. Its
-.. rate is pinned by ``tests/mc/test_gaps.py::test_free_path_exponential``
+.. rate is pinned by ``tests/gates/mc/test_gaps.py::test_free_path_exponential``
 .. (mean/variance of the sampled path length, the wired ``free-flight``
 .. label); the delta-tracking pdf it composes into is
 .. :eq:`delta-tracking-collision-pdf`.
@@ -498,7 +498,7 @@ is real with probability:
 .. sampled collision, the complement of the wired
 .. :eq:`virtual-collision-probability` (``P_real = 1 - P_virtual``). Its
 .. complement is explicitly asserted in
-.. ``tests/mc/test_properties.py::test_delta_tracking_virtual_probability``.
+.. ``tests/gates/mc/test_properties.py::test_delta_tracking_virtual_probability``.
 .. vv-status: majorant-real-collision documented
 
 The joint probability of first real collision at distance :math:`s` is:
@@ -761,7 +761,7 @@ group :math:`g'` is :math:`2\,\Sigma_{2n}(g \to g')\phi_g`, matching the
 CP/SN treatment (:ref:`theory-collision-probability`, anti-ERR-015).
 This is documented as **ERR-023** in ``docs/theory/verification/error_catalog.rst`` and
 pinned by
-``tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``.
+``tests/gates/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``.
 
 **Cross-section preprocessing.**  The solver precomputes dense scattering
 rows for all materials::
@@ -878,7 +878,7 @@ The expected multiplication per generation is:
 .. (flux-shape-independent, vv-principles anti-pattern #3 — NOT a solver
 .. claim). The numerical value is produced by ``kinf_homogeneous`` and the
 .. fission-weight factor it derives is verified by
-.. ``tests/mc/test_properties.py::test_fission_weight_adjustment`` (the wired
+.. ``tests/gates/mc/test_properties.py::test_fission_weight_adjustment`` (the wired
 .. ``fission-weight`` label).
 .. vv-status: mc-analog-multiplication documented
 
@@ -1259,7 +1259,7 @@ spectrum output, not keff.
    fixed by taking :math:`|\Delta u_g|` at the definition site (the code
    computes ``flux_per_lethargy = tally / np.abs(xs.du)``). The
    regression test
-   ``tests/mc/test_gaps.py::test_flux_per_lethargy_nonnegative`` pins
+   ``tests/gates/mc/test_gaps.py::test_flux_per_lethargy_nonnegative`` pins
    the invariant.  The spectral shape is now additionally pinned by
    ``test_2g_flux_ratio_homogeneous`` which compares the MC spectrum
    against the analytical 2 G eigenvector at 10 % rtol.

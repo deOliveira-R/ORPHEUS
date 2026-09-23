@@ -87,35 +87,35 @@ type: project
 
 ## Test additions
 
-- `tests/numerics/test_space.py` (NEW, 17 tests, 158 LOC) —
+- `tests/gates/numerics/test_space.py` (NEW, 17 tests, 158 LOC) —
   equality/hash on (name, shape); inner product Euclidean +
   weighted; norm consistency; factory functions.
-- `tests/numerics/test_registry_mixin.py` (NEW, 10 tests, 153 LOC)
+- `tests/gates/numerics/test_registry_mixin.py` (NEW, 10 tests, 153 LOC)
   — `__init_subclass__` registration; `create()` factory;
   duplicate detection; registry-root isolation. Named
   `test_registry_mixin.py` because `test_registry.py` already
   exists for the quadrature-rule selection registry.
-- `tests/numerics/test_operator.py` (+~210 LOC, 17 new tests) —
+- `tests/gates/numerics/test_operator.py` (+~210 LOC, 17 new tests) —
   __call__, __pow__, .H aliases, Hilbert adjoint identity (Euclidean
   + weight-aware), IncompatibleOperatorComposition, __repr__.
-- `tests/numerics/test_measure.py` (+~95 LOC, 9 new tests) —
+- `tests/gates/numerics/test_measure.py` (+~95 LOC, 9 new tests) —
   __call__, array overload, __iter__, __len__, __getitem__, __repr__.
-- `tests/geometry/test_mesh.py` (NEW, 10 tests, 168 LOC) — Mesh1D
+- `tests/gates/geometry/test_mesh.py` (NEW, 10 tests, 168 LOC) — Mesh1D
   and Mesh2D volume_measure with constant + arbitrary value tests.
-- `tests/geometry/test_boundary.py` (+~115 LOC, 8 new tests) —
+- `tests/gates/geometry/test_boundary.py` (+~115 LOC, 8 new tests) —
   registry membership, create() factory, specular transpose
   reciprocity, self-inverse identity, OperatorSum-of-BCs matches
   MixedBoundaryOperator baseline.
-- `tests/sn/spatial/test_diamond.py` (+~25 LOC, 2 new tests) —
+- `tests/gates/sn/spatial/test_diamond.py` (+~25 LOC, 2 new tests) —
   CellUpdateBase registry membership.
 
 ## Verification gate results
 
 - `pytest -m regression -q` → **11/11 PASSED bit-identical**
   (763.23s ≈ 12:43).
-- `pytest tests/numerics tests/geometry tests/sn/spatial -q` →
+- `pytest tests/gates/numerics tests/gates/geometry tests/gates/sn/spatial -q` →
   529 passed.
-- `pytest tests/numerics tests/geometry -q` → 500 passed in 0.94s.
+- `pytest tests/gates/numerics tests/gates/geometry -q` → 500 passed in 0.94s.
 - `sphinx-build -W docs docs/_build/html` → exit 0.
 - `python -m tests._harness.audit` → 23 orphans, 36/38 ERR coverage
   (matches Phase A baseline).

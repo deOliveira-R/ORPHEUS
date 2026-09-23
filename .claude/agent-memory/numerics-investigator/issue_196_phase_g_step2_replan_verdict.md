@@ -235,7 +235,7 @@ For symmetric quadratures (GL-N has μ_n = -μ_{N-1-n}), `np.argsort(abs_mu)` in
 - The blocker memo: `.claude/agent-memory/method-implementer/issue_196_phase_g_step2_replan_blocker.md`.
 - The earlier diagnostic: `.claude/agent-memory/numerics-investigator/issue_196_phase_g_step2_diagnostic.md` (the §"Output D" claim "at the fixed point they are algebraically equivalent" is corrected to "the two operators have different fixed points" per this verdict; original memo should gain a top-line note pointing here).
 - Apply-matvec reference (the canonical operator): `orpheus/sn/operator.py:571-838`.
-- Phase D / E / F regression snapshots: `tests/sn/regression/snapshots/cyl_*.npz`, `sphere_*.npz` — already Krylov-generated for the curvilinear snapshots since Phase D default flip. Path (B) requires no regen; Path (A) requires regen with three-pillar attestation.
+- Phase D / E / F regression snapshots: `tests/gates/sn/regression/snapshots/cyl_*.npz`, `sphere_*.npz` — already Krylov-generated for the curvilinear snapshots since Phase D default flip. Path (B) requires no regen; Path (A) requires regen with three-pillar attestation.
 
 ## Linked memories
 

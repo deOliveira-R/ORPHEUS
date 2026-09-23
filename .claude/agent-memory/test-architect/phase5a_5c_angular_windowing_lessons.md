@@ -11,7 +11,7 @@ iterate is `HarmonicMomentField` moments not full `AngularFlux`
 per-anti-diagonal sweep OUTPUT is dropped — moments accumulate in-sweep inside
 `apply_windowed` (`einsum("nlm,ngd,n->lmgd", Y_oct, ψ_avg, w_oct)`), the
 post-sweep flat `MomentProjection.apply` kept ONLY as a verification oracle.
-Tests live at `tests/sn/solve/test_2d_anisotropic_windowing.py`. This note
+Tests live at `tests/gates/sn/solve/test_2d_anisotropic_windowing.py`. This note
 keeps the WHY.
 
 **1. THE TRAP (the canonical Cardinal-1 / Mode-7 instance for this codebase).**

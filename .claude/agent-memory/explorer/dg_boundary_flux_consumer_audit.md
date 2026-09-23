@@ -91,21 +91,21 @@ Multiple operator-side write sites — all of them functional-style (build a fre
 
 | File | LOC bucket | Refs | Write sites? | Notes |
 |---|---|---|---|---|
-| `tests/sn/test_boundary_flux_arithmetic.py` | small | 80+ | YES (10+) — `bf.xmin_face[...] = 1.0` style direct mutation throughout | The full algebra test file. Every test seeds `BoundaryFlux.zeros(sn)` then writes face buffers, then checks dunder output. Pure assignment-via-mutation pattern. D-G must rewrite to construct-then-compare or construct-fresh-with-values. ~50 LOC change. |
-| `tests/sn/test_typed_fields.py` | small | 20+ | YES — `bf.xmin_xmax_buf[:, :, 0, :] = 1.0` and `bf.xmin_face[:, :] = 5.0` shape-access tests | Tests shape correctness + face slice view semantics. The 2-D `xmin_xmax_buf` writes (lines 256–271) become writes into a SweepScratch-equivalent fixture; the 1-D `xmin_face` / `xmax_face` writes (lines 284–285) become field constructor calls. ~30 LOC change. |
-| `tests/sn/test_angular_flux_with_boundary.py` | medium | 30+ | YES — `psi1.boundary.xmin_face[...] = 0.5` propagation tests | Pins AngularFlux + BoundaryFlux algebra propagation. The mutations are the test fixture pattern. Re-tooling to build BoundaryFlux via constructor + replace pattern. ~40 LOC. |
-| `tests/sn/test_native_matvec.py` | medium | 50+ | YES — `bf.xmax_face = np.full((N, ng), value)` etc. | Builds synthetic BoundaryFlux instances with bare construction then field-set assignment. D-G migrates to constructor with all values passed in at init. ~60 LOC. |
-| `tests/sn/test_invertible_operator.py` | small | 3 | NO writes — only reads `composite_out.boundary.xmax_face` for comparison | ~5 LOC change. |
-| `tests/sn/test_operators_apply_typed.py` | small | 25+ | YES — `psi.boundary.xmax_face[...] = rng.standard_normal(...)` | Random fixture pattern. ~30 LOC change. |
-| `tests/sn/test_streaming_operator_decomposition.py` | small | 10+ | YES — `boundary_in.xmax_face = np.zeros(...)`, slot scatter | Same pattern as operator.py `_apply_packed_legacy`. ~15 LOC. |
-| `tests/sn/test_fixed_source_g1.py` | small | 5 | NO — read-only assertions about `psi_typed.boundary.xmax_face.shape` | ~5 LOC. |
-| `tests/sn/test_solution.py` | trivial | 3 | NO writes — identity assertions only | ~3 LOC. |
-| `tests/sn/_test_helpers.py` | small | 10+ | YES — `bf.xmax_face = psi_view[:, :, -1, 0].copy()`; `make_boundary_flux_zero` factory | The helper `_make_boundary_with_cell_centre_proxy_seed` builds + mutates synthetic BoundaryFlux. ~20 LOC. |
-| `tests/sn/test_2d_octant_sweep_equivalence.py` | medium | 15+ | YES — passes `boundary_flux` to sweep AND reads `inputs.boundary_flux.xmin_xmax_buf` post-sweep | Critical 2-D bit-identity gate. The post-sweep reads of `xmin_xmax_buf` and `ymin_ymax_buf` (lines 860, 864) move to SweepScratch reads. **~50 LOC change.** Carries `aniso_source=` argument that looks like stale legacy API — separate cleanup. |
-| `tests/sn/regression/_generate_2d_octant_snapshots.py` | small | 5 | YES — reads `inputs.boundary_flux.xmin_xmax_buf` (line 85), `.ymin_ymax_buf` (line 86) after sweep | Bit-identity snapshot generator. ~10 LOC. |
-| `tests/sn/test_angular_flux_with_boundary.py` | (above) | | | (counted above) |
-| `tests/numerics/test_iteration.py` | trivial | 2 | NO — passes `boundary_flux = sn_mesh.zeros_boundary_flux()` to sweep | ~3 LOC. |
-| `tests/numerics/test_iteration_angular_flux.py` | small | 10+ | YES — `psi.boundary.xmax_face[eq_map.face_outer_ordinate, :] = ...` | ~15 LOC. |
+| `tests/gates/sn/test_boundary_flux_arithmetic.py` | small | 80+ | YES (10+) — `bf.xmin_face[...] = 1.0` style direct mutation throughout | The full algebra test file. Every test seeds `BoundaryFlux.zeros(sn)` then writes face buffers, then checks dunder output. Pure assignment-via-mutation pattern. D-G must rewrite to construct-then-compare or construct-fresh-with-values. ~50 LOC change. |
+| `tests/gates/sn/test_typed_fields.py` | small | 20+ | YES — `bf.xmin_xmax_buf[:, :, 0, :] = 1.0` and `bf.xmin_face[:, :] = 5.0` shape-access tests | Tests shape correctness + face slice view semantics. The 2-D `xmin_xmax_buf` writes (lines 256–271) become writes into a SweepScratch-equivalent fixture; the 1-D `xmin_face` / `xmax_face` writes (lines 284–285) become field constructor calls. ~30 LOC change. |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | medium | 30+ | YES — `psi1.boundary.xmin_face[...] = 0.5` propagation tests | Pins AngularFlux + BoundaryFlux algebra propagation. The mutations are the test fixture pattern. Re-tooling to build BoundaryFlux via constructor + replace pattern. ~40 LOC. |
+| `tests/gates/sn/test_native_matvec.py` | medium | 50+ | YES — `bf.xmax_face = np.full((N, ng), value)` etc. | Builds synthetic BoundaryFlux instances with bare construction then field-set assignment. D-G migrates to constructor with all values passed in at init. ~60 LOC. |
+| `tests/gates/sn/test_invertible_operator.py` | small | 3 | NO writes — only reads `composite_out.boundary.xmax_face` for comparison | ~5 LOC change. |
+| `tests/gates/sn/test_operators_apply_typed.py` | small | 25+ | YES — `psi.boundary.xmax_face[...] = rng.standard_normal(...)` | Random fixture pattern. ~30 LOC change. |
+| `tests/gates/sn/test_streaming_operator_decomposition.py` | small | 10+ | YES — `boundary_in.xmax_face = np.zeros(...)`, slot scatter | Same pattern as operator.py `_apply_packed_legacy`. ~15 LOC. |
+| `tests/gates/sn/test_fixed_source_g1.py` | small | 5 | NO — read-only assertions about `psi_typed.boundary.xmax_face.shape` | ~5 LOC. |
+| `tests/gates/sn/test_solution.py` | trivial | 3 | NO writes — identity assertions only | ~3 LOC. |
+| `tests/gates/sn/_test_helpers.py` | small | 10+ | YES — `bf.xmax_face = psi_view[:, :, -1, 0].copy()`; `make_boundary_flux_zero` factory | The helper `_make_boundary_with_cell_centre_proxy_seed` builds + mutates synthetic BoundaryFlux. ~20 LOC. |
+| `tests/gates/sn/test_2d_octant_sweep_equivalence.py` | medium | 15+ | YES — passes `boundary_flux` to sweep AND reads `inputs.boundary_flux.xmin_xmax_buf` post-sweep | Critical 2-D bit-identity gate. The post-sweep reads of `xmin_xmax_buf` and `ymin_ymax_buf` (lines 860, 864) move to SweepScratch reads. **~50 LOC change.** Carries `aniso_source=` argument that looks like stale legacy API — separate cleanup. |
+| `tests/gates/sn/regression/_generate_2d_octant_snapshots.py` | small | 5 | YES — reads `inputs.boundary_flux.xmin_xmax_buf` (line 85), `.ymin_ymax_buf` (line 86) after sweep | Bit-identity snapshot generator. ~10 LOC. |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | (above) | | | (counted above) |
+| `tests/gates/numerics/test_iteration.py` | trivial | 2 | NO — passes `boundary_flux = sn_mesh.zeros_boundary_flux()` to sweep | ~3 LOC. |
+| `tests/gates/numerics/test_iteration_angular_flux.py` | small | 10+ | YES — `psi.boundary.xmax_face[eq_map.face_outer_ordinate, :] = ...` | ~15 LOC. |
 
 ## 3. Sweep write-through pattern locations (the SweepScratch migration target)
 
@@ -130,13 +130,13 @@ Files reading `.boundary.{xmax_face|xmin_face|xmin_xmax_buf|ymin_ymax_buf|xmin|x
 |---|---|---|
 | `orpheus/sn/operator.py` | ~15 | matvec helpers + InvertibleOperator.solve |
 | `orpheus/sn/angular_flux.py` | ~8 | self.boundary access in copy / from_flat / to_flat |
-| `tests/sn/test_native_matvec.py` | ~20 | random + linearity tests |
-| `tests/sn/test_operators_apply_typed.py` | ~20 | per-operator assertion sweep |
-| `tests/sn/test_invertible_operator.py` | ~5 | composite operator parity |
-| `tests/sn/test_streaming_operator_decomposition.py` | ~10 | decomposition equivalence |
-| `tests/sn/test_fixed_source_g1.py` | ~5 | shape assertions only |
-| `tests/sn/test_angular_flux_with_boundary.py` | ~15 | propagation algebra |
-| `tests/numerics/test_iteration_angular_flux.py` | ~10 | iteration-protocol tests |
+| `tests/gates/sn/test_native_matvec.py` | ~20 | random + linearity tests |
+| `tests/gates/sn/test_operators_apply_typed.py` | ~20 | per-operator assertion sweep |
+| `tests/gates/sn/test_invertible_operator.py` | ~5 | composite operator parity |
+| `tests/gates/sn/test_streaming_operator_decomposition.py` | ~10 | decomposition equivalence |
+| `tests/gates/sn/test_fixed_source_g1.py` | ~5 | shape assertions only |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | ~15 | propagation algebra |
+| `tests/gates/numerics/test_iteration_angular_flux.py` | ~10 | iteration-protocol tests |
 
 Estimated D-H.1 sizing: ~100 sites; rewire each from `psi.boundary.xxxx` to `state.boundary.xxxx` (where `state` is the new TransportState). Roughly 200 LOC of mechanical rename + ~50 LOC of plumbing through containers.
 
@@ -154,20 +154,20 @@ Estimated D-H.1 sizing: ~100 sites; rewire each from `psi.boundary.xxxx` to `sta
 | `orpheus/sn/scattering.py` | trivial | ~3 (docstring) |
 | `orpheus/sn/axis.py` | trivial | ~3 (docstring) |
 | `orpheus/transport/__init__.py` etc. | small | ~20 (new module wiring + re-export shim) |
-| `tests/sn/test_boundary_flux_arithmetic.py` | small | ~50 |
-| `tests/sn/test_typed_fields.py` | small | ~30 |
-| `tests/sn/test_angular_flux_with_boundary.py` | medium | ~40 |
-| `tests/sn/test_native_matvec.py` | medium | ~60 |
-| `tests/sn/test_operators_apply_typed.py` | small | ~30 |
-| `tests/sn/test_2d_octant_sweep_equivalence.py` | medium | ~50 |
-| `tests/sn/test_streaming_operator_decomposition.py` | small | ~15 |
-| `tests/sn/test_fixed_source_g1.py` | trivial | ~5 |
-| `tests/sn/test_invertible_operator.py` | trivial | ~5 |
-| `tests/sn/test_solution.py` | trivial | ~3 |
-| `tests/sn/_test_helpers.py` | small | ~20 |
-| `tests/sn/regression/_generate_2d_octant_snapshots.py` | small | ~10 |
-| `tests/numerics/test_iteration.py` | trivial | ~3 |
-| `tests/numerics/test_iteration_angular_flux.py` | small | ~15 |
+| `tests/gates/sn/test_boundary_flux_arithmetic.py` | small | ~50 |
+| `tests/gates/sn/test_typed_fields.py` | small | ~30 |
+| `tests/gates/sn/test_angular_flux_with_boundary.py` | medium | ~40 |
+| `tests/gates/sn/test_native_matvec.py` | medium | ~60 |
+| `tests/gates/sn/test_operators_apply_typed.py` | small | ~30 |
+| `tests/gates/sn/test_2d_octant_sweep_equivalence.py` | medium | ~50 |
+| `tests/gates/sn/test_streaming_operator_decomposition.py` | small | ~15 |
+| `tests/gates/sn/test_fixed_source_g1.py` | trivial | ~5 |
+| `tests/gates/sn/test_invertible_operator.py` | trivial | ~5 |
+| `tests/gates/sn/test_solution.py` | trivial | ~3 |
+| `tests/gates/sn/_test_helpers.py` | small | ~20 |
+| `tests/gates/sn/regression/_generate_2d_octant_snapshots.py` | small | ~10 |
+| `tests/gates/numerics/test_iteration.py` | trivial | ~3 |
+| `tests/gates/numerics/test_iteration_angular_flux.py` | small | ~15 |
 | **Total** | | **~900 LOC** |
 
 This matches Risk-3 in plan §8 ("~15 files per audit memo" — actual count is 22 (9 prod + 13 test), but the plan's ~15 was the rough order; the LOC envelope is the load-bearing number).
@@ -193,7 +193,7 @@ Recommended mitigation: implement SweepScratch FIRST as a parallel scratch type 
 - **No 1-D BoundaryFlux algebra usage in production** — `bf + bf2` style only appears in `test_boundary_flux_arithmetic.py` and propagates through AngularFlux dunders in production. The Field-inherited dunders cover both.
 - **`_copy_boundary_face_state` is the canonical "in-place buffer copy" helper** (operator.py:2680). It retires in D-G — every consumer (solver.py:539, operator.py:2660/2662) switches to passing the BoundaryFlux as a construction argument.
 - **`from_flat_with_traces` (angular_flux.py:377) is the most complex write site** because it scatters face values into per-ordinate slots conditional on `eq_map.face_outer_ordinate` masks. Post-D-G this becomes a builder pattern: assemble per-face ndarrays, then construct the flat buffer + layout in one call. Plan §3.4's `BoundaryFlux.zeros_for_sn_mesh(mesh)` is the canonical constructor; this matvec needs a sibling `BoundaryFlux.from_face_arrays(mesh, xmax=..., xmin=...)` factory.
-- **The 2-D snapshot regression generator is a bit-identity-gate**. The plan calls out new test `tests/sn/test_sweep_scratch_split.py` (plan §6 D-G verification) — that test's purpose is precisely to pin the carve.
+- **The 2-D snapshot regression generator is a bit-identity-gate**. The plan calls out new test `tests/gates/sn/test_sweep_scratch_split.py` (plan §6 D-G verification) — that test's purpose is precisely to pin the carve.
 
 ---
 

@@ -79,7 +79,7 @@ Slab MB monotonically improves all the way to N=16+; sphere/cyl MB
 overshoot at N≥4. UserWarning correctly emitted for sphere/cyl at
 N≥4, suppressed for slab.
 
-## Tests added (`tests/derivations/test_peierls_specular_bc.py`)
+## Tests added (`tests/gates/derivations/test_peierls_specular_bc.py`)
 
 - `test_specular_multibounce_warns_at_high_N` — sphere warns at N=4,
   not at N=3 (replaces the prior N=5 boundary test, which was
@@ -129,6 +129,6 @@ N≥4, suppressed for slab.
 
 - `orpheus/derivations/peierls_geometry.py` (+~360 LoC: two new T
   funcs + dispatch refactor + sphere docstring rewrite)
-- `tests/derivations/test_peierls_specular_bc.py` (+~270 LoC)
+- `tests/gates/derivations/test_peierls_specular_bc.py` (+~270 LoC)
 - `docs/theory/peierls_nystrom.rst` (+~210 lines)
 - `.claude/agent-memory/numerics-investigator/MEMORY.md` index entry

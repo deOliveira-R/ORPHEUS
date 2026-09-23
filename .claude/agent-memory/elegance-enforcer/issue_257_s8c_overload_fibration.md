@@ -10,7 +10,7 @@ metadata:
 **Verdict: PASS-WITH-NITS** (`feature/field-typed-operator-algebra`, UNCOMMITTED working tree,
 behavioral-NEUTRAL). Branch `refactor/pyright-signal` is where I reviewed from; the S8c edits sit
 on the working tree of `feature/field-typed-operator-algebra`. Files: `orpheus/sn/fission.py`
-(328-482), `orpheus/sn/scattering.py` (1128-1358), `tests/sn/operators/test_operators_apply_typed.py`
+(328-482), `orpheus/sn/scattering.py` (1128-1358), `tests/gates/sn/operators/test_operators_apply_typed.py`
 (C6 332-407).
 
 ## What S8c does

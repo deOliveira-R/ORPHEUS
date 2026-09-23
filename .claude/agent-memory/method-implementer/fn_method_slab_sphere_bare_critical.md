@@ -67,7 +67,7 @@ extending the first slice (k_inf cases) with bare-critical-slab
 
 ### Tests
 
-* `tests/derivations/test_fn_la13511_slab.py` (~250 LoC, **21 tests**, all `@pytest.mark.foundation`):
+* `tests/gates/derivations/test_fn_la13511_slab.py` (~250 LoC, **21 tests**, all `@pytest.mark.foundation`):
   - 5 SymPy-gate tests (one per `derive_*` in `fn_slab_derivations`).
   - 4 Branch-1 ↔ Branch-2 self-consistency tests (recursion drift, vector vs scalar).
   - 2 dispersion-root tests.
@@ -76,16 +76,16 @@ extending the first slice (k_inf cases) with bare-critical-slab
   - 5 parametrized Grandjean-Siewert Table XI tests.
   - 3 misc (convergence-with-N, coefficient-norm, dispersion-consistency).
 
-* `tests/derivations/test_fn_la13511_sphere.py` (~85 LoC, **5 tests**):
+* `tests/gates/derivations/test_fn_la13511_sphere.py` (~85 LoC, **5 tests**):
   - 4 SymPy-gate tests (`@pytest.mark.foundation`).
   - 1 Sood Ua-1-0-SP R_c test (`@pytest.mark.foundation @pytest.mark.slow`,
     ~77s wall time at n_quad=24).
 
-* `tests/derivations/test_fn_la13511_slab_xverif.py` (~130 LoC, **2 tests**, `@pytest.mark.l1`):
+* `tests/gates/derivations/test_fn_la13511_slab_xverif.py` (~130 LoC, **2 tests**, `@pytest.mark.l1`):
   - F_N slab vs Variant α slab at Sood Ua-1-0-SL truth, ≤ 5e-5.
   - Same cross-check at Grandjean-Siewert c=1.50, ≤ 1e-4.
 
-* `tests/derivations/test_fn_la13511_sphere_xverif.py` (~80 LoC, **1 test**, `@pytest.mark.l1`):
+* `tests/gates/derivations/test_fn_la13511_sphere_xverif.py` (~80 LoC, **1 test**, `@pytest.mark.l1`):
   - Variant α sphere at Sood Ua-1-0-SP truth, ≤ 5e-5.
 
 ### Sphinx
@@ -372,9 +372,9 @@ tweaks needed:
 ## Manifest check
 
 - [x] Branch-1 SymPy module under `orpheus/derivations/continuous/fn_method/origins/`
-- [x] Foundation-tagged test gate at `tests/derivations/test_fn_la13511_{slab,sphere}.py`
+- [x] Foundation-tagged test gate at `tests/gates/derivations/test_fn_la13511_{slab,sphere}.py`
 - [x] Branch-2 production solver at `orpheus/derivations/continuous/fn_method/{slab,sphere}/`
-- [x] L1 cross-check tests at `tests/derivations/test_fn_la13511_{slab,sphere}_xverif.py`,
+- [x] L1 cross-check tests at `tests/gates/derivations/test_fn_la13511_{slab,sphere}_xverif.py`,
       citing Variant α as the structurally-independent reference (different mathematical paths)
 - [x] Sphinx stub at `docs/theory/fn_method.rst` extended with V_fn-slab.{1..5} +
       V_fn-sphere.{1..4} labels each with `:func:` cross-ref + TODO

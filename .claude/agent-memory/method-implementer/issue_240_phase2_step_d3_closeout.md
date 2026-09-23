@@ -37,8 +37,8 @@ Plus consistency renames (no word-boundary so `\b` skipped them):
   `test_explicit_cell_update_honored`→`test_explicit_scheme_honored`,
   `test_cache_driven_sweep_matches_per_cell_update`→`..._per_cell_scheme_update`
 - file `git mv tests/.../test_cell_update_protocol.py → test_discretization_scheme_protocol.py`
-- doc path fix `discrete_ordinates.rst:1196` stale `tests/sn/spatial/test_cell_update_protocol.py`
-  → correct `tests/sn/sweep/core/test_discretization_scheme_protocol.py` (was wrong-dir AND stale)
+- doc path fix `discrete_ordinates.rst:1196` stale `tests/gates/sn/spatial/test_cell_update_protocol.py`
+  → correct `tests/gates/sn/sweep/core/test_discretization_scheme_protocol.py` (was wrong-dir AND stale)
 
 ## ⚠️ TRAP 1 — macOS BSD sed does NOT support `\b`
 The plan/brief recipe `sed -i '' 's/\b<old>\b/.../g'` SILENTLY does nothing on macOS (BSD sed).
@@ -69,7 +69,7 @@ key="diamond_difference")` keeps the string while the base renames.
    of test_cell_update_batch.py"); the file was migrated to test_cell_kernel_batch.py long ago.
 2. `matrix.rst` — AUTO-GENERATED; regenerated via `python -m tools.verification.generate_matrix`
    → now reads `core/test_discretization_scheme_protocol` (5249 tests, count preserved).
-3. `tests/_mutation/{README.md,diamond_spike.toml}` `test_cell_update_batch` — pre-existing
+3. `tests/gates/_mutation/{README.md,diamond_spike.toml}` `test_cell_update_batch` — pre-existing
    mutation config referencing a long-gone file + a `field-role-typing` worktree path; not a
    `CellUpdate`-symbol token; out of D3 scope.
 4. `test_cell_kernel_batch.py:22` — HISTORY NOTE.
@@ -82,11 +82,11 @@ reference `cell_update`/`CellUpdate` by name (only class headers / imports / doc
 ## Gate results — BIT-IDENTICAL ✅
 - Clean import: `orpheus.sn.{solver,loss_representation,spatial.scheme,spatial.diamond}` OK.
 - Residual `git grep -n 'CellUpdate|cell_update' -- orpheus tests docs` → only the 4 survivors above.
-- Strict DriftWarning gate `tests/sn/sweep/core tests/sn/solve -W error::...DriftWarning`:
+- Strict DriftWarning gate `tests/gates/sn/sweep/core tests/gates/sn/solve -W error::...DriftWarning`:
   **505 passed / 1 skipped / 4 xfailed** — IDENTICAL to pre-rename baseline (captured before
   touching anything). NO DriftWarning fired (the brief-anticipated vacuum_bulk_SLB 1-ULP warning
   did NOT appear at this HEAD — clean both pre and post).
-- Route-around `tests/sn/{operators,spatial,sweep/core,sweep/cartesian_2d,solve}` -k route-around:
+- Route-around `tests/gates/sn/{operators,spatial,sweep/core,sweep/cartesian_2d,solve}` -k route-around:
   **1083 passed** / 6 skipped / 7 deselected / 5 xfailed.
 - `python -m tests._harness.audit` exit 0.
 - Sphinx `-W` build exit 0 — all renamed `:mod:`/`:class:`/`:meth:`/`:attr:` refs resolve.

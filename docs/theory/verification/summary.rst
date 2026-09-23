@@ -117,9 +117,9 @@ tighter than the looser truth tolerance), the L4 ruling, and the
 recipes for adding solvers and cases.
 
 The as-designed coverage — the rows mirror
-``tests/cross_method/cases.py``, and the live case × adapter matrix
+``tests/gates/cross_method/cases.py``, and the live case × adapter matrix
 is printed by
-:func:`~tests.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
+:func:`~tests.gates.cross_method.test_eigenvalue.test_coverage_matrix_diagnostic`
 on every run:
 
 .. list-table::
@@ -166,7 +166,7 @@ known multi-group coverage gap is acknowledged and scoped at
 :doc:`cross_method`.
 
 Beyond the eigenvalue gates, a foundation-level **polymorphism net**
-(``tests/cross_method/test_polymorphism.py``) pins direct
+(``tests/gates/cross_method/test_polymorphism.py``) pins direct
 construction of each family's math-heart class (``MomentSpace``,
 ``Billiard``) against its adapter dispatch — the agreement contract
 that survived the Phase-D retirement of the ``TransportSolver``
@@ -184,7 +184,7 @@ truth; the inventory below compiles the pinned classes.
 CP Matrix Properties
 --------------------
 
-For every CP case (``tests/cp/test_properties.py``), the collision
+For every CP case (``tests/gates/cp/test_properties.py``), the collision
 probability matrix :math:`P_{\infty}` must satisfy:
 
 - **Row sums = 1** (neutron conservation): every neutron born in
@@ -202,7 +202,7 @@ SN Properties
 -------------
 
 Quadrature and 1-D solution properties
-(``tests/sn/primitives/test_properties.py``):
+(``tests/gates/sn/primitives/test_properties.py``):
 
 - **GL quadrature weights**: must sum to 2 (measure of [-1, 1]).
 - **GL symmetry**: :math:`\mu_i = -\mu_{N-1-i}`.
@@ -218,7 +218,7 @@ SN chapter's Property Tests section (:doc:`sn`).
 Diffusion Properties
 --------------------
 
-(``tests/diffusion/test_properties.py``)
+(``tests/gates/diffusion/test_properties.py``)
 
 - **Vacuum is the Marshak law, not zero flux**: ``BC("vacuum")``
   means zero *incoming current* — :math:`J^- = 0` is asserted at
@@ -233,7 +233,7 @@ Diffusion Properties
 MOC Properties
 --------------
 
-(``tests/moc/test_properties.py``)
+(``tests/gates/moc/test_properties.py``)
 
 - **Particle balance**: production / absorption =
   :math:`k_{\text{eff}}`.
@@ -246,14 +246,14 @@ MOC Properties
 MC Properties
 -------------
 
-(``tests/mc/test_properties.py``)
+(``tests/gates/mc/test_properties.py``)
 
 - **Geometry protocol**: ``ConcentricPinCell`` and ``SlabPinCell``
   return correct material IDs at known positions.
 - **1G deterministic**: homogeneous 1-group MC has :math:`\sigma = 0`
   (all neutrons see identical cross sections).
 - **Determinism**: same seed → identical results; different seeds →
-  different histories (``tests/mc/test_gaps.py``).
+  different histories (``tests/gates/mc/test_gaps.py``).
 
 
 Convergence studies
@@ -266,23 +266,23 @@ correct rate never certifies the converged-to value.
 - **SN spatial (diamond difference)** — the observed order
   approaches 2.0 under mesh refinement, confirming the
   :math:`O(h^2)` truncation error
-  (``tests/sn/eigenvalue/test_keff_slab.py::test_spatial_convergence``).
+  (``tests/gates/sn/eigenvalue/test_keff_slab.py::test_spatial_convergence``).
   The MMS ladder measures orders per scheme and geometry
   (:doc:`sn`).
 - **SN angular (Gauss–Legendre)** — the eigenvalue error decreases
   faster than any polynomial in :math:`1/N`, confirming spectral
   convergence of the GL quadrature
-  (``tests/sn/eigenvalue/test_keff_slab.py::test_angular_convergence``).
+  (``tests/gates/sn/eigenvalue/test_keff_slab.py::test_angular_convergence``).
 - **MOC** — ray-spacing, azimuthal, and polar refinement gates
   (:doc:`method_of_characteristics`).
 - **Diffusion** — measured :math:`O(h^2)` orders against the
   2-region transcendental references
-  (``tests/diffusion/test_continuous_reference.py``,
+  (``tests/gates/diffusion/test_continuous_reference.py``,
   :ref:`diffusion-2rg-verification`).
 - **MC statistics** — :math:`\sigma \propto 1/\sqrt{N}`, estimator
-  bias, and inactive-cycle gates (``tests/mc/test_convergence.py``).
+  bias, and inactive-cycle gates (``tests/gates/mc/test_convergence.py``).
 - **Cross-solver limit** — fine-mesh SN approaches the CP reference
-  on a shared slab case (``tests/test_convergence.py``).
+  on a shared slab case (``tests/gates/cross_method/test_convergence.py``).
 
 
 The auto-generated verification matrix
@@ -328,8 +328,8 @@ reports the current totals.
    python -m pytest -m sentinel
 
    # A specific solver's tests
-   python -O -m pytest tests/homogeneous -v
-   python -O -m pytest tests/cp/test_properties.py -v
+   python -O -m pytest tests/gates/homogeneous -v
+   python -O -m pytest tests/gates/cp/test_properties.py -v
 
 Two invocation regimes, deliberately distinct: the **pre-merge
 gate** is the patient full-tree *serial* run above; for **inner-loop

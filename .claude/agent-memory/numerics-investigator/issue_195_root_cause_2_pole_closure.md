@@ -9,7 +9,7 @@ type: project
 **Date**: 2026-06-12 (round 2, term-decomposition + archaeology). **Branch**:
 `main` @ `a7a67d8` (HOST, `.venv/bin/python`).
 Diagnostics: `derivations/diagnostics/diag_195_probe{1,2,3,4,5}_*.py`, retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`. Successors:
-`tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py` (probe 3),
+`tests/gates/sn/verification/mms/test_curvilinear_operator_admits_mms.py` (probe 3),
 `test_mms_curvilinear.py::test_sn_{spherical,cylindrical}_mms_converges_second_order` (probe 1),
 `test_curvilinear_pole_cell_characterization.py` (probe 2).
 
@@ -154,7 +154,7 @@ redistribution path, probe-5 proves O(h²) collapse).
 
 ## Part 3 — #206 CONNECT/DISCONNECT: DISCONNECTED
 
-`tests/sn/sweep/curvilinear/test_unified_matvec_cylinder.py::test_unified_cylinder_matches_hand_reference`
+`tests/gates/sn/sweep/curvilinear/test_unified_matvec_cylinder.py::test_unified_cylinder_matches_hand_reference`
 is `xfail` (27 cases). **#206 is a DIFFERENT bug.** Its hand reference
 (`_hand_reference_cyl_matvec`, line 183) seeds the outward pole with
 `psi_face_in = psi_g_first[:, n_g, 0]` — the SAME cell-centre seed as production.

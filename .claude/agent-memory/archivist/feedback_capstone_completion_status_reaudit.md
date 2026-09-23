@@ -113,7 +113,7 @@ anchors + 6 cross-doc refs + the bidirectional seam wiring, every one
 grep-gated AND built-HTML-href-verified; the dangling
 `:class:LeastSquaresFrame` killed, confirmed 0 py-class spans);
 Numerical-evidence 3 (pointed at the shipped forward L0 gates
-`tests.sn.test_homogenization`; no NEW tables — a synthesis capstone
+`tests.gates.sn.test_homogenization`; no NEW tables — a synthesis capstone
 adds none, structurally absent per the rubric note, not a deficit —
 WEAKEST); Failed-approaches 5 (preserved the #268 two-reversal history,
 the metric-fold-breaks-under-adjoint argument, the

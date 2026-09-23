@@ -46,7 +46,7 @@ Key Facts
   * **ERR-037** (μ = tanh(t) endpoint substitution, fixed
     2026-05-03): Atalay Eq 42 :math:`z_0` evaluator went from 1.5–2 %
     error to 6–7 digits via a 1-line variable substitution. Pinned
-    by :func:`tests.derivations.test_case_method_z0`.
+    by :func:`tests.gates.derivations.test_case_method_z0`.
   * **ERR-038** (Atalay paper precision floor, characterised
     2026-05-03): the R=0.99 perfect-reflector cases stall at ~5 %
     because Atalay's Eq 46 is itself a *first-order* Fredholm
@@ -943,7 +943,7 @@ WM-72 Eq 6a + single-cell product integration on the log-singular
 kernel diagonal, achieving only :math:`O(1/n)` algebraic convergence
 with a 1e-3 floor at :math:`n=128`).
 
-Test gates: :mod:`tests.derivations.test_singular_eigenfunction_cylinder`
+Test gates: :mod:`tests.gates.derivations.test_singular_eigenfunction_cylinder`
 (one foundation test per ``derive_*()`` in the cylinder origins
 module, plus production-solver sanity tests, an L1 Sood
 ``Ua-1-0-CY`` reference-value gate at 1e-5, and a parametrized L1
@@ -966,7 +966,7 @@ V_se-cyl.1 — Dispersion function
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_derivations.derive_dispersion_function`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_1_dispersion_function`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_1_dispersion_function`.
 
 The dispersion function :eq:`case-dispersion-function` is identical
 to slab/sphere — reflecting the *medium-property nature* of the
@@ -984,7 +984,7 @@ V_se-cyl.2 — Discrete pseudo-eigenfunction (catches WM-72 Eq 17 typo)
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_discrete_pseudo_eigenfunction`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_2_discrete_pseudo_eigenfunction`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_2_discrete_pseudo_eigenfunction`.
 
 The discrete pseudo-eigenfunction is
 
@@ -1025,7 +1025,7 @@ V_se-cyl.3 — Bessel-Wronskian identity
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_bessel_wronskian_identity`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_3_bessel_wronskian`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_3_bessel_wronskian`.
 
 The Bessel-Wronskian identity
 
@@ -1051,7 +1051,7 @@ V_se-cyl.4 — Bare-cylinder reduction (a_0 = b_0 = 1, d_0 = 0)
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_bare_cylinder_reduction`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_4_bare_cylinder_reduction`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_4_bare_cylinder_reduction`.
 
 For the bare cylinder (:math:`c_1 = c_2 = c`, no reflector) WM-72
 Eq 27's source-prefactor term :math:`(c_2 - c_1) \to 0` cancels the
@@ -1078,7 +1078,7 @@ V_se-cyl.5 — Bare-cylinder criticality structure (catches q-formula typo)
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_bare_cylinder_criticality_condition`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_5_bare_cylinder_criticality`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_5_bare_cylinder_criticality`.
 
 The corrected q-formula is
 
@@ -1119,7 +1119,7 @@ V_se-cyl.6 — Discrete eigenfunction normalisation
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_discrete_eigenfunction_normalization`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_6_discrete_normalization`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_6_discrete_normalization`.
 
 The discrete normalisation :math:`N_0 = \int_0^1 \mu^2 \eta_0^2(\mu)
 \,d\mu` matches WM-72 Eq 21d. With the corrected V_se-cyl.2
@@ -1149,7 +1149,7 @@ V_se-cyl.7 — Bare-cylinder flux reconstruction
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_flux_reconstruction_bare_cylinder`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_7_flux_reconstruction`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_7_flux_reconstruction`.
 
 The bare-cylinder neutron density profile is
 
@@ -1175,7 +1175,7 @@ V_se-cyl.8 — Mitsis-Zweifel singular-subtraction structural identity
 **SymPy derivation:**
 :func:`...origins.cylinder_derivations.derive_singular_subtraction_eq31`.
 **Test gate:**
-:func:`tests.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_8_singular_subtraction`.
+:func:`tests.gates.derivations.test_singular_eigenfunction_cylinder.test_v_se_cyl_8_singular_subtraction`.
 
 V_se-cyl.8 is the load-bearing algebra behind the Branch-2 production
 solver's diagonal handling. The Mitsis-Zweifel identity
@@ -1205,7 +1205,7 @@ at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative. Both
 solvers reproduce the published Sood :math:`r_c = 1.72500292` mfp:
 
 * **Variant α** at 8.5e-6 (already shipped at
-  :func:`tests.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`,
+  :func:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`,
   via bouncing-characteristic integration with analytical
   bounce-period summation).
 * **WM-72** at ≤ 3e-7 (this module, via singular-eigenfunction
@@ -1230,7 +1230,7 @@ Sood reference value. A third leg via ``peierls_nystrom``
 future expansion.
 
 Test gate:
-:mod:`tests.derivations.test_singular_eigenfunction_cylinder_xverif`.
+:mod:`tests.gates.derivations.test_singular_eigenfunction_cylinder_xverif`.
 
 Slab — Atalay 1997 reflected, linearly anisotropic
 ================================================================================
@@ -1312,7 +1312,7 @@ The slab criticality condition is the closed-form arctan equation
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_critical_slab_eq46`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
 
 Eq 46 emerges from Atalay Eq 43 (the boundary-condition closure
 written in :math:`(R e^{\pm i a_1}, e^{\pm i a_2})` form) by
@@ -1397,7 +1397,7 @@ The sphere criticality condition is
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_critical_sphere_eq54_via_parity_flip`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`.
 
 The sphere problem is treated as the **odd-mode** of the slab
 problem on :math:`[-R, R]` via the antisymmetric BC
@@ -1424,7 +1424,7 @@ F_N sphere). The structural change reduces to:
 **Numerical parity-flip equivalence at vacuum BC.** At :math:`R = 0`
 (vacuum BC), both :math:`T(0,\mu) = T_1(0,\mu) = e^{-2d/\mu}`, so
 :math:`K_j = L_j` bit-for-bit. Verified in the parity-flip test
-(:mod:`tests.derivations.test_case_method_slab_sphere_parity_flip`).
+(:mod:`tests.gates.derivations.test_case_method_slab_sphere_parity_flip`).
 
 For non-zero :math:`R`, the :math:`T_1` sign flip on the second
 exponential makes :math:`L_j \neq K_j`; both Branch-1 (SymPy) and
@@ -1460,7 +1460,7 @@ X-function (Atalay Eq 40)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_x_function_eq40`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_8_x_function_eq40`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_8_x_function_eq40`.
 
 The Wiener-Hopf X-function is a medium-only quantity (depends on
 :math:`c` and :math:`f_1`, no geometry parameter). SymPy verifies
@@ -1512,7 +1512,7 @@ see Case 1960 :cite:`Case1960` § IV and Case-Zweifel 1967 § 4.
    shifts the K_j moments by 0.3-0.6 % and 2d_crit by ≤ 0.1 %. The
    X-function tanh-fix is therefore **a robustness improvement, not
    a correctness fix** — pinned by
-   :mod:`tests.derivations.test_case_method_x_function`. See
+   :mod:`tests.gates.derivations.test_case_method_x_function`. See
    ``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``
    for the full investigation.
 
@@ -1533,7 +1533,7 @@ Extrapolated endpoint :math:`z_0` (Atalay Eq 42) and the ERR-037 fix
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_extrapolated_endpoint_eq42`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_z0`.
+:func:`tests.gates.derivations.test_case_method_z0`.
 
 Atalay Eq 42 is the **Milne extrapolated endpoint** for linearly-
 anisotropic scattering — the distance beyond the physical surface
@@ -1602,7 +1602,7 @@ at dps=25** in sub-millisecond wall-clock.
 
 Worst-case post-fix: **4e-7 relative** across all 10 Atalay Table 1
 entries. Pinned at 1e-5 absolute by
-:func:`tests.derivations.test_case_method_z0.test_atalay_z0_table1_isotropic`.
+:func:`tests.gates.derivations.test_case_method_z0.test_atalay_z0_table1_isotropic`.
 
 The fix propagates downstream: at vacuum BC :math:`R = 0`, the slab
 critical thickness improves from ~1.1 % error to ~0.1 %; the sphere
@@ -1660,7 +1660,7 @@ regularisation (Cauchy P.V. or implicit via the Eq 26 definition
 path), or (c) needs the closed-form Case-Plazcek-Hofmann 1961
 X-function for isotropic. Tracked as a separate investigation,
 regression-pinned by
-:mod:`tests.derivations.test_case_method_x_function`. See the
+:mod:`tests.gates.derivations.test_case_method_x_function`. See the
 investigation memo
 ``.claude/agent-memory/numerics-investigator/kj_residual_xfunction_divergent_2026_05_03.md``.
 
@@ -1685,7 +1685,7 @@ Validity bound (Atalay Eq 5)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_validity_bound_eq5`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_9_validity_bound_eq5`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_9_validity_bound_eq5`.
 
 Atalay Eq 5 is the **one-pair-of-discrete-modes** range. For
 :math:`f_1 = 0` (isotropic) the bound is trivial (all :math:`c`);
@@ -1786,12 +1786,12 @@ scaling with 1/d" (likely paper floor).
 
 **L1 tests that pin the floor:**
 
-* :func:`tests.derivations.test_case_method_slab.test_slab_atalay_table2_r099_first_order_floor`
+* :func:`tests.gates.derivations.test_case_method_slab.test_slab_atalay_table2_r099_first_order_floor`
   — pins the 7e-2 paper precision floor at R=0.99, with
   ``catches("ERR-038")`` so any future improvement (e.g. a
   higher-order Fredholm iteration that closes the gap) signals as
   an unexpected pass.
-* :func:`tests.derivations.test_case_method_slab.test_slab_atalay_table6_moderate_d_consistency`
+* :func:`tests.gates.derivations.test_case_method_slab.test_slab_atalay_table6_moderate_d_consistency`
   — pins **1e-4 relative** agreement at :math:`2d \ge 2` mfp, the
   structurally-independent moderate-d ground.
 
@@ -1824,7 +1824,7 @@ V_case.1 — Linearly-anisotropic dispersion reduction (Atalay Eqs 11→12)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_dispersion_linear_anisotropic`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_1_dispersion_linear_anisotropic`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_1_dispersion_linear_anisotropic`.
 
 The linearly-anisotropic dispersion relation Eq 11 reduces
 algebraically to Eq 12 — the 1-pair-of-modes form. SymPy verifies the
@@ -1838,7 +1838,7 @@ V_case.2 — Symmetry conditions Eqs 13/14 + 47-49
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_symmetry_conditions_eq13_14_47_to_49`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_2_symmetry_conditions`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_2_symmetry_conditions`.
 
 V_case.2 verifies the slab-even / sphere-odd symmetry conditions
 parametrising the parity flip. The slab problem on :math:`[-d, d]`
@@ -1858,7 +1858,7 @@ V_case.3 — Half-range relations Eqs 28-31 (the load-bearing extension)
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_half_range_eqs28_to_31`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_3_half_range_eqs28_to_31`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_3_half_range_eqs28_to_31`.
 
 V_case.3 is described in :ref:`theory-case-half-range`. Atalay's
 load-bearing technical contribution — the four parallel half-range
@@ -1875,7 +1875,7 @@ V_case.4 — Fredholm form Eqs 27→32
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_fredholm_form_eq27_to_eq32`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_4_fredholm_form_eq27_to_eq32`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_4_fredholm_form_eq27_to_eq32`.
 
 V_case.4 verifies the Fredholm-form prefactor reduction Eqs 27 →
 32. The prefactor algebra is a load-bearing step in the Atalay
@@ -1891,7 +1891,7 @@ V_case.5 — Critical slab Eq 46
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_critical_slab_eq46`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_5_critical_slab_eq46`.
 
 V_case.5 verifies the structural reduction of Atalay Eq 43 (the
 boundary-condition closure in :math:`(R e^{\pm i a_1}, e^{\pm i
@@ -1908,9 +1908,9 @@ V_case.6 — Critical sphere Eq 54 via parity flip
 **SymPy derivation:**
 :func:`...origins.slab_sphere_derivations.derive_atalay_critical_sphere_eq54_via_parity_flip`.
 **Test gate:**
-:func:`tests.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`
+:func:`tests.gates.derivations.test_case_method_symbolic.test_v_case_6_critical_sphere_eq54_via_parity_flip`
 plus the numerical parity-flip equivalence test
-:mod:`tests.derivations.test_case_method_slab_sphere_parity_flip`.
+:mod:`tests.gates.derivations.test_case_method_slab_sphere_parity_flip`.
 
 V_case.6 verifies that the sphere Eq 54 is the slab Eq 46 under the
 parity flip :math:`T \to T_1`, :math:`K_j \to L_j`, sin↔cos shuffle.
@@ -1930,7 +1930,7 @@ V_case.7 — Extrapolated endpoint Eq 42 (post-fix)
 
 V_case.7 verifies the **integrand structure** of Eq 42 against
 Atalay's published form. The L1 numerical gate against Atalay Table
-1 lives at :func:`tests.derivations.test_case_method_z0`; after
+1 lives at :func:`tests.gates.derivations.test_case_method_z0`; after
 the ERR-037 fix the gate is at 1e-5 absolute. **V_case.7 alone was
 insufficient as L1 verification** — the integrand structure was
 correct but the quadrature evaluator was unconverged. This is the

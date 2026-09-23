@@ -29,10 +29,10 @@ mirroring sphere structure end-to-end.
   `_bounce_period_2d_chord`, `_scalar_flux_from_psi`,
   `CylinderGreensResult`, `CylinderGreensMGResult` dataclasses.
 - **Symbolic test gate**:
-  `tests/derivations/test_peierls_greens_function_cylinder_symbolic.py`
+  `tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py`
   (~210 LoC, 9 foundation-tagged tests).
 - **Numerical L1 gate**:
-  `tests/derivations/test_peierls_greens_function_cylinder_solver.py`
+  `tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py`
   (~300 LoC, 7 L1-tagged tests).
 
 ### Files modified

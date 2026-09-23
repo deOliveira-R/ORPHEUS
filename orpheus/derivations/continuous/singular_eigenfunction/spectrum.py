@@ -98,7 +98,7 @@ triplet of questions:
 The shared :class:`CriticalSolution` / :class:`FluxSolution` types
 are the load-bearing piece of the unification — they make Spectrum,
 MomentSpace, Billiard substitutable at the cross-method comparison
-boundary (``tests/cross_method/adapters.py``). A *behavioural*
+boundary (``tests/gates/cross_method/adapters.py``). A *behavioural*
 Protocol over the math-heart classes was
 tried and retired: the Phase-D ``TransportSolver`` (in
 ``orpheus.derivations.common.solver_protocol``) conflated continuous
@@ -746,7 +746,7 @@ class Spectrum:
         produce the SAME float results as a direct call to the
         underlying ``solve_*`` function with matched kwargs. The
         class-level call is a thin facade. Verified by
-        :mod:`tests.derivations.test_singular_eigenfunction_spectrum`
+        :mod:`tests.gates.derivations.test_singular_eigenfunction_spectrum`
         (the foundation gate that pins the bit-equality invariant).
         """
         tag = self.geometry.geometry

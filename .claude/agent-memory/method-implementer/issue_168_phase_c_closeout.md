@@ -109,7 +109,7 @@ Phase A's Protocol + concrete strategies + tests + SNMesh field
 RETIRED entirely:
 
 - `orpheus/sn/spatial/boundary_face_flux.py` DELETED (415 LOC)
-- `tests/sn/spatial/test_boundary_face_flux.py` DELETED (21 foundation
+- `tests/gates/sn/spatial/test_boundary_face_flux.py` DELETED (21 foundation
   tests)
 - `SNMesh.boundary_face_flux` constructor field + attribute REMOVED
 - `boundary_face_flux_closure` kwarg REMOVED from
@@ -122,7 +122,7 @@ propagation chain — the BC trace law owns the boundary edge per
 
 ### Test updates
 
-`tests/sn/test_snstreamingoperator.py` — 5 Phase-A-specific tests
+`tests/gates/sn/test_snstreamingoperator.py` — 5 Phase-A-specific tests
 retired or rewritten (full diff in commit `3fd1302`):
 
 * `test_solution_to_angular_flux_spherical_returns_tuple` →
@@ -153,15 +153,15 @@ retired or rewritten (full diff in commit `3fd1302`):
 
 ### New test files
 
-* `tests/sn/test_iter_cells_by_direction.py` — 11 foundation tests
+* `tests/gates/sn/test_iter_cells_by_direction.py` — 11 foundation tests
   for the new APIs.
-* `tests/sn/test_phase_c_gates.py` — Gates 1.1 (parametrised over 3
+* `tests/gates/sn/test_phase_c_gates.py` — Gates 1.1 (parametrised over 3
   pole closures × 2 Σ_t × 2 geometries), 1.2 (apply determinism),
   1.3 (apply ↔ apply_transpose reciprocity), 1.4 (linearity, the
   precondition), 1.5 (BC trace contract).
-* `tests/sn/test_phase_c_mms.py` — Gates 3.1, 3.2, 3.3 (MMS spatial
+* `tests/gates/sn/test_phase_c_mms.py` — Gates 3.1, 3.2, 3.3 (MMS spatial
   + angular convergence; 3.1 + 3.2 marked xfail).
-* `tests/sn/test_phase_c_crosscheck.py` — Gate 4.1 (k_∞ recovery,
+* `tests/gates/sn/test_phase_c_crosscheck.py` — Gate 4.1 (k_∞ recovery,
   PASSES) + Gate 4.2 (trajectory_resolvent crosscheck, SKIP for
   Phase D).
 
@@ -294,7 +294,7 @@ xfail. Their reason strings stay informative for Phase D.
 | 4.1  | k_∞ recovery 2G reflective sphere | PASS (rtol < 5e-4) |
 | 4.2  | trajectory_resolvent cross-check | SKIP (Phase D placeholder) |
 
-L1 analytical suite (`tests/sn/l1_analytical/`): 20 passed, 2 xfailed
+L1 analytical suite (`tests/gates/sn/l1_analytical/`): 20 passed, 2 xfailed
 (ERR-026 tripwires).
 
 ## What remains for Phase D
@@ -339,12 +339,12 @@ Production code:
 
 Test code:
 
-* `tests/sn/test_iter_cells_by_direction.py`: +260 NEW.
-* `tests/sn/test_phase_c_gates.py`: +370 NEW.
-* `tests/sn/test_phase_c_mms.py`: +135 NEW.
-* `tests/sn/test_phase_c_crosscheck.py`: +130 NEW.
-* `tests/sn/test_snstreamingoperator.py`: rewriting net ~-50.
-* `tests/sn/spatial/test_boundary_face_flux.py`: -232 (DELETED).
+* `tests/gates/sn/test_iter_cells_by_direction.py`: +260 NEW.
+* `tests/gates/sn/test_phase_c_gates.py`: +370 NEW.
+* `tests/gates/sn/test_phase_c_mms.py`: +135 NEW.
+* `tests/gates/sn/test_phase_c_crosscheck.py`: +130 NEW.
+* `tests/gates/sn/test_snstreamingoperator.py`: rewriting net ~-50.
+* `tests/gates/sn/spatial/test_boundary_face_flux.py`: -232 (DELETED).
 
 Documentation:
 
@@ -363,10 +363,10 @@ NEW production:
 - (none)
 
 NEW tests:
-- `tests/sn/test_iter_cells_by_direction.py` (260 lines, 11 foundation tests)
-- `tests/sn/test_phase_c_gates.py` (370 lines, ~30 tests across 5 gate sets)
-- `tests/sn/test_phase_c_mms.py` (135 lines, 3 tests)
-- `tests/sn/test_phase_c_crosscheck.py` (130 lines, 2 tests)
+- `tests/gates/sn/test_iter_cells_by_direction.py` (260 lines, 11 foundation tests)
+- `tests/gates/sn/test_phase_c_gates.py` (370 lines, ~30 tests across 5 gate sets)
+- `tests/gates/sn/test_phase_c_mms.py` (135 lines, 3 tests)
+- `tests/gates/sn/test_phase_c_crosscheck.py` (130 lines, 2 tests)
 
 MODIFIED:
 - `orpheus/sn/operator.py` (matvec rewrite, signature changes,
@@ -375,7 +375,7 @@ MODIFIED:
   retirement)
 - `orpheus/sn/solver.py` (tuple-unpack sites)
 - `orpheus/sn/spatial/__init__.py` (BoundaryFaceFlux exports removed)
-- `tests/sn/test_snstreamingoperator.py` (5 tests rewritten)
+- `tests/gates/sn/test_snstreamingoperator.py` (5 tests rewritten)
 - `docs/theory/discrete_ordinates.rst` (Phase A subsection rewrite
   + Phase C subsection + 6 new :label: anchors)
 - `docs/theory/boundary_conditions.rst` (§16A.3 Phase C note)
@@ -386,7 +386,7 @@ MODIFIED:
 
 DELETED:
 - `orpheus/sn/spatial/boundary_face_flux.py` (415 LOC)
-- `tests/sn/spatial/test_boundary_face_flux.py` (232 LOC, 21 tests)
+- `tests/gates/sn/spatial/test_boundary_face_flux.py` (232 LOC, 21 tests)
 
 REGENERATED:
 - 6 curvilinear regression snapshots

@@ -382,7 +382,7 @@ The coefficients that result are (:cite:`Larsen1982a` (23a–f)):
 
 .. (structural — the transcribed comparison target (23a–f); the derived
 ..  row is PROVEN equal to the Larsen row built from these by
-..  tests/derivations/test_dsa_rules.py::test_dd_instance_coefficients
+..  tests/gates/derivations/test_dsa_rules.py::test_dd_instance_coefficients
 ..  (the α=0 DD member) — a foundation-level SymPy identity, not a
 ..  solver claim.)
 
@@ -406,7 +406,7 @@ the tridiagonal diffusion row (:cite:`Larsen1982a` (27)):
 .. (the main-theorem target — the derived shared-edge f₁-continuity row
 ..  is PROVEN a scalar multiple of this transcribed Larsen (27) with
 ..  coefficients (23a–f) by
-..  tests/derivations/test_dsa_rules.py::test_main_theorem_interior_row_is_larsen_27,
+..  tests/gates/derivations/test_dsa_rules.py::test_main_theorem_interior_row_is_larsen_27,
 ..  and the production build is pinned entry-for-entry against the
 ..  reference builder by
 ..  test_dsa_low_order.py::test_low_order_matches_reference_builder.
@@ -426,7 +426,7 @@ with the accelerated cell-average updates (:cite:`Larsen1982a`
      + g_{1i}.
 
 .. (the derived cell-average updates, PROVEN equal to the printed forms
-..  by tests/derivations/test_dsa_rules.py::test_update_relations_are_larsen_28;
+..  by tests/gates/derivations/test_dsa_rules.py::test_update_relations_are_larsen_28;
 ..  for the DD member ρ=0 they collapse to the edge average
 ..  ½(f₀_{i-1/2}+f₀_{i+1/2}) and the (28b) moment-1 update the P1 arm
 ..  consumes. A foundation-level identity.)
@@ -486,7 +486,7 @@ At a left vacuum boundary the zero-incident condition is imposed on
 .. (the Marshak (38a) + reflecting (39a) boundary rows; the coefficients
 ..  γ_N and W₂⁺/W₂ are DERIVED from the half-range reduction and checked
 ..  against the printed (γ_N, ½) by
-..  tests/derivations/test_dsa_rules.py::test_boundary_rows.
+..  tests/gates/derivations/test_dsa_rules.py::test_boundary_rows.
 ..  A derivation identity — the discrete Marshak, not a solver claim.)
 
 so Marshak is the boundary analog of Fick: a closure that eliminates
@@ -1153,7 +1153,7 @@ The identity that must hold, and now does:
    \text{ subspace physical data spans).}
 
 .. (the composite round-trip identity — pinned by
-..  tests/sn/operators/test_sweep_inverse_identity.py (catches ERR-071)
+..  tests/gates/sn/operators/test_sweep_inverse_identity.py (catches ERR-071)
 ..  on a RANDOM composite with every block populated, parametrized over
 ..  {vacuum slab, reflective slab, product-quadrature cylinder}, plus
 ..  the pure-outflow-row leg and the selector-emptying mutation tooth.
@@ -1252,7 +1252,7 @@ Because the correction :math:`\to 0` partition makes the rate tier the
 below is pinned to a measured value (the 3c design scan; the durable
 copies live in the evidence pack
 ``.claude/plans/archive/dsa_rate_characterization.md`` and are re-measured by
-``tests/sn/acceleration/test_dsa_rate.py``).
+``tests/gates/sn/acceleration/test_dsa_rate.py``).
 
 The spectral-radius bound (D11) — one-sided, by design
 ------------------------------------------------------

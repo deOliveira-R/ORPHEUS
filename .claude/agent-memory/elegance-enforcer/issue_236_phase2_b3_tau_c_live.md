@@ -28,7 +28,7 @@ B3 makes the live sweep + scan + matvec CONSUME the closure-owned τ/c so geomet
 - **NIT-3 (record):** "0-ULP / verified-in-process |visit.tau−st.tau_mm|≡0" asserted in docstring but the probe is described not checked-in as a named test (your recurring "verified-in-process no artifact" tell). Empirically sound — 141 touched-module tests pass (DriftWarning-escalating snapshots + surrogate round-trip). Cosmetic: docstring should cite the gating snapshots rather than imply a dedicated identity assert.
 
 ## Gate ran
-`pytest tests/sn/sweep/core/{test_diamond,test_cell_balance_for_streaming,test_ordinate_scan,test_sweep_cache}.py` → 141 passed, 1 skipped. Bit-identity claim holds operationally.
+`pytest tests/gates/sn/sweep/core/{test_diamond,test_cell_balance_for_streaming,test_ordinate_scan,test_sweep_cache}.py` → 141 passed, 1 skipped. Bit-identity claim holds operationally.
 
 ## Series continuity
 B3 = the LIVE step (B2 was zero-live-risk `DD.residual`). After B3 the geometry-τ producer is dead → **Step C** = retire `spherical_streaming`/`cylindrical_streaming` τ + `StreamingTerms.tau_mm`/`alpha_*`. #248 owns the orphaned-Protocol question (B3 mints `tau_per_ordinate` on BOTH Protocol+ABC, no regression). Exemplary phased-carve consumer step: predecessor inline-c REMOVED not duplicated.

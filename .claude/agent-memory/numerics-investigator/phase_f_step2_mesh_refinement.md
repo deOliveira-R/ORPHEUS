@@ -47,7 +47,7 @@ milder, O(h) artefact at the reflective face.
 ### 1.1 SN probe — `/tmp/phase_f_sn_mesh_refinement.py`
 
 Self-contained Python script. Calls `_sphere_3region("2g", n)` from
-`tests/sn/regression/_generate_snapshots.py` (verified divisibility-
+`tests/gates/sn/regression/_generate_snapshots.py` (verified divisibility-
 by-4 constraint) → `run_case(cfg)` → reads
 `result.scalar_flux[:, 0, :]` of shape `(N, 2)`. Saves results to
 `/tmp/phase_f_step2_sn_results.npz`.
@@ -343,9 +343,9 @@ ERR-NNN at Phase F close.
 
 ### Read
 
-- `tests/sn/regression/_generate_snapshots.py:121,368` — `_sphere_3region`,
+- `tests/gates/sn/regression/_generate_snapshots.py:121,368` — `_sphere_3region`,
   `run_case`
-- `tests/sn/test_phase_c_crosscheck.py:187,534` — Variant α XS data,
+- `tests/gates/sn/test_phase_c_crosscheck.py:187,534` — Variant α XS data,
   `_run_sphere_2g_3reg_full` (reused at multiple n_r)
 - `orpheus/derivations/continuous/trajectory_resolvent/greens_function.py:836,841`
   — `GreensFunctionMRResult` with `phi_g.shape=(G, n_r)`

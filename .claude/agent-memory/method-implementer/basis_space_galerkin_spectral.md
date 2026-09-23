@@ -39,12 +39,12 @@ to satisfy the `TransportSolver` Protocol, (d) returns the shared
   `orpheus/derivations/continuous/galerkin_spectral/origins/derivations.py`
   (V_cg.1..V_cg.8). NOT TOUCHED.
 - Foundation-tagged test gate: PRE-EXISTING at
-  `tests/derivations/test_galerkin_spectral_symbolic.py`. NOT TOUCHED.
+  `tests/gates/derivations/test_galerkin_spectral_symbolic.py`. NOT TOUCHED.
 - Branch-2 production solver: PRE-EXISTING at
   `orpheus/derivations/continuous/galerkin_spectral/{slab,sphere}/one_group_anisotropic.py`.
   NOT TOUCHED — `BasisSpace` is a thin facade above them.
 - L1 cross-check: PRE-EXISTING at
-  `tests/derivations/test_carlvik_galerkin_xverif_fn.py`. Confirmed
+  `tests/gates/derivations/test_carlvik_galerkin_xverif_fn.py`. Confirmed
   still passing.
 - Sphinx stub: PRE-EXISTING `docs/theory/galerkin_spectral.rst`.
   EXTENDED with the rich-narrative section in commit `b9dc642`.
@@ -72,7 +72,7 @@ lands. The 3 skipif-guarded conformance tests in
 When the parallel branch lands on main, the consolidator should:
 1. Add `"galerkin_spectral"` to `KNOWN_TRANSPORT_SOLVERS` (the
    parallel agent's branch already has it per docstring line 121).
-2. Re-run `pytest tests/derivations/test_galerkin_spectral_basis_space.py`
+2. Re-run `pytest tests/gates/derivations/test_galerkin_spectral_basis_space.py`
    — the 3 skipped tests will pass.
 
 ## Architectural finding: math-heart family is structurally complete

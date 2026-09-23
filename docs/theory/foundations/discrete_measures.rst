@@ -224,7 +224,7 @@ and not a convention:
    \quad \text{for every } G\text{-invariant } f,
 
 .. (vv-status rationale) discrete-measure-quotient: Verified by the
-   foundation gates in ``tests/numerics/test_measure.py`` — two
+   foundation gates in ``tests/gates/numerics/test_measure.py`` — two
    independent representative sections (the verb's first-appearing
    member vs the geometric ξ → |ξ| reference) realize the same
    quotient orbit-by-orbit; the G-invariant-integral law with a
@@ -292,7 +292,7 @@ between those points, on which
    \;=\; \operatorname{traverse}_{\downarrow \omega} .
 
 .. (vv-status rationale) folded-level-arc: Verified by the Q5.3
-   foundation gates in ``tests/numerics/test_rules_sphere.py`` —
+   foundation gates in ``tests/gates/numerics/test_rules_sphere.py`` —
    ``test_a_folded_level_is_an_arc_in_march_order`` asserts, per
    level of four folded configs (staggered 4×8 / 2×4, staggered
    3×5 with one Σ endpoint on the arc, node-aligned 4×8 with both),
@@ -594,7 +594,7 @@ given a measure :math:`\mu` and a labelling map
 disjoint decomposition
 
 .. (vv-status rationale) Verified by
-   ``tests/numerics/test_measure_partition.py`` — disjoint-union
+   ``tests/gates/numerics/test_measure_partition.py`` — disjoint-union
    coverage, weight conservation, generic-S² octant predicate on
    Lebedev orders 5/9/17, and the round-trip identity
    :math:`\mu = \bigoplus_\lambda \mu_\lambda`.
@@ -634,7 +634,7 @@ partition measures equals the parent modulo ordering:
 .. vv-status: partition-round-trip documented
 
 This is the **inverse-of-direct-sum** identity, verified by
-``tests/numerics/test_measure_partition.py`` on a Lebedev grid
+``tests/gates/numerics/test_measure_partition.py`` on a Lebedev grid
 under the octant-sign predicate. The ``invariance_group`` and
 ``degree_of_exactness`` fields are dropped on each partition entry
 — a partition typically breaks any global invariance, and the
@@ -716,7 +716,7 @@ Test invariants
 
 The partition primitive carries three :math:`\mathrm{L0}` invariants
 verified by
-``tests/numerics/test_measure_partition.py``:
+``tests/gates/numerics/test_measure_partition.py``:
 
 1. **Disjoint union**: every parent index appears in exactly one
    partition entry's ``indices`` array.
@@ -821,7 +821,7 @@ in a weight-preserving way:
    G-invariance of a discrete measure (every g permutes the support points in a
    weight-preserving way). The definition the quadrature-selection containment
    check :eq:`subgroup-of-o3-containment` builds on; its concrete instances are
-   the foundation gates in :file:`tests/numerics/test_symmetry.py`
+   the foundation gates in :file:`tests/gates/numerics/test_symmetry.py`
    (``test_lebedev_is_octahedral_invariant`` positive +
    ``test_lebedev_is_NOT_icosahedral_invariant`` negative, via
    ``DiscreteMeasure.is_invariant_under`` — spelled
@@ -847,7 +847,7 @@ The groups themselves carry an order relation — containment in the
 
 .. (vv-status rationale) subgroup-of-o3-containment: Verified
    transitively by the foundation tests in
-   :file:`tests/numerics/test_symmetry.py` — every named relation the
+   :file:`tests/gates/numerics/test_symmetry.py` — every named relation the
    gates assert (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
    ``SO(2)_z ⊂ O(2)_z ⊂ D_∞h ⊂ O(3)`` with the two OTHER axes asserted
    NOT inside D_∞h and SO(2)_a inside SO(3) on all three while O(2)_a is
@@ -1442,7 +1442,7 @@ always names its stage — points at the paragraph that explains it.
       (``admits_domain`` is its ``is None``). A selection rule, not a
       solver claim, with no L0..L3 ladder slot; the verifiable content
       is the registry's own selection gates in
-      ``tests/numerics/test_registry.py`` — the class
+      ``tests/gates/numerics/test_registry.py`` — the class
       ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry`` carries a
       live witness for EACH conjunct — plus the measured (rule x
       geometry) grid recorded on the manifolds page
@@ -1636,7 +1636,7 @@ always names its stage — points at the paragraph that explains it.
    **An inversion is a request, not evidence.** So the claim the *built*
    rule actually carries is verified, and there are three ways to fail
    it, each with its own gate in
-   :file:`tests/numerics/test_registry.py`: the rule carries **no
+   :file:`tests/gates/numerics/test_registry.py`: the rule carries **no
    claim** at all (``test_a_rule_with_no_exactness_claim_at_all_is_refused``);
    its claim is against the **wrong reference**
    (``test_a_rule_exact_against_the_wrong_measure_is_refused``); or its
@@ -1699,7 +1699,7 @@ always names its stage — points at the paragraph that explains it.
    frontier made salient. Checking one order is not checking a formula;
    the gate that decides this sweeps every order against the
    closed-form monomial integral
-   (``tests/numerics/test_advertised_degree_is_measured.py``).
+   (``tests/gates/numerics/test_advertised_degree_is_measured.py``).
 
    ⛔ Earlier still, the level-symmetric entry read :math:`N - 1`
    **(conservative)** until 2026-08-06.  It was neither: ``[M]`` the
@@ -1756,7 +1756,7 @@ Formally, the selection criterion is
 
 .. (vv-status rationale) quadrature-selection-criterion: Verified
    transitively by the foundation tests in
-   :file:`tests/numerics/test_registry.py` — every stage of the
+   :file:`tests/gates/numerics/test_registry.py` — every stage of the
    five-stage filter has a happy-path test
    (``test_select_slab_returns_gauss_legendre``,
    ``test_select_sphere_returns_gauss_legendre``,
@@ -2873,9 +2873,9 @@ The consolidation preserved the exact node/weight arrays the four
 legacy adapter classes produced, pinned by two test layers:
 
 * **Bit-identical foundation tests** at
-  ``tests/numerics/test_rules_1d.py`` /
-  ``tests/numerics/test_rules_product.py`` /
-  ``tests/numerics/test_rules_sphere.py`` use
+  ``tests/gates/numerics/test_rules_1d.py`` /
+  ``tests/gates/numerics/test_rules_product.py`` /
+  ``tests/gates/numerics/test_rules_sphere.py`` use
   :func:`numpy.array_equal` (not :func:`numpy.allclose`) to verify
   that each rule function's nodes/weights are exact-bit equal to the
   legacy reference output.

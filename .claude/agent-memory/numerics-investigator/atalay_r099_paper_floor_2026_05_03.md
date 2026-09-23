@@ -116,7 +116,7 @@ be a GitHub issue for future cleanup.
 
 ## Tests
 
-- `tests/derivations/test_case_method_slab.py`:
+- `tests/gates/derivations/test_case_method_slab.py`:
   - Module docstring updated with corrected verdict (R=0.99 is 5%, not 10%+).
   - Added `test_slab_atalay_table2_r099_first_order_floor` (3 cases × c)
     pinning the 7e-2 paper precision floor at R=0.99 with
@@ -134,7 +134,7 @@ be a GitHub issue for future cleanup.
   (this is NOT a numerical-bug-signature instance — it's a reference
   precision floor).
 
-## Diagnostics (8 scripts in `derivations/diagnostics/`) [not preserved (never tracked): diag_atalay_r099_01_characterize.py, diag_atalay_r099_06_pin_xfunction_fix.py, diag_atalay_r099_07_trace_xpatch.py, diag_atalay_r099_08_xpatch_full_table.py, diag_atalay_r099_09_kj_arbitrary_precision.py; what survives is ERR-038 and its catching tests `tests/derivations/test_case_method_*.py`]
+## Diagnostics (8 scripts in `derivations/diagnostics/`) [not preserved (never tracked): diag_atalay_r099_01_characterize.py, diag_atalay_r099_06_pin_xfunction_fix.py, diag_atalay_r099_07_trace_xpatch.py, diag_atalay_r099_08_xpatch_full_table.py, diag_atalay_r099_09_kj_arbitrary_precision.py; what survives is ERR-038 and its catching tests `tests/gates/derivations/test_case_method_*.py`]
 
 Per the diagnostic-promotion policy:
 

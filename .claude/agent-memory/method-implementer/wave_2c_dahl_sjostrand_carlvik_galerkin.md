@@ -62,9 +62,9 @@ type: project
 
 ## Tests
 
-* `tests/derivations/test_carlvik_galerkin_symbolic.py` — 8 foundation tests,
+* `tests/gates/derivations/test_carlvik_galerkin_symbolic.py` — 8 foundation tests,
   one per V_cg.N. All pass in 6.8s.
-* `tests/derivations/test_carlvik_galerkin_slab.py` — 18 L1 tests reproducing
+* `tests/gates/derivations/test_carlvik_galerkin_slab.py` — 18 L1 tests reproducing
   Dahl-Sjostrand Table II:
   * 6 isotropic μ̄=0 fundamentals d ∈ {0.2, 1, 2, 5, 8, 20}.
   * 5 anisotropic μ̄=0.10 fundamentals d ∈ {0.2, 1, 2, 5, 8}.
@@ -72,14 +72,14 @@ type: project
   * 1 first-3-modes test at d=2.0 μ̄=0.0.
   * 1 complex-eigenvalue detection at d=0.2 μ̄=0.30 (≥4 complex, fundamental
     real positive).
-* `tests/derivations/test_carlvik_galerkin_sphere.py` — 18 L1 tests reproducing
+* `tests/gates/derivations/test_carlvik_galerkin_sphere.py` — 18 L1 tests reproducing
   Dahl-Sjostrand Table I (same structure as slab; tolerances slightly looser
   5e-6 to absorb the c~13 scale at small d).
-* `tests/derivations/test_carlvik_galerkin_xverif_fn.py` — 10 L1 cross-check
+* `tests/gates/derivations/test_carlvik_galerkin_xverif_fn.py` — 10 L1 cross-check
   tests vs F_N method at μ̄=0:
   * 5 slab tests at c ∈ {1.05, 1.20, 1.30, 1.40, 1.50}: F_N's a_c → CG's c_crit.
   * 5 sphere tests at the same c values.
-* `tests/derivations/test_carlvik_galerkin_sood_registry.py` — 7 tests
+* `tests/gates/derivations/test_carlvik_galerkin_sood_registry.py` — 7 tests
   (5 L1 + 2 foundation) bridging carlvik_galerkin to sood_registry P_1 cases.
 
 ## sood_registry additions

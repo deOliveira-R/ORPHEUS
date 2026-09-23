@@ -113,7 +113,7 @@ neutrality PER CONSUMER with a direct old-vs-new VALUE comparison, NEVER a proxy
 
 ## 4d.1 — the CoupledField/CoupledOperator machinery (semantics-agnostic, numerics)
 
-Home: NEW `tests/numerics/test_coupled_operator.py` (semantics-agnostic, SYNTHETIC
+Home: NEW `tests/gates/numerics/test_coupled_operator.py` (semantics-agnostic, SYNTHETIC
 toy block operators — the machinery is N-general, NOT SN). Build a 2×2 `[[D11,D12],
 [D21,D22]]` of small asymmetric dense/diagonal `LinearOperator`s over two DISTINCT
 toy System types (`System1`/`System2` with different leaf shapes) so offsets AND
@@ -330,14 +330,14 @@ gates, TWO regimes (do NOT collapse them):
 
 Land in four sub-commits (4d.0 carrier / 4d.1 machinery / 4d.2 builder / 4d.3 wire),
 4e = the walk un-weave (EXTRACT, unchanged in spirit — retire the 4d.3 WRAP transient,
-flip `assemble≡probe` to the durable floor). NEW files: `tests/numerics/test_coupled_
-operator.py` (M1-M5, semantics-agnostic synthetic blocks) + `tests/sn/operators/
+flip `assemble≡probe` to the durable floor). NEW files: `tests/gates/numerics/test_coupled_
+operator.py` (M1-M5, semantics-agnostic synthetic blocks) + `tests/gates/sn/operators/
 test_system_carrier_neutrality.py` (N1-N4, the L20 carrier). Extensions:
 `test_inverse_adjoint_coherence.py` (A2a `coupled` fixture) + `test_g_adjoint_
 reciprocity.py` (A2b) + `test_psi_half_coupling.py` (P1-P3, W1, E4; re-point
 `_template`/`_blocks`/A_BA/B_b probes at 4d.2). Every tooth mutation-verified
 in-process under `-O` (`np.testing`/`pytest.fail`, never bare assert; monkeypatch to
-revert). Full `tests/sn -m "not slow"` + `tests/numerics` + ratchet transport:1 +
+revert). Full `tests/gates/sn -m "not slow"` + `tests/gates/numerics` + ratchet transport:1 +
 sphinx -W are the end-to-end acceptance (the eigenvalue/fixed-source wall the
 operator-level gates don't own). The load-bearing deliverable is **M2 assemble≡probe**
 ("if we assembled the matrix it must work") + **M4/A2 Mode-12 reciprocity** (the

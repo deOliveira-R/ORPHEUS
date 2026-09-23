@@ -23,7 +23,7 @@ def load_isotope(name: str, temp_K: int) -> Isotope:
     first time an isotope is asked for (`[M]` 2026-09-21: about 1.1 s per MB
     of tape, O_016 in 32 s) and every later load reads it in milliseconds. A
     file of a stale format is not rebuilt here: it refuses at the reader with
-    the regeneration command, the contract ``tests/data/test_hdf5_store.py``
+    the regeneration command, the contract ``tests/gates/data/test_hdf5_store.py``
     pins.
     """
     h5_path = _HDF5_DIR / f"{name}.h5"

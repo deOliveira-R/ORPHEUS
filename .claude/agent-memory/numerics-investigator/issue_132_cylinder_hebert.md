@@ -57,7 +57,7 @@ power iteration.
    `compute_P_ss_cylinder` primitive in peierls_geometry.py paralleling
    `compute_P_ss_sphere`. Test gates already in
    `derivations/diagnostics/diag_cylinder_hebert_pss.py` (6 tests), promoted one-for-one
-   into `tests/cp/test_cylinder_pss.py` against production; the probe is retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
+   into `tests/gates/cp/test_cylinder_pss.py` against production; the probe is retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`.
 
 2. **Do NOT extend `boundary="white_hebert"` to cylinder** in its
    current `compute_G_bc` form. The 10–17 % residual on 1G is worse
@@ -73,7 +73,7 @@ power iteration.
 
 ## Files / data
 
-- `derivations/diagnostics/diag_cylinder_hebert_pss.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; successor `tests/cp/test_cylinder_pss.py`) — 6 tests,
+- `derivations/diagnostics/diag_cylinder_hebert_pss.py` (retired at `f36572c8` (R19); recover with `git show f36572c8^:<old path>`; successor `tests/gates/cp/test_cylinder_pss.py`) — 6 tests,
   derivation + MC verification + multi-region. PASS at 33 s.
 - `derivations/diagnostics/diag_cylinder_hebert_keff.py` — Class B [gone: `git show c196f0ca^:derivations/diagnostics/diag_cylinder_hebert_keff.py`]
   k_eff scan (1G/1R, 1G/2R, 2G/1R, 2G/2R). One pytest test, parametrised.

@@ -86,14 +86,14 @@ XS: σ_t = 0.5, σ_s = 0.38, νσ_f = 0.025. k_inf = 0.025 / 0.12 = 0.2083‾.
 
 ### Tests (15 new, all green)
 
-- `tests/derivations/test_peierls_greens_function_symbolic.py`
+- `tests/gates/derivations/test_peierls_greens_function_symbolic.py`
   — 8 SymPy gates (V_α1 surface fixed-point + total-ψ-constant
   + operator-eigenvalue + composite; V_α2 integrand-match + closed-form
   + composite; V_α3 vacuum reduction).
-- `tests/derivations/test_peierls_greens_function_solver.py`
+- `tests/gates/derivations/test_peierls_greens_function_solver.py`
   — 3 numerical gates (V_α1.numerical constant initial guess +
   non-uniform initial guess + two thicknesses).
-- `tests/derivations/test_peierls_greens_function_xverif.py`
+- `tests/gates/derivations/test_peierls_greens_function_xverif.py`
   — 3 cross-verification gates (Variant α exact + Phase 4 N=1 ≡
   white_hebert + Phase 4 rank convergence toward Variant α).
 
@@ -267,10 +267,10 @@ machine-precision data point for the cross-verification matrix). The
 - B1 lit: `.claude/agent-memory/literature-researcher/peierls_greens_function_lit.md`
 - B2 decision: `.claude/agent-memory/numerics-investigator/peierls_greens_variant_alpha_decision.md`
 - B3 SymPy: `orpheus/derivations/continuous/peierls/origins/specular/greens_function.py`
-- B3 test: `tests/derivations/test_peierls_greens_function_symbolic.py`
+- B3 test: `tests/gates/derivations/test_peierls_greens_function_symbolic.py`
 - B4 prototype: `orpheus/derivations/continuous/peierls/greens_function.py`
-- B4 test: `tests/derivations/test_peierls_greens_function_solver.py`
-- B5 test: `tests/derivations/test_peierls_greens_function_xverif.py`
+- B4 test: `tests/gates/derivations/test_peierls_greens_function_solver.py`
+- B5 test: `tests/gates/derivations/test_peierls_greens_function_xverif.py`
 - Plan 2: `.claude/plans/peierls-greens-function-approach.md`
 - Phase 5 retreat (predecessor): `.claude/agent-memory/numerics-investigator/_archive/specular_continuous_mu_phase5_retreat.md`
 - Sanchez 1986 memo (predecessor): `.claude/agent-memory/literature-researcher/phase5_sanchez_1986_sphere_specular.md`
