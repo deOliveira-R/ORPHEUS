@@ -3,7 +3,10 @@ operator · splitting · realization campaign (plan §5, constraint O-6).
 
 Normative spec: ``.claude/plans/campaign_verification_plan.md`` §5 (P-1
 call-count scaling, P-2 normalised throughput, P-3 allocation ceiling,
-P-4 baseline capture) and §6 O-6 (**stage 3 must not merge without these
+P-4 baseline capture; P-2, a wall-clock ratio, is no longer a gate: the
+user's ruling of 2026-09-23 makes no timing a gate on a machine whose load
+is not reproducible, and it is measured by
+``tests/performance/bench_sn_cost.py::CompositionOverhead``) and §6 O-6 (**stage 3 must not merge without these
 green and the P-4 baseline captured on the immediately preceding
 commit**).
 
@@ -27,8 +30,9 @@ kernel in-process and counts entries while the mesh is refined.  It is a
 Mode-11-style wrap: it simultaneously proves the measured path *is
 executed* and that its call arity is *structural, not per-cell*.  It is
 deterministic — no timing noise, no machine dependence, no CI flake.
-P-2 (wall clock) and P-3 (allocation) are corroborating legs; only P-3
-shares P-1's exact reproducibility.
+P-3 (allocation) is the corroborating leg, as exactly reproducible as
+P-1. The wall-clock leg (P-2) moved to the performance regimen, where a
+slower answer is visible in the history without failing anything.
 
 Which leaf kernel — the spec's illustrative name is STALE
 =========================================================
@@ -92,7 +96,8 @@ per-cell (column) fold           P-1c  calls/cell 1.00,0.50,0.25 -> 9.0,8.5
 per-ordinate fold                P-1b  80,80,80 -> 640,1920,3840
 per-ordinate fold                P-1d  40,80,160,320 -> 200,400,800,1600
 per-cell ``ordinate_scan`` fold  P-1e  2,2,2,2 -> 42,82,162,322
-per-cell fold                    P-2   ratio 23.4 -> 362.1
+per-cell fold                    P-2   ratio 23.4 -> 362.1 (measured
+                                      while P-2 was a gate)
 +1 held full-field temporary     P-3   3.031 -> 4.035
 counted method never entered     P-1 non-vacuity -> "NEVER FIRED ... VACUOUS"
 ``_COST_NX + 1``                 P-4   fingerprint drift message
@@ -102,8 +107,7 @@ counted method never entered     P-1 non-vacuity -> "NEVER FIRED ... VACUOUS"
 (``np.array_equal`` True, ``max|diff|`` 0.0e+00) — the DD residual kernel
 is cell-local, so splitting its batch column-wise changes the arity and
 nothing else.  No value gate, at any tolerance, on any reference, can
-ever see this regression class.  That is why P-1 is the catcher and P-2
-is only corroboration.
+ever see this regression class.  That is why P-1 is the catcher.
 
 Fixtures are FROZEN and LOCAL — deliberately
 ============================================
@@ -126,7 +130,7 @@ Every fixture here is >=2G, heterogeneous (2 regions), non-uniform ``h``,
 non-square ``nx != ny`` in 2-D, mixed reflective/vacuum BC, P1
 anisotropic scattering built through the direct ``Mixture`` route, and
 probed with a fixed-seed random non-flat state (bulk AND trace).  For the
-*cost* legs (P-2/P-3) the binding reason is term ACTIVATION: a P0-only or
+*cost* leg (P-3) the binding reason is term ACTIVATION: a P0-only or
 zero-``SigS`` mixture makes ``S.apply`` a near-no-op and the measured
 cost stops covering the operator whose block-slicing stage 3 introduces.
 For the *count* leg (P-1) the arity is provably independent of the
@@ -159,7 +163,6 @@ vv-principles compliance
 from __future__ import annotations
 
 import functools
-import time
 import tracemalloc
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Iterator
@@ -201,14 +204,11 @@ pytestmark = pytest.mark.foundation
 #   ratio.  Both are exact integers / exactly reproducible byte counts —
 #   they do not move with machine load.
 #
-#   _COMPOSITION_OVERHEAD_MAX was PROVISIONAL at capture (the host was
-#   contended by concurrent agents; band 22.45 - 24.52, and 72.0 = ~3x its
-#   top so a contended run could not false-red).  RECAPTURED QUIESCENT
-#   2026-07-29 @ 97b14e45, 6 serial trials, nothing else running:
-#   22.20 / 22.49 / 22.37 / 22.65 / 22.69 / 23.01  — band 22.20 - 23.01,
-#   spread 3.6%.  Contention had inflated the top by ~6%.  The constant is
-#   now 50.0 (see its docstring for the claim).  NO PROVISIONAL VALUES
-#   REMAIN in this module.
+#   The P-2 wall-clock ratio, a gate until 2026-09-23 and now the
+#   performance case ``tests/performance/bench_sn_cost.py::
+#   CompositionOverhead``, measured a quiescent band of 22.20 - 23.01
+#   (2026-07-29 @ 97b14e45, 6 serial trials; the contended capture read
+#   22.45 - 24.52). Its asv port reads 22.2 (2026-09-23).
 # ---------------------------------------------------------------------
 
 #: 1-D walk-DAG legs (one inward, one outward) — the slab apply calls the
@@ -226,31 +226,6 @@ _CART2D_CALLS_PER_ROW = 8
 #: sweep" (``loss_representation`` line ~3894), i.e. one per chain.
 #: MEASURED mesh-invariant: 2 at nx = 20/40/80/160.
 _SLAB_SOLVE_SCAN_CALLS = 2
-
-#: P-2 CLAIM: one ``A.apply(x)`` on the frozen cost fixture costs at most
-#: this multiple of a dense ``(m x m)`` BLAS contraction carrying the SAME
-#: nominal FLOP count (``m = round(sqrt(_CALIBRATION_FLOPS_PER_DOF *
-#: n_dof))``).  It is a CLAIM about relative cost, not a magic number:
-#: dividing by an in-process calibration normalises out the host's raw
-#: numpy throughput, which an absolute-ms gate (the
-#: ``tests/gates/sn/sweep/core/test_cache.py:553`` precedent) cannot do.
-#: MEASURED PRE-CARVE, QUIESCENT: 22.20 - 23.01 (6 serial trials, spread
-#: 3.6%).  Set at 50.0 — a hair over 2x the worst CONTENDED reading (24.52),
-#: so the gate catches a >=2.1x composition-overhead regression while a
-#: loaded host cannot false-red it.  Deliberately NOT tighter: this project
-#: has already been bitten by contention false-reds on wall-clock gates, and
-#: a timing gate people learn to ignore is worse than none.  P-1 is the real
-#: catcher (deterministic call counts, contention-immune); P-2 is the
-#: BACKSTOP for the class P-1 cannot see — the same call count where each
-#: call got slower — so its precision need not be sharp, only honest.
-#: For scale: the L16-class per-cell-fold mutation reads 362.
-_COMPOSITION_OVERHEAD_MAX = 50.0
-
-#: Nominal FLOPs per degree of freedom for a DD cell balance (a handful of
-#: fused multiply-adds per DOF).  Sets the calibration size so the dense
-#: reference does comparable work; it is a fixed convention, not a tuned
-#: parameter — changing it changes what the ratio MEANS.
-_CALIBRATION_FLOPS_PER_DOF = 16
 
 #: P-3 CLAIM: peak bytes allocated by ONE ``A.apply(x)``, divided by
 #: ``n_dof * 8``.  A value of 1.0 is the structural floor (the output
@@ -274,11 +249,6 @@ _CALIBRATION_FLOPS_PER_DOF = 16
 #: re-baseline consciously (lesson L7).
 _ALLOC_FACTOR_MAX = 4.0
 
-#: Timing reps.  ``min`` is the estimator, NEVER the mean: the minimum is
-#: the only order statistic that is not contaminated by a descheduling
-#: event, and this host is not quiescent.
-_N_REPS_APPLY = 7
-_N_REPS_CALIBRATION = 25
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -309,7 +279,7 @@ _LADDER_ISOTROPIC = ((8, 10), (16, 20), (32, 40))
 #: The P-1 slab ladder (the finding + its control leg).
 _LADDER_SLAB_NX = (20, 40, 80, 160)
 
-#: The FROZEN cost fixture (P-2/P-3).  Large enough that fixed overhead
+#: The FROZEN cost fixture (P-3).  Large enough that fixed overhead
 #: does not dominate the ratio, small enough to stay well under a second.
 _COST_NX, _COST_NY = 32, 40
 
@@ -774,85 +744,6 @@ def test_p1_slab_solve_call_count_is_mesh_invariant() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# P-2 — normalised throughput.  NEVER an absolute ms threshold.
-# ═══════════════════════════════════════════════════════════════════════
-
-
-def _best_of(fn, n_reps: int) -> float:
-    """Minimum wall time over ``n_reps`` calls, after one warm-up.
-
-    ``min``, never the mean: the minimum is the only order statistic not
-    contaminated by a descheduling event, and this host is not quiescent.
-    """
-    fn()
-    best = float("inf")
-    for _ in range(n_reps):
-        t0 = time.perf_counter()
-        fn()
-        best = min(best, time.perf_counter() - t0)
-    return best
-
-
-def test_p2_composition_overhead_vs_in_process_calibration() -> None:
-    r"""[foundation] One ``A.apply(x)`` costs at most
-    ``_COMPOSITION_OVERHEAD_MAX`` x a dense contraction of the same
-    nominal FLOP count, measured IN THE SAME PROCESS.
-
-    The claim, stated plainly: *the block composition costs at most N x
-    the raw contraction of the same FLOP count on this host.*  The
-    in-process calibration is what makes it machine-independent — the
-    existing ``tests/gates/sn/sweep/core/test_cache.py:553`` gate
-    (``elapsed_per_sweep_ms < 2.0``) is both the precedent for having a
-    throughput gate at all and the cautionary tale for how to write one:
-    an absolute millisecond threshold encodes the machine it was captured
-    on, and either false-reds on a slow host or goes permanently green on
-    a fast one.
-
-    Baseline: the pre-carve band is **22.20 - 23.01**, recaptured on a
-    QUIESCENT tree (6 serial trials, spread 3.6 %); the original capture ran
-    contended and read 6 % higher at the top (24.52).
-    ``_COMPOSITION_OVERHEAD_MAX`` sits just over 2x the worst *contended*
-    reading, so a loaded host cannot false-red this leg.
-
-    If this is the ONLY red leg, **re-run it alone before believing it** —
-    P-1 and P-3 are the contention-immune legs, and a red here with those
-    two green is far more likely to be machine load than a regression.
-    """
-    A, x = _posed_apply(_cart2d(_COST_NX, _COST_NY))
-    n_dof = _n_dof(x)
-    A.apply(x)
-
-    side = int(round(np.sqrt(_CALIBRATION_FLOPS_PER_DOF * n_dof)))
-    rng = np.random.default_rng(20260728)
-    dense = rng.standard_normal((side, side))
-    vector = rng.standard_normal(side)
-
-    t_apply = _best_of(lambda: A.apply(x), _N_REPS_APPLY)
-    t_calibration = _best_of(
-        lambda: np.einsum("ij,j->i", dense, vector), _N_REPS_CALIBRATION,
-    )
-    if not t_calibration > 0.0:
-        pytest.fail("calibration timed at zero — the clock is unusable here")
-    ratio = t_apply / t_calibration
-    print(
-        f"\nP-2: n_dof={n_dof} calib={side}x{side} "
-        f"apply={t_apply * 1e3:.3f} ms calib={t_calibration * 1e6:.1f} us "
-        f"ratio={ratio:.2f} (max {_COMPOSITION_OVERHEAD_MAX})"
-    )
-    if not ratio < _COMPOSITION_OVERHEAD_MAX:
-        pytest.fail(
-            f"composition overhead {ratio:.2f}x exceeds the "
-            f"{_COMPOSITION_OVERHEAD_MAX}x claim (quiescent pre-carve band "
-            f"22.20-23.01). "
-            f"apply={t_apply * 1e3:.3f} ms against a {side}x{side} dense "
-            f"contraction at {t_calibration * 1e6:.1f} us.  Check P-1 first: "
-            f"if a call count also scaled, this is the L16 fold and the "
-            f"timing is corroboration, not the finding.  If P-1 is green, "
-            f"re-run this leg ALONE on a quiescent host before believing it."
-        )
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # P-3 — allocation ceiling.  Exactly reproducible; contention-immune.
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -916,7 +807,7 @@ def test_p4_fixture_fingerprint_matches_the_baseline() -> None:
     A performance baseline is a pair (number, fixture).  If the fixture
     drifts — a rung resized, the quadrature order bumped, a region
     dropped — the committed constants silently start describing a
-    different problem and both P-2 and P-3 become unfalsifiable in the
+    different problem and P-3 becomes unfalsifiable in the
     direction that matters.  This gate makes that drift LOUD, with the
     remedy in the message.
     """
@@ -935,10 +826,9 @@ def test_p4_fixture_fingerprint_matches_the_baseline() -> None:
     }
     if measured != _COST_FINGERPRINT:
         pytest.fail(
-            f"the P-2/P-3 cost fixture has drifted from the baseline it was "
+            f"the P-3 cost fixture has drifted from the baseline it was "
             f"measured against.\n  expected {_COST_FINGERPRINT}\n  measured "
             f"{measured}\nRE-CAPTURE the baseline (P-4): re-measure "
-            f"_COMPOSITION_OVERHEAD_MAX and _ALLOC_FACTOR_MAX against the "
-            f"new fixture on a QUIESCENT host and update the provenance "
+            f"_ALLOC_FACTOR_MAX against the new fixture on a QUIESCENT host and update the provenance "
             f"banner, or restore the fixture."
         )

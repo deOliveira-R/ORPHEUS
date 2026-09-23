@@ -10,7 +10,9 @@ Twelve tests in five thematic groups (per plan §"Test catalog"):
   ``rebind_cross_sections`` invalidates only :class:`CollisionCache`.
 * **Dual-view consistency** (#6-7): the cache-driven sweep result matches the
   per-cell ``scheme.update`` iteration to ``rtol=1e-13`` (Pattern 2).
-* **Performance gates** (#8-9): slab benchmark ≤ 1.5 ms; full SN suite < 5 min.
+* **Performance** (#8-9): no longer gates (the user's ruling of 2026-09-23:
+  no timing is a gate here); the slab sweep is measured by
+  ``tests/performance/bench_sn_cost.py::SlabSweep``.
 * **Production gates** (#10-12): L0 streaming-equilibrium, regression
   snapshots, Step 2.5b's pair-monoid associativity all stay green.
 
@@ -23,7 +25,6 @@ is the L1 cross-check that catches any reduction drift.
 
 from __future__ import annotations
 
-import time
 from dataclasses import FrozenInstanceError
 
 import numpy as np
@@ -630,68 +631,6 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
                 a_cached, a_expected, rtol=1e-14,
                 err_msg=f"a mismatch n={n} k={k_chain}",
             )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Group 4 — Performance gates (tests #8-9)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l0
-@pytest.mark.slow
-def test_slab_sweep_benchmark_under_2ms() -> None:
-    """Test #8 — slab sweep ``nx=160 N=16 ng=4`` runs in ≤ 2 ms.
-
-    Step 2.5b baseline: 15.43 ms/sweep.  Target: ≤ 1.5 ms (10× speedup);
-    acceptance gate: ≤ 2.0 ms (a slim safety margin for CI machine noise).
-    Marked ``@slow`` — skipped by default but runs in CI.
-    """
-    from orpheus.transport.source_sinks import AngularSourceSink
-    from tests.gates.sn._test_helpers import sweep_once
-
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 161),
-        mat_ids=np.zeros(160, dtype=int),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
-    quad = Quadrature.gauss_legendre(16)
-    problem = SNProblem(mesh, quad, _trivial_materials(ng=4))
-    # Issue #196 PR-INDEX-5: Q principled.
-    # R-1 Step 4 A1: single per-ordinate source carrier.
-    Q = AngularSourceSink.from_isotropic(np.ones((4, *problem.spatial_shape)), problem)
-    sig_t = np.ones((4, *problem.spatial_shape))  # (ng, *spatial)
-    # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
-    boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
-
-    # Warm-up — first call also caches inside SNProblem.
-    for _ in range(3):
-        sweep_once(Q, sig_t, problem, boundary_flux)
-
-    # Measured wall clock over 100 sweeps.
-    n_iters = 100
-    t0 = time.perf_counter()
-    for _ in range(n_iters):
-        sweep_once(Q, sig_t, problem, boundary_flux)
-    elapsed_per_sweep_ms = (time.perf_counter() - t0) / n_iters * 1000.0
-    print(f"\nSlab sweep nx=160 N=16 ng=4: {elapsed_per_sweep_ms:.3f} ms/sweep")
-    assert elapsed_per_sweep_ms < 2.0, (
-        f"Slab sweep at {elapsed_per_sweep_ms:.3f} ms/sweep exceeds "
-        f"the 2.0 ms gate (target ≤ 1.5 ms; Step 2.5b baseline 15.43 ms). "
-        "Profile and find the per-cell hot path."
-    )
-
-
-@pytest.mark.l0
-@pytest.mark.slow
-def test_full_sn_suite_under_5min() -> None:
-    """Test #9 — full ``tests/gates/sn`` suite runs in < 5 min.
-
-    Placeholder marker — the gate is exercised at the closeout layer via
-    ``time pytest tests/gates/sn/ -q``.  This test is a tag carrier so CI can
-    enable / disable the performance gate via marker selection.
-    """
-    pytest.skip("Performance gate is measured externally via `time pytest tests/gates/sn/ -q`.")
 
 
 # ═══════════════════════════════════════════════════════════════════════

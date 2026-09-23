@@ -804,8 +804,10 @@ Performance
 -----------
 
 The Wave-2 plan target for Issue #4 closure was 3–10× speedup on
-the 421-group benchmark (the canonical ``test_profile_421g``
-smoking-gun probe).  The shipped speedups:
+the 421-group benchmark (then the profiling test ``test_profile_421g``,
+which needed a 421-group data library and was retired on 2026-09-23 with
+the other timing checks; the regimen that measures cost now is
+:ref:`vv-test-suite-layout`).  The shipped speedups:
 
 .. list-table::
    :header-rows: 1

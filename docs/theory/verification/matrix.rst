@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12310**
+Total tests collected: **12305**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1346, 10.9%
+   L0, 1342, 10.9%
    L1, 1767, 14.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9099, 73.9%
+   foundation, 9098, 73.9%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12204
+   explicit, 12199
    class-name, 46
    func-name, 0
    case, 33
@@ -62,7 +62,7 @@ Module × level grid
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    angular/test_redistribution, 0, 0, 0, 0, 19, 1
-   architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
+   architecture/test_composition_cost, 0, 0, 0, 0, 8, 0
    architecture/test_monomorphic_leaves, 0, 0, 0, 0, 139, 0
    architecture/test_posing, 0, 0, 0, 0, 2, 0
    architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
@@ -77,7 +77,7 @@ Module × level grid
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_affine_carve_baseline, 0, 0, 0, 0, 8, 0
-   core/test_cache, 29, 0, 0, 0, 3, 2
+   core/test_cache, 27, 0, 0, 0, 3, 2
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 3, 0
    core/test_closure_constant_map, 0, 0, 0, 0, 3, 0
@@ -101,7 +101,7 @@ Module × level grid
    core/test_sweep_schedule_nd, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 3, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
-   core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
+   core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 3, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_cylinder_pss, 0, 0, 0, 0, 16, 0
    cp/test_diagnostics, 8, 28, 0, 0, 0, 0
@@ -171,7 +171,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 13, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -483,7 +483,7 @@ Module × level grid
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 54, 0
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
-   operators/test_solver_components, 29, 0, 0, 0, 0, 0
+   operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_space_content_witnesses, 0, 0, 0, 0, 9, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_step2_posed_fission_anchors, 0, 0, 0, 0, 18, 0

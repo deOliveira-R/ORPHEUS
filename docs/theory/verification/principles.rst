@@ -490,6 +490,25 @@ agreement, and a timing of a wrong answer measures nothing, which is
 why a performance case records the accuracy of its answer beside its
 cost.
 
+**A time is never a gate** (the user's ruling, 2026-09-23). A wall-clock
+reading is reproducible only on a machine whose load is reproducible, and
+the suite runs on a working laptop, so no timing, absolute or normalised
+against an in-process calibration, decides pass or fail. Performance is
+worth improving, and it is tied to the pace of development, since a
+faster suite asserts correctness sooner. But correctness is the criterion:
+a change that makes the code more correct may make it slower, and that
+slowdown must be visible in the performance history without ever
+blocking a merge or a publication. As the user put it: *"If correctness
+is not the criterion, I can give you a wrong answer arbitrarily fast."*
+A cost that does not vary from run to run (a call count, an iteration
+count, the bytes a call allocates) stays a gate, because it is exactly
+reproducible. `[M]` 2026-09-23: five timing checks left
+``tests/gates/`` under this ruling. Four are measured in
+``tests/performance/bench_sn_cost.py``: the composition-overhead ratio,
+the slab sweep, cumprod against the full-field spine, and the solver
+components. The fifth, a 421-group profile whose data library was never
+provisioned, retired.
+
 Why there is no code-to-code (L4) suite
 ---------------------------------------
 

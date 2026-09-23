@@ -14,7 +14,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import time
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
@@ -731,89 +730,3 @@ class TestFissionSource:
         absorp = float(np.einsum("gxy,gxy,xy->", solver.problem.mat_xs.absorption_cross_section, phi, vol))
         expected = prod / absorp
         assert np.isfinite(keff) and keff > 0
-
-
-# ── Profiling ────────────────────────────────────────────────────────
-
-@pytest.fixture
-def solver_421g():
-    """Build the full 421-group 10x10 solver for profiling."""
-    from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-
-    fuel = uo2_fuel(temp_K=900)
-    clad = zircaloy_clad(temp_K=600)
-    cool = borated_water(temp_K=600, pressure_MPa=16.0, boron_ppm=4000)
-    materials = {2: fuel, 1: clad, 0: cool}
-
-    mesh = _uniform_2d(10, 10, 0.2, np.tile(np.array([2]*5 + [1] + [0]*4, dtype=int), (10, 1)).T)
-    quad = Quadrature.lebedev(order=17)
-    solver = SNSolver(SNProblem(mesh, quad, materials))
-    return solver, materials, mesh, quad
-
-
-class TestPerformanceBaseline:
-    """Measure baseline timings for each component (prints, not assertions)."""
-
-    def test_profile_components(self, solver_2g):
-        solver, _, problem, quad = solver_2g
-        np.random.seed(42)
-        phi = np.random.rand(solver.ng, *problem.spatial_shape) + 0.1
-        Q = np.random.rand(solver.ng, *problem.spatial_shape)
-        fission_src = solver.compute_fission_source(phi, 1.0)
-
-        n_reps = 100
-        t0 = time.perf_counter()
-        for _ in range(n_reps):
-            Q_tmp = Q.copy()
-            solver.problem.system.factors.scattering.transfer.add_p0_source(Q_tmp, phi)
-        t_scat = (time.perf_counter() - t0) / n_reps * 1000
-        print(f"\n  P0 scattering (transfer.add_p0_source): {t_scat:.3f} ms")
-
-        t0 = time.perf_counter()
-        for _ in range(n_reps):
-            Q_tmp = Q.copy()
-            solver.problem.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q_tmp, phi)
-        t_n2n = (time.perf_counter() - t0) / n_reps * 1000
-        print(f"  P0 (n,2n) (transfer.add_p0_source): {t_n2n:.3f} ms")
-
-        t0 = time.perf_counter()
-        for _ in range(n_reps):
-            solver.compute_keff(phi)
-        t_keff = (time.perf_counter() - t0) / n_reps * 1000
-        print(f"  compute_keff: {t_keff:.3f} ms")
-
-        n_sweep = 5
-        src = AngularSourceSink.from_isotropic(Q, solver.problem)
-        t0 = time.perf_counter()
-        for _ in range(n_sweep):
-            sweep_once(src, solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
-        t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
-        print(f"  sweep_once: {t_sweep:.1f} ms")
-
-        # The 2-D source-iteration inner loop (deferred — raises here).
-        t0 = time.perf_counter()
-        solver.solve_fixed_source(fission_src, phi)
-        t_inner = (time.perf_counter() - t0) * 1000
-        print(f"  solve_fixed_source (1 outer): {t_inner:.0f} ms")
-
-    @pytest.mark.slow
-    @pytest.mark.skipif(
-        not (SN_TESTS_ROOT.parents[2] / "orpheus" / "data").exists()
-        or True,
-        reason="421-group HDF5 data not provisioned in this environment "
-        "(FileNotFoundError). Profiling-only baseline; skip when the "
-        "macro-XS library is absent.",
-    )
-    def test_profile_421g(self, solver_421g):
-        """Profile with the full 421-group 10x10 problem."""
-        solver, _, mesh, quad = solver_421g
-        phi = solver.initial_flux_distribution()
-        Q = solver.compute_fission_source(phi, 1.0)
-
-        n_reps = 10
-        t0 = time.perf_counter()
-        for _ in range(n_reps):
-            Q_tmp = Q.copy()
-            solver.problem.system.factors.scattering.transfer.add_p0_source(Q_tmp, phi)
-        t_scat = (time.perf_counter() - t0) / n_reps * 1000
-        print(f"\n  [421g] P0 scattering (transfer.add_p0_source): {t_scat:.2f} ms")

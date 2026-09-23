@@ -67,7 +67,6 @@ analytical limit), no theory ``:label:``, no ``verifies(...)``.
 """
 from __future__ import annotations
 
-import time
 
 import numpy as np
 import pytest
@@ -208,58 +207,3 @@ def test_cumprod_path_hits_analytical_kinf():
             f"analytical k_inf {k_ref} beyond rtol=1e-6"
         ),
     )
-
-
-# ─── NEW-2: perf measurement — cumprod speedup over the spine (d=1) ──
-
-
-@pytest.mark.slow
-def test_cumprod_faster_than_full_field_spine_d1():
-    """NEW-2: MEASURE (record + LOOSE tripwire) the cumprod optimization's
-    speedup over the d-generic full-field spine at d = 1 — the justification for
-    keeping cumprod as the d=1 default.
-
-    NOT a hard correctness gate — wall-clock is noisy (slow, final-gate only).
-    The cumprod scan is O(N/log N)-work parallel-prefix (three numpy ops, no
-    per-cell Python walk); the spine does nx sequential level-by-level forward
-    substitutions. On a long chain the ratio is large. The tripwire fires ONLY
-    if cumprod is not even modestly faster (catching "the spine accidentally
-    became the d=1 default and 1-D got slow").
-    """
-    nx = 4096                                   # long chain — cumprod shines
-    problem = _slab_sn_mesh(nx, bc="vacuum")
-    ng = problem.ng
-    rng = np.random.default_rng(99)
-    sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))
-    iso = rng.uniform(0.2, 1.5, size=(ng, nx))
-    Q = AngularSourceSink.from_isotropic(iso, problem)
-    Q_arr = Q.values
-
-    cumprod = CumprodScan.pose(problem)
-    spine = FullFieldWavefront.pose(problem)
-
-    def _time(strategy, repeats=5):
-        bf = AngularBoundaryFlux.zeros(problem.angular_trace)
-        stratum = strategy.bind_sigma(sig_t)    # σ bound ONCE (C3b-2) — the tables built here
-        strategy.sweep(Q_arr, stratum, bf)      # warm up
-        best = float("inf")
-        for _ in range(repeats):
-            bf = AngularBoundaryFlux.zeros(problem.angular_trace)
-            t0 = time.perf_counter()
-            strategy.sweep(Q_arr, stratum, bf)
-            best = min(best, time.perf_counter() - t0)
-        return best
-
-    t_cumprod = _time(cumprod)
-    t_spine = _time(spine)
-    ratio = t_spine / t_cumprod
-    print(
-        f"\n[NEW-2 perf] d=1 nx={nx}: cumprod={t_cumprod*1e3:.3f} ms, "
-        f"spine={t_spine*1e3:.3f} ms, speedup={ratio:.1f}×"
-    )
-    if ratio < 2.0:
-        pytest.fail(
-            f"cumprod is not meaningfully faster than the d=1 spine "
-            f"(speedup {ratio:.2f}× < 2×) — the cumprod optimization may have "
-            f"been bypassed for d=1 production."
-        )
