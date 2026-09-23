@@ -75,7 +75,7 @@ OCRs; a paywalled paper, or the substitution of a secondary source for the
 primary, is a question to the user ("acquire it, or will you add it?"), never
 a unilateral pivot: a pivot is a structural decision (a different math path,
 possibly a weaker verification claim) that needs the user's approval (the
-user's ruling of 2026-09-22, `.claude/plans/agent_definitions.md` R13). The sidecar-first search, the scan as the
+user's ruling of 2026-09-22, `.claude/plans/archive/agent_definitions.md` R13). The sidecar-first search, the scan as the
 source of truth for every load-bearing equation, the paraphrase-and-page-cite
 output discipline and the incremental write of the memo (the 2026-07-22
 content-filter deaths: two agents killed mid-generation lost everything,

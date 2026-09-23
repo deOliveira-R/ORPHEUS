@@ -1,6 +1,6 @@
 # Method Implementer — Lessons
 
-Lessons each name the rule, skill or definition clause they are not already covered by (the workflows rule, invariant 6). Retired 2026-09-22 by the agent-definitions audit (`.claude/plans/agent_definitions.md`, §8 step 3): L-002, L-003, L-004, L-005, L-007, L-010, L-011, L-012, L-014 and L-015, each restated by a clause of `retirement-audit`, `vv-principles`, `coding-elegance`, `process-discipline` or this agent's definition, or duplicated in `ld_curvilinear_shape.md`; numbers are not reused.
+Lessons each name the rule, skill or definition clause they are not already covered by (the workflows rule, invariant 6). Retired 2026-09-22 by the agent-definitions audit (`.claude/plans/archive/agent_definitions.md`, §8 step 3): L-002, L-003, L-004, L-005, L-007, L-010, L-011, L-012, L-014 and L-015, each restated by a clause of `retirement-audit`, `vv-principles`, `coding-elegance`, `process-discipline` or this agent's definition, or duplicated in `ld_curvilinear_shape.md`; numbers are not reused.
 
 ## L-001 -- Principled typing beats suppression, every time
 

@@ -46,7 +46,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   markers, so every check below reads every line of it (since 2026-09-22;
   until then only a ten-line role block was generated, and the hand-written
   bodies, 125 to 654 lines each, were read by no check,
-  `.claude/plans/agent_definitions.md` D1).
+  `.claude/plans/archive/agent_definitions.md` D1).
 - A hand edit of generated text is refused as it is made:
   `.claude/hooks/generated-guard.py`, a PreToolUse hook on Edit, Write and
   MultiEdit registered in `.claude/settings.json`, fires in the main agent and

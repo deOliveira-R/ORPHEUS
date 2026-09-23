@@ -1,6 +1,6 @@
 # Where verification, validation and performance live — a living plan
 
-Opened 2026-09-22 from the R19 close-out (the agent-definitions campaign, `.claude/plans/agent_definitions.md`). Status: discussion; nothing is built. The ontology is being searched (`plan-authoring` §0), so this file is refined in place.
+Opened 2026-09-22 from the R19 close-out (the agent-definitions campaign, `.claude/plans/archive/agent_definitions.md`). Status (2026-09-23): LANDED. The layout is `tests/gates/` at `15202ce4`, the performance regimen at `3cb05d2b`, and the timing checks out of the gates at `d9830dfc`; `validation/` waits for its first case (#146). The canonical statement is `docs/theory/verification/principles.rst`, "Where a case lives". The sections below are the discussion as it ran. The ontology is being searched (`plan-authoring` §0), so this file is refined in place.
 
 ## The instruction (the user, verbatim)
 

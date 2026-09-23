@@ -303,3 +303,7 @@ This file; `docs/development/harness.md` ("Adding or changing", "What loads, and
 **For #358, from the first `rests_on` use:** the test-architect named some supports at CLASS level (`…::TestRhoInnerIntersectionsHollow`), and a foundation marked `slow` is deselected under `-m "not slow"` while its dependent runs. `rests_on` is an invalidation edge, not a scheduling one, so neither is wrong, but #358's reader must resolve a class id to its items and say what a deselected support means.
 
 **Open:** the repo-root `derivations/` now holds one file, `sn_dd_face_transmission.py`, a SymPy algebra-of-record behind a production ruling (`sn-boundary-gs-not-regular`) that no test runs, its checks bare `assert`s that `-O` strips (asked of the user).
+
+# ⏹ CLOSED — 2026-09-23
+
+Merged to `main`: the nine rewrites and the S3 foundation (through `5436a25f`); §9, the test DAG reaching the numerics-investigator and `rests_on` registered (`756af6f8`); R19/R20, `derivations/diagnostics/` retired, 47 probes retired, 5 promoted, 3 left open in scratch (`f36572c8`, `8d58dc79`, `de647eee`). The layout work that grew out of R19 (`tests/gates/`, `tests/performance/`, no timing gate) is its own plan, `.claude/plans/vv_suite_layout.md`. Open items: #502 (the literature location, the method-implementer's closeout files, L-013), #499, #500, #501; the `rests_on` notes for #358 are in §8 step 5 above. This file is archaeology from here.
