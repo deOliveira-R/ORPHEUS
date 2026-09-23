@@ -120,5 +120,6 @@ One routing line each; the phases, the gates and the return contract are on
 - **W6 Tree-wide census** — haiku categorisers with a fixed output schema; the
   orchestrator aggregates; no nesting. [W6](../workflows.md#w6--tree-wide-census)
 - **W7 Literature acquisition** — **literature-researcher**, the local folder
-  first; "not in the local folder" is a question to the user, never a pivot.
+  first; a free source is downloaded, a paywalled one or a secondary substitute
+  is a question to the user, never a pivot.
   [W7](../workflows.md#w7--literature-acquisition)

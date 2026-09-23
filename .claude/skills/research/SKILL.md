@@ -7,7 +7,7 @@ description: >
   tools/ocr_literature.py), then 12 databases: OSTI, arXiv, Scopus,
   INIS, OpenAlex, CrossRef, Semantic Scholar, HAL, Zenodo, J-STAGE,
   IAEA-NDS, EXFOR. Examples: "Find papers on collision probability",
-  "Look up Bailey 2009", "What cites this DOI?", "U-235 ground state
+  "Look up Bailey 2010", "What cites this DOI?", "U-235 ground state
   data", "Find Sanchez/Hébert HAL deposits", "OpenMC release on
   Zenodo", "JNST resonance papers", "U-235 (n,f) experimental cross
   sections", "Extract equations from the local Sanchez 1982 PDF"
@@ -197,9 +197,9 @@ from tools.research.openalex import search, get_work, get_citations, get_referen
 
 results = search("discrete ordinates neutron transport")
 results = search("Monte Carlo", publication_year="2015-2023", open_access=True)
-work = get_work("10.13182/NSE08-64")  # by DOI
-citations = get_citations("10.13182/NSE08-64")  # who cites this?
-references = get_references("10.13182/NSE08-64")  # what does it cite?
+work = get_work("10.13182/NSE08-66")  # by DOI
+citations = get_citations("10.13182/NSE08-66")  # who cites this?
+references = get_references("10.13182/NSE08-66")  # what does it cite?
 
 work.title, work.authors, work.abstract, work.doi, work.cited_by_count
 work.is_open_access, work.oa_url, work.journal, work.concepts, work.summary()
@@ -213,7 +213,7 @@ work.is_open_access, work.oa_url, work.journal, work.concepts, work.summary()
 ```python
 from tools.research.crossref import search, get_work, journal_search
 
-work = get_work("10.13182/NSE08-64")  # DOI resolution
+work = get_work("10.13182/NSE08-66")  # DOI resolution
 results = search("collision probability neutron")
 results = search("SN transport", from_pub_date="2020", type="journal-article")
 results = journal_search("0029-5639", query="discrete ordinates")  # by ISSN
@@ -239,10 +239,10 @@ from tools.research.semantic_scholar import search, get_paper, get_citations, ge
 
 results = search("discrete ordinates neutron transport")
 results = search("SN method", year="2015-2023", fields_of_study=["Physics"])
-paper = get_paper("DOI:10.13182/NSE08-64")
+paper = get_paper("DOI:10.13182/NSE08-66")
 paper = get_paper("ARXIV:2103.12345")
-citations = get_citations("DOI:10.13182/NSE08-64")
-references = get_references("DOI:10.13182/NSE08-64")
+citations = get_citations("DOI:10.13182/NSE08-66")
+references = get_references("DOI:10.13182/NSE08-66")
 
 paper.title, paper.authors, paper.abstract, paper.doi, paper.year
 paper.citation_count, paper.influential_citation_count
@@ -520,11 +520,11 @@ for w in citing.works:
 # "What are the influential citations?"
 from tools.research.semantic_scholar import get_paper, get_citations
 
-paper = get_paper("DOI:10.13182/NSE08-64")
+paper = get_paper("DOI:10.13182/NSE08-66")
 print(f"Total citations: {paper.citation_count}")
 print(f"Influential: {paper.influential_citation_count}")
 
-cites = get_citations("DOI:10.13182/NSE08-64", limit=50)
+cites = get_citations("DOI:10.13182/NSE08-66", limit=50)
 for p in cites.papers:
     print(p.summary())  # shows influential count
 ```

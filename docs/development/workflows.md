@@ -65,12 +65,14 @@ schema, the predicate, the slice, the positive control. No nesting.
 (`scratch/literature_ocr/`), then online. The brief spells out the exact path
 and, when the paper is known to be local, is phrased as "extract equations from
 the local PDF at `<full path>`" rather than "find and acquire paper X": the
-first is unambiguous and cheap. The user maintains the folder actively and has
-every Nuclear Science & Engineering volume locally. "Not in the local folder"
-is the agent's FIRST response, as a question to the user ("acquire it, or
-will you add it?"), never a unilateral pivot to a secondary source: a pivot is a structural decision (a
-different math path, possibly a weaker verification claim) that needs the
-user's approval, not agent autonomy. The sidecar-first search, the scan as the
+first is unambiguous and cheap. The user maintains the folder actively. A
+freely published source that is not local (an open-access paper, a standard's
+manual, an OSTI report) the agent downloads into `scratch/literature/` and
+OCRs; a paywalled paper, or the substitution of a secondary source for the
+primary, is a question to the user ("acquire it, or will you add it?"), never
+a unilateral pivot: a pivot is a structural decision (a different math path,
+possibly a weaker verification claim) that needs the user's approval (the
+user's ruling of 2026-09-22, `.claude/plans/agent_definitions.md` R13). The sidecar-first search, the scan as the
 source of truth for every load-bearing equation, the paraphrase-and-page-cite
 output discipline and the incremental write of the memo (the 2026-07-22
 content-filter deaths: two agents killed mid-generation lost everything,
@@ -116,7 +118,8 @@ Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
   no gate") marked `[R]` for the agent to re-verify (L50). For literature: W7
   above, in full — `scratch/literature/` first, spelled out, then the OCR
   sidecars; "not in the local folder" is a question to the user, never a
-  pivot; Zotero at 0 hits plus connection refused is down, not empty. For a
+  pivot, and a freely published source is downloaded, not asked for;
+  Zotero at 0 hits plus connection refused is down, not empty. For a
   design review (cross-domain-attacker): the artefact's path; the return is
   structural detection, no critique. For any review (qa, elegance-enforcer,
   cross-domain-attacker on a design): two passes in order. First the
