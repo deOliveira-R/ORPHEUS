@@ -8354,3 +8354,103 @@ older entries classify against.
    trailing-axis row (the ``sm`` parametrization here), and a fix commit
    that calls a defect "latent" owes the catalogue its entry in the same
    commit.  → numerical-bug-signatures Signature 11.
+
+.. error-entry:: ERR-088
+   :title: The first face-transmission algebra of record built its step "control" with diamond's weights, so its step transmission was 2/(2+τ) at d = 1 instead of 1/(1+τ) — a proof about a matrix that is not step, while the page beside it stated step correctly
+
+   **Status:** ✅ **FIXED 2026-09-23** on the branch
+   ``feature/face-transmission-aor``, by retirement.  The module
+   ``derivations/sn_dd_face_transmission.py`` is deleted, together with
+   the repository-root ``derivations/`` it was the last file of.  Its
+   successor,
+   :mod:`orpheus.derivations.discrete.sn.face_transmission`, types no
+   closed form: every closure's cell is integrated from its
+   Petrov--Galerkin weak form, and the page's closed forms are checked
+   against the derived transmission
+   (:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_page_closed_form`).
+   Full account: :ref:`sn-face-transmission`.
+
+   **Date:** written 2026-08-09 (``adc887d6``, for #341); found and
+   retired 2026-09-23, while its successor was being written.
+   **Module:** ``derivations`` (the retired
+   ``derivations/sn_dd_face_transmission.py``; the successor is
+   ``orpheus/derivations/discrete/sn/face_transmission.py``).
+   **Failure mode:** **#6 (convention drift)**.  The weight
+   :math:`w_a = 2|\mu_a|A_a` is diamond's: its factor 2 comes from the
+   diamond closure, :math:`\psi^{\rm out} - \psi^{\rm in} = 2(\psi_c -
+   \psi^{\rm in})`.  The module defined it once and reused it at a usage
+   site whose closure needs :math:`w'_a = |\mu_a| A_a`.  It is not #3
+   (missing factor): no factor that belongs in step's formula was
+   dropped; a factor that belongs to another closure's convention was
+   carried in.
+
+   **What happened.**  The module proved two claims about a single
+   Cartesian cell in :math:`d` dimensions.  Claim 1, diamond's
+   transmission :math:`\Sigma_{\rm DD} = (2/D)\,\mathbf 1 w^{\mathsf T} -
+   I` with :math:`D = \Sigt{}V + \sum_b w_b`, and its spectrum
+   :math:`\{1 - 2\Sigt{}V/D\} \cup \{-1\}^{d-1}`, is correct.  Claim 2, the
+   step control, built :math:`\Sigma_{\rm step} = (1/D)\,\mathbf 1
+   w^{\mathsf T}` with the same :math:`w` and :math:`D`.  Step's own
+   balance, :math:`\sum_a |\mu_a| A_a(\psi_c - \psi^{\rm in}_a) +
+   \Sigt{}V\psi_c = 0`, gives :math:`(1/D')\,\mathbf 1 w'^{\mathsf T}` with
+   :math:`w'_a = |\mu_a| A_a` and :math:`D' = \Sigt{}V + \sum_b w'_b`.  Per
+   unit volume at :math:`\Sigt{} = 1`, with :math:`g_a =
+   |\mu_a|/\Delta_a = 1/\tau_a`, the module's matrix is
+   :math:`2g_b/(1 + 2G)` where step's is :math:`g_b/(1 + G)`; at
+   :math:`d = 1` that is :math:`2/(2 + \tau)` against :math:`1/(1 + \tau)`.
+   So the lead eigenvalue the module published for step,
+   :math:`(D - \Sigt{}V)/D = 2G/(1 + 2G)`, is not step's
+   :math:`G/(1 + G)`.  The qualitative claim survived: the matrix is still
+   rank one with no :math:`-I`, so :math:`\{0\}^{d-1}` and the absence of
+   :math:`-1` hold for any positive weights.  No production code or
+   published number consumed the wrong formula.
+
+   **How it hid.**  Four layers, each sufficient on its own.
+   (1) *Nothing ran it.*  The repository-root ``derivations/`` had no
+   ``__init__.py`` and pytest did not collect it; the one gate that read
+   the file checked only that its imports resolve, statically.  Its
+   checks were bare ``assert`` statements, which ``python -O`` strips,
+   and the page's label for the claim carried a ``documented`` sentinel
+   and no ``verifies`` edge.
+   (2) *Its three instruments shared one construction* (instrument
+   doctrine X4): the structural proof, the characteristic-polynomial
+   cross-check and the numeric spot check each built
+   :math:`(1/D)\,\mathbf 1 w^{\mathsf T}` from the same :math:`w`, so
+   their agreement certified the algebra of the matrix, never that the
+   matrix was step.
+   (3) *The claim it was cited for is inside the defect's stabiliser.*
+   The page used step to show that the :math:`d - 1` undamped modes belong
+   to diamond, and "rank one, no :math:`-I`, so :math:`\{0\}^{d-1}`" is
+   invariant under any rescaling of :math:`w`.  Flat-flux preservation is
+   blind to it as well: the wrong step still passes a uniform flux
+   through unchanged.
+   (4) *The page stated step correctly* (with :math:`w'` and :math:`D'`),
+   so a reader of the page saw the right formula while the algebra of
+   record proved a different one: a single-source divergence between the
+   two surfaces that were supposed to be one.  It was found by reading,
+   when the successor derived step from its weak form and its 1-D
+   transmission came out :math:`1/(1 + \tau)`.
+
+   **Caught by:**
+   ``tests/gates/transport/spatial/test_face_transmission_symbolic.py::test_step_1d_is_one_over_one_plus_tau_not_the_predecessors_two_over_two_plus_tau``
+   (``@pytest.mark.catches("ERR-088")``): step's :math:`d = 1`
+   transmission at four optical thicknesses against the balance solved by
+   hand in :class:`fractions.Fraction`, with a first leg asserting the
+   hand value differs from :math:`2/(2+\tau)`, so the row can tell the two
+   apart.  ``[M]`` 2026-09-23, re-dropping the predecessor's step
+   (:math:`A = 1 + 2G`, :math:`E = 2g`, :math:`R = \mathbf 1`,
+   :math:`D = 0`) into the module's cell response in-process under
+   ``python -O``: **17 of the file's 107 rows red**, all four rows of this
+   test among them; the other 13 are step rows of the realization, the
+   conserved mode, the stability function, the particle balance and the
+   page closed form.  Every diamond and LD row stays green, and so do
+   step's flat-flux rows and its A-stability certificate row, since the
+   predecessor's :math:`2/(2+\tau)` is itself an A-stable function that
+   passes a flat flux.  The unmutated control reads 107 of 107 passed.
+
+   **Lesson.**  ⭐ A control computed from the case it controls for is
+   not a control: when an algebra of record contrasts two closures, derive
+   each from its own balance, never by editing one closure's formula into
+   the other's, and check the result against the published page by a
+   test, because a module and the page that cites it are two surfaces and
+   drift apart silently.

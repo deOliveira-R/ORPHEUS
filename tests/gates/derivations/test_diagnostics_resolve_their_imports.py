@@ -1,6 +1,12 @@
-r"""Every script under ``derivations/``, every TRACKED probe under
-``scratch/derivations/diagnostics/``, and every performance case under
-``tests/performance/`` must still RESOLVE its first-party imports.
+r"""Every TRACKED probe under ``scratch/derivations/diagnostics/`` and every
+performance case under ``tests/performance/`` must still RESOLVE its
+first-party imports.
+
+The repository-root ``derivations/`` this gate was written for is retired
+(2026-09-23): its last file, the diamond face-transmission derivation, moved
+into the package as
+:mod:`orpheus.derivations.discrete.sn.face_transmission`, where the collected
+tests import it.
 
 Why this gate exists (#347)
 ===========================
@@ -94,7 +100,6 @@ import pytest
 pytestmark = pytest.mark.foundation
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
-DERIVATIONS_ROOT = REPO_ROOT / "derivations"
 #: OPEN probes: tracked while the investigation each serves is open (R20).
 SCRATCH_PROBES_ROOT = REPO_ROOT / "scratch" / "derivations" / "diagnostics"
 #: The performance regimen: asv collects it, pytest never does, so nothing
@@ -120,12 +125,9 @@ def _tracked_python(root: pathlib.Path) -> list[pathlib.Path]:
 def _scripts() -> list[pathlib.Path]:
     return sorted(
         [
-            p
-            for p in DERIVATIONS_ROOT.rglob("*.py")
-            if "__pycache__" not in p.parts
+            *_tracked_python(SCRATCH_PROBES_ROOT),
+            *_tracked_python(PERFORMANCE_ROOT),
         ]
-        + _tracked_python(SCRATCH_PROBES_ROOT)
-        + _tracked_python(PERFORMANCE_ROOT)
     )
 
 
@@ -147,7 +149,7 @@ def _unresolvable(source: str, *, where: str) -> list[str]:
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
             if node.level or not _is_first_party(module):
-                continue  # relative import — derivations/ is not a package
+                continue  # relative import: a gated script is not in a package
             if not _resolves(module):
                 problems.append(f"line {node.lineno}: no module {module!r}")
                 continue
@@ -193,7 +195,7 @@ def test_every_derivations_script_resolves_its_first_party_imports(
         f"{script.relative_to(REPO_ROOT)} no longer resolves:\n  "
         + "\n  ".join(problems)
         + "\n\nA rename orphaned it. Decide per #347's discriminator — does "
-        "anything OUTSIDE derivations/ depend on this file?\n"
+        "anything outside the gated roots depend on this file?\n"
         "  * a test / doc / production module names it as the instrument "
         "behind a pinned baseline, a published number, or a pointer meant to "
         "be followed  -> REPOINT it;\n"
@@ -282,8 +284,8 @@ class TestTheGateItselfHasTeeth:
     def test_the_gate_actually_covers_the_tree(self) -> None:
         """A parametrize over an empty glob is green and gates nothing.
 
-        The population is small since R19 (one derivation script and the OPEN
-        probes), so a count floor would be arbitrary. The control is instead
+        The population is small since R19 (the OPEN probes and the
+        performance cases), so a count floor would be arbitrary. The control is instead
         one known member per root: if a root moves, or the tracked-file
         listing breaks, its member vanishes and this reddens (`vv-principles`
         #8's signature-tautological class). When a member retires, name
@@ -291,7 +293,6 @@ class TestTheGateItselfHasTeeth:
         """
         scripts = set(_scripts())
         for member in (
-            DERIVATIONS_ROOT / "sn_dd_face_transmission.py",
             SCRATCH_PROBES_ROOT / "diag_f4_structural_floor_baseline.py",
             PERFORMANCE_ROOT / "bench_loss_representation.py",
         ):

@@ -281,3 +281,16 @@ lands, exactly as in L-021 (*catalogued* vs *obtainable*). The tell in a diff is
 derived from the same X is compared — that reason proves too much; the honest reason for
 excluding the siblings is usually "a function has no value equality", which does not
 transfer to a value-typed field. → topic file `symmetry_realization_carve_rulings.md`
+
+### L-024 — Tests that RE-COMPOSE the SUT's formula from its fields pin the tests' formula, not the module's
+Not covered by `retirement-audit` D.14 (demotion by a *retirement*) nor X4's tells
+(`allclose(a, b)`): here nothing was retired — the SUT's composite property is too slow
+symbolically at one size, so each test file re-spells `R A⁻¹ E + f I` pointwise from the
+SUT's fields, and the published property ends with ZERO pins wherever no in-module
+proof reads it. Detection: for every composite property of an algebra-of-record type,
+grep the tests for the property NAME (not the class); if they read only the fields,
+mutate the property in-process via a `-p` pytest plugin (+ a positive control on a
+covered arm). `[M]` 2026-09-23 face transmission: `CellResponse.transmission` negated for
+LD d≥2 → 0 of 83 red; control → 4 red. Remedy is one composition site with a pointwise
+entry (`transmission_at`), never a third spelling. Also: check the slowness claim that
+justified the re-spelling — it was stale (0.08 s vs "does not finish in 30 s").

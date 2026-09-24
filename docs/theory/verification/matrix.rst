@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12305**
+Total tests collected: **12485**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1342, 10.9%
-   L1, 1767, 14.4%
+   L0, 1342, 10.7%
+   L1, 1839, 14.7%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9098, 73.9%
+   foundation, 9206, 73.7%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12199
+   explicit, 12379
    class-name, 46
    func-name, 0
    case, 33
@@ -171,7 +171,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 13, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -548,6 +548,8 @@ Module × level grid
    solve/test_windowed_si_diagnostic_trajectory, 0, 0, 0, 0, 6, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
    spatial/test_face_transmission_damping, 0, 0, 0, 0, 9, 0
+   spatial/test_face_transmission_symbolic, 0, 0, 0, 0, 107, 0
+   spatial/test_face_transmission_xverif, 0, 72, 0, 0, 1, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 8, 0
@@ -564,7 +566,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 6, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 369, 0
+   test_layer_imports, 0, 0, 0, 0, 370, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -659,6 +661,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``surface-to-surface``, 34
    ``transport-spherical``, 34
    ``bc-response-factored-adjoint``, 33
+   ``dd-face-transmission-spectrum``, 33
    ``dd-slab``, 33
    ``peierls-equation``, 33
    ``free-flight``, 32
@@ -967,7 +970,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **608** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **607** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1044,7 +1047,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``cumulative-optical-path-slab``
 - ``dd-2d-balance-form``
 - ``dd-cartesian-2d-streaming-coeffs``
-- ``dd-face-transmission-spectrum``
 - ``dd-mm-angular-recurrence``
 - ``dd-mm-scan-split``
 - ``dd-null-balance-combinatorial``

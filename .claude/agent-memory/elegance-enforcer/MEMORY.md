@@ -9,7 +9,7 @@ design-review reference.
 
 ## 1. Lessons — a HOT digest + a COLD archive (read the digest each review)
 
-- [lessons.md](lessons.md) — the hot digest (283 ln): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
+- [lessons.md](lessons.md) — the hot digest (~297 ln; L-024 added 2026-09-23): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
   behavioral rules, grouped {standing review order · verify-before-you-flag ·
   grading · blast radius · elegance calls · doc-carve certification}. Read every
   dispatch. Lessons the `coding-elegance` skill has since absorbed (anti-#20 ⊃ L-001,

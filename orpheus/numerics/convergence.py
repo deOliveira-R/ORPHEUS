@@ -286,7 +286,7 @@ _RATE_FIT_TAIL_FRACTION = 0.5
 #:
 #: `[M]` 2026-08-09 the representative worst case in the suite is the d=3
 #: all-reflective box at ``rho = 0.9854`` (the undamped DD face sawtooth —
-#: see ``derivations/sn_dd_face_transmission.py`` for why diamond alone
+#: see :mod:`orpheus.derivations.discrete.sn.face_transmission` for why diamond alone
 #: carries it).  ``0.986`` covers that with a hair of margin.
 #:
 #: ⚠ It deliberately does **NOT** cover ``Sigma_t/4`` (``rho = 0.99575``,

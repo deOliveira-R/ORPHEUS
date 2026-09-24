@@ -486,6 +486,8 @@ _UNDAMPED_ATOL = 1e-9
 # of the CLOSURE, not of a cell — so the two must agree, and a scheme whose
 # verdict is cell-dependent is reported UNDETERMINED rather than classified
 # from a single lucky draw (`vv-principles` #13: one sample is not a survey).
+# Each cell is ``(s_axes, sigma_t)``: the per-axis streaming coefficients
+# g_a = |mu_a|/Delta_a (the kernel's ``s_axes``) and the total cross section.
 # `[M]` 2026-08-14 diamond_difference reads rho = 1.0000000000 on BOTH;
 # linear_discontinuous reads 0.6373008435 / 0.8607021518 — the margin moves
 # with the cell, the verdict does not.
@@ -498,8 +500,8 @@ _PROBE_CELLS: tuple[tuple[tuple[float, float, float], float], ...] = (
 def _face_transmission_matrix(
     scheme: "DiscretizationSchemeBase",
     ndim: int,
-    w: tuple[float, ...],
-    sigma_t_volume: float,
+    s_axes: tuple[float, ...],
+    sigma_t: float,
 ) -> np.ndarray:
     r"""Assemble :math:`\Sigma` by driving the closure one unit inflow at a time.
 
@@ -507,13 +509,18 @@ def _face_transmission_matrix(
     source-free cell whose inflow is the :math:`j`-th face-moment unit
     vector — i.e. the closure's own kernel IS the definition, read
     column by column.  Square of side ``ndim * moments_per_face``.
+    ``s_axes`` is the per-axis streaming coefficient
+    :math:`g_a = |\mu_a|/\Delta_a`, as the kernel names it, and ``sigma_t``
+    the total cross section.  The
+    algebra of record for this matrix, and the proof of every verdict it
+    feeds, is :mod:`orpheus.derivations.discrete.sn.face_transmission`.
     """
     moments_per_face = scheme.spatial_basis_per_axis ** (ndim - 1)
     face_shape = (
         (1, 1, 1, moments_per_face) if moments_per_face > 1 else (1, 1, 1)
     )
-    s_axes = tuple(np.full((1, 1, 1), float(w[a])) for a in range(ndim))
-    reaction_xs = np.full((1, 1), float(sigma_t_volume))
+    s_axes_batch = tuple(np.full((1, 1, 1), float(s_axes[a])) for a in range(ndim))
+    reaction_xs = np.full((1, 1), float(sigma_t))
     q_cells = np.zeros((1, 1))
 
     columns = []
@@ -526,7 +533,7 @@ def _face_transmission_matrix(
                 face.reshape(-1)[moment] = 1.0
             psi_in.append(face)
         _avg, psi_out = scheme.cell_kernel_batch(
-            psi_in=tuple(psi_in), s_axes=s_axes,
+            psi_in=tuple(psi_in), s_axes=s_axes_batch,
             reaction_xs=reaction_xs, Q_cells=q_cells,
         )
         columns.append(np.concatenate([np.ravel(o) for o in psi_out]))
@@ -545,10 +552,10 @@ def _face_transmission_spectrum(
     """
     scheme = scheme_type()
     radii: list[float] = []
-    for w, sigma_t_volume in _PROBE_CELLS:
+    for s_axes, sigma_t in _PROBE_CELLS:
         try:
             sigma = _face_transmission_matrix(
-                scheme, ndim, w[:ndim], sigma_t_volume,
+                scheme, ndim, s_axes[:ndim], sigma_t,
             )
         except Exception as exc:  # the closure cannot be driven here
             return FaceTransmissionSpectrum(

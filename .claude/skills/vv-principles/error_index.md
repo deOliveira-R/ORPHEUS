@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**87 entries · 323 catching tests · 0 uncaught.**
+**88 entries · 324 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-088` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-088")`.
+Append a `.. error-entry:: ERR-089` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-089")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -120,3 +120,4 @@ None — every catalogued defect has at least one catching test.
 | ERR-085 | 1 | The 1-D scan sweep memoised its σ-bound collision table on the MESH and read it back with an un… |
 | ERR-086 | 2 | The fifth SN public entry returned truncated and gauge-singular solves in SILENCE — it bypassed… |
 | ERR-087 | 1 | A per-material cell index spelled ``(Ellipsis, *idx)`` let ``Ellipsis`` absorb the leading axes… |
+| ERR-088 | 1 | The first face-transmission algebra of record built its step "control" with diamond's weights,… |

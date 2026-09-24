@@ -644,7 +644,7 @@ smooth flux. Expanding about :math:`x_j`,
    pedagogical derivation-decomposition step, not a solver claim.
 
 the odd (:math:`O(h)`) term **cancels by symmetry**, leaving second-order error,
-:math:`O(h^2)`. **DD is exact on a linear-in-:math:`x` flux.** It is a genuine
+:math:`O(h^2)`. **DD is exact on a flux linear in** :math:`x`. It is a genuine
 accuracy gain over Step at the same mesh — but the symmetry that buys the extra
 order also removes the upwind bias that damps oscillations.
 
@@ -809,7 +809,7 @@ slope moment adds.
    :math:`2\times2` is regenerated symbolically (the SymPy algebra-of-record
    :mod:`orpheus.derivations.discrete.sn.ld_ubld`) and validated against the
    strongest available oracle — **LD is exact on a
-   linear-in-:math:`x` flux**, so :math:`(\bar\psi,\hat\psi,\psi_{\rm out})` are
+   flux linear in** :math:`x`, so :math:`(\bar\psi,\hat\psi,\psi_{\rm out})` are
    recovered to machine precision for any :math:`\psi=a+bx`. The sign convention
    lives in exactly one place,
    :meth:`_LDCellTerms.slope <orpheus.transport.spatial.linear_discontinuous._LDCellTerms.slope>`,
@@ -875,7 +875,7 @@ recurrence :math:`\psi_{\rm out}=a\,\psi_{\rm in}+b` and rides the same fast 1-D
 sweep as DD).
 
 **Accuracy.** Because LD represents the flux as a full linear with an
-independent slope, it is **exact on a linear-in-:math:`x` flux** and second
+independent slope, it is **exact on a flux linear in** :math:`x` and second
 order, :math:`O(h^2)` — the same order as DD, but reached through an upwind
 (rather than central) coupling.
 
@@ -1273,7 +1273,16 @@ transmission *matrix* :math:`\Sigma`, whose multi-D DD form is
 :math:`a_{\rm DD}(\tau_{\rm opt})`.  What changes at :math:`d \ge 2` is
 that :math:`\Sigma` acquires a second eigenvalue family — the undamped
 sawtooth :math:`-1` with multiplicity :math:`d-1` — which has no
-:math:`d = 1` analogue.  So:
+:math:`d = 1` analogue.  Both are proved in one algebra of record,
+:mod:`orpheus.derivations.discrete.sn.face_transmission`, which derives
+step, DD and LD as Petrov--Galerkin choices on the reference cell
+(:ref:`sn-face-transmission`).  There the ladder above is read, for step,
+DD and LD, as each closure's *stability function*: an A-stable Padé approximant of
+:math:`e^{-\tau_{\rm opt}}` whose limit as :math:`\tau_{\rm opt} \to
+\infty` (the last column of the ladder table) is the closure's
+*feedthrough*, :math:`0` for step and LD and :math:`-1` for DD.  The
+multi-D :math:`-1` is that same feedthrough, present at every optical
+thickness on the subspace where the cell average vanishes.  So:
 
 * the **sign** of the physical eigenvalue is the *positivity* question
   (this section), and it is already live at :math:`d = 1`;
@@ -1286,7 +1295,9 @@ measures the second; it reports :math:`\rho = |a|` at :math:`d = 1` (`[M]`
 ``0.7391304347826089`` for DD on its own thinner probe cell, which is
 :math:`(2 - \tau_{\rm opt})/(2 + \tau_{\rm opt})` at that cell's
 :math:`\tau_{\rm opt} = 0.3`) and ``1.0`` at :math:`d = 2, 3`.  Neither
-number is a positivity verdict.
+number is a positivity verdict.  The algebra of record proves the
+verdict that method samples on two probe cells for every cell and
+ordinate (:ref:`sn-face-transmission-production`).
 
 **(2) It is not a full cone-preservation verdict, and reading it as one is
 the mistake Issue #408 exists to prevent.**  ``is_positivity_preserving``

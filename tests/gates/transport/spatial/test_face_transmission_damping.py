@@ -144,9 +144,9 @@ def test_a_cell_dependent_verdict_is_REFUSED_not_averaged():
 
     calls: list[float] = []
 
-    def _cell_dependent(scheme, ndim, w, sigma_t_volume):
+    def _cell_dependent(scheme, ndim, streaming, sigma_t):
         # rho = 0.5 on the first probe cell, 1.5 on the second.
-        rho = 0.5 if sigma_t_volume == 0.9 else 1.5
+        rho = 0.5 if sigma_t == 0.9 else 1.5
         calls.append(rho)
         return np.diag([rho])
 

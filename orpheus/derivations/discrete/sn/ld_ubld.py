@@ -183,6 +183,14 @@ def fin_trace_weight() -> sp.Matrix:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _kron(*factors: sp.Matrix) -> sp.Matrix:
+    """The Kronecker product of ``factors`` in axis order (axis 0 outermost)."""
+    out = factors[0]
+    for factor in factors[1:]:
+        out = sp.Matrix(sp.kronecker_product(out, factor))
+    return out
+
+
 def assemble_ubld(
     hs: list[sp.Expr],
     mus: list[sp.Expr],
@@ -214,27 +222,47 @@ def assemble_ubld(
     masses = [mass_1d(h, theta) for h in hs]
 
     # Mass = Kronecker product of all 1-D masses.
-    M = masses[0]
-    for k in range(1, d):
-        M = sp.Matrix(sp.kronecker_product(M, masses[k]))
+    M = _kron(*masses)
 
     size = 2**d
     G = sp.zeros(size, size)
     F_out = sp.zeros(size, size)
     for a in range(d):
         # Active axis a carries the gradient / outflow; transverse axes the mass.
-        grad_factors = [grad_1d() if k == a else masses[k] for k in range(d)]
-        face_factors = [fout_1d() if k == a else masses[k] for k in range(d)]
-        Ga = grad_factors[0]
-        Foa = face_factors[0]
-        for k in range(1, d):
-            Ga = sp.Matrix(sp.kronecker_product(Ga, grad_factors[k]))
-            Foa = sp.Matrix(sp.kronecker_product(Foa, face_factors[k]))
-        G += mus[a] * Ga
-        F_out += mus[a] * Foa
+        G += _kron(*[grad_1d() if k == a else masses[k] for k in range(d)]) * mus[a]
+        F_out += _kron(*[fout_1d() if k == a else masses[k] for k in range(d)]) * mus[a]
 
     A = G + F_out + sig_t * M
     return {"A": A, "M": M, "G": G, "F_out": F_out, "size": size, "d": d}
+
+
+def inflow_scatter_axis(
+    hs: list[sp.Expr],
+    mus: list[sp.Expr],
+    axis: int,
+    theta: sp.Expr = THETA,
+) -> sp.Matrix:
+    r"""The inflow lift of one upstream face: ``2^{d-1}`` face moments to the cell RHS.
+
+    The incoming face normal to ``axis`` carries the upstream neighbour's
+    outflow trace, a ``2^{d-1}``-moment transverse object ordered as the
+    Kronecker moment vector of the transverse axes (in increasing axis
+    order).  It is weighted into the test functions at the upstream node,
+    ``B(-1) = [1, -1]``, on ``axis``, and by the 1-D mass on every
+    transverse axis, times ``|μ_axis|``: the face integral
+    ``|μ_a| ∮ B_i ψ_upwind`` factorises exactly as the volume terms of
+    :func:`assemble_ubld` do.  Returns the ``2^d × 2^{d-1}`` matrix.
+
+    The ``B(-1)`` column sits in the ``axis`` slot of the Kronecker product,
+    so every axis, interior ones included (``0 < axis < d-1`` at ``d ≥ 3``),
+    is the same one-line product.
+    """
+    d = len(hs)
+    masses = [mass_1d(h, theta) for h in hs]
+    factors = [fin_trace_weight() if k == axis else masses[k] for k in range(d)]
+    # ``Matrix * scalar`` (scalar on the right) stays Matrix-typed; the
+    # ``scalar * Matrix`` order returns an Expr in the SymPy stubs.
+    return _kron(*factors) * mus[axis]
 
 
 def assemble_inflow_axis(
@@ -246,49 +274,10 @@ def assemble_inflow_axis(
 ) -> sp.Matrix:
     r"""Inflow (upwind) RHS contribution from one upstream face.
 
-    The incoming face normal to ``axis`` is the upstream neighbour's
-    outflow trace — a ``2^{d-1}``-moment transverse object
-    (``upstream_face_moments``, ordered as the transverse-axes Kronecker
-    moment vector).  It is weighted into the test functions ``B(-1) =
-    [1,-1]`` on ``axis`` and the **mass** on the transverse axes, times
-    ``|μ_axis|``.  Returns a ``2^d``-vector RHS contribution.
+    :func:`inflow_scatter_axis` applied to the upstream face moments: a
+    ``2^d``-vector RHS contribution.
     """
-    d = len(hs)
-    masses = [mass_1d(h, theta) for h in hs]
-    # Transverse mass applied to the (2^{d-1}) upstream face moments.
-    transverse_mass = None
-    for k in range(d):
-        if k == axis:
-            continue
-        transverse_mass = (
-            masses[k]
-            if transverse_mass is None
-            else sp.Matrix(sp.kronecker_product(transverse_mass, masses[k]))
-        )
-    weighted_face = (
-        upstream_face_moments
-        if transverse_mass is None
-        else transverse_mass * upstream_face_moments
-    )
-    # Re-insert the active-axis test weighting B(-1)=[1,-1] by Kronecker'ing
-    # it into the active slot, scaled by |μ_axis| (the streaming face flux is
-    # |μ_axis| · ∮ B_i ψ_upwind — the same |μ_a| factor F_out carries).
-    # ``weighted_face`` already lives in the transverse-axes Kronecker order,
-    # so the active axis sits at the boundary of the product (axis 0 -> outer,
-    # axis d-1 -> inner).  The oracles use d=2 (axis ∈ {0, 1}); the general
-    # interior-axis interleave (d≥3, 0 < axis < d-1) is Branch-2 territory.
-    mu_axis = mus[axis]
-    # ``Matrix * scalar`` (scalar on the right) stays Matrix-typed; the
-    # ``scalar * Matrix`` order returns an Expr in the SymPy stubs.
-    if axis == 0:
-        return sp.Matrix(sp.kronecker_product(fin_trace_weight(), weighted_face)) * mu_axis
-    if axis == d - 1:
-        return sp.Matrix(sp.kronecker_product(weighted_face, fin_trace_weight())) * mu_axis
-    raise NotImplementedError(
-        "assemble_inflow_axis supports axis in {0, d-1} (all the oracles need); "
-        f"the general interior-axis interleave (d={d}, axis={axis}) is deferred "
-        "to Branch 2."
-    )
+    return inflow_scatter_axis(hs, mus, axis, theta) * upstream_face_moments
 
 
 def per_cell_solve(assembled: dict, rhs: sp.Matrix) -> sp.Matrix:
@@ -296,20 +285,31 @@ def per_cell_solve(assembled: dict, rhs: sp.Matrix) -> sp.Matrix:
     return assembled["A"].LUsolve(rhs)
 
 
-def downstream_face_trace(psi_moments: sp.Matrix, d: int) -> sp.Expr:
-    r"""Outgoing face flux = trace of the cell function at the downstream node.
+def outflow_trace_axis(d: int, axis: int) -> sp.Matrix:
+    r"""The outflow trace on the downstream face normal to ``axis``.
 
-    For d=1 this is ``B(+1)·ψ⃗ = ψ̄ + ψ̂`` (the LM-1989 Eq. 4.3c closure).
-    For ``d≥2`` the downstream face (normal to the sweep axis) is a
-    ``2^{d-1}``-moment transverse object — the face-cochain widening that
-    Branch 2 owns; here we return the d=1 scalar trace (the oracle uses d=1).
+    The cell function evaluated at the downstream node, ``B(+1) = [1, 1]``,
+    on ``axis``, with every transverse moment kept: the ``2^{d-1} × 2^d``
+    matrix from the cell moments to the face moments, in the transverse
+    Kronecker order :func:`inflow_scatter_axis` consumes.  For ``d = 1`` it is
+    the LM-1989 Eq. 4.3c closure ``ψ_out = ψ̄ + ψ̂``.
     """
-    if d == 1:
-        return (sp.Matrix([1, 1]).T * psi_moments)[0]
-    raise NotImplementedError(
-        "downstream_face_trace returns the d=1 scalar trace; the d>=2 face is "
-        "a 2^{d-1}-moment transverse object (Branch 2 / face-cochain widening)."
-    )
+    factors = [sp.Matrix([[1, 1]]) if k == axis else sp.eye(2) for k in range(d)]
+    return _kron(*factors)
+
+
+def downstream_face_trace(psi_moments: sp.Matrix, d: int) -> sp.Expr:
+    r"""The d=1 outgoing face flux ``B(+1)·ψ⃗ = ψ̄ + ψ̂``, a scalar.
+
+    For ``d ≥ 2`` the face is a ``2^{d-1}``-moment object:
+    :func:`outflow_trace_axis`.
+    """
+    if d != 1:
+        raise ValueError(
+            f"downstream_face_trace is the d=1 scalar trace; got d={d}. "
+            "Use outflow_trace_axis for the 2^(d-1)-moment face."
+        )
+    return (outflow_trace_axis(1, 0) * psi_moments)[0]
 
 
 # ═══════════════════════════════════════════════════════════════════════

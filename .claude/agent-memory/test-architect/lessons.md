@@ -198,6 +198,10 @@ only the ORPHEUS mechanisms they do not name.
   never a proxy** (the proxy said 128 of 128 spans corrupt; the honest
   instrument read 0 of 128). A latent hazard with 0 witnesses is a RIDER, not a
   defect. → `L74g`
+- **⛔ A mutation arm on a SYMBOLIC derivation can HANG instead of reddening** — a wrong
+  operator loses the structure that made a factorisation cheap (18 s → > 5 min). Budget such
+  arms per row, deselect the heavy rows by name, and report the hang-class blindness: `vv`
+  #17(c) covers a collection kill, not a hang. → `L93`
 ## 3. Config blindness — the ORPHEUS fixture-fact inventory
 
 Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4 / Mode 7. Below: the

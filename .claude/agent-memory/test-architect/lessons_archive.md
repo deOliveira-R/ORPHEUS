@@ -11457,3 +11457,19 @@ defining laws" is the obligation; below is how to meet it here.
 - A "declared blind by stabiliser" row (`radial_volume_weight` on a thin shell) was 0 calls:
   not on the path. Count activations before writing WHY an arm is green.
   Report: `scratch/_r19/promotions.md`.
+
+## L93 — face-transmission algebra of record: a symbolic mutant can HANG instead of reddening (2026-09-23; tests only)
+
+- Branch 1 `face_transmission.py` factors LD's d=3 characteristic polynomial in 18 s on the true
+  algebra. Under a mutant lift (drop |mu| in `inflow_lift_axis`) the same factorisation ran
+  > 5 min without finishing: the polynomial loses the structure (the (g_a, G-g_a) quadratics)
+  that made factoring cheap. An 11-arm battery stalled on that one arm. Fix: deselect the heavy
+  rows for that arm, name the deselection in the table, and report "a regression here presents
+  as a hang, not a red" as a finding (no timeout guards it).
+- The same session: a `derive_*` that checks TWO closures in one call (`derive_diamond_closed_form`
+  checks diamond and step) reddened step rows under a diamond-only mutant. Rows call the
+  per-closure check; one extra row runs the bundled function "as published".
+- The one-cell production sweep is three different code paths by d (CumprodScan /
+  ScanMarch / wavefront kernel): the kernel-matrix leg and the sweep leg are NOT redundant, and
+  a ScanMarch mutant to w=1 reproduced step's algebra of record to 5.6e-17.
+  Spec: session scratchpad `ft_gate_spec.md`.

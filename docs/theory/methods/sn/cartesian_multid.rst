@@ -72,7 +72,9 @@ re-derived.
    * That splitting is **not a** *regular* **splitting** in Varga's
      sense, so **no comparison theorem bounds it**: the multi-D DD
      face-to-face transmission has :math:`d-1` eigenvalues of exactly
-     :math:`-1` (:eq:`dd-face-transmission-spectrum`), and boundary G-S
+     :math:`-1` (:eq:`dd-face-transmission-spectrum`), the feedthrough of
+     diamond's strong inflow imposition, which step and LD do not have
+     (:ref:`sn-face-transmission`), and boundary G-S
      is measured *slower* than Jacobi on some configurations
      (:ref:`sn-boundary-gs-not-regular`). The rate is not bounded
      either way; the **bulk** fixed point is schedule-invariant, and
@@ -4061,6 +4063,1021 @@ principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
 principled-equivalence".
 
 
+.. _sn-face-transmission:
+
+The octant face transmission: step, diamond and LD as one Petrov--Galerkin family
+=================================================================================
+
+Fix one ordinate, one Cartesian cell and the octant the ordinate belongs
+to.  The cell reads :math:`d` inflow faces and writes :math:`d` outflow
+faces, and with no volume source the outflow is a linear function of the
+inflow: the **octant face transmission** :math:`T`, the cell's
+inflow-to-outflow map.  On a box whose faces are all reflective the
+boundary operator only permutes octants, so on a one-cell box this map
+is the whole of what an iteration does inside an octant, and on a larger
+box the octant's domain transmission is the composition of these cell
+maps along the sweep order.  Its spectrum decides
+two things this page relies on later: whether boundary Gauss-Seidel is a
+*regular* splitting (:ref:`sn-boundary-gs-not-regular`), and whether the
+loss operator of a closed reflective box is singular
+(:ref:`sn-loss-kernel-gauge`).
+
+The algebra of record is
+:mod:`orpheus.derivations.discrete.sn.face_transmission`.  It derives
+the transmission of three closures (step, diamond difference and linear
+discontinuous) from one construction, and proves where every eigenvalue
+lies.  Every formula in this section is produced by that module; a
+transmission claim the module cannot produce is added there first.
+
+.. admonition:: Key Facts
+   :class: tip
+
+   * A spatial closure is a **Petrov--Galerkin choice** on the reference
+     cell: a trial space, a test space, a face space, and whether the
+     inflow enters **weakly** (through the upwind face term) or
+     **strongly** (as a constraint on the trial function).  Step and LD
+     are weak; diamond is the one strong closure.
+   * Each closure's cell is a **state-space realization**,
+     :math:`Ac = E\psi^{\rm in} + Sq`, :math:`\psi^{\rm out} = Rc +
+     D\psi^{\rm in}`, and its four blocks (transmission, escape, inflow
+     to cell, source to cell) are the cell's response matrix in the
+     sense of the response-matrix and interface-current methods.
+   * Strong imposition creates a **feedthrough** :math:`D`: diamond's is
+     :math:`D = -I`, step's and LD's are :math:`D = 0`.  By Sylvester's
+     determinant identity the feedthrough value is an eigenvalue of
+     :math:`T` at least :math:`n - m` times (:math:`n` face moments,
+     :math:`m` cell moments).  For diamond that is :math:`-1` with
+     multiplicity :math:`d-1`: **the undamped face sawtooth is the
+     feedthrough and nothing else** (:eq:`dd-face-transmission-spectrum`).
+   * **Every other eigenvalue lies strictly inside the unit disk**, for
+     every cell and ordinate, for all three closures, at
+     :math:`d = 1, 2, 3`.  So step and LD damp every face mode, and
+     diamond damps every mode outside its sawtooth.  LD at :math:`d = 3`
+     is known only from this theorem: production cannot drive that
+     closure's interior axis (#503).
+   * The 1-D transmission is the closure's **stability function** as a
+     one-step method along the characteristic: the Padé approximants
+     :math:`[0/1]`, :math:`[1/1]` and :math:`[1/2]` of
+     :math:`e^{-\tau}`, all A-stable.  Its value in the optically thick
+     limit is the feedthrough: :math:`0` for step and LD (L-stable),
+     :math:`-1` for diamond (A-stable only).  In every dimension
+     :math:`T \to fI` as the cell thickens.
+   * Honest scope: the interior bound is pointwise in the cell, not
+     uniform.  As a cell becomes optically thin some eigenvalues
+     approach 1, so a thin mesh still converges slowly with every
+     closure; the theorem says only that no face mode is exactly
+     undamped.
+
+One family: a closure is a Petrov--Galerkin choice
+--------------------------------------------------
+
+Measure lengths in mean free paths, so that :math:`\Sigt{} = 1`.  The
+cell of widths :math:`\Delta_a` and the ordinate of direction cosines
+:math:`\mu_a` then enter only through the per-axis **streaming
+coefficients**
+
+.. math::
+
+   g_a \;=\; \frac{|\mu_a|}{\Sigt{}\,\Delta_a} \;=\; \frac{1}{\tau_a},
+   \qquad
+   G \;=\; \sum_{a=1}^{d} g_a ,
+
+with :math:`\tau_a = \Sigt{}\Delta_a/|\mu_a|` the optical thickness the
+ordinate sees across the cell along axis :math:`a`.  These are the
+coefficients the production kernel consumes: the ``s_axes`` argument of
+``cell_kernel_batch`` is :math:`|\mu_a|/\Delta_a`, and production at
+:math:`(g, \Sigt{})` is the reference cell at :math:`g/\Sigt{}`.  Map
+the cell onto the reference cube :math:`\xi \in [-1, 1]^d`.  Per unit
+volume, the streaming term becomes :math:`2 g_a\,\partial_{\xi_a}` and a
+face integral becomes :math:`g_a` times the face average.
+
+A closure is four choices (``PetrovGalerkinScheme`` in the module):
+
+* a **trial space** :math:`V`, spanned by tensor Legendre monomials
+  :math:`\phi_o(\xi) = \prod_a P_{o_a}(\xi_a)` with :math:`o \in \{0,
+  1\}^d`;
+* a **test space** :math:`W \subseteq V`;
+* a **face space** :math:`\Phi`, the moments a face carries from one cell
+  to the next (the face average first);
+* the **inflow imposition**, weak or strong.
+
+The weak form of the source-driven cell is, for every test function
+:math:`v \in W`,
+
+.. math::
+
+   \sum_{a=1}^{d} g_a\Big(\langle v\,\psi\rangle_{a+}
+     - \langle v\,\psi^{-}_a\rangle_{a-}
+     - 2\,\langle \psi\,\partial_{\xi_a} v\rangle\Big)
+   + \langle v\,\psi\rangle
+   \;=\; \langle v\, q\rangle ,
+
+where :math:`\langle\cdot\rangle` is the cell average,
+:math:`\langle\cdot\rangle_{a\pm}` the average over the face
+:math:`\xi_a = \pm 1`, and :math:`\psi^{-}_a` the upwind data on the
+inflow face.  It is the averaged integration by parts
+:math:`\langle v\,\partial_{\xi_a}\psi\rangle = \tfrac12\bigl(\langle
+v\psi\rangle_{a+} - \langle v\psi\rangle_{a-}\bigr) - \langle
+\psi\,\partial_{\xi_a} v\rangle` applied to :math:`2g_a\partial_{\xi_a}\psi`,
+with the inflow face's trace replaced by the upwind data.  A **weak**
+closure sets :math:`\psi^{-}_a = \psi^{\rm in}_a`, the incoming face
+data.  A **strong** closure keeps the trial function's own trace there,
+and the inflow enters instead through :math:`d\cdot\dim\Phi` constraints,
+one per inflow face moment: the face-space projection of the trial
+function's inflow trace equals the data,
+:math:`\Pi_\Phi\bigl(\psi|_{\xi_a=-1}\bigr) = \psi^{\rm in}_a`.  Every
+matrix the module builds is an integral of Legendre monomials over the
+reference cell, computed symbolically; none is typed in.
+
+.. list-table:: the three closures as Petrov--Galerkin choices (``SCHEMES`` in the module)
+   :header-rows: 1
+   :widths: 16 22 14 16 10 22
+
+   * - closure
+     - trial :math:`V`
+     - test :math:`W`
+     - face :math:`\Phi`
+     - inflow
+     - production class
+   * - step
+     - constants, :math:`Q_0` (DG0)
+     - :math:`Q_0`
+     - :math:`Q_0`
+     - weak
+     - none (a Branch-1 closure only)
+   * - linear discontinuous
+     - bilinear :math:`Q_1` (DG1), :math:`2^d` moments
+     - :math:`Q_1`
+     - :math:`Q_1` in :math:`d-1` variables
+     - weak
+     - :class:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous`
+   * - diamond difference
+     - :math:`P_1`: the constant and one slope :math:`\xi_a` per axis
+     - :math:`Q_0`
+     - :math:`Q_0`
+     - strong
+     - :class:`~orpheus.transport.spatial.diamond.DiamondDifference`
+
+The diamond row is the least obvious, and deriving it in three lines shows
+what the family buys.  Take :math:`\psi = u_0 + \sum_a u_a\xi_a`.  Its
+average over the face :math:`\xi_a = \pm 1` is :math:`u_0 \pm u_a`,
+because every other slope averages to zero there.  The strong constraint
+on inflow face :math:`a` reads :math:`u_0 - u_a = \psi^{\rm in}_a`.  The
+only test function is :math:`v = 1`, whose derivative vanishes, so the
+weak form is the cell balance :math:`\sum_a g_a\,2u_a + u_0 = q`.
+Eliminating :math:`u_a = u_0 - \psi^{\rm in}_a` gives
+
+.. math::
+
+   (1 + 2G)\,u_0 \;=\; \sum_a 2g_a\,\psi^{\rm in}_a + q ,
+   \qquad
+   \psi^{\rm out}_a \;=\; u_0 + u_a \;=\; 2u_0 - \psi^{\rm in}_a ,
+
+which is the diamond balance and the diamond closure (the
+:math:`d`-dimensional form of :eq:`dd-cartesian-2d`, per unit volume).  So diamond's
+:math:`\psi^{\rm out} = 2\psi_c - \psi^{\rm in}` is not a separate rule: it
+is the outflow trace of a linear trial function whose slopes are fixed by
+the inflow.  Step is the weak DG0 closure, :math:`(1 + G)\,u_0 = \sum_a
+g_a\psi^{\rm in}_a + q` with :math:`\psi^{\rm out}_a = u_0`.  LD is the
+weak DG1 closure on the bilinear space, with the exact (consistent, not
+lumped) mass :math:`\langle\xi_a^2\rangle = \tfrac13`.
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_realization`
+proves that each derived cell is the closure as already known.  For LD it
+compares every block with the Kronecker-factor UBLD of
+:mod:`orpheus.derivations.discrete.sn.ld_ubld`
+(:eq:`ld-ubld-cell-system`), which is built by a different route: 1-D
+factor matrices combined by Kronecker products, rather than a direct
+Legendre integration over the cube.  The two routes agree exactly at
+:math:`d = 1, 2, 3`.
+
+The cell response: a state-space realization
+--------------------------------------------
+
+Collect the tested equations and the outflow face moments.  For a strong
+closure, the trial coordinates outside the test space (diamond's slopes)
+are fixed by the inflow constraints and are eliminated by a Schur
+complement, the static condensation of finite-element practice.  Write
+the tested residuals as :math:`K_f u_f + K_c u_c + P\psi^{\rm in} + Qq`,
+the outflow as :math:`R_f u_f + R_c u_c + O\psi^{\rm in}`, and the
+constraints as :math:`C_f u_f + C_c u_c = \psi^{\rm in}`, with
+:math:`u_f` the free and :math:`u_c` the constrained coordinates.  Then
+:math:`u_c = C_c^{-1}(\psi^{\rm in} - C_f u_f)`, and what remains is the
+**cell response**, the minimal realization of the cell for one octant:
+
+.. math::
+
+   A\,c \;=\; E\,\psi^{\rm in} + S\,q ,
+   \qquad
+   \psi^{\rm out} \;=\; R\,c + D\,\psi^{\rm in} ,
+
+.. math::
+
+   A = K_f - K_c C_c^{-1} C_f,\quad
+   E = -\bigl(P + K_c C_c^{-1}\bigr),\quad
+   S = -Q,\quad
+   R = R_f - R_c C_c^{-1} C_f,\quad
+   D = O + R_c C_c^{-1} .
+
+Here :math:`c = u_f` is the cell state, :math:`A` the cell operator,
+:math:`E` the inflow scatter, :math:`S` the source mass, :math:`R` the
+outflow trace, and :math:`D` the **feedthrough**, the part of the outflow
+the inflow reaches without passing through the cell state.  A weak
+closure has no constrained coordinates, so :math:`E = -P` and
+:math:`D = O = 0`: its outflow is the trace of its cell state and nothing
+else.  For the weak closures :math:`E` is the transpose of the upstream
+trace weighted by the face mass and by :math:`g` (``[M]`` qa, 2026-09-23,
+for step and LD at :math:`d = 1, 2`); for diamond it comes out of the
+condensation.  The condensation requires :math:`C_c` square and
+invertible, one constraint per constrained coordinate, and the module
+refuses a scheme for which it is not.  For diamond the condensation
+produces :math:`D = R_c C_c^{-1} = -I`: the feedthrough is created by
+strong imposition and by nothing else.
+
+The realizations the module derives, per unit volume at
+:math:`\Sigt{} = 1`:
+
+.. list-table:: the realized cell responses
+   :header-rows: 1
+   :widths: 14 20 14 8 12 10 10 12
+
+   * - closure
+     - :math:`A`
+     - :math:`E`
+     - :math:`S`
+     - :math:`R`
+     - :math:`D`
+     - :math:`n`
+     - :math:`m`
+   * - step
+     - :math:`1 + G`
+     - :math:`(g_1, \dots, g_d)`
+     - :math:`1`
+     - :math:`\mathbf 1`
+     - :math:`0`
+     - :math:`d`
+     - :math:`1`
+   * - diamond
+     - :math:`1 + 2G`
+     - :math:`(2g_1, \dots, 2g_d)`
+     - :math:`1`
+     - :math:`2\cdot\mathbf 1`
+     - :math:`-I`
+     - :math:`d`
+     - :math:`1`
+   * - LD
+     - :math:`2^d \times 2^d` UBLD
+     - :math:`2^d \times d\,2^{d-1}`
+     - mass
+     - trace
+     - :math:`0`
+     - :math:`d\,2^{d-1}`
+     - :math:`2^d`
+
+with :math:`n` the number of face moments over the octant's :math:`d`
+inflow faces (equally, its outflow faces) and :math:`m` the number of
+cell moments.  The cell response is the transfer function of a linear
+system, and its four blocks are the cell's **response matrix**:
+
+.. list-table:: the four blocks
+   :header-rows: 1
+   :widths: 18 22 30 30
+
+   * - block
+     - formula
+     - reads
+     - Sanchez & McCormick counterpart
+   * - transmission
+     - :math:`T = RA^{-1}E + D`
+     - inflow face moments to outflow face moments
+     - :math:`P_{SS}`, surface to surface
+   * - escape
+     - :math:`RA^{-1}S`
+     - cell source to outflow
+     - :math:`P_{S\cdot}V`, volume to surface
+   * - inflow to cell
+     - :math:`A^{-1}E`
+     - inflow to the cell state
+     - :math:`P_{\cdot S}`, surface to volume
+   * - source to cell
+     - :math:`A^{-1}S`
+     - cell source to the cell state
+     - :math:`PV`, volume to volume
+
+These are the objects of the response-matrix and interface-current
+methods.  Sanchez & McCormick :cite:`Sanchez1982` (§III.F.1, Eq. (166),
+printed p. 523) write one cell as :math:`\phi = PVF + P_{\cdot S}J_{-}`
+and :math:`J_{+} = P_{S\cdot}VF + P_{SS}J_{-}`, with :math:`F` the
+collision source, and note that response matrices have been built from
+the :math:`S_N` method among others.  Here the blocks are for one
+ordinate of one cell with no in-cell scattering: in source iteration the
+within-group scattering is lagged into :math:`q`, so :math:`T` is the
+analogue of :math:`P_{SS}` alone, and the collided term of their
+response matrix, :math:`P_{S\cdot}V\Sigma_{s0}(1 - PV\Sigma_{s0})^{-1}
+P_{\cdot S}`, is what the outer iteration assembles across sweeps.  The
+module builds all four blocks (``transmission``, ``escape``,
+``inflow_to_cell``, ``source_to_cell`` on ``CellResponse``) and keeps the
+three that the spectrum does not read, because the conservation law below
+reads all four, and because a response-matrix or interface-current
+formulation of the same cell would consume them.
+
+.. _sn-face-transmission-closed-form:
+
+The closed forms in physical variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a single-moment closure, :math:`T` is a rank-one matrix plus the
+feedthrough.  Write :math:`w_a = 2|\mu_a| A_a = 2|\mu_a| V/\Delta_a` for
+diamond's per-axis streaming weight (the :math:`s_a` of
+:eq:`dd-cartesian-2d` multiplied through by the cell volume) and
+:math:`D = \Sigt{} V + \sum_b w_b` for the diamond denominator.  Per unit
+volume at :math:`\Sigt{} = 1`, :math:`|\mu_a| A_a/V = g_a`, so
+:math:`w_a \to 2g_a` and :math:`D \to 1 + 2G`, and the realization above
+gives the face-to-face transmission
+
+.. note::
+
+   **Two symbol overloads, local to this section and to**
+   :ref:`sn-boundary-gs-not-regular`.  :math:`A_a` is the *area* of the
+   cell face normal to axis :math:`a`; it always carries its axis
+   subscript, and it is neither the cell operator :math:`A` of the cell
+   response above nor the loss operator :math:`A = L+C-S-N_{2n}-B` that
+   :math:`A = M - N` splits.  :math:`\Sigma` (no :math:`t`/:math:`s`
+   subscript, always with the face indices :math:`a \leftarrow b` or in
+   bare matrix form) is the **face-to-face transmission matrix**
+   :math:`T` in physical variables, not a cross section.  The bare
+   :math:`D` of the closed forms is the diamond denominator, not the
+   feedthrough.  These spellings are kept because they are the ones the
+   construction site uses
+   (:func:`~orpheus.sn.coupled_system.build_within_group_system`), and
+   internal consistency between code and corpus outranks the local
+   awkwardness.
+
+.. math::
+   :label: dd-face-transmission-spectrum
+
+   \Sigma_{a \leftarrow b}
+   \;=\; \frac{\partial \psi^{\rm out}_a}{\partial \psi^{\rm in}_b}
+   \;=\; \frac{2 w_b}{D} - \delta_{ab},
+   \qquad\text{that is}\qquad
+   \Sigma \;=\; \frac{2}{D}\,\mathbf{1}\,\mathbf{w}^{\mathsf T} - I,
+
+.. (V&V) dd-face-transmission-spectrum carries no vv-status sentinel: its
+   status is derived from the verifies markers. The closed form and the
+   spectrum below are proved symbolically at d = 1, 2, 3 by
+   orpheus.derivations.discrete.sn.face_transmission (derive_page_closed_form,
+   transmission_spectrum, derive_conserved_mode), whose foundation rows in
+   tests/gates/transport/spatial/test_face_transmission_symbolic.py carry
+   verifies; the l1 rows of test_face_transmission_xverif.py compare the
+   production cell kernel and the one-cell production sweep with it.
+
+a **rank-one matrix minus the identity**, whose spectrum is immediate:
+
+.. list-table:: spectrum of the multi-D DD face-to-face transmission
+   :header-rows: 1
+   :widths: 22 26 14 38
+
+   * - eigenvalue
+     - eigenvector
+     - multiplicity
+     - meaning
+   * - :math:`1 - 2\,\Sigt{}V/D`
+     - :math:`\mathbf 1` (all faces equal)
+     - 1
+     - the physical, **absorption-damped** mode
+   * - :math:`-1`
+     - :math:`\{v : \mathbf{w}^{\mathsf T} v = 0\}`
+     - :math:`d-1`
+     - :math:`\psi_c = 0 \Rightarrow \psi^{\rm out}_a = -\psi^{\rm in}_a`:
+       an **undamped sawtooth**, invisible to :math:`\Sigt{}V\psi_c`
+
+Step's transmission has its own weights.  Its balance is
+:math:`\sum_a |\mu_a| A_a(\psi_c - \psi^{\rm in}_a) + \Sigt{}V\psi_c =
+q V`, so with :math:`w'_a = |\mu_a| A_a` and :math:`D' = \Sigt{}V +
+\sum_b w'_b`,
+
+.. math::
+
+   \Sigma_{\rm step} \;=\; \frac{1}{D'}\,\mathbf 1\,\mathbf{w}'^{\mathsf T},
+   \qquad
+   \operatorname{spec}\Sigma_{\rm step}
+   \;=\; \Bigl\{\frac{D' - \Sigt{}V}{D'}\Bigr\} \cup \{0\}^{d-1} ,
+
+rank one with no :math:`-I`: the same :math:`d-1` face modes are
+annihilated in one pass instead of transmitted unattenuated.  At
+:math:`d = 1` step's transmission is :math:`1/(1 + \tau)`.  Step's weights
+are **not** diamond's: :math:`w'_a = w_a/2`, because step's outflow is the
+cell value rather than an extrapolation across the cell.
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_page_closed_form`
+proves both closed forms equal the derived :math:`T`; the error catalogue
+records the earlier algebra of record that did not (ERR-088).
+
+.. _sn-face-transmission-feedthrough:
+
+The feedthrough theorem: diamond's :math:`-1` is the cost of strong imposition
+------------------------------------------------------------------------------
+
+All three closures have a scalar feedthrough, :math:`D = fI`.  Put
+:math:`\mu = \lambda - f`.  Sylvester's determinant identity,
+:math:`\det(I_n - XY) = \det(I_m - YX)` for :math:`X` of size
+:math:`n \times m` and :math:`Y` of size :math:`m \times n`, gives, for
+:math:`\mu \ne 0`,
+
+.. math::
+
+   \det(\lambda I_n - T)
+   \;=\; \det\bigl(\mu I_n - RA^{-1}E\bigr)
+   \;=\; \mu^{n}\det\bigl(I_m - \mu^{-1}A^{-1}ER\bigr)
+   \;=\; \mu^{\,n-m}\,\frac{\det(\mu A - ER)}{\det A} ,
+
+and both sides are polynomials in :math:`\lambda`, so the identity holds
+at :math:`\mu = 0` too.  (When :math:`n < m`, as for LD at :math:`d = 1`,
+the factor :math:`\mu^{m-n}` sits inside :math:`\det(\mu A - ER)`.)  So
+
+* the feedthrough value :math:`f` is an eigenvalue of :math:`T` with
+  multiplicity **at least** :math:`n - m`;
+* every other eigenvalue is a root of the :math:`m \times m` polynomial
+  :math:`\det\bigl((\lambda - f)A - ER\bigr)`, which is small: degree 1
+  for step and diamond, and :math:`2^d` for LD.
+
+:attr:`CellResponse.characteristic_factors
+<orpheus.derivations.discrete.sn.face_transmission.CellResponse.characteristic_factors>`
+computes the characteristic polynomial this way, after certifying
+:math:`\det A > 0` for every :math:`g > 0`, and factors it over the
+integers in :math:`(\lambda, g)`.  The route is also what makes LD at
+:math:`d = 3` tractable: an :math:`8 \times 8` polynomial determinant in
+place of the :math:`12 \times 12` rational one.
+
+.. list-table:: the feedthrough eigenvalue by closure (``[M]`` the module's factorisation, 2026-09-23)
+   :header-rows: 1
+   :widths: 16 8 12 12 10 18 24
+
+   * - closure
+     - :math:`f`
+     - :math:`n`
+     - :math:`m`
+     - :math:`d`
+     - forced multiplicity :math:`n - m`
+     - multiplicity of :math:`\lambda = f`
+   * - step
+     - 0
+     - :math:`d`
+     - 1
+     - 1, 2, 3
+     - 0, 1, 2
+     - 0, 1, 2
+   * - diamond
+     - :math:`-1`
+     - :math:`d`
+     - 1
+     - 1, 2, 3
+     - 0, 1, 2
+     - 0, 1, 2
+   * - LD
+     - 0
+     - :math:`d\,2^{d-1}`
+     - :math:`2^d`
+     - 1, 2, 3
+     - :math:`-1`, 0, 4
+     - 0, 1, 5
+
+Diamond's :math:`d-1` eigenvalues at exactly :math:`-1` are therefore the
+feedthrough, forced by the dimension count and by nothing about the cell's
+thickness or the ordinate.  On their eigenspace the cell state vanishes
+(:math:`\mathbf{w}^{\mathsf T}v = 0` means :math:`\psi_c = 0`), so the
+outflow is :math:`D\psi^{\rm in} = -\psi^{\rm in}` alone.  LD's zero
+eigenvalue exceeds the Sylvester bound by one at :math:`d = 2` and at
+:math:`d = 3`; that is a proved fact of its factorisation (below), not a
+consequence of the dimension count.
+
+**What the theorem says about accuracy and the sawtooth.**  Diamond's
+second order and its undamped sawtooth are one choice seen twice.  Its
+trial space exceeds its test space by the :math:`d` axis slopes; the
+only equations left to fix them are the strong inflow constraints; and
+eliminating them is what creates :math:`D = -I`.  A weak closure has no
+coordinates to eliminate, its outflow is the trace of its cell state, and
+:math:`T = RA^{-1}E` factors through the cell: its rank is at most
+:math:`m`, and it has no feedthrough to leave undamped.
+
+.. _sn-face-transmission-interior:
+
+Every other eigenvalue lies strictly inside the unit disk
+---------------------------------------------------------
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.transmission_spectrum`
+proves, for all three closures at :math:`d = 1, 2, 3` and for **every**
+:math:`g > 0`, that every root of every factor other than
+:math:`\lambda - f` lies strictly inside the unit disk.  Every factor
+that occurs has degree 1 or 2 in :math:`\lambda`, and a real polynomial of
+degree at most 2 has its roots strictly inside the disk exactly when
+these (the Jury, or Schur--Cohn, conditions) hold:
+
+* degree 1, :math:`a\lambda + b`: :math:`a > 0`, :math:`a + b > 0` and
+  :math:`a - b > 0`, which is :math:`|b| < a`;
+* degree 2, :math:`\mathcal Q(\lambda) = a\lambda^2 + b\lambda + c`:
+  :math:`a > 0`, :math:`a - c > 0`, :math:`a + c > 0`,
+  :math:`\mathcal Q(1) = a + b + c > 0` and
+  :math:`\mathcal Q(-1) = a - b + c > 0`.  The product of the roots is
+  :math:`c/a`, and the first three give :math:`|c| < a`, so a complex
+  pair has modulus :math:`\sqrt{c/a} < 1`.  A real pair whose product is
+  below 1 in modulus cannot have both roots beyond the same end of
+  :math:`[-1, 1]`, and a root beyond each end would make
+  :math:`\mathcal Q(1)` and :math:`\mathcal Q(-1)` negative; so the
+  last two conditions place both real roots in :math:`(-1, 1)`.
+
+Each condition is a polynomial in :math:`g`, and it has to be positive on
+the whole open orthant :math:`g > 0`.  The module accepts one of two
+certificates, and ``False`` means *no certificate found*, never *not
+positive*:
+
+#. every coefficient is non-negative, and the polynomial is not zero (each
+   monomial is then positive on the open orthant);
+#. every negative coefficient sits in the homogeneous quadratic part
+   :math:`g^{\mathsf T}\mathcal M g`, the other coefficients are
+   non-negative, and :math:`\mathcal M` is positive definite, or positive
+   semidefinite with some other coefficient positive.
+
+For step and diamond the only non-feedthrough factor is linear, the
+conserved mode below, and certificate 1 suffices.  LD needs certificate 2
+exactly once per quadratic factor.  At :math:`d = 2` its quadratic factor
+is, ``[M]`` from the module,
+
+.. math::
+
+   a &= 6g_1^2 + 4g_1g_2 + 6g_2^2 + 4g_1 + 4g_2 + 1, \\
+   b &= -6g_1^2 + 28g_1g_2 - 6g_2^2 + 2g_1 + 2g_2, \\
+   c &= 4g_1g_2 ,
+
+so that
+
+.. math::
+
+   a - c &= 6g_1^2 + 6g_2^2 + 4g_1 + 4g_2 + 1, \qquad
+   \mathcal Q(1) = (6g_1 + 1)(6g_2 + 1), \\
+   \mathcal Q(-1) &= 12g_1^2 - 20g_1g_2 + 12g_2^2 + 2g_1 + 2g_2 + 1
+   \;=\; 12(g_1 - g_2)^2 + 4g_1g_2 + 2g_1 + 2g_2 + 1 .
+
+Every condition but :math:`\mathcal Q(-1)` has non-negative coefficients.
+:math:`\mathcal Q(-1)` has one negative coefficient, :math:`-20`, in its
+quadratic part :math:`\bigl(\begin{smallmatrix}12 & -10\\ -10 &
+12\end{smallmatrix}\bigr)`, which is positive definite (determinant 44);
+the rewritten form above is the same certificate as a sum of squares.
+At :math:`d = 3` each quadratic factor is this :math:`\mathcal Q` with its
+two arguments replaced by :math:`(g_a, G - g_a)` (next subsection), so the
+quadratic part of :math:`\mathcal Q(-1)` in :math:`(g_1, g_2, g_3)` is
+only positive **semi**\ definite (it depends on two combinations of three
+variables); the constant term is positive, and the semidefinite branch of
+certificate 2 is the one that holds.
+
+Two instruments corroborate the certificates independently of them.  The
+test file compares the factor product with a direct Berkowitz
+characteristic polynomial of :math:`T` at a rational point, and computes
+every non-feedthrough root numerically on a grid of five values per axis
+from :math:`g = 10^{-3}` to :math:`10^{3}`.  ``[M]`` qa, 2026-09-23,
+2700 random points with :math:`g` from :math:`10^{-6}` to :math:`10^{6}`:
+no root on the unit circle.
+
+.. warning::
+
+   **"Strictly inside for every** :math:`g > 0` **" is pointwise, not
+   uniform.**  As the cell becomes optically thin (:math:`g \to \infty`)
+   roots approach 1: the conserved eigenvalue below is
+   :math:`T_{\rm 1D}(G)`, which tends to 1 as :math:`G \to \infty`, and for LD at :math:`d = 3` other roots can too.  ``[M]``
+   qa, 2026-09-23: at :math:`g = (10^6, 1, 1)`, four of LD's twelve
+   roots exceed :math:`0.99998`.  So a thin mesh converges slowly under
+   every closure.  The theorem separates something else: diamond's
+   :math:`-1` is **exactly** on the circle at every thickness, and around
+   a closed reflective loop it returns to itself; nothing else does.
+   Dimensions :math:`d \ge 4` are not claimed.
+
+.. _sn-face-transmission-conserved:
+
+The conserved mode
+~~~~~~~~~~~~~~~~~~
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_conserved_mode`
+proves that :math:`\lambda - T_{\rm 1D}(G)` is a factor of every closure's
+characteristic polynomial at :math:`d = 1, 2, 3`, where
+:math:`T_{\rm 1D}` is the same closure's 1-D transmission evaluated at the
+total streaming :math:`G = \sum_a g_a`.  In optical-thickness terms the
+eigenvalue is the 1-D transmission across the effective thickness
+
+.. math::
+
+   \tau_{\rm eff} \;=\; \frac{1}{G} \;=\; \Bigl(\sum_a \tau_a^{-1}\Bigr)^{-1} .
+
+``[M]`` from the module:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 42 40
+
+   * - closure
+     - conserved eigenvalue
+     - in the page's variables
+   * - step
+     - :math:`G/(1 + G)`
+     - :math:`(D' - \Sigt{}V)/D'`
+   * - diamond
+     - :math:`(2G - 1)/(2G + 1)`
+     - :math:`1 - 2\,\Sigt{}V/D`
+   * - LD
+     - :math:`2G(3G - 1)/(6G^2 + 4G + 1)`
+     - none on this page
+
+It is called *conserved* because along the diagonal :math:`g_a = t \to
+\infty`, the optically thin cell, it tends to 1: with no absorption across
+the cell, the flux the octant carries in is carried out.  The module
+proves that limit; it does not identify the eigenvector for LD.  The
+conserved eigenvalue depends on the cell only through :math:`G`, the
+quantity that the refuted "sign depends on dimension" reading of
+:ref:`sn-boundary-gs-rate-regime` names as the natural place to look.
+
+.. _sn-face-transmission-ld-factorisation:
+
+LD's spectrum is generated by its low dimensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_ld_factorisation`
+proves the irreducible factorisation of LD's characteristic polynomial
+over :math:`\mathbb Z[g]`, with multiplicity:
+
+.. math::
+
+   d = 2:\quad \lambda\;\ell(G)\;\mathcal Q(g_1, g_2),
+   \qquad
+   d = 3:\quad \lambda^{5}\;\ell(G)\prod_{a=1}^{3}\mathcal Q(g_a,\, G - g_a),
+
+where :math:`\ell(G) = \lambda - T_{\rm 1D}(G)` is the conserved factor
+and :math:`\mathcal Q(x, y)` the quadratic of :math:`d = 2`, which is
+symmetric in its two arguments.  The degrees add up to the :math:`n`
+face moments: :math:`1 + 1 + 2 = 4` and :math:`5 + 1 + 3\cdot 2 = 12`.
+So the three-dimensional LD cell has no new spectral structure: each pair
+of its quadratic modes is the two-dimensional pair with one axis kept and
+the other two lumped into a single streaming coefficient.  The claim is
+stated for :math:`d \in \{2, 3\}` only; :math:`d = 4` is refused, not
+guessed.
+
+.. _sn-face-transmission-stability:
+
+The stability function: the 1-D transmission as a one-step method
+-----------------------------------------------------------------
+
+In one dimension a source-free cell integrates
+:math:`\mathrm d\psi/\mathrm ds = -(\Sigt{}/|\mu|)\,\psi` across one cell
+width, whose exact multiplier is :math:`e^{-\tau}`.  A closure is then a
+one-step method for Dahlquist's test equation :math:`u' = \lambda u` with
+:math:`z = \lambda h = -\tau`, and its transmission :math:`R(\tau)` is
+that method's **stability function**.  This is the reading of the Padé
+ladder :eq:`discretization-transmission-pade` of
+:doc:`/theory/foundations/discretization`, which treats its sign
+(positivity); this subsection treats its modulus.
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_stability_function`
+proves, per closure:
+
+#. :math:`R` has numerator degree :math:`p` and denominator degree
+   :math:`q`, and agrees with :math:`e^{-\tau}` through :math:`\tau^{p+q}`
+   and not beyond, so it **is** the :math:`[p/q]` Padé approximant
+   (the Padé table's uniqueness);
+#. **A-stability**, :math:`|R(\tau)| \le 1` for every complex :math:`\tau`
+   with :math:`\operatorname{Re}\tau \ge 0`, by the E-polynomial
+   criterion (Hairer & Wanner :cite:`HairerWanner1996`, §IV.3; a reasoned
+   citation, the book was not read for this page): write :math:`R = P/Q`;
+   if every pole has :math:`\operatorname{Re}\tau < 0` (:math:`Q` is
+   Hurwitz) and :math:`E(y) = |Q(iy)|^2 - |P(iy)|^2 \ge 0` for real
+   :math:`y`, then :math:`|R| \le 1` on the imaginary axis and, by the
+   maximum modulus principle, on the whole right half-plane.  The
+   predicate is ``_is_a_stable`` in the module;
+#. :math:`|R(\tau)| < 1` **strictly** for every real :math:`\tau > 0`
+   (both :math:`1 - R` and :math:`1 + R` certified positive);
+#. :math:`R(\infty)` equals the feedthrough :math:`f` of the same closure;
+#. in every dimension :math:`d = 1, 2, 3`, :math:`T \to fI` as
+   :math:`g \to 0`, the optically thick cell.
+
+.. list-table:: the 1-D transmission as a stability function (``[M]`` the module, 2026-09-23)
+   :header-rows: 1
+   :widths: 14 22 8 16 10 12 18
+
+   * - closure
+     - :math:`R(\tau)`
+     - Padé
+     - first error term
+     - :math:`E(y)`
+     - :math:`R(\infty)`
+     - stability
+   * - step
+     - :math:`\dfrac{1}{1 + \tau}`
+     - :math:`[0/1]`
+     - :math:`+\tau^2/2`
+     - :math:`y^2`
+     - :math:`0`
+     - L-stable
+   * - diamond
+     - :math:`\dfrac{2 - \tau}{2 + \tau}`
+     - :math:`[1/1]`
+     - :math:`-\tau^3/12`
+     - :math:`0`
+     - :math:`-1`
+     - A-stable, not L-stable
+   * - LD
+     - :math:`\dfrac{6 - 2\tau}{6 + 4\tau + \tau^2}`
+     - :math:`[1/2]`
+     - :math:`-\tau^4/72`
+     - :math:`y^4`
+     - :math:`0`
+     - L-stable
+
+(L-stable means A-stable with :math:`R(\infty) = 0`.)  Diamond's
+:math:`E(y) \equiv 0` says :math:`|R| = 1` on the whole imaginary axis;
+its poles and those of the other two are at :math:`-1` (step), :math:`-2`
+(diamond) and :math:`-2 \pm \sqrt 2\,i` (LD).
+
+**The literature.**  Morel, Wareing & Smith :cite:`MorelWareingSmith1996`
+(Eq. (74), printed p. 452) identify the LD solution at the end of a
+unit-thickness cell as the Padé :math:`(1, 2)` approximation of the
+exponential, in their convention (numerator degree, denominator degree);
+their Eq. (76) gives the lumped form, Padé :math:`(0, 2)`, which ORPHEUS
+does not ship (#158).  Lesaint & Raviart :cite:`LesaintRaviart1974` prove
+the general statement for the upwind discontinuous Galerkin method of
+degree :math:`k` on :math:`u' = f(x, u)`: it is a strongly A-stable
+one-step method of order :math:`2k + 1` whose stability function is the
+subdiagonal Padé approximant (§2, Theorem 2, printed p. 12, with the
+definition of strong A-stability in their Eq. (2.27)).  Their "strongly
+A-stable" is what is called L-stable here, and their "(k+1, k)" is
+(denominator degree, numerator degree), which is this page's
+:math:`[k/k+1]`.  The copy read is the Rennes seminar text; the book
+chapter of the same title (pp. 89--123) was not seen, and its numbering
+is not confirmed.  Step is their :math:`k = 0`, whose stability function
+:math:`1/(1 + \tau)` is backward Euler's, and LD is :math:`k = 1`.  Stacey
+:cite:`Stacey2007` (Eq. (9.210)) and Hébert :cite:`Hebert2009` (Eq.
+(3.489)) give diamond's :math:`(2 - \tau)/(2 + \tau)`; Hébert attributes
+to Suslov the remark that diamond is a Padé approximation of the step
+characteristic's exponential.  That diamond's :math:`[1/1]` is the
+stability function of the trapezoidal (Crank--Nicolson) rule is a
+reasoned remark, with no citation claimed; that it is A-stable and not
+L-stable is proved by the module.
+
+**The thick limit is the feedthrough, in every dimension.**  Because
+:math:`E` is proportional to :math:`g` while :math:`A` tends to the
+invertible cell mass as :math:`g \to 0`, the cell state stops responding to the inflow in a thick cell and only the feedthrough
+survives: :math:`T \to fI`.  Step and LD transmit nothing across a thick
+cell; diamond reflects the sign of every face mode, :math:`T \to -I`.
+This is the undamped stiff mode of an A-stable, non-L-stable method: the
+trapezoidal rule applied to a stiff decay returns :math:`-1` times the
+input rather than zero.  In one dimension it appears only in the limit;
+in :math:`d \ge 2` diamond has it at **every** thickness, on the
+:math:`(d-1)`-dimensional subspace where the cell state vanishes, because
+there the feedthrough acts alone.  The multi-D sawtooth is the stiff limit
+present in every cell.  The published face of the 1-D limit is Larsen,
+Morel & Miller :cite:`LarsenMorelMiller1987` (§IV.A, Eqs. (4.11)--(4.12)):
+in the thick diffusion limit the anisotropic part of the diamond
+cell-edge flux alternates in sign from one cell to the next,
+:math:`\eta_{j+1/2} = (-1)^j\eta`.  The :math:`(d-1)`-fold :math:`-1` of
+the multi-D face transmission was not found in any published source
+searched (the local library and four OpenAlex queries,
+2026-09-23); it is ORPHEUS's own derivation.
+
+.. _sn-face-transmission-balance:
+
+Conservation and flat-flux preservation
+---------------------------------------
+
+Two laws read all four blocks, and are what make the blocks one response
+rather than four matrices.
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_particle_balance`:
+with :math:`\bar\cdot` the average moment, for every inflow and every
+source,
+
+.. math::
+
+   \sum_{a=1}^{d} g_a\bigl(\bar\psi^{\rm out}_a - \bar\psi^{\rm in}_a\bigr)
+   + \bar c \;=\; \bar q ,
+   \qquad
+   \psi^{\rm out} = T\psi^{\rm in} + (RA^{-1}S)\,q ,
+   \quad
+   c = A^{-1}E\,\psi^{\rm in} + A^{-1}S\,q :
+
+outflow minus inflow plus absorption equals the source.  It is proved
+identically in :math:`g`, except for LD at :math:`d = 3`, which is proved
+at a rational point because its symbolic blocks take about a minute.
+
+:func:`~orpheus.derivations.discrete.sn.face_transmission.derive_flat_flux_preservation`:
+a uniform inflow equal to a uniform source (every face average 1, every
+higher moment 0, :math:`q = 1`) leaves the outflow and the cell state
+uniform.  The infinite-medium solution :math:`\psi \equiv q/\Sigt{}` is a
+fixed point of the cell.
+
+The two laws see different defects.  The balance is blind to the
+integration-by-parts volume term, which a constant test function never
+reads; flat-flux preservation catches it, because that identity is what
+keeps a constant a solution (``[M]`` qa's mutation table, 2026-09-23).
+Flat-flux preservation is in turn blind to a closure built with the wrong
+streaming weights (the predecessor's step, ERR-088, preserves a flat
+flux), and the balance catches it.
+
+.. _sn-face-transmission-production:
+
+Where production applies it
+---------------------------
+
+The algebra of record is Branch 1 only.  Its production counterparts are:
+
+* each scheme's ``cell_kernel_batch``
+  (:meth:`DiamondDifference.cell_kernel_batch
+  <orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch>`,
+  :meth:`LinearDiscontinuous.cell_kernel_batch
+  <orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.cell_kernel_batch>`),
+  the numpy cell update, which realizes the four blocks.  Production's
+  source is per unit volume in units of :math:`\Sigt{}\psi`, so its
+  source blocks are Branch 1's divided by :math:`\Sigt{}`; the inflow
+  blocks are dimensionless;
+* ``_face_transmission_matrix`` in :mod:`orpheus.transport.spatial.scheme`,
+  which drives a scheme's kernel one unit inflow face moment at a time
+  and assembles :math:`T` column by column;
+* :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`,
+  which runs that assembly on two different probe cells and returns
+  :math:`\rho(T)` with a three-state verdict, ``DAMPED``, ``UNDAMPED`` or
+  ``UNDETERMINED``.  Its consumer is the loss-kernel gauge
+  (:ref:`sn-loss-kernel-gauge`, #344): an ``UNDAMPED`` closure on a mesh
+  with at least two reflective axis pairs has a singular loss operator.
+  The theorem above proves what the two-probe survey samples, that the
+  verdict is a property of the closure and not of the cell.
+
+Step has no production class; its algebra of record exists as the
+reference point of the comparison (#158 tracks the concrete cell updates).
+
+⚠ **Production LD at** :math:`d = 3` **reads** ``UNDETERMINED`` **and the
+theorem reads** ``DAMPED``.  Production's numpy UBLD inflow lift handles
+only the axes :math:`\{0, d-1\}`, so the interior axis at :math:`d = 3`
+cannot be driven and the survey cannot measure anything (#503).  Two strict
+``xfail`` rows of the cross-check file hold the place: the verdict row,
+whose reason records the spectral radius the theorem predicts at the probe
+cells, and the one-cell sweep row.  Both turn into strict failures, and so
+demand attention, the day production gains the interior-axis lift.
+
+The one-cell production sweep is a third path, and it is not the kernel
+path at every dimension.  ``[M]`` 2026-09-23, the representation
+``default_for`` selects on a one-cell mesh: diamond runs ``CumprodScan``
+at :math:`d = 1` (the scan coefficients of
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`),
+``ScanMarch`` at :math:`d = 2` (its own spelling of the transmission,
+through
+:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`)
+and ``FullFieldWavefront`` at :math:`d = 3` (the kernel); LD runs
+``CumprodScan`` at :math:`d = 1` and ``MovingFrontierWindow`` at
+:math:`d = 2`.  A closure change on one path leaves the others alone, so
+the kernel leg and the sweep leg of the cross-check are not redundant.
+
+.. _sn-face-transmission-verification:
+
+Verification
+------------
+
+The gates are two files.  Branch 1:
+:mod:`tests.gates.transport.spatial.test_face_transmission_symbolic`,
+every row ``foundation`` (a SymPy identity of the algebra of record); the
+diamond rows that state what :eq:`dd-face-transmission-spectrum` states
+also carry ``verifies``, the algebra-of-record exception of
+``vv-principles``.  Each row runs one of the module's ``derive_``
+functions, which raises ``DerivationFailed`` when a proof step fails, and
+then checks the returned object against a reference the module does not
+compute:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - claim
+     - independent reference in the test
+   * - the certifiers (orthant positivity, the Jury conditions,
+       A-stability)
+     - polynomials known to be positive or not, factors with roots known
+       to be inside, on or outside the unit circle, and rational functions
+       that fail each leg of the A-stability predicate: each certifier
+       must say ``False`` as well as ``True``
+   * - the construction's refusals
+     - malformed trial, test or face spaces, and inflow constraints that
+       miss a constrained coordinate, must be refused with their message
+   * - the realizations; LD's ``transmission()``
+     - ``ld_ubld``'s Kronecker UBLD composed with plain ``LUsolve`` at
+       rational points; MWS's 1-D LD form
+   * - the spectrum
+     - a direct Berkowitz characteristic polynomial of :math:`T` at a
+       rational point; a numeric root grid over six decades of :math:`g`
+   * - the conserved mode and the stability function
+     - the literature 1-D transmissions; ``mpmath.pade`` of
+       :math:`e^{-\tau}` (a different algorithm from the module's series
+       check); a numeric :math:`|R| < 1` sweep over
+       :math:`\tau \in [10^{-6}, 10^{6}]`
+   * - the closed forms
+     - the page's formulas in physical variables, evaluated in exact
+       :class:`fractions.Fraction`
+   * - step at :math:`d = 1`
+     - the balance solved by hand in :class:`fractions.Fraction`, with a
+       leg that tells :math:`1/(1+\tau)` from the predecessor's
+       :math:`2/(2+\tau)` (ERR-088)
+
+The L1 cross-check,
+:mod:`tests.gates.transport.spatial.test_face_transmission_xverif`
+(``l1``), compares production with the module's own blocks evaluated
+exactly over :math:`\mathbb Q` at six points (generic, thin, anisotropic,
+thick, near-void, extremely thick): the kernel's :math:`T` (diamond at
+:math:`d \le 3`, LD at :math:`d \le 2`); the kernel's escape, inflow-to-cell
+and source-to-cell blocks; the verdict and :math:`\rho` of
+``face_transmission_spectrum``; and the one-cell production sweep, per
+group, on a two-group pure absorber.  The tolerance is ten times
+:math:`m\,\kappa(A)\,\varepsilon` relative to
+:math:`\max(1, \lVert T\rVert_\infty)`, the backward-error bound of one
+:math:`m \times m` cell solve followed by a trace.  The two branches share
+the weak form they both discretise and nothing below it; LD's legs rest
+on the independent grounds of that form (its 1-D Padé order, and
+exactness on a bilinear flux, gated in ``test_ld_ubld_symbolic.py``),
+declared with ``rests_on``.
+
+The mutation battery ``[M]`` (the test-architect, 2026-09-23,
+``python -O``, mutants applied in-process by a pytest plugin, over the two
+files, ``test_face_transmission_damping.py`` and the two ``ld_ubld``
+files; the source files shasum-identical before and after; the
+unmutated control arm all green).  Headline rows:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - mutation
+     - what reddens
+   * - diamond's inflow imposition strong to weak (diamond becomes step)
+     - 55 rows: every diamond claim, every diamond kernel, cell-block,
+       verdict and sweep row; diamond's :math:`d = 1` spectrum row stays
+       green, since no undamped mode exists there either way
+   * - production's diamond kernel replaced by step
+     - 40 rows of the two new files, and 2 pre-existing damping rows
+   * - step built with diamond's weights (the predecessor, ERR-088)
+     - 17 rows: step's realization, conserved-mode, stability, balance
+       and closed-form rows, and the four :math:`d = 1` hand-balance rows;
+       step's flat-flux rows stay green, because the predecessor's step
+       passes a flat flux (re-measured for ERR-088 the same day)
+   * - the LD mass moment :math:`\langle\xi^2\rangle` from
+       :math:`\tfrac13` to :math:`\tfrac12`
+     - 39 rows; LD's spectrum row stays green, correctly: at that mass
+       the spectrum really is damped
+   * - either certifier replaced by "always True"
+     - only the certifier rows: the certified statements are true, so a
+       certifier's "yes" is not observable downstream, and the rows that
+       make each certifier say ``False`` are its only witnesses
+   * - ``escape`` or ``source_to_cell`` scaled by :math:`8/7`
+     - the balance and flat-flux rows and the kernel cell-block rows,
+       and no transmission row, correctly
+
+The same finding shaped the A-stability check: every Padé denominator of
+:math:`e^{-\tau}` has positive coefficients, so no input that passes the
+Padé legs can fail the Hurwitz leg inside ``derive_stability_function``;
+the predicate ``_is_a_stable`` is therefore gated on its own, with inputs
+that fail each leg.
+
+.. dropdown:: What was tried and did not work
+   :color: muted
+
+   * **The predecessor module.**  The first algebra of record,
+     ``derivations/sn_dd_face_transmission.py`` (2026-08-09, for #341;
+     retired 2026-09-23), typed the two closed forms by hand and built
+     step's matrix with diamond's weights, so its "step" transmission was
+     :math:`2/(2+\tau)` at :math:`d = 1` instead of :math:`1/(1+\tau)`.
+     Its numeric spot check and its characteristic-polynomial cross-check
+     built the same wrong matrix, nothing collected it as a test, and its
+     ``assert`` statements are stripped under ``python -O``.  The page
+     stated step correctly throughout.  Full record: ERR-088.  The
+     replacement derives every closure from its weak form, so no closed
+     form is typed.
+   * **The direct characteristic polynomial.**  The :math:`12 \times 12`
+     rational characteristic polynomial of LD's :math:`T` at :math:`d = 3`
+     did not finish in ten minutes (``[M]`` 2026-09-23).  The Sylvester
+     route of the feedthrough theorem needs one :math:`8 \times 8`
+     polynomial determinant and takes seconds.
+   * **Expression-tree solves.**  LD's :math:`d = 2` transmission through
+     SymPy's ``LUsolve`` followed by ``cancel`` did not finish in 30 s;
+     solving in SymPy's polynomial domains (``DomainMatrix`` over the
+     fraction field :math:`\mathbb Q(g)`) takes 0.06 s (``[M]``
+     2026-09-23).
+   * **Three formulations, one chosen.**  The cell was first assembled
+     from ``ld_ubld``'s Kronecker factors, with diamond and step typed
+     from their balances.  A trace form (outflow flux
+     :math:`\sum|\mu|\gamma_+^{\mathsf T}M_\perp\gamma_+`, inflow scatter
+     :math:`|\mu|\gamma_-^{\mathsf T}M_\perp`, outflow trace
+     :math:`\gamma_+`) was measured to reproduce the maps at
+     :math:`d = 1, 2, 3`, and it would lift production's interior-axis
+     restriction by construction (#503).  The Petrov--Galerkin family
+     was chosen (the user's ruling, 2026-09-23) because it makes the
+     closure a choice of spaces, derives the feedthrough from the
+     imposition instead of typing it, reproduces all three closures, and
+     turns ``ld_ubld`` from the construction into an independent check.
+   * **Eliminating the constraints with** ``sp.solve``.  An
+     under-determined solve can leave a constraint unapplied without an
+     error.  The named Schur complement requires :math:`C_c` square and
+     invertible, and refuses otherwise.
+
+
 The boundary Gauss-Seidel schedule (multi-D)
 ============================================
 
@@ -4494,65 +5511,13 @@ at face :math:`(a,\pm)` flips the :math:`a`-th direction cosine, so octant
 and permutations are non-negative.  The negativity is one level down,
 *inside* an octant, in the closure itself.
 
-For one ordinate on one source-free homogeneous DD cell write
-:math:`w_a = 2|\mu_a| A_a = 2|\mu_a| V/\Delta_a` for the per-axis
-streaming weight (this is the :math:`s_a` of :eq:`dd-cartesian-2d`
-multiplied through by the cell volume) and
-:math:`D = \Sigt{} V + \sum_b w_b` for the DD denominator.  The balance
-:math:`\psi_c = \sum_b w_b \psi^{\rm in}_b / D` composed with the diamond
-closure :math:`\psi^{\rm out}_a = 2\psi_c - \psi^{\rm in}_a` gives the
-face-to-face transmission
-
-.. note::
-
-   **Two symbol overloads, local to this section.**  :math:`A_a` is the
-   *area* of the cell face normal to axis :math:`a` — it always carries
-   its axis subscript, and it is not the loss operator
-   :math:`A = L+C-S-N_{2n}-B` that :math:`A = M - N` splits.  :math:`\Sigma` (no :math:`t`/:math:`s`
-   subscript, always with the face indices :math:`a \leftarrow b` or in
-   bare matrix form) is the **face-to-face transmission matrix**, not a
-   cross section.  Both spellings are kept because they are the ones the
-   construction site uses
-   (:func:`~orpheus.sn.coupled_system.build_within_group_system`), and
-   internal consistency between code and corpus outranks the local
-   awkwardness.
-
-.. math::
-   :label: dd-face-transmission-spectrum
-
-   \Sigma_{a \leftarrow b}
-   \;=\; \frac{\partial \psi^{\rm out}_a}{\partial \psi^{\rm in}_b}
-   \;=\; \frac{2 w_b}{D} - \delta_{ab},
-   \qquad\text{that is}\qquad
-   \Sigma \;=\; \frac{2}{D}\,\mathbf{1}\,\mathbf{w}^{\mathsf T} - I,
-
-.. (vv-status rationale) Structural identity: the linearisation of the
-   already-verified multi-D DD closure (dd-cartesian-2d) about a source-free
-   cell — an algebraic rearrangement of an equation the sweep and matvec
-   gates already pin, not a new solver claim. Its content is the SPECTRUM,
-   which is exact for a rank-one-minus-identity matrix and needs no fixture;
-   the closure it linearises is gated by the 2-D DD sweep/matvec suites.
-.. vv-status: dd-face-transmission-spectrum documented
-
-a **rank-one matrix minus the identity**, so its spectrum is immediate:
-
-.. list-table:: spectrum of the multi-D DD face-to-face transmission
-   :header-rows: 1
-   :widths: 22 26 14 38
-
-   * - eigenvalue
-     - eigenvector
-     - multiplicity
-     - meaning
-   * - :math:`1 - 2\,\Sigt{}V/D`
-     - :math:`\mathbf 1` (all faces equal)
-     - 1
-     - the physical, **absorption-damped** mode
-   * - :math:`-1`
-     - :math:`\{v : \mathbf{w}^{\mathsf T} v = 0\}`
-     - :math:`d-1`
-     - :math:`\psi_c = 0 \Rightarrow \psi^{\rm out}_a = -\psi^{\rm in}_a`:
-       an **undamped sawtooth**, invisible to :math:`\Sigt{}V\psi_c`
+The face-to-face transmission of one DD cell is derived in
+:ref:`sn-face-transmission`.  For one ordinate on one source-free cell it
+is :eq:`dd-face-transmission-spectrum`, a rank-one matrix minus the
+identity: its eigenvalue on the all-faces-equal direction is the
+absorption-damped :math:`1 - 2\,\Sigt{}V/D`, and on the
+:math:`(d-1)`-dimensional subspace :math:`\mathbf w^{\mathsf T}v = 0`,
+where the cell average vanishes, it is exactly :math:`-1`.
 
 Every :math:`d`-dimensional DD cell therefore carries a
 :math:`(d-1)`-dimensional subspace on which transmission is exactly
@@ -4565,18 +5530,23 @@ schedule reached multi-D.  (That is *not* the reason 1-D falls back to
 Jacobi; that fallback is structural — a 1-D scan is not a wavefront, so
 there are no octant groups to order.)
 
-The undamped subspace is a property of the DIAMOND closure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The undamped subspace is diamond's feedthrough
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not of transport, and not of the boundary condition.  Run the same
-construction under **step** differencing (:math:`\psi^{\rm out}_a =
-\psi_c`, :math:`w'_a = |\mu_a| A_a`, :math:`D' = \Sigt{}V + \sum_b w'_b`)
-and the transmission is :math:`\Sigma_{\rm step} = (1/D')\,\mathbf 1
-\mathbf{w}'^{\mathsf T}` — rank one with **no** :math:`-I`, spectrum
-:math:`\{(D' - \Sigt{}V)/D'\} \cup \{0\}^{d-1}`.  The same :math:`d-1`
-modes are **maximally damped instead of undamped**.  DD's second-order
-accuracy and its undamped face sawtooth are one property seen twice: the
-closure pins the cell *average* and leaves the face *difference* free.
+Not of transport, and not of the boundary condition.  The feedthrough
+theorem of :ref:`sn-face-transmission-feedthrough` locates it exactly.
+Diamond is the one closure of the three that imposes its inflow
+strongly; strong imposition creates the feedthrough :math:`D = -I`; and
+Sylvester's determinant identity makes the feedthrough value an
+eigenvalue of the transmission :math:`d-1` times.  Step differencing has
+no feedthrough and sends the same :math:`d-1` modes to :math:`0` in one
+pass.  Linear discontinuous has none either, and every eigenvalue of its
+transmission lies strictly inside the unit disk at :math:`d = 1, 2, 3`
+(:ref:`sn-face-transmission-interior`).  DD's second-order accuracy and
+its undamped face sawtooth are one choice seen twice: the axis slopes
+that give diamond its linear trial function are fixed by the strong
+inflow constraints, and eliminating them is what creates the
+:math:`-I`.
 
 That is not an abstraction — it is the slow mode measured in the d=3
 reflective-absorber budget study behind `Issue #340
@@ -4950,7 +5920,8 @@ The loss operator is SINGULAR on a closed reflective box
 The previous section closed on a *local* fact and used it only
 negatively: every multi-D diamond cell carries a
 :math:`(d-1)`-dimensional face subspace on which transmission is exactly
-:math:`-1` (:eq:`dd-face-transmission-spectrum`), invisible to
+:math:`-1` (:eq:`dd-face-transmission-spectrum`, derived in
+:ref:`sn-face-transmission`), invisible to
 :math:`\Sigt{}V\psi_c`, so :math:`N \ge 0` fails and no comparison
 theorem bounds the schedule.
 
