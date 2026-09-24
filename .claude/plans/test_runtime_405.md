@@ -68,6 +68,35 @@ Timing is never a gate (ruling R6 of `.claude/plans/vv_suite_layout.md`). This c
 - `.github/workflows/test-durations.yml`: `workflow_dispatch` with inputs `shards` (40), `marker` (empty, which selects every test: `[M]` `-m ""` collects 58 of 58 in `tests/gates/mc`, against 42 with `-m "not slow"`) and `per_test_timeout` (3000 s); at most 20 shards at once, 355 min per shard; the store cache as in `gates.yml`.
 - Documented in `docs/development/git_workflow.rst`, "Continuous integration".
 
+## Step 1, measured — run 35940553034 `[M]` 2026-09-23/24
+
+The runner stamp, as recorded in the artifact `test-durations`: ubuntu24, image 20260907.300.1, 4 CPUs, x86_64, Python 3.14.7, numpy 2.5.3, scipy 1.18.1, sympy 1.14.0, commit `62020ba5`. The run: 40 shards, `-m ""` (everything, slow tier included), 3000 s per-test timeout. The run's own summary page has the pre-`tree_of` per-tree bug (fixed at `dc5b2ad2`); the numbers below are recomputed from the artifact's table with the fixed tool.
+
+- **12 491 test cases in 549 files take 15.02 h serial.** Outcomes: 12 262 passed, 87 skipped, 56 failed, 81 errors, 5 timeouts.
+- **Concentration:** the 10 slowest cases are 44.2% of the total; the 30 slowest, 72.4%; the 100 slowest, 88.4%; the 300 slowest, 96.3%.
+- **The ranked worklist, by file** (minutes of serial time on this runner; the top 8 files are about 640 of the 901 minutes):
+
+  | min | file | what it computes `[R]` from the file names; read each before acting |
+  |---|---|---|
+  | 188.9 | `tests/gates/derivations/test_peierls_specular_bc.py` | specular-BC Peierls references, multibounce; 1 timeout (`test_specular_heterogeneous_2G2R_converges[slab]`) |
+  | 103.3 | `tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py` | cylinder refinement ladder against the trajectory resolvent |
+  | 100.1 | `tests/gates/derivations/test_continuous_registry_lazy.py` | 2 timeouts: a lazy registry fetch builds a Peierls reference |
+  | 53.7 | `tests/gates/derivations/test_peierls_rank2_bc.py` | 1 timeout: the rank-2 refinement monotonicity ladder |
+  | 50.9 | `tests/gates/cp/test_peierls_rank_n_protocol.py` | the rank-N protocol (F.4 subprocess worker) |
+  | 50.0 | `tests/gates/cp/test_peierls_flux.py` | 1 timeout: 2-group 2-region flux convergence |
+  | 49.8 | `tests/gates/derivations/test_peierls_multigroup.py` | multigroup parity against the unified path |
+  | 45.7 | `tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py` | trajectory-resolvent cross-checks, phases d/e |
+  | 29.8 | `tests/gates/mc/test_convergence.py` | Monte Carlo σ scaling with √N |
+  | 23.9 | `tests/gates/sn/sweep/curvilinear/test_unified_matvec_cylinder.py` | unified cylinder matvec against the trajectory resolvent |
+  | 22.6 | `tests/gates/derivations/test_peierls_reference.py` | Peierls kernel row sums and element-wise references |
+  | 17.9 | `tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py` | Green's function, multi-region cylinder |
+
+  Everything else is under 13 minutes per file. Of the 12 files above, 11 compute Peierls, trajectory-resolvent or Green's-function semi-analytical references (all but the Monte Carlo file): R1's cache target.
+- **Two infrastructure findings in the failures**, not defects of the code under test, apart from `phase_e`, which is #404:
+  1. **83 of the 137 (81 errors and 2 failures) are the workflow's.** The tests read the raw GENDF tapes, and the workflow pulls them from LFS only when the HDF5 store cache misses. The cache hit, so the tapes were LFS pointer files ("could not convert string to float: 'oid sha256'"; modules `test_ingest_ledger` 43, `test_n2n_yield_convention` 24, `test_hdf5_store` 6, and others). Fix: cache the tapes themselves, keyed on their pointer files, so LFS is pulled once per content change. Pulling on every shard would exhaust the LFS bandwidth quota `[R]`.
+  2. **About 50 are bit-identity and snapshot gates that pin values captured on the development Mac** (arm64, Accelerate): `test_byte_stability` (homogeneous k_inf, 1 ULP), `test_walk_matvec_baselines` (1 ULP bound, up to 768 read), `test_bc_extraction_*` (5 ULP bound, up to 128 read), `test_streaming_operator` T4b snapshots (256 ULP bound, up to 512 read), `test_affine_carve_baseline`, `test_quadrature_fold` (`==` against 4π), and others. On the x86 runner they differ by 1 to 768 ULP. Bit identity is a platform property as well as an implementation one, so these gates are red on any machine but one. Filed as an issue (below).
+- **The runner concurrency:** `max-parallel: 20` took every job slot the account has `[R]` (20 on the free plan), so the `gates` run for `62020ba5` queued behind the shards. Set it to 16.
+
 ## ⏸ Start here
 
-Dispatch the workflow once it is on `main` (`gh workflow run test-durations`), read the artifact, and turn the table into the ranked worklist here. Step 2 (R1) starts from it.
+Step 1 is measured (above). Next: (a) [REMEDIED 2026-09-24] the workflow fixes (the tapes cached once in the plan job, restore-only in the shards; `max-parallel: 16`); #504 filed for the platform-bound bit gates; (b) step 2 (R1) starts from the worklist: design the generator-keyed reference cache with the user. It is ontology work (what a reference is, what its key is), so it opens as a discussion in this plan, not as code.
