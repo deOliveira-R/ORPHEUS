@@ -61,6 +61,13 @@ Timing is never a gate (ruling R6 of `.claude/plans/vv_suite_layout.md`). This c
   - nothing is committed until a consumer exists; the one candidate is shard balancing, which can read the latest artifact at run time.
 - **R3 (the user, 2026-09-23), a default `-m "not slow"`:** deferred until R1's outcome: *"Let's see what happens with 1. That has an influence on 3."*
 
+## Step 1, built — 2026-09-23 (branch `feature/test-durations-405`)
+
+- `tools/test_durations.py` with `shard` (round-robin over the tracked `tests/gates/**/test_*.py`; `[M]` 548 files into 40 shards, every file exactly once) and `aggregate` (JUnit XML to a table stamped with the runner, plus a Markdown summary of the slowest tests and the hours per tree).
+- `tests/gates/tools/test_test_durations.py`, 6 tests. Node ids are checked against pytest's `--collect-only`; outcomes, including a pytest-timeout, against a synthetic file whose every outcome is known; dealing is checked to be a partition. `[M]` A real repository file (`tests/gates/tools/test_write_guards.py`, 22 tests) reads back identically to `--collect-only`. Two mutations (timeout read as failure; class dropped from the node id) each turn 2 of the 6 red, and the control stays green.
+- `.github/workflows/test-durations.yml`: `workflow_dispatch` with inputs `shards` (40), `marker` (empty, which selects every test: `[M]` `-m ""` collects 58 of 58 in `tests/gates/mc`, against 42 with `-m "not slow"`) and `per_test_timeout` (3000 s); at most 20 shards at once, 355 min per shard; the store cache as in `gates.yml`.
+- Documented in `docs/development/git_workflow.rst`, "Continuous integration".
+
 ## ⏸ Start here
 
-After the face-transmission commit lands: write the measurement workflow (step 1), per R2 (artifact with the runner stamp). Its output becomes the worklist for step 2 (R1).
+Dispatch the workflow once it is on `main` (`gh workflow run test-durations`), read the artifact, and turn the table into the ranked worklist here. Step 2 (R1) starts from it.

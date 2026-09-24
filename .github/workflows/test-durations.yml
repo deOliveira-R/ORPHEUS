@@ -1,0 +1,109 @@
+# Per-test durations of the whole gate tree, the slow tier included, measured
+# in parallel shards (#405, plan .claude/plans/test_runtime_405.md). It is
+# run by hand; nothing here is a gate. Timing is never a gate (ruling R6 of
+# .claude/plans/vv_suite_layout.md), and a failing test does not fail this
+# workflow: its purpose is the table. The table is an artifact, stamped with
+# the runner configuration, because a timing is comparable only between runs
+# on the same configuration (ruling R2 of the #405 plan). The setup mirrors
+# gates.yml, including its cache of the HDF5 cross-section store.
+name: test-durations
+
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: Number of shards the test files are dealt into
+        default: "40"
+      marker:
+        description: 'pytest -m expression; empty runs every test, the slow tier included'
+        default: ""
+      per_test_timeout:
+        description: Seconds before pytest-timeout stops one test and records it as a timeout
+        default: "3000"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.deal.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Deal the gate files into shards
+        id: deal
+        run: echo "matrix=$(python tools/test_durations.py shard --shards ${{ inputs.shards }})" >> "$GITHUB_OUTPUT"
+
+  shard:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install into .venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e '.[dev]'
+      - name: The HDF5 cross-section store, cached as in gates.yml
+        id: store
+        uses: actions/cache@v4
+        with:
+          path: orpheus/data/micro_xs/*.h5
+          key: micro-xs-h5-${{ hashFiles('orpheus/data/micro_xs/*.GXS', 'orpheus/data/micro_xs/gendf.py', 'orpheus/data/micro_xs/hdf5_io.py', 'orpheus/data/micro_xs/isotope.py', 'orpheus/data/micro_xs/convert_gxs_to_hdf5.py') }}
+      - name: On a store miss, fetch the tapes from LFS
+        if: steps.store.outputs.cache-hit != 'true'
+        run: git lfs pull --include="orpheus/data/micro_xs/*.GXS"
+      - name: Run the shard serially under -O, one JUnit file per shard
+        env:
+          PYTHONUNBUFFERED: "1"
+          MARKER: ${{ inputs.marker }}
+        run: |
+          mkdir -p junit
+          .venv/bin/python -O -m pytest -p no:cacheprovider -q --color=no \
+            --timeout=${{ inputs.per_test_timeout }} \
+            --junitxml=junit/shard-${{ matrix.shard }}.xml \
+            -m "$MARKER" ${{ matrix.files }} || echo "pytest exit $? (recorded, not a failure of this workflow)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-${{ matrix.shard }}
+          path: junit/
+
+  aggregate:
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install into .venv (the runner stamp reads the package versions)
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e '.[dev]'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: junit-*
+          path: junit
+          merge-multiple: true
+      - name: Merge the JUnit files into the stamped duration table
+        run: |
+          .venv/bin/python tools/test_durations.py aggregate junit --out test_durations.json --summary summary.md --top 60
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-durations
+          path: |
+            test_durations.json
+            summary.md

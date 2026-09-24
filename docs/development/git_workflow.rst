@@ -217,7 +217,24 @@ deterministic half of the project's acceptance, in this order:
 
 The full pytest suite is NOT in CI. It is serial and takes over ninety
 minutes per tier, and it stays the local gate run before a merge (the
-canonical invocation is ``python -O -m pytest``). A bare invocation collects
+canonical invocation is ``python -O -m pytest``).
+
+A second workflow, ``.github/workflows/test-durations.yml`` (landed
+2026-09-23 for #405), measures instead of gating. It runs by hand only
+(``gh workflow run test-durations``, or the Actions tab); it deals every
+tracked ``test_*.py`` under ``tests/gates/`` into shards (40 by default,
+at most 20 running at once) with ``tools/test_durations.py shard``. Each
+shard runs its files serially under ``-O``, the slow tier included unless a
+``-m`` expression is given, with ``pytest-timeout`` stopping any single
+test after 3000 s by default and recording it as a timeout. A final job
+merges the shards' JUnit XML into one per-test duration table
+(``tools/test_durations.py aggregate``), stamped with the runner's
+configuration, and writes the slowest tests to the run's summary page. A
+failing test does not fail this workflow, because its product is the
+table, and timing is never a gate (:ref:`vv-test-suite-layout`). The table
+is an artifact of the run, not a committed file: two tables are comparable
+only when their runner stamps match. The campaign it serves, removing slow
+verification at its source, is ``.claude/plans/test_runtime_405.md``. A bare invocation collects
 ``tests/gates/`` and nothing else, because ``pyproject.toml`` sets
 ``testpaths = ["tests/gates"]``: the pass/fail gates are one regimen under
 ``tests/``, and the measured regimens (performance, validation) have runners
