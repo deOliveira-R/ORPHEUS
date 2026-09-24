@@ -15,7 +15,7 @@ import sys
 
 import pytest
 
-from tools.test_durations import deal, gate_files, read_junit, summary_markdown
+from tools.test_durations import deal, gate_files, read_junit, summary_markdown, tree_of
 
 pytestmark = pytest.mark.foundation
 
@@ -100,3 +100,22 @@ def test_the_summary_lists_the_slowest_first(synthetic_run) -> None:
     rows = [line for line in text.splitlines() if line.startswith("| ") and "`" in line]
     if not rows or "test_sleeps_past_the_timeout" not in rows[0]:
         pytest.fail(f"the slowest case does not head the list:\n{text}")
+
+
+@pytest.mark.parametrize(
+    ("node_id", "tree"),
+    [
+        ("tests/gates/sn/sweep/test_x.py::test_a", "sn"),
+        ("tests/gates/test_layer_imports.py::test_no_forbidden_imports[orpheus/sn/solver.py]", "(root)"),
+        ("tests/gates/test_docstring_xrefs.py::TestK::test_path[tests/gates/sn/x.py]", "(root)"),
+        ("tests/gates/derivations/test_y.py::TestK::test_b[1.0-a/b]", "derivations"),
+    ],
+)
+def test_the_tree_is_read_from_the_path_not_the_parametrize_id(node_id: str, tree: str) -> None:
+    """A parametrize id may contain ``/``; the tree comes from the file path alone.
+
+    `[M]` 2026-09-23, the first CI run: splitting the whole node id on ``/``
+    put three root-level tests in trees named after their parametrize ids.
+    """
+    if tree_of(node_id) != tree:
+        pytest.fail(f"tree_of({node_id!r}) = {tree_of(node_id)!r}, expected {tree!r}")

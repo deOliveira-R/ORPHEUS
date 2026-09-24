@@ -124,13 +124,22 @@ def runner_stamp() -> dict[str, str]:
     }
 
 
+def tree_of(node_id: str) -> str:
+    """The first directory under ``tests/gates/`` of a node id's file, or ``(root)``.
+
+    Only the path part is read (before the first ``::``): a parametrize id
+    may itself contain ``/``.
+    """
+    path = pathlib.PurePosixPath(node_id.split("::", 1)[0])
+    parts = path.relative_to(GATES).parts
+    return parts[0] if len(parts) > 1 else "(root)"
+
+
 def summary_markdown(cases: list[CaseTiming], top: int) -> str:
     """The slowest ``top`` cases, and the time per tree, as Markdown."""
     by_tree: dict[str, float] = {}
     for c in cases:
-        parts = c.node_id.split("/")
-        tree = parts[2] if len(parts) > 3 else "(root)"
-        by_tree[tree] = by_tree.get(tree, 0.0) + c.seconds
+        by_tree[tree_of(c.node_id)] = by_tree.get(tree_of(c.node_id), 0.0) + c.seconds
     lines = [f"## Test durations: {len(cases)} cases, {sum(c.seconds for c in cases) / 3600:.2f} h serial", ""]
     lines += ["| tree | hours |", "|---|---|"]
     lines += [f"| {t} | {s / 3600:.2f} |" for t, s in sorted(by_tree.items(), key=lambda kv: -kv[1])]
