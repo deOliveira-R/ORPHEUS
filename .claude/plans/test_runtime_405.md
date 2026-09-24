@@ -97,6 +97,11 @@ The runner stamp, as recorded in the artifact `test-durations`: ubuntu24, image 
   2. **About 50 are bit-identity and snapshot gates that pin values captured on the development Mac** (arm64, Accelerate): `test_byte_stability` (homogeneous k_inf, 1 ULP), `test_walk_matvec_baselines` (1 ULP bound, up to 768 read), `test_bc_extraction_*` (5 ULP bound, up to 128 read), `test_streaming_operator` T4b snapshots (256 ULP bound, up to 512 read), `test_affine_carve_baseline`, `test_quadrature_fold` (`==` against 4π), and others. On the x86 runner they differ by 1 to 768 ULP. Bit identity is a platform property as well as an implementation one, so these gates are red on any machine but one. Filed as an issue (below).
 - **The runner concurrency:** `max-parallel: 20` took every job slot the account has `[R]` (20 on the free plan), so the `gates` run for `62020ba5` queued behind the shards. Set it to 16.
 
-## ⏸ Start here
+## ⏸ COMPACTION POINT — 2026-09-24
 
-Step 1 is measured (above). Next: (a) [REMEDIED 2026-09-24] the workflow fixes (the tapes cached once in the plan job, restore-only in the shards; `max-parallel: 16`); #504 filed for the platform-bound bit gates; (b) step 2 (R1) starts from the worklist: design the generator-keyed reference cache with the user. It is ontology work (what a reference is, what its key is), so it opens as a discussion in this plan, not as code.
+Step 1 (the measurement) is done and its fixes are merged (`62020ba5`, `dc5b2ad2`, `e746655f`, `668703f2`; `main` green at `668703f2`). Step 2, the heart of R1, is its own living plan: `.claude/plans/reference_cache.md`. Resume there, with its eight questions, after regrounding. Still open here:
+- ruling R2's proposal, the table as a stamped artifact with the worklist kept in this plan (not yet ruled);
+- R3, the default `-m "not slow"`, deferred until R1's outcome;
+- #504, the platform-bound bit gates.
+
+The durations workflow can be re-run at any time with `gh workflow run test-durations`; re-run it after step 2 lands, to measure the gain on the same runner stamp.
