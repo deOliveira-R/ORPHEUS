@@ -8358,8 +8358,7 @@ older entries classify against.
 .. error-entry:: ERR-088
    :title: The first face-transmission algebra of record built its step "control" with diamond's weights, so its step transmission was 2/(2+τ) at d = 1 instead of 1/(1+τ) — a proof about a matrix that is not step, while the page beside it stated step correctly
 
-   **Status:** ✅ **FIXED 2026-09-23** on the branch
-   ``feature/face-transmission-aor``, by retirement.  The module
+   **Status:** ✅ **FIXED 2026-09-23** at ``8ff942f9``, by retirement.  The module
    ``derivations/sn_dd_face_transmission.py`` is deleted, together with
    the repository-root ``derivations/`` it was the last file of.  Its
    successor,

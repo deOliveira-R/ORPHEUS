@@ -42,6 +42,22 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-23
+     - **The octant face transmission becomes an algebra of record** —
+       step, diamond and linear discontinuous as one Petrov–Galerkin
+       family (:mod:`orpheus.derivations.discrete.sn.face_transmission`,
+       :ref:`sn-face-transmission`).  A closure is a trial space, a test
+       space, a face space and a weak or strong inflow imposition; its
+       cell reduces by static condensation to a state-space realization
+       whose feedthrough is what strong imposition creates, so diamond's
+       :math:`(d-1)`-fold :math:`-1` is its feedthrough and nothing else.
+       Proved symbolically at :math:`d = 1, 2, 3`: every other eigenvalue
+       of every closure lies strictly inside the unit disk; the 1-D
+       transmissions are the A-stable Padé approximants of
+       :math:`e^{-\tau}` with :math:`R(\infty)` equal to the feedthrough.
+       The predecessor's step control used diamond's weights (ERR-088).
+     - #341, #503
+     - ``8ff942f9``
    * - 2026-09-18
      - **The hub is the Problem, not a mesh** — the S\ :sub:`N` data hub
        is renamed and re-homed, closing the consumers campaign.

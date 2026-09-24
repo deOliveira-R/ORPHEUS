@@ -1,6 +1,6 @@
 # The octant face-transmission map — an algebra of record for diamond, step and linear discontinuous
 
-Opened 2026-09-23. Status: ruled in outline, not started. The ontology of the LD comparison is still being searched (`plan-authoring` §0), so this is a living plan, and the design discussion with the user comes before code.
+Opened 2026-09-23. Status: ⏹ LANDED 2026-09-23 at `8ff942f9` (the carve); the candidates under "Round 2 and close-out" remain open and unruled. The ontology of the LD comparison is still being searched (`plan-authoring` §0), so this is a living plan, and the design discussion with the user comes before code.
 
 ## The instruction (the user, verbatim)
 
@@ -159,6 +159,6 @@ The map is homogeneous of degree 0 in `(h_a, mu_a, Sigma_t)`, so it depends only
   - **Production direction:** a production closure as the value (trial, test, face, imposition), which would add step to production and read the spectrum as `R A^-1 E + D`, the gauge's (#344) property. Related to #158; needs the user's ruling. #503, production LD's interior axis at d = 3, is filed.
 - **Found in passing:** three `:math:` roles nested inside bold in `discretization.rst` rendered raw (lines ~647, ~812, ~878), fixed. The class is tracked in #422, #424 and #379.
 
-## ⏸ COMPACTION POINT — 2026-09-23
+## ⏹ Landed — 2026-09-23
 
-Resume here. Nothing is started. First, read this file and the `algebra-of-record` skill, then `derivations/sn_dd_face_transmission.py`, then `orpheus/derivations/discrete/sn/sweep_acyclicity.py` with its test, as the pattern. Bring questions 1, 3 and 4 to the user before any code (2 is ruled): this is ontology search, and the LD comparison's object is not yet named.
+`8ff942f9`: the algebra of record, the gates, the page section `sn-face-transmission`, and ERR-088. The follow-up commit writes the hash into ERR-088's Status line and the SN history row. The open candidates (lumped LD as a fourth member, the DG(p) ladder as one claim, production closures as Petrov–Galerkin values, related to #158) are recorded above and wait for the user's ruling. #503 tracks production LD's interior axis at d = 3.
