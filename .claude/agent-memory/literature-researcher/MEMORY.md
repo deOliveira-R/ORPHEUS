@@ -100,6 +100,9 @@ decides whether to open it.
 ### Pure-math foundations citations (functional analysis / geometry / linear algebra)
 - [Riesz legs + frame letters verified](math_foundations_citations_riesz_penrose.md) — Kreyszig 3.8-1 p.188 / Def 3.9-1 p.196; Lee p.26; Penrose Thm 1; Moore 26:394-5. ⛔ Christensen AND Casazza-2000 use T=SYNTHESIS, S=TT*; T=analysis is Casazza-Lynch 2016. Springer `page-one` preview trick.
 
+### V&V benchmark anatomy / reference caching
+- [Verification-case anatomy sources](verification_case_anatomy_sources.md) — #405: Oberkampf-Trucano 2007, ICSBEP (Briggs 2003), Ganapol 2008, ANL-7416 3-level IDs, build-system traces; OSTI unreachable from host.
+
 ### Tooling
 - [⭐ Tier 0 is BIGGER — the full NSE run on disk](user_nse_volume_archive.md) — `/Users/rodrigo/Downloads/NSE/Vol_NNN(I)_*.zip`, per-article PDFs. **Grep the `unzip -l` listings before EVER calling an NSE paper not-local**; filenames truncate at ~95 chars so grep an EARLY fragment. Copy→rename→`ocr_literature.py`. Also: ⛔ OpenAlex free-text is blind to `S_N` (supernova collision) — use ISSN-scoped CrossRef + Semantic Scholar `get_citations`.
 - [Zotero failover](reference_zotero_flakiness.md) — dead-server signature = 0 hits on known items + conn-refused on port 23119 → Tier 2. Server down? Read a scratchpad COPY of `zotero.sqlite` with `mode=ro`.

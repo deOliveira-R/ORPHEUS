@@ -46,3 +46,5 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Pyright ignored-package measurement](reference_pyright_ignored_package_measurement.md) — the true error count for an ignored package.
 - [SN k-solve walls + build cadence](sn_k_solve_walls_and_build_cadence.md) — no bit-exact forward wall; one build per outer.
 - [Census predicates: bound reference + traceback](census_predicates_bound_reference_and_activation_traceback.md) — a bound verb reads dead; 3-frame traceback finds the hot client.
+- [Reference producer landscape](reference_producer_landscape.md) — registry mediates ~1 in 9 acquisitions; problem spelled 7 ways.
+- [Peierls Nyström blast set](peierls_nystrom_blast_set.md) — solve vs primitive halves; sole-verifier markers (Q-R2).

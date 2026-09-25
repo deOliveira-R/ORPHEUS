@@ -84,6 +84,9 @@ Open the file for the verdict; the hook only tells you whether to open it.
 ### Knowledge structure (the artefact is a DOCUMENT CORPUS, not mathematics)
 - [harness tiering](harness_knowledge_structure_tiering_frames.md) — a tier is a SHEAF SUPPORT: "restatement vs local instance" is settled by writing the restriction and diffing. Open it before any rule/doc/prompt-corpus brief.
 
+### Verification objects
+- [reference = equation tower](reference_object_equation_tower_frames.md) — a ref answers (spec, approximations); critical search = SECTION of a spec family; tail-decay bound FALSE on free-surface flux [M].
+
 ### Green's-function family / spatial closure / diffusion
 - [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
 - [trajectory foreign frames](trajectory_resolvent_foreign_frames.md) — the foreign-frame sweep behind that family (BIE / spectral / bundle verdicts).
