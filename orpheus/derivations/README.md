@@ -104,10 +104,11 @@ The Richardson-extrapolation reference path was retired in code by
 2026-04. All heterogeneous reference cases now use analytical or
 semi-analytical techniques (Peierls Nyström for CP, Method of
 Manufactured Solutions for SN/MOC, transfer-matrix for diffusion).
-The `common/_richardson_cache.py` utility is retained as a generic
-reference cache; it no longer caches Richardson extrapolations
-specifically. A future cleanup may rename it to
-`common/_reference_cache.py`.
+The `common/_richardson_cache.py` utility and its JSON were deleted
+whole at `91042339` (#290 P6). The one on-disk reference cache today is
+the Sood registry's solver-output cache (`.cache/`); a general,
+content-keyed reference cache is #405 step 2 (plan
+`.claude/plans/reference_cache.md`).
 
 ### Discrete-path placeholders
 

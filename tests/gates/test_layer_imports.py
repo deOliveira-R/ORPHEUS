@@ -73,10 +73,6 @@ FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
 
 WHITELIST: frozenset[tuple[str, str]] = frozenset(
     {
-        # RETIRE_IN_P3_FOLLOWUP — inline-import benchmark cross-check
-        # (derivations/cases/diffusion.py uses the production solver
-        # as a black-box reference inside a function body).
-        ("derivations/continuous/cases/diffusion.py", "diffusion"),
         # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
         # at module level; move to test side or import only L2 primitives.
         ("derivations/continuous/mms/moc.py", "moc"),

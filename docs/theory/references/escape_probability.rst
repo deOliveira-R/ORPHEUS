@@ -73,7 +73,8 @@ Cross-references
 
 - :ref:`theory-collision-probability` — sister method (flat-source
   CP is the production-grade specialisation).
-- :ref:`theory-peierls-nystrom` — production-grade Peierls reference
-  consuming the same kernel families.
+- :ref:`theory-peierls-nystrom` — the Peierls integral-equation
+  reference consuming the same kernel families; its Nyström solver is
+  withdrawn until it reaches research-grade accuracy (#506).
 - ``orpheus.derivations.continuous.escape_probability`` — Python
   package (currently empty; implementation pending).

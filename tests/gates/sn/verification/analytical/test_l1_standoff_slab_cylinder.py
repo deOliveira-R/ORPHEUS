@@ -124,9 +124,11 @@ def _build_cyl_mesh(nx: int) -> tuple[Mesh1D, dict]:
 def _cylinder_k_ref() -> float:
     """trajectory-resolvent Variant α reference for the cylinder MR case.
 
-    Cached at module import via the once-only ``solve_greens_function_cylinder_mr``
-    call — the reference is expensive (~30 s) but identical across every
-    mesh refinement.
+    Not cached: every call re-runs ``solve_greens_function_cylinder_mr``,
+    and the reference dominates this test's cost (1000 to 1300 s on the CI
+    runner, the #405 step-2 census of the ``test-durations`` workflow). The
+    reference cache of #405 step 2 (plan ``reference_cache.md``, phase P4)
+    is where it becomes a cached ``ReferenceSolution``.
     """
     sigma_t, sigma_s, nu_sigma_f, chi = _cyl_xs_2g()
     ref = solve_greens_function_cylinder_mr(

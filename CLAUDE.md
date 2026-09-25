@@ -80,7 +80,7 @@ define it, and imports flow only from more knowledge to less;
 
 | layer | packages | knows |
 |---|---|---|
-| L0 | `derivations/` | symbolic and high-precision references (Branch 1), below L1 |
+| L0 | `derivations/` | symbolic and high-precision references (Branch 1); below L2, may import `numerics/`, `geometry/`, `data/` |
 | L1 | `numerics/` | mathematics only: spaces, measures, quadrature, operators; no neutrons |
 | input | `geometry/`, `data/` | meshes and boundary conditions; nuclear data |
 | L2 | `transport/` | the transport vocabulary every method shares; method-agnostic |

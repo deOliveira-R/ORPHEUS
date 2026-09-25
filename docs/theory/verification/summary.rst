@@ -53,9 +53,12 @@ The evidence map — what each method is verified against
    * - :doc:`collision_probability`
      - Semi-analytical :math:`E_3`/:math:`\mathrm{Ki}_4` eigenvalues
        over the designed 27-case grid ({1, 2, 4} groups × {1, 2, 4}
-       regions × {slab, cylinder, sphere}); the Peierls–Nyström
-       heterogeneous reference (30+ digit Nyström collocation);
-       CP-matrix property gates.
+       regions × {slab, cylinder, sphere}); CP-matrix property gates;
+       the white-boundary infinite-medium closed form (a homogeneous
+       cell with a white boundary is an infinite medium). The
+       Peierls–Nyström heterogeneous reference is withdrawn: it is not
+       yet research grade, and its tests are skipped with that reason
+       until it is (#506).
    * - :doc:`method_of_characteristics`
      - The flat-source analytical eigenvalue; the manufactured
        continuous solution for the pin-cell spatial operator

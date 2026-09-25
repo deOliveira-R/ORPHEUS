@@ -89,7 +89,9 @@ the layers below it):
      - functional analysis, linear algebra, measure theory; no neutrons
      - :mod:`orpheus.numerics`
    * - **L0** references
-     - Branch-1 analytical / SymPy / mpmath references
+     - Branch-1 analytical / SymPy / mpmath references; the one exception
+       to the top-to-bottom order: it may import L1 and the input layer
+       (see the notes below)
      - :mod:`orpheus.derivations`
 
 A few notes the table is too compact to capture:
@@ -100,14 +102,19 @@ A few notes the table is too compact to capture:
   same sense that a function argument is an input — they cross every
   layer boundary but carry no algorithmic knowledge.
 
-* **L0** sits BELOW **L1** in the import hierarchy. The derivations live
-  in :mod:`orpheus.derivations` and ship reference solvers built from
-  SymPy, ``mpmath``, or pure analytical closed forms. They have *less*
-  algorithmic knowledge than the production primitives in
-  :mod:`orpheus.numerics` (a SymPy expression is structurally simpler
-  than a numpy iteration). Production code that needs a structurally
-  independent reference imports L0 — the L3-uses-L0 pattern is
-  documented in :doc:`/theory/verification/index`.
+* **L0** sits below **L2**, beside **L1** and the input layer, not below
+  **L1**. The linter forbids :mod:`orpheus.derivations` exactly the set it
+  forbids :mod:`orpheus.numerics`, :mod:`orpheus.geometry` and
+  :mod:`orpheus.data`: :mod:`orpheus.transport` and every L3 package. So a
+  reference may use the mathematics layer and describe its problem in
+  input-layer vocabulary (a geometry, a ``Mixture``, a boundary
+  condition), and it may never name a transport object such as
+  ``MaterialMesh``; lifting a reference's problem to a method's problem is
+  a production verb at L2 and above. The derivations ship reference
+  solvers built from SymPy, ``mpmath``, or pure analytical closed forms.
+  Production code that needs a structurally independent reference
+  imports L0; the L3-uses-L0 pattern is documented in
+  :doc:`/theory/verification/index`.
 
 * **L4** is permissible to import everything. It is the only layer
   where wiring a run can pull in transport types, method-specific
@@ -274,7 +281,7 @@ The forbidden-edge dictionary is:
        "pn":         L3_PACKAGES - {"pn"},
        # ... etc for every L3 package ...
 
-       # L0 (derivations) sits below L1.
+       # L0 (derivations) imports L1 + inputs only, as the input layers do.
        "derivations": L2_PACKAGES | L3_PACKAGES,
    }
 
