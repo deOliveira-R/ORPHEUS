@@ -189,6 +189,10 @@ only the ORPHEUS mechanisms they do not name.
   launches when the call is killed at its timeout, while `pgrep -f <script>`
   then matches the dead shell's own heredoc and prints RUNNING — launch long
   jobs with `run_in_background: true` and ONE command. → `L63h`, `L68f`, `L80h`
+- **⛔ A rebinding probe (identity-keyed monkeypatch of a symbol set) is undone by any `importlib.reload`
+  in the session and cannot see a subprocess** — key the install by (module, name) and re-install per
+  test, attribute subprocess workers by reading, and prefer a CALL-time lock inside the target for
+  anything permanent. → `L94`
 - **⚠ After adding a field to a type, grep the tests for REFLECTION walkers**
   (`vars(`, `asdict`, `fields(`) — a walker over arbitrary objects sweeps the
   new field's arrays into an unrelated count and reddens for the wrong reason.
@@ -272,6 +276,9 @@ shelf life — check it against a concrete row before trusting a green.
   SITE hides on the branch where the producer does not exist — a Pattern-2 twin
   one label typo apart. Parametrize the gate over the BRANCH and make the other
   arm assert the OPPOSITE claim. → `L65d`, `L66d`
+- **CP `P_inf` row-sum gates are tautological under white** (the fill adds exactly the missing mass);
+  a homogeneous white cell is gated by per-group FLATNESS, never k alone (k is Mode-12 blind to a
+  one-row `P_cell` defect; 1G k is blind to shape). → `L94`
 - **⛔ Before promoting an observed regularity to an assertion, run it on every
   channel the same code path serves** — the (n,2n) and elastic Legendre moments
   decay monotonically, thermal does NOT. → `L76d`

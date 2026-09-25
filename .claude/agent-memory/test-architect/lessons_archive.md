@@ -11473,3 +11473,26 @@ defining laws" is the obligation; below is how to meet it here.
   ScanMarch / wavefront kernel): the kernel-matrix leg and the sweep leg are NOT redundant, and
   a ScanMarch mutant to w=1 reproduced step's algebra of record to 5.6e-17.
   Spec: session scratchpad `ft_gate_spec.md`.
+
+## L94 — P0 withdrawal spec (#405/#506): a reload undoes a rebinding probe; P_inf row sums are tautological under white (2026-09-25; spec only)
+
+- Dynamic attribution of 493 cases to a 31-symbol withdrawn surface, by a `-p` plugin rebinding every
+  symbol in every `sys.modules` binding to a raising recorder. First run: 10 refusal tests read KEPT
+  because `test_peierls_multigroup.py:572-602` calls `importlib.reload(cases)` mid-session, which resets
+  every module attribute; later tests (and a late in-body import) saw the originals. Fix: key the
+  install by (module, NAME), not object identity, and re-install at `pytest_runtest_setup` (2 re-installs
+  recorded). A subprocess worker (`_run_f4_subprocess`) is invisible to any in-process plugin: attribute
+  it by reading. A run-time lock inside the generator (decorator reading an env var at CALL time) is
+  immune to both, which is the argument for putting enforcement there.
+- The "withdrawn surface" must be named as symbols before counting: the static classifier had the two
+  angular-assembly drivers in it, and they drive the KEPT escape primitives (19 callers) — removing them
+  moved 41 cases and one whole file out of the set.
+- A test-name-level catcher can be a phantom while its sibling, unmarked, is the real catcher: ERR-032's
+  marked class never calls the white-BC function; the unmarked Wigner–Seitz class reds 4/4 under the arm.
+  Run the documented-defect arm over the WHOLE module, not only the marked rows.
+- CP `P_inf` row-sum gates are tautological: the white fill `P_out ⊗ P_in/(1−P_inout)` adds exactly the
+  missing row mass, so `rowsum(P_inf) = 1` by construction whatever `P_cell` is (unless the clamp bites).
+  The discriminating functional for a homogeneous white cell is spatial FLATNESS (reciprocity + conservation
+  per row); k is blind to a one-row P_cell defect (Mode 12, measured 1e-15 vs 4.5e-4 on flatness), and 1G k
+  is blind to the shape entirely. The flat-flux check found #509 (sphere, R ≥ 5 MFP).
+  Spec: `.claude/plans/reference_p0_spec.md`; probes `scratch/reference_architecture/p0probe/`.

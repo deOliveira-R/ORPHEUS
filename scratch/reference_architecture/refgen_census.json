@@ -1,0 +1,4431 @@
+[
+ {
+  "file": "tests/gates/cp/test_cylinder.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 2,
+  "hand": 2,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_cylinder_pss.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_diagnostics.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 5,
+  "hand": 4,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_peierls_cylinder_flux.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.peierls_nystrom.cylinder",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_peierls_flux.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_peierls_sphere_flux.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_properties.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_slab.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 2,
+  "hand": 2,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_sphere.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 2,
+  "hand": 2,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_sphere_pss.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/cp/test_verification.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 21,
+  "feed": 11,
+  "hand": 37,
+  "test": true,
+  "tree": "cp",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/cross_method/adapters.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 19,
+  "hand": 0,
+  "test": false,
+  "tree": "cross_method",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab",
+   "orpheus.derivations.continuous.fn_method.sphere",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab"
+  ]
+ },
+ {
+  "file": "tests/gates/cross_method/cases.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 9,
+  "test": false,
+  "tree": "cross_method",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/cross_method/test_convergence.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "cross_method",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/cross_method/test_eigenvalue.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 1,
+  "hand": 4,
+  "test": true,
+  "tree": "cross_method",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/cross_method/test_polymorphism.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 7,
+  "hand": 0,
+  "test": true,
+  "tree": "cross_method",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.moment_space",
+   "orpheus.derivations.continuous.trajectory_resolvent"
+  ]
+ },
+ {
+  "file": "tests/gates/data/test_group_permutation_invariance.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 10,
+  "test": true,
+  "tree": "data",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/data/test_materials.py",
+  "cls": "c",
+  "xs_only": true,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "data",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/data/test_mixture_identity_anchors.py",
+  "cls": "c",
+  "xs_only": true,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "data",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/data/test_mixture_transport_xs.py",
+  "cls": "c",
+  "xs_only": true,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "data",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/data/test_mixture_xs_balance.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 5,
+  "test": true,
+  "tree": "data",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.analytical.homogeneous",
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.sood_registry.atalay1997"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_adjoint_spectrum_reference.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_atkinson_product_nystrom.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.peierls_atkinson_nystrom",
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_capability_matrices.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_carlvik_galerkin_slab.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.galerkin_spectral.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_carlvik_galerkin_sood_registry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.galerkin_spectral.slab",
+   "orpheus.derivations.continuous.galerkin_spectral.sphere",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_carlvik_galerkin_sphere.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.galerkin_spectral.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_carlvik_galerkin_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.galerkin_spectral.origins.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_carlvik_galerkin_xverif_fn.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab.one_group",
+   "orpheus.derivations.continuous.fn_method.sphere.one_group",
+   "orpheus.derivations.continuous.galerkin_spectral.slab",
+   "orpheus.derivations.continuous.galerkin_spectral.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_slab.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.core.half_range",
+   "orpheus.derivations.continuous.singular_eigenfunction.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_slab_sphere_parity_flip.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.core.dispersion",
+   "orpheus.derivations.continuous.singular_eigenfunction.core.half_range"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_sphere.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.core.half_range",
+   "orpheus.derivations.continuous.singular_eigenfunction.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.origins.slab_sphere_derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_x_function.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.core.half_range",
+   "orpheus.derivations.continuous.singular_eigenfunction.slab.one_group"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_case_method_z0.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction.core.dispersion",
+   "orpheus.derivations.continuous.singular_eigenfunction.core.extrapolated_endpoint",
+   "orpheus.derivations.continuous.singular_eigenfunction.core.half_range"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_continuous_registry_lazy.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.continuous.peierls_nystrom"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_cp_geometry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp",
+   "orpheus.derivations.continuous.flat_source_cp.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_dsa_production_tie.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_dsa_rules.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_kinf.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 66,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.fn_method.multi_group",
+   "orpheus.derivations.continuous.fn_method.origins",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_slab.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.core",
+   "orpheus.derivations.continuous.fn_method.origins.fn_slab_derivations",
+   "orpheus.derivations.continuous.fn_method.slab",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_slab_flux.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_slab_flux_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.origins.fn_flux_reconstruction_derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_slab_reflected.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.origins.fn_slab_reflected_derivations",
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_slab_xverif.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab",
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_sphere.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.core.fn_matrix",
+   "orpheus.derivations.continuous.fn_method.origins.fn_sphere_derivations",
+   "orpheus.derivations.continuous.fn_method.sphere",
+   "orpheus.derivations.continuous.fn_method.sphere.one_group",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_sphere_flux.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.sphere",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_la13511_sphere_xverif.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 6,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.sphere",
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_method_moment_space.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.solution_types",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.fn_method.moment_space",
+   "orpheus.derivations.continuous.fn_method.multi_group.k_inf",
+   "orpheus.derivations.continuous.fn_method.slab",
+   "orpheus.derivations.continuous.fn_method.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_projection_vs_kll_flux.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.origins.fn_projection_flux_derivations",
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_fn_sood_table10_symmetric_pu_h2o.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_galerkin_spectral_basis_space.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 11,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.solution_types",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.galerkin_spectral",
+   "orpheus.derivations.continuous.galerkin_spectral.slab",
+   "orpheus.derivations.continuous.galerkin_spectral.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_homogenization_rules.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_kernels.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_la13511_to_geometry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 13,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.sood_registry.atalay1997",
+   "orpheus.derivations.continuous.sood_registry.la13511"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_path_ai_legacy_plain_gl_signature.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_assembly_drivers.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.quadrature_recipes",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_closure_operator.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_convergence.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 1,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.peierls_nystrom.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_eigenvalue.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_geometry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.common.shifted_legendre",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_knyazev"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_multi_region.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.cylinder",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_prefactor.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.cylinder",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_cylinder_white_bc.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp",
+   "orpheus.derivations.continuous.peierls_nystrom",
+   "orpheus.derivations.continuous.peierls_nystrom.cylinder",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_fission_source_indexing.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_geometry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_annulus_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_annulus",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_annulus_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_garcia2021.py",
+  "cls": "d",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_hollow_sphere_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_hollow_sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_hollow_sphere_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_mg.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_mr.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_asymmetric"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_slab_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.slab",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_solver.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_vacuum.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_xverif.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.ps1982_reference",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_multigroup.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp.slab",
+   "orpheus.derivations.continuous.peierls_nystrom",
+   "orpheus.derivations.continuous.peierls_nystrom.cases",
+   "orpheus.derivations.continuous.peierls_nystrom.cylinder",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.slab",
+   "orpheus.derivations.continuous.peierls_nystrom.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_nystrom_verification.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_rank2_bc.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.slab"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_rank_n_bc.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.flat_source_cp",
+   "orpheus.derivations.continuous.flat_source_cp.sphere",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_rank_n_conservation.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_rank_n_primitives.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_reference.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.reference"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_reference_naming.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.cases",
+   "orpheus.derivations.continuous.peierls_nystrom.naming",
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_slab_legacy_aggregate.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_specular_bc.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.peierls_nystrom.geometry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_specular_slab_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_specular_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.origins.specular"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_sphere_eigenvalue.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_sphere_geometry.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_sphere_prefactor.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom.geometry",
+   "orpheus.derivations.continuous.peierls_nystrom.sphere"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_sphere_white_bc.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.peierls_nystrom"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_peierls_variant_alpha_core.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_quadrature.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.kernels",
+   "orpheus.derivations.common.quadrature",
+   "orpheus.derivations.common.quadrature_recipes"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_singular_eigenfunction_cylinder.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction",
+   "orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_derivations",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_singular_eigenfunction_cylinder_xverif.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.singular_eigenfunction",
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_singular_eigenfunction_spectrum.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 1,
+  "hand": 10,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.solution_types",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.singular_eigenfunction",
+   "orpheus.derivations.continuous.singular_eigenfunction.cylinder.one_group",
+   "orpheus.derivations.continuous.singular_eigenfunction.slab.one_group",
+   "orpheus.derivations.continuous.singular_eigenfunction.sphere.one_group"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 4,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sood_registry_cache.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.sood_registry",
+   "orpheus.derivations.continuous.sood_registry.cache"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sood_registry_compatibility.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 14,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sood_registry_wide_bare_critical.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 5,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.fn_method.slab.one_group",
+   "orpheus.derivations.continuous.fn_method.sphere.one_group",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_sood_registry_wide_kinf.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 47,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.continuous.fn_method.multi_group",
+   "orpheus.derivations.continuous.sood_registry"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_trajectory_resolvent_billiard.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common.solution_types",
+   "orpheus.derivations.continuous.trajectory_resolvent"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_trajectory_resolvent_chord_oracle.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.chord_oracle",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_annulus",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_hollow_sphere",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_asymmetric"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_trajectory_resolvent_power_iterate.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.continuous.trajectory_resolvent.power_iteration"
+  ]
+ },
+ {
+  "file": "tests/gates/derivations/test_xs_library_validation.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "derivations",
+  "dermods": [
+   "orpheus.derivations.common"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_augmented_mesh.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 13,
+  "feed": 1,
+  "hand": 5,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_boundary_realizer.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_continuous_reference.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 17,
+  "hand": 2,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_mms.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_n2n_witness.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 3,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_operators.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_properties.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_sigma_variant_reach.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/diffusion/test_solver.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 9,
+  "test": true,
+  "tree": "diffusion",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_byte_stability.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_continuous_reference.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 6,
+  "hand": 2,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_homogeneous.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 9,
+  "hand": 0,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_homogeneous_outcome.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_homogeneous_problem.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 15,
+  "feed": 1,
+  "hand": 12,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/homogeneous/test_operator_spaces.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "homogeneous",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/mc/test_convergence.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 5,
+  "hand": 0,
+  "test": true,
+  "tree": "mc",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/mc/test_cross_verification.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 3,
+  "hand": 10,
+  "test": true,
+  "tree": "mc",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/mc/test_gaps.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 8,
+  "hand": 7,
+  "test": true,
+  "tree": "mc",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/mc/test_monte_carlo.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 7,
+  "hand": 0,
+  "test": true,
+  "tree": "mc",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/mc/test_properties.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 1,
+  "hand": 16,
+  "test": true,
+  "tree": "mc",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/moc/test_mms.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "moc",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.moc"
+  ]
+ },
+ {
+  "file": "tests/gates/moc/test_moc.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 1,
+  "hand": 2,
+  "test": true,
+  "tree": "moc",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/moc/test_properties.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 2,
+  "hand": 6,
+  "test": true,
+  "tree": "moc",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/moc/test_verification.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 45,
+  "test": true,
+  "tree": "moc",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_axis.py",
+  "cls": "c",
+  "xs_only": true,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_family_convergence_contract.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 6,
+  "hand": 4,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_gauge.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_inverse_metric_operator.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_iteration.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_matrix_inverse_operator.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 1,
+  "hand": 1,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_outcome.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_pencil.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_posing.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/numerics/test_space_of_axes.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 3,
+  "hand": 14,
+  "test": true,
+  "tree": "numerics",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/_fixtures/wave_t_t3/_capture_pre_t3_snapshots.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": false,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 9,
+  "test": false,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/_independent_dd_sweep.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": false,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/_singular_loss_box.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 3,
+  "test": false,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/acceleration/test_dsa_acceleration.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/acceleration/test_dsa_low_order.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/acceleration/test_dsa_rate.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 16,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/angular/test_redistribution.py",
+  "cls": "d",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/architecture/test_monomorphic_leaves.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/architecture/test_step2_terminal_object_anchors.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/architecture/test_step3_solution_anchors.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/eigenvalue/test_heterogeneous_transport.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 4,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/eigenvalue/test_keff_2d.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 20,
+  "feed": 9,
+  "hand": 17,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/eigenvalue/test_keff_curvilinear.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 24,
+  "feed": 5,
+  "hand": 36,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/eigenvalue/test_keff_estimator_gate.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 13,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/eigenvalue/test_keff_slab.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 3,
+  "hand": 14,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/mesh/test_problem_identity_anchors.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 11,
+  "feed": 0,
+  "hand": 9,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/mesh/test_reflective_axis_pairs.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/mesh/test_sigma_datum.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 2,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_apply_full_field_codomain.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 4,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.analytical.homogeneous"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_bc_extraction_2d.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_boundary_conditions.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 10,
+  "feed": 1,
+  "hand": 20,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_declared_law_is_linear.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_fission_adjoint.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_fission_adjoint_route.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_fission_kernel_crosscheck.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_fission_operator.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_frame_conjugate_carve.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_g_adjoint_reciprocity.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 9,
+  "feed": 0,
+  "hand": 26,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_green_operator_sn.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_isotropic_fission.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 1,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_loss_kernel_gauge.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_loss_transpose_solve.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 20,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_moment_domain_binding.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_psi_half_coupling.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 19,
+  "feed": 0,
+  "hand": 29,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_radial_characteristic_cylinder_arm.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_radial_characteristic_metric.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_ray_operator.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_scattering_adjoint.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_scattering_kernel_crosscheck.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_scattering_operator.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 9,
+  "feed": 0,
+  "hand": 13,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_solver_components.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 1,
+  "hand": 14,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_space_content_witnesses.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 10,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_step2_posed_fission_anchors.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_streaming_operator.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 18,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_sweep_inverse_identity.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/operators/test_typed_residual_evaluation.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 8,
+  "feed": 0,
+  "hand": 19,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/primitives/test_axis_native_construction.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 17,
+  "feed": 0,
+  "hand": 18,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/primitives/test_axis_primitive.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 37,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/primitives/test_harmonic_moment_flux.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 14,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/primitives/test_properties.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 2,
+  "hand": 10,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/primitives/test_quadrature.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 18,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.discrete.sn.angular_differencing"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/regression/_generate_snapshots.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 52,
+  "test": false,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_2d_anisotropic_windowing.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_affine_carve_bit_identity.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_convergence_contract.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 10,
+  "feed": 0,
+  "hand": 16,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_coupled_solve_certificate.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_d3_admission.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 7,
+  "feed": 1,
+  "hand": 9,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 11,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 17,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_every_entry_gauges_its_trace.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 13,
+  "feed": 0,
+  "hand": 9,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_fixed_source_2d_equivalence.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_gauss_seidel_reification.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 5,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_krylov_restart_signature.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_reflective_si_iteration_budget.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_scan_march_end_to_end.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 1,
+  "hand": 10,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_si_single_primitive_contract.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_sn_adjoint_certification.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 16,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_sn_adjoint_entries.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 8,
+  "feed": 0,
+  "hand": 10,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/solve/test_subcritical_multiplying_source.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_2d_l2_face_view_unit_source.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_2d_l2_matvec_correctness.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 7,
+  "feed": 0,
+  "hand": 13,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 12,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_discrete_ordinates_2d.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_cache.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 10,
+  "feed": 0,
+  "hand": 28,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 18,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_ordinate_scan_reset.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_phase_c_gates.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 9,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_sweep_ng2_layout_guard.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_sweep_regression.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 11,
+  "feed": 0,
+  "hand": 26,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_sweep_schedule_nd.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 11,
+  "feed": 0,
+  "hand": 28,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_alpha_defect_normalization.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_angular_beta_identity.py",
+  "cls": "d",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.discrete.sn.angular_differencing"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_angular_endpoint_defect.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 9,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_cyl_sweep_regression.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 8,
+  "feed": 0,
+  "hand": 10,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_sph_sweep_regression.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 10,
+  "feed": 3,
+  "hand": 13,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 12,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_unified_matvec_cylinder.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/slab/test_dd_recurrence.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.discrete.sn.balance"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/slab/test_unified_matvec_slab.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 6,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/test_assembly_mode.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 7,
+  "feed": 0,
+  "hand": 23,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/sweep/test_sweep_acyclicity.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.discrete.sn.sweep_acyclicity"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/test_condensation.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/test_homogenization.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 5,
+  "feed": 0,
+  "hand": 18,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_angular_diffusion_limit_consistency.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_cp_standoff_curvilinear.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_kinf_homogeneous.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 5,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.analytical.homogeneous"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_kinf_homogeneous_tolerance.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 5,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.analytical.homogeneous"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 2,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder",
+   "orpheus.derivations.reference_values"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_mms_declared_inflow.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 10,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function",
+   "orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_prescribed_inflow_consistency.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/analytical/test_si_convergence_rate.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 10,
+  "feed": 4,
+  "hand": 17,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.analytical.homogeneous"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 8,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_curvilinear_operator_admits_anisotropic_mms.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_curvilinear_operator_admits_mms.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 2,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 6,
+  "feed": 12,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py",
+  "cls": "d",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_2d.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 4,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_aniso.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 3,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_curvilinear.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 4,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_heterogeneous.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 9,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations",
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_ld_2d.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 28,
+  "feed": 31,
+  "hand": 5,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_ld_slab.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 13,
+  "feed": 8,
+  "hand": 8,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_mms_ordering_blindness.py",
+  "cls": "a+b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 5,
+  "hand": 2,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/sn/verification/mms/test_space_angle_separability.py",
+  "cls": "a",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 2,
+  "hand": 0,
+  "test": true,
+  "tree": "sn",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/fields/test_scalar_boundary_flux.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 1,
+  "hand": 8,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_face_transmission_symbolic.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 0,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.discrete.sn.face_transmission",
+   "orpheus.derivations.discrete.sn.ld_ubld"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_face_transmission_xverif.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library",
+   "orpheus.derivations.discrete.sn.face_transmission"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_ld_slope_frame.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_ld_ubld_primitive.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.discrete.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_ld_ubld_symbolic.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 2,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.discrete.sn.ld_ubld"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/spatial/test_moment_axis_predicates.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 5,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.continuous.mms.sn"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_angular_lift.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_bulk_lift.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_composite.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 1,
+  "feed": 0,
+  "hand": 3,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_integral_kernel_category.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 2,
+  "feed": 0,
+  "hand": 4,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_integrated_reaction_rate.py",
+  "cls": "b",
+  "xs_only": false,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 0,
+  "hand": 7,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_kernels.py",
+  "cls": "b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 4,
+  "feed": 0,
+  "hand": 14,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_method.py",
+  "cls": "a+b",
+  "xs_only": true,
+  "prod_imp": true,
+  "prod_call": 3,
+  "feed": 1,
+  "hand": 2,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.xs_library"
+  ]
+ },
+ {
+  "file": "tests/gates/transport/test_reaction_rate_functional.py",
+  "cls": "c",
+  "xs_only": false,
+  "prod_imp": false,
+  "prod_call": 0,
+  "feed": 0,
+  "hand": 1,
+  "test": true,
+  "tree": "transport",
+  "dermods": [
+   "orpheus.derivations.common.eigenvalue",
+   "orpheus.derivations.common.xs_library"
+  ]
+ }
+]

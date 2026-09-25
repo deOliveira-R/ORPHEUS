@@ -1,0 +1,444 @@
+{
+ "tests/gates/cp/test_peierls_cylinder_flux.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestCPvsPeierlsAtThickR (2)",
+   "class TestPeierlsCylinderSelfConvergence (2)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/cp/test_peierls_flux.py": {
+  "withdrawn": 1,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestPeierlsFluxConvergence (1)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/cp/test_peierls_rank_n_protocol.py": {
+  "withdrawn": 12,
+  "kept": 8,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_f4_is_sign_stable_at_its_reference_quadrature (6)",
+   "test_f4_rich_vs_rich_panels_matches_pinned_baseline (6)"
+  ],
+  "kept_units": [
+   "test_protocol_catches_unresolved_f4_reference_sign_flip (1)",
+   "test_protocol_requires_at_least_two_quads (1)",
+   "test_protocol_catches_non_beat_any_quad (1)",
+   "test_protocol_catches_unresolved_f4_reference_magnitude_grows (1)",
+   "test_protocol_catches_sign_flip (1)",
+   "test_protocol_trivial_pass_f4_vs_itself_must_fail_beat_check (1)",
+   "test_protocol_trivial_pass_closure_strictly_better (1)",
+   "test_protocol_catches_non_monotone (1)"
+  ]
+ },
+ "tests/gates/cp/test_peierls_sphere_flux.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestPeierlsSphereSelfConvergence (2)",
+   "class TestCPvsPeierlsSphereAtThickR (2)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_continuous_registry_lazy.py": {
+  "withdrawn": 2,
+  "kept": 4,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_builder_keys_match_built_names (1)",
+   "test_lazy_peierls_fetch_builds_requested_ref (1)"
+  ],
+  "kept_units": [
+   "test_builder_keyset_is_the_shipped_class_a_inventory (1)",
+   "test_discovery_publishes_exactly_this_inventory (1)",
+   "test_continuous_all_names_enumerates_peierls_cheaply (1)",
+   "test_sn_fetch_does_not_build_peierls (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_assembly_drivers.py": {
+  "withdrawn": 0,
+  "kept": 9,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [],
+  "kept_units": [
+   "test_per_observer_matches_hand_coded_skeleton_bit_equally (1)",
+   "test_per_surface_centred_matches_hand_coded_skeleton_bit_equally (1)",
+   "test_per_observer_constant_integrand_recovers_angular_range (1)",
+   "test_per_observer_callback_receives_correctly_shaped_args (1)",
+   "test_per_observer_prefactor_scales_linearly (1)",
+   "test_per_observer_angular_range_override (1)",
+   "test_per_surface_centred_callback_receives_correctly_shaped_args (1)",
+   "test_per_surface_centred_phi_range_override (1)",
+   "test_per_surface_centred_constant_integrand_recovers_phi_range (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_closure_operator.py": {
+  "withdrawn": 38,
+  "kept": 10,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_mark_rank1_equals_legacy_build_white_bc_correction (10)",
+   "test_multibounce_geometric_series_is_one_over_one_minus_TR (1)",
+   "test_apply_matches_as_matrix (12)",
+   "test_marshak_matches_build_white_bc_correction_rank_n (6)",
+   "test_closure_rank_matches_reflection_rank (2)",
+   "test_bare_op_has_T_none_and_is_multibounce_false (1)",
+   "test_custom_reflection_matrix_albedo (1)",
+   "test_hebert_special_case_factor_matches_one_over_one_minus_Pss (1)",
+   "test_multibounce_apply_matches_as_matrix (1)",
+   "test_T_shape_validation (1)",
+   "test_multibounce_T_zero_collapses_to_bare (1)",
+   "test_factored_storage_scales_as_NrN (1)"
+  ],
+  "kept_units": [
+   "test_reflection_specular_satisfies_partial_current_contract (5)",
+   "test_reflection_mark_projects_onto_scalar_mode (1)",
+   "test_reflection_vacuum_is_zero (1)",
+   "test_reflection_specular_rank1_equals_mark (1)",
+   "test_reflection_specular_dense_off_diagonal_at_rank2 (1)",
+   "test_reflection_marshak_has_2nplus1_diagonal (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_convergence.py": {
+  "withdrawn": 5,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestPeierlsSelfConvergence (5)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_cylinder_eigenvalue.py": {
+  "withdrawn": 8,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestVacuumBCQuadratureConvergence (2)",
+   "class TestVacuumBCStability (1)",
+   "class TestVacuumBCThickLimit (3)",
+   "class TestSanchezTiePoint (2)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_cylinder_multi_region.py": {
+  "withdrawn": 2,
+  "kept": 8,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestMultiRegionKernel (2)"
+  ],
+  "kept_units": [
+   "class TestLagrangeBasisOnPanels (3)",
+   "class TestOpticalDepthAlongRay (5)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_cylinder_prefactor.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestRowSumIdentity (3)",
+   "class TestMultiRegionRowSum (1)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_cylinder_white_bc.py": {
+  "withdrawn": 7,
+  "kept": 4,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestWhiteBCEigenvalue (3)",
+   "class TestHebertCylinderInsufficient (4)"
+  ],
+  "kept_units": [
+   "class TestPescProperties (2)",
+   "class TestGbcProperties (2)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_fission_source_indexing.py": {
+  "withdrawn": 3,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_nonfissile_region_chi_does_not_affect_keff (2)",
+   "test_fissile_region_chi_genuinely_affects_keff (1)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_greens_function_slab_solver.py": {
+  "withdrawn": 1,
+  "kept": 13,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_alpha_zero_vacuum_agrees_with_nystrom_slab (1)"
+  ],
+  "kept_units": [
+   "test_alpha_zero_vacuum_produces_leaky_eigenmode (1)",
+   "test_mg_2g_asymmetric_scattering_at_alpha_one_gives_kinf (1)",
+   "test_v_alpha2_slab_T00_equals_2E3_via_production_primitive (5)",
+   "test_v_alpha1_slab_numerical_constant_initial_guess (1)",
+   "test_alpha_zero_convergence_floor (1)",
+   "test_mg_g1_reduces_to_1g_solver (1)",
+   "test_grazing_ray_stability_slab (1)",
+   "test_v_alpha1_slab_numerical_nonuniform_initial_guess (1)",
+   "test_v_alpha1_slab_numerical_two_thicknesses (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_greens_function_xverif.py": {
+  "withdrawn": 2,
+  "kept": 6,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_b5_phase4_rank1_equals_white_hebert (1)",
+   "test_b5_phase4_converges_toward_variant_alpha (1)"
+  ],
+  "kept_units": [
+   "test_v_alpha2_sphere_T00_equals_Pss_via_production_primitives (5)",
+   "test_b5_variant_alpha_gives_k_inf_exactly (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_multigroup.py": {
+  "withdrawn": 24,
+  "kept": 3,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestMG2GHollowRegistration (6)",
+   "class TestMGNg2Sanity (2)",
+   "class TestMGInputValidation (4)",
+   "class TestSlabViaUnifiedDiscrepancyDiagnostic (1)",
+   "class TestSlabMultiRegionVacuumParity (2)",
+   "class TestMGNg1BitMatch1G (7)",
+   "class TestMGSlabPolarMatchesNativeSlabMG (1)",
+   "TestSlabViaUnifiedRoutingInfrastructure::test_unified_builder_produces_valid_reference (1)"
+  ],
+  "kept_units": [
+   "class TestMultiRegionEscapeReduction (1)",
+   "TestSlabViaUnifiedRoutingInfrastructure::test_default_flag_is_unified (1)",
+   "TestSlabViaUnifiedRoutingInfrastructure::test_env_var_forces_native (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_nystrom_verification.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_sphere_GL_K_matches_adaptive_verification (1)",
+   "test_slab_K_matches_adaptive_verification (1)",
+   "test_cylinder_K_matches_adaptive_verification (1)",
+   "test_slab_heterogeneous_matches_adaptive_verification (1)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_rank2_bc.py": {
+  "withdrawn": 30,
+  "kept": 8,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestSlabPolarVsNativeE1KEff (2)",
+   "class TestRank2SolidGeometryReducesToRank1 (4)",
+   "class TestSlabPolarVsCyl1DOpticallyThick (1)",
+   "TestRank2SlabKbcBitExactLegacy::test_Kbc_tensor_matches_legacy_E2E3_bilinear (8)",
+   "TestRank2SlabKEffKInfConvergence::test_rank2_error_converges_monotonically_under_refinement (1)",
+   "TestRank2SlabKEffKInfConvergence::test_hollow_sph_rank2_beats_rank1_mark (3)",
+   "TestRank2SlabKEffKInfConvergence::test_hollow_cyl_rank2_beats_rank1_mark (3)",
+   "TestRank2SlabKEffKInfConvergence::test_rank_n_white_closure_raises_pending_normalisation (1)",
+   "TestRank2SlabKEffKInfConvergence::test_rank2_error_scales_much_smaller_than_rank1 (3)",
+   "TestRank2SlabKEffKInfConvergence::test_solve_peierls_1g_boundary_white_rank2_end_to_end (1)",
+   "TestRank2SlabKEffKInfConvergence::test_hollow_cyl_rank2_partial_current_balance_closes (1)",
+   "TestRank2SlabKEffKInfConvergence::test_solve_peierls_1g_white_rank2_rejects_n_bc_modes_gt_1 (1)",
+   "TestRank2SlabKEffKInfConvergence::test_solve_peierls_1g_hollow_sph_white_rank2_inner_radius_plumbing (1)"
+  ],
+  "kept_units": [
+   "TestRank2SlabKEffKInfConvergence::test_sphere_marshak_mode0_smaller_than_lambert_mode0 (1)",
+   "TestRank2SlabKEffKInfConvergence::test_hollow_sph_transmission_zero_absorption_conservation (1)",
+   "TestRank2SlabKEffKInfConvergence::test_rank_n_sph_transmission_N1_matches_scalar_bit_exact (1)",
+   "TestRank2SlabKEffKInfConvergence::test_sphere_marshak_G_equals_4x_P_sigt_zero (1)",
+   "TestRank2SlabKEffKInfConvergence::test_sphere_mode_primitives_match_scalar_at_mode_0 (1)",
+   "TestRank2SlabKbcBitExactLegacy::test_R_matrix_matches_closed_form_2T_over_1_minus_T2 (1)",
+   "TestRank2SlabKEffKInfConvergence::test_rank_n_sph_transmission_reciprocity_transposed_modes (1)",
+   "TestRank2SlabKEffKInfConvergence::test_hollow_cyl_transmission_zero_absorption_conservation (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_rank_n_bc.py": {
+  "withdrawn": 30,
+  "kept": 44,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_rank_n_reciprocity_per_mode (2)",
+   "test_rank2_improves_over_rank1 (6)",
+   "test_rank_n_row_sum_improves_thin_cell_cylinder (1)",
+   "test_rank1_bit_exact_recovery (10)",
+   "test_rank_n_thick_cell_unchanged (6)",
+   "test_rank_n_cross_mode_diagonal (4)",
+   "test_rank_n_sphere_thin_cell_convergence (1)"
+  ],
+  "kept_units": [
+   "test_shifted_legendre_orthonormality (25)",
+   "test_shifted_legendre_known_values (18)",
+   "test_rank_n_angular_moment_exactness (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py": {
+  "withdrawn": 30,
+  "kept": 1,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_class_b_1g_1r_reproduces_published_table (6)",
+   "test_class_b_mr_catastrophe_sphere_1g_2r_rank2 (1)",
+   "test_class_b_cylinder_hebert_recovers_kinf (2)",
+   "test_class_b_sphere_hebert_recovers_kinf_rich (3)",
+   "test_class_b_mr_routing_invariance_uniform_sigma (6)",
+   "test_class_b_sphere_hebert_recovers_kinf (3)",
+   "test_class_b_sphere_hebert_chi_dependence (3)",
+   "test_class_b_2g_2r_rank1_mark_floor_pinned (2)",
+   "test_class_b_mr_catastrophe_cylinder_1g_2r_rank2 (1)",
+   "test_class_b_cylinder_hebert_heterogeneous_overshoot_known (2)",
+   "test_class_b_sphere_hebert_heterogeneous_overshoot_known (1)"
+  ],
+  "kept_units": [
+   "test_class_b_hebert_raises_for_slab (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_rank_n_conservation.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "test_rank1_conservation_defect_is_small (2)",
+   "test_rank_n_conservation_improves (2)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_reference.py": {
+  "withdrawn": 30,
+  "kept": 66,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestSphereKernelRowSum (3)",
+   "class TestSlabKMatrixElementwiseVsReference (6)",
+   "class TestSlabKernelRowSum (4)",
+   "class TestSlabKbcStructure (5)",
+   "class TestSphereKMatrixElementwise (6)",
+   "class TestCylinderKernelRowSum (3)",
+   "class TestSlabPolarReferenceEquivalence (1)",
+   "class TestSlabPolarBuildVolumeKernel (2)"
+  ],
+  "kept_units": [
+   "class TestSlabRankNNotImplementedGuard (2)",
+   "class TestSlabGbcPerFace (8)",
+   "class TestSlabGbcClosedForm (3)",
+   "class TestSolidCylSphInnerZeroSentinel (16)",
+   "class TestSpherePescClosedForm (15)",
+   "class TestHollowCylSphPerFacePositivityAndRegimeB (6)",
+   "class TestSlabWhiteBCInfiniteMediumIdentity (4)",
+   "class TestSlabPescPerFace (9)",
+   "class TestSlabPescClosedForm (3)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_reference_naming.py": {
+  "withdrawn": 10,
+  "kept": 13,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestTheRatioLawIsEnforcedAtTheBOUNDARY (10)"
+  ],
+  "kept_units": [
+   "class TestTheShippedGridIsTheTree (3)",
+   "class TestTheNameIsAFunctionOfIdentityAlone (10)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_specular_bc.py": {
+  "withdrawn": 26,
+  "kept": 1,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestSpecularMultibounceOvershootCharacterization (3)",
+   "test_specular_multibounce_slab_monotonic_high_N (1)",
+   "test_specular_heterogeneous_1G2R_converges (3)",
+   "test_specular_rank1_sphere_equals_mark_kinf (1)",
+   "test_specular_2G_homogeneous_converges_to_kinf_2G (3)",
+   "test_specular_heterogeneous_2G2R_converges (3)",
+   "test_specular_multibounce_thin_sphere_lifts_plateau (1)",
+   "test_specular_multibounce_cyl_warns_at_high_N (1)",
+   "test_specular_sphere_homogeneous_converges_to_kinf (1)",
+   "test_specular_multibounce_cyl_rank1_equals_hebert (1)",
+   "test_slab_mark_decomposes_into_four_per_face_blocks (1)",
+   "test_specular_multibounce_rank1_equals_hebert (1)",
+   "test_specular_multibounce_slab_rank1_lifts_plateau (1)",
+   "test_specular_multibounce_warns_at_high_N (1)",
+   "test_specular_multibounce_cyl_lifts_thin_plateau (1)",
+   "test_specular_slab_homogeneous_converges_to_kinf (1)",
+   "test_specular_cylinder_homogeneous_converges_to_kinf (1)",
+   "test_specular_slab_rank1_equals_mark_kinf (1)"
+  ],
+  "kept_units": [
+   "test_specular_multibounce_slab_rank1_equals_2E3_identity (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_sphere_eigenvalue.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestVacuumBCThickLimit (2)",
+   "class TestWhiteBCThickLimit (1)",
+   "class TestQuadratureConvergence (1)"
+  ],
+  "kept_units": []
+ },
+ "tests/gates/derivations/test_peierls_sphere_prefactor.py": {
+  "withdrawn": 5,
+  "kept": 1,
+  "placement": "PER-TEST",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestSphereWhiteBCRowSum (2)",
+   "class TestSphereRowSumIdentity (3)"
+  ],
+  "kept_units": [
+   "class TestSphereGBCVacuumLimit (1)"
+  ]
+ },
+ "tests/gates/derivations/test_peierls_sphere_white_bc.py": {
+  "withdrawn": 4,
+  "kept": 0,
+  "placement": "FILE",
+  "mixed_functions": [],
+  "withdrawn_units": [
+   "class TestWhiteBCRank1ErrorScan (4)"
+  ],
+  "kept_units": []
+ }
+}

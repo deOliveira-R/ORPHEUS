@@ -29,9 +29,45 @@ Sizes are `[R]` estimates in sessions, sizing only. Each phase lands green on `m
 
 Compaction points: after P2 and after P4 (plan-authoring §6), each with the phase-to-commit table, the superseding corrections, the red baseline with gate costs, and the durable lessons.
 
+## Ruled polished (2026-09-25); P0 preparation
+
+The user, 2026-09-25: "The plan is polished. Make all preparations for implementation then prepare for compaction before we start." Implementation is authorised, phase by phase, in the order of "The phases, revised after the W5 review".
+
+**The P0 withdrawal set, recounted `[M]` 2026-09-25** (the explorer's classifier `cls.py`, re-run with `solve_ps1982_vacuum_sphere` removed from its solver-symbol pattern, over the 44 files under `tests/` that name `peierls_nystrom` or a Peierls registry case; plus `cp/test_peierls_rank_n_protocol.py`, which reaches `solve_peierls_1g` through a subprocess worker the static classifier cannot see, `:568-582`). Result: 27 files; the only change from the explorer's 28 is `derivations/test_peierls_greens_function_xverif_ps1982.py`, which moves to primitive-only and keeps running. Population note (X2): the classifier's own tree gives 27 static solver files before the exclusion, the explorer's 28 counted `rank_n_protocol` by hand.
+
+  - `tests/gates/cp/test_peierls_cylinder_flux.py`
+  - `tests/gates/cp/test_peierls_flux.py`
+  - `tests/gates/cp/test_peierls_rank_n_protocol.py`
+  - `tests/gates/cp/test_peierls_sphere_flux.py`
+  - `tests/gates/derivations/test_continuous_registry_lazy.py`
+  - `tests/gates/derivations/test_peierls_assembly_drivers.py`
+  - `tests/gates/derivations/test_peierls_closure_operator.py`
+  - `tests/gates/derivations/test_peierls_convergence.py`
+  - `tests/gates/derivations/test_peierls_cylinder_eigenvalue.py`
+  - `tests/gates/derivations/test_peierls_cylinder_multi_region.py`
+  - `tests/gates/derivations/test_peierls_cylinder_prefactor.py`
+  - `tests/gates/derivations/test_peierls_cylinder_white_bc.py`
+  - `tests/gates/derivations/test_peierls_fission_source_indexing.py`
+  - `tests/gates/derivations/test_peierls_greens_function_slab_solver.py`
+  - `tests/gates/derivations/test_peierls_greens_function_xverif.py`
+  - `tests/gates/derivations/test_peierls_multigroup.py`
+  - `tests/gates/derivations/test_peierls_nystrom_verification.py`
+  - `tests/gates/derivations/test_peierls_rank2_bc.py`
+  - `tests/gates/derivations/test_peierls_rank_n_bc.py`
+  - `tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py`
+  - `tests/gates/derivations/test_peierls_rank_n_conservation.py`
+  - `tests/gates/derivations/test_peierls_reference.py`
+  - `tests/gates/derivations/test_peierls_reference_naming.py`
+  - `tests/gates/derivations/test_peierls_specular_bc.py`
+  - `tests/gates/derivations/test_peierls_sphere_eigenvalue.py`
+  - `tests/gates/derivations/test_peierls_sphere_prefactor.py`
+  - `tests/gates/derivations/test_peierls_sphere_white_bc.py`
+
+**Granularity is per test, not per file `[R]`:** the explorer's per-test attribution (`pertest.py`) found 314 of the 499 cases in these files reaching a solver symbol; the other 185 (among them 4 of the 29 `peierls-equation` carriers) test primitives and keep running. The marker goes on the test functions or classes that reach the solver, or on the file where every test does. The test-architect's P0 specification decides the placement per file.
+
 ## Adversarial review W5, merged (2026-09-24)
 
-Three independent first passes: the cross-domain attacker (mathematical and physical structure; report `attack_cross_domain.md`), the elegance enforcer (software machinery; `attack_elegance.md`, probes `ee_probe1.py`, `ee_probe2.py`), and the main agent's own list written before reading either (`attack_main.md`); all in the session scratchpad. Ranked by rewrite risk; each row says who found it.
+Three independent first passes: the cross-domain attacker (mathematical and physical structure; report `attack_cross_domain.md`), the elegance enforcer (software machinery; `attack_elegance.md`, probes `ee_probe1.py`, `ee_probe2.py`), and the main agent's own list written before reading either (`attack_main.md`); all in `scratch/reference_architecture/`. Ranked by rewrite risk; each row says who found it.
 
 | # | hole | evidence | risk | the change `[HYPOTHESIS]` |
 |---|---|---|---|---|
@@ -96,7 +132,7 @@ Timing is never a gate (R6 of `.claude/plans/vv_suite_layout.md`). This plan cha
   - `orpheus/derivations/_richardson_cache.json`: **retired** `[M]` 2026-09-23. Its producer `_richardson_cache.py` and the JSON were deleted whole at `91042339` (#290 P6, the diffusion island retirement); neither file exists. Two stale surfaces remain: the `.gitignore:9` entry, and `orpheus/derivations/README.md:107`, which says the utility "is retained as a generic reference cache" (present-tense false; fix with this plan's next commit). So the tree has exactly one on-disk reference cache today, the Sood cache.
 - **In-process memoisation** exists in places (`functools.lru_cache` in `derivations/common/shifted_legendre.py`, `flat_source_cp/geometry.py`, `discrete/sn/dsa.py`, and `tests/gates/derivations/test_peierls_rank2_bc.py:976`); it helps within one run only.
 
-## The worklist classified `[M]` 2026-09-23 (explorer; detail in the session scratchpad `worklist_classification.md`, per-test times from the run 35940553034 artifact)
+## The worklist classified `[M]` 2026-09-23 (explorer; detail in `scratch/reference_architecture/` `worklist_classification.md`, per-test times from the run 35940553034 artifact)
 
 Over the 8 slowest files (about 640 of the 901 runner minutes):
 
@@ -126,7 +162,7 @@ Defects found on the way, to fix or file with the next commit:
 
 ## The state of reference generation, measured 2026-09-24 `[M]` at `901f64ca`
 
-Five parallel studies; their reports and re-runnable probe scripts are in the session scratchpad (`refgen_producers.md`, `refgen_consumers.md`, `refgen_nystrom.md`, `refgen_layers.md`, `refgen_literature.md`). The durable summaries are below; the explorer also filed two memory topics (`.claude/agent-memory/explorer/reference_producer_landscape.md`, `peierls_nystrom_blast_set.md`).
+Five parallel studies; their reports and re-runnable probe scripts are in `scratch/reference_architecture/` (`refgen_producers.md`, `refgen_consumers.md`, `refgen_nystrom.md`, `refgen_layers.md`, `refgen_literature.md`). The durable summaries are below; the explorer also filed two memory topics (`.claude/agent-memory/explorer/reference_producer_landscape.md`, `peierls_nystrom_blast_set.md`).
 
 **The producers.**
 - **The registry is the minority path.** Tests reach references through the registry about 100 times (`get` 76, `continuous_get` 22, `continuous_all_names` 4, in 38 files) and call generators directly at about 759 AST call sites (Peierls 230, trajectory resolvent 220, F_N 116, MMS 102, Case 49, Galerkin 26). A cache keyed on the registry alone misses most of the cost.
@@ -264,7 +300,7 @@ The ruled design of discussion 1:
 
 The question: what must change for a cached reference, or a cached qualification, to be stale?
 
-Facts `[M]` 2026-09-24 (a static AST closure over `import` and `from ... import` statements, relative imports resolved, each parent package's `__init__` counted because it executes; script `closure.py` in the session scratchpad; population 353 tracked `orpheus/**/*.py`):
+Facts `[M]` 2026-09-24 (a static AST closure over `import` and `from ... import` statements, relative imports resolved, each parent package's `__init__` counted because it executes; script `closure.py` in `scratch/reference_architecture/`; population 353 tracked `orpheus/**/*.py`):
 
 | generator module | files in its first-party closure | lines | by package |
 |---|---|---|---|
@@ -378,7 +414,7 @@ Proposal `[HYPOTHESIS]`, in the session reply of this date. Sizes are `[R]` esti
 
 The user asked to check GitHub for existing issues before filing any, and to elaborate the solution objects and how comparisons make a certificate valid.
 
-**The issue map** `[M]` 2026-09-24 (`gh issue list --state open --search "<term> in:title,body"` over 20 terms; 308 open issues; raw output `issues_survey.txt` in the session scratchpad; the search matches bodies, so each row below was judged by its title and, for the six marked *read*, its body):
+**The issue map** `[M]` 2026-09-24 (`gh issue list --state open --search "<term> in:title,body"` over 20 terms; 308 open issues; raw output `issues_survey.txt` in `scratch/reference_architecture/`; the search matches bodies, so each row below was judged by its title and, for the six marked *read*, its body):
 - **This campaign:** #405 (the umbrella; this plan is its step 2). #211 (SN suite reference selection, caching, parallelism) is largely subsumed.
 - **Absorbed by the design, to link now and close as each phase lands:** #145 (*read*: a per-reference precision-floor sweep and a right-sizer; it is the `ConvergedLadder` certificate, P2 and P4); #356 (*read*: the Peierls cylinder reference rebuilt 4 times uncached; the cache, and the withdrawal); #465 (*read*: `ProblemSpec`'s optional source plus `is_eigenvalue` flag; ruled: the question is derived from the source, P1); #420 (`ProblemSpec` values outside its literals, P1); #418 (eleven spelling systems in the derivations vocabulary, P1); #305 (Sood cross-checks at published precision, P4's Sood family); #495 (`RegionMesh` "uniform" ULP defect: the fix must survive `RegionMesh`'s retirement, P1); #504 (the platform tag, P3).
 - **Overlapping designs to reconcile, not duplicate:** #219 (*read*: the grand report's `GeometrySpec -> SpatialMesh -> MethodSpace` pipeline; this plan's specification and `geometry.mesh(d)` are its first two layers); #267 (`SNMesh -> MaterialMesh`); #393 (`AxisMesh` declares per-axis geometry: the intervals of P1); #411 (latent gaps in the layer-import contract: P0's whitelist and `layering.rst` fixes); #406 (a save/restore serialisation root: adjacent to the cache payload format); #358 (a red should invalidate its dependent cone: `Invalid` making consumers skip is one instance); #455, #387, #334 (phantom `catches`/`verifies` markers: the withdrawn-test counting of P0).
@@ -468,13 +504,17 @@ The third row is the insight that makes R1 coherent: **a test of the generator i
 
 #405 (the campaign, and its plan `.claude/plans/test_runtime_405.md`); #211 (reference selection, caching and parallelism in the SN suite); #212 (the lazy registry builders); #504 (platform-bound bit gates: a cached reference must not inherit that defect, see question 8); #404 (the pre-existing `phase_e` red).
 
-## ⏸ COMPACTION POINT — 2026-09-25 (supersedes the point of 2026-09-24, kept below)
+## ⏸ COMPACTION POINT — 2026-09-25, before implementation (supersedes the earlier 2026-09-25 point, removed)
 
-State: the design discussion is complete up to the user's "polished" ruling, which has NOT been given. Nothing is built. Read, in order: "The architecture as it stands" (the consolidated nine points, W5 rulings folded in), "The phases, revised after the W5 review" (P0 to P5), then the W5 table and its rulings; the discussions below are the record of why.
+State: the plan is RULED POLISHED (the user, 2026-09-25) and implementation is authorised phase by phase. Nothing is built. `main` is green at the commit that carries this point.
 
-Issues filed or edited from this plan: #505 (Monte Carlo as L4 benchmarking with L3 backing; #21 and #68 closed into it), #506 (the Peierls Nyström withdrawal and its return criterion; umbrella for #100, #101, #103, #105, #109, #111, #112, #115, #116, #117, #123, #128, #129, #132, #140, #142, #143, #144, #255, #419, #499, #500), #507 (the CP flat-source heterogeneous gap), #508 (the derivations package-init breadth); #305 re-scoped (F_N certified against LA-13511, then production against F_N); linking comments on #145, #356, #465, #420, #418, #495, #504, #219, #211, #358, #405.
+Read, in order: "The architecture as it stands" (the consolidated nine points); "Ruled polished (2026-09-25); P0 preparation"; "The phases, revised after the W5 review" (P0 to P5); then P0's verification specification, `.claude/plans/reference_p0_spec.md` (the test-architect, 2026-09-25: the 31 withdrawn symbols, 26 files marked, 294 cases withdrawn and 199 kept, the mechanism, the catalogue and V&V-matrix changes, the ERR-032 catchers, the CP white-boundary rows, the commit order). Its probes are in `scratch/reference_architecture/p0probe/` (`placement3.json` is the exact marker placement); the session's other evidence is in `scratch/reference_architecture/`.
 
-Next: ask the user whether the plan is polished; on that ruling, P0 starts on a branch `fix/nystrom-withdrawal` or similar (it is independent of the design and removes most of the measured slow tier).
+Issues from this plan: #505, #506, #507 (premise corrected by comment: a file-wide `verifies` marker in `cp/test_verification.py` mints 34 `flat-source` carriers, a #387 case), #508, #509 (the CP sphere white-boundary defect, reproduced by the orchestrator: flux not flat for R >= 5 mfp, growing under refinement; multigroup k off 5 to 7%); #305 re-scoped.
+
+Open rulings for P0 (asked 2026-09-25; record the answers here before starting): (1) #509: the sphere rows land as strict xfails citing #509, or P0 waits for a fix; (2) a lock inside the 31 withdrawn functions (a guard that refuses unless `ORPHEUS_RUN_WITHDRAWN=506`, tagged elegance debt under #506, retired at P4); (3) ERR-063 dormant with ERR-027 to 030; (4) Nexus: an interim "dormant" column in the error index now, and an issue in the sphinxcontrib-nexus repository to teach the graph the `withdrawn` marker; (5) `BoundaryClosureOperator` and the volume kernel's identity tests withdrawn per #506's literal list, or kept running.
+
+Then P0 starts on a branch (`fix/peierls-nystrom-withdrawal`), in the specification's commit order: the ERR-032 catchers, the CP rows, the withdrawal in one commit, the docs; the V&V matrix and the error index regenerated in every commit that changes markers; Sphinx rebuilt before committing tests.
 
 ## ⏸ COMPACTION POINT — 2026-09-24 (superseded)
 

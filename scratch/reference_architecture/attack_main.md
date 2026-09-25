@@ -1,0 +1,12 @@
+# Main agent's own first pass (written before reading the two W5 reports)
+
+1. Criticality search: Sood publishes a critical DIMENSION with k = 1; the answer is a parameter of the specification. Forward view: spec at the printed dimension, answer k = 1, bound = |dk/dR| x half the last printed digit of R, which needs a sensitivity from some solution. Parametric specification family needed?
+2. Operator-level references (face transmission, escape probabilities, kernels, transfer functions) are not answers to a problem. The trio Specification/Solution/Certificate is problem-level; the trace cache is general. State the scope, or give operator references their own specification kind.
+3. References that answer an APPROXIMATION of the specified problem: a rank-1 white closure standing for a white boundary. "Answers" must be exact, or the specification must name the approximated law; applicability must record the model approximation.
+4. The adjoint/forward axis: "question derived from the source" is two-valued; an adjoint fixed-source (response) problem and an adjoint eigenproblem are not distinguished. Alpha eigenvalue and time dependence likewise.
+5. Physical versus mathematical specification (ANL-7416's physical situation; ICSBEP): materials as multigroup `Mixture` weld the XS processing into the specification. Validation and continuous energy need a physical specification above it, mapped by processing.
+6. Field representation: per-region Chebyshev with a tail-decay bound is a heuristic that fails on non-smooth fields (boundary layers, log singularities near vacuum surfaces, the angular flux at mu -> 0); the bound it prints is not a bound there. Splitting at singular points or other bases; the bound's establishment must be honest (X3).
+7. Payload size in 2-D/3-D angular flux (5-D): a full expansion is infeasible; the payload may need to be memoised functionals, not a field.
+8. Trace soundness: an lru_cache hit skips the function body, so a warm in-process cache hides a dependency from a later trace; global mutable state (mpmath mp.dps) read but not recorded.
+9. Boundary sources (prescribed incoming flux, the affine boundary source channel): a boundary law with data; is it in the geometry's laws or the Source?
+10. Symmetry quotients: a specification posed on an orbit space (a folded cylinder, a half-cell with reflection) versus its full-space twin: two specifications with one answer; the registry keyed on content sees two.

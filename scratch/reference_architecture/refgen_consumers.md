@@ -1,0 +1,335 @@
+# refgen consumer census (explorer, 2026-09-24, HEAD 901f64ca + dirty plan)
+
+Predicate: test_*.py under tests/gates (git ls-files) whose AST imports orpheus.derivations* or whose text contains 'reference_values'. Script: refgen_census.py; raw: refgen_census.json.
+xs_only = imports ONLY orpheus.derivations.common.xs_library (named-mixture library, not a reference).
+
+Classes: a = production problem fed by reference fields (.problem.*, .materials, geom_params, build_mesh/build_materials, to_geometry) and no hand-built Mixture/Mesh; a+b = reference fields feed production AND test hand-assembles Mesh1D/Mixture; b = production + hand-built, no reference feed; c = no production import/call; d = production import, neither feed nor hand-construction regex.
+
+## xs_only=False
+### a: 17
+- tests/gates/derivations/test_sn_mms_ld_2d_stress_symbolic.py
+- tests/gates/derivations/test_sood_registry_compatibility.py
+- tests/gates/homogeneous/test_homogeneous.py
+- tests/gates/mc/test_convergence.py
+- tests/gates/mc/test_monte_carlo.py
+- tests/gates/sn/verification/analytical/test_mms_declared_inflow.py
+- tests/gates/sn/verification/analytical/test_mms_prescribed_inflow.py
+- tests/gates/sn/verification/mms/test_curvilinear_aniso_convergence.py
+- tests/gates/sn/verification/mms/test_curvilinear_operator_admits_anisotropic_mms.py
+- tests/gates/sn/verification/mms/test_curvilinear_operator_admits_mms.py
+- tests/gates/sn/verification/mms/test_curvilinear_pole_cell_characterization.py
+- tests/gates/sn/verification/mms/test_mms.py
+- tests/gates/sn/verification/mms/test_mms_2d.py
+- tests/gates/sn/verification/mms/test_mms_aniso.py
+- tests/gates/sn/verification/mms/test_mms_curvilinear.py
+- tests/gates/sn/verification/mms/test_mms_heterogeneous.py
+- tests/gates/sn/verification/mms/test_space_angle_separability.py
+
+### a+b: 31
+- tests/gates/cp/test_cylinder.py
+- tests/gates/cp/test_diagnostics.py
+- tests/gates/cp/test_slab.py
+- tests/gates/cp/test_sphere.py
+- tests/gates/cp/test_verification.py
+- tests/gates/diffusion/test_continuous_reference.py
+- tests/gates/diffusion/test_n2n_witness.py
+- tests/gates/homogeneous/test_continuous_reference.py
+- tests/gates/mc/test_cross_verification.py
+- tests/gates/mc/test_gaps.py
+- tests/gates/mc/test_properties.py
+- tests/gates/moc/test_moc.py
+- tests/gates/moc/test_properties.py
+- tests/gates/numerics/test_family_convergence_contract.py
+- tests/gates/sn/eigenvalue/test_heterogeneous_transport.py
+- tests/gates/sn/eigenvalue/test_keff_2d.py
+- tests/gates/sn/eigenvalue/test_keff_curvilinear.py
+- tests/gates/sn/eigenvalue/test_keff_slab.py
+- tests/gates/sn/operators/test_apply_full_field_codomain.py
+- tests/gates/sn/operators/test_boundary_conditions.py
+- tests/gates/sn/primitives/test_properties.py
+- tests/gates/sn/solve/test_d3_admission.py
+- tests/gates/sn/solve/test_scan_march_end_to_end.py
+- tests/gates/sn/sweep/curvilinear/test_sph_sweep_regression.py
+- tests/gates/sn/verification/analytical/test_kinf_homogeneous.py
+- tests/gates/sn/verification/analytical/test_kinf_homogeneous_tolerance.py
+- tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py
+- tests/gates/sn/verification/analytical/test_si_convergence_rate.py
+- tests/gates/sn/verification/mms/test_mms_ld_2d.py
+- tests/gates/sn/verification/mms/test_mms_ld_slab.py
+- tests/gates/sn/verification/mms/test_mms_ordering_blindness.py
+
+### b: 29
+- tests/gates/cp/test_peierls_cylinder_flux.py
+- tests/gates/cp/test_peierls_flux.py
+- tests/gates/cp/test_peierls_sphere_flux.py
+- tests/gates/cross_method/test_convergence.py
+- tests/gates/data/test_group_permutation_invariance.py
+- tests/gates/derivations/test_dsa_production_tie.py
+- tests/gates/homogeneous/test_byte_stability.py
+- tests/gates/moc/test_verification.py
+- tests/gates/numerics/test_iteration.py
+- tests/gates/sn/acceleration/test_dsa_low_order.py
+- tests/gates/sn/primitives/test_quadrature.py
+- tests/gates/sn/solve/test_sn_adjoint_certification.py
+- tests/gates/sn/solve/test_sn_adjoint_entries.py
+- tests/gates/sn/sweep/core/test_sweep_regression.py
+- tests/gates/sn/sweep/core/test_wavefront_cumprod_equivalence.py
+- tests/gates/sn/sweep/curvilinear/test_alpha_defect_normalization.py
+- tests/gates/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py
+- tests/gates/sn/sweep/curvilinear/test_unified_matvec_cylinder.py
+- tests/gates/sn/sweep/slab/test_dd_recurrence.py
+- tests/gates/sn/sweep/slab/test_unified_matvec_slab.py
+- tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py
+- tests/gates/sn/verification/analytical/test_prescribed_inflow_consistency.py
+- tests/gates/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py
+- tests/gates/transport/spatial/test_face_transmission_xverif.py
+- tests/gates/transport/spatial/test_ld_slope_frame.py
+- tests/gates/transport/spatial/test_ld_ubld_primitive.py
+- tests/gates/transport/spatial/test_ld_ubld_symbolic.py
+- tests/gates/transport/spatial/test_moment_axis_predicates.py
+- tests/gates/transport/test_integrated_reaction_rate.py
+
+### c: 108
+- tests/gates/cp/test_cylinder_pss.py
+- tests/gates/cp/test_sphere_pss.py
+- tests/gates/cross_method/test_eigenvalue.py
+- tests/gates/cross_method/test_polymorphism.py
+- tests/gates/data/test_mixture_xs_balance.py
+- tests/gates/derivations/test_adjoint_spectrum_reference.py
+- tests/gates/derivations/test_atkinson_product_nystrom.py
+- tests/gates/derivations/test_capability_matrices.py
+- tests/gates/derivations/test_carlvik_galerkin_slab.py
+- tests/gates/derivations/test_carlvik_galerkin_sood_registry.py
+- tests/gates/derivations/test_carlvik_galerkin_sphere.py
+- tests/gates/derivations/test_carlvik_galerkin_symbolic.py
+- tests/gates/derivations/test_carlvik_galerkin_xverif_fn.py
+- tests/gates/derivations/test_case_method_slab.py
+- tests/gates/derivations/test_case_method_slab_sphere_parity_flip.py
+- tests/gates/derivations/test_case_method_sphere.py
+- tests/gates/derivations/test_case_method_symbolic.py
+- tests/gates/derivations/test_case_method_x_function.py
+- tests/gates/derivations/test_case_method_z0.py
+- tests/gates/derivations/test_continuous_registry_lazy.py
+- tests/gates/derivations/test_cp_geometry.py
+- tests/gates/derivations/test_dsa_rules.py
+- tests/gates/derivations/test_fn_la13511_kinf.py
+- tests/gates/derivations/test_fn_la13511_slab.py
+- tests/gates/derivations/test_fn_la13511_slab_flux.py
+- tests/gates/derivations/test_fn_la13511_slab_flux_symbolic.py
+- tests/gates/derivations/test_fn_la13511_slab_reflected.py
+- tests/gates/derivations/test_fn_la13511_slab_xverif.py
+- tests/gates/derivations/test_fn_la13511_sphere.py
+- tests/gates/derivations/test_fn_la13511_sphere_flux.py
+- tests/gates/derivations/test_fn_la13511_sphere_xverif.py
+- tests/gates/derivations/test_fn_method_moment_space.py
+- tests/gates/derivations/test_fn_projection_vs_kll_flux.py
+- tests/gates/derivations/test_fn_sood_table10_symmetric_pu_h2o.py
+- tests/gates/derivations/test_galerkin_spectral_basis_space.py
+- tests/gates/derivations/test_homogenization_rules.py
+- tests/gates/derivations/test_kernels.py
+- tests/gates/derivations/test_la13511_to_geometry.py
+- tests/gates/derivations/test_path_ai_legacy_plain_gl_signature.py
+- tests/gates/derivations/test_peierls_assembly_drivers.py
+- tests/gates/derivations/test_peierls_closure_operator.py
+- tests/gates/derivations/test_peierls_convergence.py
+- tests/gates/derivations/test_peierls_cylinder_eigenvalue.py
+- tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py
+- tests/gates/derivations/test_peierls_cylinder_geometry.py
+- tests/gates/derivations/test_peierls_cylinder_knyazev_symbolic.py
+- tests/gates/derivations/test_peierls_cylinder_multi_region.py
+- tests/gates/derivations/test_peierls_cylinder_prefactor.py
+- tests/gates/derivations/test_peierls_cylinder_white_bc.py
+- tests/gates/derivations/test_peierls_fission_source_indexing.py
+- tests/gates/derivations/test_peierls_geometry.py
+- tests/gates/derivations/test_peierls_greens_function_annulus_solver.py
+- tests/gates/derivations/test_peierls_greens_function_annulus_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py
+- tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py
+- tests/gates/derivations/test_peierls_greens_function_cylinder_solver.py
+- tests/gates/derivations/test_peierls_greens_function_cylinder_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_cylinder_xverif_sood2003.py
+- tests/gates/derivations/test_peierls_greens_function_hollow_sphere_solver.py
+- tests/gates/derivations/test_peierls_greens_function_hollow_sphere_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_mg.py
+- tests/gates/derivations/test_peierls_greens_function_mr.py
+- tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py
+- tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_slab_solver.py
+- tests/gates/derivations/test_peierls_greens_function_slab_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_solver.py
+- tests/gates/derivations/test_peierls_greens_function_symbolic.py
+- tests/gates/derivations/test_peierls_greens_function_vacuum.py
+- tests/gates/derivations/test_peierls_greens_function_xverif.py
+- tests/gates/derivations/test_peierls_greens_function_xverif_ps1982.py
+- tests/gates/derivations/test_peierls_multigroup.py
+- tests/gates/derivations/test_peierls_nystrom_verification.py
+- tests/gates/derivations/test_peierls_rank2_bc.py
+- tests/gates/derivations/test_peierls_rank_n_bc.py
+- tests/gates/derivations/test_peierls_rank_n_class_b_mr_mg.py
+- tests/gates/derivations/test_peierls_rank_n_conservation.py
+- tests/gates/derivations/test_peierls_rank_n_primitives.py
+- tests/gates/derivations/test_peierls_reference.py
+- tests/gates/derivations/test_peierls_reference_naming.py
+- tests/gates/derivations/test_peierls_slab_legacy_aggregate.py
+- tests/gates/derivations/test_peierls_specular_bc.py
+- tests/gates/derivations/test_peierls_specular_continuous_mu_symbolic.py
+- tests/gates/derivations/test_peierls_specular_slab_symbolic.py
+- tests/gates/derivations/test_peierls_specular_symbolic.py
+- tests/gates/derivations/test_peierls_sphere_eigenvalue.py
+- tests/gates/derivations/test_peierls_sphere_geometry.py
+- tests/gates/derivations/test_peierls_sphere_prefactor.py
+- tests/gates/derivations/test_peierls_sphere_white_bc.py
+- tests/gates/derivations/test_peierls_variant_alpha_core.py
+- tests/gates/derivations/test_quadrature.py
+- tests/gates/derivations/test_singular_eigenfunction_cylinder.py
+- tests/gates/derivations/test_singular_eigenfunction_cylinder_xverif.py
+- tests/gates/derivations/test_singular_eigenfunction_spectrum.py
+- tests/gates/derivations/test_sn_mms_anisotropic_symbolic.py
+- tests/gates/derivations/test_sn_mms_nonvacuum_symbolic.py
+- tests/gates/derivations/test_sood_registry_cache.py
+- tests/gates/derivations/test_sood_registry_wide_bare_critical.py
+- tests/gates/derivations/test_sood_registry_wide_kinf.py
+- tests/gates/derivations/test_trajectory_resolvent_billiard.py
+- tests/gates/derivations/test_trajectory_resolvent_chord_oracle.py
+- tests/gates/derivations/test_trajectory_resolvent_power_iterate.py
+- tests/gates/derivations/test_xs_library_validation.py
+- tests/gates/moc/test_mms.py
+- tests/gates/numerics/test_matrix_inverse_operator.py
+- tests/gates/sn/sweep/test_sweep_acyclicity.py
+- tests/gates/transport/spatial/test_face_transmission_symbolic.py
+- tests/gates/transport/test_reaction_rate_functional.py
+
+### d: 4
+- tests/gates/derivations/test_peierls_greens_function_garcia2021.py
+- tests/gates/sn/angular/test_redistribution.py
+- tests/gates/sn/sweep/curvilinear/test_angular_beta_identity.py
+- tests/gates/sn/verification/mms/test_ld_2d_boundary_promise.py
+
+## xs_only=True
+### a: 0
+
+### a+b: 9
+- tests/gates/diffusion/test_augmented_mesh.py
+- tests/gates/homogeneous/test_homogeneous_problem.py
+- tests/gates/numerics/test_space_of_axes.py
+- tests/gates/sn/mesh/test_sigma_datum.py
+- tests/gates/sn/operators/test_isotropic_fission.py
+- tests/gates/sn/operators/test_solver_components.py
+- tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py
+- tests/gates/transport/fields/test_scalar_boundary_flux.py
+- tests/gates/transport/test_method.py
+
+### b: 94
+- tests/gates/cp/test_properties.py
+- tests/gates/diffusion/test_boundary_realizer.py
+- tests/gates/diffusion/test_mms.py
+- tests/gates/diffusion/test_operators.py
+- tests/gates/diffusion/test_properties.py
+- tests/gates/diffusion/test_sigma_variant_reach.py
+- tests/gates/diffusion/test_solver.py
+- tests/gates/homogeneous/test_homogeneous_outcome.py
+- tests/gates/homogeneous/test_operator_spaces.py
+- tests/gates/numerics/test_gauge.py
+- tests/gates/numerics/test_inverse_metric_operator.py
+- tests/gates/numerics/test_outcome.py
+- tests/gates/numerics/test_pencil.py
+- tests/gates/numerics/test_posing.py
+- tests/gates/sn/acceleration/test_dsa_acceleration.py
+- tests/gates/sn/acceleration/test_dsa_rate.py
+- tests/gates/sn/architecture/test_monomorphic_leaves.py
+- tests/gates/sn/architecture/test_step2_terminal_object_anchors.py
+- tests/gates/sn/architecture/test_step3_solution_anchors.py
+- tests/gates/sn/eigenvalue/test_keff_estimator_gate.py
+- tests/gates/sn/mesh/test_problem_identity_anchors.py
+- tests/gates/sn/mesh/test_reflective_axis_pairs.py
+- tests/gates/sn/operators/test_bc_extraction_2d.py
+- tests/gates/sn/operators/test_declared_law_is_linear.py
+- tests/gates/sn/operators/test_fission_adjoint.py
+- tests/gates/sn/operators/test_fission_adjoint_route.py
+- tests/gates/sn/operators/test_fission_kernel_crosscheck.py
+- tests/gates/sn/operators/test_fission_operator.py
+- tests/gates/sn/operators/test_frame_conjugate_carve.py
+- tests/gates/sn/operators/test_g_adjoint_reciprocity.py
+- tests/gates/sn/operators/test_green_operator_sn.py
+- tests/gates/sn/operators/test_loss_kernel_gauge.py
+- tests/gates/sn/operators/test_loss_transpose_solve.py
+- tests/gates/sn/operators/test_moment_domain_binding.py
+- tests/gates/sn/operators/test_psi_half_coupling.py
+- tests/gates/sn/operators/test_radial_characteristic_cylinder_arm.py
+- tests/gates/sn/operators/test_radial_characteristic_metric.py
+- tests/gates/sn/operators/test_ray_operator.py
+- tests/gates/sn/operators/test_scattering_adjoint.py
+- tests/gates/sn/operators/test_scattering_kernel_crosscheck.py
+- tests/gates/sn/operators/test_scattering_operator.py
+- tests/gates/sn/operators/test_space_content_witnesses.py
+- tests/gates/sn/operators/test_step2_posed_fission_anchors.py
+- tests/gates/sn/operators/test_streaming_operator.py
+- tests/gates/sn/operators/test_sweep_inverse_identity.py
+- tests/gates/sn/operators/test_typed_residual_evaluation.py
+- tests/gates/sn/primitives/test_axis_native_construction.py
+- tests/gates/sn/primitives/test_axis_primitive.py
+- tests/gates/sn/primitives/test_harmonic_moment_flux.py
+- tests/gates/sn/solve/test_2d_anisotropic_windowing.py
+- tests/gates/sn/solve/test_affine_carve_bit_identity.py
+- tests/gates/sn/solve/test_convergence_contract.py
+- tests/gates/sn/solve/test_coupled_solve_certificate.py
+- tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py
+- tests/gates/sn/solve/test_eigenvalue_finalize_reconstruction.py
+- tests/gates/sn/solve/test_every_entry_gauges_its_trace.py
+- tests/gates/sn/solve/test_fixed_source_2d_equivalence.py
+- tests/gates/sn/solve/test_gauss_seidel_reification.py
+- tests/gates/sn/solve/test_krylov_restart_signature.py
+- tests/gates/sn/solve/test_reflective_si_iteration_budget.py
+- tests/gates/sn/solve/test_si_single_primitive_contract.py
+- tests/gates/sn/solve/test_subcritical_multiplying_source.py
+- tests/gates/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py
+- tests/gates/sn/sweep/cartesian_2d/test_2d_l2_face_view_unit_source.py
+- tests/gates/sn/sweep/cartesian_2d/test_2d_l2_matvec_correctness.py
+- tests/gates/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py
+- tests/gates/sn/sweep/cartesian_2d/test_discrete_ordinates_2d.py
+- tests/gates/sn/sweep/cartesian_2d/test_scan_march_equivalence.py
+- tests/gates/sn/sweep/core/test_cache.py
+- tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py
+- tests/gates/sn/sweep/core/test_ordinate_scan_reset.py
+- tests/gates/sn/sweep/core/test_phase_c_gates.py
+- tests/gates/sn/sweep/core/test_sweep_ng2_layout_guard.py
+- tests/gates/sn/sweep/core/test_sweep_schedule_nd.py
+- tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py
+- tests/gates/sn/sweep/core/test_unified_sweep_dispatch.py
+- tests/gates/sn/sweep/curvilinear/test_282_direct_seed_fixed_point.py
+- tests/gates/sn/sweep/curvilinear/test_angular_endpoint_defect.py
+- tests/gates/sn/sweep/curvilinear/test_apply_matvec_cylinder_invariants.py
+- tests/gates/sn/sweep/curvilinear/test_cyl_sweep_regression.py
+- tests/gates/sn/sweep/curvilinear/test_psi_half_positivity.py
+- tests/gates/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py
+- tests/gates/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py
+- tests/gates/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py
+- tests/gates/sn/sweep/test_assembly_mode.py
+- tests/gates/sn/test_condensation.py
+- tests/gates/sn/test_homogenization.py
+- tests/gates/sn/verification/analytical/test_angular_diffusion_limit_consistency.py
+- tests/gates/sn/verification/analytical/test_cp_standoff_curvilinear.py
+- tests/gates/transport/test_angular_lift.py
+- tests/gates/transport/test_bulk_lift.py
+- tests/gates/transport/test_composite.py
+- tests/gates/transport/test_integral_kernel_category.py
+- tests/gates/transport/test_kernels.py
+
+### c: 4
+- tests/gates/data/test_materials.py
+- tests/gates/data/test_mixture_identity_anchors.py
+- tests/gates/data/test_mixture_transport_xs.py
+- tests/gates/numerics/test_axis.py
+
+### d: 0
+
+## Q2-Q4 notes [M] unless marked
+- Uplift path in tests: `SNProblem.from_material_mesh(` / `DiffusionMesh.from_material_mesh(` called in 3 test files, all promotion unit tests (tests/gates/transport/test_material_mesh.py:152, test_material_mesh_admission.py:102, diffusion/test_augmented_mesh.py:140). `SNProblem(` in 163 gate files; `Mesh1D(` in 184 (Python regex over 608 tests/gates .py).
+- Production entries take (materials dict, Mesh1D|axes, method knobs): solve_sn solver.py:2264, solve_cp cp/solver.py:888, solve_moc moc/solver.py:83, solve_monte_carlo mc/solver.py:558 (geometry in MCParams.geometry), solve_diffusion_1d wraps MaterialMesh(mesh, materials) -> DiffusionMesh.from_material_mesh (diffusion/solver.py:467). HomogeneousProblem takes a Mixture and by ruling builds NO MaterialMesh (tests/gates/homogeneous/test_homogeneous_problem.py:147).
+- MaterialMesh has one constructor __init__(mesh: Mesh1D|Mesh2D, materials, sigma_t_cell=None) (material_mesh.py:166); no general from_axes (comment material_mesh.py:290); SNProblem.from_axes exists (sn/problem.py:716).
+- ProblemSpec.geometry_params: 32 producer sites in orpheus/derivations, 11 distinct literal key schemas + 6 non-literal + 8 empty; `mms_case` key stashes the generator object (mms/sn.py:2150 "concrete handle for test consumers").
+- ProblemSpec.BoundaryCondition is a Literal of strings (continuous_reference.py:72), parallel to production geometry.BC.
+- Builder-shaped private defs in tests/gates: 145 defs, 60 names, 82 files (regex on def names; `_slab_mesh` x34, `_sphere_mesh` x10, `_spherical_mesh` x8, `_cartesian_2d_mesh` x7, `_make_2g_mixture` x4...). ugrep returned 0 for the mixture-def pattern; Python found 4 `_make_2g_mixture` (control).
+- Shared builders (files naming them, incl. definition): placeholder_materials 94, material_xs_from_raw 11, curvilinear_homogeneous_mesh 9, cart2d_2g_nonsquare 9, curvilinear_two_region_mesh 7, unit_cell_carrier 6, slab_mesh 4; tests._harness.xs (the PR-1 XS stub) 0 gate importers; xs_library imported by 170 gate files.
+- Cylinder 3-region A|B|A problem spelled 3 times: test_l1_standoff_slab_cylinder.py:69, test_phase_c_crosscheck.py:187, test_unified_matvec_cylinder.py:357.
+- Sood: builders.py returns (dict, Mesh1D, CPParams); build_cp_params 0 callers; layer exemption test_layer_imports.py:85; production bridge used by 2 smoke tests asserting finite/positive keff only (test_sood_registry_compatibility.py:274, :302); #305 OPEN.

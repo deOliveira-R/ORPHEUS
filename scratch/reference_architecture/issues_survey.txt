@@ -1,0 +1,179 @@
+### Peierls
+499	derivations: _build_closure_operator_rank_n_white has no caller — retire it and the Marshak primitives only it consumes
+500	derivations: sphere P_esc converges only algebraically near the surface — default n_angular=32 is off by 4.9e-4 at r=0.999R
+105	N3: Register peierls_cylinder + peierls_sphere in continuous_cases
+128	Optional randomized-QMC angular quadrature for hollow Peierls closure
+129	Phase G.4: planar-limit physics — thin-shell cyl vs thin slab k_eff delta is 22%, not 1e-8
+142	V&V harness: retrofit Peierls cylinder/sphere tests to point at geometry-specific :label:s
+356	tests(cp): the Peierls-cylinder mpmath reference is rebuilt 4x uncached — 2 of the builds are bit-identical
+140	MG: benchmark Peierls multi-group residual against discrete CP modules
+145	Precision-floor sweep tool for ContinuousReferenceSolution (per-reference quadrature floor + at-floor pytest marker + right-sizer)
+103	N1: Higher-rank white-BC closure for pointwise Peierls (cyl + sphere)
+123	Mandatory ≥ 2-quadrature signed-error stability protocol for rank-N closure claims (L19)
+111	Phase G: Slab Peierls in unified CurvilinearGeometry framework
+419	peierls_nystrom: CurvilinearGeometry.kind (closed 3-set) discriminated at ~66 sites + 3 dict dispatches — carve to polymorphism
+106	N4: SymPy-verified peierls_unified.py symbolic-check script
+141	Lift SymPy second-difference derivation into cp_geometry.derive_second_difference()
+144	Sanchez 1982 cylinder reference: cross-check ambiguous scatter/fission split via lit lookup
+101	CP cylinder Peierls reference: chord-based Ki₁ Nyström solver
+143	Programmatic ingestion of Case-Zweifel 1967 bare-sphere R_c table for Peierls sphere tie-point
+109	Phase H: τ-coordinate quadrature option for Peierls Nyström
+115	Retire peierls_slab._basis_kernel_weights once slab-polar reaches production precision
+418	derivations: the chart-ish vocabulary is eleven spelling systems — per-family typing plan (geometry_kind is a problem-kind axis, not the chart)
+107	N6: Unified flat-source CP in a single cp_geometry.py module
+117	Moment-form Nyström: closed-form polynomial moments for Peierls semi-analytical reference K-assembly
+100	Sphere Peierls white-BC: rank-1 closure insufficient for pointwise Nyström
+384	Doc drift found under the declaration sweep — 8 present-tense-false claims, one duplicate label
+255	tests(cp): peierls_rank_n_protocol hardcodes container path /workspaces/ORPHEUS/scratch/... (6 failures on Host)
+112	Rank-N BC: 3D angular normalization fix for cylinder + sphere magnitude audit
+116	Retire Ki_1 by exposing cylinder's out-of-plane θ integration (unified exp(-τ) kernel)
+132	Rank-N Marshak closure: mode-0/mode-n≥1 normalization mismatch (Class B MR catastrophe)
+148	method-implementer: skill follow-ups (vv-principles anti-patterns + numerical-bug-signatures fingerprints)
+110	Phase F: Hollow-core (inner_radius > 0) in CurvilinearGeometry
+309	V&V wiring backlog from the V7 orphan adjudication (#231 task #10)
+211	Tighten SN verification suite + test harness (reference selection, caching, parallelism)
+226	pyright: ~691 real type findings (CLI) to drive to zero by cluster + gate — the import 'noise' is an LSP-langserver artifact (CLI is the oracle)
+### Nystrom
+### Nyström
+### reference
+441	A non-polynomial exactness reference (Tabuchi–Yamamoto polar) — Quotient.reference / AngularSymmetry.reference would raise or lie for MoC
+476	`:noindex:` on 24 API automodules silently un-resolves 1081 Python-domain cross-references
+451	Derivations: a closed-form reference for the (n,2n) Legendre transfer binding (sn-n2n-transfer-binding is a sentinel)
+293	Analytic Marshak (vacuum, J⁻=0) k-eigenvalue reference for 1-D diffusion
+68	Derivations: MC heterogeneous independent reference (high-stats cached MC)
+8	SN: Case's method for mesh-independent transport eigenvalue reference
+21	MC: Heterogeneous independent reference (high-stats MC instead of CP proxy)
+497	check_docstring_xrefs: a dead :class:/:func:/:meth:/:attr: target is DECLINED, not DEAD — the gate certifies only :mod: targets
+431	derivations: own the orbit-space pushforward measures (hat-box, weighted disk) as a tracked SymPy module
+420	derivations/mms: 5 ProblemSpec ctor sites pass values outside the GeometryType Literal — _geometry_to_legacy would KeyError
+305	tests: production CP/SN cross-checks at published Sood precision — the sood_registry's deferred payoff gate
+421	trajectory_resolvent: Billiard's sphere_mr/hollow_sphere/annulus arms are ctor-unreachable — solve_fixed_source can only raise
+369	ReferenceMeasure equality is not canonical across realizations — Lebesgue on [-1,1] has three incomparable spellings
+165	tests: behavioral regression suite (frozen snapshots for DD)
+302	docs: silent dead py-domain xrefs — sweep/spatial/coupled-system modules have no autodoc target (65+ unresolved :class:/:func: refs on SN pages alone)
+34	Diffusion: Proper 2-group analytical interface matching (transcendental equation)
+292	Physical P1 re-baseline of the diffusion data seam (ruling 4, part 2)
+465	derivations: ProblemSpec(external_source | None, is_eigenvalue: bool) is the Optional-pair kind defect — re-express as the two posings
+353	The adjoint eigenvalue exit carries no balance defect
+348	CP cylindrical kernel: the shipped function is Ki_3 but the theory page's :eq:`ki3-def` defines Ki_2 — 142 verifies() edges point at the mis-indexed equations
+358	tests: a red should INVALIDATE its dependent cone, not stop the run — the suite needs a dependence DAG and a claim-KIND axis (a finer L0-L3 is the wrong fix)
+404	phase_e MR-vs-snapshot flux-shape crosscheck red on cyl_2g_3reg_folded_4x8_dd_n40 (0.1268 > 0.12) — pre-existing, bit-identical across F-0/F-1
+405	The SLOW tier is effectively unrunnable serially (~212 slow tests in sn/mc/cp/derivations, O(hours–days)) — tiering decisions + observable-runner pattern + measured WITH-slow per-tree map
+67	Derivations: Diffusion 2-group interface matching (proper transcendental equation)
+462	The balance functional single-sourced at the SN tier: _exit_balance_defect and SNSolver.compute_keff vs the posings' balance/rayleigh
+173	numerics: TensorProductOperator non-self-adjoint adjoint distributivity test
+14	MOC: Tighten heterogeneous test tolerances
+440	S²/O(3) is a point — CP's isotropic angular domain has no catalogue entry (and P1 CP reuses S²/O(2)_a)
+### registry
+398	SNMesh construction bypasses the quadrature admissibility relation the registry asserts
+189	SN: wire WhiteBoundary / PeriodicBoundary / AlbedoBoundary into SNMesh BOUNDARY_OPERATOR_REGISTRY
+244	Duplicate BC-registry resolution: CPMesh._resolve_bc ≈ MOCMesh._resolve_bc
+154	numerics: quadrature registry with G+V+structural tags and selector
+307	docs(vv): parity guard for the failure-mode registry dual-homed in principles.rst ⇄ vv-principles skill
+417	tests: conflicting V&V level markers ['foundation','l1'] on the streaming-collision composite test
+501	tools: prepare tools/harness for extraction into a sphinxcontrib package (plugin seam now, extract at the second project)
+371	QuadratureSpec.parameters is a dead field — decide whether it gets a job or is retired
+219	Architecture: adopt grand-report §7 foundational layer — MethodSpace ABC + MethodSpaceBuilder registry + GeometrySpec→SpatialMesh→MethodSpace 3-layer pipeline (R-1 followups F-A/F-C/F-D)
+322	geometry/SN: the unstructured-mesh seam has ZERO code presence — the sweep's acyclicity hypothesis is unguarded
+334	harness: file-level verifies lists over-credit equation coverage — quadrature-ordinate-permutation gets ~21 tests edges, ~2 of which exercise it
+170	F_N method: implement cylinder bare-critical solver (Westfall-Metcalf 1973 / Sanchez-Ganapol 1983)
+372	select_quadrature costs 27-32 s at target_degree=31 on EVERY geometry, including ones that cannot select the expensive rule
+171	F_N method: implement 2G bare-critical solver for sphere/cylinder (Siewert-Thomas 1986)
+370	folded_product cannot be registered — it carries no exactness claim and its support is a quotient no geometry matches
+227	SN: d>=3 sweep-kernel perf follow-ups — ScanMarch scan(x)∘march(y,z) generalization + MovingFrontierWindow supports widening (measurement-gated)
+167	docs: Sphinx documentation for the operator algebra architecture
+368	Boundary B5 remainder: retire ReflectiveBoundary.albedo (the rest of B5 was dissolved by G6.3)
+411	The layer-import contract has three latent gaps: a phantom package, an unchecked whitelist, and two modules in no layer at all
+355	MoC polar quadrature: move the Tabuchi-Yamamoto table into numerics/quadrature as a typed DiscreteMeasure
+### cache
+351	The cache-invariance floor counts OUTERS but the invariant is about SWEEPS
+468	_pole_mirror_cache is the last hub memo — its home is the geometry stratum (StreamingCoefficientCache); retire the getattr poke
+486	test_isotropic_kernel_bit_identical_to_legacy_verbs credits the solver-composed K_iso but reads a test-minted pair — the 0-ULP anchor witnesses no production object
+464	diffusion: pencil.at(σ) must invalidate the solver's eager LU resolvent — a counting spy over a σ sweep
+198	Test-session memory monotonically grows (toward 50 GB on full SN suite)
+406	No save/restore state story — the surviving discretization aggregate is the candidate serialization root (pickle/HDF5)
+460	SourcePosing.admits(q) — the Fredholm solvability test (q ⟂ ker A†) as a refusal at posing time
+153	numerics, sn: refactor AngularQuadrature to use DiscreteMeasure
+403	DiscreteMeasure equality: content-equal distinct instances make frame == RAISE (ndarray ambiguity)
+359	The M-M angular recurrence has THREE production spellings plus two adjoints — bit-identity-gated, but still a Pattern-2 twin path
+394	Leaf array layout is a VIEW-layer convention — the data layer is already layout-free; free the views for the JAX lowering
+415	sn/tests: test_282's "non-carrying control" is vacant — the empty-seed arm's real witness is a Gauss-Lobatto sphere rule
+146	Tests: L3 validation against ICSBEP / IRPhE benchmarks
+343	Boundary G-S: the octant sweep ORDER is an unowned rate lever (rho spans 0.968-0.987; shipped order at the worst end)
+279	Migrate CP/MoC isotropic in-scatter source onto the shared K_iso operators (IsotropicScattering + IsotropicN2N)
+477	Harness substrate: docs/development/ is the source and .claude/ is generated — the queue after the first pass
+### Sood
+### MMS
+386	MoC: two latent findings from the declaration sweep — a twin denominator for t_s^eff, and trig on the angle chart
+252	SN LD: verify the transverse face-slope SIGN under reflective BC (follow-up of #251)
+294	Mixed-form / RT0 lift seam for the diffusion LeakageOperator (O(h²) at off-face interfaces)
+235	SN: cylindrical anisotropic accuracy needs a 2-D (η,φ) angular closure (the #229 azimuthal half-angle-thread floor)
+210	Test 3.1: 2-D Cartesian L2 matvec MMS L1 convergence pin (deferred from D-H.2-C4e)
+158	sn: concrete cell updates -- DD, LD, ExponentialCharacteristic, Step
+360	Curvilinear vacuum surface: the angular endpoint inconsistency does not converge in L-infinity, and concentrates on the outermost cell
+233	SN curvilinear central-cell spatial closure is first-order O(h) at r→0 (inherent to plain diamond; L∞-only, invisible to L2/keff)
+90	Add L1 test for theory/fuel_behaviour equations :label:`fb-fuel-heat` and :label:`fb-fuel-strain`
+240	Principled-over-bit-identical: revert the #158-B matvec_via_kernel compromise + remove bit-id favoritism + complete polymorphism
+256	Field-typed operator algebra: the container IS the universal vector type (close the ndarray architecture gaps)
+197	Adopt NewType-based unit/quantity discipline now (Option C); defer Pint to JAX migration (Option D)
+### manufactured
+402	LD (moment-tailed) schemes: the residual mint may now admit the spatial-moment tail — un-skip the exit certificate with its own witnesses
+362	SN sphere: a pole node makes the starting direction an ORDINATE — the path that makes RadialCharacteristic seeding optional
+265	Data-layer invariant value-objects (S13): Quadrature laws, albedo α∈[0,1], eg monotonicity, HMF realizability
+### ProblemSpec
+### ContinuousReferenceSolution
+### RegionMesh
+495	geometry: RegionMesh 'uniform' re-derives slab volumes from linspace edges — ULP-unequal where 'equal-volume' on the same mesh is exact
+### StructuredGeometry
+190	Billiard._infer_geometry_kind: surface sphere_mr / cylinder_mr from structured geometry
+### provenance
+422	docs: 46 nested-markup sites render literal backticks visibly (silent at every Sphinx severity)
+388	diffusion: the (J+,J-) <-> (phi_b, J) convention contract lives only in a plans file — relocate to the theory page
+389	Coupled/curvilinear stored-value neutrality case — the one consumer class with no bit-identity wall
+390	is_positivity_preserving has zero production readers — wire the cone predicate as its first consumer
+423	numerics: the MODAL moment axis has no Basis to point at — mint the polynomial Basis (CS5-MODAL item 3)
+416	sn/tests: multi-carrying-level indexing has no witness — the folded cylinder now makes the fixture constructible
+395	Energy-grid coherence is regime-scoped: coarse-multigroup refuses unequal grids; fine/ACE-class data needs a unionization arm
+396	Two folded-cylinder DD regression cases emit DriftWarning (fail the 1-ULP wall)
+391	Converge the three member vector-contract concepts onto one named Protocol — the coupled_system collapse trigger, unblocked by CS3
+458	MultiplicationOperator never compares its coefficient's space to its ends — a field on an alien space is admitted silently (SN/diffusion paths)
+393	Rename AxisMesh (+ Axis1D family): it declares per-axis GEOMETRY, it does not create a mesh
+332	docs: the principles.rst anti-pattern redirect list is 9 entries behind the vv-principles skill
+401	Two cylinder DD regression snapshots carry a standing sub-tolerance drift (k_eff 1 ULP; flux 5.3e-12 / 7.2e-11 rel) — predates CS4b
+363	numerics: KrylovAcceleration emits a ConvergenceWarning saying 'not converged' on a solve whose own record reads CONVERGED — scipy judges with atol=0, the record with rtol
+410	The (eta, xi, mu) axis convention is attributed to sources that use the OPPOSITE assignment — and reduced_operator.py uses the literature's, not ORPHEUS's
+303	diffusion_1d: derive the transport→P1 moment reduction (the promised Eulerian ∫(Ω̂·∇ψ)dΩ = ∇·J → Fick closure)
+339	Quadrature double-fold: a carrying level_symmetric family for cylindrical SNMesh (fold sigma_y AND the vertical pair)
+400	Modal cone membership has an exact theorem for LD — the vertex test (realizability): extend cone_violations beyond the typed refusal
+387	A blanket module-level pytestmark mints 9 false coverage claims per test — 124 of 243 refutations, one line
+336	SNMesh(spherical 1-D) admits raw 3-D quadratures; the M-M closure is ill-posed and only the Q5.5 tau guard catches it
+374	numerics: OperatorSum.is_invertible answers a different question than its name asks (a cancelling sum reports True)
+364	Convergence-knob defaults have no single source: ~52 literal sites for ~9 knobs across 5 families
+### citation
+### flat-source
+456	docs(orpheus): 41 production docstrings + 30 test docstrings still spell the within-group algebra as A = L+C−S−B (the #425 pass covered docs/ only)
+383	An equation asserts an equivalence whose second twin was RETIRED — phase-f-q-bar-twin-forms
+296	numerics: reify the block-operator abstraction — transport solve strategies as block splittings (CoupledOperator / CoupledField)
+### trajectory resolvent
+397	Phase-E MR flux-shape crosscheck red: cyl_2g_3reg_folded_4x8_dd_n40 at 0.1268 vs the 0.12 gate
+366	Two public per-level convergence verdicts sit one attribute hop from the tree verdict
+### layering
+329	Rules floor: give retirement/lifecycle doctrine a corpus home, then thin coding-standards.md to a pointer (do NOT split into a skill)
+### test runtime
+377	geometry: RigidMotion.determinant called 55.7M times in one test directory — recompute smell, not correctness
+504	tests: ~50 bit-identity and ULP-snapshot gates are pinned to the development Mac and red on x86 Linux (1-768 ULP)
+295	LayoutBearingSpace Protocol — retire the FaceField.space `# type: ignore` + getattr layout-guards
+262	Bulk-field/flux accessor under-typing forces casts (FullField.bulk: BulkField too broad; AngularFlux.integrate_angular()→object)
+457	ELEGANCE-DEBT[guard]: FullField.require_member retires when B is bound on its own trace end (R18)
+151	numerics: DiscreteMeasure primitive with composition operations
+13	MOC: Vectorize transport sweep (Python loop bottleneck)
+297	numerics: converge the three member-contract spellings (Vector / _is_ravellable / SystemField) onto a named Ravellable Protocol
+267	Retype typed-field hierarchy mesh: SNMesh → MaterialMesh (L2 promotion follow-up)
+### slow
+452	tests: the C6 STATIC typing pins are adjudicated by nothing — the pyright ratchet analyses orpheus/ only
+455	A catches(ERR-NNN) marker on a test the defect does not redden is a phantom catcher — the harness adjudicates verifies, not catches
+75	Numerics: Convergence acceleration (Chebyshev or Wielandt shift)
+1	SN: Gauss-type azimuthal quadrature for cylindrical
+321	tests(sn): the G2 walk-order triangularity certificate has no d=3 fixture, though d>=3 sweeps are built
+313	SN/DSA: reflective wall-lag rate mode at extreme optical thickness — improvement candidates
+237	SN: the degenerate-cylinder (pure-azimuthal) matvec/sweep branch has no test stressor
