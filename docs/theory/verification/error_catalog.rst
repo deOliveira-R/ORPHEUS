@@ -2298,7 +2298,7 @@ older entries classify against.
    shortly after when the first-order ``K_bc`` row-sum identity was
    exercised against the new analytical reference.
    **Solver:** Peierls slab, white-BC analytical reference
-   (``orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical``).
+   (``orpheus.derivations.continuous.peierls_nystrom.reference.slab_uniform_source_white_bc_analytical``).
 
    **Bug:** Commit ``2538cfe`` shipped the closed form
 
@@ -2340,20 +2340,45 @@ older entries classify against.
    disagreement: factor ``~ 2.2`` between row-sum from ``K`` and
    ``φ_wrong``.
 
-   **L1 test that catches it:**
+   **Tests that catch it** (re-pointed 2026-09-25, #405 / #506). The
+   catchers are adjudicated by re-introducing the documented defect: a
+   pytest plugin rebinds ``slab_uniform_source_white_bc_analytical`` to
+   ``φ_wrong`` in every module binding (2 rebinds) and the suite is run
+   under ``python -O -m pytest``.
 
-   - ``tests/gates/derivations/test_peierls_reference.py::TestSlabKernelRowSum::test_row_sum_matches_analytical_uniform_source``
-     (``@pytest.mark.l1``, ``@pytest.mark.verifies("peierls-unified")``,
-     ``@pytest.mark.catches("ERR-032")``). Asserts the row-sum identity
-     to ``< 1e-8`` over a small ``(L, Σ_t)`` grid using the *vacuum-BC*
-     uniform-source analytical (``slab_uniform_source_analytical``),
-     which uses the correct ``∫E_2 = ½ − E_3`` identity. Disagreement of
-     ``φ_wrong`` with this row-sum was the first-order fingerprint.
+   - ``tests/gates/derivations/test_peierls_reference.py::TestSlabWhiteBCInfiniteMediumIdentity``
+     (``l0``, ``catches("ERR-032")``): the closed form against the
+     Wigner–Seitz infinite-medium balance ``Σ_t φ = S``, which shares no
+     antiderivative with it. Red 4 of 4 under the defect.
+   - ``tests/gates/derivations/test_peierls_reference.py::TestSlabWhiteBCPartialCurrentBalance``
+     (``l1``, ``catches("ERR-032")``): the closed form against the
+     Peierls equation plus the Mark partial-current balance, every volume
+     integral by ``mpmath.quad`` (no antiderivative identity anywhere),
+     pointwise over 4 ``(L, Σ_t)`` cells × 5 positions, dps 30, relative
+     bound ``1e-24``. Red 20 of 20 under the defect; the weakest signal
+     is ``5.2e-13`` (the ``(L, Σ_t) = (100, 0.5)`` interior), against an
+     honest floor of ``3.9e-31``.
+
+   The identity itself is proven symbolically by
+   ``tests/gates/derivations/test_peierls_white_slab_symbolic.py``
+   (``foundation``, SymPy origin
+   ``orpheus.derivations.continuous.peierls_nystrom.origins.white_slab``):
+   ``½ − E_3`` and ``1 − E_3`` have the same derivative ``E_2``, and only
+   the first vanishes at ``τ = 0``. It evaluates no code, so it carries
+   no ``catches`` marker.
+
+   Until 2026-09-25 this paragraph credited
+   ``TestSlabKernelRowSum::test_row_sum_matches_analytical_uniform_source``.
+   That row calls the *vacuum-BC* closed form
+   (``slab_uniform_source_analytical``), never the white one, and it
+   stayed green with the defect re-introduced: its marker was a phantom
+   and was removed. The row-sum disagreement it records was the
+   historical first fingerprint, not a standing catcher.
 
    **Fix:** Re-derive ``J^-`` with the correct antiderivative; the result
    collapses algebraically to ``φ ≡ 1/Σ_t`` (uniform Wigner-Seitz). The
    shipped function in
-   ``orpheus.derivations.peierls_reference.slab_uniform_source_white_bc_analytical``
+   ``orpheus.derivations.continuous.peierls_nystrom.reference.slab_uniform_source_white_bc_analytical``
    returns this constant. See ``docs/theory/references/peierls_nystrom.rst``
    ``§White-BC analytical flux — slab`` (the canonical derivation; the
    "History of the algebra bug" subsection in that page now points at

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12495**
+Total tests collected: **12518**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1342, 10.7%
-   L1, 1839, 14.7%
+   L1, 1859, 14.9%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9216, 73.8%
+   foundation, 9219, 73.6%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12389
+   explicit, 12412
    class-name, 46
    func-name, 0
    case, 33
@@ -232,7 +232,7 @@ Module × level grid
    derivations/test_peierls_rank_n_class_b_mr_mg, 0, 31, 0, 0, 0, 0
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
-   derivations/test_peierls_reference, 55, 25, 0, 0, 16, 0
+   derivations/test_peierls_reference, 55, 45, 0, 0, 16, 0
    derivations/test_peierls_reference_naming, 0, 0, 0, 0, 23, 0
    derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
@@ -244,6 +244,7 @@ Module × level grid
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_variant_alpha_core, 0, 0, 0, 0, 8, 0
+   derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
@@ -566,7 +567,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 6, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 370, 0
+   test_layer_imports, 0, 0, 0, 0, 371, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -675,6 +676,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
    ``loss-rep-resolution-a``, 25
+   ``peierls-white-bc-slab``, 25
    ``dc-slab``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
@@ -810,7 +812,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4
    ``peierls-vacuum-bc-slab``, 4
-   ``peierls-white-bc-slab``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
    ``sn-dsa-sweep-inverse-identity``, 4

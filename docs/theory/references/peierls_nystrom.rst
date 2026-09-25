@@ -2812,8 +2812,22 @@ incorrect closed form using the wrong antiderivative identity
 for the uniform cell. **Lesson:** two independent derivations agreeing
 at :math:`10^{-39}` is worthless evidence if both share an upstream
 identity. Cataloged as **ERR-032** in
-:doc:`the error catalog </theory/verification/error_catalog>`; caught by ``TestSlabKernelRowSum``
-(:mod:`tests.gates.derivations.test_peierls_reference`).
+:doc:`the error catalog </theory/verification/error_catalog>`. Two tests
+in ``tests/gates/derivations/test_peierls_reference.py`` catch it when the
+wrong closed form is re-introduced: ``TestSlabWhiteBCInfiniteMediumIdentity``
+(the closed form against the infinite-medium balance
+:math:`\Sigma_t\varphi = S`, red in 4 of 4 cases) and
+``TestSlabWhiteBCPartialCurrentBalance`` (the closed form against the
+Peierls equation plus the partial-current balance, every volume integral
+by :func:`mpmath.quad` and no antiderivative used, red in 20 of 20 points).
+The antiderivative itself is proven symbolically in the SymPy origin
+``orpheus.derivations.continuous.peierls_nystrom.origins.white_slab``
+(``tests/gates/derivations/test_peierls_white_slab_symbolic.py``):
+:math:`\tfrac{1}{2} - E_3` and :math:`1 - E_3` share the derivative
+:math:`E_2`, and only the first vanishes at :math:`\tau = 0`. Until
+2026-09-25 this paragraph credited ``TestSlabKernelRowSum``; that test
+evaluates the vacuum-boundary closed form, never the white one, and stays
+green with the defect re-introduced.
 
 **Testing leverage.** Because :math:`\varphi_{\rm white}` is spatially
 constant, it supports two precise tests of the Peierls white-BC

@@ -110,7 +110,6 @@ def _build_slab_K_and_nodes(L, sig_t, n_panels=8, p_order=6, dps=30):
     "peierls-vacuum-bc-flux",
     "peierls-vacuum-bc-row-sum-gate",
 )
-@pytest.mark.catches("ERR-032")
 class TestSlabKernelRowSum:
     """ORPHEUS slab K-matrix row-sum equals closed-form flux from
     uniform source on pure absorber with vacuum BC.
@@ -1114,6 +1113,7 @@ class TestSlabKbcStructure:
     "peierls-unified",
     "peierls-white-bc-slab",
 )
+@pytest.mark.catches("ERR-032")
 class TestSlabWhiteBCInfiniteMediumIdentity:
     r"""The Wigner-Seitz identity for slab white BC with uniform
     source on a pure absorber:
@@ -1128,6 +1128,15 @@ class TestSlabWhiteBCInfiniteMediumIdentity:
     medium at equilibrium, where the pure-absorber balance
     :math:`\Sigma_t\,\varphi = S` gives :math:`\varphi = 1/\Sigma_t`
     pointwise.
+
+    ERR-032 catcher: the reference side, :math:`1/\Sigma_t`, is the
+    infinite-medium balance, which shares no antiderivative identity with
+    the closed form under test. Re-introducing the catalogue's wrong closed
+    form (:math:`\int E_2 = 1 - E_3`) reddens 4 of 4 cases (measured
+    2026-09-25 with the ``err032_arm`` rebinding plugin; the reading is in
+    the commit that added this marker). The quadrature partial-current
+    balance, :class:`TestSlabWhiteBCPartialCurrentBalance`, is the second
+    catcher, pointwise in :math:`x`.
     """
 
     @pytest.mark.parametrize("L, sig_t", [
@@ -1148,6 +1157,87 @@ class TestSlabWhiteBCInfiniteMediumIdentity:
                 f"Slab φ_white(x={x:.3f}, L={L}, Σ_t={sig_t}) = "
                 f"{phi:.20e}, expected {expected:.20e} (1/Σ_t), "
                 f"rel={rel:.3e}"
+            )
+
+
+#: The (L, Σ_t) grid of the white-BC slab rows: thin, 1 MFP, thick with a
+#: different Σ_t, and the very thick (100, 0.5) case where the ERR-032
+#: mutant's signal is weakest (the E_2 face terms have decayed).
+_WHITE_SLAB_CELLS = [(0.1, 1.0), (1.0, 1.0), (5.0, 2.0), (100.0, 0.5)]
+_WHITE_SLAB_X_FRACTIONS = [0.0, 0.2, 0.5, 0.8, 1.0]
+
+
+def _white_slab_flux_by_quadrature(x, L, sig_t):
+    r"""The white-BC slab flux from the Peierls equation and the Mark
+    partial-current balance, every volume integral by :func:`mpmath.quad`
+    (no antiderivative identity anywhere), at the caller's precision:
+
+    .. math::
+
+       J^+_{\rm vol} = \int_0^L \tfrac12 E_2(\Sigma_t(L-x'))\,\mathrm dx',
+       \qquad J^- = \frac{J^+_{\rm vol}}{1 - 2E_3(\Sigma_t L)},
+
+       \varphi(x) = \int_0^L \tfrac12 E_1(\Sigma_t|x-x'|)\,\mathrm dx'
+                    + 2J^-\bigl[E_2(\Sigma_t x) + E_2(\Sigma_t(L-x))\bigr],
+
+    with the :math:`E_1` integral split at :math:`x` (its log
+    singularity). :math:`2E_3(\tau_L)` is the uncollided face-to-face
+    transmission of an isotropic partial current, and
+    :math:`\tfrac12 E_2` the uncollided escape kernel to one face.
+    """
+    x, L, sig_t = mpmath.mpf(x), mpmath.mpf(L), mpmath.mpf(sig_t)
+    tau_L = sig_t * L
+    j_plus_volume = mpmath.quad(
+        lambda xp: mpmath.expint(2, sig_t * (L - xp)) / 2, [0, L])
+    j_minus = j_plus_volume / (1 - 2 * mpmath.expint(3, tau_L))
+    breakpoints = [0, x, L] if 0 < x < L else [0, L]
+    volume = mpmath.quad(
+        lambda xp: mpmath.expint(1, sig_t * abs(x - xp)) / 2, breakpoints)
+    face = mpmath.expint(2, sig_t * x) + mpmath.expint(2, sig_t * (L - x))
+    return volume + 2 * j_minus * face
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("peierls-white-bc-slab")
+@pytest.mark.catches("ERR-032")
+class TestSlabWhiteBCPartialCurrentBalance:
+    r"""The white-BC slab closed form against the Peierls equation plus
+    the partial-current balance, integrated by :func:`mpmath.quad`.
+
+    The reference is structurally independent of the closed form: it uses
+    no antiderivative of :math:`E_n` (the step ERR-032 got wrong), only
+    the kernels and adaptive quadrature. It is pointwise in :math:`x`, so
+    it also sees a closed form that is wrong in shape while right on
+    average.
+
+    Tolerance, derived (measured 2026-09-25,
+    ``scratch/reference_architecture/p0probe/err032_balance.py``, dps 30):
+    the honest floor over the 20 points is a relative difference of
+    3.9e-31; the smallest ERR-032 signal over the same points is 5.2e-13
+    (the thick cell, interior, where the face terms have decayed). The
+    bound ``1e-24`` sits 6 orders above the floor and 11 orders below the
+    weakest signal. Raising ``_DPS`` lowers the floor; lowering it below
+    about 25 digits would bring the floor up to the bound. The
+    (100, 0.5) cell is the row that proves the bound is tight enough and
+    must stay.
+    """
+
+    _DPS = 30
+    _RTOL = mpmath.mpf("1e-24")
+
+    @pytest.mark.parametrize("x_frac", _WHITE_SLAB_X_FRACTIONS)
+    @pytest.mark.parametrize("L, sig_t", _WHITE_SLAB_CELLS)
+    def test_closed_form_matches_quadrature_balance(self, L, sig_t, x_frac):
+        with mpmath.workdps(self._DPS):
+            x = mpmath.mpf(x_frac) * L
+            reference = _white_slab_flux_by_quadrature(x, L, sig_t)
+            closed_form = slab_uniform_source_white_bc_analytical(
+                x, L, sig_t, dps=self._DPS)
+            rel = abs(closed_form - reference) / abs(reference)
+            assert rel < self._RTOL, (
+                f"white-BC slab closed form {closed_form} vs quadrature "
+                f"balance {reference} at x={x}, L={L}, Σ_t={sig_t}: "
+                f"rel={mpmath.nstr(rel, 5)} (bound {self._RTOL})"
             )
 
 
