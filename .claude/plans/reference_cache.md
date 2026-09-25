@@ -512,7 +512,12 @@ Read, in order: "The architecture as it stands" (the consolidated nine points); 
 
 Issues from this plan: #505, #506, #507 (premise corrected by comment: a file-wide `verifies` marker in `cp/test_verification.py` mints 34 `flat-source` carriers, a #387 case), #508, #509 (the CP sphere white-boundary defect, reproduced by the orchestrator: flux not flat for R >= 5 mfp, growing under refinement; multigroup k off 5 to 7%); #305 re-scoped.
 
-Open rulings for P0 (asked 2026-09-25; record the answers here before starting): (1) #509: the sphere rows land as strict xfails citing #509, or P0 waits for a fix; (2) a lock inside the 31 withdrawn functions (a guard that refuses unless `ORPHEUS_RUN_WITHDRAWN=506`, tagged elegance debt under #506, retired at P4); (3) ERR-063 dormant with ERR-027 to 030; (4) Nexus: an interim "dormant" column in the error index now, and an issue in the sphinxcontrib-nexus repository to teach the graph the `withdrawn` marker; (5) `BoundaryClosureOperator` and the volume kernel's identity tests withdrawn per #506's literal list, or kept running.
+P0 rulings (asked 2026-09-25; the user: "I agree with the 5 recommendations"):
+1. **#509:** the CP sphere rows land with P0 as strict xfails citing #509, plus a check that pins the defect; the fix waits for CP's turn in the direction of development.
+2. **The lock:** a guard inside the 31 withdrawn functions refuses unless `ORPHEUS_RUN_WITHDRAWN=506`; tagged elegance debt under #506; retired at P4, when the `Withdrawn` certificate state takes over.
+3. **ERR-063** is dormant with ERR-027 to 030 (its defect lives only in withdrawn code).
+4. **Nexus:** an interim "dormant" column in the error index in P0, and deOliveira-R/sphinxcontrib-nexus#96 (filed 2026-09-25) to teach the graph the `withdrawn` marker.
+5. **Scope:** `BoundaryClosureOperator` and the volume kernel's own identity tests are withdrawn, per #506's list; the opt-in runs them for the improvement work.
 
 Then P0 starts on a branch (`fix/peierls-nystrom-withdrawal`), in the specification's commit order: the ERR-032 catchers, the CP rows, the withdrawal in one commit, the docs; the V&V matrix and the error index regenerated in every commit that changes markers; Sphinx rebuilt before committing tests.
 

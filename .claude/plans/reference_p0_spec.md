@@ -261,3 +261,12 @@ Branch `fix/nystrom-withdrawal` (or as the orchestrator names it). Each commit l
 4. **The graph side (§3.2 item 6):** a sphinxcontrib-nexus change so that `withdrawn` splits catcher and verifier counts, or accept the ORPHEUS-side dormant column in the index until then.
 5. **W's scope (§1.1):** whether `BoundaryClosureOperator` and the volume kernel's own assembly identities (cheap, and the improvement work's ladder) are withdrawn as #506 literally lists, or kept running.
 6. **#507's premise (§3.3):** `flat-source` keeps 34 carriers under the registry predicate, all minted by a #387 blanket `pytestmark`; the issue's "only verifier" is the explicit-marker predicate.
+
+## Rulings on the NEEDS (the user, 2026-09-25: "I agree with the 5 recommendations")
+
+1. The lock: yes, the production decorator on the 31 symbols of W, `ELEGANCE-DEBT[guard]` #506, retired at P4.
+2. ERR-063: (a), dormant with ERR-027 to 030.
+3. #509's sphere rows: form (i), a strict xfail citing #509 plus the RECORD row, landing with P0.
+4. The graph side: the ORPHEUS-side dormant column in the error index now, and an issue in the sphinxcontrib-nexus repository for the `withdrawn` marker.
+5. W's scope: withdrawn as #506 lists, `BoundaryClosureOperator` and the volume kernel's identities included; `ORPHEUS_RUN_WITHDRAWN=506` runs them for the improvement work.
+6. #507's premise: corrected on the issue by comment (2026-09-25); no ruling needed.
