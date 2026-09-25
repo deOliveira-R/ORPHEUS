@@ -28,12 +28,14 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     composite_gl_r,
 )
 from orpheus.derivations.continuous.peierls_nystrom.sphere import GEOMETRY
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # Row-sum identity — vacuum (infinite-medium limit)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestSphereRowSumIdentity:
@@ -117,6 +119,7 @@ class TestSphereRowSumIdentity:
 # Row-sum identity under white-BC rank-1 correction
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestSphereWhiteBCRowSum:

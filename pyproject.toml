@@ -101,6 +101,7 @@ markers = [
     "regression: Frozen-reference snapshot tests gating numerical drift across refactors (NOT a verification reference — see tests/gates/sn/regression/_generate_snapshots.py)",
     "cap(name): SN capability-taxonomy tier the test exercises (orthogonal to l0/l1/l2/foundation). Names from the capability DAG in .claude/plans/archive/sn_test_taxonomy.md: primitives, operators, sweep_core, sweep_slab, sweep_curvilinear, sweep_cartesian_2d, solve, eigenvalue, verification_mms, verification_analytical.",
     "sentinel: SN canary regression tripwire — a CHEAP, sharply-sensitive test selected so `pytest -m sentinel` runs in seconds and a single flip localizes the blast radius via its cap() label + the capability DAG. Mutation-adequate fast net (NOT proof; the full per-tier suite is the deep net). One sentinel per capability node. See .claude/plans/archive/sn_sentinel_harness.md.",
+    "withdrawn(reason, issue): the test consumes a withdrawn reference generator; it is skipped with its reason and issue unless ORPHEUS_RUN_WITHDRAWN names the issue (#506; plan reference_cache.md P0, removal trigger P4)",
 ]
 
 [tool.setuptools.packages.find]

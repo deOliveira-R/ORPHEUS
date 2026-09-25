@@ -23,12 +23,16 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 import pytest
@@ -46,6 +50,137 @@ VV_AUDIT_SKIP_MARKER = ".. vv-audit: skip-file"
 _VV_AUDIT_SKIP_RE = re.compile(
     r"^\.\.\s+vv-audit:\s*skip-file\s*$", re.MULTILINE
 )
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+#: Where the docs build persists the ``--json`` payload it collected, so a
+#: second consumer in the same build (the error-catalogue index, which runs
+#: at ``build-finished``) reads it instead of collecting the suite twice.
+#: ``docs/_generated/`` is a build-output directory (``.gitignore``).
+AUDIT_SNAPSHOT = REPO_ROOT / "docs" / "_generated" / "vv_audit.json"
+
+
+class StaleAuditSnapshot(RuntimeError):
+    """The persisted audit payload was collected from a different tree."""
+
+
+#: What the audit's answer depends on: the collected tests and the code they
+#: import, the pytest configuration, and the theory pages it scans for labels
+#: and ERR entries. The build's OWN generated outputs under ``docs/theory``
+#: are excluded: the build rewrites them between ``builder-inited`` (where
+#: the snapshot is written) and ``build-finished`` (where it is read), and
+#: neither feeds the audit (the matrix page carries the skip-file marker; the
+#: capability-matrix includes declare no ``:label:``).
+_AUDIT_INPUTS = (
+    "tests",
+    "orpheus",
+    "pyproject.toml",
+    "docs/theory",
+    ":(exclude)docs/theory/verification/matrix.rst",
+    ":(glob,exclude)docs/theory/**/_*_capability_matrix.inc.rst",
+)
+
+
+def tree_stamp() -> dict[str, str | bool]:
+    """Provenance of the audit's inputs: ``HEAD``'s commit, whether those
+    inputs differ from it, and a digest of the difference (tracked edits
+    plus the content of untracked, non-ignored files under the inputs).
+
+    Scoped to :data:`_AUDIT_INPUTS`, not the whole tree, so the build's
+    rewriting of generated files (the matrix page, the harness view, the
+    error index) does not stale a snapshot the same build wrote.
+    """
+    import hashlib
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+        ).stdout
+
+    digest = hashlib.sha256(git("diff", "HEAD", "--binary", "--", *_AUDIT_INPUTS).encode())
+    untracked = git("ls-files", "--others", "--exclude-standard", "--", *_AUDIT_INPUTS).split()
+    for rel in sorted(untracked):
+        digest.update(rel.encode() + b"\0" + (REPO_ROOT / rel).read_bytes())
+    dirty = bool(git("status", "--porcelain", "--", *_AUDIT_INPUTS).strip())
+    return {
+        "commit": git("rev-parse", "HEAD").strip(),
+        "dirty": dirty,
+        "inputs_sha256": digest.hexdigest(),
+    }
+
+
+def write_audit_snapshot(payload: dict[str, Any]) -> None:
+    """Persist ``payload`` at :data:`AUDIT_SNAPSHOT` with its tree stamp and
+    the number of tests it collected."""
+    AUDIT_SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
+    AUDIT_SNAPSHOT.write_text(
+        json.dumps(
+            {"stamp": tree_stamp(), "collected": payload["total"], "payload": payload},
+            indent=1, sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def read_audit_snapshot() -> dict[str, Any] | None:
+    """The persisted payload, or ``None`` when none exists.
+
+    Raises
+    ------
+    StaleAuditSnapshot
+        When the snapshot's tree stamp is not the current tree's: a payload
+        collected from other sources is refused, never used silently.
+    """
+    if not AUDIT_SNAPSHOT.is_file():
+        return None
+    stored = json.loads(AUDIT_SNAPSHOT.read_text(encoding="utf-8"))
+    now = tree_stamp()
+    if stored.get("stamp") != now:
+        raise StaleAuditSnapshot(
+            f"{AUDIT_SNAPSHOT} was collected from "
+            f"{stored.get('stamp')}, the tree is now {now}; rebuild the docs "
+            "(generate_matrix rewrites it) or delete the file"
+        )
+    return stored["payload"]
+
+
+class AuditFailed(RuntimeError):
+    """``python -m tests._harness.audit --json`` exited non-zero."""
+
+    def __init__(self, returncode: int, stderr: str) -> None:
+        self.returncode = returncode
+        self.stderr = stderr
+        super().__init__(
+            f"`python -m tests._harness.audit --json` exited {returncode}:\n{stderr}"
+        )
+
+
+@functools.cache
+def audit_payload() -> dict[str, Any]:
+    """The ``--json`` payload, collected ONCE per process in a subprocess.
+
+    A subprocess because the audit runs its own ``pytest --collect-only``
+    and clears the registry; inside a running pytest session that would
+    wipe the outer session's registry. Cached so that every gate reading
+    the payload in one session (the reconciler's withdrawal arm, the
+    withdrawal placement census) pays one collection, about 9 s.
+
+    Raises
+    ------
+    AuditFailed
+        When the audit exits non-zero; carries its stderr.
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "tests._harness.audit", "--json"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AuditFailed(result.returncode, result.stderr)
+    return json.loads(result.stdout)
 
 
 def _run_collection() -> int:
@@ -102,24 +237,94 @@ def _group_by_module_level(
     return out
 
 
-def _equation_coverage(items: list[TestMetadata]) -> dict[str, list[str]]:
-    coverage: dict[str, list[str]] = defaultdict(list)
-    for m in items:
-        for eq in m.equations:
-            coverage[eq].append(m.nodeid)
-    return coverage
+# A test carrying ``@pytest.mark.withdrawn(reason, issue=N)`` is skipped, so
+# its ``verifies`` / ``catches`` markers are CLAIMS nothing currently
+# exercises. Every relation below is therefore split in two: the RUNNING
+# carriers (what the coverage and orphan gates count) and the WITHDRAWN
+# carriers (reported apart, "held by a withdrawal", with the issue whose
+# closure returns them). ``.claude/plans/reference_p0_spec.md`` §3.2.
 
 
-def _caught_tags(items: list[TestMetadata]) -> dict[str, list[str]]:
-    caught: dict[str, list[str]] = defaultdict(list)
+@dataclass(frozen=True)
+class Carriers:
+    """One relation (label -> the tests carrying it), split by whether each
+    carrier runs.
+
+    ``running`` holds the carriers that run under the default invocation;
+    ``withdrawn`` those marked ``@pytest.mark.withdrawn`` (skipped unless
+    their issue is lifted). Built by :func:`carriers`.
+    """
+
+    running: Mapping[str, tuple[TestMetadata, ...]]
+    withdrawn: Mapping[str, tuple[TestMetadata, ...]]
+
+    @property
+    def declared(self) -> dict[str, tuple[TestMetadata, ...]]:
+        """Every carrier, running or withdrawn: the phantom gate's population
+        (a dangling label is dangling whether or not its carrier runs)."""
+        return {
+            label: self.running.get(label, ()) + self.withdrawn.get(label, ())
+            for label in sorted(self.running.keys() | self.withdrawn.keys())
+        }
+
+    @property
+    def held(self) -> dict[str, tuple[TestMetadata, ...]]:
+        """Labels whose EVERY carrier is withdrawn — neither covered nor
+        orphan — mapped to those withdrawn carriers."""
+        return {
+            label: tests for label, tests in sorted(self.withdrawn.items())
+            if label not in self.running
+        }
+
+
+def carriers(
+    items: list[TestMetadata], labels: Callable[[TestMetadata], tuple[str, ...]]
+) -> Carriers:
+    """Group ``items`` by the labels ``labels`` reads off each (its
+    ``equations`` or its ``catches``), running and withdrawn apart."""
+    running: dict[str, list[TestMetadata]] = defaultdict(list)
+    withdrawn: dict[str, list[TestMetadata]] = defaultdict(list)
     for m in items:
-        for tag in m.catches:
-            caught[tag].append(m.nodeid)
-    return caught
+        side = running if m.withdrawn is None else withdrawn
+        for label in labels(m):
+            side[label].append(m)
+    return Carriers(
+        running={k: tuple(v) for k, v in running.items()},
+        withdrawn={k: tuple(v) for k, v in withdrawn.items()},
+    )
+
+
+def _verifies(items: list[TestMetadata]) -> Carriers:
+    return carriers(items, lambda m: m.equations)
+
+
+def _catches(items: list[TestMetadata]) -> Carriers:
+    return carriers(items, lambda m: m.catches)
+
+
+def _ids(tests: tuple[TestMetadata, ...]) -> list[str]:
+    return [m.nodeid for m in tests]
+
+
+def _issues(tests: tuple[TestMetadata, ...]) -> list[int]:
+    """The sorted withdrawal issues of ``tests`` (their withdrawn members)."""
+    return sorted({m.withdrawn.issue for m in tests if m.withdrawn is not None})
+
+
+def _orphans(testable: set[str], verifies: Carriers) -> list[str]:
+    """Testable labels with no running carrier that no withdrawal holds."""
+    return sorted(testable - verifies.running.keys() - verifies.held.keys())
+
+
+def _dormant_errors(err_tags: set[str], catches: Carriers) -> dict[str, list[int]]:
+    """Catalogue entries whose every catcher is withdrawn -> the withdrawal
+    issues whose closure returns them. The one derivation of "dormant"; the
+    error index and reconciler arm 7 read it from the payload."""
+    return {err: _issues(tests) for err, tests in catches.held.items() if err in err_tags}
 
 
 def _phantom_verifies(
-    coverage: dict[str, list[str]], doc_labels: set[str]
+    coverage: Mapping[str, list[str]], doc_labels: set[str]
 ) -> dict[str, list[str]]:
     """Verifies-targets declared by tests with NO matching doc ``:label:``.
 
@@ -208,7 +413,8 @@ def _render_text(
     lines.append("")
 
     # Equation coverage
-    coverage = _equation_coverage(items)
+    verifies = _verifies(items)
+    coverage = verifies.running
     lines.append("Equation coverage:")
     if not coverage:
         lines.append("  (no tests declare @pytest.mark.verifies yet)")
@@ -219,7 +425,9 @@ def _render_text(
 
     # Phantom verifies-targets (declared by tests, no matching doc
     # label anywhere under docs/) — the issue-#224 drift class.
-    phantoms = _phantom_verifies(coverage, all_doc_labels)
+    phantoms = _phantom_verifies(
+        {eq: _ids(t) for eq, t in verifies.declared.items()}, all_doc_labels
+    )
     if phantoms:
         lines.append(
             f"PHANTOM verifies targets ({len(phantoms)} label(s) declared "
@@ -233,8 +441,18 @@ def _render_text(
     # Orphan equations (declared in theory pages, never referenced by
     # any test) — excluding labels explicitly marked `.. vv-status: X
     # documented` as definitional or not-yet-implemented.
+    held = verifies.held
     testable_labels = theory_labels - documented_labels
-    orphans = sorted(testable_labels - coverage.keys())
+    orphans = _orphans(testable_labels, verifies)
+    if held:
+        lines.append(
+            f"Held by a withdrawal ({len(held)} label(s) whose every "
+            "carrier is a withdrawn test — neither covered nor orphan):"
+        )
+        for eq, tests in held.items():
+            issues = ", ".join(f"#{n}" for n in _issues(tests))
+            lines.append(f"  {eq:40} {len(tests):>3} withdrawn ({issues})")
+        lines.append("")
     if theory_labels:
         lines.append(
             f"Orphan equations ({len(orphans)} of {len(testable_labels)} "
@@ -259,16 +477,20 @@ def _render_text(
         lines.append("")
 
     # ERR catalog cross-check
-    caught = _caught_tags(items)
+    catches = _catches(items)
     if err_tags:
-        missing = sorted(err_tags - caught.keys())
+        dormant = _dormant_errors(err_tags, catches)
+        missing = sorted(err_tags - catches.declared.keys())
         lines.append(
             f"error_catalog.rst ERR coverage "
-            f"({len(err_tags) - len(missing)}/{len(err_tags)} entries have a "
-            "catching test):"
+            f"({len(err_tags) - len(missing) - len(dormant)}/{len(err_tags)} "
+            "entries have a running catching test):"
         )
         for err in missing:
             lines.append(f"  MISSING {err}")
+        for err, issues in dormant.items():
+            listed = ", ".join(f"#{n}" for n in issues)
+            lines.append(f"  DORMANT {err} (every catcher withdrawn: {listed})")
         lines.append("")
 
     return "\n".join(lines)
@@ -283,14 +505,17 @@ def _render_json(
     err_tags: set[str],
     skipped_files: list[str],
 ) -> str:
-    coverage = _equation_coverage(items)
-    caught = _caught_tags(items)
+    verifies = _verifies(items)
+    catches = _catches(items)
     testable_labels = theory_labels - documented_labels
     payload: dict[str, Any] = {
         "phantom_verifies": {
             eq: tests
             for eq, tests in sorted(
-                _phantom_verifies(coverage, all_doc_labels).items()
+                _phantom_verifies(
+                    {eq: _ids(t) for eq, t in verifies.declared.items()},
+                    all_doc_labels,
+                ).items()
             )
         },
         "total": len(items),
@@ -300,10 +525,29 @@ def _render_json(
             module: dict(counts)
             for module, counts in _group_by_module_level(items).items()
         },
-        "equation_coverage": {eq: tests for eq, tests in coverage.items()},
-        "orphan_equations": sorted(testable_labels - coverage.keys()),
+        "equation_coverage": {eq: _ids(t) for eq, t in verifies.running.items()},
+        "withdrawn_equation_coverage": {
+            eq: _ids(t) for eq, t in verifies.withdrawn.items()
+        },
+        "held_by_withdrawal": {
+            eq: {"carriers": len(t), "issues": _issues(t)}
+            for eq, t in verifies.held.items()
+        },
+        "orphan_equations": _orphans(testable_labels, verifies),
         "documented_equations": sorted(documented_labels),
-        "err_coverage": {err: caught.get(err, []) for err in sorted(err_tags)},
+        "err_coverage": {
+            err: {
+                "running": _ids(catches.running.get(err, ())),
+                "withdrawn": _ids(catches.withdrawn.get(err, ())),
+            }
+            for err in sorted(err_tags)
+        },
+        "dormant_errors": _dormant_errors(err_tags, catches),
+        "withdrawn_tests": {
+            m.nodeid: {"issue": m.withdrawn.issue, "reason": m.withdrawn.reason}
+            for m in items
+            if m.withdrawn is not None
+        },
         "untagged": [m.nodeid for m in items if m.level is None],
         "skipped_theory_files": list(skipped_files),
     }
@@ -581,27 +825,38 @@ def main(argv: list[str] | None = None) -> int:
             if m.level is None:
                 print(m.nodeid)
     elif args.gaps:
-        coverage = _equation_coverage(items)
-        caught = _caught_tags(items)
-        orphans = sorted(testable_labels - coverage.keys())
-        phantoms = sorted(_phantom_verifies(coverage, all_doc_labels))
-        missing_err = sorted(err_tags - caught.keys())
-        if orphans:
-            print("# Orphan equations (no verifying tests)")
-            for eq in orphans:
-                print(eq)
-        if phantoms:
-            if orphans:
+        verifies = _verifies(items)
+        catches = _catches(items)
+        sections = {
+            "# Orphan equations (no verifying tests)":
+                _orphans(testable_labels, verifies),
+            "# Phantom verifies targets (no matching doc :label:)": sorted(
+                _phantom_verifies(
+                    {eq: _ids(t) for eq, t in verifies.declared.items()},
+                    all_doc_labels,
+                )
+            ),
+            "# ERR entries with no catching test":
+                sorted(err_tags - catches.declared.keys()),
+            "# Held by a withdrawal (every carrier withdrawn; label, issues)": [
+                f"{eq} " + " ".join(f"#{n}" for n in _issues(t))
+                for eq, t in verifies.held.items()
+            ],
+            "# ERR entries held by a withdrawal (dormant; entry, issues)": [
+                f"{err} " + " ".join(f"#{n}" for n in issues)
+                for err, issues in _dormant_errors(err_tags, catches).items()
+            ],
+        }
+        printed = False
+        for heading, rows in sections.items():
+            if not rows:
+                continue
+            if printed:
                 print()
-            print("# Phantom verifies targets (no matching doc :label:)")
-            for eq in phantoms:
-                print(eq)
-        if missing_err:
-            if orphans or phantoms:
-                print()
-            print("# ERR entries with no catching test")
-            for err in missing_err:
-                print(err)
+            print(heading)
+            for row in rows:
+                print(row)
+            printed = True
     elif args.json:
         print(
             _render_json(
@@ -627,9 +882,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.strict:
         untagged = sum(1 for m in items if m.level is None)
-        coverage = _equation_coverage(items)
-        orphans = testable_labels - coverage.keys()
-        phantoms = _phantom_verifies(coverage, all_doc_labels)
+        verifies = _verifies(items)
+        orphans = _orphans(testable_labels, verifies)
+        phantoms = _phantom_verifies(
+            {eq: _ids(t) for eq, t in verifies.declared.items()}, all_doc_labels
+        )
         if untagged or orphans or phantoms:
             return 1
     return 0

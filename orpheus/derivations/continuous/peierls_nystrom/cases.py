@@ -77,6 +77,8 @@ from collections.abc import Callable
 
 from .naming import ShippedReference
 from ...common.continuous_reference import ContinuousReferenceSolution
+from ...common.withdrawal import withdrawn_generator
+from . import PEIERLS_NYSTROM_WITHDRAWAL
 
 # Issue #130 Phase G.5 routing switch. Defaults to True (unified
 # path) as of 2026-04-24 — see module docstring for the benchmark
@@ -92,6 +94,7 @@ _SLAB_VIA_UNIFIED: bool = (
 # ---------------------------------------------------------------------
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_two_surface_case(
     shape: str,
     ng_key: str = "1g",
@@ -197,6 +200,7 @@ def build_two_surface_case(
 # ---------------------------------------------------------------------
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_peierls_slab_case_via_unified(
     ng_key: str,
     n_regions: int,
@@ -219,12 +223,13 @@ def _build_peierls_slab_case_via_unified(
       polar coords, one adaptive double-quad per K element
       (verification-primitive precision, O(N²) adaptive cost).
 
-    **Not the default** for the shipped reference as of Issue #130
-    (2026-04-24). Benchmark at modest quadrature shows a ~1.5 %
-    rel_diff on the ``peierls_slab_2eg_2rg`` fixture — too large for
-    a shipped L1 reference. Enable via ``ORPHEUS_SLAB_VIA_UNIFIED=1``
-    for bisection / testing; default routing stays on the native
-    path until the discrepancy is resolved.
+    **Withdrawn, as is the native path** (#506): neither path is a
+    research-grade reference, and both refuse to run unless
+    ``ORPHEUS_RUN_WITHDRAWN=506`` is set. This path is also not the
+    default routing (Issue #130): at modest quadrature it differs from
+    the native path by about 1.5 % on the ``peierls_slab_2eg_2rg``
+    fixture. ``ORPHEUS_SLAB_VIA_UNIFIED=1`` selects it, for bisection
+    during the improvement work.
     """
     import numpy as _np
 
@@ -324,6 +329,7 @@ def _build_peierls_slab_case_via_unified(
 # ---------------------------------------------------------------------
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_one_surface_compact_case(
     shape: str,
     ng_key: str = "1g",
@@ -394,6 +400,7 @@ SHIPPED_CLASS_A: tuple[ShippedReference, ...] = (
 )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build(case: ShippedReference) -> ContinuousReferenceSolution:
     """Materialise one grid entry. The single construction call."""
     return build_two_surface_case(
@@ -401,6 +408,7 @@ def _build(case: ShippedReference) -> ContinuousReferenceSolution:
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _class_a_cases() -> list[ContinuousReferenceSolution]:
     """Class A — two-surface cases. Slab + hollow cylinder/sphere F.4.
 
@@ -421,6 +429,7 @@ def _class_b_cases() -> list[ContinuousReferenceSolution]:
     return []
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def continuous_cases() -> list[ContinuousReferenceSolution]:
     r"""All Peierls continuous references across both topology classes.
 

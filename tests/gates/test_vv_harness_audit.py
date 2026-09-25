@@ -409,3 +409,25 @@ def test_vvlevel_literal_includes_foundation() -> None:
     assert legal == {"L0", "L1", "L2", "L3", "foundation"}, (
         f"VVLevel Literal mismatch: got {legal}"
     )
+
+
+def test_a_stale_audit_snapshot_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The persisted audit payload is read back only for the tree it was
+    collected from. The error-catalogue index reads its dormant column from
+    it at ``build-finished``; a snapshot left by another tree (another
+    commit, or other uncommitted edits) is refused with a message, never
+    used silently. Both legs: the same tree reads back, a changed tree is
+    refused."""
+    from tests._harness import audit as audit_mod
+
+    monkeypatch.setattr(audit_mod, "AUDIT_SNAPSHOT", tmp_path / "vv_audit.json")
+    stamp = {"commit": "a" * 40, "dirty": False, "inputs_sha256": "0" * 64}
+    monkeypatch.setattr(audit_mod, "tree_stamp", lambda: dict(stamp))
+    assert audit_mod.read_audit_snapshot() is None
+    audit_mod.write_audit_snapshot({"total": 3, "dormant_errors": {}})
+    assert audit_mod.read_audit_snapshot() == {"total": 3, "dormant_errors": {}}
+    stamp["dirty"], stamp["inputs_sha256"] = True, "1" * 64
+    with pytest.raises(audit_mod.StaleAuditSnapshot, match="rebuild the docs"):
+        audit_mod.read_audit_snapshot()

@@ -78,6 +78,8 @@ from ...common.continuous_reference import (
     Provenance,
 )
 from ...common.xs_library import LAYOUTS, get_mixture, get_xs
+from ...common.withdrawal import withdrawn_generator
+from . import PEIERLS_NYSTROM_WITHDRAWAL
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -94,6 +96,7 @@ GEOMETRY = _pg.SPHERE_1D
 _MAT_IDS_SPH = {1: [2]}
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_peierls_sphere_case(
     ng_key: str,
     n_regions: int,
@@ -198,6 +201,7 @@ def _build_peierls_sphere_case(
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_peierls_sphere_hollow_f4_case(
     r0_over_R: float,
     ng_key: str = "1g",

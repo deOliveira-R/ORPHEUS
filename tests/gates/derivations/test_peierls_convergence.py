@@ -17,6 +17,9 @@ import pytest
 from orpheus.derivations import reference_values
 from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
 from orpheus.derivations.continuous.peierls_nystrom.slab import solve_peierls_eigenvalue
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
+
+pytestmark = PEIERLS_NYSTROM_WITHDRAWN
 
 
 @pytest.mark.l0

@@ -21,6 +21,9 @@ from orpheus.derivations import reference_values
 from orpheus.derivations.common.xs_library import LAYOUTS, get_mixture
 from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
 from orpheus.geometry import CoordSystem, Mesh1D
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
+
+pytestmark = PEIERLS_NYSTROM_WITHDRAWN
 
 
 @pytest.mark.l1

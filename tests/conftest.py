@@ -22,6 +22,13 @@ from typing import Any
 
 import pytest
 
+from orpheus.derivations.common.withdrawal import (
+    RUN_WITHDRAWN_VARIABLE,
+    AllWithdrawals,
+    GeneratorWithdrawn,
+    Withdrawal,
+    lifted_withdrawals,
+)
 from orpheus.derivations.reference_values import get as get_reference
 from tests._harness import registry
 from tests._harness.registry import TestMetadata
@@ -219,6 +226,97 @@ def _apply_level_marker(item: pytest.Item, level: str) -> None:
     item.add_marker(getattr(pytest.mark, marker))
 
 
+#: The ``ORPHEUS_RUN_WITHDRAWN`` lift, parsed ONCE per session in
+#: :func:`pytest_configure` (a mistyped value is a usage error there, never
+#: an internal error inside collection).
+_LIFTED = pytest.StashKey[frozenset[int] | AllWithdrawals]()
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Parse ``ORPHEUS_RUN_WITHDRAWN`` once; a mistyped lift is a ``UsageError``."""
+    try:
+        config.stash[_LIFTED] = lifted_withdrawals()
+    except ValueError as exc:
+        raise pytest.UsageError(
+            f"{exc} (unset {RUN_WITHDRAWN_VARIABLE} to run with every withdrawal in force)"
+        ) from exc
+
+
+def _withdrawal_of(item: pytest.Item) -> Withdrawal | None:
+    """Parse the item's ``@pytest.mark.withdrawn(reason, issue=N)``, or ``None``.
+
+    The marker is resolved by pytest (function, then class, then module
+    ``pytestmark``). A malformed marker, or one placed on a single
+    ``pytest.param``, is a ``UsageError`` naming the test: a withdrawal
+    is a property of a test FUNCTION or class (0 of the parametrised
+    functions in the #506 set are mixed; ``.claude/plans/reference_p0_spec.md``
+    §1.2), so a per-case withdrawal is a misplacement, never a need.
+    """
+    mark = item.get_closest_marker("withdrawn")
+    if mark is None:
+        return None
+    callspec = getattr(item, "callspec", None)
+    if callspec is not None and any(m.name == "withdrawn" for m in callspec.marks):
+        raise pytest.UsageError(
+            f"{item.nodeid}: @pytest.mark.withdrawn is placed on a pytest.param; "
+            "withdraw the test function or class instead"
+        )
+    try:
+        return Withdrawal.from_mark(mark, where=item.nodeid)
+    except ValueError as exc:
+        raise pytest.UsageError(str(exc)) from exc
+
+
+def _apply_withdrawal(item: pytest.Item, withdrawal: Withdrawal | None) -> None:
+    """Skip a withdrawn test, with its reason and issue, unless its issue is lifted.
+
+    ``-rs`` prints the reason; the default summary counts the skip, so a
+    withdrawal is never a silent deselection. The lift is the session's,
+    parsed in :func:`pytest_configure`; the generator's lock
+    (:func:`orpheus.derivations.common.withdrawal.withdrawn_generator`)
+    reads the same variable again at call time.
+    """
+    if withdrawal is not None and withdrawal.issue not in item.config.stash[_LIFTED]:
+        item.add_marker(
+            pytest.mark.skip(
+                reason=f"withdrawn (#{withdrawal.issue}): {withdrawal.reason}"
+            )
+        )
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]):
+    """No xfail absorbs a withdrawn generator's refusal, in any phase.
+
+    The lock's refusal (:class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`)
+    is a policy, never the expected failure an ``xfail`` documents, so a
+    report that would read ``xfailed`` because the test body, or a fixture
+    in its setup or teardown, raised it is turned into a failure carrying the
+    lock's own message (which names the issue and the ``withdrawn`` marker to
+    add). Without this, an unmarked xfail test that reaches a locked
+    generator reads ``x`` and the placement is unenforced there (``[M]``
+    2026-09-25: 12 of the 294 #506 cases were such xfails).
+
+    **ELEGANCE-DEBT[guard] #506** — a report rewrite stands where a withdrawn
+    generator can still be CALLED; it retires at phase P4 of
+    ``.claude/plans/reference_cache.md``, when the ``ReferenceCertificate``
+    carries the ``Withdrawn`` state and no withdrawn generator runs.
+    """
+    report = yield
+    if (
+        call.excinfo is not None
+        and call.excinfo.errisinstance(GeneratorWithdrawn)
+        and hasattr(report, "wasxfail")
+    ):
+        del report.wasxfail
+        report.outcome = "failed"
+        report.longrepr = (
+            f"{item.nodeid}: an xfail absorbed a withdrawn generator's refusal; "
+            f"the refusal is not an expected failure. {call.excinfo.value}"
+        )
+    return report
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
@@ -236,6 +334,11 @@ def pytest_collection_modifyitems(
        PR-1 this branch is inert until cases are tagged).
     5. Unmarked — recorded in the registry with ``level=None`` so the
        audit tool can surface it.
+
+    A test carrying ``@pytest.mark.withdrawn(reason, issue=N)`` is skipped
+    unless ``ORPHEUS_RUN_WITHDRAWN`` names ``N`` (:func:`_apply_withdrawal`),
+    and its :class:`~orpheus.derivations.common.withdrawal.Withdrawal` is
+    recorded on its registry entry either way.
     """
     registry.clear()
     for item in items:
@@ -271,6 +374,9 @@ def pytest_collection_modifyitems(
             dict.fromkeys(explicit_equations + inherited_equations)
         )
 
+        withdrawal = _withdrawal_of(item)
+        _apply_withdrawal(item, withdrawal)
+
         nodeid = item.nodeid
         file_path = nodeid.split("::", 1)[0]
 
@@ -284,5 +390,6 @@ def pytest_collection_modifyitems(
                 catches=catches,
                 case_names=case_names,
                 slow=slow,
+                withdrawn=withdrawal,
             )
         )

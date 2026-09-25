@@ -31,6 +31,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     composite_gl_r,
     lagrange_basis_on_panels,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -190,6 +191,7 @@ class TestLagrangeBasisOnPanels:
 # Multi-region kernel row-sum identity
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-equation")
 class TestMultiRegionKernel:

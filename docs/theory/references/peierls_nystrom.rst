@@ -12,6 +12,31 @@ Unified polar-form Peierls Nyström architecture (slab · cyl · sph)
 Key Facts
 =========
 
+.. warning::
+
+   **The Nyström solver described on this page is withdrawn** (`#506
+   <https://github.com/deOliveira-R/ORPHEUS/issues/506>`__, the
+   maintainer's ruling of 2026-09-24): it is not research grade, so its
+   results are not cited as verification evidence and it does not run
+   by default. The withdrawn half of the package is the volume kernel,
+   the boundary-closure operators, ``solve_peierls_1g`` and
+   ``solve_peierls_mg``, the slab eigen-solve, the
+   ``_build_peierls_*_case`` builders and the case builders the lazy
+   registry calls. Each of those symbols is locked: a call raises
+   ``GeneratorWithdrawn`` unless the environment sets
+   ``ORPHEUS_RUN_WITHDRAWN=506``, which is how the improvement work
+   under #506 runs it. The tests that consume it carry
+   ``@pytest.mark.withdrawn(..., issue=506)`` and are skipped; the
+   equation labels they alone carried are listed in the
+   :doc:`/theory/verification/matrix` under "Claims held by a
+   withdrawal", and the error-catalogue entries they alone caught are
+   dormant. The escape, transmission and boundary primitives
+   (``compute_P_*``, ``compute_G_*``, ``compute_T_*``), their two
+   angular-assembly drivers, the analytical identities of the
+   package's ``reference`` module and the PS-1982 reference stay in
+   service. The mechanism is :ref:`vv-withdrawn-generators`. The
+   derivations below remain the record of what the solver computes.
+
 **Read this before modifying any Peierls Nyström reference solver,
 or before extending the architecture to a new geometry.**
 For the **method-agnostic foundations** (integral form of the

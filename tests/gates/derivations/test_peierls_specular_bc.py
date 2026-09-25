@@ -62,6 +62,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     solve_peierls_1g,
     solve_peierls_mg,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ def _solve(geometry, fixture, *, n_bc_modes, boundary):
 # ──────────────────────────────────────────────────────────────────────
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_rank1_sphere_equals_mark_kinf(homogeneous_fuel_A_1G):
     r"""At rank-1 specular for sphere has :math:`R = [[1]] = R_{\rm Mark}`
@@ -145,6 +147,7 @@ def test_specular_rank1_sphere_equals_mark_kinf(homogeneous_fuel_A_1G):
 # ──────────────────────────────────────────────────────────────────────
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_sphere_homogeneous_converges_to_kinf(
     homogeneous_fuel_A_1G,
@@ -196,6 +199,7 @@ def test_specular_sphere_homogeneous_converges_to_kinf(
 # ──────────────────────────────────────────────────────────────────────
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_cylinder_homogeneous_converges_to_kinf(
     homogeneous_fuel_A_1G,
@@ -246,6 +250,7 @@ def test_specular_cylinder_homogeneous_converges_to_kinf(
 # ──────────────────────────────────────────────────────────────────────
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_slab_rank1_equals_mark_kinf(homogeneous_fuel_A_1G):
@@ -283,6 +288,7 @@ def test_specular_slab_rank1_equals_mark_kinf(homogeneous_fuel_A_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_slab_homogeneous_converges_to_kinf(
@@ -336,6 +342,7 @@ def test_specular_slab_homogeneous_converges_to_kinf(
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_slab_mark_decomposes_into_four_per_face_blocks():
     r"""Algebraic identity locking the relationship between the Mark
@@ -598,6 +605,7 @@ def _solve_mg(geometry, fixture, *, n_bc_modes, boundary):
 # k_inf_2G exactly (to within rank-N truncation + quadrature).
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize(
     "geometry,n_max,err_gate",
@@ -709,6 +717,7 @@ def _check_monotonic_and_settled(k_values, geom_label, label):
     return k_values[-1]
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize(
     "geometry",
@@ -745,6 +754,7 @@ def test_specular_heterogeneous_1G2R_converges(
 # ──────────────────────────────────────────────────────────────────────
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize(
     "geometry",
@@ -825,6 +835,7 @@ def thin_sphere_fuelA_like_1G():
     }
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_rank1_equals_hebert(thin_sphere_fuelA_like_1G):
     r"""At rank-1, ``closure="specular_multibounce"`` reduces
@@ -855,6 +866,7 @@ def test_specular_multibounce_rank1_equals_hebert(thin_sphere_fuelA_like_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_thin_sphere_lifts_plateau(
     thin_sphere_fuelA_like_1G,
@@ -915,6 +927,7 @@ def test_specular_multibounce_thin_sphere_lifts_plateau(
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_warns_at_high_N(thin_sphere_fuelA_like_1G):
     """Sphere/cyl multi-bounce specular emits a ``UserWarning`` at
@@ -982,6 +995,7 @@ def thin_cyl_fuelA_like_1G():
     }
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_cyl_rank1_equals_hebert(thin_cyl_fuelA_like_1G):
     r"""At rank-1, ``closure="specular_multibounce"`` for cylinder
@@ -1014,6 +1028,7 @@ def test_specular_multibounce_cyl_rank1_equals_hebert(thin_cyl_fuelA_like_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_cyl_lifts_thin_plateau(thin_cyl_fuelA_like_1G):
     r"""Multi-bounce cylinder lifts the thin-cell single-bounce
@@ -1077,6 +1092,7 @@ def test_specular_multibounce_cyl_lifts_thin_plateau(thin_cyl_fuelA_like_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_specular_multibounce_cyl_warns_at_high_N(thin_cyl_fuelA_like_1G):
     """Cylinder MB emits a ``UserWarning`` at :math:`N \\ge 4`
@@ -1186,6 +1202,7 @@ def test_specular_multibounce_slab_rank1_equals_2E3_identity():
         assert T[1, 1] == 0.0
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_multibounce_slab_rank1_lifts_plateau(thin_slab_fuelA_like_1G):
@@ -1227,6 +1244,7 @@ def test_specular_multibounce_slab_rank1_lifts_plateau(thin_slab_fuelA_like_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_multibounce_slab_monotonic_high_N(thin_slab_fuelA_like_1G):
@@ -1313,6 +1331,7 @@ def test_specular_multibounce_slab_monotonic_high_N(thin_slab_fuelA_like_1G):
 # (2026-04-30 triage).
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 class TestSpecularMultibounceOvershootCharacterization:
     """Phase-4 synthesis: per-geometry overshoot pathology pins.
 

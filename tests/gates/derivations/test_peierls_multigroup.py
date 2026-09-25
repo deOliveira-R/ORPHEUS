@@ -39,6 +39,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     solve_peierls_1g,
     solve_peierls_mg,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -77,6 +78,7 @@ def _call_mg_ng1(
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestMGNg1BitMatch1G:
@@ -208,6 +210,7 @@ class TestMGNg1BitMatch1G:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 class TestMGInputValidation:
     """``solve_peierls_mg`` rejects mis-shaped XS arrays with a clear
@@ -265,6 +268,7 @@ class TestMGInputValidation:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestMGNg2Sanity:
@@ -373,6 +377,7 @@ class TestMGNg2Sanity:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-unified")
@@ -475,6 +480,7 @@ class TestMGSlabPolarMatchesNativeSlabMG:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-unified")
@@ -601,6 +607,7 @@ class TestSlabViaUnifiedRoutingInfrastructure:
                 os.environ["ORPHEUS_SLAB_VIA_E1"] = old
             importlib.reload(pc)
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_unified_builder_produces_valid_reference(self):
         """The unified-path slab builder runs to completion on the
         1G 1-region fixture and emits a well-formed
@@ -621,6 +628,7 @@ class TestSlabViaUnifiedRoutingInfrastructure:
         assert np.isfinite(ref.k_eff) and ref.k_eff < 100.0
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-unified")
@@ -730,6 +738,7 @@ class TestSlabViaUnifiedDiscrepancyDiagnostic:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-unified")

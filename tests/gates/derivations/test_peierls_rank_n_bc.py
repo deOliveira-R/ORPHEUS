@@ -55,6 +55,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     composite_gl_r,
     solve_peierls_1g,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # Module-level V&V tag: every test here contributes to the rank-N
@@ -113,6 +114,7 @@ _GEOMETRIES = [
 # 1. Rank-1 bit-exact recovery (L0, foundation)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.foundation
 @pytest.mark.verifies("peierls-white-bc")
@@ -233,6 +235,7 @@ def test_shifted_legendre_known_values(n, mu, expected):
 # 4. Thin-cell convergence — CYLINDER (L1)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("R", [1.0, 2.0, 5.0])
@@ -273,6 +276,7 @@ def test_rank2_improves_over_rank1(geometry, R):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.xfail(
@@ -330,6 +334,7 @@ def test_rank_n_row_sum_improves_thin_cell_cylinder():
 # 5. Thick cells remain well-behaved (L1)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("N", [2, 3, 5])
@@ -377,6 +382,7 @@ def test_rank_n_thick_cell_unchanged(geometry, N):
 # 6. Thin-cell convergence — SPHERE (L1)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.xfail(
@@ -431,6 +437,7 @@ def test_rank_n_sphere_thin_cell_convergence():
 # 7. Cross-mode diagonality (L0)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("R", [1.0, 5.0])
@@ -481,6 +488,7 @@ def test_rank_n_cross_mode_diagonal(geometry, R):
 # 8. Per-mode reciprocity (L0, xfail — API-dependent)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.xfail(
     reason=(

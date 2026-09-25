@@ -24,6 +24,16 @@ codebase*. Two concepts. The execution is consolidated (both are rows in
 writes ``graph.db`` there, and a ``builder-inited`` hook would read the
 PREVIOUS build's graph.
 
+**The dormant column** (#506, ``.claude/plans/reference_p0_spec.md`` §3.2
+item 6). The graph counts a ``catches`` edge whatever the test's other
+markers are, so a catcher marked ``@pytest.mark.withdrawn`` (skipped by
+default) still reads as coverage there. Until sphinxcontrib-nexus records
+``withdrawn`` itself, the index reads the RUNNING/WITHDRAWN split from the
+audit payload that ``generate_matrix`` persisted earlier in the same build
+(:data:`tests._harness.audit.AUDIT_SNAPSHOT`; one collection per build,
+never two; a snapshot stamped from another tree is refused) and marks an entry whose every catcher is withdrawn as
+dormant, naming the withdrawal issue.
+
 Usage::
 
     python -m tools.verification.generate_error_index            # write
@@ -34,6 +44,8 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+from tests._harness.audit import StaleAuditSnapshot, read_audit_snapshot
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB = REPO_ROOT / ".nexus" / "graph.db"
@@ -54,10 +66,19 @@ def _truncate(text: str, width: int = TITLE_WIDTH) -> str:
     return text[: width - 1].rstrip() + "…"
 
 
-def render(result) -> str:
-    """The index, from an ``ErrorsResult``."""
+def dormant_entries(payload: dict | None) -> dict[str, list[int]] | None:
+    """``ERR-NNN -> [withdrawal issues]`` for every entry whose catchers are
+    ALL withdrawn — the audit's ``dormant_errors``; ``None`` when there is
+    no payload (a build that did not run ``generate_matrix``)."""
+    return None if payload is None else payload["dormant_errors"]
+
+
+def render(result, dormant: dict[str, list[int]] | None = None) -> str:
+    """The index, from an ``ErrorsResult`` and the dormant map
+    (:func:`dormant_entries`; ``None`` when no audit snapshot exists)."""
     entries = sorted(result.entries, key=lambda e: e.name)
     uncaught = [e for e in entries if not e.catcher_count]
+    known_dormant = dormant or {}
     next_id = "ERR-%03d" % (
         max((int(e.name.split("-")[1]) for e in entries if "-" in e.name),
             default=0) + 1
@@ -70,7 +91,10 @@ def render(result) -> str:
         "# L0 error catalogue — index",
         "",
         f"**{result.total_entries} entries · {result.total_catchers} catching "
-        f"tests · {len(uncaught)} uncaught.**",
+        f"tests · {len(uncaught)} uncaught"
+        + (f" · {len(known_dormant)} dormant.**" if dormant is not None
+           else ".** (dormant status unavailable: no audit snapshot; build "
+                "the docs.)"),
         "",
         "Bodies live once, in the corpus. This index is derived from the graph;",
         "editing it by hand is a no-op.",
@@ -113,15 +137,33 @@ def render(result) -> str:
             "",
         ]
 
+    if known_dormant:
+        out += [
+            "## Dormant — every catcher is withdrawn",
+            "",
+            "Each catcher is marked `@pytest.mark.withdrawn` and skipped by",
+            "default, so the catcher count below is a claim nothing currently",
+            "runs. The entry returns to coverage when its withdrawal issue",
+            "closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).",
+            "",
+        ]
+        out += [
+            f"- **{err}** — withdrawn under "
+            + ", ".join(f"#{n}" for n in issues)
+            for err, issues in sorted(known_dormant.items())
+        ]
+        out.append("")
+
     out += [
         "## The catalogue",
         "",
-        "| id | catchers | title |",
-        "|---|---:|---|",
+        "| id | catchers | dormant | title |",
+        "|---|---:|---|---|",
     ]
     for e in entries:
         title = _truncate(e.title).replace("|", "\\|")
-        out.append(f"| {e.name} | {e.catcher_count} | {title} |")
+        status = " ".join(f"#{n}" for n in known_dormant.get(e.name, ()))
+        out.append(f"| {e.name} | {e.catcher_count} | {status} | {title} |")
     out.append("")
     return "\n".join(out)
 
@@ -152,7 +194,12 @@ def main(argv: list[str] | None = None) -> int:
               "id(s) resolve to nothing)")
         return 0
 
-    rendered = render(result)
+    try:
+        snapshot = read_audit_snapshot()
+    except StaleAuditSnapshot as exc:
+        print(f"error-catalogue index NOT written: {exc}", file=sys.stderr)
+        return 1
+    rendered = render(result, dormant_entries(snapshot))
 
     if check_mode:
         current = OUT_PATH.read_text(encoding="utf-8") if OUT_PATH.is_file() else ""

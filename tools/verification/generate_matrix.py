@@ -12,6 +12,8 @@ Sphinx RST page with:
 - Documented-only labels (excluded from the orphan gate)
 - Phantom verifies-targets (tests naming a ``:label:`` that no longer
   exists anywhere under ``docs/`` — the inverse orphan gate, issue #224)
+- Claims held by a withdrawal (labels whose every carrier is a test
+  marked ``@pytest.mark.withdrawn``; neither covered nor orphan)
 - a pointer to the L0 error catalogue (its own page and generator since #308)
 - Unmarked tests listing
 
@@ -37,13 +39,17 @@ Usage::
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
-from tests._harness.audit import VV_AUDIT_SKIP_MARKER
+from tests._harness.audit import (
+    AUDIT_SNAPSHOT,
+    VV_AUDIT_SKIP_MARKER,
+    AuditFailed,
+    audit_payload,
+    write_audit_snapshot,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = REPO_ROOT / "docs" / "theory" / "verification" / "matrix.rst"
@@ -58,17 +64,11 @@ def _run_audit() -> dict:
     ``CalledProcessError.stderr`` carries the actual diagnostic (the
     hook logs it as a build warning — fatal under ``-W``).
     """
-    result = subprocess.run(
-        [sys.executable, "-m", "tests._harness.audit", "--json"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        sys.stderr.write(result.stderr)
-        raise SystemExit(result.returncode)
-    return json.loads(result.stdout)
+    try:
+        return audit_payload()
+    except AuditFailed as exc:
+        sys.stderr.write(exc.stderr)
+        raise SystemExit(exc.returncode) from exc
 
 
 def _render(payload: dict) -> str:
@@ -172,9 +172,10 @@ def _render(payload: dict) -> str:
     lines.append("-----------------\n\n")
     lines.append(
         "Every Sphinx ``.. math:: :label:`` block declared under "
-        "``docs/theory/**/*.rst`` (recursive) and the number of tests "
-        "carrying ``@pytest.mark.verifies(\"label\")`` that reference "
-        "it.\n\n"
+        "``docs/theory/**/*.rst`` (recursive) and the number of RUNNING "
+        "tests carrying ``@pytest.mark.verifies(\"label\")`` that "
+        "reference it. A test marked ``@pytest.mark.withdrawn`` is not "
+        "counted here; see \"Claims held by a withdrawal\".\n\n"
     )
     if coverage:
         lines.append(".. csv-table::\n")
@@ -192,7 +193,8 @@ def _render(payload: dict) -> str:
     lines.append(
         f"Equations with zero tests carrying "
         f"``@pytest.mark.verifies(\"label\")``, excluding labels "
-        f"explicitly marked ``.. vv-status: <label> documented``. "
+        f"explicitly marked ``.. vv-status: <label> documented`` and "
+        f"labels held by a withdrawal. "
         f"**{len(orphans)}** of the testable equations found on "
         f"theory pages are orphan.\n\n"
     )
@@ -269,6 +271,32 @@ def _render(payload: dict) -> str:
         )
     lines.append("\n")
 
+    # Claims held by a withdrawal: labels whose EVERY carrier is a test
+    # marked ``@pytest.mark.withdrawn`` (skipped by default), so they are
+    # neither covered above nor orphan below.
+    held = payload.get("held_by_withdrawal", {})
+    lines.append("Claims held by a withdrawal\n")
+    lines.append("---------------------------\n\n")
+    lines.append(
+        f"Labels whose every carrier is a test marked "
+        f"``@pytest.mark.withdrawn(reason, issue=N)``: the test consumes a "
+        f"withdrawn reference generator and is skipped unless "
+        f"``ORPHEUS_RUN_WITHDRAWN`` names its issue, so the label is "
+        f"neither covered (the table above counts running carriers only) "
+        f"nor orphan (the list below excludes it). Closing the issue "
+        f"returns the carriers. **{len(held)}** label(s).\n\n"
+    )
+    if held:
+        lines.append(".. csv-table::\n")
+        lines.append("   :header: Equation label, Withdrawn carriers, Issue\n")
+        lines.append("   :widths: 50, 10, 10\n\n")
+        for eq in sorted(held):
+            issues = " ".join(f"#{n}" for n in held[eq]["issues"])
+            lines.append(f"   ``{eq}``, {held[eq]['carriers']}, {issues}\n")
+    else:
+        lines.append("*(none)*\n")
+    lines.append("\n")
+
     # The L0 error catalogue used to be tabulated here. It is a record
     # of DEFECTS that happened in this codebase; this page is a
     # statement about the TEST REGISTRY. Two concepts, so the catalogue
@@ -323,7 +351,14 @@ def main(argv: list[str] | None = None) -> int:
     out_path = Path(argv[0]) if argv else DEFAULT_OUT
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Persist the payload once per build: the error-catalogue index
+    # (``generate_error_index``, at ``build-finished``) reads its dormant
+    # column from it rather than collecting the suite a second time. The
+    # previous build's copy is deleted FIRST, so a failed audit leaves no
+    # stale snapshot behind, and the new one carries its tree stamp.
+    AUDIT_SNAPSHOT.unlink(missing_ok=True)
     payload = _run_audit()
+    write_audit_snapshot(payload)
     rst = _render(payload)
     out_path.write_text(rst, encoding="utf-8")
     print(f"wrote {out_path.relative_to(REPO_ROOT)} "

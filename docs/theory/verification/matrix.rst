@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12624**
+Total tests collected: **12674**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1342, 10.6%
+   L0, 1343, 10.6%
    L1, 1962, 15.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9222, 73.1%
+   foundation, 9271, 73.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12518
+   explicit, 12568
    class-name, 46
    func-name, 0
    case, 33
@@ -566,12 +566,13 @@ Module × level grid
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
-   test_error_catalogue_reconciles, 0, 0, 0, 0, 6, 0
+   test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 371, 0
+   test_layer_imports, 0, 0, 0, 0, 372, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
-   test_vv_harness_audit, 16, 0, 0, 0, 0, 0
+   test_vv_harness_audit, 17, 0, 0, 0, 0, 0
+   test_withdrawal, 0, 0, 0, 0, 47, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
@@ -602,7 +603,7 @@ Module × level grid
 Equation coverage
 -----------------
 
-Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst`` (recursive) and the number of tests carrying ``@pytest.mark.verifies("label")`` that reference it.
+Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst`` (recursive) and the number of RUNNING tests carrying ``@pytest.mark.verifies("label")`` that reference it. A test marked ``@pytest.mark.withdrawn`` is not counted here; see "Claims held by a withdrawal".
 
 .. csv-table::
    :header: Equation label, Tests
@@ -610,26 +611,26 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 
    ``matrix-eigenvalue``, 240
    ``mg-balance``, 184
-   ``peierls-unified``, 174
-   ``p-inf``, 155
-   ``one-group-kinf``, 146
+   ``p-inf``, 154
    ``reflective-bc``, 145
-   ``peierls-rank-n-bc-closure``, 124
+   ``one-group-kinf``, 130
    ``alpha-recursion``, 115
    ``cp-infinite-lattice-sum``, 114
    ``wdd-closure``, 103
    ``wdd-face``, 103
    ``cp-white-cell-infinite-medium``, 102
    ``alpha-cylindrical``, 95
-   ``collision-rate``, 94
+   ``collision-rate``, 91
    ``multigroup``, 82
+   ``peierls-unified``, 80
    ``fission-matrix``, 76
    ``removal-matrix``, 76
    ``mm-weights``, 75
    ``flux-moments``, 70
-   ``ki3-def``, 64
+   ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 62
    ``e3-def``, 61
+   ``ki3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``hebert-3-432``, 54
@@ -647,9 +648,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``azimuthal-angles``, 44
    ``cp-kernel-differential-identities``, 36
    ``sn-curvilinear-homogeneous-kinf-recovery``, 36
-   ``flat-source``, 35
    ``cp-keff-update``, 34
    ``first-flight-kernel``, 34
+   ``flat-source``, 34
    ``keff-mean``, 34
    ``matrix-A-def``, 34
    ``matrix-B-def``, 34
@@ -668,7 +669,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bc-response-factored-adjoint``, 33
    ``dd-face-transmission-spectrum``, 33
    ``dd-slab``, 33
-   ``peierls-equation``, 33
    ``free-flight``, 32
    ``angular-cell-partition``, 30
    ``chi-sampling``, 29
@@ -701,7 +701,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-null-counting-law``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
-   ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
    ``peierls-escape-probability``, 18
@@ -740,16 +739,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
-   ``peierls-greens-slab-architecture``, 10
-   ``peierls-vacuum-bc-flux``, 10
-   ``peierls-vacuum-bc-row-sum-gate``, 10
-   ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
    ``dd-solve``, 9
    ``energy-condensation-scattering-collapse``, 9
    ``p-transpose-flux-balance``, 9
+   ``peierls-greens-slab-architecture``, 9
    ``pole-mm-recurrence``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
@@ -757,6 +753,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
    ``hilbert-adjoint-equals-metric-times-S0``, 8
+   ``peierls-rank-n-stability``, 8
    ``sn-adjoint-eigenproblem``, 8
    ``bare-slab-buckling``, 7
    ``bare-slab-critical-equation``, 7
@@ -804,16 +801,15 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``folded-level-arc``, 4
-   ``hebert-3-323``, 4
    ``hebert-3-434``, 4
    ``hebert-3-435``, 4
    ``loss-rep-LpC``, 4
    ``loss-rep-walk-order-rows``, 4
    ``macro-sum``, 4
    ``morel-montry-folded-arc``, 4
+   ``peierls-equation``, 4
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4
-   ``peierls-vacuum-bc-slab``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
    ``sn-dsa-sweep-inverse-identity``, 4
@@ -836,9 +832,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``number-density``, 3
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
    ``peierls-greens-slab-V-alpha-2``, 3
-   ``peierls-mg-operator``, 3
-   ``peierls-vacuum-bc-cylinder``, 3
-   ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
    ``sn-dsa-consistent-low-order``, 3
    ``sn-dsa-s2-exactness``, 3
@@ -899,6 +892,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``energy-condensation-fractional-collapse``, 1
    ``gendf-mf6-yield``, 1
    ``harmonic-discrete-orthogonality``, 1
+   ``hebert-3-323``, 1
    ``ld-cartesian-2d-bilinear-coeffs``, 1
    ``ld-cartesian-2d-projection-coeff``, 1
    ``ld-ubld-pure-z-collision``, 1
@@ -966,7 +960,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented``. **2** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **2** of the testable equations found on theory pages are orphan.
 
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
@@ -1602,6 +1596,23 @@ Labels declared by ``@pytest.mark.verifies("label")`` with NO matching ``:label:
    :widths: 50, 10
 
    ``peierls-sphere-Pss-homogeneous``, 22
+
+Claims held by a withdrawal
+---------------------------
+
+Labels whose every carrier is a test marked ``@pytest.mark.withdrawn(reason, issue=N)``: the test consumes a withdrawn reference generator and is skipped unless ``ORPHEUS_RUN_WITHDRAWN`` names its issue, so the label is neither covered (the table above counts running carriers only) nor orphan (the list below excludes it). Closing the issue returns the carriers. **7** label(s).
+
+.. csv-table::
+   :header: Equation label, Withdrawn carriers, Issue
+   :widths: 50, 10, 10
+
+   ``peierls-mg-operator``, 3, #506
+   ``peierls-vacuum-bc-cylinder``, 3, #506
+   ``peierls-vacuum-bc-flux``, 10, #506
+   ``peierls-vacuum-bc-row-sum-gate``, 10, #506
+   ``peierls-vacuum-bc-slab``, 4, #506
+   ``peierls-vacuum-bc-sphere``, 3, #506
+   ``peierls-white-bc``, 10, #506
 
 L0 error-catalog coverage
 -------------------------

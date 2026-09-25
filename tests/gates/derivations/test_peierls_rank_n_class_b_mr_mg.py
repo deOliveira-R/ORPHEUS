@@ -57,6 +57,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     SPHERE_1D,
     solve_peierls_mg,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 pytestmark = [pytest.mark.verifies("peierls-rank-n-bc-closure")]
@@ -162,6 +163,7 @@ _PUBLISHED_TABLE_1G_1R = {
 }
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("n_bc_modes", [1, 2, 3])
@@ -204,6 +206,7 @@ _ROUTING_INVARIANCE_TOL = {
 }
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("n_bc_modes", [1, 2, 3])
@@ -246,6 +249,7 @@ def test_class_b_mr_routing_invariance_uniform_sigma(geometry, n_bc_modes):
 # 3. The Class B MR catastrophe — Probe G promoted, xfailed to Issue #132
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.catches("ERR-030")
 @pytest.mark.xfail(
@@ -281,6 +285,7 @@ def test_class_b_mr_catastrophe_sphere_1g_2r_rank2():
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.catches("ERR-030")
 @pytest.mark.xfail(
@@ -341,6 +346,7 @@ def _solve_class_b_hebert(geometry, ng_key: str, n_regions: int,
     return sol.k_eff
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
     pytest.param("1g", 1, 0.0, 0.5, id="1G_1R_homogeneous"),
@@ -373,6 +379,7 @@ def test_class_b_sphere_hebert_recovers_kinf(ng_key, n_regions,
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 def test_class_b_sphere_hebert_heterogeneous_overshoot_known():
     """Pin the known +10 % overshoot on sphere 1G/2R fuel-A/mod-B.
@@ -422,6 +429,7 @@ _QUAD_RICH = dict(
 )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
@@ -450,6 +458,7 @@ def test_class_b_sphere_hebert_recovers_kinf_rich(ng_key, n_regions,
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("chi_spectrum, expected_err_pct, tol_pct", [
     pytest.param([1.0, 0.0], -1.5, 1.0, id="fast_emission"),
@@ -530,6 +539,7 @@ def test_class_b_sphere_hebert_chi_dependence(chi_spectrum,
 #     cause as sphere 1G/2R chi=[0,1] case)
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("ng_key, n_regions, expected_err_pct, tol_pct", [
     pytest.param("1g", 1, -0.1, 0.5, id="1G_1R_homogeneous"),
@@ -555,6 +565,7 @@ def test_class_b_cylinder_hebert_recovers_kinf(ng_key, n_regions,
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("ng_key, n_regions, expected_err_low, expected_err_high", [
     pytest.param("1g", 2, 9.0, 13.0, id="1G_2R_heterogeneous"),
@@ -621,6 +632,7 @@ _RANK1_2G_2R_BASE = {
 }
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 def test_class_b_2g_2r_rank1_mark_floor_pinned(geometry):

@@ -49,6 +49,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     SPHERE_1D,
     solve_peierls_mg,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 # k_eff must be invariant to a non-fissile region's χ to solver tolerance,
 # with generous headroom. The bug produces O(1e-2) drift (4.7% measured).
@@ -58,6 +59,7 @@ pytestmark = [
     pytest.mark.l1,
     pytest.mark.catches("ERR-063"),
     pytest.mark.verifies("peierls-mg-operator"),
+    PEIERLS_NYSTROM_WITHDRAWN,
 ]
 
 

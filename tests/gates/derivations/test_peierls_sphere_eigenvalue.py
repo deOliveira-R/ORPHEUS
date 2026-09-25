@@ -26,6 +26,9 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.peierls_nystrom import geometry as _pg
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
+
+pytestmark = PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════

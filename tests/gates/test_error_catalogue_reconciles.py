@@ -266,3 +266,102 @@ def test_the_citation_checker_can_fail():
         "line 1: tests/no_such_directory/test_absent.py (no such file)",
         "line 1: tests/gates/test_error_catalogue_reconciles.py::test_the_missing_checker_can_fail",
     ], got
+
+
+#: The line an entry carries when every one of its catchers is withdrawn:
+#: ``**Status:** dormant — every catcher is withdrawn under #506`` (several
+#: issues are listed ``#506, #512``).
+_DORMANT_RE = re.compile(
+    r"^\s*\*\*Status:\*\* dormant — every catcher is withdrawn under "
+    r"(#\d+(?:, #\d+)*)\s*$",
+    re.M,
+)
+
+
+def _entry_bodies(text: str) -> dict[str, str]:
+    """``ERR-NNN -> body``: the text from its ``.. error-entry::`` line up to
+    the next entry (or the end of the page)."""
+    heads = list(re.finditer(r"^\.\. error-entry:: (ERR-\d{3})\s*$", text, re.M))
+    return {
+        m.group(1): text[m.end(): (heads[i + 1].start() if i + 1 < len(heads) else len(text))]
+        for i, m in enumerate(heads)
+    }
+
+
+def _dormancy_violations(
+    dormant_errors: dict[str, list[int]], bodies: dict[str, str]
+) -> list[str]:
+    """Entries whose dormancy line disagrees with the audit's ``dormant_errors``.
+
+    ``dormant_errors`` maps each entry whose catchers are ALL withdrawn to
+    its withdrawal issues (derived once, in the audit). Such an entry must
+    carry the dormancy line naming exactly those issues; an entry carrying
+    the line while not dormant (a running catcher, or no withdrawn one) is a
+    stale dormancy.
+    """
+    violations: list[str] = []
+    for err, body in sorted(bodies.items()):
+        line = _DORMANT_RE.search(body)
+        if err in dormant_errors:
+            wanted = ", ".join(f"#{n}" for n in dormant_errors[err])
+            if line is None:
+                violations.append(
+                    f"{err}: every catcher is withdrawn ({wanted}) but the entry "
+                    "lacks the line "
+                    f"`**Status:** dormant — every catcher is withdrawn under {wanted}`"
+                )
+            elif line.group(1) != wanted:
+                violations.append(
+                    f"{err}: the dormancy line names {line.group(1)}, its catchers' "
+                    f"withdrawals are {wanted}"
+                )
+        elif line is not None:
+            violations.append(
+                f"{err}: carries a dormancy line but is not dormant (a running "
+                "catcher, or no withdrawn one) — a stale dormancy"
+            )
+    return violations
+
+
+@pytest.mark.foundation
+def test_a_dormant_entry_says_so_and_only_a_dormant_one():
+    """Arm 7. An entry whose every catcher is withdrawn says so, in its body.
+
+    Arm 2 counts a ``catches`` CLAIM whatever the test's other markers
+    are, so a catcher marked ``@pytest.mark.withdrawn`` (skipped unless
+    ``ORPHEUS_RUN_WITHDRAWN`` names its issue) keeps arm 2 green while
+    nothing pins the defect. This arm asks the RUNNING question, through
+    pytest's own marker resolution (the audit's ``dormant_errors``, derived
+    from the registry, so no AST twin of module/class/function
+    resolution), and holds the catalogue's prose to it both ways: a
+    dormant entry carries ``**Status:** dormant — every catcher is
+    withdrawn under #N``, and an entry with a running catcher does not.
+
+    Its positive control is in its own body (X1): a synthetic payload with
+    one dormant entry and no line, and one non-dormant entry carrying a
+    stale line, must both classify as violations, and the corrected pair
+    as clean.
+    """
+    synthetic = {"ERR-900": [506]}
+    broken = {
+        "ERR-900": "\n   :title: x\n\n   **Bug:** y\n",
+        "ERR-901": "\n   :title: x\n\n   **Status:** dormant — every catcher is withdrawn under #506\n",
+    }
+    fixed = {
+        "ERR-900": "\n   :title: x\n\n   **Status:** dormant — every catcher is withdrawn under #506\n",
+        "ERR-901": "\n   :title: x\n\n   **Bug:** y\n",
+    }
+    got = _dormancy_violations(synthetic, broken)
+    assert [v.split(":")[0] for v in got] == ["ERR-900", "ERR-901"], got
+    assert _dormancy_violations(synthetic, fixed) == []
+
+    from tests._harness.audit import audit_payload
+
+    violations = _dormancy_violations(
+        audit_payload()["dormant_errors"],
+        _entry_bodies(CATALOG.read_text(encoding="utf-8")),
+    )
+    assert not violations, (
+        f"{len(violations)} catalogue entr(y/ies) disagree with their catchers' "
+        "withdrawal state:\n  " + "\n  ".join(violations)
+    )

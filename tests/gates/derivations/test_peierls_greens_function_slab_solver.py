@@ -93,6 +93,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab im
     solve_greens_function_slab,
     solve_greens_function_slab_mg,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -602,6 +603,7 @@ def test_alpha_zero_convergence_floor():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-greens-slab-architecture")
 def test_alpha_zero_vacuum_agrees_with_nystrom_slab():

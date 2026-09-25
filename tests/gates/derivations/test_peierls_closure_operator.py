@@ -49,6 +49,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     reflection_specular,
     reflection_vacuum,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 _SIG_T = np.array([1.0])
@@ -69,6 +70,7 @@ def _build(R: float, p_order: int = 5, n_panels: int = 2):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("R", [1.0, 5.0])
@@ -112,6 +114,7 @@ def test_apply_matches_as_matrix(geometry, R, n_bc_modes):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 def test_closure_rank_matches_reflection_rank(geometry):
@@ -154,6 +157,7 @@ def test_closure_rank_matches_reflection_rank(geometry):
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("R", [1.0, 5.0, 10.0])
@@ -180,6 +184,7 @@ def test_marshak_matches_build_white_bc_correction_rank_n(geometry, R):
         )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 @pytest.mark.parametrize("geometry", _GEOMETRIES)
 @pytest.mark.parametrize("R", [0.5, 1.0, 2.0, 5.0, 10.0])
@@ -309,6 +314,7 @@ def test_reflection_specular_dense_off_diagonal_at_rank2():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_custom_reflection_matrix_albedo():
     r"""A user-supplied reflection matrix :math:`R = \alpha \cdot
@@ -342,6 +348,7 @@ def test_custom_reflection_matrix_albedo():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_factored_storage_scales_as_NrN():
     r"""For :math:`N_r \gg N`, the factored form stores
@@ -385,6 +392,7 @@ def test_factored_storage_scales_as_NrN():
 # refactor.
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_bare_op_has_T_none_and_is_multibounce_false():
     """An operator constructed without `T` is bare; `is_multibounce`
@@ -398,6 +406,7 @@ def test_bare_op_has_T_none_and_is_multibounce_false():
     np.testing.assert_array_equal(op.as_matrix(), G @ R @ P)
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_multibounce_geometric_series_is_one_over_one_minus_TR():
     r"""At rank-1 with `R = [[1]]` and `T = [[t]]`, the multibounce
@@ -419,6 +428,7 @@ def test_multibounce_geometric_series_is_one_over_one_minus_TR():
         )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_multibounce_apply_matches_as_matrix():
     """The matrix-free `apply` path agrees with `as_matrix() @ q` for
@@ -438,6 +448,7 @@ def test_multibounce_apply_matches_as_matrix():
         )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_multibounce_T_zero_collapses_to_bare():
     """`T = 0` reduces multibounce to bare: `(I - 0·R)^{-1} = I`."""
@@ -454,6 +465,7 @@ def test_multibounce_T_zero_collapses_to_bare():
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_T_shape_validation():
     """`T.shape` must match `R.shape`; mismatched shapes raise."""
@@ -464,6 +476,7 @@ def test_T_shape_validation():
         BoundaryClosureOperator(P=P, G=G, R=R, T=np.eye(3))
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_hebert_special_case_factor_matches_one_over_one_minus_Pss():
     r"""`closure="white_hebert"` builds `BoundaryClosureOperator` with

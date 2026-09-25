@@ -499,8 +499,11 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   generator-less (a gated contract); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
-- **The one tagged guard**: ``ELEGANCE-DEBT[guard]`` occurs once under
-  ``orpheus/`` (the full-field carrier, #457); ``# TODO`` once;
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs twice under
+  ``orpheus/``: the full-field carrier (#457), and the lock on withdrawn
+  reference generators in ``orpheus/derivations/common/withdrawal.py``
+  (#506, retired when reference certificates carry a ``Withdrawn``
+  state; :ref:`vv-withdrawn-generators`); ``# TODO`` once;
   ``raise NotImplementedError`` 66 times in 24 files under ``orpheus/``
   excluding ``derivations/`` (112 in 35 with it), the population a
   retirement audit walks.

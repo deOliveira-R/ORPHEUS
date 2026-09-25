@@ -27,6 +27,7 @@ import pytest
 
 from orpheus.derivations import reference_values as rv
 from orpheus.derivations.continuous.peierls_nystrom import cases as peierls_cases
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 @pytest.fixture
@@ -92,6 +93,7 @@ def test_builder_keyset_is_the_shipped_class_a_inventory():
     assert set(peierls_cases.continuous_case_builders()) == expected
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_builder_keys_match_built_names():
@@ -107,6 +109,7 @@ def test_builder_keys_match_built_names():
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.slow
 @pytest.mark.foundation
 def test_lazy_peierls_fetch_builds_requested_ref(fresh_continuous_registry):

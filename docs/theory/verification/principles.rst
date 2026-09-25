@@ -1382,6 +1382,21 @@ re-drop the documented bug, confirm this specific test fails under
 the canonical ``-O`` invocation; if a different test catches it,
 the marker belongs there.
 
+A catcher can be **withdrawn**: when the reference generator it
+consumes is withdrawn by a maintainer ruling, the test carries
+``@pytest.mark.withdrawn(reason, issue=N)`` and is skipped, so its
+``catches`` marker is a claim that nothing currently runs. An entry
+whose every catcher is withdrawn is **dormant**, and its body carries,
+after its title, the line
+``**Status:** dormant — every catcher is withdrawn under #N``. The
+line is enforced in both directions by the catalogue reconciler (an
+all-withdrawn entry without it is red, and so is the line on an entry
+with a running catcher), and the audit and the generated error index
+report the entry as dormant rather than covered. The entry returns to
+coverage when the withdrawal's issue closes. The mechanism, and what
+the Nexus graph does not yet see of it, is
+:ref:`vv-withdrawn-generators`.
+
 The catalog mixes two evidence classes that the matrix
 distinguishes:
 

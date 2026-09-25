@@ -1952,6 +1952,7 @@ older entries classify against.
 .. error-entry:: ERR-027
    :title: Peierls slab K-matrix: naive GL collocation for cross-panel entries
 
+   **Status:** dormant — every catcher is withdrawn under #506
 
    **Failure mode:** #3 Missing factor — missing quadrature resolution
    (one-point rule where adaptive is required)
@@ -2007,6 +2008,7 @@ older entries classify against.
 .. error-entry:: ERR-028
    :title: Peierls slab K-matrix: GL collocation of remainder R(τ) has unresolved kink at x'=x_i
 
+   **Status:** dormant — every catcher is withdrawn under #506
 
    **Failure mode:** #3 Missing factor — missing subdivision hint
    **Date:** 2026-04-19
@@ -2049,6 +2051,7 @@ older entries classify against.
 .. error-entry:: ERR-029
    :title: Peierls curvilinear K-matrix: ρ/ω integration does not subdivide at ray-panel crossings or tangent angles
 
+   **Status:** dormant — every catcher is withdrawn under #506
 
    **Failure mode:** #3 Missing factor — missing subdivision hint
    **Date:** 2026-04-19
@@ -2121,6 +2124,7 @@ older entries classify against.
 .. error-entry:: ERR-030
    :title: Peierls rank-N white-BC: mode-0/mode-n≥1 normalization mismatch
 
+   **Status:** dormant — every catcher is withdrawn under #506
 
    **Failure mode:** #1 Wrong formula — inconsistent normalization
    between two integrand factors that look like the same partial-current
@@ -5318,6 +5322,7 @@ older entries classify against.
 .. error-entry:: ERR-063
    :title: "zeroing χ on non-fissile materials is inert" assumed the SN/compute_macro_xs fission contract (χ gated by the SAME region's νΣf) and was FALSE for solve_peierls_mg, whose fission operator weights source-region νΣf by the SINK-region χ → zeroing region-B/C/D χ silently changed 7 L1 Class-B heterogeneous k_eff pins
 
+   **Status:** dormant — every catcher is withdrawn under #506
 
    **Date:** 2026-06-21 (#257 S10a QA validation; branch ``feature/field-typed-operator-algebra``, HEAD ``c6e21c0``, NOT committed).
    **Module:** ``data`` + ``derivations`` (the ``xs_library.py`` non-fissile-χ precursor vs the ``peierls_nystrom/geometry.py::solve_peierls_mg`` MG fission operator).

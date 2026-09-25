@@ -32,6 +32,9 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     composite_gl_r,
 )
 from orpheus.geometry import CoordSystem, Mesh1D
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
+
+pytestmark = PEIERLS_NYSTROM_WITHDRAWN
 
 
 _SIG_T = 1.0

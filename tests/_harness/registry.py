@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from orpheus.derivations.common.withdrawal import Withdrawal
+
 # V&V level values.
 #
 # L0..L3 are the physics-verification ladder from Cardinal Rule 4
@@ -70,6 +72,12 @@ class TestMetadata:
     catches: tuple[str, ...] = ()
     case_names: tuple[str, ...] = ()
     slow: bool = False
+    #: The ruling that withdrew the generator this test consumes, parsed from
+    #: its ``@pytest.mark.withdrawn(reason, issue=N)`` marker; ``None`` for a
+    #: running test. A withdrawn test is skipped, so its ``equations`` and
+    #: ``catches`` are CLAIMS that nothing currently exercises: the audit
+    #: counts them apart (``tests/_harness/audit.py``, "held by a withdrawal").
+    withdrawn: Withdrawal | None = None
 
 
 # Keyed by ``item.nodeid``. Cleared and refilled on every collection

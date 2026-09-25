@@ -49,6 +49,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_slab_transmission,
     reflection_white_rank2,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -134,6 +135,7 @@ class TestRank2SlabKbcBitExactLegacy:
     k_eff convergence rate.
     """
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     @pytest.mark.parametrize("L, sig_t_val", [
         (1.0, 1.0),
         (0.5, 1.0),
@@ -182,6 +184,7 @@ class TestRank2SlabKbcBitExactLegacy:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 class TestRank2SolidGeometryReducesToRank1:
     r"""For solid cyl/sph (``n_surfaces == 1``), ``reflection="white"``
@@ -242,6 +245,7 @@ class TestRank2SlabKEffKInfConvergence:
     # rank-2 gets 1e-4, so ≥100× improvement is demanded. At thick
     # cells (L >= 3) rank-1 is already near the asymptotic limit
     # (T → 0), so only ≥5× is required.
+    @PEIERLS_NYSTROM_WITHDRAWN
     @pytest.mark.parametrize("L, ratio_floor", [
         (0.5, 100.0),
         (1.0, 100.0),
@@ -282,6 +286,7 @@ class TestRank2SlabKEffKInfConvergence:
             f"L={L}: rank-2 err={e2:.3e} too large at moderate quadrature"
         )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_solve_peierls_1g_boundary_white_rank2_end_to_end(self):
         r"""The :func:`solve_peierls_1g` ``boundary="white_rank2"`` option
         routes through :func:`build_closure_operator` with
@@ -307,6 +312,7 @@ class TestRank2SlabKEffKInfConvergence:
         # Rank-2 achieves ≤ 1e-3 at L = 0.5 MFP (rank-1 Mark has 40 % err).
         assert rel < 1e-3, f"L={L} white_rank2 k_eff rel_err={rel:.3e}"
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_solve_peierls_1g_white_rank2_rejects_n_bc_modes_gt_1(self):
         r"""Rank-N per-face (``n_bc_modes > 1``) is explicitly deferred
         to Phase F.5 — calling boundary='white_rank2' with higher modes
@@ -327,6 +333,7 @@ class TestRank2SlabKEffKInfConvergence:
                 n_angular=16, n_rho=16, n_surf_quad=16, dps=15,
             )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_solve_peierls_1g_hollow_sph_white_rank2_inner_radius_plumbing(self):
         r"""Regression for an orthogonal bug (Issue #119 follow-up):
         :func:`solve_peierls_1g` must forward the cell's
@@ -393,6 +400,7 @@ class TestRank2SlabKEffKInfConvergence:
             f"plumbed through. Delta = {abs(float(sol.k_eff) - k_ref):.3e}."
         )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     @pytest.mark.verifies("hebert-3-323")
     @pytest.mark.parametrize(
         "r0, err_ceiling, min_improvement",
@@ -463,6 +471,7 @@ class TestRank2SlabKEffKInfConvergence:
             f"{err_ceiling:.0e} — Ki₃ fold or R/r_0 reciprocity regression?"
         )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     @pytest.mark.parametrize("r0, err_ceiling", [
         (0.1, 1e-2),
         (0.2, 2e-2),
@@ -587,6 +596,7 @@ class TestRank2SlabKEffKInfConvergence:
             f"not cylindrical"
         )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_hollow_cyl_rank2_partial_current_balance_closes(self):
         r"""The rank-2 tensor :math:`K_{\rm bc} = G R P` on hollow cylinder
         agrees with the reference partial-current balance
@@ -696,6 +706,7 @@ class TestRank2SlabKEffKInfConvergence:
                     W[m, N + n] - area_ratio * W[N + n, m]
                 ) < 1e-14
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     def test_rank_n_white_closure_raises_pending_normalisation(self):
         r"""Guard against accidental use of the unresolved rank-N
         per-face closure: ``n_bc_modes > 1`` with ``reflection="white"``
@@ -822,6 +833,7 @@ class TestRank2SlabKEffKInfConvergence:
                 f"smaller than Lambert={P_lambert[i]:.6f} (µ weight)"
             )
 
+    @PEIERLS_NYSTROM_WITHDRAWN
     @pytest.mark.slow
     def test_rank2_error_converges_monotonically_under_refinement(self):
         r"""Mesh-refinement convergence check: doubling n_panels reduces
@@ -859,6 +871,7 @@ class TestRank2SlabKEffKInfConvergence:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-unified")
@@ -997,6 +1010,7 @@ def _t42_k_cyl(n: int) -> float:
     ).k_eff)
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 class TestSlabPolarVsCyl1DOpticallyThick:

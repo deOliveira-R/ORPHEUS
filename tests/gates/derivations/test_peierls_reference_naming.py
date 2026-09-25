@@ -39,6 +39,7 @@ from orpheus.derivations.continuous.peierls_nystrom.naming import (
     reference_name,
 )
 from orpheus.derivations.reference_values import continuous_all_names
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 pytestmark = pytest.mark.foundation
 
@@ -117,6 +118,7 @@ class TestTheNameIsAFunctionOfIdentityAlone:
         ).endswith("_r0_12"), "the tag is round(100 * r0_over_R), zero-padded"
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 class TestTheRatioLawIsEnforcedAtTheBOUNDARY:
     """The same law, twice, on purpose — and the layer is the point.
 

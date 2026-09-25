@@ -63,6 +63,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     map_gl_to,
     reflection_mark,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -103,6 +104,7 @@ def _build_slab_K_and_nodes(L, sig_t, n_panels=8, p_order=6, dps=30):
     return K_per_group[0], x_all, w_all, panel_bounds
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies(
     "peierls-unified",
@@ -206,6 +208,7 @@ class TestSlabKernelRowSum:
         )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 class TestSlabKMatrixElementwiseVsReference:
@@ -381,6 +384,7 @@ def _shell_avg_sphere_K(i, j, x_nodes, pbs, R, sig_t, *, dps=40):
     return s / (2 * r_i) * val
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 class TestSphereKMatrixElementwise:
@@ -453,6 +457,7 @@ class TestSphereKMatrixElementwise:
 # as curvilinear; proves slab is a first-class CurvilinearGeometry kind)
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 class TestSlabPolarReferenceEquivalence:
@@ -507,6 +512,7 @@ class TestSlabPolarReferenceEquivalence:
             )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 class TestSlabPolarBuildVolumeKernel:
@@ -592,6 +598,7 @@ class TestSlabPolarBuildVolumeKernel:
 # 2026-04-20 strategic milestone).
 # ═══════════════════════════════════════════════════════════════════════
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies(
     "peierls-unified",
@@ -658,6 +665,7 @@ class TestCylinderKernelRowSum:
                 )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies(
     "peierls-unified",
@@ -991,6 +999,7 @@ class TestSlabGbcClosedForm:
             )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestSlabKbcStructure:

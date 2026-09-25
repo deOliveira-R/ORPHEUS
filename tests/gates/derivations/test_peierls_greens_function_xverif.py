@@ -45,6 +45,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 @pytest.fixture(scope="module")
@@ -88,6 +89,7 @@ def test_b5_variant_alpha_gives_k_inf_exactly(fuelA_thin_sphere_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_b5_phase4_rank1_equals_white_hebert(fuelA_thin_sphere_1G):
     r"""B5.B — Phase 4 specular_multibounce at rank-1 equals white_hebert
@@ -123,6 +125,7 @@ def test_b5_phase4_rank1_equals_white_hebert(fuelA_thin_sphere_1G):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 def test_b5_phase4_converges_toward_variant_alpha(fuelA_thin_sphere_1G):
     r"""B5.C — Phase 4 specular_multibounce error wrt Variant α

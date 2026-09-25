@@ -31,4 +31,34 @@ Sub-modules:
   *origins* (specular BC R-matrix, cylindrical 3-D G-BC, Knyazev
   shifted-Legendre identities) that are imported here without
   having a continuous reference of their own.
+
+Withdrawn (#506)
+----------------
+
+The Nyström solver half of this package — the volume kernel, the
+boundary-closure operators, ``solve_peierls_1g`` / ``solve_peierls_mg``,
+the slab eigen-solve, the ``_build_peierls_*_case`` builders and the
+case builders the lazy registry calls — is withdrawn by the maintainer's
+ruling of 2026-09-24: it is not research grade, so it is neither cited as
+evidence nor run by default. Each of those symbols is locked with
+:data:`PEIERLS_NYSTROM_WITHDRAWAL` through
+:func:`~orpheus.derivations.common.withdrawal.withdrawn_generator`; a call
+raises :class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`
+unless ``ORPHEUS_RUN_WITHDRAWN=506`` is set. The escape, transmission and
+boundary primitives (``compute_P_*``, ``compute_G_*``, ``compute_T_*``),
+their angular-assembly drivers, :mod:`.reference` and :mod:`.ps1982_reference`
+stay in service.
 """
+
+from orpheus.derivations.common.withdrawal import Withdrawal
+
+#: The ruling that withdraws the Nyström solver half of this package; the
+#: one value every lock in the package is keyed on, and the value the one
+#: test-side mark (``tests/_harness/withdrawals.py``) is minted from.
+PEIERLS_NYSTROM_WITHDRAWAL = Withdrawal(
+    reason=(
+        "Peierls Nyström reference is not research grade "
+        "(maintainer ruling 2026-09-24)"
+    ),
+    issue=506,
+)

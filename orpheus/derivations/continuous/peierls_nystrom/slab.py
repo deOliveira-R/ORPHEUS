@@ -53,6 +53,8 @@ from .geometry import (
     map_gl_to,
 )
 from .naming import reference_name
+from ...common.withdrawal import withdrawn_generator
+from . import PEIERLS_NYSTROM_WITHDRAWAL
 
 # Orbit-space M/G class — slab has two parallel boundary faces at x=0
 # and x=L, so M/G (the 1-D quotient under R²-translation) is an
@@ -187,6 +189,7 @@ def _basis_kernel_weights(
 # Nyström kernel builder
 # ═══════════════════════════════════════════════════════════════════════
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_kernel_matrix(
     x_nodes: list,
     w_nodes: list,
@@ -264,6 +267,7 @@ def _build_kernel_matrix(
     return K_per_group
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_system_matrices(
     K_per_group: list,
     x_nodes: list,
@@ -432,6 +436,7 @@ class PeierlsSlabSolution:
 # Main solver interface
 # ═══════════════════════════════════════════════════════════════════════
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def solve_peierls_eigenvalue(
     sig_t_regions: list[np.ndarray],
     sig_s_matrices: list[np.ndarray],
@@ -640,6 +645,7 @@ def solve_peierls_eigenvalue(
 _MAT_IDS = {1: [2], 2: [2, 0], 4: [2, 3, 1, 0]}
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_peierls_slab_case(
     ng_key: str,
     n_regions: int,

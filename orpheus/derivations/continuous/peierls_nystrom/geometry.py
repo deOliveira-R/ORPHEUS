@@ -74,6 +74,8 @@ from ...common.quadrature_recipes import (
 from ...common.shifted_legendre import (
     shifted_legendre_monomial_coefs as _shifted_legendre_monomial_coefs,
 )
+from ...common.withdrawal import withdrawn_generator
+from . import PEIERLS_NYSTROM_WITHDRAWAL
 # ═══════════════════════════════════════════════════════════════════════
 # Gauss-Legendre helpers (geometry-agnostic)
 # ═══════════════════════════════════════════════════════════════════════
@@ -973,6 +975,7 @@ SPHERE_1D = CurvilinearGeometry(kind="sphere-1d")
 # Unified verification: adaptive mpmath.quad over polar form
 # ═══════════════════════════════════════════════════════════════════════
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def K_vol_element_adaptive(
     geometry: CurvilinearGeometry,
     i: int,
@@ -1129,6 +1132,7 @@ def K_vol_element_adaptive(
     return mpmath.mpf(sig_t_i) * pref * omega_integral
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_volume_kernel_adaptive(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -1168,6 +1172,7 @@ def build_volume_kernel_adaptive(
 # Unified volume-kernel assembly
 # ═══════════════════════════════════════════════════════════════════════
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_volume_kernel(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -3891,6 +3896,7 @@ def compute_G_bc_inner_mode_marshak(
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_white_bc_correction(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -4247,6 +4253,7 @@ class BoundaryClosureOperator:
     R: np.ndarray  # reflection operator, shape (N_modes, N_modes)
     T: np.ndarray | None = None  # transmission, shape (N_modes, N_modes)
 
+    @withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
     def __post_init__(self) -> None:
         if self.P.ndim != 2 or self.G.ndim != 2 or self.R.ndim != 2:
             raise ValueError("P, G, R must all be 2-D arrays")
@@ -4924,6 +4931,7 @@ def reflection_white_rank2(
     return np.linalg.inv(I_n - W)
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_closure_operator(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5092,6 +5100,7 @@ def build_closure_operator(
     return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_closure_operator_rank2_white(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5199,6 +5208,7 @@ def _build_closure_operator_rank2_white(
     return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_closure_operator_rank_n_white(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5312,6 +5322,7 @@ def _build_closure_operator_rank_n_white(
     return BoundaryClosureOperator(P=P, G=G, R=R_matrix)
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def build_white_bc_correction_rank_n(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5557,6 +5568,7 @@ def _specular_assembly_setup(
     return R_cell, sig_t_n, rv, divisor
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_slab_per_face_specular_PG(
     r_nodes: np.ndarray,
     r_wts: np.ndarray,
@@ -5618,6 +5630,7 @@ def _build_slab_per_face_specular_PG(
     return P_slab, G_slab, R_slab
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_sphere_specular_mode_PG(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5664,6 +5677,7 @@ def _build_sphere_specular_mode_PG(
     return P, G
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_cylinder_specular_mode_PG(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5720,6 +5734,7 @@ def _build_cylinder_specular_mode_PG(
 # load-bearing for every closure (not just the white-Marshak family).
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_white_rank1_mark_op(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5748,6 +5763,7 @@ def _build_white_rank1_mark_op(
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_white_f4_op(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5776,6 +5792,7 @@ def _build_white_f4_op(
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_white_hebert_op(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5853,6 +5870,7 @@ def _build_white_hebert_op(
     return BoundaryClosureOperator(P=P_op, G=G_op, R=R_op, T=T_op)
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_specular_op(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -5903,6 +5921,7 @@ def _build_specular_op(
     return BoundaryClosureOperator(P=P_op, G=G_op, R=reflection_specular(N))
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_specular_multibounce_op(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -6112,6 +6131,7 @@ CLOSURE_REGISTRY: dict[str, ClosureRecipe] = {
 }
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def _build_full_K_per_group(
     geometry: CurvilinearGeometry,
     r_nodes: np.ndarray,
@@ -6242,6 +6262,7 @@ def _build_full_K_per_group(
     return K + op.as_matrix()
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def solve_peierls_mg(
     geometry: CurvilinearGeometry,
     radii: np.ndarray,
@@ -6473,6 +6494,7 @@ def solve_peierls_mg(
     )
 
 
+@withdrawn_generator(PEIERLS_NYSTROM_WITHDRAWAL)
 def solve_peierls_1g(
     geometry: CurvilinearGeometry,
     radii: np.ndarray,

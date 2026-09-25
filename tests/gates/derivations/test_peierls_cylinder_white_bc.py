@@ -43,6 +43,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     compute_G_bc,
     compute_P_esc,
 )
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 _SIG_T = np.array([1.0])
@@ -106,6 +107,7 @@ class TestGbcProperties:
         )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-equation", "one-group-kinf")
 class TestWhiteBCEigenvalue:
@@ -205,6 +207,7 @@ class TestWhiteBCEigenvalue:
 # triage; deleted at ``c196f0ca``).
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.foundation
 class TestHebertCylinderInsufficient:
     """Cylinder Mark closure on Class B has a documented -10 % to -90 %

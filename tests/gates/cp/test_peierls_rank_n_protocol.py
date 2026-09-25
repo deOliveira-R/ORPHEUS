@@ -61,6 +61,7 @@ from dataclasses import dataclass
 from typing import Callable, Sequence
 
 import pytest
+from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 K_INF = 1.5  # nu_sig_f / (sig_t - sig_s) = 1.0 / (1.0 - 1/3) = 1.5
 
@@ -611,12 +612,20 @@ def _run_f4_subprocess(tau: float, rho: float, quad: dict, timeout: float = 600.
         str(quad["n_panels"]), str(quad["p_order"]), str(quad["n_ang"]),
     ]
     proc = subprocess.run(
-        args, capture_output=True, text=True, timeout=timeout, check=True,
+        args, capture_output=True, text=True, timeout=timeout, check=False,
     )
+    if proc.returncode != 0:
+        # Surface the child's own traceback (a withdrawn generator's refusal
+        # names #506 and the marker to add); a bare CalledProcessError hides it.
+        raise RuntimeError(
+            f"F.4 worker exited {proc.returncode} at (tau={tau}, rho={rho}):\n"
+            f"{proc.stderr.strip()}"
+        )
     out = json.loads(proc.stdout.strip().splitlines()[-1])
     return out["k"]
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-rank-n-stability")
@@ -679,6 +688,7 @@ def test_f4_is_sign_stable_at_its_reference_quadrature(tau: float, rho: float):
     )
 
 
+@PEIERLS_NYSTROM_WITHDRAWN
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("peierls-rank-n-stability")

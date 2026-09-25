@@ -65,6 +65,15 @@ Submodules
    * - :mod:`~orpheus.derivations.reference_values`
      - Lazy registry and lookup helpers (``get``, ``all_names``,
        ``by_geometry``, ``by_groups``, ``by_method``).
+   * - :mod:`~orpheus.derivations.common.withdrawal`
+     - The withdrawal of a reference generator:
+       :class:`~orpheus.derivations.common.withdrawal.Withdrawal`
+       ``(reason, issue)``, the lock
+       :func:`~orpheus.derivations.common.withdrawal.withdrawn_generator`
+       and its refusal
+       :class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`,
+       lifted by ``ORPHEUS_RUN_WITHDRAWN`` (see
+       :ref:`vv-withdrawn-generators`).
 
 Reference-value registry
 ------------------------
@@ -76,6 +85,12 @@ Verification case type
 ----------------------
 
 .. automodule:: orpheus.derivations.common.verification_case
+   :members:
+
+Withdrawn reference generators
+------------------------------
+
+.. automodule:: orpheus.derivations.common.withdrawal
    :members:
 
 Homogeneous
