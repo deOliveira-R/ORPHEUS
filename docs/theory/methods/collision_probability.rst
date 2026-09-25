@@ -664,6 +664,53 @@ substitute complementarity :eq:`complementarity` for both sums:
 
 Verified numerically by ``tests/gates/cp/test_properties.py::test_row_sums``.
 
+.. _cp-white-cell-infinite-medium-section:
+
+**A homogeneous cell with a white boundary is an infinite medium.**  Take
+one material, so :math:`\Sigma_t` is the same in every region.  Reciprocity
+:eq:`reciprocity` then reads :math:`V_i P_{ij}^{\infty} = V_j P_{ji}^{\infty}`
+(the white re-entry term inherits it, because :math:`P_{\text{in},j}` is
+proportional to :math:`\Sigma_t V_j P_{j,\text{out}}`,
+:eq:`pin-from-reciprocity`), and the row sums of
+:math:`P^{\infty}` are 1.  Try a spatially flat source :math:`Q_i = Q` in the
+collision-rate balance :eq:`collision-rate`, indexed as
+:math:`P[\text{birth}, \text{collision}]`:
+
+.. math::
+   :label: cp-white-cell-infinite-medium
+
+   \Sigma_t \, \phi_j \, V_j
+   = Q \sum_i V_i P_{ij}^{\infty}
+   = Q \, V_j \sum_i P_{ji}^{\infty}
+   = Q \, V_j
+   \quad\Longrightarrow\quad
+   \phi_j = \frac{Q}{\Sigma_t} \ \text{ for every region } j .
+
+So the flat vector is a fixed point of the discrete CP equations exactly,
+not only to discretisation error: the flux is flat in every group, and the
+multigroup problem collapses onto the 0-D pencil of the mixture
+(:math:`A = \operatorname{diag}(\Sigma_t) - \Sigma_s^{\mathsf T}`,
+:math:`F = \chi \otimes \nu\Sigma_f`), whose dominant eigenvalue is
+:math:`k_\infty` and whose eigenvector is the group spectrum.  This is the
+Wigner–Seitz statement in its exact discrete form, and it is the closed form
+the CP white-boundary gates check
+(``tests/gates/cp/test_white_boundary_infinite_medium.py``: :math:`k/k_\infty`,
+per-group flatness, and the spectrum, over slab, cylinder and sphere at
+optical radii 0.5 to 10 with 2 and 4 groups).  Flatness is the row that sees
+a conservation or reciprocity defect in :math:`P^{\text{cell}}`; the
+eigenvalue alone is invariant under such a defect, and a one-group
+eigenvalue is independent of the flux shape altogether.
+
+.. warning::
+
+   The sphere does not realise this identity at large optical radius
+   (#509, open): a homogeneous white-boundary sphere is measurably not flat
+   once the group optical radius exceeds about 4, the deviation grows under
+   mesh refinement, and the 2- and 4-group :math:`k` is off by 5 to 7 % at
+   10 mean free paths (measured 2026-09-25). The slab and the cylinder realise
+   it to about :math:`10^{-13}`. The failing sphere rows are strict
+   expected failures citing #509.
+
 .. warning::
 
    The white BC is an **approximation**.  The true angular distribution

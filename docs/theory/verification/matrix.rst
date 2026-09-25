@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12518**
+Total tests collected: **12624**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1342, 10.7%
-   L1, 1859, 14.9%
+   L0, 1342, 10.6%
+   L1, 1962, 15.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9219, 73.6%
+   foundation, 9222, 73.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12412
+   explicit, 12518
    class-name, 46
    func-name, 0
    case, 33
@@ -114,6 +114,7 @@ Module × level grid
    cp/test_sphere, 0, 9, 0, 0, 0, 0
    cp/test_sphere_pss, 22, 0, 0, 0, 0, 0
    cp/test_verification, 4, 25, 5, 0, 0, 0
+   cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 3, 0
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
@@ -610,12 +611,15 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``matrix-eigenvalue``, 240
    ``mg-balance``, 184
    ``peierls-unified``, 174
+   ``p-inf``, 155
    ``one-group-kinf``, 146
    ``reflective-bc``, 145
    ``peierls-rank-n-bc-closure``, 124
    ``alpha-recursion``, 115
+   ``cp-infinite-lattice-sum``, 114
    ``wdd-closure``, 103
    ``wdd-face``, 103
+   ``cp-white-cell-infinite-medium``, 102
    ``alpha-cylindrical``, 95
    ``collision-rate``, 94
    ``multigroup``, 82
@@ -631,7 +635,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hebert-3-432``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
-   ``p-inf``, 53
    ``self-sph``, 52
    ``chord-length``, 51
    ``quadrature-ordinate-permutation``, 50
@@ -723,7 +726,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``two-group-roots``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
-   ``cp-infinite-lattice-sum``, 12
    ``kinf-1g``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
