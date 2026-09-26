@@ -379,6 +379,14 @@ shelf life — check it against a concrete row before trusting a green.
   catches an inflation and is blind to a deflation; the two-sided catcher is a
   RATIO-INVARIANCE row, and the arm proving the pair is `scale**ℓ`. ⚠ Threshold
   `1 + 1e-9`, never tighter. → `L76c`
+- **⭐ A reference's convergence is measured reference against reference, per
+  axis, never through its reading against a third object.** A max-over-cells
+  reading can hold steady while the profile under it moves (the argmax shifts),
+  and a reference that has never shown an `n_r` ladder can carry a 2 % defect
+  under a bound nobody derived. Before re-posing a cross-check row: the
+  reference's two-parameter ladder (spatial x angular, coupled when a kink
+  angle moves with the node), the SN side read from the artefact that pins it,
+  and the comparison on the SUT's own cells. → `L96`
 
 ## 5. Tolerance is a claim — choose it per law, from measurement
 

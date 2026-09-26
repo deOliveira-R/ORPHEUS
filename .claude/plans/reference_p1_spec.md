@@ -190,7 +190,7 @@ For step 3 the capture runs twice, at the pre-carve commit and after the migrati
 | class | sites | what moves | bound | why it is correct |
 |---|---|---|---|---|
 | (a) bit-identical | the majority (§3.4) | nothing | 0 | — |
-| (b) the #495 fix | Cartesian equal-width meshes whose `diff(edges)` is not constant | volumes, to `fl(L/n)` | ≤ 2 ULP of the cell measure | S3.4: the stored measure is the rule's exact measure (the ERR-020 precedent) |
+| (b) the #495 fix | Cartesian equal-width meshes whose `diff(edges)` is not constant | volumes, to `fl(L/n)` | each measure within `2·(ulp(r_k)+ulp(r_{k+1}))` of the pre-carve one (§3.4) | S3.4: the stored measure is the rule's exact measure (the ERR-020 precedent) |
 | (c) R1 to R2 edge rounding | direct `np.linspace` sites whose `linspace` differs from the affine body | edges, and the volumes that follow them on a cylinder or sphere | ≤ 2 ULP per edge | §0 item 2 (ruled) |
 | (d) materials decided by position | 5 sites (census §(2)) | edges, per class (c), once the interfaces become breakpoints | as (c) | the honest geometry has a breakpoint at each material interface |
 | (e) hollow curvilinear | 13 statically evaluated sites (§0 item 14) and any at run time | nothing (an explicit inner `BC.reflective`) | 0 | #511: SN computes the reflective cavity today |
@@ -214,7 +214,7 @@ A frozen reference whose producer builds a mesh in class (b), (c) or (d) changes
 
 The frozen artefacts in `tests/` (`find tests -name '*.npz' -o -name '*.npy'`, `[M]`): `sn/regression/snapshots` 25, `sn/_data/finalize_reconstruction_448` 32, `sn/_data/bc_extraction_baseline` 21, `sn/_data/affine_carve_baseline` 12, `geometry/snapshots` 7, `sn/_data/affine_carve_converged` 6, `sn/_data/bc_extraction_2d_baseline` 3, `numerics/data` 2, `sn/_fixtures/wave_t_t3` 1, `sn/_fixtures/wave_t_t4` 1, and 1 more under `sn/`. Their producers' meshes:
 
-- `tests/gates/sn/regression/_generate_snapshots.py`: `from_geometry` with the default equal-volume on slab, sphere and cylinder. Under R2 the slab cases keep their affine edges and `fl(L/n)` measures, and the curvilinear cases keep `_subdivide_zone` verbatim, so `[R]` the corpus is bit-identical; this is the reason R2 was ruled. Capture 1 confirms it per case (§3.4).
+- `tests/gates/sn/regression/_generate_snapshots.py`: `from_geometry` with the default equal-volume on slab, sphere and cylinder. Under R2 the `from_geometry` cases keep their affine edges and `fl(L/n)` measures, and the curvilinear cases keep `_subdivide_zone` verbatim: 14 of 15 constructions bit-identical `[M]` (§3.4); `slab_fixed_source_dd_n20` is a direct `linspace` slab and moves by class (b) under either rule, so it is re-derived.
 - `sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py`: `Mesh1D(np.linspace(0, 4, nx + 1), …)` direct (class (b) or (c), depending on `nx`); the 2-D producers (`wave_t_t3`, 2-D octant snapshots, `_test_helpers.py:253, 457`) build `Mesh2D`, which keeps its constructor and does not move.
 - `sn/_data/affine_carve_baseline` (`test_affine_carve_baseline.py:150-190`): a slab and a sphere on `linspace(0, 2)`, and the hollow cylinder `linspace(0.01, 2)`, all direct (classes (b), (c), (e)).
 
@@ -222,7 +222,19 @@ The per-artefact verdict (moves or not, and by how much) is read from capture 1 
 
 ### 3.4 Capture results
 
-`[M]` pending: the full-suite run of capture 1 over `tests/gates` at `26a4f95c` was started at 20:25 on 2026-09-25 (background, serial; log `scratch/reference_architecture/p1probe/cap_full.log`); the plugin writes `cap_full.jsonl` at session end, and `summarise_capture.py` in the same directory prints, per construction kind and coordinate, the `R2` verdict (`ev` nothing moves, `eV` volumes only, `Ev`, `EV`), the maximum relative move of edges and volumes, and the tests whose meshes move. What is known before it finishes, over the 255 statically evaluated direct sites `[M]` (`rule_rebuild.out`): under R2, Cartesian uniform 81 bit-identical, 31 volumes only (class b), 15 edges only and 3 both (class c); cylindrical uniform 17 bit-identical, 5 both; spherical uniform 29 bit-identical, 9 both; every single-cell, one-cell-per-region and irregular site bit-identical (48 + 17 + 26). The `from_geometry` population is not in that set; `[R]` under R2 its equal-volume meshes are bit-identical (the R2 body IS `_subdivide_zone`'s) and its six `"uniform"` meshes move by class (b) only. Two checks the result owes before step 3 starts: (1) the SN regression corpus's constructions read `ev` in every case (the reason R2 was ruled); (2) the plugin perturbs nothing: the run's pass/skip/xfail counts equal a plain run's (the wrapper runs production's `__post_init__` first and only reads its output), and any failure in `cap_full.log` is characterised against a plain run of the same node before a verdict is read.
+`[M]` Capture 1 over `tests/gates` at `26a4f95c`, serial, `.venv/bin/python -O -m pytest -p mesh_capture tests/gates` (2026-09-25, 20:25 to 23:28): 1 failed, 12 302 passed, 315 skipped, 56 xfailed in 10 796 s (2 h 59 min, the plugin's cost included); `installed=1`, 3493 `Mesh1D` constructions over 2944 tests (1 at collection). Summary: `summarise_capture.py` over `cap_full.jsonl`.
+
+| kind, coordinate | constructions | R2 verdict (`e`/`E` edges bitwise same/moved, `v`/`V` volumes) |
+|---|---|---|
+| `from_geometry`, slab / cylinder / sphere | 269 / 169 / 169 | all `ev` (bit-identical) |
+| direct, slab | 1697 | 1170 `ev`, 317 `eV` (class b), 205 `Ev` (class c, edges only), 5 `EV` |
+| direct, cylinder | 463 | 373 `ev`, 90 `EV` (class c) |
+| direct, sphere | 672 | 605 `ev`, 67 `EV` (class c) |
+| direct on a global `linspace`, materials by position (class d) | 22 / 23 / 9 | all `EV` |
+
+Totals under R2: 738 of 3493 constructions move, in 514 tests (136 test files); maximum relative edge move 3.05e-16 (one ULP), maximum relative volume move 5.69e-14. Under R1: 381 move, in 317 tests; the same maximum volume move. The volume bound of classes (b) to (d) is therefore not "≤ 2 ULP of the cell measure": a one-ULP move of an edge `x` moves a cell of width `w` by about `ulp(x)/w` relative (the 5.69e-14 is a 640-cell slab, `test_heterogeneous_transport.py::test_sn_2region_reflective_case`, `test_keff_slab.py::test_heterogeneous_absolute_keff`). The class bound in §3.1 is corrected to: every edge within 2 ULP, and every measure within `2·(ulp(r_k) + ulp(r_{k+1}))·|∂m/∂r|` of the pre-carve one. `[REFUTED 2026-09-25]` "the SN regression corpus is bit-identical under R2" (§3.3): 14 of its 15 constructions are, and `test_dd_regression[slab_fixed_source_dd_n20]` builds its slab directly on a `linspace` whose differences are not constant, so the #495 fix moves its volumes by up to 1.39e-15 relative under R1 and R2 alike (class b). That snapshot is re-derived at step 3 by §3.3's four steps; the other 14 cases stay a free bit-level anchor.
+
+The failure: `test_phase_c_crosscheck.py::test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_folded_4x8_dd_n40]` (per-group max `|Δφ_norm|` 0.1268 against a tolerance of 0.12). The plugin only reads `Mesh1D`'s output after production's `__post_init__` has run, so `[R]` it is not caused by the capture; `[M]` a plain re-run of the node without the plugin (`.venv/bin/python -O -m pytest <node>`, 580.7 s) FAILS the same way, so it is a pre-existing red at `26a4f95c`, not the capture's. The pre-carve baseline of step 1 must carry it characterised (this node, the 0.1268 against 0.12 reading), never counted, and `process-discipline` owes it a fix or an issue before feature work proceeds.
 
 ## 4. The retirement audit, per step
 

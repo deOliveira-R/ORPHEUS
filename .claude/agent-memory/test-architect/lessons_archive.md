@@ -11515,3 +11515,27 @@ defining laws" is the obligation; below is how to meet it here.
   every natural rule; state it on the stored measures and the nominal width `fl(L/n)`. The CP slab
   with both faces white is not mirror-symmetric (5e-5 in k at keff_tol 1e-13; #513 comment).
   Spec: `.claude/plans/reference_p1_spec.md`; probes `scratch/reference_architecture/p1probe/`.
+
+
+## L96 — W2 cylinder cross-check (#516, ERR-090): three defects agreed to look like one (2026-09-26; reference fix + re-pose)
+
+The red Phase E cylinder row (0.1268 vs 0.12) was investigated as "SN angular
+error at 4x8". Measuring the REFERENCE against itself found: (1) its emission
+density was one cubic spline across the material jumps, so k moved 2 % between
+n_r rungs (cylinder 1.20693 -> 1.23104 fixed; sphere 1.35808 -> 1.38374);
+(2) the Phase D sphere row's hand-typed SN k was stale by 1.7 % since the day
+after it was typed, and agreed with the defective reference at 2e-4 by
+coincidence; (3) the Phase E rows placed the reference at uniform cell centres
+on equal-volume / equal-area meshes, a persistent 4 % (sphere) shape error
+that read as SN's. The investigator's premise "the shape metric is stable
+across reference resolutions" was true of the MAX and false of the profile
+(ref-vs-ref 0.014-0.020). Once fixed, the sphere certifies (k 6.5e-5 vs 3e-3,
+shape 4.4e-3 vs 2e-2) but the reference-limited bounds are BLIND to the SN
+closure mutation tau := 0.7 (k 8.7e-4, shape 1.0e-2 at GL32): a certified row
+can still be too coarse for the defect class that motivated it; name its
+catcher (test_dd_regression). The cylinder reference's azimuthal ladder is
+non-monotone (1.23093, 1.23326, 1.23158 at 32/64/128) and coupled to n_r, so
+its rows went strict-xfail on a `None` bound (a bound is a certified number or
+absent, never a lower bound declared as one). Probe asserts under `python -O`
+are stripped: my getsource-patch guard was inert and I only knew the patch bit
+because k moved.
