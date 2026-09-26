@@ -6839,8 +6839,12 @@ answer is a ``linearize()`` seam (a companion pencil on an enlarged
 space carrying the precursor concentrations), never a silent assumption
 that :meth:`~orpheus.numerics.pencil.OperatorPencil.at` is enough.  The
 prompt-:math:`\alpha` problem, by contrast, IS degree 1: it is
-:math:`(A, T)` with :math:`T = 1/v` and the map :math:`\alpha = -1/\mu`,
-which is exactly the α-row of the posing table below and is why
+:math:`(A, T)` with :math:`T = 1/v` and the map :math:`\alpha = -1/\mu`
+(:math:`\mu` the eigenvalue of :math:`A^{-1}T`, as in the posing table
+below; in the pencil's own eigenvalue :math:`\lambda = 1/\mu` the same
+α is :math:`-\lambda`, which is what
+:data:`~orpheus.numerics.posing.ALPHA_MAP` reads, ERR-089), which is
+exactly the α-row of the posing table below and is why
 :data:`~orpheus.numerics.posing.ALPHA_MAP` is already written even though
 no solver consumes it yet.
 

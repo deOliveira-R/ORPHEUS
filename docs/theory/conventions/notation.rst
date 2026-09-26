@@ -185,7 +185,13 @@ The six leaves and their composites
    * - :math:`\Lambda`, :math:`\sigma`, :math:`\mu`, :math:`\lambda`
      - The pencil's parameter set, a point in it, the **pencil
        eigenvalue**, and the **physical** eigenvalue the spectral map
-       carries it to (:math:`k = 1/\mu`, :math:`\alpha = -1/\mu`).
+       carries it to (:math:`k = 1/\mu`, :math:`\alpha = -\mu`, the
+       convention of :class:`~orpheus.numerics.posing.SpectralMap`).
+       ⚠ The posing table of :ref:`eigen-standard-form-and-resolvent`
+       writes :math:`\lambda` for the pencil's eigenvalue and
+       :math:`\mu` for the eigenvalue of :math:`A^{-1}M`, its reciprocal,
+       so there :math:`k = \mu` and :math:`\alpha = -1/\mu` (ERR-089 is
+       the defect this collision caused).
        :math:`\sigma` is an INPUT for a source-driven problem and
        :math:`\mu` an OUTPUT for an eigenproblem — which is the axis
        that separates the two kinds.  ⚠ Two collisions here, both live:

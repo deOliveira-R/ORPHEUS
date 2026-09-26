@@ -80,8 +80,13 @@ class SpectralMap:
 K_MAP = SpectralMap(forward=lambda mu: 1.0 / mu, inverse=lambda k: 1.0 / k, of_quotient=lambda a, m: m / a, name="k")
 r"""k-eigenvalue: :math:`A\psi = F\psi/k` ⟺ :math:`\mu = 1/k`; :math:`k = \langle w,F\psi\rangle/\langle w,A\psi\rangle`."""
 
-ALPHA_MAP = SpectralMap(forward=lambda mu: -1.0 / mu, inverse=lambda a: -1.0 / a, of_quotient=lambda a, m: -m / a, name="alpha")
-r"""α-eigenvalue: :math:`(L+C-S-F)\psi = -\alpha T\psi` ⟺ :math:`\mu = -1/\alpha` (a later posing; the map is stated now)."""
+ALPHA_MAP = SpectralMap(forward=lambda mu: -mu, inverse=lambda alpha: -alpha, of_quotient=lambda a, m: -a / m, name="alpha")
+r"""α-eigenvalue: :math:`(L+C-S-F)\psi = -\alpha T\psi` ⟺ :math:`\mu = -\alpha` (a later posing; the map is stated now).
+
+μ is the PENCIL's eigenvalue, :math:`A\psi = \mu M\psi` with :math:`M = T = 1/v`,
+the convention ``K_MAP`` also reads (:math:`k = 1/\mu`). Where the corpus writes
+μ for the eigenvalue of :math:`A^{-1}M` instead (the power iteration's), the
+same α is :math:`-1/\mu`; this map once carried that formula (ERR-089)."""
 
 
 @dataclass(frozen=True)

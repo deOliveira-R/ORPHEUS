@@ -17,7 +17,8 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, solve_homogeneous_infinite
 from orpheus.numerics.pencil import OperatorPencil
-from orpheus.numerics.posing import K_MAP, EigenPosing, SourcePosing
+from orpheus.numerics.operator import DiagonalOperator
+from orpheus.numerics.posing import ALPHA_MAP, K_MAP, EigenPosing, SourcePosing
 
 pytestmark = pytest.mark.foundation
 
@@ -90,3 +91,56 @@ class TestLawTheSourcePosing:
         _require(np.all(np.asarray(posing.residual(2.0 * psi)) > 0), "the residual is SIGNED with the loss convention: too much flux reads Aψ − q > 0 (step 3 U1 — it read q − Aψ before)")
         _require(abs(posing.balance(psi)) <= 1e-12 * np.sum(np.abs(q)), "⟨1, Aψ* − q⟩ vanishes")
         _require(posing.balance(2.0 * psi) > 0, "the balance is SIGNED: too much flux reads positive (Aψ − q > 0)")
+
+
+class TestLawEachSpectralMapReadsThePencilsEigenvalue:
+    r"""A spectral map is the bijection between the PENCIL's eigenvalue μ,
+    :math:`A\psi = \mu M\psi` (``at(μ)`` singular), and the physical one.
+
+    Its round trip and its one-division form are internal laws a wrong map
+    also satisfies; what pins a map is the physical equation it names, solved
+    here from the definition and never from the map. ⚠ The corpus also writes μ
+    for the eigenvalue of :math:`A^{-1}M` (the power iteration's), where
+    :math:`k = \mu` and :math:`\alpha = -1/\mu`; in the pencil's convention
+    :math:`k = 1/\mu` and :math:`\alpha = -\mu`. ``ALPHA_MAP`` once mixed the
+    two (ERR-089).
+    """
+
+    @staticmethod
+    def _alpha_pencil():
+        r"""The 0-D prompt-α pencil: :math:`(L+C-S-F)\psi = -\alpha\,T\psi`, :math:`T = 1/v`.
+
+        The speeds are not physical (3 and 1 in any unit): the law holds for any
+        positive :math:`T`, and physical speeds four orders apart would make
+        :math:`T^{-1}A` ill-scaled enough that ``np.linalg.eig`` itself limits
+        the fixture to about 1e-12 (``[M]`` residual 2.5e-12 relative at
+        2e9 and 2.2e5 cm/s), which is the fixture's error, not the map's.
+        """
+        problem = HomogeneousProblem(get_mixture("A", "2g"))
+        prompt = OperatorPencil(problem.loss, problem.production).at(1.0)
+        inverse_speed = 1.0 / np.array([3.0, 1.0])  # fast, thermal (any unit)
+        T = DiagonalOperator(inverse_speed.reshape(-1, 1), broadcast_axes=())
+        A = np.asarray(prompt.as_matrix(), dtype=float)
+        mus, vecs = np.linalg.eig(np.linalg.solve(np.diag(inverse_speed), A))
+        i = int(np.argmin(np.real(mus)))  # the fundamental mode: the largest α
+        psi = np.real(vecs[:, i]); psi = psi / psi.sum()
+        # α from the physical equation alone: −(Aψ)_g / (Tψ)_g, the same in every group
+        alpha = -(A @ psi) / (inverse_speed * psi)
+        _require(np.ptp(alpha) <= 1e-9 * abs(alpha[0]), "ψ is an eigenvector: one α in every group")
+        return OperatorPencil(prompt, T), psi.reshape(-1, 1), float(alpha[0])
+
+    @pytest.mark.catches("ERR-089")
+    def test_law_the_alpha_map_solves_the_alpha_equation(self) -> None:
+        pencil, psi, alpha = self._alpha_pencil()
+        posing = EigenPosing(pencil, ALPHA_MAP)
+        _require(alpha > 0.0, "mixture A 2g is supercritical (k_inf = 1.875), so the fundamental α is positive")
+        r = np.asarray(posing.residual(psi, alpha)); scale = np.max(np.abs(np.asarray(pencil.lhs.apply(psi))))
+        _require(np.max(np.abs(r)) <= 1e-12 * scale, "(A − μ(α) T) ψ must vanish at the physical α")
+        _require(abs(posing.rayleigh(psi) - alpha) <= 1e-12 * abs(alpha), "the Rayleigh quotient must be the physical α")
+
+    def test_law_the_k_map_solves_the_k_equation(self) -> None:
+        _, pencil, k, phi = _exact_pair()
+        A = np.asarray(pencil.lhs.as_matrix(), dtype=float); F = np.asarray(pencil.rhs.as_matrix(), dtype=float)
+        k_def = float((F @ phi.ravel()).sum() / (A @ phi.ravel()).sum())  # A φ = F φ / k
+        _require(abs(K_MAP(K_MAP.inverse(k_def)) - k_def) <= 1e-14 * k_def, "the round trip")
+        _require(abs(EigenPosing(pencil, K_MAP).rayleigh(phi) - k_def) <= 1e-12 * k_def, "the Rayleigh quotient is k")

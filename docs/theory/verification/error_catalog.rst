@@ -8483,3 +8483,61 @@ older entries classify against.
    the other's, and check the result against the published page by a
    test, because a module and the page that cites it are two surfaces and
    drift apart silently.
+
+.. error-entry:: ERR-089
+   :title: ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −1/μ where the pencil's μ is −α
+
+   **Status:** ✅ **FIXED 2026-09-25** (#405 step 2, P1; found by the
+   elegance review of the posing sequence,
+   ``.claude/plans/posing_sequence.md``).  No hub mints an α posing yet, so
+   no solve ever returned the wrong value; the defect sat in the shipped map
+   that the first α posing would have used.
+
+   **Failure mode:** **#6 (convention drift)**.  The corpus writes
+   :math:`\mu` for two different eigenvalues.  The theory tables
+   (the posing table beside :eq:`eigen-alpha-derivation`) use
+   the eigenvalue of :math:`A^{-1}M`, the power iteration's, where
+   :math:`k = \mu` and :math:`\alpha = -1/\mu`.
+   :class:`~orpheus.numerics.posing.SpectralMap` uses the eigenvalue of the
+   PENCIL, :math:`A\psi = \mu M\psi` (the point where
+   :meth:`~orpheus.numerics.pencil.OperatorPencil.at` is singular), where
+   :math:`k = 1/\mu` and, for the prompt-α pencil
+   :math:`(L+C-S-N_{2n}-F-B,\ T = 1/v)`, :math:`\alpha = -\mu`.
+   :data:`~orpheus.numerics.posing.K_MAP` was written in the pencil's
+   convention; :data:`~orpheus.numerics.posing.ALPHA_MAP` copied the
+   table's formula.
+
+   **Measured:** on the 0-D prompt-α pencil of mixture ``A`` 2-group with
+   :math:`1/v = (1/3, 1)`, the old map's residual
+   :math:`(A - \mu(\alpha)\,T)\psi` at the physical α does not vanish and
+   its Rayleigh quotient is not α; the fixed map's residual is at rounding
+   and its Rayleigh quotient equals α to :math:`10^{-12}` relative
+   (``[M]`` 2026-09-25).  The elegance review's 1×1 probe read α = −1.5
+   true against −0.667 from the old map.
+
+   **Hiding mechanism.**  (a) **No producer:** nothing minted an α
+   posing, so no value anywhere could be wrong.  (b) **The map's internal
+   laws hold for a wrong map:** its round trip
+   ``inverse(forward(μ)) == μ`` and the agreement of ``of_quotient`` with
+   ``forward(a/m)`` are satisfied by the ``−1/μ`` map too; only the
+   physical equation the map names can refute it, and no test posed that
+   equation.  (c) The one test that used ``ALPHA_MAP``
+   (``tests/gates/numerics/test_outcome.py``) checks that ``keff`` is
+   refused under a non-k map, which any map passes.
+
+   **Module:** ``orpheus/numerics/posing.py`` (``ALPHA_MAP``:
+   ``forward = −μ``, ``inverse = −α``, ``of_quotient = −a/m``).
+
+   **Caught by:**
+   ``tests/gates/numerics/test_posing.py::TestLawEachSpectralMapReadsThePencilsEigenvalue::test_law_the_alpha_map_solves_the_alpha_equation``
+   (``@pytest.mark.catches("ERR-089")``): α is computed from the physical
+   equation alone, :math:`\alpha = -(A\psi)_g/(T\psi)_g`, never from the
+   map, and the posing's residual and Rayleigh quotient must agree with it.
+   Re-installing the old map in process reddens exactly this row; its k
+   sibling stays green.
+
+   **Lesson.**  A symbol that names two eigenvalues (here :math:`\mu`)
+   makes every formula copied across the two conventions look right.  A
+   spectral map is pinned only by the physical equation it names, never by
+   its own round trip; each shipped map carries a gate that solves that
+   equation from its definition.

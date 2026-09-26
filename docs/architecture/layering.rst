@@ -224,7 +224,8 @@ gap measure — a row with no live role is a genuine hole.
    * - L2 ``AlphaEigenproblem``
      - Not built. The :math:`\alpha`-eigenvalue row
        (:math:`A_{\rm loss} = L+C-S-N_{2n}-F-B`, :math:`M = 1/v`,
-       :math:`\alpha = -1/\mu`) is a documented seam in
+       :math:`\alpha = -1/\mu` with :math:`\mu` the eigenvalue of
+       :math:`A^{-1}M`) is a documented seam in
        :mod:`orpheus.numerics.eigenvalue`'s package header — a posing the
        existing loop would accept, with no constructor yet.
    * - L2 ``InitialValueProblem``

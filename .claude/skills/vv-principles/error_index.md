@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**88 entries · 324 catching tests · 0 uncaught · 5 dormant.**
+**89 entries · 325 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-089` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-089")`.
+Append a `.. error-entry:: ERR-090` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-090")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -134,3 +134,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-086 | 2 |  | The fifth SN public entry returned truncated and gauge-singular solves in SILENCE — it bypassed… |
 | ERR-087 | 1 |  | A per-material cell index spelled ``(Ellipsis, *idx)`` let ``Ellipsis`` absorb the leading axes… |
 | ERR-088 | 1 |  | The first face-transmission algebra of record built its step "control" with diamond's weights,… |
+| ERR-089 | 1 |  | ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −… |
