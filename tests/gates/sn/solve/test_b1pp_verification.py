@@ -30,7 +30,8 @@ import pytest
 from scipy.sparse.linalg import LinearOperator as SciLinearOperator
 from scipy.sparse.linalg import gmres
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,

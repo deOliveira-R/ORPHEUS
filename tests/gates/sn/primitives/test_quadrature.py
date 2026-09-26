@@ -222,7 +222,8 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
-        from orpheus.geometry import CoordSystem, Mesh1D
+        from orpheus.geometry import CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
@@ -245,7 +246,8 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
-        from orpheus.geometry import CoordSystem, Mesh1D
+        from orpheus.geometry import CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
@@ -266,7 +268,8 @@ class TestAlphaRedistribution:
     @pytest.mark.sentinel
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
-        from orpheus.geometry import CoordSystem, Mesh1D
+        from orpheus.geometry import CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.sn.problem import SNProblem
 
         quad = Quadrature.gauss_legendre(8)
@@ -302,14 +305,8 @@ class TestL0TermVerification:
         The fundamental correctness criterion for curvilinear SN.
         The ΔA/w factor ensures exact per-ordinate cancellation.
         """
-        from orpheus.geometry import (
-            BC,
-            CoordSystem,
-            Mesh1D,
-            Region,
-            RegionMesh,
-            StructuredGeometry,
-        )
+        from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+        from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.sn.problem import SNProblem
 
         if coord == CoordSystem.SPHERICAL:
@@ -364,14 +361,8 @@ class TestL0TermVerification:
     ])
     def test_delta_A_magnitude(self, coord):
         """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
-        from orpheus.geometry import (
-            BC,
-            CoordSystem,
-            Mesh1D,
-            Region,
-            RegionMesh,
-            StructuredGeometry,
-        )
+        from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+        from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.sn.problem import SNProblem
 
         tag = {

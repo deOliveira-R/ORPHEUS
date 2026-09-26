@@ -14,14 +14,8 @@ Cylindrical, and Spherical.
 import numpy as np
 import pytest
 
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations.common.xs_library import get_xs
 

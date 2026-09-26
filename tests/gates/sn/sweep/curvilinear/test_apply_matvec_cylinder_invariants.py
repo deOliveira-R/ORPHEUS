@@ -54,7 +54,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature

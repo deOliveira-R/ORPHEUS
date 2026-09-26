@@ -50,7 +50,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import Vector
 from orpheus.sn.problem import SNProblem

@@ -55,7 +55,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.problem import SNProblem

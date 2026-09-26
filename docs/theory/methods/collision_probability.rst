@@ -111,7 +111,7 @@ Architecture: Base Geometry and Augmented Geometry
 The CP solver separates geometry description from solver logic through
 two layers:
 
-1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` stores cell edges,
+1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` stores cell edges,
    material IDs, and the coordinate system.  It computes volumes and
    face areas via :func:`~geometry.coord.compute_volumes_1d` and
    :func:`~geometry.coord.compute_areas_1d`.
@@ -481,8 +481,8 @@ Boundary Condition Infrastructure
 
 The CP solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
 condition resolution.  The boundary condition is **declared** on the base
-geometry via :class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
-<geometry.mesh.Mesh1D.bc_right>` (the outer cell surface), and
+geometry via :class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
+<orpheus.mesh.structured.Mesh1D.bc_right>` (the outer cell surface), and
 **resolved** at :class:`CPMesh` construction time against the registry:
 
 .. code-block:: python
@@ -1597,7 +1597,7 @@ The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
 to the cell edge (:math:`x = L`).  Geometry built via
 :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
 and meshed through
-:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`; the Cartesian
+:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`; the Cartesian
 coordinate system is intrinsic to that factory rather than a parameter
 of it (Phase F retired the free-function
 ``geometry.factories.pwr_slab_half_cell`` that took a ``coord``).
@@ -1864,7 +1864,7 @@ In :meth:`CPMesh._setup_spherical`::
     # Spherical weight: extra factor of y in the quadrature
     self._y_wts = self._y_wts * self._y_pts
 
-Geometry built via :meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`
+Geometry built via :meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`
 (``coord = CoordSystem.SPHERICAL``).
 
 Second-Difference Formula (Spherical)
@@ -2484,7 +2484,7 @@ discrepancy in ``BickleyTables``" (safety argument for the swap).
 Equal-Volume Mesh Subdivision
 -------------------------------
 
-:func:`~orpheus.geometry.factories._subdivide_zone` creates equal-volume cells:
+:func:`~orpheus.mesh.factories._subdivide_zone` creates equal-volume cells:
 
 **Cartesian:** :math:`x_k = x_0 + k(x_N - x_0)/N`.
 

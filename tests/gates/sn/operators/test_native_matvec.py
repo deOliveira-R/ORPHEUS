@@ -77,7 +77,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -532,7 +533,7 @@ class TestTwoDCartesianRaises:
         the matvec.  The new
         contract: 2-D Cartesian (L+C).apply returns a valid
         TimedFullField result (no exception)."""
-        from orpheus.geometry.mesh import Mesh2D
+        from orpheus.mesh import Mesh2D
         from orpheus.transport.timed_full_field import TimedFullField
         # Need ny > 1 for the 2-D path to fire.
         mesh = Mesh2D(

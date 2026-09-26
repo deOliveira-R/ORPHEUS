@@ -12,7 +12,8 @@ Two cases:
 
 from pathlib import Path
 
-from orpheus.geometry import Mesh1D, RegionMesh, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.mc.solver import MCMesh, MCParams, solve_monte_carlo
 from plotting import plot_mc_keff, plot_mc_spectrum

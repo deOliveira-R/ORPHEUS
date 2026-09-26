@@ -42,9 +42,10 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 from orpheus.sn.solver import (
     _apply_default_bcs,
     _maybe_window,

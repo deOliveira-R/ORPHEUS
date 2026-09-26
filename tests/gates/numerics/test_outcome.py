@@ -27,7 +27,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.outcome import (

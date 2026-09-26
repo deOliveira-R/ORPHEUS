@@ -35,7 +35,7 @@ from orpheus.derivations.continuous.fn_method.slab import (
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import (
     Region,
     StructuredGeometry,

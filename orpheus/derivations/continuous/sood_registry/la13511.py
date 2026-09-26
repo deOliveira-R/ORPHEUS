@@ -56,7 +56,7 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry

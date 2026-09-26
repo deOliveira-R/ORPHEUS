@@ -34,7 +34,7 @@ import numpy as np
 from orpheus.plotting import plot_2d_field, plot_spectrum  # noqa: F401
 
 if TYPE_CHECKING:
-    from orpheus.geometry import Mesh1D, Mesh2D
+    from orpheus.mesh import Mesh1D, Mesh2D
     from orpheus.sn.solution import Solution
 
 

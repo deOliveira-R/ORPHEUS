@@ -107,7 +107,7 @@ def _windowed_driver(max_inner: int):
     counts were measured on): level_symmetric(4), 4×3 cells, ng=2, L=1,
     Jacobi schedule. Returns the Solution."""
     from orpheus.geometry import BC, CoordSystem
-    from orpheus.geometry.mesh import Mesh2D
+    from orpheus.mesh import Mesh2D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn_fixed_source
 

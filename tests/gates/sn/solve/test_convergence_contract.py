@@ -56,7 +56,7 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn, solve_sn_fixed_source
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 
 _REFL = BC("reflective")
 
@@ -1306,7 +1306,8 @@ class TestExitBalanceDefect:
         must cost the number, never the warning), and the number is absent
         rather than wrong.
         """
-        from orpheus.geometry import Mesh1D, Region, RegionMesh, StructuredGeometry
+        from orpheus.geometry import Region, StructuredGeometry
+        from orpheus.mesh import Mesh1D, RegionMesh
 
         geom = StructuredGeometry(
             geometry="SPH",

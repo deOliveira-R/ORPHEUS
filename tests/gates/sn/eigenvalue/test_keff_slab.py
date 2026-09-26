@@ -12,13 +12,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import (
-    BC,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -171,7 +166,8 @@ def test_heterogeneous_absolute_keff():
     recurrence now matches to 5e-5 at n_per=320.
     """
     from orpheus.derivations.reference_values import continuous_get
-    from orpheus.geometry import Mesh1D, CoordSystem
+    from orpheus.geometry import CoordSystem
+    from orpheus.mesh import Mesh1D
 
     ref = continuous_get("sn_slab_1eg_2rg_S8")
     geom = ref.problem.geometry_params

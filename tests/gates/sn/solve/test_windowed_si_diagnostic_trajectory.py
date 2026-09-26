@@ -61,7 +61,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.mesh import Mesh2D
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.spaces.moment_head import MomentHead

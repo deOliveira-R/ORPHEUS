@@ -22,13 +22,11 @@ import pytest
 from orpheus.geometry import (
     BC,
     CoordSystem,
-    Mesh1D,
-    Mesh2D,
     compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
-    pwr_pin_2d,
 )
+from orpheus.mesh import Mesh1D, Mesh2D, pwr_pin_2d
 
 # Every test in this file is a FOUNDATION test — it verifies a
 # software invariant of orpheus.geometry (volume formulas, factory
@@ -389,7 +387,7 @@ class TestBC:
         content is a FUNCTION — a ``PrescribedInflow`` carrying a
         manufactured-solution source has no tag spelling. Declaring the law
         object directly is the channel for those; see
-        ``orpheus.geometry.mesh._check_boundary_declaration``.
+        ``orpheus.mesh.structured._check_boundary_declaration``.
 
         Without this leg the widened guard could reject every law and the row
         above would still pass.

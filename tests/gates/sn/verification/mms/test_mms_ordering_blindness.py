@@ -104,7 +104,8 @@ from orpheus.derivations.continuous.mms.sn import (
     build_cylindrical_mms_case,
     build_cylindrical_anisotropic_mms_case,
 )
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import (
     STAGGERED,

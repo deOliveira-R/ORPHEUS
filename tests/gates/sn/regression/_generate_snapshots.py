@@ -40,14 +40,8 @@ from typing import Callable
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import (
-    BC,
-    Mesh1D,
-    Mesh2D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 

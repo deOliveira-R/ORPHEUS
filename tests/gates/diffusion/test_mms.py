@@ -48,7 +48,7 @@ import sympy as sp
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.transport.full_field import FullField
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies("diffusion-mms")]

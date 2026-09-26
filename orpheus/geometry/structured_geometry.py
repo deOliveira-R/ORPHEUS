@@ -97,7 +97,7 @@ A PWR pin cell via the Wigner–Seitz factory::
 Building a mesh from any of these — discretization specified at the
 mesh layer::
 
-    from orpheus.geometry.mesh import Mesh1D, RegionMesh
+    from orpheus.mesh.structured import Mesh1D, RegionMesh
     mesh = Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=10),
         RegionMesh(n_cells=3),
@@ -112,7 +112,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .coord import CoordSystem
-from .mesh import BC
+from .boundary import BC
 
 if TYPE_CHECKING:
     from .boundary import BoundaryTraceLaw

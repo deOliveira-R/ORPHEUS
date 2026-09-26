@@ -1,8 +1,8 @@
 r"""Mesh + materials — the method-agnostic transport data carrier.
 
 :class:`MaterialMesh` is the "mesh + materials" middle type the codebase
-was missing.  Between the geometry :class:`~orpheus.geometry.mesh.Mesh1D`
-/ :class:`~orpheus.geometry.mesh.Mesh2D` (which carry material *ids* but
+was missing.  Between the geometry :class:`~orpheus.mesh.structured.Mesh1D`
+/ :class:`~orpheus.mesh.structured.Mesh2D` (which carry material *ids* but
 no :class:`~orpheus.data.macro_xs.mixture.Mixture` cross sections) and a
 method-specific phase space such as
 :class:`~orpheus.sn.problem.SNProblem` (mesh + materials + *quadrature* +
@@ -27,7 +27,7 @@ The abstraction axis is **data vs behavior**:
 
 This is the layer where cross-section **homogenization** lands: a
 fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse
-:class:`~orpheus.geometry.mesh.Mesh1D` / :class:`~orpheus.geometry.mesh.Mesh2D`
+:class:`~orpheus.mesh.structured.Mesh1D` / :class:`~orpheus.mesh.structured.Mesh2D`
 produce a homogenized
 :class:`MaterialMesh` (flux·volume-weighted collapse), which a transport
 method can then *promote* back to a solvable phase space
@@ -36,7 +36,7 @@ method can then *promote* back to a solvable phase space
 Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``.  It imports
 only ``geometry`` (legacy mesh shapes), ``numerics`` (the volume
 measure), ``data`` (the :class:`Mixture` type, ``TYPE_CHECKING``), and
-its sibling :mod:`~orpheus.transport.mesh.axis` /
+its sibling :mod:`~orpheus.mesh.axis` /
 :mod:`~orpheus.transport.mesh.material_xs_field` modules.  It imports no
 L3 method package — which is exactly what let it be promoted out of
 ``orpheus.sn``.
@@ -52,7 +52,8 @@ from collections.abc import Mapping
 import numpy as np
 
 from orpheus.data.materials import Materials
-from orpheus.geometry import BC, Mesh1D, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
 # concept; the naming coordination is the Q3 rename issue).
@@ -60,7 +61,7 @@ from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
-from orpheus.transport.mesh.axis import (
+from orpheus.mesh import (
     RadialAxisMesh,
     Axis1D,
     AxisMesh,
@@ -92,7 +93,7 @@ class InconsistentMaterialsError(ValueError):
 
 
 def _law_key(law) -> object:
-    """A boundary-law tag's content: a :class:`~orpheus.geometry.mesh.BC` by
+    """A boundary-law tag's content: a :class:`~orpheus.geometry.boundary.BC` by
     kind + sorted params; a frozen trace law by itself (its own content
     equality); ``None`` as ``None``. A law with no content identity (a
     callable-bearing inflow) keys by type and object — honest: a callable
@@ -123,10 +124,10 @@ class MaterialMesh:
     r"""Method-agnostic mesh + materials carrier.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is
-    :attr:`axes` — a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`
+    :attr:`axes` — a tuple of :class:`~orpheus.mesh.axis.Axis1D`
     — from which all shape metadata derives.  Constructed either from a
-    legacy :class:`~orpheus.geometry.mesh.Mesh1D` /
-    :class:`~orpheus.geometry.mesh.Mesh2D` (converted to axes once at the
+    legacy :class:`~orpheus.mesh.structured.Mesh1D` /
+    :class:`~orpheus.mesh.structured.Mesh2D` (converted to axes once at the
     inbound boundary; the legacy object is retained as :attr:`mesh` for
     the consumers still reading through it) or axis-natively via
     :meth:`from_axes`.

@@ -225,7 +225,7 @@ def test_gs_d3_schedule_from_real_mesh():
     from orpheus.derivations.common.xs_library import make_mixture
     from orpheus.geometry import BC
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.transport.mesh.axis import AxisMesh
+    from orpheus.mesh import AxisMesh
     from orpheus.sn.problem import SNProblem
 
     refl, vac = BC("reflective"), BC("vacuum")

@@ -52,7 +52,8 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     """
     import sympy as sp
     from orpheus.derivations.discrete.sn.balance import derive_cumprod_recurrence
-    from orpheus.geometry import CoordSystem, Mesh1D
+    from orpheus.geometry import CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.sn.mesh.reduced_operator import slab_streaming
     from orpheus.transport.spatial.scheme import CellVisit, UpstreamState
     from orpheus.transport.spatial.diamond import DiamondDifference

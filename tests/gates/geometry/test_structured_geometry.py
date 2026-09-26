@@ -15,12 +15,11 @@ import pytest
 from orpheus.geometry import (
     BC,
     CoordSystem,
-    Mesh1D,
     Region,
-    RegionMesh,
     StructuredGeometry,
     compute_volumes_1d,
 )
+from orpheus.mesh import Mesh1D, RegionMesh
 
 
 pytestmark = pytest.mark.foundation

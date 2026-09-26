@@ -335,15 +335,9 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
-from orpheus.geometry.mesh import Mesh2D
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.convergence import ConvergenceWarning
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source

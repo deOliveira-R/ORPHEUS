@@ -40,7 +40,8 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
     IdentityOperator,

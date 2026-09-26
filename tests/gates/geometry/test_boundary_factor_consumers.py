@@ -36,7 +36,8 @@ import numpy as np
 import pytest
 
 from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,

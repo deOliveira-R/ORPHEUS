@@ -262,7 +262,8 @@ def _bite_fingerprint() -> str:
     try:
         from dataclasses import replace
 
-        from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+        from orpheus.geometry import BC, Region, StructuredGeometry
+        from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.problem import SNProblem
         from orpheus.sn.operators.boundary import SNBoundaryOperator

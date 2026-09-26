@@ -3,7 +3,7 @@ r"""Energy-group structure — the energy-axis value object + its dual frame vie
 :class:`EnergyGrid` is a multigroup energy structure: a strictly **DESCENDING**
 boundary array (the canonical fast-first convention, group ``0`` = fastest; see
 :ref:`canonical-group-convention`). ``N+1`` boundaries → ``N`` groups. It is the
-energy analogue of a coarse :class:`~orpheus.geometry.mesh.Mesh1D`, and — exactly like
+energy analogue of a coarse :class:`~orpheus.mesh.structured.Mesh1D`, and — exactly like
 ``Mesh1D`` — it yields **both** halves of a discrete frame:
 
 * :meth:`EnergyGrid.as_measure` → a :class:`~orpheus.numerics.measure.DiscreteMeasure`,
@@ -200,7 +200,7 @@ class EnergyGrid:
         the within-group ``w`` lives in the overlap fractions, not here).
         ``support=EnergyGroups()`` IS the physical phase-space factor
         (:attr:`~orpheus.numerics.measure.DiscreteMeasure.phase` reads it). Symmetric
-        with :meth:`~orpheus.geometry.mesh.Mesh1D.volume_measure` on the spatial axis.
+        with :meth:`~orpheus.mesh.structured.Mesh1D.volume_measure` on the spatial axis.
         """
         n = self.n_groups
         return DiscreteMeasure(
@@ -227,7 +227,7 @@ class EnergyGrid:
         The non-nested fractional target is :meth:`overlap_to` (an
         :class:`~orpheus.numerics.basis.OverlapBasis`, which IS-A ``IndicatorBasis``
         carrying the mismatch table). Symmetric with
-        :meth:`~orpheus.geometry.mesh.Mesh1D.indicator_basis` on the spatial axis.
+        :meth:`~orpheus.mesh.structured.Mesh1D.indicator_basis` on the spatial axis.
         """
         index_edges = np.arange(self.n_groups + 1, dtype=float) - 0.5
         return IndicatorBasis(

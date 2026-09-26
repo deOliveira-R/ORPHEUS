@@ -91,7 +91,8 @@ from orpheus.cp.solver import CPParams, CPResult, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations import get as get_case
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 
 _MAT_ID = 2
 

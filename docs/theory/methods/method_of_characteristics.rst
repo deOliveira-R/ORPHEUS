@@ -97,19 +97,19 @@ Two-Layer Mesh Pattern
 The MOC solver follows the same two-layer pattern as all ORPHEUS
 deterministic solvers:
 
-1. **Base geometry** --- :class:`~orpheus.geometry.mesh.Mesh1D` with
+1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` with
    ``CoordSystem.CYLINDRICAL``, typically constructed via
    :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
    →
-   :meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`.  Stores radial cell
+   :meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`.  Stores radial cell
    edges, material IDs, and volumes.
 
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
    an :class:`MOCQuadrature`, precomputing all ray-tracing data:
    tracks, segments through flat-source regions, effective ray spacings,
    and :term:`reflective boundary condition` links.  The BC is declared on
-   the base geometry via :class:`~orpheus.geometry.mesh.BC` on
-   :attr:`Mesh1D.bc_right <orpheus.geometry.mesh.Mesh1D.bc_right>` and resolved
+   the base geometry via :class:`~orpheus.geometry.boundary.BC` on
+   :attr:`Mesh1D.bc_right <orpheus.mesh.structured.Mesh1D.bc_right>` and resolved
    at construction time against :attr:`MOCMesh.BC_REGISTRY`.
 
 3. **Solver** --- :class:`MOCSolver` satisfies the
@@ -625,8 +625,8 @@ Reflective Boundary Conditions
 
 The MOC solver uses the project-wide ``BC_REGISTRY`` pattern for
 boundary condition resolution.  The BC is declared on the base geometry
-via :class:`~orpheus.geometry.mesh.BC` on :attr:`Mesh1D.bc_right
-<orpheus.geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
+via :class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
+<orpheus.mesh.structured.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
 construction time.  :attr:`MOCMesh.BC_REGISTRY` currently supports only
 ``"reflective"`` (the default); additional BC types (e.g., vacuum for
 isolated-pin transport) can be registered in the future.
@@ -1347,7 +1347,7 @@ is even smaller.
 The flat-source error can be reduced by subdividing regions into
 thinner annuli (more cells in the ``Mesh1D``).  The per-region cell
 resolution is chosen at
-:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry` time via each
+:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry` time via each
 region's ``RegionMesh(n_cells=...)``; a typical 10 fuel + 3 clad + 7
 coolant subdivision is adequate for most applications.
 

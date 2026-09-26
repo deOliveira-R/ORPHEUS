@@ -230,7 +230,7 @@ Two layers: the geometry mesh and the Problem
 ---------------------------------------------
 
 The S\ :sub:`N` solver follows the same two-layer pattern as the CP
-solver: a base :class:`~geometry.mesh.Mesh1D` carrying pure geometry,
+solver: a base :class:`~orpheus.mesh.structured.Mesh1D` carrying pure geometry,
 and a second object that augments it with the method's own machinery.
 The pattern is shared with :ref:`theory-collision-probability` and
 :ref:`theory-method-of-characteristics`; what differs is how far the
@@ -267,10 +267,10 @@ second layer has grown.
    S\ :sub:`N` reference at it.  Full row:
    :ref:`sn-development-history`.
 
-1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` or
-   :class:`~geometry.mesh.Mesh2D` stores cell edges, material IDs,
+1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` or
+   :class:`~orpheus.mesh.structured.Mesh2D` stores cell edges, material IDs,
    coordinate system, and **boundary condition declarations**.
-   Each face carries an optional :class:`~geometry.mesh.BC` field
+   Each face carries an optional :class:`~orpheus.geometry.boundary.BC` field
    (``bc_left``/``bc_right`` for 1-D;
    ``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax`` for 2-D).
    When ``None`` (the default), the solver applies its own default
@@ -304,7 +304,7 @@ second layer has grown.
    keys are the mesh's true boundary faces; see
    :ref:`bc-face-name-carve`).
    The sweep reads these resolved strings directly --- it never
-   inspects the raw :class:`~geometry.mesh.BC` objects.  Precomputed
+   inspects the raw :class:`~orpheus.geometry.boundary.BC` objects.  Precomputed
    stencil contents per coordinate system:
 
    - **Cartesian**: one per-axis array ``streaming(a)[n,i] =
@@ -781,7 +781,8 @@ Reproduce it by counting both constructors around a solve:
    import numpy as np
    from scipy.sparse import csr_matrix
    from orpheus.data.macro_xs.mixture import Mixture
-   from orpheus.geometry import BC, Mesh1D
+   from orpheus.geometry import BC
+   from orpheus.mesh import Mesh1D
    from orpheus.numerics.quadrature import Quadrature
    from orpheus.sn.operators.streaming import StreamingOperator
    from orpheus.sn.solver import solve_sn
@@ -1017,7 +1018,7 @@ answering both badly:
   (``object.__eq__``, i.e. identity), and every generating datum it
   holds — :class:`~orpheus.data.macro_xs.mixture.Mixture`,
   :class:`~orpheus.numerics.quadrature.Quadrature`,
-  :class:`~orpheus.transport.mesh.axis.AxisMesh` — **raised** on ``==``
+  :class:`~orpheus.mesh.axis.AxisMesh` — **raised** on ``==``
   or ``hash`` (a dataclass-generated ``__eq__`` over ndarray fields).
 
 The repair is not a better predicate but the recognition that the two
@@ -1096,7 +1097,7 @@ The member list, once, so no second copy can drift:
 
 * **Contractibility key** — per spatial axis: the axis CLASS, the edge
   array's bytes, both boundary laws' tags (a
-  :class:`~orpheus.geometry.mesh.BC` by kind and sorted parameters; a
+  :class:`~orpheus.geometry.boundary.BC` by kind and sorted parameters; a
   frozen trace law by itself; a callable-bearing law by type and object,
   because a callable has no content), both face labels, and a radial
   axis's chart.  Then the ``mat_map``'s shape and bytes, and the

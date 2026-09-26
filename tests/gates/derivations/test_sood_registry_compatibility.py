@@ -48,7 +48,8 @@ from orpheus.derivations.continuous.sood_registry import (
     build_mesh,
 )
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 
 
 def _xs_from_mixture(mix: Mixture):

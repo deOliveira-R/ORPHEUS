@@ -160,7 +160,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature

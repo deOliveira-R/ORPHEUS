@@ -17,7 +17,8 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront

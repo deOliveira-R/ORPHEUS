@@ -60,7 +60,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh2D
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver

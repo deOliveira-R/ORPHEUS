@@ -33,7 +33,7 @@ import pytest
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver, solve_diffusion_1d
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.homogeneous import solve_homogeneous_infinite
 from orpheus.numerics.eigenvalue import ProductionRateSolver, direct_eigenvalue
 from orpheus.numerics.flat_operator import FlattenedOperator

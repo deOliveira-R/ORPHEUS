@@ -574,7 +574,8 @@ def test_module_imports_nothing_from_scattering_or_frames():
 def _diffusion_binding():
     """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
 
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, 7), mat_ids=np.zeros(6, dtype=int),
@@ -807,7 +808,8 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.problem import SNProblem
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.transport.operators.scattering import ScatteringOperator
 
     carrier = unit_cell_carrier({0: get_mixture("A", "2g")})
@@ -868,7 +870,8 @@ def test_energy_conformity_guard_three_rows():
        ships certified by a fixture family that reddens on demand while
        the axes-less real bindings never touch it.
     """
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
 

@@ -1,6 +1,7 @@
 """Isolate the spherical CP rowsum>1 excess: P_cell (pre-BC) vs diagonal/off-diag."""
 import numpy as np
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.cp.solver import CPMesh, CPParams
 
 def probe(N, sig_t, coord, w=1.0, nq=256):

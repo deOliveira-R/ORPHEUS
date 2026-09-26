@@ -21,7 +21,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh, solve_diffusion_1d
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 
 pytestmark = pytest.mark.foundation
 

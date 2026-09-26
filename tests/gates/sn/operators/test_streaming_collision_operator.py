@@ -44,7 +44,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (

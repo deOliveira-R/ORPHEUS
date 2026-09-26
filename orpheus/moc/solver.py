@@ -20,7 +20,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.convergence import IterationRecord, warn_if_unconverged
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.eigenvalue import power_iteration
@@ -103,7 +104,7 @@ def solve_moc(
         pin cell built via
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
         →
-        :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`.
+        :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`.
     n_azi : int
         Number of azimuthal angles in [0, pi).
     n_polar : int
@@ -139,11 +140,8 @@ def solve_moc(
     t_start = time.perf_counter()
 
     if mesh is None:
-        from orpheus.geometry import (
-            Mesh1D as _M,
-            RegionMesh as _RM,
-            StructuredGeometry as _SG,
-        )
+        from orpheus.geometry import StructuredGeometry as _SG
+        from orpheus.mesh import Mesh1D as _M, RegionMesh as _RM
         _geom = _SG.wigner_seitz_pin_cell()
         mesh = _M.from_geometry(_geom, region_meshes=(
             _RM(n_cells=10),  # fuel

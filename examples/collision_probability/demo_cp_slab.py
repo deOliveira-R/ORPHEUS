@@ -11,7 +11,8 @@ Reference results:
 from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import Mesh1D, RegionMesh, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.cp.solver import solve_cp
 
 OUTPUT = Path("results")

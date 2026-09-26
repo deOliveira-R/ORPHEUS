@@ -43,7 +43,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.reference_values import continuous_get
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.derivations._trajectory_resolvent_ladders import (

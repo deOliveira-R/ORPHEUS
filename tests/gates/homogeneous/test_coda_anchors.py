@@ -326,7 +326,7 @@ class TestNoMaterialMeshIsBuiltOnTheHomogeneousPath:
         (`vv` anti-#17: the harness lies before the code does, and it lies
         in the safe-looking direction).
         """
-        from orpheus.geometry import Mesh1D
+        from orpheus.mesh import Mesh1D
 
         calls = self._count(monkeypatch)
         MaterialMesh(

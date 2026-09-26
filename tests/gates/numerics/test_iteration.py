@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.iteration import (
     KEigenvalue,
     KrylovAcceleration,

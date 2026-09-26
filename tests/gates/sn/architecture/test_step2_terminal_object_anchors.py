@@ -87,7 +87,8 @@ import pytest
 import orpheus.sn.coupled_system as _cs_mod
 import orpheus.sn.solver as _solver_mod
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, Mesh1D, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import (

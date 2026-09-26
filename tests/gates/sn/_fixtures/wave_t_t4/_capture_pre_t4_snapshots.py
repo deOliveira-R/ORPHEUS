@@ -62,9 +62,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (

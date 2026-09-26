@@ -33,7 +33,7 @@ from orpheus.derivations.continuous.singular_eigenfunction.slab.one_group import
 from orpheus.derivations.continuous.singular_eigenfunction.sphere.one_group import (
     solve_case_method_sphere_critical,
 )
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import (
     Region,
     StructuredGeometry,

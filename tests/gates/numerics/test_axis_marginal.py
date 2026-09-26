@@ -37,7 +37,8 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.manifold import IndexSet
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -445,7 +446,8 @@ class TestFrameInduction:
         This row pins the BOUND (≤ 1 ulp on the divisor; ≤ 4 nulp on
         the kernel), not the inequality — a future numpy that closes
         the gap tightens silently, which is the correct direction."""
-        from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.geometry import BC, CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.sn.problem import SNProblem
 
         mesh = Mesh1D(

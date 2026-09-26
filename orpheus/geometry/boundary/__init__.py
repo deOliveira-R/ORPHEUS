@@ -623,6 +623,7 @@ from __future__ import annotations
 # :mod:`orpheus.numerics.operator`).
 # ---------------------------------------------------------------------------
 
+from ._tag import BC
 from ._base import BoundaryTraceLaw, law_permutes_ordinates
 
 # ---------------------------------------------------------------------------
@@ -698,6 +699,8 @@ from .zero_flux import ZeroFluxBoundary
 
 
 __all__ = [
+    # The solver-agnostic tag a geometry surface declares
+    "BC",
     # Abstract base
     "BoundaryTraceLaw",
     # The composite question BOTH tiers can answer (B3.4b): does the

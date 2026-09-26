@@ -26,7 +26,8 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 

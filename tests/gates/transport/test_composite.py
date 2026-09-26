@@ -32,7 +32,7 @@ import pytest
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import Composite, FullField

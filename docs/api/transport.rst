@@ -16,7 +16,7 @@ The TransportMethod Protocol
 The structural Protocol over the **method-mesh layer** (#290 P7b):
 ``SNProblem`` and ``DiffusionMesh`` conform without importing it, and the
 ONE shared ``resolve_boundary_conditions`` body turns each conformer's
-per-axis :class:`~orpheus.geometry.mesh.BC` declarations into realized
+per-axis :class:`~orpheus.geometry.boundary.BC` declarations into realized
 boundary operators through the per-method ``realize_boundary_law``
 hook.  ⚠ The layer keeps the name *method-mesh*, and only half of it is
 still a mesh: #412 (2026-09-18) renamed the SN conformer ``SNMesh`` →

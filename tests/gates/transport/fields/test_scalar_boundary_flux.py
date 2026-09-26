@@ -29,7 +29,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
 from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux

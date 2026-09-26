@@ -40,7 +40,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 

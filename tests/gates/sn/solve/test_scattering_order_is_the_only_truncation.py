@@ -39,7 +39,8 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.data.micro_xs.isotope import NG
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 

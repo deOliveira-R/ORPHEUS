@@ -50,7 +50,7 @@ Energy-Group Structure and Condensation
 The energy-axis value object for spectrum-weighted energy condensation
 (the energy-axis transpose of spatial homogenization). An
 :class:`~orpheus.data.energy_grid.EnergyGrid` is the energy analogue of a
-coarse :class:`~orpheus.geometry.mesh.Mesh1D`: a strictly descending
+coarse :class:`~orpheus.mesh.structured.Mesh1D`: a strictly descending
 boundary array (the canonical fast-first convention) that yields **both**
 halves of a discrete frame — :meth:`~orpheus.data.energy_grid.EnergyGrid.as_measure`
 (the source view, project *from*) and

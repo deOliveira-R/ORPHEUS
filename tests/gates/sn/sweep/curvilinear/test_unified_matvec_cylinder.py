@@ -47,7 +47,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.problem import SNProblem

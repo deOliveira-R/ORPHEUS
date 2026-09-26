@@ -114,8 +114,8 @@ class ScalarTraceSpace(FunctionSpace):
         ----------
         faces : sequence of ``(face_name, face_spatial_shape)``
             Ordered boundary-face inventory — canonically derived from
-            :func:`orpheus.transport.mesh.axis.face_labels` /
-            :func:`~orpheus.transport.mesh.axis.face_shape` on the mesh's
+            :func:`orpheus.mesh.axis.face_labels` /
+            :func:`~orpheus.mesh.axis.face_shape` on the mesh's
             own axes (the pole of a radial axis is not a face and never
             appears here). ``face_spatial_shape`` is ``()`` for a 1-D
             mesh, ``(n_edge_cells,)`` for a 2-D edge.

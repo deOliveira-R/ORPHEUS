@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     SupercriticalSourceProblem, _as_problem, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
@@ -154,7 +155,7 @@ def _gauge_singular_box():
     """The entry ledger's all-reflective (3, 4) box — ODD first axis, ≥ 2 reflective
     axis pairs: the loss operator is exactly singular and a uniform isotropic source
     EXCITES the kernel (``[M]`` the ledger gate's parity table)."""
-    from orpheus.geometry import Mesh2D
+    from orpheus.mesh import Mesh2D
     quadrature = Quadrature.level_symmetric(sn_order=4)
     reflective = BC("reflective")
     mesh = Mesh2D(

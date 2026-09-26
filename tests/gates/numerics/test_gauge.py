@@ -39,7 +39,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.gauge import KernelGauge, ScaleGauge

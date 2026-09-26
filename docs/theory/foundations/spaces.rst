@@ -78,7 +78,7 @@ the same space" is a claim this corpus has **overturned**.
      being *part of* it (:ref:`spaces-axis-generator`); the identity key
      is unmoved, which is the whole point of the exclusion.
    - A **geometric axis** (``Axis1D`` / ``AxisMesh`` /
-     ``RadialAxisMesh`` in :mod:`orpheus.transport.mesh.axis`) — one
+     ``RadialAxisMesh`` in :mod:`orpheus.mesh.axis`) — one
      coordinate DIRECTION of a structured mesh, carrying edges, face
      labels and a coordinate system. The name is a known misnomer
      (it declares per-axis geometry and creates no mesh); the rename is

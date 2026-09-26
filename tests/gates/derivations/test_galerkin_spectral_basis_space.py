@@ -28,7 +28,7 @@ from orpheus.derivations.continuous.galerkin_spectral.slab import (
 from orpheus.derivations.continuous.galerkin_spectral.sphere import (
     solve_galerkin_spectral_sphere,
 )
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import (
     Region,
     StructuredGeometry,

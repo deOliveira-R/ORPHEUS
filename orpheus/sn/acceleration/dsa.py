@@ -198,7 +198,7 @@ class DSALowOrderSystem:
         carries the bare-P0 :math:`D = 1/(3\sigma_t)` even when the
         MIXTURE has P1 rows (the data is not the operator).
         """
-        from orpheus.geometry.mesh import Mesh1D
+        from orpheus.mesh import Mesh1D
 
         if not (
             problem.is_cartesian

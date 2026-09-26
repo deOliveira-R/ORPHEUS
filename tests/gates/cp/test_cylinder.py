@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.cp.solver import solve_cp
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(

@@ -191,7 +191,7 @@ Key Facts
      Robin-face reference is the close-out follow-up **#293**.
 
   Boundary conditions are **declared on the mesh axes** — each endpoint
-  carries a :class:`~orpheus.geometry.mesh.BC` tag — and **realized at
+  carries a :class:`~orpheus.geometry.boundary.BC` tag — and **realized at
   construction**: promoting a mesh to a
   :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` resolves each
   face's tag into its typed law and then the albedo operator, through

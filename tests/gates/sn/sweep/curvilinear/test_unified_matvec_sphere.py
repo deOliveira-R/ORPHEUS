@@ -45,7 +45,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature

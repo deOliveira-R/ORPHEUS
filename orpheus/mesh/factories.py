@@ -4,7 +4,7 @@ Phase F retired the 1-D ``Zone`` / ``mesh1d_from_zones`` /
 ``pwr_pin_equivalent`` / ``pwr_slab_half_cell`` / ``homogeneous_1d``
 / ``slab_fuel_moderator`` factories. The 1-D path is now
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` →
-:meth:`~orpheus.geometry.mesh.Mesh1D.from_geometry`, with
+:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`, with
 :meth:`StructuredGeometry.wigner_seitz_pin_cell` and
 :meth:`StructuredGeometry.pwr_slab_half_cell` for the conventional
 PWR pin-cell shapes.
@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from .coord import CoordSystem
-from .mesh import Mesh1D, Mesh2D
+from orpheus.geometry.coord import CoordSystem
+from orpheus.mesh.structured import Mesh1D, Mesh2D
 
 
 # ── Equal-volume subdivision (private helper for Mesh1D.from_geometry) ─

@@ -114,7 +114,7 @@ Layer 1: Geometry
 
 The MC solver follows the same three-layer geometry pattern as CP and SN:
 
-1. **Base geometry** --- :class:`~geometry.mesh.Mesh1D` stores cell edges,
+1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` stores cell edges,
    material IDs, and the coordinate system.
 
 2. **Augmented geometry** --- :class:`MCMesh` wraps a ``Mesh1D`` and adds
@@ -652,8 +652,8 @@ Periodic Boundary Conditions
 
 The MC solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
 condition resolution.  The BC is declared on the base geometry via
-:class:`~geometry.mesh.BC` on :attr:`Mesh1D.bc_right
-<geometry.mesh.Mesh1D.bc_right>` and resolved at :class:`MCMesh`
+:class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
+<orpheus.mesh.structured.Mesh1D.bc_right>` and resolved at :class:`MCMesh`
 construction time.  :attr:`MCMesh.BC_REGISTRY` currently supports only
 ``"periodic"`` (the default); additional BC types can be registered in
 the future.

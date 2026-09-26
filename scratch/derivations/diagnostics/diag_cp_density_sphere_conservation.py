@@ -4,7 +4,8 @@ Sweeps total optical thickness and n_quad_y for a solid-ball spherical mesh,
 reporting the white-BC conservation residual max|rowsum - 1|.
 """
 import numpy as np
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.cp.solver import CPMesh, CPParams
 
 def sphere_cons(N, sig_t, n_quad_y, cell_width=1.0):

@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.cp.solver import CPParams, solve_cp
 
 # Every test in this file exercises the slab CP pipeline end-to-end

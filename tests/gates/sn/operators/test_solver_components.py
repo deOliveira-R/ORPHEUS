@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -305,9 +305,8 @@ class TestComputeGroupRates:
         regardless of FP reduction order, mesh resolution, or quadrature.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.geometry import (
-            BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
-        )
+        from orpheus.geometry import BC, Region, StructuredGeometry
+        from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.numerics.quadrature import Quadrature
 
         fuel = get_mixture("A", "2g")

@@ -686,7 +686,8 @@ def test_mcmesh_vs_concentric_keff():
     result1 = solve_monte_carlo(case.materials, params1)
 
     # MCMesh geometry (same radii)
-    from orpheus.geometry import Mesh1D, CoordSystem
+    from orpheus.geometry import CoordSystem
+    from orpheus.mesh import Mesh1D
     edges = np.array([0.0] + list(radii))
     mesh = Mesh1D(
         edges=edges,

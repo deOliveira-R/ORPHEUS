@@ -75,7 +75,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.transport.spatial.scheme import (

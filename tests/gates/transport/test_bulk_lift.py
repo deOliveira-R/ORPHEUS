@@ -36,7 +36,7 @@ from scipy import sparse
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.assembled_operator import SparseAssembledOperator
 from orpheus.numerics.operator import BlockRole, MissingAssembly
 from orpheus.transport.fields._bases import FieldRole

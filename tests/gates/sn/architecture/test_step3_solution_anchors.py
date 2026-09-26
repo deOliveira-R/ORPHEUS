@@ -79,7 +79,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.eigenvalue import ProductionRateSolver, power_iteration

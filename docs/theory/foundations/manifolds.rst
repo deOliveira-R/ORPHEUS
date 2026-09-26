@@ -6489,7 +6489,7 @@ named for what it HAS and read off what its domain SPENT:
      - ``None``
    * - ``IndicatorBasis`` from
        :meth:`Mesh1D.indicator_basis
-       <orpheus.geometry.mesh.Mesh1D.indicator_basis>`
+       <orpheus.mesh.structured.Mesh1D.indicator_basis>`
      - ``'spatial_R1'`` (a :class:`RealSpace`)
      - ``None``
    * - ``WeightedIndicatorBasis``, ``OverlapBasis`` — both **delegate**
@@ -9198,7 +9198,7 @@ description of a capability rather than of a repair.
        **three different manifold families** — a finite index set
        (``frame.py``, paired with ``support=f"index({axis_label})"``
        three lines below), :math:`\mathbb{R}^d` at two ranks
-       (``geometry/mesh.py``), and the energy counting set
+       (``mesh/structured.py``), and the energy counting set
        (``data/energy_grid.py``). Any value the class *derived* from its
        own fields would hard-code one of the three. ⭐ The prediction
        held, and execution added a fourth family the string tag had

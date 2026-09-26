@@ -9,7 +9,7 @@ machinery + angular trace) and
 + realized boundary laws). :class:`TransportMethod` is the structural
 Protocol naming what every method-mesh exposes *as a method*, and
 :func:`resolve_boundary_conditions` is the ONE generic body that turns
-the mesh axes' per-face :class:`~orpheus.geometry.mesh.BC` declarations
+the mesh axes' per-face :class:`~orpheus.geometry.boundary.BC` declarations
 into realized boundary operators through it.
 
 Genesis — the two recorded witnesses (#290 P7b)
@@ -93,7 +93,7 @@ registration step.
 
 Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``. Imports
 ``geometry`` (the BC tag + the law types) and ``numerics`` (the
-operator base), like its sibling :mod:`~orpheus.transport.mesh.axis`.
+operator base), like its sibling :mod:`~orpheus.mesh.axis`.
 The method packages (L3) import THIS module; never the reverse.
 
 References
@@ -121,12 +121,13 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.face_layout import face_normal
-from orpheus.transport.mesh.axis import AXIS_NAMES, face_labels
+from orpheus.mesh import face_labels
+from orpheus.numerics.face_layout import AXIS_NAMES
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from orpheus.transport.mesh.axis import Axis1D, FaceLabel
+    from orpheus.mesh import Axis1D, FaceLabel
 
 
 __all__ = ["TransportMethod", "resolve_boundary_conditions"]
@@ -179,7 +180,7 @@ class TransportMethod(Protocol[OpT_co]):
     """
 
     #: Canonical spatial representation (the :class:`MaterialMesh`
-    #: data block): one :class:`~orpheus.transport.mesh.axis.Axis1D`
+    #: data block): one :class:`~orpheus.mesh.axis.Axis1D`
     #: per dimension, each carrying its endpoints' ``BC`` declarations.
     axes: tuple["Axis1D", ...]
 
@@ -278,7 +279,7 @@ def _law_from_tag(
     law whose content is a FUNCTION — a
     :class:`~orpheus.geometry.boundary.PrescribedInflow` carrying a
     manufactured-solution source has no tag spelling and never will. See
-    :func:`~orpheus.geometry.mesh._check_boundary_declaration` for why the
+    :func:`~orpheus.mesh.structured._check_boundary_declaration` for why the
     declaration has to ride the GEOMETRY rather than a constructed mesh's
     resolved table.
 

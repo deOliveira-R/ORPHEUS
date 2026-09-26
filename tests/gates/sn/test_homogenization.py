@@ -30,7 +30,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 

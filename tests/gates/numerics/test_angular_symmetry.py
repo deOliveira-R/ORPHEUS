@@ -36,7 +36,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.manifold import SPHERE, Quotient, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature

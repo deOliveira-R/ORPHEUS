@@ -52,7 +52,8 @@ from tests.gates.sn._test_helpers import rc_march
 
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator

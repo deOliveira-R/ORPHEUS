@@ -30,7 +30,8 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
@@ -255,7 +256,8 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     is deliberately out of scope for an R2 declaration pass.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import Region, RegionMesh, StructuredGeometry
+    from orpheus.geometry import Region, StructuredGeometry
+    from orpheus.mesh import RegionMesh
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
@@ -920,7 +922,7 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
     """
     from orpheus.sn.sweep.cache import StreamingCoefficientCache
 
-    from orpheus.geometry import Mesh2D
+    from orpheus.mesh import Mesh2D
     from tests.gates.sn._test_helpers import placeholder_materials
 
     mesh2d = Mesh2D(

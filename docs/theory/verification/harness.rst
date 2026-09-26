@@ -353,7 +353,7 @@ But some tests exist that are **not** about physics:
    * - ``test_geometry::test_cartesian_single_cell``
      - ``compute_volumes_1d`` returns the right cell volume for
        known edges — a data-structure contract of the
-       :class:`~orpheus.geometry.Mesh1D` factory.
+       :class:`~orpheus.mesh.Mesh1D` factory.
    * - ``test_structured_geometry::test_equal_volume_{cylindrical,spherical}_invariant``
      - Every cell in an equal-volume zone has bit-identical volume
        by construction (the algebraic invariant that caught

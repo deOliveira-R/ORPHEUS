@@ -97,7 +97,7 @@ from orpheus.numerics.registry import RegistryMixin
 if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
-    from orpheus.transport.mesh.axis import Axis1D
+    from orpheus.mesh import Axis1D
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -242,7 +242,7 @@ class StreamingTerms:
     """Cell volume :math:`V_i`.
 
     Populated by all three factories from
-    :attr:`~orpheus.geometry.mesh.Mesh1D.volumes`: slab uses
+    :attr:`~orpheus.mesh.structured.Mesh1D.volumes`: slab uses
     ``mesh.volumes[i]`` (which equals ``widths[i]`` for unit
     cross-section in 1-D Cartesian); sphere uses
     :math:`\\tfrac{4}{3}\\pi(r_{i+1}^3 - r_i^3)`; cylinder uses
@@ -1570,7 +1570,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
            This family took a whole-mesh ``coord: CoordSystem`` tag until
            P4.6; the warning below is the design record that priced that
            trade and is kept as history.  The signatures now take the
-           per-axis :class:`~orpheus.transport.mesh.axis.Axis1D` objects and
+           per-axis :class:`~orpheus.mesh.axis.Axis1D` objects and
            ask each one ``has_constant_volume_element`` — a polymorphic read
            of the measure's behaviour at the granularity the Kronecker'd
            mass is actually built at (a mixed (r, z) mesh is admissible by

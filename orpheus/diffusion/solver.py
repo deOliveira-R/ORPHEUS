@@ -85,7 +85,7 @@ documents the family.)
 solver's** (#290 P7a): the solver consumes a
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, which
 resolved and REALIZED its per-face laws at construction — each face's
-:class:`~orpheus.geometry.mesh.BC` tag became a typed
+:class:`~orpheus.geometry.boundary.BC` tag became a typed
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` and then the
 albedo operator :math:`J^- = \mathcal{A} J^+` in ``mesh.bc``
 (``SNProblem.bc`` parity; supported tags, ruling-3 semantics, and the
@@ -172,7 +172,7 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.geometry.mesh import Mesh1D
+    from orpheus.mesh import Mesh1D
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 

@@ -35,7 +35,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.manifold import SPHERE
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu

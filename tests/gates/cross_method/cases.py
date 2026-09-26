@@ -55,7 +55,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UD2O_1_0_SL,
     UD2O_1_0_SP,
 )
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import Region, StructuredGeometry
 
 from .protocol import CrossMethodCase

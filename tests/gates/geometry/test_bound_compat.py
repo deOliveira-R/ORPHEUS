@@ -300,7 +300,8 @@ class Test188WiringContracts:
         suite (``tests/gates/sn/test_spherical.py`` etc.); here we pin
         the structural contract.
         """
-        from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.geometry import BC, CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.numerics.operator import ZeroMorphism
         from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
@@ -372,7 +373,8 @@ class Test188WiringContracts:
         ``tests/gates/sn/operators/test_sn_boundary_operator.py``. Neither fixture
         covers the other; both gates are load-bearing.)
         """
-        from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.geometry import BC, CoordSystem
+        from orpheus.mesh import Mesh1D
         from orpheus.numerics.operator import TensorProductOperator
         from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature

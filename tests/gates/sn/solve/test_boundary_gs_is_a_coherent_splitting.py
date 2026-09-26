@@ -657,7 +657,7 @@ def test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules():
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning
     from orpheus.sn.solver import solve_sn_fixed_source
-    from orpheus.transport.mesh.axis import AxisMesh
+    from orpheus.mesh import AxisMesh
 
     cells = (3, 4)
     quad = Quadrature.level_symmetric(sn_order=4)

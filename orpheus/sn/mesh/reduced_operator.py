@@ -18,7 +18,7 @@ the measurement that moved it is the **layer test**:
     poses it.*
 
 `[M]` exactly one datum in the old module survived that test — ``face_areas`` —
-and it was a verbatim copy of :attr:`orpheus.geometry.mesh.Mesh1D.areas`, already
+and it was a verbatim copy of :attr:`orpheus.mesh.structured.Mesh1D.areas`, already
 single-sourced in :func:`orpheus.geometry.coord.compute_areas_1d`.  Everything
 else is posing: ``delta_A`` is ``np.diff(mesh.areas)`` with **zero** non-SN
 consumers, and :class:`~orpheus.transport.spatial.scheme.StreamingTerms` carries
@@ -207,7 +207,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import (
@@ -274,7 +274,7 @@ class ReducedStreamingOperator:
     Attributes
     ----------
     mesh :
-        The :class:`~orpheus.geometry.mesh.Mesh1D` this operator was
+        The :class:`~orpheus.mesh.structured.Mesh1D` this operator was
         built from.  Held by reference; not copied.  **It is also where
         the chart lives** — see the note below.
 
@@ -589,7 +589,7 @@ def slab_streaming(
     Parameters
     ----------
     mesh :
-        Slab :class:`~orpheus.geometry.mesh.Mesh1D`
+        Slab :class:`~orpheus.mesh.structured.Mesh1D`
         (``coord == CoordSystem.CARTESIAN``).
     angular_measure :
         Any :class:`AngularMeasure`-shaped object; only ``mu_x`` and
@@ -632,7 +632,7 @@ def spherical_streaming(
     Parameters
     ----------
     mesh :
-        Spherical :class:`~orpheus.geometry.mesh.Mesh1D`
+        Spherical :class:`~orpheus.mesh.structured.Mesh1D`
         (``coord == CoordSystem.SPHERICAL``).
     angular_measure :
         Quadrature with ``mu_x``, ``weights``, ``N``.
@@ -713,7 +713,7 @@ def cylindrical_streaming(
     Parameters
     ----------
     mesh :
-        Cylindrical :class:`~orpheus.geometry.mesh.Mesh1D`
+        Cylindrical :class:`~orpheus.mesh.structured.Mesh1D`
         (``coord == CoordSystem.CYLINDRICAL``).
     angular_measure :
         Quadrature with ``mu_x`` (radial η), ``mu_z`` (axial),

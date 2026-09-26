@@ -41,7 +41,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.mesh import Mesh2D
+from orpheus.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature

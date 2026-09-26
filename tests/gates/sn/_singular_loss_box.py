@@ -44,7 +44,7 @@ from orpheus.sn.solver import (
     _build_fixed_source_rhs,
     _unwindowed_cold_start,
 )
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 
 VACUUM, REFLECTIVE = BC("vacuum"), BC("reflective")
 

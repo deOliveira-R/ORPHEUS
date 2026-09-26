@@ -71,9 +71,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import (
-    BC, Mesh1D, Mesh2D, Region, RegionMesh, StructuredGeometry,
-)
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.geometry.boundary import PeriodicBoundary
 from orpheus.numerics.operator import (
     BlockRole,

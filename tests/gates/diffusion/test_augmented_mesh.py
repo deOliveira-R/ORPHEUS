@@ -38,7 +38,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 pytestmark = [pytest.mark.foundation]

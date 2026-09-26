@@ -33,7 +33,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux

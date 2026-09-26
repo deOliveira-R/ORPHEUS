@@ -40,7 +40,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
     slab_streaming,

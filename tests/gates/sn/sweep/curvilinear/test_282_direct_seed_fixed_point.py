@@ -32,7 +32,8 @@ import pytest
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator

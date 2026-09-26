@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 
 if TYPE_CHECKING:
     from .la13511 import La13511Case
@@ -44,7 +44,7 @@ def build_mesh(case: "La13511Case", n_cells: int = 64) -> Mesh1D:
     in the one region; for future multi-region cases callers should
     bypass this helper and construct the mesh directly.
     """
-    from orpheus.geometry.mesh import RegionMesh
+    from orpheus.mesh import RegionMesh
 
     geom = case.to_geometry()
     region_meshes = tuple(

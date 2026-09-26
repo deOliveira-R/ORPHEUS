@@ -39,6 +39,7 @@ principles, harness, and the auto-generated V&V matrix — lives at
    api/transport
    api/data
    api/geometry
+   api/mesh
    api/homogeneous
    api/discrete_ordinates
    api/collision_probability

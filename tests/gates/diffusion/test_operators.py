@@ -50,7 +50,7 @@ from orpheus.diffusion import (
     LeakageOperator,
 )
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (

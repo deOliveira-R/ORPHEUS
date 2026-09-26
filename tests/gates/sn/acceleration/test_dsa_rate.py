@@ -60,7 +60,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection, DSALowOrderSystem
 from orpheus.sn.solver import Solution, solve_sn_fixed_source

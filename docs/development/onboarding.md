@@ -85,9 +85,9 @@ define it, and imports flow only from more knowledge to less;
 
 | layer | packages | knows |
 |---|---|---|
-| L0 | `derivations/` | symbolic and high-precision references (Branch 1); below L2, may import `numerics/`, `geometry/`, `data/` |
+| L0 | `derivations/` | symbolic and high-precision references (Branch 1); below L2, may import `numerics/`, `geometry/`, `mesh/`, `data/` |
 | L1 | `numerics/` | mathematics only: spaces, measures, quadrature, operators; no neutrons |
-| input | `geometry/`, `data/` | meshes and boundary conditions; nuclear data |
+| input | `geometry/`, `mesh/`, `data/` | shapes and boundary conditions; the mesh, an overlay on the geometry that imports it and is never imported by it; nuclear data |
 | L2 | `transport/` | the transport vocabulary every method shares; method-agnostic |
 | L3 | `sn/`, `diffusion/`, `homogeneous/`, `cp/`, `moc/`, `mc/`, `kinetics/`, `fuel/`, `thermal_hydraulics/` | one method's machinery each; no L3 package imports another |
 | L4 | `plotting.py` | orchestration; consumes everything |

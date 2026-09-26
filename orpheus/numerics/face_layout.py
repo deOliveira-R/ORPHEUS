@@ -89,12 +89,12 @@ K = TypeVar("K", bound=Hashable)
 #: space, :attr:`SNProblem.bc <orpheus.sn.problem.SNProblem.bc>`, and the
 #: sweep schedule all key on. No consumer hand-lists ``("x", ...),
 #: ("y", ...)`` pairs — every face-name derivation
-#: (:attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`,
+#: (:attr:`FaceLabel.face_name <orpheus.mesh.axis.FaceLabel.face_name>`,
 #: the walk's in/outflow faces, the schedule's outgoing faces, the
 #: trace's outward-normal table) renders through this tuple. Lives
 #: here, at the bottom of the dependency graph next to
 #: :class:`FaceLayout` (the keeper of the face-name string world);
-#: :mod:`orpheus.transport.mesh.axis` imports it upward (moved from there in C5.3,
+#: :mod:`orpheus.mesh.axis` imports it upward (moved from there in C5.3,
 #: #225, so the geometry-blind trace space could share it without an
 #: sn-ward import).
 AXIS_NAMES = ("x", "y", "z")
@@ -112,7 +112,7 @@ AXIS_NAMES = ("x", "y", "z")
 #
 # It lives here, beside :data:`AXIS_NAMES`, because this module is already the
 # keeper of the face-name string world and sits at the bottom of the dependency
-# graph (the trace space and :mod:`orpheus.transport.mesh.axis` both import
+# graph (the trace space and :mod:`orpheus.mesh.axis` both import
 # upward from it). Before campaign phase **B3.4c** the convention had no single
 # home and was transcribed at five sites — ``_FACE_NORMALS`` in the trace space
 # (the parse), two verbatim-twin ``f"{axis}{'max' if outward_sign == +1 else

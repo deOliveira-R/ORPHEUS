@@ -523,7 +523,7 @@ The face measure :math:`dA` is supplied by
 The :math:`d \ge 2` Cartesian arms are ONE generic body: the outer
 product of the *other* axes' edge widths in **ascending axis order** —
 the same codimension-1 enumeration as
-:func:`~orpheus.transport.mesh.axis.face_shape`, so the measure array
+:func:`~orpheus.mesh.axis.face_shape`, so the measure array
 broadcasts cell-for-cell against the ``(ng, *face_spatial)`` net
 current, and the 2-D width vector is just the single-transverse-axis
 degenerate (bit-identical to the pre-3-D spelling).
@@ -4022,8 +4022,8 @@ Homogenisation: the solve → homogenize → re-solve loop
 ------------------------------------------------------
 
 :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
-takes a coarse mesh (:class:`~orpheus.geometry.mesh.Mesh1D` or
-:class:`~orpheus.geometry.mesh.Mesh2D`) and returns a
+takes a coarse mesh (:class:`~orpheus.mesh.structured.Mesh1D` or
+:class:`~orpheus.mesh.structured.Mesh2D`) and returns a
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the coarse
 geometry already carrying one freshly-homogenised effective
 :class:`~orpheus.data.macro_xs.mixture.Mixture` per coarse cell. The SN

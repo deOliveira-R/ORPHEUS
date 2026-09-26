@@ -7,7 +7,7 @@ annuli inside a square lattice cell.
 
 **Inverse Wigner-Seitz**: the ``Mesh1D`` is built via
 :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-→ :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`,
+→ :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`,
 whose outer edge is the Wigner-Seitz radius ``r_cell = pitch / sqrt(pi)``.
 ``MOCMesh`` recovers the pitch and reinterprets the outermost annular
 region as the square border bounded by the cell walls.
@@ -19,7 +19,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.geometry import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 
 from .quadrature import MOCQuadrature
 

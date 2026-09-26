@@ -66,7 +66,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     ConstantInflowSource,
@@ -365,7 +366,7 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
     Non-uniform on BOTH axes (``M = diag`` varies cell-to-cell), reflective
     (``B`` live on the moment-resolved trace), σ_t group- AND space-varying.
     """
-    from orpheus.geometry import Mesh2D
+    from orpheus.mesh import Mesh2D
     from orpheus.transport.spatial.linear_discontinuous import (
         LinearDiscontinuous,
     )
@@ -888,7 +889,7 @@ def _full_loss_case_cart2d():
     the multi-D walk; the anisotropic-order composition rows stay with the
     1-D full-loss cases.
     """
-    from orpheus.geometry import Mesh2D
+    from orpheus.mesh import Mesh2D
 
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, 5),

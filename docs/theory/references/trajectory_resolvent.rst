@@ -3961,7 +3961,7 @@ one with:
 
    from orpheus.derivations.common.xs_library import make_mixture
    from orpheus.derivations.continuous.trajectory_resolvent import Billiard
-   from orpheus.geometry.mesh import BC
+   from orpheus.geometry import BC
    from orpheus.geometry.structured_geometry import (
        Region, StructuredGeometry,
    )

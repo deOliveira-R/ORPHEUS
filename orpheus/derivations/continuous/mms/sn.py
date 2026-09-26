@@ -63,9 +63,9 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 
 from ...common.continuous_reference import (

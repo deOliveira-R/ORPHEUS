@@ -560,7 +560,7 @@ class TestFissionIndependentReference:
         from scipy.sparse import csr_matrix
 
         from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.geometry import Mesh2D
+        from orpheus.mesh import Mesh2D
         from orpheus.transport.material_field import FissionMaterialField
         from orpheus.transport.mesh.material_mesh import MaterialMesh
         from orpheus.transport.mesh.material_xs_field import MaterialXSField

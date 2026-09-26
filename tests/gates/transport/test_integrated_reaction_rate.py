@@ -27,7 +27,8 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.functional import Functional
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.quadrature import Quadrature

@@ -34,7 +34,8 @@ import numpy as np
 import pint
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import (

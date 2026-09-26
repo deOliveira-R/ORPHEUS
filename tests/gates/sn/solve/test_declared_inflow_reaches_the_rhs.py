@@ -33,7 +33,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
     NoSource,

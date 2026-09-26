@@ -3407,7 +3407,7 @@ them.  Trust ``git``, not this column.
        promotion** — the method-agnostic *mesh + materials* carrier
        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is
        minted as the missing middle type between a bare geometry
-       :class:`~orpheus.geometry.mesh.Mesh1D` (material *ids*, no XS) and
+       :class:`~orpheus.mesh.structured.Mesh1D` (material *ids*, no XS) and
        a method phase space, and :class:`SNMesh` becomes
        ``SNMesh(MaterialMesh)`` — *data* (axes + materials + ``mat_map`` +
        volumes + ``ng``) on the base, *behavior* (quadrature + sweep

@@ -67,7 +67,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature

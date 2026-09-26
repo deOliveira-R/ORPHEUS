@@ -34,7 +34,7 @@ from orpheus.derivations.continuous.trajectory_resolvent import (
     greens_function_slab as gf_slab,
     greens_function_slab_asymmetric as gf_slab_asym,
 )
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import (
     Region,
     StructuredGeometry,

@@ -13,7 +13,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn

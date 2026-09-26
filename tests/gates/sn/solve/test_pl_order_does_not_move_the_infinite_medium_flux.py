@@ -165,7 +165,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 

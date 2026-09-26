@@ -72,11 +72,8 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function import 
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
 )
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-)
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
     _regionwise_cubic_spline,
 )

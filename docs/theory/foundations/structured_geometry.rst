@@ -18,16 +18,16 @@ Key facts
   (``"SLB"`` / ``"CYL"`` / ``"SPH"``), an ordered tuple of
   :class:`~orpheus.geometry.structured_geometry.Region` (each a
   ``(mat_id, outer_thickness_cm)`` pair), and a tuple of
-  :class:`~orpheus.geometry.mesh.BC` instances at the geometry's
+  :class:`~orpheus.geometry.boundary.BC` instances at the geometry's
   endpoints. **No cell counts, no critical-dimension scalars, no
   energy-group count, no infinite-medium kind.**
 * The geometry → mesh transition is **the single explicit point**
   where discretization information enters the pipeline.
-  :meth:`Mesh1D.from_geometry(geom, region_meshes=...) <orpheus.geometry.mesh.Mesh1D.from_geometry>`
+  :meth:`Mesh1D.from_geometry(geom, region_meshes=...) <orpheus.mesh.structured.Mesh1D.from_geometry>`
   takes a tuple of
-  :class:`~orpheus.geometry.mesh.RegionMesh` (one per region;
+  :class:`~orpheus.mesh.structured.RegionMesh` (one per region;
   ``n_cells`` + ``method`` ∈ {``"equal-volume"``, ``"uniform"``}) and
-  emits a discretized :class:`~orpheus.geometry.mesh.Mesh1D`.
+  emits a discretized :class:`~orpheus.mesh.structured.Mesh1D`.
 * Reference solvers (``Billiard``, ``MomentSpace``, ``Spectrum``,
   ``BasisSpace``) take ``(geometry: StructuredGeometry, materials,
   **method_kwargs)`` directly via ``__init__``. They never see a
@@ -76,10 +76,12 @@ Phase F separates the three concerns into three layers:
    :class:`~orpheus.geometry.structured_geometry.Region`. Pure
    shape + BCs. No cell counts. No scalars from a published table.
 2. **Mesh layer** —
-   :class:`~orpheus.geometry.mesh.Mesh1D`,
-   :class:`~orpheus.geometry.mesh.RegionMesh`. Discrete
+   :class:`~orpheus.mesh.structured.Mesh1D`,
+   :class:`~orpheus.mesh.structured.RegionMesh`. Discrete
    representation. Discretization is supplied at this layer's
-   construction step, not pinned to the geometry.
+   construction step, not pinned to the geometry. The mesh layer is its
+   own package, :mod:`orpheus.mesh` (:doc:`/api/mesh`), which imports
+   :mod:`orpheus.geometry` and is never imported by it.
 3. **Registry layer** —
    :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`,
    :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Truth`.
@@ -210,7 +212,7 @@ connection-coefficient operator** viewed in two coordinate charts.
 A curvilinear S\ :sub:`N` :term:`sweep <sweep>` marches through this data:
 
 * **chord lengths**: cell radial widths
-  (:attr:`~orpheus.geometry.mesh.Mesh1D.widths`),
+  (:attr:`~orpheus.mesh.structured.Mesh1D.widths`),
 * **face areas**: :math:`A_{i+1/2} = 4\pi r_{i+1/2}^2` (sphere) or
   :math:`2\pi r_{i+1/2}` (cylinder),
 * **the geometry factor** :math:`\Delta A_i / w_n` that ensures
@@ -231,7 +233,7 @@ solver-side one"* until 2026-08-28.  The single-sourcing half stands and
 is the Cardinal-Rule-2 point; the **layer** half was refuted by the
 un-weld arc's P4.4.  `[M]` the primitive holds no geometry — its one
 geometric datum, ``face_areas``, was a verbatim copy of
-:attr:`~orpheus.geometry.mesh.Mesh1D.areas`, already single-sourced in
+:attr:`~orpheus.mesh.structured.Mesh1D.areas`, already single-sourced in
 :func:`~orpheus.geometry.coord.compute_areas_1d`, while ``delta_A`` has
 zero non-S\ :sub:`N` consumers and
 :class:`~orpheus.transport.spatial.scheme.StreamingTerms` carries a
@@ -1167,7 +1169,7 @@ a fixed set, so there is no neighbouring ordinate to redistribute *to*.
 "MoC and CP have not migrated yet" predicts that neither has a
 curvilinear capability to migrate.  Both do.  `[M]`
 :class:`orpheus.moc.geometry.MOCMesh` wraps a **cylindrical**
-:class:`~orpheus.geometry.mesh.Mesh1D` and ray-traces **concentric
+:class:`~orpheus.mesh.structured.Mesh1D` and ray-traces **concentric
 annuli** (``_ray_circle_intersections``); :class:`orpheus.cp.solver.CPSolver`
 ships a real **sphere**; and, as a third witness,
 :class:`orpheus.mc.solver.MCMesh` ships a real **cylinder**.  All three

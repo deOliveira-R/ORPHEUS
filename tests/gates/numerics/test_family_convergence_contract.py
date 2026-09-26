@@ -34,7 +34,8 @@ import pytest
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import get
 from orpheus.diffusion.solver import solve_diffusion_1d
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.moc.solver import solve_moc
 from orpheus.numerics.eigenvalue import RecordingSolver
 

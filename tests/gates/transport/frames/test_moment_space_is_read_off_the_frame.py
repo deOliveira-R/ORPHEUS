@@ -59,7 +59,8 @@ from dataclasses import dataclass, replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.metric import DenseMetric, FactoredMetric

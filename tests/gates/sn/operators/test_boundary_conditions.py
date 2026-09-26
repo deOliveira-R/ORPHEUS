@@ -10,7 +10,8 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -151,12 +152,8 @@ def _err052_fixture():
     """
     import numpy as _np
     from orpheus.derivations.reference_values import get
-    from orpheus.geometry import (
-        Mesh1D as _Mesh1D,
-        Region,
-        RegionMesh,
-        StructuredGeometry,
-    )
+    from orpheus.geometry import Region, StructuredGeometry
+    from orpheus.mesh import Mesh1D as _Mesh1D, RegionMesh
 
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))

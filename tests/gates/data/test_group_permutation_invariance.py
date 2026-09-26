@@ -106,7 +106,8 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source

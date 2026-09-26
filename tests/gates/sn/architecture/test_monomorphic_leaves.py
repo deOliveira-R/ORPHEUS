@@ -206,8 +206,9 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.geometry.mesh import Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
+from orpheus.mesh import Mesh2D
 from orpheus.numerics import operator as _operator_module
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature

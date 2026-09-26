@@ -37,7 +37,7 @@ from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator

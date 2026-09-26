@@ -50,7 +50,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_adjoint_spectrum_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solution import AdjointSolution, Solution
 from orpheus.sn.solver import (
@@ -361,7 +361,7 @@ class TestSolveSnAdjointFixedSource:
     def test_carrying_mesh_refusal_is_typed_and_loud(self):
         r"""The daggered coupled fixed-source arm ships as a REFUSAL, not
         silently unexercised (#276 A4 scope note)."""
-        from orpheus.geometry.mesh import CoordSystem
+        from orpheus.geometry import CoordSystem
 
         mats = {0: get_mixture("A", "2g")}
         sphere = Mesh1D(

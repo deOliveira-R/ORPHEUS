@@ -178,7 +178,7 @@ class Axis1D(Protocol):
     * ``bc`` — mapping ``endpoint_label → BC | BoundaryTraceLaw | None``.
       A declaration is EITHER a ``BC`` tag or an already-typed law; the
       law arm carries what a tag structurally cannot (a source that is a
-      FUNCTION). See ``orpheus.geometry.mesh._check_boundary_declaration``.
+      FUNCTION). See ``orpheus.mesh.structured._check_boundary_declaration``.
 
     Pole rationale (D3 of the ultraplan): a BC trace law is a linear
     operator ``bc.apply(outflow) → inflow`` that closes the transport
@@ -554,7 +554,8 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     """
     # Local import to avoid a circular dependency at module import time
     # (mesh.py is imported by sn/geometry.py which imports this module).
-    from orpheus.geometry import CoordSystem, Mesh1D, Mesh2D
+    from orpheus.geometry import CoordSystem
+    from orpheus.mesh.structured import Mesh1D, Mesh2D
 
     if isinstance(mesh, Mesh1D):
         if mesh.coord == CoordSystem.CARTESIAN:
@@ -641,7 +642,8 @@ def legacy_mesh_from_axes(
         ``(n_0, n_1)`` for 2-D. Defaults to all-zeros (single
         material with id 0).
     """
-    from orpheus.geometry import CoordSystem, Mesh1D, Mesh2D
+    from orpheus.geometry import CoordSystem
+    from orpheus.mesh.structured import Mesh1D, Mesh2D
 
     shape = spatial_shape(axes)
     if mat_map is None:

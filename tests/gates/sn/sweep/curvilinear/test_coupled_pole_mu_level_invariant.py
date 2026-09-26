@@ -76,7 +76,8 @@ from orpheus.numerics.invariance import _embedded_nodes
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source

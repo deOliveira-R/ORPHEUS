@@ -82,8 +82,12 @@ the layers below it):
    * - **L2** transport vocabulary
      - the transport equation's objects; method-agnostic
      - :mod:`orpheus.transport` (created by P3.3)
+   * - **(input)** mesh
+     - the discretisation overlay on the geometry: cells, subdivision,
+       per-axis primitives
+     - :mod:`orpheus.mesh`
    * - **(input)** geometry + data
-     - mesh geometry; nuclear data
+     - shapes, coordinate systems and boundary laws; nuclear data
      - :mod:`orpheus.geometry`, :mod:`orpheus.data`
    * - **L1** mathematics
      - functional analysis, linear algebra, measure theory; no neutrons
@@ -97,18 +101,34 @@ the layers below it):
 A few notes the table is too compact to capture:
 
 * The **input layer** is not a strict member of the L0/L1/L2/L3 stack;
-  it provides primitive types that every layer (including L1) may
-  consume. Geometry meshes and nuclear-data structures are inputs in the
-  same sense that a function argument is an input — they cross every
-  layer boundary but carry no algorithmic knowledge.
+  it provides primitive types that the layers above it consume.
+  Geometries, meshes and nuclear-data structures are inputs in the same
+  sense that a function argument is an input — they cross every layer
+  boundary but carry no algorithmic knowledge. The linter does not
+  forbid :mod:`orpheus.numerics` an edge to :mod:`orpheus.geometry` or
+  :mod:`orpheus.data`; it does forbid one to :mod:`orpheus.mesh`.
+
+* The input layer has one internal order: :mod:`orpheus.mesh` sits
+  **above** :mod:`orpheus.geometry`. A mesh is an overlay on a geometry
+  (it divides the geometry's intervals into cells), so
+  :mod:`orpheus.mesh` may import :mod:`orpheus.geometry`,
+  :mod:`orpheus.numerics` and :mod:`orpheus.data`, and never
+  :mod:`orpheus.transport` or a method package; :mod:`orpheus.geometry`,
+  :mod:`orpheus.data` and :mod:`orpheus.numerics` never import
+  :mod:`orpheus.mesh`. Binding cross sections to the cells is not an
+  input-layer job: the material mesh
+  :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` stays at
+  L2 in :mod:`orpheus.transport.mesh`. The package and its reason are
+  on :doc:`/api/mesh`.
 
 * **L0** sits below **L2**, beside **L1** and the input layer, not below
-  **L1**. The linter forbids :mod:`orpheus.derivations` exactly the set it
-  forbids :mod:`orpheus.numerics`, :mod:`orpheus.geometry` and
-  :mod:`orpheus.data`: :mod:`orpheus.transport` and every L3 package. So a
-  reference may use the mathematics layer and describe its problem in
-  input-layer vocabulary (a geometry, a ``Mixture``, a boundary
-  condition), and it may never name a transport object such as
+  **L1**. The linter forbids :mod:`orpheus.derivations` exactly
+  :mod:`orpheus.transport` and every L3 package, the same set it forbids
+  :mod:`orpheus.mesh`; it forbids :mod:`orpheus.numerics`,
+  :mod:`orpheus.geometry` and :mod:`orpheus.data` that set plus
+  :mod:`orpheus.mesh`. So a reference may use the mathematics layer and
+  describe its problem in input-layer vocabulary (a geometry, a mesh, a
+  ``Mixture``, a boundary condition), and it may never name a transport object such as
   ``MaterialMesh``; lifting a reference's problem to a method's problem is
   a production verb at L2 and above. The derivations ship reference
   solvers built from SymPy, ``mpmath``, or pure analytical closed forms.
@@ -268,11 +288,14 @@ The forbidden-edge dictionary is:
 
    FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
        # L1 imports nothing above itself.
-       "numerics": L2_PACKAGES | L3_PACKAGES,
+       "numerics": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
-       # Input layers import L1 only.
-       "geometry": L2_PACKAGES | L3_PACKAGES,
-       "data":     L2_PACKAGES | L3_PACKAGES,
+       # Geometry and data never import the mesh overlay above them.
+       "geometry": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "data":     MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+
+       # The mesh imports geometry, data and L1, never L2 or L3.
+       "mesh": L2_PACKAGES | L3_PACKAGES,
 
        # L2 imports L1 + inputs only.
        "transport": L3_PACKAGES,

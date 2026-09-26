@@ -36,7 +36,8 @@ from orpheus.transport.kernels import N2N_MULTIPLICITY
 _N2N_MULTIPLICITY = float(N2N_MULTIPLICITY)
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 
 
 # ═══════════════════════════════════════════════════════════════════════

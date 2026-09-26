@@ -16,10 +16,11 @@ mechanics (how to enforce it in the :term:`sweep`).  ⛔ Until #412
 laws is one of the things it owns.
 
 **Stage 1 --- Geometry declaration.**
-:class:`~geometry.mesh.Mesh1D` carries ``bc_left: BC | None`` and
-``bc_right: BC | None``; :class:`~geometry.mesh.Mesh2D` carries
-``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax: BC | None``.
-:class:`~geometry.mesh.BC` is a frozen dataclass with two fields:
+:class:`~orpheus.mesh.structured.Mesh1D` carries ``bc_left`` and
+``bc_right``; :class:`~orpheus.mesh.structured.Mesh2D` carries
+``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``. Each is a ``BC`` tag, an
+already-typed boundary law, or ``None`` (the method's default).
+:class:`~orpheus.geometry.boundary.BC` is a frozen dataclass with two fields:
 
 - ``kind: str`` --- an identifier such as ``"vacuum"``, ``"reflective"``,
   or ``"white"``.
@@ -27,9 +28,9 @@ laws is one of the things it owns.
   (e.g. ``{"albedo": 0.7}``).
 
 Convenience instances are available for the common cases:
-:attr:`BC.vacuum <orpheus.geometry.mesh.BC.vacuum>`,
-:attr:`BC.reflective <orpheus.geometry.mesh.BC.reflective>`, and
-:attr:`BC.white <orpheus.geometry.mesh.BC.white>`.
+:attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`,
+:attr:`BC.reflective <orpheus.geometry.boundary.BC.reflective>`, and
+:attr:`BC.white <orpheus.geometry.boundary.BC.white>`.
 When a face is left as ``None``, the solver applies its own default
 (reflective for the SN solver, matching the infinite-lattice /
 eigenvalue convention).
@@ -60,7 +61,7 @@ in the trace space — then named ``InflowTraceSpace``, now the unified
 Cartesian-vs-curvilinear bypass into a single realizer-routed
 path; details at :ref:`bc-curvilinear-realizer-unification`.
 
-During ``SNProblem.__init__``, each face's :class:`~geometry.mesh.BC`
+During ``SNProblem.__init__``, each face's :class:`~orpheus.geometry.boundary.BC`
 is looked up in the registry.  If the kind is not found, a
 ``ValueError`` lists the supported kinds.  For curvilinear
 geometries (spherical, cylindrical), only ``"reflective"`` and
@@ -104,7 +105,7 @@ realizer architecture.
 :func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
 parameter (default ``"vacuum"``).  Internally it calls
 ``_apply_default_bcs(mesh, boundary_condition)``, which applies the
-string to **all faces** that lack explicit :class:`~geometry.mesh.BC`
+string to **all faces** that lack explicit :class:`~orpheus.geometry.boundary.BC`
 declarations.  When the mesh already carries explicit BCs, the parameter
 is silently ignored --- mesh-level declarations always take precedence.
 :func:`solve_sn` (the eigenvalue entry point) does not expose a
@@ -477,7 +478,7 @@ SN BC resolution table
 ----------------------
 
 The :meth:`SNProblem.realize_boundary_law <orpheus.sn.problem.SNProblem.realize_boundary_law>` dispatch is summarized below.
-Each row maps the user-facing :class:`~orpheus.geometry.mesh.BC`
+Each row maps the user-facing :class:`~orpheus.geometry.boundary.BC`
 kind string to (a) the resolved :class:`BoundaryTraceLaw`
 subclass and (b) the :class:`SNBoundaryRealizer.realize` output
 operator. The realizer dispatch is **uniform** across every
@@ -625,7 +626,7 @@ where the ``method_space`` is built by
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (built
 once at :class:`SNProblem` construction for every supported mesh).
 The reflective branch derives its reflection axis from the face's
-own :class:`~orpheus.transport.mesh.axis.FaceLabel` —
+own :class:`~orpheus.mesh.axis.FaceLabel` —
 ``AXIS_NAMES[label.axis_index]`` — so the partner is correct at any
 dimension by construction (C4 / #220; see
 :ref:`bc-face-name-latent-d3-bug`). The
@@ -644,7 +645,7 @@ shim pairs the result back with the law it was realized from; its
    (a 1-D Problem's ``trace.layout.faces`` is ``("xmin", "xmax")``).
    C4 makes them unrepresentable: a slab has no y-axis in its
    :attr:`~orpheus.sn.problem.SNProblem.axes` tuple, so
-   :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label and
+   :func:`~orpheus.mesh.axis.face_labels` emits no y-label and
    :attr:`SNProblem.bc` has no y-entry — ``slab.bc["ymin"]`` is a
    :class:`KeyError`, not a no-op. See
    :ref:`bc-face-name-carve-what-retired` for the full retirement

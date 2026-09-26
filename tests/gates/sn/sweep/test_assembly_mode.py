@@ -60,8 +60,9 @@ import pytest
 from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh2D
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh2D
+from orpheus.mesh import Mesh1D
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.numerics.operator import MissingAssembly
 from orpheus.numerics.quadrature import Quadrature

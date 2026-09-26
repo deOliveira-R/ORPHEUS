@@ -261,7 +261,7 @@ class ContinuousReferenceSolution:
         """Evaluate the reference scalar flux at every cell centre of ``mesh``.
 
         This is the hot-path call from tests: feed the test's own
-        :class:`orpheus.geometry.Mesh1D` (or 2D variant) and get a
+        :class:`orpheus.mesh.Mesh1D` (or 2D variant) and get a
         cell-average (midpoint) evaluation. For operators with
         sharp boundary layers the cell-centred midpoint rule is only
         :math:`O(h^{2})`-accurate; higher-order tests should use

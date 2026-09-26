@@ -435,7 +435,7 @@ def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> No
     # with it.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import Mesh1D
+    from orpheus.mesh import Mesh1D
     from orpheus.homogeneous.solver import _pose_space
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
@@ -472,7 +472,8 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.diffusion import DiffusionMesh
-    from orpheus.geometry import BC, Mesh1D
+    from orpheus.geometry import BC
+    from orpheus.mesh import Mesh1D
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
@@ -519,7 +520,7 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     is structurally independent of every array it threads.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import Mesh1D
+    from orpheus.mesh import Mesh1D
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
@@ -566,7 +567,7 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     """
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.sn.problem import SNProblem
-    from orpheus.transport.mesh.axis import AxisMesh
+    from orpheus.mesh import AxisMesh
     from tests.gates.sn._test_helpers import placeholder_materials
 
     axes = tuple(

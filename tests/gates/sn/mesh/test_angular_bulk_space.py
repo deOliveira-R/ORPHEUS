@@ -37,8 +37,9 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.transport.mesh.axis import AxisCoord, AxisMesh, RadialAxisMesh
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
+from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace

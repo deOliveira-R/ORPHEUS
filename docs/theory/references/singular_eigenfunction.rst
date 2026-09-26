@@ -701,7 +701,7 @@ isotropic):
    from orpheus.derivations.continuous.singular_eigenfunction import (
        Spectrum,
    )
-   from orpheus.geometry.mesh import BC
+   from orpheus.geometry import BC
 
    mix = make_mixture(
        sig_t=np.array([1.0]),

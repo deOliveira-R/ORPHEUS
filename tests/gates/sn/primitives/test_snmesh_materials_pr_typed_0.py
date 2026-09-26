@@ -16,7 +16,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.sn.problem import InconsistentMaterialsError, SNProblem
 from orpheus.numerics.quadrature import Quadrature
 

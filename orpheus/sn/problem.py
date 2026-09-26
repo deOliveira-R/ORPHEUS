@@ -1,7 +1,7 @@
 r"""The S\ :sub:`N` Problem — the data hub every discrete-ordinates consumer reads (until #412: "augmented geometry").
 
 :class:`SNProblem` is axis-primary (C5.1, #225): its canonical spatial
-representation is a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`, and it
+representation is a tuple of :class:`~orpheus.mesh.axis.Axis1D`, and it
 precomputes the coordinate-specific streaming stencil used by the
 transport sweep. Two construction surfaces funnel into one body — the
 axis-native :meth:`SNProblem.from_axes`, and the legacy
@@ -22,7 +22,8 @@ from typing import ClassVar, Iterator, TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.geometry import CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     ReflectiveBoundary,
@@ -32,7 +33,7 @@ from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import angular_redistribution
 from orpheus.transport.method import resolve_boundary_conditions
-from orpheus.transport.mesh.axis import (
+from orpheus.mesh import (
     Axis1D,
     FaceLabel,
     axes_from_legacy_mesh,
@@ -122,7 +123,7 @@ class SNProblem(MaterialMesh):
     consumes; it is the Problem, not a mesh.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is
-    :attr:`axes` — a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D` — from
+    :attr:`axes` — a tuple of :class:`~orpheus.mesh.axis.Axis1D` — from
     which all shape metadata derives. Constructed either axis-natively
     via :meth:`from_axes` or from a legacy
     :class:`~geometry.mesh.Mesh1D` / :class:`~geometry.mesh.Mesh2D`
@@ -180,7 +181,7 @@ class SNProblem(MaterialMesh):
         name — the SAME keys as :attr:`boundary_face_layout` /
         ``angular_trace.layout.faces``, both derived from :attr:`face_labels`
         through the single-sourced
-        :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name` crosswalk (C4,
+        :attr:`~orpheus.mesh.axis.FaceLabel.face_name` crosswalk (C4,
         #220). Each value is a :class:`_BoundBoundaryOperator` shim
         pairing the realized 1-arg :class:`LinearOperator` with the
         **law** it was realized from — so a consumer can ask what the
@@ -662,11 +663,11 @@ class SNProblem(MaterialMesh):
     def face_labels(self) -> tuple[FaceLabel, ...]:
         r"""Canonical boundary-face inventory.
 
-        Each :class:`~orpheus.transport.mesh.axis.FaceLabel` carries an
+        Each :class:`~orpheus.mesh.axis.FaceLabel` carries an
         ``axis_index`` and an ``endpoint`` label, derived from the
         per-axis endpoints. Cartesian 1-D returns 2 labels; spherical
         / cylindrical 1-D returns 1 label (the pole is NOT a face —
-        see :class:`~orpheus.transport.mesh.axis.Axis1D` docstring); 2-D Cartesian
+        see :class:`~orpheus.mesh.axis.Axis1D` docstring); 2-D Cartesian
         returns 4 labels; synthetic 3-D Cartesian would return 6.
 
         The iteration order is the canonical concatenation order for
@@ -738,14 +739,14 @@ class SNProblem(MaterialMesh):
 
         Endpoint labels must be canonical (``min``/``max``/``outer``):
         the :attr:`bc` dict is keyed by
-        :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name`, which fails loud
+        :attr:`~orpheus.mesh.axis.FaceLabel.face_name`, which fails loud
         on a custom label (C4 doctrine — overridable labels cannot
         silently desync the face-name crosswalk). Custom labels are for
         standalone axis use, not SNProblem construction.
 
         Parameters
         ----------
-        axes : tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`
+        axes : tuple of :class:`~orpheus.mesh.axis.Axis1D`
             Per-axis 1-D mesh descriptors. Length 1 → 1-D mesh;
             length 2 → 2-D Cartesian mesh; length ≥3 → d-D Cartesian
             (C5.5, #225 — all-Cartesian required, mesh-adapter-free
@@ -904,7 +905,7 @@ class SNProblem(MaterialMesh):
         and the boundary realizer previously each recomputed.
 
         ALWAYS non-``None`` (C5.3): the only mesh the pre-C5.3 gate
-        excluded — a cylindrical :class:`~orpheus.geometry.mesh.Mesh2D`
+        excluded — a cylindrical :class:`~orpheus.mesh.structured.Mesh2D`
         — cannot become an SNProblem at all, so every constructible SNProblem
         carries a trace.
         """

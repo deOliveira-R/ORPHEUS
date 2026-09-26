@@ -71,7 +71,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.solver import solve_sn_adjoint
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.isotropic_transfer import (

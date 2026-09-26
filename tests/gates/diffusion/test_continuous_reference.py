@@ -51,7 +51,7 @@ from orpheus.derivations import continuous_get
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(

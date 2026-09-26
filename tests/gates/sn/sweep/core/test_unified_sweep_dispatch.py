@@ -47,12 +47,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Mesh2D,
-)
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.diamond import DiamondDifference
@@ -405,7 +401,7 @@ class TestD3SupportsMatrix:
         import numpy as np
         from orpheus.derivations.common.xs_library import make_mixture
         from orpheus.numerics.quadrature import Quadrature
-        from orpheus.transport.mesh.axis import AxisMesh
+        from orpheus.mesh import AxisMesh
         from orpheus.sn.problem import SNProblem
         from orpheus.sn.loss_representation import (
             FullFieldWavefront,

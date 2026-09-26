@@ -35,7 +35,7 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
 from orpheus.sn.problem import SNProblem

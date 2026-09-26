@@ -23,14 +23,8 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 
 _COORD_TO_TAG = {
     CoordSystem.CARTESIAN: "SLB",

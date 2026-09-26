@@ -50,7 +50,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature

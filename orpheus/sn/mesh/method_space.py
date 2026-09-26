@@ -60,7 +60,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 
 if TYPE_CHECKING:
-    from orpheus.geometry.mesh import Mesh1D, Mesh2D
+    from orpheus.mesh import Mesh1D, Mesh2D
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.quadrature import Quadrature
 

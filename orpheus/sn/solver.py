@@ -25,7 +25,7 @@ Inner solver dispatch
   legacy BiCGSTAB FD path.
 
 Boundary conditions default to reflective (infinite lattice) but are
-configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
+configurable via :class:`~orpheus.geometry.boundary.BC` on the mesh.
 
 .. seealso:: :ref:`theory-discrete-ordinates` — Key Facts, equations, gotchas.
 """
@@ -44,7 +44,8 @@ from scipy.sparse.linalg import gmres
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, Mesh1D, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -90,7 +91,7 @@ from orpheus.numerics.moment_layout import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.transport.mesh.axis import Axis1D
+from orpheus.mesh import Axis1D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
@@ -124,14 +125,14 @@ def _apply_default_bcs(
     """Apply *boundary_condition* string to all faces that lack explicit BCs.
 
     Returns the original declaration unchanged when it already carries
-    ANY explicit :class:`~orpheus.geometry.mesh.BC`, so user-set BCs
+    ANY explicit :class:`~orpheus.geometry.boundary.BC`, so user-set BCs
     always take precedence over the ``boundary_condition`` parameter.
 
     C5.5 (#225): handles BOTH entry-surface geometry declarations — a
     legacy :class:`Mesh1D` / :class:`Mesh2D` (per-face dataclass
     fields) and an axis tuple (per-endpoint ``bc`` slots on each
-    :class:`~orpheus.transport.mesh.axis.AxisMesh` /
-    :class:`~orpheus.transport.mesh.axis.RadialAxisMesh`). The all-or-nothing
+    :class:`~orpheus.mesh.axis.AxisMesh` /
+    :class:`~orpheus.mesh.axis.RadialAxisMesh`). The all-or-nothing
     semantics are identical on both representations.
     """
     bc = BC(boundary_condition)
@@ -1882,7 +1883,7 @@ class SNSolver:
 
         — the outer product of the OTHER axes' edge widths in
         **ascending axis order**, the same codimension-1 enumeration as
-        :func:`~orpheus.transport.mesh.axis.face_shape`, so the array
+        :func:`~orpheus.mesh.axis.face_shape`, so the array
         broadcasts cell-for-cell against the ``(ng, *face_spatial)``
         net current (2-D: the single transverse width vector, unit
         depth; 3-D: the ``(n_t0, n_t1)`` transverse-area product —
@@ -2281,7 +2282,7 @@ def solve_sn(
     Production callers consume ``(materials, mesh, quadrature, ...)``
     directly: materials are :class:`~orpheus.data.macro_xs.mixture.Mixture`
     objects keyed by material ID, ``mesh`` is a
-    :class:`~orpheus.geometry.Mesh1D` / :class:`~orpheus.geometry.Mesh2D`
+    :class:`~orpheus.mesh.Mesh1D` / :class:`~orpheus.mesh.Mesh2D`
     (build via :meth:`Mesh1D.from_geometry` for multi-region 1-D cases)
     OR an axis tuple — the axis-native surface and the ONLY 3-D entry
     (C5.5, #225; per-axis BCs ride the axes, ``mat_map=`` carries the
@@ -3299,7 +3300,7 @@ def solve_sn_fixed_source(
     boundary_condition : {"vacuum", "reflective"} or None
         Applied to all faces when the mesh has no explicit BC
         declarations (``bc_left`` etc. are ``None``).  When the mesh
-        carries explicit :class:`~orpheus.geometry.mesh.BC` fields,
+        carries explicit :class:`~orpheus.geometry.boundary.BC` fields,
         those take precedence and this parameter is ignored.
         Vacuum is the default because the intended consumer is
         Method of Manufactured Solutions verification on a finite slab.

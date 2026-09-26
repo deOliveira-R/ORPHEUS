@@ -20,14 +20,8 @@ from orpheus.mc.solver import (
     ConcentricPinCell, SlabPinCell, MCMesh, MCGeometry,
     MCParams, solve_monte_carlo,
 )
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_xs, get_mixture
 

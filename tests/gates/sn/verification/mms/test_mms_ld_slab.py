@@ -163,7 +163,8 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     a non-flat random per-ordinate source.  One sweep each, on a fresh boundary
     (the sweep mutates it in place).
     """
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
@@ -221,7 +222,8 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     predicate (a *value* signal — P4.9a: the assembled ``angular_denom_term``
     non-neutral) instead of a path that merely happened to reach it.
     """
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
 
@@ -320,7 +322,8 @@ def test_ld_thick_diffusive_limit() -> None:
     Σ_s^T·φ̂ couples groups; a 1G-only gate is a degeneracy guard failure).
     """
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.numerics.quadrature import Quadrature
 
     nx, length, sigma_t, c = 4, 1.0, 40.0, 0.99   # σ_t·h = 10/cell (thick), c→1
@@ -371,7 +374,8 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     the 1G gate (the `vv-principles` 1-group-degeneracy rule / H1; #240 D5b-S3 GATE 5).
     """
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
-    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh1D
     from orpheus.numerics.quadrature import Quadrature
 
     nx, length = 4, 1.0

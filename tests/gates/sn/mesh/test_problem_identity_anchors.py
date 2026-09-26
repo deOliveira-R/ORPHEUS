@@ -56,12 +56,13 @@ import pytest
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import IdentityAngularClosure
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solution import Solution, SolutionBase
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-084")]

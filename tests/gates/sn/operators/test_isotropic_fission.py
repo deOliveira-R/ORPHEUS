@@ -34,7 +34,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import Mesh2D
+from orpheus.mesh import Mesh2D
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
@@ -100,7 +100,7 @@ def _scalar_composite_cotangent():
     from orpheus.derivations.common.xs_library import make_mixture
     from orpheus.diffusion import DiffusionMesh
     from orpheus.geometry import BC
-    from orpheus.geometry.mesh import Mesh1D
+    from orpheus.mesh import Mesh1D
     from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.full_field import FullField

@@ -6,7 +6,7 @@ and the second is the one that makes the fix worth having:
 
 1. **A ``BC`` tag cannot express a law that carries a function.**
    ``BC`` is ``(kind: str, params: dict[str, float])``
-   (``orpheus/geometry/mesh.py``), so a
+   (``orpheus/mesh/structured.py``), so a
    :class:`~orpheus.geometry.boundary.PrescribedInflow` whose source is a
    manufactured solution restricted to a face has no tag spelling and never
    will. The channel admits an already-typed
@@ -39,7 +39,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
     PrescribedInflow,

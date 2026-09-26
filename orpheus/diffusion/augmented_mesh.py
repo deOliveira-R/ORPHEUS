@@ -15,7 +15,7 @@ method's BEHAVIOR —
   :attr:`bc` maps each boundary face to the realized albedo operator
   :math:`J^- = \mathcal{A}\,J^+` produced by the
   :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-  from the mesh axes' own :class:`~orpheus.geometry.mesh.BC`
+  from the mesh axes' own :class:`~orpheus.geometry.boundary.BC`
   declarations (#290 P3 semantics; ruling 3: ``"vacuum"`` MEANS Marshak
   :math:`J^- = 0`, the zero-flux Dirichlet idealization is its own
   honestly-named ``"zero_flux"`` law).
@@ -97,10 +97,10 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     ZeroFluxBoundary,
 )
-from orpheus.geometry.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.method import resolve_boundary_conditions
-from orpheus.transport.mesh.axis import (
+from orpheus.mesh import (
     axes_from_legacy_mesh,
     face_labels as _face_labels,
     face_shape as _face_shape,
@@ -115,7 +115,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.transport.mesh.axis import Axis1D
+    from orpheus.mesh import Axis1D
 
 
 __all__ = ["DiffusionMesh"]
@@ -328,7 +328,7 @@ class DiffusionMesh(MaterialMesh):
         Built once at construction from the mesh's own axis data
         (``SNProblem.angular_trace`` locus parity, quadrature-free):
         the face inventory from
-        :func:`~orpheus.transport.mesh.axis.face_labels`, each face's
+        :func:`~orpheus.mesh.axis.face_labels`, each face's
         surface measure from :attr:`~MaterialMesh.areas` as the trace
         metric. Consumed by the scalar trace family
         (:class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`

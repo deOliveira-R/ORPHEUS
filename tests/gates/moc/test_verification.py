@@ -30,7 +30,8 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.derivations.common.xs_library import make_mixture, get_mixture, get_xs
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.moc.geometry import MOCMesh

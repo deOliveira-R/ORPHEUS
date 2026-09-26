@@ -68,7 +68,8 @@ import pytest
 from numpy.typing import NDArray
 
 from orpheus.data.energy_grid import EnergyGrid
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.basis import (
     Basis,
     IndicatorBasis,

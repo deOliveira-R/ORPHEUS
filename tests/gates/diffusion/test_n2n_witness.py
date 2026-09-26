@@ -48,7 +48,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 
 pytestmark = pytest.mark.l1
 

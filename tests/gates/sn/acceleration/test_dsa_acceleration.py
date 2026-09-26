@@ -31,7 +31,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection
 from orpheus.sn.solver import Solution, solve_sn_fixed_source

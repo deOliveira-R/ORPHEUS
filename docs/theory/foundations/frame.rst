@@ -2152,10 +2152,10 @@ by a **new** concrete numerics basis,
 :class:`~orpheus.numerics.basis.Basis` after
 :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`, and the
 piecewise-constant (P0 / characteristic-function) analogue of it. The
-coarse :class:`~orpheus.geometry.mesh.Mesh1D` **yields** this view via
-:meth:`coarse.indicator_basis() <orpheus.geometry.mesh.Mesh1D.indicator_basis>`,
+coarse :class:`~orpheus.mesh.structured.Mesh1D` **yields** this view via
+:meth:`coarse.indicator_basis() <orpheus.mesh.structured.Mesh1D.indicator_basis>`,
 exactly symmetric with how it already yields
-:meth:`coarse.volume_measure <orpheus.geometry.mesh.Mesh1D.volume_measure>`.
+:meth:`coarse.volume_measure <orpheus.mesh.structured.Mesh1D.volume_measure>`.
 
 The mesh is **not** a :class:`~orpheus.numerics.basis.Basis` subclass,
 and the reason is a clean role separation: a
@@ -2397,7 +2397,7 @@ coarse geometry *carrying* its materials — a
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, the
 mesh+materials data carrier minted for exactly this purpose. (This is
 why ``MaterialMesh`` exists as the middle type between a bare
-:class:`~orpheus.geometry.mesh.Mesh1D` and a method phase space: a
+:class:`~orpheus.mesh.structured.Mesh1D` and a method phase space: a
 homogenized model is *materials-and-geometry-together but not yet
 method-specific* — it has no quadrature until
 :meth:`SNProblem.from_material_mesh
@@ -3431,7 +3431,7 @@ The grid is a frame axis: dual measure / basis views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An :class:`~orpheus.data.energy_grid.EnergyGrid` is the energy analogue
-of a coarse :class:`~orpheus.geometry.mesh.Mesh1D`, and — exactly like a
+of a coarse :class:`~orpheus.mesh.structured.Mesh1D`, and — exactly like a
 mesh — it is a **frame axis** that yields *both* halves of a discrete
 frame, the two roles an axis plays in a projection:
 
@@ -3450,14 +3450,14 @@ frame, the two roles an axis plays in a projection:
        :class:`~orpheus.numerics.measure.DiscreteMeasure`, :math:`w_g=1`,
        ``support="energy"``)
      - :meth:`Mesh1D.volume_measure
-       <orpheus.geometry.mesh.Mesh1D.volume_measure>`
+       <orpheus.mesh.structured.Mesh1D.volume_measure>`
    * - **basis** :math:`\mathbf{1}`
      - :meth:`EnergyGrid.as_basis
        <orpheus.data.energy_grid.EnergyGrid.as_basis>`
      - the **target** — the axis you project *to* (the group-indicator
        :class:`~orpheus.numerics.basis.IndicatorBasis`, one-hot)
      - :meth:`Mesh1D.indicator_basis
-       <orpheus.geometry.mesh.Mesh1D.indicator_basis>`
+       <orpheus.mesh.structured.Mesh1D.indicator_basis>`
 
 So a *nested* condensation is just ``fine.as_measure()`` →
 ``coarse.as_basis()`` — the two unary views suffice. The non-nested

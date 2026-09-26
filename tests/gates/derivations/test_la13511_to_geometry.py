@@ -43,7 +43,7 @@ from orpheus.derivations.continuous.sood_registry.atalay1997 import (
     ATALAY_ALL_CASES,
 )
 from orpheus.derivations.continuous.sood_registry.la13511 import _ALL_CASES
-from orpheus.geometry.mesh import BC
+from orpheus.geometry import BC
 from orpheus.geometry.structured_geometry import (
     Region as StructuredRegion,
     StructuredGeometry,

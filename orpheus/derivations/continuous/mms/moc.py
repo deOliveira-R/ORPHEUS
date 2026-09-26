@@ -92,7 +92,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
 

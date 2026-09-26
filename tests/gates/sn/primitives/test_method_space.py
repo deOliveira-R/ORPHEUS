@@ -27,7 +27,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace

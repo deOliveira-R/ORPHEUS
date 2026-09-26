@@ -184,7 +184,7 @@ class Billiard:
         from orpheus.geometry.structured_geometry import (
             Region, StructuredGeometry,
         )
-        from orpheus.geometry.mesh import BC
+        from orpheus.geometry import BC
         from orpheus.derivations.continuous.trajectory_resolvent import (
             Billiard,
         )

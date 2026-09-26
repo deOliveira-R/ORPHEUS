@@ -70,7 +70,8 @@ import pytest
 from orpheus.numerics.outcome import Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.face_layout import face_normal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solver as solver_module
@@ -83,7 +84,7 @@ from orpheus.sn.solver import (
     solve_sn,
     solve_sn_fixed_source,
 )
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 
 _R = BC("reflective")
 _QUAD = Quadrature.level_symmetric(sn_order=4)

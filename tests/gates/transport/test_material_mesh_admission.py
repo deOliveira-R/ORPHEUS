@@ -39,11 +39,12 @@ import numpy as np
 import pytest
 
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from tests.gates.sn._test_helpers import placeholder_materials
 

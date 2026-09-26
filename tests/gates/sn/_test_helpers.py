@@ -215,7 +215,7 @@ def material_xs_from_raw(
     fixtures assert scattering dispatch, never a physical balance.
     Every cell must be painted — a real carrier has no unassigned cells.
     """
-    from orpheus.geometry import Mesh2D
+    from orpheus.mesh import Mesh2D
     from orpheus.transport.mesh.material_mesh import MaterialMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.data.macro_xs.mixture import Mixture
@@ -374,9 +374,8 @@ def curvilinear_homogeneous_mesh(
     convention). CP tests must override to ``BC.white`` because CP
     only supports ``"vacuum"`` / ``"white"``.
     """
-    from orpheus.geometry import (
-        BC, CoordSystem, Mesh1D, Region, RegionMesh, StructuredGeometry,
-    )
+    from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+    from orpheus.mesh import Mesh1D, RegionMesh
     if coord is None:
         coord = CoordSystem.CARTESIAN
     if bc is None:
@@ -398,10 +397,9 @@ def curvilinear_two_region_mesh(
     bc=None,
 ):
     """Two-region mesh with absolute outer-edge convention."""
-    from orpheus.geometry import (
-        BC, Region, RegionMesh, StructuredGeometry,
-    )
-    from orpheus.geometry import Mesh1D
+    from orpheus.geometry import BC, Region, StructuredGeometry
+    from orpheus.mesh import RegionMesh
+    from orpheus.mesh import Mesh1D
     if bc is None:
         bc = BC.reflective
     tag = _COORD_TO_TAG[coord.name]
@@ -450,7 +448,8 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNProblem":
     Promoted from ``test_one_octant_walk.py`` when the S6.5
     one-instance tests became its second consumer.
     """
-    from orpheus.geometry import BC, CoordSystem, Mesh2D
+    from orpheus.geometry import BC, CoordSystem
+    from orpheus.mesh import Mesh2D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
 

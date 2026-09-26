@@ -27,7 +27,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.operator import InverseMetricOperator

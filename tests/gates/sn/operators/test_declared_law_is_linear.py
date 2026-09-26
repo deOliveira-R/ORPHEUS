@@ -118,7 +118,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system

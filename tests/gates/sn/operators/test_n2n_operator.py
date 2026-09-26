@@ -45,7 +45,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem

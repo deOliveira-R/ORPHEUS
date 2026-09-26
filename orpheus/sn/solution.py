@@ -120,7 +120,7 @@ if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
     from orpheus.numerics.convergence import IterationRecord
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.geometry import Mesh1D, Mesh2D
+    from orpheus.mesh import Mesh1D, Mesh2D
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh

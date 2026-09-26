@@ -82,7 +82,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
@@ -748,7 +749,7 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
     a rectangular nx≠ny≠nz NON-UNIFORM d=3 mesh satisfies the Euclidean
     pairing at machine precision AND the dense-``Mᵀ`` full-composite
     matrix equality (the same two objects that pin d=2)."""
-    from orpheus.transport.mesh.axis import AxisMesh
+    from orpheus.mesh import AxisMesh
 
     rng = np.random.default_rng(20260808)
     sn = SNProblem.from_axes(

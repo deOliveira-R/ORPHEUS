@@ -26,7 +26,8 @@ import pytest
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry.mesh import BC, Mesh1D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh

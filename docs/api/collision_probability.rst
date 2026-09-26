@@ -9,7 +9,7 @@ Bickley–Naylor ``Ki_3`` / ``Ki_4`` kernels, and the Gauss–Seidel versus
 Jacobi inner-iteration scheme.
 
 Mesh input follows the standard project convention
-(:class:`orpheus.geometry.mesh.Mesh1D`) — the CP solver does not own
+(:class:`orpheus.mesh.structured.Mesh1D`) — the CP solver does not own
 its own geometry type. Cross-sections come through
 :class:`orpheus.data.macro_xs.cell_xs.CellXS`, built from a material-ID
 to :class:`orpheus.data.macro_xs.mixture.Mixture` mapping.

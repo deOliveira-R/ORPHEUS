@@ -31,7 +31,8 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 pytestmark = PEIERLS_NYSTROM_WITHDRAWN

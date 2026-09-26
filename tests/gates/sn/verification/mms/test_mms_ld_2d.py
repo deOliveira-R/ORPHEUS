@@ -44,7 +44,8 @@ from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_ld_stress_mms_case,
     build_nonvacuum_fixed_source,
 )
-from orpheus.geometry import BC, CoordSystem, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source

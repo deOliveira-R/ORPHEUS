@@ -149,7 +149,7 @@ from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.mesh.axis import face_labels
+from orpheus.mesh import face_labels
 from orpheus.transport.source_sinks import (
     ScalarBoundarySourceSink,
     ScalarSourceSink,

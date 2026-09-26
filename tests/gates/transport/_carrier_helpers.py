@@ -32,7 +32,8 @@ from collections.abc import Mapping
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 

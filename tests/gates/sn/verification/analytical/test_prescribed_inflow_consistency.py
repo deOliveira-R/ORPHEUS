@@ -50,7 +50,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, Mesh1D, Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature

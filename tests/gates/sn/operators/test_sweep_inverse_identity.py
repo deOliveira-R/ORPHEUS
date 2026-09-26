@@ -30,7 +30,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.radial_characteristic_field import (

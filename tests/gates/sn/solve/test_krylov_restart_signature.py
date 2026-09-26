@@ -77,9 +77,8 @@ def _solve_kinf(
     Returns ``Solution.keff``.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import (
-        BC, Mesh1D, Region, RegionMesh, StructuredGeometry,
-    )
+    from orpheus.geometry import BC, Region, StructuredGeometry
+    from orpheus.mesh import Mesh1D, RegionMesh
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 

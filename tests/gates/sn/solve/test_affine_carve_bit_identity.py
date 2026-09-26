@@ -99,8 +99,9 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Mesh1D
-from orpheus.geometry.mesh import Mesh2D
+from orpheus.geometry import BC
+from orpheus.mesh import Mesh1D
+from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT

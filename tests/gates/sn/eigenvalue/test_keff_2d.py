@@ -28,7 +28,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn

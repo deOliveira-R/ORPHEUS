@@ -1,4 +1,4 @@
-"""Foundation tests for :mod:`orpheus.geometry.mesh` Issue 9.6 affordances.
+"""Foundation tests for :mod:`orpheus.mesh.structured` Issue 9.6 affordances.
 
 Tests the ``Mesh1D.volume_measure`` and ``Mesh2D.volume_measure``
 properties shipped in Phase B / Issue 9.6 — the natural integration
@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.measure import DiscreteMeasure
 
 

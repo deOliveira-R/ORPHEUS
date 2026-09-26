@@ -42,7 +42,8 @@ from typing import Any, assert_type, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator

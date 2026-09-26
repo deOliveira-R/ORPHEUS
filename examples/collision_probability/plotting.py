@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib.patches import Circle
 
 if TYPE_CHECKING:
-    from orpheus.geometry import Mesh1D
+    from orpheus.mesh import Mesh1D
     from orpheus.cp.solver import CPResult
 
 

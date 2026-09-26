@@ -15,14 +15,8 @@ import pytest
 from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 from orpheus.cp.solver import solve_cp, CPParams
-from orpheus.geometry import (
-    BC,
-    CoordSystem,
-    Mesh1D,
-    Region,
-    RegionMesh,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 
 # L2 cross-code MC ↔ CP consistency.
 pytestmark = [

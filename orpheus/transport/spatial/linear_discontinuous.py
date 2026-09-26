@@ -137,7 +137,7 @@ from .scheme import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from orpheus.transport.mesh.axis import Axis1D
+    from orpheus.mesh import Axis1D
 
 
 def _require_slab(

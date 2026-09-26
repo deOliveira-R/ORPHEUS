@@ -94,7 +94,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -830,7 +831,7 @@ class TestP4RemTheProducerBindsTheAxis:
         """
         from tests.gates.sn._test_helpers import placeholder_materials
         from orpheus.sn.problem import SNProblem
-        from orpheus.transport.mesh.axis import AxisMesh
+        from orpheus.mesh import AxisMesh
 
         axes = tuple(
             AxisMesh(edges=np.linspace(0.0, ext, n + 1))

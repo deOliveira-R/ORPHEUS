@@ -2,9 +2,13 @@
 
 Layers (per plan §P3.0):
   L0  (derivations/)   — Branch-1 references (SymPy / mpmath);
-                         BELOW L1 in the import hierarchy.
+                         beside L1 and the input layer, below L2: it
+                         may import numerics, geometry, mesh and data.
   L1  (numerics/)      — math primitives; knows no neutrons.
   (input) (geometry/, data/) — geometry + nuclear data.
+  (mesh)  (mesh/)      — the discretisation overlay on the geometry:
+                         imports geometry and numerics; geometry,
+                         data and numerics never import it.
   L2  (transport/)     — transport vocabulary; method-agnostic.
   L3  (sn/, pn/, moc/, cp/, mc/, diffusion/, kinetics/,
        fuel/, thermal_hydraulics/, homogeneous/) — one method's
@@ -37,6 +41,7 @@ ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "orpheus"
 L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
 L1_PACKAGES: frozenset[str] = frozenset({"numerics"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
+MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
 L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(
     {
@@ -54,9 +59,10 @@ L3_PACKAGES: frozenset[str] = frozenset(
 )
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
-    "numerics": L2_PACKAGES | L3_PACKAGES,
-    "geometry": L2_PACKAGES | L3_PACKAGES,
-    "data": L2_PACKAGES | L3_PACKAGES,
+    "numerics": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "geometry": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "data": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "mesh": L2_PACKAGES | L3_PACKAGES,
     "transport": L3_PACKAGES,
     "sn": L3_PACKAGES - {"sn"},
     "pn": L3_PACKAGES - {"pn"},
@@ -99,10 +105,28 @@ def _top_level_package(rel_path: pathlib.Path) -> str:
     return rel_path.parts[0]
 
 
-def _imports_of(module_path: pathlib.Path) -> list[tuple[str, bool]]:
+def _absolute_module(rel_path: pathlib.PurePosixPath, node: ast.ImportFrom) -> str | None:
+    """The absolute dotted name an ``ImportFrom`` reads, relative imports resolved.
+
+    ``from ..transport import x`` in ``orpheus/mesh/axis.py`` is
+    ``orpheus.transport``: a relative import of level ``n`` climbs ``n - 1``
+    packages above the one holding the module. Without this the linter reads
+    the bare ``transport`` and drops it at the ``orpheus.`` prefix test.
+    """
+    if node.level == 0:
+        return node.module
+    package = ("orpheus", *rel_path.parts[:-1])
+    if node.level - 1 > len(package) - 1:
+        return None
+    base = package[: len(package) - (node.level - 1)]
+    return ".".join((*base, node.module) if node.module else base)
+
+
+def _imports_of_source(
+    rel_path: pathlib.PurePosixPath, src: str,
+) -> list[tuple[str, bool]]:
     """Parse imports, marking TYPE_CHECKING-guarded ones."""
-    src = module_path.read_text()
-    tree = ast.parse(src, filename=str(module_path))
+    tree = ast.parse(src, filename=str(rel_path))
     results: list[tuple[str, bool]] = []
 
     def _visit(node: ast.AST, in_tc: bool) -> None:
@@ -116,8 +140,10 @@ def _imports_of(module_path: pathlib.Path) -> list[tuple[str, bool]]:
             for child in node.orelse:
                 _visit(child, in_tc)
             return
-        if isinstance(node, ast.ImportFrom) and node.module:
-            results.append((node.module, in_tc))
+        if isinstance(node, ast.ImportFrom):
+            module = _absolute_module(rel_path, node)
+            if module:
+                results.append((module, in_tc))
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 results.append((alias.name, in_tc))
@@ -128,15 +154,15 @@ def _imports_of(module_path: pathlib.Path) -> list[tuple[str, bool]]:
     return results
 
 
-def _check_module(module_path: pathlib.Path) -> list[str]:
-    rel = module_path.relative_to(ORPHEUS_ROOT)
+def _check_source(rel: pathlib.PurePosixPath, src: str) -> list[str]:
+    """The layer violations of one module's source, ``rel`` relative to ``orpheus/``."""
     src_pkg = _top_level_package(rel)
     if src_pkg not in FORBIDDEN_EDGES:
         return []
     forbidden = FORBIDDEN_EDGES[src_pkg]
-    rel_str = str(rel).replace("\\", "/")
+    rel_str = rel.as_posix()
     violations: list[str] = []
-    for module_name, is_tc in _imports_of(module_path):
+    for module_name, is_tc in _imports_of_source(rel, src):
         if not module_name.startswith("orpheus."):
             continue
         tgt_pkg = module_name.split(".")[1]
@@ -152,6 +178,11 @@ def _check_module(module_path: pathlib.Path) -> list[str]:
             f"(forbidden: {src_pkg} → {tgt_pkg})"
         )
     return violations
+
+
+def _check_module(module_path: pathlib.Path) -> list[str]:
+    rel = pathlib.PurePosixPath(module_path.relative_to(ORPHEUS_ROOT).as_posix())
+    return _check_source(rel, module_path.read_text())
 
 
 _ALL_MODULES = sorted(_iter_python_modules(ORPHEUS_ROOT))
@@ -171,8 +202,9 @@ def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
 # `numerics/__init__.py` imports `symmetry`, and `symmetry` imports
 # `geometry.transformation` (the rigid-motion core). That is a genuine package
 # CYCLE: importing `orpheus.numerics` runs `orpheus.geometry.__init__`, which
-# imports `orpheus.geometry.mesh`, which imports back into `orpheus.numerics`
-# — while `orpheus.numerics.__init__` is still mid-execution.
+# imports `orpheus.geometry.boundary`, which imports back into
+# `orpheus.numerics` — while `orpheus.numerics.__init__` is still
+# mid-execution.
 #
 # It resolves, and the reason is precise: a partially-initialised package can
 # serve `from orpheus.numerics.measure import X` (a SUBMODULE import, resolved
@@ -184,7 +216,7 @@ def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
 # interpreter start-up, not a subtle wrong answer. These two gates make the
 # discipline explicit: one structural, one end-to-end.
 
-_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES)
+_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES | MESH_PACKAGES)
 
 
 @pytest.mark.foundation
@@ -244,6 +276,14 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.numerics.quadrature.registry",
         "orpheus.geometry",
         "orpheus.geometry.transformation",
+        # P1 step 1 of #405 (2026-09-25): the mesh became its own package,
+        # importing geometry (whose boundary package now holds `BC`) and
+        # numerics; each moved module, and the boundary package, cold.
+        "orpheus.geometry.boundary",
+        "orpheus.mesh",
+        "orpheus.mesh.structured",
+        "orpheus.mesh.factories",
+        "orpheus.mesh.axis",
         "orpheus.sn.solver",
         # step 2 of the consumers campaign (2026-09-13): the Strategy value
         # module — solver -> splitting -> operators/loss_representation, no
@@ -279,3 +319,45 @@ def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
     assert result.returncode == 0, (
         f"`import {entry}` failed in a fresh interpreter:\n{result.stderr}"
     )
+
+
+# ---------------------------------------------------------------------------
+# The linter's own law, on synthetic sources
+# ---------------------------------------------------------------------------
+#
+# Every parametrised row above reads a real module, so a row the tree never
+# exercises has no witness: the `geometry -> mesh` row, for instance, is only
+# ever green, and a linter that lost it would stay green. These legs feed the
+# pure `_check_source` one import each, and each forbidden leg must name the
+# edge it forbids.
+
+_FORBIDDEN_LEGS = [
+    ("mesh/x.py", "from orpheus.transport.fields import X\n", "mesh → transport"),
+    ("geometry/__init__.py", "from orpheus.mesh.structured import Mesh1D\n", "geometry → mesh"),
+    ("data/x.py", "import orpheus.mesh\n", "data → mesh"),
+    ("numerics/x.py", "from orpheus.mesh import Mesh1D\n", "numerics → mesh"),
+    # A relative import climbing out of the package: `from ..transport`
+    # in `orpheus/mesh/x.py` reads `orpheus.transport`.
+    ("mesh/x.py", "from ..transport import fields\n", "mesh → transport"),
+]
+
+_ADMITTED_LEGS = [
+    ("mesh/x.py", "from orpheus.geometry.boundary import BC\n"),
+    ("mesh/x.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
+    ("mesh/x.py", "from .structured import Mesh1D\n"),
+    ("transport/x.py", "from orpheus.mesh import Mesh1D\n"),
+    ("derivations/x.py", "from orpheus.mesh import Mesh1D\n"),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source", "edge"), _FORBIDDEN_LEGS)
+def test_the_linter_refuses_each_forbidden_edge(rel: str, source: str, edge: str) -> None:
+    violations = _check_source(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and f"(forbidden: {edge})" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _ADMITTED_LEGS)
+def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
+    assert _check_source(pathlib.PurePosixPath(rel), source) == []

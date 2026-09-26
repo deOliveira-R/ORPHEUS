@@ -37,7 +37,8 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem

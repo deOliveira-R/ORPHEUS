@@ -67,8 +67,9 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import Mesh1D
-from orpheus.geometry.mesh import BC, CoordSystem
+from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC
+from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     _adjoint_posing_parts,

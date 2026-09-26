@@ -55,7 +55,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     ZeroOperator,
 )
-from orpheus.geometry.mesh import Mesh1D
+from orpheus.mesh import Mesh1D
 
 # V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a
 # module-level ``pytestmark = [pytest.mark.foundation]`` blanket while

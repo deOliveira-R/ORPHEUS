@@ -73,7 +73,8 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn

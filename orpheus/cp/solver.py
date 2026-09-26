@@ -3,7 +3,7 @@
 Solves the multi-group neutron transport equation using the collision
 probability method.  Boundary conditions default to white (isotropic
 re-entry, infinite lattice) but are configurable via
-:class:`~orpheus.geometry.mesh.BC` on the mesh.
+:class:`~orpheus.geometry.boundary.BC` on the mesh.
 
 The geometry-specific kernel is encapsulated in :class:`CPMesh`, an
 augmented geometry that wraps a :class:`~geometry.mesh.Mesh1D` and
@@ -46,7 +46,8 @@ from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
 from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
     IterationBudget,
@@ -895,7 +896,7 @@ def solve_cp(
     This is the **canonical entry point** for the production CP solver.
     Production callers consume ``(materials, mesh, params)`` directly:
     materials are :class:`~orpheus.data.macro_xs.mixture.Mixture` objects
-    keyed by material ID, ``mesh`` is a :class:`~orpheus.geometry.Mesh1D`
+    keyed by material ID, ``mesh`` is a :class:`~orpheus.mesh.Mesh1D`
     (build via :meth:`Mesh1D.from_geometry` for multi-region cases or
     via the geometry factory helpers), and ``params`` carries the solver
     tolerances and chord-quadrature order.
@@ -912,7 +913,7 @@ def solve_cp(
         1-D mesh.  Defaults to a cylindrical PWR pin cell built via
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
         →
-        :meth:`Mesh1D.from_geometry <orpheus.geometry.mesh.Mesh1D.from_geometry>`.
+        :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`.
         The mesh's boundary conditions (``bc_left`` / ``bc_right``)
         are honoured verbatim — the CP kernel registry handles
         ``white`` / ``vacuum``.
@@ -928,11 +929,8 @@ def solve_cp(
     t_start = time.perf_counter()
 
     if mesh is None:
-        from orpheus.geometry import (
-            Mesh1D as _M,
-            RegionMesh as _RM,
-            StructuredGeometry as _SG,
-        )
+        from orpheus.geometry import StructuredGeometry as _SG
+        from orpheus.mesh import Mesh1D as _M, RegionMesh as _RM
         _geom = _SG.wigner_seitz_pin_cell()
         mesh = _M.from_geometry(_geom, region_meshes=(
             _RM(n_cells=10),  # fuel

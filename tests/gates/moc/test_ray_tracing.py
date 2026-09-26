@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.moc.geometry import (
     MOCMesh,
     Track,

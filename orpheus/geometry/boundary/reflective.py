@@ -109,7 +109,7 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
 
         The ONE law that legitimately overrides the base's registry-key
         derivation, because the *declaration* vocabulary distinguishes the two:
-        :meth:`~orpheus.geometry.mesh.BC.to_alpha` maps ``BC("partial",
+        :meth:`~orpheus.geometry.boundary.BC.to_alpha` maps ``BC("partial",
         albedo=…)`` to its specular albedo, so a partially-reflecting face is
         declared as ``"partial"`` and must report itself the same way.
 

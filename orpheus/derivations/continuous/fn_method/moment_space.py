@@ -103,7 +103,7 @@ class MomentSpace:
         from orpheus.geometry.structured_geometry import (
             Region, StructuredGeometry,
         )
-        from orpheus.geometry.mesh import BC
+        from orpheus.geometry import BC
 
         geom = StructuredGeometry(
             geometry="SLB",

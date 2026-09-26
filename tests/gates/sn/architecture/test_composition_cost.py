@@ -170,7 +170,8 @@ from typing import TYPE_CHECKING, Any, Iterator
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation as _loss_representation
 from orpheus.sn.problem import SNProblem

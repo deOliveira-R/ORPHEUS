@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import Mesh1D
+from orpheus.mesh import Mesh1D
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 from plotting import plot_do_convergence, plot_do_spectra

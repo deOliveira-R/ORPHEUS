@@ -54,7 +54,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
+from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration, seeded_inverse
 from orpheus.numerics.operator import (

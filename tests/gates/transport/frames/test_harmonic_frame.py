@@ -31,7 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import RealSpace

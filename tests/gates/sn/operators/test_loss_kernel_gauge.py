@@ -108,7 +108,7 @@ from orpheus.sn.operators.loss_kernel_gauge import (
     predicted_kernel_dimension,
 )
 from orpheus.sn.solver import SNSolver, _as_problem, _unwindowed_cold_start
-from orpheus.transport.mesh.axis import AxisMesh
+from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 
 _R, _V = BC("reflective"), BC("vacuum")

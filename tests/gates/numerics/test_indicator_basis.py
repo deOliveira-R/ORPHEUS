@@ -28,7 +28,8 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.basis import Basis, IndicatorBasis
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure

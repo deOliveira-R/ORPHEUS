@@ -49,7 +49,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -499,7 +500,7 @@ class TestCompositeInvariants:
         arrow ``FullField -> FullField`` (history-free; was: pinned the
         history-bearing ``TimedFullField`` — re-pointed).
         """
-        from orpheus.geometry import Mesh2D
+        from orpheus.mesh import Mesh2D
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
