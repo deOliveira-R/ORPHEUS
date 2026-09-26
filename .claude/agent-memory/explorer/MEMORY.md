@@ -48,3 +48,7 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Census predicates: bound reference + traceback](census_predicates_bound_reference_and_activation_traceback.md) — a bound verb reads dead; 3-frame traceback finds the hot client.
 - [Reference producer landscape](reference_producer_landscape.md) — registry mediates ~1 in 9 acquisitions; problem spelled 7 ways.
 - [Peierls Nyström blast set](peierls_nystrom_blast_set.md) — solve vs primitive halves; sole-verifier markers (Q-R2).
+- [Question and source vocabulary](question_and_source_vocabulary.md) — posings L1, adjoint is arity; intensional source precedent.
+- [Source by method](source_by_method_projection.md) — projection differs, source doesn't; CP/MoC fixed-source renormalise.
+- [Geometry value + mesh verb](geometry_value_and_mesh_verb.md) — StructuredGeometry is the value; BC unhashable; kind spelled 13 ways.
+- [Mesh1D direct-construction census](mesh1d_direct_construction_census.md) — 410/450 geometry+rule; D bit-exact as region-per-cell; default method moves curvilinear.

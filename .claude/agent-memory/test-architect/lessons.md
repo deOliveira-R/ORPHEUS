@@ -165,6 +165,13 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   anything on the metric's kernel); only a singular member separates a Euclidean
   `.H` from the metric one when the law says they coincide. → `L91`
 
+- **⛔ Before a carve makes a declared field MANDATORY (retires `None`), vary the field at EVERY
+  consumer with the other fields held, beside a control the probe can move.** A consumer that never
+  reads the field has 0 reads, so `plan-authoring` §8 BRANCHED-ON-MEANS-INPUT (which enumerates the
+  readers that branch on it) cannot see it; once the field is mandatory, each such consumer silently
+  drops a declared value. And capture each consumer's RESOLVED default per face per test before
+  making it explicit: one `None` resolved to four laws. → `L95`
+
 ## 2. Harness discipline — the instrument lies before the code does
 
 `vv` anti-#17's nine checks and `instrument-doctrine` X1 are the rule. Below:

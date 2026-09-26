@@ -11496,3 +11496,22 @@ defining laws" is the obligation; below is how to meet it here.
   per row); k is blind to a one-row P_cell defect (Mode 12, measured 1e-15 vs 4.5e-4 on flatness), and 1G k
   is blind to the shape entirely. The flat-flux check found #509 (sphere, R ≥ 5 MFP).
   Spec: `.claude/plans/reference_p0_spec.md`; probes `scratch/reference_architecture/p0probe/`.
+
+## L95 — P1 spec (#405): making a declared field mandatory exposes every consumer that never READ it (2026-09-25; spec only)
+
+- Retiring `None` as a boundary declaration (one law per boundary point, required) looked like a
+  bookkeeping step. Probing each consumer with the declared value VARIED (the other held) found four
+  consumers that read none of it: SN on a hollow curvilinear mesh ignores the inner law (#511; inner
+  vacuum = inner reflective bitwise), CP reads only `bc_right` on a slab (#513; left white/vacuum/None
+  give k identical to 16 digits), MoC reads neither the coordinate system nor the inner radius (#514;
+  a Cartesian mesh gives the cylinder's k exactly), MC drops a slab's left law (#513).
+- A grep of the field's READS cannot find these: a consumer that drops a field has 0 reads of it. The
+  instrument is a per-consumer, per-field variation probe with a control that the probe can move
+  (the slab's other face, the right law).
+- The same census found `None` resolving to FOUR laws (SN reflective, SN fixed-source entries'
+  injected vacuum, CP white, MoC reflective, MC periodic): a migration to explicit laws needs a
+  runtime capture of the RESOLVED law per face per test, before and after, not a mesh-byte capture.
+- Side facts: a partition law on realised FP edges ("equal widths", "every width ≤ h") is false for
+  every natural rule; state it on the stored measures and the nominal width `fl(L/n)`. The CP slab
+  with both faces white is not mirror-symmetric (5e-5 in k at keff_tol 1e-13; #513 comment).
+  Spec: `.claude/plans/reference_p1_spec.md`; probes `scratch/reference_architecture/p1probe/`.

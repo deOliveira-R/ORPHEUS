@@ -29,6 +29,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 
 ### Problem → Solution
 - [Problem/Solution split + the TERMINAL OBJECT](problem_solution_split_frames.md) — the Problem determines a PENCIL over Λ (α ≡ noise); the carve cuts through `SNSolver` (12/6/2). `Pencil.at` has since landed (`orpheus/numerics/pencil.py`).
+- [QUESTION stage, coefficient space](question_stage_coefficient_space.md) — Problem ends at the ANCHORED piece set; question = curve + functional; ⛔ supersedes R5's "point in Λ = Strategy"; D1/D2/D3.
 
 ### Operator algebra (the SN/transport spine)
 - [#208 operator algebra](issue_208_operator_algebra_frames.md) — dagger inverse biproduct category + metric G (†=G⁻¹AᵀG); adjoint-for-free = theorem.

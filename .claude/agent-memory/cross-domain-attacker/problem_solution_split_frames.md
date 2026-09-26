@@ -61,7 +61,7 @@ only the classifying clause above is superseded.**
 Problem-side — and a 200-frequency noise sweep becomes 200 Problems. The clause never says what
 the solution set is a set OF. Correct on 11 of the 12 straddlers; superseded by R5.
 
-## R5 — ⭐⭐ the TERMINAL OBJECT: the Problem determines a PENCIL over a parameter domain Λ
+## R5 — ⛔ PARTLY SUPERSEDED 2026-09-25 by [[question-stage-coefficient-space]] (a point in Λ is Strategy only if answer-invariant; terminal = anchored piece set) — ⭐⭐ the TERMINAL OBJECT: the Problem determines a PENCIL over a parameter domain Λ
 
 Memo: `scratch/_consumers/attacker_terminal_object.md` (2026-09-08).
 
