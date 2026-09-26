@@ -82,6 +82,9 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [M/R frame pair](projection_reconstruction_frame_pair.md) — the M/R asymmetry was a half-applied refactor; 3 weight families = ONE convention datum.
 - [unified Frame API](unified_frame_api_design.md) — the 3 verbs (project_weighted / conjugate / analyze) + `is_galerkin = (test is basis)`.
 
+### Naming
+- [collision = perfect match](feedback_naming_collision_perfect_match.md) — USER RULING: a contested name goes to its formal perfect match; amends D6(b)'s "spent = kill".
+
 ### Knowledge structure (the artefact is a DOCUMENT CORPUS, not mathematics)
 - [harness tiering](harness_knowledge_structure_tiering_frames.md) — a tier is a SHEAF SUPPORT: "restatement vs local instance" is settled by writing the restriction and diffing. Open it before any rule/doc/prompt-corpus brief.
 

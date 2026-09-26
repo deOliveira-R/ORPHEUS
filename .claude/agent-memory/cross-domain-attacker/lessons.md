@@ -150,7 +150,9 @@ then the spent word.** (→ now an `AGENT.md` task-type row, 2026-09-22; the pro
 family word — a theorem can FORBID a uniform word (locality within the fiber
 splits one multiplier from three kernels), and then the honest output is species
 words on the leaves plus a genus word on the ABC, with the leaves biject-checked
-against the already-landed layer below. (b) A word already SPENT in this repo on
+against the already-landed layer below. (b) ⚠ AMENDED 2026-09-26 by the user's
+collision ruling (`feedback_naming_collision_perfect_match.md`): a spent word is a
+CONTEST won by its formal PERFECT MATCH; the other object cedes. Original: a word already SPENT in this repo on
 an ORTHOGONAL AXIS of the same object is a kill, not a cost, and it is one grep
 of the stem — read what it already MEANS; check the DIRECTION too (a word whose
 established sense makes the candidate object its INPUT dies twice). A borrowed
