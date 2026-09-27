@@ -42,6 +42,9 @@ decides whether to open it.
 ### Nuclear DATA formats (ENDF-6 / GENDF / NJOY) — ⭐ a domain the local library does NOT cover
 - [ENDF-6 + GENDF/NJOY, and MT=16 (n,2n) settled](endf6_gendf_njoy_n2n_formats.md) — **2026-08-31, full memo `scratch/n2n_data_format_spec.md` (855 ln).** Both primary specs are FREE + born-digital, one `curl` each (URLs + page offsets in file: ENDF-102 printed=PDF−18, NJOY printed=PDF−14). Headlines: **σ_Xℓ = σ·y·f_ℓ ⟹ σ₁/σ₀ ≡ µ̄ identically AND the multiplicity is ALREADY folded in (`[EVAL]` row-sum = 2.000000 — never ×2 again)**; GENDF record layout + the `NL·NZ` leading FLUX words; **`IG=0` is FISSION-ONLY** (separable χ is a GROUPR construct, not an ENDF object) ⟹ MT=16 structurally cannot have one; **NO ENDF law stores an E-independent spectrum**. ⛔⛔ **NJOY Eq.361: the CM→LAB transform MANUFACTURES ℓ≥1 moments from an ISOTROPIC CM distribution** — so a non-zero σ₁/σ₀ proves nothing on any `LCT=2` file. ⭐ Per-nuclide ENDF/B-VIII.0 census (9 files) — **Be-9 = LAW=7, `LCT=1` LAB, 24E×21µ, the ONE clean case**; Na-23 = MF4/MF5 with a 2-line `LI=1` isotropy declaration (⟹ its NL=1, proving NL is DATA-dependent); B-11/O-16 = LANG=2 Kalbach NA=1; Zr/U = LANG=1 NA→14/15. Q5: ISOTXS retains per-ℓ, WIMS format is P0+TC, and OpenMC (DOI 10.1080/00295450.2019.1571828) applies multiplicity as an **ℓ-independent scalar** = P0 shape wearing a P_N matrix.
 
+### Time (α) eigenvalue spectrum
+- [α existence, Corngold limit, artefacts, k-vs-α](alpha_eigenvalue_existence_spectrum.md) — Lehner–Wing slab α₀ ALWAYS exists (Dorning 2010 wrong); bounded multigroup has NO continuum; non-existence = v→0 thermalization (Mockel/Corngold/Vidav); B&G "pseudo-fundamental".
+
 ### Multi-group source indexing
 - [χ fission-source indexing](peierls_mg_fission_source_chi_indexing.md) — Hébert (3.57)/(3.58): emission χ is purely LOCAL — shares the SOURCE point with νΣ_f and φ.
 
