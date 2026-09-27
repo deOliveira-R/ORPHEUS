@@ -245,6 +245,7 @@ already promoted (Smell #15, Smell #16).
 | The name states a contract the content violates — a class documented as "data/descriptor/field" whose method list says `apply_*`; distinct from Smell #16 shape 1 (one path, wrong LAYER); FIX is relocation, and the name is usually right (→ L-012) | 1 | a second, non-XS-field host |
 | Identity-scarcity accretion — a container wins every placement because no candidate owner's `__eq__` separates the inputs (→ L-019 / M1.8) | 2 (one inverted: everything induced has structural `__eq__`, the hub has none) | a third outside the SN container family |
 | A precondition spelled as a 30-line docstring caveat on a 3-line body wants to be a TYPE — declare the structure (DIAGONAL / POU / DENSE) and RAISE on the unhandled case (→ L-010) | 1 | a second non-Gram precondition |
+| A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named; FIX: the second-difference test per scheme (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`) | 2 (transverse-coupling order; affinity in a width) | PROPOSED for Part C at this second sighting; a third would be a non-SN scheme (MoC segment / CP kernel) |
 
 ## Part 4 — Refuted-frame ledger (high-prior frames that keep NOT firing)
 

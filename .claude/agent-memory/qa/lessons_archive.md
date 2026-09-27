@@ -5974,3 +5974,17 @@ the exclusion to appear IN the sentence that carries the number.
 wearing a measurement's clothes. The direction of the error is the tell: an
 inflated radius always supports the cheaper decision, which is why it survives
 review — nobody re-runs a number that agrees with them.
+
+## L-091 — a reference "bound" read off a ladder's LAST STEP is not a bound, and the file's own argument says so for its sibling (2026-09-26, W2 ERR-090 QA, worktree `crosscheck-fix` @ `3f82c2ab` + uncommitted)
+
+The ERR-090 re-pose derived the sphere reference's k bound as "the largest
+change a finer rung produced": the n_r step (36,96) -> (72,96) of 2.37e-4 plus
+the mu step 96 -> 192 of 1.28e-4, 2.7e-4 relative, just under the floor
+T/10 = 3e-4. A monotone step at refinement ratio 2 and order p understates the
+error of the coarse rung by 1/(1 - 2^-p): 4/3 at p = 2 (the ladder's own
+measured rate), so the n_r term is 3.16e-4 and the total 3.2e-4 relative, the
+floor failed by 7 %. The same file refused the cylinder a bound because "the
+last step of a non-monotone sequence bounds nothing"; the sphere's n_r
+sequence at n_mu = 24 is itself non-monotone at 72 (+8.8e-5). The mu leg is
+honest only by the Leibniz argument (alternating, shrinking steps).
+Remedy was a tolerance one notch looser (4e-3); the mutant still reds (7.9e-3).

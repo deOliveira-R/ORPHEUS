@@ -4,7 +4,7 @@ Read every dispatch. **Behavioral rules only**: one imperative, the check that
 makes it decidable, and its `→ L-0NN` archive pointer.
 
 - **War stories, evidence, `file:line`, measured tables** live in
-  `lessons_archive.md` (`## L-0NN`, L-001..L-090). Open only the `L-0NN` a rule
+  `lessons_archive.md` (`## L-0NN`, L-001..L-091). Open only the `L-0NN` a rule
   points at; never read it whole.
 - **Doctrine is NOT restated here.** The preloaded skills own it: `vv-principles`
   (#1–#36, Modes 7–12, bit-identity, 1-group degeneracy, the `catches`
@@ -466,6 +466,13 @@ against **6** in the (n,2n) leg, so the factor is not transferable. ⟹ report a
 corroboration at its measured accuracy class ("sign decisive; cannot adjudicate a
 factor of 2"), and when a second route's convention risk exceeds the claim's,
 DON'T run it — a wrong reproduction of yours impeaches a correct result. → L-078
+
+**F24. A ladder's last STEP is not the coarse rung's ERROR.** A monotone step
+at refinement ratio r and order p understates the error by 1/(1 - r^-p) (4/3 at
+r = 2, p = 2); only an alternating, shrinking sequence brackets its limit
+within the last step. check: before a "reference bound <= T/10" floor is
+believed, convert each monotone step with the MEASURED p and re-test the floor;
+ask whether the argument used to deny a sibling a bound applies here too. → L-091
 
 ---
 

@@ -61,6 +61,8 @@ Open the file for the verdict; the hook only tells you whether to open it.
 ### Eigenvalue / iteration layering
 - [eigenvalue posing](eigenvalue_posing_layering_frames.md) — k/α/source/transient = ONE generalized eigenproblem Aψ=λMψ over the resolvent backbone.
 - [power-iteration morphism](power_iteration_vs_keigenvalue_morphism.md) — two loops = one fix(step); the OPAQUE-resolvent layer is the engine.
+- [pencil pseudo-resolvent](pencil_pseudo_resolvent_standard_form_pair.md) — at(σ)⁻¹M IS a pseudo-resolvent (generator iff M injective); generator/propagator name NO side; K(0) = next-generation (k); sides = jet at the CARRIED-OFF point, derivative = −F.
+- [shift ontology](shift_ontology_taxonomy_frames.md) — 6 shift kinds → 4 verbs; a Strategy shift = a Möbius CHART it inverts (one type with SpectralMap); affinity of a geometric family = SCHEME trait (2nd difference); at-pole gauge is CANONICAL, plain splitting converges there.
 
 ### Carrier typing / coefficient fields
 - [#226 container algebra](issue_226_container_algebra_design.md) — structural `Vector` Protocol + `apply(x:V)->V`; primitives stay flat ndarray.
