@@ -14,7 +14,10 @@ Builds on [[pencil-pseudo-resolvent-standard-form-pair]] and [[eigenvalue-posing
 "shift" is its perfect match), P parametric perturbation (Kato's holomorphic family; "shift"
 cedes, "perturbation" is consistent with δΣ theory = its derivative), F complexification (a
 space functor, QUESTION-owned only: no physical question's Strategy needs a complex shift),
-E enlargement (rational → affine on `V ⊕ W`), A the dagger (`at(σ).H == H.at(σ̄)`, `[M]`
+E enlargement (rational → affine on `V ⊕ W`; ⛔ SUPERSEDED 2026-09-26: the enlarged family
+is LAYER 1 — `[M]` flowing precursors move the STATIC k by −2e-3 to −6e-3 — and the rational
+V-family is its Schur LOWERING, a Strategy datum; see
+[[equilibrium-carrier-laurent-point-kinetics]]), A the dagger (`at(σ).H == H.at(σ̄)`, `[M]`
 exact), Q a 1-chain in the resolvent set (Riesz contour: trace = integer count, homotopy
 invariance 1e-16, works with singular `M`). Code moves: `at`, `shifted(σ)` (a translation
 chart, law `shifted(σ).at(τ) == at(σ+τ)`), `OperatorPencil.jet(family, p0, h)` (the 1-jet
@@ -39,10 +42,13 @@ factor; the pseudo-resolvent identity is its constant-secant case. The plan's "a
 from the parameter" is parameter × discretisation.
 
 **At-pole source (GPT, noise at ω=0 in a critical core).** The operator is Kato's REDUCED
-RESOLVENT; the gauge is canonical (`⟨ψ†, Mx⟩ = 0`), not free; `[M]` the PLAIN splitting
-converges at the dominance ratio for an admissible source (the neutral mode is unexcited);
-deflation is rounding robustness; an inadmissible source grows SECULARLY (linear, 19.1/step),
-the certificate's signature. Also `[M]` the dominant spectral projector is cone-positive
+RESOLVENT; the gauge is NOT free, and ⛔ SUPERSEDED 2026-09-26 (final-attack memo, P1): it is
+canonical RELATIVE TO A DIRECTION `d`, `⟨ψ†, T_d x⟩ = 0`, never to the point — a stationary
+splitting `M − N = T(c*)` CONSERVES `⟨ψ†, N x⟩`, so the "plain splitting converges to the
+canonical gauge" reading was the fission splitting's own artefact from x₀ = 0 (`[M]` the F-gauge
+and the D-gauge limits differ by a ψ-multiple of norm 5.6; the noise ω→0 limit lands on the
+D-gauge). See [[equilibrium-carrier-laurent-point-kinetics]]. Still true: an inadmissible
+source grows SECULARLY (the reactivity ramp `(ρ/Λ) t ψ`), the certificate's signature. Also `[M]` the dominant spectral projector is cone-positive
 (entrywise ≥ 0) — report v2 §I.11's "not positive" holds only in the Hilbert/PSD sense.
 
 **Two admissibilities, never one.** PIVOT admissibility (the sweep's local guard: real σ

@@ -208,6 +208,18 @@ for pole-regularity — a slab-derived ansatz silently drops both the term and i
 regularity constraint — and the geometry MEASURE enters the L2 error norm, so an
 unweighted norm mis-measures the convergence order. → L-008
 
+**D11 — An INVARIANT measured under ONE Strategy is a Strategy artefact until a second
+Strategy reproduces it.** The instrument doctrine's "a negative reading needs a positive
+control" has a dual for POSITIVE readings of a "canonical"/"unique"/"converges to" claim:
+the control is a SECOND, structurally different Strategy (a different splitting, a
+different x₀, the limit of a neighbouring question). TELL: a claim of the form "the gauge /
+representative / limit is canonical" backed by one iteration from one initial iterate.
+`[M]` 2026-09-26: the at-pole gauge read "canonical" from the fission splitting at x₀ = 0
+(shift memo P8) and was the splitting's own conserved functional `⟨ψ†, N x⟩`; the
+pseudo-transient and the noise ω→0 limit land 5.6 away, a ψ-multiple. The general law to
+derive FIRST: pair the iteration step with the left null vector and read what it conserves.
+→ pointer: `equilibrium_carrier_laurent_point_kinetics.md`
+
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
 precedent (data + binder, model + view, kernel + driver) cited by ONE of its
