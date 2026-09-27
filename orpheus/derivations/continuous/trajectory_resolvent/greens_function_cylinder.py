@@ -920,6 +920,7 @@ def solve_greens_function_cylinder_mr(
                 R=R, radii=radii,
                 sigma_t_per_region=sigma_t[:, g],
                 alpha=alpha,
+                region_at_node=region_at_node,
             )
             # sigma_t kwarg unused for MR (per-region σ_t carried by
             # oracle); pass sentinel.

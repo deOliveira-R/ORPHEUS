@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12676**
+Total tests collected: **12688**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1343, 10.6%
-   L1, 1962, 15.5%
+   L0, 1345, 10.6%
+   L1, 1969, 15.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9273, 73.2%
+   foundation, 9276, 73.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12570
+   explicit, 12582
    class-name, 46
    func-name, 0
    case, 33
@@ -52,13 +52,14 @@ Module × level grid
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
+   analytical/test_certified_agreement, 0, 0, 0, 0, 5, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 43, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
-   analytical/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
+   analytical/test_l1_standoff_slab_cylinder, 0, 14, 0, 0, 0, 0
    analytical/test_mms_declared_inflow, 0, 9, 0, 0, 0, 0
    analytical/test_mms_prescribed_inflow, 0, 3, 0, 0, 1, 0
-   analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
+   analytical/test_phase_c_crosscheck, 0, 9, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    angular/test_redistribution, 0, 0, 0, 0, 19, 1
@@ -136,7 +137,7 @@ Module × level grid
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
    curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 14, 0
-   curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
+   curvilinear/test_unified_matvec_cylinder, 29, 3, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
    data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
@@ -216,7 +217,7 @@ Module × level grid
    derivations/test_peierls_greens_function_hollow_sphere_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_hollow_sphere_symbolic, 0, 0, 0, 0, 18, 0
    derivations/test_peierls_greens_function_mg, 0, 0, 0, 0, 7, 0
-   derivations/test_peierls_greens_function_mr, 0, 0, 0, 0, 4, 0
+   derivations/test_peierls_greens_function_mr, 0, 1, 0, 0, 4, 0
    derivations/test_peierls_greens_function_slab_asymmetric_solver, 0, 14, 0, 0, 0, 0
    derivations/test_peierls_greens_function_slab_asymmetric_symbolic, 0, 0, 0, 0, 16, 0
    derivations/test_peierls_greens_function_slab_solver, 0, 14, 0, 0, 0, 0
@@ -258,8 +259,9 @@ Module × level grid
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
-   derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
+   derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 18, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
+   derivations/test_trajectory_resolvent_regionwise_source, 2, 0, 0, 0, 1, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_augmented_mesh, 0, 0, 0, 0, 11, 0
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
@@ -831,6 +833,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
+   ``peierls-greens-mr-regionwise-source``, 3
    ``peierls-greens-slab-V-alpha-2``, 3
    ``sigma-zero``, 3
    ``sn-dsa-consistent-low-order``, 3
@@ -968,7 +971,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **607** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **608** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1330,6 +1333,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-greens-mg-kinf-balance``
 - ``peierls-greens-mg-source``
 - ``peierls-greens-mr-piecewise-tau``
+- ``peierls-greens-mr-regionwise-source``
 - ``peierls-greens-mr-trajectory-segments``
 - ``peierls-greens-mu-surf``
 - ``peierls-greens-sanchez-A6``

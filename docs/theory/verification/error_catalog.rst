@@ -1894,7 +1894,9 @@ older entries classify against.
    (reverted from the Phase-D Krylov flip — SI is ~10²× faster and now
    bit-equivalent in fixed-source, floor-equivalent in eigenvalue).
    The canary ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``
-   runs as a plain L1 test (xfail removed); the permanent
+   then ran as a plain L1 test (xfail removed; split on 2026-09-26 into a
+   certified sphere row and a cylinder row that is a strict xfail on #516,
+   ERR-090); the permanent
    manifestation-#7 catcher is
    ``tests/gates/sn/eigenvalue/test_keff_curvilinear.py::test_si_krylov_eigenvalue_equivalence_{sphere,cylinder}``.
 
@@ -4314,7 +4316,10 @@ older entries classify against.
       ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` 2/2
       PASS at Phase E rtols (``cyl_2g_3reg_LS4_dd_n40`` heterogeneous
       MR cylinder geometry passes — the new SI fixed point matches
-      the bouncing-characteristic Variant α reference shape).
+      the bouncing-characteristic Variant α reference shape).  Read
+      with ERR-090: those rtols (8 % / 12 %) were not derived, the
+      reference then carried a 2 % one-spline error and was compared at
+      the wrong radii, so this pass bounded gross errors only.
 
    **Lesson:** Numerical literals that LOOK like ``0.5`` may be
    encoding a quadrature-dependent normalisation
@@ -8541,3 +8546,92 @@ older entries classify against.
    spectral map is pinned only by the physical equation it names, never by
    its own round trip; each shipped map carries a gate that solves that
    equation from its definition.
+
+.. error-entry:: ERR-090
+   :title: The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission density across the material interfaces, so they converged in n_r at about first order and non-monotonically; the cross-checks built on them read 2 % of reference error as agreement
+
+   **Status:** ✅ **FIXED 2026-09-26** (W2 on the red
+   ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck[cyl_2g_3reg_folded_4x8_dd_n40]``;
+   #516 holds the part that remains, the angular rules' tangency kinks).
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference** (``vv-principles`` anti-pattern #6, reference
+   contamination).  The isotropic emission density of a
+   piecewise-homogeneous medium jumps at every material interface, because
+   the cross sections do.
+   :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionSphereChordOracle`
+   and
+   :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`
+   reconstructed it along each chord with one ``CubicSpline`` through every
+   radial node.  A smooth cubic fitted across a jump overshoots on both
+   sides; refining the grid narrows the overshoot and leaves its amplitude,
+   so the chord integrals converge only as the width.
+
+   **Measured** (``[M]`` 2026-09-26, the heterogeneous closed problems of
+   ``test_phase_c_crosscheck.py``: fuel A | moderator B | fuel A at 0.5,
+   1.5, 2.0 cm, 2 groups, reflective).  Sphere, :math:`n_\mu = 24`,
+   :math:`n_r` = 12, 24, 36, 48, 72: one spline 1.350151, 1.358083,
+   1.361371, 1.379031, 1.380103; one spline per region 1.378110, 1.383737,
+   1.381917, 1.381293, 1.381381.  Cylinder at a 4 by 8 angular grid: one
+   spline 1.10928, 1.15547, 1.16212, 1.16557, 1.16541; per region 1.16881,
+   1.16994, 1.16987, 1.16944, 1.16966.  At the resolutions the
+   cross-checks used, the cylinder's eigenvalue moved from 1.20693 to
+   1.23104 (the discrete-ordinates solve converges to 1.23175) and the
+   sphere's from 1.35808 to 1.38374 (discrete ordinates: 1.38106).  Against
+   the published Garcia 2021 Table 5 fixed-source sphere the largest
+   interior error fell from 6.9e-3 to 1.05e-3.
+
+   **Hiding mechanism.**  (a) **No radial ladder.**  The cylinder
+   reference's Gate 6 refined the chord, azimuthal and axial rules, never
+   :math:`n_r`, and the sphere's had no refinement gate at all.  The theory
+   page recorded the interpolation as a "known prototype limitation" with
+   a follow-on fix, and no one measured what it did to the eigenvalue.
+   (b) **Loose bounds absorbed it.**  The Garcia 2021 rows carried a 15 %
+   band within 2 cm of an interface; the cylinder reference's own
+   interface-continuity gate (Gate 4) had its ceiling relaxed from 1e-2 to
+   5e-2 on 2026-05-12 to absorb a 2.85e-2 jump it called the
+   "spline-extrapolation floor" (it was this defect; the gate still cannot
+   catch it, because the honest jump is not converged in :math:`n_r`:
+   2.0e-2, 1.9e-3, 1.9e-2, 1.3e-2 at 24, 36, 48, 72); the SN cross-checks carried 2 %
+   (sphere) and 3 % (cylinder) on k and 8 % / 12 % on the shape, none
+   derived from a measured reference error.  (c) **Two test defects
+   agreed with it.**  The Phase D sphere row compared the reference with a
+   hand-typed SN eigenvalue, 1.3578153, frozen at 718f5680 on 2026-05-12
+   and stale since e30d8d14 ten hours later (the snapshot has held
+   1.3816447 since); the one-spline reference at :math:`(24, 24)` read
+   1.35808, so the row reported 2e-4 agreement between two wrong numbers.
+   The Phase E rows evaluated the reference at uniformly spaced cell
+   centres, while the snapshot meshes are equal-volume (sphere) and
+   equal-area (cylinder), ``RegionMesh``'s default since b5e85c2d; that
+   put a persistent 4 % (sphere) and 2 % (cylinder) error into the shape
+   metric that no refinement could remove, and it read as the SN solve's.
+   (d) The red that surfaced it was the cylinder Phase E row, which reddened
+   at 3dda18ca (2026-08-11) for a real reason (the discrete-ordinates
+   solve's 4 by 8 angular error doubled under the ω partition) and was not
+   re-run because it is ``slow``.
+
+   **Module:** ``orpheus/derivations/continuous/trajectory_resolvent/chord_oracle.py``:
+   :func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._regionwise_cubic_spline`,
+   one spline per region, called by both multi-region oracles, each chord
+   segment reading its own region's piece.
+
+   **Caught by:**
+   ``tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py::test_mr_oracle_first_leg_matches_the_line_integral``
+   (both geometries: the oracle at zero reflectivity against an
+   independent ``scipy.integrate.quad`` line integral of a piecewise-cubic
+   density; honest 3.0e-10 / 8.0e-10, one spline 5.3e-2 / 6.7e-2);
+   ``tests/gates/derivations/test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r``
+   (the increment ratio on :math:`n_r = 24, 36, 48`: 0.34 per region, 5.4
+   with one spline, against the first-order 0.5); and
+   ``tests/gates/derivations/test_peierls_greens_function_garcia2021.py::test_garcia_case1_phi_matches_at_point``
+   (at r = 5.0 and 5.5 cm under the re-derived 3e-3).  Each re-installation
+   of the one-spline interpolant in process reddens them.
+
+   **Lesson.**  A reference is a discretisation with its own convergence,
+   and a "known limitation" recorded without its measured effect on the
+   compared quantity is an unbounded reference error.  A reference that
+   enters a gate first shows, on every axis it discretises, a ladder whose
+   rate and remaining error are measured; the gate's tolerance is then
+   derived from that error (at least ten times it), never from the
+   reading.  The SN side of a comparison is read from the artefact that
+   pins it, and the comparison is made on the SUT's own cells.

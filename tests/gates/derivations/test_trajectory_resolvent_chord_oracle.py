@@ -27,10 +27,18 @@ exercise:
 - near-surface (within ~5% of the boundary)
 - grazing (small :math:`\mu`)
 - antipodal (large :math:`\mu` at depth)
-- multi-region interior + interface (sphere MR only)
 - :math:`b > R_{\rm in}` outer-only branch (hollow geometries only)
 - :math:`b \le R_{\rm in}` through-ray branch (hollow geometries only)
 - :math:`\mu > 0` and :math:`\mu < 0` (slab asym)
+
+What these rows pin today (``[M]`` 2026-09-26): every legacy
+``_apply_operator_*`` is now a facade that builds the oracle and calls its
+:meth:`apply_operator`, so each bit-equality row compares the oracle with
+itself through the facade; it witnesses that the facade still delegates,
+and nothing about the pre-R3 arithmetic. The multi-region sphere row was
+removed on 2026-09-26 (ERR-090 changed that oracle's body on purpose); its
+independent check is the first-leg line-integral row of
+``test_trajectory_resolvent_regionwise_source.py``.
 """
 from __future__ import annotations
 
@@ -128,51 +136,6 @@ def test_sphere_oracle_satisfies_protocol() -> None:
         r_nodes=r_nodes, mu_nodes=mu_quad_pts, R=R, alpha=1.0,
     )
     assert isinstance(oracle, ChordOracle)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Multi-region sphere oracle bit-equality
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("alpha", [1.0, 0.5, 0.0])
-def test_multiregion_sphere_oracle_bit_equal(alpha: float) -> None:
-    """MR-sphere oracle bit-equal with legacy ``_apply_operator_mr``."""
-    from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-        _apply_operator_mr,
-    )
-
-    radii = np.array([2.0, 5.0])
-    sigma_t_per_region = np.array([0.5, 0.3])
-    R = float(radii[-1])
-    n_r, n_mu, n_traj = 8, 8, 16
-
-    r_quad_pts, _ = np.polynomial.legendre.leggauss(n_r)
-    r_nodes = R * 0.5 * (r_quad_pts + 1.0)
-    mu_quad_pts, _ = np.polynomial.legendre.leggauss(n_mu)
-    mu_nodes = mu_quad_pts
-
-    source_profile = 1.0 + 0.4 * np.cos(np.pi * r_nodes / R)
-
-    expected = _apply_operator_mr(
-        source_profile, r_nodes, mu_nodes, R, radii, sigma_t_per_region,
-        alpha, n_traj_quad=n_traj,
-    )
-
-    oracle = MultiRegionSphereChordOracle(
-        r_nodes=r_nodes, mu_nodes=mu_nodes, R=R,
-        radii=radii, sigma_t_per_region=sigma_t_per_region, alpha=alpha,
-    )
-    # sigma_t kwarg is ignored (the oracle uses sigma_t_per_region instead);
-    # pass any sentinel value.
-    actual = oracle.apply_operator(
-        source_profile, sigma_t=0.0, n_traj_quad=n_traj,
-    )
-
-    assert _bit_equal(actual, expected), (
-        f"MR-sphere oracle NOT bit-equal at alpha={alpha}"
-    )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -407,6 +370,7 @@ def test_all_oracle_types_satisfy_protocol() -> None:
             radii=np.array([2.0, R]),
             sigma_t_per_region=np.array([0.5, 0.3]),
             alpha=1.0,
+            region_at_node=np.searchsorted(np.array([2.0, R]), r_nodes),
         ),
         CylinderChordOracle(
             r_nodes=r_nodes, mu_axial_nodes=mu_quad_pts,

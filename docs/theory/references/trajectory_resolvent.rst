@@ -260,10 +260,10 @@ documented in dedicated sections per the
 - **Multi-region sphere fixed-source** (Plan-(b) Option 1) —
   :func:`solve_greens_function_sphere_mr_fixed_source`.
   Cross-checked against Garcia 2021 :cite:`Garcia2021` Table 5
-  (Williams 1991 Case 1, 3-region sphere) at 15 r-points: < 2 %
-  agreement at non-interface points, < 12 % near interfaces (cubic-
-  spline source-interpolation smooths the discontinuous σ_s — known
-  prototype limitation).
+  (Williams 1991 Case 1, 3-region sphere) at 15 r-points: within
+  1.05e-3 inside the sphere and 2.3e-2 at the vacuum surface, gated at
+  3e-3 and 4e-2 (the emission density interpolated one spline per
+  region, ERR-090).
 
 - **Variant α is a parallel research-grade reference**, not a
   production replacement for ``boundary="specular_multibounce"``.
@@ -1439,10 +1439,109 @@ optical depth accumulates segment-by-segment with the local
 so the per-region attenuation factor :math:`e^{-\tau(s)}` is
 exact within each segment and continuous at every interior boundary
 crossing. The first-leg integral and bounce-period integral are
-both evaluated in this composite-segment form. Source values are
-sampled via cubic-spline interpolation of the per-region scalar flux
-on the radial grid — a known prototype limitation discussed below
-in the Garcia 2021 cross-check section.
+both evaluated in this composite-segment form.
+
+.. _peierls-greens-mr-regionwise-source-section:
+
+The emission density is interpolated region by region
+------------------------------------------------------
+
+The integrand of both chord integrals carries the isotropic emission
+density :math:`q(r) = \bigl[\Sigma_s(r)\,\phi(r) +
+\chi(r)\,\nu\Sigma_f(r)\,\phi(r)/k\bigr]/4\pi`, known only at the
+radial nodes :math:`r_i` and needed at every chord point. In a
+piecewise-homogeneous medium the scalar flux :math:`\phi` is continuous
+across an interface but the cross sections are not, so :math:`q` is
+smooth inside each region and **jumps** at every interior radius
+:math:`R_k`. Its interpolant therefore has one piece per region, built
+from that region's nodes only, and a chord segment, which by the
+segment decomposition above never crosses an interface, reads the piece
+of its own region:
+
+.. math::
+   :label: peierls-greens-mr-regionwise-source
+
+   q(r(s)) \;\approx\; Q_k\bigl(r(s)\bigr),
+   \qquad s \in (s_a, s_b) \text{ of a segment in region } k,
+   \qquad Q_k = \text{cubic spline through }
+   \{(r_i, q_i) : r_i \in (R_{k-1}, R_k]\}.
+
+.. (vv-status rationale) definition: Numerical-method choice. The emission density of a piecewise-homogeneous medium jumps at every material interface, so its interpolant along a chord is piecewise, one cubic spline per region, selected by the segment's region. Verified by the per-region cubic reproduction and first-leg line-integral gates (test_trajectory_resolvent_regionwise_source.py) and by the sphere's n_r convergence ladder (ERR-090).
+.. vv-status: peierls-greens-mr-regionwise-source documented
+
+Each piece extrapolates across the gap between its outermost node and
+the interface; the composite per-region Gauss-Legendre nodes lie strictly
+inside each region, so that gap is less than one node spacing. A
+not-a-knot cubic through four or more nodes reproduces a cubic exactly,
+so a density that is a different cubic in each region is reconstructed
+exactly everywhere, interface neighbourhoods included. The helper is
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._regionwise_cubic_spline`,
+called by both the sphere and the cylinder multi-region oracles.
+
+**What it replaced, and why that failed (ERR-090).** Until 2026-09-26
+both oracles fitted ONE cubic spline through every radial node. A smooth
+cubic fitted across a jump overshoots on both sides of the interface;
+refining the radial grid narrows the overshoot but does not shrink its
+amplitude, so the error in the chord integrals falls only as the width,
+at about first order, and not monotonically. The composite per-region
+radial quadrature (the Phase E correction of 2026-05-12) had moved the
+nodes off the interfaces but left the interpolant global, and the page
+recorded the interpolation as a "known prototype limitation" (the Garcia
+2021 section below) without a measurement of what it did to the
+eigenvalue. Measured on 2026-09-26, the heterogeneous closed sphere of
+the discrete-ordinates cross-check (fuel A | moderator B | fuel A at
+0.5, 1.5, 2.0 cm, 2 groups, :math:`n_\mu = 24`):
+
+.. list-table:: Eigenvalue against the radial node count
+   :header-rows: 1
+
+   * - :math:`n_r`
+     - one spline (before)
+     - one spline per region (now)
+   * - 12
+     - 1.350151
+     - 1.378110
+   * - 24
+     - 1.358083
+     - 1.383737
+   * - 36
+     - 1.361371
+     - 1.381917
+   * - 48
+     - 1.379031
+     - 1.381293
+   * - 72
+     - 1.380103
+     - 1.381381
+
+Per region, the increments shrink with a ratio of 0.34 between the
+24-36-48 steps, the second-order value; with one spline the sequence
+jumps by 1.8e-2 between :math:`n_r = 36` and 48. The discrete-ordinates
+solve of the same sphere converges to :math:`k = 1.38107` (mesh 40 to
+160 cells, Gauss-Legendre 8 to 32 ordinates). The cylinder's analogue at
+a fixed coarse angular grid (4 axial by 8 azimuthal nodes) reads
+1.10928, 1.15547, 1.16212, 1.16557, 1.16541 with one spline and 1.16881,
+1.16994, 1.16987, 1.16944, 1.16966 per region, at :math:`n_r` = 12, 24,
+36, 48, 72.
+
+**What remains: the angular rules meet kinks too.** The reference's
+angular quadratures are Gauss-Legendre rules on :math:`\mu` (sphere) and
+on the azimuth :math:`\varphi` (cylinder). The chord integrals, as
+functions of the angle, have a square-root kink wherever the chord grazes
+an interior interface (impact parameter equal to :math:`R_k`), at an
+angle that depends on the node radius. A rule that ignores the kinks
+converges algebraically and not monotonically: at :math:`n_r = 36` the
+sphere's eigenvalue reads 1.381917, 1.380683, 1.381170 at
+:math:`n_\mu` = 24, 48, 96; at :math:`n_r = 24` the cylinder's reads
+1.17058, 1.22131, 1.23093, 1.23326, 1.23158 at 8, 16, 32, 64, 128
+azimuthal nodes (8 axial), and 1.23212 at :math:`n_r = 36` (16 axial, 32
+azimuthal, against 1.23104 at :math:`n_r = 24`): the radial and azimuthal
+errors are coupled, because the kink angles move with the node radius, and
+neither sequence is monotone, so no finite ladder bounds the cylinder's
+error yet. The discrete-ordinates solve's converged 1.23175 lies inside
+the oscillation. Splitting
+each angular rule at the tangency angles is the matching repair; it is
+open under #516.
 
 The bounce-sum closure :math:`T(\mu_{\rm surf}) = 1/(1 - \alpha\,
 e^{-\tau_p})` uses the **total** chord optical depth
@@ -1645,110 +1744,128 @@ fission, no eigenvalue iteration; convergence is on the relative
 Garcia Case 1 agreement
 ------------------------
 
-Variant α agreement vs Garcia 2021 Table 5 at default settings
-(:math:`n_r = 48`, :math:`n_\mu = 24`, :math:`n_{\rm traj} = 64`,
-:math:`{\rm tol} = 10^{-7}`):
+The trajectory resolvent against Garcia 2021 Table 5 at the gate's
+settings (:math:`n_r = 48`, :math:`n_\mu = 24`, :math:`n_{\rm traj} = 64`,
+``tol = 1e-7``), as the relative error of its flux against half Garcia's
+value (the convention map above). ``[M]`` 2026-09-26: "before" is the
+one-spline emission density at ``3f82c2ab`` (flux interpolated to the
+table's radii by one spline), "now" is one spline per region for both the
+emission density and the flux (ERR-090; at an interface radius the two
+one-sided values are averaged).
 
-.. list-table:: Garcia Case 1 — Variant α vs Table 5 converged ppP_N
+.. list-table:: Garcia Case 1 — relative error against Table 5 (converged ppP_N)
    :header-rows: 1
-   :widths: 16 14 22 22 26
+   :widths: 12 16 24 22 22
 
    * - r (cm)
-     - Region
      - Garcia φ
-     - 0.5 × Garcia φ
-     - Variant α agreement
+     - Region
+     - before
+     - now
    * - 0.0
-     - core
      - 18.860
-     - 9.430
-     - < 1 %
+     - core
+     - 1.7e-03
+     - 9.0e-06
    * - 0.5
-     - core
      - 18.756
-     - 9.378
-     - < 1 %
+     - core
+     - 1.7e-03
+     - 4.2e-06
    * - 1.0
-     - core
      - 18.442
-     - 9.221
-     - < 1 %
+     - core
+     - 1.8e-03
+     - 5.9e-06
    * - 1.5
-     - core
      - 17.911
-     - 8.956
-     - < 1 %
+     - core
+     - 1.8e-03
+     - 1.6e-05
    * - 2.0
-     - core
      - 17.145
-     - 8.573
-     - < 1 %
-   * - 2.5
      - core
+     - 1.9e-03
+     - 1.6e-05
+   * - 2.5
      - 16.095
-     - 8.048
-     - < 1 %
+     - core
+     - 2.2e-03
+     - 1.1e-06
    * - 3.0
-     - core/mid interface
      - 14.381
-     - 7.190
-     - 1.6 % (interface band)
+     - core/mid interface
+     - 1.5e-03
+     - 3.4e-04
    * - 3.5
-     - mid
      - 13.455
-     - 6.728
-     - 3 – 8 % (mid band)
+     - mid
+     - 3.2e-04
+     - 8.1e-04
    * - 4.0
-     - mid
      - 13.337
-     - 6.668
-     - 3 – 8 % (mid band)
-   * - 4.5
      - mid
+     - 1.0e-03
+     - 2.5e-04
+   * - 4.5
      - 13.590
-     - 6.795
-     - 3 – 8 % (mid band)
+     - mid
+     - 2.6e-03
+     - 5.2e-04
    * - 5.0
-     - mid/outer interface
      - 14.361
-     - 7.180
-     - 11 % (interface band)
+     - mid/outer interface
+     - 6.9e-03
+     - 1.0e-03
    * - 5.5
-     - outer
      - 15.532
-     - 7.766
-     - < 6 %
+     - outer
+     - 3.3e-03
+     - 6.5e-05
    * - 6.0
-     - outer
      - 14.198
-     - 7.099
-     - < 6 %
-   * - 6.5
      - outer
+     - 1.5e-03
+     - 8.3e-05
+   * - 6.5
      - 10.807
-     - 5.404
-     - < 6 %
+     - outer
+     - 9.5e-04
+     - 5.5e-05
    * - 7.0
-     - outer surface
      - 4.0763
-     - 2.038
-     - < 1 %
+     - outer surface
+     - 2.2e-02
+     - 2.3e-02
 
-Tolerance bands gated by the per-point test
-:func:`tests.gates.derivations.test_peierls_greens_function_garcia2021.test_garcia_case1_phi_matches_at_point`:
-2 % at non-interface points, 15 % at interface-adjacent points
-(within ±2 cm of an interior region boundary).
+The per-point test
+:func:`tests.gates.derivations.test_peierls_greens_function_garcia2021.test_garcia_case1_phi_matches_at_point`
+gates 3e-3 inside the sphere and 4e-2 at the surface. Both are derived
+from two measured quantities, neither of them the comparison's reading:
+Garcia's own error (half a unit in the last printed digit, at most 4.6e-5
+relative, on 10.807) and the trajectory resolvent's own error at this
+fixture, taken from its OWN ladder (the largest change to the finer rungs
+(48, 48), (96, 48), (96, 96): 1.43e-3 inside, 1.65e-2 at the surface). The
+rule is the smallest one-significant-figure :math:`T` with :math:`T \ge 10
+b` and :math:`T \ge 2(e + b)`
+(:func:`tests.gates.derivations._trajectory_resolvent_ladders.tolerance_for`).
+Re-measure with ``python -O -m
+tests.gates.derivations._trajectory_resolvent_ladders garcia``. The one-spline
+emission density reads 1.1e-2 at r = 5.0 cm and 3.3e-3 at 5.5 cm, the
+second only 10 % over its tolerance. The surface error is not the
+emission density's: the flux's radial derivative is singular at a vacuum
+boundary, and the outermost region's spline extrapolates from its last
+node to R. The residual interior error, largest at 3.5 and 5.0 cm, comes
+from the :math:`\mu` rule meeting the kinks where a chord grazes an
+interface (it does not fall monotonically with :math:`n_\mu`: 8.1e-4,
+2.8e-4, 6.2e-4 at r = 3.5 cm for :math:`(n_r, n_\mu)` = (48, 24), (48, 48),
+(96, 48)), open under #516.
 
-The shape is **fundamentally correct** at every point. The
-near-interface error is purely from the cubic-spline source-flux
-interpolation smoothing the discontinuous :math:`\Sigs{}` at region
-boundaries — the spline reaches across each interface and slightly
-contaminates the source values in the adjacent region. The
-mid-region (3 ≤ r ≤ 5 cm) is sandwiched between two interfaces and
-shows the worst smoothing-induced error (up to ~11 % near
-:math:`r = 5`). **Piecewise per-region interpolation** (a separate
-spline per region) would close this gap; flagged as a follow-on
-improvement.
+Until 2026-09-26 the bands were 2 % at non-interface points and 15 % within
+2 cm of an interface, and this section attributed the near-interface error
+to the one-spline emission density, recording per-region interpolation as
+"a follow-on improvement". The table above is that improvement's measured
+effect.
 
 All 17 test gates pass (3 sanity + 15 per-r-point). The 3-method
 triangulation (Garcia P_N + Williams 1991 MoC + Picca-Furfaro-
@@ -2409,8 +2526,8 @@ The verification plan in
 specifies six mandatory gates plus one optional gate (Branch-1 /
 Branch-2 algebraic-ancestor cross-check). All shipped tolerances
 exceed the targets by 3–9 orders of magnitude, except Gate 4
-(interface continuity) where the single-domain GL radial grid sets
-a known spline-across-jump floor at :math:`\sim 3\!\times\!10^{-3}`.
+(interface continuity), whose jump is not converged in :math:`n_r` (see
+its section below; the table records the 2026-05-12 closeout).
 
 .. list-table:: Phase 1b cylinder MR gate results (closeout memo,
    2026-05-12)
@@ -2689,6 +2806,17 @@ period}` cumulatively, then the closure reduces them to
 homogeneous case. This is the algebra-of-record discipline at work:
 V_α1_cyl's closure is unchanged; only the operator's inputs become
 piecewise.
+
+The emission density :math:`q(r(s_{\rm 2D}))` inside each segment's
+integral is read from that segment's own region's spline, exactly as for
+the sphere (:eq:`peierls-greens-mr-regionwise-source`, ERR-090); the
+cylinder oracle calls the same helper. The cylinder's azimuthal rule is
+the part not yet converged: the chord integrals have a square-root kink in
+:math:`\varphi_{\rm az}` where a chord grazes an interior interface
+(:math:`b = R_k`), and Gauss-Legendre on :math:`[0, 2\pi)` does not place
+those angles, so the eigenvalue converges slowly in :math:`n_\varphi` (the
+numbers are in :ref:`peierls-greens-mr-regionwise-source-section`; the
+repair is open under #516).
 
 **Tangential grazing-ray 0/0 cancellation (structural risk #1
 falsified).** The verification plan §6.2 risk #1 flagged that the
@@ -3041,7 +3169,7 @@ with :math:`\Sigma_t`), the angular-integrated scalar flux
        \int_0^{2\pi}\!\mathrm d\varphi_{\rm az}\;
        \psi(r, \mu_{\rm axial}, \varphi_{\rm az})
 
-.. (vv-status rationale) statement: Continuity invariant — φ(r) continuous across material interfaces in 3-region asymmetric σ_t configuration (10× contrast). Foundation pillar: angular reduction invariant of the transport operator. Achieved rel_jump ~3e-3 vs target 1e-2; floor is single-domain GL spline-across-jump interpolation, not solver bug. Per-region composite GL is the documented improvement path.
+.. (vv-status rationale) statement: Continuity invariant — φ(r) continuous across material interfaces in 3-region asymmetric σ_t configuration (10× contrast). Foundation pillar: angular reduction invariant of the transport operator. The gate's 5e-2 ceiling is not a derived bound: the measured jump is not converged in n_r (1.9e-3 to 2.0e-2 across n_r = 24, 36, 48, 72, #516); it catches gross region-indexing errors only.
 
 
 is **continuous** at every interior radius :math:`r_k`. This is a
@@ -3076,38 +3204,55 @@ is the load-bearing piece — a symmetric profile (e.g. :math:`\Sigma_t
 average out by reflective symmetry and remain invisible.
 
 The :class:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.CylinderGreensMRResult`
-dataclass exposes ``region_at_node[i]`` — the region index of each
-radial node — so the test can extract the two nearest nodes on
-each side of an interface, fit a cubic spline within each region,
-and evaluate at the exact interface radius :math:`r_k`. The
-acceptance condition is
-:math:`|\phi(r_k^-) - \phi(r_k^+)|/\max(\phi^-, \phi^+) < 10^{-2}`.
+dataclass exposes ``region_at_node[i]``, the region index of each
+radial node, so the test fits a cubic spline to :math:`\phi` within each
+region, evaluates both at the interface radius :math:`r_k`, and bounds
+:math:`|\phi(r_k^-) - \phi(r_k^+)|/\max(\phi^-, \phi^+)` by 5e-2.
 
-**Achieved.** :math:`\sim 3\!\times\!10^{-3}` rel-jump across the
-inner/middle interface (10× :math:`\Sigma_t` contrast). Test:
-:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_mr.test_mr_interface_continuity_3region`.
+**The ceiling is not a certified bound.** ``[M]`` 2026-09-26, the relative
+jump at the inner / middle interface along :math:`n_r` (16 axial, 32
+azimuthal nodes, 48 chord points), with the emission density interpolated
+one spline per region and, for comparison, with the single spline it
+replaced (ERR-090):
 
-**Why not tighter.** The 3e-3 floor reflects the **single-domain
-Gauss-Legendre** radial grid used in the Phase 1b prototype: GL
-nodes on :math:`(0, R)` do not land on the interior radii
-:math:`R_k`, so the test interpolates :math:`\phi` from each side
-via cubic spline. The spline fits a smooth function through nodes
-that span the interface and **cannot reproduce the discontinuous
-derivative** — its evaluation at :math:`r_k` from the left side
-overshoots; from the right side, undershoots. The
-:math:`\sim 3\!\times\!10^{-3}` floor is the spline-across-jump
-interpolation error, not a solver bug. A real region-attribution
-bug would produce :math:`\ge 10\%` jumps that swamp this floor.
+.. list-table:: Gate 4 interface jump against the radial node count
+   :header-rows: 1
 
-**Documented improvement path.** A composite per-region Gauss-
-Legendre radial grid (each region carries its own GL nodes
-clustered toward the interface, with continuity enforced at the
-interface radii) would tighten the floor to
-:math:`\sim 10^{-5}`. This is a follow-on commit gated by an ERR-026
-Phase C consumer needing sharper interface continuity — Phase 1b
-ships the prototype to close the structurally-independent reference
-gap; the composite grid is a verified improvement, not a
-correctness fix.
+   * - :math:`n_r`
+     - one spline per region
+     - one spline (ERR-090)
+   * - 24
+     - 2.03e-2 / 1.6e-3
+     - 5.30e-2 / 1.76e-2
+   * - 36
+     - 1.91e-3 / 4.7e-3
+     - 2.85e-2 / 3.0e-3
+   * - 48
+     - 1.87e-2 / 3.6e-3
+     - 4.34e-2 / 5.9e-3
+   * - 72
+     - 1.30e-2 / 2.6e-3
+     - 2.87e-2 / 2.8e-3
+
+The jump is not converged: it moves by an order of magnitude between
+neighbouring rungs. Two errors that do not shrink monotonically with
+:math:`n_r` feed it: the per-region spline of :math:`\phi` is extrapolated
+from interior nodes to the interface, and the azimuthal Gauss-Legendre
+rule's error at the tangency kinks moves with the node radii (#516). A
+ceiling set from the gate's own :math:`n_r = 36` reading (1.9e-3) would be
+fitted to one favourable rung, and across rungs the honest and one-spline
+readings overlap, so the gate does not catch ERR-090. What it catches is a
+gross region-attribution error: the first node of each outer region
+attributed to the region inside it (so that node takes the wrong cross
+sections and spline piece) reads a jump of 1.10e-1, red against 5e-2
+(``[M]`` 2026-09-26, in process).
+Re-measure the table with ``python -O -m
+tests.gates.derivations._trajectory_resolvent_ladders gate4``.
+
+Until 2026-09-26 this section described a ~3e-3 "floor" from the
+single-domain radial grid and, after the composite grid (2026-05-12), a
+~2.85e-2 "spline-extrapolation floor" for which the ceiling was relaxed from
+1e-2 to 5e-2; the 2.85e-2 was the one-spline emission density (ERR-090).
 
 Quadrature-axis convergence (Gate 6)
 -------------------------------------
@@ -3204,14 +3349,9 @@ limitations:
    benchmark; this is documented in the module docstring of
    :file:`test_peierls_greens_function_cylinder_mr_xverif.py`.
 
-2. **Gate 4 interface-continuity floor at**
-   :math:`\boldsymbol{\sim 3\!\times\!10^{-3}}` (single-domain GL
-   spline-across-jump). Composite per-region Gauss-Legendre radial
-   grids would tighten the floor to :math:`\sim 10^{-5}` by placing
-   GL nodes adjacent to the interface radii from each side, removing
-   the spline-across-jump artefact. Deferred to a follow-on commit
-   when an ERR-026 Phase C consumer needs sharper interface
-   continuity than the Phase 1b prototype's 3e-3.
+2. **Gate 4 interface continuity is not converged in** :math:`\boldsymbol{n_r}`
+   (1.9e-3 to 2.0e-2 across :math:`n_r` = 24, 36, 48, 72; its section above),
+   so its 5e-2 ceiling catches gross region-indexing errors only (#516).
 
 3. **Performance**: the
    :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`

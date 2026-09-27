@@ -27,8 +27,10 @@ correctness is a 4-way standoff):
   GMRES inner solve routes through :class:`StreamingCollisionOperator`
   (= ``L + C``) consuming the unified matvec; the resulting ``k_eff``
   is cross-checked against the trajectory_resolvent reference
-  (Variant α at α=1) at the same tolerance as the production Gate 4.2
-  cross-check (3% — set by Variant α's quadrature error budget).
+  (Variant α at α=1). The row is a strict ``xfail`` on #516 (the cylinder
+  reference carries no certified error bound) with a RECORD companion; the
+  3 % it used to carry was "Variant α's quadrature error budget", which was
+  the reference's one-spline emission density (ERR-090).
 
 The since-retired legacy ``transport_operator_matvec_cylindrical`` had a
 per-ordinate routing bug (ERR-049 — ascending-global ``ks`` indices vs
@@ -39,14 +41,12 @@ the L0 evidence above is the hand reference, not a legacy cross-check.
 from __future__ import annotations
 
 import contextlib
+import functools
 
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_xs, make_mixture
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
-    solve_greens_function_cylinder_mr,
-)
+from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
@@ -56,6 +56,22 @@ from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import (
     legacy_proxy_matvec,
     placeholder_materials,
+)
+from tests.gates.derivations._trajectory_resolvent_ladders import (
+    CYLINDER_3REG_SN_4X8_K_STEP,
+    tolerance_for,
+)
+from tests.gates.sn.verification.analytical._certified_agreement import (
+    ABA_RADII,
+    CYLINDER_3REG_RECORD,
+    CYLINDER_3REG_RECORD_BAND,
+    CYLINDER_3REG_RECORD_RELATIVE,
+    CYLINDER_3REG_REFERENCE_BOUND,
+    aba_xs_2g,
+    assert_record,
+    awaits_cylinder_bound,
+    certify_agreement,
+    cylinder_3reg_reference,
 )
 
 
@@ -354,20 +370,6 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-_MR_RADII = np.array([0.5, 1.5, 2.0])
-_MR_LAYOUT_ABA_KEYS = ("A", "B", "A")
-
-
-def _mr_xs_2g():
-    """3-region 2G XS bundle — same layout as ``test_phase_c_crosscheck`` MR."""
-    parts = [get_xs(k, "2g") for k in _MR_LAYOUT_ABA_KEYS]
-    sigma_t = np.stack([p["sig_t"] for p in parts], axis=0)
-    sigma_s = np.stack([p["sig_s"] for p in parts], axis=0)
-    nu_sigma_f = np.stack([p["nu"] * p["sig_f"] for p in parts], axis=0)
-    chi = np.stack([p["chi"] for p in parts], axis=0)
-    return sigma_t, sigma_s, nu_sigma_f, chi
-
-
 def _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi):
     """Build a 2-group Mixture from explicit XS arrays."""
     sigma_t = np.asarray(sigma_t, dtype=float)
@@ -385,19 +387,19 @@ def _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi):
 
 def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
     """Build the 3-region cylindrical mesh + 2G materials for the MR case."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
+    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
     materials = {
         i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
         for i in range(3)
     }
     # Cell-edge-aligned region boundaries.
-    edges = np.linspace(0.0, _MR_RADII[-1], nx + 1)
+    edges = np.linspace(0.0, ABA_RADII[-1], nx + 1)
     mat_ids = np.zeros(nx, dtype=int)
     cell_centres = 0.5 * (edges[:-1] + edges[1:])
     for i_cell, r_c in enumerate(cell_centres):
-        if r_c <= _MR_RADII[0]:
+        if r_c <= ABA_RADII[0]:
             mat_ids[i_cell] = 0
-        elif r_c <= _MR_RADII[1]:
+        elif r_c <= ABA_RADII[1]:
             mat_ids[i_cell] = 1
         else:
             mat_ids[i_cell] = 0
@@ -418,9 +420,39 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
 # cylindrical.  No monkey-patch is required.
 
 
+#: The k tolerance this comparison is held to once the reference is certified:
+#: ``tolerance_for(e, None)`` of ``tests/gates/derivations/_trajectory_resolvent_ladders.py``,
+#: the reference assumed at the floor, for this folded-4x8 solve's own k error
+#: e = 5.9e-4 ([M] 2026-09-26: the 4x8 SN k against its 32x64 limit), giving
+#: 2e-3. It was 3e-2, justified as "the reference's quadrature budget"; that
+#: budget was the reference's one-spline emission density (ERR-090), and the
+#: reference still carries no certified bound (#516).
+_UNIFIED_CYL_K_TOLERANCE = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
+
+
+@functools.cache
+def _unified_cylinder_k() -> float:
+    """The Krylov-on-(L + C) SN eigenvalue of the ABA cylinder (folded 4x8, 40 uniform cells), once per session."""
+    mesh, materials = _build_mr_cylinder_mesh(nx=40)
+    sol = solve_sn(
+        materials=materials,
+        mesh=mesh,
+        quadrature=Quadrature.folded_product(n_mu=4, n_phi=8),
+        inner_solver="krylov",
+        max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
+        max_inner=200, inner_tol=1e-9,
+    )
+    return float(sol.outcome.keff)
+
+
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.rests_on(
+    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
+    "::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]",
+)
+@awaits_cylinder_bound
 def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     r"""L1 — heterogeneous 3-region 2G closed cylinder via unified matvec.
 
@@ -428,10 +460,12 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     matvec routes through :class:`StreamingCollisionOperator` (= ``L + C``)
     via :func:`_transport_operator_matvec_unified`. The converged
     ``k_eff`` is compared against the structurally-independent
-    :func:`solve_greens_function_cylinder_mr` reference (Variant α at
-    α=1) at the same 3% tolerance the production Gate 4.2 cross-check
-    uses (set by Variant α's quadrature error budget at n_r=24 +
-    n_traj_quad=64; see ``test_phase_c_crosscheck.py``).
+    trajectory-resolvent reference (Variant α at α=1) at
+    :data:`_UNIFIED_CYL_K_TOLERANCE`.
+
+    Strict ``xfail`` on #516: the cylinder reference carries no certified
+    error bound, so the floor assertion fails first; the comparison stays
+    live through ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record``.
 
     Per ``.claude/lessons.md`` L14 — solver correctness is a 4-way
     standoff. The L0 hand-reference battery in this file proves the
@@ -440,33 +474,30 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     discrete primitive in the SN code (no shared FP path, no shared
     redist closure, no shared boundary recurrence).
     """
-    mesh, materials = _build_mr_cylinder_mesh(nx=40)
-    quad = Quadrature.folded_product(n_mu=4, n_phi=8)
+    k_unified = _unified_cylinder_k()
+    k_ref = float(cylinder_3reg_reference().k_eff)
+    rel = abs(k_unified - k_ref) / k_ref
+    print(f"unified cylinder: k_unified={k_unified:.10f} k_ref={k_ref:.10f} rel={rel:.3e}")
+    certify_agreement(
+        "unified cylinder k", rel, _UNIFIED_CYL_K_TOLERANCE, CYLINDER_3REG_REFERENCE_BOUND["k"],
+    ).require()
 
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
-    ref = solve_greens_function_cylinder_mr(
-        radii=_MR_RADII,
-        sigma_t=sigma_t, sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f, chi=chi,
-        alpha=1.0,
-        n_r=24, n_mu_axial=16, n_phi_az=32, n_traj_quad=64,
-        max_iter=500, tol=1e-7, initial_k=1.23,
-    )
-    k_ref = float(ref.k_eff)
 
-    sol = solve_sn(
-            materials=materials,
-            mesh=mesh,
-            quadrature=quad,
-            inner_solver="krylov",
-            max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
-            max_inner=200, inner_tol=1e-9,
-        )
+@pytest.mark.l1
+@pytest.mark.slow
+def test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record() -> None:
+    r"""RECORD: the unified-matvec solve's k and the reference's, as they read today.
 
-    rel = abs(sol.outcome.keff - k_ref) / k_ref
-    assert rel < 3.0e-2, (
-        f"unified cylinder L1 disagreement with trajectory_resolvent: "
-        f"k_unified={sol.outcome.keff:.10f}, k_ref={k_ref:.10f}, rel={rel:.3e}"
+    Not verification: it keeps the comparison live while the row above is a
+    strict xfail, and reddens when either side moves (an SN change, or the
+    reference's #516 repair, after which the bound is re-derived and the
+    xfail lifted). The recorded values and their band are
+    :data:`~tests.gates.sn.verification.analytical._certified_agreement.CYLINDER_3REG_RECORD`.
+    """
+    readings = {"unified_k": _unified_cylinder_k(), "k_ref": float(cylinder_3reg_reference().k_eff)}
+    assert_record(
+        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
+        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
     )
 
 

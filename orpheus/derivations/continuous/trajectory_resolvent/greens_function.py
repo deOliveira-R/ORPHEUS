@@ -808,6 +808,7 @@ def _apply_operator_mr(
     radii: np.ndarray,
     sigma_t_per_region: np.ndarray,
     alpha: float,
+    region_at_node: np.ndarray,
     *,
     n_traj_quad: int,
 ) -> np.ndarray:
@@ -817,13 +818,11 @@ def _apply_operator_mr(
     (the R3 ChordOracle Protocol). The piecewise-:math:`\Sigma_t`
     segmentation + rank-1 closure live in the oracle; this function
     preserves the legacy call signature.
-
-    Bit-equal with the pre-R3 inlined body.
     """
     oracle = MultiRegionSphereChordOracle(
         r_nodes=r_nodes, mu_nodes=mu_nodes, R=R,
         radii=radii, sigma_t_per_region=sigma_t_per_region,
-        alpha=alpha,
+        alpha=alpha, region_at_node=region_at_node,
     )
     # sigma_t kwarg unused by MR oracle (per-region σ_t carried by
     # sigma_t_per_region attribute); pass sentinel.
@@ -1051,7 +1050,7 @@ def solve_greens_function_sphere_mr(
         for g in range(G):
             psi_new[g] = _apply_operator_mr(
                 source_profile_g[g], r_nodes, mu_nodes, R, radii,
-                sigma_t[:, g], alpha, n_traj_quad=n_traj_quad,
+                sigma_t[:, g], alpha, region_at_node, n_traj_quad=n_traj_quad,
             )
 
         # Update k_eff via Rayleigh quotient on fission rate
@@ -1219,7 +1218,7 @@ def solve_greens_function_sphere_mr_fixed_source(
         for g in range(G):
             psi_new[g] = _apply_operator_mr(
                 source_profile_g[g], r_nodes, mu_nodes, R, radii,
-                sigma_t[:, g], alpha, n_traj_quad=n_traj_quad,
+                sigma_t[:, g], alpha, region_at_node, n_traj_quad=n_traj_quad,
             )
 
         # Convergence on scalar flux per group

@@ -1308,10 +1308,11 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      heterogeneous eigenvalue path and added the permanent regression
      gate (see :ref:`sn-phase-f-residual-o-h-open` and
      :ref:`sn-issue-196-eigenvalue-equivalence`).  The Phase E
-     flux-shape sentinel
-     (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`)
-     **no longer xfails** — it runs as a plain L1 test, the
-     structurally-independent Variant-α anchor.
+     flux-shape sentinel (then ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``)
+     **no longer xfails**.  Since 2026-09-26 its sphere half is
+     :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
+     a plain L1 test, and its cylinder half is a strict ``xfail`` on #516
+     (ERR-090).
 
 The twin-path bug Phase D left open
 ------------------------------------
@@ -1864,8 +1865,9 @@ Files touched by Phase F
 
 **Updated tests**
 
-* :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
-  — *(Phase-F action, since superseded.)* Phase F updated the
+* ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` (split on 2026-09-26 into
+  :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
+  and its cylinder sibling) — *(Phase-F action, since superseded.)* Phase F updated the
   ``xfail-strict`` reason string from *"UNRESOLVED structural
   discrepancy with hypothesised pole issue"* to *"Phase F closed
   gross divergence; residual O(h) drift awaits further work"*, on
@@ -1956,11 +1958,13 @@ logged in ``error_catalog.rst`` as **ERR-026 manifestation #7**:
    asymmetry) — OPEN, new follow-up after Phase F."*
 
 That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
-#196**.  The Phase E flux-shape sentinel
-:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
-**no longer xfails** — it runs as a plain L1 test (the
-structurally-independent Variant-α anchor; see
-:ref:`sn-issue-196-eigenvalue-equivalence`).  The two viable
+#196**.  The Phase E flux-shape sentinel (then
+``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``) **no longer
+xfails**; its sphere half is now
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
+the structurally-independent Variant-α anchor (see
+:ref:`sn-issue-196-eigenvalue-equivalence`), and its cylinder half a strict
+``xfail`` on #516 (ERR-090).  The two viable
 closures that were tracked as Phase F-extensions are recorded here
 **only as bug-era history** — neither was taken, because both
 presupposed the shared fixed point was correct and only the
@@ -3163,13 +3167,19 @@ legs:
   medium :math:`k_\infty=\nu\Sigma_f/\Sigma_a` is an analytical
   (closed-form) eigenvalue the SN snapshots must reproduce.
 * The **Variant-α Green's-function cross-check**
-  (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`),
-  now a plain L1 test (xfail removed), which compares the SN flux-shape
-  snapshot against the composite-GL trajectory-resolvent reference
-  within 8 % (sphere) / 12 % (cylinder).  This reference is a
-  semi-analytical pillar structurally independent of the SN sweep, so
-  agreement pins the *converged-to value*, not just twin-path
-  consistency.
+  (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
+  and its eigenvalue sibling), which compares a live SN solve of the
+  heterogeneous closed sphere with the trajectory-resolvent reference:
+  fission-gauged cell averages over the SN's own cells within 2e-2, and
+  k within 4e-3, both bounds derived from the two methods' measured
+  ladders (the reference's own error at most a tenth of each).  This
+  reference is a semi-analytical pillar structurally independent of the
+  SN sweep, so agreement pins the *converged-to value*, not just
+  twin-path consistency.  The cylinder rows are strict ``xfail`` on #516:
+  the cylinder reference's azimuthal rule meets the tangency kinks of the
+  interior interfaces and cannot yet certify a bound that would verify
+  the SN solve (ERR-090 records how both rows read 2 % of reference error
+  as agreement until 2026-09-26).
 
 Production-decision record — curvilinear default reverted to SI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

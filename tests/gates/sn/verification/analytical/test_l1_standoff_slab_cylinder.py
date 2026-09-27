@@ -41,14 +41,27 @@ import contextlib
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_xs, make_mixture
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
-    solve_greens_function_cylinder_mr,
-)
+from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.reference_values import continuous_get
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
+from tests.gates.derivations._trajectory_resolvent_ladders import (
+    CYLINDER_3REG_SN_4X8_K_STEP,
+    tolerance_for,
+)
+from tests.gates.sn.verification.analytical._certified_agreement import (
+    ABA_RADII,
+    CYLINDER_3REG_RECORD,
+    CYLINDER_3REG_RECORD_BAND,
+    CYLINDER_3REG_RECORD_RELATIVE,
+    CYLINDER_3REG_REFERENCE_BOUND,
+    aba_xs_2g,
+    assert_record,
+    awaits_cylinder_bound,
+    certify_agreement,
+    cylinder_3reg_reference,
+)
 
 
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
@@ -66,19 +79,6 @@ from orpheus.numerics.quadrature import Quadrature
 # ═══════════════════════════════════════════════════════════════════════
 # Cylinder fixtures
 # ═══════════════════════════════════════════════════════════════════════
-_CYL_RADII = np.array([0.5, 1.5, 2.0])
-_CYL_LAYOUT_ABA_KEYS = ("A", "B", "A")
-
-
-def _cyl_xs_2g():
-    parts = [get_xs(k, "2g") for k in _CYL_LAYOUT_ABA_KEYS]
-    sigma_t = np.stack([p["sig_t"] for p in parts], axis=0)
-    sigma_s = np.stack([p["sig_s"] for p in parts], axis=0)
-    nu_sigma_f = np.stack([p["nu"] * p["sig_f"] for p in parts], axis=0)
-    chi = np.stack([p["chi"] for p in parts], axis=0)
-    return sigma_t, sigma_s, nu_sigma_f, chi
-
-
 def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
     sigma_t = np.asarray(sigma_t, dtype=float)
     sig_s = np.asarray(sig_s_matrix, dtype=float)
@@ -96,18 +96,18 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 def _build_cyl_mesh(nx: int) -> tuple[Mesh1D, dict]:
     """3-region cylindrical ABA mesh + 2G materials (same as cylinder L1 in
     ``test_unified_matvec_cylinder.py``)."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _cyl_xs_2g()
+    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
     materials = {
         i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
         for i in range(3)
     }
-    edges = np.linspace(0.0, _CYL_RADII[-1], nx + 1)
+    edges = np.linspace(0.0, ABA_RADII[-1], nx + 1)
     mat_ids = np.zeros(nx, dtype=int)
     cell_centres = 0.5 * (edges[:-1] + edges[1:])
     for i_cell, r_c in enumerate(cell_centres):
-        if r_c <= _CYL_RADII[0]:
+        if r_c <= ABA_RADII[0]:
             mat_ids[i_cell] = 0
-        elif r_c <= _CYL_RADII[1]:
+        elif r_c <= ABA_RADII[1]:
             mat_ids[i_cell] = 1
         else:
             mat_ids[i_cell] = 0
@@ -122,24 +122,8 @@ def _build_cyl_mesh(nx: int) -> tuple[Mesh1D, dict]:
 
 
 def _cylinder_k_ref() -> float:
-    """trajectory-resolvent Variant α reference for the cylinder MR case.
-
-    Not cached: every call re-runs ``solve_greens_function_cylinder_mr``,
-    and the reference dominates this test's cost (1000 to 1300 s on the CI
-    runner, the #405 step-2 census of the ``test-durations`` workflow). The
-    reference cache of #405 step 2 (plan ``reference_cache.md``, phase P4)
-    is where it becomes a cached ``ReferenceSolution``.
-    """
-    sigma_t, sigma_s, nu_sigma_f, chi = _cyl_xs_2g()
-    ref = solve_greens_function_cylinder_mr(
-        radii=_CYL_RADII,
-        sigma_t=sigma_t, sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f, chi=chi,
-        alpha=1.0,
-        n_r=24, n_mu_axial=16, n_phi_az=32, n_traj_quad=64,
-        max_iter=500, tol=1e-7, initial_k=1.23,
-    )
-    return float(ref.k_eff)
+    """The shared cylinder reference's eigenvalue (solved once per session; the problem is owned by ``_certified_agreement``)."""
+    return float(cylinder_3reg_reference().k_eff)
 
 
 def _solve_cyl_via_krylov_unified(nx: int) -> float:
@@ -169,32 +153,44 @@ def _solve_cyl_via_sweep(nx: int) -> float:
 # ═══════════════════════════════════════════════════════════════════════
 # Cylinder L1 standoff
 # ═══════════════════════════════════════════════════════════════════════
-# Reference tolerance: 3% (matches existing ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent``;
-# set by trajectory_resolvent's quadrature error budget at n_r=24, n_traj_quad=64).
-# Twin-path tolerance: 1e-6 rel (both algorithms converge to the same
+# Reference tolerance, once the reference is certified: ``tolerance_for(e, None)``
+# of ``tests/gates/derivations/_trajectory_resolvent_ladders.py``, the
+# reference assumed at the floor, for the folded-4x8 solve's own k error
+# e = 5.9e-4 ([M] 2026-09-26), giving 2e-3. It was 3e-2, justified as
+# "trajectory_resolvent's quadrature error budget at n_r=24"; that budget was
+# the reference's one-spline emission density (ERR-090), and the reference
+# still carries no certified bound (#516), so the reference legs are strict
+# xfails with a RECORD companion.
+# Twin-path tolerance: 1e-5 rel (both algorithms converge to the same
 # discrete fixed point at the matched solver tolerances).
-_CYL_REF_RTOL = 3.0e-2
+_CYL_REF_RTOL = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
 _CYL_TWIN_RTOL = 1.0e-5
+_CYL_SUPPORTS = (
+    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
+    "::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]",
+)
 
 
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.rests_on(*_CYL_SUPPORTS)
+@awaits_cylinder_bound
 def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
     r"""**Cylinder Leg 2** — sweep ≡ trajectory_resolvent reference.
 
     Production source-iteration path (the ``(L+C)`` strategy sweep /
     ``DiscretizationScheme.update``) on the 3-region 2G ABA cylinder. No shim:
     the sweep already uses the WDD-correct per-cell algebra that the
-    unified matvec also wraps.
+    unified matvec also wraps. Strict ``xfail`` on #516 (the reference
+    carries no certified bound); ``test_cylinder_l1_reference_record``
+    keeps the reading live.
     """
     k_ref = _cylinder_k_ref()
     k_sweep = _solve_cyl_via_sweep(nx=40)
     rel = abs(k_sweep - k_ref) / k_ref
-    assert rel < _CYL_REF_RTOL, (
-        f"cylinder sweep vs trajectory_resolvent: "
-        f"k_sweep={k_sweep:.10f}, k_ref={k_ref:.10f}, rel={rel:.3e}"
-    )
+    print(f"cylinder sweep: k_sweep={k_sweep:.10f} k_ref={k_ref:.10f} rel={rel:.3e}")
+    certify_agreement("cylinder sweep k", rel, _CYL_REF_RTOL, CYLINDER_3REG_REFERENCE_BOUND["k"]).require()
 
 
 @pytest.mark.l1
@@ -230,12 +226,14 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
 @pytest.mark.slow
 @pytest.mark.parametrize("nx", [20, 40, 80])
 def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
-    r"""**Cylinder Leg 4** — both paths converge to ref under refinement.
+    r"""**Cylinder Leg 4, twin half** — sweep ≡ Krylov-via-unified at each refinement.
 
-    For each nx ∈ {20, 40, 80}, both the sweep and the Krylov-via-unified
-    paths must agree with the trajectory_resolvent reference to within
-    the reference's own quadrature error budget. This is the joint test
-    of "right rate to right limit" for both algorithms on the same case.
+    For each nx ∈ {20, 40, 80} the sweep and the Krylov-via-unified paths
+    must reach the same discrete fixed point (:data:`_CYL_TWIN_RTOL`). The
+    reference half of this leg is
+    ``test_cylinder_l1_refinement_against_reference``, split off on
+    2026-09-26 when the reference legs became strict xfails on #516, so that
+    this assertion stays live.
 
     HISTORY — un-xfailed at S6.4 (2026-06-11) alongside
     ``test_cylinder_l1_sweep_vs_krylov_twin_path`` (same heal: the
@@ -243,20 +241,48 @@ def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
     removed the pre-D-K Carlson cell-centre-proxy divergence; validated
     by two independent XPASS(strict) executions at all three nx).
     """
-    k_ref = _cylinder_k_ref()
     k_sweep = _solve_cyl_via_sweep(nx=nx)
     k_krylov = _solve_cyl_via_krylov_unified(nx=nx)
-    rel_sweep = abs(k_sweep - k_ref) / k_ref
-    rel_krylov = abs(k_krylov - k_ref) / k_ref
     rel_twin = abs(k_sweep - k_krylov) / k_sweep
-    assert rel_sweep < _CYL_REF_RTOL, (
-        f"cylinder nx={nx}: sweep vs ref rel={rel_sweep:.3e} ≥ {_CYL_REF_RTOL:.0e}"
-    )
-    assert rel_krylov < _CYL_REF_RTOL, (
-        f"cylinder nx={nx}: krylov vs ref rel={rel_krylov:.3e} ≥ {_CYL_REF_RTOL:.0e}"
-    )
     assert rel_twin < _CYL_TWIN_RTOL, (
         f"cylinder nx={nx}: twin-path rel={rel_twin:.3e} ≥ {_CYL_TWIN_RTOL:.0e}"
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.rests_on(*_CYL_SUPPORTS)
+@awaits_cylinder_bound
+@pytest.mark.parametrize("nx", [20, 40, 80])
+def test_cylinder_l1_refinement_against_reference(nx: int) -> None:
+    r"""**Cylinder Leg 4, reference half** — both paths against the reference at each refinement.
+
+    "Right rate to right limit": at nx ∈ {20, 40, 80} both algorithms must
+    agree with the trajectory_resolvent reference to :data:`_CYL_REF_RTOL`.
+    Strict ``xfail`` on #516: the reference carries no certified bound, so
+    the floor assertion fails first.
+    """
+    k_ref = _cylinder_k_ref()
+    for path, k in (("sweep", _solve_cyl_via_sweep(nx=nx)), ("krylov", _solve_cyl_via_krylov_unified(nx=nx))):
+        rel = abs(k - k_ref) / k_ref
+        certify_agreement(f"cylinder nx={nx} {path} k", rel, _CYL_REF_RTOL, CYLINDER_3REG_REFERENCE_BOUND["k"]).require()
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.rests_on(*_CYL_SUPPORTS)
+def test_cylinder_l1_reference_record() -> None:
+    r"""RECORD: the reference's k and the sweep's k (nx = 40), as they read today.
+
+    Not verification: it keeps the cylinder reference legs live while they
+    are strict xfails, and reddens when either side moves (an SN change, or
+    the reference's #516 repair, after which the bound is re-derived and the
+    xfails lifted).
+    """
+    readings = {"k_ref": _cylinder_k_ref(), "standoff_sweep_k_nx40": _solve_cyl_via_sweep(nx=40)}
+    assert_record(
+        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
+        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
     )
 
 

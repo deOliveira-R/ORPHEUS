@@ -1,38 +1,64 @@
-r"""Issue #168 Phase C/D — Gate Set 4 absolute-value cross-check.
+r"""Issue #168 Phase C/D/E — Gate Set 4: the curvilinear discrete-ordinates solve against a semi-analytical reference.
 
-* Gate 4.1 — homogeneous-reflective k_∞ recovery via the SN
-  eigenvalue solver: compare to closed-form ``k_∞ = νΣ_f / Σ_a``.
-* Gate 4.2 — fixed-source / eigenvalue cross-check against the
-  trajectory_resolvent Variant α Green's-function reference solvers
-  (BARE function calls per user constraint 2; the Billiard facade
-  does not currently route MR variants — tracked at GH #190).
+* Gate 4.1 — homogeneous-reflective :math:`k_\infty` recovery by the SN
+  eigenvalue solver, against the closed form :math:`k_\infty =
+  \nu\Sigma_f/\Sigma_a`.
+* Gate 4.2 — the SN eigenvalue (Phase D) and flux shape (Phase E) against the
+  trajectory-resolvent Variant α Green's-function solvers, called bare (the
+  Billiard facade does not route the multi-region variants; GH #190).
 
-Per the plan §1 coverage matrix:
+The rows, with the claim each makes:
 
-- Snapshot 1 (sphere_2g_homogeneous) → ``solve_greens_function_sphere_mg``
-  at α=1 — V_α1 algebraic identity, k=k_inf, rtol ≤ 1e-9.
-- Snapshot 2 (sphere_2g_3reg)         → ``solve_greens_function_sphere_mr``
-  at α=1 — heterogeneous closed sphere, SN spatial-discretisation error
-  dominates; tolerance relaxed (see test docstring).
-- Snapshot 3 (sphere_2g_p1_aniso)     → routed to Gate 4.1 (P1 anisotropic;
-  Variant α handles isotropic only).
-- Snapshot 4 (cyl_1g_homogeneous_folded_4x8) → ``solve_greens_function_cylinder``
-  at α=1 — V_α1_cyl identity, k=k_inf, rtol ≤ 1e-9.
-- Snapshot 5 (cyl_1g_homogeneous_folded_2x4) → same continuous ref, rtol ≤ 1e-9.
-- Snapshot 6 (cyl_2g_3reg)            → ``solve_greens_function_cylinder_mr``
-  at α=1 — heterogeneous closed cylinder, SN spatial-discretisation error
-  dominates; tolerance relaxed (see test docstring).
+- ``sphere_2g_homogeneous_dd_n20`` and the two ``cyl_1g_homogeneous`` rows:
+  on a uniform reflective medium both methods return :math:`k_\infty` exactly
+  (the V_α1 / V_α1_cyl identities), so :math:`k` agrees to ``1e-9``. These are
+  the edge rows the heterogeneous rows rest on. They are blind to the angular
+  closure: a homogeneous medium's angular flux is near-flat, which nulls the
+  redistribution the closure feeds (``[M]`` the cylinder rows' flux moves
+  1.1e-10 under a deliberate ``tau := 0.7`` mutation, against 8.8e-2 for the
+  2-group 3-region cylinder; ``vv-principles`` anti-pattern #3).
+- ``sphere_2g_3reg``: the frozen SN snapshot (Gauss-Legendre 8, 40 cells,
+  pinned bit-exactly by ``tests/gates/sn/regression/test_dd_regression.py``)
+  against the reference at :math:`(n_r, n_\mu) = (36, 96)`, eigenvalue and
+  flux shape, with bounds derived below from both methods' measured ladders.
+- ``cyl_2g_3reg``: a LIVE SN solve at folded 16x32, 40 cells, against the
+  reference at :math:`(n_r, n_{\mu,\rm axial}, n_\varphi) = (24, 16, 32)`. The
+  rows that carry the bound are strict ``xfail`` on #516: the reference's
+  azimuthal error is larger than a tenth of any bound that would verify the
+  SN solve. A RECORD row pins today's readings.
 
-trajectory_resolvent is the **semi-analytical pillar** per
-``vv-principles`` § "The three pillars of verification": SymPy-derived
-operator (V_α1_sphere / V_α1_cyl_mr) + structurally independent
-trajectory + bounce-sum integration via scipy/numpy quadrature. ORPHEUS
-SN is **Branch 2 production code** per ``algebra-of-record`` §
-"Branch 2 — the production discretization". This cross-check is the
-L1 evidence that SN's discrete operator approximates the right
-continuous limit.
+What changed on 2026-09-26 (ERR-090, and two defects of this file):
+
+1. The reference fitted one cubic spline to the emission density across the
+   material interfaces; it now fits one per region. Its eigenvalue moved by
+   up to 2 % (cylinder 1.20693 to 1.23104; sphere 1.35808 to 1.38374 at the
+   old resolutions), and it converges in :math:`n_r`.
+2. The Phase D sphere row compared the reference with a hand-typed
+   :math:`k = 1.3578153` that had been stale since e30d8d14 (2026-05-12, the
+   Phase F snapshot regeneration: the snapshot holds 1.3816447). It agreed at
+   2e-4 only because the defective reference happened to read 1.35808. The SN
+   eigenvalue is now read from the snapshot file.
+3. The Phase E rows evaluated the reference at uniformly spaced cell centres,
+   but the snapshot meshes are equal-volume (sphere) and equal-area (cylinder)
+   (``RegionMesh``'s default since b5e85c2d). The reference is now
+   compared as volume-weighted cell averages over the SN's own cells, read
+   from the mesh that produced the SN flux.
+
+The flux-shape metric changed with item 3. Each profile was normalised to its
+own maximum per group, which discards the ratio between the groups and
+amplifies an error in the maximum's cell. Both profiles are now scaled to unit
+total fission production, one gauge for both groups, so the group ratio is
+part of the claim; the metric is the largest cell-average difference relative
+to the largest reference cell average.
+
+trajectory_resolvent is the **semi-analytical pillar** (``vv-principles``,
+the three pillars): chords integrated with scipy/numpy quadrature along
+characteristics, sharing no project primitive with the SN sweep above the
+trusted-library line. ORPHEUS SN is the production discretisation under test.
 """
 from __future__ import annotations
+
+import functools
 
 import numpy as np
 import pytest
@@ -45,12 +71,33 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function import 
 )
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
-    solve_greens_function_cylinder_mr,
 )
 from orpheus.geometry import (
     BC,
     CoordSystem,
     Mesh1D,
+)
+from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
+    _regionwise_cubic_spline,
+)
+from tests.gates.derivations._trajectory_resolvent_ladders import (
+    CYLINDER_3REG_SN_STEPS,
+    SPHERE_3REG_SN_STEPS,
+    sn_residual,
+    sphere_3reg_reference_bound,
+    tolerance_for,
+)
+from tests.gates.sn.verification.analytical._certified_agreement import (
+    ABA_RADII,
+    CYLINDER_3REG_RECORD,
+    CYLINDER_3REG_RECORD_BAND,
+    CYLINDER_3REG_RECORD_RELATIVE,
+    CYLINDER_3REG_REFERENCE_BOUND,
+    aba_xs_2g,
+    assert_record,
+    awaits_cylinder_bound,
+    certify_agreement,
+    cylinder_3reg_reference,
 )
 
 
@@ -144,97 +191,35 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
     )
 
 
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Gate 4.2 — trajectory_resolvent cross-check (BARE function calls)
 # ═══════════════════════════════════════════════════════════════════════
-#
-# The 5 P0 SN regression snapshots that admit a Variant α reference
-# are compared against the bare trajectory_resolvent solvers below.
-# Snapshot #3 (sphere_2g_p1_aniso) is P1 anisotropic — Variant α is
-# isotropic-only — and is routed to Gate 4.1 (k_∞ closed-form) instead.
-#
-# All 5 snapshots have BC=reflective at r=R, which corresponds to
-# α=1.0 (closed sphere / cylinder) in the Variant α formulation.
-#
-# Comparison metric: k_eff. The flux-shape comparison (once a stretch
-# goal in the plan §"Comparison metric") SHIPPED as Phase E — see
-# ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` below.
-#
-# Tolerances:
-#   - Homogeneous closed (snapshots 1, 4, 5): rtol ≤ 1e-9. The V_α1
-#     algebraic identity (closed sphere) / V_α1_cyl identity (closed
-#     cylinder) gives k_eff = k_∞ = νΣ_f/Σ_a EXACTLY at α=1 with
-#     uniform XS. Both SN and trajectory_resolvent recover k_∞ at
-#     machine precision because the spatial flux is uniform.
-#   - Heterogeneous closed (snapshots 2, 6): rtol ≤ 1.0e-1 (10%).
-#     Both SN and trajectory_resolvent carry discretisation error for
-#     the multi-region eigenmode (non-uniform flux). SN snapshots use
-#     n=40 cells with diamond-difference; trajectory_resolvent uses
-#     n_r=24 single-domain GL + n_traj_quad=64 per-segment. Empirically
-#     the gap is ~7-9% at these resolutions — far above the plan's
-#     suggested 5e-4 relaxation but inside the documented
-#     spatial+quadrature error budgets of both codepaths. The tolerance
-#     pins MAGNITUDE agreement (Variant α did not converge to a wildly
-#     different physics) — not pointwise convergence. See test docstring
-#     for the per-case justification.
-# ═══════════════════════════════════════════════════════════════════════
+
+_THIS = "tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py"
+_REGIONWISE = (
+    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
+    "::test_mr_oracle_first_leg_matches_the_line_integral"
+)
 
 
-# Cumulative outer radii (cm) for the 3-region snapshots: thicknesses
-# (0.5, 1.0, 0.5) → radii = (0.5, 1.5, 2.0). Material layout A | B | A
-# matches `_sphere_3region` / `_cylinder_3region` in the snapshot
-# generator at ``tests/gates/sn/regression/_generate_snapshots.py``.
-_MR_RADII = np.array([0.5, 1.5, 2.0])
-_MR_LAYOUT_ABA_KEYS = ("A", "B", "A")  # mat_id 0/1/0 in the snapshots
+def _snapshot(snapshot_id: str):
+    r"""The frozen SN regression snapshot ``snapshot_id`` (``scalar_flux`` stored ``(ng, nx)``, ``keff``).
 
-
-def _mr_xs_2g():
-    """Build (3-region, 2G) XS tensors for snapshots 2 (sphere) and 6 (cyl)."""
-    parts = [get_xs(k, "2g") for k in _MR_LAYOUT_ABA_KEYS]
-    sigma_t = np.stack([p["sig_t"] for p in parts], axis=0)           # (3, 2)
-    sigma_s = np.stack([p["sig_s"] for p in parts], axis=0)           # (3, 2, 2)
-    nu_sigma_f = np.stack(
-        [p["nu"] * p["sig_f"] for p in parts], axis=0,
-    )                                                                  # (3, 2)
-    chi = np.stack([p["chi"] for p in parts], axis=0)                  # (3, 2)
-    return sigma_t, sigma_s, nu_sigma_f, chi
-
-
-# Reference k_eff values frozen from the snapshots so the test is
-# decoupled from snapshot-file existence on the test machine. The
-# regression test at ``tests/gates/sn/regression/test_dd_regression.py``
-# already pins the SN side to these snapshot values bit-identically.
-_SNAPSHOT_KEFFS = {
-    "sphere_2g_homogeneous_dd_n20":         1.8750000000162512,
-    "sphere_2g_3reg_dd_n40":                1.3578153065932639,
-    # ⛔ Q5.6.4 LANDED (2026-08-11): the ω-partition carve. The Q5.6.3 note
-    # here said all three cylinder rows "move again at Q5.6.4's absorber
-    # retirement". `[M]` only ONE did:
-    #
-    #   cyl_2g_3reg_folded_4x8_dd_n40  1.2302082296342958 -> 1.2310212585879858
-    #                                  (Δ = 8.13e-4, rel 6.6e-4)
-    #
-    # ⚠ And the two that did not are **structurally incapable** of moving,
-    # which matters because a green row here reads as coverage:
-    # `k_eff = 1.5` IS `k_∞ = νΣ_f/Σ_a` for a 1-group HOMOGENEOUS medium —
-    # **flux-shape independent**, hence independent of the angular closure
-    # by construction (`vv-principles` anti-pattern #3: a 1-group
-    # eigenvalue is degenerate). The `…2x4` row's `1.4999999999999996` is
-    # the same number one ULP down. `[M]` corroborated dynamically: their
-    # flux moves 1.14e-10 / 1.07e-11 under a deliberate τ := 0.7 mutation,
-    # against 8.78e-02 for the 2G 3-region row.
-    #
-    # ⟹ of these three, ONLY the 2G 3-region row is a cylinder
-    # angular-closure catcher. Do not cite the homogeneous rows as τ or
-    # partition coverage.
-    "cyl_1g_homogeneous_folded_4x8_dd_n20": 1.5,
-    "cyl_1g_homogeneous_folded_2x4_dd_n20": 1.4999999999999996,
-    "cyl_2g_3reg_folded_4x8_dd_n40":        1.2310212585879858,
-}
+    The SN side of a snapshot row is READ from the file that
+    ``test_dd_regression`` pins, never typed here: a hand-typed copy of the
+    sphere eigenvalue went stale for four months (see the module docstring).
+    """
+    from tests.gates.sn._test_helpers import SN_TESTS_ROOT
+    path = SN_TESTS_ROOT / "regression" / "snapshots" / f"{snapshot_id}.npz"
+    if not path.exists():
+        pytest.skip(f"snapshot {snapshot_id!r} not present at {path}")
+    return np.load(path)
 
 
 def _run_sphere_2g_homogeneous_closed() -> float:
-    """Bare ``solve_greens_function_sphere_mg`` for snapshot 1."""
+    """Bare ``solve_greens_function_sphere_mg``, uniform A, R = 2 cm."""
     A2 = get_xs("A", "2g")
     res = solve_greens_function_sphere_mg(
         R=2.0,
@@ -249,25 +234,8 @@ def _run_sphere_2g_homogeneous_closed() -> float:
     return float(res.k_eff)
 
 
-def _run_sphere_2g_3reg_closed() -> float:
-    """Bare ``solve_greens_function_sphere_mr`` for snapshot 2."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
-    res = solve_greens_function_sphere_mr(
-        radii=_MR_RADII,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        chi=chi,
-        alpha=1.0,                                    # closed sphere
-        n_r=24, n_mu=24, n_traj_quad=64,
-        max_iter=500, tol=1e-7,
-        initial_k=1.36,
-    )
-    return float(res.k_eff)
-
-
 def _run_cyl_1g_homogeneous_closed() -> float:
-    """Bare ``solve_greens_function_cylinder`` for snapshots 4 / 5."""
+    """Bare ``solve_greens_function_cylinder``, uniform A, R = 2 cm."""
     A1 = get_xs("A", "1g")
     res = solve_greens_function_cylinder(
         R=2.0,
@@ -281,64 +249,21 @@ def _run_cyl_1g_homogeneous_closed() -> float:
     return float(res.k_eff)
 
 
-def _run_cyl_2g_3reg_closed() -> float:
-    """Bare ``solve_greens_function_cylinder_mr`` for snapshot 6."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
-    res = solve_greens_function_cylinder_mr(
-        radii=_MR_RADII,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        chi=chi,
-        alpha=1.0,                                    # closed cylinder
-        n_r=24, n_mu_axial=16, n_phi_az=32, n_traj_quad=64,
-        max_iter=500, tol=1e-7,
-        initial_k=1.23,
-    )
-    return float(res.k_eff)
-
-
-# (snapshot_id, runner, rtol, rationale) — each parametrised case is
-# one row from the plan §1 coverage matrix.
-_GATE_4_2_CASES: tuple[tuple[str, callable, float, str], ...] = (
+# (snapshot_id, runner, rtol, rationale): the homogeneous edge rows. On a
+# uniform reflective medium k = k_inf = νΣ_f/Σ_a exactly for both methods
+# (V_α1 / V_α1_cyl, derive_T00_equals_P_ss_sphere in the SymPy origins), so
+# rtol 1e-9 is the two iterations' floor with headroom.
+_GATE_4_2_CASES: tuple[tuple[str, object, float, str], ...] = (
     (
         "sphere_2g_homogeneous_dd_n20",
         _run_sphere_2g_homogeneous_closed,
         1e-9,
-        # V_α1 closed-sphere identity: at α=1 with uniform XS, the
-        # operator's only rank-1 isotropic eigenmode has k = k_∞ =
-        # νΣ_f/Σ_a EXACTLY by algebra (see derive_T00_equals_P_ss_sphere
-        # in the SymPy origins). Both SN and Variant α reproduce
-        # k_∞ to machine precision; rtol ≤ 1e-9 is conservative.
         "V_α1 algebraic identity — k=k_∞ exact",
-    ),
-    (
-        "sphere_2g_3reg_dd_n40",
-        _run_sphere_2g_3reg_closed,
-        # Phase E composite per-region GL correction
-        # (2026-05-12, commit landing now): pre-Phase-E this case used
-        # ``rtol ≤ 1e-1`` because single-domain GL on (0, R) produced a
-        # ~7% gap (the eigenvalue oscillated non-monotonically under
-        # refinement — the GL polynomial fit smeared the Σ_t interface
-        # kinks).  Composite per-region GL drops the gap to ~2e-4 at
-        # the production quadrature (n_r=24, n_traj_quad=64); see
-        # ``_composite_per_region_gl`` in
-        # ``orpheus.derivations.continuous.trajectory_resolvent.greens_function``.
-        # The empirical floor at this quadrature is ~1.4e-2 across
-        # refinements {24, 36, 48}; ``rtol ≤ 2e-2`` is a 30% headroom
-        # over that floor while ruling out any > 2% regression in
-        # SN-vs-Variant-α agreement.
-        2.0e-2,
-        "MR closed sphere — composite-GL post-Phase-E (was 1e-1)",
     ),
     (
         "cyl_1g_homogeneous_folded_4x8_dd_n20",
         _run_cyl_1g_homogeneous_closed,
         1e-9,
-        # V_α1_cyl closed-cylinder identity: at α=1 with uniform XS,
-        # k = k_∞ = νΣ_f/Σ_a EXACTLY. The folded 4x8 and 2x4 splits
-        # give identical k_∞ in the snapshot because k_∞ is
-        # flux-shape independent on uniform reflective.
         "V_α1_cyl algebraic identity — k=k_∞ exact",
     ),
     (
@@ -346,22 +271,6 @@ _GATE_4_2_CASES: tuple[tuple[str, callable, float, str], ...] = (
         _run_cyl_1g_homogeneous_closed,
         1e-9,
         "V_α1_cyl algebraic identity — k=k_∞ exact (folded 2x4 split)",
-    ),
-    (
-        "cyl_2g_3reg_folded_4x8_dd_n40",
-        _run_cyl_2g_3reg_closed,
-        # Phase E composite per-region GL correction (cylinder analog
-        # of snapshot 2's tightening).  Pre-Phase-E gap was ~8.7%
-        # (single-domain GL).  Post-Phase-E empirical gap is ~1.75e-2
-        # at production quadrature; ``rtol ≤ 3e-2`` is 70% headroom
-        # over that floor.  Cylinder phase space (axial + azimuthal
-        # + radial) has more quadrature degrees of freedom than sphere,
-        # so the residual gap is wider; the rtol relaxation reflects
-        # that the cylinder-MR Variant α convergence floor is set by
-        # axial / azimuthal quadrature error, not by the radial
-        # composite-GL fix.
-        3.0e-2,
-        "MR closed cylinder — composite-GL post-Phase-E (was 1e-1)",
     ),
 )
 
@@ -377,74 +286,16 @@ _GATE_4_2_CASES: tuple[tuple[str, callable, float, str], ...] = (
 def test_phase_d_trajectory_resolvent_crosscheck(
     snapshot_id, runner, rtol, rationale,
 ) -> None:
-    r"""Gate 4.2 — SN snapshot k_eff vs trajectory_resolvent Variant α.
+    r"""Gate 4.2, the edge rows: SN snapshot k against the trajectory resolvent on a homogeneous medium.
 
-    Issue #168 Phase D Step 4b. Parametrised over the 5 P0 regression
-    snapshots that admit a Variant α reference. Snapshot #3
-    (``sphere_2g_p1_aniso``) is P1 anisotropic and routes to Gate 4.1
-    instead — Variant α handles isotropic scattering only.
-
-    Per-snapshot rationale:
-
-    * ``sphere_2g_homogeneous_dd_n20`` — V_α1 closed-sphere identity.
-      At α=1 with uniform XS the dominant rank-1 isotropic eigenmode
-      gives k=k_∞=νΣ_f/Σ_a algebraically (proven in
-      :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`).
-      Both SN (`solve_sn` with reflective BC) and Variant α
-      (`solve_greens_function_sphere_mg` at α=1) reproduce k_∞ to
-      machine precision. ``rtol ≤ 1e-9``.
-
-    * ``sphere_2g_3reg_dd_n40`` — heterogeneous closed sphere with
-      fuel-A | moderator-B | fuel-A regions (radii 0.5, 1.5, 2.0 cm).
-      The eigenmode is NOT flat. **Phase E (2026-05-12) shipped the
-      composite per-region GL correction** in
-      :mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function`:
-      the radial quadrature for the MR Variant α now places GL nodes
-      within each region's interior independently, fixing the non-
-      monotone-under-refinement behaviour the pre-Phase-E single-domain
-      GL produced (the polynomial fit smeared the Σ_t interface kinks).
-      Empirical gap at production quadrature (n_r=24, n_traj_quad=64)
-      dropped from ~7% pre-Phase-E to ~2e-4 post-Phase-E. Tolerance
-      tightened from ``rtol ≤ 1e-1`` to ``rtol ≤ 2e-2`` — covers the
-      ~1.4e-2 worst-case across refinements {24, 36, 48} while still
-      ruling out > 2% SN-vs-Variant-α drift.
-
-    * ``cyl_1g_homogeneous_folded_4x8_dd_n20`` and
-      ``cyl_1g_homogeneous_folded_2x4_dd_n20`` — V_α1_cyl closed-cylinder
-      identity. k_∞ is quadrature-split-independent on the SN side
-      (snapshots 4 and 5 store k = 1.5 identically). Variant α
-      `solve_greens_function_cylinder` at α=1 with uniform XS
-      reproduces k_∞ at machine precision. ``rtol ≤ 1e-9``.
-
-    * ``cyl_2g_3reg_folded_4x8_dd_n40`` — heterogeneous closed cylinder
-      analogue of snapshot 2. Phase E composite per-region GL drops
-      the empirical gap from ~9% pre-Phase-E to ~1.75e-2 post-Phase-E.
-      Tolerance tightened from ``rtol ≤ 1e-1`` to ``rtol ≤ 3e-2``.
-      The residual gap is the cylinder phase-space's axial / azimuthal
-      quadrature floor (not the radial composite-GL fix); tightening
-      further requires refined cylinder angular quadrature.
-
-    The L1 evidence this test produces: SN's discrete operator converges
-    to the same continuum limit as trajectory_resolvent for cases where
-    a closed-form (V_α1 / V_α1_cyl) eigenvalue is known
-    (machine precision); and remains in MAGNITUDE agreement for cases
-    where no closed-form exists (multi-region heterogeneous closed
-    cases, with documented error budgets on both sides).
-
-    Structural-independence chain (per
-    :ref:`vv-principles` §"The three pillars of verification"):
-    trajectory_resolvent is the **semi-analytical pillar** —
-    SymPy-derived operator + scipy/numpy quadrature evaluation. ORPHEUS
-    SN is **Branch 2 production code**. The two share no project-internal
-    primitive above the trusted-library line: SN uses `numpy.einsum` +
-    diamond-difference sweeps; trajectory_resolvent uses
-    `np.polynomial.legendre.leggauss` + cubic-spline source
-    interpolation. Both call scipy / numpy primitives below the
-    trusted-library line (allowed per
-    :ref:`algebra-of-record` §"Structural independence applies above
-    the trusted-library line").
+    Both sides must return :math:`k_\infty` of the uniform medium; the
+    reference does so by the V_α1 / V_α1_cyl identities
+    (:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`).
+    These rows are 1-group or homogeneous and so blind to every spatial and
+    angular operator (``vv-principles`` anti-pattern #3); they are the
+    foundation the heterogeneous rows below rest on, not evidence about them.
     """
-    expected_keff = _SNAPSHOT_KEFFS[snapshot_id]
+    expected_keff = float(_snapshot(snapshot_id)["keff"])
     k_ref = runner()
     rel = abs(k_ref - expected_keff) / expected_keff
     print(
@@ -461,252 +312,295 @@ def test_phase_d_trajectory_resolvent_crosscheck(
 
 
 # ════════════════════════════════════════════════════════════════════════
-# Phase E flux-shape cross-check — heterogeneous MR snapshots
+# The heterogeneous rows — eigenvalue and flux shape
 # ════════════════════════════════════════════════════════════════════════
 #
-# The Phase D Step 4b Gate 4.2 (above) compares k_eff only.  Phase E
-# (2026-05-12, Issue #168 Phase D follow-up) ships the composite per-
-# region GL correction in trajectory_resolvent's MR solvers AND
-# extends Gate 4.2 with flux-shape comparison on the heterogeneous
-# snapshots (2 and 6) — the configurations where the eigenmode is
-# non-flat and the shape carries non-trivial physics (fuel peak,
-# moderator dip).
-#
-# Snapshots 1, 4, 5 (homogeneous closed) have flat eigenmode by
-# k_∞ algebra; flux-shape would just verify ``flat = flat`` and
-# adds no L1 evidence beyond the k_eff agreement at machine precision.
-# Snapshot 3 is P1 anisotropic and routes to Gate 4.1.
-#
-# Method:
-#   1. Run the Variant α MR solver (post-Phase-E composite GL) and
-#      retain phi_g(r_nodes), the per-group scalar flux on the
-#      composite GL nodes (now strictly within each region's interior).
-#   2. Load the SN regression snapshot's scalar_flux at the SN cell
-#      centres (uniform 0.05 cm spacing in each region's interior).
-#   3. Interpolate phi_g onto the SN cell centres via cubic spline
-#      (per-region splines on the composite nodes — the same
-#      interpolation strategy ``test_mr_interface_continuity_3region``
-#      uses).
-#   4. Normalise both profiles to L∞=1 per group (the eigenvalue
-#      problem fixes shape up to a scalar; normalising removes the
-#      magnitude degree-of-freedom).
-#   5. Compute per-cell max-abs-rel-diff per group; assert under
-#      tolerance.
-#
-# Tolerance design:
-#   * Empirical post-Phase-E gap at production quadrature is ~1.4-2%
-#     on sphere k_eff and ~1.75% on cylinder k_eff.  Flux-shape is a
-#     more sensitive metric (one number per cell vs one scalar
-#     eigenvalue), so the tolerance is relaxed: 8% sphere, 12%
-#     cylinder.  These bounds rule out gross shape regressions while
-#     accommodating the spline-extrapolation error at material
-#     interfaces (composite GL nodes lie strictly inside each region
-#     — extrapolation to boundaries is less accurate than single-
-#     domain GL was, but interior accuracy is dramatically better).
+# The observable of the shape rows is the scalar flux as CELL AVERAGES over
+# the SN solve's own cells (the mesh object that produced the SN flux), with
+# both profiles scaled to unit total fission production. The reference is a
+# nodal field on composite per-region Gauss-Legendre nodes; its cell average
+# is the volume-weighted integral of a per-region cubic spline through those
+# nodes (the flux is continuous across an interface but its derivative is
+# not, so the interpolant is per region, as the reference's own emission
 
 
-def _mr_sn_cell_centers_n40() -> np.ndarray:
-    r"""SN cell centres for the n=40 MR snapshots (uniform 0.05 cm).
+def _reference_cell_averages(result, mesh: Mesh1D) -> np.ndarray:
+    r"""The reference's scalar flux averaged over each SN cell, ``(G, N)``.
 
-    The ``_sphere_3region`` and ``_cylinder_3region`` generators in
-    ``tests/gates/sn/regression/_generate_snapshots.py`` use
-    ``n_per_region = (10, 20, 10)`` with region thicknesses
-    (0.5, 1.0, 0.5) cm → uniform spacing 0.05 cm in every region's
-    interior.  Cell centres: 0.025, 0.075, …, 1.975.
+    :math:`\bar\phi_{g,i} = \int_{r_i}^{r_{i+1}} \phi_g(r)\, r^p\,dr \big/
+    \int_{r_i}^{r_{i+1}} r^p\,dr` with :math:`p = 2` (sphere) or 1 (cylinder),
+    by 16-point Gauss-Legendre per cell on the reference's regionwise cubic
+    spline (the one the reference reads its own emission density through).
+    Each SN cell lies in one region (the region meshes are built per region).
     """
-    centers = []
-    for n, a, b in [(10, 0.0, 0.5), (20, 0.5, 1.5), (10, 1.5, 2.0)]:
-        dr = (b - a) / n
-        centers.extend(a + (i + 0.5) * dr for i in range(n))
-    return np.asarray(centers)
+    p = 2 if mesh.coord is CoordSystem.SPHERICAL else 1
+    x, w = np.polynomial.legendre.leggauss(16)
+    edges = np.asarray(mesh.edges, dtype=float)
+    region_of_cell = np.searchsorted(ABA_RADII, 0.5 * (edges[1:] + edges[:-1]))
+    phi = np.asarray(result.phi_g, dtype=float)
+    averages = np.empty((phi.shape[0], len(edges) - 1))
+    for g in range(phi.shape[0]):
+        pieces = _regionwise_cubic_spline(result.r_nodes, phi[g], result.region_at_node, len(ABA_RADII))
+        for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
+            r = 0.5 * (b - a) * (x + 1.0) + a
+            weight = 0.5 * (b - a) * w * r**p
+            averages[g, i] = np.sum(weight * pieces[region_of_cell[i]](r)) / np.sum(weight)
+    return averages
 
 
-def _interpolate_per_region(
-    r_nodes: np.ndarray, phi_at_nodes: np.ndarray,
-    region_at_node: np.ndarray, target_r: np.ndarray,
-    radii_outer: tuple[float, ...] = (0.5, 1.5, 2.0),
-) -> np.ndarray:
-    r"""Interpolate ``phi_at_nodes`` onto ``target_r`` per-region.
+def _fission_gauged(phi: np.ndarray, mesh: Mesh1D) -> np.ndarray:
+    r"""``phi`` ``(G, N)`` scaled so that :math:`\sum_{g,i} \nu\Sigma_{f,g,i}\,\phi_{g,i} V_i = 1`."""
+    centres = 0.5 * (np.asarray(mesh.edges)[1:] + np.asarray(mesh.edges)[:-1])
+    nu_sigma_f = aba_xs_2g()[2][np.searchsorted(ABA_RADII, centres)].T  # (G, N)
+    production = float(np.sum(nu_sigma_f * phi * np.asarray(mesh.volumes)))
+    return phi / production
 
-    Builds a cubic spline on each region's GL nodes (the composite
-    quadrature stays strictly inside each region's interior) and
-    evaluates at the SN cell centres.  Region membership for the
-    target points is decided by ``radii_outer``.
+
+def _shape_gap(phi_sn: np.ndarray, reference_result, mesh: Mesh1D) -> np.ndarray:
+    r"""Per group: :math:`\max_i |\hat\phi^{\rm SN}_{g,i} - \hat\phi^{\rm ref}_{g,i}| / \max_{g,i} \hat\phi^{\rm ref}_{g,i}`, fission-gauged cell averages."""
+    sn = _fission_gauged(np.asarray(phi_sn, dtype=float), mesh)
+    ref = _fission_gauged(_reference_cell_averages(reference_result, mesh), mesh)
+    return np.max(np.abs(sn - ref), axis=1) / float(np.max(ref))
+
+
+@functools.cache
+def _sphere_3reg_reference():
+    """The sphere reference at (n_r, n_mu) = (36, 96), solved once per session."""
+    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
+    return solve_greens_function_sphere_mr(
+        radii=ABA_RADII, sigma_t=sigma_t, sigma_s=sigma_s,
+        nu_sigma_f=nu_sigma_f, chi=chi, alpha=1.0,
+        n_r=36, n_mu=96, n_traj_quad=64,
+        max_iter=2000, tol=1e-9, initial_k=1.38,
+    )
+
+
+@functools.cache
+def _cylinder_3reg_sn_16x32():
+    r"""A live SN solve of the snapshot's cylinder problem at folded 16x32: ``(k, phi (G, N), mesh)``.
+
+    The problem is ``cyl_2g_3reg_folded_4x8_dd_n40``'s (same materials, same
+    40-cell equal-area mesh) with the angular grid refined from 4x8 to 16x32
+    and the inner budget raised so the inner iteration converges (the
+    snapshot's own 300 exits best-effort). The 4x8 snapshot stays pinned
+    bit-exactly by ``test_dd_regression``, whose τ sensitivity (8.8e-2 in the
+    flux under ``tau := 0.7``) makes it the cylinder angular-closure
+    catcher; at 4x8 the SN solve's own angular error in this metric is about
+    0.13, larger than any bound this comparison can certify, so the
+    cross-check is posed where SN is angularly resolved.
     """
-    from scipy.interpolate import CubicSpline
-    out = np.zeros_like(target_r)
-    radii_inner = (0.0,) + radii_outer[:-1]
-    for k, (a, b) in enumerate(zip(radii_inner, radii_outer)):
-        node_mask = region_at_node == k
-        cell_mask = (target_r >= a) & (target_r < b)
-        # Outermost region: include r = b (the outer surface).
-        if k == len(radii_outer) - 1:
-            cell_mask = (target_r >= a) & (target_r <= b)
-        if node_mask.sum() < 2 or cell_mask.sum() == 0:
-            continue
-        spl = CubicSpline(
-            r_nodes[node_mask], phi_at_nodes[node_mask], extrapolate=True,
-        )
-        out[cell_mask] = spl(target_r[cell_mask])
-    return out
-
-
-def _run_sphere_2g_3reg_full() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    r"""Bare sphere MR Variant α — returns (r_nodes, phi_g, region_at_node)."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
-    res = solve_greens_function_sphere_mr(
-        radii=_MR_RADII,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        chi=chi,
-        alpha=1.0,
-        n_r=24, n_mu=24, n_traj_quad=64,
-        max_iter=500, tol=1e-7,
-        initial_k=1.36,
+    from orpheus.numerics.quadrature import Quadrature
+    from tests.gates.sn.regression import _generate_snapshots as generator
+    config = {
+        **generator._cylinder_3region("2g", 40, "folded_4x8"),
+        "quadrature": Quadrature.folded_product(n_mu=16, n_phi=32),
+        "max_inner": 2000,
+    }
+    result = generator.run_case(config)
+    return (
+        float(result.outcome.keff),
+        np.asarray(result.scalar_flux.values, dtype=float),
+        config["mesh"],
     )
-    return res.r_nodes, res.phi_g, res.region_at_node
 
 
-def _run_cyl_2g_3reg_full() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    r"""Bare cylinder MR Variant α — returns (r_nodes, phi_g, region_at_node)."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _mr_xs_2g()
-    res = solve_greens_function_cylinder_mr(
-        radii=_MR_RADII,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        chi=chi,
-        alpha=1.0,
-        n_r=24, n_mu_axial=16, n_phi_az=32, n_traj_quad=64,
-        max_iter=500, tol=1e-7,
-        initial_k=1.23,
-    )
-    return res.r_nodes, res.phi_g, res.region_at_node
+@functools.cache
+def _sphere_3reg_sn_gl32():
+    r"""A live SN solve of the snapshot's sphere problem at Gauss-Legendre 32: ``(k, phi (G, N), mesh)``.
 
-
-def _load_snapshot_scalar_flux(snapshot_id: str) -> np.ndarray:
-    r"""Load ``scalar_flux`` array from a regression snapshot npz.
-
-    Returns shape ``(nx, ng)``.
-    Issue #196 PR-INDEX-5: snapshots are stored in principled
-    ``(ng, *spatial)`` layout; transpose to recover the legacy
-    ``(nx, ng)`` view this consumer expects.
+    ``sphere_2g_3reg_dd_n40``'s problem (same materials, same 40-cell
+    equal-volume mesh) with 32 ordinates instead of 8 and an inner budget
+    the inner iteration converges within. The 8-ordinate snapshot stays
+    pinned bit-exactly by ``test_dd_regression``; its own angular error in
+    the shape metric (1.3e-2) would consume a bound this comparison can
+    otherwise certify ten times tighter.
     """
-    from tests.gates.sn._test_helpers import SN_TESTS_ROOT
-    snap = (
-        SN_TESTS_ROOT / "regression" / "snapshots" / f"{snapshot_id}.npz"
+    from orpheus.numerics.quadrature import Quadrature
+    from tests.gates.sn.regression import _generate_snapshots as generator
+    config = {
+        **generator._sphere_3region("2g", 40),
+        "quadrature": Quadrature.gauss_legendre(n_ordinates=32),
+        "max_inner": 2000,
+    }
+    result = generator.run_case(config)
+    return (
+        float(result.outcome.keff),
+        np.asarray(result.scalar_flux.values, dtype=float),
+        config["mesh"],
     )
-    if not snap.exists():
-        pytest.skip(f"snapshot {snapshot_id!r} not present at {snap}")
-    # Stored shape: (ng, nx); transpose to (nx, ng).
-    return np.load(snap)["scalar_flux"].T  # (nx, ng)
 
 
-_GATE_4_2_FLUX_SHAPE_CASES: tuple[
-    tuple[str, "callable[[], tuple[np.ndarray, np.ndarray, np.ndarray]]",
-          float, str],
-    ...,
-] = (
-    (
-        "sphere_2g_3reg_dd_n40",
-        _run_sphere_2g_3reg_full,
-        # Empirical post-Phase-E per-cell max-abs-rel-diff is in the
-        # few-percent range; 8% bound is comfortable headroom while
-        # ruling out > 8% shape regressions.
-        8.0e-2,
-        "MR closed sphere flux shape — composite-GL post-Phase-E",
-    ),
-    (
-        "cyl_2g_3reg_folded_4x8_dd_n40",
-        _run_cyl_2g_3reg_full,
-        # Cylinder phase-space carries additional quadrature error
-        # (axial + azimuthal); 12% bound accommodates that floor.
-        1.2e-1,
-        "MR closed cylinder flux shape — composite-GL post-Phase-E",
-    ),
+
+
+# ── the sphere: certified ─────────────────────────────────────────────────
+#
+# Bounds and tolerances are COMPUTED from the ladders in
+# tests/gates/derivations/_trajectory_resolvent_ladders.py (which also holds
+# the command that re-measures each): the reference's bound at (36, 96) is its
+# radial step extrapolated at the measured second order plus its alternating
+# mu step; the SN residual is the sum of its mesh and angular steps; the
+# tolerance is tolerance_for(SN residual, reference bound). [M] 2026-09-26:
+# reference bound 3.2e-4 (k) and 1.4e-3 (shape); SN residual 1.5e-5 (k) and
+# 7.3e-3 (shape); tolerances 4e-3 and 2e-2.
+_SPHERE_REFERENCE_BOUND = sphere_3reg_reference_bound()
+_SPHERE_TOLERANCE = {
+    observable: tolerance_for(sn_residual(SPHERE_3REG_SN_STEPS[observable]), _SPHERE_REFERENCE_BOUND[observable])
+    for observable in ("k", "shape")
+}
+
+_SPHERE_SUPPORTS = (
+    f"{_REGIONWISE}[sphere]",
+    "tests/gates/derivations/test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r",
+    f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_homogeneous_dd_n20]",
+    f"{_THIS}::test_sn_spherical_homogeneous_kinf_recovery_2g",
 )
 
 
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
-@pytest.mark.parametrize(
-    "snapshot_id, runner_full, tol_per_cell, rationale",
-    _GATE_4_2_FLUX_SHAPE_CASES,
-    ids=[case[0] for case in _GATE_4_2_FLUX_SHAPE_CASES],
-)
-def test_phase_e_trajectory_resolvent_flux_shape_crosscheck(
-    snapshot_id, runner_full, tol_per_cell, rationale,
-) -> None:
-    r"""Phase E flux-shape extension of Gate 4.2 — heterogeneous MR only.
+@pytest.mark.rests_on(*_SPHERE_SUPPORTS)
+def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
+    r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the reference at (36, 96).
 
-    Issue #168 Phase D Step 4b extension (2026-05-12).  The k_eff
-    parametrised test above compares scalar eigenvalues; this one
-    extends to **flux-profile shape comparison** on the heterogeneous
-    closed MR snapshots (2 sphere + 6 cylinder).
+    Fuel A | moderator B | fuel A at 0.5, 1.5, 2.0 cm, 2 groups, reflective
+    at r = R. The bound, derived above (:data:`_SPHERE_TOLERANCE`), is the
+    reference's: 4e-3 against the SN solve's own residual of 1.5e-5.
+    ``[M]`` reading 6.5e-5; the one-spline reference (ERR-090) reads 7.9e-3.
 
-    Why heterogeneous-only:
+    Blind to the SN angular-closure defect class: ``tau := 0.7`` reads 8.7e-4
+    here, inside the reference-limited bound; that defect's catcher is
+    ``tests/gates/sn/regression/test_dd_regression.py``. The SN-defect
+    witness of this row is a wrong boundary law (the reflective face realised
+    as vacuum reads 2.6e1).
 
-    The homogeneous closed snapshots (1, 4, 5) have a flat eigenmode
-    by k_∞ algebra (the rank-1 isotropic eigenvector is shape-
-    independent on uniform reflective).  Flux-shape comparison on
-    those reduces to ``flat = flat`` and adds no L1 evidence beyond
-    the k_eff agreement at machine precision.
-
-    Method:
-
-    1. Run the Variant α MR solver (post-Phase-E composite per-region
-       GL) and retrieve ``r_nodes``, ``phi_g``, ``region_at_node``.
-    2. Load the SN regression snapshot's ``scalar_flux`` array on the
-       n=40 cell-centred grid.
-    3. Interpolate ``phi_g`` onto the SN cell centres using PER-REGION
-       cubic splines (composite GL nodes lie strictly inside each
-       region's interior — the same per-region spline strategy used
-       by ``test_mr_interface_continuity_3region``).
-    4. Normalise both profiles to L∞=1 per group (the eigenvalue
-       problem fixes shape up to a scalar).
-    5. Compute per-cell max-abs-rel-diff per group; assert under
-       ``tol_per_cell``.
-
-    Phase E shipped the composite per-region GL correction to fix the
-    pre-Phase-E single-domain GL's non-monotone k_eff convergence
-    under refinement on heterogeneous closed MR.  The fix also
-    materially improves flux-profile accuracy inside each region;
-    this test pins the resulting shape agreement.
+    Until 2026-09-26 this row compared the reference at (24, 24) with a
+    hand-typed k four months stale (1.3578153, against the snapshot's
+    1.3816447) and read 2e-4 under a 2e-2 bound: the stale number and the
+    one-spline reference had drifted to the same value.
     """
-    r_nodes, phi_g, region_at_node = runner_full()
-    scalar_flux = _load_snapshot_scalar_flux(snapshot_id)  # (nx, ng)
-    nx, ng = scalar_flux.shape
-    cell_centers = _mr_sn_cell_centers_n40()
-    assert nx == len(cell_centers), (
-        f"snapshot nx={nx} disagrees with locally-built "
-        f"cell_centers (got {len(cell_centers)}); update "
-        f"_mr_sn_cell_centers_n40 if the snapshot mesh changed."
-    )
+    k_sn, _, _ = _sphere_3reg_sn_gl32()
+    k_ref = float(_sphere_3reg_reference().k_eff)
+    reading = abs(k_ref - k_sn) / k_sn
+    print(f"sphere 3-region: k_sn={k_sn:.8f} k_ref={k_ref:.8f} rel={reading:.3e}")
+    certify_agreement("sphere k", reading, _SPHERE_TOLERANCE["k"], _SPHERE_REFERENCE_BOUND["k"]).require()
 
-    per_group_max_diff: list[float] = []
-    for g in range(ng):
-        phi_resolv = _interpolate_per_region(
-            r_nodes, phi_g[g, :], region_at_node, cell_centers,
-        )
-        phi_sn = scalar_flux[:, g]
-        # L∞ normalisation per group (eigenvector scale freedom).
-        sn_norm = phi_sn / float(np.max(np.abs(phi_sn)))
-        rv_norm = phi_resolv / float(np.max(np.abs(phi_resolv)))
-        diff = np.abs(sn_norm - rv_norm)
-        per_group_max_diff.append(float(np.max(diff)))
 
-    overall_max = max(per_group_max_diff)
-    print(
-        f"{snapshot_id}: per-group max |Δφ_norm| = "
-        f"{per_group_max_diff}; overall = {overall_max:.3e}; "
-        f"target = {tol_per_cell:.0e}  ({rationale})"
-    )
-    assert overall_max < tol_per_cell, (
-        f"Phase E flux-shape cross-check for {snapshot_id!r} "
-        f"exceeded tolerance: per-group max |Δφ_norm| = "
-        f"{per_group_max_diff}, overall max = {overall_max:.3e}, "
-        f"target tol_per_cell = {tol_per_cell:.0e}.  "
-        f"Rationale: {rationale}"
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.rests_on(*_SPHERE_SUPPORTS)
+def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
+    r"""The heterogeneous closed sphere's flux shape, fission-gauged cell averages over the SN mesh.
+
+    Activates the spatial and angular redistribution in both groups and the
+    group ratio (one gauge for both groups); the material interfaces are
+    inside the comparison. Bound 2e-2 (derived above), set by the
+    reference's 1.4e-3 and the SN solve's own 7.3e-3. ``[M]`` reading
+    4.4e-3 (fast) / 1.7e-3 (thermal). Blind to ``tau := 0.7`` (1.0e-2) like
+    the eigenvalue row; red under the vacuum-for-reflective law (6.1) and a
+    1 % perturbation of the reference's moderator density (7.2e-2), green
+    under the one-spline reference (7.6e-3).
+    """
+    _, phi_sn, mesh = _sphere_3reg_sn_gl32()
+    gap = _shape_gap(phi_sn, _sphere_3reg_reference(), mesh)
+    print(f"sphere 3-region shape gap per group: {gap}")
+    certify_agreement(
+        "sphere flux shape", float(gap.max()), _SPHERE_TOLERANCE["shape"], _SPHERE_REFERENCE_BOUND["shape"],
+    ).require()
+
+
+# ── the cylinder: not yet certifiable (#516) ─────────────────────────────
+#
+# The tolerances the cylinder rows are held to once the reference is
+# certified: tolerance_for(SN residual, None), the reference assumed at the
+# floor. [M] SN residual at folded 16x32, 40 cells: 3.0e-5 (k), 5.0e-3
+# (shape); tolerances 8e-5 and 2e-2. The reference carries no bound
+# (_certified_agreement.CYLINDER_3REG_REFERENCE_BOUND), so the floor fails.
+_CYLINDER_TOLERANCE = {
+    observable: tolerance_for(sn_residual(CYLINDER_3REG_SN_STEPS[observable]), None)
+    for observable in ("k", "shape")
+}
+
+_CYLINDER_SUPPORTS = (
+    f"{_REGIONWISE}[cylinder]",
+    f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[cyl_1g_homogeneous_folded_4x8_dd_n20]",
+    "tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py::test_mr_K3_uniform_reduces_to_mg_2g",
+    "tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py::test_mr_single_region_vacuum_matches_wm72",
+)
+
+
+def _cylinder_readings() -> dict[str, float]:
+    """Today's cylinder readings, keyed as :data:`CYLINDER_3REG_RECORD` keys them."""
+    k_sn, phi_sn, mesh = _cylinder_3reg_sn_16x32()
+    reference = cylinder_3reg_reference()
+    gap = _shape_gap(phi_sn, reference, mesh)
+    return {
+        "k_ref": float(reference.k_eff),
+        "phase_c_k_sn": k_sn,
+        "phase_c_k_gap": abs(float(reference.k_eff) - k_sn) / k_sn,
+        "phase_c_shape_fast": float(gap[0]),
+        "phase_c_shape_thermal": float(gap[1]),
+    }
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
+@awaits_cylinder_bound
+def test_cylinder_3reg_k_against_trajectory_resolvent() -> None:
+    r"""The heterogeneous closed cylinder's eigenvalue: live SN at folded 16x32 against the reference at (24, 16, 32).
+
+    Held to 8e-5 (derived above), which needs a reference bound of at most
+    8e-6. The cylinder reference carries none (its ladder is not monotone in
+    the azimuthal order), so the floor fails first: the expected failure.
+    The row XPASSes when a bound derived from a converging ladder replaces
+    ``CYLINDER_3REG_REFERENCE_BOUND["k"]`` (after #516), not when a repair
+    alone lands; the RECORD row below keeps the reading live meanwhile.
+    """
+    readings = _cylinder_readings()
+    print(f"cylinder 3-region k: {readings}")
+    certify_agreement(
+        "cylinder k", readings["phase_c_k_gap"], _CYLINDER_TOLERANCE["k"], CYLINDER_3REG_REFERENCE_BOUND["k"],
+    ).require()
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
+@awaits_cylinder_bound
+def test_cylinder_3reg_flux_shape_against_trajectory_resolvent() -> None:
+    r"""The heterogeneous closed cylinder's flux shape, fission-gauged cell averages over the SN mesh.
+
+    Re-posed on 2026-09-26 from the 4x8 snapshot onto a live 16x32 solve: at
+    4x8 SN's own angular error in this metric is 6.1e-2, which no comparison
+    can separate from a defect; the snapshot keeps its job in
+    ``test_dd_regression``. Held to 2e-2 (derived above); the expected
+    failure is the eigenvalue row's.
+    """
+    readings = _cylinder_readings()
+    print(f"cylinder 3-region shape: {readings}")
+    certify_agreement(
+        "cylinder flux shape", max(readings["phase_c_shape_fast"], readings["phase_c_shape_thermal"]),
+        _CYLINDER_TOLERANCE["shape"], CYLINDER_3REG_REFERENCE_BOUND["shape"],
+    ).require()
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
+def test_cylinder_3reg_crosscheck_record() -> None:
+    r"""RECORD: today's cylinder readings, green until either side moves.
+
+    Not verification. Red under ``tau := 0.7`` (the SN k moves 7.8e-4), the
+    vacuum-for-reflective law, the one-spline reference and a 1 % reference
+    perturbation.
+    """
+    readings = _cylinder_readings()
+    print(f"cylinder 3-region readings: {readings}")
+    assert_record(
+        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
+        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
     )

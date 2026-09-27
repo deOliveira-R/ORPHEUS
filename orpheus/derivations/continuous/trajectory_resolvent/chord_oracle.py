@@ -52,6 +52,14 @@ identical k_eff and ψ values pre- and post-refactor (verified at the
 exact-bit level via ``float.hex(k_eff)`` for the canonical 12
 configurations).
 
+Two oracles have since left their pre-R3 bodies on purpose: the
+multi-region sphere and cylinder oracles evaluate the emission density
+through :func:`_regionwise_cubic_spline`, one spline per material
+region, where the pre-R3 bodies fitted one spline across every interface
+(ERR-090). The sphere's legacy facade (``_apply_operator_mr``) delegates
+to its oracle, so it follows it; the cylinder solver builds its oracle
+directly.
+
 Why the abstraction lives here (not in :mod:`orpheus.derivations.common` yet)
 --------------------------------------------------------------------
 
@@ -336,6 +344,60 @@ def _region_at_radius_oracle(r: float, radii: np.ndarray) -> int:
     return min(idx, len(radii) - 1)
 
 
+def _regionwise_cubic_spline(
+    r_nodes: np.ndarray, values: np.ndarray, region_at_node: np.ndarray,
+    n_regions: int,
+) -> tuple[CubicSpline, ...]:
+    r"""A radial field on a piecewise-homogeneous medium, interpolated region
+    by region: one cubic spline per material region.
+
+    A field on such a medium is smooth inside each region and may jump, or
+    bend, at every material interface: the isotropic emission density
+    :math:`q(r) = \Sigma_s(r)\phi(r) + \chi(r)\,\nu\Sigma_f(r)\phi(r)/k`
+    jumps (the cross sections do), and the scalar flux :math:`\phi` is
+    continuous with a jump in its derivative. Its interpolant therefore has
+    one piece per region, built from that region's nodes only; a consumer
+    evaluates the piece of the region it stands in (a chord segment, which
+    never crosses an interface, its own region's piece).
+
+    A single spline through every node instead fits a smooth cubic across
+    each jump: it overshoots on both sides of the interface, the error does
+    not shrink in amplitude as the radial grid is refined (only its width
+    does), and a reference built on it converges in :math:`n_r` at about
+    first order and non-monotonically (ERR-090; the sphere's :math:`n_r`
+    ladder is ``test_mr_sphere_k_converges_in_n_r`` in
+    ``tests/gates/derivations/test_peierls_greens_function_mr.py``, and
+    both geometries' first-leg rows are in
+    ``tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py``).
+
+    ``region_at_node`` is the region of each node as the quadrature that
+    placed the nodes records it (the third return of
+    :func:`.greens_function._composite_per_region_gl`); nothing here
+    re-derives it. Each piece extrapolates to its region's end points; the
+    composite per-region Gauss-Legendre nodes lie strictly inside each
+    region, so that extrapolation spans less than one node gap.
+
+    Raises
+    ------
+    ValueError
+        If a region holds fewer than two nodes (no spline through it
+        exists; the composite quadrature's floor is two per region).
+    """
+    region_at_node = np.asarray(region_at_node)
+    pieces = []
+    for k in range(n_regions):
+        in_region = region_at_node == k
+        if int(in_region.sum()) < 2:
+            raise ValueError(
+                f"region {k} holds {int(in_region.sum())} radial node(s); "
+                f"the regionwise cubic spline needs at least 2 per region"
+            )
+        pieces.append(
+            CubicSpline(r_nodes[in_region], values[in_region], extrapolate=True)
+        )
+    return tuple(pieces)
+
+
 def _trajectory_segments_oracle(
     r_start: float, mu: float, R: float, radii: np.ndarray,
 ) -> tuple[list[tuple[float, float, int]], float]:
@@ -416,14 +478,20 @@ class MultiRegionSphereChordOracle:
     integrals. The shared :func:`apply_variant_alpha_closure` then sees
     the cumulative optical depths as if the medium were homogeneous.
 
-    Bit-equality contract: the body of :meth:`apply_operator` is a
-    verbatim relocation of the pre-R3 :func:`._apply_operator_mr` in
-    :mod:`.greens_function`.
+    The emission density along a segment is read from that segment's
+    own region's piece of :func:`_regionwise_cubic_spline`: the
+    density jumps at every material interface, and a spline across the
+    jump made this reference converge in :math:`n_r` only at about first
+    order and non-monotonically (ERR-090). Apart from that interpolant the
+    body is the pre-R3 :func:`._apply_operator_mr`, relocated.
 
     Attributes
     ----------
     r_nodes : (n_r,) ndarray
-        Radial Gauss-Legendre nodes on :math:`(0, R)`.
+        Radial nodes on :math:`(0, R)`, at least two inside each region
+        (the composite per-region Gauss-Legendre nodes of
+        :func:`.greens_function._composite_per_region_gl`); the per-region
+        density interpolant refuses fewer.
     mu_nodes : (n_mu,) ndarray
         Direction-cosine Gauss-Legendre nodes on :math:`[-1, 1]`.
     R : float
@@ -438,6 +506,10 @@ class MultiRegionSphereChordOracle:
     alpha : float
         Surface specular reflectivity at the outermost surface
         :math:`r = R`.
+    region_at_node : (n_r,) ndarray of int
+        The region of each radial node, as the quadrature that placed the
+        nodes records it (``_composite_per_region_gl``); the per-region
+        density interpolant reads it.
     """
 
     r_nodes: np.ndarray
@@ -446,6 +518,7 @@ class MultiRegionSphereChordOracle:
     radii: np.ndarray
     sigma_t_per_region: np.ndarray
     alpha: float
+    region_at_node: np.ndarray
 
     def apply_operator(
         self,
@@ -461,8 +534,6 @@ class MultiRegionSphereChordOracle:
         per-region :math:`\Sigma_{t,k}` carried by the oracle's
         :attr:`sigma_t_per_region` is used instead. The argument is
         present for Protocol conformance.
-
-        Bit-equal with the pre-R3 :func:`._apply_operator_mr` body.
         """
         r_nodes = self.r_nodes
         mu_nodes = self.mu_nodes
@@ -471,7 +542,9 @@ class MultiRegionSphereChordOracle:
         sigma_t_per_region = self.sigma_t_per_region
         alpha = self.alpha
 
-        source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
+        source_in_region = _regionwise_cubic_spline(
+            r_nodes, source_profile, self.region_at_node, len(radii),
+        )
         s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
         s_unit = 0.5 * (s_quad_raw + 1.0)
         w_unit = 0.5 * w_quad_raw
@@ -499,7 +572,7 @@ class MultiRegionSphereChordOracle:
                         r * r - 2.0 * r * s_pts * mu + s_pts * s_pts
                     )
                     r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
-                    source_at_pts = source_interp(r_traj)
+                    source_at_pts = source_in_region[region_idx](r_traj)
                     integrand = source_at_pts * np.exp(-tau_at_pts)
                     F += seg_len * np.sum(w_unit * integrand)
                     tau_back += sigma_t_k * seg_len
@@ -525,7 +598,7 @@ class MultiRegionSphereChordOracle:
                     tau_at_pts = tau_p_partial + sigma_t_k * (s_pts - s_a)
                     r_chord_sq = h * h + (s_pts - L_p / 2.0) ** 2
                     r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
-                    source_at_pts = source_interp(r_chord)
+                    source_at_pts = source_in_region[region_idx](r_chord)
                     integrand = source_at_pts * np.exp(-tau_at_pts)
                     B += seg_len * np.sum(w_unit * integrand)
                     tau_p_partial += sigma_t_k * seg_len
@@ -808,9 +881,12 @@ class MultiRegionCylinderChordOracle:
     :math:`b = r\,|\sin\varphi_{\rm az}|` and the interior region radii
     :math:`R_k` live in the in-plane (2D) geometry; the axial cosine
     :math:`\mu_{\rm axial}` is a multiplicative rescaling
-    (`inv_s_in_plane`) applied after segmentation, not before. This
-    matches the homogeneous :class:`CylinderChordOracle` exactly when
-    all :math:`\Sigma_{t,k}` are equal.
+    (`inv_s_in_plane`) applied after segmentation, not before. When all
+    :math:`\Sigma_{t,k}` are equal the optical depths match the
+    homogeneous :class:`CylinderChordOracle` exactly; the output matches
+    it only for a density the per-region splines and the homogeneous
+    oracle's single spline reproduce alike (a flat one, for instance),
+    since this oracle reads the density one spline per region (ERR-090).
 
     Tangential grazing-ray closure: as :math:`\varphi_{\rm az} \to
     \pm\pi/2`, the 2D bounce-period chord :math:`L_{\rm 2D, period}
@@ -823,7 +899,10 @@ class MultiRegionCylinderChordOracle:
     Attributes
     ----------
     r_nodes : (n_r,) ndarray
-        Radial Gauss-Legendre nodes on :math:`(0, R)`.
+        Radial nodes on :math:`(0, R)`, at least two inside each region
+        (the composite per-region Gauss-Legendre nodes of
+        :func:`.greens_function._composite_per_region_gl`); the per-region
+        density interpolant refuses fewer.
     mu_axial_nodes : (n_mu,) ndarray
     phi_az_nodes : (n_phi,) ndarray
     R : float
@@ -835,6 +914,10 @@ class MultiRegionCylinderChordOracle:
         sphere MR oracle's signature.
     alpha : float
         Surface specular reflectivity at :math:`r = R`.
+    region_at_node : (n_r,) ndarray of int
+        The region of each radial node, as the quadrature that placed the
+        nodes records it (``_composite_per_region_gl``); the per-region
+        density interpolant reads it.
     """
 
     r_nodes: np.ndarray
@@ -844,6 +927,7 @@ class MultiRegionCylinderChordOracle:
     radii: np.ndarray
     sigma_t_per_region: np.ndarray
     alpha: float
+    region_at_node: np.ndarray
 
     def apply_operator(
         self,
@@ -866,7 +950,11 @@ class MultiRegionCylinderChordOracle:
         source-line integrals. The 3D arclength lift
         :math:`s_{\rm 3D} = s_{\rm 2D}/\sqrt{1 - \mu_{\rm axial}^{2}}`
         is the same as the homogeneous cylinder oracle — segmentation
-        happens in 2D before the axial lift.
+        happens in 2D before the axial lift. The emission density along a
+        segment is read from that segment's own region's piece of
+        :func:`_regionwise_cubic_spline` (ERR-090), where the
+        homogeneous oracle, whose density has no interface, uses one
+        spline.
         """
         r_nodes = self.r_nodes
         mu_axial_nodes = self.mu_axial_nodes
@@ -876,7 +964,9 @@ class MultiRegionCylinderChordOracle:
         sigma_t_per_region = self.sigma_t_per_region
         alpha = self.alpha
 
-        source_interp = CubicSpline(r_nodes, source_profile, extrapolate=True)
+        source_in_region = _regionwise_cubic_spline(
+            r_nodes, source_profile, self.region_at_node, len(radii),
+        )
 
         s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
         s_unit = 0.5 * (s_quad_raw + 1.0)
@@ -923,7 +1013,7 @@ class MultiRegionCylinderChordOracle:
                         )
                         r_traj = np.sqrt(np.clip(r_traj_sq, 0.0, R * R))
                         integrand = (
-                            source_interp(r_traj) * np.exp(-tau_at_pts)
+                            source_in_region[region_idx](r_traj) * np.exp(-tau_at_pts)
                         )
                         # F is a 3D path-length-weighted integral:
                         #   F = ∫ source(r(s_2D)) e^{-τ(s_3D)}
@@ -964,7 +1054,7 @@ class MultiRegionCylinderChordOracle:
                         )
                         r_chord = np.sqrt(np.clip(r_chord_sq, 0.0, R * R))
                         integrand = (
-                            source_interp(r_chord) * np.exp(-tau_at_pts)
+                            source_in_region[region_idx](r_chord) * np.exp(-tau_at_pts)
                         )
                         B += seg_len_3D * np.sum(w_unit * integrand)
                         tau_p_partial += sigma_t_k * seg_len_3D
