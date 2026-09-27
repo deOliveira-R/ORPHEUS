@@ -65,6 +65,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [pencil pseudo-resolvent](pencil_pseudo_resolvent_standard_form_pair.md) — at(σ)⁻¹M IS a pseudo-resolvent (generator iff M injective); generator/propagator name NO side; K(0) = next-generation (k); sides = jet at the CARRIED-OFF point, derivative = −F.
 - [shift ontology](shift_ontology_taxonomy_frames.md) — 6 shift kinds → 4 verbs; a Strategy shift = a Möbius CHART it inverts (one type with SpectralMap); affinity of a geometric family = SCHEME trait (2nd difference); ⛔ its "canonical at-pole gauge" is SUPERSEDED (next entry).
 - [equilibrium carrier](equilibrium_carrier_laurent_point_kinetics.md) — eigen→noise/transient/at-pole flows an EQUILIBRIUM (pole + null rep + scale), never a point; the at-pole gauge is the DEPARTURE direction's (a splitting conserves ⟨ψ†,Nx⟩); Laurent along TIME = point kinetics; conormal = adjoint-weighted term rates; Keldysh count for non-affine; Schur lift.
+- [posing ontology clean attack](posing_ontology_clean_attack_frames.md) — eigen question = line ∩ determinantal hypersurface; Fundamental on the BULK cone with a declared end; trace = DAE block (same Schur verb as precursors); affinity is (family, chart, reduction); question space = cell FIELDS; ⛔ "Laurent along TIME = point kinetics" above is its first-order content only.
 
 ### Carrier typing / coefficient fields
 - [#226 container algebra](issue_226_container_algebra_design.md) — structural `Vector` Protocol + `apply(x:V)->V`; primitives stay flat ndarray.

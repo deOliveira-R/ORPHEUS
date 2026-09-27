@@ -492,6 +492,101 @@ The orchestrator's reading `[R]`:
 
 P1 of `reference_cache.md` needs only the question VALUES (its step 7): `Eigen(parameter)` with the mode selector, and `FixedSource(source, point)`, in the input layer. Steps 2 to 6 do not depend on this plan.
 
+## The clean-context attack (2026-09-27, after compaction) — FOR THE USER'S RULINGS
+
+This attack read "The ontology as it stands" alone, with no access to the rest of this plan. It had three parts:
+- a structural attacker on a Fable model: memo `scratch/posing_sequence/clean_attack/structure/memo.md`, probes `p1`–`p6` beside it. The fixture is a two-group P4 fuel diffusion slab, 10 cm, 20 cells, vacuum both faces, 48 composite unknowns (40 bulk, 8 trace), with k = 0.120094. The kinetics numbers use synthetic data, because the tree has no 1/v, β or λ fixture.
+- an elegance attacker on a Fable model: memo `.../clean_attack/elegance/memo.md`, with a plugin and logs beside it.
+- the orchestrator's cold read: `.../clean_attack/orchestrator_cold_read.md`.
+
+Every finding below is the attacker's; the markers are theirs. None is ruled.
+
+**The section is stale or not self-contained.**
+1. The total cross section and the ℓ-graded collision operator are stated as they stood before the "two totals" follow-up (`9b95ded6`). That follow-up says:
+   - two totals exist: the collision operator's removal sum, and the library's physical total, which σ0 consumes;
+   - an unaccounted-removal check sits between them;
+   - the exact collapsed collision operator is ordinate-diagonal.
+   The structural attacker also shows `[M]` (p6) that an ℓ-graded collision operator contradicts `C = Σ_x M[Σ_x]` and the sweep. A zonal operator with ℓ symbol (0.8, 0.9, 0.85, 0.8) has off-diagonal entries of 4.5e-2 on S4 ordinates. The exact decomposition is `Z = M[c₀] + zonal(c_ℓ − c₀)`, whose correction has ℓ = 0 symbol 0. So consistent-P is a scattering-side derived view, not a graded collision.
+2. The section uses names it never defines:
+   - Λ, with two normalisations in play; k*; N; "a lowering";
+   - "P1", which carries three senses;
+   - "the continuum line"; ω;
+   - "channels P1"; #517 and #518 as unexplained references;
+   - `CriticalParameter` and `space.complexified`, which have 0 hits in the tree `[M]`, and `SpectralTransformation`, likewise 0 hits;
+   - the 1.57 and the 4 %, which carry no fixture.
+3. The question space lists streaming and boundary as coordinates, but `balance(point)` gives `L` and `B` no coefficient.
+
+**The mathematics.**
+4. **Layer-1 "affine in the cells" is false beyond SN** `[M]` (p4c). Diffusion's `D = 1/(3Σ_tr)` gives a second difference of 1.1e-2 along the capture cell. CP puts the removal cells inside its collision probabilities. The fix is a layer-1 contract of `balance(p)`, `T_d(p)` and a declared affinity. The term list is then only the first-order-form realisation.
+5. **Affinity belongs to (term, parameter, chart, reduction), and a tolerance must not decide it** `[M]` (p4a, p4e).
+   - SN diamond-difference dilation is an exact pencil in 1/λ (second difference 0.0). Tested in the identity chart it reads 2.3.
+   - Diffusion's interior rows are affine in 1/λ², but the Marshak face closure makes the family rational.
+   The fix: affinity is declared, and the second-difference test is the gate that verifies the declaration.
+6. **The pencil's σ-origin contradicts the offset-0 gate** `[M]` (p2). From the k pole, re-posing along c with the parameter's component "projected out" finds the c pole (σ = 1.383, c = 0.723). The through-the-point reading gives offset −5e-5. The fix is two named objects, the algebraic origin and the base point. The gate becomes answer-invariance under the point's parameter component.
+7. **`Fundamental` as "the boundary of the positivity region" is empty on the composite unknown** `[M]` (p1b, p5).
+   - `A⁻¹` has negative trace columns at the anchor, while its bulk-bulk block is non-negative.
+   - On the bulk cone the definition works: the k line ends at 1/k and the α line at α₀.
+   - The definition covers emission and time only. Extents and compositions are missing.
+   - A mixed-sign direction (fuel plus moderator) has two poles (0.01 and 3.75), with positivity on both outer intervals.
+   The fix: use the bulk cone, derive the removal end from the sign of `⟨1, T_d ·⟩`, and have an indefinite direction refuse `Fundamental`.
+8. **There is no generator on V: the trace unknowns carry no time term** `[M]`. `T_time` has rank 40 of 48, so the time family is a DAE pencil. The fix is to eliminate the trace by the same Schur reduction as the precursors, one verb with two instances.
+9. **Which ψ†** `[M]` (p3c). The Hellmann–Feynman pole derivative agrees with the finite-difference one to 4e-7 (α) and 5e-9 (k) when ψ† is the balance's left null vector. It is 21 % off with the iteration operator's left Perron vector. The fix: define ψ† as the null vector of `balance(pole)†`, and add the Hellmann–Feynman versus finite-difference gate.
+10. **The point-kinetics wording** `[R]`+`[M]` (p3).
+    - The polar coefficient `(ρ/Λ)ψ` belongs to `R(s)q` for `q = −T_d φ₀`, not to `R(s)`.
+    - Full point kinetics is a Galerkin projection, not the Laurent expansion.
+    - β must read β_eff when χ_d ≠ χ_p.
+    - "Reactivity ramp" misnames the linearised step response.
+11. **`SpectralMap` is not one Möbius group** `[R]`. Polynomial filters are n-to-1, and contours are projectors. The charts form a Möbius group, and the Strategy's transformations are a monoid of rational maps. The group-law gate holds on the unit group only.
+12. **`Scheme` as a scalar `f(G)` excludes IMEX and splitting** `[R]`. The "reduction at s = 1/Δt" holds for backward Euler only; Crank–Nicolson uses 2/Δt. The fix: `f` is a word in the terms' resolvents, and `Scheme` owns its implicit/explicit labelling.
+13. **`Evolution` has no point** `[R]`. A transient from a critical state is posed at the k pole.
+14. **Scalar cell coordinates cannot spell one region's absorber worth** `[M]` (p5). Unshielded compositions are affine (second difference 2.8e-17), so "Composition always non-affine" is refuted. The affine part is the multiplier algebra of cell FIELDS, with the scalars as constant sections.
+15. **Material buckling cannot be spelled** `[R]`. The 0-D discretisation has no L. Monte Carlo cannot be posed at all, although `R(point)` is what it samples; that part is `[HYPOTHESIS]`.
+16. **The k formula's `[M]` is tautological** (2.6e-16 by the balance). Its content is the per-cell discrete Markov property. Record it as a gate note.
+
+**Placement, names and types.**
+17. **The `SigT` property with its guard retired refuses legitimate producers** `[M]`. A plugin wrapping `Mixture.__post_init__` over the 23 test files that construct `Mixture` found 167 of 584 constructions imbalanced. They come from 16 sites in four classes:
+    - 131 placeholder scaffolds;
+    - 10 billiard constructions;
+    - 10 through `make_mixture`, of which 9 are production derivations (`sood_registry/atalay1997.py:65-76`, with `Σ_f = (c−1)Σ_t`);
+    - 16 guard tests.
+    `SigP` is a second stored redundancy the section omits: 19 producers set `SigF = 0` with `SigP > 0`.
+18. **The problem types' layer home** `[M]` (`tests/gates/test_layer_imports.py:62`). The section places them in `numerics`, but their coordinates are reaction cells, which `numerics` cannot know. They belong at L2.
+19. **Strategy transferability is a property of each datum, but `strategy.at(point)` acts on the whole bundle.** The fix is two types: a layer-1-only plan that owns `at`, and a point-bound binding.
+20. **Name collisions** `[M]`:
+    - `Direction`: 426 production lines already mean Ω.
+    - `Composition`: 217 lines, with two prior meanings.
+    - `Scheme`: 521 lines. `DiscretizationScheme` is the spatial factor in the reverse word order.
+    - `balance`: names a float at 5 sites.
+    - `anchor`: collides with the ERR-052 scale anchor.
+    - `rate`: collides with `IterationRecord.rate`.
+    - `generator`: the rename surface includes `generator_as`.
+21. **One slot, three spellings.** The point is `Eigen(at=point)`, `FixedSource(source, point)`, and absent from `Evolution`. The fix: one `point` slot and a `<Kind>Question` family.
+22. **Optionals that are second types:** `Mode.scale` (fundamental only), and the extra data of an at-pole `FixedSource`.
+23. **`next_generation` is a physical accessor**, one bullet after "no physical accessor on a question".
+24. **Gates.**
+    - Done-when (b), "bit-identical", is fragile to association order (`pencil.py:20-22` records a 1e-14 difference).
+    - Gates are missing for the `shifted` law, the Möbius law, content identity, and "chart-free by construction".
+25. **Tracked, not blocking:**
+    - the has-a carve's footprint (both hubs subclass `MaterialMesh`);
+    - `inner_solver` is still a string tag at 3 `sn/solver.py` sites;
+    - the collapse of three `loss` spellings is a win the section should name.
+
+**Rejected candidates**, each with the attacker's structural reason:
+- a torsor question space: the anchor is canonical;
+- sweeping an ℓ-graded C: it is not ordinate-diagonal;
+- `Fundamental` on the composite unknown: the positivity region is empty;
+- a generator on V with a singular `T_time`: there is no inverse;
+- an identity-chart affinity test: it misclassifies SN dilation;
+- Möbius maps for every spectral transformation: filters are n-to-1;
+- a scalar `f(G)` for every scheme: IMEX;
+- ψ† from the iteration operator: 21 % wrong;
+- keeping `EigenPosing` beside `EigenProblem`: a parallel path;
+- `<Method>Method`: it already failed as `TransportMethod`;
+- `transferable: bool`: anti-pattern #3;
+- an ABC for `Discretization`: it re-creates the import cycle.
+
+**Lead to verify.** On the diffusion slab, `BC("reflective")` gave the same loss operator as vacuum, and a zero boundary-gain operator (probe `p4e`). This may be a probe error, or the tag may not reach the operator family. A W2 investigation is owed before it is called either.
+
 ## ⏸ COMPACTION POINT — 2026-09-27 (supersedes the 2026-09-26 point below; read "The ontology as it stands" first)
 
 State: the final attack (structure and elegance), the α-existence investigation (literature and measurement), the channels attack and the orchestrator's cold read have all run, and every finding is RULED and folded into "The ontology as it stands". The user has NOT ruled the plan polished. The user's instruction, 2026-09-27: too many changes landed in one session, so after compaction the plan is ATTACKED AGAIN with a clean context before any polish ruling.

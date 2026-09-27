@@ -282,6 +282,23 @@ derived from the same X is compared — that reason proves too much; the honest 
 excluding the siblings is usually "a function has no value equality", which does not
 transfer to a value-typed field. → topic file `symmetry_realization_carve_rulings.md`
 
+### L-025 — On a DESIGN review of a type-tightening, count the producers of the refused state at RUNTIME; the guard's own docstring is the producer index
+Pattern 6's guardrail says "grep for a production path that legitimately produces it"; on a
+W5 design (no code yet, so no pyright) the grep is uninformative when every constructor site
+spells the field the same way. `[M]` 2026-09-27, posing-sequence attack: the section ruled
+"`SigT` becomes a property, the guard retires, conservation by construction"; all 8 production
+and 32 test `Mixture(` sites spelled `SigT=` by keyword, and the guard `assert_balanced` was
+deliberately OUTSIDE `__post_init__` with a docstring naming three legitimate imbalanced
+producers. A `-p` pytest plugin wrapping `__post_init__` over the files that spell the
+constructor (23 files, 6 min) read **167 of 584 constructions imbalanced**, one class in
+PRODUCTION derivations (a benchmark registry encoding), and the docstring's own account of that
+encoding was stale. Detection order: (1) read the guard's docstring for the reason it is not
+in `__post_init__`, since that reason is the producer list; (2) wrap the constructor's invariant
+in-process and count over the constructor-spelling files, attributing by the frame ABOVE any
+shared factory; (3) name the re-spelling of each producer class in the finding, because the
+design's DIRECTION (one definition, Pattern 7) is usually right and the census is the only
+missing leg. Grade VIOLATION when a production producer exists (anti-#18 leg (ii)).
+
 ### L-024 — Tests that RE-COMPOSE the SUT's formula from its fields pin the tests' formula, not the module's
 Not covered by `retirement-audit` D.14 (demotion by a *retirement*) nor X4's tells
 (`allclose(a, b)`): here nothing was retired — the SUT's composite property is too slow

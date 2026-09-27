@@ -253,6 +253,19 @@ construction ⇒ smell; degenerate case ⇒ unifying DELETES content). → L-020
 pointer: `kernel_as_frame_layer_inversion.md` · `plan-authoring` PRECEDENT-LAYER
 since 2026-09-21
 
+**D13 — "ψ†" names TWO vectors in a k-solve tree, and only one pairs correctly with
+a pole's derivative.** The left null vector of the BALANCE at the pole
+(`balance(pole)^† ψ† = 0`, the tree's `EigenPosing.H()`) and the left Perron vector of
+the ITERATION operator `A⁻¹F` differ by `A^{-†}`; Jacobi's formula / the implicit
+function theorem need the former. `[M]` 2026-09-27 (diffusion slab, p3c): HF-vs-FD
+along a removal cell agrees to 4e-7 with the balance null vector and is 21 % off with
+the iteration-operator vector — on BOTH the α and the k pole. Same class as the
+metric-vs-Euclidean 4 % trap. Before pairing anything with a ψ†, gate
+`‖balance(pole)ᵀψ†‖ ≈ 0` directly; and a "Λ_eff = Λ + …" check that divides an
+adjoint-weighted derivative by an adjoint-weighted rate is an IDENTITY for any weight —
+its only content is the derivative itself. → pointer:
+`posing_ontology_clean_attack_frames.md`
+
 ---
 
 ## Part 3 — Smell-promotion ledger
@@ -267,11 +280,12 @@ already promoted (Smell #15, Smell #16).
 | Frame-leak naming — a model-agnostic slot named after ONE consumer's physics; TELL: "generic in X" beside a parameter named after a specific X₁; FIX: name the ROLE in the INTERSECTION of all consumers' domains; first test: a second consumer reading it with NO first consumer in scope (→ L-006) | 2, both naming cases | a third sighting carrying the 2nd-consumer-with-no-1st-in-scope test, distinct from a name |
 | Eigenbasis-blind frame placement — operational-pipeline vocabulary ("natural data carrier of the Galerkin pipeline") where a Funk–Hecke frame is unnamed (→ L-009) | 3, all the same ANGULAR frame | a genuinely non-angular eigenbasis frame |
 | Collapse-morphism-blind — treating a marginalization as a weight=1 average (→ L-010) | 1 (XS coarsening) | a non-XS conserved collapse (MC tally binning, flux→current) |
-| Vanishing-flux-function endpoint / metric-invisible-yet-active DOF (→ L-015b) | 2, both curvilinear SN | a non-transport degenerate-drift endpoint (Fokker–Planck, Sturm–Liouville, population balance) |
+| Vanishing-flux-function endpoint / metric-invisible-yet-active DOF (→ L-015b) | 2, both curvilinear SN; a RELATED third of a different kind 2026-09-27: the composite's trace DOFs carry no time term (`rank T = 40 of 48`), so the time family on `bulk ⊕ trace` is a DAE pencil and a "generator on V" does not exist | a non-transport degenerate-drift endpoint (Fokker–Planck, Sturm–Liouville, population balance) |
 | The name states a contract the content violates — a class documented as "data/descriptor/field" whose method list says `apply_*`; distinct from Smell #16 shape 1 (one path, wrong LAYER); FIX is relocation, and the name is usually right (→ L-012) | 1 | a second, non-XS-field host |
 | Identity-scarcity accretion — a container wins every placement because no candidate owner's `__eq__` separates the inputs (→ L-019 / M1.8) | 2 (one inverted: everything induced has structural `__eq__`, the hub has none) | a third outside the SN container family |
 | A precondition spelled as a 30-line docstring caveat on a 3-line body wants to be a TYPE — declare the structure (DIAGONAL / POU / DENSE) and RAISE on the unhandled case (→ L-010) | 1 | a second non-Gram precondition |
-| A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named; FIX: the second-difference test per scheme (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`) | 2 (transverse-coupling order; affinity in a width) | PROPOSED for Part C at this second sighting; a third would be a non-SN scheme (MoC segment / CP kernel) |
+| A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation × CHART × reduction) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named, or a second-difference test with no chart named; FIX: the second-difference test per scheme IN THE PARAMETER'S NATURAL CHART (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (transverse-coupling order; affinity in a width; 2026-09-27 the diffusion P1 face closure — a NON-SN scheme — makes the slab dilation rational while SN-DD is an exact pencil in 1/λ) | PROPOSED for Part C (third sighting met, non-SN scheme); the chart rider is the 2026-09-27 addition |
+| Multiplier-algebra embedding `f ↦ M_f` — scalar "coefficients" on terms that are really FIELDS per region/group; the scalars are the constant sections; unshielded composition directions are vectors in it (→ `coefficient_field_promotion_frames.md`; `posing_ontology_clean_attack_frames.md`) | 2 (XS-field promotion; 2026-09-27 the question space's cell coordinates) | PROPOSED for Part A.3 at this second sighting (a different problem class: question posing, not carrier typing) |
 
 ## Part 4 — Refuted-frame ledger (high-prior frames that keep NOT firing)
 
