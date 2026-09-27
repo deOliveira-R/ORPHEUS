@@ -45,6 +45,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [inverse resolutions](operator_inverse_w1_w2_resolutions.md) — the splitting M is a REAL forward op (reify it), not a "preconditioner".
 - [protocol/mixin collapse](operator_protocol_mixin_collapse_frames.md) — stateless dunder-installer Mixin = Smell#16 shape-1; variance spike FIRST.
 - [Rep×Role grid](rep_role_grid_double_category_frames.md) — carrier grid = double category; phantom params erased ⇒ MI `Leaf(RoleMixin,RepBase)`.
+- [reaction channel grid](reaction_channel_grid_frames.md) — channel-with-role = a CELL of the (reaction × role) grid `Mixture` IS; term = role-marginal; a cell = direction/rate/sensitivity (HF); compositions are FIELD directions, non-affine on Bondarenko data.
 - [reaction naming](reaction_term_naming_species_split.md) — no family word: 1 multiplier + 3 kernels is a theorem; `Law` = closures only.
 - [iso-source conjugation](iso_source_frame_conjugation_unification.md) — every iso source is `frame.conjugate(K)`; rank-1 iso = `angular_frame(0)`.
 - [fission rank-1](fission_rank1_normal_form_dead_functional.md) — F=|χ⟩⟨νΣf| IS the normal form ⇒ "unfold F" is structurally empty.

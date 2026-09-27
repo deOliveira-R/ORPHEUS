@@ -220,6 +220,20 @@ pseudo-transient and the noise ω→0 limit land 5.6 away, a ψ-multiple. The ge
 derive FIRST: pair the iteration step with the left null vector and read what it conserves.
 → pointer: `equilibrium_carrier_laurent_point_kinetics.md`
 
+**D12 — A proposed DECLARATION on an object whose CONSTRUCTION already fixes the fact is
+a second source of truth; and a label that GRADES an operator the tree already sums is a
+COORDINATE, not a label.** TELL: "each X declares the Ys it carries, and a resolver maps Y
+to X" where every X is built by a constructor that reads named Ys. Refute by deriving the
+map from the constructors and gating it `array_equal` against the hand-built objects; the
+declaration then has nothing to say that the construction does not. Second half: when the
+Ys index a direct-sum decomposition (`R = Σ_y R_y`), the question-space coordinates are the
+Ys' cells, and one cell is ONE object read three ways (direction, `w = 1` rate, `w = ψ†`
+sensitivity by Hellmann–Feynman) — check that before minting a "rate functional" and a
+"direction" as two concepts. Rider: scalar coordinates and FIELD directions do not mix;
+test a proposed direction against the span of the scalar cells before calling it "one more
+scaling". `[M]` 2026-09-27 reaction channels: HF to 1e-10 per cell; a nuclide direction
+0.87 off the cell span. → pointer: `reaction_channel_grid_frames.md`
+
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
 precedent (data + binder, model + view, kernel + driver) cited by ONE of its
