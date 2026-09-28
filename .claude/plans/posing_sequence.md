@@ -1270,6 +1270,64 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
 
+## The second clean-context attack (2026-09-28, after compaction) — FOR THE USER'S RULINGS
+
+This attack read the re-consolidated "The ontology as it stands" alone (copy: `scratch/posing_sequence/clean_attack2/section.md`, 182 lines; line numbers below are that file's). It had three parts:
+- a structural attacker (cross-domain-attacker, Fable): memo `scratch/posing_sequence/clean_attack2/structure/memo.md`, probes P1–P7 and `census_sigt.py` beside it;
+- an elegance-and-naming attacker (elegance-enforcer, Fable): memo `.../clean_attack2/elegance/memo.md`, an AST census over 988 `.py` files with positive controls (`LinearOperator`, `Mixture`, `SNProblem` found), probes beside it;
+- the orchestrator's cold read: `.../clean_attack2/orchestrator_cold_read.md`.
+
+The structural premise `[M]`: 6 of 6 checkable identities hold (the overlap factorisation 1.1e-16; the two-step defect 1.1e-16; the Petrov–Galerkin projection idempotent and oblique, 0.6 from orthogonal; the Laurent residue; the k formula; the Schur-reduced adjoint). The defects are in HOMES (one object given two places) and RANGES (a universal attached to a correct identity), not in the algebra. The elegance premise `[M]`: today's `project` IS the collapse verb bit-identically on a straddling grid (0.0); `dual_analysis` is genuinely a different operator from it (0.36 apart; only it is idempotent), so no twin; `_per_pair` equals the frame verb with the pair weight (0 of 18 entries differ, with a red positive control). Every finding below is an attacker's; none is ruled.
+
+**A. Homes: one object, two places.**
+1. `derived_SigT` (structure F1, cold read 11; HIGH). L18 builds it in the collision operator's constructor; L11 and L40 make every reaction sum a derived view of the grid. Monte Carlo builds no collision operator (its majorant reads `mix.SigT`, `mc/solver.py:373`), so the omitted-reaction warning never fires there. `[M]` five consumer families read the total (SN 21 sites, MoC 10, CP 7, MC 4, diffusion). Proposal: the home is the REACTION SET (the grid's declared reactions); the collision operator and `markov_view` both read it; the warning is emitted where the reaction set is closed against the library.
+2. The trace (structure F2, cold read 2; HIGH). L53 "not a frame"; L93 "the nodal frame … covers the trace". A cell-centred scheme has no face → cell node map, so the trace is not the pullback of `∂V ↪ V` on nodes. Today's `TraceRestrictionOperator` is a gather on bulk ⊕ trace: the pullback along the COPRODUCT injection, which is the section's own `[OPEN]` coproduct item. The commuting condition `γ_h ∘ M_V = M_∂ ∘ γ` holds only on the closure's reproducing space (`[M]` diamond difference exact on `x`, −h²/3 on `x²`), so the gate is stated on that space. Proposal: build the coproduct manifold (it is now load-bearing), and state the trace as the coproduct pullback.
+3. The collapse verb's host (structure F3; HIGH). No home is stated, and the verb is total only on non-negative tables (`[M]` `angular_frame(2).analysis(1) = [2, 0, 0]`). Structure proposes hosting it on `MeasureCoupling` as a real type rather than a cache. F3b: "bit-identically" fails for the 2 of 5 two-density ratios whose denominator is COARSE (the adjoint Ψ†) unless that slot is coarse-typed (`[M]` 1.7e-16, not `array_equal`).
+4. The material field (structure F5; MEDIUM). L47 puts it on `Discretization`; the field coordinates put it in `System.physical_point`. By L83 (state, not structure), it belongs to the point. Elegance C12 adds `material_at` on the geometry as a third home.
+5. The implicit/explicit labelling (structure F6; MEDIUM). Owned by `Stepped` (layer 2, RULED) and derived by the Strategy PLAN (layer 3, PROPOSED); the ruled home names terms inside a layer ruled physics-free.
+6. `Discretization` "was `TransportMethod`" (elegance C4). It carries 0 of `TransportMethod`'s 4 members; its one consumer `resolve_boundary_conditions`, and boundary-law realisation, have no named home.
+
+**B. Ranges: a universal attached to a correct identity.**
+7. `Fundamental`'s end (structure F4; HIGH). The sign of `⟨1, T_d ·⟩` does not determine it on an emission line. `[M]` on 2 fixtures (one shipped, one scratch), `(A − σF)⁻¹ ≥ 0` exactly on `[0, 1/k)` and never for σ < 0. The end is the boundary of the coordinate's ADMISSIBLE RANGE (σ = 0 is the chart's zero: no fission), a layer-1 datum the contract does not declare.
+8. The two-step defect "exact iff the second kernel is one-hot" (F8): `[M]` also exact with a fractional second kernel when the middle grid equals the fine one, or when a straddled middle group has no interior fine edge. "iff" → "if".
+9. "The canonical dual does not depend on ν" (F9): the dual FRAME does (`[M]` rows 0.5 against 1); its PROJECTOR does not.
+10. The system algebra does not close (F10): a REDUCE output has no constant mass operator and a rational, undeclared affinity; a COMPLEXIFY output has no cone. The declarations of an algebra output must be derived from the inputs'.
+11. `Exact` with delayed neutrons "waits for the multi-system machinery" (F7): a deterministic Strategy's limit placed on the question; Monte Carlo samples precursors natively. Cold read 10 likewise: Monte Carlo refusing `Stepped` (L135) may be wrong.
+12. `pseudo_resolvent(0) = A⁻¹F` holds only from the chart's zero, not from the base point (F13). Structure: this is what "two objects in the point" means, and moving the ORIGIN onto the coordinate's declaration keeps the single `point` slot.
+13. The Atalay re-spelling (F14) keeps `c` only with `Σ_f := Σ_a`, `Σ_c := 0` (`[M]` otherwise `c` goes 1.1 → 0.81); a pure scatterer with `c > 1` cannot be encoded.
+
+**C. Layer 2 needs layer-1 data the contract does not declare** (F12): the BULK sub-block (for `Fundamental`), the continuum edge (for `Enclosed` and the seed clamp), the admissible range (item 7). The precursor-reduction paragraph (λ_i, β_i, χ_eff) sits under layer 2 although it is a system operation.
+
+**D. Naming.**
+14. `balance` → `balance_defect` puts one word on two quantities (elegance V1; VIOLATION): the signed pairing `⟨w, Aψ − q⟩` and the per-group relative norm `‖R_g‖/‖Q_g‖`, which `warn_if_unconverged(balance_defect=certificate.balance)` already names at 4 production sites. Proposal: `balance_defect(w)` for the pairing; the certificate slot becomes `relative_residual`.
+15. `direction_idx` → `ordinate_idx` (V2; VIOLATION): on the cylinder arm the index is the WITHIN-LEVEL azimuthal index (`reduced_operator.py:463-476`; 6 live `mu_level_idx=` sites), not an ordinate. Proposal: a type change, not a rename: `streaming_terms` takes the global ordinate only, and `(level, m)` is derived once from `quadrature.level_indices`.
+16. `Axis.generator` → `Axis.provenance` (C3) collides with two existing `Provenance` classes (citation records, 77 keyword sites); its 5 of 5 readers narrow it to `Quadrature`. Proposal: `induced_by`, or a typed `quadrature` accessor.
+17. The collapse verb's name. Elegance: `ratio(numerator, denominator)`, the section's own sentence, named by structure, free in the tree, and the only candidate that spells the one shipped unequal-weight fold (T3 `sig_p`); refuted with reasons: `collapse`, `average`, `density`, `quotient`, `condense`/`homogenize`/`coarsen`, `conditional_expectation`, `radon_nikodym`, `effective`. Structure: `radon_nikodym` on `MeasureCoupling`.
+18. Smaller: `SigL` should read "(n,α) loss"; `projection` the verb against the module `projection.py`; `gram_inverse`/`CrossGramInverse` are the ratio's denominator under a false name; `FundamentalMode` twins the existing `ScaleGauge`; `NumberDensity` over `NuclideDensity`; drop "Direction" (`CellCoefficient`); `octant_signs` over `mu_sign`; `derivation` over `producer`; the five `Nullspace` successors are not spelled (cold read 8).
+
+**E. Twins and unmapped retirements (elegance).**
+19. `rate(cells, w)` absorbs 9 production definitions (3 × `compute_production_rate`, an existing twin) plus `ReactionRateFunctional` and `rayleigh`, none named in the section (C7).
+20. The pullback-pair paragraph claims 5 live spellings and names none; on the surjective (axis) arm the retraction is the pushforward with the Σw convention of ERR-051, so `retraction`/`section` keep their names (C8).
+21. `analysis` on a one-hot table is a second `pushforward` (C9); `_overlap_table` kept beside the composite is a gated twin (C10); `spatial_closure` (82 sites) is left beside `scheme` (C13); the compute-kernel sense of "kernel" (113 sites) is unclassified (C14).
+22. `Estimated` as a fifth `Evidence` kind is silently dropped by 2 of 2 production readers (`isinstance(x, Measured)` with a silent else) (C5).
+23. The layer successors are named but the predecessors are not mapped: `SNProblem` (886 sites, 33 public members spanning three target layers), `DiffusionMesh`, `HomogeneousProblem`, `EigenPosing`/`SourcePosing`/`posing` (C6). "Problem" changes meaning.
+
+**F. Contradictions and self-containment (cold read).** `project` both assigned (L49) and retired (L77); `F` at `physical_point` unqualified although the neutron system's own `F` is prompt-only once precursors are declared (L38 against L10); the collapse verb's caller count (L82: 7 + 5 + `_per_pair`; L174: 14 + `_per_pair`; elegance counts 15 `.project(` callers, with `_per_pair` double-counted); "Still to build" overclaims (several objects exist); undefined `Λ`, `ω`, "the continuum line", "the lowering", "a channel", "along c", the ruling labels (a)–(e) and (iii); the 1.57 anchored to a section the reader does not have; `CoefficientDirection` re-asked twice; `J±` are the half-range ZEROTH moments under the Stokes metric (F18), not first moments; `PetrovGalerkinFrame` "no production consumer today" is false (`mixture.py:560, 605`, F17).
+
+**The attackers on the `[OPEN]` and `[PROPOSED]` items.**
+| item | structure | elegance |
+|---|---|---|
+| angular-collapse ν | the pushforward | physical volume (keep retraction ≠ section) |
+| coproduct manifold | build it | at the second consumer |
+| `CoupledSpace` vs `FullFieldSpace` | one `FunctionSpace` over the coproduct; `Composite` 2-ary | narrows to `FullFieldSpace` only (`Composite` is a field) |
+| `Enclosed` | refuse, once `continuum_edge(d)` is declared | refuse, never flag |
+| single `point` slot | accept, the origin on the coordinate | carries two points: type the line |
+| `SingularSource` | accept, with the admissibility `⟨ψ†, q⟩ = 0` | keep |
+| fundamental's scale | the outcome's gauge | drop `FundamentalMode` (twins `ScaleGauge`) |
+| next generation as prose | accept | — |
+| PLAN/BINDING split | accept, labelling moved out of `Stepped` | assign `Splitting`, `SourceIteration`, `KrylovAcceleration`, `power_iteration` a side first |
+| collapse verb name | `radon_nikodym` | `ratio` |
+
 ## ⏸ COMPACTION POINT — 2026-09-28 (supersedes the 2026-09-27 point below; read "The ontology as it stands" first)
 
 State: the clean-context attack of 2026-09-27 ran, and every one of its findings the user took up is RULED and folded into "The ontology as it stands" (re-consolidated 2026-09-28). The user's follow-up threads were attacked with prototypes and ruled:
