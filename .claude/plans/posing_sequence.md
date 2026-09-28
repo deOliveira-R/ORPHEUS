@@ -1328,6 +1328,41 @@ The structural premise `[M]`: 6 of 6 checkable identities hold (the overlap fact
 | PLAN/BINDING split | accept, labelling moved out of `Stepped` | assign `Splitting`, `SourceIteration`, `KrylovAcceleration`, `power_iteration` a side first |
 | collapse verb name | `radon_nikodym` | `ratio` |
 
+### The user's rulings on the second clean attack (2026-09-28)
+
+The numbers are those of the orchestrator's report to the user, which map to the items above as: 1 = A1, 2 = A2, 3 = A3/D17, 4 = B7 with C, 5 = B10, 6 = D14, 7 = D15.
+
+1. **`derived_SigT`: lazy now, eager when Monte Carlo is built.** The user, verbatim: *"Monte Carlo also needs to know the derived SigT … Monte Carlo ends up having an equivalent version of the CollisionOperator (to calculate the flight distance as in 'a place that is only constructed after all other channels are selected'). So Monte Carlo would have the same gate somewhere. The library can't do it, because it doesn't know what reaction set we will use. … These are the actual 2 robust choices: declare materials carrying a library and build the necessary operators or sampling structure, then the total from that lazily, or declare materials and pick the cross-sections to be used eagerly so that the check happens early (and is unique). … I think the right structure for now is the lazy evaluation. We can change to an eager evaluation once we're building Monte Carlo. What we can do is locate the comparison gate as a method in the library that accepts the derived XS as an argument and compare it against the SigT at the library and emits its warning. This is a unique gate that both methods can use now, even as a lazy resolution."* RULED:
+   - the total is derived lazily by whatever consumes the reaction set (the collision operator; Monte Carlo's flight structure);
+   - the comparison is ONE method on the library, taking the derived total as its argument, comparing it with the library's total (MT1) and emitting the omitted-reaction warning; every consumer calls it;
+   - the eager form (a declared reaction-set object built before any operator, the check unique and early) is the named successor, adopted when Monte Carlo is built. The move is a reorganisation at the head of layer 1, not a change of layer 1.
+   The user's aside, "can't Monte Carlo be implemented using operators as well?", is answered below.
+2. The trace: the user asks how trace inflow maps to bulk today before ruling. An explorer is measuring it (`scratch/posing_sequence/clean_attack2/trace_inflow/`).
+3. **The collapse verb is `radon_nikodym`** (the orchestrator's recommendation: the perfect match keeps the word). Its host (A3) follows from the name: it is the density of one pushed-forward measure against another, so it lives on the object that holds both pushforwards.
+4. **Accepted:** `Fundamental`'s end is the boundary of the coordinate's ADMISSIBLE RANGE, a layer-1 declaration; layer 1 also declares the bulk sub-block and the continuum edge.
+5. **Accepted:** the system algebra's outputs DERIVE their declarations (mass operator, affinity, cone) from their inputs'; a reduction's rational affinity and a complexification's absent cone are stated as such.
+6. **Accepted:** `balance_defect(w)` names the signed pairing; the certificate's per-group relative norm becomes `relative_residual`.
+7. **Accepted:** `ordinate_idx` is a type change: `streaming_terms` takes the global ordinate only, and `(level, m)` is derived once from `quadrature.level_indices`.
+
+**How trace inflow reaches the bulk today** (the user's question 2; explorer memo `scratch/posing_sequence/clean_attack2/trace_inflow/memo.md`, probes and outputs beside it; `[M]` on a 3-cell S2 slab, a sphere, and a diffusion slab; the 2-D Cartesian and cylinder cases are read from code only). Nothing maps the trace into the bulk as its own operator. The trace is its own set of unknowns: SN's is `V_inflow ⊕ V_outflow`, diffusion's is `(J⁺, J⁻)` per face. There is no bulk → trace gather. The full loss on bulk ⊕ trace is one 2×2 block matrix:
+
+| block | realised by |
+|---|---|
+| `A_bb` | `L_bb + C − S − F` |
+| `A_bt` (trace → bulk) | a block of the streaming/leakage leaf `L`. SN: the inflow is each characteristic's starting face; cell 1's row is `1.1547 ψ̄ − 1.1547 ψ_in` (coefficient `−2|μ|/h`), and through the eliminated interior faces ψ_in enters every downstream cell with alternating sign `±2|μ|/h`; the outflow columns are 0. Diffusion: the edge cell reads the net current `+J⁺ − J⁻` (`diffusion/operators.py:406`), both halves |
+| `A_tb` (bulk → trace) | the trace rows of `L`: the scheme's reconstruction of the OUTGOING face value. SN diamond difference `2ψ̄ − ψ_in`, chained (`transport/spatial/scheme.py:1772`); measured row `2ψ̄₀ − 2ψ̄₁ + 2ψ̄₂ − ψ_in − ψ_out`. Diffusion `J⁺ − c_φ φ_e − c_J⁻ J⁻` (`:427`) |
+| `A_tt` | `L_tt − B`: SN `L_tt` = diag(+I inflow, −I outflow); diffusion `[[1, −c_J⁻], [0, 1]]` per face; the law `B` (BOUNDARY role) puts the reflection or albedo at (inflow, outflow) only |
+
+`TraceRestrictionOperator` (`numerics/operator.py:2999`) is not the bulk → trace map: it selects the outflow half of the face trace, is used only by the SN realizer's outflow selector (`realizer.py:212/255`), and has 0 uses in `orpheus/diffusion`. A lift is BULK-role. The sign comment at `sn/loss_representation/__init__.py:3609` said "ψ.outflow − streamed" against the code's "streamed − stored"; corrected in the commit after this one.
+
+Consequence `[R]`: the code already realises bulk ⊔ trace as the coproduct, coupled only through the operator's off-diagonal blocks. The "bulk → trace move" is `A_tb`: the continuous trace `γ` composed with the scheme's reconstruction face and the trace frame's analysis, `M_∂ ∘ γ ∘ R_V`. The commuting condition is then a statement about `A_tb`: on the closure's reproducing space, `A_tb ∘ M_V = M_∂ ∘ γ` (the structural attacker's diamond-difference measurement: exact on `x`, −h²/3 on `x²`). Inflow → bulk is the boundary datum of the characteristic solve, the same object the section names as the nodal reconstruction face. So no pullback of `∂V ↪ V` is needed anywhere; the coproduct manifold is the missing TYPE for a structure the code already has. For the user's ruling on A2.
+
+**Can Monte Carlo be implemented with the operators?** `[R]` Yes, and the seam already points there. Monte Carlo estimates a linear functional `⟨w, φ⟩` of the Neumann series `φ = Σ_n K^n q̃`, where `K` is the transport kernel (the free flight composed with the collision kernels) and `q̃` the first-flight source. Every factor of `K` is an operator the deterministic side already has:
+- the free-flight kernel `Σ_t e^{−τ}` along a characteristic IS the integral kernel of `(L + C)⁻¹`, the characteristic solve the section names as the nodal reconstruction face; its `Σ_t` is `derived_SigT`, so Monte Carlo's "collision-operator equivalent" is the collision operator itself;
+- each emission kernel `ν_x K_x = ν_x Σ_x P_x` with `P_x` a Markov kernel;
+- the boundary law as a kernel on the trace.
+What differs is the VERB: a deterministic Strategy APPLIES or INVERTS these operators on a discretised space, and Monte Carlo SAMPLES them on the continuous space (the identity axis factors), with a representation per operator that can be sampled (the seam's "two representations" of `P_x`). So Monte Carlo does not need a parallel operator set; it needs each operator to expose a sampleable representation beside its applicable one, and `markov_view(point)` is the system assembling those. Two things are Monte-Carlo-specific and stay in the Strategy: the majorant (delta tracking reads a bound on `derived_SigT`, not `derived_SigT`), and the estimator (collision, track-length, and their variance).
+
 ## ⏸ COMPACTION POINT — 2026-09-28 (supersedes the 2026-09-27 point below; read "The ontology as it stands" first)
 
 State: the clean-context attack of 2026-09-27 ran, and every one of its findings the user took up is RULED and folded into "The ontology as it stands" (re-consolidated 2026-09-28). The user's follow-up threads were attacked with prototypes and ruled:
