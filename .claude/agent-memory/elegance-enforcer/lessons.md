@@ -311,3 +311,14 @@ covered arm). `[M]` 2026-09-23 face transmission: `CellResponse.transmission` ne
 LD d≥2 → 0 of 83 red; control → 4 red. Remedy is one composition site with a pointwise
 entry (`transmission_at`), never a third spelling. Also: check the slowness claim that
 justified the re-spelling — it was stale (0.08 s vs "does not finish in 30 s").
+
+### L-026 — On a "every X is the <induced arrow> of one map" unification, check the ROLE the arrow plays per instance
+Not covered by the type-vs-property test (`coding-standards`), which a real concept passes
+while the role assignment is still wrong. `[M]` 2026-09-27 (`Pullback(φ)` W5): the pullback
+is the RESTRICTION along an injective map (trace, system member) and the unnormalised
+EXTENSION along a surjective one (axis projection: `R = (π*)^H`, `E = π*/Σw`); where the Gram
+factor sits is a physics convention (ERR-051) no map can derive. Detection: per instance,
+ask whether φ is injective or surjective and which induced arrow the tree calls the
+retraction; grep the theory corpus for a sentence already refuting the identification
+(`spaces.rst` "The pullback is not the section"). Also probe a point-map type spelled by
+node POSITION (`lambda nodes: nodes[idx]`) on a reordered array: it answered wrongly.

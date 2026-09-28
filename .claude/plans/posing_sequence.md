@@ -804,6 +804,54 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         The conceptual view lists them as "four typed families, each a split pair `(r, e)` with `r ∘ e = id`". That shared law is the tell that they are one concept.
       - *The face transmission* (landed `8ff942f9`, plan `face_transmission_aor.md`) is a CONSUMER of these arrows, not the concept. Its production spelling, deferred there to its first consumer (Krylov on the boundary trace), is `T = γ_out ∘ (L + C)⁻¹ ∘ ι_in`, a composition of a pullback (restriction to the outflow faces), the cell inverse, and an adjoint (extension from the inflow faces). The response-matrix and interface-current blocks recorded there are built the same way.
       - *The candidate:* one typed `Pullback(φ)`, with its adjoint derived through `.H`, realised discretely as an index gather wherever `φ` maps nodes to nodes. The five families re-spell as instances. The split-pair law `r ∘ e = id` becomes a property of the map, where `φ` has a section, instead of a law restated per family. `[HYPOTHESIS]`, for a W5 attack: census the five families' bodies and consumers; check that each is a pullback along a map with a derivable adjoint; check that the discrete realisations (index gathers, the normalised section) fall out.
+      - The user's framing, 2026-09-27: *"This seems like another factory object binding 2 manifolds and outputting the appropriate objects from this bind, like the frame is a factory object that binds a discrete measure to a basis function and outputs analysis and reconstruction operators."*
+    - **The attack (2026-09-27).** Structure (Fable): `scratch/posing_sequence/pullback_attack/structure/memo.md`, probe `probe_pullback_pair.py`; the fixture is Gauss–Legendre 8, face `xmax`, and a three-axis synthetic product. Census: `.../elegance/memo.md`, AST over 357 production and 631 test files.
+      - **Notation.** `φ*` is the pullback (the gather, the Koopman operator). `φ_♯` is its Hilbert adjoint under the two ends' measures, `(1/w_N) Σ_fibre w_M f` (the Frobenius–Perron operator; Lasota–Mackey 1994 ch. 3). `ρ = φ_♯1` is the density of the pushforward measure against the codomain's measure. The laws: `φ_♯ φ* = M_ρ`, the section is `e = φ* M_{1/ρ}`, and `r ∘ e = id` iff `ρ ≡ 1` on the image.
+      - **The candidate as written fails.** A pullback is the RESTRICTION only along an injective map (the trace, a system member). Along the axis projection π it is the unnormalised extension: the retraction is `π_♯`, its `.H` is `π*`, and the section is `π* M_{1/ρ}`. The theory page already says so (`spaces.rst:4101`, "The pullback is not the section"). Where the Gram factor `Σw` sits (ERR-051) is a choice no map supplies, and it lands in `ρ`.
+      - **Per family** `[M]`:
+        - **trace:** `Γ₊(f) ↪ Γ(f)`, with `ρ ≡ 1` on the image; `γ₊ = φ*` and `ι₊ = φ_♯ = γ₊.H`. Apply, `.H` and the scatter are `array_equal`; the negative control (`w_M := 1`) reads relative error 0.93.
+        - **axis retraction and section:** falls out GIVEN the codomain measure. The section's divisor IS `ρ = Σw`, the Jacobian that `ManifoldMap` disowns. R agrees to 2.8e-15, R.H to 1.2e-16, E `array_equal`.
+        - **system restriction:** the injection into a direct sum. The concept fits, but the TYPE is missing: the manifold algebra has products and quotients and no coproduct (0 hits).
+        - **`BulkLift`:** not a member. It is a conjugation `φ_♯ A φ*`, the same shape as the frame's `conjugate` and as `T = γ_out (L+C)⁻¹ ι_in`.
+        - **specular deck:** `G = σ*` (`_factors.py:353` already calls it a "composition operator"), `G.H = G⁻¹`; this falls out iff nodes map to nodes. Under `product(4,3)`, no permutation exists.
+        - **periodic and cell-to-cell:** the translation and the identity, `ρ ≡ 1`.
+        Three families remain, not five: 3 gather bodies and 3 partner bodies (`operator.py:2892/2895`, `3226/3244`, `3351/3561`).
+      - **The binding.** It binds two MEASURES and a map between their supports, `(μ_M, φ, μ_N)`, not two manifolds. It outputs `φ*`, `φ_♯`, `ρ`, the section and the conditional expectation. The map alone gives neither the section nor the trace metric.
+      - **The decisive measurement: the binding IS a frame** `[M]`. `GalerkinFrame(indicator basis over N's nodes, μ_M.pushforward(φ))` has:
+        - a table equal to the one-hot pullback matrix;
+        - a Gram equal to the aggregated pushforward (`array_equal`);
+        - a reconstruction equal to `φ*`, and an analysis equal to `♭ ∘ φ_♯`;
+        - `analysis.H = reconstruction ∘ G⁻¹` to 5.6e-17.
+        The tree's retraction is `♯_{(N,V)} ∘ analysis` (1.2e-15), and its section is `reconstruction ∘ G⁻¹ ∘ ♭_{(N,V)}` (1.2e-16). The frame's G0 `descent` arrow is the point map, and `_collapse_pair` hand-spells this at rank one. So the user's intuition holds more strongly than proposed: it is not a SIBLING factory, it is the SAME factory, a frame with a nodal basis on the codomain. A sibling type would twin the frame, so no new binding type is minted. The new verbs:
+        - `DiscreteMeasure.nodal_basis()`;
+        - the aggregated pushforward;
+        - the raise onto a chosen codomain measure.
+      - **The arrow's name.** `PullbackOperator(index_map, domain, codomain)` subsumes the trace restriction (injective), `PermutationOperator` (bijective) and the section's broadcast (surjective), with accessors `pullback`, `pushforward` and `density`.
+        - "Transfer operator" is killed: it has three senses in the tree, among them the scattering `TransferOperator` (`transfer.py:22`) and the "Birkhoff transfer operator" in `billiard.py`, which IS `φ_♯` for the billiard map.
+        - `Morphism` collides with `ZeroMorphism`, 22 lines in 5 files.
+        - `Correspondence` names a multi-valued relation.
+      - **The Stokes weight.** It is the streaming field's flux form restricted to the boundary, `i_Ω(dV)|_∂V`, SUPPLIED as the trace's measure. It is not a pushforward along `∂V ↪ V`. The pushforward of `dV ⊗ dΩ` along the exit map is the chord-weighted CP escape measure, and Cauchy's `∫_{Γ₊} ℓ (Ω·n) = 4πV` is a CP↔SN gate candidate.
+      - **Carrier.** The discrete carrier is a map between finite node sets, not `ManifoldMap`. The orbit retraction's `ManifoldMap` (`measure.py:1257`) is keyed by array position: it is correct on its own node array, which is the only one production applies it to (so this is latent, not live), and wrong on a reordered array.
+      - **Findings in the tree**, filed as #520:
+        - DSA hand-rolls the angular section, dividing by `w.sum()` instead of the frame's Gram entry (`dsa.py:688-718`; a 1-ULP divergence recorded at Gauss–Legendre 8);
+        - bare-einsum retractions;
+        - three hand-rolled restrict-scatter projectors;
+        - index-arithmetic composition via `to_local`.
+        Also found: two direct-sum carriers, `CoupledSpace` and `FullFieldSpace`/`Composite`, spell extension by zero two ways (`dual_zeros()` versus `role_partner(...).zeros`).
+      - **Rejected candidates:**
+        - the pullback as the restriction (the role flips with injectivity);
+        - `ManifoldMap` as the discrete carrier;
+        - `BulkLift` and `AngularLift` as members (they are conjugations);
+        - a sibling binding type (it twins the frame);
+        - spans and correspondences;
+        - interpolated specular decks;
+        - silently switching the marginal's measure.
+    - **For the user's rulings:**
+      - (1) The binding is the frame (a nodal basis plus the pushforward measure, with a Riesz leg onto the chosen codomain measure), not a sibling type.
+      - (2) The marginal's measure. Either the physical volume V, which keeps `R.H ≠ E` and needs the two-type section design, or the pushforward `Σw · V`, which collapses the section into the pullback. This is a norm choice, to be ruled as one.
+      - (3) A coproduct manifold (the disjoint union) is minted before the system-restriction and bulk rows can be typed.
+      - (4) Unifying `CoupledSpace` with `FullFieldSpace` is a separate W5.
+    - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
 

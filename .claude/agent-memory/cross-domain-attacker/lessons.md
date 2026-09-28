@@ -246,6 +246,19 @@ of implementors would stub; two normalisations of one measure in the shipped cod
 `[M]` 2026-09-27 MC seam: majorant from stored `SigT`, collision from the partial sum.
 → pointer: `mc_seam_feynman_kac_particle_frames.md`
 
+**D15 — Two arrows that differ by a diagonal factor (an adjoint and a section, `R^H = Σw·E`)
+are ONE pullback read against two CODOMAIN MEASURES; compute `ρ = P_φ 1` (the pushforward
+measure's density against the codomain measure) before typing them apart.** `r∘e = id` is the
+theorem "ρ ≡ 1 on the image"; a dead slot is ρ = 0; a section fails exactly where ρ = 0 on a
+live slot; a deck's measure-preservation (ERR-042) is `P_σ1 = 1`. TELL: an anti-swap two-type
+design justified by "the two arrows differ by exactly Σw"; a "the Jacobian is not this type's
+business" disclaimer (the Jacobian is `P_φ1`, and it lives on the BINDING — it is the
+fibre-indicator frame's `discrete_gram`, computed and discarded). Second check: a point-map
+pair proposed beside a Frame is the frame with a NODAL basis on the codomain and the map in
+the pushforward measure's nodes — measure the six identities before minting a sibling type.
+`[M]` 2026-09-27: with `μ_N := π_*μ_M` the section IS the pullback (array_equal). → pointer:
+`pullback_pair_frobenius_perron_frames.md`
+
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
 precedent (data + binder, model + view, kernel + driver) cited by ONE of its

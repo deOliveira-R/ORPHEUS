@@ -51,6 +51,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [fission rank-1](fission_rank1_normal_form_dead_functional.md) — F=|χ⟩⟨νΣf| IS the normal form ⇒ "unfold F" is structurally empty.
 - [iso-family FACTORY refuted](iso_family_factory_refutation.md) — a dispatcher-factory dies 3 ways; the real object is the LIFT FUNCTOR, inverse direction.
 - [#261 op relocation](issue_261_cross_method_operator_relocation.md) — guard invariant is object-id ⊋ geometry ⊋ shape-eq; mint nothing new.
+- [pullback pair = Koopman/FP](pullback_pair_frobenius_perron_frames.md) — restriction/section/deck = ONE point map + TWO measures; ρ = P_φ1 explains r∘e=id, dead slots, ERR-042, the Σw split; the pair IS the fibre-indicator frame (ANTI-MINT); BulkLift a consumer; no Coproduct manifold; "transfer" collides 3×.
 
 ### Curvilinear / phase-space boundary
 - [ψ½ angular trace](psi_half_seed_angular_trace_frames.md) — the ψ½(µ=−1) seed IS the ANGULAR inflow trace, a zero-metric ghost DOF; ⛔ its "sphere-only" verdict is SUPERSEDED (next entry).
