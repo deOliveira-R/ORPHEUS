@@ -3607,8 +3607,8 @@ class _OneDimScanWalk:
         # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
         # operator (so this matvec contains NO BC reflection):
         #   * OUTFLOW slots — the self-consistency defect
-        #     ``ψ.outflow − streamed`` (the r_outflow row's I·ψ.outflow
-        #     diagonal minus L_out,b·ψ.interior). UNCHANGED from pre-extraction;
+        #     ``streamed − ψ.outflow`` (L_out,b·ψ.interior minus the r_outflow
+        #     row's I·ψ.outflow diagonal). UNCHANGED from pre-extraction;
         #     kept as ``computed − stored`` so the vacuum path is bit-identical
         #     (the per-row sign is free — q.outflow ≡ 0, the outflow trace is a
         #     pure definition with no source).
