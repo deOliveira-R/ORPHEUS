@@ -103,7 +103,7 @@ decides whether to open it.
 ### Pure-math foundations citations (functional analysis / geometry / linear algebra)
 - [Riesz legs + frame letters verified](math_foundations_citations_riesz_penrose.md) — Kreyszig 3.8-1 p.188 / Def 3.9-1 p.196; Lee p.26; Penrose Thm 1; Moore 26:394-5. ⛔ Christensen AND Casazza-2000 use T=SYNTHESIS, S=TT*; T=analysis is Casazza-Lynch 2016. Springer `page-one` preview trick.
 
-- [Frame → kernel hierarchy sources](frame_kernel_hierarchy_sources.md) — 2026-09-28: continuous/g/fusion/oblique frames + Lawvere/Villani kernels LOCAL; def locations; T-letter split; AAG/Kaiser/Lasota-Mackey paywalled.
+- [Frame → kernel hierarchy sources](frame_kernel_hierarchy_sources.md) — 2026-09-28 two passes: all frame/Markov/coupling defs READ (AAG, Kaiser, BAG w-frame≠controlled, L-M, Giry, F-M, Cho-Jacobs); page offsets.
 
 ### V&V benchmark anatomy / reference caching
 - [Verification-case anatomy sources](verification_case_anatomy_sources.md) — #405: Oberkampf-Trucano 2007, ICSBEP (Briggs 2003), Ganapol 2008, ANL-7416 3-level IDs, build-system traces; OSTI unreachable from host.

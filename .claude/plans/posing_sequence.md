@@ -969,7 +969,7 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
       - *What our frame is, in frame theory.*
         - A frame in frame theory is by definition a family in a HILBERT space, whose analysis is the family of functionals `f ↦ ⟨f, f_k⟩`. So "HilbertFrame" names nothing more specific.
         - Ours is a discrete frame in the weighted `L²(nodes, μ)`: its analysis rows are the functionals `⟨χ_k, ·⟩_μ`, and its synthesis vectors are the basis tabulated at the nodes.
-        - When the analysis functionals differ from the synthesis vectors (`PetrovGalerkinFrame`), the pair is an oblique dual pair (Christensen–Eldar 2004) or pseudo-frame. In a Banach space, a pair of vectors and functionals is a Schauder frame or "framing" (Casazza, Han & Larson 1999). A frame with a weight on its index side is a WEIGHTED frame, and one with a controlling operator a CONTROLLED frame (Balazs, Antoine & Grybos 2010): the perfect match for the declared-ν filler. "Weighted" already names the basis-side `WeightedIndicatorBasis`; under the family rule both are genuine and each keeps the word, qualified by which side it weighs.
+        - When the analysis functionals differ from the synthesis vectors (`PetrovGalerkinFrame`), the pair is an oblique dual pair (Christensen–Eldar 2004) or pseudo-frame. In a Banach space, a pair of vectors and functionals is a Schauder frame or "framing" (Casazza, Han & Larson 1999). A frame with a weight on its index side is a WEIGHTED frame, and one with a controlling operator a CONTROLLED frame (Balazs, Antoine & Grybos 2010): the perfect match for the declared-ν filler. `[REFUTED 2026-09-28]` by the reading pass (`scratch/posing_sequence/frame_hierarchy/literature2/memo.md`): a controlled frame's controller acts on the HILBERT space, not on the index. The match for a measure on the coefficient side is the "w-frame" (Balazs, Antoine & Grybos 2010, Def. 4.1), the "weighted counting measure" of Ali, Antoine & Gazeau 1993 (p. 6). Their "weighted frame" (p. 117) is a family `(ω_n ψ_n)`, with weights multiplied into the vectors. "Weighted" already names the basis-side `WeightedIndicatorBasis`; under the family rule both are genuine and each keeps the word, qualified by which side it weighs.
       - *The kinds of frame* (the literature's classification axes):
         - by bounds: frame ⊃ tight ⊃ Parseval; frame ⊃ Riesz basis ⊃ orthonormal basis;
         - by the dual used: canonical (self-dual, Galerkin) versus oblique (Petrov–Galerkin);
@@ -1030,6 +1030,36 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         - (i) `MeasureCoupling` as a sibling of `Frame` under the abstract table-presented kernel;
         - (ii) the Petrov–Galerkin weight: keep the ruling on a new ground (a latent signed weight) or move the weight into the measure. Either way `[REFUTED 2026-09-28]` goes beside the recorded ground, and the docstring's issue number is corrected;
         - (iii) provenance with the one-hot shortcut, covering every channel.
+    - **The reading pass (2026-09-28; `scratch/posing_sequence/frame_hierarchy/literature2/memo.md`; the papers the user fetched, each read from its text layer or its rendered pages).**
+      - **Ruling (i), the coupling as a sibling: supported.**
+        - Every frame definition requires a lower bound, so a family that cannot reconstruct is not a frame: Ali–Antoine–Gazeau Def. 2.1 (p. 6) and §4 (p. 19); Kaiser Def. 4.1; Christensen Def. 5.1.1; Casazza–Kutyniok–Philipp Lemma 3 (a frame iff the analysis is injective).
+        - A family that fails the lower bound is a "Bessel sequence" (Christensen Def. 3.2.2), and any finite family is a "frame sequence", a frame for its own span (Christensen Prop. 1.1.2).
+        - Positivity is in no frame definition. So one table has both readings: as a frame, with the orthogonal projection onto its span (Christensen Prop. 5.2.3); as a coupling, with the conservative `(M·1)⁻¹M`. The latter is not a dual, because duals are exactly the left inverses of the analysis (Christensen Lemma 6.3.5).
+        - The verb picks the reading, which argues for two sibling types.
+        - The Markov side:
+          - Lasota–Mackey Def. 3.1.1 (Markov operator), Def. 3.2.3 and Eq. 3.2.2 (Frobenius–Perron), Def. 3.3.1 and Eq. 3.3.4 (Koopman, its adjoint). These are defined for a map of a space INTO ITSELF; the two-space form is the obvious extension, not the text's.
+          - Lasota–Mackey Exercise 3.6: a deterministic operator is one whose adjoint sends indicators to indicators, the one-hot case.
+          - Giry §I.4: kernels are the morphisms of the Kleisli category.
+          - Villani Def. 1.1: the coupling.
+      - **The verb name `conditional_expectation`: sound probability, but no local citation.** A search of the eleven local sources returns 0 hits. The kernel is Cho & Jacobs' "Bayesian inversion" (2019, DOI `10.1017/S0960129518000488`; arXiv 1709.00322v3, now downloaded), whose Ex. 3.8 is exactly the verbs attack's `T†`. Villani (p. 8) calls it the "conditional law". A probability text for "conditional expectation = the integral against the disintegration" is owed (Kallenberg, *Foundations of Modern Probability*).
+      - **Ruling (ii), the Petrov–Galerkin weight.**
+        - The literature moves a weight between the index and the vectors (Kaiser Eqs. 4.18–4.22; the w-frame, Balazs–Antoine–Grybos Def. 4.1 and Thm. 4.5), and onto the Hilbert space by an invertible operator ("similar" frames, Ali–Antoine–Gazeau Eq. 2.13 and Table I; a controlled frame is equivalent to a classical one, Balazs–Antoine–Grybos Prop. 3.2).
+        - No text states the specific equivalence. `[M]` by the researcher:
+          - a Petrov–Galerkin pair with a POSITIVE diagonal test weight equals the orthogonal projector in `L²(wμ)` to 4.4e-16;
+          - with a SIGNED weight, no positive measure makes it Galerkin;
+          - with a generic test span, no diagonal weight exists (every oblique projector is orthogonal in some dense inner product, which is not a measure).
+        - The only argument in the texts for keeping the test side distinct (Christensen–Eldar p. 50; Christensen §9.5) concerns different SPANS, not a weight. The adjoint-weighting motive behind the recorded ruling is not discussed.
+        - Net: the literature supports moving a positive weight into the measure, and keeping a distinct test side only for signed weights or different spans.
+      - **Ruling (iii), provenance: supported.**
+        - Farrell & Maddison 2011 §2: the Galerkin remap `M_T q_T = M_TD q_D` (Eq. 8) with the mixed mass matrix (Eq. 10). It conserves the integral (Eq. 6) iff the constant function lies in the target span, and the supermesh (§3) exists to integrate `M_TD` exactly. For piecewise-constant meshes, `M_TD` is the overlap table and the remap is the conditional expectation `[INF]`, so "the supermesh is what `_overlap_table` computes" holds there.
+        - They chain remaps (every 5 or 10 steps, conservation shown in Figs. 13 and 16) but never discuss whether a chain is consistent.
+        - Kernels compose associatively and stochastic kernels are closed under composition (Lasota–Mackey §5.7, Eq. 5.7.4). Villani's gluing lemma (p. 19) composes couplings through their shared marginal: the provenance rule's mechanism.
+      - **Names.**
+        - Analysis: `T*` (Christensen Eq. 5.4); `T` (Casazza–Kutyniok–Philipp Def. 15); Kaiser's "analyzing operator".
+        - Synthesis: "synthesis" or "pre-frame operator" (Christensen).
+        - `dual_analysis` has no standard name. "Frame coefficients" means `⟨f, S⁻¹f_k⟩` in Christensen (p. 124) but `⟨x, φ_i⟩` in Casazza–Kutyniok–Philipp (p. 17).
+        - The oblique projection: the "mixed frame operator" `TU*` (Christensen Eq. 6.6; Christensen–Eldar).
+        - Still recalled and owed: Casazza, Han & Larson 1999 (not open access); Peng & Waldron 2002 (signed frames); Halmos–Sunder; Panangaden; Aronszajn.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
