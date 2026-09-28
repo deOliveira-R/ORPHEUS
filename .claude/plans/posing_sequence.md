@@ -1104,6 +1104,23 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         - (c) `MeasureCoupling` as a derived, cached composite with provenance, not a primitive type.
         - (d) `PetrovGalerkinFrame`: retire it, or declare a `SCOPE-BOUNDARY` for a future signed test.
         - (e) A negative flux entry as a collapse weight is refused (the cone).
+    - **The user's rulings (2026-09-28).** (a) the placement kept and re-grounded: RULED. (b) `WeightedIndicatorBasis` → `M_w ∘ analysis`, with one two-density collapse verb: RULED. (c) `MeasureCoupling` as a derived, cached composite with provenance: RULED.
+      - (d) `PetrovGalerkinFrame` is KEPT (the user: *"it would stay for the hierarchy and it's almost certain we will use it some point"*). The orchestrator's correction to the user's premise `[R]`: (a) does NOT require it. The 5 two-density ratio morphisms go to the two-density verb, and no single-weight frame, Petrov–Galerkin or Galerkin, spells them. The grounds for keeping it:
+        - it is the general node of the discipline chain (Galerkin = Petrov–Galerkin with test = trial);
+        - genuine test ≠ trial uses exist in the corpus: the spatial closures are "one Petrov–Galerkin family" (`PetrovGalerkinScheme`, `orpheus/derivations/discrete/sn/face_transmission.py:237`); an oblique, consistent-sampling pair with a different test SPAN; and a signed test such as consistent-P_ℓ or GEC rank > 0.
+        Its docstring says it has no production consumer of its defining freedom today, so it does not read as load-bearing.
+      - (e) The user asked how a positivity rule meets diamond difference, which does not preserve positivity. The orchestrator's revised proposal `[R]` REPLACES "refuse a negative flux weight":
+        - A diamond-difference flux can legitimately carry negative entries (thick cells, deep penetration). Refusing them would reject correct output: the `FluxDisplacement` failure recorded in `coding-elegance` Pattern 6. The project already treats cone membership as a PREDICATE the answer REPORTS, not a type (flux lives in V; the `Fundamental` ruling above: "guaranteed for positive schemes and not for diamond difference").
+        - What a signed weight actually breaks, per coarse region:
+          - Conservation (`Σ_{g∈G} w_g σ_g = w_G σ_G`) holds for ANY signed weight: the ratio formula preserves the rate by construction.
+          - The CONVEX-average property (σ_G within `[min σ_g, max σ_g]`) holds iff every weight in the region is ≥ 0.
+          - The collapse is undefined iff the pushed denominator is 0, and an ill-conditioned one near 0 amplifies. A sign change inside a region is where that happens.
+        - So the two-density verb:
+          - admits signed weights;
+          - refuses ONLY a zero (or, above a stated tolerance, vanishing-relative-to-its-parts) pushed denominator, an input-boundary refusal;
+          - REPORTS per coarse region whether the collapse was a convex average (all weights ≥ 0), as the eigen answer reports cone membership.
+          The negative-flux fix-up remains a scheme choice at the spatial discretisation, not the collapse's business. Rank > 0 GEC trials are signed by construction, so the frame side never had a positivity rule to begin with.
+        - Not yet measured: a diamond-difference fixture in the tree that yields a negative scalar-flux collapse weight (a positive control for the report). It is owed with the carve.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
