@@ -65,6 +65,48 @@ CP matrix = positive kernel on (cells, VΣ_t); reciprocity = `.H` self-adjointne
 metric; `_normalize_rcp` (`cp/solver.py:402`) = the disintegration `average`. MC tally
 binning = `marginalize`, per-lethargy flux = `average` (D4).
 
+## ⛔ SELF-CORRECTION (verbs attack, same day; memo `.../frame_hierarchy/verbs/memo.md`, probe `probe_verbs.py` P1–P7)
+- **"The coupling does not compose associatively" above is WRONG.** Markov kernels compose
+  (Chapman–Kolmogorov): two-step condensation == one-step through the COMPOSED kernel `T₁T₂`
+  to 2.5e-16 in σ, χ, Σ_s, straddling or nested `[M]` P1. The 0.55 / 0.10 / 0.36 is
+  `T_fine→coarse ≠ T₁T₂` — the overlap FACTORY (`EnergyGrid._overlap_table`) re-declares 1/E
+  at the mid level; a non-functorial factory, not a non-associative kernel. Tower-property
+  reading: exact iff the filtration nests (T₂ one-hot ⇔ `gram_structure DIAGONAL`).
+  Provenance/route-to-parent is the right fix in kind, needed only when T₂ is fractional; in
+  SPACE (all one-hot) the coarse object need carry only `K_*Φ` `[M]` P6.
+- **"No new class; the PoU arm is the ν := M·1 filler" above is REVERSED.** Verb validity
+  splits by filler: `conditional_expectation = (M·1)⁻¹M` is undefined on signed tables
+  (`M·1 = [2,0,0]` on the L=2 harmonic frame; the tree's probe `MR·1 = [2,2,2]` is the GRAM
+  row sum — they coincide iff `R·1 = 1`) `[M]` P5b; `projection = R(MR)⁻¹M` on PoU needs the
+  dense solve nobody wants (0.45). Two verbs each invalid on one arm ⇒ two TYPES (D1):
+  `Frame` (signed; ν ∈ {declared, Gram}) and `MeasureCoupling` (Φ ≥ 0; γ = μ_M ⊗ Φ; verbs
+  pushforward / conditional_expectation / pullback / compose) as SIBLINGS under the abstract
+  table-presented kernel; one-hot = the intersection; 14 of 14 `project` callers land on the
+  coupling (they want conservation).
+- **`projection` is orthogonal only on a Galerkin frame** `[M]` P4: on a one-hot PG frame with
+  w ≠ const, `R(MR)⁻¹M` is idempotent (0) and not W-self-adjoint (1.29) — Christensen–Eldar's
+  oblique projection. `dual_analysis` must be defined on the PAIR ((MR)⁻¹M; canonical iff test
+  is trial); `canonical_dual_analysis` is false on 7 of 7 production PG frames.
+- **Every production PG frame is a coupling in a costume** `[M]` P2+P7: 7 of 7 constructions
+  carry a positive `WeightedIndicatorBasis` test and equal `GalerkinFrame(trial,
+  weight-as-measure)` to 1.6e-16 (gram_inverse array_equal), INCLUDING the bilinear φ*⊙φ and
+  ρ — so the recorded ground for "flux is a test weight, never a measure"
+  (`weighted_indicator_basis.py:24-34`: adjoint weighting needs test ≠ trial) is refuted by the
+  tree's own bilinear collapse. The only test weight that cannot be a measure is SIGNED
+  (consistent-P_ℓ, φ_ℓ crosses zero `[M]` P5a) — 0 production sites. Reported, not ruled (#48).
+- **RN formulation is the DENSITY rule only**: χ in energy is a MEASURE (Markov pushforward,
+  no denominator); "push both and take the density" against counting divides by the group
+  count (D4's wrong answer). `chi @ T == GalerkinFrame(T, counting).analysis(chi)` array_equal,
+  ≠ the condensation PG frame's analysis by 0.36 `[M]` P3 — `marginalize` retires into the
+  analysis of a SECOND frame. χ is measure-valued in energy, a density in space.
+- Verb verdicts: analysis KEEP; reconstruction KEEP; dual_analysis ACCEPT (pair definition);
+  projection KEEP corrected; conditional_expectation ACCEPT on the coupling only;
+  marginalize/average/project RETIRE. `dual` is spent on the ALGEBRAIC dual (`.dual()`, "dual
+  dyad") — a different sense, docstring must say which.
+- HarmonicFrame: a licensed LEAF (four binder verbs returning operators, D10) on the FAMILY
+  axis inside the DISCIPLINE chain; the grid appears at the second family (the hand-rolled
+  Legendre analysis, `radial_characteristic_field.py:392,404`).
+
 Cross-refs: [[pullback-pair-frobenius-perron-frames]] (ρ; the pair IS the nodal frame),
 [[condensation-nonnested-fractional-overlap-frames]] (⛔ its "rate-preservation falls out of
 frame.project as a frame projection" reading is SUPERSEDED: it falls out of the coupling's

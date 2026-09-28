@@ -276,7 +276,21 @@ projector; a verb named `project` whose callers all want conservation. `[M]` 202
 0.11–0.124 on PoU, 0 nested; two-step condensation off by 0.55 on a straddling mid grid.
 Rider: on a finite manifold a stored table IS a function family, so `Basis` is not loose
 there — check the INHERITANCE EDGE instead (the PoU child was declared a subclass of its
-one-hot special case). → pointer: `frame_hierarchy_kernel_coupling_frames.md`
+one-hot special case). RIDER 2 (2026-09-28, same day, SELF-CORRECTION): **slot-vs-type is
+decided by VERB VALIDITY across the fillers** — a slot is right when every verb is defined on
+every filler; a verb undefined on one filler (`(M·1)⁻¹M` on a signed table: `M·1 = [2,0,0]`)
+and another unwanted on the other (`R(MR)⁻¹M` on PoU: the dense solve, 0.45 off conservation)
+means two TYPES under a shared abstract parent, and the morning's "one slot, three fillers"
+was wrong for the Markov arm. RIDER 3: **"does not compose" is tested by the COMPOSED-KERNEL
+route, never by two-step-vs-one-step alone** — Markov kernels always compose
+(Chapman–Kolmogorov); two-step == one-step-through-`T₁T₂` to 2.5e-16 while both differ from
+the direct table by 0.1–0.36; the defect is the table FACTORY (not a functor from the grid
+poset: it re-declares the within-group model per level), and the decidable exactness
+condition is "the second kernel is one-hot" (the tower property needs a nested filtration).
+RIDER 4: a positive TEST WEIGHT over a counting measure and the same weight as the MEASURE
+are one object (7 of 7 production PG frames, 1.6e-16) — before accepting "X is a test
+weight, never a measure", ask which test weight could NOT be a measure (a SIGNED one) and
+count its production sites (0). → pointer: `frame_hierarchy_kernel_coupling_frames.md`
 
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
