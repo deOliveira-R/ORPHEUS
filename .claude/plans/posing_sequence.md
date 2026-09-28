@@ -869,6 +869,25 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
       - the trace: an inclusion, with `ρ = 1`;
       - the angular collapse: a projection, with `ρ = Σw` under the physical-volume metric, or 1 under the pushforward metric (ruling 2);
       - specular reflection: a bijection, with `ρ = 1`.
+    - **The user's next questions (2026-09-28):** *"This object seems to be more general than a Frame or at least more general than the Frame we currently have ... Is the Frame in frame theory a more general construct and ours is a specialized one? or there is another object that is more general than Frame? Also, what is the difference between binding a measure to a basis and 2 measures? Should the second one be a discrete measure as well or should it be a specific type of basis function that has discrete measure-like shape? Is there a Frame or Frame-like object that binds 2 basis functions?"*
+    - **The orchestrator's answer** `[R]` throughout; literature and a W5 owed before any ruling.
+      - *Frame theory's frame is more general, and ours is a specialisation.* A frame in frame theory (Duffin & Schaeffer 1952; Christensen, *An Introduction to Frames and Riesz Bases*) is a family `{f_k}` in a Hilbert space H with bounds `A‖x‖² ≤ Σ|⟨x, f_k⟩|² ≤ B‖x‖²`. Analysis is `x ↦ (⟨x, f_k⟩)` into `ℓ²(K)`, synthesis is its adjoint, and the canonical dual is `S⁻¹f_k`. Ours is the case `H = L²(nodes, μ)`, with the family the basis tabulated at the measure's nodes: a sampling frame. Frame theory's own generalisations reach the user's object:
+        - CONTINUOUS frames (Ali, Antoine & Gazeau 1993; Kaiser 1994) index the family by a MEASURE space `(Ω, ν)` instead of a counting set, so both sides carry a measure;
+        - DUAL and OBLIQUE-DUAL frame pairs (Christensen & Eldar 2004) are two families, which is our `PetrovGalerkinFrame`;
+        - g-frames (Sun 2006) replace the functionals by operators.
+      - *Measure versus basis.* A measure says how to integrate: weighted Diracs, a dual object. A basis says which functions: a primal object. A discrete measure on N DETERMINES a nodal basis, the indicators of its nodes, with `⟨1_j, δ_k⟩ = δ_jk`, the two dual to each other. So the second slot is a MEASURE, supplying what "per node" weighs, and its nodal basis is a derived view (the attack's `DiscreteMeasure.nodal_basis()`). It is not a special basis type.
+      - *Binding two bases:* yes, but only through a measure (an inner product) that pairs them. The cross-Gram `G_ij = ⟨a_i, b_j⟩_μ`, and the change of basis `M_b ∘ R_a` through a shared measure. `PetrovGalerkinFrame` is (trial basis, test basis, measure).
+      - *The more general object:* a KERNEL between two measure spaces. It is a table `K(x, y)` on `M × N` with `μ_M` and `μ_N`, defining `(Kf)(y) = ∫ K(x, y) f(x) dμ_M` with its adjoint through `μ_N`. Its specialisations:
+        - (a) the frame: `K(node, mode)` = the basis tabulated, with the modes' metric the basis Gram;
+        - (b) the point-map pair: `K` one-hot, `K(x, y) = 1` iff `y = φ(x)`, a deterministic coupling;
+        - (c) the fractional-overlap condensation: `K(g, G) = f_{g,G} ∈ [0, 1]`, a partition of unity, which is one-hot iff the grids are nested (`EnergyGrid.overlap_to` → `OverlapBasis`, `mixture.py:563`);
+        - (d) Petrov–Galerkin: two kernels over one measure.
+
+        So (c) is an in-tree instance that NO point map covers, and the tree already spells it as a basis inside a frame. In probability the one-hot and fractional cases are a deterministic and a general coupling, or Markov kernel (the Giry-monad category), when the rows sum to one.
+      - *Open, for the attack:*
+        - Is the right move a new general type, or `Frame` extended so that the coefficient side may carry its own declared measure (the continuous-frame form, from which the density `ρ` falls out)?
+        - Frame theory's frame bounds and canonical dual: do they survive for a kernel whose coefficient side has its own measure?
+        - "Kernel" collides heavily in this tree (the scattering and transfer kernels), so the name is open. Candidates to test: continuous frame, coupling, integral kernel.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
