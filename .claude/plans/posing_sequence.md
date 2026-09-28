@@ -720,6 +720,55 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
 - `sample` as a system view (the attack) or a term verb (the proposal);
 - whether `reconstruct` is chartered now as an owed `Discretization` leg;
 - whether the continuous root's scope includes periodic and lattice translation boundaries, which Monte Carlo needs and the geometry layer cannot express (#436).
+**The user's rulings (2026-09-27).**
+- **Sampling lives on a system VIEW, `markov_view(point)`: RULED.** There is no `sample` verb on a term.
+- **Periodic boundaries.**
+  - The user: *"I thought we already had periodic BC law to fit this. We don't have lattices though, and will only implement it after our physics is sharp for smaller problems."*
+  - `[M]` The law exists: `PeriodicBoundary(axis)` in `orpheus/geometry/boundary/` is a translation that identifies a pair of faces. `transport/method.py:387-407` parses it, and the SN realizer handles it (`sn/boundary/realizer.py:1035`). SN's registry still admits only vacuum and reflective (#189, OPEN).
+  - Today's MC ignores the law and wraps positions itself (`mc/solver.py:426-427`, `% pitch`). The seam is only that a future MC consumes the geometry's `PeriodicBoundary` as its boundary kernel, like every other law.
+  - Lattices (repeated structures) are deferred until the physics is sharp on smaller problems.
+- **`reconstruct` on `Discretization`: RULED 2026-09-27**, after the orchestrator's explanation.
+  - A discretisation is the product of its per-axis frames, so it is a frame with two faces. The ANALYSIS face goes from the continuous space to the coefficients. The RECONSTRUCTION face goes from the coefficients to a function on the continuous phase space.
+  - Both faces are declared on `Discretization`, DERIVED as the product frame's faces, never hand-written per method.
+  - `project(source)` is the plan's name for the analysis face applied to a method-free source, not a separate object.
+  - The consumers of reconstruction:
+    - CADIS importance at a point, `(R ψ†)(x, Ω, E)`;
+    - reading a discrete answer through a continuous functional, `⟨w, R ψ_h⟩ = ⟨R*w, ψ_h⟩`, for the SN-versus-MC comparison;
+    - plotting between nodes;
+    - cross-discretisation comparison;
+    - point detectors.
+  - Owed before the revised section: a check of whether every spatial scheme, and every other axis factor, exposes its reconstruction face through a frame today. Dispatched: `scratch/posing_sequence/reconstruct_check/`.
+  - **The check** `[M]` (`scratch/posing_sequence/reconstruct_check/notes.md`, `probe1.py`, at `2a713a16`). It covers ten factors:
+    - space: diamond difference, LD/UBLD, diffusion's cell-centred finite volume, 0-D;
+    - angle: discrete ordinates, harmonic moments, the Morel–Montry curvilinear closure, the diffusion P1 angle with its J± trace, 0-D;
+    - energy: the groups.
+
+    The reconstruction face EXISTS for 1 of 10: harmonic moments, `HarmonicFrame` (`harmonic_frame.py:334`), which evaluates at an arbitrary μ. It is PARTIAL for 3 of 10:
+    - diamond difference and the diffusion bulk, through `Mesh1D.indicator_basis` (`structured.py:306`), which the mesh mints, not the scheme;
+    - the energy groups (`energy_grid.py:194`, `:222`), over the group index rather than E, so `evaluate(5e4 eV)` silently lands in the last group.
+
+    It is ABSENT for 6 of 10:
+    - the LD slope is a modal axis with no basis;
+    - discrete ordinates have no nodal basis;
+    - the curvilinear closure, the diffusion angle, and the two 0-D factors have none.
+  - **Structural facts** `[M]`.
+    - `FrameBase.reconstruction` evaluates only at the frame's OWN measure nodes. Evaluation at an arbitrary point is a `Basis` capability (`base.py:192`, `:241`) that no typed operator wraps.
+    - No product of frames exists: 0 hits for a product Frame or Basis class. `TensorProductOperator` requires equal domains and refuses rank-changing factors, so both space R ⊗ angle R and space R ⊗ energy R raise `IncompatibleOperatorComposition`. A product of SPACES exists (`TensorProductSpace`, `space.py:1102`).
+    - The scheme registry holds 2 keys. Weighted DD, step and curvilinear LD do not exist.
+  - **The hand-rolled twins** `[M]`:
+    - energy midpoints in two conventions: the geometric `representative_energy` in `homogeneous/solver.py:122,132`, and the ARITHMETIC midpoint in `examples/discrete_ordinates/plotting.py:84,108`, plus `plotting.py:264` and `mc/solver.py:637`;
+    - spatial plots joining cell averages linearly, which matches neither the indicator R nor the scheme R, at 7 example and student sites;
+    - 18 test sites in 10 files sample `phi_exact(mesh.centers)`, a midpoint standing in for the cell-average analysis face.
+    - The scheme kernels' face values (`scheme.py:1760,1772`, `_ubld.py:565`, `face_currents`) are what a derived R must reproduce; they are not retired.
+  - **Consequence.** The derived face is mostly MACHINERY TO BUILD, not a declaration:
+    - a basis per scheme (a cell-local polynomial basis for LD; a nodal ordinate basis);
+    - an evaluation face at an arbitrary point;
+    - a product-of-frames construction.
+    It belongs to the campaign, sized there. Three questions go to the user, each with the orchestrator's recommendation `[R]`:
+    - (i) **"R at an arbitrary point".** R's codomain is the continuous function space the basis spans. A point value is the pairing with a point-evaluation functional `δ_x`. Re-binding the frame to a node set is how a FINITE set of point evaluations is realised. So: a typed function-valued R, and points as functionals.
+    - (ii) **The trace.** It is its own frame, and the discretisation's frame is the DIRECT SUM bulk ⊕ trace, matching the bulk ⊕ trace space. It does not sit inside the spatial factor.
+    - (iii) **The canonical within-group shape of the energy R.** It is the within-group weighting spectrum the condensation uses (`WithinGroupSpectrum`), so that analysis and reconstruction are one Petrov–Galerkin pair. The midpoint conventions retire into it.
+
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
 
 ## ⏸ COMPACTION POINT — 2026-09-27 (supersedes the 2026-09-26 point below; read "The ontology as it stands" first)
