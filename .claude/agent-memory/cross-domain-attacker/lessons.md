@@ -234,6 +234,18 @@ test a proposed direction against the span of the scalar cells before calling it
 scaling". `[M]` 2026-09-27 reaction channels: HF to 1e-10 per cell; a nuclide direction
 0.87 off the cell span. → pointer: `reaction_channel_grid_frames.md`
 
+**D14 — Before granting a VERB to a summand, ask whether the verb's semantics needs the
+SUM.** A sampling verb needs the row MEASURE, which is normalised by the total over every
+summand (`Σ_x/Σ_t`), and the free flight is a RESOLVENT of the sum, so `sample` on a term
+is unspellable for half the members; the right home is a VIEW the whole object yields (the
+pencil-from-question precedent). Second check, same dispatch: the verb's REPRESENTATION
+requirement — a signed representation (a Legendre-truncated kernel) supports `apply` and
+not `sample`; positivity is a property of the representation, so "two verbs on one datum"
+is really "two verbs on two images of one kernel". TELL: a Protocol member that a subset
+of implementors would stub; two normalisations of one measure in the shipped code.
+`[M]` 2026-09-27 MC seam: majorant from stored `SigT`, collision from the partial sum.
+→ pointer: `mc_seam_feynman_kac_particle_frames.md`
+
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
 precedent (data + binder, model + view, kernel + driver) cited by ONE of its
@@ -279,7 +291,7 @@ already promoted (Smell #15, Smell #16).
 | --- | --- | --- |
 | Frame-leak naming — a model-agnostic slot named after ONE consumer's physics; TELL: "generic in X" beside a parameter named after a specific X₁; FIX: name the ROLE in the INTERSECTION of all consumers' domains; first test: a second consumer reading it with NO first consumer in scope (→ L-006) | 2, both naming cases | a third sighting carrying the 2nd-consumer-with-no-1st-in-scope test, distinct from a name |
 | Eigenbasis-blind frame placement — operational-pipeline vocabulary ("natural data carrier of the Galerkin pipeline") where a Funk–Hecke frame is unnamed (→ L-009) | 3, all the same ANGULAR frame | a genuinely non-angular eigenbasis frame |
-| Collapse-morphism-blind — treating a marginalization as a weight=1 average (→ L-010) | 1 (XS coarsening) | a non-XS conserved collapse (MC tally binning, flux→current) |
+| Collapse-morphism-blind — treating a marginalization as a weight=1 average (→ L-010) | 2 (XS coarsening; 2026-09-27 MC tally binning: the raw collision tally is the MARGINAL `M` of the empirical measure, the per-lethargy flux `tally/du` is the AVERAGE `G⁻¹M` — `mc/solver.py:446, :637`) | PROPOSED for Part C at this second sighting (MC tally, a different problem class); the row's own prediction named it |
 | Vanishing-flux-function endpoint / metric-invisible-yet-active DOF (→ L-015b) | 2, both curvilinear SN; a RELATED third of a different kind 2026-09-27: the composite's trace DOFs carry no time term (`rank T = 40 of 48`), so the time family on `bulk ⊕ trace` is a DAE pencil and a "generator on V" does not exist | a non-transport degenerate-drift endpoint (Fokker–Planck, Sturm–Liouville, population balance) |
 | The name states a contract the content violates — a class documented as "data/descriptor/field" whose method list says `apply_*`; distinct from Smell #16 shape 1 (one path, wrong LAYER); FIX is relocation, and the name is usually right (→ L-012) | 1 | a second, non-XS-field host |
 | Identity-scarcity accretion — a container wins every placement because no candidate owner's `__eq__` separates the inputs (→ L-019 / M1.8) | 2 (one inverted: everything induced has structural `__eq__`, the hub has none) | a third outside the SN container family |

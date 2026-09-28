@@ -677,6 +677,51 @@ None of (a)–(f) is new mathematics. (a) and (c) are the load-bearing design.
   - The object is the point of the system's parameter space at which every coordinate takes its physical value, and `physical_point` says exactly that.
   - It is a member of the SYSTEM (L2, a domain reading), not of the physics-free family in `numerics`. There, a question's default point is the system's declared distinguished point, and the family never names it physically.
 
+## The Monte Carlo seam (2026-09-27) — FOR THE USER'S RULINGS
+
+The user, verbatim: *"let's at least consider how the MonteCarlo implementation would work. Not because we will implement now (which we won't), but we at least don't want to pick an architecture that corner us when we pick it up. So the correct seam needs to appear, even if we don't use it yet."* The orchestrator's proposal is `scratch/posing_sequence/mc_seam/proposal.md`. Today's MC is mapped in `mc_today.md` (explorer). The attack is in `attack/memo.md` (Fable).
+
+**Today's MC** `[M]`, `orpheus/mc/solver.py` at `42625a57`: an island in one file.
+- It shares `Mixture`, the boundary tag, `Mesh1D` and the (n,2n) multiplicity with the deterministic side. It shares none of `MaterialMesh`, the operator algebra, `Solution` or `IterationRecord`.
+- Its geometry is its own: a 2-D periodic square lattice cell with a point-location query found nowhere else in the tree.
+- It is multigroup and isotropic, and computes k only.
+- Defects filed: #519 (the tally, and the stored-versus-partial total in the majorant); a comment on #24 (ERR-018's "k-neutral" claim is unmeasured).
+
+**The attack's verdict** `[R]` unless marked. The user asked whether stochastic decisions already happen at layer 1, so that layer 1 must end in a different object. The attack answers NO for every class it examined, marked `[REFUTED 2026-09-27]`: Monte Carlo is a layer-3 Strategy over the same system. The seam changes four things in the proposal:
+1. **`sample` is not a verb on a term** (HIGH). A Monte Carlo walk is the Neumann series of the integral form: the collision-density kernel `K = (Σ_x ν_x Σ_x P_x)·T`, with `T = (L + C − B)⁻¹` along characteristics. Neither factor is a term, so the removal and streaming terms could not honour a `sample` verb, and the free flight has no home. The fix: the system yields a Markov VIEW at a point, `markov_view(point)`, holding:
+   - the free-flight kernel, over the derived total and the geometry's verbs;
+   - the collision kernel, over the reaction set;
+   - the boundary Markov kernel;
+   - the source measure.
+   It relates to the system as the pencil relates to a question. `P_x` is typed as a Markov kernel. Its Legendre image can be applied, but it is signed, so it cannot be sampled: two representations of one kernel, not two verbs on one datum.
+2. **The continuous root is right in direction, wrong in granularity** (downgraded to a wording fix). The root is the RULED per-axis product, with an IDENTITY factor on each undiscretised axis. Monte Carlo is the product with identity factors on space and angle, and it SHARES the energy factor with SN (multigroup). No `ContinuousSystem` class is minted, since no constructor could fill it. The spatial root is the geometry, not the mesh, and it owes `material_at(point)`, with `distance_to_surface` arriving with MoC. Continuous-energy data with unresolved-resonance probability tables is a random-coefficient system: a later data-layer campaign, `[HYPOTHESIS]`.
+3. **Outcomes stay `Carrier`s; reading is additive** (MEDIUM). Retyping every outcome as "functional values" would break the ruled derived questions, which need ψ and ψ† as vectors. It would also drop the Monte Carlo STATE, the fission bank: an empirical measure in the dual space, and the Perron eigenmeasure of a Feynman–Kac interacting particle system, with O(1/N) bias. The fix is additive: `outcome.read(functional)`, plus an `Estimated(value, standard_error, n_eff)` variant of the evidence sum.
+4. **Hybrids ride the discretisation frame's two legs** (MEDIUM).
+   - CADIS weight windows use the reconstruction leg: a discrete ψ† becomes a continuous importance, as a SEED. Its unbiasedness is the ruled "a seed never changes the answer".
+   - CMFD-on-MC and Betzler's TRMM use the analysis leg, weighted by the answer, which yields a coarse layer-1 system. That is the ruled "a condensation for another question is a new Problem", and its identity must digest the answer.
+   - Nothing new is minted, but `Discretization` must declare BOTH `project` and `reconstruct` (today `TransportMethod` declares neither, `method.py:150`).
+5. **Lower severity.**
+   - "A coefficient rescales the weight" holds for EMISSION cells only. A removal coefficient, including `s/v` and a complex `iω/v`, acts as a Feynman–Kac potential `exp(−δΣ·ℓ)`. The role-typed grid derives the rule.
+   - The α–k search is `Eigen(fission, at=point(s = α))` with a root-finding Strategy.
+   - Branching-statistics questions (Feynman-Y, Rossi-α) need `ν` as a probability LAW with a `.mean`. This is additive and waits.
+   - The iterated fission probability is a Strategy realisation of `.H`.
+6. **Words.** "Observable" becomes `Functional`, "output frame" becomes `Frame`, and `sample` lives on the view.
+
+**The minimal seam to declare NOW** (declarations only, nothing built), per the attack:
+- identity axis factors;
+- `markov_view(point)` as an owed system member, with no `sample` on a term, and `P_x` typed as a kernel;
+- `Discretization` declares `project` AND `reconstruct`;
+- `outcome.read(functional)` and `Estimated`;
+- geometry's `material_at(point)`.
+
+**What waits without a redesign:** the continuous-energy and probability-table data model; the multiplicity law; weight windows, CADIS, CMFD-on-MC and TRMM; the Strategy capability tables (Monte Carlo offers `Exact`, refuses `Stepped`).
+
+**Open for the user:**
+- `sample` as a system view (the attack) or a term verb (the proposal);
+- whether `reconstruct` is chartered now as an owed `Discretization` leg;
+- whether the continuous root's scope includes periodic and lattice translation boundaries, which Monte Carlo needs and the geometry layer cannot express (#436).
+Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
+
 ## ⏸ COMPACTION POINT — 2026-09-27 (supersedes the 2026-09-26 point below; read "The ontology as it stands" first)
 
 State: the final attack (structure and elegance), the α-existence investigation (literature and measurement), the channels attack and the orchestrator's cold read have all run, and every finding is RULED and folded into "The ontology as it stands". The user has NOT ruled the plan polished. The user's instruction, 2026-09-27: too many changes landed in one session, so after compaction the plan is ATTACKED AGAIN with a clean context before any polish ruling.
