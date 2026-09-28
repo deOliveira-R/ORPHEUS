@@ -87,6 +87,12 @@ binning = `marginalize`, per-lethargy flux = `average` (D4).
   w ≠ const, `R(MR)⁻¹M` is idempotent (0) and not W-self-adjoint (1.29) — Christensen–Eldar's
   oblique projection. `dual_analysis` must be defined on the PAIR ((MR)⁻¹M; canonical iff test
   is trial); `canonical_dual_analysis` is false on 7 of 7 production PG frames.
+- ⛔ **SUPERSEDED 2026-09-28 (evening) by `weight_placement_weld_attack.md`**: the bullet below is
+  arithmetically right and inferentially wrong. P2's 1.6e-16 is one einsum in two orders (`array_equal`
+  on the same call); the 7 are 7 of 15 collapse morphisms (5 are ratios of two pushforwards with
+  different densities); the two spellings differ on identity, `.H` (2e-16 vs 0.66 on the CMFD
+  prolongation), Gram sharing, signed weights, and cost (G³). The weld is REAL; the placement is the
+  MULTIPLIER on a structural measure; `MeasureCoupling` is `analysis_c ∘ section_f`, a DERIVED composite.
 - **Every production PG frame is a coupling in a costume** `[M]` P2+P7: 7 of 7 constructions
   carry a positive `WeightedIndicatorBasis` test and equal `GalerkinFrame(trial,
   weight-as-measure)` to 1.6e-16 (gram_inverse array_equal), INCLUDING the bilinear φ*⊙φ and

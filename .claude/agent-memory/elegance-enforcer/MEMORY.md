@@ -9,7 +9,7 @@ design-review reference.
 
 ## 1. Lessons — a HOT digest + a COLD archive (read the digest each review)
 
-- [lessons.md](lessons.md) — the hot digest (~315 ln; L-025 added 2026-09-27: on a DESIGN review of a type-tightening, count the refused state's producers at runtime with a `__post_init__`-wrapping `-p` plugin; the guard's docstring is the producer index; L-026 2026-09-27: on an induced-arrow unification check the ROLE per instance): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
+- [lessons.md](lessons.md) — the hot digest (~335 ln; L-027 added 2026-09-28: on a PLACEMENT review prototype every placement as the same numpy chain, census the READERS of what the object builds, `-p`-plugin the carrier's constructor for the refused state, spy `evaluate` for re-done work, read `git log` for a ruling's flip history; L-025 2026-09-27: count a refused state's producers at runtime; L-026 2026-09-27: on an induced-arrow unification check the ROLE per instance): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
   behavioral rules, grouped {standing review order · verify-before-you-flag ·
   grading · blast radius · elegance calls · doc-carve certification}. Read every
   dispatch. Lessons the `coding-elegance` skill has since absorbed (anti-#20 ⊃ L-001,

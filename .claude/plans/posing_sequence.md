@@ -1060,6 +1060,50 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         - `dual_analysis` has no standard name. "Frame coefficients" means `⟨f, S⁻¹f_k⟩` in Christensen (p. 124) but `⟨x, φ_i⟩` in Casazza–Kutyniok–Philipp (p. 17).
         - The oblique projection: the "mixed frame operator" `TU*` (Christensen Eq. 6.6; Christensen–Eldar).
         - Still recalled and owed: Casazza, Han & Larson 1999 (not open access); Peng & Waldron 2002 (signed frames); Halmos–Sunder; Panangaden; Aronszajn.
+    - **The user's answers (2026-09-28).**
+      - Ruling (iii), provenance: agreed.
+      - Ruling (i): *"what would the MeasureCoupling do?"* The orchestrator's answer: its operations (pushforward, `conditional_expectation`, pullback, composition, parent measures); what it consolidates (spatial homogenisation, 12 callers, and energy condensation, 2, as one object); what it retires (`project`, `average` and `marginalize` on these frames, the `@ table` marginals, `GramStructure` and the DENSE refusal, `OverlapBasis` as a basis).
+      - The user recalled that a reconstruction path had been planned: Generalized Energy Condensation, #275 (Rahnema, Douglass & Forget 2008, DOI `10.13182/NSE160-41`; not Hébert as recalled; it expands the FLUX, not the cross sections).
+      - Ruling (ii): the user asked for a serious adversarial attack, since the standing ruling was the agent's proposal that the user agreed to. The recalled argument: welding the spectrum to the function causes problems. The user's standard, verbatim: *"Just because a book didn't mention it is not a reason ... books are not to be taken at face value. Whatever we get from a book or paper STILL has to be prototyped and reproduced."*
+    - **The weight attack (2026-09-28): two attackers, prototypes throughout.** Structure (Fable): `scratch/posing_sequence/frame_hierarchy/weight_attack/structure/memo.md`, probes `probe_weld.py` (A–F) and `probe_gec_factor.py` (G0–G4). Consumer side (Fable): `.../elegance/memo.md`, probes `census_frame_reads.py`, the runtime plugin `wib_sign_census_plugin.py`, and `probe_placements.py` (P0–P9).
+      - **The reversal's evidence was a tautology** `[M]` (X4). The verbs attack's F6 equality `PG(w).analysis(f) == Gal(dV).analysis(w f)` is `array_equal` because both are the SAME einsum call (probe A2), and P7 counted constructions, not morphisms. Its F6 is marked superseded in the attacker's memory. The consumer attacker's "C bit-identical to A on 12 of 12" is the same contraction measured again.
+      - **The original argument, reconstructed as three strands:**
+        - **(A)** "Adjoint weighting needs test ≠ trial." REFUTED as written for the 7 vector-channel frames (the pair weight φ* ⊙ φ is one weight). It is still true of 5 hand-rolled bilinear morphisms that are RATIOS OF TWO PUSHFORWARDS WITH DIFFERENT DENSITIES:
+          - the mixed νΣf fold (`material_xs_field.py:393`);
+          - the ψ† collapse (`mixture.py:614`);
+          - sink ÷ ψ† (`:623`);
+          - χ† (`:633`);
+          - νΣf × s (`:639`).
+          No single-weight frame spells these in either placement (0.11 and 0.75 off; the two-pushforward ratio 1.4e-16).
+        - **(B)** "The measure is grid STRUCTURE and φ is solve STATE." This is the strand the user remembers as the weld, and it is CONFIRMED with numbers:
+          - `DiscreteMeasure` refuses `(n_cells, n_groups)` weights, so the measure spelling needs ng measures, and ng² for the pair channel;
+          - `Gal(φ₀V).measure_space == Gal(φ₁V).measure_space` reads True while the metrics differ by 0.80, a metric-blind identity crossed silently;
+          - a CMFD-style prolongation `c_R φ_i / Φ_R` is the Petrov–Galerkin `M^H ∘ G⁻¹` (2.1e-16), while the Galerkin-in-`φV` spelling is 0.66 off;
+          - a signed φ₁ constructs a Galerkin frame whose "norm" is −1.86: not a Hilbert space.
+        - **(C)** "The solution is the Radon–Nikodym MULTIPLIER, not the measure." CONFIRMED and derived.
+
+        The ruling stands on (B) and (C); only its recorded ground (A) fell.
+      - **Placement verdicts.**
+        - The weight in the measure: REFUTED (strand B).
+        - The weight in the coupling's fine marginal: REFUTED by the structural attacker. `(M_c S_f)ᵀ 1 = 1`, so the coupling's fine measure is the COUNTING measure, and φ is the coefficient being pushed, not the marginal. The consumer attacker had recommended this placement; its reasons (one tabulation; re-weighting 6× cheaper; the faces stop lying about `.H`) survive, but the placement does not.
+        - The principled placement: STRUCTURE (the table T, `dV` or `w(E)dE`, the Grams, the coarse identity) is fixed. STATE is TWO densities, `w_num` and `w_den`, passed as ARGUMENTS of one verb: a multiplication operator `M_w` composed before the geometric frame's analysis. `WeightedIndicatorBasis` IS `analysis_dV ∘ M_w` (`array_equal`), and its 5 raising methods are the proof that it is not a basis. One two-density verb absorbs the 7 frame morphisms and the 5 ratio morphisms, plus the per-pair T2.
+      - **The GEC factorisation (the orchestrator's hypothesis, sent to the structural attacker): CONFIRMED** `[M]`.
+        - The fractional-overlap table is `T = analysis_coarse ∘ section_fine` over `w(E)dE` on the supermesh: 4.3e-16 against `overlap_to`, and the partition-of-unity rows are the section's mass preservation.
+        - The two-step defect is exactly `M_c (P_m − I) S_f` (3.9e-16 absolute; defect 0.393). `P_m` is idempotent, and the chain is exact iff `1_G ∈ span{1_M}`.
+        - A rank-k middle frame (GEC) shrinks the defect, 0.393 → 0.117 → 0.056 → 0.071 → 0.033 → 0.046 → 0.011 for k = 0..6, and the σ_G error from 8.4e-2 to 4.3e-3. It never reaches zero (a step function is in no polynomial span), and it is 2e-16 at every k when nested. The rank-k frame is the attacker's construction from the paper's abstract; the paper is not local.
+        - `σ_G = (M_c S_f)(σφ) / (M_c S_f)(φ)` equals the tree's `project` (1.15e-16).
+        - So **`MeasureCoupling` is DERIVED**: the composite of three shipped faces. If minted, it is only the cached table carrying its (fine frame, coarse frame, structural measure) provenance, gated by `T == analysis_c ∘ section_f`. #275's rank-k GEC is the same composite with a polynomial frame. Ruling (i) as posed, a primitive sibling type, is withdrawn by this measurement.
+      - **Consumer facts** `[M]`: 0 of 7 weighted frames have a downstream reader of their spaces; 15 of 15 production `.project` reads land on them; 106 of 106 runtime weight constructions are strictly positive.
+        - A live twin: `_per_pair` (`material_xs_field.py:399-404`) equals the frame's `project` of Σ_s at relative 0.0.
+        - `PetrovGalerkinFrame` has 0 production consumers of its defining freedom (test ≠ trial) once the weight is an argument, and 0 of 7 tests exercise it.
+        - The ruling has already flipped once (2026-06-23 → 06-24, `00f9b76d`) on an unmeasured ground, and it is repeated in the archivist's feedback memory, three cross-domain-attacker files and two main-agent memories. Whatever lands is gated and retires those copies in the same change.
+      - **Filed:** #521. `CrossGramInverse` casts a complex Gram probe to float in silence (`frame.py:200`), so a complex-weighted collapse returns `K(wf) / Re K(w)`. Signed measures are unguarded too.
+      - **For the user's rulings:**
+        - (a) Keep the standing placement (the spectrum is state, never in a measure or a metric), re-grounded on strands (B) and (C) and the 5 ratio morphisms. Mark ground (A) `[REFUTED 2026-09-28]` at `weighted_indicator_basis.py:22-34`, `frame.py:48-58` and `frame.rst:1368-1400`, and correct "#48" to #268 and #281.
+        - (b) `WeightedIndicatorBasis` becomes `M_w ∘ analysis_dV` with ONE two-density collapse verb, bit-identical, absorbing the 12 morphisms and `_per_pair`. Its name is open.
+        - (c) `MeasureCoupling` as a derived, cached composite with provenance, not a primitive type.
+        - (d) `PetrovGalerkinFrame`: retire it, or declare a `SCOPE-BOUNDARY` for a future signed test.
+        - (e) A negative flux entry as a collapse weight is refused (the cone).
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).

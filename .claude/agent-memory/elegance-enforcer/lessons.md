@@ -312,6 +312,24 @@ LD d≥2 → 0 of 83 red; control → 4 red. Remedy is one composition site with
 entry (`transmission_at`), never a third spelling. Also: check the slowness claim that
 justified the re-spelling — it was stale (0.08 s vs "does not finish in 30 s").
 
+### L-027 — On a PLACEMENT review (where does a datum live: basis / measure / coupling), prototype every placement as the SAME numpy chain and census the READERS of what the object builds
+Not covered by L-025 (producers of a refused state) nor the brief's own census ask. `[M]`
+2026-09-28, the PG-weight reversal: (1) an AST census of `.basis_space/.test_space/
+.measure_space` readers showed 0 of 7 weighted frames have a downstream reader — every
+"space identity / caching / `.H`" attack on the placement was then either withdrawn or
+re-graded pre-existing (F5) in one step, instead of argued; (2) prototyping A/B/C on one
+fixture told bit-identity (C ≡ A, 12 of 12) from float order (B, 1e-16 on 7 of 12), which
+is the whole answer to "do the 0-ULP pins survive"; (3) a `-p` plugin wrapping the carrier's
+constructor over the consuming suites (177 tests, 9 s) measured the refused state's runtime
+population (0 of 106 negative), the L-025 move applied to a POSITIVITY law; (4) a spy on
+`Basis.evaluate` counted one table tabulated 4×/7× per verb — the cheapest "does this
+placement re-do work" instrument, and it found a Pattern-2 twin (`membership` beside three
+frames) the read had missed. Also: a wrapper `Basis` that raises on half its surface makes
+the FACE's `is_adjointable` role default (`True`) a representable lie — test `.H.apply`,
+never read the flag. And read `git log` for the ruling's history before grading a reversal:
+this one had already flipped once on an unmeasured ground (F8), so the finding is "land it
+with a witness", not "land it".
+
 ### L-026 — On a "every X is the <induced arrow> of one map" unification, check the ROLE the arrow plays per instance
 Not covered by the type-vs-property test (`coding-standards`), which a real concept passes
 while the role assignment is still wrong. `[M]` 2026-09-27 (`Pullback(φ)` W5): the pullback

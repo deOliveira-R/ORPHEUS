@@ -287,10 +287,37 @@ route, never by two-step-vs-one-step alone** — Markov kernels always compose
 the direct table by 0.1–0.36; the defect is the table FACTORY (not a functor from the grid
 poset: it re-declares the within-group model per level), and the decidable exactness
 condition is "the second kernel is one-hot" (the tower property needs a nested filtration).
-RIDER 4: a positive TEST WEIGHT over a counting measure and the same weight as the MEASURE
-are one object (7 of 7 production PG frames, 1.6e-16) — before accepting "X is a test
-weight, never a measure", ask which test weight could NOT be a measure (a SIGNED one) and
-count its production sites (0). → pointer: `frame_hierarchy_kernel_coupling_frames.md`
+RIDER 4 (⛔ AMENDED 2026-09-28 evening, SELF-CORRECTION): the morning's "a positive TEST WEIGHT
+and the same weight as the MEASURE are one object (7 of 7, 1.6e-16)" was TWO mistakes in one
+sentence — (i) the 1.6e-16 is the FP re-association of ONE einsum (`PG(w).analysis(f) ==
+Gal(dV).analysis(w f)` is `array_equal`, the same call), so it measured one verb, not two objects;
+the objects differ on every OTHER surface (domain metric, coefficient metric, `.H` — the flux
+shape is in the OPERATOR or in the METRIC, and an adjoint reads only the operator: CMFD
+prolongation 2e-16 vs 0.66; identity flux-dependent under axis-built spaces; Gram unshareable);
+(ii) "7 of 7" counted frame CONSTRUCTIONS when the population is collapse MORPHISMS (15; 5 are
+ratios of two pushforwards with DIFFERENT densities that no single-weight frame spells). The
+rule that survives: before accepting "X is a test weight, never a measure" ask which weight
+could not be a measure (a SIGNED one, 0 sites) — AND before accepting "X is one object in two
+spellings", test the surfaces the equality did NOT touch and count the population the claim is
+about, not the population that was easy to AST. → pointers: `weight_placement_weld_attack.md`,
+`frame_hierarchy_kernel_coupling_frames.md`
+
+**D17 — A "two spellings agree to 1e-16" claim is a TAUTOLOGY until the surfaces the equality
+did not touch are listed and tested; and a "state into structure" weld is detected by four
+probes, not by an argument.** TELL: an `[M]` equality on one verb (`project`, `apply`) offered as
+evidence that two OBJECTS are one; a census by `ast.Call(TypeName)` when the question is about
+morphisms (the sites the type cannot spell were hand-rolled and are invisible to it). PROBES, in
+order: (1) is the equality one contraction in two einsum orders (write the hand einsum; if it
+reproduces the same 1e-16, it is); (2) `==` and `hash` of the induced spaces across two states
+under BOTH identity regimes the tree has (nominal: the metric-blind seam is crossed silently;
+structural: the space changes per state); (3) `.H` of the map in each spelling and a named
+consumer of the adjoint (a prolongation) — the shape lives in the operator or in the metric,
+never both; (4) the count of objects the spelling needs per trailing axis (ng, ng²) and what it
+forecloses (signed, complex). A factory that computes closed-form overlap integrals is the
+shadow of a composite `analysis_c ∘ section_f` over one structural measure — derive the
+composite and it predicts the factory's own chain defect (`M_c(P_m − I)S_f`). `[M]` 2026-09-28
+weight attack: A2 array_equal; B2 True/0.8 and 3-of-3 distinct; B3 2e-16 vs 0.66; G2 3.9e-16.
+→ pointer: `weight_placement_weld_attack.md`
 
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
