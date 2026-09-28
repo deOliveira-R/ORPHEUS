@@ -579,11 +579,13 @@ class FrameBase(ABC):
         probe of the all-ones coefficient vector — the **row sum** of :math:`M R` —
         and returns its masked reciprocal as a typed operator between the two
         faces' coefficient ends (the Moore–Penrose pseudo-inverse zeroes empty /
-        zero-weight regions for free), so :meth:`project` is ``G⁻¹ ∘ M`` and
-        ``frame.conjugate(frame.gram_inverse)`` is the :math:`G`-orthogonal
-        projector :math:`R\,G^{-1}M` onto ``span(basis)`` — ONE spelling of
-        "project onto a span" for every frame. The diagonal acquires the test
-        weight's trailing (group, …) shape from the analysis face.
+        zero-weight regions for free), so :meth:`project` is ``G⁻¹ ∘ M``. What
+        ``frame.conjugate(frame.gram_inverse)`` then IS depends on the trial (the
+        two cases below): on a disjoint-support trial it is the
+        :math:`G`-orthogonal projector :math:`R\,G^{-1}M` onto ``span(basis)``;
+        on a partition-of-unity trial it is NOT (see that bullet). The diagonal
+        acquires the test weight's trailing (group, …) shape from the analysis
+        face.
 
         ⭐ **Why an arrow and not a metric-twin space** (CS4c step 6 item
         6.2c-ii, 2026-09-08). Until then this property (``gram``) returned the
@@ -616,7 +618,17 @@ class FrameBase(ABC):
           probe collapses to :math:`(M\,\mathbf 1)_R = \sum_i T_{iR}\,w_i = \Phi_R` —
           exactly the per-region weight, *even though the Gram is non-diagonal*. The
           conservative re-binning is correct because of this PoU collapse, NOT because
-          the off-diagonals vanish.
+          the off-diagonals vanish. ⚠ What it computes is the per-region AVERAGE
+          (the disintegration of the fine rate over each coarse region: conservative,
+          positive, :math:`P\mathbf 1 = \mathbf 1`), which is the right object for
+          condensation, and it is NOT the :math:`G`-orthogonal projector
+          :math:`R\,(MR)^{-1}M`: on a straddling grid :math:`R\,G^{-1}M` is not
+          idempotent (`[M]` 2026-09-28, defect 0.11 on a three-coarse-group
+          fixture, 0.124 on a real straddling ``EnergyGrid``, 0 when nested) and
+          differs from the orthogonal projection by 0.45 relative, while it
+          preserves each coarse group's rate exactly (the design record, with
+          the probe's command: ``.claude/plans/posing_sequence.md``, "the frame
+          hierarchy").
 
         **A trial that is neither disjoint NOR a partition of unity** (a tapered
         weight, a higher-rank GEC moment — #275) makes the row-sum probe ≠ the true

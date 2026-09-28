@@ -8,7 +8,7 @@ them into memory.
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — meta-lesson M1 (M2–M4 retired into the definition) + 10 standing detection rules + the
+- [lessons.md](lessons.md) — meta-lesson M1 (M2–M4 retired into the definition) + 11 standing detection rules (D16: projector-vs-Markov) + the
   promotion and refuted-frame ledgers. Spine: a concrete reformulation with a
   fail-able first test, or a refutation carrying its structural reason AND the
   question it was refuted for.
@@ -76,6 +76,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [container ownership](container_ownership_dof_criterion.md) — "who owns X?" = does removing it move the DOF SET or `G`? + the admissibility seat decides if the container survives.
 
 ### Frames: ownership, discipline, collapse
+- [frame hierarchy: kernel/frame/coupling](frame_hierarchy_kernel_coupling_frames.md) — apex = LinearOperator with two metric ends (exists); the ONE missing datum is the coefficient measure ν as a frame SLOT with 3 fillers (declared / Gram / marginal); bounds = ρ, dual's projector ν-FREE; the PoU `project` is a MARKOV disintegration, not a projector (frame.py:583 false there); verbs `average`/`marginalize`/`project`. Open before any frame/condensation/coupling brief.
 - [frame ownership](harmonic_frame_ownership_funk_hecke.md) — an operator OWNS a frame iff the frame is its eigenbasis (Funk–Hecke); no symmetry ⇒ PG.
 - [kernel×space binding](cs4a_kernel_binding_representation_frames.md) — bind IS a \*-rep of the SO(3)-commutant ⊕_ℓ M_ng; the 4-law table (tightness ⟹ MULTIPLICATIVITY, never the adjoint); ℓ=0 is blind.
 - [kernel-as-frame layers](kernel_as_frame_layer_inversion.md) — Frame = the 2-field BINDER, Basis = the rich DATA; data verbs → ARRAYS, binders → OPERATORS.

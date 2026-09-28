@@ -256,8 +256,27 @@ business" disclaimer (the Jacobian is `P_φ1`, and it lives on the BINDING — i
 fibre-indicator frame's `discrete_gram`, computed and discarded). Second check: a point-map
 pair proposed beside a Frame is the frame with a NODAL basis on the codomain and the map in
 the pushforward measure's nodes — measure the six identities before minting a sibling type.
-`[M]` 2026-09-27: with `μ_N := π_*μ_M` the section IS the pullback (array_equal). → pointer:
-`pullback_pair_frobenius_perron_frames.md`
+`[M]` 2026-09-27: with `μ_N := π_*μ_M` the section IS the pullback (array_equal). RIDER
+2026-09-28: ρ is the FRAME-BOUND SPECTRUM of the nodal frame under the declared codomain
+measure (`[M]` 4.4e-16 on 4 fixtures; A = min ρ, B = max ρ, Parseval ⟺ ρ ≡ 1), and the
+canonical dual's projector `Φ G⁻¹ Φᵀ W_M` is ν-FREE — so "does frame theory survive a
+coefficient measure" is answered by a two-line identity before any probe. → pointers:
+`pullback_pair_frobenius_perron_frames.md`, `frame_hierarchy_kernel_coupling_frames.md`
+
+**D16 — A verb claimed to be a PROJECTOR is tested on an element of its own span and for
+idempotency; a POSITIVE partition-of-unity table under a row-sum normaliser is a MARKOV
+operator (a coupling's disintegration), not a projection, and the two split exactly when
+the table stops being one-hot.** A "measure on the coefficient side" has THREE canonical
+fillers — declared, the Gram (L² pushforward, orthogonal projection), the marginal `M·1`
+(L¹ pushforward, conservative disintegration) — and a tag that dispatches between the last
+two (`GramStructure`) is a missing SLOT, not a missing type. TELL: a docstring saying "the
+row sum IS the diagonal" or "R·1 = 1 collapses the probe" one sentence before claiming a
+projector; a verb named `project` whose callers all want conservation. `[M]` 2026-09-28:
+`f = T·[2,6]` in span, `conjugate(gram_inverse) f = [8/3, 4, 16/3]`; idempotency defect
+0.11–0.124 on PoU, 0 nested; two-step condensation off by 0.55 on a straddling mid grid.
+Rider: on a finite manifold a stored table IS a function family, so `Basis` is not loose
+there — check the INHERITANCE EDGE instead (the PoU child was declared a subclass of its
+one-hot special case). → pointer: `frame_hierarchy_kernel_coupling_frames.md`
 
 **D10 — An in-repo analogy can be ADJECTIVE-accurate and LAYER-wrong; a layer
 error inverts the conclusion instead of degrading it.** TELL: a two-layer
@@ -311,6 +330,8 @@ already promoted (Smell #15, Smell #16).
 | A precondition spelled as a 30-line docstring caveat on a 3-line body wants to be a TYPE — declare the structure (DIAGONAL / POU / DENSE) and RAISE on the unhandled case (→ L-010) | 1 | a second non-Gram precondition |
 | A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation × CHART × reduction) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named, or a second-difference test with no chart named; FIX: the second-difference test per scheme IN THE PARAMETER'S NATURAL CHART (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (transverse-coupling order; affinity in a width; 2026-09-27 the diffusion P1 face closure — a NON-SN scheme — makes the slab dilation rational while SN-DD is an exact pencil in 1/λ) | PROPOSED for Part C (third sighting met, non-SN scheme); the chart rider is the 2026-09-27 addition |
 | Multiplier-algebra embedding `f ↦ M_f` — scalar "coefficients" on terms that are really FIELDS per region/group; the scalars are the constant sections; unshielded composition directions are vectors in it (→ `coefficient_field_promotion_frames.md`; `posing_ontology_clean_attack_frames.md`) | 2 (XS-field promotion; 2026-09-27 the question space's cell coordinates) | PROPOSED for Part A.3 at this second sighting (a different problem class: question posing, not carrier typing) |
+| Projector-vs-Markov split on a positive PoU table (D16) — a row-sum normaliser on a non-one-hot coupling yields a conservative disintegration, not a projection; TELL: `project` whose callers want conservation, a Gram-structure tag dispatch; FIX: the coefficient-measure SLOT with its three fillers (→ `frame_hierarchy_kernel_coupling_frames.md`) | 1 (2026-09-28 energy condensation; the CP `_normalize_rcp` and the MC per-lethargy tally are the SAME verb but were named from D4, not sighted independently) | a second sighting on a non-XS coupling (a non-nested SPATIAL remap, a response-matrix normalisation) with the idempotency and composition tests |
+| Smell #17 (a) third form — a verb listed as "new" in a memo's NEEDS that is a COMPOSITION of two shipped verbs (`pushforward(φ).consolidate()`; `basis_space.apply_metric∘analysis`) | 2 (2026-09-28, both in the frame hierarchy attack) | already promoted as #17; this row only records that a memo's own NEEDS list is a place to run the #17 check |
 
 ## Part 4 — Refuted-frame ledger (high-prior frames that keep NOT firing)
 
@@ -341,6 +362,13 @@ without re-deriving the refutation. → L-001
   overturned; run the two-question test the skill's A.1 row carries (canonical
   zero? physical superposition? two yeses ⇒ vector space + cone predicate) before
   applying it.
+- **A bilinear pairing / a correspondence of measured spaces / a framed-Hilbert category as
+  an APEX above "kernel between two measure spaces"** — refuted 2026-09-28 FOR "what is the
+  general object over frames": each is the same datum as a `LinearOperator` between two
+  metric-carrying ends (the pairing is `⟨Kf,g⟩_ν`; the measured correspondence is the
+  positive SUB-case, the coupling; the framed morphism is `K` in two frames). Optimal
+  transport refuted for the same question (no cost functional on a fixed overlap); would
+  fire on "choose the coarse grid to match two spectra".
 - **Rayleigh–Ritz on a REDUCED variable** — the frame is sound and its smell is
   promoted (Part C #15), but the OBVIOUS reformulation target is the wrong one.
   Refuted FOR "is the F.4 white-BC closure secretly rank-1 Ritz on the boundary

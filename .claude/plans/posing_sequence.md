@@ -888,6 +888,60 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         - Is the right move a new general type, or `Frame` extended so that the coefficient side may carry its own declared measure (the continuous-frame form, from which the density `ρ` falls out)?
         - Frame theory's frame bounds and canonical dual: do they survive for a kernel whose coefficient side has its own measure?
         - "Kernel" collides heavily in this tree (the scattering and transfer kernels), so the name is open. Candidates to test: continuous frame, coupling, integral kernel.
+    - **The user's rulings (2026-09-28)** on the hierarchy and naming:
+      - *"It makes no difference to me if we mint the general type and retire or make Frame into a specialized type, or if we extend Frame until Frame becomes the general type and we declare the specialized cases. As usual, the important is that we should make a hierarchy of objects and establish the direction general -> specialized. Then we can create the machinery properly to replace all hand-rolled things and consolidate the base."*
+      - The naming family rule is now in `coding-standards`, "Naming" (`94d8c204`): a family keeps the word, qualified; only a loose holder cedes.
+    - **The frame hierarchy (2026-09-28): the literature pass and the structural attack.** Literature: `scratch/posing_sequence/frame_hierarchy/literature/memo.md`; eight free sources were added to `scratch/literature/`, and their OCR was cut short by a rate limit. Structure (Fable): `.../structure/memo.md`, with probes `probe_frame_hierarchy.py` (P1–P5, output saved), `probe_two_step.py` and `census_handrolled.py`.
+      - **The literature's hierarchy.** At the apex, an integral operator with a kernel `K(x, y)` between `L²(X, μ)` and `L²(Y, ν)`, with its adjoint through both measures. Two branches below it:
+        - the FRAME branch (Casazza–Lynch Def. 4.1 and 4.17; Christensen–Eldar Lemma 3.1; Sun 2006; Fornasier–Rauhut §2): g-frame ⊃ fusion frame ⊃ frame, and continuous ⊃ discrete; for pairs, oblique dual (Petrov–Galerkin) ⊃ dual ⊃ canonical dual (Galerkin) ⊃ Riesz basis ⊃ orthonormal basis;
+        - the STOCHASTIC branch (Lawvere 1962 §2.1–2.8; Villani Def. 1.1–1.2): Markov kernel and coupling ⊃ fractional overlap ⊃ deterministic point map.
+        They meet in the deterministic kernel with `ν = φ_*μ`, an isometric pair.
+        - A correction to the orchestrator: a continuous frame puts its measure on the INDEX side. Ours puts the quadrature measure on the Hilbert-space side, so it is a discrete frame in a weighted `L²` `[HYPOTHESIS]`, the researcher's reading.
+      - **The structure attack's hierarchy** `[M]`:
+        - **K0** is a `LinearOperator` between two metric-carrying `FunctionSpace`s. In finite dimension that IS "a kernel between two measure spaces", and it exists. A `Kernel` apex type would twin it, so none is minted.
+        - **K1** is the table-presented kernel `(Φ, μ_M, ν)`: `FrameBase` with the coefficient measure ν as a SLOT. Its three fillers are the edges:
+          - (i) **ν declared** (the weighted, or continuous, frame form). It is missing today and spelled by hand in the trace and system restrictions (injective one-hot), `PermutationOperator` and the specular deck (bijective), and the axis retraction and section and the Lambertian partial-current pair (surjective, ρ = Σw).
+          - (ii) **ν := G**, the Gram (the `L²` pushforward; Parseval, the UNIQUE ν that makes the frame tight; signed Φ allowed). This is today's Galerkin, Petrov–Galerkin and harmonic frames, where `project = ♯_G ∘ M` (`[M]` 1.1e-16).
+          - (iii) **ν := M·1**, the coupling's N-marginal (the `L¹` pushforward; Φ ≥ 0; Markov). This is the partition-of-unity arm: `OverlapBasis` and `Mixture.condense`.
+        - A one-hot Φ is the intersection of (ii) and (iii) (`G = diag(M·1)`).
+        - Descent (G0), `conjugate`, `BulkLift`/`AngularLift` and the Riesz legs are morphisms, not nodes.
+        - Every listed instance lands on one node, except `PetrovGalerkinFrame`, which lands on two by its trial's tag: an oblique dual on a one-hot trial, a Markov disintegration on a partition-of-unity trial. The two readings differ by 0.45 relative on a real straddling `EnergyGrid`, and by 1.6e-16 when nested.
+        - The user's two options coincide: both mean giving `FrameBase` the ν slot. No new class is needed.
+      - **Frame bounds and the dual** `[M]`:
+        - The bounds of the raised analysis are the nonzero spectrum of `W_ν^{-1/2} G W_ν^{-1/2}`, so they DEPEND on ν.
+        - The canonical dual `R_can = Φ G⁻¹ W_ν` and its projector `Φ G⁻¹ Φᵀ W_M` are ν-FREE (`array_equal` under ν = V and under the pushforward). The tree's section equals `R_can(ν = V)`, `array_equal`.
+        - For a one-hot table, ρ IS the frame-bound spectrum: (2,2) under V, (1,1) under the pushforward, (1,3) on unequal fibres, and live 1 / dead 0 on the trace inclusion, all to 4.4e-16. The canonical dual frame is the frame divided by ρ, and Parseval iff ρ ≡ 1.
+        - The fractional overlap is NOT a frame in this sense. Its `project` is the disintegration `E_γ[σ | G]`, which is conservative, positive and has `P·1 = 1`. It is not idempotent (defect 0.11 on the tree's fixture, 0.124 on a real straddling grid, 0 when nested). Two-step condensation differs from one-step by 0.55 on a straddling middle grid. It preserves each coarse group's rate exactly, where the canonical dual is off by 0.45. The literature researcher reached the same fact independently: with non-nested grids, `U*U ≠ I` and `UU*` is not idempotent.
+        - So conservation (the Markov adjoint) and consistency (the frame dual) separate for non-deterministic kernels. The tree computes the right object for condensation under a projector's name.
+        - `frame.py`'s `gram_inverse` docstring claimed "the G-orthogonal projector ... ONE spelling for every frame", which was false on the partition-of-unity arm. **Corrected on sight in this commit.**
+      - **The hand-rolled instances.** 29 sites in 9 files by the attacker's predicate (the total is `[R]`; each listed site is `[M]`):
+        - 6 bare `@ table` marginals in `mixture.py`;
+        - bare-einsum retractions (`sn/solution.py:642`, `loss_representation/__init__.py:4267,4348`, `material_field.py:416`);
+        - the DSA ℓ ≥ 1 and trace arms, which still read the section's divisor through `_sum_w` (now the Gram entry since `d511500c`, still hand-applied);
+        - the Lambertian pair (`angular.py:161,290`);
+        - a pullback broadcast (`solver.py:2937`);
+        - a Legendre analysis (`radial_characteristic_field.py:392,404`);
+        - 10 indexed-write scatters;
+        - `to_local` on 22 lines.
+        Two would change numbers (not bit-identical): retraction through `frame.analysis` instead of the einsum (7.1e-16, re-tiering the G6.5 `array_equal` gate), and raw-sum divisors becoming the Gram entry (the one-ULP GL8 class). `pushforward(φ).consolidate()` already IS the "aggregated pushforward" listed as new on 2026-09-27 (`array_equal` with `diag(discrete_gram)`).
+      - **Naming under the family rule** `[M]`:
+        - `Frame` (4 classes), `Basis` (10) and `Overlap` (3) are all genuine.
+        - `Kernel` collides across two formal senses. The integral sense has 5 classes and keeps the word. The null-space sense (`KernelGauge`, `LossKernelGauge`, `LossKernelBasis`, `predicted_kernel_dimension`, `loss_kernel_gauge`: 5 symbols in 3 files) is proposed to cede to `Nullspace`, the stronger unique alternative. The literature agrees that the null-space sense is unrelated, where the integral, Markov, reproducing and scattering senses share "acts by integrating against `K(x, y)`".
+        - `project` is LOOSE on the partition-of-unity arm. The tree's own verbs fit: `average = ♯_{M·1} ∘ M` (bit-identical at all 14 callers), `marginalize = M`, and `project = ♯_G ∘ M`. With them, `GramStructure` and the DENSE refusal retire.
+        - The inheritance edge `OverlapBasis(IndicatorBasis)` is inverted: `IndicatorBasis` is the one-hot specialisation of the partition-of-unity basis.
+      - **Rejected candidates:**
+        - a `Kernel` apex type (twins `LinearOperator`, and would be a third sense of the word);
+        - a pairing, correspondence or framed-Hilbert category placed above K0 (the same datum);
+        - frame subclasses per ν (ν is a constructor argument);
+        - `ContinuousFrame` and `WeightedFrame` as names ("Weighted" is spent on the M side);
+        - re-routing the partition-of-unity `project` to the canonical dual (wrong for condensation by 0.45);
+        - keeping `OverlapBasis(IndicatorBasis)`.
+      - **For the user's rulings:**
+        - (1) `FrameBase(..., codomain_measure)` with three fillers: declared, Gram (Parseval) and the marginal (Markov).
+        - (2) The verbs `average`, `project` and `marginalize`.
+        - (3) The partition-of-unity basis as the parent, with the one-hot indicator as its specialisation.
+        - (4) `Kernel` → `Nullspace` for the null-space family.
+        - Still open from before: which measure the marginal carries (now "which filler the collapse pair uses"), the coproduct manifold, and `CoupledSpace` versus `FullFieldSpace`.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
