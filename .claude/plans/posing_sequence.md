@@ -942,6 +942,65 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
         - (3) The partition-of-unity basis as the parent, with the one-hot indicator as its specialisation.
         - (4) `Kernel` → `Nullspace` for the null-space family.
         - Still open from before: which measure the marginal carries (now "which filler the collapse pair uses"), the coproduct manifold, and `CoupledSpace` versus `FullFieldSpace`.
+    - **The user's rulings (2026-09-28):**
+      - (1) the coefficient-measure slot on `FrameBase`: RULED;
+      - (3) the partition-of-unity basis as the parent of `IndicatorBasis`: RULED;
+      - (4) `Kernel` → `Nullspace` for the null-space family: RULED;
+      - (2) the verbs: the user asked for the best words, defended.
+      The user's further questions: whether condensation by fractional overlap uses the measures in the best way; whether `project` is a specialised analysis or synthesis; what our frame is called in frame theory (a "functional" or "Hilbert" frame); and which kinds of frame are the subclasses of the general `FrameBase`.
+    - **The orchestrator's answers** `[R]` unless marked; for an attack before the verbs and the taxonomy are ruled.
+      - *Condensation, in measures.* A cross section is an INTENSIVE quantity: the density of a reaction-rate measure against the flux measure, `σ = dR/dΦ` (Radon–Nikodym). Rates and fluxes are EXTENSIVE: measures. The principled coarse cross section pushes both measures forward along the fine → coarse kernel K and takes the density again, `σ_G = d(K_*R)/d(K_*Φ)`. That is flux weighting, and the attack's `[M]` (the disintegration `E_γ[σ | G]`, preserving each coarse group's rate exactly) says the tree already computes it. What the tree does not do:
+        - Name it. It is called a projection.
+        - Keep the chain consistent. Pushforward along a deterministic map is functorial, `(ψ ∘ φ)_* = ψ_* φ_*`, so nested condensation composes exactly. A partition-of-unity kernel built from a within-group weight at EACH level does not compose: the middle grid has forgotten where inside a middle group the fine mass came from. That is the measured 0.55 two-step difference, and it is information loss, not a bug.
+
+        The better use of measures:
+        - (a) the fine rate and flux measures, with their declared within-group shape (the ruled `WithinGroupSpectrum`), are the data;
+        - (b) every coarse object is a pushforward of the ORIGINAL fine measures and records that parent (provenance, as derived questions name their parent question);
+        - (c) condensing an already-condensed, non-nested object routes back to its parent measures, or is refused.
+
+        Literature: Farrell & Maddison 2011 (supermesh Galerkin projection, conservative remap) for the continuous-energy form; Villani Def. 1.1 for the coupling.
+      - *The verbs.* `project` today is neither analysis nor synthesis. It is analysis followed by a raise on the coefficient side, `c = W⁻¹ M f`: covariant moments turned into coefficients. Which `W` decides what it means, so the word is overloaded. The proposal, each word defended by its formal definition:
+        - `analysis` (M, kept): `f ↦ (⟨χ_k, f⟩_μ)`, frame theory's analysis operator (Casazza–Lynch §4.1). On a one-hot or partition-of-unity table it IS the pushforward of the measure `f dμ`, so the mixture's `marginalize` (a bare `@ table`) is this operator and retires into it.
+        - `reconstruction` (R, kept): the synthesis `c ↦ Σ c_k φ_k`, evaluated at the measure's nodes.
+        - `dual_analysis` (new) `= G⁻¹ M`: the analysis operator of the canonical DUAL frame. Frame theory's expansion coefficients are `⟨f, S⁻¹ f_k⟩`, the dual frame's analysis (Casazza–Lynch Def. 4.17). A grep over "analysis" returns both members, and the qualifier says how they differ. It is valid for any frame, signed or not.
+        - `projection` (kept for its perfect match) `= reconstruction ∘ dual_analysis`: the G-orthogonal, idempotent projector onto `span(basis)`, the meaning the naming rule already reserves.
+        - `conditional_expectation` (new) `= (M·1)⁻¹ M`: for a partition-of-unity or one-hot table with `Φ ≥ 0`. For one-hot (a partition), it is the conditional expectation onto the σ-algebra of the coarse partition. For a fractional kernel, it is the conditional expectation under the coupling γ that the table and the fine measure define, `E_γ[f | G]` (the attack's `[M]` identity), which is the Radon–Nikodym derivative of the pushforwards above. It is not idempotent unless one-hot. The tree already uses the word for `E ∘ R`, "the conditional expectation onto axis-constant functions" (the `AxisSectionOperator` docstring), so the family is one word. The 14 production callers of `project` (12 homogenisation, 2 condensation) become `conditional_expectation`, bit-identical per the attack's `[M]`.
+        - `project` retires: it is a loose holder of "projection".
+      - *What our frame is, in frame theory.*
+        - A frame in frame theory is by definition a family in a HILBERT space, whose analysis is the family of functionals `f ↦ ⟨f, f_k⟩`. So "HilbertFrame" names nothing more specific.
+        - Ours is a discrete frame in the weighted `L²(nodes, μ)`: its analysis rows are the functionals `⟨χ_k, ·⟩_μ`, and its synthesis vectors are the basis tabulated at the nodes.
+        - When the analysis functionals differ from the synthesis vectors (`PetrovGalerkinFrame`), the pair is an oblique dual pair (Christensen–Eldar 2004) or pseudo-frame. In a Banach space, a pair of vectors and functionals is a Schauder frame or "framing" (Casazza, Han & Larson 1999). A frame with a weight on its index side is a WEIGHTED frame, and one with a controlling operator a CONTROLLED frame (Balazs, Antoine & Grybos 2010): the perfect match for the declared-ν filler. "Weighted" already names the basis-side `WeightedIndicatorBasis`; under the family rule both are genuine and each keeps the word, qualified by which side it weighs.
+      - *The kinds of frame* (the literature's classification axes):
+        - by bounds: frame ⊃ tight ⊃ Parseval; frame ⊃ Riesz basis ⊃ orthonormal basis;
+        - by the dual used: canonical (self-dual, Galerkin) versus oblique (Petrov–Galerkin);
+        - by the index: discrete versus continuous (Ali, Antoine & Gazeau 1993);
+        - by what analysis maps into: scalars (frame), subspaces (fusion frame, Casazza & Kutyniok 2004), operators (g-frame, Sun 2006);
+        - by the space: Hilbert frame versus Banach frame and atomic decomposition (Gröchenig 1991).
+      - *Proposed subclasses of the general `FrameBase`:*
+        - `GalerkinFrame` (test = trial, the canonical dual);
+        - `PetrovGalerkinFrame` (an oblique pair);
+        - `HarmonicFrame` (a Galerkin frame on the spherical-harmonic basis);
+        - the coefficient measure ν as a constructor slot, with the Gram as the Parseval default and a declared ν as the weighted-frame form.
+
+        The partition-of-unity condensation is NOT a frame in the reconstructing sense (the literature and the attack both measured `UU*` non-idempotent). It is a coupling: a measure `γ(g, G) = w_g T[g, G]` on fine × coarse, whose marginals are the fine measure and its pushforward. The candidate is to type it as that coupling (qualified under the family rule: `MeasureCoupling`, since "coupling" also names coupled systems), with `conditional_expectation` as its verb. Its placing (a separate type beside `FrameBase`, or the Markov filler of the slot) is the question for the attack.
+      - **DOIs, each checked against CrossRef on 2026-09-28:**
+        - Ali, Antoine & Gazeau 1993, `10.1006/aphy.1993.1016`;
+        - Kaiser, *A Friendly Guide to Wavelets*, `10.1007/978-0-8176-8111-1`;
+        - Christensen 2016, `10.1007/978-3-319-25613-9`;
+        - Casazza, Kutyniok & Philipp 2013, `10.1007/978-0-8176-8373-3_1`;
+        - Lasota & Mackey 1994, `10.1007/978-1-4612-4286-4`;
+        - Giry 1982, `10.1007/BFb0092872`;
+        - Halmos & Sunder 1978, `10.1007/978-3-642-67016-9`;
+        - Balazs, Antoine & Grybos 2010, `10.1142/S0219691310003377`;
+        - Farrell & Maddison 2011, `10.1016/j.cma.2010.07.015`;
+        - Gröchenig 1991, `10.1007/BF01321715`;
+        - Casazza, Han & Larson 1999, `10.1090/conm/247/03801`;
+        - Wagner & Haghighat 1998 (CADIS), `10.13182/NSE98-2`;
+        - Del Moral 2004, `10.1007/978-1-4684-9393-1`;
+        - Yamamoto 2013, `10.1016/j.anucene.2013.03.002`;
+        - Agoshkov 1998, `10.1007/978-1-4612-1994-1`;
+        - Dautray & Lions, series DOI `10.1007/978-3-642-58004-8` (the volume is to be confirmed as vol. 6).
+        Lux & Koblinger 1991 (CRC) and Cessenat 1984/85 (C. R. Acad. Sci.) have no DOI.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
