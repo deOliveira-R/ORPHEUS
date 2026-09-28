@@ -657,6 +657,26 @@ None of (a)–(f) is new mathematics. (a) and (c) are the load-bearing design.
 - **`generator`: the design keeps it.** The semigroup generator is the perfect match, and a group's generators are the same formal concept, named by their object. Axis provenance cedes, as already ruled. The reference "generator" (`withdrawn_generator`, `GeneratorWithdrawn`) is a loose use; `producer` is its candidate.
 - Every candidate has 0 hits inside a refutation across the plans, the agent memories and `lessons.md`.
 
+**The user's rulings on these proposals (2026-09-27).**
+- **The system as an equation family: RULED.** It carries the system algebra between the layers and a physics-free layer 2.
+  - OPEN, for the next round, at the user's request: deterministic versus stochastic. Is the architecture general, with Monte Carlo a layer-2/3 Strategy over the same system? Or do stochastic decisions already happen at layer 1, so that layer 1 ends in an object other than a system?
+- **The stored total: RULED, amended by the user.**
+  - The comparison lives where the COLLISION OPERATOR is constructed. Constructing it requires every reaction operator to be declared first, so the operator derives the system's total from the declared operators' removal parts.
+  - It compares that total with the library's total and emits a WARNING, not a refusal. The user's wording: *"non-trivial reactions have been omitted, leading to a discrepancy of X between the derived total cross sections and the nuclear library total cross sections"*.
+  - This is the seed of an open reaction set: any number of reaction channels, as the library supplies them, each declared as an operator. It is not built now.
+  - Where two quantities equally deserve one name, the name takes two words. The user proposed `derived_SigT` against `library_SigT`.
+  - Reaction-cell names follow the same rule. `SigC` is radiative capture, MT102 (`gendf.py:375`), but "capture" in the literature often names the DERIVED absorption minus fission. `SigL` is (n,α), MT107, only (`gendf.py:381`). Each cell is named by the reaction it is, and every derived sum by two words.
+  - The rest of the stored-total proposal stands:
+    - the grid stores reactions and multiplicities, so `SigP` retires with `SigT`;
+    - each imbalanced producer class is re-spelled;
+    - the guard's tests become unspellability gates.
+  - The placeholder scaffolds' re-spelling declares one named removal reaction, radiative capture, rather than "`SigC`" read as a generic absorber.
+  - A fact the check depends on `[M]` (`gendf.py:476`): today the micro total is SUMMED from the components (MT102 + MT18 + MT107 + scattering + (n,2n)), and MT1 is not read. `library_SigT` therefore does not exist yet. The check needs the MT1 total read from the tape, or it compares the sum with itself (X4).
+- **`anchor` or `physical_point`: the user asks for the more principled one.** The orchestrator recommends `physical_point` `[R]`.
+  - "Anchor" is a metaphor with no formal definition, and it already names the verification pin in the tree.
+  - The object is the point of the system's parameter space at which every coordinate takes its physical value, and `physical_point` says exactly that.
+  - It is a member of the SYSTEM (L2, a domain reading), not of the physics-free family in `numerics`. There, a question's default point is the system's declared distinguished point, and the family never names it physically.
+
 ## ⏸ COMPACTION POINT — 2026-09-27 (supersedes the 2026-09-26 point below; read "The ontology as it stands" first)
 
 State: the final attack (structure and elegance), the α-existence investigation (literature and measurement), the channels attack and the orchestrator's cold read have all run, and every finding is RULED and folded into "The ontology as it stands". The user has NOT ruled the plan polished. The user's instruction, 2026-09-27: too many changes landed in one session, so after compaction the plan is ATTACKED AGAIN with a clean context before any polish ruling.
