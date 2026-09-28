@@ -851,6 +851,24 @@ The user, verbatim: *"let's at least consider how the MonteCarlo implementation 
       - (2) The marginal's measure. Either the physical volume V, which keeps `R.H ≠ E` and needs the two-type section design, or the pushforward `Σw · V`, which collapses the section into the pullback. This is a norm choice, to be ruled as one.
       - (3) A coproduct manifold (the disjoint union) is minted before the system-restriction and bulk rows can be typed.
       - (4) Unifying `CoupledSpace` with `FullFieldSpace` is a separate W5.
+    - **The user's question (2026-09-28):** *"You had said previously that this was not a Frame, it was a Manifold point Map. But seems like this is also either a Frame or Frame-like, binding 2 Discrete Measures. Explain better the topic to me."*
+    - **The orchestrator's answer** `[R]`, on the attack's `[M]`. There are three levels, and the earlier "not a frame" was true of one level and wrong about another.
+      - *Points:* a manifold is a point set, and `φ: M → N` is a point map. It is not an operator; that part stands.
+      - *Measures:* weights on nodes. `φ` pushes a measure forward, `φ_*μ_M`, onto N.
+      - *Fields:* functions on the nodes, with a metric from a measure. Operators live here. `φ` induces the pullback `φ*` from functions alone, and its adjoint `φ_♯` once both ends carry measures.
+
+      The frame already lives across the three: `Frame(basis, measure)` holds a point map, its G0 `descent` from the measure's support to the basis's domain, along which the basis is pulled back to be tabulated. The attack's measurement shows that the operator pair a point map induces is exactly a frame whose basis is NODAL: indicators on N's nodes, with the measure `φ_*μ_M`. Its reconstruction is the gather `φ*`, and its analysis is the fibre sum `♭ ∘ φ_♯`.
+
+      So the user's "frame-like, binding two discrete measures" is right. The two measures on N are:
+      - the pushed-forward `φ_*μ_M`, which makes the frame's Gram;
+      - the target `μ_N`, the codomain's own metric.
+
+      Their ratio is the density `ρ = dφ_*μ_M / dμ_N` (Radon–Nikodym), and the section divides by `ρ`. The general frame (a Legendre or harmonic basis) is the same construction with a non-nodal basis, and the point-map pair is its nodal special case.
+
+      Examples:
+      - the trace: an inclusion, with `ρ = 1`;
+      - the angular collapse: a projection, with `ρ = Σw` under the physical-volume metric, or 1 under the pushforward metric (ruling 2);
+      - specular reflection: a bijection, with `ρ = 1`.
     - **Literature owed:** Lasota–Mackey 1994 ch. 3; Cessenat 1984/85 and Dautray–Lions vol. 6, ch. XXI §2 (the trace theorem in `L²(Γ, |Ω·n|)`); Agoshkov 1998.
 
 Literature owed by the attack, not in `scratch/literature/`: Lux & Koblinger, Wagner & Haghighat (CADIS), Del Moral (Feynman–Kac), Yamamoto (complex-weight noise).
