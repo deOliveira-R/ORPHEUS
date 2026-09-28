@@ -585,7 +585,77 @@ Every finding below is the attacker's; the markers are theirs. None is ruled.
 - `transferable: bool`: anti-pattern #3;
 - an ABC for `Discretization`: it re-creates the import cycle.
 
-**Lead to verify.** On the diffusion slab, `BC("reflective")` gave the same loss operator as vacuum, and a zero boundary-gain operator (probe `p4e`). This may be a probe error, or the tag may not reach the operator family. A W2 investigation is owed before it is called either.
+**Lead to verify.** On the diffusion slab, `BC("reflective")` gave the same loss operator as vacuum, and a zero boundary-gain operator (probe `p4e`). This may be a probe error, or the tag may not reach the operator family. A W2 investigation is owed before it is called either. [REFUTED 2026-09-27] It was a probe error, per the W2 memo `scratch/w2_diffusion_reflective/memo.md`. The fixture is the P4 two-group slab:
+- `[M]` reflective diffusion gives k = k∞ = 0.405359333105835, to 6e-16;
+- `[M]` `loss_reflective − loss_vacuum == −boundary_reflective` holds bit-exactly: 4 entries, the J⁻ rows against the J⁺ columns, 2 faces × 2 groups.
+The probes' width-fit residual is blind to any width-independent block, so it prints identically under both boundary laws. The probe read no `solver.boundary`, and `_common.k_reference` is always vacuum. The rung is already gated by `tests/gates/diffusion/test_solver.py:173`. Finding 5 is unaffected: the boundary block is width-independent.
+
+## The user's answers to the clean-context attack (2026-09-27), and the orchestrator's proposals `[R]`
+
+**The user's rulings.**
+- Structural findings 4–16 and the renames: ACCEPTED. They fold into a revised section, which is re-attacked with a clean context.
+- Name collisions: for each one, either find who cedes the name (did earlier code say `Direction` where it meant `Ordinate`?) or use more than one word. A census is dispatched: `scratch/posing_sequence/clean_attack/naming/`.
+- The reflective-diffusion lead: investigate it (W2). Dispatched: `scratch/w2_diffusion_reflective/`.
+
+**The stored total (finding 17): the orchestrator's proposal.** Posed by the user; not ruled.
+- The (reaction × role) grid stores reactions and multiplicities only. `Σ_t`, `νΣ_f` (today's `SigP`), and the transport-corrected total are derived views. `SigP` retires with `SigT` (one definition per quantity).
+- The library's PHYSICAL total is a different datum: every reaction, including those no cell models. It stays at the nuclide or library level, under its own name, where the σ0 self-shielding iteration consumes it. It never enters the grid.
+- The input boundary compares the physical total with the grid's removal sum. The difference is the unaccounted removal, which is reported and refused above a stated threshold. This supersedes "never stored" in the section; ERR-014's class is caught there.
+- Each imbalanced producer class gets a new spelling:
+  - (a) The 131 placeholder scaffolds (`SigT = ones`, zero removals) become `SigC = ones`, a pure absorber with the same `Σ_t = 1`.
+  - (b) The billiard carrier (`SigF = 0`, `SigP > 0`) becomes a fission cell `(Σ_f, ν)` with `Σ_c = Σ_t − Σ_s − Σ_f`, so the total is unchanged.
+  - (c) The Atalay encoding (`c > 1`) becomes `Σ_f > 0` with `ν = 1 + (c − 1)Σ_t/Σ_f`. The synthetic library's `make_mixture` stops taking `sig_t` and derives capture at its own input boundary.
+  - (d) The guard's own tests become the gates that the imbalanced state is unspellable. They are re-purposed, not deleted.
+- The `mixture.py` docstring describes Atalay as "`Σ_f = 0`", which is false against `atalay1997.py:76`. It is fixed with the carve.
+
+**The user's question on the layer-1/layer-2 interface (2026-09-27), verbatim:** *"we're saying that layer 1 will end with the operator set (the discretization), but this is pushing the statement of the equation to layer 2 ... I'm realizing that we're forcing layer 2 to determine the equation entirelly, not just if it's going to be taken as an eigenvalue problem or a fixed source problem. If we want layer 1 to determine the equations (which I think is the insight in ending it up as one or more systems) then each system probably needs to have an abstract representation of its equation that can later become an eigen problem or a fixed source problem. This would allow layer 2 to take care of any equation without knowing what it is. Is this particularly challenging?"* The user also proposed a parallel path: *"A module that takes systems and allows their manipulation until they become a problem."*
+
+**The orchestrator's answer** `[R]`, for the next attack.
+
+*The object.* The abstract representation of a system's equation is a holomorphic operator family over the system's own parameter space: `E: P → L(V)`, with `E(p)x = q` the equation at the point `p`. The literature calls this an operator-valued function, or a nonlinear eigenvalue problem when it is non-affine (Kato; Keldysh; Güttel & Tisseur 2017). The section's `balance(point)` is already this object. What welds it to physics is that its parameter space was defined by the reaction cells, so layer 2 had to know what "fission emission" is in order to name the k direction.
+
+*The move.* Each system DECLARES its parameter space and its equation family. Layer 1 then determines the equation, and layer 2 never learns the physics. A system is:
+- its spaces, with their metric, so the adjoint is defined;
+- its family `E(p)`, and the derivative `T_d(p)` along any declared direction;
+- its declared coordinates, each named in the system's own vocabulary (`fission_emission`, `time`, `extent`, a composition field), each with its declared affinity and chart;
+- which coordinate is time, with its mass operator `T_time`;
+- its cone (the positivity predicate on its unknowns);
+- its ports: the terms through which it couples to another system.
+
+A question then names a coordinate of the system it is bound to. k is the system's name for the fission-emission direction, and `Eigen` treats it as an opaque key. Each question kind becomes a statement about any family:
+- `Eigen`: where on the line through `p` along a declared direction is `E` singular;
+- `FixedSource`: `E(p)⁻¹q`;
+- `Evolution`: the family along the declared time coordinate.
+This also answers finding 18, the problem types' layer home. Once the coordinates are opaque keys declared by the system, the problem types need no physics and CAN live in `numerics`. The cells and every physical name stay at L2 and below.
+
+*The parallel module.* The operations that take systems to systems form an algebra, closed on systems:
+- coupling: a composite of several systems with their coupling terms, as block operators;
+- reduction: Schur elimination of a subsystem at a point. This covers the precursors at `s` and, per finding 8, the diffusion trace unknowns, which have no time term;
+- restriction to a subsystem;
+- fixing or pulling back a coordinate: a composition field pulled back to cell coefficients, a coordinate frozen at a value;
+- complexification.
+
+Each operation returns a system, and layer 2 binds a question to whatever system the manipulation ends in. The reduction, ruled as layer 2's because it needs the point, becomes a system operation parameterised by a point that the binder supplies. The ruling's content survives; its home changes. This module is generic machinery, named by structure: `Composite` and the Schur complement already exist in `numerics`. It sits between layer 1 and layer 2. It is not a fourth layer, since its outputs are layer-1 objects.
+
+*Is it challenging?* The object is standard and already present. What is hard:
+- (a) The declaration surface per coordinate: affinity and chart, and the sign of `T_d` that picks `Fundamental`'s removal end. Findings 5 and 7 measured that these depend on the discretisation, so the system declares them and the second-difference test gates each declaration.
+- (b) The non-affine coordinates need the derivative (`jet`) from the system. Self-shielding is the first case.
+- (c) The metric and adjoint of a composite and of a Schur-reduced system. The reduced adjoint must equal the adjoint of the reduction, which is a gate.
+- (d) Time as a declared coordinate with a singular mass operator: a DAE until the reduction removes the trace.
+- (e) The analysis quantities (`rate(cells, w)`) remain physics. They read the system's named terms on a Solution, and are domain operations above layer 2, not part of it.
+- (f) Nonlinear feedback and flowing precursors stay out of scope, as ruled. They are systems coupled through this algebra, solved by machinery not yet built.
+
+None of (a)–(f) is new mathematics. (a) and (c) are the load-bearing design.
+
+**The naming census (2026-09-27; `scratch/posing_sequence/clean_attack/naming/census.md`, scripts beside it).** Method: AST identifier counts over `orpheus/` and `tests/`, plus `git grep` prose buckets over `orpheus`, `tests` and `docs` excluding `docs/_build`. The buckets come from regex heuristics, so their counts are approximate and support the ranking of meanings only. Proposals, not ruled:
+- **`Direction`: the design cedes.** Ω, the direction of motion, is the perfect match (about 700 of 1913 prose lines). The design uses `CoefficientDirection`. If the system-family proposal is ruled, the object becomes a system-declared coordinate, and the name is re-asked then. Two loose holders cede anyway: `direction_idx` becomes `ordinate_idx`, and `direction_sign` becomes `mu_sign`.
+- **`Composition`: the design cedes.** Operator composition holds the word (`IncompatibleOperatorComposition`), and material composition is also an exact fit. The design uses `NuclideDensity(nuclide, regions)`, in the `<Domain><Quantity>` word order of `GeometryExtent`.
+- **`Scheme`: the design cedes.** The spatial scheme holds the word: 983 of 1724 prose lines, against 1 for time stepping. The design uses `Stepped(step, grid)`, an adjective beside `Exact`, `Fundamental` and `Nearest`, with `TimeScheme` as second choice. `DiscretizationScheme` is renamed `SpatialScheme`.
+- **`balance`: the existing scalar cedes** to `balance_defect`, which the tree already spells that way at `sn/solver.py:2549`. The design keeps `balance`.
+- **`anchor`: no formal holder.** The existing uses are the verification pin and HTML anchors, with no production identifier. The census proposes `physical_point`. Keeping `anchor` is also admissible, since the only clash is in prose.
+- **`rate`: the convergence property cedes** (`convergence.py:619`, `:1318`) to `contraction_rate`. The design keeps `rate` for the reaction rate. `decay_rate` and ρ are avoided.
+- **`generator`: the design keeps it.** The semigroup generator is the perfect match, and a group's generators are the same formal concept, named by their object. Axis provenance cedes, as already ruled. The reference "generator" (`withdrawn_generator`, `GeneratorWithdrawn`) is a loose use; `producer` is its candidate.
+- Every candidate has 0 hits inside a refutation across the plans, the agent memories and `lessons.md`.
 
 ## ⏸ COMPACTION POINT — 2026-09-27 (supersedes the 2026-09-26 point below; read "The ontology as it stands" first)
 
