@@ -586,7 +586,13 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         # (#429: its frame carries the Legendre basis, table ``(N, L+1)``).
         # `[M]` bit-identical to that slot on 5 of 5 Gauss–Legendre rules.
         mu_row = np.asarray(quadrature.axis_cosines(0), dtype=float)
-        self._sum_w = float(w.sum())
+        #: The P0 injection is the angular axis's SECTION (#520): its
+        #: divisor is the frame's 1×1 Gram entry, the same datum the
+        #: restriction ``integrate_angular`` is the analysis face of, so
+        #: ``R∘P = I`` holds bit-exactly on every rule (``w.sum()``
+        #: differs from the Gram entry by 1 ULP at GL8).
+        self._section = angular_bulk_space.section("angular")
+        self._sum_w = self._section.total_weight
         self._w_mu = w * mu_row
         self._mu = mu_row
         #: 1/W₂ of Larsen's (33) synthesis Ψ = f₀ + (μ/W₂)f₁ — computed
@@ -691,9 +697,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         else:
             f0_edges = self._low_order.solve_correction(d0)
             delta_phi0 = self._low_order.cell_update(f0_edges)
-            angular_values = np.broadcast_to(
-                delta_phi0[None] / self._sum_w, interior.values.shape
-            ).copy()  # P — normalized isotropic injection
+            angular_values = self._section.apply(delta_phi0)  # P = E
         # The trace arm: the wall-edge solutions injected isotropically
         # per face (see the class docstring — load-bearing under the
         # lagged reflective gain; inert on vacuum faces). The arm stays

@@ -258,20 +258,44 @@ class TestRestrictionProlongation:
             psi.integrate_angular().values, frame_row,
         )
 
-    def test_d8_prolongation_round_trip_is_identity(self, psi):
-        r"""R ∘ P = I exactly: the normalized isotropic injection's
-        moment-0 reproduces the input scalar values (Σ w · (x/Σw) = x
-        up to one product-sum; pinned at 1-ULP-scale rtol)."""
-        problem, psi = psi
-        corr = DSACorrection.from_problem(problem)
-        phi = psi.integrate_angular().values
-        sum_w = float(np.asarray(problem.quad.weights).sum())
-        injected = AngularFlux(values=np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(), space=problem.angular_bulk_space)
-        np.testing.assert_allclose(
-            injected.integrate_angular().values, phi, rtol=1e-15, atol=0,
+    @pytest.mark.parametrize("n_ordinates", [4, 8])
+    def test_d8_prolongation_round_trip_is_identity(self, n_ordinates):
+        r"""The P0 injection IS the angular section (#520), and
+        R ∘ P = I to the N-term product-sum's rounding.
+
+        The section's divisor is the frame's Gram entry, so DSA follows
+        the one convention instead of re-deriving it. GL8 is the witness:
+        its Gram entry is ``1.9999999999999998`` against
+        ``w.sum() == 2.0``, so the former hand-rolled ``x / w.sum()``
+        injection differs from the section there (the equality below is
+        red under that spelling), while GL4 cannot tell the two apart.
+        R ∘ P is nulp-tier, not bit-exact, whichever divisor is used
+        (``[M]`` 2026-09-28: max rel 2.2e-16 at GL8 for both; the same
+        re-association ``test_g61_retraction_of_section_is_the_identity``
+        records)."""
+        mesh1d = Mesh1D(
+            edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
+            mat_ids=np.array([0, 1, 1, 0]),
+            bc_left=BC("vacuum"),
+            bc_right=BC("vacuum"),
         )
-        # and the operator's own injection normalization agrees
-        np.testing.assert_array_equal(corr._sum_w, sum_w)
+        problem = SNProblem(
+            mesh1d,
+            Quadrature.gauss_legendre(n_ordinates=n_ordinates),
+            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        )
+        corr = DSACorrection.from_problem(problem)
+        section = problem.angular_bulk_space.section("angular")
+        np.testing.assert_array_equal(corr._sum_w, section.total_weight)
+        phi = np.random.default_rng(0).uniform(0.5, 2.0, (2, 4))
+        injection = corr._section.apply(phi)
+        np.testing.assert_array_equal(injection, section.apply(phi))
+        injected = AngularFlux(values=injection, space=problem.angular_bulk_space)
+        # An N-term product-sum re-associates to at most ~N ULP.
+        np.testing.assert_allclose(
+            injected.integrate_angular().values, phi,
+            rtol=n_ordinates * np.finfo(float).eps, atol=0,
+        )
 
 
 class TestApplyAdmission:

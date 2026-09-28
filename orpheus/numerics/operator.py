@@ -3452,7 +3452,9 @@ class AxisSectionOperator(_AxisMarginalBase):
     :math:`(E\,\phi)(n, \cdot) = \phi(\cdot) / \Sigma w`.
 
     **Canonical name.** :math:`E` is DEFINED by
-    :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact) — the right
+    :math:`R \circ E = \mathrm{id}` (to one ULP, not bit-exact in
+    general: `[M]` the re-association of :math:`\Sigma w_n/\Sigma w`,
+    recorded in ``test_g61_retraction_of_section_is_the_identity``) — the right
     inverse of the retraction, i.e. the *section* of the split pair
     (split monomorphism; Mac Lane CWM §I.5). "Embedding" was rejected
     as non-canonical for this object (ratified 2026-08-24): any
