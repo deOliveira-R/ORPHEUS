@@ -33,9 +33,15 @@ Key Facts
     wide-slice stub cases (cylinder + 2G bare-critical pending solver
     dispatch). Total: **47 Sood cases** (``len(SOOD2003_CASES)``,
     `[M]` 2026-09-29).
-  * **Atalay 1997**: 6 slab + 1 sphere = 7 reflected /
-    linearly-anisotropic cases.
-  * **Total: 54 cases shipped.**
+  * **Atalay 1997**: 6 reflected slab cases, 4 with isotropic and 2
+    with linearly anisotropic scattering (``len(ATALAY_ALL_CASES)``,
+    `[M]` 2026-09-29; :ref:`sood-registry-atalay-cases`).
+  * **Total: 53 cases shipped** (47 Sood + 6 Atalay).
+- **Citations**: each case cites the problem it poses (``problem``),
+  and each truth cites where its values are printed (``sources``), as
+  typed :class:`~orpheus.data.citation.Citation` values whose keys a
+  gate resolves in ``docs/refs.bib``; the method's literature stays in
+  the generators' docstrings (:ref:`sood-registry-citations`).
 - **Production-protocol-aligned**: every case carries
   ``materials: dict[int, Mixture]`` + ``geometry_kind: str`` (one of
   ``"slab"`` / ``"sphere"`` / ``"cylinder"`` / ``"infinite"``)
@@ -45,8 +51,8 @@ Key Facts
 - **Consumers**:
 
   * Semi-analytical reference solvers (F_N method, PS-1982 wrapper,
-    transfer-matrix :math:`k_\infty`, WM-72 cylinder, Atalay
-    slab/sphere) — read cross sections directly off the
+    transfer-matrix :math:`k_\infty`, WM-72 cylinder) — read cross
+    sections directly off the
     :class:`~orpheus.data.macro_xs.mixture.Mixture` (``mixture.SigT``
     / ``mixture.SigS`` / ``mixture.SigP``).
   * Production discrete solvers (CP, SN, MOC) — accept the
@@ -55,7 +61,10 @@ Key Facts
     built by :meth:`La13511Case.to_geometry` directly.
 - **Cross-references**: :ref:`theory-fn-method` consumes
   ``SOOD2003_CASES`` for slab/sphere F_N pinning;
-  :ref:`theory-singular-eigenfunction` consumes the Atalay catalogue;
+  the Atalay catalogue is documented beside the singular-eigenfunction
+  solvers for Atalay's problems (:ref:`theory-singular-eigenfunction`),
+  which check against Atalay's printed tables and do not read the
+  catalogue (:ref:`sood-registry-atalay-cases`);
   :ref:`theory-trajectory-resolvent` cross-checks Variant α against
   ``Ua-1-0-CY`` / ``Ua-1-0-SP``. All consumers read cross sections
   directly off the shared :class:`Mixture` below the trusted-library
@@ -121,11 +130,23 @@ criticality code verification", *Progress in Nuclear Energy*
 **42**\ (1), 55-106 (2003) :cite:`SoodForsterParsons2003`, and the Los
 Alamos report LA-13511 of July 1999 :cite:`SoodLA13511_1999`. The
 registry cites the 2003 edition (the user's ruling of 2026-09-29):
-every Sood case's ``provenance.paper_id`` is ``"Sood-2003"``, and
-every table, equation, reference and page number in its provenance is
-the 2003 edition's. The module and class names (``la13511``,
-``La13511Case``, ``SOOD2003_CASES``) keep the report's number: they are
-identifiers, not citations.
+every Sood case's ``problem`` cites ``SoodForsterParsons2003``, the
+first of its truth's ``sources`` is the place in that paper where the
+value is printed, and the table, equation, reference and page numbers in
+its locators and notes are the 2003 edition's
+(:ref:`sood-registry-citations`). The edition is the bibliography key,
+not a field: the two editions number their tables, equations and
+references differently, so a locator means something only beside its
+key.
+
+The module and the collection are named for the edition they cite:
+``sood_registry/sood2003.py`` and ``SOOD2003_CASES``. Only the two
+schema classes in ``sood_registry/case.py``, ``La13511Case`` and
+``La13511Truth``, keep the report's number. They are transitional: at
+the Sood step of the reference-solution campaign's phase P4 a case
+splits into its problem (a ``Specification``) and its published answer
+(a ``PublishedSolution``), and the two classes retire; their docstrings
+carry that trigger.
 
 The two editions pose the same 75 problems under the same problem
 numbers and case identifiers. They differ in numbering, in some
@@ -176,16 +197,18 @@ conversion map of every citation, measured against both editions'
 text, is ``scratch/reference_architecture/p1step2b/citation_map.md``.
 The values moved to the 2003 edition in commit ``1aab17a6`` and the
 citations in ``f02d7d9d``. The gate
-``tests/gates/derivations/test_sood2003_to_geometry.py::test_sood2003_case_has_provenance``
-asserts ``paper_id == "Sood-2003"`` on every case and that no
-provenance string names LA-13511.
+``tests/gates/derivations/test_registry_citations_resolve.py`` asserts
+that every Sood case's ``problem`` cites ``SoodForsterParsons2003`` at
+its own problem number, and that no citation on any case names the
+1999 report's key, ``SoodLA13511_1999`` (:ref:`sood-registry-citations`).
 
 Schema
 ======
 
 .. _sood-registry-schema:
 
-The :class:`La13511Case` dataclass carries these load-bearing fields:
+The :class:`La13511Case` dataclass (``sood_registry/case.py``) carries
+these fields, in declaration order:
 
 .. list-table::
    :header-rows: 1
@@ -197,10 +220,15 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
    * - ``case_id``
      - ``str``
      - Sood naming convention identifier (``<Material>-<Groups>-<Scattering>-<Geometry>``).
-   * - ``problem_number``
-     - ``int``
-     - Problem number in the Sood test set (1-75; the same number in
-       the 1999 and 2003 editions).
+   * - ``problem``
+     - :class:`~orpheus.data.citation.Citation`
+     - The source that defines the problem, and where in it. A Sood
+       case cites ``Citation("SoodForsterParsons2003", "problem N")``,
+       N the problem number (1-75, the same in the 1999 and 2003
+       editions); an Atalay case cites the table row that prints it,
+       for example
+       ``Citation("Atalay1997", "Table 2, c = 1.30, R = 0.25, f_1 = 0.00")``.
+       See :ref:`sood-registry-citations`.
    * - ``description``
      - ``str``
      - One-line human-readable description.
@@ -224,20 +252,14 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
        (``scattering_order == 0``; `[M]` 2026-09-29).
    * - ``truth``
      - :class:`La13511Truth`
-     - Published reference values: :math:`k_{\rm eff}` /
-       :math:`k_\infty`, flux ratios, critical dimensions, etc.
-   * - ``provenance``
-     - :class:`Provenance`
-     - The case's one citation record (required): ``paper_id`` (the
-       publication, and so the edition: ``"Sood-2003"`` on every Sood
-       case, ``"Atalay-1997"`` on the Atalay cases; see
-       :ref:`sood-registry-editions`), ``paper_table`` (a table
-       number of that edition),
-       ``primary_reference`` (the peer-reviewed paper Sood cites as the
-       source) and ``notes`` (free-form remarks). Added in Phase B
-       (2026-05-04) beside the flat fields ``sood_table``,
-       ``primary_reference`` and ``notes``, which duplicated it field for
-       field on every case; those retired in P1 step 2b (2026-09-29).
+     - Published reference values (:math:`k_{\rm eff}` /
+       :math:`k_\infty`, flux ratios, critical dimensions) and their
+       citations, ``sources``.
+   * - ``notes``
+     - ``str``
+     - Remarks on the case in prose: conventions, conversions, known
+       issues. It defaults to ``""``, and 53 of the 53 cases carry one
+       (`[M]` 2026-09-29). A note is not a citation.
 
 The geometry is carried as the single ``geometry_kind`` string tag;
 the published critical dimension lives on ``truth``
@@ -256,6 +278,11 @@ The :class:`La13511Truth` carries:
 
 * ``k_eff_or_kinf`` — reference :math:`k_{\rm eff}` (finite cases —
   usually 1.0, critical) or :math:`k_\infty` (infinite cases).
+* ``sources`` — ``tuple[Citation, ...]``, the published values'
+  citations: where the values are printed, then the primary sources the
+  publication credits for them. The truth refuses an empty tuple at
+  construction with a ``ValueError``
+  (:ref:`sood-registry-citations`).
 * ``flux_ratios`` — for 1G cases with a published flux table:
   ``Mapping[float, float]`` mapping :math:`r/r_c` to
   :math:`\phi(r)/\phi(0)`.
@@ -279,6 +306,106 @@ The :class:`La13511Truth` carries:
   extrapolated endpoint :math:`z_0` in mean free paths, used in
   diffusion-theory boundary conditions. Optional metadata; not all
   cases publish it. Currently ``None`` on every catalogue case.
+
+.. _sood-registry-citations:
+
+Citations: each where its claim lives
+-------------------------------------
+
+A case makes two kinds of claim, and each carries its own citation, a
+:class:`~orpheus.data.citation.Citation` naming a work by its key in
+``docs/refs.bib`` and a place in it.
+
+* **The problem.** ``case.problem`` cites the source that defines the
+  benchmark problem, and where in it. The 47 Sood cases cite
+  ``Citation("SoodForsterParsons2003", "problem N")``, N the problem
+  number, which is the same in the 1999 and 2003 editions. The 6 Atalay
+  cases cite the table row that prints them, for example
+  ``Citation("Atalay1997", "Table 2, c = 1.30, R = 0.25, f_1 = 0.00")``.
+  The problem number is not a field of the case: it is the locator of
+  the problem's citation.
+* **The published values.** ``case.truth.sources`` cites where the
+  values are printed, then the primary sources the publication credits
+  for them. For a Sood case the first source is the place in the 2003
+  paper: a table for the 25 finite cases, and a page for the 22
+  infinite-medium cases, whose :math:`k_\infty` is printed in the text.
+  The works Sood's reference column names follow, and 27 of the 47 Sood
+  cases credit at least one. ``Ua-1-0-SP`` (problem 14), for example,
+  cites the 2003 Table 10, then Kaper, Lindeman and Leaf (1974) as a
+  whole, then that paper's Table VII, which prints the flux ratios. An
+  Atalay case's one source is its table row. The truth refuses an empty
+  tuple at construction.
+* **Not in data: the method's literature.** The equation a generator
+  implements (Sood Eq (A.2) for the one-group :math:`k_\infty`, the
+  Siewert-Benoist F_N equations for the bare slab) is the literature of
+  the method, not of the case. It is cited in the generator's docstring
+  with ``:cite:``, reaches the Nexus provenance chain from there, and is
+  never copied into a case. ``notes`` stays on the case as prose, not as
+  a citation.
+
+`[M]` 2026-09-29, over the 53 cases: the registry cites 14 distinct
+keys, and 42 of the 103 values' citations cite a work as a whole
+(``locator=None``). Eleven of the 14 keys were added to ``docs/refs.bib``
+for the registry, from Sood 2003's reference list, with the journal
+articles' DOIs resolved against CrossRef; the Zotero library upstream of
+``refs.bib`` mirrors them by hand.
+
+**The type.** :class:`~orpheus.data.citation.Citation` is a frozen
+``(bibkey, locator)`` value in the data layer, re-exported from
+``orpheus.data``, so any layer that may import ``data`` can hold one. It
+parses its key at construction against the grammar every
+``docs/refs.bib`` key follows (a letter, then letters, digits or
+underscores) and refuses a blank locator; ``locator=None`` cites a work
+as a whole. The edition of a work is part of its key: the 1999 report
+and the 2003 paper are ``SoodLA13511_1999`` and
+``SoodForsterParsons2003``. Its laws (value equality and hash,
+immutability, one refusal per illegal input) are gated by
+``tests/gates/data/test_citation.py``.
+
+**The key-resolution gate.** Whether a key exists in ``docs/refs.bib``
+cannot be a runtime check, because ``docs/`` does not ship with the
+package, so it is a gate,
+``tests/gates/derivations/test_registry_citations_resolve.py``
+(foundation). It walks each case's fields to every reachable
+:class:`~orpheus.data.citation.Citation`, so a new citation-bearing
+field is found without editing the gate, and asserts that:
+
+(a) every key is in ``docs/refs.bib``, read from its ``@type{key,``
+    lines by a reader that finds a known key, reports an unknown one and
+    agrees with an independent BibTeX parser (``pybtex``) on the whole
+    key set;
+(b) each Sood case cites ``SoodForsterParsons2003`` at its own problem
+    number, and each Atalay case cites ``Atalay1997`` at its own table;
+(c) each truth credits at least one source, one of them the case's own
+    paper at a place in it;
+(d) no citation names ``SoodLA13511_1999``: the 1999 key is in
+    ``refs.bib``, so row (a) cannot see a citation that slides back to
+    the report;
+(e) Sood's problem numbers, and the Atalay problem citations, are
+    distinct across the cases.
+
+The expected problem numbers and Atalay tables in (b) are a
+transcription of the published problem and table columns, held in the
+gate; they are the value-preservation anchor of the carve that moved
+each number into a locator string. `[M]` 2026-09-29: the key-resolution
+gate (326 rows) and the laws gate (24 rows), 350 of 350 passed under
+``python -O -m pytest``.
+
+**Why typed, and why here.** A free-text record names a publication by
+convention, and nothing tests that the convention holds; a key into
+``refs.bib`` is checked by the gate above and renders through the same
+bibliography as a docstring's ``:cite:``. The placement is the
+reference-solution campaign's design (``.claude/plans/reference_cache.md``,
+"Discussion 3, second exchange", 2026-09-24): each citation goes where
+its claim lives, the problem's source on the problem, a published
+value's source on that value, and the method's literature where it
+already is. ``La13511Case`` and ``La13511Truth`` are the transitional
+carriers of that design: at the Sood step of the campaign's phase P4 a
+case splits into a ``Specification`` (the problem) and a
+``PublishedSolution`` (the printed values, with their printed
+precision), and the citations already sit where that split puts them,
+the problem's on the case and the values' on the truth.
+
 
 Case → StructuredGeometry adapter
 ---------------------------------
@@ -635,66 +762,77 @@ Tolerances achieved:
 * Slab F_N at N=12: ≤ 3e-6 absolute on :math:`a_c`.
 * Sphere F_N at N=10: ≤ 5e-8 absolute on :math:`R_c`.
 
+.. _sood-registry-atalay-cases:
+
 Atalay 1997 reflected/anisotropic registry
 ============================================
-
-.. _sood-registry-atalay-cases:
 
 The Atalay 1997 case catalogue lives in
 :mod:`orpheus.derivations.continuous.sood_registry.atalay1997`. It is
 **method-agnostic** in the same sense as the Sood catalogue in
-``la13511`` —
-the case dataclass is :class:`La13511Case` (re-used) carrying
+``sood2003`` — its cases are built on the same schema,
+:class:`La13511Case` from ``sood_registry/case.py``, carrying
 ``materials`` + ``geometry_kind`` + ``truth`` — but parametrises
 over :math:`(c, R, f_1)` triples rather than material composition,
-mirroring how Atalay published the cases.
+mirroring how Atalay published the cases. Each case's ``problem``
+cites the Atalay table row that prints it, and its truth's one source
+is the same row.
 
-Cases shipped:
+Cases shipped (``ATALAY_ALL_CASES``, 6 cases, `[M]` 2026-09-29):
 
 .. list-table:: Atalay 1997 cases
    :header-rows: 1
-   :widths: 30 10 10 10 40
+   :widths: 30 9 9 9 11 32
 
    * - Case ID
      - :math:`c`
      - :math:`R`
      - :math:`f_1`
+     - Atalay table
      - Truth (mfp)
    * - ``atalay-1997-slab-c1.30-R0.00-f1_0.00``
      - 1.30
      - 0.00
      - 0.00
+     - 2
      - :math:`2d = 1.87766`
    * - ``atalay-1997-slab-c1.30-R0.25-f1_0.00``
      - 1.30
      - 0.25
      - 0.00
+     - 2
      - :math:`2d = 1.40621`
    * - ``atalay-1997-slab-c1.30-R0.50-f1_0.00``
      - 1.30
      - 0.50
      - 0.00
+     - 2
      - :math:`2d = 0.89317`
    * - ``atalay-1997-slab-c1.30-R0.75-f1_0.00``
      - 1.30
      - 0.75
      - 0.00
+     - 2
      - :math:`2d = 0.40758`
    * - ``atalay-1997-slab-c1.30-R0.00-f1_0.10``
      - 1.30
      - 0.00
      - 0.10
+     - 3
      - :math:`2d = 1.94146`
    * - ``atalay-1997-slab-c1.30-R0.50-f1_0.10``
      - 1.30
      - 0.50
      - 0.10
+     - 3
      - :math:`2d = 0.89831`
-   * - ``atalay-1997-sphere-c1.30-R0.00-f1_0.00``
-     - 1.30
-     - 0.00
-     - 0.00
-     - :math:`R_c = 2.4248249802`
+
+The catalogue has no sphere case. A vacuum sphere at :math:`c = 1.30`
+with isotropic scattering is Sood's problem 14 (``Ua-1-0-SP``, the same
+mixture and radius), and Atalay prints sphere results, the odd slab
+modes, only at :math:`f_1 = 0.10` (his Table 10); the Atalay-named twin of
+problem 14, ``atalay-1997-sphere-c1.30-R0.00-f1_0.00``, retired on
+2026-09-29 (:ref:`sood-registry-history`).
 
 Atalay 1997 is the **primary source** for the reflected +
 linearly-anisotropic cross-product cases that lie outside both the
@@ -702,11 +840,20 @@ Sood/Forster/Parsons 2003 truth set (which focuses on bare
 configurations) and the Burkart-Ishiguro-Siewert 1976 F_N reference
 (vacuum-only).
 
-The Atalay catalogue is consumed by the Atalay slab/sphere solvers
-in :mod:`...singular_eigenfunction.slab` and
-:mod:`...singular_eigenfunction.sphere`. Tolerances achieved are
-documented in :ref:`theory-se-precision-floor` (the ERR-038 paper
-floor at small slab thicknesses, characterised but not a code bug).
+No solver gate reads the catalogue's cases. Outside the registry
+package, one test module reads them, the citation gate
+(``tests/gates/derivations/test_registry_citations_resolve.py``), and
+one imports the catalogue's mixture builder, the cross-section balance
+gate (``tests/gates/data/test_mixture_xs_balance.py``), which asserts
+that the :math:`c = 1.30` mixture is deliberately imbalanced (`[M]`
+2026-09-29, ``git grep`` of ``ATALAY_`` and ``atalay1997`` over
+``orpheus/`` and ``tests/``). The singular-eigenfunction slab and sphere
+solvers (:ref:`theory-singular-eigenfunction`) are checked against
+Atalay's printed tables, carried inline in their own test files
+(``tests/gates/derivations/test_case_method_slab.py`` and
+``test_case_method_sphere.py``). Tolerances achieved are documented in
+:ref:`theory-se-precision-floor` (the ERR-038 paper floor at small slab
+thicknesses, characterised but not a code bug).
 
 Production-protocol bridge tests
 =================================
@@ -887,8 +1034,8 @@ Forward-looking — the meta-registry
 The current registry has two registries side-by-side:
 :class:`SOOD2003_CASES` (Sood/Forster/Parsons 2003) and the Atalay
 catalogue (Atalay 1997). Both share the same case schema
-(:class:`La13511Case` is re-used for both, despite the misleading
-name) and both feed the same consumer adapter functions
+(:class:`La13511Case`, from ``sood_registry/case.py``, whose name keeps
+the 1999 report's number until P4 retires it) and both feed the same consumer adapter functions
 (:func:`build_materials`, :func:`build_mesh`) and the shared
 :class:`~orpheus.data.macro_xs.mixture.Mixture` API.
 
@@ -899,7 +1046,7 @@ likely to extend in future Waves to:
 * **Kaper-Lindeman-Leaf 1974 (KLL)** — interior flux reconstruction
   Tables III + VII (slab + sphere) currently consumed by
   :func:`...fn_method.flux_reconstruction.*` directly; could be
-  promoted to a sister registry for consistency with the ``la13511``
+  promoted to a sister registry for consistency with the ``sood2003``
   + ``atalay1997`` pattern.
 * **Westfall-Metcalf 1973 (WM-72)** — Table II cylinder critical
   radii (six configurations); currently inlined in
@@ -919,13 +1066,14 @@ benchmark sources, but the timing is **deliberately deferred** —
 the discipline is "build each new geometry/topology standalone first;
 only unify after ≥ 2 working instances" (see
 ``.claude/agent-memory/feedback_unify_after_two_instances.md``).
-The current ``la13511`` + ``atalay1997`` split is the necessary first step;
+The current ``sood2003`` + ``atalay1997`` split is the necessary first step;
 extension to KLL / WM-72 / BIS / Garcia would require ≥ 4 sister
 registries before unification makes architectural sense.
 
 For now: each new published-reference case collection should
-follow the ``la13511`` / ``atalay1997`` pattern (drop a new module under
-``sood_registry/``, share the case schema, register cases as module-
+follow the ``sood2003`` / ``atalay1997`` pattern (drop a new module under
+``sood_registry/``, build on the case schema in ``case.py``, cite each
+problem and each published value with a ``Citation``, register cases as module-
 level constants). When the meta-registry pattern is appropriate, it
 will be backwards-compatible with the existing case files.
 
@@ -995,3 +1143,56 @@ Internal references:
   catalogue + cylinder Sood truth values.
 * :doc:`/theory/references/trajectory_resolvent` — Variant α cross-checks on shared
   Sood truth values.
+
+.. _sood-registry-history:
+
+Development history
+===================
+
+Reverse-chronological (latest first) changelog of the registry. Entries
+marked *(in development)* live on an unmerged feature branch and have
+no landed merge-to-``main`` hash yet; trust ``git`` over this table for
+merge status.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 54 10 26
+
+   * - When
+     - Milestone
+     - Issue
+     - Where
+   * - 2026-09-29
+     - **The cases cite by typed citations, and the registry's names
+       drop the 1999 report's number** (P1 step 2c). ``Citation`` landed
+       in ``orpheus.data``, and 11 primary-source entries joined
+       ``docs/refs.bib``. The free-text ``Provenance`` record
+       (``paper_id``, ``paper_table``, ``primary_reference``,
+       ``notes``) and the ``problem_number`` field retired into the
+       case's ``problem`` citation and the truth's ``sources``;
+       ``notes`` stayed on the case. The Atalay case
+       ``atalay-1997-sphere-c1.30-R0.00-f1_0.00`` retired as a twin of
+       Sood's problem 14 (its ``paper_table`` of 14 was Sood's problem
+       number), and ``ATALAY_SPHERE_CASES`` with it, so 54 cases became
+       53. The schema moved to ``sood_registry/case.py``;
+       ``la13511.py`` became ``sood2003.py``, ``LA13511_CASES`` became
+       ``SOOD2003_CASES``, and the ``test_fn_la13511_*`` files became
+       ``test_fn_sood2003_*``. Rulings: the user, 2026-09-29 ("Citation
+       now, split in P4"); the design is
+       ``.claude/plans/reference_cache.md``, "Discussion 3, second
+       exchange".
+     - #405
+     - *(in development)* branch ``refactor/sood2003-rename``:
+       ``61b20383``, ``2644bd47``, ``228d6f20``
+   * - 2026-09-29
+     - **The registry cites the 2003 edition** (P1 step 2b). The six
+       cases whose values differ between the editions took the 2003
+       values, and every citation moved to the 2003 numbering
+       (:ref:`sood-registry-editions`). ``Provenance`` became the case's
+       one citation record, and the flat fields ``sood_table``,
+       ``primary_reference`` and ``notes`` that duplicated it retired.
+       Sood's Eq 28 of 1999 (2003 Eq (A.11)) was found printed
+       correctly (ERR-092).
+     - #405
+     - ``cc7a802e``, ``1aab17a6``, ``49576c27``, ``f02d7d9d``,
+       ``e8b83fc9``

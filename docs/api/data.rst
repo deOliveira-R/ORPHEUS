@@ -44,6 +44,22 @@ Cell Cross Sections
    :undoc-members:
    :show-inheritance:
 
+Citation
+--------
+
+A published work, by its key in ``docs/refs.bib``, and a place in it.
+The reference registries cite by it: a Sood or Atalay case cites the
+problem it poses, and its truth cites where the values are printed
+(:ref:`sood-registry-citations`). Whether a key exists in
+``docs/refs.bib`` is checked by a gate,
+``tests/gates/derivations/test_registry_citations_resolve.py``, and not
+at runtime, because ``docs/`` does not ship with the package.
+
+.. automodule:: orpheus.data.citation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Energy-Group Structure and Condensation
 ---------------------------------------
 

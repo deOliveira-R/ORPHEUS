@@ -14,9 +14,10 @@ is cited in the generator's docstring and is not copied into data.
 
 The key is parsed at construction against the grammar every key in
 ``docs/refs.bib`` follows, a letter then letters, digits or underscores
-(79 of 79 keys, 2026-09-29). Whether the key exists in the file is a gate
-(``tests/gates/derivations/test_registry_citations_resolve.py``), not a
-runtime check: ``docs/`` does not ship with the package.
+(90 of 90 keys, 2026-09-29). Whether the key exists in the file is a gate
+(``tests/gates/derivations/test_registry_citations_resolve.py``, which also
+re-checks the grammar of every key), not a runtime check: ``docs/`` does not
+ship with the package.
 
 The edition of a work is part of its key. Sood, Forster and Parsons' 1999
 report and their 2003 journal paper are two entries, ``SoodLA13511_1999``

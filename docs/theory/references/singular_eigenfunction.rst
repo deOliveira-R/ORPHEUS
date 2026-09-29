@@ -2013,8 +2013,10 @@ tabulates:
   even modes, Tables 2-5).
 * :math:`f_1 = 0.10` only (sphere, odd modes, Table 10).
 
-The current ORPHEUS Atalay case catalogue ships 7 cases (6 slab + 1
-sphere); see :doc:`/theory/references/sood_registry` for the full list.
+The ORPHEUS Atalay case catalogue ships 6 slab cases and no sphere
+case: a vacuum sphere at :math:`c = 1.30` with isotropic scattering is
+Sood's problem 14 (``Ua-1-0-SP``), in the Sood catalogue. See
+:ref:`sood-registry-atalay-cases` for the full list.
 
 .. _theory-se-errata:
 

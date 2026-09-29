@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12863**
+Total tests collected: **13161**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1345, 10.5%
-   L1, 1972, 15.3%
-   L2, 71, 0.6%
+   L0, 1345, 10.2%
+   L1, 1972, 15.0%
+   L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 9448, 73.5%
+   foundation, 9746, 74.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12757
+   explicit, 13055
    class-name, 46
    func-name, 0
    case, 33
@@ -142,6 +142,7 @@ Module × level grid
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
    data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
+   data/test_citation, 0, 0, 0, 0, 24, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
    data/test_energy_grid, 0, 0, 0, 0, 28, 0
@@ -176,6 +177,8 @@ Module × level grid
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
+   derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
+   derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood2003_kinf, 0, 0, 0, 0, 39, 0
    derivations/test_fn_sood2003_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_sood2003_slab_flux, 0, 10, 0, 0, 0, 0
@@ -185,13 +188,10 @@ Module × level grid
    derivations/test_fn_sood2003_sphere, 0, 0, 0, 0, 11, 0
    derivations/test_fn_sood2003_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_sood2003_sphere_xverif, 0, 3, 0, 0, 0, 0
-   derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
-   derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood_pua_h2o_symmetric_slab, 0, 4, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
-   derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 131, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_path_ai_legacy_plain_gl_signature, 0, 3, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0
@@ -249,12 +249,14 @@ Module × level grid
    derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    derivations/test_reference_body, 0, 0, 0, 0, 59, 0
+   derivations/test_registry_citations_resolve, 0, 0, 0, 0, 326, 0
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0
    derivations/test_sn_mms_anisotropic_symbolic, 0, 0, 0, 0, 12, 0
    derivations/test_sn_mms_ld_2d_stress_symbolic, 0, 0, 0, 0, 8, 0
    derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 77, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
@@ -574,7 +576,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 391, 0
+   test_layer_imports, 0, 0, 0, 0, 393, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
