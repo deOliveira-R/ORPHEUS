@@ -11,26 +11,27 @@ superseded the per-method generators — ``generate_fn_method_matrix``
 and its siblings — which were deleted at ``045afeca``.)
 
 The fn_method package ships three solver families anchored on the
-Sood/Forster/Parsons LA-13511 (1999) benchmark catalogue and the
+Sood, Forster & Parsons (2003) benchmark catalogue and the
 Neshat-Maiorino 1980 reflected-slab F_N paper:
 
 1. **Multi-group :math:`k_\infty`** — :func:`...multi_group.k_inf.compute_kinf_*`
-   for 1G / 2G no-upscatter / 2G general / mG (Eq 76). No spatial
+   for 1G / 2G no-upscatter / 2G general / mG (Eq (A.59)). No spatial
    discretisation; pure rational-algebra in cross sections. Anchored
-   on LA-13511 Tables 21+38 reference :math:`k_\infty` values.
+   on the :math:`k_\infty` values Sood et al. (2003) state beside their
+   cross-section tables.
 2. **Bare-critical slab/sphere F_N** — :func:`...slab.one_group.solve_fn_slab_bare_critical`
    (Siewert-Benoist 1979 / Grandjean-Siewert 1979) and
    :func:`...sphere.one_group.solve_fn_sphere_bare_critical`
    (Siewert-Thomas 1986). 1G isotropic, vacuum BC. Anchored on
-   LA-13511 Tables 1+7 / 5+7 critical dimensions.
+   the critical dimensions of Sood 2003 Tables 3, 4, 10 and 14.
 3. **Reflected-slab F_N** — :func:`...slab.reflected.solve_fn_slab_reflected_critical`
    (Neshat-Maiorino 1980, *Ann. Nucl. Energy* 7, 79–81). 1G isotropic,
    finite reflector both sides. Anchored on NM Table 2 Burkart 1976
    "Exact" critical core half-thicknesses; not a registry case
-   (parametrised over ``c1``/``c2``/``Δ``, no LA-13511 anchor).
+   (parametrised over ``c1``/``c2``/``Δ``, no Sood anchor).
 
 The cylinder F_N stub (:mod:`...cylinder`) is registered in the
-LA-13511 wide-slice STUBS but not yet activated — Mitsis-style
+Sood registry's wide-slice STUBS but not yet activated — Mitsis-style
 Wiener-Hopf is documented as non-convergent for bare cylinder
 (Westfall-Metcalf 1972). Cylinder critical dimensions ship via
 :mod:`orpheus.derivations.continuous.singular_eigenfunction.cylinder`
@@ -70,12 +71,12 @@ def capability_rows() -> list[dict[str, object]]:
     # -----------------------------------------------------------------
     # Family 1: multi-group k_inf — pure rational-algebra in XS.
     # -----------------------------------------------------------------
-    # 19 wide-slice + 2 first-slice = 21 catalogued LA-13511 cases.
+    # 19 wide-slice + 2 first-slice = 21 catalogued Sood cases.
     # Activated by ``compute_kinf_*`` in ``multi_group/k_inf.py``.
     # See ``tests/gates/derivations/test_sood_registry_wide_kinf.py``.
 
     rows.append({
-        "name": "k_inf — 1G isotropic (Sood Eq 19)",
+        "name": "k_inf — 1G isotropic (Sood Eq (A.2))",
         "geometry": "infinite",
         "n_groups": 1,
         "n_regions": 0,
@@ -84,12 +85,12 @@ def capability_rows() -> list[dict[str, object]]:
         "scattering_order": 0,
         "multiplying": True,
         "status": (
-            "shipped — 12 LA-13511 1G k_inf cases "
+            "shipped — 12 Sood 1G k_inf cases "
             "(PUa/PUb/Ua/Ub/Uc/Ud/UD2O/Ue/PU-1-1/UD2Oa-1-1/UD2Ob-1-1/UD2Oc-1-1)"
         ),
     })
     rows.append({
-        "name": "k_inf — 2G no-upscatter (Sood Eq 29)",
+        "name": "k_inf — 2G no-upscatter (Sood Eq (A.12))",
         "geometry": "infinite",
         "n_groups": 2,
         "n_regions": 0,
@@ -98,12 +99,12 @@ def capability_rows() -> list[dict[str, object]]:
         "scattering_order": 0,
         "multiplying": True,
         "status": (
-            "shipped — 6 LA-13511 cases "
+            "shipped — 6 Sood cases "
             "(PU-2-0-IN, U-2-0-IN, UAl-2-0-IN, URRa-2-0-IN, URRd-2-0-IN, UD2O-2-0-IN)"
         ),
     })
     rows.append({
-        "name": "k_inf — 2G general (Sood Eq 28)",
+        "name": "k_inf — 2G general (Sood Eq (A.11))",
         "geometry": "infinite",
         "n_groups": 2,
         "n_regions": 0,
@@ -112,19 +113,20 @@ def capability_rows() -> list[dict[str, object]]:
         "scattering_order": 0,
         "multiplying": True,
         "status": (
-            "shipped — 2 LA-13511 with-upscatter cases "
+            "shipped — 2 Sood with-upscatter cases "
             "(URRb-2-0-IN, URRc-2-0-IN)"
         ),
     })
     # Both rows realise the SAME mG family (``compute_kinf_mg``, Sood
-    # Eq 76) at different group counts. They carried the identical label
-    # ``k_inf — mG general (Sood Eq 76)`` until 2026-08-09 (#345): only
+    # Eq (A.59)) at different group counts. They carried the identical label
+    # ``k_inf — mG general (Sood Eq 76)``, in the 1999 numbering, until
+    # 2026-08-09 (#345): only
     # the ``n_g`` column told them apart, which is off-pattern against
     # every sibling above (``1G isotropic``, ``2G no-upscatter``,
     # ``2G general``) and makes ``name`` unusable as a key. Naming the
     # order restores both.
     rows.append({
-        "name": "k_inf — 3G general (Sood Eq 76)",
+        "name": "k_inf — 3G general (Sood Eq (A.59))",
         "geometry": "infinite",
         "n_groups": 3,
         "n_regions": 0,
@@ -132,10 +134,10 @@ def capability_rows() -> list[dict[str, object]]:
         "accuracy": "exact (GxG dominant eigenvalue)",
         "scattering_order": 0,
         "multiplying": True,
-        "status": "shipped — LA-13511 URR-3-0-IN (3G)",
+        "status": "shipped — Sood URR-3-0-IN (3G)",
     })
     rows.append({
-        "name": "k_inf — 6G general (Sood Eq 76)",
+        "name": "k_inf — 6G general (Sood Eq (A.59))",
         "geometry": "infinite",
         "n_groups": 6,
         "n_regions": 0,
@@ -143,7 +145,7 @@ def capability_rows() -> list[dict[str, object]]:
         "accuracy": "exact (GxG dominant eigenvalue)",
         "scattering_order": 0,
         "multiplying": True,
-        "status": "shipped — LA-13511 URR-6-0-IN (6G)",
+        "status": "shipped — Sood URR-6-0-IN (6G)",
     })
 
     # -----------------------------------------------------------------
@@ -161,7 +163,7 @@ def capability_rows() -> list[dict[str, object]]:
         "scattering_order": 0,
         "multiplying": True,
         "status": (
-            "shipped — 4 LA-13511 1G bare slab cases "
+            "shipped — 4 Sood 1G bare slab cases "
             "(Ua-1-0-SL, PUa-1-0-SL, PUb-1-0-SL, UD2O-1-0-SL)"
         ),
     })
@@ -180,7 +182,7 @@ def capability_rows() -> list[dict[str, object]]:
         "scattering_order": 0,
         "multiplying": True,
         "status": (
-            "shipped — 3 LA-13511 1G bare sphere cases "
+            "shipped — 3 Sood 1G bare sphere cases "
             "(Ua-1-0-SP, PUb-1-0-SP, UD2O-1-0-SP)"
         ),
     })

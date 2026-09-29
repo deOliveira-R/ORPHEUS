@@ -1,8 +1,8 @@
-r"""Foundation tests for the F_N method LA-13511 :math:`k_\infty` cases.
+r"""Foundation tests for the F_N method's Sood :math:`k_\infty` cases.
 
 This file gates the first slice of the
 :mod:`orpheus.derivations.continuous.fn_method` package — the two
-LA-13511 cases that need only Sood's own equations
+Sood cases that need only Sood's own equations
 (``PUa-1-0-IN`` and ``PU-2-0-IN``):
 
 * **Branch-1 SymPy gate** — every ``derive_*()`` function in
@@ -11,7 +11,7 @@ LA-13511 cases that need only Sood's own equations
   These are pure algebra; they do NOT depend on any numerical
   benchmark value.
 * **Branch-2 reference-value gate** — :func:`compute_kinf_*` reproduces
-  the published LA-13511 reference values to 5 significant figures
+  Sood's published reference values to 5 significant figures
   (the precision Sood et al. reports the cases at).
 * **Branch-1 ↔ Branch-2 agreement gate** — the symbolic closed forms
   evaluated in numpy must match the SymPy ``sp.lambdify`` result, and
@@ -21,7 +21,7 @@ LA-13511 cases that need only Sood's own equations
   must agree with the existing
   :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
   machine precision. This is a structurally-independent check: F_N
-  evaluates the closed form Sood Eq 76 directly, while
+  evaluates the closed form Sood Eq (A.59) directly, while
   ``kinf_homogeneous`` solves the dominant eigenvalue problem of
   :math:`A^{-1}F`. They share only ``numpy`` (above the trusted-library
   line) — a disagreement would point at a real bug in one or the other.
@@ -36,7 +36,7 @@ agreement and reduction tests.
 References
 ----------
 
-* Sood, Forster, Parsons (1999), LA-13511, Appendix A.
+* Sood, Forster, Parsons (2003), Prog. Nucl. Energy 42, 55, Appendix A.
 * Literature memo:
   ``.claude/agent-memory/literature-researcher/sood_fn_method_full_extraction.md``.
 * Closeout memo:
@@ -63,8 +63,8 @@ from orpheus.derivations.continuous.fn_method.multi_group import (
     compute_kinf_mg,
 )
 from orpheus.derivations.continuous.fn_method.origins import (
-    derive_kinf_1g_eq_19,
-    derive_kinf_1g_eq_20_simplifies_to_eq_19,
+    derive_kinf_1g_eq_a2,
+    derive_kinf_1g_eq_a3_simplifies_to_eq_a2,
     derive_kinf_2g_general_from_matrix,
     derive_kinf_2g_no_upscatter,
     derive_kinf_mg_matrix_form,
@@ -79,84 +79,84 @@ from orpheus.derivations.continuous.fn_method.origins import (
 
 
 @pytest.mark.foundation
-def test_v_fn1_1_kinf_1g_eq_19():
+def test_v_fn1_1_kinf_1g_eq_a2():
     r"""V_fn1.1 — 1G balance equation reduces to :math:`k_\infty = \nu\Sigma_f / \Sigma_a`."""
-    result = derive_kinf_1g_eq_19()
+    result = derive_kinf_1g_eq_a2()
     assert result["pass"], (
         f"V_fn1.1 failed: derived k = {result['k_derived']}, "
-        f"expected = {result['k_eq19']}, diff = {result['diff']}"
+        f"expected = {result['k_eq_a2']}, diff = {result['diff']}"
     )
 
 
 @pytest.mark.foundation
-def test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19():
-    """V_fn1.2 — Sood Eq 20 algebraically equals Eq 19 (the c factor cancels)."""
-    result = derive_kinf_1g_eq_20_simplifies_to_eq_19()
+def test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2():
+    """V_fn1.2 — Sood Eq (A.3) algebraically equals Eq (A.2) (the c factor cancels)."""
+    result = derive_kinf_1g_eq_a3_simplifies_to_eq_a2()
     assert result["pass"], (
-        f"V_fn1.2 failed: Eq 20 - Eq 19 = {result['diff']} (expected 0)"
+        f"V_fn1.2 failed: Eq (A.3) - Eq (A.2) = {result['diff']} (expected 0)"
     )
 
 
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-092")
 def test_v_fn2_1_kinf_2g_general_from_matrix():
-    """V_fn2.1 — 2G general k_inf from det(M)=0 is Sood's Eq 28 as printed,
-    and reduces to Eq 29 in the no-upscatter limit."""
+    """V_fn2.1 — 2G general k_inf from det(M)=0 is Sood's Eq (A.11) as printed,
+    and reduces to Eq (A.12) in the no-upscatter limit."""
     result = derive_kinf_2g_general_from_matrix()
-    assert result["pass_eq28_match"], (
-        "V_fn2.1: derived 2G k_inf does not match Eq 28 as printed; "
-        f"diff = {result['diff_eq28']}"
+    assert result["pass_eq_a11_match"], (
+        "V_fn2.1: derived 2G k_inf does not match Eq (A.11) as printed; "
+        f"diff = {result['diff_eq_a11']}"
     )
-    assert result["pass_eq29_match"], (
-        "V_fn2.1: derived 2G k_inf does not reduce to Eq 29 at no-upscatter; "
-        f"diff = {result['diff_eq29']}"
+    assert result["pass_eq_a12_match"], (
+        "V_fn2.1: derived 2G k_inf does not reduce to Eq (A.12) at no-upscatter; "
+        f"diff = {result['diff_eq_a12']}"
     )
 
 
 @pytest.mark.foundation
 def test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero():
-    """V_fn2.2 — Substituting Eq 29 into det(M(no upscatter)) gives zero."""
+    """V_fn2.2 — Substituting Eq (A.12) into det(M(no upscatter)) gives zero."""
     result = derive_kinf_2g_no_upscatter()
     assert result["pass"], (
-        f"V_fn2.2 failed: det(M)|k=Eq 29 = {result['detM_at_eq29']} "
+        f"V_fn2.2 failed: det(M)|k=Eq (A.12) = {result['detM_at_eq_a12']} "
         f"(expected 0)"
     )
 
 
 @pytest.mark.foundation
-def test_v_fn2_3_phi_ratio_eq_32():
-    """V_fn2.3 — phi_2/phi_1 derivation (chi-sum + balance) matches Sood Eq 32."""
+def test_v_fn2_3_phi_ratio_eq_a15():
+    """V_fn2.3 — phi_2/phi_1 derivation (chi-sum + balance) matches Sood Eq (A.15)."""
     result = derive_phi_ratio_2g_no_upscatter()
     assert result["pass_chi_eliminates"], (
-        "V_fn2.3: chi_1 did not eliminate from Eq 23 + Eq 24 sum"
+        "V_fn2.3: chi_1 did not eliminate from Eq (A.6) + Eq (A.7) sum"
     )
     assert result["pass"], (
         f"V_fn2.3: derived ratio = {result['ratio_derived']}, "
-        f"Eq 32 = {result['ratio_eq32']}, diff = {result['diff']}"
+        f"Eq (A.15) = {result['ratio_eq_a15']}, diff = {result['diff']}"
     )
 
 
 @pytest.mark.foundation
-def test_v_fn_mg_1_eq_76_g2_form():
-    """V_fnMG.1 — Sood Eq 76 for G=2 is the trace of the rank-1 fission matrix."""
+def test_v_fn_mg_1_eq_a59_g2_form():
+    """V_fnMG.1 — Sood Eq (A.59) for G=2 is the trace of the rank-1 fission matrix."""
     result = derive_kinf_mg_matrix_form()
     assert result["pass_M_is_rank1"], (
         "V_fnMG.1: A^{-1} χ νΣ_f is not rank-1 (eigenvalue check failed)"
     )
-    assert result["pass_trace_equals_eq76"], (
-        f"V_fnMG.1: trace(M) ≠ Eq 76; diff = {result['diff_trace']}"
+    assert result["pass_trace_equals_eq_a59"], (
+        f"V_fnMG.1: trace(M) ≠ Eq (A.59); diff = {result['diff_trace']}"
     )
-    assert result["pass_eigenvalue_equals_eq76"], (
-        "V_fnMG.1: dominant eigenvalue ≠ Eq 76"
+    assert result["pass_eigenvalue_equals_eq_a59"], (
+        "V_fnMG.1: dominant eigenvalue ≠ Eq (A.59)"
     )
 
 
 @pytest.mark.foundation
 def test_v_fn_mg_2_reduces_to_1g():
-    """V_fnMG.2 — Eq 76 with G=1 reduces to Eq 19 bit-equal."""
+    """V_fnMG.2 — Eq (A.59) with G=1 reduces to Eq (A.2) bit-equal."""
     result = derive_kinf_mg_reduces_to_1g()
     assert result["pass"], (
-        f"V_fnMG.2 failed: Eq 76 (G=1) - Eq 19 = {result['diff']}"
+        f"V_fnMG.2 failed: Eq (A.59) (G=1) - Eq (A.2) = {result['diff']}"
     )
 
 
@@ -197,7 +197,7 @@ def test_PU_2_0_IN_kinf_matches_sood_table():
 
 @pytest.mark.foundation
 def test_PU_2_0_IN_flux_ratio_matches_sood_table():
-    r"""Case 5 — PU-2-0-IN flux ratio reproduces Sood Eq 32 reference to 6 digits."""
+    r"""Case 5 — PU-2-0-IN flux ratio reproduces Sood Eq (A.15) reference to 6 digits."""
     case = PU_2_0_IN
     # Sood publishes phi_2/phi_1 = phi_fast/phi_slow = 0.675229.
     # Cross-check with return_in_orpheus_order=False (Sood-style).
@@ -230,17 +230,17 @@ def test_PU_2_0_IN_flux_ratio_matches_sood_table():
 
 @pytest.mark.foundation
 def test_branch1_branch2_kinf_1g_agreement():
-    """Branch-1 SymPy Eq 19 evaluated symbolically agrees with Branch-2 numpy."""
+    """Branch-1 SymPy Eq (A.2) evaluated symbolically agrees with Branch-2 numpy."""
     import sympy as sp
 
-    # Pull the SymPy Eq 19 result and lambdify with the PUa-1-0-IN values.
-    result = derive_kinf_1g_eq_19()
+    # Pull the SymPy Eq (A.2) result and lambdify with the PUa-1-0-IN values.
+    result = derive_kinf_1g_eq_a2()
     Sigma_t, Sigma_s, nu_Sigma_f = sp.symbols(
         "Sigma_t Sigma_s nu_Sigma_f", positive=True
     )
     fn = sp.lambdify(
         (Sigma_t, Sigma_s, nu_Sigma_f),
-        result["k_eq19"],
+        result["k_eq_a2"],
         modules="numpy",
     )
 
@@ -262,7 +262,7 @@ def test_branch1_branch2_kinf_1g_agreement():
 
 @pytest.mark.foundation
 def test_branch1_branch2_kinf_2g_agreement():
-    """Branch-1 SymPy Eq 29 evaluated symbolically agrees with Branch-2 numpy
+    """Branch-1 SymPy Eq (A.12) evaluated symbolically agrees with Branch-2 numpy
     on the PU-2-0-IN case."""
     import sympy as sp
 
@@ -278,7 +278,7 @@ def test_branch1_branch2_kinf_2g_agreement():
     )
     Sigma_1rem = Sigma_1 - Sigma_11s
     Sigma_2rem = Sigma_2 - Sigma_22s
-    k_eq29 = (
+    k_eq_a12 = (
         chi_1 * nu_1_Sigma_1f / Sigma_1rem
         + chi_2 * (
             nu_1_Sigma_1f * Sigma_12s / (Sigma_1rem * Sigma_2rem)
@@ -288,7 +288,7 @@ def test_branch1_branch2_kinf_2g_agreement():
     fn = sp.lambdify(
         (Sigma_1, Sigma_2, Sigma_11s, Sigma_22s, Sigma_12s,
          nu_1_Sigma_1f, nu_2_Sigma_2f, chi_1, chi_2),
-        k_eq29,
+        k_eq_a12,
         modules="numpy",
     )
 
@@ -314,8 +314,8 @@ def test_branch1_branch2_kinf_2g_agreement():
 
 @pytest.mark.foundation
 def test_2g_general_equals_no_upscatter_when_sigma_21s_zero():
-    """compute_kinf_2g_general (corrected Eq 28) agrees with
-    compute_kinf_2g_no_upscatter (Eq 29) bit-equal when Σ_21s = 0."""
+    """compute_kinf_2g_general (Eq (A.11)) agrees with
+    compute_kinf_2g_no_upscatter (Eq (A.12)) bit-equal when Σ_21s = 0."""
     case = PU_2_0_IN  # has sigma_s[1, 0] = 0
     assert case.materials[0].SigS[0][1, 0] == 0.0, "PU-2-0-IN should have no upscatter"
     k_general = compute_kinf_2g_general(
@@ -380,10 +380,10 @@ def test_kinf_mg_agrees_with_existing_orpheus_kinf_homogeneous(case):
 
 @pytest.mark.foundation
 def test_PU_2_0_IN_flux_spectrum_matches_kinf_and_spectrum_homogeneous():
-    """The Eq 32 flux ratio agrees with the dominant eigenvector of
+    """The Eq (A.15) flux ratio agrees with the dominant eigenvector of
     ``kinf_and_spectrum_homogeneous`` to 1e-12.
 
-    A second structural-independence gate: Eq 32 is derived by adding
+    A second structural-independence gate: Eq (A.15) is derived by adding
     the chi-summed balance equations, while ``kinf_and_spectrum_homogeneous``
     extracts the dominant eigenvector via :func:`numpy.linalg.eig`.
     Two completely different code paths to the same physical ratio.
@@ -394,11 +394,11 @@ def test_PU_2_0_IN_flux_spectrum_matches_kinf_and_spectrum_homogeneous():
     )
     # phi_orph is L2-normalised non-negative; ratio is invariant under norm.
     fast_over_slow_eig = float(phi_orph[0] / phi_orph[1])
-    fast_over_slow_eq32 = compute_flux_ratio_2g_no_upscatter(
+    fast_over_slow_eq_a15 = compute_flux_ratio_2g_no_upscatter(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
         return_in_orpheus_order=False,
     )
-    assert fast_over_slow_eq32 == pytest.approx(fast_over_slow_eig, abs=1e-12)
+    assert fast_over_slow_eq_a15 == pytest.approx(fast_over_slow_eig, abs=1e-12)
 
 
 # ─────────────────────────────────────────────────────────────────────

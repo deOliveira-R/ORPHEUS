@@ -18,50 +18,50 @@
      - Multiplying
      - Status
      - Accuracy class
-   * - k_inf — 1G isotropic (Sood Eq 19)
+   * - k_inf — 1G isotropic (Sood Eq (A.2))
      - infinite
      - 1
      - 0
      - —
      - 0
      - yes
-     - shipped — 12 LA-13511 1G k_inf cases (PUa/PUb/Ua/Ub/Uc/Ud/UD2O/Ue/PU-1-1/UD2Oa-1-1/UD2Ob-1-1/UD2Oc-1-1)
+     - shipped — 12 Sood 1G k_inf cases (PUa/PUb/Ua/Ub/Uc/Ud/UD2O/Ue/PU-1-1/UD2Oa-1-1/UD2Ob-1-1/UD2Oc-1-1)
      - exact (rational algebra)
-   * - k_inf — 2G no-upscatter (Sood Eq 29)
+   * - k_inf — 2G no-upscatter (Sood Eq (A.12))
      - infinite
      - 2
      - 0
      - —
      - 0
      - yes
-     - shipped — 6 LA-13511 cases (PU-2-0-IN, U-2-0-IN, UAl-2-0-IN, URRa-2-0-IN, URRd-2-0-IN, UD2O-2-0-IN)
+     - shipped — 6 Sood cases (PU-2-0-IN, U-2-0-IN, UAl-2-0-IN, URRa-2-0-IN, URRd-2-0-IN, UD2O-2-0-IN)
      - exact (rational algebra)
-   * - k_inf — 2G general (Sood Eq 28)
+   * - k_inf — 2G general (Sood Eq (A.11))
      - infinite
      - 2
      - 0
      - —
      - 0
      - yes
-     - shipped — 2 LA-13511 with-upscatter cases (URRb-2-0-IN, URRc-2-0-IN)
+     - shipped — 2 Sood with-upscatter cases (URRb-2-0-IN, URRc-2-0-IN)
      - exact (2x2 dominant eigenvalue)
-   * - k_inf — 3G general (Sood Eq 76)
+   * - k_inf — 3G general (Sood Eq (A.59))
      - infinite
      - 3
      - 0
      - —
      - 0
      - yes
-     - shipped — LA-13511 URR-3-0-IN (3G)
+     - shipped — Sood URR-3-0-IN (3G)
      - exact (GxG dominant eigenvalue)
-   * - k_inf — 6G general (Sood Eq 76)
+   * - k_inf — 6G general (Sood Eq (A.59))
      - infinite
      - 6
      - 0
      - —
      - 0
      - yes
-     - shipped — LA-13511 URR-6-0-IN (6G)
+     - shipped — Sood URR-6-0-IN (6G)
      - exact (GxG dominant eigenvalue)
    * - F_N slab bare-critical (Siewert-Benoist + Grandjean-Siewert 1979)
      - slab
@@ -70,7 +70,7 @@
      - vacuum (symmetric)
      - 0
      - yes
-     - shipped — 4 LA-13511 1G bare slab cases (Ua-1-0-SL, PUa-1-0-SL, PUb-1-0-SL, UD2O-1-0-SL)
+     - shipped — 4 Sood 1G bare slab cases (Ua-1-0-SL, PUa-1-0-SL, PUb-1-0-SL, UD2O-1-0-SL)
      - ≤ 5e-6 abs at N=10–12 vs Sood truth
    * - F_N sphere bare-critical (Siewert-Thomas 1986)
      - sphere-1d
@@ -79,7 +79,7 @@
      - vacuum
      - 0
      - yes
-     - shipped — 3 LA-13511 1G bare sphere cases (Ua-1-0-SP, PUb-1-0-SP, UD2O-1-0-SP)
+     - shipped — 3 Sood 1G bare sphere cases (Ua-1-0-SP, PUb-1-0-SP, UD2O-1-0-SP)
      - ≤ 5e-8 abs at N=10 vs Sood truth
    * - F_N reflected-slab critical (Neshat-Maiorino 1980)
      - slab

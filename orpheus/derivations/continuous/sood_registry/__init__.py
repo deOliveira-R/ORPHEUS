@@ -2,7 +2,7 @@ r"""Method-agnostic Sood/Forster/Parsons benchmark case registry.
 
 The :mod:`sood_registry` package is the **single source of truth** for
 benchmark case configurations from the Sood-family literature
-(LA-13511, LA-UR-03-1987 cylinder benchmarks, future KLL Tables, etc.).
+(Sood, Forster & Parsons 2003, Atalay 1997, future KLL Tables, etc.).
 
 Design intent
 -------------
@@ -26,7 +26,8 @@ Each :class:`La13511Case` carries:
 * **Tabulated truth values**: :math:`k_{\rm eff}` / :math:`k_\infty`,
   flux ratios, critical dimensions, etc. — whatever the published
   reference tabulates.
-* **Provenance**: Sood table number + primary reference + notes.
+* **Provenance**: the paper, its table number, the primary reference
+  and notes, in one :class:`Provenance` record.
 
 Tests live in ``tests/gates/derivations/`` and import case + solver(s),
 producing the value to compare. See e.g.
@@ -37,17 +38,20 @@ production-protocol smoke gates.
 Module layout
 -------------
 
-* :mod:`.la13511` — Sood/Forster/Parsons LA-13511 (1999) cases
-  (5 first-slice cases; more added as Phase B lands).
+* :mod:`.la13511` — the 47 Sood, Forster & Parsons cases, cited to
+  the 2003 edition (the module keeps the 1999 report's number).
 * :mod:`.builders` — case → ``(materials, mesh, params)`` helpers
   for production-solver consumers.
 
 References
 ----------
 
-* Sood, Forster & Parsons (1999), *Analytical Benchmark Test Set for
-  Criticality Code Verification*, LA-13511, Los Alamos National
-  Laboratory.
+* Sood, A., Forster, R.A. & Parsons, D.K. (2003), "Analytical
+  benchmark test set for criticality code verification", *Progress in
+  Nuclear Energy* 42(1), 55-106: the edition the cases cite.
+* The same authors' 1999 report LA-13511 (Los Alamos National
+  Laboratory) is the earlier edition, with other table, equation and
+  reference numbers.
 """
 from __future__ import annotations
 

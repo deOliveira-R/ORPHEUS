@@ -803,9 +803,9 @@ V_fn1.1 — 1G k_inf from balance equation
 -----------------------------------------
 
 **SymPy derivation:**
-:func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_19`.
+:func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_a2`.
 **Test gate:**
-:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_1_kinf_1g_eq_19`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_1_kinf_1g_eq_a2`.
 
 Starting from Sood Eq 18 (the 1G integrated transport equation for
 an infinite, isotropically-scattering, homogeneous medium),
@@ -825,7 +825,7 @@ we factor :math:`\phi` and solve for :math:`k_\infty`:
 
    k_\infty = \frac{\nu\Sigma_f}{\Sigma_t - \Sigma_s} .
 
-.. (vv-status rationale) derivation: Sood Eq 19 — the closed-form 1G k_inf result from Eq 18; verified by V_fn1.1 (test_v_fn1_1_kinf_1g_eq_19) at the SymPy level. The Branch-2 numpy implementation also reproduces Eq 19 bit-for-bit at G=1 reduction (test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1).
+.. (vv-status rationale) derivation: Sood Eq 19 — the closed-form 1G k_inf result from Eq 18; verified by V_fn1.1 (test_v_fn1_1_kinf_1g_eq_a2) at the SymPy level. The Branch-2 numpy implementation also reproduces Eq 19 bit-for-bit at G=1 reduction (test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1).
 .. vv-status: sood-eq19-kinf-1g documented
 
 **The flux** :math:`\phi` **cancels.** This is the canonical 1G
@@ -843,9 +843,9 @@ V_fn1.2 — Eq 20 simplifies to Eq 19 (c factor cancels)
 -------------------------------------------------------
 
 **SymPy derivation:**
-:func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_20_simplifies_to_eq_19`.
+:func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_a3_simplifies_to_eq_a2`.
 **Test gate:**
-:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2`.
 
 Sood states the same 1G result two ways. Eq 19 is the clean form;
 Eq 20 includes the explicit "mean number of secondaries"
@@ -857,7 +857,7 @@ Eq 20 includes the explicit "mean number of secondaries"
    k_\infty = \frac{c\,\nu\Sigma_f\,\Sigma_t}
                    {(\Sigma_t - \Sigma_s)(\Sigma_s + \nu\Sigma_f)} .
 
-.. (vv-status rationale) derivation: Sood Eq 20 — the same 1G k_inf restated with the explicit "secondaries per collision" c-factor; reduces to Eq 19 (verified by V_fn1.2, test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19).
+.. (vv-status rationale) derivation: Sood Eq 20 — the same 1G k_inf restated with the explicit "secondaries per collision" c-factor; reduces to Eq 19 (verified by V_fn1.2, test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2).
 .. vv-status: sood-eq20-kinf-1g-c-form documented
 
 Substituting :math:`c` into :eq:`sood-eq20-kinf-1g-c-form`:
@@ -985,7 +985,7 @@ V_fn2.3 — phi_2/phi_1 from chi-sum + balance (Eq 32)
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_phi_ratio_2g_no_upscatter`.
 **Test gate:**
-:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_3_phi_ratio_eq_32`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_3_phi_ratio_eq_a15`.
 
 Adding the two 2G balance equations Eqs 23 + 24 with
 :math:`\chi_1 + \chi_2 = 1` eliminates the :math:`\chi_g` from the
@@ -999,7 +999,7 @@ resulting relation (Sood Eq 30). Solving for
    = \frac{\Sigma_{12s}}
           {\Sigma_2^{\rm rem} - \dfrac{\nu_2\Sigma_{2f}}{k_\infty}} .
 
-.. (vv-status rationale) derivation: Sood Eq 32 — the 2G no-upscatter flux ratio; verified by V_fn2.3 (test_v_fn2_3_phi_ratio_eq_32). Independent of fission spectrum splitting (chi cancels under chi_1+chi_2=1).
+.. (vv-status rationale) derivation: Sood Eq 32 — the 2G no-upscatter flux ratio; verified by V_fn2.3 (test_v_fn2_3_phi_ratio_eq_a15). Independent of fission spectrum splitting (chi cancels under chi_1+chi_2=1).
 .. vv-status: sood-eq32-phi-ratio documented
 
 SymPy verifies both the chi-elimination (the :math:`\chi_1`
@@ -1018,7 +1018,7 @@ V_fnMG.1 — Eq 76 for G=2 is the trace of a rank-1 matrix
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form`.
 **Test gate:**
-:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_1_eq_76_g2_form`.
+:func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_1_eq_a59_g2_form`.
 
 The general G-group balance (Sood Eq 72) reduces to a single
 matrix-vector identity (Sood Eq 76):
@@ -1031,7 +1031,7 @@ matrix-vector identity (Sood Eq 76):
                   - \overline{\overline{\Sigma_s}}\big)^{-1}\,
               \bar\chi .
 
-.. (vv-status rationale) derivation: Sood Eq 76 — the multi-group k_inf as a single matrix-vector identity; verified by V_fnMG.1 (test_v_fn_mg_1_eq_76_g2_form) at G=2 where SymPy rank-1 trace closes; verified numerically at higher G against kinf_homogeneous (np.linalg.eig).
+.. (vv-status rationale) derivation: Sood Eq 76 — the multi-group k_inf as a single matrix-vector identity; verified by V_fnMG.1 (test_v_fn_mg_1_eq_a59_g2_form) at G=2 where SymPy rank-1 trace closes; verified numerically at higher G against kinf_homogeneous (np.linalg.eig).
 .. vv-status: sood-eq76-kinf-mg documented
 
 SymPy verifies for G=2 that the matrix

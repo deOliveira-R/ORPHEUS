@@ -3,8 +3,9 @@ r"""Atalay 1997 reflected-slab and sphere case catalogue.
 Atalay (1997) :cite:`Atalay1997` tabulates critical thicknesses :math:`2d`
 (slab) and eigenvalues :math:`c` (slab + sphere) for the **reflected**
 slab and sphere with linearly-anisotropic scattering — a regime that
-is **not** in standard Sood/Forster/Parsons LA-13511 tables (which
-focus on bare configurations).
+Sood, Forster & Parsons (2003) do not tabulate (their reflected cases
+carry a physical reflector material, not a specular reflection
+coefficient at the face).
 
 This file is the case-class home for:
 

@@ -229,15 +229,23 @@ def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
 def test_la13511_case_has_provenance(case_id: str) -> None:
-    """Every LA-13511 registry case has a populated Provenance."""
+    """Every Sood registry case has a populated Provenance, cited to the
+    2003 edition (Prog. Nucl. Energy 42, 55): the 1999 report LA-13511
+    numbers the tables, equations and references differently, so a
+    citation in its numbering read against the 2003 paper points at the
+    wrong object."""
     case = LA13511_CASES[case_id]
     assert case.provenance is not None, (
         f"{case_id}: provenance must be populated post-Phase-B"
     )
     assert isinstance(case.provenance, Provenance)
-    assert case.provenance.paper_id == "LA-13511", (
-        f"{case_id}: paper_id should be 'LA-13511', "
+    assert case.provenance.paper_id == "Sood-2003", (
+        f"{case_id}: paper_id should be 'Sood-2003', "
         f"got {case.provenance.paper_id!r}"
+    )
+    citation = f"{case.provenance.primary_reference} {case.provenance.notes}"
+    assert "LA-13511" not in citation, (
+        f"{case_id}: a provenance string cites the 1999 edition: {citation!r}"
     )
     # The flat fields that mirrored the provenance retired in P1 step 2b:
     # the provenance is the one citation record.

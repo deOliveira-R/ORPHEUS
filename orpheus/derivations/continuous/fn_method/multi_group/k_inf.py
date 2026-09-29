@@ -1,4 +1,4 @@
-r"""Branch-2 numpy implementations of the LA-13511 :math:`k_\infty` formulae.
+r"""Branch-2 numpy implementations of Sood's :math:`k_\infty` formulae.
 
 These are direct translations of the closed forms verified
 symbolically in :mod:`..origins.k_inf_derivations` — no eigenvalue
@@ -25,7 +25,7 @@ def compute_kinf_1g(
     sigma_s: float,
     nu_sigma_f: float,
 ) -> float:
-    r"""1G infinite-medium :math:`k_\infty` via Sood Eq 19.
+    r"""1G infinite-medium :math:`k_\infty` via Sood Eq (A.2).
 
     .. math::
 
@@ -62,9 +62,9 @@ def compute_kinf_2g_no_upscatter(
     nu_sigma_f: np.ndarray,
     chi: np.ndarray,
 ) -> float:
-    r"""2G infinite-medium :math:`k_\infty` via Sood Eq 29 (no upscatter).
+    r"""2G infinite-medium :math:`k_\infty` via Sood Eq (A.12) (no upscatter).
 
-    Sood's printed Eq 29 uses **g=2 fast, g=1 slow** convention. This
+    Sood's printed Eq (A.12) uses **g=2 fast, g=1 slow** convention. This
     function takes ORPHEUS-ordered inputs (g=0 fast, g=1 slow) and
     relabels internally before applying:
 
@@ -110,7 +110,7 @@ def compute_kinf_2g_no_upscatter(
         )
 
     # ORPHEUS convention: sigma_s[from, to]. sigma_s[1, 0] is from
-    # slow to fast = upscatter. Must be zero for Eq 29.
+    # slow to fast = upscatter. Must be zero for Eq (A.12).
     if sigma_s[1, 0] > 0.0:
         raise ValueError(
             f"compute_kinf_2g_no_upscatter requires no upscatter "
@@ -154,10 +154,10 @@ def compute_kinf_2g_general(
     nu_sigma_f: np.ndarray,
     chi: np.ndarray,
 ) -> float:
-    r"""2G infinite-medium :math:`k_\infty` via Sood Eq 28.
+    r"""2G infinite-medium :math:`k_\infty` via Sood Eq (A.11).
 
-    Sood Eq 28 is the non-trivial root of :math:`\det(M(k)) = 0` of
-    Sood Eq 25, printed correctly (the SymPy proof is
+    Sood Eq (A.11) is the non-trivial root of :math:`\det(M(k)) = 0` of
+    Sood Eq (A.8), printed correctly (the SymPy proof is
     :func:`..origins.k_inf_derivations.derive_kinf_2g_general_from_matrix`;
     an earlier typo claim here was a mis-transcription, ERR-092):
 
@@ -226,7 +226,7 @@ def compute_flux_ratio_2g_no_upscatter(
     *,
     return_in_orpheus_order: bool = True,
 ) -> float:
-    r"""2G flux ratio :math:`\phi_2/\phi_1` via Sood Eq 32.
+    r"""2G flux ratio :math:`\phi_2/\phi_1` via Sood Eq (A.15).
 
     Sood publishes :math:`\phi_2/\phi_1` = (fast)/(slow). This function
     can return that ratio directly (Sood-style) or the inverse
@@ -255,8 +255,8 @@ def compute_flux_ratio_2g_no_upscatter(
     float
         Flux ratio. Computed by:
 
-        1. Solving Eq 29 (no upscatter) for :math:`k_\infty`.
-        2. Substituting :math:`k_\infty` into Eq 32 for fast/slow.
+        1. Solving Eq (A.12) (no upscatter) for :math:`k_\infty`.
+        2. Substituting :math:`k_\infty` into Eq (A.15) for fast/slow.
         3. Inverting if ORPHEUS-order is requested.
     """
     k_inf = compute_kinf_2g_no_upscatter(sigma_t, sigma_s, nu_sigma_f, chi)
@@ -271,7 +271,7 @@ def compute_flux_ratio_2g_no_upscatter(
     Sigma_1rem = Sigma_1 - Sigma_11s
     Sigma_2rem = Sigma_2 - Sigma_22s
 
-    # Sood Eq 32: phi_fast/phi_slow = phi_2/phi_1
+    # Sood Eq (A.15): phi_fast/phi_slow = phi_2/phi_1
     numer = Sigma_1rem - nuSf_1 / k_inf
     denom = nuSf_2 / k_inf - Sigma_2rem + Sigma_12s
     fast_over_slow = float(numer / denom)
@@ -287,7 +287,7 @@ def compute_kinf_mg(
     nu_sigma_f: np.ndarray,
     chi: np.ndarray,
 ) -> float:
-    r"""General multi-group :math:`k_\infty` via Sood Eq 76.
+    r"""General multi-group :math:`k_\infty` via Sood Eq (A.59).
 
     .. math::
 
@@ -296,7 +296,7 @@ def compute_kinf_mg(
                     \overline{\overline{\Sigma_s}})^{-1}\,
                    \bar\chi
 
-    is the **single matrix inversion** form. Note: Sood Eq 76 uses
+    is the **single matrix inversion** form. Note: Sood Eq (A.59) uses
     the Sood scattering convention :math:`(\Sigma_s)_{gh}` = scattering
     FROM h TO g. ORPHEUS stores ``sigma_s[g, h]`` = scattering FROM
     g TO h (transpose). Therefore in this function we use
@@ -328,7 +328,7 @@ def compute_kinf_mg(
             f"sigma_s.shape={sigma_s.shape} inconsistent with sigma_t.shape={sigma_t.shape}."
         )
 
-    # Sood Eq 76: A = Sigma_t - Sigma_s_sood, where Sigma_s_sood[g,h]
+    # Sood Eq (A.59): A = Sigma_t - Sigma_s_sood, where Sigma_s_sood[g,h]
     # is FROM h TO g. ORPHEUS sigma_s is FROM g TO h, so transpose.
     A = np.diag(sigma_t) - sigma_s.T
     A_inv_chi = np.linalg.solve(A, chi)

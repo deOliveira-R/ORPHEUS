@@ -1,37 +1,38 @@
-r"""SymPy derivations of the LA-13511 closed-form :math:`k_\infty` cases.
+r"""SymPy derivations of Sood's closed-form :math:`k_\infty` cases.
 
 This module is the **algebra-of-record** for the infinite-medium
-fission-eigenvalue formulae from Sood/Forster/Parsons LA-13511 (1999),
-Appendix A (Eqs 18-32 + 72-76). Branch-1 SymPy proves that:
+fission-eigenvalue formulae of Sood, Forster & Parsons (2003),
+Appendix A (Eqs (A.1)-(A.15) + (A.55)-(A.59)). Branch-1 SymPy proves that:
 
-* The 1G closed form (Eq 20 with the leading factor :math:`c`)
-  algebraically reduces to the simpler form (Eq 19) :math:`k_\infty
+* The 1G closed form (Eq (A.3) with the leading factor :math:`c`)
+  algebraically reduces to the simpler form (Eq (A.2)) :math:`k_\infty
   = \nu\Sigma_f / (\Sigma_t - \Sigma_s)`. The :math:`c` factor cancels
   identically.
-* The 2G general formula (Eq 28) is the non-trivial root of
-  :math:`\det(M)=0` of Eq 25, as printed, and its no-upscatter
-  reduction is Eq 29.
-* The 2G flux-ratio formula (Eq 32) follows from adding Eq 23 and
-  Eq 24 with :math:`\chi_1 + \chi_2 = 1`.
-* The general multi-group formula (Eq 76)
+* The 2G general formula (Eq (A.11)) is the non-trivial root of
+  :math:`\det(M)=0` of Eq (A.8), as printed, and its no-upscatter
+  reduction is Eq (A.12).
+* The 2G flux-ratio formula (Eq (A.15)) follows from adding Eq (A.6) and
+  Eq (A.7) with :math:`\chi_1 + \chi_2 = 1`.
+* The general multi-group formula (Eq (A.59))
   :math:`k = \nu\Sigma_f^T (\Sigma_t - \Sigma_s)^{-1} \chi \nu\Sigma_f \phi`
   follows from the matrix balance :math:`\Sigma_t \phi = \Sigma_s
   \phi + (1/k)\, \chi (\nu\Sigma_f^T \phi)`.
-* The MG formula at :math:`G=1` reduces bit-for-bit to Eq 19.
+* The MG formula at :math:`G=1` reduces bit-for-bit to Eq (A.2).
 
-Eq 28 is printed correctly (a refuted typo claim)
-=================================================
+Eq (A.11) is printed correctly (a refuted typo claim)
+=====================================================
 
-Until 2026-09-29 this module asserted that the published Eq 28 has a
-typo, and its gate certified the claim. The claim came from a
+Until 2026-09-29 this module asserted that the published Eq 28 (the
+1999 numbering of Eq (A.11)) has a typo, and its gate certified the
+claim. The claim came from a
 mis-transcription: the "as printed" form typed here paired
 :math:`\chi_1` with :math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` and
 :math:`\chi_2` with :math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`,
 while the report prints :math:`\chi_1` with
 :math:`\Sigma_2^{\rm rem}\,\nu_1\Sigma_{1f}` and :math:`\chi_2` with
 :math:`\Sigma_1^{\rm rem}\,\nu_2\Sigma_{2f}` (the 1999 page image and
-both editions' text; the 2003 edition prints the same body as
-Eq (A.11)). The printed Eq 28 is the non-trivial root of
+the text of both editions, which print the same body). The printed
+Eq (A.11) is the non-trivial root of
 :math:`\det(M)=0`, and on PU-2-0-IN it gives the published
 k_inf = 2.683767. The mis-transcribed form gives 2.862. The gate that
 certified the typo compared the derivation with the mis-transcription,
@@ -52,9 +53,11 @@ side.
 References
 ----------
 
-* Sood, Forster, Parsons (1999), LA-13511, Appendix A.
-* Sood, Forster, Parsons (2003), *Progress in Nuclear Energy* 42, 55
-  — journal-published condensation.
+* Sood, A., Forster, R.A., Parsons, D.K. (2003), "Analytical benchmark
+  test set for criticality code verification", *Progress in Nuclear
+  Energy* 42(1), 55-106, Appendix A: the edition cited here.
+* The same authors' 1999 report LA-13511 numbers these equations
+  18-32 and 72-76: its appendix Eq N is Eq (A.N-17) here.
 """
 from __future__ import annotations
 
@@ -62,14 +65,14 @@ import sympy as sp
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 1G Infinite Medium — Sood Eqs 18-20
+# 1G Infinite Medium — Sood Eqs (A.1)-(A.3)
 # ═══════════════════════════════════════════════════════════════════
 
 
-def derive_kinf_1g_eq_19() -> dict:
+def derive_kinf_1g_eq_a2() -> dict:
     r"""V_fn1.1 — 1G infinite-medium :math:`k_\infty` from balance.
 
-    Starting from Sood Eq 18 (the 1G integrated transport equation
+    Starting from Sood Eq (A.1) (the 1G integrated transport equation
     for an infinite isotropic homogeneous medium):
 
     .. math::
@@ -82,7 +85,7 @@ def derive_kinf_1g_eq_19() -> dict:
 
         k_\infty = \frac{\nu\Sigma_f}{\Sigma_t - \Sigma_s}
 
-    which is Sood Eq 19. The flux :math:`\phi` cancels (constant
+    which is Sood Eq (A.2). The flux :math:`\phi` cancels (constant
     everywhere in the infinite medium), confirming the eigenvalue is
     flux-shape independent — the 1G degeneracy that makes 1G
     eigenvalue claims insufficient as L1 verification of any operator
@@ -99,41 +102,41 @@ def derive_kinf_1g_eq_19() -> dict:
         "Sigma_t Sigma_s nu_Sigma_f phi k", positive=True
     )
 
-    # Sood Eq 18: balance equation.
-    eq18 = sp.Eq(Sigma_t * phi, Sigma_s * phi + nu_Sigma_f * phi / k)
+    # Sood Eq (A.1): balance equation.
+    eq_a1 = sp.Eq(Sigma_t * phi, Sigma_s * phi + nu_Sigma_f * phi / k)
 
     # Solve for k.
-    k_solutions = sp.solve(eq18, k)
+    k_solutions = sp.solve(eq_a1, k)
     assert len(k_solutions) == 1, f"Expected single k root, got {k_solutions}"
     k_derived = sp.simplify(k_solutions[0])
 
-    # Expected closed form (Sood Eq 19).
-    k_eq19 = nu_Sigma_f / (Sigma_t - Sigma_s)
+    # Expected closed form (Sood Eq (A.2)).
+    k_eq_a2 = nu_Sigma_f / (Sigma_t - Sigma_s)
 
-    diff = sp.simplify(k_derived - k_eq19)
-    pass_eq19 = (diff == 0)
+    diff = sp.simplify(k_derived - k_eq_a2)
+    pass_eq_a2 = (diff == 0)
 
     return {
-        "name": "V_fn1.1: 1G k_inf from balance equation reduces to Eq 19",
-        "eq18": eq18,
+        "name": "V_fn1.1: 1G k_inf from balance equation reduces to Eq (A.2)",
+        "eq_a1": eq_a1,
         "k_derived": k_derived,
-        "k_eq19": k_eq19,
+        "k_eq_a2": k_eq_a2,
         "diff": diff,
-        "pass": pass_eq19,
+        "pass": pass_eq_a2,
     }
 
 
-def derive_kinf_1g_eq_20_simplifies_to_eq_19() -> dict:
-    r"""V_fn1.2 — Sood Eq 20 algebraically equals Eq 19.
+def derive_kinf_1g_eq_a3_simplifies_to_eq_a2() -> dict:
+    r"""V_fn1.2 — Sood Eq (A.3) algebraically equals Eq (A.2).
 
     Sood states the same 1G result two ways:
 
-    * Eq 19: :math:`k_\infty = \nu\Sigma_f / (\Sigma_t - \Sigma_s)`.
-    * Eq 20: :math:`k_\infty = c \cdot \nu\Sigma_f \Sigma_t / [(\Sigma_t
+    * Eq (A.2): :math:`k_\infty = \nu\Sigma_f / (\Sigma_t - \Sigma_s)`.
+    * Eq (A.3): :math:`k_\infty = c \cdot \nu\Sigma_f \Sigma_t / [(\Sigma_t
       - \Sigma_s)(\Sigma_s + \nu\Sigma_f)]` where
       :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`.
 
-    Substituting :math:`c` into Eq 20:
+    Substituting :math:`c` into Eq (A.3):
 
     .. math::
 
@@ -142,8 +145,8 @@ def derive_kinf_1g_eq_20_simplifies_to_eq_19() -> dict:
                               {(\Sigma_t - \Sigma_s)(\Sigma_s + \nu\Sigma_f)}
                 = \frac{\nu\Sigma_f}{\Sigma_t - \Sigma_s}
 
-    so the :math:`c` and :math:`\Sigma_t` factors cancel and Eq 20
-    collapses to Eq 19 exactly.
+    so the :math:`c` and :math:`\Sigma_t` factors cancel and Eq (A.3)
+    collapses to Eq (A.2) exactly.
 
     This identity is the trivial Branch-1 anchor for Case 1
     (PUa-1-0-IN). It also shows why SymPy is the right tool here: a
@@ -156,35 +159,35 @@ def derive_kinf_1g_eq_20_simplifies_to_eq_19() -> dict:
     )
     c = (Sigma_s + nu_Sigma_f) / Sigma_t
 
-    k_eq19 = nu_Sigma_f / (Sigma_t - Sigma_s)
-    k_eq20 = c * nu_Sigma_f * Sigma_t / (
+    k_eq_a2 = nu_Sigma_f / (Sigma_t - Sigma_s)
+    k_eq_a3 = c * nu_Sigma_f * Sigma_t / (
         (Sigma_t - Sigma_s) * (Sigma_s + nu_Sigma_f)
     )
 
-    diff = sp.simplify(k_eq20 - k_eq19)
+    diff = sp.simplify(k_eq_a3 - k_eq_a2)
     pass_id = (diff == 0)
 
     return {
-        "name": "V_fn1.2: Eq 20 simplifies to Eq 19 (c factor cancels)",
+        "name": "V_fn1.2: Eq (A.3) simplifies to Eq (A.2) (c factor cancels)",
         "c_definition": c,
-        "k_eq19": k_eq19,
-        "k_eq20": k_eq20,
+        "k_eq_a2": k_eq_a2,
+        "k_eq_a3": k_eq_a3,
         "diff": diff,
         "pass": pass_id,
     }
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 2G Infinite Medium — Sood Eqs 21-32
+# 2G Infinite Medium — Sood Eqs (A.4)-(A.15)
 # ═══════════════════════════════════════════════════════════════════
 
 
 def derive_kinf_2g_general_from_matrix() -> dict:
     r"""V_fn2.1 — 2G general :math:`k_\infty` from :math:`\det(M)=0`.
 
-    Sood Eqs 23-24 rearrange the 2G balance equations Eq 21-22 into
+    Sood Eqs (A.6)-(A.7) rearrange the 2G balance equations Eq (A.4)-(A.5) into
     a 2x2 homogeneous linear system :math:`M(k_\infty)\,\vec\phi = 0`
-    (Sood Eq 25). Critical fission balance requires :math:`\det(M) = 0`,
+    (Sood Eq (A.8)). Critical fission balance requires :math:`\det(M) = 0`,
     which is a quadratic in :math:`k_\infty`. One root is :math:`k=0`
     (trivial); the other is the desired :math:`k_\infty`.
 
@@ -209,9 +212,9 @@ def derive_kinf_2g_general_from_matrix() -> dict:
     4. Returns the surviving root as the **derived general 2G
        formula**.
 
-    The PASS flag verifies that the derived root equals Eq 28 as
+    The PASS flag verifies that the derived root equals Eq (A.11) as
     printed, and that its restriction to :math:`\Sigma_{21s} = 0`
-    (no upscatter) is Eq 29. An Eq 28 transcription that swaps the
+    (no upscatter) is Eq (A.12). An Eq (A.11) transcription that swaps the
     :math:`\Sigma_g^{\rm rem}` factors between the two
     :math:`\chi_g` terms fails the first check (ERR-092).
     """
@@ -231,14 +234,14 @@ def derive_kinf_2g_general_from_matrix() -> dict:
     Sigma_2rem = Sigma_2 - Sigma_22s
     Sigma_1rem = Sigma_1 - Sigma_11s
 
-    # Sood Eq 25 — matrix M acting on (phi_1, phi_2)^T:
+    # Sood Eq (A.8) — matrix M acting on (phi_1, phi_2)^T:
     #
-    #   row 1 (from Eq 23, the phi_2 balance rearranged):
+    #   row 1 (from Eq (A.6), the phi_2 balance rearranged):
     #     [-(Σ_{21s} + (χ_2/k)·ν_1·Σ_{1f}),  Σ_2^rem - (χ_2/k)·ν_2·Σ_{2f}]
-    #   row 2 (from Eq 24, the phi_1 balance rearranged):
+    #   row 2 (from Eq (A.7), the phi_1 balance rearranged):
     #     [Σ_1^rem - (χ_1/k)·ν_1·Σ_{1f},   -(Σ_{12s} + (χ_1/k)·ν_2·Σ_{2f})]
     #
-    # Writing it from the LA-13511 PDF page 43 (Eq 25) verbatim:
+    # Writing it from Sood 2003 p. 100 (Eq (A.8)) verbatim:
     M = sp.Matrix([
         [-(Sigma_21s + chi_2 / k * nu_1 * Sigma_1f),
          Sigma_2rem - chi_2 / k * nu_2 * Sigma_2f],
@@ -267,62 +270,63 @@ def derive_kinf_2g_general_from_matrix() -> dict:
     k_general_derived = sp.simplify(k_roots_nonzero[0])
 
     # Cross-check against the no-upscatter limit (Sigma_21s -> 0).
-    # Expected: Sood Eq 29 (printed correctly).
+    # Expected: Sood Eq (A.12) (printed correctly).
     k_no_upscatter_derived = sp.simplify(
         k_general_derived.subs(Sigma_21s, 0)
     )
 
-    # Sood Eq 29 (verbatim transcription):
+    # Sood Eq (A.12) (verbatim transcription):
     #   k = chi_1·nu_1·Sigma_1f / Sigma_1^rem
     #     + chi_2·[nu_1·Sigma_1f·Sigma_12s / (Sigma_1^rem·Sigma_2^rem)
     #               + nu_2·Sigma_2f / Sigma_2^rem]
-    k_eq29 = (
+    k_eq_a12 = (
         chi_1 * nu_1 * Sigma_1f / Sigma_1rem
         + chi_2 * (
             nu_1 * Sigma_1f * Sigma_12s / (Sigma_1rem * Sigma_2rem)
             + nu_2 * Sigma_2f / Sigma_2rem
         )
     )
-    k_eq29_simplified = sp.simplify(k_eq29)
+    k_eq_a12_simplified = sp.simplify(k_eq_a12)
 
-    diff_29 = sp.simplify(k_no_upscatter_derived - k_eq29_simplified)
-    pass_eq29_match = (diff_29 == 0)
+    diff_a12 = sp.simplify(k_no_upscatter_derived - k_eq_a12_simplified)
+    pass_eq_a12_match = (diff_a12 == 0)
 
-    # Sood Eq 28 (verbatim transcription; the 1999 page image):
+    # Sood Eq (A.11) (verbatim transcription; read on the 1999 page
+    # image, where it is Eq 28):
     #   k = [chi_1·(nu_2·Sigma_2f·Sigma_21s + Sigma_2^rem·nu_1·Sigma_1f)
     #        + chi_2·(nu_1·Sigma_1f·Sigma_12s + Sigma_1^rem·nu_2·Sigma_2f)]
     #     / [Sigma_1^rem·Sigma_2^rem - Sigma_12s·Sigma_21s]
-    k_eq28 = (
+    k_eq_a11 = (
         chi_1 * (nu_2 * Sigma_2f * Sigma_21s + Sigma_2rem * nu_1 * Sigma_1f)
         + chi_2 * (nu_1 * Sigma_1f * Sigma_12s + Sigma_1rem * nu_2 * Sigma_2f)
     ) / (Sigma_1rem * Sigma_2rem - Sigma_12s * Sigma_21s)
 
-    diff_28 = sp.simplify(k_general_derived - k_eq28)
-    pass_eq28_match = (diff_28 == 0)
+    diff_a11 = sp.simplify(k_general_derived - k_eq_a11)
+    pass_eq_a11_match = (diff_a11 == 0)
 
-    pass_overall = bool(pass_eq29_match and pass_eq28_match)
+    pass_overall = bool(pass_eq_a12_match and pass_eq_a11_match)
 
     return {
         "name": "V_fn2.1: 2G general k_inf derived from det(M)=0; "
-                "Eq 28 and Eq 29 verified",
+                "Eq (A.11) and Eq (A.12) verified",
         "M": M,
         "k_general_derived": k_general_derived,
         "k_no_upscatter_derived": k_no_upscatter_derived,
-        "k_eq29": k_eq29_simplified,
-        "diff_eq29": diff_29,
-        "pass_eq29_match": pass_eq29_match,
-        "k_eq28": k_eq28,
-        "diff_eq28": diff_28,
-        "pass_eq28_match": pass_eq28_match,
+        "k_eq_a12": k_eq_a12_simplified,
+        "diff_eq_a12": diff_a12,
+        "pass_eq_a12_match": pass_eq_a12_match,
+        "k_eq_a11": k_eq_a11,
+        "diff_eq_a11": diff_a11,
+        "pass_eq_a11_match": pass_eq_a11_match,
         "pass": pass_overall,
     }
 
 
 def derive_kinf_2g_no_upscatter() -> dict:
-    r"""V_fn2.2 — Eq 29 closed form solves :math:`\det(M_{\Sigma_{21s}=0})=0`.
+    r"""V_fn2.2 — Eq (A.12) closed form solves :math:`\det(M_{\Sigma_{21s}=0})=0`.
 
     Standalone Branch-1 verification of the no-upscatter 2G formula
-    (Sood Eq 29):
+    (Sood Eq (A.12)):
 
     .. math::
 
@@ -333,11 +337,11 @@ def derive_kinf_2g_no_upscatter() -> dict:
                      + \frac{\nu_2\Sigma_{2f}}{\Sigma_2^{\rm rem}}
                    \right]
 
-    Substituting Eq 29 into the 2G balance system (Sood Eqs 21-22 with
+    Substituting Eq (A.12) into the 2G balance system (Sood Eqs (A.4)-(A.5) with
     :math:`\Sigma_{21s} = 0`) should make the system consistent (LHS
-    of Eq 25 with :math:`\Sigma_{21s}=0` becomes zero).
+    of Eq (A.8) with :math:`\Sigma_{21s}=0` becomes zero).
 
-    Equivalently: substitute :math:`k = k_{\rm Eq 29}` into
+    Equivalently: substitute :math:`k = k_{\rm Eq (A.12)}` into
     :math:`\det(M(\Sigma_{21s}=0))` and verify it simplifies to zero.
 
     This is independent of V_fn2.1 (which derives the formula from
@@ -356,8 +360,8 @@ def derive_kinf_2g_no_upscatter() -> dict:
     Sigma_2rem = Sigma_2 - Sigma_22s
     Sigma_1rem = Sigma_1 - Sigma_11s
 
-    # Sood Eq 29 (no upscatter):
-    k_eq29 = (
+    # Sood Eq (A.12) (no upscatter):
+    k_eq_a12 = (
         chi_1 * nu_1 * Sigma_1f / Sigma_1rem
         + chi_2 * (
             nu_1 * Sigma_1f * Sigma_12s / (Sigma_1rem * Sigma_2rem)
@@ -377,24 +381,24 @@ def derive_kinf_2g_no_upscatter() -> dict:
     ])
 
     detM = M.det()
-    detM_at_eq29 = sp.simplify(detM.subs(k_sym, k_eq29))
+    detM_at_eq_a12 = sp.simplify(detM.subs(k_sym, k_eq_a12))
 
-    pass_eq29_zero = (detM_at_eq29 == 0)
+    pass_eq_a12_zero = (detM_at_eq_a12 == 0)
 
     return {
-        "name": "V_fn2.2: Sood Eq 29 makes det(M)=0 at no-upscatter limit",
-        "k_eq29": sp.simplify(k_eq29),
-        "detM_at_eq29": detM_at_eq29,
-        "pass": pass_eq29_zero,
+        "name": "V_fn2.2: Sood Eq (A.12) makes det(M)=0 at no-upscatter limit",
+        "k_eq_a12": sp.simplify(k_eq_a12),
+        "detM_at_eq_a12": detM_at_eq_a12,
+        "pass": pass_eq_a12_zero,
     }
 
 
 def derive_phi_ratio_2g_no_upscatter() -> dict:
-    r"""V_fn2.3 — Sood Eq 32 :math:`\phi_2/\phi_1` from balance + chi-sum.
+    r"""V_fn2.3 — Sood Eq (A.15) :math:`\phi_2/\phi_1` from balance + chi-sum.
 
-    Adding Sood Eq 23 + Eq 24 with the constraint :math:`\chi_1 +
+    Adding Sood Eq (A.6) + Eq (A.7) with the constraint :math:`\chi_1 +
     \chi_2 = 1` eliminates the :math:`\chi_g` from the resulting
-    relation (Sood Eq 30):
+    relation (Sood Eq (A.13)):
 
     .. math::
 
@@ -403,7 +407,7 @@ def derive_phi_ratio_2g_no_upscatter() -> dict:
         = 0
 
     For the no-upscatter case (:math:`\Sigma_{21s} = 0`) this becomes
-    Sood Eq 32:
+    Sood Eq (A.15):
 
     .. math::
 
@@ -414,9 +418,9 @@ def derive_phi_ratio_2g_no_upscatter() -> dict:
     This SymPy derivation:
 
     1. Builds the chi-sum-equals-one relation symbolically by adding
-       Sood Eqs 23 + 24.
+       Sood Eqs (A.6) + (A.7).
     2. Solves the resulting linear equation for :math:`\phi_2/\phi_1`.
-    3. Compares to the printed Eq 32.
+    3. Compares to the printed Eq (A.15).
     """
     (
         Sigma_1, Sigma_2, Sigma_11s, Sigma_22s, Sigma_12s, Sigma_21s,
@@ -431,74 +435,74 @@ def derive_phi_ratio_2g_no_upscatter() -> dict:
     Sigma_2rem = Sigma_2 - Sigma_22s
     Sigma_1rem = Sigma_1 - Sigma_11s
 
-    # Sood Eq 23: [Σ_2 - Σ_22s - (χ_2/k)·ν_2·Σ_2f]·φ_2
+    # Sood Eq (A.6): [Σ_2 - Σ_22s - (χ_2/k)·ν_2·Σ_2f]·φ_2
     #             - [Σ_21s + (χ_2/k)·ν_1·Σ_1f]·φ_1 = 0
-    eq23_lhs = (
+    eq_a6_lhs = (
         (Sigma_2rem - chi_2 / k * nu_2 * Sigma_2f) * phi_2
         - (Sigma_21s + chi_2 / k * nu_1 * Sigma_1f) * phi_1
     )
 
-    # Sood Eq 24: [Σ_1 - Σ_11s - (χ_1/k)·ν_1·Σ_1f]·φ_1
+    # Sood Eq (A.7): [Σ_1 - Σ_11s - (χ_1/k)·ν_1·Σ_1f]·φ_1
     #             - [Σ_12s + (χ_1/k)·ν_2·Σ_2f]·φ_2 = 0
-    eq24_lhs = (
+    eq_a7_lhs = (
         (Sigma_1rem - chi_1 / k * nu_1 * Sigma_1f) * phi_1
         - (Sigma_12s + chi_1 / k * nu_2 * Sigma_2f) * phi_2
     )
 
     # Sum + apply χ_1 + χ_2 = 1.
-    sum_eq = sp.expand(eq23_lhs + eq24_lhs)
+    sum_eq = sp.expand(eq_a6_lhs + eq_a7_lhs)
     sum_eq_chi_eliminated = sp.simplify(sum_eq.subs(chi_2, 1 - chi_1))
 
     # The chi_1 dependence should drop out.
     chi_1_coeff = sp.simplify(sum_eq_chi_eliminated.coeff(chi_1))
     pass_chi_eliminates = (sp.simplify(chi_1_coeff) == 0)
 
-    # The remaining equation is Sood Eq 30:
-    eq30 = sp.simplify(sum_eq_chi_eliminated.subs(chi_1, 0))  # chi-free residue
+    # The remaining equation is Sood Eq (A.13):
+    eq_a13 = sp.simplify(sum_eq_chi_eliminated.subs(chi_1, 0))  # chi-free residue
 
     # Now restrict to no-upscatter (Σ_21s = 0).
-    eq30_nou = eq30.subs(Sigma_21s, 0)
+    eq_a13_nou = eq_a13.subs(Sigma_21s, 0)
 
     # Solve for the ratio φ_2/φ_1.
     ratio = sp.symbols("ratio", positive=True)
-    eq30_nou_in_ratio = sp.simplify(
-        eq30_nou.subs(phi_2, ratio * phi_1) / phi_1
+    eq_a13_nou_in_ratio = sp.simplify(
+        eq_a13_nou.subs(phi_2, ratio * phi_1) / phi_1
     )
-    ratio_solutions = sp.solve(eq30_nou_in_ratio, ratio)
+    ratio_solutions = sp.solve(eq_a13_nou_in_ratio, ratio)
     assert len(ratio_solutions) == 1, (
         f"Expected single ratio root, got {ratio_solutions}"
     )
     ratio_derived = sp.simplify(ratio_solutions[0])
 
-    # Sood Eq 32:
-    ratio_eq32 = (
+    # Sood Eq (A.15):
+    ratio_eq_a15 = (
         (Sigma_1rem - nu_1 * Sigma_1f / k)
         / (nu_2 * Sigma_2f / k - Sigma_2rem + Sigma_12s)
     )
-    ratio_eq32_simplified = sp.simplify(ratio_eq32)
+    ratio_eq_a15_simplified = sp.simplify(ratio_eq_a15)
 
-    diff = sp.simplify(ratio_derived - ratio_eq32_simplified)
-    pass_eq32 = (diff == 0)
+    diff = sp.simplify(ratio_derived - ratio_eq_a15_simplified)
+    pass_eq_a15 = (diff == 0)
 
     return {
-        "name": "V_fn2.3: phi_2/phi_1 derivation matches Sood Eq 32",
+        "name": "V_fn2.3: phi_2/phi_1 derivation matches Sood Eq (A.15)",
         "ratio_derived": ratio_derived,
-        "ratio_eq32": ratio_eq32_simplified,
+        "ratio_eq_a15": ratio_eq_a15_simplified,
         "diff": diff,
         "pass_chi_eliminates": pass_chi_eliminates,
-        "pass": pass_eq32 and pass_chi_eliminates,
+        "pass": pass_eq_a15 and pass_chi_eliminates,
     }
 
 
 # ═══════════════════════════════════════════════════════════════════
-# General multi-group infinite medium — Sood Eqs 72-76
+# General multi-group infinite medium — Sood Eqs (A.55)-(A.59)
 # ═══════════════════════════════════════════════════════════════════
 
 
 def derive_kinf_mg_matrix_form() -> dict:
     r"""V_fnMG.1 — General MG balance reduces to single matrix inversion.
 
-    Sood Eq 72 is the matrix balance for an infinite medium:
+    Sood Eq (A.55) is the matrix balance for an infinite medium:
 
     .. math::
 
@@ -506,7 +510,7 @@ def derive_kinf_mg_matrix_form() -> dict:
         = \overline{\overline{\Sigma_s}}\,\bar\phi
         + \frac{1}{k}\, \bar\chi\, \overline{\nu\Sigma_f}\,\bar\phi
 
-    Rearranging (Eq 73):
+    Rearranging (Eq (A.56)):
 
     .. math::
 
@@ -514,7 +518,7 @@ def derive_kinf_mg_matrix_form() -> dict:
         = \frac{1}{k}\, \bar\chi\, (\overline{\nu\Sigma_f}\,\bar\phi)
 
     Inverting and projecting onto the production vector
-    :math:`\overline{\nu\Sigma_f}` (Eqs 74-76):
+    :math:`\overline{\nu\Sigma_f}` (Eqs (A.57)-(A.59)):
 
     .. math::
 
@@ -530,8 +534,8 @@ def derive_kinf_mg_matrix_form() -> dict:
     used by :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous`).
 
     For G ≥ 5, symbolic eigenvalue closed forms break (Abel-Ruffini);
-    Sood Eq 76 is the right form for the G=2 case where the formula
-    *is* a clean closed form. We verify Eq 76 symbolically for G=2;
+    Sood Eq (A.59) is the right form for the G=2 case where the formula
+    *is* a clean closed form. We verify Eq (A.59) symbolically for G=2;
     the algebraic structure is identical for general G but the
     eigenvalue is no longer a closed-form expression in the cross
     sections for G ≥ 5.
@@ -571,54 +575,54 @@ def derive_kinf_mg_matrix_form() -> dict:
     nuSf = sp.Matrix([[nuSf1, nuSf2]])  # row vector
     phi = sp.Matrix([[phi1], [phi2]])
 
-    # Sood Eq 72: Σ_t·φ = Σ_s·φ + (1/k)·χ·(νΣ_f·φ)
+    # Sood Eq (A.55): Σ_t·φ = Σ_s·φ + (1/k)·χ·(νΣ_f·φ)
     A = Sigma_t - Sigma_s
     fission_source = chi * (nuSf * phi)  # (2x1) · (1x1) = 2x1
-    eq72 = sp.Eq(A * phi, fission_source / k)
+    eq_a55 = sp.Eq(A * phi, fission_source / k)
 
-    # Sood Eq 76: k = νΣ_f · A^{-1} · χ
+    # Sood Eq (A.59): k = νΣ_f · A^{-1} · χ
     A_inv = A.inv()
-    k_eq76_matrix = nuSf * A_inv * chi  # (1x2)·(2x2)·(2x1) = (1x1) scalar
-    k_eq76 = sp.simplify(k_eq76_matrix[0, 0])
+    k_eq_a59_matrix = nuSf * A_inv * chi  # (1x2)·(2x2)·(2x1) = (1x1) scalar
+    k_eq_a59 = sp.simplify(k_eq_a59_matrix[0, 0])
 
     # Cross-check: dominant eigenvalue of M = A^{-1} · χ · νΣ_f
     M = A_inv * chi * nuSf  # (2x2) outer-product matrix, rank 1
     eigvals = list(M.eigenvals().keys())
     # Rank-1 matrix has one zero eigenvalue and one nonzero; trace = nonzero ev.
     M_trace = sp.simplify(sp.trace(M))
-    # Trace of a rank-1 matrix outer(u, v) is dot(v, u). Same as Eq 76.
-    diff = sp.simplify(M_trace - k_eq76)
+    # Trace of a rank-1 matrix outer(u, v) is dot(v, u). Same as Eq (A.59).
+    diff = sp.simplify(M_trace - k_eq_a59)
     pass_trace = (diff == 0)
 
     # Also verify rank-1 structure (one zero eigenvalue).
     nonzero_evs = [e for e in eigvals if sp.simplify(e) != 0]
     pass_rank1 = (len(nonzero_evs) == 1)
 
-    # Verify the surviving eigenvalue equals Eq 76.
+    # Verify the surviving eigenvalue equals Eq (A.59).
     if pass_rank1:
-        diff_ev = sp.simplify(nonzero_evs[0] - k_eq76)
+        diff_ev = sp.simplify(nonzero_evs[0] - k_eq_a59)
         pass_ev = (diff_ev == 0)
     else:
         diff_ev = None
         pass_ev = False
 
     return {
-        "name": "V_fnMG.1: Sood Eq 76 for G=2 — k = nuSf · A^{-1} · chi",
+        "name": "V_fnMG.1: Sood Eq (A.59) for G=2 — k = nuSf · A^{-1} · chi",
         "A": A,
-        "k_eq76": k_eq76,
+        "k_eq_a59": k_eq_a59,
         "M_trace": M_trace,
         "diff_trace": diff,
-        "pass_trace_equals_eq76": pass_trace,
+        "pass_trace_equals_eq_a59": pass_trace,
         "pass_M_is_rank1": pass_rank1,
-        "pass_eigenvalue_equals_eq76": pass_ev,
+        "pass_eigenvalue_equals_eq_a59": pass_ev,
         "pass": pass_trace and pass_rank1 and pass_ev,
     }
 
 
 def derive_kinf_mg_reduces_to_1g() -> dict:
-    r"""V_fnMG.2 — MG formula with G=1 reduces to 1G Eq 19 bit-equal.
+    r"""V_fnMG.2 — MG formula with G=1 reduces to 1G Eq (A.2) bit-equal.
 
-    The general MG formula Sood Eq 76:
+    The general MG formula Sood Eq (A.59):
 
     .. math::
 
@@ -629,8 +633,8 @@ def derive_kinf_mg_reduces_to_1g() -> dict:
     at G=1 collapses to scalars: :math:`A` is the :math:`1\times 1`
     matrix :math:`(\Sigma_t - \Sigma_s)`, :math:`A^{-1} = 1/(\Sigma_t -
     \Sigma_s)`, :math:`\chi = (1)`, :math:`\nu\Sigma_f` is a scalar.
-    Therefore :math:`k_{\rm Eq 76} = \nu\Sigma_f / (\Sigma_t -
-    \Sigma_s) = k_{\rm Eq 19}`.
+    Therefore :math:`k_{\rm Eq (A.59)} = \nu\Sigma_f / (\Sigma_t -
+    \Sigma_s) = k_{\rm Eq (A.2)}`.
 
     This is the trivial dimensional-reduction check: the MG
     infrastructure must reproduce the 1G result exactly when only
@@ -644,17 +648,17 @@ def derive_kinf_mg_reduces_to_1g() -> dict:
     A = sp.Matrix([[Sigma_t - Sigma_s]])
     chi = sp.Matrix([[1]])
     nuSf = sp.Matrix([[nu_Sigma_f]])
-    k_eq76_g1 = sp.simplify((nuSf * A.inv() * chi)[0, 0])
+    k_eq_a59_g1 = sp.simplify((nuSf * A.inv() * chi)[0, 0])
 
-    k_eq19 = nu_Sigma_f / (Sigma_t - Sigma_s)
+    k_eq_a2 = nu_Sigma_f / (Sigma_t - Sigma_s)
 
-    diff = sp.simplify(k_eq76_g1 - k_eq19)
+    diff = sp.simplify(k_eq_a59_g1 - k_eq_a2)
     pass_id = (diff == 0)
 
     return {
-        "name": "V_fnMG.2: Eq 76 with G=1 reduces to Eq 19",
-        "k_eq76_g1": k_eq76_g1,
-        "k_eq19": k_eq19,
+        "name": "V_fnMG.2: Eq (A.59) with G=1 reduces to Eq (A.2)",
+        "k_eq_a59_g1": k_eq_a59_g1,
+        "k_eq_a2": k_eq_a2,
         "diff": diff,
         "pass": pass_id,
     }

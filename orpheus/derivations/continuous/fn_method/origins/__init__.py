@@ -1,7 +1,7 @@
 """Branch-1 SymPy derivations for F_N method benchmarks.
 
 This subpackage carries the canonical algebra-of-record for the
-LA-13511 closed-form k_inf cases and the F_N method's published
+Sood closed-form k_inf cases and the F_N method's published
 recursion + critical-condition identities.
 
 Naming convention: ``derive_<topic>_<form>()`` returns a dict with a
@@ -11,7 +11,7 @@ PASS flag whose foundation is verified by a 1:1 corresponding test in
 Modules
 -------
 
-* :mod:`.k_inf_derivations` — LA-13511 Eqs 18-32, 72-76 (k_inf).
+* :mod:`.k_inf_derivations` — Sood 2003 Eqs (A.1)-(A.15), (A.55)-(A.59) (k_inf).
 * :mod:`.fn_slab_derivations` — Slab F_N moment recursions
   (Siewert-Benoist Part I + Grandjean-Siewert Part II).
 * :mod:`.fn_sphere_derivations` — Sphere F_N specialisation (Siewert-Thomas
@@ -20,7 +20,7 @@ Modules
 References
 ----------
 
-* Sood, Forster, Parsons (1999) LA-13511. Sections V + Appendix A.
+* Sood, Forster, Parsons (2003), Prog. Nucl. Energy 42, 55. Appendix A.
 * Siewert & Benoist 1979, *Nucl. Sci. Eng.* **69**, 156.
 * Grandjean & Siewert 1979, *Nucl. Sci. Eng.* **69**, 161.
 * Siewert & Thomas 1986, *Nucl. Sci. Eng.* **94**, 264.
@@ -43,8 +43,8 @@ from .fn_sphere_derivations import (
     derive_x_function_geometry_independence,
 )
 from .k_inf_derivations import (
-    derive_kinf_1g_eq_19,
-    derive_kinf_1g_eq_20_simplifies_to_eq_19,
+    derive_kinf_1g_eq_a2,
+    derive_kinf_1g_eq_a3_simplifies_to_eq_a2,
     derive_kinf_2g_general_from_matrix,
     derive_kinf_2g_no_upscatter,
     derive_kinf_mg_matrix_form,
@@ -54,8 +54,8 @@ from .k_inf_derivations import (
 
 __all__ = [
     # k_inf
-    "derive_kinf_1g_eq_19",
-    "derive_kinf_1g_eq_20_simplifies_to_eq_19",
+    "derive_kinf_1g_eq_a2",
+    "derive_kinf_1g_eq_a3_simplifies_to_eq_a2",
     "derive_kinf_2g_general_from_matrix",
     "derive_kinf_2g_no_upscatter",
     "derive_phi_ratio_2g_no_upscatter",
