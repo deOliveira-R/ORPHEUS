@@ -26,8 +26,9 @@ Each :class:`La13511Case` carries:
 * **Tabulated truth values**: :math:`k_{\rm eff}` / :math:`k_\infty`,
   flux ratios, critical dimensions, etc. — whatever the published
   reference tabulates.
-* **Provenance**: the paper, its table number, the primary reference
-  and notes, in one :class:`Provenance` record.
+* **Citations**: the problem's source on the case (``problem``) and the
+  published values' sources on the truth (``truth.sources``), each a
+  :class:`~orpheus.data.citation.Citation` whose key is in ``docs/refs.bib``.
 
 Tests live in ``tests/gates/derivations/`` and import case + solver(s),
 producing the value to compare. See e.g.
@@ -55,11 +56,8 @@ References
 """
 from __future__ import annotations
 
+from .case import La13511Case, La13511Truth
 from .la13511 import (
-    # Core schema
-    La13511Case,
-    La13511Truth,
-    Provenance,
     # Phase A first slice (5)
     ALL_FIRST_SLICE,
     LA13511_CASES,
@@ -131,8 +129,6 @@ from .atalay1997 import (
     ATALAY_SLAB_C130_R050_F0,
     ATALAY_SLAB_C130_R050_F010,
     ATALAY_SLAB_C130_R075_F0,
-    ATALAY_SPHERE_C130_R000_F0,
-    ATALAY_SPHERE_CASES,
 )
 from .builders import build_cp_params, build_materials, build_mesh
 from .cache import SoodResultCache, cache_info, clear_cache, sood_cache
@@ -141,7 +137,6 @@ __all__ = [
     # Core schema
     "La13511Case",
     "La13511Truth",
-    "Provenance",
     # Phase A first slice
     "PUA_1_0_IN",
     "PU_2_0_IN",
@@ -218,8 +213,6 @@ __all__ = [
     "ATALAY_SLAB_C130_R075_F0",
     "ATALAY_SLAB_C130_R000_F010",
     "ATALAY_SLAB_C130_R050_F010",
-    "ATALAY_SPHERE_C130_R000_F0",
     "ATALAY_SLAB_CASES",
-    "ATALAY_SPHERE_CASES",
     "ATALAY_ALL_CASES",
 ]

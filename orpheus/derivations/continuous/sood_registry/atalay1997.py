@@ -1,4 +1,4 @@
-r"""Atalay 1997 reflected-slab and sphere case catalogue.
+r"""Atalay 1997 reflected-slab case catalogue.
 
 Atalay (1997) :cite:`Atalay1997` tabulates critical thicknesses :math:`2d`
 (slab) and eigenvalues :math:`c` (slab + sphere) for the **reflected**
@@ -7,17 +7,19 @@ Sood, Forster & Parsons (2003) do not tabulate (their reflected cases
 carry a physical reflector material, not a specular reflection
 coefficient at the face).
 
-This file is the case-class home for:
+The catalogue holds six slab cases at :math:`c = 1.30`, each citing the
+table that prints its critical half-thickness:
 
-* **Reflected slab + isotropic** (Atalay Table 2, ``f_1 = 0``).
-* **Reflected slab + linearly anisotropic** (Atalay Tables 3, 4, 5
-  for ``f_1 = 0.10, 0.20, 0.30``).
-* **Vacuum slab + linearly anisotropic** (Atalay Tables 3-5 R = 0
-  column) — Atalay-unique primary.
-* **Vacuum sphere + isotropic** (Atalay Table 6 R=0 + Sood Ua-1-0-SP
-  cross-check).
-* **Reflected sphere + linearly anisotropic** at f_1 = 0.10 only
-  (Atalay Table 10) — Atalay-unique with no independent reference.
+* **isotropic** (Atalay Table 2, :math:`f_1 = 0`) at :math:`R = 0, 0.25,
+  0.50, 0.75`;
+* **linearly anisotropic** (Atalay Table 3, :math:`f_1 = 0.10`) at
+  :math:`R = 0` and :math:`0.50`.
+
+Atalay's sphere results are the odd modes of the slab (its Section 3), and
+it prints them at :math:`f_1 = 0.10` only (Table 10). A vacuum sphere at
+:math:`c = 1.30` with isotropic scattering is Sood's problem 14
+(``Ua-1-0-SP``), not an Atalay case: an Atalay-named copy of it stood here
+until 2026-09-29, citing a "Table 14" the paper does not have.
 
 Provenance
 ----------
@@ -34,15 +36,13 @@ For mapping back to specific Sood materials (e.g., ``Ua-1-0-SL`` has
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Mapping
-
 import numpy as np
 
+from orpheus.data.citation import Citation
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
 
-from .la13511 import La13511Case, La13511Truth, Provenance
+from .case import La13511Case, La13511Truth
 
 
 # ─── Common XS for c=1.30 isotropic (matches Sood U-235(a) Σ_t=0.32640) ───
@@ -97,7 +97,7 @@ def _mix_iso_at_c(c: float) -> Mixture:
 # Atalay Table 2 (f_1 = 0): reflected slab, isotropic
 ATALAY_SLAB_C130_R000_F0 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.00-f1_0.00",
-    problem_number=1001,
+    problem=Citation("Atalay1997", "Table 2, c = 1.30, R = 0.00, f_1 = 0.00"),
     description=(
         "Atalay 1997 Table 2: c=1.30, R=0 (vacuum), f_1=0 (isotropic). "
         "Same c as Sood Ua-1-0-SL (U-235(a)); Atalay reports 2d=1.87766 mfp."
@@ -105,72 +105,52 @@ ATALAY_SLAB_C130_R000_F0 = La13511Case(
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.93883),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 2, c = 1.30, R = 0.00, f_1 = 0.00"),), critical_dimension_mfp=0.93883),
   # Atalay Table 2
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=2,
-        primary_reference="Atalay 1997 Table 2",
-        notes="Atalay-anchored vacuum case; cross-check vs Sood Ua-1-0-SL gives 1.87545 (KLL 1974).",
-    ),
+    notes="Atalay-anchored vacuum case; cross-check vs Sood Ua-1-0-SL gives 1.87545 (KLL 1974).",
 )
 
 
 ATALAY_SLAB_C130_R025_F0 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.25-f1_0.00",
-    problem_number=1002,
+    problem=Citation("Atalay1997", "Table 2, c = 1.30, R = 0.25, f_1 = 0.00"),
     description="Atalay 1997 Table 2: c=1.30, R=0.25, f_1=0. Reports 2d=1.40621 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.703105),
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=2,
-        primary_reference="Atalay 1997 Table 2",
-        notes="Reflected-slab case (R=0.25). Atalay-unique primary; no Sood entry.",
-    ),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 2, c = 1.30, R = 0.25, f_1 = 0.00"),), critical_dimension_mfp=0.703105),
+    notes="Reflected-slab case (R=0.25). Atalay-unique primary; no Sood entry.",
 )
 
 
 ATALAY_SLAB_C130_R050_F0 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.50-f1_0.00",
-    problem_number=1003,
+    problem=Citation("Atalay1997", "Table 2, c = 1.30, R = 0.50, f_1 = 0.00"),
     description="Atalay 1997 Table 2: c=1.30, R=0.50, f_1=0. Reports 2d=0.89317 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.446585),
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=2,
-        primary_reference="Atalay 1997 Table 2",
-        notes="Reflected-slab case (R=0.50). Atalay-unique primary.",
-    ),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 2, c = 1.30, R = 0.50, f_1 = 0.00"),), critical_dimension_mfp=0.446585),
+    notes="Reflected-slab case (R=0.50). Atalay-unique primary.",
 )
 
 
 ATALAY_SLAB_C130_R075_F0 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.75-f1_0.00",
-    problem_number=1004,
+    problem=Citation("Atalay1997", "Table 2, c = 1.30, R = 0.75, f_1 = 0.00"),
     description="Atalay 1997 Table 2: c=1.30, R=0.75, f_1=0. Reports 2d=0.40758 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.20379),
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=2,
-        primary_reference="Atalay 1997 Table 2",
-        notes="Reflected-slab case (R=0.75). Atalay-unique primary.",
-    ),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 2, c = 1.30, R = 0.75, f_1 = 0.00"),), critical_dimension_mfp=0.20379),
+    notes="Reflected-slab case (R=0.75). Atalay-unique primary.",
 )
 
 
 # Atalay Table 3 (f_1 = 0.10): reflected slab, linearly anisotropic
 ATALAY_SLAB_C130_R000_F010 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.00-f1_0.10",
-    problem_number=1005,
+    problem=Citation("Atalay1997", "Table 3, c = 1.30, R = 0.00, f_1 = 0.10"),
     description=(
         "Atalay 1997 Table 3: c=1.30, R=0 (vacuum), f_1=0.10 (linearly anisotropic). "
         "Reports 2d=1.94146 mfp."
@@ -178,58 +158,20 @@ ATALAY_SLAB_C130_R000_F010 = La13511Case(
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=1,  # P_1 anisotropic
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.97073),
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=3,
-        primary_reference="Atalay 1997 Table 3",
-        notes="Vacuum + linearly anisotropic slab — Atalay-unique primary. f_1=0.10 means scattering kernel Σ_s(1+0.30 μμ')/2.",
-    ),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 3, c = 1.30, R = 0.00, f_1 = 0.10"),), critical_dimension_mfp=0.97073),
+    notes="Vacuum + linearly anisotropic slab — Atalay-unique primary. f_1=0.10 means scattering kernel Σ_s(1+0.30 μμ')/2.",
 )
 
 
 ATALAY_SLAB_C130_R050_F010 = La13511Case(
     case_id="atalay-1997-slab-c1.30-R0.50-f1_0.10",
-    problem_number=1006,
+    problem=Citation("Atalay1997", "Table 3, c = 1.30, R = 0.50, f_1 = 0.10"),
     description="Atalay 1997 Table 3: c=1.30, R=0.50, f_1=0.10. Reports 2d=0.89831 mfp.",
     materials={0: _mix_iso_at_c(1.30)},
     geometry_kind="slab",
     scattering_order=1,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.449155),
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=3,
-        primary_reference="Atalay 1997 Table 3",
-        notes="Reflected + linearly anisotropic CROSS-PRODUCT case — Atalay-unique primary.",
-    ),
-)
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Atalay-anchored sphere cases.
-# Atalay Table 10 is the only sphere data outside f_1 = 0; for f_1 = 0
-# we use Sood Ua-1-0-SP at c = 1.30 (KLL 1974) as the reference.
-# ═══════════════════════════════════════════════════════════════════
-
-
-ATALAY_SPHERE_C130_R000_F0 = La13511Case(
-    case_id="atalay-1997-sphere-c1.30-R0.00-f1_0.00",
-    problem_number=2001,
-    description=(
-        "Vacuum sphere c=1.30, isotropic. Same XS as Sood Ua-1-0-SP "
-        "(R_c = 2.4248 mfp, KLL 1974)."
-    ),
-    materials={0: _mix_iso_at_c(1.30)},
-    geometry_kind="sphere",
-    scattering_order=0,
-    truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=2.4248249802),
-  # Atalay refers; KLL 1974 is the truth source.
-    provenance=Provenance(
-        paper_id="Atalay-1997",
-        paper_table=14,
-        primary_reference="Kaper-Lindeman-Leaf 1974 (Atalay c=1.30 reproduces).",
-        notes="Cross-check baseline; case_method sphere reproduces at ~0.5%.",
-    ),
+    truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 3, c = 1.30, R = 0.50, f_1 = 0.10"),), critical_dimension_mfp=0.449155),
+    notes="Reflected + linearly anisotropic CROSS-PRODUCT case — Atalay-unique primary.",
 )
 
 
@@ -243,14 +185,7 @@ ATALAY_SLAB_CASES: tuple[La13511Case, ...] = (
     ATALAY_SLAB_C130_R050_F010,
 )
 
-ATALAY_SPHERE_CASES: tuple[La13511Case, ...] = (
-    ATALAY_SPHERE_C130_R000_F0,
-)
-
-ATALAY_ALL_CASES: tuple[La13511Case, ...] = (
-    *ATALAY_SLAB_CASES,
-    *ATALAY_SPHERE_CASES,
-)
+ATALAY_ALL_CASES: tuple[La13511Case, ...] = ATALAY_SLAB_CASES
 
 
 __all__ = [
@@ -261,10 +196,7 @@ __all__ = [
     "ATALAY_SLAB_C130_R075_F0",
     "ATALAY_SLAB_C130_R000_F010",
     "ATALAY_SLAB_C130_R050_F010",
-    # Sphere
-    "ATALAY_SPHERE_C130_R000_F0",
     # Tuples
     "ATALAY_SLAB_CASES",
-    "ATALAY_SPHERE_CASES",
     "ATALAY_ALL_CASES",
 ]

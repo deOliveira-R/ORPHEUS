@@ -19,8 +19,8 @@ These tests cover:
 * Round-trip consistency: the new-API ``domain_extent_cm`` matches
   the legacy ``geometry_spec.domain_extent_cm`` to machine precision
   modulo author transcription rounding.
-* Provenance: the structured ``provenance`` field is populated on
-  every case in the registry.
+* The cases' citations are gated in
+  ``tests/gates/derivations/test_registry_citations_resolve.py``.
 """
 from __future__ import annotations
 
@@ -34,13 +34,9 @@ from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
     PUB_1_0_CY_STUB,
     PU_2_0_IN,
-    Provenance,
     UA_1_0_CY_STUB,
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
-)
-from orpheus.derivations.continuous.sood_registry.atalay1997 import (
-    ATALAY_ALL_CASES,
 )
 from orpheus.derivations.continuous.sood_registry.la13511 import _ALL_CASES
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
@@ -219,54 +215,6 @@ def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
         f"{case_id}: truth-derived extent={expected_cm}, "
         f"to_geometry()={geom.domain_extent_cm}"
     )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Provenance — every case carries structured citation metadata
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
-def test_la13511_case_has_provenance(case_id: str) -> None:
-    """Every Sood registry case has a populated Provenance, cited to the
-    2003 edition (Prog. Nucl. Energy 42, 55): the 1999 report LA-13511
-    numbers the tables, equations and references differently, so a
-    citation in its numbering read against the 2003 paper points at the
-    wrong object."""
-    case = LA13511_CASES[case_id]
-    assert case.provenance is not None, (
-        f"{case_id}: provenance must be populated post-Phase-B"
-    )
-    assert isinstance(case.provenance, Provenance)
-    assert case.provenance.paper_id == "Sood-2003", (
-        f"{case_id}: paper_id should be 'Sood-2003', "
-        f"got {case.provenance.paper_id!r}"
-    )
-    citation = f"{case.provenance.primary_reference} {case.provenance.notes}"
-    assert "LA-13511" not in citation, (
-        f"{case_id}: a provenance string cites the 1999 edition: {citation!r}"
-    )
-    # The flat fields that mirrored the provenance retired in P1 step 2b:
-    # the provenance is the one citation record.
-    for retired in ("sood_table", "primary_reference", "notes"):
-        assert not hasattr(case, retired), f"{case_id}: {retired} is back"
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize(
-    "case_id",
-    [c.case_id for c in ATALAY_ALL_CASES],
-)
-def test_atalay_case_has_provenance(case_id: str) -> None:
-    """Every Atalay 1997 case has a Provenance with paper_id="Atalay-1997"."""
-    case_by_id = {c.case_id: c for c in ATALAY_ALL_CASES}
-    case = case_by_id[case_id]
-    assert case.provenance is not None
-    assert isinstance(case.provenance, Provenance)
-    assert case.provenance.paper_id == "Atalay-1997"
-    for retired in ("sood_table", "primary_reference", "notes"):
-        assert not hasattr(case, retired), f"{case_id}: {retired} is back"
 
 
 # ═══════════════════════════════════════════════════════════════════
