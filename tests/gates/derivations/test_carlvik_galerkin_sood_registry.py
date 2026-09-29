@@ -42,7 +42,7 @@ from orpheus.derivations.continuous.galerkin_spectral.sphere import (
     solve_galerkin_spectral_sphere,
 )
 from orpheus.derivations.continuous.sood_registry import (
-    LA13511_CASES,
+    SOOD2003_CASES,
     WIDE_SLICE_BARE_CRITICAL_1G_P1,
 )
 
@@ -79,7 +79,7 @@ def _c_from_case(case) -> float:
 @pytest.mark.parametrize("case_id", ["PUa-1-1-SL", "PUb-1-1-SL"])
 def test_l1_galerkin_spectral_sood_slab_p1(case_id: str) -> None:
     """Sood `*-1-1-SL` slab cases reproduce c at the published r_c."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     c_expected = _c_from_case(case)
     mu_bar_eff = _mu_bar_eff_from_case(case)
     r_c_mfp = case.truth.critical_dimension_mfp
@@ -113,7 +113,7 @@ def test_l1_galerkin_spectral_sood_slab_p1(case_id: str) -> None:
 )
 def test_l1_galerkin_spectral_sood_sphere_p1(case_id: str) -> None:
     """Sood `*-1-1-SP` sphere cases reproduce c at the published r_c."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     c_expected = _c_from_case(case)
     mu_bar_eff = _mu_bar_eff_from_case(case)
     r_c_mfp = case.truth.critical_dimension_mfp
@@ -145,7 +145,7 @@ def test_l1_galerkin_spectral_sood_sphere_p1(case_id: str) -> None:
 @pytest.mark.foundation
 def test_sood_p1_registry_completeness() -> None:
     """Smoke test: WIDE_SLICE_BARE_CRITICAL_1G_P1 has exactly 5 cases,
-    all identifiable by case_id, all in LA13511_CASES."""
+    all identifiable by case_id, all in SOOD2003_CASES."""
     assert len(WIDE_SLICE_BARE_CRITICAL_1G_P1) == 5
 
     ids = {c.case_id for c in WIDE_SLICE_BARE_CRITICAL_1G_P1}
@@ -159,8 +159,8 @@ def test_sood_p1_registry_completeness() -> None:
     assert ids == expected_ids, f"Got {ids}, expected {expected_ids}"
 
     for case in WIDE_SLICE_BARE_CRITICAL_1G_P1:
-        # Each case must be in the global LA13511_CASES dict.
-        assert case.case_id in LA13511_CASES
+        # Each case must be in the global SOOD2003_CASES dict.
+        assert case.case_id in SOOD2003_CASES
         # All P_1 cases have scattering_order=1.
         assert case.scattering_order == 1
         # All have k_eff=1.0 (critical) since they're bare-critical.

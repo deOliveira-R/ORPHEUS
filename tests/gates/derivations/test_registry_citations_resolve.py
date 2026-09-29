@@ -52,7 +52,7 @@ from orpheus.data import Citation
 # first to ``SOOD2003_CASES``, a one-line edit here.
 from orpheus.derivations.continuous.sood_registry import (
     ATALAY_ALL_CASES as ATALAY_CASES,
-    LA13511_CASES as SOOD_CASES,
+    SOOD2003_CASES as SOOD_CASES,
 )
 
 pytestmark = pytest.mark.foundation
@@ -401,5 +401,5 @@ def test_the_case_schema_has_its_own_module() -> None:
     relative = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.ImportFrom) and node.level == 1]
     from_case = {alias.name for node in relative if node.module == "case" for alias in node.names}
     _require({"La13511Case", "La13511Truth"} <= from_case, f"atalay1997 imports {sorted(from_case)} from .case")
-    from_sood = [node.module for node in relative if node.module in {"la13511", "sood2003"}]
+    from_sood = [node.module for node in relative if node.module in {"sood2003"}]
     _require(not from_sood, f"atalay1997 still imports from the Sood module: {from_sood}")

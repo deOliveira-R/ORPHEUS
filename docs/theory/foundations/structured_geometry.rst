@@ -84,7 +84,7 @@ Key facts
   thickness.
 * The Sood case registry adapter is
   :meth:`La13511Case.to_geometry()
-  <orpheus.derivations.continuous.sood_registry.la13511.La13511Case.to_geometry>`,
+  <orpheus.derivations.continuous.sood_registry.case.La13511Case.to_geometry>`,
   which materialises a :class:`StructuredGeometry` from the case's
   ``geometry_kind`` tag (mapped to a
   :class:`~orpheus.geometry.coord.CoordSystem` member) and
@@ -132,8 +132,8 @@ Phase F separates the three concerns into three layers:
    own package, :mod:`orpheus.mesh` (:doc:`/api/mesh`), which imports
    :mod:`orpheus.geometry` and is never imported by it.
 3. **Registry layer** —
-   :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`,
-   :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Truth`.
+   :class:`~orpheus.derivations.continuous.sood_registry.case.La13511Case`,
+   :class:`~orpheus.derivations.continuous.sood_registry.case.La13511Truth`.
    Published reference values (``k_eff_or_kinf``,
    ``critical_dimension_mfp``, flux ratios). The case's
    ``to_geometry()`` adapter materialises a
@@ -1044,7 +1044,7 @@ Production user — no registry, no truth, no critical anything::
 
 Registry consumer — Sood case::
 
-    case = LA13511_CASES["Ua-1-0-SP"]
+    case = SOOD2003_CASES["Ua-1-0-SP"]
     geom = case.to_geometry()
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=64),))
     result = solve_cp(case.materials, mesh, CPParams())

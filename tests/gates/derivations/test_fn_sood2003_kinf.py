@@ -405,9 +405,9 @@ def test_PU_2_0_IN_flux_spectrum_matches_kinf_and_spectrum_homogeneous():
 # Every stored infinite-medium value is its own cross sections' eigenpair
 # ─────────────────────────────────────────────────────────────────────
 
-from orpheus.derivations.continuous.sood_registry import la13511 as _la13511  # noqa: E402
+from orpheus.derivations.continuous.sood_registry import sood2003 as _sood2003  # noqa: E402
 
-_INFINITE_CASES = [c for c in _la13511._ALL_CASES if c.geometry_kind == "infinite"]
+_INFINITE_CASES = [c for c in _sood2003._ALL_CASES if c.geometry_kind == "infinite"]
 
 #: Sood computed these k_inf from nu rounded to this many significant
 #: figures, while the table prints nu to more (measured 2026-09-29: with

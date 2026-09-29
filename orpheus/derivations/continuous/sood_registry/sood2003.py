@@ -4,8 +4,9 @@ The cases are cited to the journal edition, Sood, Forster & Parsons,
 "Analytical benchmark test set for criticality code verification",
 *Prog. Nucl. Energy* 42(1), 55-106 (2003). The 1999 report LA-13511
 is the same test set under other table, equation and reference numbers,
-and for the UAL and UD2O two-group sets with other values; the module
-and class names keep the report's number.
+and for the UAL and UD2O two-group sets with other values. The case
+schema is :mod:`.case`; its two class names keep the report's number
+until the schema retires (see there).
 
 Production-protocol-aligned port of the legacy
 ``orpheus.derivations.continuous.fn_method.benchmarks.la13511`` module.
@@ -1352,13 +1353,13 @@ _ALL_CASES: tuple[La13511Case, ...] = (
 )
 
 
-LA13511_CASES: dict[str, La13511Case] = {
+SOOD2003_CASES: dict[str, La13511Case] = {
     case.case_id: case for case in _ALL_CASES
 }
 """Name → case mapping for ergonomic test access:
 
->>> from orpheus.derivations.continuous.sood_registry import LA13511_CASES
->>> case = LA13511_CASES["PUa-1-0-IN"]
+>>> from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
+>>> case = SOOD2003_CASES["PUa-1-0-IN"]
 >>> mixture = case.materials[0]
 
 Coverage: 47 cases, the Phase A first slice (5) and the Phase B3 wide

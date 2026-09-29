@@ -51,8 +51,8 @@ V&V tagging
   conceptual level per :doc:`/skills/vv-principles` §"V&V level
   taxonomy" is L4 (code-to-code agreement) but the codebase's
   existing cross-method gates
-  (``test_fn_la13511_slab_xverif.py``,
-  ``test_fn_la13511_sphere_xverif.py``) tag these as L1 because
+  (``test_fn_sood2003_slab_xverif.py``,
+  ``test_fn_sood2003_sphere_xverif.py``) tag these as L1 because
   the agreement is **L1-strength evidence** for either method
   when both methods' L1 truth-backing is established and
   structural independence is genuine. The L1 backing here is the

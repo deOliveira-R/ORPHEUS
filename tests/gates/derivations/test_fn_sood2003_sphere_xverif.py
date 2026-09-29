@@ -124,7 +124,7 @@ def test_fn_sphere_matches_sood_ua_1_0_sp_directly():
     r"""L1: F_N sphere reaches Sood truth at ≤ 1e-5 directly (no
     cross-check, just the published reference).
 
-    This duplicates the foundation gate in test_fn_la13511_sphere
+    This duplicates the foundation gate in test_fn_sood2003_sphere
     but at the L1 level — for the V&V audit harness it documents
     "F_N method has L1 cross-check evidence at Sood Ua-1-0-SP",
     which is the structurally-independent pillar.

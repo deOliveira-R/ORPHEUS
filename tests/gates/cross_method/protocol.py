@@ -10,7 +10,7 @@ Three pieces:
    reference, per-solver tolerances, claim layer, and pillar.
 
 The protocol is intentionally minimal. It does NOT replace
-:class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`
+:class:`~orpheus.derivations.continuous.sood_registry.case.La13511Case`
 — it CONSUMES it. Each :class:`CrossMethodCase` references an
 existing registry case (or carries inline truth for cases that
 don't yet have a registry entry, e.g. NM 1980 reflected slab) and
@@ -172,7 +172,7 @@ class CrossMethodCase:
 
     A case provides its physical parameters either via a
     ``registry_case`` (the registry-backed path — typically a
-    :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`)
+    :class:`~orpheus.derivations.continuous.sood_registry.case.La13511Case`)
     or via inline ``materials`` + ``structured_geometry`` fields (for
     cases NOT in the registry — closed-sphere k_inf, MMS, custom
     configurations, multi-region reflected-slab). Exactly ONE of these
@@ -189,7 +189,7 @@ class CrossMethodCase:
         One-line human-readable description.
     registry_case : Any | None
         Reference into the upstream case registry (e.g. a
-        :class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Case`).
+        :class:`~orpheus.derivations.continuous.sood_registry.case.La13511Case`).
         ``None`` for cases that don't yet have a registry entry —
         those carry inline ``materials`` / ``structured_geometry``
         instead.

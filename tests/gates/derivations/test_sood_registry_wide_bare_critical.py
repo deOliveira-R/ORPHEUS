@@ -10,7 +10,7 @@ that the existing slab/sphere F_N solvers can solve TODAY:
 
 The Phase A first-slice case ``Ua-1-0-SL`` (c=1.30) and ``Ua-1-0-SP``
 (c=1.30) are NOT re-tested here — they live in
-``test_fn_la13511_slab.py`` / ``test_fn_la13511_sphere.py``.
+``test_fn_sood2003_slab.py`` / ``test_fn_sood2003_sphere.py``.
 
 STUB cases (cylinders, 2G bare-critical) are tracked in the registry
 but explicitly skipped here with ``pytest.skip`` markers — see the
@@ -53,7 +53,7 @@ from orpheus.derivations.continuous.fn_method.sphere.one_group import (
     solve_fn_sphere_bare_critical,
 )
 from orpheus.derivations.continuous.sood_registry import (
-    LA13511_CASES,
+    SOOD2003_CASES,
     WIDE_SLICE_BARE_CRITICAL_1G,
     WIDE_SLICE_STUBS,
 )
@@ -103,7 +103,7 @@ def test_slab_fn_critical_dimension_matches_sood(case_id: str) -> None:
     Solver: :func:`solve_fn_slab_bare_critical` at N=12 modes.
     Reference: Sood 2003 Tables 3, 4, 14 (slab problems 2, 6, 22).
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.critical_dimension_mfp
     c = _compute_c(case)
     res = solve_fn_slab_bare_critical(c=c, n_modes=SLAB_N_MODES)
@@ -138,7 +138,7 @@ def test_sphere_fn_critical_dimension_matches_sood(case_id: str) -> None:
     Solver: :func:`solve_fn_sphere_bare_critical` at N=10 modes.
     Reference: Sood 2003 Tables 4, 14 (sphere problems 8, 24).
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.critical_dimension_mfp
     c = _compute_c(case)
     res = solve_fn_sphere_bare_critical(c=c, n_modes=SPHERE_N_MODES)
@@ -173,7 +173,7 @@ TWO_G_BARE_CRITICAL_STUB_IDS = [
 @pytest.mark.parametrize("case_id", CYLINDER_STUB_IDS)
 def test_cylinder_stub_solver_pending_b1_dispatch(case_id: str) -> None:
     """STUB: B1 dispatch will activate this case once the cylinder F_N solver lands."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert case.geometry_kind == "cylinder"
     assert case.truth.critical_dimension_mfp is not None  # truth registered
     pytest.skip(
@@ -186,7 +186,7 @@ def test_cylinder_stub_solver_pending_b1_dispatch(case_id: str) -> None:
 @pytest.mark.parametrize("case_id", TWO_G_BARE_CRITICAL_STUB_IDS)
 def test_2g_bare_critical_stub_solver_pending_2g_fn(case_id: str) -> None:
     """STUB: needs Siewert-Thomas 1986 2G F_N machinery (matrix dispersion law)."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert case.materials[0].ng == 2
     assert case.geometry_kind in ("slab", "sphere")
     assert case.truth.critical_dimension_mfp is not None  # truth registered

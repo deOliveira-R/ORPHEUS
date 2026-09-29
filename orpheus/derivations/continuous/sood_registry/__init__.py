@@ -32,15 +32,17 @@ Each :class:`La13511Case` carries:
 
 Tests live in ``tests/gates/derivations/`` and import case + solver(s),
 producing the value to compare. See e.g.
-``tests/gates/derivations/test_fn_la13511_kinf.py`` for the F_N consumer
+``tests/gates/derivations/test_fn_sood2003_kinf.py`` for the F_N consumer
 or ``tests/gates/derivations/test_sood_registry_compatibility.py`` for the
 production-protocol smoke gates.
 
 Module layout
 -------------
 
-* :mod:`.la13511` — the 47 Sood, Forster & Parsons cases, cited to
-  the 2003 edition (the module keeps the 1999 report's number).
+* :mod:`.sood2003` — the 47 Sood, Forster & Parsons cases, cited to
+  the 2003 edition.
+* :mod:`.atalay1997` — the 6 Atalay 1997 reflected-slab cases.
+* :mod:`.case` — the case schema both are built on.
 * :mod:`.builders` — case → ``(materials, mesh, params)`` helpers
   for production-solver consumers.
 
@@ -57,10 +59,10 @@ References
 from __future__ import annotations
 
 from .case import La13511Case, La13511Truth
-from .la13511 import (
+from .sood2003 import (
     # Phase A first slice (5)
     ALL_FIRST_SLICE,
-    LA13511_CASES,
+    SOOD2003_CASES,
     PU_2_0_IN,
     PUA_1_0_IN,
     UA_1_0_CY_STUB,
@@ -196,7 +198,7 @@ __all__ = [
     "WIDE_SLICE_BARE_CRITICAL_1G",
     "WIDE_SLICE_STUBS",
     # Top-level registry
-    "LA13511_CASES",
+    "SOOD2003_CASES",
     # Builders / extractors
     "build_materials",
     "build_mesh",

@@ -46,7 +46,7 @@ from orpheus.derivations.continuous.fn_method.slab import (
 
 @pytest.mark.l1
 @pytest.mark.verifies("nm1980-eq15-critical-condition")
-def test_sood_table10_problem4_symmetric_pu_h2o_05():
+def test_pua_h2o_05_symmetric_slab_critical_half_thickness():
     """Sood problem 4 (2003 Table 7; 1999 Table 10) = `PUa-H2O(0.5)-1-0-SL`:
     SYMMETRIC reflected slab, Pu c=1.50, H2O c=0.90, Δ=0.5 mfp each side.
     Sood literature value (2003 edition): Pu r_c = 0.43015 mfp.
@@ -74,28 +74,28 @@ def test_sood_table10_problem4_symmetric_pu_h2o_05():
 
 
 @pytest.mark.foundation
-def test_nm_case6_is_not_table10():
+def test_nm_case6_is_not_pua_h2o_05():
     """NM 1980 Case 6 has Δ=1.0 each side; Sood problem 4 (2003 Table 7) has Δ=0.5
     each side. They are NOT the same problem."""
     nm_case6 = solve_fn_slab_reflected_critical(
         c_core=1.50, c_reflector=0.90,
         reflector_half_thickness=1.0, n_modes=7,
     )
-    sood_table10 = solve_fn_slab_reflected_critical(
+    sood_pua_h2o_05 = solve_fn_slab_reflected_critical(
         c_core=1.50, c_reflector=0.90,
         reflector_half_thickness=0.5, n_modes=7,
     )
     print(
         f"\n  NM Case 6 (Δ=1.0): r_c = {nm_case6.tau_critical_mfp:.5f} mfp"
-        f"\n  Sood 2003 Table 7 (Δ=0.5): r_c = {sood_table10.tau_critical_mfp:.5f} mfp"
-        f"\n  ratio = {sood_table10.tau_critical_mfp / nm_case6.tau_critical_mfp:.4f}"
+        f"\n  Sood 2003 Table 7 (Δ=0.5): r_c = {sood_pua_h2o_05.tau_critical_mfp:.5f} mfp"
+        f"\n  ratio = {sood_pua_h2o_05.tau_critical_mfp / nm_case6.tau_critical_mfp:.4f}"
     )
     # NM Δ=1.0 has more reflector; expect smaller core (more flux returned)
-    assert nm_case6.tau_critical_mfp < sood_table10.tau_critical_mfp
+    assert nm_case6.tau_critical_mfp < sood_pua_h2o_05.tau_critical_mfp
 
 
 @pytest.mark.foundation
-def test_wave2a_memo_table9_nonsymmetric_geometry_mismatch():
+def test_wave2a_memo_pua_h2o_1_one_sided_geometry_mismatch():
     """Wave 2-A memo compared NM Case 6 (Δ=1 SYMMETRIC two-sided)
     to Sood 2003 Table 6 problem 3 (`PUa-H2O(1)-1-0-SL`,
     H2O thickness = 1 mfp NON-SYMMETRIC, single-sided).
@@ -114,11 +114,11 @@ def test_wave2a_memo_table9_nonsymmetric_geometry_mismatch():
     symmetric).
     """
     # Sood 2003 Table 6 problem 3 (NON-symmetric):
-    sood_table9_truth = 0.482566  # mfp, ONE-SIDED 1 mfp H2O reflector (2003 Table 6)
+    sood_pua_h2o_1_truth = 0.482566  # mfp, ONE-SIDED 1 mfp H2O reflector (2003 Table 6)
     # NM Case 6 (SYMMETRIC, Δ=1 each side):
     nm_case6_truth = 0.3597  # mfp
 
-    rel_diff = abs(sood_table9_truth - nm_case6_truth) / nm_case6_truth
+    rel_diff = abs(sood_pua_h2o_1_truth - nm_case6_truth) / nm_case6_truth
     # The Wave 2-A "34% gap" — but it's a geometry mismatch, not a method bug
     assert rel_diff > 0.30, (
         "Wave 2-A's reported 34% gap reproduced — but the geometries "
@@ -126,21 +126,21 @@ def test_wave2a_memo_table9_nonsymmetric_geometry_mismatch():
     )
     print(
         f"\n  Wave 2-A geometry-mismatch verification:"
-        f"\n  Sood 2003 Table 6 #3 (1-sided, 1 mfp H2O): r_c = {sood_table9_truth}"
+        f"\n  Sood 2003 Table 6 #3 (1-sided, 1 mfp H2O): r_c = {sood_pua_h2o_1_truth}"
         f"\n  NM Case 6 (2-sided, 1 mfp each):    r_c = {nm_case6_truth}"
         f"\n  reported gap = {rel_diff*100:.1f}%   (geometry-induced, NOT method bug)"
     )
 
 
 if __name__ == "__main__":
-    test_sood_table10_problem4_symmetric_pu_h2o_05()
-    test_nm_case6_is_not_table10()
-    test_wave2a_memo_table9_nonsymmetric_geometry_mismatch()
+    test_pua_h2o_05_symmetric_slab_critical_half_thickness()
+    test_nm_case6_is_not_pua_h2o_05()
+    test_wave2a_memo_pua_h2o_1_one_sided_geometry_mismatch()
 
 
 @pytest.mark.l1
 @pytest.mark.parametrize("n_modes", [11, 13, 15])
-def test_sood_problem4_at_the_published_digit(n_modes):
+def test_pua_h2o_05_at_the_published_digit(n_modes):
     """Sood problem 4 at the precision it is published to, which decides the
     edition (P1 step 2b; the user ruled the 2003 edition the reference).
 

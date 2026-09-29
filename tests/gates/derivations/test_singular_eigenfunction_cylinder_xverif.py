@@ -66,7 +66,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
 from orpheus.derivations.continuous.singular_eigenfunction import (
     solve_singular_eigenfunction_cylinder_bare_critical,
 )
-from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
 
 pytestmark = [
@@ -100,7 +100,7 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
        1e-5 radius offset gives a 1e-5 to 1e-4 k_eff offset).
     4. Assert WM-72 R_c agrees with Sood truth to ≤ 1e-5 (not 2%).
     """
-    case = LA13511_CASES["Ua-1-0-CY"]
+    case = SOOD2003_CASES["Ua-1-0-CY"]
     truth_mfp = case.truth.critical_dimension_mfp  # 1.72500292
     sigma_t = float(case.materials[0].SigT[0])  # 0.32640 cm⁻¹
 

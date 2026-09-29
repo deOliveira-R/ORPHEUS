@@ -31,7 +31,7 @@ Key Facts
   * **Sood/Forster/Parsons 2003**: 5 first-slice cases (PUa-1-0-IN,
     PU-2-0-IN, Ua-1-0-SL/CY/SP) + 30 wide-slice active cases + 12
     wide-slice stub cases (cylinder + 2G bare-critical pending solver
-    dispatch). Total: **47 Sood cases** (``len(LA13511_CASES)``,
+    dispatch). Total: **47 Sood cases** (``len(SOOD2003_CASES)``,
     `[M]` 2026-09-29).
   * **Atalay 1997**: 6 slab + 1 sphere = 7 reflected /
     linearly-anisotropic cases.
@@ -54,7 +54,7 @@ Key Facts
     :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
     built by :meth:`La13511Case.to_geometry` directly.
 - **Cross-references**: :ref:`theory-fn-method` consumes
-  ``LA13511_CASES`` for slab/sphere F_N pinning;
+  ``SOOD2003_CASES`` for slab/sphere F_N pinning;
   :ref:`theory-singular-eigenfunction` consumes the Atalay catalogue;
   :ref:`theory-trajectory-resolvent` cross-checks Variant α against
   ``Ua-1-0-CY`` / ``Ua-1-0-SP``. All consumers read cross sections
@@ -95,7 +95,7 @@ solvers read cross sections directly off the shared
 :class:`~orpheus.data.macro_xs.mixture.Mixture`). Adding
 a sixth method to verify against an existing case requires only the
 method's own implementation and a new test file consuming
-``LA13511_CASES["case_id"]``; no edit to ``sood_registry`` itself.
+``SOOD2003_CASES["case_id"]``; no edit to ``sood_registry`` itself.
 
 Architectural rule of thumb
 ----------------------------
@@ -124,7 +124,7 @@ registry cites the 2003 edition (the user's ruling of 2026-09-29):
 every Sood case's ``provenance.paper_id`` is ``"Sood-2003"``, and
 every table, equation, reference and page number in its provenance is
 the 2003 edition's. The module and class names (``la13511``,
-``La13511Case``, ``LA13511_CASES``) keep the report's number: they are
+``La13511Case``, ``SOOD2003_CASES``) keep the report's number: they are
 identifiers, not citations.
 
 The two editions pose the same 75 problems under the same problem
@@ -176,7 +176,7 @@ conversion map of every citation, measured against both editions'
 text, is ``scratch/reference_architecture/p1step2b/citation_map.md``.
 The values moved to the 2003 edition in commit ``1aab17a6`` and the
 citations in ``f02d7d9d``. The gate
-``tests/gates/derivations/test_la13511_to_geometry.py::test_la13511_case_has_provenance``
+``tests/gates/derivations/test_sood2003_to_geometry.py::test_sood2003_case_has_provenance``
 asserts ``paper_id == "Sood-2003"`` on every case and that no
 provenance string names LA-13511.
 
@@ -327,11 +327,11 @@ the materials dict and a built mesh:
 .. code-block:: python
 
    from orpheus.derivations.continuous.sood_registry import (
-       LA13511_CASES, build_materials, build_mesh,
+       SOOD2003_CASES, build_materials, build_mesh,
    )
    from orpheus.cp.solver import solve_cp
 
-   case = LA13511_CASES["Ua-1-0-SL"]
+   case = SOOD2003_CASES["Ua-1-0-SL"]
    materials = build_materials(case)        # -> dict[int, Mixture]
    mesh = build_mesh(case, n_cells=64)      # -> Mesh1D
    result = solve_cp(materials, mesh, ...)
@@ -345,12 +345,12 @@ API identically):
 
 .. code-block:: python
 
-   from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+   from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
    from orpheus.derivations.continuous.fn_method.multi_group import (
        compute_kinf_mg,
    )
 
-   case = LA13511_CASES["PU-2-0-IN"]
+   case = SOOD2003_CASES["PU-2-0-IN"]
    mix = case.materials[0]
    k_inf = compute_kinf_mg(
        mix.SigT, mix.SigS[0].toarray(), mix.SigP, mix.chi
@@ -368,7 +368,7 @@ Sood numbers groups :math:`g=N` (fast) → :math:`g=1` (slow), the
 reverse of typical nuclear-engineering convention. ORPHEUS uses the
 :ref:`canonical fast-first convention <canonical-group-convention>`
 :math:`g=0` (fast) → :math:`g=N-1` (slow). The
-:mod:`sood_registry.la13511` module does the conversion at
+:mod:`sood_registry.sood2003` module does the conversion at
 construction time so consumers see XS arrays in **ORPHEUS
 convention** directly.
 
@@ -543,7 +543,7 @@ Wide enumeration coverage
 
 Phase B3 expanded the registry from the 5-case Phase A first slice
 to **47 cases** (the 5 first-slice cases, 30 active wide-slice cases
-and 12 stubs; `[M]` 2026-09-29, ``len(LA13511_CASES)``) spanning
+and 12 stubs; `[M]` 2026-09-29, ``len(SOOD2003_CASES)``) spanning
 every class the existing
 ``fn_method`` machinery (k_inf 1G/2G/MG, slab F_N, sphere F_N) can
 solve TODAY, plus stubs for cases pending solver dispatch:
@@ -759,7 +759,7 @@ the *plumbing* of the registry works.
 
 The L1 / L2 numerical claims (e.g., "F_N slab solver reproduces
 :math:`a_c` to 5e-6") live in the consumer test files (e.g.,
-``test_fn_la13511_slab.py``, ``test_sood_registry_wide_bare_critical.py``).
+``test_fn_sood2003_slab.py``, ``test_sood_registry_wide_bare_critical.py``).
 Each consumer is responsible for verifying its own physics; the
 registry's job is solely to deliver consistent input data.
 
@@ -885,7 +885,7 @@ Forward-looking — the meta-registry
 .. _sood-registry-meta-registry:
 
 The current registry has two registries side-by-side:
-:class:`LA13511_CASES` (Sood/Forster/Parsons 2003) and the Atalay
+:class:`SOOD2003_CASES` (Sood/Forster/Parsons 2003) and the Atalay
 catalogue (Atalay 1997). Both share the same case schema
 (:class:`La13511Case` is re-used for both, despite the misleading
 name) and both feed the same consumer adapter functions

@@ -65,7 +65,7 @@ from .protocol import CrossMethodCase
 # ═══════════════════════════════════════════════════════════════════
 #
 # fn_method/slab/one_group reaches ~5e-6 absolute on a_c at N=10 vs
-# Sood truth (already tested in test_fn_la13511_slab.py). The
+# Sood truth (already tested in test_fn_sood2003_slab.py). The
 # trajectory_resolvent slab vacuum-BC quadrature floor is ~5e-5 on
 # k_eff at default (n_x=48, n_mu=128, n_traj_quad=96) due to the
 # slab μ=0 cusp.
@@ -75,7 +75,7 @@ from .protocol import CrossMethodCase
 
 
 # F_N slab at N=10 across c ∈ {1.02 .. 1.50} reaches err ≤ 1e-5 absolute
-# on a_c against Sood/KLL truth — see test_fn_la13511_slab.py for the
+# on a_c against Sood/KLL truth — see test_fn_sood2003_slab.py for the
 # canonical pin (it uses 1e-5 for the c=1.30 case). We adopt the same
 # floor for the cross-method protocol.
 _FN_SLAB_TOL_DEFAULT = 1e-5
@@ -442,7 +442,7 @@ def _build_reflected_slab_case(
 
 REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
     _build_reflected_slab_case(
-        case_id="Sood-Table10-4-PUa-H2O-symm-0.5mfp",
+        case_id="PUa-H2O(0.5)-1-0-SL",
         description=(
             "Symmetric Pu+H2O reflected slab, Sood problem 4 (2003 "
             "Table 7): c_core=1.50, c_refl=0.90, Δ=0.5 mfp each "
@@ -479,7 +479,7 @@ REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
     ),
     # NM 1980 Table 1 Case 6 — the canonical c_core=1.50, c_reflector=0.90,
     # Δ=1.0 cross-comparator (also referenced by
-    # test_fn_sood_table10_symmetric_pu_h2o.py).
+    # test_fn_sood_pua_h2o_symmetric_slab.py).
     _build_reflected_slab_case(
         case_id="NM-1980-Case6-c150-c090-D10",
         description=(

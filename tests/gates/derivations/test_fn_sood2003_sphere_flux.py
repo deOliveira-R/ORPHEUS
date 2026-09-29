@@ -1,6 +1,6 @@
 r"""L1 verification for the sphere F_N rich-machinery extension.
 
-Sphere analog of :mod:`.test_fn_la13511_slab_flux`. Verification gates:
+Sphere analog of :mod:`.test_fn_sood2003_slab_flux`. Verification gates:
 
 * **L1 — Sood / KLL Table VII flux ratios at c = 1.30**: at
   :math:`r/R \in \{0.25, 0.50, 0.75, 1.00\}`, the KLL reconstruction
@@ -34,7 +34,7 @@ from orpheus.derivations.continuous.fn_method.sphere import (
     sphere_scalar_flux_kll,
     sphere_scalar_flux_ratio,
 )
-from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
 # Suppress numpy divide-by-zero warnings from the F_N bracket scan.
 pytestmark = [
@@ -69,7 +69,7 @@ def test_l1_sphere_flux_ratios_kll_table_VII_at_c_1p30() -> None:
     | 1.00  | 0.17177706   |
     +-------+--------------+
     """
-    case = LA13511_CASES["Ua-1-0-SP"]
+    case = SOOD2003_CASES["Ua-1-0-SP"]
     sigma_t = case.materials[0].SigT[0]
     sigma_s = case.materials[0].SigS[0][0, 0]
     nu_sigma_f = case.materials[0].SigP[0]

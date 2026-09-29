@@ -1507,7 +1507,7 @@ older entries classify against.
    3. **Snapshot regeneration**: regenerate the 6 deleted curvilinear
       regression snapshots with the Phase-C-corrected operator AND
       verify each via FN-method cross-check on the closest Sood
-      La13511 case (per :mod:`orpheus.derivations.continuous.sood_registry`).
+      registry case (per :mod:`orpheus.derivations.continuous.sood_registry`).
    4. **Marker removal**: the four xfail-strict ERR-026 tripwires
       (the two anisotropic + two isotropic curvilinear MMS tests)
       come off. ERR-026 status: PARTIAL CLOSURE → CLOSED.
@@ -8732,7 +8732,7 @@ older entries classify against.
    theory page records it as a refuted claim.
 
    **Caught by:**
-   ``tests/gates/derivations/test_fn_la13511_kinf.py::test_v_fn2_1_kinf_2g_general_from_matrix``.
+   ``tests/gates/derivations/test_fn_sood2003_kinf.py::test_v_fn2_1_kinf_2g_general_from_matrix``.
    Mutation witness: restoring the swapped transcription reddens it
    (P1 step 2b's battery,
    ``scratch/reference_architecture/p1step2b/mut/mut_eq28.py``).

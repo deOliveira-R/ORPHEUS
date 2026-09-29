@@ -40,7 +40,7 @@ from orpheus.derivations.continuous.fn_method.multi_group import (
     compute_kinf_mg,
 )
 from orpheus.derivations.continuous.sood_registry import (
-    LA13511_CASES,
+    SOOD2003_CASES,
     WIDE_SLICE_KINF,
 )
 
@@ -81,7 +81,7 @@ ALL_KINF_CASE_IDS = [case.case_id for case in WIDE_SLICE_KINF]
 @pytest.mark.parametrize("case_id", KINF_1G_CASE_IDS)
 def test_kinf_1g_matches_sood(case_id: str) -> None:
     r"""1G k_inf via Sood Eq (A.2) reproduces published table value to ≤ 1e-5."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_1g(
         float(case.materials[0].SigT[0]),
@@ -103,7 +103,7 @@ def test_kinf_1g_matches_sood(case_id: str) -> None:
 @pytest.mark.parametrize("case_id", KINF_2G_NO_UPSCATTER_CASE_IDS)
 def test_kinf_2g_no_upscatter_matches_sood(case_id: str) -> None:
     r"""2G k_inf (no upscatter) via Sood Eq (A.12) reproduces published table value to ≤ 1e-5."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_2g_no_upscatter(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
@@ -123,7 +123,7 @@ def test_kinf_2g_with_upscatter_matches_sood(case_id: str) -> None:
     pins :func:`compute_kinf_2g_general` for the URRb/URRc cases that
     have :math:`\Sigma_{21s} > 0`.
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     assert float(case.materials[0].SigS[0][1, 0]) > 0.0, (
         f"{case_id}: this fixture is for upscatter cases only"
@@ -146,7 +146,7 @@ def test_kinf_2g_with_upscatter_matches_sood(case_id: str) -> None:
 @pytest.mark.parametrize("case_id", KINF_MG_CASE_IDS)
 def test_kinf_mg_matches_sood(case_id: str) -> None:
     r"""Multi-group k_inf via Sood Eq (A.59) reproduces published table value to ≤ 1e-5."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_mg(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
@@ -179,7 +179,7 @@ def test_kinf_mg_agrees_with_kinf_homogeneous_eig(case_id: str) -> None:
     disagreement would expose a bug in one or the other (algebra-of-record
     cross-check pillar).
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     k_fn = compute_kinf_mg(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
@@ -209,7 +209,7 @@ def test_kinf_2g_general_equals_no_upscatter_when_sigma_21s_zero(case_id: str) -
     in :func:`derive_kinf_2g_general_from_matrix`; this test pins it
     on every concrete no-upscatter 2G Sood case).
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert float(case.materials[0].SigS[0][1, 0]) == 0.0
     k_general = compute_kinf_2g_general(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
@@ -240,7 +240,7 @@ def test_URR_3_0_IN_flux_spectrum() -> None:
     :math:`\phi_1/\phi_3 = 0.150` (slow/fast), both exact rational
     constructions. ORPHEUS convention: g=0 fast, g=1 mid, g=2 slow.
     """
-    case = LA13511_CASES["URR-3-0-IN"]
+    case = SOOD2003_CASES["URR-3-0-IN"]
     _, phi = kinf_and_spectrum_homogeneous(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
@@ -267,7 +267,7 @@ def test_URR_6_0_IN_flux_spectrum_mirror() -> None:
 
     ORPHEUS index convention: 0=g6, 1=g5, 2=g4, 3=g3, 4=g2, 5=g1.
     """
-    case = LA13511_CASES["URR-6-0-IN"]
+    case = SOOD2003_CASES["URR-6-0-IN"]
     _, phi = kinf_and_spectrum_homogeneous(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )

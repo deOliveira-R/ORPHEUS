@@ -6,9 +6,9 @@ Production solvers (:func:`orpheus.cp.solver.solve_cp`,
 helpers so a test can do:
 
 >>> from orpheus.derivations.continuous.sood_registry import (
-...     LA13511_CASES, build_materials, build_mesh, build_cp_params
+...     SOOD2003_CASES, build_materials, build_mesh, build_cp_params
 ... )
->>> case = LA13511_CASES["Ua-1-0-SL"]
+>>> case = SOOD2003_CASES["Ua-1-0-SL"]
 >>> materials = build_materials(case)
 >>> mesh = build_mesh(case, n_cells=64)
 >>> # then solve_cp(materials, mesh, build_cp_params(case))
@@ -24,7 +24,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import Mesh1D
 
 if TYPE_CHECKING:
-    from .la13511 import La13511Case
+    from .sood2003 import La13511Case
 
 
 def build_materials(case: "La13511Case") -> dict[int, Mixture]:

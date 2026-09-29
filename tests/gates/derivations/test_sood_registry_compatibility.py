@@ -12,7 +12,7 @@ These tests are the **bridge gate** between the method-agnostic
 
 The gates are intentionally minimal — they verify that the case
 objects are *consumable* by both flavors of solver, NOT that the
-answers are correct (the existing ``test_fn_la13511_*`` files cover
+answers are correct (the existing ``test_fn_sood2003_*`` files cover
 correctness; the production-solver cross-checks at full Sood
 precision remain unbuilt — tracked in issue #305).
 
@@ -38,7 +38,7 @@ import pytest
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.derivations.continuous.sood_registry import (
-    LA13511_CASES,
+    SOOD2003_CASES,
     PU_2_0_IN,
     PUA_1_0_IN,
     UA_1_0_SL_STUB,
@@ -73,10 +73,10 @@ def _xs_from_mixture(mix: Mixture):
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
+@pytest.mark.parametrize("case_id", list(SOOD2003_CASES.keys()))
 def test_case_materials_is_dict_of_mixture(case_id: str) -> None:
     """Every registered case has materials: dict[int, Mixture]."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert isinstance(case.materials, dict), (
         f"{case_id}: materials must be a dict, got {type(case.materials)}"
     )
@@ -91,10 +91,10 @@ def test_case_materials_is_dict_of_mixture(case_id: str) -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("case_id", list(LA13511_CASES.keys()))
+@pytest.mark.parametrize("case_id", list(SOOD2003_CASES.keys()))
 def test_case_geometry_kind_well_formed(case_id: str) -> None:
     """Every registered case carries a valid geometry_kind tag."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert case.geometry_kind in {"slab", "sphere", "cylinder", "infinite"}
 
 
@@ -111,7 +111,7 @@ def test_case_geometry_kind_well_formed(case_id: str) -> None:
 )
 def test_case_geometry_matches_expected(case_id: str, expected_geom: str) -> None:
     """Geometry kind matches the case-id suffix."""
-    assert LA13511_CASES[case_id].geometry_kind == expected_geom
+    assert SOOD2003_CASES[case_id].geometry_kind == expected_geom
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -212,7 +212,7 @@ def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
 @pytest.mark.foundation
 def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
     """Cylinder mesh covers ``[0, R]``; axis reflective is implicit."""
-    case = LA13511_CASES["Ua-1-0-CY"]
+    case = SOOD2003_CASES["Ua-1-0-CY"]
     mesh = build_mesh(case, n_cells=20)
     assert mesh.coord == CoordSystem.CYLINDRICAL
     assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)

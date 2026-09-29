@@ -176,22 +176,22 @@ Module × level grid
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
-   derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 39, 0
-   derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
-   derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
-   derivations/test_fn_la13511_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
-   derivations/test_fn_la13511_slab_reflected, 0, 18, 0, 0, 5, 0
-   derivations/test_fn_la13511_slab_xverif, 0, 2, 0, 0, 0, 0
-   derivations/test_fn_la13511_sphere, 0, 0, 0, 0, 11, 0
-   derivations/test_fn_la13511_sphere_flux, 0, 10, 0, 0, 0, 0
-   derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
+   derivations/test_fn_sood2003_kinf, 0, 0, 0, 0, 39, 0
+   derivations/test_fn_sood2003_slab, 0, 0, 0, 0, 21, 0
+   derivations/test_fn_sood2003_slab_flux, 0, 10, 0, 0, 0, 0
+   derivations/test_fn_sood2003_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
+   derivations/test_fn_sood2003_slab_reflected, 0, 18, 0, 0, 5, 0
+   derivations/test_fn_sood2003_slab_xverif, 0, 2, 0, 0, 0, 0
+   derivations/test_fn_sood2003_sphere, 0, 0, 0, 0, 11, 0
+   derivations/test_fn_sood2003_sphere_flux, 0, 10, 0, 0, 0, 0
+   derivations/test_fn_sood2003_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
-   derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 4, 0, 0, 2, 0
+   derivations/test_fn_sood_pua_h2o_symmetric_slab, 0, 4, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
-   derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
+   derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 131, 0
    derivations/test_mu_weighted_basis, 0, 0, 0, 0, 1, 0
    derivations/test_path_ai_legacy_plain_gl_signature, 0, 3, 0, 0, 1, 0
    derivations/test_peierls_assembly_drivers, 0, 0, 0, 0, 9, 0

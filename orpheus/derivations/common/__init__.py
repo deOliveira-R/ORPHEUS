@@ -26,7 +26,7 @@ The legacy :class:`GeometrySpec` carrier was retired in Phase F
 (2026-05-04). The geometry layer now lives in
 :mod:`orpheus.geometry.structured_geometry`; the registry-truth
 critical-dimension data lives on
-:class:`~orpheus.derivations.continuous.sood_registry.la13511.La13511Truth`.
+:class:`~orpheus.derivations.continuous.sood_registry.case.La13511Truth`.
 """
 from __future__ import annotations
 

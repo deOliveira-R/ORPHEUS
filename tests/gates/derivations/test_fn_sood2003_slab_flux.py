@@ -56,7 +56,7 @@ from orpheus.derivations.continuous.fn_method.slab import (
     solve_fn_slab_bare_critical,
     solve_kll_slab_continuum_coefficient,
 )
-from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
 # Suppress numpy divide-by-zero warnings from the F_N bracket scan.
 pytestmark = [
@@ -90,7 +90,7 @@ def test_l1_slab_flux_ratios_kll_table_III_at_c_1p30() -> None:
     | 1.00  | 0.4461912  |
     +-------+------------+
     """
-    case = LA13511_CASES["Ua-1-0-SL"]
+    case = SOOD2003_CASES["Ua-1-0-SL"]
     # Compute c = (Σ_s + νΣ_f) / Σ_t via the legacy property accessors
     # (which delegate to mixture_to_fn_arrays per sood_registry).
     sigma_t = case.materials[0].SigT[0]

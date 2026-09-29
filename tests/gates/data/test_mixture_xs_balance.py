@@ -244,11 +244,11 @@ class TestAssertBalancedIntrinsic:
 # ══════════════════════════════════════════════════════════════════════
 #
 # Mode-7 honest scope: this pins the PHYSICAL synthetic tables only —
-# xs_library A/B/C/D × 1g/2g/4g, the Sood LA13511 registry, and the
+# xs_library A/B/C/D × 1g/2g/4g, the Sood 2003 registry, and the
 # homogeneous derive builders. The Atalay criticality-parameter Mixtures,
 # the structural scaffolds, and the billiard carrier are deliberately
 # imbalanced and are EXCLUDED (Atalay is structurally absent from
-# LA13511_CASES — it lives in ATALAY_ALL_CASES — so no filter is needed).
+# SOOD2003_CASES — it lives in ATALAY_ALL_CASES — so no filter is needed).
 
 
 def _xs_library_mixtures():
@@ -261,13 +261,13 @@ def _xs_library_mixtures():
     ]
 
 
-def _la13511_mixtures():
-    from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+def _sood2003_mixtures():
+    from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
     out = []
-    for case_id, case in LA13511_CASES.items():
+    for case_id, case in SOOD2003_CASES.items():
         for mat_id, mix in case.materials.items():
-            out.append(pytest.param(mix, id=f"la13511-{case_id}-m{mat_id}"))
+            out.append(pytest.param(mix, id=f"sood2003-{case_id}-m{mat_id}"))
     return out
 
 
@@ -294,8 +294,8 @@ class TestPhysicalTableSweep:
     def test_xs_library_balances(self, mix: Mixture) -> None:
         mix.assert_balanced(atol=_ATOL)
 
-    @pytest.mark.parametrize("mix", _la13511_mixtures())
-    def test_la13511_balances(self, mix: Mixture) -> None:
+    @pytest.mark.parametrize("mix", _sood2003_mixtures())
+    def test_sood2003_balances(self, mix: Mixture) -> None:
         mix.assert_balanced(atol=_ATOL)
 
     @pytest.mark.parametrize("mix", _homogeneous_mixtures())
@@ -376,7 +376,7 @@ class TestExemptionIntegrity:
     def test_atalay_criticality_mixture_constructs(self) -> None:
         """Atalay νΣf=(c-1)Σt c>1 mixture (residual≈SigF) still builds.
 
-        Atalay is in ATALAY_ALL_CASES, NOT in LA13511_CASES, so gate 2 never
+        Atalay is in ATALAY_ALL_CASES, NOT in SOOD2003_CASES, so gate 2 never
         touches it. Confirm it constructs and IS imbalanced (the exemption is
         real, not an accident of a balanced fixture).
         """
@@ -395,19 +395,19 @@ class TestExemptionIntegrity:
             err_msg=f"Atalay c=1.30 must be (intentionally) imbalanced; residual={residual}",
         )
 
-    def test_atalay_not_in_la13511_registry(self) -> None:
-        """Structural exemption: no Atalay case_id appears in LA13511_CASES.
+    def test_atalay_not_in_sood2003_registry(self) -> None:
+        """Structural exemption: no Atalay case_id appears in SOOD2003_CASES.
 
         This is WHY gate 2 needs no defensive filter — the swept registry
         simply does not contain the exempt set. If a future edit adds Atalay
-        to LA13511_CASES, this reddens BEFORE gate 2 starts failing.
+        to SOOD2003_CASES, this reddens BEFORE gate 2 starts failing.
         """
-        from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+        from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
-        atalay_ids = [cid for cid in LA13511_CASES if "atalay" in cid.lower()]
+        atalay_ids = [cid for cid in SOOD2003_CASES if "atalay" in cid.lower()]
         np.testing.assert_array_equal(
             len(atalay_ids), 0,
-            err_msg=f"Atalay must stay out of LA13511_CASES; found {atalay_ids}",
+            err_msg=f"Atalay must stay out of SOOD2003_CASES; found {atalay_ids}",
         )
 
 

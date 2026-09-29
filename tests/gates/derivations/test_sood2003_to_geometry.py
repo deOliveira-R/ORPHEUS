@@ -1,7 +1,7 @@
 r"""Foundation tests for :meth:`La13511Case.to_geometry`.
 
 The Phase B adapter on
-:mod:`orpheus.derivations.continuous.sood_registry.la13511` lifts the
+:mod:`orpheus.derivations.continuous.sood_registry.sood2003` lifts the
 published critical dimension off ``GeometrySpec`` (a registry-truth
 artefact) onto :class:`La13511Truth` and provides
 :meth:`La13511Case.to_geometry` to build a new-API
@@ -29,7 +29,7 @@ import math
 import pytest
 
 from orpheus.derivations.continuous.sood_registry import (
-    LA13511_CASES,
+    SOOD2003_CASES,
     PUA_1_0_IN,
     PUA_1_0_SL,
     PUB_1_0_CY_STUB,
@@ -38,7 +38,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
 )
-from orpheus.derivations.continuous.sood_registry.la13511 import _ALL_CASES
+from orpheus.derivations.continuous.sood_registry.sood2003 import _ALL_CASES
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
@@ -206,7 +206,7 @@ def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
     \Sigma_t`. The geometry produced by :meth:`to_geometry` MUST
     match this derivation exactly (no second source of truth).
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     geom = case.to_geometry()
     sigma_t = float(case.materials[0].SigT[0])
     cd_cm = float(case.truth.critical_dimension_mfp) / sigma_t
@@ -240,7 +240,7 @@ def test_truth_critical_dimension_mfp_populated(case_id: str) -> None:
     ``truth.critical_dimension_mfp`` so :meth:`La13511Case.to_geometry`
     can derive the geometry-cm extent.
     """
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert case.truth.critical_dimension_mfp is not None, (
         f"{case_id}: truth.critical_dimension_mfp must be non-None for "
         f"finite cases (geometry_kind={case.geometry_kind!r})"
@@ -259,5 +259,5 @@ def test_truth_critical_dimension_mfp_populated(case_id: str) -> None:
 )
 def test_truth_critical_dimension_mfp_none_for_infinite(case_id: str) -> None:
     """Infinite-medium cases have ``truth.critical_dimension_mfp = None``."""
-    case = LA13511_CASES[case_id]
+    case = SOOD2003_CASES[case_id]
     assert case.truth.critical_dimension_mfp is None

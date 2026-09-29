@@ -67,8 +67,8 @@ proves *correctness*, not *agreement*.
 In practice the ORPHEUS test harness exposes L0..L3 + foundation as
 markers; L4 is not registered. The convention in shipped
 cross-method gates
-(:mod:`tests.gates.derivations.test_fn_la13511_slab_xverif`,
-:mod:`tests.gates.derivations.test_fn_la13511_sphere_xverif`) is to tag
+(:mod:`tests.gates.derivations.test_fn_sood2003_slab_xverif`,
+:mod:`tests.gates.derivations.test_fn_sood2003_sphere_xverif`) is to tag
 them as **L1** because:
 
 * each individual method is L1-verified against analytical truth in
@@ -266,7 +266,7 @@ honestly:
   1G fixture; adding 2G/4G fixtures is the natural next extension.
 * **k_inf cases via fn_method's ``compute_kinf_*``** (1G/2G/mG
   closed forms) are tested in the per-method file
-  :mod:`tests.gates.derivations.test_fn_la13511_kinf` against
+  :mod:`tests.gates.derivations.test_fn_sood2003_kinf` against
   ``kinf_homogeneous`` (the structurally-independent companion
   identity). Those gates are L1; not duplicated in the cross-
   method protocol.

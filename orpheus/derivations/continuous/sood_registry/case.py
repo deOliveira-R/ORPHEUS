@@ -3,7 +3,7 @@ r"""The schema of a published benchmark case: the configuration, its published v
 :class:`La13511Case` holds one case of the registry: its cross sections, its
 geometry kind and scattering order, the citation of the problem it poses, and
 its published values (:class:`La13511Truth`) with their citations. The Sood,
-Forster and Parsons cases (:mod:`.la13511`) and the Atalay cases
+Forster and Parsons cases (:mod:`.sood2003`) and the Atalay cases
 (:mod:`.atalay1997`) are both built on it.
 
 The two classes are transitional, and their names keep the 1999 report's

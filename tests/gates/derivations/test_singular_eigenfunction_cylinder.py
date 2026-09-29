@@ -99,7 +99,7 @@ from orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_deri
     derive_flux_reconstruction_bare_cylinder,
     derive_singular_subtraction_eq31,
 )
-from orpheus.derivations.continuous.sood_registry import LA13511_CASES
+from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
 
 
 # Suppress numpy / scipy integration warnings from the kernel quadrature
@@ -311,7 +311,7 @@ def test_solver_matches_sood_ua_1_0_cy_to_1e5():
 
     Both close the Sood reference to ≤ 1e-5 — a strong V&V duo.
     """
-    case = LA13511_CASES["Ua-1-0-CY"]
+    case = SOOD2003_CASES["Ua-1-0-CY"]
     truth_mfp = case.truth.critical_dimension_mfp
 
     res = solve_singular_eigenfunction_cylinder_bare_critical(

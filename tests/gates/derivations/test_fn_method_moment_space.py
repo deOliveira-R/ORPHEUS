@@ -4,7 +4,7 @@ These are software-invariant tests on the :class:`MomentSpace` facade
 — bit-equality preservation against the function-level API,
 StructuredGeometry input acceptance, and result-type contract
 preservation. They are NOT verification claims about the F_N method's
-accuracy: those are owned by ``test_fn_la13511_*.py`` (which exercise
+accuracy: those are owned by ``test_fn_sood2003_*.py`` (which exercise
 the function-level API and are unchanged by this dispatch).
 
 Phase D consumes :class:`StructuredGeometry` directly via
