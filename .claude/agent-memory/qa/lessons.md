@@ -4,7 +4,7 @@ Read every dispatch. **Behavioral rules only**: one imperative, the check that
 makes it decidable, and its `→ L-0NN` archive pointer.
 
 - **War stories, evidence, `file:line`, measured tables** live in
-  `lessons_archive.md` (`## L-0NN`, L-001..L-091). Open only the `L-0NN` a rule
+  `lessons_archive.md` (`## L-0NN`, L-001..L-092). Open only the `L-0NN` a rule
   points at; never read it whole.
 - **Doctrine is NOT restated here.** The preloaded skills own it: `vv-principles`
   (#1–#36, Modes 7–12, bit-identity, 1-group degeneracy, the `catches`
@@ -473,6 +473,12 @@ r = 2, p = 2); only an alternating, shrinking sequence brackets its limit
 within the last step. check: before a "reference bound <= T/10" floor is
 believed, convert each monotone step with the MEASURED p and re-test the floor;
 ask whether the argument used to deny a sibling a bound applies here too. → L-091
+
+**F25. When a change makes a dead arm REACHABLE, census every method the new
+key unlocks, not only the one the change routes.** check: list the methods that
+dispatch on the newly reachable key (`grep` the kind string), and for each ask
+which gate CONSTRUCTS it through the new door; a sibling with 0 positive gates
+is a live defect habitat (`[M]` `sphere_mr` fixed-source: `n_groups` 1 on 2G). → L-092
 
 ---
 

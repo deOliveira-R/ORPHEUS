@@ -685,7 +685,7 @@ Open items that step 3 owns:
 Open items that P4 owns: the generators store their body once, instead of re-reading it on each `_mat_id` access (C3); la13511's and billiard's coord/kind tables are one bijection (N2).
 Filed: #535, `coord is not CARTESIAN` is a missing `CoordSystem` property (18 compare sites, the elegance review's S3 note).
 
-## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2 (supersedes the 2026-09-26 point for P1's state)
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2 (superseded by the point after step 2b, at the end of this file)
 
 Read in order:
 1. "P1, the carve order". Steps 1 and 2 have LANDED. Step 3 is `Mesh1D(geometry, partition)`.
@@ -750,3 +750,75 @@ Opened by the user's question on `homogeneous_body`'s wording ("it depends on wh
 **Closes** #190 and #421 when landed.
 
 **Sizing:** 1 session `[R]`.
+
+### P1 step 2b, after review (2026-09-29): three commits
+
+The reviews:
+- The elegance review (`scratch/reference_architecture/p1step2b/elegance_report.md`) found two blockers:
+  - F1: the generators drop the boundary laws;
+  - F2: the mixture literals in `la13511.py` are duplicated.
+- qa (`.../qa_report.md`) found the same law defect: Billiard's `alpha` silently wins over the declared law, which moves a hollow sphere's k by 5.4 %.
+- qa also found a defect in the newly reachable `sphere_mr` fixed-source arm: on a 2-group problem it reports `n_groups = 1` and returns group 0 only.
+- The homogeneous paths are bit-identical `[M]`: 104 of 104 generator results, 47 of 47 values of `c`, and 4 of 4 adapter values of τ.
+
+The user ruled (2026-09-29):
+- **Laws join the served pattern now.** Each owner declares the laws it solves and refuses others through the one door. `Billiard`'s `alpha` parameter retires: its albedos come from the geometry's laws. A slab whose two albedos differ selects the asymmetric arm.
+- **Collapse, then re-cite.** Provenance becomes the one citation record, with an edition field, and the mixture literals are shared. Then every case is re-cited to the 2003 edition once, and equations are spelled `(A.N)`.
+
+The commits:
+1. **Routing and laws.**
+   - One law reader, `specular_albedo(law)`: a law's specular albedo, or a refusal. It replaces `Spectrum._extract_R_refl` and is the one definition beside `BC.to_alpha`.
+   - Law patterns per owner. MomentSpace and BasisSpace take vacuum only. Spectrum takes an outer specular albedo, and a slab's two faces must be equal. Billiard takes any specular albedos.
+   - Elegance F4–F9: every refusal goes through the door; `is_hollow` has one definition; the body is stored once; MomentSpace refuses the ignored kwargs on a reflected slab; Billiard reads the shape in one match; the gates stop copying production.
+   - qa's defect in the `sphere_mr` fixed-source arm is fixed, with an ERR entry.
+   - Non-unit-Σt reflected fixtures.
+   - Problem 4 is gated at the published digit: converged F_N at N = 11 and 15 gives 0.4301459, and 2003's 0.43015 must sit within half a unit in the last place.
+   - Every infinite-medium case's stored k∞ and flux ratio are reproduced by `kinf_and_spectrum_homogeneous`, since only 1 of 10 ratios is read today.
+2. **Registry.** Shared mixture helpers (F2), and the Provenance collapse with an `edition` field (F3).
+3. **Re-citation to 2003**, from `.../p1step2b/citation_map.md`:
+   - 91 citation tokens in 44 of 47 cases;
+   - `sood_table` on 46 of 47 cases;
+   - `paper_id`, and its gate;
+   - the three stale docstrings;
+   - the 10 mislabelled author names;
+   - the equation-numbered derivation name `derive_kinf_1g_eq_20_simplifies_to_eq_19`, with a retirement audit;
+   - about 23 comment citations.
+
+### P1 step 2b, the three commits as landed on the branch (2026-09-29)
+
+**Merged @ `071e582e`** (`--ff-only`, 2026-09-29): `1aab17a6` (routing and laws), `cc7a802e`, `49576c27`, `f02d7d9d`, `e8b83fc9` (the archivist's pass over the rest of the tree, 212 citations in 49 files) and `071e582e` (three false claims about the Sood references). Both branches are deleted.
+
+- `cc7a802e`, commit 2. `Provenance` is the one citation record, and the flat fields `sood_table`, `primary_reference` and `notes` are retired. 54 of 54 cases' flat fields were checked equal to their provenance before 162 keywords were removed. One shared builder per material; 47 of 47 mixtures are bitwise equal to the previous commit's.
+  - **Deviation from the ruling, reported to the user, no answer yet:** there is no `edition` field. `paper_id` names the publication and so the edition ("Sood-2003"), because an `edition` field beside it would be a second spelling of one fact.
+- `49576c27`, an unplanned fix found while re-citing: **ERR-092**. The claim "Sood Eq 28 has a typo" was a mis-transcription in `fn_method/origins/k_inf_derivations.py`. Its gate V_fn2.1 asserted that the derivation DIFFERS from that transcription, and any wrong transcription passes such a check. V_fn2.1 now asserts that the derivation EQUALS the printed equation. The claim is removed from 7 sites, and `fn_method.rst` records it as refuted. Mutation: restoring the swapped transcription reddens V_fn2.1, 1 of 39.
+  - Filed **#537**: the tree's other published-typo claims (WM-72 Eq 17, Carlvik Eq 4b, Adams-Martin A.1, BMC Eq 50) are open to the same failure until each is read against its page image.
+- `f02d7d9d`, commit 3. The registry and the k∞ algebra-of-record cite the 2003 edition.
+  - `paper_table` changes on 46 of 47 cases, and 10 author mislabels are corrected.
+  - Six equation-numbered symbols are renamed (e.g. `derive_kinf_1g_eq_a3_simplifies_to_eq_a2`). `dead_references` reads 0 of 66.
+  - The gate reds when a 1999 citation returns (1 of 131).
+  - Census: 0 tokens shaped like a 1999 citation remain, against 93 at the previous commit.
+
+The pre-merge gate at `e8b83fc9`: `tests/gates` with `-m "not slow"`, serial `-O`, per tree (`scratch/reference_architecture/p1step2b/gate/`). It gave 12216 passed and 0 failed in 37 min. The step-2 baseline below (12416 passed in 2 h 14 min) is a different population, since it did not deselect `slow`; the two counts are not comparable. The 244 skips in `derivations` are 231 withdrawn tests (#506) and 13 explicit skips, 12 of them the stub cases.
+
+#536's body now says Billiard reaches the reflected spheres and cylinders, and that problem 4 is gated at the published digit. #421 was closed by hand: GitHub read `Closes #190, #421` as closing #190 only.
+
+**Open after step 2b, waiting for the user:**
+- **Naming.** the module `sood_registry/la13511.py`, the classes `La13511Case` and `La13511Truth`, `LA13511_CASES`, and the test files `test_*la13511*` and `test_fn_sood_table10_*` carry the 1999 report's number. The registry now cites the 2003 paper.
+
+- **The `edition` field.** The ruling asked for one. `paper_id="Sood-2003"` carries the edition instead, since a field beside it would state the same fact twice.
+
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2b (supersedes the point after step 2)
+
+Read in order:
+1. "P1, the carve order". Steps 1, 2 and 2b have LANDED (`main` `071e582e`). Step 3 is `Mesh1D(geometry, partition)`.
+2. "P1 step 2 opened", its rulings 1–7, and "Step 3's scope after step 2": the open items step 3 owns.
+3. `.claude/plans/reference_p1_spec.md` §1.3 (step 3's gates) and §3 (the migration protocol).
+4. The two questions above ("Open after step 2b"). They do not block step 3.
+
+Step 3 runs as W3 on a branch `refactor/reference-specification`, recreated from `main`.
+
+Durable lessons of step 2b:
+- **A gate that asserts two expressions DIFFER certifies nothing about either.** Any wrong transcription passes it (ERR-092). A claim that a published equation is wrong is read against the page image first; its gate then asserts the equality that the corrected reading satisfies. The tree's other typo claims are #537.
+- **A re-citation between editions is a map, not an offset.** Tables and appendix equations shifted uniformly between 1999 and 2003. References shifted in three blocks, and some values changed. About ten of the registry's own citations were wrong under either numbering. Every row was measured against both texts (`citation_map.md`); a computed offset would have produced about ten wrong citations.
+- **Stale prose clusters around a rewrite.** One edition swap found eight false present-tense claims (a displayed equation, counts, attributions, "placeholder" modules). Budget a claims check beside every citation pass, not only the renumbering.
+- **GitHub closes only the first issue of `Closes #A, #B`.** Write one `Closes` per issue.

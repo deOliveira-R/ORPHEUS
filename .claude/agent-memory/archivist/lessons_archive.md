@@ -14044,3 +14044,22 @@ Context: documenting `StructuredGeometry`'s re-spelling (coord, breakpoints, mat
   as a sequence), each making a sentence I had just written false** (L-089's loop, again): the
   coordinator's message listed them; the re-read after every build is what would have caught
   them without it.
+
+## L-116 — P1 step 2b docs pass: re-pointing an automodule makes a never-rendered docstring a build input (2026-09-29)
+
+Context: `homogeneous_body.py` renamed to `reference_body.py`; the API page's `automodule` re-pointed
+at the new module, whose module docstring carried a new RST simple table.
+
+- **The first build after the re-point is the first time anything parses that docstring as RST.**
+  The baseline build could not see it (the automodule still named the dead module, which gave a
+  different warning: the autodoc import failure), so the "warning set unchanged" comparison traded
+  one warning for a new one: `reference_body.py:docstring … ERROR: Malformed table` (the first
+  column's `:class:`HomogeneousBody`` was 24 characters against a 21-character rule). The docstring
+  is `.py`, outside my edit scope, so the fix went to `main`, and the whole `-W` build had to run
+  a third time. The cheap pre-check: before the verification build, parse the re-pointed module's
+  docstring with `docutils.core.publish_doctree` (warning stream captured, role errors filtered),
+  and use the OLD table as the positive control (it printed "Malformed table"; the widened one
+  printed nothing). `[M]` 2026-09-29: this saved nothing this time because I ran it after the red;
+  run it before.
+- The same pass fixed three pre-existing nested-markup defects (a role inside `**…**`) on pages it
+  touched; the rendered-HTML scan (surviving `:role:` text) found them, the build did not.

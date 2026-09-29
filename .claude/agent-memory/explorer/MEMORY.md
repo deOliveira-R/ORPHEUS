@@ -54,3 +54,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Mesh1D direct-construction census](mesh1d_direct_construction_census.md) — 410/450 geometry+rule; D bit-exact as region-per-cell; default method moves curvilinear.
 - [Method-hub commonality](method_hub_commonality.md) — ends at MaterialMesh; 2-of-6 boundary quartet; seams sit below hubs.
 - [Problem-side accessor uses](problem_side_accessor_uses.md) — k = sides Rayleigh; SN gauge straddles sides; two mechanisms not one.
+- [Sood editions 1999 vs 2003](sood_editions_1999_vs_2003.md) — delta confined to 9 problems; 2003 XS = primary's; OCR tables live in the sidecar.

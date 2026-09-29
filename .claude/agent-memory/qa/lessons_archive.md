@@ -5988,3 +5988,9 @@ last step of a non-monotone sequence bounds nothing"; the sphere's n_r
 sequence at n_mu = 24 is itself non-monotone at 72 (+8.8e-5). The mu leg is
 honest only by the Leibniz argument (alternating, shrinking steps).
 Remedy was a tolerance one notch looser (4e-3); the mutant still reds (7.9e-3).
+
+## L-092 — a routing change that makes a dead arm REACHABLE ships that arm's latent defects live, and the route gate only tests the arm it routes (2026-09-29, W3 P1 step 2b QA, `refactor/reference-body-routing` @ `70ac4993` + uncommitted)
+
+The body classification made Billiard's `sphere_mr` constructor-reachable for the first time. The change routed and gated `solve_critical` (bit-identical to the bare solver). The same geometry kind also unlocked `solve_fixed_source`, a sibling method on the same arm that had been unreachable since it was written. It had 0 positive gates, and `[M]` it reported `n_groups = 1` on a two-group problem (`reshape(-1, 1).shape[1]` is 1 by construction). Its `phi_g` did match the bare solver. `retirement-audit` "The mirror" covers stale DEFERRAL prose when a capability lands. It does not cover the unexercised CODE behind the gate that just opened.
+
+A second observation from the same review: the author's mutation arm for the new cylinder route patched the solver's MODULE attribute, which the facade and the test's bare reference both call. Its red was a `TypeError` in both, not a discrimination. Two arms aimed at the facade alone (runs reversed, σₛ transposed) reddened the gate properly. This is #17(h) plus X4. It is not a new rule.

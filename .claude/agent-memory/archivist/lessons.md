@@ -137,6 +137,10 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   lines carry no `WARNING:` prefix, so read the whole log and grep `CRITICAL:` too. → L-114,
   L-070, L-060, L-002, L-027, L-040, L-054, L-055, L-048, L-095
 
+- **Re-pointing an `automodule` makes a docstring no build ever parsed a build input** — the baseline
+  cannot see it, so parse the new module's docstring with `docutils` (old text as the positive
+  control) BEFORE the verification build; a `.py` defect found by the build costs a third build. → L-116
+
 ### 2b. The xref gate, and what acceptance actually is
 
 - **⛔⛔ The project xref gate is ROLE-scoped-blind: `DEAD TARGETS: 0` certifies `:mod:` targets and
