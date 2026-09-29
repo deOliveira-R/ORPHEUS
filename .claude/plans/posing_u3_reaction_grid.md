@@ -1,6 +1,6 @@
 # The cross-section grid stores reactions, and every total is derived where it is used (posing unit 3)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "The input layer". Depends on nothing in the posing work; touches `orpheus/data/` and every consumer of the stored totals.
+Status: SCHEDULED, not opened (2026-09-29). Issue #526; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "The input layer". Depends on nothing in the posing work; touches `orpheus/data/` and every consumer of the stored totals.
 
 ## Goal, in the domain's terms
 

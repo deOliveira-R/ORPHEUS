@@ -1666,14 +1666,19 @@ Gates: the section's layer-1 and layer-2 lists. Size: 8–12; it will itself nee
 
 unit 0 → unit 2 (the `projection.py` fold); units 2, 3, 4 → unit 6; unit 4 → unit 5 → unit 6's Strategy side; unit 1 → unit 7's `Estimated`; P1 (reference campaign) takes the three seeds and otherwise runs in parallel with units 0–4. Units 0, 1, 3 and 4 can start in any order; 2 after 0's fold.
 
-### The proposed issue split
+### The issues (opened 2026-09-29; the user ruled the split and the P1 seeds: "Yes. Agree on both")
+
+Charter #522. Units: 0 #523, 1 #524, 2 #525, 3 #526, 4 #527, 5 #528, 6 #529, each with its plan file `posing_u<k>_*.md`. Unit 7: #530 (the V → V* investigation), #531 (the pseudospectrum question), #532 (production DSA as the coarse summand), #533 (delayed-neutron, 1/v and upscatter data), #534 (the Monte Carlo seam), #518 (the collision operator; commented). Absorbed: #445 (by #526), #296 (by #527, #528), #273 and #324 (by #528); #343 answered by #528. The P1 seeds: `reference_cache.md`, "The posing sequence's seeds for P1", and a comment on #405.
+
+### The proposed issue split (as proposed, before the ruling)
 
 One umbrella issue, "the posing sequence: three layers from the material mesh to a solution" (the charter), linking this plan and one child issue per unit 0–6, each child carrying its own plan file in `.claude/plans/` (written to `plan-authoring`, its done-when re-measured when it opens), plus the unit-7 items as separate issues or comments on existing ones (#518 exists). The P1 seeds go as a comment on #405 and an edit of `reference_cache.md`. Every issue carries a `module:`, `level:` and `type:` label.
 
 ## ⏸ COMPACTION POINT — 2026-09-29 (supersedes the 2026-09-28 points below; read "The ontology as it stands" first)
 
 State: every item left open by the second fold is ruled, after four investigations (ν, `TransportMethod`, `FundamentalMode`, the direct-sum prototype and its two attacks), three further prototypes (blocks and splittings; axis splittings and order-then-split; `Ordering` as the primitive) and the attack on the ordering architecture with the user's pipeline refinement. Everything is folded into "The ontology as it stands" (third pass, 2026-09-29): the direct-sum space; the operator level against the structure level (a morphism placed by what it reads); `Ordering` as the primitive, a partial order with cuts; `Splitting` with its interface and `K`; augment and eliminate; directed and reciprocal coupling graphs; the derived angular section; the `Mode` law; `TransportMethod` retired; the trace corrections. What remains `[OPEN]`: the `V → V*` grading (its own investigation). The user has NOT ruled the plan polished.
-Next: (1) the polish ruling (a clean-context attack on the third pass is the user's call); (2) the campaign charter and the unbuilt parts as issues, then P1 step 7's question values; (3) resume P1 step 2 (`reference_cache.md`).
+Then (2026-09-29): the work was ordered by dependence ("The work, ordered by dependence"), split into units with plan files, and opened as issues: charter #522, units #523–#529, later items #530–#534; the P1 seeds recorded in `reference_cache.md`. The plan is chartered; implementation proceeds unit by unit from each unit's plan file.
+Next: resume the reference campaign at P1 step 2 (`reference_cache.md`, its latest ⏸ point and "The posing sequence's seeds for P1"), and open posing units 0, 1, 3 or 4 when the user chooses; each re-measures its done-when at opening.
 Prototypes and memos (untracked): `scratch/posing_sequence/open_items/` (`nu_probe/`, `transport_method/`, `fundamental_mode/`, `coproduct/{proto,proto2,proto3,proto4,attack_structure,attack_elegance}/`, `ordering_attack/{structure,elegance}/`), `scratch/posing_sequence/clean_attack2/`.
 Still owed from before: the OCR re-run (`tools/ocr_literature.py`); the literature list of the first 2026-09-28 point; the agents' memory updates, committed at close-out.
 

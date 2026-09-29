@@ -1,6 +1,6 @@
 # A system's unknowns live in one labelled direct-sum space, and every block structure is one partition (posing unit 4)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "Layer 1: the direct-sum space and the trace" and the `TransportMethod` paragraph. Evidence: the prototype and its two attacks, `scratch/posing_sequence/open_items/coproduct/` (`memo.md`, `proto/`, `attack_structure/`, `attack_elegance/`, `proto2/`, `proto3/`). Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools`. Depends on units 0 and 2 only through names.
+Status: SCHEDULED, not opened (2026-09-29). Issue #527; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "Layer 1: the direct-sum space and the trace" and the `TransportMethod` paragraph. Evidence: the prototype and its two attacks, `scratch/posing_sequence/open_items/coproduct/` (`memo.md`, `proto/`, `attack_structure/`, `attack_elegance/`, `proto2/`, `proto3/`). Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools`. Depends on units 0 and 2 only through names.
 
 ## Goal, in the domain's terms
 

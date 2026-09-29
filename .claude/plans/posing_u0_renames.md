@@ -1,6 +1,6 @@
 # Every loose holder carries the word its structure has (posing unit 0)
 
-Status: SCHEDULED, not opened (2026-09-29). The charter is `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; the ruled names are its "The ontology as it stands", "Names ruled". This plan was written at scheduling time: every count below is `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools` (lines, files; word-bounded; `docs/` not counted) and every done-when is a hypothesis to re-measure when the unit opens (plan-authoring SCHEDULED-DONE-WHEN).
+Status: SCHEDULED, not opened (2026-09-29). Issue #523; charter issue #522. The charter is `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; the ruled names are its "The ontology as it stands", "Names ruled". This plan was written at scheduling time: every count below is `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools` (lines, files; word-bounded; `docs/` not counted) and every done-when is a hypothesis to re-measure when the unit opens (plan-authoring SCHEDULED-DONE-WHEN).
 
 ## Goal, in the domain's terms
 

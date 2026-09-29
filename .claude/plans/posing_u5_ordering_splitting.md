@@ -1,6 +1,6 @@
 # A solve is an ordering of a system and the splitting it induces, with its contraction rate predicted (posing unit 5)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "Layer 3: the solution — the structure level". Evidence: `scratch/posing_sequence/open_items/coproduct/proto2/`, `proto3/`, `proto4/` and `scratch/posing_sequence/open_items/ordering_attack/{structure,elegance}/`. Depends on unit 4.
+Status: SCHEDULED, not opened (2026-09-29). Issue #528; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", "Layer 3: the solution — the structure level". Evidence: `scratch/posing_sequence/open_items/coproduct/proto2/`, `proto3/`, `proto4/` and `scratch/posing_sequence/open_items/ordering_attack/{structure,elegance}/`. Depends on unit 4.
 
 ## Goal, in the domain's terms
 

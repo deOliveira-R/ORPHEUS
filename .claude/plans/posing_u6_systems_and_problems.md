@@ -1,6 +1,6 @@
 # Layer 1 ends in systems that carry their equation, and layer 2 poses physics-free questions on them (posing unit 6)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", layers 1 and 2 and the plan/binding paragraph of layer 3. Depends on units 2 (the frame faces), 3 (the terms from the grid's cells), 4 (the direct-sum space), and 5 for the Strategy side. This is the layered machinery; it opens only when those preconditions are merged, and its first act is a phase plan with compaction points (plan-authoring §6).
+Status: SCHEDULED, not opened (2026-09-29). Issue #529; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; ruled content: "The ontology as it stands", layers 1 and 2 and the plan/binding paragraph of layer 3. Depends on units 2 (the frame faces), 3 (the terms from the grid's cells), 4 (the direct-sum space), and 5 for the Strategy side. This is the layered machinery; it opens only when those preconditions are merged, and its first act is a phase plan with compaction points (plan-authoring §6).
 
 ## Goal, in the domain's terms
 

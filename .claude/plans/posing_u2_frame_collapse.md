@@ -1,6 +1,6 @@
 # Every collapse, projection and section is one verb of one frame hierarchy (posing unit 2)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; the ruled content is "The ontology as it stands", "The frame and kernel hierarchy". Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools`; done-whens are hypotheses re-measured at opening. Depends on unit 0 (`projection.py` folded into `frame.py`).
+Status: SCHEDULED, not opened (2026-09-29). Issue #525; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence"; the ruled content is "The ontology as it stands", "The frame and kernel hierarchy". Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools`; done-whens are hypotheses re-measured at opening. Depends on unit 0 (`projection.py` folded into `frame.py`).
 
 ## Goal, in the domain's terms
 

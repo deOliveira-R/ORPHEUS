@@ -1,6 +1,6 @@
 # Independent defects the posing work found, fixed where they stand (posing unit 1)
 
-Status: SCHEDULED, not opened (2026-09-29). Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence". Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools` unless marked; done-whens are hypotheses re-measured at opening.
+Status: SCHEDULED, not opened (2026-09-29). Issue #524; charter issue #522. Charter: `.claude/plans/posing_sequence.md`, "The work, ordered by dependence". Counts `[M]` 2026-09-29 by `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools` unless marked; done-whens are hypotheses re-measured at opening.
 
 ## Goal, in the domain's terms
 
