@@ -224,7 +224,7 @@ def test_case_pillar_is_not_ancillary(case: CrossMethodCase):
 def test_fn_slab_matches_truth(case: CrossMethodCase):
     """F_N slab reproduces the case's truth ``a_critical_mfp``.
 
-    Backed by Sood LA-13511 / Grandjean-Siewert / KLL via Sood
+    Backed by Sood 2003 / Grandjean-Siewert / KLL via Sood
     transcription.
     """
     adapter = FNSlabAdapter()
@@ -283,7 +283,7 @@ def test_fn_slab_grandjean_siewert_table_xi(case: CrossMethodCase):
 def test_fn_sphere_matches_truth(case: CrossMethodCase):
     """F_N sphere reproduces the case's truth ``R_critical_mfp``.
 
-    Backed by Sood LA-13511 / KLL via Sood transcription. F_N
+    Backed by Sood 2003 / KLL via Sood transcription. F_N
     sphere at N=10 reaches ~5e-8 absolute on R_c.
     """
     adapter = FNSphereAdapter()
@@ -390,7 +390,7 @@ def test_trajectory_resolvent_sphere_matches_truth_keff_one(
 def test_fn_reflected_slab_matches_truth(case: CrossMethodCase):
     """F_N reflected slab reproduces the case's truth ``tau_critical_mfp``.
 
-    Backed by Sood LA-13511 Table 10 + NM 1980 Table 2 + Burkart
+    Backed by Sood 2003 Table 7 (problem 4) + NM 1980 Table 2 + Burkart
     1976 'Exact'. **No trajectory_resolvent counterpart** — this is
     one-sided coverage. The trajectory_resolvent slab has an
     asymmetric variant

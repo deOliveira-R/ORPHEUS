@@ -137,4 +137,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-089 | 1 |  | ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −… |
 | ERR-090 | 3 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
-| ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 by comparing the derivation with a mis-transcription o… |
+| ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |

@@ -30,9 +30,9 @@ Case-set inventory
 References
 ----------
 
-* Sood, Forster, Parsons (1999), LA-13511.
+* Sood, Forster, Parsons (2003), *Prog. Nucl. Energy* **42**, 55.
 * Kaper, Lindeman, Leaf (1974), *Nucl. Sci. Eng.* **54**, 94 (the
-  underlying truth source for Sood Tables 4, 6, 13; not directly
+  underlying truth source for Sood 2003 Tables 4, 10, 14; not directly
   obtainable, transcribed via Sood — see
   ``.claude/agent-memory/literature-researcher/kaper_lindeman_leaf_1974_fn_method.md``).
 * Grandjean, Siewert (1979), *Nucl. Sci. Eng.* **69**, 161 — Table
@@ -84,7 +84,7 @@ _TR_SLAB_TOL_DEFAULT = 5e-5
 
 BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
     # c = 1.02 — UD2O, lowest c in the bare 1G slab family.
-    # Sood Table 17. F_N has bracket-loss issues at N≥14; cap at N=12.
+    # Sood 2003 Table 14. F_N has bracket-loss issues at N≥14; cap at N=12.
     CrossMethodCase(
         case_id="UD2O-1-0-SL-c1.02",
         description=(
@@ -96,8 +96,8 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         truth_tag="a_critical_mfp",
         truth_value=5.6655054562,
         truth_source=(
-            "Sood LA-13511 Table 17 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 14, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -129,8 +129,8 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         truth_tag="a_critical_mfp",
         truth_value=0.93772556,
         truth_source=(
-            "Sood LA-13511 Table 4 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 10, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -152,8 +152,8 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         truth_tag="a_critical_mfp",
         truth_value=0.73660355,
         truth_source=(
-            "Sood LA-13511 Table 7 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 4, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -174,8 +174,8 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         truth_tag="a_critical_mfp",
         truth_value=0.605055,
         truth_source=(
-            "Sood LA-13511 Table 6 (1999), citing Lathrop-Leonard "
-            "1965 NSE 22, 115 (Ref. 9)"
+            "Sood 2003 Table 3, citing Kornreich-Ganapol "
+            "1997 NSE 126, 293 (Ref. [16])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -216,8 +216,8 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         truth_tag="R_critical_mfp",
         truth_value=12.0275320980,
         truth_source=(
-            "Sood LA-13511 Table 17 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 14, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -246,8 +246,8 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         truth_tag="R_critical_mfp",
         truth_value=2.4248249802,
         truth_source=(
-            "Sood LA-13511 Table 5 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 10, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -269,8 +269,8 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         truth_tag="R_critical_mfp",
         truth_value=1.9853434324,
         truth_source=(
-            "Sood LA-13511 Table 7 (1999), citing Kaper-Lindeman-Leaf "
-            "1974 NSE 54, 94 (Ref. 26)"
+            "Sood 2003 Table 4, citing Kaper-Lindeman-Leaf "
+            "1974 NSE 54, 94 (Ref. [35])"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
@@ -523,7 +523,7 @@ REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
 #
 # When trajectory_resolvent solves a closed (α=1) homogeneous sphere
 # the rank-1 isotropic eigenmode gives k_eff = k_inf exactly (V_α1).
-# The fn_method computes k_inf directly via Sood Eq 19/29/76 closed
+# The fn_method computes k_inf directly via Sood Eqs (A.2)/(A.12)/(A.59) closed
 # form. Comparing the two for 1G/2G/multi-group cases gives the
 # multi-group cross-method coverage that bare-critical does not
 # provide.

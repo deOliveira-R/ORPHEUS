@@ -17,8 +17,8 @@ Key Facts
 - **What this is**: a registry, not a method. It is the single source
   of truth for benchmark case configurations (cross sections,
   geometry, published reference values) from the Sood-family
-  literature — currently LA-13511 (Sood/Forster/Parsons 1999) and
-  Atalay 1997. The folder name (``sood_registry/``) preserves the
+  literature — currently Sood/Forster/Parsons 2003, the edition the
+  registry cites (:ref:`sood-registry-editions`), and Atalay 1997. The folder name (``sood_registry/``) preserves the
   author name because it identifies a *case collection*, not a
   method — author-named registries are explicitly allowed under the
   project's folder-naming rule.
@@ -28,13 +28,14 @@ Key Facts
   different adapters — see :ref:`sood-registry-purpose`.
 - **Coverage today**:
 
-  * **LA-13511**: 5 first-slice cases (PUa-1-0-IN, PU-2-0-IN,
-    Ua-1-0-SL/CY/SP) + 30 wide-slice active cases + 12 wide-slice
-    stub cases (cylinder + 2G bare-critical pending solver
-    dispatch). Total: **42 LA-13511 cases.**
+  * **Sood/Forster/Parsons 2003**: 5 first-slice cases (PUa-1-0-IN,
+    PU-2-0-IN, Ua-1-0-SL/CY/SP) + 30 wide-slice active cases + 12
+    wide-slice stub cases (cylinder + 2G bare-critical pending solver
+    dispatch). Total: **47 Sood cases** (``len(LA13511_CASES)``,
+    `[M]` 2026-09-29).
   * **Atalay 1997**: 6 slab + 1 sphere = 7 reflected /
     linearly-anisotropic cases.
-  * **Total: 49 cases shipped.**
+  * **Total: 54 cases shipped.**
 - **Production-protocol-aligned**: every case carries
   ``materials: dict[int, Mixture]`` + ``geometry_kind: str`` (one of
   ``"slab"`` / ``"sphere"`` / ``"cylinder"`` / ``"infinite"``)
@@ -109,6 +110,76 @@ config — never in the registry.
 The full design rationale lives in the closeout memo
 ``.claude/agent-memory/method-implementer/sood_registry_phase_a_migration.md``.
 
+.. _sood-registry-editions:
+
+Editions — the registry cites the 2003 paper
+============================================
+
+The Sood cases exist in two editions by the same authors: the journal
+article Sood, Forster and Parsons, "Analytical benchmark test set for
+criticality code verification", *Progress in Nuclear Energy*
+**42**\ (1), 55-106 (2003) :cite:`SoodForsterParsons2003`, and the Los
+Alamos report LA-13511 of July 1999 :cite:`SoodLA13511_1999`. The
+registry cites the 2003 edition (the user's ruling of 2026-09-29):
+every Sood case's ``provenance.paper_id`` is ``"Sood-2003"``, and
+every table, equation, reference and page number in its provenance is
+the 2003 edition's. The module and class names (``la13511``,
+``La13511Case``, ``LA13511_CASES``) keep the report's number: they are
+identifiers, not citations.
+
+The two editions pose the same 75 problems under the same problem
+numbers and case identifiers. They differ in numbering, in some
+values, and in a few printed equations and citations.
+
+**Numbering.** A citation in the 1999 numbering, read against the
+2003 paper, points at the wrong object:
+
+* appendix equations: 1999 Eq N (N ≥ 18) is 2003 Eq (A.N−17). The
+  2003 page prints the label as "(.N)"; this corpus spells it (A.N).
+* tables: 1999 Table N is 2003 Table N−3 for N = 5 to 67. The 1999
+  Tables 2-4 are overview tables with no 2003 counterpart.
+* references: the lists are matched by title, with no uniform offset
+  (1999 [1] is 2003 [7]; [2]-[25] shift by 7, [26]-[42] by 9 and
+  [43]-[44] by 10).
+* sections: the 1999 Sections VI-IX (one, two, three and six groups)
+  are the 2003 Sections 4-7.
+
+**Values.** The two-group U-Al set (problems 50-52) and the two-group
+U-D2O set (problems 67-69) have different cross sections in the two
+editions, and so different :math:`k_\infty` and flux ratios: for
+example UAL-2-0-IN has :math:`k_\infty = 2.661745` in 1999 and
+2.662437 in 2003, and UD2O-2-0-IN has 1.000196 and 1.000221. Each
+edition's cross sections reproduce its own :math:`k_\infty`, and the
+primary source of the U-Al set (Siewert and Thomas 1986, 2003 Ref.
+[15]) reproduces the 2003 value to 5.8 digits and the 1999 value to
+3.6. Before commit ``1aab17a6`` the registry held the 1999 values,
+and 36 of its stored values, in 6 of the 47 cases, differed from the
+2003 edition's; every field of the other 41 cases is the same in both
+editions. Outside the registry, problems 3, 4, 71, 72 and 73 also
+changed (problem 4's critical half-thickness is 0.43014 mfp in 1999
+and 0.43015 mfp in 2003).
+
+**Printed equations and citations.** Two appendix equations changed
+body, both 1999 misprints that the 2003 edition corrects: 1999 Eq 52
+(2003 Eq (A.35)) printed :math:`\nu_3\Sigma_{2f}` where 2003 prints
+:math:`\nu_2\Sigma_{2f}`, and 1999 Eq 76 (2003 Eq (A.59)) printed the
+flux vector where 2003 prints the fission spectrum
+(:ref:`fn-method-V-fn-mg-1`). The 2003 Table 29 cites Refs. [15],
+[44] and [45] for problem 46, where the 1999 Table 32 cites Ref. 8
+alone.
+
+**Evidence.** `[M]` 2026-09-29: the census of every stored value
+against both editions, with each infinite-medium :math:`k_\infty`
+recomputed from each edition's cross sections, is
+``scratch/reference_architecture/p1step2b/edition_census.md``; the
+conversion map of every citation, measured against both editions'
+text, is ``scratch/reference_architecture/p1step2b/citation_map.md``.
+The values moved to the 2003 edition in commit ``1aab17a6`` and the
+citations in ``f02d7d9d``. The gate
+``tests/gates/derivations/test_la13511_to_geometry.py::test_la13511_case_has_provenance``
+asserts ``paper_id == "Sood-2003"`` on every case and that no
+provenance string names LA-13511.
+
 Schema
 ======
 
@@ -128,7 +199,8 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
      - Sood naming convention identifier (``<Material>-<Groups>-<Scattering>-<Geometry>``).
    * - ``problem_number``
      - ``int``
-     - Sequential problem number within LA-13511.
+     - Problem number in the Sood test set (1-75; the same number in
+       the 1999 and 2003 editions).
    * - ``description``
      - ``str``
      - One-line human-readable description.
@@ -148,7 +220,8 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
    * - ``scattering_order``
      - ``int``
      - Legendre order of the scattering kernel (0 = isotropic,
-       1 = P_1, 2 = P_2). Most LA-13511 cases are isotropic.
+       1 = P_1, 2 = P_2). 42 of the 47 Sood cases are isotropic
+       (``scattering_order == 0``; `[M]` 2026-09-29).
    * - ``truth``
      - :class:`La13511Truth`
      - Published reference values: :math:`k_{\rm eff}` /
@@ -156,7 +229,10 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
    * - ``provenance``
      - :class:`Provenance`
      - The case's one citation record (required): ``paper_id`` (the
-       publication, and so the edition), ``paper_table``,
+       publication, and so the edition: ``"Sood-2003"`` on every Sood
+       case, ``"Atalay-1997"`` on the Atalay cases; see
+       :ref:`sood-registry-editions`), ``paper_table`` (a table
+       number of that edition),
        ``primary_reference`` (the peer-reviewed paper Sood cites as the
        source) and ``notes`` (free-form remarks). Added in Phase B
        (2026-05-04) beside the flat fields ``sood_table``,
@@ -299,11 +375,11 @@ convention** directly.
 The scattering matrix uses ORPHEUS's ``[from, to]`` convention:
 ``sigma_s[g, h]`` is :math:`\Sigma_{s, g \to h}`. The
 :math:`\Sigma_g^{\rm rem}` removal cross sections used by Sood
-Eqs 26-27 are therefore ``sigma_t[g] - sigma_s[g, g]``.
+Eqs (A.9)-(A.10) are therefore ``sigma_t[g] - sigma_s[g, g]``.
 
 The :func:`...fn_method.origins.k_inf_derivations.derive_*` SymPy
-modules use Sood's symbols verbatim so equations match the LA-13511
-report letter-for-letter; the conversion is purely a relabeling and
+modules use Sood's symbols verbatim so equations match the 2003
+paper letter-for-letter; the conversion is purely a relabeling and
 the algebra is identical for either side.
 
 .. _sood-case-to-geometry:
@@ -384,7 +460,7 @@ via the unambiguous rules above. The
 ``test_sood_registry_compatibility.py`` foundation tests pin the
 build conventions for every geometry kind.
 
-First slice — five LA-13511 cases
+First slice — five Sood cases
 ==================================
 
 .. _sood-registry-first-slice:
@@ -430,18 +506,18 @@ legacy ``fn_method.benchmarks.la13511`` module:
 
 Per-case provenance + cross-method status:
 
-* **PUa-1-0-IN**: Sood Eq 19 + 20; verified by V_fn1.1 + V_fn1.2 at
+* **PUa-1-0-IN**: Sood Eqs (A.2) + (A.3); verified by V_fn1.1 + V_fn1.2 at
   the algebra level; verified by the Branch-2
   :func:`~orpheus.derivations.continuous.fn_method.multi_group.k_inf.compute_kinf_1g` numerically;
   cross-checked against
   :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
   ≥ 12 digits.
-* **PU-2-0-IN**: Sood Eq 28 (the general form) is verified as printed
-  by V_fn2.1, which derives it from :math:`\det M = 0`; the
+* **PU-2-0-IN**: Sood Eq (A.11) (the general form) is verified as
+  printed by V_fn2.1, which derives it from :math:`\det M = 0`; the
   Branch-2 ``compute_kinf_2g_general`` evaluates it. An earlier claim
-  that Eq 28 has a typo was a mis-transcription (ERR-092). Sood Eq 29
-  is verified via V_fn2.2; the flux ratio Eq 32 is verified via
-  V_fn2.3.
+  that this equation (Eq 28 in the 1999 numbering) has a typo was a
+  mis-transcription (ERR-092). Sood Eq (A.12) is verified via
+  V_fn2.2; the flux ratio Eq (A.15) is verified via V_fn2.3.
 * **Ua-1-0-SL**: KLL 1974 NSE 54 truth source. Slab F_N solver
   (:func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`,
   Siewert-Benoist 1979 + Grandjean-Siewert 1979) reproduces at
@@ -466,7 +542,9 @@ Wide enumeration coverage
 .. _sood-registry-wide-enumeration:
 
 Phase B3 expanded the registry from the 5-case Phase A first slice
-to **42 LA-13511 cases** spanning every class the existing
+to **47 cases** (the 5 first-slice cases, 30 active wide-slice cases
+and 12 stubs; `[M]` 2026-09-29, ``len(LA13511_CASES)``) spanning
+every class the existing
 ``fn_method`` machinery (k_inf 1G/2G/MG, slab F_N, sphere F_N) can
 solve TODAY, plus stubs for cases pending solver dispatch:
 
@@ -481,19 +559,19 @@ solve TODAY, plus stubs for cases pending solver dispatch:
    * - 1G k_inf infinite-medium
      - 12
      - active
-     - :func:`compute_kinf_1g` (Sood Eq 19)
+     - :func:`compute_kinf_1g` (Sood Eq (A.2))
    * - 2G k_inf infinite-medium (no upscatter)
      - 6
      - active
-     - :func:`compute_kinf_2g_no_upscatter` (Sood Eq 29)
+     - :func:`compute_kinf_2g_no_upscatter` (Sood Eq (A.12))
    * - 2G k_inf infinite-medium (with upscatter)
      - 2
      - active
-     - :func:`compute_kinf_2g_general` (Sood Eq 28)
+     - :func:`compute_kinf_2g_general` (Sood Eq (A.11))
    * - 3G k_inf infinite-medium
      - 1
      - active
-     - :func:`compute_kinf_mg` (Sood Eq 76)
+     - :func:`compute_kinf_mg` (Sood Eq (A.59))
    * - 6G k_inf infinite-medium
      - 1
      - active
@@ -564,7 +642,8 @@ Atalay 1997 reflected/anisotropic registry
 
 The Atalay 1997 case catalogue lives in
 :mod:`orpheus.derivations.continuous.sood_registry.atalay1997`. It is
-**method-agnostic** in the same sense as the LA-13511 catalogue —
+**method-agnostic** in the same sense as the Sood catalogue in
+``la13511`` —
 the case dataclass is :class:`La13511Case` (re-used) carrying
 ``materials`` + ``geometry_kind`` + ``truth`` — but parametrises
 over :math:`(c, R, f_1)` triples rather than material composition,
@@ -619,7 +698,7 @@ Cases shipped:
 
 Atalay 1997 is the **primary source** for the reflected +
 linearly-anisotropic cross-product cases that lie outside both the
-Sood/Forster/Parsons LA-13511 truth set (which focuses on bare
+Sood/Forster/Parsons 2003 truth set (which focuses on bare
 configurations) and the Burkart-Ishiguro-Siewert 1976 F_N reference
 (vacuum-only).
 
@@ -806,7 +885,7 @@ Forward-looking — the meta-registry
 .. _sood-registry-meta-registry:
 
 The current registry has two registries side-by-side:
-:class:`LA13511_CASES` (Sood/Forster/Parsons 1999) and the Atalay
+:class:`LA13511_CASES` (Sood/Forster/Parsons 2003) and the Atalay
 catalogue (Atalay 1997). Both share the same case schema
 (:class:`La13511Case` is re-used for both, despite the misleading
 name) and both feed the same consumer adapter functions
@@ -820,8 +899,8 @@ likely to extend in future Waves to:
 * **Kaper-Lindeman-Leaf 1974 (KLL)** — interior flux reconstruction
   Tables III + VII (slab + sphere) currently consumed by
   :func:`...fn_method.flux_reconstruction.*` directly; could be
-  promoted to a sister registry for consistency with the LA-13511
-  + Atalay pattern.
+  promoted to a sister registry for consistency with the ``la13511``
+  + ``atalay1997`` pattern.
 * **Westfall-Metcalf 1973 (WM-72)** — Table II cylinder critical
   radii (six configurations); currently inlined in
   :mod:`tests.gates.derivations.test_singular_eigenfunction_cylinder`;
@@ -840,12 +919,12 @@ benchmark sources, but the timing is **deliberately deferred** —
 the discipline is "build each new geometry/topology standalone first;
 only unify after ≥ 2 working instances" (see
 ``.claude/agent-memory/feedback_unify_after_two_instances.md``).
-The current LA-13511 + Atalay split is the necessary first step;
+The current ``la13511`` + ``atalay1997`` split is the necessary first step;
 extension to KLL / WM-72 / BIS / Garcia would require ≥ 4 sister
 registries before unification makes architectural sense.
 
 For now: each new published-reference case collection should
-follow the LA-13511 / Atalay pattern (drop a new module under
+follow the ``la13511`` / ``atalay1997`` pattern (drop a new module under
 ``sood_registry/``, share the case schema, register cases as module-
 level constants). When the meta-registry pattern is appropriate, it
 will be backwards-compatible with the existing case files.
@@ -853,17 +932,21 @@ will be backwards-compatible with the existing case files.
 References
 ==========
 
-* Sood, A., Forster, R. A., & Parsons, D. K. (1999).
-  *Analytical Benchmark Test Set for Criticality Code Verification*,
-  LA-13511, Los Alamos National Laboratory. PDF locally available
-  at ``scratch/literature/Sood Foster Parsons (1999)Analytical
-  Benchmark Test Set for Criticality Code Verification.pdf``.
 * Sood, A., Forster, R. A., & Parsons, D. K. (2003).
   *Analytical Benchmark Test Set for Criticality Code Verification.*
-  *Progress in Nuclear Energy* **42**, 55.
-  Journal-published condensation; verified to be a TEST SET not a
-  method paper (see
-  ``.claude/agent-memory/literature-researcher/sood_2003_vs_1999_extraction.md``).
+  *Progress in Nuclear Energy* **42**\ (1), 55-106.
+  DOI: 10.1016/S0149-1970(02)00098-7. A test set, not a method
+  paper. The edition the registry cites; what differs from the 1999
+  report is :ref:`sood-registry-editions`. PDF locally available at
+  ``scratch/literature/Sood-Foster-Parsons(2003)Analytical benchmark
+  test set for criticality code verification.pdf``.
+* Sood, A., Forster, R. A., & Parsons, D. K. (1999).
+  *Analytical Benchmark Test Set for Criticality Code Verification*,
+  LA-13511, Los Alamos National Laboratory. The earlier edition of
+  the same test set, numbered differently and, for the U-Al and U-D2O
+  two-group sets, with other values. PDF locally available
+  at ``scratch/literature/Sood Foster Parsons (1999)Analytical
+  Benchmark Test Set for Criticality Code Verification.pdf``.
 * Atalay, M.A. (1997).
   *The reflected slab and sphere criticality problem with
   anisotropic scattering in one-speed neutron transport theory.*
@@ -906,9 +989,9 @@ Internal references:
   ``.claude/agent-memory/method-implementer/sood_registry_cache_phase_b4.md``.
 * Wave 3 architectural plan:
   ``.claude/plans/wave3/architecture.md``.
-* :doc:`/theory/references/fn_method` — primary consumer of the LA-13511 catalogue
+* :doc:`/theory/references/fn_method` — primary consumer of the Sood catalogue
   (k_inf cases + slab/sphere bare-critical + reflected slab).
 * :doc:`/theory/references/singular_eigenfunction` — primary consumer of the Atalay
-  catalogue + cylinder LA-13511 truth values.
+  catalogue + cylinder Sood truth values.
 * :doc:`/theory/references/trajectory_resolvent` — Variant α cross-checks on shared
   Sood truth values.

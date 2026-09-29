@@ -266,7 +266,7 @@ table is the canonical assignment.
    * - :ref:`theory-sood-registry` (Sood-family case registry)
      - n/a (registry, not a method)
      - n/a
-     - LA-13511 / LA-UR-03-1987 / Atalay 1997 / KLL 1974 truth
+     - Sood 2003 / LA-UR-03-1987 / Atalay 1997 / KLL 1974 truth
        values. Decouples cases from methods.
    * - :ref:`theory-spectral-resolvent` (reserved)
      - Semi-analytical

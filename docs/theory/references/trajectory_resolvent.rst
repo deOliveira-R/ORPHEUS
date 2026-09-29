@@ -1959,7 +1959,7 @@ sphere k-eigenvalue benchmark** for the Issue #132 fuel/moderator
 configuration as of 2026-05-01. Candidate sources for a future
 Plan-(c) effort:
 
-- Sood-Forster-Parsons 2003 (LANL LA-13511) — compiled critical-sphere
+- Sood-Forster-Parsons 2003 (*Prog. Nucl. Energy* **42**, 55) — compiled critical-sphere
   c_crit(R) tables for single-region critical sphere. Anchors the
   PS-1982 homogeneous vacuum-sphere k-eigenvalue chain
   (:math:`c\to c_{\rm crit}` at the integral-operator's unit

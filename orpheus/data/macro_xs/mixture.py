@@ -403,7 +403,7 @@ class Mixture:
         production XS already stored as :attr:`SigP`. This is the
         Case–Zweifel ``c`` — the mean number of secondaries (scatter +
         fission neutrons) emitted per collision in group :math:`g`.
-        For 1-group isotropic cases used by Sood/LA-13511 benchmarks,
+        For 1-group isotropic cases used by the Sood benchmarks,
         ``scattering_ratio[0]`` is the canonical :math:`c` parameter
         consumed by F_N and other analytical solvers.
 

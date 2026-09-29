@@ -18,7 +18,8 @@ References
 ----------
 
 * Siewert & Thomas 1986, *Nucl. Sci. Eng.* **94**, 264.
-* Sood, Forster & Parsons 1999, LA-13511 Table 6 (case ``Ua-1-0-SP``).
+* Sood, Forster & Parsons 2003, *Prog. Nucl. Energy* **42**, 55, Table 10
+  (case ``Ua-1-0-SP``).
 * Kaper, Lindeman & Leaf 1974, *Nucl. Sci. Eng.* **54**, 94 (Table V).
 """
 from __future__ import annotations

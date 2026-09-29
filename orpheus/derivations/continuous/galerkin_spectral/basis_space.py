@@ -141,7 +141,7 @@ References
   Element Method*. Prentice-Hall. Chapter 1: Galerkin
   orthogonality + best-approximation theory + truncation-error
   analysis (Céa's lemma).
-* Sood/Forster/Parsons (1999) LANL report LA-13511. The
+* Sood/Forster/Parsons (2003) *Prog. Nucl. Energy* **42**, 55. The
   ``*-1-1-SL/SP`` benchmark cases (linearly anisotropic
   slab/sphere with :math:`P_1` scattering) that ``BasisSpace``
   targets.

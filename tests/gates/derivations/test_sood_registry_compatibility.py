@@ -123,7 +123,7 @@ def test_case_geometry_matches_expected(case_id: str, expected_geom: str) -> Non
 def test_PUa_1_0_IN_extractor_matches_published_xs() -> None:
     r"""Extractor returns Sood's published XS for PUa-1-0-IN exactly.
 
-    Sood Table 2: :math:`\Sigma_t = 0.32640`, :math:`\Sigma_s = 0.225216`,
+    Sood 2003 Table 2: :math:`\Sigma_t = 0.32640`, :math:`\Sigma_s = 0.225216`,
     :math:`\nu \Sigma_f = 3.24 \cdot 0.0816 = 0.264384`, :math:`\chi = 1.0`.
     """
     sigma_t, sigma_s, nu_sigma_f, chi = _xs_from_mixture(

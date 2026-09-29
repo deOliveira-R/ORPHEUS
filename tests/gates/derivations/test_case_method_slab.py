@@ -4,7 +4,7 @@ References
 ----------
 
 * Atalay, M.A. (1997). *Prog. Nucl. Energy* **31**(3), 229-252.
-* Sood, A., Forster, R.A., Parsons, D.K. (1999). LA-13511.
+* Sood, A., Forster, R.A., Parsons, D.K. (2003). *Prog. Nucl. Energy* **42**, 55.
 
 Tolerance discussion
 --------------------

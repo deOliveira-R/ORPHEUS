@@ -1,10 +1,10 @@
-r"""Phase B3 wide-enumeration k_inf gate — Sood/Forster/Parsons LA-13511.
+r"""Phase B3 wide-enumeration k_inf gate — Sood/Forster/Parsons 2003.
 
 This file covers the **20 k_inf cases** in
 :data:`orpheus.derivations.continuous.sood_registry.WIDE_SLICE_KINF`.
-Each case carries published reference values from LA-13511 (Tables 5,
-12, 16, 20, 24, 28, 30-31, 33-34, 36-37, 39-40, 43-44, 46-47, 49-50,
-59-67); the matching :func:`compute_kinf_*` Branch-2 function reproduces
+Each case carries published reference values from Sood 2003 (Tables 2,
+9, 13, 17, 21, 25, 27-28, 30-31, 33-34, 36-37, 40-41, 43-44, 46-47,
+56-64); the matching :func:`compute_kinf_*` Branch-2 function reproduces
 them at machine precision, modulo Sood's published 5-7 digit truth.
 
 Tag policy: all tests are :func:`pytest.mark.foundation` because the
@@ -13,14 +13,14 @@ infinite-medium k_inf machinery — there is no spatial/angular
 discretisation, hence no L0/L1/L2 ladder applies.
 
 Cross-implementation gate: each case is computed via TWO structurally
-independent paths (Sood Eq 19/29/76 ↔ ``kinf_homogeneous``'s
+independent paths (Sood Eqs (A.2)/(A.12)/(A.59) ↔ ``kinf_homogeneous``'s
 :func:`numpy.linalg.eig` of :math:`A^{-1}F`). They share only ``numpy``
 above the trusted-library line per ``algebra-of-record``.
 
 References
 ----------
 
-* Sood, Forster, Parsons (1999), LA-13511.
+* Sood, Forster, Parsons (2003), *Prog. Nucl. Energy* **42**, 55.
 * Phase B3 closeout memo:
   ``.claude/agent-memory/method-implementer/sood_registry_wide_enumeration_phase_b3.md``.
 """
@@ -80,7 +80,7 @@ ALL_KINF_CASE_IDS = [case.case_id for case in WIDE_SLICE_KINF]
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", KINF_1G_CASE_IDS)
 def test_kinf_1g_matches_sood(case_id: str) -> None:
-    r"""1G k_inf via Sood Eq 19 reproduces published table value to ≤ 1e-5."""
+    r"""1G k_inf via Sood Eq (A.2) reproduces published table value to ≤ 1e-5."""
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_1g(
@@ -89,7 +89,7 @@ def test_kinf_1g_matches_sood(case_id: str) -> None:
         float(case.materials[0].SigP[0]),
     )
     assert k == pytest.approx(truth, abs=1e-5), (
-        f"{case_id}: Eq 19 k_inf = {k}, Sood truth = {truth}, "
+        f"{case_id}: Eq (A.2) k_inf = {k}, Sood truth = {truth}, "
         f"diff = {abs(k - truth):.3e}"
     )
 
@@ -102,14 +102,14 @@ def test_kinf_1g_matches_sood(case_id: str) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", KINF_2G_NO_UPSCATTER_CASE_IDS)
 def test_kinf_2g_no_upscatter_matches_sood(case_id: str) -> None:
-    r"""2G k_inf (no upscatter) via Sood Eq 29 reproduces published table value to ≤ 1e-5."""
+    r"""2G k_inf (no upscatter) via Sood Eq (A.12) reproduces published table value to ≤ 1e-5."""
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_2g_no_upscatter(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
-        f"{case_id}: Eq 29 k_inf = {k}, Sood truth = {truth}, "
+        f"{case_id}: Eq (A.12) k_inf = {k}, Sood truth = {truth}, "
         f"diff = {abs(k - truth):.3e}"
     )
 
@@ -117,9 +117,9 @@ def test_kinf_2g_no_upscatter_matches_sood(case_id: str) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", KINF_2G_WITH_UPSCATTER_CASE_IDS)
 def test_kinf_2g_with_upscatter_matches_sood(case_id: str) -> None:
-    r"""2G k_inf (with upscatter) via Sood Eq 28 (general) reproduces published to ≤ 1e-5.
+    r"""2G k_inf (with upscatter) via Sood Eq (A.11) (general) reproduces published to ≤ 1e-5.
 
-    The no-upscatter Eq-29 specialisation does NOT apply; this gate
+    The no-upscatter Eq (A.12) specialisation does NOT apply; this gate
     pins :func:`compute_kinf_2g_general` for the URRb/URRc cases that
     have :math:`\Sigma_{21s} > 0`.
     """
@@ -132,27 +132,27 @@ def test_kinf_2g_with_upscatter_matches_sood(case_id: str) -> None:
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
-        f"{case_id}: Eq 28 (general) k_inf = {k}, Sood truth = {truth}, "
+        f"{case_id}: Eq (A.11) (general) k_inf = {k}, Sood truth = {truth}, "
         f"diff = {abs(k - truth):.3e}"
     )
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 3G/6G k_inf gate (compute_kinf_mg via Eq 76)
+# 3G/6G k_inf gate (compute_kinf_mg via Eq (A.59))
 # ═══════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("case_id", KINF_MG_CASE_IDS)
 def test_kinf_mg_matches_sood(case_id: str) -> None:
-    r"""Multi-group k_inf via Sood Eq 76 reproduces published table value to ≤ 1e-5."""
+    r"""Multi-group k_inf via Sood Eq (A.59) reproduces published table value to ≤ 1e-5."""
     case = LA13511_CASES[case_id]
     truth = case.truth.k_eff_or_kinf
     k = compute_kinf_mg(
         case.materials[0].SigT, case.materials[0].SigS[0].toarray(), case.materials[0].SigP, case.materials[0].chi,
     )
     assert k == pytest.approx(truth, abs=1e-5), (
-        f"{case_id}: Eq 76 k_inf = {k}, Sood truth = {truth}, "
+        f"{case_id}: Eq (A.59) k_inf = {k}, Sood truth = {truth}, "
         f"diff = {abs(k - truth):.3e}"
     )
 
@@ -169,7 +169,7 @@ def test_kinf_mg_agrees_with_kinf_homogeneous_eig(case_id: str) -> None:
 
     Two structurally independent paths to the same physical k_inf:
 
-    * ``compute_kinf_mg`` evaluates Sood Eq 76 directly via
+    * ``compute_kinf_mg`` evaluates Sood Eq (A.59) directly via
       ``numpy.linalg.solve`` (closed-form result).
     * ``kinf_homogeneous`` builds the transfer matrix
       :math:`A^{-1}\,\chi\,(\nu\Sigma_f)^T` and extracts the dominant
@@ -227,14 +227,14 @@ def test_kinf_2g_general_equals_no_upscatter_when_sigma_21s_zero(case_id: str) -
 # ═══════════════════════════════════════════════════════════════════
 #
 # These two cases are the only Phase-B3 entries that publish multi-group
-# flux ratios at the case spec (LA-13511 Eqs 64-65, Section IX). Verifies
+# flux ratios at the case spec (Sood 2003 Eqs (A.47)-(A.48), Section 6). Verifies
 # that the dominant-eigenvector spectrum from kinf_and_spectrum_homogeneous
 # matches Sood's published ratios.
 
 
 @pytest.mark.foundation
 def test_URR_3_0_IN_flux_spectrum() -> None:
-    r"""URR-3-0-IN: dominant-eigenvector spectrum reproduces Sood Eq 64-65 ratios.
+    r"""URR-3-0-IN: dominant-eigenvector spectrum reproduces Sood Eqs (A.47)-(A.48) ratios.
 
     Sood publishes :math:`\phi_2/\phi_3 = 0.480` (mid/fast) and
     :math:`\phi_1/\phi_3 = 0.150` (slow/fast), both exact rational

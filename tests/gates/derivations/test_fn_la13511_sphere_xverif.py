@@ -41,7 +41,7 @@ References
 * Siewert & Thomas 1986, *Nucl. Sci. Eng.* **94**, 264.
 * Sanchez 1986, *J. Quant. Spec. Rad. Transfer* **35**, 121 (Variant α
   specular leg).
-* Sood, Forster & Parsons 1999, LA-13511 (Table 6).
+* Sood, Forster & Parsons 2003, *Prog. Nucl. Energy* **42**, 55 (Table 10).
 """
 from __future__ import annotations
 

@@ -85,7 +85,7 @@ REGISTRY_KEYED = frozenset({"peierls_nystrom"})
 #: Packages whose rows are deliberately NOT registry keys, with the reason.
 #: `[M]` 2026-08-09: ``fn_method`` registers **nothing** into the continuous
 #: registry — its 9 rows enumerate method *families* (one row covers the 12
-#: LA-13511 1G ``k_inf`` cases, another the 6 2G cases, …), and the cases
+#: Sood 1G ``k_inf`` cases, another the 6 2G cases, …), and the cases
 #: themselves live in the method-agnostic
 #: :mod:`orpheus.derivations.continuous.sood_registry` keyed by Sood case
 #: name. Its row names are therefore human prose by design. That is a
@@ -291,7 +291,8 @@ def test_published_row_names_are_unique_within_a_matrix(pkg_name):
     """The ``name`` column is what a reader scans; it must identify a row.
 
     `[M]` 2026-08-09: ``fn_method`` shipped two rows both labelled
-    ``k_inf — mG general (Sood Eq 76)``, distinguishable only by the
+    ``k_inf — mG general (Sood Eq 76)`` (1999 numbering; Eq (A.59) in
+    2003), distinguishable only by the
     ``n_g`` column — off-pattern against every sibling row, all of which
     name their order (``1G isotropic``, ``2G no-upscatter``). Renamed to
     ``3G`` / ``6G`` at #345.

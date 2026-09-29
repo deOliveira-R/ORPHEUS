@@ -342,7 +342,7 @@ def sphere_scalar_flux_ratio(
     r"""Compute :math:`\phi(r) / \phi(0)` at fractional position
     :math:`r/R`.
 
-    This is the quantity tabulated in KLL Table VII + Sood Table 8.
+    This is the quantity tabulated in KLL Table VII + Sood 2003 Table 5.
 
     Parameters
     ----------

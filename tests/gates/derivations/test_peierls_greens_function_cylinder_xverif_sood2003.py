@@ -1,5 +1,5 @@
 r"""V&V hardening — cylinder Variant α external-reference cross-check
-against Sood/Forster/Parsons LA-13511 (1999) Table 13 ``Ua-1-O-CY``.
+against Sood/Forster/Parsons (2003) Table 10 ``Ua-1-O-CY``.
 
 Closes the highest-priority post-Phase-3 V&V gap on the cylinder
 geometry: prior to this test, cylinder Variant α had only the
@@ -16,7 +16,7 @@ Sood et al. compute critical radii via the **F_N method**:
 - Westfall & Metcalf (1972), *Nucl. Sci. Eng.* 49, 273 — F_N method
   for slab and sphere.
 - Westfall (1983) follow-on — F_N applied to the bare critical
-  cylinder (LA-13511 Refs. 27, 28).
+  cylinder (Sood 2003 Refs. [36], [37]).
 
 The F_N method uses **Case singular eigenfunctions** plus
 **Wiener-Hopf factorization** of the half-space transport equation.
@@ -40,8 +40,8 @@ preceding commit ``1f17c20``.
 Benchmark configuration — ``Ua-1-O-CY``
 ----------------------------------------
 
-LA-13511 Table 12 (U-235 (a) cross sections, c = 1.30) +
-Table 13 (Critical Dimensions for One-Group Bare U-235):
+Sood 2003 Table 9 (U-235 (a) cross sections, c = 1.30) +
+Table 10 (Critical Dimensions for One-Group Bare U-235):
 
 - ν = 2.70
 - Σ_f = 0.06528 cm⁻¹ → νΣ_f = 0.176256 cm⁻¹
@@ -50,7 +50,7 @@ Table 13 (Critical Dimensions for One-Group Bare U-235):
 - Σ_t = 0.32640 cm⁻¹
 - c = (Σ_s + νΣ_f) / Σ_t = (0.248064 + 0.176256) / 0.32640 = 1.30
 - **Critical radius r_c = 1.72500292 mfp = 5.284935 cm** (Sood
-  6-digit accuracy claim, F_N method; Refs. 27 and 28 in LA-13511).
+  6-digit accuracy claim, F_N method; Refs. [36] and [37] in Sood 2003).
 
 Test: drive Variant α at α=0 (vacuum BC, bare critical cylinder) at
 R = r_c. The eigenvalue problem must converge to **k_eff = 1.0**
@@ -60,15 +60,17 @@ quadrature orders pinned below).
 References
 ----------
 
-- Sood, Forster & Parsons (1999), *Analytical Benchmark Test Set
-  for Criticality Code Verification*, LA-13511 (Los Alamos National
-  Laboratory). Open-access OSTI 10601. Also published as Sood,
-  Forster & Parsons (2003), *Prog. Nucl. Energy* 42(1), 55-106
-  (DOI 10.1016/S0149-1970(02)00098-7).
-- Westfall, R. M. (1983), F_N-method critical-cylinder calculation
-  cited in LA-13511 Ref. 27.
-- Westfall & Metcalf (1972), *Nucl. Sci. Eng.* 49, 273 — F_N method
-  origin (Ref. 28).
+- Sood, Forster & Parsons (2003), *Analytical Benchmark Test Set
+  for Criticality Code Verification*, *Prog. Nucl. Energy* 42(1),
+  55-106 (DOI 10.1016/S0149-1970(02)00098-7): the edition cited. The
+  earlier edition, the 1999 Los Alamos report LA-13511 (open-access
+  OSTI 10601), numbers its tables and references differently.
+- Westfall, R. M. (1983), "Benchmark Solutions for the Infinite
+  Critical Cylinder", *Trans. Am. Nucl. Soc.* 44, 281 (Sood 2003
+  Ref. [36]).
+- Westfall & Metcalf (1972), "Exact Solution of the Transport Equation
+  for Critical Cylindrical Configurations", *Trans. Am. Nucl. Soc.* 15,
+  266 (Sood 2003 Ref. [37]).
 
 Adjacent tests
 --------------
@@ -93,7 +95,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Sood Ua-1-O-CY benchmark constants (LA-13511 Tables 12 + 13)
+# Sood Ua-1-O-CY benchmark constants (Sood 2003 Tables 9 + 10)
 # ───────────────────────────────────────────────────────────────────────
 
 R_CRITICAL_SOOD = 5.284935       # cm; r_c = 1.72500292 mfp
@@ -104,7 +106,7 @@ NU_SIGMA_F = 0.176256            # cm⁻¹ (= 2.70 × 0.06528)
 
 
 # ───────────────────────────────────────────────────────────────────────
-# L1 — Sood 1999 Ua-1-O-CY external-reference cross-check
+# L1 — Sood 2003 Ua-1-O-CY external-reference cross-check
 # ───────────────────────────────────────────────────────────────────────
 
 
@@ -115,12 +117,12 @@ def test_a2_variant_alpha_agrees_with_sood2003_cylinder():
     r"""L1 (slow) — cylinder Variant α critical radius matches Sood
     1999/2003 ``Ua-1-O-CY`` benchmark to ≤ 1e-5.
 
-    Sood/Forster/Parsons LA-13511 Table 13 ``Ua-1-O-CY`` benchmark:
+    Sood/Forster/Parsons 2003 Table 10 ``Ua-1-O-CY`` benchmark:
     bare critical homogeneous cylinder, U-235 (a) cross sections,
     c = 1.30, vacuum BC. Sood's reference :math:`r_c = 1.72500292`
     mfp = 5.284935 cm is computed via the F_N method (Case singular
-    eigenfunctions + Wiener-Hopf factorization, LA-13511 Refs. 27 and
-    28), structurally independent of Bickley-Naylor / :math:`\mathrm{Ki}_n`
+    eigenfunctions + Wiener-Hopf factorization, Sood 2003 Refs. [36] and
+    [37]), structurally independent of Bickley-Naylor / :math:`\mathrm{Ki}_n`
     integrals.
 
     Closes the post-Phase-3 hindsight V&V gap on cylinder Variant α:

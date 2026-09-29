@@ -2003,7 +2003,7 @@ Sood case coverage (Atalay)
 The Atalay-anchored case catalogue lives in
 :mod:`orpheus.derivations.continuous.sood_registry.atalay1997` and
 covers the **reflected + linearly-anisotropic cross-product cases**
-that lie outside both the Sood/Forster/Parsons LA-13511 truth set
+that lie outside both the Sood/Forster/Parsons 2003 truth set
 (which focuses on bare configurations) and the Burkart-Ishiguro-
 Siewert 1976 F_N reference :cite:`BurkartIshiguroSiewert1976` (vacuum-only). Specifically, Atalay
 tabulates:

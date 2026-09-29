@@ -195,7 +195,7 @@ def derive_slab_phi_endpoint_normalization() -> dict:
     r"""V_fn-flux-slab.2 — KLL Eq. 7 evaluated at :math:`x = b` gives
     surface scalar flux for the surface-flux ratio :math:`\phi(b)/\phi(0)`.
 
-    The Sood/KLL benchmark (Tables III + 14) tabulates
+    The Sood/KLL benchmark (KLL Table III + Sood 2003 Table 11) tabulates
     :math:`\phi(x)/\phi(0)` at :math:`x/b \in \{0.25, 0.50, 0.75, 1.00\}`.
     The :math:`x/b = 1` value is the surface flux. From KLL Eq. 7:
 

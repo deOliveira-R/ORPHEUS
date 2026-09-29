@@ -1,7 +1,7 @@
 """L1 cross-check: Carlvik-Galerkin solver vs sood_registry P_1 anisotropic cases.
 
 Bridges the Wave 2-C Carlvik-Galerkin solver with the Sood/Forster/Parsons
-LA-13511 (1999) `*-1-1-SL/SP` benchmark cases.
+(2003) `*-1-1-SL/SP` benchmark cases.
 
 The Sood `*-1-1-SL/SP` cases are critical configurations
 (:math:`k_{\\rm eff} = 1`) — at the published critical dimension
@@ -16,7 +16,7 @@ mean cosine of all secondaries (scattering + fission, with fission
 isotropic). The conversion is
 :math:`\\bar\\mu_{\\rm eff} = \\Sigma_{s_1} / (c \\cdot \\Sigma_t)`.
 
-Cases covered (Sood Tables 25 and 29):
+Cases covered (Sood 2003 Tables 22 and 26):
 
 * PUa-1-1-SL (problem 32): Pu-239 (a) slab, c=1.40, μ̄_eff=0.142857.
 * PUb-1-1-SL (problem 34): Pu-239 (b) slab, c=1.40, μ̄_eff=0.238095

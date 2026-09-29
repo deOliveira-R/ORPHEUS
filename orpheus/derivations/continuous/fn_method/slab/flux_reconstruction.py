@@ -36,7 +36,7 @@ Fredholm equation. In the verification chain:
    :math:`r_c \cdot \nu_0\,\mathrm{trig}(...) = 0` is the structural
    independence proof for the medium-only scalar :math:`r_c`.
 4. The flux ratios :math:`\phi(z)/\phi(0)` from KLL agree with the
-   benchmark tables KLL III + Sood Table 14 to ≤ 1e-5.
+   benchmark tables KLL III + Sood 2003 Table 11 to ≤ 1e-5.
 
 References
 ----------
@@ -404,7 +404,7 @@ def slab_scalar_flux_kll(
        + \int_0^1 A(\nu)\,e^{-b/\nu}\,\cosh(z/\nu)\,d\nu\Big]
 
     The normalisation :math:`a = 1` is used here. The published
-    benchmark (KLL Tables III, IV; Sood Table 14) tabulates
+    benchmark (KLL Tables III, IV; Sood 2003 Table 11) tabulates
     :math:`\phi(z)/\phi(0)` which is :math:`a`-independent — use
     :func:`slab_scalar_flux_ratio` for that.
 
@@ -478,7 +478,7 @@ def slab_scalar_flux_ratio(
     r"""Compute :math:`\phi(z) / \phi(0)` at fractional position
     :math:`z/b`.
 
-    This is the quantity tabulated in KLL Table III + Sood Table 14.
+    This is the quantity tabulated in KLL Table III + Sood 2003 Table 11.
 
     Parameters
     ----------
@@ -894,7 +894,7 @@ def slab_scalar_flux_fn_projection_ratio(
 
     Same as :func:`slab_scalar_flux_fn_projection` but returns the
     normalization-free ratio, which is the quantity to compare
-    against KLL Table III + Sood Table 14 + the Path B result
+    against KLL Table III + Sood 2003 Table 11 + the Path B result
     :func:`slab_scalar_flux_ratio`.
     """
     z_arr = np.asarray(z_over_a, dtype=float) * fn_result.a_critical_mfp
@@ -1063,7 +1063,7 @@ def slab_scalar_flux_fn_projection_atkinson_ratio(
 
     Same as :func:`slab_scalar_flux_fn_projection_atkinson` but
     returns the normalization-free ratio for direct comparison
-    against KLL Table III + Sood Table 14 + the
+    against KLL Table III + Sood 2003 Table 11 + the
     :func:`slab_scalar_flux_ratio` Path B result.
 
     With :math:`n_\text{panels} = 64` the agreement vs Path B

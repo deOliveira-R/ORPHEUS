@@ -2862,7 +2862,7 @@ The literature PDFs cited above are stored in the repo root
   no local copy.
 - Mitsis 1963 (ANL-6787) — pseudo-slab equivalence for vacuum sphere;
   numerical reference. No local copy.
-- Sood-Forster-Parsons 2003 (LA-13511) — analytical benchmark
+- Sood-Forster-Parsons 2003 (*Prog. Nucl. Energy* **42**, 55) — analytical benchmark
   test set (critical sphere c_crit(R) tables). No local copy.
 
 Codebase pointers:

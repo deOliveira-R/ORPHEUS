@@ -659,8 +659,8 @@ def derive_carlvik_eq4b_corrected_form() -> dict:
        first principles needs to be warned.
     2. **Pattern-recognition signal**: primary literature can
        contain errata, and a claimed erratum can equally be a
-       mis-transcription: the Sood Eq. 28 "typo" once listed here was
-       one (ERR-092). This claim and WM-72 Eq. 17 await a page-image
+       mis-transcription: the Sood Eq (A.11) "typo" (Eq 28 in the 1999
+       numbering) once listed here was one (ERR-092). This claim and WM-72 Eq. 17 await a page-image
        check (#537).
 
     The verification claim is therefore: "we are aware of and account

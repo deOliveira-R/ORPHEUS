@@ -75,7 +75,8 @@ References
 ----------
 
 * Westfall & Metcalf 1973, *Nucl. Sci. Eng.* **52**, 1-11.
-* Sood, Forster & Parsons 1999, LA-13511 (Table 13, case ``Ua-1-0-CY``).
+* Sood, Forster & Parsons 2003, *Prog. Nucl. Energy* **42**, 55 (Table 10, case
+  ``Ua-1-0-CY``).
 """
 from __future__ import annotations
 

@@ -92,7 +92,8 @@ bugs proves that re-deriving even simple-looking published equations
 is a load-bearing V&V practice, not boilerplate. ERR-092 proves the
 converse: a derivation that disagrees with a TRANSCRIBED equation
 convicts the transcription first, and the paper only after the page
-image is read (a "typo" in Sood Eq. 28 was a mis-transcription).
+image is read (a "typo" in Sood Eq (A.11), Eq 28 in the 1999
+numbering, was a mis-transcription).
 
 """
 from __future__ import annotations
@@ -249,8 +250,8 @@ def derive_discrete_pseudo_eigenfunction() -> dict:
        Re-derivation in SymPy caught the disagreement immediately.
        Whether the error is the paper's or this transcription's is
        settled only by the page image of Eq. 17, which has not been
-       read (#537; the analogous Sood Eq. 28 "typo" was a
-       mis-transcription, ERR-092).
+       read (#537; the analogous Sood Eq (A.11) "typo", Eq 28 in the
+       1999 numbering, was a mis-transcription, ERR-092).
 
        Branch-2 production code uses the corrected form.
 

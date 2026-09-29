@@ -5,7 +5,7 @@ References
 ----------
 
 * Atalay, M.A. (1997). *Prog. Nucl. Energy* **31**(3), 229-252.
-* Sood, A., Forster, R.A., Parsons, D.K. (1999). LA-13511.
+* Sood, A., Forster, R.A., Parsons, D.K. (2003). *Prog. Nucl. Energy* **42**, 55.
   (``Ua-1-0-SP``: c=1.30, R=0, f_1=0 → R_c = 2.4248 mfp.)
 
 Tolerance discussion
@@ -50,7 +50,7 @@ def test_sphere_vacuum_isotropic_sood_ua_1_0_sp():
     res = solve_case_method_sphere_critical(
         c=1.30, R_refl=0.0, f1=0.0, mode=1, n_bracket=80,
     )
-    sood_ref = 2.4248249802  # Kaper-Lindeman-Leaf 1974 / Sood LA-13511
+    sood_ref = 2.4248249802  # Kaper-Lindeman-Leaf 1974 / Sood 2003
     err = abs(res.R_critical_mfp - sood_ref) / sood_ref
     assert err < 1e-4, (
         f"Sphere R_c at c=1.30, R_refl=0, f_1=0: got {res.R_critical_mfp:.6f}, "

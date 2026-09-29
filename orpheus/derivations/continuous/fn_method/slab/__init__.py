@@ -13,7 +13,7 @@ Public entry point:
 
 Verified against:
 
-* LA-13511 ``Ua-1-0-SL`` (Sood problem 12): :math:`r_c = 0.93772556`
+* Sood 2003 ``Ua-1-0-SL`` (problem 12, Table 10): :math:`r_c = 0.93772556`
   mfp at :math:`c = 1.30` — exact from KLL 1974 Table I.
 * Grandjean-Siewert 1979 Table XI: critical thickness for
   :math:`c \\in \\{1.10, 1.30, 1.50, 1.70, 1.90\\}`.

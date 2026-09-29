@@ -27,7 +27,7 @@ Test breakdown:
 References
 ----------
 
-* Sood, Forster & Parsons 1999, LA-13511 (Table 4).
+* Sood, Forster & Parsons 2003, *Prog. Nucl. Energy* **42**, 55 (Table 10).
 * Kaper, Lindeman & Leaf 1974, *Nucl. Sci. Eng.* **54**, 94 (Table I).
 * Siewert & Benoist 1979, *Nucl. Sci. Eng.* **69**, 156-160.
 * Grandjean & Siewert 1979, *Nucl. Sci. Eng.* **69**, 161-168 (Table XI).

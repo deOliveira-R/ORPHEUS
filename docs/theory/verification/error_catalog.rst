@@ -8687,7 +8687,7 @@ older entries classify against.
    case every smoke test uses.
 
 .. error-entry:: ERR-092
-   :title: V_fn2.1 certified a typo in Sood's Eq 28 by comparing the derivation with a mis-transcription of the equation
+   :title: V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mis-transcription of the equation
 
    **Status:** ✅ **FIXED 2026-09-29, P1 step 2b** of the reference-solution
    campaign (``.claude/plans/reference_cache.md``), found while re-citing
@@ -8705,7 +8705,7 @@ older entries classify against.
    Sood's two-group :math:`k_\infty` (1999 Eq 28, 2003 Eq (A.11)) were
    exchanged between the :math:`\chi_1` and :math:`\chi_2` terms.
 
-   **What happened.**  The module typed "Eq 28 as printed" with
+   **What happened.**  The module typed "Eq 28 as printed" (2003 Eq (A.11)) with
    :math:`\chi_1` paired to :math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` and
    :math:`\chi_2` to :math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`. The report
    prints :math:`\chi_1` with :math:`\Sigma_2^{\rm rem}\,\nu_1\Sigma_{1f}` and
@@ -8725,10 +8725,10 @@ older entries classify against.
    the derived root, which is the printed equation. Nobody re-read the
    page, because the gate said the page had already been checked.
 
-   **Fix.**  V_fn2.1 transcribes Eq 28 as printed (checked against the
+   **Fix.**  V_fn2.1 transcribes Eq 28 (2003 Eq (A.11)) as printed (checked against the
    1999 page image, 2026-09-29; the 2003 text prints the same body) and
    asserts that it EQUALS the derived root, besides the existing
-   reduction to Eq 29. The typo claim is removed from every site, and the
+   reduction to Eq 29 (2003 Eq (A.12)). The typo claim is removed from every site, and the
    theory page records it as a refuted claim.
 
    **Caught by:**

@@ -29,7 +29,7 @@ Verification gates here:
 Tolerance budget (per ``vv-principles``):
 
 * The 1e-5 acceptance gate matches the F_N solver's r_c precision at
-  N=10 (Sood Table 14 has 6 published digits; the verifier sees both
+  N=10 (Sood 2003 Table 11 has 6 published digits; the verifier sees both
   the F_N r_c and the KLL flux ratio as known to ≤ 1e-5 against the
   references).
 * Tighter gates are technically achievable but pinned at the
@@ -39,7 +39,8 @@ References
 ----------
 
 * Kaper-Lindeman-Leaf 1974, *Nucl. Sci. Eng.* **54**, 94, Table III.
-* Sood, Forster, Parsons 1999, LA-13511 Table 14 (case ``Ua-1-0-SL``).
+* Sood, Forster, Parsons 2003, *Prog. Nucl. Energy* **42**, 55, Table 11 (case
+  ``Ua-1-0-SL``).
 * Siewert-Benoist 1979, Part I + Grandjean-Siewert 1979, Part II.
 """
 from __future__ import annotations
@@ -78,7 +79,7 @@ pytestmark = [
 def test_l1_slab_flux_ratios_kll_table_III_at_c_1p30() -> None:
     r"""KLL/Sood ``Ua-1-0-SL`` flux ratios at c = 1.30 to ≤ 1e-5.
 
-    KLL Table III (also Sood Table 14):
+    KLL Table III (also Sood 2003 Table 11):
 
     +-------+------------+
     | z/b   | φ(z)/φ(0)  |
@@ -108,7 +109,7 @@ def test_l1_slab_flux_ratios_kll_table_III_at_c_1p30() -> None:
     abs_err = np.abs(computed - expected)
 
     assert np.max(abs_err) < 1e-5, (
-        f"KLL slab flux ratios at c=1.30 disagree with Sood Table 14 / "
+        f"KLL slab flux ratios at c=1.30 disagree with Sood 2003 Table 11 / "
         f"KLL Table III at > 1e-5: computed={computed}, "
         f"expected={expected}, abs_err={abs_err}"
     )

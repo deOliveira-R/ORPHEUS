@@ -1,7 +1,7 @@
 .. _theory-fn-method:
 
 ==========================================================================
-F_N method — analytical benchmark family (Sood/Forster/Parsons LA-13511)
+F_N method — analytical benchmark family (Sood/Forster/Parsons 2003)
 ==========================================================================
 
 .. contents:: Contents
@@ -22,7 +22,7 @@ Key Facts
   :math:`\det M(R) = 0` is numerical).
 - **Position in the V&V stack**: structurally-independent cross-check
   for :ref:`theory-singular-eigenfunction` and
-  :ref:`theory-trajectory-resolvent` on the Sood LA-13511 truth set.
+  :ref:`theory-trajectory-resolvent` on the Sood 2003 truth set.
   The F_N method works in the Case ν-spectrum representation and never
   reduces to an integral equation in :math:`r` — genuinely
   structurally-independent of Variant α (which works on bouncing
@@ -30,8 +30,8 @@ Key Facts
   boundary-collocated sister method (B_N) is reserved at
   :ref:`theory-bn-method`.
 - **Coverage**: slab + sphere via unified assembler (parametrised by
-  ``geometry_sign ∈ {+1, -1}``); bare-critical k_inf cases (LA-13511
-  Eqs 18-32, 72-76); reflected-slab F_N (Neshat-Maiorino 1980); KLL
+  ``geometry_sign ∈ {+1, -1}``); infinite-medium k_inf cases (Sood 2003
+  Eqs (A.1)-(A.15), (A.55)-(A.59)); reflected-slab F_N (Neshat-Maiorino 1980); KLL
   1974 interior flux reconstruction; Atkinson product-Nyström for
   the Path A.i log-singular kernel. Cylinder ships via a different
   pillar in :ref:`theory-singular-eigenfunction` (Westfall-Metcalf
@@ -101,7 +101,7 @@ genuinely disjoint:
   amplitude space; the radial profile is reconstructed *afterwards*
   by :term:`quadrature` along characteristics.
 
-When both methods agree at 5+ digits across the LA-13511 catalogue,
+When both methods agree at 5+ digits across the Sood 2003 catalogue,
 the verification chain is structurally far stronger than any single
 reference can provide. This is the same role the PS-1982 Nyström
 reference plays for Variant α at vacuum BC: an independent
@@ -485,7 +485,7 @@ exponential — consistent with analyticity off the half-range cusp
 plus the :math:`\mu \to 0` weak singularity. The default
 ``fn_order = 9`` in :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
 sits in the sweet spot: small enough to assemble in microseconds,
-large enough to give 6-digit agreement with the Sood LA-13511 truth
+large enough to give 6-digit agreement with the Sood 2003 truth
 values.
 
 Multi-region extension: block transfer matrices
@@ -571,7 +571,7 @@ The F_N method (``MomentSpace``) and the trajectory_resolvent method
 (``Billiard``) solve the **same boundary-value problem on the same
 physical configuration**. They are structurally independent reference
 solvers above the trusted-library line, and their cross-method gates
-anchor the verification chain for the Sood LA-13511 truth set.
+anchor the verification chain for the Sood 2003 truth set.
 
 But they attack different *mathematical structures*:
 
@@ -686,7 +686,7 @@ the F_N pillar — Westfall–Metcalf 1973 explicitly notes the
 Mitsis-style Wiener-Hopf is **non-convergent for the bare cylinder**
 and ships under :ref:`theory-singular-eigenfunction` instead.
 
-.. list-table:: First-slice case map (LA-13511)
+.. list-table:: First-slice case map (Sood 2003)
    :header-rows: 1
    :widths: 12 24 16 14 14 20
 
@@ -762,7 +762,7 @@ Per the project's algebra-of-record discipline (see the
   :mod:`...origins.fn_flux_reconstruction_derivations`, and
   :mod:`...origins.fn_projection_flux_derivations` are the
   **canonical algebra-of-record**: every closed form is derived
-  symbolically from primary-source equations (Sood Eqs 18-32 / 72-76,
+  symbolically from primary-source equations (Sood 2003 Eqs (A.1)-(A.15) / (A.55)-(A.59),
   Siewert-Benoist Eq 4-6, Grandjean-Siewert Eqs 9-12, Siewert-Thomas
   1986 Eqs 38a-46, KLL Eqs 7+15, Neshat-Maiorino Eqs 10-17), and
   each ``derive_*()`` function returns a PASS flag when the symbolic
@@ -807,26 +807,26 @@ V_fn1.1 — 1G k_inf from balance equation
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_1_kinf_1g_eq_a2`.
 
-Starting from Sood Eq 18 (the 1G integrated transport equation for
+Starting from Sood Eq (A.1) (the 1G integrated transport equation for
 an infinite, isotropically-scattering, homogeneous medium),
 
 .. math::
-   :label: sood-eq18-1g-balance
+   :label: sood-eq-a1-1g-balance
 
    \Sigma_t\,\phi = \Sigma_s\,\phi + \frac{\nu\Sigma_f}{k_\infty}\,\phi
 
-.. (vv-status rationale) derivation: Sood Eq 18 transcription — the 1G balance equation; reduces algebraically to Eq 19 (verified by V_fn1.1 in the SymPy origins module).
-.. vv-status: sood-eq18-1g-balance documented
+.. (vv-status rationale) derivation: Sood Eq (A.1) transcription — the 1G balance equation; reduces algebraically to Eq (A.2) (verified by V_fn1.1 in the SymPy origins module).
+.. vv-status: sood-eq-a1-1g-balance documented
 
 we factor :math:`\phi` and solve for :math:`k_\infty`:
 
 .. math::
-   :label: sood-eq19-kinf-1g
+   :label: sood-eq-a2-kinf-1g
 
    k_\infty = \frac{\nu\Sigma_f}{\Sigma_t - \Sigma_s} .
 
-.. (vv-status rationale) derivation: Sood Eq 19 — the closed-form 1G k_inf result from Eq 18; verified by V_fn1.1 (test_v_fn1_1_kinf_1g_eq_a2) at the SymPy level. The Branch-2 numpy implementation also reproduces Eq 19 bit-for-bit at G=1 reduction (test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1).
-.. vv-status: sood-eq19-kinf-1g documented
+.. (vv-status rationale) derivation: Sood Eq (A.2) — the closed-form 1G k_inf result from Eq (A.1); verified by V_fn1.1 (test_v_fn1_1_kinf_1g_eq_a2) at the SymPy level. The Branch-2 numpy implementation also reproduces Eq (A.2) bit-for-bit at G=1 reduction (test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1).
+.. vv-status: sood-eq-a2-kinf-1g documented
 
 **The flux** :math:`\phi` **cancels.** This is the canonical 1G
 degeneracy: the eigenvalue is a material-property ratio, computable
@@ -839,28 +839,28 @@ must reproduce this case bit-for-bit at G=1.
 
 .. _fn-method-V-fn1-2:
 
-V_fn1.2 — Eq 20 simplifies to Eq 19 (c factor cancels)
--------------------------------------------------------
+V_fn1.2 — Eq (A.3) simplifies to Eq (A.2) (c factor cancels)
+------------------------------------------------------------
 
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_a3_simplifies_to_eq_a2`.
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2`.
 
-Sood states the same 1G result two ways. Eq 19 is the clean form;
-Eq 20 includes the explicit "mean number of secondaries"
+Sood states the same 1G result two ways. Eq (A.2) is the clean form;
+Eq (A.3) includes the explicit "mean number of secondaries"
 :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`,
 
 .. math::
-   :label: sood-eq20-kinf-1g-c-form
+   :label: sood-eq-a3-kinf-1g-c-form
 
    k_\infty = \frac{c\,\nu\Sigma_f\,\Sigma_t}
                    {(\Sigma_t - \Sigma_s)(\Sigma_s + \nu\Sigma_f)} .
 
-.. (vv-status rationale) derivation: Sood Eq 20 — the same 1G k_inf restated with the explicit "secondaries per collision" c-factor; reduces to Eq 19 (verified by V_fn1.2, test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2).
-.. vv-status: sood-eq20-kinf-1g-c-form documented
+.. (vv-status rationale) derivation: Sood Eq (A.3) — the same 1G k_inf restated with the explicit "secondaries per collision" c-factor; reduces to Eq (A.2) (verified by V_fn1.2, test_v_fn1_2_kinf_eq_a3_simplifies_to_eq_a2).
+.. vv-status: sood-eq-a3-kinf-1g-c-form documented
 
-Substituting :math:`c` into :eq:`sood-eq20-kinf-1g-c-form`:
+Substituting :math:`c` into :eq:`sood-eq-a3-kinf-1g-c-form`:
 
 .. math::
 
@@ -869,8 +869,8 @@ Substituting :math:`c` into :eq:`sood-eq20-kinf-1g-c-form`:
                          {(\Sigma_t - \Sigma_s)(\Sigma_s + \nu\Sigma_f)}
             = \frac{\nu\Sigma_f}{\Sigma_t - \Sigma_s} ,
 
-so the :math:`c` and :math:`\Sigma_t` factors cancel and Eq 20
-collapses to Eq 19. SymPy ``simplify`` makes this mechanical. The
+so the :math:`c` and :math:`\Sigma_t` factors cancel and Eq (A.3)
+collapses to Eq (A.2). SymPy ``simplify`` makes this mechanical. The
 identity is the trivial Branch-1 anchor for Case 1 (PUa-1-0-IN); it
 also showcases why SymPy is the right tool — a by-hand reader needs
 to mentally cancel four factors, and any single drop creates a
@@ -886,9 +886,9 @@ V_fn2.1 — 2G general k_inf from det(M) = 0
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_1_kinf_2g_general_from_matrix`.
 
-From Sood Eqs 21-22 (2G balance), Eqs 23-24 rearrange to a 2x2
+From Sood Eqs (A.4)-(A.5) (2G balance), Eqs (A.6)-(A.7) rearrange to a 2x2
 homogeneous linear system :math:`M(k_\infty)\,\vec\phi = 0`
-(Sood Eq 25). Critical fission balance requires :math:`\det M = 0`,
+(Sood Eq (A.8)). Critical fission balance requires :math:`\det M = 0`,
 which is a quadratic in :math:`k`. One root is :math:`k=0` (trivial);
 the other is the desired :math:`k_\infty`.
 
@@ -896,7 +896,7 @@ In Sood notation (:math:`g=2` fast, :math:`g=1` slow,
 :math:`\Sigma_g^{\rm rem} = \Sigma_g - \Sigma_{ggs}`):
 
 .. math::
-   :label: sood-eq25-2g-matrix
+   :label: sood-eq-a8-2g-matrix
 
    M = \begin{pmatrix}
          -(\Sigma_{21s} + \tfrac{\chi_2}{k}\nu_1\Sigma_{1f}) &
@@ -905,13 +905,13 @@ In Sood notation (:math:`g=2` fast, :math:`g=1` slow,
          -(\Sigma_{12s} + \tfrac{\chi_1}{k}\nu_2\Sigma_{2f})
        \end{pmatrix} .
 
-.. (vv-status rationale) derivation: Sood Eq 25 transcription — the 2G fission-balance matrix that yields k_inf via det(M)=0; verified by V_fn2.1 SymPy derivation (the "derived general 2G formula"), which equals the published Eq 28 as printed.
-.. vv-status: sood-eq25-2g-matrix documented
+.. (vv-status rationale) derivation: Sood Eq (A.8) transcription — the 2G fission-balance matrix that yields k_inf via det(M)=0; verified by V_fn2.1 SymPy derivation (the "derived general 2G formula"), which equals the published Eq (A.11) as printed.
+.. vv-status: sood-eq-a8-2g-matrix documented
 
 The SymPy derivation expands :math:`\det M(k) = 0`, multiplies through
 by :math:`k^2` to land on a polynomial in :math:`k`, solves for the
 two roots, and discards the :math:`k=0` solution. The surviving root
-is the **derived general 2G formula**, and it equals Sood Eq 28 as
+is the **derived general 2G formula**, and it equals Sood Eq (A.11) as
 printed:
 
 .. math::
@@ -920,11 +920,13 @@ printed:
                   + \chi_2\,(\nu_1\Sigma_{1f}\,\Sigma_{12s} + \Sigma_1^{\rm rem}\,\nu_2\Sigma_{2f})}
                  {\Sigma_1^{\rm rem}\,\Sigma_2^{\rm rem} - \Sigma_{12s}\,\Sigma_{21s}} .
 
-Its no-upscatter limit (:math:`\Sigma_{21s} = 0`) is Eq 29, and on
+Its no-upscatter limit (:math:`\Sigma_{21s} = 0`) is Eq (A.12), and on
 Case 5 (PU-2-0-IN) it gives the published :math:`k_\infty = 2.683767`.
 The Branch-2 ``compute_kinf_2g_general`` evaluates this form.
 
-**A refuted claim: "Sood Eq 28 has a typo".** Until 2026-09-29 this
+**A refuted claim: "Sood Eq 28 has a typo".** The claim named the
+equation by its number in the 1999 report LA-13511, where Eq 28 is the
+equation the 2003 edition numbers Eq (A.11). Until 2026-09-29 this
 section reported a typo in Eq 28, and V_fn2.1 certified it. The claim
 came from a mis-transcription of the equation into the SymPy module:
 the "as printed" form typed there paired :math:`\chi_1` with
@@ -940,19 +942,19 @@ swapped transcription fails (ERR-092).
 
 .. _fn-method-V-fn2-2:
 
-V_fn2.2 — Eq 29 makes det(M) = 0 at no-upscatter
--------------------------------------------------
+V_fn2.2 — Eq (A.12) makes det(M) = 0 at no-upscatter
+----------------------------------------------------
 
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_2g_no_upscatter`.
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero`.
 
-Independent verification of Sood Eq 29: substitute the printed
-Eq 29 closed form
+Independent verification of Sood Eq (A.12): substitute the printed
+Eq (A.12) closed form
 
 .. math::
-   :label: sood-eq29-kinf-2g-no-upscatter
+   :label: sood-eq-a12-kinf-2g-no-upscatter
 
    k_\infty = \frac{\chi_1\,\nu_1\,\Sigma_{1f}}{\Sigma_1^{\rm rem}}
             + \chi_2\!\left[
@@ -961,8 +963,8 @@ Eq 29 closed form
                 + \frac{\nu_2\,\Sigma_{2f}}{\Sigma_2^{\rm rem}}
               \right]
 
-.. (vv-status rationale) derivation: Sood Eq 29 — printed correctly in LA-13511; verified by V_fn2.2 (test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero) which substitutes Eq 29 into det(M) and confirms it vanishes.
-.. vv-status: sood-eq29-kinf-2g-no-upscatter documented
+.. (vv-status rationale) derivation: Sood Eq (A.12) — printed correctly (the 1999 report LA-13511 prints the same body as its Eq 29); verified by V_fn2.2 (test_v_fn2_2_kinf_2g_no_upscatter_makes_det_zero) which substitutes Eq (A.12) into det(M) and confirms it vanishes.
+.. vv-status: sood-eq-a12-kinf-2g-no-upscatter documented
 
 into :math:`\det M(k)` with :math:`\Sigma_{21s} = 0` and verify the
 determinant simplifies to zero. This is structurally independent of
@@ -971,82 +973,88 @@ the published formula directly.
 
 The two checks together close the proof that:
 
-1. The general-form derivation in V_fn2.1 is correct (Eq 25 → quadratic
-   → non-trivial root), and it is the printed Eq 28.
-2. The published Eq 29 is the correct no-upscatter limit (V_fn2.2),
+1. The general-form derivation in V_fn2.1 is correct (Eq (A.8) → quadratic
+   → non-trivial root), and it is the printed Eq (A.11).
+2. The published Eq (A.12) is the correct no-upscatter limit (V_fn2.2),
    reached from the general form (V_fn2.1) and checked against
    :math:`\det M` directly (V_fn2.2).
 
 .. _fn-method-V-fn2-3:
 
-V_fn2.3 — phi_2/phi_1 from chi-sum + balance (Eq 32)
------------------------------------------------------
+V_fn2.3 — phi_2/phi_1 from chi-sum + balance (Eq (A.15))
+--------------------------------------------------------
 
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_phi_ratio_2g_no_upscatter`.
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn2_3_phi_ratio_eq_a15`.
 
-Adding the two 2G balance equations Eqs 23 + 24 with
+Adding the two 2G balance equations Eqs (A.6) + (A.7) with
 :math:`\chi_1 + \chi_2 = 1` eliminates the :math:`\chi_g` from the
-resulting relation (Sood Eq 30). Solving for
-:math:`\phi_2/\phi_1` at the no-upscatter limit gives Sood Eq 32:
+resulting relation (Sood Eq (A.13)). Solving for
+:math:`\phi_2/\phi_1` at the no-upscatter limit gives Sood Eq (A.15):
 
 .. math::
-   :label: sood-eq32-phi-ratio
+   :label: sood-eq-a15-phi-ratio
 
    \frac{\phi_2}{\phi_1}
-   = \frac{\Sigma_{12s}}
-          {\Sigma_2^{\rm rem} - \dfrac{\nu_2\Sigma_{2f}}{k_\infty}} .
+   = \frac{\Sigma_1^{\rm rem} - \dfrac{\nu_1\Sigma_{1f}}{k_\infty}}
+          {\dfrac{\nu_2\Sigma_{2f}}{k_\infty} - \Sigma_2^{\rm rem} + \Sigma_{12s}} .
 
-.. (vv-status rationale) derivation: Sood Eq 32 — the 2G no-upscatter flux ratio; verified by V_fn2.3 (test_v_fn2_3_phi_ratio_eq_a15). Independent of fission spectrum splitting (chi cancels under chi_1+chi_2=1).
-.. vv-status: sood-eq32-phi-ratio documented
+.. (vv-status rationale) derivation: Sood Eq (A.15) — the 2G no-upscatter flux ratio; verified by V_fn2.3 (test_v_fn2_3_phi_ratio_eq_a15). Independent of fission spectrum splitting (chi cancels under chi_1+chi_2=1).
+.. vv-status: sood-eq-a15-phi-ratio documented
 
 SymPy verifies both the chi-elimination (the :math:`\chi_1`
 coefficient must vanish identically) and the resulting ratio
 identity. The flux-ratio is **independent of the fission spectrum
 splitting** :math:`(\chi_1, \chi_2)` — only the total fission rate
 appears via :math:`k_\infty`. This is a substantive cross-check
-because Sood Eq 32's specific form is not obviously chi-independent
+because Sood Eq (A.15)'s specific form is not obviously chi-independent
 from inspection; SymPy proves it.
 
 .. _fn-method-V-fn-mg-1:
 
-V_fnMG.1 — Eq 76 for G=2 is the trace of a rank-1 matrix
----------------------------------------------------------
+V_fnMG.1 — Eq (A.59) for G=2 is the trace of a rank-1 matrix
+------------------------------------------------------------
 
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_matrix_form`.
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_1_eq_a59_g2_form`.
 
-The general G-group balance (Sood Eq 72) reduces to a single
-matrix-vector identity (Sood Eq 76):
+The general G-group balance (Sood Eq (A.55)) reduces to a single
+matrix-vector identity (Sood Eq (A.59)):
 
 .. math::
-   :label: sood-eq76-kinf-mg
+   :label: sood-eq-a59-kinf-mg
 
    k_\infty = \overline{\nu\Sigma_f}^{\!\top}\,
               \big(\overline{\overline{\Sigma_t}}
                   - \overline{\overline{\Sigma_s}}\big)^{-1}\,
               \bar\chi .
 
-.. (vv-status rationale) derivation: Sood Eq 76 — the multi-group k_inf as a single matrix-vector identity; verified by V_fnMG.1 (test_v_fn_mg_1_eq_a59_g2_form) at G=2 where SymPy rank-1 trace closes; verified numerically at higher G against kinf_homogeneous (np.linalg.eig).
-.. vv-status: sood-eq76-kinf-mg documented
+.. (vv-status rationale) derivation: Sood Eq (A.59) — the multi-group k_inf as a single matrix-vector identity; verified by V_fnMG.1 (test_v_fn_mg_1_eq_a59_g2_form) at G=2 where SymPy rank-1 trace closes; verified numerically at higher G against kinf_homogeneous (np.linalg.eig).
+.. vv-status: sood-eq-a59-kinf-mg documented
+
+The last factor is the fission spectrum :math:`\bar\chi`, as the 2003
+edition prints it. The 1999 report LA-13511 printed the scalar flux
+:math:`\overline{\phi}` in that position (its Eq 76), a misprint the
+2003 edition corrects; this page, the SymPy module and
+``compute_kinf_mg`` all use :math:`\bar\chi`.
 
 SymPy verifies for G=2 that the matrix
 :math:`A^{-1}\,\bar\chi\,(\overline{\nu\Sigma_f})^{\!\top}` is
 **rank-1** (outer-product structure — the :math:`\bar\chi` column
 times the :math:`(\overline{\nu\Sigma_f})^{\!\top}` row). For a
 rank-1 matrix the dominant eigenvalue equals the trace, which equals
-the scalar Eq 76 expression.
+the scalar Eq (A.59) expression.
 
 For G ≥ 5 the symbolic eigenvalue closes via
 :func:`sympy.Matrix.eigenvals` no longer produces a closed form
 (Abel-Ruffini theorem — degree ≥ 5 polynomials have no closed-form
-root in radicals). But the matrix-vector identity Eq 76 still holds
+root in radicals). But the matrix-vector identity Eq (A.59) still holds
 for arbitrary G, because the rank-1 structure is preserved. The
-Branch-2 ``compute_kinf_mg`` therefore evaluates Eq 76 directly via
+Branch-2 ``compute_kinf_mg`` therefore evaluates Eq (A.59) directly via
 :func:`numpy.linalg.solve` — no eigenvalue solver is needed at all.
 This is one of the cleanest examples in the project of the
 "minimal-SymPy + scaling-argument" discipline (see
@@ -1060,16 +1068,16 @@ and the L1 cross-check at higher G is numerical against
 
 .. _fn-method-V-fn-mg-2:
 
-V_fnMG.2 — Eq 76 with G=1 reduces to Eq 19
--------------------------------------------
+V_fnMG.2 — Eq (A.59) with G=1 reduces to Eq (A.2)
+-------------------------------------------------
 
 **SymPy derivation:**
 :func:`orpheus.derivations.continuous.fn_method.origins.k_inf_derivations.derive_kinf_mg_reduces_to_1g`.
 **Test gate:**
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_v_fn_mg_2_reduces_to_1g`.
 
-Trivial dimensional-reduction check — Eq 76 with all matrices and
-vectors at G=1 collapses to scalar arithmetic and produces Eq 19
+Trivial dimensional-reduction check — Eq (A.59) with all matrices and
+vectors at G=1 collapses to scalar arithmetic and produces Eq (A.2)
 exactly. The MG infrastructure must reproduce the 1G result
 bit-for-bit; this is enforced via
 :func:`tests.gates.derivations.test_fn_la13511_kinf.test_kinf_mg_reduces_to_kinf_1g_at_n_groups_1`
@@ -1084,12 +1092,12 @@ The first-slice load-bearing cross-check claim:
 
    :func:`orpheus.derivations.continuous.fn_method.multi_group.compute_kinf_mg`
    and :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous`
-   agree on every LA-13511 first-slice case to ≥ 12 digits.
+   agree on every first-slice Sood case to ≥ 12 digits.
 
 These two solvers are structurally independent above the trusted-
 library line:
 
-* **F_N path** evaluates the closed form Sood Eq 76 directly via
+* **F_N path** evaluates the closed form Sood Eq (A.59) directly via
   :func:`numpy.linalg.solve` on
   :math:`(\overline{\overline{\Sigma_t}} - \overline{\overline{\Sigma_s}})\,
   \vec u = \bar\chi`, then dots with :math:`\overline{\nu\Sigma_f}`.
@@ -1108,7 +1116,7 @@ When the F_N slab/sphere/cylinder solvers are added, the cross-check
 extends to:
 
    F_N reference solver and Variant α reference solver agree on the
-   same physics to ≥ 5 digits for every overlapping LA-13511 case
+   same physics to ≥ 5 digits for every overlapping Sood case
    (sphere primary, cylinder via :ref:`theory-singular-eigenfunction`,
    slab via :func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`).
 
@@ -1710,7 +1718,7 @@ V_fn-flux-slab.2 — :math:`\phi(z)/\phi(0)` is normalisation-free
 :func:`tests.gates.derivations.test_fn_la13511_slab_flux_symbolic.test_v_fn_flux_slab_2_endpoint_normalization`.
 
 The multiplicative constant :math:`a` cancels in the ratio
-:math:`\phi(z)/\phi(0)`, so the published Sood Table 14 / KLL Table
+:math:`\phi(z)/\phi(0)`, so the published Sood 2003 Table 11 / KLL Table
 III ratios are directly computable from the converged Fredholm
 solution :math:`A(\nu)` without fixing the normalisation. This is
 why the Branch-2 production solver does not need a normalisation
@@ -2527,16 +2535,25 @@ References
 * Burkart, A.R. (1976). *Trans. Am. Nucl. Soc.* **24**, 190.
   "Exact" reference values cited in NM Table 2 (matched by F_7 to
   all printed digits).
-* Sood, A., Forster, R.A., Parsons, D.K. (1999). *Analytical
-  Benchmark Test Set for Criticality Code Verification.* Los
-  Alamos National Laboratory report LA-13511. PDF at
-  ``scratch/literature/Sood Foster Parsons (1999)Analytical
-  Benchmark Test Set for Criticality Code Verification.pdf``.
 * Sood, A., Forster, R.A., Parsons, D.K. (2003). *Analytical
   Benchmark Test Set for Criticality Code Verification.*
-  *Progress in Nuclear Energy* **42**, 55. (Journal-published
-  condensation; verified to be a TEST SET not a method paper —
-  see ``.claude/agent-memory/literature-researcher/sood_2003_vs_1999_extraction.md``.)
+  *Progress in Nuclear Energy* **42**\ (1), 55-106
+  :cite:`SoodForsterParsons2003`. The edition this page cites: a test
+  set, not a method paper. Its appendix equations are numbered
+  (A.1)-(A.59) here (the page prints them "(.1)"-"(.59)"). PDF at
+  ``scratch/literature/Sood-Foster-Parsons(2003)Analytical benchmark
+  test set for criticality code verification.pdf``.
+* Sood, A., Forster, R.A., Parsons, D.K. (1999). *Analytical
+  Benchmark Test Set for Criticality Code Verification.* Los
+  Alamos National Laboratory report LA-13511
+  :cite:`SoodLA13511_1999`. The earlier edition of the same 75
+  problems, numbered differently: its appendix Eq N is Eq (A.N-17)
+  of the 2003 edition, its Table N is 2003 Table N-3 for N = 5 to
+  67, and its reference numbers map to the 2003 list with no uniform
+  offset. What else differs between the editions is recorded in
+  :ref:`sood-registry-editions`. PDF at
+  ``scratch/literature/Sood Foster Parsons (1999)Analytical
+  Benchmark Test Set for Criticality Code Verification.pdf``.
 * Kaper, H.G., Lindeman, A.J., Leaf, G.K. (1974). *Benchmark
   Values for the Slab and Sphere Criticality Problem in One-Group
   Neutron Transport Theory.* *Nuclear Science and Engineering*
@@ -2604,3 +2621,21 @@ Internal references:
   cylinder family.
 * :doc:`/theory/references/peierls_nystrom` — direct Peierls-integral reference solver
   (the third pillar after F_N and Variant α).
+
+History
+=======
+
+* 2026-09-29 — ERR-092: the claim that Sood's Eq 28 (1999 numbering;
+  2003 Eq (A.11)) has a typo is refuted; V_fn2.1 asserts the printed
+  equation equals the derived root — ``49576c27`` — #405.
+* 2026-09-29 — Every Sood citation on this page moves to the 2003
+  edition (appendix equations (A.N), 2003 table numbers), and the seven
+  ``sood-eq*`` equation labels are renamed to the 2003 numbering
+  (``sood-eq18-1g-balance`` becomes ``sood-eq-a1-1g-balance``, and so
+  on). The displayed body of Eq (A.15) (``sood-eq-a15-phi-ratio``) is
+  replaced by the printed one: the body shown before,
+  :math:`\Sigma_{12s}/(\Sigma_2^{\rm rem} - \nu_2\Sigma_{2f}/k_\infty)`,
+  gives 1.290 on PU-2-0-IN where the printed equation gives 0.675226
+  against the published 0.675229 (`[M]` 2026-09-29, registry cross
+  sections at :math:`k_\infty = 2.683767`). The SymPy module and
+  V_fn2.3 always used the printed form — #405.

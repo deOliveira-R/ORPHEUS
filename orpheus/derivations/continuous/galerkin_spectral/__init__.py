@@ -48,7 +48,7 @@ Literature
 * Dahl-Sjostrand 1979, *Nucl. Sci. Eng.* **69**, 114-125. The matrix
   eigenvalue formulation Eq. (3) and the block-matrix linearization
   Eq. (4) that turns the c-search into a single standard eigenproblem.
-* Sood/Forster/Parsons 1999, LANL LA-13511. The benchmark test set
+* Sood/Forster/Parsons 2003, *Prog. Nucl. Energy* **42**, 55. The benchmark test set
   whose ``*-1-1-SL/SP`` cases (linearly anisotropic slab and sphere,
   P_1) this package targets.
 

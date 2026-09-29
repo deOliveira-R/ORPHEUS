@@ -105,7 +105,7 @@ class Provenance:
     citation : str
         Primary literature reference with chapter/section/equation
         numbers, e.g. ``"Case & Zweifel 1967, Ch. 3 Eq. (3.3)"`` or
-        ``"Sood, Forster & Parsons 1999 (LA-13511), Problem 1"``.
+        ``"Sood, Forster & Parsons 2003, Problem 1"``.
     derivation_notes : str
         Free-text exposition of the derivation steps: why this
         ansatz, what simplifying assumptions, what the residual is.

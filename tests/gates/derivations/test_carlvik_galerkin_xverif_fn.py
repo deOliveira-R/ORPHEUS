@@ -34,7 +34,7 @@ is a strong consistency check across two structurally independent
 mathematical frames (Galerkin spectral on integral form vs Case
 singular eigenfunctions on the boundary). Combined with each method's
 agreement vs published reference tables (DS Tables I, II for
-Carlvik-Galerkin; KLL Table I and Sood LA-13511 for F_N), this
+Carlvik-Galerkin; KLL Table I and Sood 2003 for F_N), this
 provides a structurally independent verification chain.
 """
 from __future__ import annotations

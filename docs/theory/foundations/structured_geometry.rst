@@ -619,8 +619,9 @@ error.
 
 **Why four shapes, and why these.** The benchmark specification the
 reference generators are measured against is Sood, Forster and
-Parsons :cite:`SoodLA13511_1999` (the 2003 edition is the reference
-edition; its problem overview tables match the 1999 report's). It
+Parsons :cite:`SoodForsterParsons2003`, the edition the corpus cites;
+the 1999 report :cite:`SoodLA13511_1999` numbers the same problems the
+same way (:ref:`sood-registry-editions`). It
 specifies 75 problems, and 20 of them are multi-media: symmetric
 three-region slabs (problems 4, 25, 26), a slab reflected on one side
 only (3), reflected cylinders (9, 10, 27, 28), reflected spheres (16,

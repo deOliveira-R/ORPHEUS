@@ -39,7 +39,7 @@ References
 * Grandjean & Siewert 1979, *Nucl. Sci. Eng.* **69**, 161-168. Part II,
   Section III, Eqs. 25-26 + Table XI ("The Critical Thickness").
 * Kaper, Lindeman & Leaf 1974, *Nucl. Sci. Eng.* **54**, 94 (Table I).
-* Sood, Forster & Parsons 1999, LANL LA-13511 (Table 4).
+* Sood, Forster & Parsons 2003, *Prog. Nucl. Energy* **42**, 55 (Table 10).
 """
 from __future__ import annotations
 

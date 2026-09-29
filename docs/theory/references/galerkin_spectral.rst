@@ -77,7 +77,7 @@ authors), but the inline ``bickley_naylor.py`` would be allowed because
 "Bickley–Naylor functions" name a primitive. The boundary is
 **method ↔ folder, primitive ↔ filename**.
 
-The Sood/Forster/Parsons LA-13511 (1999) :cite:`SoodLA13511_1999`
+The Sood/Forster/Parsons (2003) :cite:`SoodForsterParsons2003`
 ``*-1-1-SL/SP`` benchmark cases (anisotropic slab + sphere) are
 verified by this package against the Dahl-Sjöstrand 1979 Tables I
 and II tabulations.

@@ -42,7 +42,7 @@ References
 - Westfall, R. M. & Metcalf, D. R. (1972). *Nucl. Sci. Eng.* 49, 273
   — F_N method derivation (the Wiener-Hopf factorization that
   underlies :func:`solve_singular_eigenfunction_cylinder_bare_critical`).
-- Sood, Forster & Parsons (1999/2003), LA-13511 Table 13 Ua-1-O-CY
+- Sood, Forster & Parsons (2003), *Prog. Nucl. Energy* 42, 55, Table 10 Ua-1-O-CY
   benchmark (the same critical-radius value WM-72 produces).
 - Verification plan:
   ``.claude/plans/cylinder_mr_variant_alpha_verification.md``.

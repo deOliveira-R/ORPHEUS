@@ -218,7 +218,7 @@ class CrossMethodCase:
         (criticality) or ``k_inf`` (closed configuration).
     truth_source : str
         Primary literature citation (e.g. "KLL 1974 Table I via
-        Sood LA-13511 Table 4", "Grandjean-Siewert 1979 Table XI",
+        Sood 2003 Table 10", "Grandjean-Siewert 1979 Table XI",
         "NM 1980 Table 2"). Carried verbatim into error messages
         so a failing test names the source it disagrees with.
     pillar : Pillar

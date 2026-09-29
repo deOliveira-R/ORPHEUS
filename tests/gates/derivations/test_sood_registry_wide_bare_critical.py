@@ -1,4 +1,4 @@
-r"""Phase B3 wide-enumeration 1G bare-critical gate — Sood/Forster/Parsons LA-13511.
+r"""Phase B3 wide-enumeration 1G bare-critical gate — Sood/Forster/Parsons 2003.
 
 This file covers the **5 1G bare-critical cases** in
 :data:`orpheus.derivations.continuous.sood_registry.WIDE_SLICE_BARE_CRITICAL_1G`
@@ -28,7 +28,7 @@ publishes 6-10 digits; F_N at the chosen N reaches at most 3e-6
 References
 ----------
 
-* Sood, Forster, Parsons (1999), LA-13511, Tables 6, 7, 17.
+* Sood, Forster, Parsons (2003), *Prog. Nucl. Energy* **42**, 55, Tables 3, 4, 14.
 * Phase B3 closeout memo:
   ``.claude/agent-memory/method-implementer/sood_registry_wide_enumeration_phase_b3.md``.
 """
@@ -101,7 +101,7 @@ def test_slab_fn_critical_dimension_matches_sood(case_id: str) -> None:
     r"""1G bare slab F_N reproduces Sood :math:`a_c` to ≤ 1e-5 absolute.
 
     Solver: :func:`solve_fn_slab_bare_critical` at N=12 modes.
-    Reference: LA-13511 Tables 6, 7, 17 (slab cases 2, 6, 22).
+    Reference: Sood 2003 Tables 3, 4, 14 (slab problems 2, 6, 22).
     """
     case = LA13511_CASES[case_id]
     truth = case.truth.critical_dimension_mfp
@@ -136,7 +136,7 @@ def test_sphere_fn_critical_dimension_matches_sood(case_id: str) -> None:
     r"""1G bare sphere F_N reproduces Sood :math:`R_c` to ≤ 1e-5 absolute.
 
     Solver: :func:`solve_fn_sphere_bare_critical` at N=10 modes.
-    Reference: LA-13511 Tables 7, 17 (sphere cases 8, 24).
+    Reference: Sood 2003 Tables 4, 14 (sphere problems 8, 24).
     """
     case = LA13511_CASES[case_id]
     truth = case.truth.critical_dimension_mfp

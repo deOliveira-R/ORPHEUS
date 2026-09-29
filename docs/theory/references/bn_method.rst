@@ -43,11 +43,14 @@ Canonical references
        treatment.
      - ✓
      - Foundational treatment of the B_N collocation scheme.
-   * - **Sood, A., Forster, R.A., Parsons, D.K. (2003).** LA-13511
-       benchmark catalogue.
+   * - **Sood, A., Forster, R.A., Parsons, D.K. (1999).** LA-13511
+       benchmark report.
      - ✓
-     - Cites the B_N method in the diffuse-reflection benchmark
-       context.
+     - Names the B_N method among the analytic methods behind its
+       results (Section II, p. 2: "F_N and B_N methods"). The 2003
+       journal edition (*Prog. Nucl. Energy* **42**, 55-106), the one
+       the corpus cites, names S_N in that sentence instead (Section
+       1.2, p. 58). Both page images read 2026-09-29.
    * - **Garibba & Rojas (1980s).** Technical reports.
      - n/a (NOT local)
      - Original diffuse-reflection benchmark formulations cited by

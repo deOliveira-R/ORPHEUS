@@ -52,7 +52,7 @@ repository the following words mean:
    A code-to-code comparison at level L4 of the V&V ladder.
    **Never** used as a verification
    artefact in this repository. Legacy collections such as
-   Sood, Parsons & Forster 1999 (LA-13511) and Ganapol 2008
+   Sood, Forster & Parsons 2003 and Ganapol 2008
    use the word "benchmark" in their titles for historical reasons,
    but their *contents* are analytical reference solutions derived
    from the transport equation; we cite them as such. When the word
@@ -567,9 +567,10 @@ References
   :math:`\mathrm{Ki}_n(x)`," *Philosophical Magazine*, ser. 7,
   **20** (1935) 343.
 - Sood, A., Forster, R. A. and Parsons, D. K., *Analytical Benchmark
-  Test Set for Criticality Code Verification*, LA-13511, 1999
-  (later journal version: *Prog. Nucl. Energy* **42** (2003) 55,
-  DOI 10.1016/S0149-1970(02)00098-7). The word "benchmark" in the
+  Test Set for Criticality Code Verification*, *Prog. Nucl. Energy*
+  **42** (2003) 55-106, DOI 10.1016/S0149-1970(02)00098-7; the edition
+  the corpus cites (the earlier edition is the 1999 Los Alamos report
+  LA-13511, :ref:`sood-registry-editions`). The word "benchmark" in the
   title refers to the published collection; the *contents* are
   analytical reference solutions in the sense of this page.
 - Ganapol, B. D., *Analytical Radiation Transport Benchmarks for

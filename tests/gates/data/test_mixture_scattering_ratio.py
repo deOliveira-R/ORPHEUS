@@ -10,7 +10,7 @@ available to any consumer of the production XS payload.
 These tests verify the formula across the regimes the property is
 expected to handle:
 
-* 1G isotropic, super-critical (c > 1) — Sood/LA-13511 column.
+* 1G isotropic, super-critical (c > 1) — the Sood column.
 * 1G pure-scattering, sub-critical (c < 1).
 * 2G multi-group with downscatter — per-group diagnostic.
 

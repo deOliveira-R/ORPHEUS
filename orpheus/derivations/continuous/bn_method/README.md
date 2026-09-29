@@ -19,7 +19,9 @@ than a foundational pillar.
 * **Brockmann, R. (1981).** B_N method for anisotropic-scattering
   treatment. Local PDF: `scratch/literature/Brockmann1981.pdf`.
 
-Additional context: Sood/Forster/Parsons 2003 cite the B_N method
-in the LA-13511 benchmark catalogue context. The Garibba–Rojas
+Additional context: the 1999 Sood/Forster/Parsons report LA-13511
+names the B_N method among the analytic methods behind its results
+(Section II, p. 2); the 2003 journal edition, the one the corpus
+cites, names S_N in that sentence instead (Section 1.2, p. 58). The Garibba–Rojas
 1980s technical reports (NOT local) contain the original
 diffuse-reflection benchmark formulations.

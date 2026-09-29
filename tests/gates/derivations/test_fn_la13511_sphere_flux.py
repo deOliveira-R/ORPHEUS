@@ -16,9 +16,9 @@ References
 ----------
 
 * Kaper-Lindeman-Leaf 1974, *Nucl. Sci. Eng.* **54**, 94, Table VII.
-* Sood, Forster, Parsons 1999, LA-13511 Table 6 (case ``Ua-1-0-SP``;
-  no flux-ratio table for this case in LA-13511, but the XS match
-  KLL's c=1.30 row exactly).
+* Sood, Forster, Parsons 2003, *Prog. Nucl. Energy* **42**, 55, Table 10
+  (case ``Ua-1-0-SP``); its flux ratios are 2003 Table 11, and the XS
+  match KLL's c=1.30 row exactly.
 * Siewert-Thomas 1986, *Nucl. Sci. Eng.* **94**, 264.
 """
 from __future__ import annotations

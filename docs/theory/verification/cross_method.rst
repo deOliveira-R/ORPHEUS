@@ -151,8 +151,8 @@ agreement is breaking against.
 
 Examples currently shipped:
 
-* "Sood LA-13511 Table 4 (1999), citing Kaper-Lindeman-Leaf 1974
-  NSE 54, 94 (Ref. 26)" — KLL Table I via Sood transcription.
+* "Sood 2003 Table 10, citing Kaper-Lindeman-Leaf 1974 NSE 54, 94
+  (Ref. [35])" — KLL Table I via Sood transcription.
   KLL itself is paywalled with no preprint; Sood's transcription is
   the primary access (see
   ``.claude/agent-memory/literature-researcher/kaper_lindeman_leaf_1974_fn_method.md``).
@@ -276,7 +276,7 @@ The current cross-method ≥2G coverage is therefore one case
 gap requires:
 
 * (longer-term) extending fn_method to multi-group critical-
-  dimension via Sood Eq 76 generalisation, OR
+  dimension via Sood Eq (A.59) generalisation, OR
 * extending the cross-method protocol to consume
   ``trajectory_resolvent.solve_greens_function_sphere_mg`` against
   the closed-sphere α=1 / kinf identity at 2G+ — which only needs
@@ -286,8 +286,10 @@ gap requires:
 References
 ----------
 
-* Sood, Forster, Parsons (1999), *Analytical Benchmark Test Set
-  for Criticality Code Verification*, LA-13511.
+* Sood, Forster, Parsons (2003), *Analytical Benchmark Test Set
+  for Criticality Code Verification*, *Prog. Nucl. Energy* **42**\ (1),
+  55-106 (the edition cited; the 1999 report LA-13511 numbers its
+  tables and references differently, :ref:`sood-registry-editions`).
 * Kaper, Lindeman, Leaf (1974), *Nucl. Sci. Eng.* **54**, 94.
 * Grandjean, Siewert (1979), *Nucl. Sci. Eng.* **69**, 161 — Table
   XI critical thicknesses.
