@@ -22,20 +22,23 @@ The package follows the algebra-of-record bifurcation discipline:
 * The machine-readable catalogue of the Sood cases is
   :mod:`orpheus.derivations.continuous.sood_registry`.
 
-Subpackage stubs (:mod:`.core`, :mod:`.slab`, :mod:`.sphere`,
-:mod:`.cylinder`) are placeholders for the F_N machinery from
-Kaper-Lindeman-Leaf 1974 (slab + sphere) and Westfall-Metcalf 1973
-(cylinder). They will be populated when the structurally-independent
-F_N reference solvers are added; the Sood paper does not contain
-the F_N method specification (only the truth set), so populating those
-folders requires acquiring the cited journal references.
+The F_N solvers, built from the primary papers Sood cites (the Sood
+paper states the truth set, not the method):
 
-This first slice ships **only the k_inf cases** (:math:`PUa-1-0-IN`
-and :math:`PU-2-0-IN`), which need only Sood 2003 Appendix A — pure
-rational algebra in cross sections, no special functions. They prove
-the Branch-1/Branch-2 pattern works at this complexity, and serve as
-the V&V ground floor for the multi-group infrastructure that the F_N
-method extensions will need.
+* :mod:`.core` — the shared F_N primitives: the Case dispersion-relation
+  roots, the F_N collocation matrix and the half-range moment integrals.
+* :mod:`.slab` — the one-group bare critical slab (Siewert-Benoist 1979,
+  Grandjean-Siewert 1979), its interior flux (the Kaper-Lindeman-Leaf
+  1974 recipe), and the one-group reflected slab (Neshat-Maiorino 1980).
+* :mod:`.sphere` — the one-group bare critical sphere (Siewert-Thomas
+  1986) and its interior flux.
+* :mod:`.cylinder` — a placeholder. The bare cylinders' critical
+  dimensions come from
+  :mod:`orpheus.derivations.continuous.singular_eigenfunction.cylinder`
+  (Westfall-Metcalf 1972).
+* :mod:`.moment_space` — :class:`~.moment_space.MomentSpace`, the
+  reference generator that reads a ``StructuredGeometry`` and routes it
+  to these solvers.
 
 """
 from __future__ import annotations

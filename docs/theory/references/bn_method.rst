@@ -53,8 +53,10 @@ Canonical references
        1.2, p. 58). Both page images read 2026-09-29.
    * - **Garibba & Rojas (1980s).** Technical reports.
      - n/a (NOT local)
-     - Original diffuse-reflection benchmark formulations cited by
-       LA-13511.
+     - Diffuse-reflection benchmark formulations. The attribution to
+       Sood et al. that stood here is unsupported: neither the 1999
+       report nor the 2003 paper names Garibba or Rojas (text search of
+       both editions, 2026-09-29).
 
 
 Cross-references

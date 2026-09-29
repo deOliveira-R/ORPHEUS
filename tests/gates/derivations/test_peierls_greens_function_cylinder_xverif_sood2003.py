@@ -11,17 +11,19 @@ structurally-independent agreement).
 Why the Sood benchmark is structurally independent
 ----------------------------------------------------
 
-Sood et al. compute critical radii via the **F_N method**:
+Sood et al. compile the critical radii from the transport-theory
+literature; they do not compute them. For the bare cylinder they cite
+(Sood 2003 Table 10, Refs. [36], [37]):
 
-- Westfall & Metcalf (1972), *Nucl. Sci. Eng.* 49, 273 — F_N method
-  for slab and sphere.
-- Westfall (1983) follow-on — F_N applied to the bare critical
-  cylinder (Sood 2003 Refs. [36], [37]).
+- Westfall, R.M. (1983), *Trans. Am. Nucl. Soc.* 44, 281, "Benchmark
+  solutions for the infinite critical cylinder";
+- Westfall, R.M. & Metcalf, D.R. (1972), *Trans. Am. Nucl. Soc.* 15,
+  266, "Exact solution of the transport equation for critical
+  cylindrical configurations".
 
-The F_N method uses **Case singular eigenfunctions** plus
-**Wiener-Hopf factorization** of the half-space transport equation.
-**No Bickley-Naylor / Ki_n integrals appear anywhere in the F_N
-derivation.**
+These are **Case singular-eigenfunction** solutions of the cylinder
+transport equation. **No Bickley-Naylor / Ki_n integrals appear in
+that derivation.**
 
 This is structurally independent of the cylinder Variant α path,
 which integrates the angle-resolved Green's function along bouncing
@@ -50,7 +52,8 @@ Table 10 (Critical Dimensions for One-Group Bare U-235):
 - Σ_t = 0.32640 cm⁻¹
 - c = (Σ_s + νΣ_f) / Σ_t = (0.248064 + 0.176256) / 0.32640 = 1.30
 - **Critical radius r_c = 1.72500292 mfp = 5.284935 cm** (Sood
-  6-digit accuracy claim, F_N method; Refs. [36] and [37] in Sood 2003).
+  6-digit accuracy claim, singular-eigenfunction solutions; Refs. [36]
+  and [37] in Sood 2003).
 
 Test: drive Variant α at α=0 (vacuum BC, bare critical cylinder) at
 R = r_c. The eigenvalue problem must converge to **k_eff = 1.0**
@@ -120,15 +123,15 @@ def test_a2_variant_alpha_agrees_with_sood2003_cylinder():
     Sood/Forster/Parsons 2003 Table 10 ``Ua-1-O-CY`` benchmark:
     bare critical homogeneous cylinder, U-235 (a) cross sections,
     c = 1.30, vacuum BC. Sood's reference :math:`r_c = 1.72500292`
-    mfp = 5.284935 cm is computed via the F_N method (Case singular
-    eigenfunctions + Wiener-Hopf factorization, Sood 2003 Refs. [36] and
-    [37]), structurally independent of Bickley-Naylor / :math:`\mathrm{Ki}_n`
+    mfp = 5.284935 cm is compiled from Case singular-eigenfunction
+    solutions of the cylinder (Sood 2003 Refs. [36] and [37]),
+    structurally independent of Bickley-Naylor / :math:`\mathrm{Ki}_n`
     integrals.
 
     Closes the post-Phase-3 hindsight V&V gap on cylinder Variant α:
     previously only the internal :math:`T_{00} \equiv P_{ss}` cross-check
     was available, which reuses the Bickley-Naylor identity in both
-    code paths (ERR-032 pattern risk). Sood's F_N reference is in a
+    code paths (ERR-032 pattern risk). Sood's singular-eigenfunction reference is in a
     completely different mathematical framework — true
     structurally-independent cross-verification.
 
@@ -159,9 +162,9 @@ def test_a2_variant_alpha_agrees_with_sood2003_cylinder():
         res.k_eff, 1.0, atol=1e-5,
         err_msg=(
             f"Sood Ua-1-O-CY: Variant α at r_c = {R_CRITICAL_SOOD} cm "
-            f"(F_N method reference) gave k_eff = {res.k_eff:.16e}, "
+            f"(singular-eigenfunction reference) gave k_eff = {res.k_eff:.16e}, "
             f"|k_eff - 1| = {abs(res.k_eff - 1.0):.3e}, exceeds the "
-            f"1e-5 target tolerance. Sood's 6-digit-accurate F_N "
+            f"1e-5 target tolerance. Sood's 6-digit-accurate "
             f"reference and Variant α should agree at this level — "
             f"investigate before declaring V&V hardening complete."
         ),
@@ -220,13 +223,13 @@ def test_a2_sood_quadrature_order_convergence():
     assert err_coarse < 1e-3, (
         f"Sood Ua-1-O-CY: even coarse (8, 8, 16, 24) Variant α gives "
         f"|k_eff - 1| = {err_coarse:.3e} >= 1e-3 — coarse agreement "
-        f"with the F_N reference is unexpectedly poor; investigate."
+        f"with Sood's reference is unexpectedly poor; investigate."
     )
     # Fine agreement is research-grade.
     assert err_fine < 5e-5, (
         f"Sood Ua-1-O-CY: fine (20, 16, 48, 64) Variant α gives "
         f"|k_eff - 1| = {err_fine:.3e} >= 5e-5 — fine agreement with "
-        f"the F_N reference is below research-grade target."
+        f"Sood's reference is below research-grade target."
     )
     # Fine is at least 4x tighter than coarse (allows for the
     # documented non-monotonicity at intermediate grids).
