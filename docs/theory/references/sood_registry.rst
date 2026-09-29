@@ -153,23 +153,15 @@ The :class:`La13511Case` dataclass carries these load-bearing fields:
      - :class:`La13511Truth`
      - Published reference values: :math:`k_{\rm eff}` /
        :math:`k_\infty`, flux ratios, critical dimensions, etc.
-   * - ``sood_table``
-     - ``int``
-     - LA-13511 table number where this case is tabulated.
-   * - ``primary_reference``
-     - ``str``
-     - The peer-reviewed paper Sood cites as the source.
-   * - ``notes``
-     - ``str``
-     - Free-form remarks (typo flags, conversion subtleties, …).
    * - ``provenance``
-     - :class:`Provenance` ``| None``
-     - Phase B addition (2026-05-04). Structured citation metadata
-       bundling ``paper_id`` / ``paper_table`` / ``primary_reference``
-       / ``notes``. Mirrors the legacy flat ``sood_table`` /
-       ``primary_reference`` / ``notes`` triple — Phase B populates
-       both forms; Phase F drops the flat fields. ``None`` only on
-       cases not yet migrated.
+     - :class:`Provenance`
+     - The case's one citation record (required): ``paper_id`` (the
+       publication, and so the edition), ``paper_table``,
+       ``primary_reference`` (the peer-reviewed paper Sood cites as the
+       source) and ``notes`` (free-form remarks). Added in Phase B
+       (2026-05-04) beside the flat fields ``sood_table``,
+       ``primary_reference`` and ``notes``, which duplicated it field for
+       field on every case; those retired in P1 step 2b (2026-09-29).
 
 The geometry is carried as the single ``geometry_kind`` string tag;
 the published critical dimension lives on ``truth``

@@ -135,9 +135,10 @@ class Provenance:
     """Citation / publication metadata for a registry case.
 
     Separates *where the case came from* from *what the case is*.
-    Pure metadata; not used in any solve. Mirrors (with structure) the
-    legacy flat fields ``La13511Case.sood_table`` /
-    ``La13511Case.primary_reference`` / ``La13511Case.notes``.
+    Pure metadata; not used in any solve. It is the one citation record of
+    a case (the flat fields that once duplicated it retired in P1 step 2b).
+    ``paper_id`` names the publication, and so the edition: the 1999
+    report LA-13511 and the 2003 journal article are different papers.
 
     Parameters
     ----------
@@ -204,16 +205,11 @@ class La13511Case:
     truth : La13511Truth
         All published reference values for this case (including
         :attr:`La13511Truth.critical_dimension_mfp` for finite cases).
-    sood_table : int
-        LA-13511 table number where this case is tabulated.
-    primary_reference : str
-        The peer-reviewed paper Sood cites as the source of the
-        reference values.
-    notes : str
-        Any extra remarks (typo flags, conversion subtleties, etc).
-    provenance : Provenance | None
-        Structured citation metadata mirroring ``sood_table`` /
-        ``primary_reference`` / ``notes``.
+    provenance : Provenance
+        Where the case comes from: the publication, its table, the primary
+        source it cites, and any remarks. The ONE citation record: the
+        flat fields ``sood_table``, ``primary_reference`` and ``notes``
+        that duplicated it retired in P1 step 2b.
     """
 
     case_id: str
@@ -223,10 +219,7 @@ class La13511Case:
     geometry_kind: str
     scattering_order: int
     truth: La13511Truth
-    sood_table: int
-    primary_reference: str
-    notes: str = ""
-    provenance: Provenance | None = None
+    provenance: Provenance
 
     def __post_init__(self) -> None:
         if self.geometry_kind not in {"slab", "sphere", "cylinder", "infinite"}:
@@ -392,6 +385,39 @@ def _mix_1g_isotropic(
     )
 
 
+def _mix_pua_1g() -> Mixture:
+    """The PUa one-group set, shared by every case that uses it."""
+    return _mix_1g_isotropic(
+        sigma_t=0.32640,
+        sigma_c=0.019584,
+        sigma_f=0.0816,
+        nu=3.24,
+        sigma_s_self=0.225216,
+    )
+
+
+def _mix_pub_1g() -> Mixture:
+    """The PUb one-group set, shared by every case that uses it."""
+    return _mix_1g_isotropic(
+        sigma_t=0.32640,
+        sigma_c=0.019584,
+        sigma_f=0.0816,
+        nu=2.84,
+        sigma_s_self=0.225216,
+    )
+
+
+def _mix_ud2o_1g() -> Mixture:
+    """The UD2O one-group set, shared by every case that uses it."""
+    return _mix_1g_isotropic(
+        sigma_t=0.54628,
+        sigma_c=0.027314,
+        sigma_f=0.054628,
+        nu=1.70,
+        sigma_s_self=0.464338,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Case 1 — PUa-1-0-IN (Sood problem 1): 1G infinite medium, Pu-239 (a)
 # ═══════════════════════════════════════════════════════════════════
@@ -405,25 +431,12 @@ PUA_1_0_IN = La13511Case(
     case_id="PUa-1-0-IN",
     problem_number=1,
     description="Pu-239 (a) bare infinite medium, 1G isotropic",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=3.24,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pua_1g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.612903,
         flux_ratios=None,
-    ),
-    sood_table=2,
-    primary_reference="LA-13511 Eq 20 (closed form)",
-    notes=(
-        "1G infinite-medium k_inf reduces to nu·Sigma_f/Sigma_a; the "
-        "'c' factor in Eq 20 cancels algebraically (verified in "
-        "fn_method.origins.k_inf_derivations.derive_kinf_1g_eq_20_simplifies_to_eq_19)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -483,19 +496,6 @@ PU_2_0_IN = La13511Case(
         flux_ratios=None,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 0.675229},  # slow/fast = 1/Sood ratio
     ),
-    sood_table=30,
-    primary_reference="LA-13511 Eq 28-29 (k_inf) + Eq 32 (flux ratio)",
-    notes=(
-        "Sood Eq 28 (the general two-group k_inf, with upscatter) reduc"
-        "es to Eq 29 term by term when Sigma_21s = 0, and as printed gi"
-        "ves the published k_inf = 2.683767 (checked against the page i"
-        "mage, 2026-09-29). An earlier note here called Eq 28 a typo th"
-        "at reduces to 2.862; that was a mis-transcription of the equat"
-        "ion (a swapped Sigma_g^rem factor), not an error in the report"
-        ". The SymPy derivation in fn_method.origins.k_inf_derivations."
-        "derive_kinf_2g_general_from_matrix computes det(M)=0 from Eq 2"
-        "5 directly and verifies Eq 29 against it."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=30,
@@ -542,14 +542,6 @@ UA_1_0_SL_STUB = La13511Case(
         },
         critical_dimension_mfp=0.93772556,
     ),
-    sood_table=4,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94",
-    notes=(
-        "Slab F_N solver shipped at ≤5e-6 absolute on a_c (see "
-        "fn_method.slab.solve_fn_slab_bare_critical). Critical "
-        "dimension is the half-thickness; slab full width is "
-        "2*critical_dimension_cm = 5.745868 cm."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=4,
@@ -571,18 +563,6 @@ UA_1_0_CY_STUB = La13511Case(
     truth=La13511Truth(
         k_eff_or_kinf=1.0,
         critical_dimension_mfp=1.72500292,
-    ),
-    sood_table=5,
-    primary_reference="Westfall-Metcalf 1973 NSE 52, 1",
-    notes=(
-        "WM-72 singular-eigenfunction cylinder solver shipped at ~1% "
-        "relative accuracy (single-cell product integration on the "
-        "log-singular kernel diagonal; see "
-        "orpheus.derivations.continuous.singular_eigenfunction.cylinder). "
-        "Variant α cylinder cross-check at 8.5e-6 holds the strict "
-        "1e-5 anchor. WM-72 prototype provides the second, "
-        "structurally-independent cross-check anchor (different "
-        "mathematical pillar than Variant α / Bickley-Naylor)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -613,16 +593,6 @@ UA_1_0_SP_STUB = La13511Case(
             1.00: 0.17177706,
         },
         critical_dimension_mfp=2.4248249802,
-    ),
-    sood_table=6,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Table VII)",
-    notes=(
-        "Sphere F_N solver shipped at ≤1e-7 absolute on R_c (see "
-        "fn_method.sphere.solve_fn_sphere_bare_critical). Used as the "
-        "structurally-independent L1 reference for Variant α sphere. "
-        "Flux ratios populated from KLL Table VII c=1.30 row — same "
-        "XS as this case (cross-check via "
-        "fn_method.sphere.flux_reconstruction)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -706,6 +676,75 @@ def _mix_2g_isotropic(
     )
 
 
+def _mix_pu_2g() -> Mixture:
+    """Pu-239 2G XS shared by the infinite-medium and finite cases, PU-2-0-SL and PU-2-0-SP (Sood Tables 30-31).
+
+    Same XS used in PU-2-0-IN — the difference between the three cases
+    is only the geometry (infinite vs slab vs sphere).
+    """
+    return _mix_2g_isotropic(
+        sigma_t_fast=0.2208, sigma_t_slow=0.3360,
+        sigma_c_fast=0.00480, sigma_c_slow=0.0144,
+        sigma_f_fast=0.0936, sigma_f_slow=0.08544,
+        nu_fast=3.10, nu_slow=2.93,
+        chi_fast=0.575, chi_slow=0.425,
+        sigma_22s=0.0792, sigma_11s=0.23616,
+        sigma_12s=0.0432, sigma_21s=0.0,
+    )
+
+
+def _mix_u_2g() -> Mixture:
+    """U-235 2G XS shared by the infinite-medium and finite cases, U-2-0-SL and U-2-0-SP (Sood Tables 33-34)."""
+    return _mix_2g_isotropic(
+        sigma_t_fast=0.2160, sigma_t_slow=0.3456,
+        sigma_c_fast=0.00384, sigma_c_slow=0.01344,
+        sigma_f_fast=0.06192, sigma_f_slow=0.06912,
+        nu_fast=2.70, nu_slow=2.50,
+        chi_fast=0.575, chi_slow=0.425,
+        sigma_22s=0.078240, sigma_11s=0.26304,
+        sigma_12s=0.0720, sigma_21s=0.0,
+    )
+
+
+def _mix_ual_2g() -> Mixture:
+    """U-Al-Water 2G XS shared by the infinite-medium and finite cases, UAL-2-0-SL and UAL-2-0-SP (Tables 36-37)."""
+    return _mix_2g_isotropic(
+        sigma_t_fast=0.268165, sigma_t_slow=1.276976,
+        sigma_c_fast=0.000217, sigma_c_slow=0.003143,
+        sigma_f_fast=0.0, sigma_f_slow=0.060706,
+        nu_fast=0.0, nu_slow=2.830023,
+        chi_fast=1.0, chi_slow=0.0,
+        sigma_22s=0.247516, sigma_11s=1.213127,
+        sigma_12s=0.020432, sigma_21s=0.0,
+    )
+
+
+def _mix_urra_2g() -> Mixture:
+    """URRa 2G XS shared by the infinite-medium and finite cases, URRa-2-0-SL and URRa-2-0-SP (Tables 39-40)."""
+    return _mix_2g_isotropic(
+        sigma_t_fast=0.65696, sigma_t_slow=2.52025,
+        sigma_c_fast=0.0010046, sigma_c_slow=0.025788,
+        sigma_f_fast=0.0010484, sigma_f_slow=0.050632,
+        nu_fast=2.50, nu_slow=2.50,
+        chi_fast=1.0, chi_slow=0.0,
+        sigma_22s=0.62568, sigma_11s=2.44383,
+        sigma_12s=0.029227, sigma_21s=0.0,
+    )
+
+
+def _mix_ud2o_2g() -> Mixture:
+    """U-D2O 2G XS shared by the infinite-medium and finite cases, UD2O-2-0-SL and UD2O-2-0-SP (Tables 49-50)."""
+    return _mix_2g_isotropic(
+        sigma_t_fast=0.33588, sigma_t_slow=0.54628,
+        sigma_c_fast=0.0087078, sigma_c_slow=0.02518,
+        sigma_f_fast=0.002817, sigma_f_slow=0.097,
+        nu_fast=2.50, nu_slow=2.50,
+        chi_fast=1.0, chi_slow=0.0,
+        sigma_22s=0.31980, sigma_11s=0.42410,
+        sigma_12s=0.0045552, sigma_21s=0.0,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 1G k_inf infinite-medium cases (LA-13511 Tables 5, 12, 16, 20)
 # ═══════════════════════════════════════════════════════════════════
@@ -719,19 +758,10 @@ PUB_1_0_IN = La13511Case(
     case_id="PUb-1-0-IN",
     problem_number=5,
     description="Pu-239 (b) bare infinite medium, 1G isotropic, c=1.40",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=2.84,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pub_1g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.290323),
-    sood_table=5,
-    primary_reference="LA-13511 Eq 19 / Table 5",
-    notes="Same Σ_t / Σ_s as PUa, only ν changes (3.24 → 2.84). c=1.40.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=5,
@@ -750,9 +780,6 @@ UA_1_0_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.25),
-    sood_table=12,
-    primary_reference="LA-13511 Eq 19 / Table 12",
-    notes="Sood publishes 'k_inf = 2.25' (3 digits printed but algebraically exact).",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=12,
@@ -777,9 +804,6 @@ UB_1_0_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.330917),
-    sood_table=12,
-    primary_reference="LA-13511 Eq 19 / Table 12",
-    notes="Cross-section variant (b): same Σ_t/Σ_s as Ua, ν tuned to give c=1.3194202.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=12,
@@ -804,9 +828,6 @@ UC_1_0_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.256083),
-    sood_table=12,
-    primary_reference="LA-13511 Eq 19 / Table 12",
-    notes="Cross-section variant (c): same Σ_t/Σ_s as Ua, ν=2.707308.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=12,
@@ -831,9 +852,6 @@ UD_1_0_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.232667),
-    sood_table=12,
-    primary_reference="LA-13511 Eq 19 / Table 12",
-    notes="Cross-section variant (d): same Σ_t/Σ_s as Ua, ν=2.679198.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=12,
@@ -848,19 +866,10 @@ UD2O_1_0_IN = La13511Case(
     case_id="UD2O-1-0-IN",
     problem_number=21,
     description="U-D2O reactor bare infinite medium, 1G isotropic, c=1.02",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.54628,
-        sigma_c=0.027314,
-        sigma_f=0.054628,
-        nu=1.70,
-        sigma_s_self=0.464338,
-    )},
+    materials={0: _mix_ud2o_1g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.133333),
-    sood_table=16,
-    primary_reference="LA-13511 Eq 19 / Table 16",
-    notes="Heavy-water-moderated low-enrichment U; lowest c in the bare 1G family (1.02).",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=16,
@@ -885,12 +894,6 @@ UE_1_0_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=2.1806667),
-    sood_table=20,
-    primary_reference="LA-13511 Eq 19 / Table 20",
-    notes=(
-        "U-235 (e) cross sections used in the Ue-Fe-Na multi-region "
-        "case; the infinite-medium variant uses the U-235 (e) XS alone."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=20,
@@ -915,14 +918,6 @@ PU_1_1_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,  # k_inf does not depend on anisotropy; isotropic XS suffice
     truth=La13511Truth(k_eff_or_kinf=2.5),
-    sood_table=24,
-    primary_reference="LA-13511 Eq 19 / Table 24",
-    notes=(
-        "Sood: 'The anisotropic scattering cross sections do not change "
-        "k_inf' (LA-13511 p. 22). Catalogued with scattering_order=0 + "
-        "Σ_s = Σ_s0 since the P_1 moment is a no-op for infinite-medium "
-        "k_inf. Anisotropic data lives in the slab cases 32-35."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=24,
@@ -948,9 +943,6 @@ UD2OA_1_1_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.205587),
-    sood_table=28,
-    primary_reference="LA-13511 Eq 19 / Table 28",
-    notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0308381.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=28,
@@ -973,9 +965,6 @@ UD2OB_1_1_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.227391),
-    sood_table=28,
-    primary_reference="LA-13511 Eq 19 / Table 28",
-    notes="P_1 anisotropy doesn't change k_inf; ν tuned for c=1.0341086.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=28,
@@ -998,13 +987,6 @@ UD2OC_1_1_IN = La13511Case(
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.130933),
-    sood_table=28,
-    primary_reference="LA-13511 Eq 19 / Table 28",
-    notes=(
-        "U-D2O (c) has *negative* P_1 scattering moment Σ_s1 = -0.27850447 "
-        "(backward-peaked); k_inf still depends only on Σ_s0. Slab "
-        "cases (39/41/43) inherit anisotropy."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=28,
@@ -1025,24 +1007,13 @@ U_2_0_IN = La13511Case(
     case_id="U-2-0-IN",
     problem_number=47,
     description="U-235 bare infinite medium, 2G isotropic, no upscatter",
-    materials={0: _mix_2g_isotropic(
-        sigma_t_fast=0.2160, sigma_t_slow=0.3456,
-        sigma_c_fast=0.00384, sigma_c_slow=0.01344,
-        sigma_f_fast=0.06192, sigma_f_slow=0.06912,
-        nu_fast=2.70, nu_slow=2.50,
-        chi_fast=0.575, chi_slow=0.425,
-        sigma_22s=0.078240, sigma_11s=0.26304,
-        sigma_12s=0.0720, sigma_21s=0.0,
-    )},
+    materials={0: _mix_u_2g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.216349,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 0.474967},
     ),
-    sood_table=33,
-    primary_reference="LA-13511 Eq 29 (k_inf) + Eq 32 (flux ratio) / Tables 33-34",
-    notes="Sood publishes φ_2/φ_1 (fast/slow) = 0.474967.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=33,
@@ -1058,27 +1029,12 @@ UAL_2_0_IN = La13511Case(
     case_id="UAL-2-0-IN",
     problem_number=50,
     description="U-Al-Water assembly bare infinite medium, 2G isotropic",
-    materials={0: _mix_2g_isotropic(
-        sigma_t_fast=0.268165, sigma_t_slow=1.276976,
-        sigma_c_fast=0.000217, sigma_c_slow=0.003143,
-        sigma_f_fast=0.0, sigma_f_slow=0.060706,
-        nu_fast=0.0, nu_slow=2.830023,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.247516, sigma_11s=1.213127,
-        sigma_12s=0.020432, sigma_21s=0.0,
-    )},
+    materials={0: _mix_ual_2g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=2.662437,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 3.124951},
-    ),
-    sood_table=36,
-    primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 36-37",
-    notes=(
-        "Slow-only fission (ν_2 = 0, χ_1 = 0). Sood publishes "
-        "φ_2/φ_1 = 3.124951 (2003 edition; the primary source, Siewert and Thomas 1986, gives 3.125) — i.e. fast/slow > 1 because slow group is "
-        "very absorbing (Σ_1 = 1.276976 mostly self-scatter)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1094,24 +1050,13 @@ URRA_2_0_IN = La13511Case(
     case_id="URRa-2-0-IN",
     problem_number=53,
     description="URR (a) — 93% enriched U bare infinite medium, 2G isotropic",
-    materials={0: _mix_2g_isotropic(
-        sigma_t_fast=0.65696, sigma_t_slow=2.52025,
-        sigma_c_fast=0.0010046, sigma_c_slow=0.025788,
-        sigma_f_fast=0.0010484, sigma_f_slow=0.050632,
-        nu_fast=2.50, nu_slow=2.50,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.62568, sigma_11s=2.44383,
-        sigma_12s=0.029227, sigma_21s=0.0,
-    )},
+    materials={0: _mix_urra_2g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.631452,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 2.614706},
     ),
-    sood_table=39,
-    primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 39-40",
-    notes="93%-enriched bare research reactor. χ_1=0 (all fission from fast group).",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=39,
@@ -1140,13 +1085,6 @@ URRB_2_0_IN = La13511Case(
     truth=La13511Truth(
         k_eff_or_kinf=1.365821,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 1.173679},
-    ),
-    sood_table=43,
-    primary_reference="LA-13511 Eq 28 (general — with upscatter) / Tables 43-44",
-    notes=(
-        "Has thermal upscatter (Σ_21s = 0.000767). MUST use the general "
-        "Eq-28 formula (compute_kinf_2g_general or compute_kinf_mg), NOT "
-        "the no-upscatter Eq-29 specialisation."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1177,9 +1115,6 @@ URRC_2_0_IN = La13511Case(
         k_eff_or_kinf=1.633380,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 1.933422},
     ),
-    sood_table=43,
-    primary_reference="LA-13511 Eq 28 (general — with upscatter) / Tables 43-44",
-    notes="Larger Σ_1f / Σ_21s than URRb; same upscatter structure.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=43,
@@ -1209,13 +1144,6 @@ URRD_2_0_IN = La13511Case(
         k_eff_or_kinf=1.034970,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 2.023344},
     ),
-    sood_table=46,
-    primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 46-47",
-    notes=(
-        "ISLC (Infinite Slab Lattice Cell) base XS. Sood uses ν_fast=1.004 "
-        "'to stress code verification' (LA-13511 p. 25 — i.e. unphysical "
-        "but algebraically valid). Σ_22s = 0 (no fast self-scatter)."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=46,
@@ -1230,27 +1158,12 @@ UD2O_2_0_IN = La13511Case(
     case_id="UD2O-2-0-IN",
     problem_number=67,
     description="U-D2O reactor bare infinite medium, 2G isotropic",
-    materials={0: _mix_2g_isotropic(
-        sigma_t_fast=0.33588, sigma_t_slow=0.54628,
-        sigma_c_fast=0.0087078, sigma_c_slow=0.02518,
-        sigma_f_fast=0.002817, sigma_f_slow=0.097,
-        nu_fast=2.50, nu_slow=2.50,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.31980, sigma_11s=0.42410,
-        sigma_12s=0.0045552, sigma_21s=0.0,
-    )},
+    materials={0: _mix_ud2o_2g()},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
         k_eff_or_kinf=1.000221,
         flux_ratio_groupwise={0: 1.0, 1: 1.0 / 26.822093},
-    ),
-    sood_table=49,
-    primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 49-50",
-    notes=(
-        "Heavy-water reactor; k_inf = 1.000221 is essentially at the "
-        "infinite-medium critical threshold. φ_fast/φ_slow = 26.822 "
-        "(very slow-flux dominated due to D2O moderation)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1292,14 +1205,6 @@ URR_3_0_IN = La13511Case(
     truth=La13511Truth(
         k_eff_or_kinf=1.60,
         flux_ratio_groupwise={0: 1.0, 1: 0.480, 2: 0.150},
-    ),
-    sood_table=59,
-    primary_reference="LA-13511 Eq 59 / Tables 59-61 / Forster's worked example",
-    notes=(
-        "Sood Tables 59/60/61 are constructed by Forster (Ref. 38) so "
-        "that f_23 = 4 and f_13 = 15 give k_inf = 1.60 exactly with "
-        "φ_2/φ_3 = 0.480 and φ_1/φ_3 = 0.150 (Eqs 60-65). All match "
-        "to machine precision."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1355,14 +1260,6 @@ URR_6_0_IN = La13511Case(
             5: 1.0,    # Sood g1 fast (mirror of 6)
         },
     ),
-    sood_table=62,
-    primary_reference="LA-13511 Tables 62-67 / O'Dell (Ref. 39) private comm.",
-    notes=(
-        "6G == 2 coupled URR-3-0-IN blocks. Same k_inf=1.60. Has "
-        "thermal-upscatter pattern in the bottom 3 groups (Σ_21s=0.171, "
-        "Σ_31s=0.033, Σ_32s=0.275). compute_kinf_mg is the only Branch-2 "
-        "entry that handles this case — Eq-29 specialisation cannot."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=62,
@@ -1382,23 +1279,10 @@ PUA_1_0_SL = La13511Case(
     case_id="PUa-1-0-SL",
     problem_number=2,
     description="Pu-239 (a) bare slab, 1G isotropic, c=1.50",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=3.24,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pua_1g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.605055),
-    sood_table=6,
-    primary_reference="Lathrop-Leonard 1965 NSE 22, 115 (Ref. 9)",
-    notes=(
-        "F_N solver at N=12 reaches err ≤ 2e-6 vs Sood truth (well "
-        "within the 1e-5 tolerance). Highest c in the bare 1G slab "
-        "family (c=1.50)."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=6,
@@ -1413,13 +1297,7 @@ PUB_1_0_SL = La13511Case(
     case_id="PUb-1-0-SL",
     problem_number=6,
     description="Pu-239 (b) bare slab, 1G isotropic, c=1.40",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=2.84,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pub_1g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
@@ -1432,9 +1310,6 @@ PUB_1_0_SL = La13511Case(
         },
         critical_dimension_mfp=0.73660355,
     ),
-    sood_table=7,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
-    notes="Slab F_N at N=12 reaches err ≤ 3e-6 on a_c.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=7,
@@ -1449,13 +1324,7 @@ UD2O_1_0_SL = La13511Case(
     case_id="UD2O-1-0-SL",
     problem_number=22,
     description="U-D2O reactor bare slab, 1G isotropic, c=1.02",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.54628,
-        sigma_c=0.027314,
-        sigma_f=0.054628,
-        nu=1.70,
-        sigma_s_self=0.464338,
-    )},
+    materials={0: _mix_ud2o_1g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
@@ -1467,13 +1336,6 @@ UD2O_1_0_SL = La13511Case(
             1.00: 0.13893858,
         },
         critical_dimension_mfp=5.6655054562,
-    ),
-    sood_table=17,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
-    notes=(
-        "Lowest c in the bare 1G slab family. Slab F_N at N=12 reaches "
-        "err ≤ 2e-6 on a_c. NOTE: F_N at N≥14 fails for low c "
-        "(determinant scan loses bracket); use N=12 for this case."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1494,13 +1356,7 @@ PUB_1_0_SP = La13511Case(
     case_id="PUb-1-0-SP",
     problem_number=8,
     description="Pu-239 (b) bare sphere, 1G isotropic, c=1.40",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=2.84,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pub_1g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(
@@ -1513,9 +1369,6 @@ PUB_1_0_SP = La13511Case(
         },
         critical_dimension_mfp=1.9853434324,
     ),
-    sood_table=7,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
-    notes="Sphere F_N at N=10 reaches err ≤ 5e-8 on R_c (well within 1e-5).",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=7,
@@ -1530,13 +1383,7 @@ UD2O_1_0_SP = La13511Case(
     case_id="UD2O-1-0-SP",
     problem_number=24,
     description="U-D2O reactor bare sphere, 1G isotropic, c=1.02",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.54628,
-        sigma_c=0.027314,
-        sigma_f=0.054628,
-        nu=1.70,
-        sigma_s_self=0.464338,
-    )},
+    materials={0: _mix_ud2o_1g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(
@@ -1549,9 +1396,6 @@ UD2O_1_0_SP = La13511Case(
         },
         critical_dimension_mfp=12.027532098,
     ),
-    sood_table=17,
-    primary_reference="Kaper-Lindeman-Leaf 1974 NSE 54, 94 (Ref. 26)",
-    notes="Sphere F_N at N=10 reaches err ≤ 4e-8 on R_c.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=17,
@@ -1576,13 +1420,7 @@ PUB_1_0_CY_STUB = La13511Case(
     case_id="PUb-1-0-CY",
     problem_number=7,
     description="Pu-239 (b) bare cylinder, 1G isotropic, c=1.40 — STUB",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.32640,
-        sigma_c=0.019584,
-        sigma_f=0.0816,
-        nu=2.84,
-        sigma_s_self=0.225216,
-    )},
+    materials={0: _mix_pub_1g()},
     geometry_kind="cylinder",
     scattering_order=0,
     truth=La13511Truth(
@@ -1592,13 +1430,6 @@ PUB_1_0_CY_STUB = La13511Case(
             1.00: 0.2926,
         },
         critical_dimension_mfp=1.396979,
-    ),
-    sood_table=7,
-    primary_reference="Westfall 1983 Trans. ANS 44, 281 / Westfall-Metcalf 1972 (Refs. 27,28)",
-    notes=(
-        "STUB: solver activated by B1 dispatch (Westfall-Metcalf 1973 "
-        "cylinder F_N). Sood publishes flux ratios only at r/r_c = 0.5 "
-        "and 1.0 (Table 8) to 4 digits. Truth values verified."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1614,22 +1445,10 @@ UD2O_1_0_CY_STUB = La13511Case(
     case_id="UD2O-1-0-CY",
     problem_number=23,
     description="U-D2O reactor bare cylinder, 1G isotropic, c=1.02 — STUB",
-    materials={0: _mix_1g_isotropic(
-        sigma_t=0.54628,
-        sigma_c=0.027314,
-        sigma_f=0.054628,
-        nu=1.70,
-        sigma_s_self=0.464338,
-    )},
+    materials={0: _mix_ud2o_1g()},
     geometry_kind="cylinder",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=9.043255),
-    sood_table=17,
-    primary_reference="Westfall-Metcalf 1972/1973 (Refs. 27,28)",
-    notes=(
-        "STUB: solver activated by B1 dispatch. No flux ratios published "
-        "for this case in Sood's tables."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=17,
@@ -1649,34 +1468,16 @@ UD2O_1_0_CY_STUB = La13511Case(
 # stubs so future implementations can pick them up directly.
 
 
-def _mix_pu_2g_for_finite_geometry() -> Mixture:
-    """Pu-239 2G XS shared by PU-2-0-SL and PU-2-0-SP (Sood Tables 30-31).
-
-    Same XS used in PU-2-0-IN — the difference between the three cases
-    is only the geometry (infinite vs slab vs sphere).
-    """
-    return _mix_2g_isotropic(
-        sigma_t_fast=0.2208, sigma_t_slow=0.3360,
-        sigma_c_fast=0.00480, sigma_c_slow=0.0144,
-        sigma_f_fast=0.0936, sigma_f_slow=0.08544,
-        nu_fast=3.10, nu_slow=2.93,
-        chi_fast=0.575, chi_slow=0.425,
-        sigma_22s=0.0792, sigma_11s=0.23616,
-        sigma_12s=0.0432, sigma_21s=0.0,
-    )
 
 
 PU_2_0_SL_STUB = La13511Case(
     case_id="PU-2-0-SL",
     problem_number=45,
     description="Pu-239 bare slab, 2G isotropic, no upscatter — STUB",
-    materials={0: _mix_pu_2g_for_finite_geometry()},
+    materials={0: _mix_pu_2g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.396469),
-    sood_table=32,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 / Forster 1970 thesis (Refs. 8, 35, 36)",
-    notes="STUB: needs Siewert-Thomas 1986 2G F_N slab machinery (not yet implemented).",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=32,
@@ -1690,19 +1491,10 @@ PU_2_0_SP_STUB = La13511Case(
     case_id="PU-2-0-SP",
     problem_number=46,
     description="Pu-239 bare sphere, 2G isotropic, no upscatter — STUB",
-    materials={0: _mix_pu_2g_for_finite_geometry()},
+    materials={0: _mix_pu_2g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.15513),
-    sood_table=32,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
-    notes=(
-        "STUB: needs Siewert-Thomas 1986 2G F_N sphere machinery. The "
-        "slab and sphere F_N share the geometry-sign abstraction in "
-        "fn_method.core; extending to 2G requires the matrix dispersion "
-        "law (Λ matrix; Case eigenvalues are 2x2 matrix roots not "
-        "scalars). High priority follow-on after B1 cylinder lands."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=32,
@@ -1712,30 +1504,16 @@ PU_2_0_SP_STUB = La13511Case(
 )
 
 
-def _mix_u_2g_for_finite_geometry() -> Mixture:
-    """U-235 2G XS shared by U-2-0-SL and U-2-0-SP (Sood Tables 33-34)."""
-    return _mix_2g_isotropic(
-        sigma_t_fast=0.2160, sigma_t_slow=0.3456,
-        sigma_c_fast=0.00384, sigma_c_slow=0.01344,
-        sigma_f_fast=0.06192, sigma_f_slow=0.06912,
-        nu_fast=2.70, nu_slow=2.50,
-        chi_fast=0.575, chi_slow=0.425,
-        sigma_22s=0.078240, sigma_11s=0.26304,
-        sigma_12s=0.0720, sigma_21s=0.0,
-    )
 
 
 U_2_0_SL_STUB = La13511Case(
     case_id="U-2-0-SL",
     problem_number=48,
     description="U-235 bare slab, 2G isotropic, no upscatter — STUB",
-    materials={0: _mix_u_2g_for_finite_geometry()},
+    materials={0: _mix_u_2g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.649377),
-    sood_table=35,
-    primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
-    notes="STUB: needs 2G F_N slab machinery.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=35,
@@ -1749,13 +1527,10 @@ U_2_0_SP_STUB = La13511Case(
     case_id="U-2-0-SP",
     problem_number=49,
     description="U-235 bare sphere, 2G isotropic, no upscatter — STUB",
-    materials={0: _mix_u_2g_for_finite_geometry()},
+    materials={0: _mix_u_2g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=1.70844),
-    sood_table=35,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
-    notes="STUB: needs 2G F_N sphere machinery.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=35,
@@ -1765,30 +1540,16 @@ U_2_0_SP_STUB = La13511Case(
 )
 
 
-def _mix_ual_2g_for_finite_geometry() -> Mixture:
-    """U-Al-Water 2G XS shared by UAL-2-0-SL and UAL-2-0-SP (Tables 36-37)."""
-    return _mix_2g_isotropic(
-        sigma_t_fast=0.268165, sigma_t_slow=1.276976,
-        sigma_c_fast=0.000217, sigma_c_slow=0.003143,
-        sigma_f_fast=0.0, sigma_f_slow=0.060706,
-        nu_fast=0.0, nu_slow=2.830023,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.247516, sigma_11s=1.213127,
-        sigma_12s=0.020432, sigma_21s=0.0,
-    )
 
 
 UAL_2_0_SL_STUB = La13511Case(
     case_id="UAL-2-0-SL",
     problem_number=51,
     description="U-Al-Water bare slab, 2G isotropic — STUB",
-    materials={0: _mix_ual_2g_for_finite_geometry()},
+    materials={0: _mix_ual_2g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=2.09994),
-    sood_table=38,
-    primary_reference="Siewert-Thomas 1986 / Forster 1970 thesis (Refs. 8, 35, 36)",
-    notes="STUB: needs 2G F_N slab machinery.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=38,
@@ -1802,13 +1563,10 @@ UAL_2_0_SP_STUB = La13511Case(
     case_id="UAL-2-0-SP",
     problem_number=52,
     description="U-Al-Water bare sphere, 2G isotropic — STUB",
-    materials={0: _mix_ual_2g_for_finite_geometry()},
+    materials={0: _mix_ual_2g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=4.73786),
-    sood_table=38,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
-    notes="STUB: needs 2G F_N sphere machinery.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=38,
@@ -1818,24 +1576,13 @@ UAL_2_0_SP_STUB = La13511Case(
 )
 
 
-def _mix_urra_2g_for_finite_geometry() -> Mixture:
-    """URRa 2G XS shared by URRa-2-0-SL and URRa-2-0-SP (Tables 39-40)."""
-    return _mix_2g_isotropic(
-        sigma_t_fast=0.65696, sigma_t_slow=2.52025,
-        sigma_c_fast=0.0010046, sigma_c_slow=0.025788,
-        sigma_f_fast=0.0010484, sigma_f_slow=0.050632,
-        nu_fast=2.50, nu_slow=2.50,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.62568, sigma_11s=2.44383,
-        sigma_12s=0.029227, sigma_21s=0.0,
-    )
 
 
 URRA_2_0_SL_STUB = La13511Case(
     case_id="URRa-2-0-SL",
     problem_number=54,
     description="URR (a) bare slab, 2G isotropic — STUB",
-    materials={0: _mix_urra_2g_for_finite_geometry()},
+    materials={0: _mix_urra_2g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(
@@ -1848,15 +1595,6 @@ URRA_2_0_SL_STUB = La13511Case(
             1.0: 0.147598,
         },
         critical_dimension_mfp=4.97112,
-    ),
-    sood_table=41,
-    primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
-    notes=(
-        "STUB: needs 2G F_N slab machinery. Sood Table 42 gives 2G "
-        "flux ratios at four spatial points (fast + slow). "
-        "flux_ratios stored here is the FAST group; the slow-group "
-        "ratio at the same points is (0.340124, 0.273056, 0.173845, "
-        "0.0212324)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
@@ -1871,13 +1609,10 @@ URRA_2_0_SP_STUB = La13511Case(
     case_id="URRa-2-0-SP",
     problem_number=55,
     description="URR (a) bare sphere, 2G isotropic — STUB",
-    materials={0: _mix_urra_2g_for_finite_geometry()},
+    materials={0: _mix_urra_2g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.5441),
-    sood_table=41,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
-    notes="STUB: needs 2G F_N sphere machinery.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=41,
@@ -1887,34 +1622,16 @@ URRA_2_0_SP_STUB = La13511Case(
 )
 
 
-def _mix_ud2o_2g_for_finite_geometry() -> Mixture:
-    """U-D2O 2G XS shared by UD2O-2-0-SL and UD2O-2-0-SP (Tables 49-50)."""
-    return _mix_2g_isotropic(
-        sigma_t_fast=0.33588, sigma_t_slow=0.54628,
-        sigma_c_fast=0.0087078, sigma_c_slow=0.02518,
-        sigma_f_fast=0.002817, sigma_f_slow=0.097,
-        nu_fast=2.50, nu_slow=2.50,
-        chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.31980, sigma_11s=0.42410,
-        sigma_12s=0.0045552, sigma_21s=0.0,
-    )
 
 
 UD2O_2_0_SL_STUB = La13511Case(
     case_id="UD2O-2-0-SL",
     problem_number=68,
     description="U-D2O reactor bare slab, 2G isotropic — STUB",
-    materials={0: _mix_ud2o_2g_for_finite_geometry()},
+    materials={0: _mix_ud2o_2g()},
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=284.367),
-    sood_table=51,
-    primary_reference="Siewert-Thomas 1986 / Forster 1970 / Stewart 1974 (Refs. 8, 35, 36)",
-    notes=(
-        "STUB: needs 2G F_N slab machinery. Critical dimension is "
-        "VERY LARGE (284 mfp — barely-supercritical heavy-water "
-        "reactor); high N_F may be needed."
-    ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=51,
@@ -1928,13 +1645,10 @@ UD2O_2_0_SP_STUB = La13511Case(
     case_id="UD2O-2-0-SP",
     problem_number=69,
     description="U-D2O reactor bare sphere, 2G isotropic — STUB",
-    materials={0: _mix_ud2o_2g_for_finite_geometry()},
+    materials={0: _mix_ud2o_2g()},
     geometry_kind="sphere",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=569.43),
-    sood_table=51,
-    primary_reference="Siewert-Thomas 1986 NSE 94, 264 (Ref. 8)",
-    notes="STUB: needs 2G F_N sphere machinery. Critical R ~ 1695 cm — heavy-water reactor.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=51,
@@ -2027,9 +1741,6 @@ PUA_1_1_SL = La13511Case(
     geometry_kind="slab",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.77032),
-    sood_table=25,
-    primary_reference="Sood Table 25 / problem 32 / Sanchez 1976 (Ref. 30)",
-    notes="Σ_s1=0.20. Carlvik-Galerkin uses μ̄_eff = 0.20/1.40 = 0.142857.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=25,
@@ -2049,9 +1760,6 @@ PUB_1_1_SL = La13511Case(
     geometry_kind="slab",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=0.79606),
-    sood_table=25,
-    primary_reference="Sood Table 25 / problem 34 / Sanchez 1976 (Ref. 30)",
-    notes="Σ_s1=0.333333 (negative scattering for μ near -1). μ̄_eff = 0.238095.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=25,
@@ -2071,9 +1779,6 @@ UD2OA_1_1_SP = La13511Case(
     geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
-    sood_table=29,
-    primary_reference="Sood Table 29 / problem 39 / Mitsis 1963 (Ref. 15)",
-    notes="μ̄_eff = 0.10 — matches DS Table I row d=20, μ̄=0.10.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=29,
@@ -2093,9 +1798,6 @@ UD2OB_1_1_SP = La13511Case(
     geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
-    sood_table=29,
-    primary_reference="Sood Table 29 / problem 41 / Mitsis 1963 (Ref. 15)",
-    notes="μ̄_eff = 0.20 — matches DS Table I row d=20, μ̄=0.20.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=29,
@@ -2115,9 +1817,6 @@ UD2OC_1_1_SP = La13511Case(
     geometry_kind="sphere",
     scattering_order=1,
     truth=La13511Truth(k_eff_or_kinf=1.0, critical_dimension_mfp=10.0),
-    sood_table=29,
-    primary_reference="Sood Table 29 / problem 43 / Boffi-Molinari-Spiga 1977 (Ref. 16)",
-    notes="μ̄_eff = -0.50 (back-peaked). Outside Dahl-Sjostrand table coverage.",
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=29,

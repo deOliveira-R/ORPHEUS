@@ -239,11 +239,10 @@ def test_la13511_case_has_provenance(case_id: str) -> None:
         f"{case_id}: paper_id should be 'LA-13511', "
         f"got {case.provenance.paper_id!r}"
     )
-    # Mirror invariants vs the legacy flat fields (Phase F drops
-    # the flat fields; until then they must agree).
-    assert case.provenance.paper_table == case.sood_table
-    assert case.provenance.primary_reference == case.primary_reference
-    assert case.provenance.notes == case.notes
+    # The flat fields that mirrored the provenance retired in P1 step 2b:
+    # the provenance is the one citation record.
+    for retired in ("sood_table", "primary_reference", "notes"):
+        assert not hasattr(case, retired), f"{case_id}: {retired} is back"
 
 
 @pytest.mark.foundation
@@ -258,8 +257,8 @@ def test_atalay_case_has_provenance(case_id: str) -> None:
     assert case.provenance is not None
     assert isinstance(case.provenance, Provenance)
     assert case.provenance.paper_id == "Atalay-1997"
-    assert case.provenance.primary_reference == case.primary_reference
-    assert case.provenance.notes == case.notes
+    for retired in ("sood_table", "primary_reference", "notes"):
+        assert not hasattr(case, retired), f"{case_id}: {retired} is back"
 
 
 # ═══════════════════════════════════════════════════════════════════
