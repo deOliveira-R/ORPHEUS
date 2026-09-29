@@ -63,6 +63,8 @@ References
 """
 from __future__ import annotations
 
+import functools
+import math
 from dataclasses import dataclass
 from typing import Literal, Optional
 
@@ -73,11 +75,43 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.derivations.common.reference_body import (
+    HomogeneousBody,
+    ReflectedSlab,
+    describe,
+    reference_body,
+    refuse_unserved,
+    require_vacuum,
+)
 from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
 FluxReconstructionStrategy = Literal["none", "atkinson_nystrom", "legacy_gl"]
+
+
+def _require_one_group_equal_total(core: Mixture, reflector: Mixture) -> None:
+    """The reflected-slab F_N of Neshat and Maiorino (1980) is one-group and
+    puts both media on one mean-free-path scale, so the core and the
+    reflector must be one-group with one total cross section (Sood's
+    two-media slabs are stated this way: Tables 2, 9 and 13)."""
+    sigma_core = np.asarray(core.SigT, dtype=float)
+    sigma_reflector = np.asarray(reflector.SigT, dtype=float)
+    if sigma_core.shape != (1,) or sigma_reflector.shape != (1,):
+        refuse_unserved(
+            f"reflected slab of {sigma_core.shape[0]} and "
+            f"{sigma_reflector.shape[0]} groups", owner="MomentSpace",
+            missing="a multi-group reflected-slab F_N; only the one-group "
+            "reflected slab (Neshat and Maiorino 1980) is built",
+        )
+    if not math.isclose(sigma_core[0], sigma_reflector[0], rel_tol=1e-12, abs_tol=0.0):
+        refuse_unserved(
+            f"reflected slab whose core and reflector total cross sections "
+            f"differ ({sigma_core[0]!r}, {sigma_reflector[0]!r})",
+            owner="MomentSpace",
+            missing="a reflected-slab F_N for two mean-free-path scales; "
+            "Neshat and Maiorino's needs the core and the reflector to "
+            "share one total cross section",
+        )
 
 
 @dataclass(frozen=True)
@@ -123,7 +157,9 @@ class MomentSpace:
         Pure-geometry layer object: one material filling a slab
         (``CoordSystem.CARTESIAN``) or a solid sphere
         (``CoordSystem.SPHERICAL``), read by
-        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        :func:`~orpheus.derivations.common.reference_body.reference_body`, or a
+        symmetric reflected slab of one group whose core and reflector share
+        the total cross section (Neshat and Maiorino 1980).
         A cylinder is out of pillar (Westfall–Metcalf 1972 — see
         :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
@@ -154,23 +190,32 @@ class MomentSpace:
         non-convergent for the bare cylinder. Cylinder critical
         dimensions ship via :mod:`...singular_eigenfunction.cylinder`.
         """
-        body = homogeneous_body(self.geometry, owner="MomentSpace")
-        if body.coord not in (CoordSystem.CARTESIAN, CoordSystem.SPHERICAL):
-            raise ValueError(
-                f"MomentSpace supports a slab or a sphere, got "
-                f"{body.coord.name.lower()}. A cylinder is out "
-                f"of pillar (Westfall-Metcalf 1972 — see "
-                f"singular_eigenfunction.cylinder). For infinite-medium "
-                f"k_inf, use MomentSpace.solve_kinf(mixture) — no "
-                f"geometry needed."
+        body = self._body
+        if body.coord is CoordSystem.CYLINDRICAL:
+            refuse_unserved(
+                describe(body), owner="MomentSpace",
+                missing="an F_N cylinder, which is out of pillar "
+                "(Westfall-Metcalf 1972; see singular_eigenfunction.cylinder, "
+                "and #170). For infinite-medium k_inf, use "
+                "MomentSpace.solve_kinf(mixture), with no geometry",
             )
+        require_vacuum(
+            self.geometry, owner="MomentSpace",
+            missing="the F_N solvers here are bare or core-reflected slabs and "
+            "spheres with vacuum outer faces",
+        )
         if self.fn_order < 0:
             raise ValueError(f"fn_order must be ≥ 0, got {self.fn_order}")
-        if self._mat_id not in self.materials:
-            raise ValueError(
-                f"materials dict missing mat_id={self._mat_id} "
-                f"required by geometry; got keys "
-                f"{sorted(self.materials.keys())}"
+        for mat_id in self._body_mat_ids:
+            if mat_id not in self.materials:
+                raise ValueError(
+                    f"materials dict missing mat_id={mat_id} "
+                    f"required by geometry; got keys "
+                    f"{sorted(self.materials.keys())}"
+                )
+        if isinstance(body, ReflectedSlab):
+            _require_one_group_equal_total(
+                self.materials[body.core_mat_id], self.materials[body.reflector_mat_id],
             )
         if self.flux_reconstruction not in {"none", "atkinson_nystrom", "legacy_gl"}:
             raise ValueError(
@@ -183,10 +228,39 @@ class MomentSpace:
     # Material accessors — read directly from Mixture (no extractor)
     # ------------------------------------------------------------------
 
+    @functools.cached_property
+    def _body(self) -> HomogeneousBody | ReflectedSlab:
+        """The body this generator solves on: a homogeneous slab or sphere, or
+        a symmetric reflected slab; any other shape is refused
+        (:func:`~orpheus.derivations.common.reference_body.refuse_unserved`)."""
+        match reference_body(self.geometry):
+            case HomogeneousBody() | ReflectedSlab() as body:
+                return body
+            case other:
+                refuse_unserved(
+                    describe(other), owner="MomentSpace",
+                    missing="an F_N solver for a layered, hollow or asymmetric "
+                    "configuration (only the symmetric reflected slab of "
+                    "Neshat and Maiorino 1980 is built)",
+                )
+
+    @property
+    def _body_mat_ids(self) -> tuple[int, ...]:
+        """Every material the body holds."""
+        match self._body:
+            case HomogeneousBody(mat_id=mat_id):
+                return (mat_id,)
+            case ReflectedSlab(core_mat_id=core, reflector_mat_id=reflector):
+                return (core, reflector)
+
     @property
     def _mat_id(self) -> int:
-        """Active mat_id — the single region's material identifier."""
-        return homogeneous_body(self.geometry, owner="MomentSpace").mat_id
+        """The multiplying material: the body's, or a reflected slab's core."""
+        match self._body:
+            case HomogeneousBody(mat_id=mat_id):
+                return mat_id
+            case ReflectedSlab(core_mat_id=core):
+                return core
 
     @property
     def _mixture(self) -> Mixture:
@@ -195,7 +269,8 @@ class MomentSpace:
 
     @property
     def c(self) -> float:
-        r"""Mean number of secondaries per collision, :math:`c`.
+        r"""Mean number of secondaries per collision, :math:`c`, of the
+        multiplying material (the body's; a reflected slab's core).
 
         For 1G isotropic-scattering problems
         :math:`c = (\Sigma_s + \nu\Sigma_f)/\Sigma_t`.
@@ -213,13 +288,12 @@ class MomentSpace:
                 f"{sig_t.shape[0]}G). Multi-group problems should call "
                 f"solve_kinf(mixture) directly."
             )
-        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
-        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
-        return float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
+        return float(mixture.scattering_ratio[0])
 
     @property
     def n_groups(self) -> int:
-        """Number of energy groups in the active mixture."""
+        """Number of energy groups of the multiplying material (the body's; a
+        reflected slab's core, which shares it with the reflector)."""
         return int(np.asarray(self._mixture.SigT).shape[0])
 
     # ------------------------------------------------------------------
@@ -257,6 +331,15 @@ class MomentSpace:
         -------
         :class:`CriticalSolution`
         """
+        if isinstance(self._body, ReflectedSlab):
+            if (n_bracket, bisect_tol, max_bisect) != (None, 1e-12, 80):
+                raise ValueError(
+                    "MomentSpace.solve_critical: n_bracket, bisect_tol and "
+                    "max_bisect control the bare slab's and sphere's bisection; "
+                    "the reflected slab's F_N solver (Neshat and Maiorino 1980) "
+                    "takes none of them."
+                )
+            return self._solve_critical_reflected_slab(self._body)
         coord = self.geometry.coord
         mixture = self._mixture
         sig_t = np.asarray(mixture.SigT, dtype=float)
@@ -272,15 +355,12 @@ class MomentSpace:
                 "MomentSpace.solve_kinf(mixture)."
             )
 
-        sig_s_p0 = mixture.SigS[0].toarray().astype(float)
-        nu_sig_f = np.asarray(mixture.SigP, dtype=float)
-        c = float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
+        c = float(mixture.scattering_ratio[0])
         if c <= 1.0:
             raise ValueError(
                 f"F_N bare-critical {coord.name.lower()} requires c > 1 "
                 f"(multiplying medium); got c={c} from mixture "
-                f"sigma_s + nu_sigma_f = {sig_s_p0[0, 0] + nu_sig_f[0]}, "
-                f"sigma_t = {sig_t[0]}."
+                f"(sigma_s + nu_sigma_f) / sigma_t, sigma_t = {sig_t[0]}."
             )
 
         match coord:
@@ -291,6 +371,46 @@ class MomentSpace:
 
         raise NotImplementedError(  # pragma: no cover (validated above)
             f"MomentSpace.solve_critical: unhandled coordinate system {coord!r}"
+        )
+
+    def _solve_critical_reflected_slab(self, body: ReflectedSlab) -> CriticalSolution:
+        r"""The critical core half-thickness of a symmetric reflected slab.
+
+        Neshat and Maiorino (1980): given the core's and the reflector's
+        :math:`c` and the reflector thickness :math:`\Delta` in mean free
+        paths, the F_N method returns the core half-thickness :math:`\tau`
+        at which the slab is critical. As for the bare slab, the geometry's
+        core width is the question's unknown, not an input: only the
+        reflector's width is read. Both media share one :math:`\Sigma_t`
+        (checked at construction), which converts the width to mean free
+        paths.
+        """
+        from .slab.reflected import solve_fn_slab_reflected_critical
+
+        core = self.materials[body.core_mat_id]
+        reflector = self.materials[body.reflector_mat_id]
+        sigma_t = float(np.asarray(core.SigT, dtype=float)[0])
+        res = solve_fn_slab_reflected_critical(
+            c_core=float(core.scattering_ratio[0]),
+            c_reflector=float(reflector.scattering_ratio[0]),
+            reflector_half_thickness=body.reflector_width_cm * sigma_t,
+            n_modes=self.fn_order,
+        )
+        return CriticalSolution(
+            eigenvalue=1.0,
+            eigenvalue_kind="k_eff",
+            parameter_value=float(res.tau_critical_mfp),
+            parameter_kind="core_half_thickness_mfp",
+            converged=bool(res.converged),
+            metadata={
+                "n_groups": 1,
+                "method": "solve_fn_slab_reflected_critical",
+                "n_modes": self.fn_order,
+                "c_core": float(res.c_core),
+                "c_reflector": float(res.c_reflector),
+                "reflector_half_thickness_mfp": body.reflector_width_cm * sigma_t,
+                "raw_result": res,
+            },
         )
 
     def _solve_critical_slab(
@@ -475,6 +595,13 @@ class MomentSpace:
         z_eval : np.ndarray | None
             Spatial nodes (in mfp) at which to evaluate.
         """
+        if isinstance(self._body, ReflectedSlab):
+            refuse_unserved(
+                "flux reconstruction on a symmetric reflected slab",
+                owner="MomentSpace",
+                missing="the two-media Peierls integral is not built; only the "
+                "critical core half-thickness is",
+            )
         if self.flux_reconstruction == "none":
             raise ValueError(
                 "MomentSpace was constructed with flux_reconstruction='none'; "

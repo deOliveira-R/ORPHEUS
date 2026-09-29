@@ -486,19 +486,21 @@ PU_2_0_IN = La13511Case(
     sood_table=30,
     primary_reference="LA-13511 Eq 28-29 (k_inf) + Eq 32 (flux ratio)",
     notes=(
-        "Sood Eq 28 has a typo: the chi_1 and chi_2 numerators have "
-        "the wrong Sigma_g^rem factor — Eq 28 as printed reduces to "
-        "2.862 (not 2.684) when Sigma_21s = 0, while Eq 29 (printed "
-        "separately) reduces correctly. The SymPy derivation in "
-        "fn_method.origins.k_inf_derivations.derive_kinf_2g_general_from_matrix "
-        "exposes the correct general form by computing det(M)=0 from "
-        "Eq 25 directly, and verifies the published Eq 29 against it."
+        "Sood Eq 28 (the general two-group k_inf, with upscatter) reduc"
+        "es to Eq 29 term by term when Sigma_21s = 0, and as printed gi"
+        "ves the published k_inf = 2.683767 (checked against the page i"
+        "mage, 2026-09-29). An earlier note here called Eq 28 a typo th"
+        "at reduces to 2.862; that was a mis-transcription of the equat"
+        "ion (a swapped Sigma_g^rem factor), not an error in the report"
+        ". The SymPy derivation in fn_method.origins.k_inf_derivations."
+        "derive_kinf_2g_general_from_matrix computes det(M)=0 from Eq 2"
+        "5 directly and verifies Eq 29 against it."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=30,
         primary_reference="LA-13511 Eq 28-29 (k_inf) + Eq 32 (flux ratio)",
-        notes="Sood Eq 28 has a typo: the chi_1 and chi_2 numerators have the wrong Sigma_g^rem factor — Eq 28 as printed reduces to 2.862 (not 2.684) when Sigma_21s = 0, while Eq 29 (printed separately) reduces correctly. The SymPy derivation in fn_method.origins.k_inf_derivations.derive_kinf_2g_general_from_matrix exposes the correct general form by computing det(M)=0 from Eq 25 directly, and verifies the published Eq 29 against it.",
+        notes="Sood Eq 28 (the general two-group k_inf, with upscatter) reduces to Eq 29 term by term when Sigma_21s = 0, and as printed gives the published k_inf = 2.683767 (checked against the page image, 2026-09-29). An earlier note here called Eq 28 a typo that reduces to 2.862; that was a mis-transcription of the equation (a swapped Sigma_g^rem factor), not an error in the report. The SymPy derivation in fn_method.origins.k_inf_derivations.derive_kinf_2g_general_from_matrix computes det(M)=0 from Eq 25 directly and verifies Eq 29 against it.",
     ),
 )
 
@@ -1057,32 +1059,32 @@ UAL_2_0_IN = La13511Case(
     problem_number=50,
     description="U-Al-Water assembly bare infinite medium, 2G isotropic",
     materials={0: _mix_2g_isotropic(
-        sigma_t_fast=0.26817, sigma_t_slow=1.27698,
-        sigma_c_fast=0.000222, sigma_c_slow=0.00314363958,
-        sigma_f_fast=0.0, sigma_f_slow=0.06070636042,
-        nu_fast=0.0, nu_slow=2.83,
+        sigma_t_fast=0.268165, sigma_t_slow=1.276976,
+        sigma_c_fast=0.000217, sigma_c_slow=0.003143,
+        sigma_f_fast=0.0, sigma_f_slow=0.060706,
+        nu_fast=0.0, nu_slow=2.830023,
         chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.247516, sigma_11s=1.21313,
+        sigma_22s=0.247516, sigma_11s=1.213127,
         sigma_12s=0.020432, sigma_21s=0.0,
     )},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
-        k_eff_or_kinf=2.661745,
-        flux_ratio_groupwise={0: 1.0, 1: 1.0 / 3.1250},
+        k_eff_or_kinf=2.662437,
+        flux_ratio_groupwise={0: 1.0, 1: 1.0 / 3.124951},
     ),
     sood_table=36,
     primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 36-37",
     notes=(
         "Slow-only fission (ν_2 = 0, χ_1 = 0). Sood publishes "
-        "φ_2/φ_1 = 3.1250 — i.e. fast/slow > 1 because slow group is "
-        "very absorbing (Σ_1 = 1.27698 mostly self-scatter)."
+        "φ_2/φ_1 = 3.124951 (2003 edition; the primary source, Siewert and Thomas 1986, gives 3.125) — i.e. fast/slow > 1 because slow group is "
+        "very absorbing (Σ_1 = 1.276976 mostly self-scatter)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=36,
         primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 36-37",
-        notes="Slow-only fission (ν_2 = 0, χ_1 = 0). Sood publishes φ_2/φ_1 = 3.1250 — i.e. fast/slow > 1 because slow group is very absorbing (Σ_1 = 1.27698 mostly self-scatter).",
+        notes="Slow-only fission (ν_2 = 0, χ_1 = 0). Sood publishes φ_2/φ_1 = 3.124951 (2003 edition; the primary source, Siewert and Thomas 1986, gives 3.125) — i.e. fast/slow > 1 because slow group is very absorbing (Σ_1 = 1.276976 mostly self-scatter).",
     ),
 )
 
@@ -1223,38 +1225,38 @@ URRD_2_0_IN = La13511Case(
 )
 
 
-# Case 67 — UD2O-2-0-IN: U-D2O reactor, 2G isotropic, no upscatter — k_inf is just barely critical (1.000196)
+# Case 67 — UD2O-2-0-IN: U-D2O reactor, 2G isotropic, no upscatter — k_inf is just barely critical (1.000221)
 UD2O_2_0_IN = La13511Case(
     case_id="UD2O-2-0-IN",
     problem_number=67,
     description="U-D2O reactor bare infinite medium, 2G isotropic",
     materials={0: _mix_2g_isotropic(
         sigma_t_fast=0.33588, sigma_t_slow=0.54628,
-        sigma_c_fast=0.008708, sigma_c_slow=0.02518,
+        sigma_c_fast=0.0087078, sigma_c_slow=0.02518,
         sigma_f_fast=0.002817, sigma_f_slow=0.097,
         nu_fast=2.50, nu_slow=2.50,
         chi_fast=1.0, chi_slow=0.0,
         sigma_22s=0.31980, sigma_11s=0.42410,
-        sigma_12s=0.004555, sigma_21s=0.0,
+        sigma_12s=0.0045552, sigma_21s=0.0,
     )},
     geometry_kind="infinite",
     scattering_order=0,
     truth=La13511Truth(
-        k_eff_or_kinf=1.000196,
-        flux_ratio_groupwise={0: 1.0, 1: 1.0 / 26.823271},
+        k_eff_or_kinf=1.000221,
+        flux_ratio_groupwise={0: 1.0, 1: 1.0 / 26.822093},
     ),
     sood_table=49,
     primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 49-50",
     notes=(
-        "Heavy-water reactor; k_inf = 1.000196 is essentially at the "
-        "infinite-medium critical threshold. φ_fast/φ_slow = 26.82 "
+        "Heavy-water reactor; k_inf = 1.000221 is essentially at the "
+        "infinite-medium critical threshold. φ_fast/φ_slow = 26.822 "
         "(very slow-flux dominated due to D2O moderation)."
     ),
     provenance=Provenance(
         paper_id="LA-13511",
         paper_table=49,
         primary_reference="LA-13511 Eq 29 + Eq 32 / Tables 49-50",
-        notes="Heavy-water reactor; k_inf = 1.000196 is essentially at the infinite-medium critical threshold. φ_fast/φ_slow = 26.82 (very slow-flux dominated due to D2O moderation).",
+        notes="Heavy-water reactor; k_inf = 1.000221 is essentially at the infinite-medium critical threshold. φ_fast/φ_slow = 26.822 (very slow-flux dominated due to D2O moderation).",
     ),
 )
 
@@ -1766,12 +1768,12 @@ U_2_0_SP_STUB = La13511Case(
 def _mix_ual_2g_for_finite_geometry() -> Mixture:
     """U-Al-Water 2G XS shared by UAL-2-0-SL and UAL-2-0-SP (Tables 36-37)."""
     return _mix_2g_isotropic(
-        sigma_t_fast=0.26817, sigma_t_slow=1.27698,
-        sigma_c_fast=0.000222, sigma_c_slow=0.00314363958,
-        sigma_f_fast=0.0, sigma_f_slow=0.06070636042,
-        nu_fast=0.0, nu_slow=2.83,
+        sigma_t_fast=0.268165, sigma_t_slow=1.276976,
+        sigma_c_fast=0.000217, sigma_c_slow=0.003143,
+        sigma_f_fast=0.0, sigma_f_slow=0.060706,
+        nu_fast=0.0, nu_slow=2.830023,
         chi_fast=1.0, chi_slow=0.0,
-        sigma_22s=0.247516, sigma_11s=1.21313,
+        sigma_22s=0.247516, sigma_11s=1.213127,
         sigma_12s=0.020432, sigma_21s=0.0,
     )
 
@@ -1889,12 +1891,12 @@ def _mix_ud2o_2g_for_finite_geometry() -> Mixture:
     """U-D2O 2G XS shared by UD2O-2-0-SL and UD2O-2-0-SP (Tables 49-50)."""
     return _mix_2g_isotropic(
         sigma_t_fast=0.33588, sigma_t_slow=0.54628,
-        sigma_c_fast=0.008708, sigma_c_slow=0.02518,
+        sigma_c_fast=0.0087078, sigma_c_slow=0.02518,
         sigma_f_fast=0.002817, sigma_f_slow=0.097,
         nu_fast=2.50, nu_slow=2.50,
         chi_fast=1.0, chi_slow=0.0,
         sigma_22s=0.31980, sigma_11s=0.42410,
-        sigma_12s=0.004555, sigma_21s=0.0,
+        sigma_12s=0.0045552, sigma_21s=0.0,
     )
 
 

@@ -13,11 +13,13 @@ method bug.
 
 Sood LA-13511 (1999) Table 9 (problem 3) is a **NON-symmetric**
 two-region slab: Pu-239 core + 1 mfp H2O reflector on **one side
-only**, Pu+H2O total radius 4.542126 cm. Pu r_c = 0.48255 mfp.
+only**, Pu+H2O total radius 4.542175 cm. Pu r_c = 0.482566 mfp
+(2003 edition, Table 6; the 1999 LA-13511 Table 9 printed 0.48255).
 
-Sood LA-13511 Table 10 (problem 4) is a **symmetric three-region**
+Sood problem 4 (2003 Table 7; 1999 Table 10) is a **symmetric three-region**
 slab: Pu-239 core + 0.5 mfp H2O reflector **each side**, total Pu+H2O
-radius 2.849694 cm. Pu r_c = 0.43014 mfp. **This is the natural NM
+radius 2.849725 cm. Pu r_c = 0.43015 mfp (2003; 1999 printed 0.43014).
+**This is the natural NM
 1980 comparator** (NM also models a symmetric reflector around a
 critical Pu core).
 
@@ -43,9 +45,9 @@ from orpheus.derivations.continuous.fn_method.slab import (
 @pytest.mark.l1
 @pytest.mark.verifies("nm1980-eq15-critical-condition")
 def test_sood_table10_problem4_symmetric_pu_h2o_05():
-    """Sood Table 10 problem 4 = `PUa-H2O(0.5)-1-0-SL`:
+    """Sood problem 4 (2003 Table 7; 1999 Table 10) = `PUa-H2O(0.5)-1-0-SL`:
     SYMMETRIC reflected slab, Pu c=1.50, H2O c=0.90, Δ=0.5 mfp each side.
-    Sood literature value: Pu r_c = 0.43014 mfp.
+    Sood literature value (2003 edition): Pu r_c = 0.43015 mfp.
     """
     result = solve_fn_slab_reflected_critical(
         c_core=1.50, c_reflector=0.90,
@@ -53,7 +55,7 @@ def test_sood_table10_problem4_symmetric_pu_h2o_05():
     )
     assert result.converged
 
-    sood_truth = 0.43014  # mfp, from Sood Table 10 problem 4
+    sood_truth = 0.43015  # mfp, Sood 2003 Table 7, problem 4
     rel_diff = abs(result.tau_critical_mfp - sood_truth) / sood_truth
     print(
         f"\nSood Table 10 / problem 4 (PUa-H2O(0.5)-1-0-SL):"
@@ -103,14 +105,14 @@ def test_wave2a_memo_table9_nonsymmetric_geometry_mismatch():
     Even if the convention were identical, comparing these two would
     be an ill-posed cross-check. The disagreement (34%) is consistent
     with "single-sided reflector returns less flux to the core ⇒
-    larger critical core needed", giving Table 9's r_c = 0.48255
+    larger critical core needed", giving problem 3's r_c = 0.482566
     > NM Case 6's 0.3597.
 
     The NM-comparable case is Table 10 problem 4 (Δ=0.5 each side,
     symmetric).
     """
     # Sood Table 9 problem 3 (NON-symmetric):
-    sood_table9_truth = 0.48255  # mfp, ONE-SIDED 1 mfp H2O reflector
+    sood_table9_truth = 0.482566  # mfp, ONE-SIDED 1 mfp H2O reflector (2003 Table 6)
     # NM Case 6 (SYMMETRIC, Δ=1 each side):
     nm_case6_truth = 0.3597  # mfp
 
@@ -132,3 +134,24 @@ if __name__ == "__main__":
     test_sood_table10_problem4_symmetric_pu_h2o_05()
     test_nm_case6_is_not_table10()
     test_wave2a_memo_table9_nonsymmetric_geometry_mismatch()
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("n_modes", [11, 13, 15])
+def test_sood_problem4_at_the_published_digit(n_modes):
+    """Sood problem 4 at the precision it is published to, which decides the
+    edition (P1 step 2b; the user ruled the 2003 edition the reference).
+
+    The 2003 edition prints 0.43015 mfp and the 1999 edition 0.43014; a
+    five-digit value stands for the interval of half a unit in its last
+    place, 5e-6. F_N converged in N (measured 2026-09-29: 0.4301459,
+    0.4301477 and 0.4301459 at N = 11, 13 and 15, an oscillation of
+    1.9e-6) lies inside 2003's interval and outside 1999's at every one of
+    these N. The 1e-3 gates above cannot tell the two editions apart.
+    """
+    tau = solve_fn_slab_reflected_critical(
+        c_core=1.50, c_reflector=0.90, reflector_half_thickness=0.5, n_modes=n_modes,
+    ).tau_critical_mfp
+    half_unit = 0.5e-5
+    assert abs(tau - 0.43015) <= half_unit, f"N={n_modes}: tau = {tau!r} outside 0.43015 +/- 5e-6"
+    assert abs(tau - 0.43014) > half_unit, f"N={n_modes}: tau = {tau!r} cannot tell 1999 from 2003"

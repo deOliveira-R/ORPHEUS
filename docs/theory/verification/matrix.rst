@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12794**
+Total tests collected: **12863**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1345, 10.5%
-   L1, 1969, 15.4%
+   L1, 1972, 15.3%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9382, 73.3%
+   foundation, 9448, 73.5%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12688
+   explicit, 12757
    class-name, 46
    func-name, 0
    case, 33
@@ -176,7 +176,7 @@ Module × level grid
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
-   derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
+   derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 39, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_la13511_slab_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_la13511_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
@@ -187,9 +187,8 @@ Module × level grid
    derivations/test_fn_la13511_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
-   derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
+   derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 4, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
-   derivations/test_homogeneous_body, 0, 0, 0, 0, 15, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
@@ -249,6 +248,7 @@ Module × level grid
    derivations/test_peierls_variant_alpha_core, 0, 0, 0, 0, 8, 0
    derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
+   derivations/test_reference_body, 0, 0, 0, 0, 59, 0
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0

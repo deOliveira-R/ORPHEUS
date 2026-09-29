@@ -287,10 +287,10 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
 # counterpart for reflected/multi-region slab).
 # ═══════════════════════════════════════════════════════════════════
 #
-# Sood LA-13511 Table 10 (problem 4) is the symmetric Pu+H2O
+# Sood problem 4 (2003 edition Table 7; LA-13511 1999 Table 10) is the symmetric Pu+H2O
 # reflected slab Δ=0.5 mfp each side, c_core=1.50, c_refl=0.90,
-# Pu r_c = 0.43014 mfp. NM 1980 Table 2 publishes 8 cases (c1, c2,
-# Δ) families; Sood Table 10 #4 is one of them. We populate the
+# Pu r_c = 0.43015 mfp (2003; 1999 printed 0.43014). NM 1980 Table 2 publishes 8 cases (c1, c2,
+# Δ) families; Sood problem 4 is one of them. We populate the
 # four primary NM cases.
 #
 # Encoding convention (Step 3, 2026-05-04 input-cleanup):
@@ -444,15 +444,15 @@ REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
     _build_reflected_slab_case(
         case_id="Sood-Table10-4-PUa-H2O-symm-0.5mfp",
         description=(
-            "Symmetric Pu+H2O reflected slab, Sood LA-13511 Table 10 "
-            "problem 4: c_core=1.50, c_refl=0.90, Δ=0.5 mfp each "
-            "side. Pu r_c = 0.43014 mfp."
+            "Symmetric Pu+H2O reflected slab, Sood problem 4 (2003 "
+            "Table 7): c_core=1.50, c_refl=0.90, Δ=0.5 mfp each "
+            "side. Pu r_c = 0.43015 mfp."
         ),
         c_core=1.50,
         c_reflector=0.90,
         reflector_half_thickness_mfp=0.5,
-        truth_value=0.43014,
-        truth_source="Sood LA-13511 Table 10 problem 4 (1999)",
+        truth_value=0.43015,
+        truth_source="Sood, Forster & Parsons 2003, Table 7, problem 4",
         fn_tolerance=1e-3,
     ),
     # NM 1980 Table 1 Case 4 — c_core=1.30, c_reflector=0.90, Δ=1.0.

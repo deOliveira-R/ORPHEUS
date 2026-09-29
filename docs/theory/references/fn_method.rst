@@ -2198,13 +2198,15 @@ The same log-singular kernel structure appears in:
   ERR-038 and the related ERR-037 X-function divergence note).
 
 Whenever a new ORPHEUS reference solver builds a discrete operator
-from a log-singular kernel, the rule is: **decompose via
-:eq:`peierls-kernel-decomposition`, integrate the log piece
-analytically against the basis (:eq:`fn-product-simpson-weights`),
-integrate the smooth remainder by Simpson/GL.** Plain Gauss-Legendre
+from a log-singular kernel, the rule is: **decompose** via
+:eq:`peierls-kernel-decomposition`, **integrate the log piece
+analytically against the basis** (:eq:`fn-product-simpson-weights`),
+**integrate the smooth remainder by Simpson/GL.** Plain Gauss-Legendre
 on the singular piece is silently incorrect; the only diagnostic
 is the convergence-rate fingerprint, which most projects do not
 collect.
+
+.. _fn-method-reflected-slab:
 
 Reflected-slab F_N — Neshat-Maiorino 1980 extension
 =====================================================
@@ -2325,6 +2327,83 @@ the NM Table 2 Burkart 1976 "Exact" reference values to ≤ 5e-5
 absolute at :math:`F_7` across the 8-case sweep over
 :math:`(c_1, c_2, \Delta) \in \{1.02, 1.10, 1.30, 1.50\} \times
 \{0.10, \ldots, 0.90\} \times \{0.5, 1, 2, 5\}`.
+
+.. _fn-method-reflected-slab-facade:
+
+Reaching the reflected slab through ``MomentSpace``
+---------------------------------------------------
+
+:class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
+routes a geometry that
+:func:`~orpheus.derivations.common.reference_body.reference_body` reads
+as a
+:class:`~orpheus.derivations.common.reference_body.ReflectedSlab`
+(three material runs in a slab, the outer two of one material and one
+width) to
+:func:`~orpheus.derivations.continuous.fn_method.slab.reflected.solve_fn_slab_reflected_critical`.
+What the facade does with the geometry follows from what the solver
+answers:
+
+* **The core width is the unknown.** The solver returns the core
+  half-thickness :math:`\tau_c` at which the slab is critical, so the
+  geometry's core width is not read, exactly as the bare slab's width
+  is not read by ``solve_critical``. The result is a
+  :class:`~orpheus.derivations.common.solution_types.CriticalSolution`
+  with ``parameter_kind="core_half_thickness_mfp"``.
+* **One group, one** :math:`\Sigma_t`. The NM 1980 formulation is
+  monoenergetic and measures both media in one mean free path, so the
+  facade refuses, at construction, a reflected slab of more than one
+  group or whose core and reflector total cross sections differ. The
+  reflector width in cm is converted to the solver's
+  ``reflector_half_thickness`` in mean free paths by that shared
+  :math:`\Sigma_t`.
+* **Each** :math:`c` **has one definition.** The core's and the
+  reflector's :math:`c` are
+  :attr:`~orpheus.data.macro_xs.mixture.Mixture.scattering_ratio`,
+  :math:`(\Sigma_s + \nu\Sigma_f)/\Sigma_t`, the same property
+  ``MomentSpace.c`` reads for a homogeneous body.
+* **Vacuum outer faces.** The NM 1980 slab, like the bare slab and
+  sphere, has vacuum outer boundaries, so ``MomentSpace`` requires every
+  declared law to read as specular albedo 0
+  (:func:`~orpheus.derivations.common.reference_body.require_vacuum`). A
+  reflected slab whose outer faces were declared mirrors used to return
+  the vacuum :math:`\tau_c` bit for bit, because nothing read the laws;
+  it is now refused
+  (``test_reference_body.py::TestTheLawsAreServed::test_moment_space_refuses_a_reflected_slab_with_mirror_faces``).
+* **No flux.** ``reconstruct_flux`` on a reflected slab is refused:
+  the two-media Peierls integral it would need is not built.
+
+Each refusal above (the group count, the shared Sigma_t, the laws, the
+flux) and the cylinder refusal go through the one
+door,
+:func:`~orpheus.derivations.common.reference_body.refuse_unserved`,
+as a ``NotImplementedError`` that names ``MomentSpace`` and cites #536.
+
+The route is gated bit for bit
+(``tests/gates/derivations/test_reference_body.py::test_moment_space_routes_a_reflected_slab``:
+the facade's ``parameter_value`` equals the bare function's
+``tau_critical_mfp`` on Sood's problem-4 configuration), and the
+published values pass through the facade: the cross-method adapter
+``FNReflectedSlabAdapter`` builds a ``MomentSpace`` and gates Sood's
+problem 4 (:math:`\tau_c = 0.43015` mfp) and three NM 1980 Table 1
+cases (``tests/gates/cross_method/test_eigenvalue.py::test_fn_reflected_slab_matches_truth``).
+
+**Problem 4 at its published digit.** Those cross-method gates hold
+:math:`10^{-3}`, which cannot tell the two editions of Sood's report
+apart: the 2003 edition, the reference edition by the user's ruling of
+2026-09-29, prints :math:`\tau_c = 0.43015` mfp, and the 1999 edition
+printed 0.43014. A five-digit value stands for the interval of half a
+unit in its last place, :math:`\pm 5 \times 10^{-6}`. The F\ :sub:`N`
+value converged in :math:`N` is 0.4301459, 0.4301477 and 0.4301459 at
+:math:`N = 11, 13, 15` (an oscillation of :math:`1.9 \times 10^{-6}`;
+`[M]` 2026-09-29, recorded in the gate's docstring), inside 2003's
+interval and outside 1999's at each of these :math:`N`.
+``tests/gates/derivations/test_fn_sood_table10_symmetric_pu_h2o.py::test_sood_problem4_at_the_published_digit``
+asserts both, at each :math:`N`. It calls the bare
+:func:`~orpheus.derivations.continuous.fn_method.slab.reflected.solve_fn_slab_reflected_critical`,
+which the facade reaches bit for bit (the route gate above).
+Which shapes each reference generator serves, and why, is on
+:ref:`structured-geometry-reference-body`.
 
 Path A.i / Path B agreement — the discrete-mode form
 =====================================================

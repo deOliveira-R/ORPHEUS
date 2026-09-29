@@ -71,16 +71,17 @@ def _make_1g_anisotropic_mixture(
 
 
 def _slab_geometry(R_albedo: float = 0.0) -> StructuredGeometry:
-    r"""Slab geometry with reflection coefficient on the right (outer) BC."""
+    r"""Slab geometry with reflection coefficient R on BOTH faces: Atalay's
+    slab solver puts one R on both, so the geometry declares it on both."""
     if R_albedo == 0.0:
-        outer_bc: BC = BC.vacuum
+        face: BC = BC.vacuum
     else:
-        outer_bc = BC("partial", {"albedo": R_albedo})
+        face = BC("partial", {"albedo": R_albedo})
     return StructuredGeometry(
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0 * 0.93772556),
         mat_ids=(0,),
-        boundaries=(BC.vacuum, outer_bc),
+        boundaries=(face, face),
     )
 
 

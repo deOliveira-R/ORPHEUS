@@ -154,6 +154,7 @@ References
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -161,7 +162,13 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.solution_types import CriticalSolution
-from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.derivations.common.reference_body import (
+    HomogeneousBody,
+    describe,
+    reference_body,
+    refuse_unserved,
+    require_vacuum,
+)
 from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
@@ -497,7 +504,7 @@ class BasisSpace:
     geometry : :class:`StructuredGeometry`
         Pure-geometry layer object: one material filling a slab or a
         solid sphere, read by
-        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        :func:`~orpheus.derivations.common.reference_body.reference_body` (a homogeneous body only).
         A cylinder is out of pillar (Westfall–Metcalf 1972 — see
         :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
@@ -525,22 +532,21 @@ class BasisSpace:
         **1G linearly anisotropic scattering**. Cylinder is out of
         pillar (Westfall–Metcalf 1972).
         """
-        body = homogeneous_body(self.geometry, owner="BasisSpace")
-        if body.coord not in (CoordSystem.CARTESIAN, CoordSystem.SPHERICAL):
-            if body.coord is CoordSystem.CYLINDRICAL:
-                raise ValueError(
-                    "BasisSpace does not support cylinder geometry — "
-                    "Westfall-Metcalf 1972 documents the Mitsis-style "
-                    "Wiener-Hopf reduction is non-convergent for the bare "
-                    "cylinder. Use "
-                    "orpheus.derivations.continuous.singular_eigenfunction"
-                    ".cylinder for the cylinder benchmark."
-                )
-            raise ValueError(
-                f"BasisSpace supports a slab or a sphere, got "
-                f"{body.coord.name.lower()}. For infinite-medium k_inf use "
-                f"MomentSpace.solve_kinf or the multi-group F_N machinery."
+        body = self._body
+        if body.coord is CoordSystem.CYLINDRICAL:
+            refuse_unserved(
+                describe(body), owner="BasisSpace",
+                missing="a Galerkin-spectral cylinder: Westfall-Metcalf 1972 "
+                "documents the Mitsis-style Wiener-Hopf reduction as "
+                "non-convergent for the bare cylinder; use "
+                "orpheus.derivations.continuous.singular_eigenfunction"
+                ".cylinder for the cylinder benchmark",
             )
+        require_vacuum(
+            self.geometry, owner="BasisSpace",
+            missing="the Galerkin-spectral method as shipped is bare-critical "
+            "(vacuum-bounded); reflected variants are deferred",
+        )
         if self.basis_order < 1:
             raise ValueError(
                 f"basis_order must be >= 1, got {self.basis_order}"
@@ -570,7 +576,20 @@ class BasisSpace:
     @property
     def _mat_id(self) -> int:
         """Active mat_id — the single region's material identifier."""
-        return homogeneous_body(self.geometry, owner="BasisSpace").mat_id
+        return self._body.mat_id
+
+    @functools.cached_property
+    def _body(self) -> HomogeneousBody:
+        """The homogeneous body this generator solves on; any other shape is
+        refused (:func:`~orpheus.derivations.common.reference_body.refuse_unserved`)."""
+        match reference_body(self.geometry):
+            case HomogeneousBody() as body:
+                return body
+            case other:
+                refuse_unserved(
+                    describe(other), owner="BasisSpace",
+                    missing="a multi-region or hollow Galerkin-spectral solver",
+                )
 
     @property
     def _mixture(self) -> Mixture:

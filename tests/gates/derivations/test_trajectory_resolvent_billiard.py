@@ -11,15 +11,16 @@ suite's job. They DO assert that wrapping a solve in
 whose contents are bit-for-bit identical to the original return.
 
 Phase D consumes :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-directly; the asymmetric-slab branch is selected by the alpha-dict
-shape (presence of ``alpha_left`` / ``alpha_right`` keys), not by a
-geometry tag.
+directly; its albedos are the geometry's declared laws, and a slab whose
+two faces declare different albedos selects the asymmetric-slab branch.
 
 Tests are tagged ``foundation`` because they verify a software
 contract (the facade's bit-equal preservation) rather than an L0/L1
 mathematical claim about a solver.
 """
 from __future__ import annotations
+
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -143,6 +144,27 @@ def _slab_geom(L_cm: float) -> StructuredGeometry:
     )
 
 
+def _law(albedo: float) -> BC:
+    """The law declaring a specular albedo: vacuum, mirror, or partial."""
+    if albedo == 0.0:
+        return BC.vacuum
+    if albedo == 1.0:
+        return BC.reflective
+    return BC("partial", {"albedo": albedo})
+
+
+def _laws(geometry: StructuredGeometry, alpha) -> StructuredGeometry:
+    """``geometry`` with the laws that declare ``alpha``: a scalar on every
+    boundary point, or ``{"alpha_left", "alpha_right"}`` on a slab's faces.
+    Billiard reads its albedos from these laws (its ``alpha`` parameter
+    retired in P1 step 2b)."""
+    if isinstance(alpha, dict):
+        laws = (_law(alpha["alpha_left"]), _law(alpha["alpha_right"]))
+    else:
+        laws = tuple(_law(alpha) for _ in geometry.boundaries)
+    return replace(geometry, boundaries=laws)
+
+
 def _bit_equal_arrays(a: np.ndarray, b: np.ndarray) -> bool:
     """Strict bit-for-bit equality on float arrays (no allclose)."""
     a = np.asarray(a)
@@ -185,8 +207,7 @@ def test_billiard_sphere_one_endpoint_rank_1():
     """One-endpoint orbit-space class → closure_rank == 1."""
     b = Billiard(
         materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
-        geometry=_sphere_geom(5.0),
-        alpha=1.0,
+        geometry=_laws(_sphere_geom(5.0), 1.0),
     )
     assert b.closure_rank == 1
     assert b.geometry_kind == "sphere"
@@ -203,8 +224,7 @@ def test_billiard_slab_asymmetric_two_endpoint_rank_2():
     """
     b = Billiard(
         materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
-        geometry=_slab_geom(5.0),
-        alpha={"alpha_left": 0.7, "alpha_right": 0.9},
+        geometry=_laws(_slab_geom(5.0), {"alpha_left": 0.7, "alpha_right": 0.9}),
     )
     assert b.closure_rank == 2
     assert b.geometry_kind == "slab_asymmetric"
@@ -219,8 +239,7 @@ def test_billiard_scalar_alpha_on_slab_stays_symmetric():
     """
     b = Billiard(
         materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
-        geometry=_slab_geom(5.0),
-        alpha=0.5,
+        geometry=_laws(_slab_geom(5.0), 0.5),
     )
     assert b.geometry_kind == "slab"
     assert b.closure_rank == 1
@@ -228,35 +247,43 @@ def test_billiard_scalar_alpha_on_slab_stays_symmetric():
 
 
 @pytest.mark.foundation
-def test_billiard_with_alpha_returns_modified_copy():
-    """with_alpha returns a copy with new alpha; original unchanged."""
-    b = Billiard(
-        materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
-        geometry=_sphere_geom(5.0),
-        alpha=1.0,
-    )
-    b2 = b.with_alpha(0.5)
+def test_billiard_reads_its_albedo_from_the_declared_law():
+    """RE-POSED from ``test_billiard_with_alpha_returns_modified_copy``: the
+    ``alpha`` parameter and ``with_alpha`` retired (P1 step 2b), so a
+    different albedo is a different declared law on the geometry, and it
+    moves only the albedo payload."""
+    materials = {0: _mixture_from_xs(0.5, 0.4, 0.1)}
+    b = Billiard(materials=materials, geometry=_laws(_sphere_geom(5.0), 1.0))
+    b2 = Billiard(materials=materials, geometry=_laws(_sphere_geom(5.0), 0.5))
     assert b.alpha_payload == {"alpha": 1.0}
     assert b2.alpha_payload == {"alpha": 0.5}
     assert b.geometry_kind == b2.geometry_kind
-    # The materials/geometry pair is preserved; only alpha differs.
-    assert b.materials is b2.materials or b.materials == b2.materials
-    assert b.geometry == b2.geometry
-    # The synthesised solver-facing payload is bit-equal too.
     assert b.xs_payload == b2.xs_payload
     assert b.geometry_payload == b2.geometry_payload
 
 
 @pytest.mark.foundation
 def test_billiard_dispatches_every_coordinate_system():
-    """RE-POSED from ``test_billiard_unsupported_geometry_raises``, whose
-    body was ``pass``: the geometry now refuses a string tag, so the
-    dispatcher's contract is that it covers every ``CoordSystem`` member."""
-    from orpheus.derivations.continuous.trajectory_resolvent.billiard import (
-        _COORD_TO_KIND,
-    )
-
-    assert set(_COORD_TO_KIND) == set(CoordSystem)
+    """A homogeneous body in every ``CoordSystem`` member routes to an arm:
+    the dispatch covers the closed enum (P1 step 2's re-pose of the old
+    tag-refusal gate, re-posed again when the kind table became one match
+    over the body shape in step 2b)."""
+    materials = {0: _mixture_from_xs(0.5, 0.4, 0.1)}
+    geometries = {
+        CoordSystem.CARTESIAN: _slab_geom(5.0),
+        CoordSystem.SPHERICAL: _sphere_geom(5.0),
+        CoordSystem.CYLINDRICAL: _cylinder_geom(5.0),
+    }
+    assert set(geometries) == set(CoordSystem)
+    kinds = {
+        coord: Billiard(materials=materials, geometry=g).geometry_kind
+        for coord, g in geometries.items()
+    }
+    assert kinds == {
+        CoordSystem.CARTESIAN: "slab",
+        CoordSystem.SPHERICAL: "sphere",
+        CoordSystem.CYLINDRICAL: "cylinder",
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -276,8 +303,7 @@ def test_billiard_sphere_1g_bit_equal_legacy():
             SPHERE_PARAMS_1G["sigma_s"],
             SPHERE_PARAMS_1G["nu_sigma_f"],
         )},
-        geometry=_sphere_geom(SPHERE_PARAMS_1G["R"]),
-        alpha=1.0,
+        geometry=_laws(_sphere_geom(SPHERE_PARAMS_1G["R"]), 1.0),
         quadrature={
             "n_r": SPHERE_PARAMS_1G["n_r"],
             "n_mu": SPHERE_PARAMS_1G["n_mu"],
@@ -311,8 +337,7 @@ def test_billiard_sphere_mg_bit_equal_legacy():
             SPHERE_PARAMS_MG["sigma_s"],
             SPHERE_PARAMS_MG["nu_sigma_f"],
         )},
-        geometry=_sphere_geom(SPHERE_PARAMS_MG["R"]),
-        alpha=1.0,
+        geometry=_laws(_sphere_geom(SPHERE_PARAMS_MG["R"]), 1.0),
         quadrature={
             "n_r": SPHERE_PARAMS_MG["n_r"],
             "n_mu": SPHERE_PARAMS_MG["n_mu"],
@@ -346,8 +371,7 @@ def test_billiard_cylinder_1g_bit_equal_legacy():
             CYL_PARAMS_1G["sigma_s"],
             CYL_PARAMS_1G["nu_sigma_f"],
         )},
-        geometry=_cylinder_geom(CYL_PARAMS_1G["R"]),
-        alpha=1.0,
+        geometry=_laws(_cylinder_geom(CYL_PARAMS_1G["R"]), 1.0),
         quadrature={
             "n_r": CYL_PARAMS_1G["n_r"],
             "n_mu_axial": CYL_PARAMS_1G["n_mu_axial"],
@@ -384,8 +408,7 @@ def test_billiard_slab_1g_bit_equal_legacy():
             SLAB_PARAMS_1G["sigma_s"],
             SLAB_PARAMS_1G["nu_sigma_f"],
         )},
-        geometry=_slab_geom(SLAB_PARAMS_1G["L"]),
-        alpha=1.0,
+        geometry=_laws(_slab_geom(SLAB_PARAMS_1G["L"]), 1.0),
         quadrature={
             "n_x": SLAB_PARAMS_1G["n_x"],
             "n_mu": SLAB_PARAMS_1G["n_mu"],
@@ -414,8 +437,7 @@ def test_billiard_slab_asym_1g_bit_equal_legacy():
             SLAB_PARAMS_1G["sigma_s"],
             SLAB_PARAMS_1G["nu_sigma_f"],
         )},
-        geometry=_slab_geom(SLAB_PARAMS_1G["L"]),
-        alpha={"alpha_left": 0.5, "alpha_right": 0.8},
+        geometry=_laws(_slab_geom(SLAB_PARAMS_1G["L"]), {"alpha_left": 0.5, "alpha_right": 0.8}),
         quadrature={
             "n_x": SLAB_PARAMS_1G["n_x"],
             "n_mu": SLAB_PARAMS_1G["n_mu"],
@@ -444,8 +466,7 @@ def test_billiard_fixed_source_unsupported_geometry_raises():
     """fixed_source on a non-sphere_mr geometry → NotImplementedError."""
     b = Billiard(
         materials={0: _mixture_from_xs(0.5, 0.4, 0.1)},
-        geometry=_sphere_geom(5.0),
-        alpha=0.0,
+        geometry=_laws(_sphere_geom(5.0), 0.0),
     )
     with pytest.raises(NotImplementedError, match="sphere_mr"):
         b.solve_fixed_source(np.ones(3))

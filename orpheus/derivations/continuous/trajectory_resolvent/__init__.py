@@ -40,7 +40,7 @@ Sub-modules:
   six concrete frozen-dataclass instances, one per geometry.
 
 Public API entry point: :class:`Billiard`. Construct directly via
-``Billiard(geometry=structured_geometry, materials={0: mix}, alpha=...)``,
+``Billiard(geometry=structured_geometry, materials={0: mix})`` (the boundary albedos are the geometry's declared laws),
 then call :meth:`Billiard.solve_critical` for *k*-eigenproblems or
 :meth:`Billiard.solve_fixed_source` for fixed-source problems. The
 legacy ``solve_greens_function_*`` entry points remain available for

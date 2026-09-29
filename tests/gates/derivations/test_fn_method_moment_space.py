@@ -106,10 +106,11 @@ def test_moment_space_constructs_with_structured_geometry() -> None:
 @pytest.mark.foundation
 def test_moment_space_rejects_cylinder_geometry() -> None:
     r"""Cylinder is out of pillar (Westfall-Metcalf 1972); the class
-    rejects it at construction time with an explicit error message."""
+    rejects it at construction time through the reference-body door
+    (a declared scope boundary, so ``NotImplementedError``)."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     cyl = _cylinder_geometry()
-    with pytest.raises(ValueError, match="out of pillar"):
+    with pytest.raises(NotImplementedError, match="out of pillar"):
         MomentSpace(geometry=cyl, materials={0: mix})
 
 

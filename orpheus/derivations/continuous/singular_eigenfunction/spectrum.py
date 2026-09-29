@@ -40,10 +40,12 @@ solution:
   package supports it) the linear-anisotropy moment :math:`f_1`.
 
 * **Boundary condition** — the reflection coefficient :math:`R`,
-  read by :func:`_extract_R_refl` off the geometry's OUTER ``BC``
-  (:attr:`StructuredGeometry.boundaries` ``[-1]``): ``BC.vacuum`` for
-  :math:`R = 0`, and ``BC("partial", params={"albedo": R})`` for any
-  other :math:`R`.
+  read by ``Spectrum._reflection_coefficient`` from the geometry's laws
+  through :func:`~orpheus.derivations.common.reference_body.specular_albedo`:
+  ``BC.vacuum`` for :math:`R = 0`, and a specular partial reflection
+  (``BC("partial", params={"albedo": R})``) for any other :math:`R`. A
+  slab declares the same law on both faces (the Atalay slab has one
+  :math:`R` on both).
   Vacuum (:math:`R = 0`) for bare-critical configurations;
   partial reflection :math:`R \in (0, 1)` for the Atalay
   reflected-slab / reflected-sphere benchmarks. The cylinder
@@ -145,6 +147,7 @@ References
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -155,7 +158,13 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.derivations.common.reference_body import (
+    HomogeneousBody,
+    describe,
+    reference_body,
+    refuse_unserved,
+    specular_albedos,
+)
 from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
@@ -165,41 +174,6 @@ __all__ = ["Spectrum"]
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
-
-
-def _extract_R_refl(geom: StructuredGeometry) -> float:
-    r"""Extract the reflection coefficient :math:`R` from the geometry's
-    outer BC.
-
-    Reads :attr:`StructuredGeometry.boundaries` ``[-1]`` (the outer
-    boundary point: on a solid sphere or cylinder the only one, on a slab
-    the right-hand face).
-
-    Convention:
-
-    * ``BC.vacuum``  → :math:`R = 0` (bare).
-    * ``BC.reflective`` → :math:`R = 1`, which the singular-
-      eigenfunction solvers reject (the slab thickness / sphere
-      radius drops out of the criticality condition under perfect
-      reflection — Atalay omits :math:`R = 1` columns from Tables
-      2-5 for this reason).
-    * Any other ``BC`` with ``params={"albedo": R}`` → :math:`R` from
-      params. The custom partial-reflection BC is the entry point
-      for Atalay reflected-slab / reflected-sphere benchmarks.
-    """
-    bc = geom.boundaries[-1]  # the outer boundary point
-    if bc.kind == "vacuum":
-        return 0.0
-    if bc.kind == "reflective":
-        return 1.0  # caller will get a ValueError from the solver
-    # Custom BC: read albedo from params.
-    if "albedo" in bc.params:
-        return float(bc.params["albedo"])
-    raise ValueError(
-        f"Spectrum: cannot extract reflection coefficient from "
-        f"outer BC={bc!r}. Use BC.vacuum (R=0), or "
-        f'BC("partial", params={{"albedo": R}}) with R in [0, 1).'
-    )
 
 
 def _extract_f1(mixture: Mixture) -> float:
@@ -548,7 +522,7 @@ class Spectrum:
     geometry : :class:`StructuredGeometry`
         Pure-geometry layer object: one material filling a slab or a
         solid cylinder or sphere, read by
-        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        :func:`~orpheus.derivations.common.reference_body.reference_body` (a homogeneous body only).
         Singular-eigenfunction criticality requires a finite spatial
         domain (no infinite medium).
     materials : dict[int, Mixture]
@@ -579,7 +553,8 @@ class Spectrum:
         * **Cylinder** (Westfall–Metcalf 1972, isotropic only,
           bare-critical only).
         """
-        body = homogeneous_body(self.geometry, owner="Spectrum")
+        body = self._body
+        self._reflection_coefficient  # the laws are read (and refused) at construction
         if self.n_modes < 2:
             raise ValueError(f"n_modes must be ≥ 2, got {self.n_modes}")
         if self._mat_id not in self.materials:
@@ -612,7 +587,49 @@ class Spectrum:
     @property
     def _mat_id(self) -> int:
         """Active mat_id — the single region's material identifier."""
-        return homogeneous_body(self.geometry, owner="Spectrum").mat_id
+        return self._body.mat_id
+
+    @functools.cached_property
+    def _body(self) -> HomogeneousBody:
+        """The homogeneous body this generator solves on; any other shape is
+        refused (:func:`~orpheus.derivations.common.reference_body.refuse_unserved`)."""
+        match reference_body(self.geometry):
+            case HomogeneousBody() as body:
+                return body
+            case other:
+                refuse_unserved(
+                    describe(other), owner="Spectrum",
+                    missing="a multi-region singular-eigenfunction solver (the reflected cylinder of Westfall and Metcalf 1973, and reflected slabs and spheres, are not built here)",
+                )
+
+    @functools.cached_property
+    def _reflection_coefficient(self) -> float:
+        r"""The reflection coefficient :math:`R` the solvers take, read from
+        the geometry's laws (:func:`~orpheus.derivations.common.reference_body.specular_albedo`).
+
+        The slab solver (Atalay 1997) puts one :math:`R` on both faces, so a
+        slab's two laws must declare one albedo; the sphere solver takes
+        :math:`R` on the outer surface; the cylinder solver is bare
+        (:math:`R = 0`) only. :math:`R = 1` is admitted here and refused by
+        the solvers (the size drops out of the criticality condition under
+        perfect reflection; Atalay omits it from Tables 2-5).
+        """
+        albedos = specular_albedos(self.geometry, owner="Spectrum")
+        if len(set(albedos)) != 1:
+            refuse_unserved(
+                f"slab with unequal face albedos {albedos}", owner="Spectrum",
+                missing="Atalay's slab solver puts one reflection coefficient on both faces",
+            )
+        reflection = albedos[-1]
+        if self.geometry.coord is CoordSystem.CYLINDRICAL and reflection != 0.0:
+            refuse_unserved(
+                f"reflected cylinder (R = {reflection})", owner="Spectrum",
+                missing="the singular-eigenfunction cylinder is bare only "
+                "(Westfall and Metcalf 1972); the reflected cylinder "
+                "(Westfall and Metcalf 1973, Sood's problems 9, 10, 27 and 28) "
+                "is not built",
+            )
+        return reflection
 
     @property
     def _mixture(self) -> Mixture:
@@ -792,7 +809,7 @@ class Spectrum:
     ) -> CriticalSolution:
         from .slab.one_group import solve_case_method_slab_critical
 
-        R_refl = _extract_R_refl(self.geometry)
+        R_refl = self._reflection_coefficient
         f1 = self.f1
 
         kwargs: dict[str, Any] = {
@@ -848,7 +865,7 @@ class Spectrum:
     ) -> CriticalSolution:
         from .sphere.one_group import solve_case_method_sphere_critical
 
-        R_refl = _extract_R_refl(self.geometry)
+        R_refl = self._reflection_coefficient
         f1 = self.f1
 
         kwargs: dict[str, Any] = {
@@ -900,13 +917,6 @@ class Spectrum:
             solve_singular_eigenfunction_cylinder_bare_critical,
         )
 
-        R_refl = _extract_R_refl(self.geometry)
-        if R_refl != 0.0:
-            raise NotImplementedError(
-                f"Spectrum cylinder solve_critical: only bare cylinder "
-                f"(R_refl=0) is in pillar (Westfall-Metcalf 1972 limit); "
-                f"got R_refl={R_refl}."
-            )
 
         kwargs: dict[str, Any] = {
             "c": c,

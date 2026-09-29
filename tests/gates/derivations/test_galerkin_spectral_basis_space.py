@@ -126,7 +126,7 @@ def test_basis_space_rejects_cylinder_geometry() -> None:
         mat_ids=(0,),
         boundaries=(BC.vacuum,),
     )
-    with pytest.raises(ValueError, match="singular_eigenfunction"):
+    with pytest.raises(NotImplementedError, match="singular_eigenfunction"):
         BasisSpace(geometry=cyl, materials={0: mix})
 
 

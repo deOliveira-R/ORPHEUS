@@ -12,8 +12,8 @@ Trajectory-Resolvent Family — angle-resolved Green's function references
 Key Facts
 =========
 
-**Read this before modifying any solver in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent`.**
+**Read this before modifying any solver in**
+:mod:`orpheus.derivations.continuous.trajectory_resolvent`.
 
 - **What this is**: a 6-geometry × 2-orbit-space-class family of
   angle-resolved Green's-function reference solvers, all mounted on
@@ -344,12 +344,36 @@ documented in dedicated sections per the
 
 - **What the family does NOT cover**: anisotropic scattering
   (:math:`\omega_1 \ne 0`), Sanchez 1986 diffuse-re-emission
-  :math:`\beta`-branch, multi-region for any geometry other than
-  sphere (multi-region cylinder / slab / hollow / annulus all
-  deferred), 3-surface topologies (axially-capped cylinder /
-  annulus). Phase 2 unification SHIPPED at commits ``efbae9c`` /
+  :math:`\beta`-branch, a multi-region slab (symmetric or not) and a
+  multi-region hollow sphere or annulus (the multi-region sphere is
+  Plan-(b), :ref:`peierls-greens-multiregion`; the multi-region
+  cylinder is Phase 1b, :ref:`peierls-greens-cylinder-mr`), 3-surface
+  topologies (axially-capped cylinder / annulus). Phase 2 unification SHIPPED at commits ``efbae9c`` /
   ``92d4f10`` / ``166b9ae``; rank-2 framework SHIPPED at commit
   ``7cb5bc6`` (Phase 3B).
+- **What the** :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
+  **facade reaches.** It reads its geometry through
+  :func:`~orpheus.derivations.common.reference_body.reference_body`
+  and routes a homogeneous slab, sphere or cylinder, a hollow sphere
+  or annulus of one material, and a solid layered sphere or cylinder
+  (``geometry_kind`` ``"sphere_mr"`` and ``"cylinder_mr"``, onto
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mr`
+  and
+  :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`).
+  It refuses a layered or reflected slab and a hollow layered body
+  through
+  :func:`~orpheus.derivations.common.reference_body.refuse_unserved`,
+  since no solver here takes them. The albedos are the geometry's
+  boundary laws, read by
+  :func:`~orpheus.derivations.common.reference_body.specular_albedo`
+  (vacuum 0, a mirror 1, a partial specular law its albedo); a law with
+  no specular albedo (white, periodic, an isotropic return) is refused.
+  There is no ``alpha`` constructor parameter: it was a second
+  declaration of the law that won over the geometry's, and it retired
+  in P1 step 2b. ``solve_fixed_source`` is built for ``"sphere_mr"``
+  only and returns the total scalar flux (ERR-091). The table over all
+  four reference generators, with the laws each serves, and its
+  rationale: :ref:`structured-geometry-reference-body`.
 - **Retreat framing**. The continuous-µ retreat is a structural
   finding, not a failure narrative. The retreat established that the
   **angle-integrated** kernel :math:`g_\alpha` is hypersingular —
@@ -3976,8 +4000,7 @@ one with:
    )
    b = Billiard(
        materials={0: mix},
-       geometry=geom,
-       alpha=1.0,
+       geometry=geom,  # the reflective law declares albedo 1
        quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
    )
    sol = b.solve_critical()
@@ -3991,7 +4014,9 @@ The class encapsulates the four ingredients of the billiard:
 - :attr:`Billiard.materials` ↔ the streaming dissipation
   (:math:`\Sigma_t`) + the *interior source* (:math:`\Sigma_s
   \phi + \nu\Sigma_f \phi / k`).
-- :attr:`Billiard.alpha_payload` ↔ the boundary reflection law.
+- :attr:`Billiard.alpha_payload` ↔ the boundary reflection law,
+  derived from the geometry's laws (one specular albedo per boundary
+  point), never passed separately.
 - :attr:`Billiard.closure_rank` ↔ the bond dimension of the
   Poincaré–Birkhoff transfer operator (1 for one-endpoint M/G,
   2 for two-endpoint M/G).
@@ -4004,6 +4029,55 @@ result as the SHARED cross-method
 by :class:`MomentSpace` for fn_method as well). Bit-equality with
 the legacy ``solve_greens_function_*`` API is preserved exactly:
 the :class:`Billiard` is a *facade*, not a re-implementation.
+
+**Which solver a geometry reaches.** The constructor reads the
+geometry as one body shape
+(:func:`~orpheus.derivations.common.reference_body.reference_body`)
+and its laws as one specular albedo per boundary point, inner first
+(:func:`~orpheus.derivations.common.reference_body.specular_albedos`),
+and maps the two, in one match, to ``geometry_kind``, the key of the
+dispatch:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 22 24 26
+
+   * - Body shape
+     - ``geometry_kind``
+     - Geometry payload
+     - ``alpha_payload``
+   * - homogeneous slab, both faces one albedo
+     - ``"slab"``
+     - ``{"L"}``, the full slab width
+     - ``{"alpha"}``
+   * - homogeneous slab, faces differ
+     - ``"slab_asymmetric"`` (closure rank 2)
+     - ``{"L"}``
+     - ``{"alpha_left", "alpha_right"}``
+   * - homogeneous solid sphere, cylinder
+     - ``"sphere"``, ``"cylinder"``
+     - ``{"R"}``
+     - ``{"alpha"}``, the outer law
+   * - hollow sphere, annulus (one material)
+     - ``"hollow_sphere"``, ``"annulus"``
+     - ``{"R_in", "R_out"}``
+     - ``{"alpha_in", "alpha_out"}``, the inner and outer laws
+   * - layered solid sphere, cylinder
+     - ``"sphere_mr"``, ``"cylinder_mr"``
+     - ``{"radii"}``, the outer radius of each material run, with the
+       cross sections stacked one mixture per run
+     - ``{"alpha"}``, the outer law
+
+Any other shape (a layered or reflected slab, a hollow layered body)
+is refused. The two multi-region routes and the two hollow routes are
+gated in ``tests/gates/derivations/test_reference_body.py``: the
+facade's :math:`k` on a two-group layered sphere and cylinder equals
+the bare multi-region solver's bit for bit, and the hollow bodies pick
+their arm and payload. The laws are gated in the same file: a slab
+declared (``BC("partial", {"albedo": 0.7})``, ``BC.reflective``) is the
+two-surface billiard with ``{"alpha_left": 0.7, "alpha_right": 1.0}``, a
+hollow sphere declared (reflective, vacuum) reads
+``{"alpha_in": 1.0, "alpha_out": 0.0}``, and a white law is refused.
 
 Cross-method analog
 -------------------

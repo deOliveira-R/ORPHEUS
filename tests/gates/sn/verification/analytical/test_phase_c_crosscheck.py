@@ -5,7 +5,8 @@ r"""Issue #168 Phase C/D/E — Gate Set 4: the curvilinear discrete-ordinates so
   \nu\Sigma_f/\Sigma_a`.
 * Gate 4.2 — the SN eigenvalue (Phase D) and flux shape (Phase E) against the
   trajectory-resolvent Variant α Green's-function solvers, called bare (the
-  Billiard facade does not route the multi-region variants; GH #190).
+  Billiard facade routes the multi-region variants since P1 step 2b, #190,
+  but these rows predate it and keep their direct calls).
 
 The rows, with the claim each makes:
 

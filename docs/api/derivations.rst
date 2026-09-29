@@ -74,18 +74,40 @@ Submodules
        :class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`,
        lifted by ``ORPHEUS_RUN_WITHDRAWN`` (see
        :ref:`vv-withdrawn-generators`).
-   * - :mod:`~orpheus.derivations.common.homogeneous_body`
+   * - :mod:`~orpheus.derivations.common.reference_body`
      - The one reading of a
        :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-       as the homogeneous body a one-material reference generator
-       (``Spectrum``, ``MomentSpace``, ``BasisSpace``, ``Billiard``)
-       solves on:
-       :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`
-       returns a
-       :class:`~orpheus.derivations.common.homogeneous_body.HomogeneousBody`
-       ``(coord, extent_cm, mat_id)`` and refuses a geometry holding
-       more than one material, or a hollow one, naming the generator (see
-       :ref:`structured-geometry-homogeneous-body`).
+       as the body a continuous reference generator (``Spectrum``,
+       ``MomentSpace``, ``BasisSpace``, ``Billiard``) solves on.
+       :func:`~orpheus.derivations.common.reference_body.reference_body`
+       is total and knows no solver: after merging adjacent intervals
+       of one material into runs, it returns exactly one of
+       :class:`~orpheus.derivations.common.reference_body.HomogeneousBody`
+       ``(coord, extent_cm, mat_id)``,
+       :class:`~orpheus.derivations.common.reference_body.HollowBody`
+       ``(coord, inner_radius_cm, outer_radius_cm, mat_id)``,
+       :class:`~orpheus.derivations.common.reference_body.ReflectedSlab`
+       ``(core_width_cm, reflector_width_cm, core_mat_id,
+       reflector_mat_id)`` or
+       :class:`~orpheus.derivations.common.reference_body.LayeredBody`
+       ``(coord, breakpoints, mat_ids)``; ``ReferenceBody`` is their
+       union. The boundary laws are read by
+       :func:`~orpheus.derivations.common.reference_body.specular_albedo`
+       ``(law, owner=)``, the one reader of a law as a specular albedo
+       (vacuum 0, a mirror 1, a partial specular law its albedo; any
+       other law refused),
+       :func:`~orpheus.derivations.common.reference_body.specular_albedos`
+       (every boundary point of a geometry, inner first) and
+       :func:`~orpheus.derivations.common.reference_body.require_vacuum`.
+       Each generator refuses a shape or a law it does not serve
+       through
+       :func:`~orpheus.derivations.common.reference_body.refuse_unserved`
+       ``(what, owner=, missing=)``, which raises
+       ``NotImplementedError`` naming the owner, the refused
+       configuration (a body is worded by
+       :func:`~orpheus.derivations.common.reference_body.describe`) and
+       the solver it lacks (the table of which generator serves which
+       shape under which laws: :ref:`structured-geometry-reference-body`).
 
 Reference-value registry
 ------------------------
@@ -105,10 +127,10 @@ Withdrawn reference generators
 .. automodule:: orpheus.derivations.common.withdrawal
    :members:
 
-The homogeneous body of a reference generator
----------------------------------------------
+The body a reference generator solves on
+----------------------------------------
 
-.. automodule:: orpheus.derivations.common.homogeneous_body
+.. automodule:: orpheus.derivations.common.reference_body
    :members:
 
 Homogeneous

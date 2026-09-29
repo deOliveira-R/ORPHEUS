@@ -403,3 +403,55 @@ def test_PU_2_0_IN_flux_spectrum_matches_kinf_and_spectrum_homogeneous():
         return_in_orpheus_order=False,
     )
     assert fast_over_slow_eq32 == pytest.approx(fast_over_slow_eig, abs=1e-12)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Every stored infinite-medium value is its own cross sections' eigenpair
+# ─────────────────────────────────────────────────────────────────────
+
+from orpheus.derivations.continuous.sood_registry import la13511 as _la13511  # noqa: E402
+
+_INFINITE_CASES = [c for c in _la13511._ALL_CASES if c.geometry_kind == "infinite"]
+
+#: Sood computed these k_inf from nu rounded to this many significant
+#: figures, while the table prints nu to more (measured 2026-09-29: with
+#: Uc's nu = 2.7073 the stored 2.256083 is reproduced to 1.5e-7; with the
+#: printed nu, only to 3.1e-6).
+_NU_ROUNDED_TO = {"Uc-1-0-IN": 5}
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("case", _INFINITE_CASES, ids=lambda c: c.case_id)
+def test_stored_kinf_and_flux_ratios_are_the_cross_sections_eigenpair(case):
+    r"""P1 step 2b (qa's finding): only 1 of the 10 stored flux ratios was
+    read by any test, so a transcription error there was invisible. Every
+    infinite-medium case's stored :math:`k_\infty` and flux ratios are the
+    dominant eigenpair of its own stored cross sections
+    (:func:`kinf_and_spectrum_homogeneous`), to 1e-6 relative.
+
+    The tolerance is not the printed precision (half a unit in the seventh
+    figure, a few 1e-7): Sood's values carry Sood's own intermediate
+    rounding, and the measured worst case over the 22 cases is 9.0e-7
+    (Ud-1-0-IN) for k and 5.3e-7 (PU-2-0-IN) for a ratio. A transcription
+    error of any real size is far above 1e-6 (a ratio set to 99 reddens
+    this gate); Uc-1-0-IN is checked through the nu Sood rounded
+    (``_NU_ROUNDED_TO``).
+    """
+    mixture = case.materials[0]
+    sig_s0 = mixture.SigS[0].toarray()
+    nu_sig_f = np.asarray(mixture.SigP, dtype=float)
+    if case.case_id in _NU_ROUNDED_TO:
+        figures = _NU_ROUNDED_TO[case.case_id]
+        sig_f = np.asarray(mixture.SigF, dtype=float)
+        nu = np.array([float(f"{v:.{figures}g}") for v in nu_sig_f / sig_f])
+        nu_sig_f = nu * sig_f
+    k, phi = kinf_and_spectrum_homogeneous(
+        np.asarray(mixture.SigT, dtype=float), sig_s0, nu_sig_f,
+        np.asarray(mixture.chi, dtype=float),
+    )
+    np.testing.assert_allclose(k, case.truth.k_eff_or_kinf, rtol=1e-6, atol=0.0)
+    for group, ratio in (case.truth.flux_ratio_groupwise or {}).items():
+        np.testing.assert_allclose(
+            phi[group] / phi[0], ratio, rtol=1e-6, atol=0.0,
+            err_msg=f"{case.case_id}: stored flux ratio of group {group}",
+        )

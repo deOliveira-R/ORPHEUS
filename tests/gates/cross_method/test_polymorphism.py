@@ -148,12 +148,10 @@ def test_dispatch_trajectory_resolvent_slab_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
         materials=case.registry_case.materials,
-        alpha=alpha,
         quadrature={"n_x": 8, "n_mu": 8, "n_traj_quad": 16},
     )
     sol_protocol = billiard.solve_critical(max_iter=100, tol=1e-7)
@@ -183,12 +181,10 @@ def test_dispatch_trajectory_resolvent_sphere_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
         materials=case.registry_case.materials,
-        alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )
     sol_protocol = billiard.solve_critical(max_iter=100, tol=1e-8)
@@ -217,12 +213,10 @@ def test_dispatch_closed_sphere_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
         materials=case.materials,
-        alpha=alpha,
         quadrature={"n_r": 12, "n_mu": 12, "n_traj_quad": 24},
     )
     sol_protocol = billiard.solve_critical(max_iter=50, tol=1e-12)

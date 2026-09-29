@@ -8636,3 +8636,52 @@ older entries classify against.
    derived from that error (at least ten times it), never from the
    reading.  The SN side of a comparison is read from the artefact that
    pins it, and the comparison is made on the SUT's own cells.
+
+
+.. error-entry:: ERR-091
+   :title: Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the scalar flux, on every multi-group source
+
+   **Status:** ✅ **FIXED 2026-09-29, P1 step 2b** of the reference-solution
+   campaign (``.claude/plans/reference_cache.md``), found by the qa review
+   of that step.
+
+   **Module:** ``orpheus/derivations/continuous/trajectory_resolvent/billiard.py``
+   (``_dispatch_fixed_source``, the ``sphere_mr`` arm).
+
+   **Failure mode:** **#3 (missing factor)**, in its reduction form: a sum
+   over the group axis replaced by one of its terms.
+
+   **What happened.**  The arm read the group count as
+   ``np.asarray(external_source).reshape(-1, 1).shape[1]``, which is 1 for
+   every array: reshaping to one column fixes the second dimension at 1.
+   It then filled the shared :class:`~orpheus.derivations.common.solution_types.FluxSolution`'s
+   one-dimensional ``scalar_flux`` with ``phi_g[0]``, the first group's
+   flux. On a two-group source the result claimed one group, and its
+   scalar flux was the fast flux alone. The per-group fluxes were
+   correct, in the metadata.
+
+   **How it hid.**  The arm was unreachable: ``Billiard`` inferred only a
+   slab, a sphere or a cylinder from its geometry, so no constructor could
+   produce the ``sphere_mr`` kind (#421), and ``solve_fixed_source`` could
+   only raise. P1 step 2b made the multi-region sphere reachable, and
+   exposed the arm's first successful path to review. A one-group source
+   was also blind: ``n_groups = 1`` and ``phi_g[0]`` are both right there.
+
+   **Fix.**  The group count is the solution's own,
+   ``np.atleast_2d(res.phi_g).shape[0]``, and the scalar flux is the TOTAL
+   scalar flux, the sum over groups. The schema carries one scalar flux,
+   and the total is the named quantity it can carry; the per-group fluxes
+   stay in the metadata (``phi_g``).
+
+   **Caught by:**
+   ``tests/gates/derivations/test_reference_body.py::test_billiard_sphere_mr_fixed_source_reports_every_group``
+   (a two-group fuel / moderator sphere). Mutation witness: restoring
+   ``phi_g[0]`` as the scalar flux reddens it (P1 step 2b's battery,
+   ``scratch/reference_architecture/p1step2b/mut/mut_laws.py``, arm ``err087``).
+
+   **Lesson.**  ⭐ **An arm no constructor can reach is untested code,
+   whatever it looks like: making it reachable is the moment its first
+   success path is reviewed, not a routing change that inherits a working
+   body.** A reshape that sets the dimension it then reads is a constant,
+   and a reduction replaced by its first term is invisible on the one-term
+   case every smoke test uses.

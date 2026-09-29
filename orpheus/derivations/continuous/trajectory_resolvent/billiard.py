@@ -5,9 +5,10 @@ the structure shared by every Variant α reference solver in
 :mod:`~orpheus.derivations.continuous.trajectory_resolvent`. The
 implementation is a thin facade over the geometry-specific
 ``solve_greens_function_*`` entry points; what it adds is a single
-named *concept* (the billiard system) that covers all six geometries
-(slab, sphere, cylinder, slab-asymmetric, hollow sphere, annulus) at
-both orbit-space classes (one-surface compact and two-surface).
+named *concept* (the billiard system) that covers eight geometries
+(slab, sphere, cylinder, slab-asymmetric, hollow sphere, annulus, and
+the layered solid sphere and cylinder) at both orbit-space classes
+(one-surface compact and two-surface).
 
 Mathematical billiards in one paragraph
 ---------------------------------------
@@ -86,7 +87,16 @@ from typing import Any
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.derivations.common.reference_body import (
+    HollowBody,
+    HomogeneousBody,
+    LayeredBody,
+    ReferenceBody,
+    describe,
+    reference_body,
+    refuse_unserved,
+    specular_albedos,
+)
 from orpheus.geometry import CoordSystem, StructuredGeometry
 
 # Use the SHARED cross-method result types — these define the contract
@@ -160,7 +170,9 @@ class Billiard:
        annulus, asymmetric slab; classified by the orbit-space M/G
        structure).
     2. **A boundary reflection law** at :math:`\partial M` — here
-       the BC parametrized by :math:`\alpha`:
+       the geometry's declared laws, read as a specular albedo
+       :math:`\alpha` per boundary point
+       (:func:`~orpheus.derivations.common.reference_body.specular_albedo`):
 
        - specular (:math:`\alpha = 1`) ↔ pure billiard, ergodic at
          high density;
@@ -196,7 +208,6 @@ class Billiard:
         b = Billiard(
             geometry=geom,
             materials={0: pu_mixture},
-            alpha=1.0,
             quadrature={"n_r": 24, "n_mu": 24, "n_traj_quad": 64},
         )
         sol = b.solve_critical()
@@ -204,13 +215,19 @@ class Billiard:
     Geometry mapping
     ----------------
 
-    The class reads the geometry as one homogeneous body
-    (:func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`:
-    a slab, or a solid sphere or cylinder) and dispatches on its
-    coordinate system to the per-geometry ``solve_greens_function_*``
-    entry points.
-    The asymmetric-slab branch is selected when ``alpha`` is a dict
-    carrying ``alpha_left`` / ``alpha_right`` keys.
+    The class reads the geometry's body shape
+    (:func:`~orpheus.derivations.common.reference_body.reference_body`)
+    and dispatches on it: a homogeneous slab, sphere or cylinder; a
+    hollow sphere or annulus of one material (``hollow_sphere``,
+    ``annulus``); a solid layered sphere or cylinder (``sphere_mr``,
+    ``cylinder_mr``). A layered or reflected slab and a hollow layered
+    body are refused: no trajectory-resolvent solver serves them (#536).
+    The boundary albedos are the geometry's laws, read as specular albedos;
+    a slab whose two faces declare different albedos selects the
+    asymmetric (two-surface) arm. A law that is not specular (white,
+    isotropic return, periodic) is refused. There is no separate ``alpha``
+    parameter: it was a second declaration of the boundary law that
+    silently won over the geometry's (retired in P1 step 2b).
 
     Attributes
     ----------
@@ -218,22 +235,19 @@ class Billiard:
         The pure-geometry layer object describing the billiard table.
     materials : dict[int, Mixture]
         Production-protocol cross-section payload, keyed by material
-        ID. Today's :class:`Billiard` consumes only the active
-        material at key ``0`` for single-region geometries.
-    alpha : float | dict[str, float]
-        Boundary reflectivity. Float for symmetric / one-surface
-        billiards; dict for asymmetric two-surface billiards
-        (``{"alpha_left": ..., "alpha_right": ...}``).
+        ID. :class:`Billiard` reads the body's material (its id, not
+        key ``0``), or one mixture per run of a layered body.
     quadrature : dict[str, int]
         Quadrature orders. Standard keys: ``n_r`` / ``n_x``,
         ``n_mu`` / ``n_mu_axial``, ``n_phi_az``, ``n_traj_quad``.
         Defaults are inherited from each geometry's solver if the
         key is absent.
     geometry_kind : str
-        One of ``"sphere"``, ``"cylinder"``, ``"slab"``,
-        ``"slab_asymmetric"``. Auto-derived in :meth:`__post_init__`
-        from the :class:`StructuredGeometry`'s coordinate system and the
-        alpha-dict shape; selects which underlying solver is dispatched.
+        One of ``"slab"``, ``"slab_asymmetric"``, ``"sphere"``,
+        ``"cylinder"``, ``"hollow_sphere"``, ``"annulus"``,
+        ``"sphere_mr"``, ``"cylinder_mr"``. Derived in
+        :meth:`__post_init__` from the body shape and the laws; selects
+        which underlying solver is dispatched.
     closure_rank : int
         ``1`` for one-endpoint orbit spaces, ``2`` for two-endpoint
         orbit spaces. Auto-resolved from :attr:`geometry_kind`.
@@ -248,13 +262,12 @@ class Billiard:
             mat_ids=(0,),
             boundaries=(BC.reflective,),
         )
-        b = Billiard(geometry=geom, materials={0: pu_mixture}, alpha=1.0)
+        b = Billiard(geometry=geom, materials={0: pu_mixture})
         sol = b.solve_critical()
     """
 
     geometry: StructuredGeometry
     materials: dict[int, Mixture]
-    alpha: float | dict[str, float] = 1.0
     quadrature: dict[str, int] = field(default_factory=dict)
 
     # Derived fields populated in __post_init__. Marked as init=False so
@@ -272,46 +285,21 @@ class Billiard:
                 f"{list((self.materials or {}).keys())!r}."
             )
 
-        geometry_kind = _infer_geometry_kind(self.geometry, self.alpha)
-        geometry_payload = _geometry_payload_for_solver(
-            geometry_kind, self.geometry
-        )
-        xs_payload = _mixture_to_solver_xs_payload(
+        route = _route(
+            reference_body(self.geometry),
+            specular_albedos(self.geometry, owner="Billiard"),
             self.materials,
-            homogeneous_body(self.geometry, owner="Billiard").mat_id,
-            geometry_kind,
         )
-
-        # Normalize alpha into the per-geometry payload.
-        if isinstance(self.alpha, dict):
-            alpha_payload: dict[str, float] = dict(self.alpha)
-        elif geometry_kind in ("hollow_sphere", "annulus"):
-            alpha_payload = {
-                "alpha_in": float(self.alpha),
-                "alpha_out": float(self.alpha),
-            }
-        else:
-            alpha_payload = {"alpha": float(self.alpha)}
-
-        # Resolve closure rank from orbit-space class.
-        closure_rank = 2 if geometry_kind == "slab_asymmetric" else 1
-
         # Frozen dataclass: use object.__setattr__ to populate derived
-        # fields.
-        object.__setattr__(self, "geometry_kind", geometry_kind)
-        object.__setattr__(self, "closure_rank", closure_rank)
-        object.__setattr__(self, "xs_payload", xs_payload)
-        object.__setattr__(self, "geometry_payload", geometry_payload)
-        object.__setattr__(self, "alpha_payload", alpha_payload)
-
-    def with_alpha(self, alpha: float | dict[str, float]) -> "Billiard":
-        """Return a copy with a different boundary reflectivity."""
-        return Billiard(
-            geometry=self.geometry,
-            materials=self.materials,
-            alpha=alpha,
-            quadrature=self.quadrature,
+        # fields. The closure rank is the orbit-space class: a slab whose two
+        # faces differ is the two-surface billiard.
+        object.__setattr__(self, "geometry_kind", route.geometry_kind)
+        object.__setattr__(
+            self, "closure_rank", 2 if route.geometry_kind == "slab_asymmetric" else 1,
         )
+        object.__setattr__(self, "xs_payload", route.xs_payload)
+        object.__setattr__(self, "geometry_payload", route.geometry_payload)
+        object.__setattr__(self, "alpha_payload", route.alpha_payload)
 
     # ─────────────────────────────────────────────────────────────────
     # solve methods — thin facades over the existing solvers
@@ -442,7 +430,7 @@ def _dispatch_critical(
         parameter_value = float(geom["L"])
     elif g in ("hollow_sphere", "annulus"):
         parameter_value = float(geom["R_out"])
-    elif g == "sphere_mr":
+    elif g in ("sphere_mr", "cylinder_mr"):
         parameter_value = float(np.asarray(geom["radii"])[-1])
     else:
         parameter_value = 0.0
@@ -495,6 +483,24 @@ def _dispatch_critical(
                        if np.asarray(mats["sigma_t"]).ndim > 1
                        else 1)
         return _wrap_mr(res, n_groups=n_groups, **wrap_extra)
+
+    if g == "cylinder_mr":
+        res = gf_cyl.solve_greens_function_cylinder_mr(
+            radii=geom["radii"],
+            sigma_t=mats["sigma_t"],
+            sigma_s=mats["sigma_s"],
+            nu_sigma_f=mats["nu_sigma_f"],
+            chi=mats.get("chi"),
+            alpha=a["alpha"],
+            **_filter_kwargs(q, (
+                "n_r", "n_mu_axial", "n_phi_az", "n_traj_quad",
+            )),
+            **iter_kwargs,
+            **({"initial_k": initial_k} if initial_k is not None else {}),
+        )
+        return _wrap_cyl_mr(
+            res, n_groups=int(np.asarray(mats["sigma_t"]).shape[-1]), **wrap_extra,
+        )
 
     if g == "cylinder":
         if is_mg:
@@ -683,16 +689,16 @@ def _dispatch_fixed_source(
             **_filter_kwargs(q, ("n_r", "n_mu", "n_traj_quad")),
             **iter_kwargs,
         )
-        n_groups = int(
-            np.asarray(external_source).reshape(-1, 1).shape[1]
-            if np.asarray(external_source).ndim > 1
-            else 1
-        )
-        # Collapse phi_g per group to a representative scalar flux for
-        # the shared FluxSolution `scalar_flux` field.
-        phi_for_shared = (
-            res.phi_g if res.phi_g.ndim == 1 else res.phi_g[0]
-        )
+        # The group count is the solution's own (phi_g is (G, n_r), or
+        # (n_r,) for one group). The shared FluxSolution carries one
+        # scalar flux, (n_x,), so a multi-group solve reports the TOTAL
+        # scalar flux, the sum over groups; the per-group fluxes stay in
+        # the metadata (``phi_g``). Before P1 step 2b the count was read as
+        # ``reshape(-1, 1).shape[1]`` (always 1) and the scalar flux was
+        # group 0 alone (ERR-091).
+        phi_g = np.atleast_2d(res.phi_g)
+        n_groups = int(phi_g.shape[0])
+        phi_for_shared = phi_g.sum(axis=0)
         metadata = {
             "raw_result": res,
             "psi": res.psi_g,
@@ -884,6 +890,32 @@ def _wrap_cyl_mg(
     )
 
 
+def _wrap_cyl_mr(
+    res: Any,
+    *,
+    n_groups: int,
+    parameter_value: float,
+    parameter_kind: str,
+    geometry_kind: str,
+) -> CriticalSolution:
+    """Wrap a multi-region cylinder result with region_at_node."""
+    return _build_critical(
+        res,
+        psi=res.psi_g,
+        phi=res.phi_g,
+        n_groups=n_groups,
+        parameter_value=parameter_value,
+        parameter_kind=parameter_kind,
+        geometry_kind=geometry_kind,
+        mesh={
+            "r_nodes": res.r_nodes,
+            "mu_axial_nodes": res.mu_axial_nodes,
+            "phi_az_nodes": res.phi_az_nodes,
+            "region_at_node": res.region_at_node,
+        },
+    )
+
+
 def _wrap_slab_1g(
     res: Any,
     *,
@@ -948,68 +980,101 @@ def _is_mixture_dict(materials: Any) -> bool:
     return isinstance(materials[first_key], Mixture)
 
 
-# Map the geometry's coordinate system → Billiard's internal lowercase
-# geometry_kind. The asymmetric-slab branch is selected by alpha-dict
-# shape, not by the coordinate system (slab is slab — asymmetry is
-# a BC concept, not a coordinate concept).
-_COORD_TO_KIND: dict[CoordSystem, str] = {
-    CoordSystem.CARTESIAN: "slab",
-    CoordSystem.SPHERICAL: "sphere",
-    CoordSystem.CYLINDRICAL: "cylinder",
-}
+@dataclass(frozen=True)
+class _Route:
+    """What one Billiard solves: the arm, and the payloads the arm takes."""
+
+    geometry_kind: str
+    geometry_payload: dict[str, Any]
+    xs_payload: dict[str, Any]
+    alpha_payload: dict[str, float]
 
 
-def _infer_geometry_kind(
-    geom: StructuredGeometry,
-    alpha: float | dict[str, float],
-) -> str:
-    """Infer Billiard's internal geometry_kind from a StructuredGeometry.
+def _route(
+    body: ReferenceBody,
+    albedos: tuple[float, ...],
+    materials: dict[int, Mixture],
+) -> _Route:
+    """The arm and the payloads for ``body`` with the specular ``albedos``
+    of its boundary points (inner first), read in one match.
 
-    Returned values are one of: ``"slab"``, ``"slab_asymmetric"``,
-    ``"sphere"``, ``"cylinder"``. The asymmetric-slab branch is
-    selected when *alpha* is a dict carrying ``alpha_left`` /
-    ``alpha_right`` keys.
+    A homogeneous slab is the one-surface billiard when its two faces
+    declare one albedo, and the two-surface (asymmetric) billiard when they
+    differ. A solid sphere or cylinder has one boundary point; a hollow
+    one has two (``alpha_in``, ``alpha_out``); a solid layered sphere or
+    cylinder routes to the multi-region solvers. A layered or reflected slab
+    and a hollow layered body are refused: no trajectory-resolvent solver
+    serves them.
     """
-    kind = _COORD_TO_KIND[homogeneous_body(geom, owner="Billiard").coord]
-    if kind == "slab" and isinstance(alpha, dict):
-        keys = set(alpha.keys())
-        if "alpha_left" in keys or "alpha_right" in keys:
-            return "slab_asymmetric"
-    return kind
-
-
-def _geometry_payload_for_solver(
-    geometry_kind: str,
-    geom: StructuredGeometry,
-) -> dict[str, Any]:
-    """Build the per-geometry payload the dispatchers consume.
-
-    Maps the homogeneous body's extent onto the geometry-specific kwargs
-    of the underlying ``solve_greens_function_*`` entry points.
-
-    Slab convention reminder
-    ------------------------
-    The body's extent is the FULL slab width. The underlying
-    :func:`solve_greens_function_slab` consumes ``L`` = full slab
-    width, so this is a direct pass-through (no halving / doubling).
-
-    For a sphere or a cylinder the extent is the radius (the body is
-    solid, :func:`homogeneous_body`).
-    """
-    extent = homogeneous_body(geom, owner="Billiard").extent_cm
-    if geometry_kind in ("sphere", "cylinder"):
-        return {"R": float(extent)}
-    if geometry_kind in ("slab", "slab_asymmetric"):
-        return {"L": float(extent)}
-    raise ValueError(
-        f"_geometry_payload_for_solver: unsupported {geometry_kind!r}"
+    match body:
+        case HomogeneousBody(coord=CoordSystem.CARTESIAN, extent_cm=width, mat_id=mat_id):
+            left, right = albedos
+            symmetric = left == right
+            return _Route(
+                geometry_kind="slab" if symmetric else "slab_asymmetric",
+                geometry_payload={"L": float(width)},
+                xs_payload=_mixture_to_solver_xs_payload(materials, mat_id),
+                alpha_payload=(
+                    {"alpha": left} if symmetric
+                    else {"alpha_left": left, "alpha_right": right}
+                ),
+            )
+        case HomogeneousBody(coord=coord, extent_cm=radius, mat_id=mat_id):
+            (outer,) = albedos
+            return _Route(
+                geometry_kind="sphere" if coord is CoordSystem.SPHERICAL else "cylinder",
+                geometry_payload={"R": float(radius)},
+                xs_payload=_mixture_to_solver_xs_payload(materials, mat_id),
+                alpha_payload={"alpha": outer},
+            )
+        case HollowBody(coord=coord, inner_radius_cm=r_in, outer_radius_cm=r_out, mat_id=mat_id):
+            inner, outer = albedos
+            return _Route(
+                geometry_kind="hollow_sphere" if coord is CoordSystem.SPHERICAL else "annulus",
+                geometry_payload={"R_in": float(r_in), "R_out": float(r_out)},
+                xs_payload=_mixture_to_solver_xs_payload(materials, mat_id),
+                alpha_payload={"alpha_in": inner, "alpha_out": outer},
+            )
+        case LayeredBody(coord=coord, breakpoints=breakpoints, mat_ids=mat_ids, is_hollow=False) \
+                if coord is not CoordSystem.CARTESIAN:
+            (outer,) = albedos
+            return _Route(
+                geometry_kind="sphere_mr" if coord is CoordSystem.SPHERICAL else "cylinder_mr",
+                geometry_payload={"radii": np.asarray(breakpoints[1:], dtype=float)},
+                xs_payload=_layered_xs_payload(materials, mat_ids),
+                alpha_payload={"alpha": outer},
+            )
+    refuse_unserved(
+        describe(body), owner="Billiard",
+        missing="a trajectory-resolvent solver for a layered or reflected slab "
+        "or a hollow layered body",
     )
+
+
+def _layered_xs_payload(
+    materials: dict[int, Mixture], mat_ids: tuple[int, ...],
+) -> dict[str, Any]:
+    """Per-run cross sections, stacked as the multi-region solvers take them:
+    ``sigma_t`` and ``nu_sigma_f`` ``(n_regions, G)``, ``sigma_s``
+    ``(n_regions, G, G)``, ``chi`` ``(n_regions, G)``."""
+    missing = [m for m in mat_ids if m not in materials]
+    if missing:
+        raise ValueError(
+            f"Billiard: materials must contain every run's material id; "
+            f"missing {missing}. Got keys {sorted(materials.keys())}."
+        )
+    mixtures = [materials[m] for m in mat_ids]
+    return {
+        "sigma_t": np.stack([np.asarray(m.SigT, dtype=float) for m in mixtures]),
+        "sigma_s": np.stack([m.SigS[0].toarray().astype(float) for m in mixtures]),
+        "nu_sigma_f": np.stack([np.asarray(m.SigP, dtype=float) for m in mixtures]),
+        "chi": np.stack([np.asarray(m.chi, dtype=float) for m in mixtures]),
+    }
 
 
 def _mixture_to_solver_xs_payload(
     materials: dict[int, Mixture],
     mat_id: int,
-    geometry_kind: str,
 ) -> dict[str, Any]:
     """Translate the body's Mixture to the solver-facing XS payload.
 

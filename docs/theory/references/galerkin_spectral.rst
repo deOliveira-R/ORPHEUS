@@ -238,6 +238,18 @@ covers the same material in compressed form for readers who land on
 the class definition first; this section is the reference for
 everyone else.
 
+``BasisSpace`` serves one body: one material filling a slab or a solid
+sphere, with vacuum boundaries, since the method as shipped is
+bare-critical. It reads the body through
+:func:`~orpheus.derivations.common.reference_body.reference_body` and
+the laws through
+:func:`~orpheus.derivations.common.reference_body.require_vacuum`, and
+refuses anything else (a cylinder, a hollow or layered body, a
+reflecting law) through
+:func:`~orpheus.derivations.common.reference_body.refuse_unserved`; the
+table over the four reference generators is
+:ref:`structured-geometry-reference-body`.
+
 The angular flux as an element of L²([0, R] × [-1, +1])
 --------------------------------------------------------
 

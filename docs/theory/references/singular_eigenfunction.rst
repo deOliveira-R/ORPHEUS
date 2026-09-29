@@ -12,8 +12,8 @@ Singular Eigenfunction Expansion (Case 1960 family)
 Key Facts
 =========
 
-**Read this before modifying any solver in
-:mod:`orpheus.derivations.continuous.singular_eigenfunction`.**
+**Read this before modifying any solver in**
+:mod:`orpheus.derivations.continuous.singular_eigenfunction`.
 
 - **What this is**: a Pillar-2 reference family realising the angular
   Green's function :math:`G(\tau, \tau'; \mu, \mu')` constructed via
@@ -518,6 +518,23 @@ d)\,H(\mu)\,d\mu` are half-range integrals against the Atalay
 :math:`T(R, \mu, d)` kernel and the half-range projection
 :math:`H(\mu)`.
 
+**How** :class:`Spectrum` **reads** :math:`R`. The reflection
+coefficient is not a constructor argument; it is the geometry's
+boundary laws, each read as a specular albedo by
+:func:`~orpheus.derivations.common.reference_body.specular_albedo`
+(``BC.vacuum`` 0, ``BC.reflective`` 1, ``BC("partial", {"albedo": R})``
+:math:`R`; a white, periodic or isotropically returning law is
+refused). The slab solver above puts one :math:`R` on both faces, so a
+slab whose two faces declare different albedos is refused; the sphere
+takes :math:`R` from its outer surface; the cylinder solver below is
+bare, so a cylinder with a nonzero albedo is refused (the reflected
+cylinder of Westfall and Metcalf 1973 is not built).
+:math:`R = 1` is admitted at construction and refused by the slab and
+sphere solvers, since the size drops out of the criticality condition
+under perfect reflection. The laws are read, and refused, when the
+``Spectrum`` is constructed. Which laws each reference generator
+serves, and why: :ref:`structured-geometry-reference-body`.
+
 **Sphere** (Atalay 1997 Eq. 54, derived via Mitsis 1963 parity flip).
 The antisymmetric BC :math:`\psi(x, \mu) = -\psi(-x, -\mu)` reduces
 the sphere problem to the *odd-mode* counterpart of the slab problem
@@ -531,8 +548,8 @@ surgical:
 * LHS criticality term: :math:`\sin \leftrightarrow \cos` shuffle and
   :math:`R \to -R` in the reflection-coefficient terms.
 
-**The discrete eigenvalue :math:`\nu_0` and the continuum on
-:math:`[-1, 1]` are identical** — the same :class:`Spectrum`
+**The discrete eigenvalue** :math:`\nu_0` **and the continuum on**
+:math:`[-1, 1]` **are identical** — the same :class:`Spectrum`
 instance applies, only the boundary projection differs.
 
 **Cylinder** (Westfall-Metcalf 1972, isotropic only). The cylindrical
@@ -664,7 +681,9 @@ All three classes:
 1. Are **frozen dataclasses** that take a
    :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
    plus method-specific configuration (``fn_order`` for MomentSpace,
-   ``alpha_payload`` for Billiard, ``n_modes`` for Spectrum).
+   ``quadrature`` for Billiard, ``n_modes`` for Spectrum). None takes a
+   boundary parameter: each reads the boundary from the geometry's
+   laws.
 2. Are constructed with the production-protocol input shape
    ``(geometry: StructuredGeometry, materials: dict[int, Mixture], ...)``
    — the same shape the discrete CP/SN/MOC solvers consume.
@@ -724,7 +743,9 @@ isotropic):
    # sol.eigenvalue == 1.0 (k_eff at criticality)
 
 Reflected slab with linear anisotropy (Atalay 1997 Table 2,
-:math:`R = 0.50`, :math:`f_1 = 0.20`):
+:math:`R = 0.50`, :math:`f_1 = 0.20`). Atalay's slab has one :math:`R`
+on both faces, so both faces declare it; a slab whose faces declare
+different albedos is refused:
 
 .. code-block:: python
 
@@ -741,7 +762,7 @@ Reflected slab with linear anisotropy (Atalay 1997 Table 2,
        coord=CoordSystem.CARTESIAN,
        breakpoints=(0.0, 2.0),  # placeholder full width
        mat_ids=(0,),
-       boundaries=(BC.vacuum, BC("partial", {"albedo": 0.50})),  # R = 0.50 outer
+       boundaries=(BC("partial", {"albedo": 0.50}),) * 2,  # R = 0.50 on both faces
    )
    spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=8)
    sol = spec.solve_critical()
@@ -1567,8 +1588,8 @@ Slow monotone convergence to the wrong asymptote — the canonical
    \tanh^{-1}(\mu) = t,\quad
    d\mu = \mathrm{sech}^2(t)\,dt ,
 
-so the :math:`\mathrm{sech}^2(t)` Jacobian **cancels the
-:math:`1/(1-\mu^2)` pole exactly**. The transformed integrand is
+so the :math:`\mathrm{sech}^2(t)` Jacobian **cancels the**
+:math:`1/(1-\mu^2)` **pole exactly**. The transformed integrand is
 exponentially decaying at :math:`t \to \infty`
 (:math:`g_1 \sim 1/t^2`) and ``mp.quad`` resolves it to **6-7 digits
 at dps=25** in sub-millisecond wall-clock.

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.derivations.common.reference_body import HomogeneousBody, reference_body
 from orpheus.geometry import CoordSystem
 
 from .protocol import CrossMethodCase, ScalarResult
@@ -115,14 +115,13 @@ class FNReflectedSlabAdapter:
     ``tau_critical_mfp`` — the core half-thickness at criticality
     given the reflector configuration.
 
-    Each case must carry inline ``materials`` (mat_id 0 = core,
-    mat_id 1 = reflector) and a ``structured_geometry`` with three
-    regions in left-to-right order ``(reflector, core, reflector)``.
-    The Case–Zweifel ``c`` for each material is read off
-    :attr:`Mixture.scattering_ratio`; the reflector half-thickness in
-    cm is the width of the geometry's first interval
-    (``breakpoints[1] - breakpoints[0]``), converted to mfp via the reflector mixture's :math:`\Sigma_t`
-    (group 0).
+    Each case carries inline ``materials`` and a ``structured_geometry``
+    that is a symmetric reflected slab (reflector, core, reflector). The
+    adapter goes through :class:`MomentSpace`, the one door: it reads the
+    body as a :class:`~orpheus.derivations.common.reference_body.ReflectedSlab`,
+    requires one Sigma_t for both media, takes each ``c`` from
+    :attr:`Mixture.scattering_ratio`, and converts the reflector width to
+    mean free paths.
 
     There is currently no trajectory_resolvent counterpart for
     reflected slab — this adapter has no agreement partner. That
@@ -137,63 +136,34 @@ class FNReflectedSlabAdapter:
     n_modes: int = 7
 
     def solve(self, case: CrossMethodCase) -> ScalarResult:
-        from orpheus.derivations.continuous.fn_method.slab import (
-            solve_fn_slab_reflected_critical,
+        from orpheus.derivations.continuous.fn_method.moment_space import (
+            MomentSpace,
         )
 
-        # Read c values off the inline materials and the reflector
-        # half-thickness off the geometry's first interval. The expected
-        # interval layout is (reflector, core, reflector); we cross-
-        # check that to fail loudly on accidental ordering bugs.
-        if case.materials is None or 0 not in case.materials or 1 not in case.materials:
+        # The reflected slab reaches the F_N solver through MomentSpace, the
+        # one door (P1 step 2b): MomentSpace reads the geometry as a
+        # symmetric reflected slab, checks that the core and the reflector
+        # share one Sigma_t, and routes to solve_fn_slab_reflected_critical.
+        if case.materials is None:
             raise ValueError(
-                f"FNReflectedSlabAdapter: case {case.case_id!r} must "
-                f"carry inline materials with mat_id=0 (core) and "
-                f"mat_id=1 (reflector); got "
-                f"{None if case.materials is None else sorted(case.materials)}"
+                f"FNReflectedSlabAdapter: case {case.case_id!r} must carry "
+                f"inline materials (core and reflector)."
             )
-        geom = _structured_geometry_for(case)
-        if len(geom.mat_ids) != 3:
-            raise ValueError(
-                f"FNReflectedSlabAdapter: case {case.case_id!r} must "
-                f"carry a 3-interval StructuredGeometry "
-                f"(reflector, core, reflector); got "
-                f"{len(geom.mat_ids)} intervals"
-            )
-        if geom.mat_ids != (1, 0, 1):
-            raise ValueError(
-                f"FNReflectedSlabAdapter: case {case.case_id!r} interval "
-                f"layout must be (reflector=1, core=0, reflector=1); "
-                f"got mat_ids {geom.mat_ids}"
-            )
-        c_core = float(case.materials[0].scattering_ratio[0])
-        c_reflector = float(case.materials[1].scattering_ratio[0])
-        # Convert the reflector cm thickness to mfp via the
-        # reflector mixture's Σ_t. Under the unit-σ_t convention used
-        # for Sood / NM 1980 reflected-slab cases this is the
-        # identity, but we compute it explicitly to remove the
-        # unit-equivalence assumption from the call site.
-        sigma_t_reflector = float(case.materials[1].SigT[0])
-        reflector_half_thickness_mfp = (
-            (geom.breakpoints[1] - geom.breakpoints[0]) * sigma_t_reflector
-        )
-
-        res = solve_fn_slab_reflected_critical(
-            c_core=c_core,
-            c_reflector=c_reflector,
-            reflector_half_thickness=reflector_half_thickness_mfp,
-            n_modes=self.n_modes,
-        )
+        solution = MomentSpace(
+            geometry=_structured_geometry_for(case),
+            materials=dict(case.materials),
+            fn_order=self.n_modes,
+        ).solve_critical()
         return ScalarResult(
             tag="tau_critical_mfp",
-            value=float(res.tau_critical_mfp),
+            value=float(solution.parameter_value),
             solver_name=self.name,
             metadata={
                 "n_modes": self.n_modes,
-                "c_core": c_core,
-                "c_reflector": c_reflector,
-                "reflector_half_thickness_mfp": reflector_half_thickness_mfp,
-                "converged": bool(res.converged),
+                "c_core": solution.metadata["c_core"],
+                "c_reflector": solution.metadata["c_reflector"],
+                "reflector_half_thickness_mfp": solution.metadata["reflector_half_thickness_mfp"],
+                "converged": bool(solution.converged),
             },
         )
 
@@ -503,14 +473,14 @@ def _sphere_R_cm(case: CrossMethodCase) -> float:
     r"""Return the sphere radius in cm from the case's StructuredGeometry.
 
     Read through the one body reading,
-    :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`,
-    which refuses a hollow sphere (whose extent is a shell thickness).
+    :func:`~orpheus.derivations.common.reference_body.reference_body`; only
+    a homogeneous solid sphere has one radius.
     """
-    body = homogeneous_body(_structured_geometry_for(case), owner="_sphere_R_cm")
-    if body.coord is not CoordSystem.SPHERICAL:
+    body = reference_body(_structured_geometry_for(case))
+    if not isinstance(body, HomogeneousBody) or body.coord is not CoordSystem.SPHERICAL:
         raise ValueError(
             f"_sphere_R_cm: case {case.case_id!r} structured geometry "
-            f"is {body.coord!r}, expected a sphere"
+            f"is {body!r}, expected a homogeneous solid sphere"
         )
     return float(body.extent_cm)
 
@@ -522,11 +492,11 @@ def _slab_L_full_cm(case: CrossMethodCase) -> float:
     FULL slab width :math:`[0, L]`, which is exactly what
     :func:`solve_greens_function_slab` expects as its ``L`` argument.
     """
-    body = homogeneous_body(_structured_geometry_for(case), owner="_slab_L_full_cm")
-    if body.coord is not CoordSystem.CARTESIAN:
+    body = reference_body(_structured_geometry_for(case))
+    if not isinstance(body, HomogeneousBody) or body.coord is not CoordSystem.CARTESIAN:
         raise ValueError(
             f"_slab_L_full_cm: case {case.case_id!r} structured "
-            f"geometry is {body.coord!r}, expected a slab"
+            f"geometry is {body!r}, expected a homogeneous slab"
         )
     return float(body.extent_cm)
 
