@@ -701,3 +701,52 @@ Durable lessons of step 2:
 - A migration's import fixer must be scope-aware. A name bound by a function-local import is not bound in the module; pyright's `reportUndefinedVariable` is the instrument that sees the difference.
 - A SCOPE-BOUNDARY docstring puts `machinery:`, `ruling:` and `revisit:` within three lines of the token, or the ledger gate reds.
 - A new refusal lands AFTER the method resolves the law it reads, so that an existing xfail keeps its own error type.
+
+## P1 step 2b (planned 2026-09-29): each reference generator serves the bodies its solvers solve
+
+Opened by the user's question on `homogeneous_body`'s wording ("it depends on what should happen based on the specs"), and by the explorer's census of Sood's report (2026-09-29; the problem table is in #536). Rulings (the user, 2026-09-29):
+- route a multi-material body per owner now;
+- the 2003 edition of Sood is the reference;
+- the 20 missing multi-media problems were checked against the open issues first, and none covered them, so they are filed as #536.
+
+**Goal, in the domain's terms.** A reference generator solves exactly the configurations its solvers solve. A geometry it cannot solve is refused with a stated scope. A geometry it can solve is never refused. Today the shared `homogeneous_body` refusal blocks solvers that exist `[M]`:
+- Billiard's `sphere_mr`, `hollow_sphere` and `annulus` arms (`billiard.py:443-676`; #190 and #421 record that they are unreachable);
+- the multi-region cylinder solver `solve_greens_function_cylinder_mr` (`greens_function_cylinder.py:643`), which has no Billiard arm at all;
+- `solve_fn_slab_reflected_critical` (`fn_method/slab/reflected.py:773`), the one-group symmetric equal-Σt reflected slab, which only a test adapter reaches.
+
+**Candidate means** `[HYPOTHESIS]`, for the user's ruling.
+- *(A) A typed reading of the body.* `homogeneous_body` becomes one classification of a geometry into the body shapes the reference literature solves:
+  - a homogeneous solid body;
+  - a concentric layered solid body (sphere or cylinder, one material per layer);
+  - a hollow body of one material (hollow sphere, annulus);
+  - a symmetric reflected slab (core, and the same reflector on both sides).
+
+  It is a closed sum type. Each owner matches on it and refuses the shapes it does not serve, with a SCOPE-BOUNDARY naming the missing solver.
+  - Billiard serves a homogeneous body, a layered sphere, a layered cylinder (a new arm onto the existing solver), a hollow sphere and an annulus.
+  - MomentSpace serves a homogeneous body and a symmetric reflected slab of one group with equal Σt.
+  - Spectrum and BasisSpace serve a homogeneous body only.
+
+  One classifier, one match per owner, so "the one place the body is read" stays true.
+- *(B) Per-owner readers*, with no shared type. Rejected `[R]`: the four owners would each re-derive "layered", "hollow" and "symmetric" from breakpoints and material ids, which is the twin the shared function was made to prevent.
+
+**Gates.**
+- The classification's laws: every geometry maps to exactly one shape, or is refused. Positive and negative rows per shape, including the discriminating ones: a two-material slab that is not symmetric is not a reflected slab, and a slab with unequal Σt is refused by MomentSpace.
+- Each routed arm is bit-identical to its bare solver function (#190's own done-when).
+- Problem 4 through MomentSpace against its published value. The value comes from the existing hand-built case, `cross_method/cases.py:445`, until #536 transcribes it.
+- Each owner's refusal of an unserved shape is keyed on its scope boundary.
+- Every refusal and every route carries a mutation arm, with the old shared refusal as the positive control (it must redden the route rows).
+
+**The 2003 edition** is a separate commit in the same change:
+- an explorer census of every registry value (47 cases) against the 2003 tables;
+- each differing value re-checked against its own derivation where one exists: k∞ of an infinite medium is the matrix eigenvalue, via `kinf_and_spectrum_homogeneous`;
+- the misplaced problem-72 flux ratio fixed;
+- the stale docstrings named in the census corrected (`la13511.py:274-278, 2168-2176`, `__init__.py:40-41`).
+
+**Out of scope.**
+- Transcribing the 20 problems (#536).
+- The F_N cylinder (#170).
+- Problems with no solver: 3, 30, 58–61 and 63–66.
+
+**Closes** #190 and #421 when landed.
+
+**Sizing:** 1 session `[R]`.
