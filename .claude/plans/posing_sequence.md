@@ -1558,6 +1558,118 @@ The orchestrator's reading `[R]`: the criterion is what a morphism READS. An OPE
 
 **RULED (the user, 2026-09-29):** a morphism is placed by what it reads. Eliminating the trace and the manifold step both READ structure, so both are structure-level. The attack's items 2–7 are accepted as recommended (the split returns the pieces and the lagged coupling with its interface, K ≥ 0 for the bracket, Krylov on the interface, singular iff 1 ∈ spec K; the inner contract with warm correction, an inner count, a residual gate and an `IterationRecord`, refusal of a cut that leaves a cycle, one block substitution; the augment family with `reduce` keeping its terms, exposing the range of the lagged term, DSA as a Galerkin-correction augment; B3.4c stays closed; the names `Member`, `augment`, `Splitting`, `eliminate`, and the tree's axis names; Chebyshev/Anderson, the eigenvalue loop and nonlinear feedback out of this layer). Item 1, amended by the user: *"storing DAG is fine, but this is an SN-focused concern. Collision probabilities is compact and smooth for example, so it's pointless to read DAG. in CP you loose causality information as a consequence or integrating over angle ... In any case, this is something that the place that stores a DAG can say. There is very likely useful information in exactly this distinction between graph structure and reaching the digraph."* The orchestrator's reading `[R]`: the coupling graph of an axis is either DIRECTED (causal: transport along characteristics; a DAG where it is acyclic, the sweep; SCCs and cuts where it cycles) or RECIPROCAL (symmetric pattern: an angle-integrated kernel such as collision probability, whose reciprocity `V_i Σ_i P_ij = V_j Σ_j P_ji` makes the pattern symmetric, or diffusion in space). A reciprocal, dense coupling is one strongly connected component, so an ordering carries nothing there; its structure is the symmetry itself (self-adjoint under the metric: conjugate gradients, Cholesky). The graph may differ per axis: diffusion is reciprocal in space and directed in energy under downscatter. So the structure reader reports, per axis, directed or reciprocal, and the ordering stores its DAG and levels only where the graph is directed.
 
+## The work, ordered by dependence (2026-09-29) — FOR THE USER'S REVIEW
+
+The user, 2026-09-29: *"I think the most important part is doing a pass in the plan. Then we need to identify the order we do things by dependence. For example, renaming depends on nothing. Improving the Frame and retiring things seems to be an improvement step. The highly layered machinery seems to be then a campaign that is executed once the preconditions are met. Then we could think about that small part of this, if anything, should be seeded in the original campaign we were performing ... Then the nicely ordered plan goes to the github issue. Maybe we split the plan (by dependence) and open multiple github issues, each with its own plan."*
+
+This section is the orchestrator's pass over "The ontology as it stands" (third pass): every deliverable in it, assigned to one unit of work, the units ordered by what each needs from another. Everything here is `[R]` (a proposed decomposition) unless marked; each unit's done-when is a hypothesis written at scheduling time, to be re-measured when the unit opens (plan-authoring SCHEDULED-DONE-WHEN). Sizes are sessions, sizing only. Tree counts are `[M]` 2026-09-29, `git grep -n '\b<symbol>\b' -- orpheus tests derivations tools`, lines and files, word-bounded.
+
+### Where this started, and what it owes back
+
+The posing sequence opened from the reference-solution campaign (#405 step 2, plan `reference_cache.md`), at P1's fifth exchange: P1 step 7 was to store the QUESTION values (`Eigen`, `FixedSource`) in the input layer, and deciding what a question is opened the three-layer ontology. P1 step 1 (`orpheus/mesh`) is landed (`60d28b22`); P1 step 2 (the geometry value) is next there. What the posing ontology changes in P1, found by this pass:
+1. **A contradiction to rule** `[R]`: P1's ruling of 2026-09-26 puts the question values "in the input layer"; the posing ruling of 2026-09-27 makes questions physics-free, naming a coordinate of the system as an opaque key, "so the problem types can live in `numerics`". P1's `Specification` (architecture item 1) also still lists `CriticalParameter`, which the posing ontology replaces by a parameter coordinate (`CellCoefficient | GeometryExtent | NuclideDensity`). Proposal: P1 step 7 stores the question VALUES as the posing ontology spells them (`Eigen(parameter, point, mode)`, `FixedSource(source, point)`; `Evolution` not needed by any reference yet), in `numerics`, with the parameter as an opaque key the reference's specification resolves; `CriticalParameter` is struck from `reference_cache.md` item 1.
+2. **Seeds that belong in P1 because P1 builds the objects they constrain:**
+   - P1 step 3 (`Mesh1D(geometry, partition)`): the gate "the mesh refines the region partition" (every cell in exactly one region), and a content digest that keys on the partition and the frames, not on the materials;
+   - P1's `Materials` content identity: `NuclideDensity` stores the number density (so the digest hashes one convention);
+   - P1 step 7: the question values above, and nothing of the machinery behind them (no pencil, mode law or system).
+3. **What P1 must NOT absorb**: the system, the discretisation protocol, the direct-sum space, the ordering. P1 resumes at step 2 unchanged.
+
+### Unit 0 — renames of existing symbols (depends on nothing)
+
+Goal: every existing loose holder carries the word its structure has, so a grep over the tree finds each family by its token. Each is a retirement (`retirement-audit`), one commit per family, CI green between.
+
+| from | to | tree today `[M]` |
+|---|---|---|
+| the certificate's per-group relative norm passed as `balance_defect=` (`certificate.balance`) | `relative_residual` (and `balance_defect(w)` kept for the signed pairing) | `certificate.balance` 16 lines, 3 files; `balance_defect` 30 lines, 14 files |
+| the convergence property `rate` | `contraction_rate` | not counted: `rate` is too common a token for a word grep; an AST census of the attribute owed at the unit's opening |
+| `Axis.generator`, `generator_as` | `Axis.induced_by`, `induced_by_as` (with the refusal strings and CLAUDE.md's "stage-2 generators" wording) | `generator_as` 31 lines, 8 files |
+| the reference "generator" (`GeneratorWithdrawn`, `withdrawn_generator`) | `derivation` | 24 + 54 lines, 4 + 9 files. Coordinate with P3/P4 of `reference_cache.md`, which own these types |
+| `direction_sign` | `octant_signs` (a 1-tuple in 1-D) | 79 lines, 6 files |
+| `DiscretizationScheme` | `SpatialScheme` | 46 lines, 18 files |
+| `spatial_closure` | `scheme` | 95 lines, 6 files |
+| `KernelGauge`, `LossKernelGauge`, `LossKernelBasis`, `predicted_kernel_dimension`, `loss_kernel_gauge` | `NullspaceGauge`, `LossNullspaceGauge`, `LossNullspaceBasis`, `predicted_nullspace_dimension`, `loss_nullspace_gauge` | 10 + 46 + 12 + 20 + 50 lines |
+| `cell_kernel_batch`, `residual_kernel_batch` and kin | `update_batch` and its family | 87 + 79 lines, 24 + 21 files |
+| `orpheus/numerics/projection.py` (holds the two faces) | folded into `frame.py` | 1 module |
+
+Not in this unit: `direction_idx` (a TYPE change, unit 1); `gram_inverse`/`CrossGramInverse` (they retire into `radon_nikodym`, unit 2); `EigenPosing`/`SourcePosing` (they become layer-2 types, unit 6); names that exist only in the design (`Stepped`, `CellCoefficient`, `physical_point`), which are minted where their objects land.
+Done-when: each old identifier greps to 0 in `orpheus tests derivations tools docs` (excluding `docs/_build` and the plans' history), `dead_references` clean. Size: 1–2.
+
+### Unit 1 — independent defects and small carves (depends on nothing; each is its own issue or joins an existing one)
+
+- `direction_idx` → a type change: `streaming_terms` takes the global ordinate only; `(level, m)` derived once from `quadrature.level_indices` (`direction_idx` 129 lines, 13 files `[M]`).
+- The two evidence readers made exhaustive `match` statements (today `isinstance(x, Measured)` with a silent else at `convergence.py:1686` and `loss_kernel_gauge.py:508`, per the elegance attack) — the precondition for `Estimated`.
+- `ScaleGauge.displacement` keeps the state's dtype (today `float(...)` of a complex reading).
+- The zero-scale law for `pencil.at` (`0 · T` the zero operator).
+- The string comparison on `spectral_map.name` retires (2 lines, 1 file `[M]`).
+- The stale present-tense comment that production "dispatches on" block roles (`operator.py:200-204`).
+- `rate(cells, w)` absorbing its 9 production definitions (`compute_production_rate` 38 lines, 12 files `[M]`), `ReactionRateFunctional` and `rayleigh` — a twin removed today, independent of the layers; it may instead open unit 6.
+- #520's remaining sites (the restrict-scatter projectors, the einsum retractions), #521 (the complex Gram probe).
+Size: 2–3 in total.
+
+### Unit 2 — the frame and collapse machinery, and its retirements (depends on unit 0's `projection.py` fold)
+
+Goal: every collapse, projection and section in the tree is one verb of one frame hierarchy, and the hand-rolled copies retire.
+- `FrameBase` gains the coefficient-side measure ν (declared, or the Gram); the discipline chain `PetrovGalerkinFrame ⊃ GalerkinFrame ⊃ HarmonicFrame`; the partition-of-unity basis as the parent of `IndicatorBasis` (today inverted: `OverlapBasis(IndicatorBasis)`, `OverlapBasis` 39 lines, 11 files `[M]`).
+- The verbs `analysis` (calling `pushforward`, one body), `reconstruction`, `dual_analysis`, `projection`, `radon_nikodym`; retiring `project`, `average`, `marginalize`, `gram_inverse` (29 lines, 9 files), `CrossGramInverse` (12, 4), `_per_pair` (3, 1), and `WeightedIndicatorBasis` (51, 12) as `analysis ∘ M_w`.
+- The signed-weight report; the derived coupling `T = analysis_coarse ∘ section_fine` and `_overlap_table` derived from it; condensation provenance and the two-step defect; the derived angular section `E = R^H (R R^H)⁻¹`.
+Gates: the section's "frame and collapse machinery" list, plus the derived-section gate. Done-when (hypothesis): the listed symbols grep to 0 and `radon_nikodym` is bit-identical at every caller it absorbed (the carve's own census, the population re-counted at opening). Size: 3–4.
+
+### Unit 3 — the reaction grid and the two totals (depends on nothing in this plan; touches `data/` and every consumer of `SigT`)
+
+Goal: the grid stores reactions and multiplicities only, every total is derived by the consumer that uses the reaction set, and one library method checks it against the library's physical total.
+- `SigT` and `SigP` retire as stored fields; the imbalanced producers re-spelled class by class (scaffolds, the billiard carrier, the Atalay encoding with its `Σ_f := Σ_a`, `Σ_c := 0` condition, a pure scatterer with multiplicity above 1); `make_mixture` stops taking `sig_t`.
+- Cells named by their reaction (`SigC` = MT102, `SigL` = MT107).
+- `derived_SigT` lazy at the collision operator; MT1 read from the tape (`gendf.py:476` sums components today `[M]`); `library_SigT` at the nuclide level; the ONE comparison method on the library with its warning and a positive control.
+- `NuclideDensity` stores the number density, `.mass` derived (the P1 seed, if P1 has not already landed it).
+Gates: the section's "data and the balance" list. Size: 3–4. The eager reaction-set object waits for Monte Carlo.
+
+### Unit 4 — the direct-sum space (depends on units 0 and 2 only through names; otherwise on nothing)
+
+Goal: a system's unknowns live in one labelled direct-sum space, and every block structure (summands and axes) is one partition object, so the block roles retire.
+- `DirectSumSpace` from the prototype, with the attackers' changes; the widened `DiscreteMeasure.__add__` with its support type; labels in the identity; `CoupledOperator` the one block operator (`from_blocks` returns it); `assemble()` on the injections; the alien-field refusal; carrier access through #391; `CoupledField` gains labels.
+- `SpacePartition` from `FunctionSpace.partition_by`; the per-axis block patterns derived from tensor factors and declared on the 4 leaves without them; `BlockRole` (117 lines, 29 files `[M]`) and `SystemRole` (53, 10) retire.
+- The trace as a summand: `angular_trace`/`scalar_trace` become the trace summand; the loss-row reading of bulk → trace in the docs.
+- `TransportMethod` (45 lines, 19 files `[M]`) retires, its four members to their homes (it could equally go in unit 1; it sits here because `bc` → the boundary term and the trace summand move together).
+Gates: the direct-sum gates (the prototype's 77, the label gate), the pattern-against-dense gates. Size: 3–5.
+
+### Unit 5 — the structure level: ordering and splitting (depends on unit 4)
+
+Goal: a solve is written as the ordering of a system and the splitting it induces, with the contraction rate predicted on the interface, so every iteration the tree runs (the sweep, source iteration, DSA, boundary Gauss–Seidel, energy Gauss–Seidel) is one construction and no driver writes its own loop.
+- `Ordering` (partition, partial order, cuts, derived or declared, the refusal of a cut that leaves a cycle, the adjoint as the reversed ordering); directed or reciprocal per axis.
+- `Splitting` (members, the interface, `K`, the Collatz–Wielandt bracket, Krylov on the interface, `1 ∈ spec K`); `(M, N)` derived; block substitution in one place.
+- The inner contract (warm correction, inner count, residual gate, `IterationRecord`).
+- `augment` and `eliminate` (the operator-level pair, carrying lift and back-substitution) as far as the structure level needs them; source iteration and DSA re-spelled on them; the SN sweep as the triangular ordering; SCC-restricted energy Gauss–Seidel in production SN (a capability production lacks); the 2-D boundary Gauss–Seidel gate before today's `Splitting.from_schedule` retires.
+- Predecessors retired: `Splitting.from_schedule`'s public halves, the octant schedule's hand ordering, `SourceIteration`/`KrylovAcceleration` re-spelled (the elegance attack's predecessor map is the census).
+Gates: the section's structure-level list. Size: 5–8. `[OPEN]` in the section, not blocking: the `V → V*` grading.
+
+### Unit 6 — layers 1 and 2: systems and problems (depends on units 2, 3, 4; unit 5 for the Strategy side)
+
+Goal: layer 1 ends in systems that carry their equation and declarations; layer 2 poses physics-free questions on them; today's hubs split along the three layers.
+- First deliverable: the member-by-member layer table of `SNProblem` (33 public members), `DiffusionMesh`, `HomogeneousProblem`, `EigenPosing` (59 lines, 14 files), `SourcePosing` (47, 14), `posing`.
+- The `System` (equation family, declared coordinates with affinity, chart, admissible range, continuum edge, sign; time and its mass operator; cone and bulk block; ports; `physical_point`); the terms from the grid's cells (needs unit 3); `Discretization` with both frame faces (needs unit 2) and the content digest; `orpheus/homogeneous/` → `orpheus/infinite_medium/`.
+- The operator-level system algebra (couple, eliminate, augment, restrict, pull back, complexify) with derived declarations; the precursor system seeded.
+- Layer 2: `EigenProblem`/`FixedSourceProblem`/`EvolutionProblem` over their values, one `point` slot; the mode selector with `Enclosed`'s refusal; the `Mode` law; `SingularSource`; the pencil (`shifted`, `jet`, `pseudo_resolvent`); `Stepped` (stencil only) and `Exact`; spectral maps; derived questions and content identity; `rate(cells, w)` if unit 1 did not take it.
+- Layer 3's plan/binding split (with unit 5).
+Gates: the section's layer-1 and layer-2 lists. Size: 8–12; it will itself need a phase plan with compaction points.
+
+### Unit 7 — later, each behind its own trigger
+
+- The Monte Carlo seam's code (`markov_view`, the sampleable representations, `Estimated` once unit 1's readers are exhaustive): with the Monte Carlo campaign, the free flight designed in the MoC campaign as the ray operator with two representations.
+- The collision operator's exact collapse (#518).
+- The `V → V*` investigation (its own W5, before or during unit 4's role question).
+- The pseudospectrum question.
+- Production DSA (`DSALowOrderSystem` as `A_c`) as the third summand (with unit 5 or after).
+- Real delayed-neutron data, 1/v and upscatter data (a data campaign; every prototype fixture was synthetic there).
+- The collision-probability group loop as an ordering (the CP campaign).
+
+### The dependence graph
+
+unit 0 → unit 2 (the `projection.py` fold); units 2, 3, 4 → unit 6; unit 4 → unit 5 → unit 6's Strategy side; unit 1 → unit 7's `Estimated`; P1 (reference campaign) takes the three seeds and otherwise runs in parallel with units 0–4. Units 0, 1, 3 and 4 can start in any order; 2 after 0's fold.
+
+### The proposed issue split
+
+One umbrella issue, "the posing sequence: three layers from the material mesh to a solution" (the charter), linking this plan and one child issue per unit 0–6, each child carrying its own plan file in `.claude/plans/` (written to `plan-authoring`, its done-when re-measured when it opens), plus the unit-7 items as separate issues or comments on existing ones (#518 exists). The P1 seeds go as a comment on #405 and an edit of `reference_cache.md`. Every issue carries a `module:`, `level:` and `type:` label.
+
 ## ⏸ COMPACTION POINT — 2026-09-29 (supersedes the 2026-09-28 points below; read "The ontology as it stands" first)
 
 State: every item left open by the second fold is ruled, after four investigations (ν, `TransportMethod`, `FundamentalMode`, the direct-sum prototype and its two attacks), three further prototypes (blocks and splittings; axis splittings and order-then-split; `Ordering` as the primitive) and the attack on the ordering architecture with the user's pipeline refinement. Everything is folded into "The ontology as it stands" (third pass, 2026-09-29): the direct-sum space; the operator level against the structure level (a morphism placed by what it reads); `Ordering` as the primitive, a partial order with cuts; `Splitting` with its interface and `K`; augment and eliminate; directed and reciprocal coupling graphs; the derived angular section; the `Mode` law; `TransportMethod` retired; the trace corrections. What remains `[OPEN]`: the `V → V*` grading (its own investigation). The user has NOT ruled the plan polished.
