@@ -582,7 +582,7 @@ Rulings (the user, 2026-09-25):
 Each step is one commit, green under `python -O -m pytest` on what it touches, with its gates landing with their first red (§6c). The main agent writes (W3); the test-architect specifies the gates of every step first (`.claude/plans/reference_p1_spec.md`, to be written).
 
 1. **The mesh module, a pure move.** `[LANDED 60d28b22]` 2026-09-26 (full suite before 12301 passed / 2 failed, after 12326 / 4 → 2 fixed in the commit, the other 2 the known crosscheck red, since fixed at `6bcea45c`, and the worktree-only pyright artefact; the 27 new tests accounted: 25 step-1 gates, 2 from ERR-089). `orpheus/mesh/` (input layer; a new linter row: it may import `geometry` and `numerics`); `Mesh1D`, `Mesh2D`, `RegionMesh` (until step 3), the subdivision helper, and the axis types from `transport/mesh/axis.py` move in; `BC` moves to `geometry/boundary/`. Bit-identical: no behaviour changes, every import site re-pointed, no re-export shim.
-2. **The geometry value.** `[LANDED b91f1591 on the branch, 2026-09-29; merged to main when the full suite is green]` `StructuredGeometry` carries `CoordSystem` (the `"SLB"/"CYL"/"SPH"` tag retires) and its breakpoints (regions carry outer positions; `from_thicknesses` for the registries). It also landed, by the rulings of "P1 step 2 opened": the derived boundary (hollow bodies admitted), the method refusals S3.9 and S3.12–S3.14 (moved from step 3), and the shared `homogeneous_body` refusal.
+2. **The geometry value.** `[LANDED b91f1591, merged to main 2026-09-29 at c82df2da; full suite 12416 passed, 315 skipped, 63 xfailed, 0 failed in 2 h 14 min; CI gates run 36572103414 green on b91f1591]` `StructuredGeometry` carries `CoordSystem` (the `"SLB"/"CYL"/"SPH"` tag retires) and its breakpoints (regions carry outer positions; `from_thicknesses` for the registries). It also landed, by the rulings of "P1 step 2 opened": the derived boundary (hollow bodies admitted), the method refusals S3.9 and S3.12–S3.14 (moved from step 3), and the shared `homogeneous_body` refusal.
 3. **The discretisation and the one constructor.** `[REVISED 2026-09-26]` the argument is `partition`, not `discretization`: `Mesh1D(geometry, partition)`, by the user's perfect-match ruling (the unqualified word belongs to the method's discretisation, `posing_sequence.md`). `Partition` (cell edges and exact measures per interval, checked against the geometry's breakpoints), `CellsByCount(counts, spacing)` and `CellsByMaxWidth(widths, spacing)` with `uniform_width`/`uniform_volume` specialisations and `2 * d`, the spacing types; `Mesh1D(geometry, discretization)` storing geometry and partition; the boundary laws, coordinate system and material map read from the geometry; `precomputed_volumes`, `RegionMesh` and `from_geometry` retire; the 450 direct sites and the ~102 `from_geometry` sites migrate (the census's rebuild probe checks each bit-identical, or the change is explained); #495 is fixed at its root. `Mesh2D` keeps its constructor (no 2-D geometry value yet).
 4. **`from_homogeneous(width, boundary)`.**
 5. **Content identity.** A stable digest over structural bytes for `Mixture`, `Materials` (equality follows it; `eq=False` retires), the boundary laws (`BC` made hashable) and the geometry.
@@ -683,4 +683,21 @@ Open items that step 3 owns:
 - The elegance review's N3: consumers pick laws by position (`len(boundaries) == 2`, `boundaries[-1]`). An `outer_law` / `law_at(point)` accessor is owed when `Mesh1D(geometry, partition)` becomes a consumer.
 - N1: the test-side `_bcs_for(coord, law)` helpers (3 copies). The step-4 `from_homogeneous` absorbs the one-interval case.
 Open items that P4 owns: the generators store their body once, instead of re-reading it on each `_mat_id` access (C3); la13511's and billiard's coord/kind tables are one bijection (N2).
-Filed candidates, not yet issues: `coord is not CARTESIAN` is a missing `CoordSystem` property (18 compare sites, the elegance review's S3 note).
+Filed: #535, `coord is not CARTESIAN` is a missing `CoordSystem` property (18 compare sites, the elegance review's S3 note).
+
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2 (supersedes the 2026-09-26 point for P1's state)
+
+Read in order:
+1. "P1, the carve order". Steps 1 and 2 have LANDED. Step 3 is `Mesh1D(geometry, partition)`.
+2. "P1 step 2 opened", its rulings 1–7, and "Step 3's scope after step 2". S3.9 and S3.12–S3.14 have already landed, and the open items step 3 owns are listed there.
+3. `.claude/plans/reference_p1_spec.md` §1.3 (step 3's gates) and §3 (the migration protocol: two full-suite captures, a detached driver with a log).
+
+Next: P1 step 3, on a branch `refactor/reference-specification` recreated from `main`. Mode: W3, with test-architect gates from the spec.
+
+Measured baseline at `c82df2da`: the full suite `tests/gates` gives 12416 passed, 315 skipped, 63 xfailed, 0 failed in 2 h 14 min, serial `-O`.
+
+Durable lessons of step 2:
+- A `[skip ci]` plan commit at the head of a push skips CI for the code commit under it. The measure used here: push the code commit to a temporary `ci/<topic>` branch and watch that run. The alternative is to order the commits so that the code commit is at the head.
+- A migration's import fixer must be scope-aware. A name bound by a function-local import is not bound in the module; pyright's `reportUndefinedVariable` is the instrument that sees the difference.
+- A SCOPE-BOUNDARY docstring puts `machinery:`, `ruling:` and `revisit:` within three lines of the token, or the ledger gate reds.
+- A new refusal lands AFTER the method resolves the law it reads, so that an existing xfail keeps its own error type.

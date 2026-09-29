@@ -384,3 +384,13 @@ upstream edges and its task file computed the cut with three lines of index arit
 marker, because the memo counts statements only below it. Third: each "made unspellable" claim in a
 prototype memo is a prose claim (X3); spy the verb it names (`Split.M` was called once on the very
 path the memo called unassembled).
+
+### L-031 — A diff that adds a ledger TOKEN owes the tree-wide ledger gate a run; and feed every ALTERNATE constructor the inputs the primary's parse refuses
+Not covered by the definition's §4 instruments (they check a gate's teeth, not whether a new token satisfies an
+existing global gate) nor by Pattern 4 (which states parse-don't-validate, not how to find the bypass). `[M]`
+2026-09-29, P1 step 2: the new `SCOPE-BOUNDARY[guard]` put `ruling:`/`revisit:` outside
+`test_elegance_debt_is_tagged.py`'s 7-line window. It was red on the working tree, and the step's own gate
+files did not include the ledger. So grep the diff for `SCOPE-BOUNDARY|ELEGANCE-DEBT|verifies\(|catches\(`,
+and run the gate that reads each token. Second: a vocabulary classmethod (`from_thicknesses`) that pre-coerces
+with `float()` before delegating admitted `"0.5"` and `True`, which `__post_init__` refuses. Probe each
+`from_*` with the primary's refusal fixtures, in-process.

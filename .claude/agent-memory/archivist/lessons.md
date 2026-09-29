@@ -54,6 +54,11 @@ write, then FLAG every scope-expansion the verification forced. All of §1 is a 
 
 ### 1c. Numbers you publish
 
+- **A `-W` red saying `vv_audit.json was collected from {…A}, the tree is now {…B}` is an input
+  RACE with a concurrent editor, not a page defect** — rebuild with nothing being edited. And the
+  session scratchpad is shared with the orchestrator: prefix files `archivist_`, print the
+  population first. → L-115
+
 ### 1d. Read the object, not its description
 
 - **Construct the object and print the property.** `hasattr` is False for a dataclass field with no

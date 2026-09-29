@@ -14021,3 +14021,26 @@ fixed-source context. Recorded as a fork in the report, and later corroborated b
   assumed: `tests/_harness/audit.py` builds `all_labels` from `.. math:: :label:` ONLY, so a
   `.. _x:` anchor cannot move the documented-label gate. Verify that by reading the harness, not
   by trusting that the namespaces are separate.
+
+## L-115 — P1 step 2 docs pass: a build races a concurrent editor, and the scratchpad is shared (2026-09-29)
+
+Context: documenting `StructuredGeometry`'s re-spelling (coord, breakpoints, mat_ids, boundaries) on
+`refactor/reference-specification` while the orchestrator kept editing the code it described.
+
+- **The `-W` build can red on a generated artefact's input RACE, not on any page.** The warning
+  `error-catalogue index regeneration failed: … vv_audit.json was collected from {…inputs_sha256: A},
+  the tree is now {…: B}` means a tracked input changed DURING the ~10-minute build (the
+  orchestrator's code edits, or my own mid-build page edit). `[M]` baseline build (no concurrent
+  edits): 0 non-xref warnings; two builds overlapping edits: exactly this 1 warning each. The
+  discriminator is the two different hashes in the one message; the repair is a build during which
+  nothing is edited — sequence all edits first (the definition already says so; this is the case
+  that makes it load-bearing, since a concurrent editor breaks it even when I comply).
+- **The session scratchpad directory is SHARED with the orchestrator.** A probe I wrote as
+  `scratchpad/census.py` was overwritten mid-pass by a different census (it scanned 2 170 files
+  including `.claude/`, where mine scanned 148 under `docs/`), and its output read as mine until
+  the file count gave it away. Prefix every scratch file `archivist_`, and print the population
+  (`files scanned: N`) as the first line so a foreign script announces itself.
+- **Three code changes landed mid-pass (`is_hollow`, one-MATERIAL body test, `boundaries` parsed
+  as a sequence), each making a sentence I had just written false** (L-089's loop, again): the
+  coordinator's message listed them; the re-read after every build is what would have caught
+  them without it.
