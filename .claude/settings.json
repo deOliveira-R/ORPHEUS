@@ -166,7 +166,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/log-instructions-loaded.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-instructions-loaded.sh\"",
             "timeout": 5
           }
         ]
@@ -178,22 +178,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/regen-pyrightconfig.sh\"",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/session-health.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-health.sh\"",
             "timeout": 90
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/nexus-dead-refs.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/nexus-dead-refs.sh\"",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "cat .claude/hooks/session-start.txt"
+            "command": "cat \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.txt\""
           }
         ]
       }
@@ -204,7 +204,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/git-guard.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard.py\"",
             "timeout": 10
           }
         ]
@@ -214,7 +214,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/generated-guard.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/generated-guard.py\"",
             "timeout": 10
           }
         ]
@@ -226,7 +226,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/worktree-setup.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-setup.sh\"",
             "asyncRewake": true,
             "statusMessage": "Setting up worktree: venv + Nexus graph...",
             "timeout": 1800
@@ -238,7 +238,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/regen-pyrightconfig.sh\"",
             "timeout": 15
           }
         ]
@@ -248,7 +248,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/nexus-brief.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/nexus-brief.sh\"",
             "timeout": 10
           }
         ]
