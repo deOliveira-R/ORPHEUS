@@ -791,7 +791,8 @@ older entries classify against.
 
    **Test that catches it:**
    ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_multi_region_invariant``
-   (parametrised over ``SLB``, ``CYL`` and ``SPH``),
+   (parametrised over the coordinate systems, ids ``cartesian``,
+   ``cylindrical`` and ``spherical``),
    ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_multi_region_cylinder_equal_volume``
    and
    ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_{cylindrical,spherical}_invariant``

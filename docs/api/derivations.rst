@@ -74,6 +74,18 @@ Submodules
        :class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`,
        lifted by ``ORPHEUS_RUN_WITHDRAWN`` (see
        :ref:`vv-withdrawn-generators`).
+   * - :mod:`~orpheus.derivations.common.homogeneous_body`
+     - The one reading of a
+       :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+       as the homogeneous body a one-material reference generator
+       (``Spectrum``, ``MomentSpace``, ``BasisSpace``, ``Billiard``)
+       solves on:
+       :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`
+       returns a
+       :class:`~orpheus.derivations.common.homogeneous_body.HomogeneousBody`
+       ``(coord, extent_cm, mat_id)`` and refuses a geometry holding
+       more than one material, or a hollow one, naming the generator (see
+       :ref:`structured-geometry-homogeneous-body`).
 
 Reference-value registry
 ------------------------
@@ -91,6 +103,12 @@ Withdrawn reference generators
 ------------------------------
 
 .. automodule:: orpheus.derivations.common.withdrawal
+   :members:
+
+The homogeneous body of a reference generator
+---------------------------------------------
+
+.. automodule:: orpheus.derivations.common.homogeneous_body
    :members:
 
 Homogeneous

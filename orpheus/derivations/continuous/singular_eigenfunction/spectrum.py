@@ -41,7 +41,7 @@ solution:
 
 * **Boundary condition** — the reflection coefficient :math:`R`,
   read by :func:`_extract_R_refl` off the geometry's OUTER ``BC``
-  (:attr:`StructuredGeometry.bcs` ``[-1]``): ``BC.vacuum`` for
+  (:attr:`StructuredGeometry.boundaries` ``[-1]``): ``BC.vacuum`` for
   :math:`R = 0`, and ``BC("partial", params={"albedo": R})`` for any
   other :math:`R`.
   Vacuum (:math:`R = 0`) for bare-critical configurations;
@@ -155,7 +155,8 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
 __all__ = ["Spectrum"]
@@ -170,9 +171,9 @@ def _extract_R_refl(geom: StructuredGeometry) -> float:
     r"""Extract the reflection coefficient :math:`R` from the geometry's
     outer BC.
 
-    Reads :attr:`StructuredGeometry.bcs` ``[-1]`` (the outer endpoint;
-    for SPH / CYL it is the only entry, for SLB it is the right-hand
-    surface).
+    Reads :attr:`StructuredGeometry.boundaries` ``[-1]`` (the outer
+    boundary point: on a solid sphere or cylinder the only one, on a slab
+    the right-hand face).
 
     Convention:
 
@@ -186,7 +187,7 @@ def _extract_R_refl(geom: StructuredGeometry) -> float:
       params. The custom partial-reflection BC is the entry point
       for Atalay reflected-slab / reflected-sphere benchmarks.
     """
-    bc = geom.bcs[-1]  # outer boundary; SLB → right, SPH/CYL → only entry
+    bc = geom.boundaries[-1]  # the outer boundary point
     if bc.kind == "vacuum":
         return 0.0
     if bc.kind == "reflective":
@@ -531,15 +532,13 @@ class Spectrum:
     Direct construction with a :class:`StructuredGeometry` and
     a ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry.structured_geometry import (
-            Region, StructuredGeometry,
-        )
-        from orpheus.geometry import BC
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
         geom = StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
-            bcs=(BC.vacuum, BC.vacuum),
+            coord=CoordSystem.CARTESIAN,
+            breakpoints=(0.0, L_full),
+            mat_ids=(0,),
+            boundaries=(BC.vacuum, BC.vacuum),
         )
         spec = Spectrum(geometry=geom, materials={0: mix})
         sol = spec.solve_critical()
@@ -547,9 +546,11 @@ class Spectrum:
     Parameters
     ----------
     geometry : :class:`StructuredGeometry`
-        Pure-geometry layer object. Tag MUST be ``"SLB"`` / ``"SPH"``
-        / ``"CYL"``. Singular-eigenfunction criticality requires a
-        finite spatial domain (no infinite-medium tag).
+        Pure-geometry layer object: one material filling a slab or a
+        solid cylinder or sphere, read by
+        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        Singular-eigenfunction criticality requires a finite spatial
+        domain (no infinite medium).
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
         single-region geometry's mat_id selects the active mixture.
@@ -578,13 +579,7 @@ class Spectrum:
         * **Cylinder** (Westfall–Metcalf 1972, isotropic only,
           bare-critical only).
         """
-        if self.geometry.geometry not in {"SLB", "SPH", "CYL"}:
-            raise ValueError(
-                f"Spectrum supports geometry ∈ {{SLB, SPH, CYL}}, "
-                f"got {self.geometry.geometry!r}. Infinite-medium k_inf "
-                f"is out of pillar — use MomentSpace.solve_kinf for "
-                f"k_inf computations."
-            )
+        body = homogeneous_body(self.geometry, owner="Spectrum")
         if self.n_modes < 2:
             raise ValueError(f"n_modes must be ≥ 2, got {self.n_modes}")
         if self._mat_id not in self.materials:
@@ -598,7 +593,7 @@ class Spectrum:
         # at solve time, but we want the failure surfaced at the
         # facade boundary so callers know the geometry/material
         # combination is out of pillar).
-        if self.geometry.geometry == "CYL":
+        if body.coord is CoordSystem.CYLINDRICAL:
             mix = self.materials.get(self._mat_id)
             if mix is not None and len(mix.SigS) > 1:
                 sig_s_p1 = mix.SigS[1].toarray().astype(float)
@@ -617,7 +612,7 @@ class Spectrum:
     @property
     def _mat_id(self) -> int:
         """Active mat_id — the single region's material identifier."""
-        return self.geometry.regions[0].mat_id
+        return homogeneous_body(self.geometry, owner="Spectrum").mat_id
 
     @property
     def _mixture(self) -> Mixture:
@@ -749,7 +744,7 @@ class Spectrum:
         :mod:`tests.gates.derivations.test_singular_eigenfunction_spectrum`
         (the foundation gate that pins the bit-equality invariant).
         """
-        tag = self.geometry.geometry
+        coord = self.geometry.coord
         mixture = self._mixture
         sig_t = np.asarray(mixture.SigT, dtype=float)
         n_groups = sig_t.shape[0]
@@ -766,24 +761,25 @@ class Spectrum:
         c = float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
         if c <= 1.0:
             raise ValueError(
-                f"Singular-eigenfunction bare-critical {tag} requires c > 1 "
+                f"Singular-eigenfunction bare-critical {coord.name.lower()} requires c > 1 "
                 f"(multiplying medium); got c={c}."
             )
 
-        if tag == "SLB":
-            return self._solve_critical_slab(
-                c, n_bracket, bisect_tol, max_bisect, mode
-            )
-        if tag == "SPH":
-            return self._solve_critical_sphere(
-                c, n_bracket, bisect_tol, max_bisect, mode, radius_min, radius_max
-            )
-        if tag == "CYL":
-            return self._solve_critical_cylinder(
-                c, bisect_tol, radius_min, radius_max
-            )
+        match coord:
+            case CoordSystem.CARTESIAN:
+                return self._solve_critical_slab(
+                    c, n_bracket, bisect_tol, max_bisect, mode
+                )
+            case CoordSystem.SPHERICAL:
+                return self._solve_critical_sphere(
+                    c, n_bracket, bisect_tol, max_bisect, mode, radius_min, radius_max
+                )
+            case CoordSystem.CYLINDRICAL:
+                return self._solve_critical_cylinder(
+                    c, bisect_tol, radius_min, radius_max
+                )
         raise NotImplementedError(  # pragma: no cover
-            f"Spectrum.solve_critical: unhandled geometry {tag!r}"
+            f"Spectrum.solve_critical: unhandled coordinate system {coord!r}"
         )
 
     def _solve_critical_slab(
@@ -1006,11 +1002,11 @@ class Spectrum:
             :mod:`...fn_method.sphere.flux_reconstruction`).
         """
         del q  # reserved for future use
-        tag = self.geometry.geometry
-        if tag != "CYL":
+        coord = self.geometry.coord
+        if coord is not CoordSystem.CYLINDRICAL:
             raise NotImplementedError(
                 f"Spectrum.solve_fixed_source: flux reconstruction for "
-                f"{tag!r} is owned by the F_N pillar "
+                f"a {coord.name.lower()} geometry is owned by the F_N pillar "
                 f"(orpheus.derivations.continuous.fn_method) — using it "
                 f"here would violate the structural-independence rule. "
                 f"Use MomentSpace.reconstruct_flux for slab / sphere."

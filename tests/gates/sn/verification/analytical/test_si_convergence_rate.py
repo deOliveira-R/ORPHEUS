@@ -76,7 +76,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_continuous,
 )
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -119,9 +119,10 @@ def _reflective_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     m = get_mixture(mat, ng_key)
     mats = {0: m}
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=length),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, length),
+        mat_ids=(0,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -141,9 +142,10 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     m = get_mixture(mat, ng_key)
     mats = {0: m}
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=length),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, length),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -343,9 +345,10 @@ def test_recovery_preserves_kinf_2g():
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(mat_id,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=10),))
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -470,9 +473,10 @@ def test_eigenvalue_path_surfaces_total_inner_iterations():
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(mat_id,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=10),))
     quad = Quadrature.gauss_legendre(n_ordinates=8)

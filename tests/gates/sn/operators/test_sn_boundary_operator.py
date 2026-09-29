@@ -71,7 +71,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.geometry.boundary import PeriodicBoundary
 from orpheus.numerics.operator import (
@@ -95,18 +95,19 @@ from tests.gates.sn._test_helpers import placeholder_materials
 pytestmark = [pytest.mark.foundation]
 
 
-def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
+def _sn(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
-        geometry=geometry,
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=bcs,
+        coord=coord,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=bcs,
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     # Cylinder's angular redistribution needs a level-structured quadrature;
     # slab / sphere accept the 1-D Gauss–Legendre set.
     quad = (
         Quadrature.folded_product(n_mu=2, n_phi=4)
-        if geometry == "CYL"
+        if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
@@ -128,15 +129,15 @@ def _random_state(sn: SNProblem, seed: int = 7) -> TimedFullField:
 # reflective / vacuum). Slab uses ASYMMETRIC BCs so the per-face wiring test
 # discriminates a face↔face swap.
 _CASES = {
-    "slab_vacuum_reflective": ("SLB", (BC.vacuum, BC.reflective)),
-    "slab_reflective_reflective": ("SLB", (BC.reflective, BC.reflective)),
-    "sphere_reflective": ("SPH", (BC.reflective,)),
+    "slab_vacuum_reflective": (CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective)),
+    "slab_reflective_reflective": (CoordSystem.CARTESIAN, (BC.reflective, BC.reflective)),
+    "sphere_reflective": (CoordSystem.SPHERICAL, (BC.reflective,)),
     # MANDATORY (B3.2 / RG-2): the ONLY fixture here carrying TANGENTIAL
     # ordinates — ``product(2, 4)`` puts 4 of its 8 ordinates at
     # ``|Ω·n| ≤ ε`` on every face, so it is the sole discriminator between
     # "outside the outflow rows" and "outside Γ₋". Do not swap it for a
     # Gauss–Legendre set to make the fixture cheaper.
-    "cyl_reflective": ("CYL", (BC.reflective,)),
+    "cyl_reflective": (CoordSystem.CYLINDRICAL, (BC.reflective,)),
 }
 
 
@@ -183,7 +184,7 @@ def _scatter(rows: np.ndarray, values: np.ndarray, n_face: int) -> np.ndarray:
 
 class TestContract:
     def test_block_role_is_boundary_and_exclusive(self) -> None:
-        B = SNBoundaryOperator(_sn("SLB", (BC.vacuum, BC.reflective)))
+        B = SNBoundaryOperator(_sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective)))
         assert B.block_role is BlockRole.BOUNDARY
         assert isinstance(B, BoundaryOperator)
         assert not isinstance(B, BulkOperator)
@@ -196,7 +197,7 @@ class TestContract:
         # ``sn.full_field_space``, the SAME space L/C/S/F report (so the
         # OperatorSum guard accepts ``L + C - S - F - B``). The trace metric
         # ``B.H`` reads lives on the composite's trace block.
-        sn = _sn("SLB", (BC.vacuum, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
         B = SNBoundaryOperator(sn)
         assert B.domain is sn.full_field_space
         assert B.codomain is sn.full_field_space
@@ -345,7 +346,7 @@ class TestApply:
     def test_block_diagonal_no_face_mixing(self) -> None:
         """A perturbation on ONE face's input slot affects ONLY that face's
         output (``B`` is block-diagonal over faces — it never mixes faces)."""
-        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
         B = SNBoundaryOperator(sn)
         psi = _random_state(sn, seed=1)
         other = _random_state(sn, seed=2)
@@ -465,7 +466,7 @@ class TestApplyTransposeCapability:
         shelf, and why it stays even though nothing shipped trips it today.
         """
 
-        sn = _sn("SLB", (BC.vacuum, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
         _n_inflow = sn.angular_trace.inflow_indices_for_face("xmin").size
 
         class _NoTransposeLaw(LinearOperator):
@@ -547,7 +548,7 @@ class TestTheFaceActionIsCOMPOSED:
 
     @staticmethod
     def _slab():
-        return _sn("SLB", (BC.vacuum, BC.reflective))
+        return _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
 
     def test_a_wrong_face_domain_map_now_RAISES_on_apply(self) -> None:
         """⭐ The mutation, run as a gate — B3.4c re-injected at its source.
@@ -908,7 +909,7 @@ class TestFaceRestrictedReflect:
     def test_subset_reflects_only_selected_faces(self) -> None:
         """``faces=("xmax",)`` emits reflected inflow on xmax and leaves the
         unselected xmin face's inflow rows untouched (zero)."""
-        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         mask = self._full_inflow_mask(sn)
@@ -939,7 +940,7 @@ class TestFaceRestrictedReflect:
         whole-trace reflect — the per-face restrictions are a clean partition
         (vv L11: catches a face↔face coupling leak that the
         reflect-only-selected test alone would miss)."""
-        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         mask = self._full_inflow_mask(sn)
@@ -963,7 +964,7 @@ class TestFaceRestrictedReflect:
         into the live verb at CS4c step 6 item 6.5: until then
         ``reflect_rows_inplace`` filtered the face away silently while the
         retired trace-only verb raised."""
-        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         with pytest.raises(ValueError, match="boundary faces"):
@@ -993,7 +994,7 @@ class TestPeriodicReadsThePartnerFace:
 
     @staticmethod
     def _periodic_slab(nx: int = 4, ng: int = 1) -> SNProblem:
-        sn = _sn("SLB", (BC.vacuum, BC.vacuum), nx=nx, ng=ng)
+        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.vacuum), nx=nx, ng=ng)
         law = PeriodicBoundary(axis="x")
         for face in ("xmin", "xmax"):
             sn.bc[face] = sn.realize_boundary_law(law, face)
@@ -1064,7 +1065,7 @@ class TestPeriodicReadsThePartnerFace:
         feed two (its own vacuum law and ``xmin``'s wrap) while ``xmin``'s fed
         none.
         """
-        sn = _sn("SLB", (BC.vacuum, BC.vacuum))
+        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.vacuum))
         sn.bc["xmin"] = sn.realize_boundary_law(
             PeriodicBoundary(axis="x"), "xmin",
         )

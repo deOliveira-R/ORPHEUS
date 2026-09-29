@@ -35,11 +35,7 @@ from orpheus.derivations.continuous.fn_method.slab import (
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
 # ----------------------------------------------------------------------
@@ -62,27 +58,30 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float, nu_sigma_f: float):
 def _ua10sl_geometry() -> StructuredGeometry:
     """Sood Ua-1-0-SL slab geometry (full slab width = 2 × half-thickness)."""
     return StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0 * 0.93772556),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0 * 0.93772556),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
 
 
 def _ua10sp_geometry() -> StructuredGeometry:
     """Sood Ua-1-0-SP sphere geometry."""
     return StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.4248249802),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.4248249802),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
 
 
 def _cylinder_geometry() -> StructuredGeometry:
     """Sood-style cylinder geometry (out-of-pillar for F_N)."""
     return StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=1.72500292),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, 1.72500292),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
 
 

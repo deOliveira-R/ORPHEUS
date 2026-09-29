@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.geometry import BC
+from orpheus.geometry import BC, CoordSystem
 from orpheus.mesh import Mesh1D
 
 from .quadrature import MOCQuadrature
@@ -243,6 +243,31 @@ def _is_vertical(surface: int) -> bool:
 
 # ── MOCMesh ─────────────────────────────────────────────────────────
 
+def _refuse_a_mesh_moc_misreads(mesh: Mesh1D) -> None:
+    """Admit only a solid cylinder: the Wigner–Seitz proxy MoC reinterprets.
+
+    **SCOPE-BOUNDARY[guard]** — machinery: a 2-D geometry value (the square pin cell) for MoC to read (#514).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.13).
+    revisit: MoC's campaign, which recycles the shared machinery (the direction of development).
+
+    ``MOCMesh`` reads a :class:`Mesh1D` as the Wigner–Seitz cylinder of a
+    square pin cell: region 0 is a disk and the pitch is
+    ``edges[-1] * sqrt(pi)``. A mesh in any other coordinate system is read
+    as that cylinder anyway (``[M]`` 2026-09-25: a Cartesian mesh with the
+    cylinder's edges gave exactly the cylinder's k, 0.7197934814031874),
+    and a hollow one is realised inconsistently (the region areas read
+    ``edges[0]`` while the tracks treat region 0 as a disk: k = 0.71516 at
+    ``r_0 = 0.1``). Only its outer law is read, and a solid cylinder has no
+    other.
+    """
+    if mesh.coord is not CoordSystem.CYLINDRICAL or mesh.edges[0] != 0.0:
+        raise NotImplementedError(
+            f"MoC reads a mesh as the solid Wigner–Seitz cylinder of a square "
+            f"pin cell; got a {mesh.coord.name.lower()} mesh starting at "
+            f"r_0 = {float(mesh.edges[0])!r} (#514)."
+        )
+
+
 class MOCMesh:
     """Augmented geometry for the Method of Characteristics.
 
@@ -266,6 +291,7 @@ class MOCMesh:
         quadrature: MOCQuadrature,
         ray_spacing: float = 0.05,
     ) -> None:
+        _refuse_a_mesh_moc_misreads(mesh)
         self.mesh = mesh
         self.quad = quadrature
         self.ray_spacing = ray_spacing

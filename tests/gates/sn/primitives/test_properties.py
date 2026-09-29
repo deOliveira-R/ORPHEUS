@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -20,9 +20,10 @@ from orpheus.sn.solver import solve_sn
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper."""
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, total_width),
+        mat_ids=(mat_id,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
@@ -31,13 +32,11 @@ def _slab_fuel_moderator_mesh(
     n_fuel: int, n_mod: int, t_fuel: float, t_mod: float,
 ) -> Mesh1D:
     """Two-region fuel-moderator slab mesh."""
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=2, outer_thickness_cm=t_fuel),
-            Region(mat_id=0, outer_thickness_cm=t_mod),
-        ),
-        bcs=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(t_fuel, t_mod),
+        mat_ids=(2, 0),
+        boundaries=(BC.reflective, BC.reflective),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=n_fuel),

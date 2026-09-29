@@ -44,7 +44,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
@@ -56,19 +56,13 @@ from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
-_COORD_TAG = {"CARTESIAN": "SLB", "CYLINDRICAL": "CYL", "SPHERICAL": "SPH"}
-
-
 def _mesh(regions, bc, coord):
     """regions = [(mat_id, thickness_cm, n_cells), ...]"""
-    tag = _COORD_TAG[coord.name]
-    bcs = (bc, bc) if tag == "SLB" else (bc,)
-    geom = StructuredGeometry(
-        geometry=tag,
-        regions=tuple(
-            Region(mat_id=m, outer_thickness_cm=t) for m, t, _ in regions
-        ),
-        bcs=bcs,
+    geom = StructuredGeometry.from_thicknesses(
+        coord=coord,
+        thicknesses=tuple(t for _, t, _ in regions),
+        mat_ids=tuple(m for m, _, _ in regions),
+        boundaries=(bc, bc) if coord is CoordSystem.CARTESIAN else (bc,),
     )
     return Mesh1D.from_geometry(
         geom,

@@ -245,9 +245,9 @@ class La13511Case:
         Reads :attr:`La13511Truth.critical_dimension_mfp` and the
         primary material's :math:`\Sigma_t` (group 0) from
         ``self.materials[0].SigT[0]``. Computes the cm extent via
-        :math:`\text{cm} = \text{mfp} / \Sigma_t`. Builds the geometry
-        kind tag (uppercase ``"SLB"`` / ``"CYL"`` / ``"SPH"``), regions
-        tuple, and BCs.
+        :math:`\text{cm} = \text{mfp} / \Sigma_t`. Builds the coordinate
+        system, the breakpoints of the one interval, and the boundary
+        laws.
 
         Slab convention
         ---------------
@@ -267,9 +267,9 @@ class La13511Case:
         ----------------------------
         Single region of radius
         :math:`R = \text{critical\_dimension\_mfp} / \Sigma_t`,
-        outer BC vacuum, centreline implicit reflective (the
-        :class:`StructuredGeometry` ``"CYL"`` / ``"SPH"`` tag carries
-        a single outer endpoint).
+        outer law vacuum; the centre of a solid cylinder or sphere is an
+        interior point and carries no law, so the geometry takes the one
+        outer law.
 
         Multi-region cases
         ------------------
@@ -292,15 +292,12 @@ class La13511Case:
         ValueError
             If the case's geometry kind is not one of ``"slab"`` /
             ``"sphere"`` / ``"cylinder"`` (e.g. ``"infinite"``,
-            ``"ISLC"``, or any future tag without a corresponding
-            ``StructuredGeometry`` mapping).
+            ``"ISLC"``, or any future kind without a corresponding
+            coordinate system).
         """
         # Local import to avoid a registry → geometry-layer import
         # cycle (the geometry layer doesn't know about cases).
-        from orpheus.geometry.structured_geometry import (
-            Region as StructuredRegion,
-            StructuredGeometry,
-        )
+        from orpheus.geometry import CoordSystem, StructuredGeometry
 
         kind = self.geometry_kind
 
@@ -331,42 +328,38 @@ class La13511Case:
         sigma_t = float(primary_mixture.SigT[0])
         cm = float(cd_mfp) / sigma_t
 
-        # Map lowercase legacy tag → uppercase StructuredGeometry tag.
-        _TAG_MAP = {"slab": "SLB", "cylinder": "CYL", "sphere": "SPH"}
-        if kind not in _TAG_MAP:
+        # The registry's geometry kind → the geometry's coordinate system.
+        _KIND_TO_COORD = {
+            "slab": CoordSystem.CARTESIAN,
+            "cylinder": CoordSystem.CYLINDRICAL,
+            "sphere": CoordSystem.SPHERICAL,
+        }
+        if kind not in _KIND_TO_COORD:
             raise ValueError(
                 f"Case {self.case_id!r}: geometry kind {kind!r} has no "
-                f"StructuredGeometry mapping. Supported: "
-                f"{sorted(_TAG_MAP)}."
+                f"coordinate system. Supported: {sorted(_KIND_TO_COORD)}."
             )
-        new_tag = _TAG_MAP[kind]
+        coord = _KIND_TO_COORD[kind]
 
         # All first-slice cases are single-region with the primary
         # mixture at mat_id=0 (the convention this registry uses).
         mat_id = 0
 
-        if new_tag == "SLB":
-            # Full slab width (2 × half-thickness), vacuum-vacuum BCs.
-            full_width_cm = 2.0 * cm
+        if coord is CoordSystem.CARTESIAN:
+            # Full slab width (2 × half-thickness), vacuum-vacuum laws.
             return StructuredGeometry(
-                geometry="SLB",
-                regions=(
-                    StructuredRegion(
-                        mat_id=mat_id,
-                        outer_thickness_cm=full_width_cm,
-                    ),
-                ),
-                bcs=(BC.vacuum, BC.vacuum),
+                coord=coord,
+                breakpoints=(0.0, 2.0 * cm),
+                mat_ids=(mat_id,),
+                boundaries=(BC.vacuum, BC.vacuum),
             )
 
-        # CYL / SPH: single region of radius cm; outer BC vacuum;
-        # centreline reflective is implicit at the coordinate origin.
+        # A solid cylinder or sphere of radius cm; the outer law vacuum.
         return StructuredGeometry(
-            geometry=new_tag,
-            regions=(
-                StructuredRegion(mat_id=mat_id, outer_thickness_cm=cm),
-            ),
-            bcs=(BC.vacuum,),
+            coord=coord,
+            breakpoints=(0.0, cm),
+            mat_ids=(mat_id,),
+            boundaries=(BC.vacuum,),
         )
 
 

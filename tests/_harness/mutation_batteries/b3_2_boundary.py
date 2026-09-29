@@ -262,7 +262,7 @@ def _bite_fingerprint() -> str:
     try:
         from dataclasses import replace
 
-        from orpheus.geometry import BC, Region, StructuredGeometry
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
         from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.problem import SNProblem
@@ -273,9 +273,10 @@ def _bite_fingerprint() -> str:
         from tests.gates.sn._test_helpers import placeholder_materials
 
         geom = StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-            bcs=(BC.vacuum, BC.reflective),
+            coord=CoordSystem.CARTESIAN,
+            breakpoints=(0.0, 2.0),
+            mat_ids=(0,),
+            boundaries=(BC.vacuum, BC.reflective),
         )
         mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=4),))
         sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1))

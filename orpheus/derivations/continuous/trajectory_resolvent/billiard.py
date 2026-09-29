@@ -86,7 +86,8 @@ from typing import Any
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.geometry import CoordSystem, StructuredGeometry
 
 # Use the SHARED cross-method result types — these define the contract
 # every math-heart class (MomentSpace for fn_method, Billiard for
@@ -181,18 +182,16 @@ class Billiard:
     Construct directly with a :class:`StructuredGeometry` plus the
     materials dict::
 
-        from orpheus.geometry.structured_geometry import (
-            Region, StructuredGeometry,
-        )
-        from orpheus.geometry import BC
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
         from orpheus.derivations.continuous.trajectory_resolvent import (
             Billiard,
         )
 
         geom = StructuredGeometry(
-            geometry="SPH",
-            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
-            bcs=(BC.reflective,),
+            coord=CoordSystem.SPHERICAL,
+            breakpoints=(0.0, 5.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
         )
         b = Billiard(
             geometry=geom,
@@ -202,12 +201,14 @@ class Billiard:
         )
         sol = b.solve_critical()
 
-    Geometry tag mapping
-    --------------------
+    Geometry mapping
+    ----------------
 
-    The class accepts uppercase :class:`StructuredGeometry` tags
-    (``"SLB"``, ``"SPH"``, ``"CYL"``) and dispatches internally to
-    the same per-geometry ``solve_greens_function_*`` entry points.
+    The class reads the geometry as one homogeneous body
+    (:func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`:
+    a slab, or a solid sphere or cylinder) and dispatches on its
+    coordinate system to the per-geometry ``solve_greens_function_*``
+    entry points.
     The asymmetric-slab branch is selected when ``alpha`` is a dict
     carrying ``alpha_left`` / ``alpha_right`` keys.
 
@@ -231,8 +232,8 @@ class Billiard:
     geometry_kind : str
         One of ``"sphere"``, ``"cylinder"``, ``"slab"``,
         ``"slab_asymmetric"``. Auto-derived in :meth:`__post_init__`
-        from the :class:`StructuredGeometry` tag and the alpha-dict
-        shape; selects which underlying solver is dispatched.
+        from the :class:`StructuredGeometry`'s coordinate system and the
+        alpha-dict shape; selects which underlying solver is dispatched.
     closure_rank : int
         ``1`` for one-endpoint orbit spaces, ``2`` for two-endpoint
         orbit spaces. Auto-resolved from :attr:`geometry_kind`.
@@ -242,9 +243,10 @@ class Billiard:
     Closed homogeneous sphere with k_eff = k_inf::
 
         geom = StructuredGeometry(
-            geometry="SPH",
-            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
-            bcs=(BC.reflective,),
+            coord=CoordSystem.SPHERICAL,
+            breakpoints=(0.0, 5.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
         )
         b = Billiard(geometry=geom, materials={0: pu_mixture}, alpha=1.0)
         sol = b.solve_critical()
@@ -275,7 +277,9 @@ class Billiard:
             geometry_kind, self.geometry
         )
         xs_payload = _mixture_to_solver_xs_payload(
-            self.materials, geometry_kind
+            self.materials,
+            homogeneous_body(self.geometry, owner="Billiard").mat_id,
+            geometry_kind,
         )
 
         # Normalize alpha into the per-geometry payload.
@@ -944,14 +948,14 @@ def _is_mixture_dict(materials: Any) -> bool:
     return isinstance(materials[first_key], Mixture)
 
 
-# Map StructuredGeometry uppercase tag → Billiard's internal lowercase
+# Map the geometry's coordinate system → Billiard's internal lowercase
 # geometry_kind. The asymmetric-slab branch is selected by alpha-dict
-# shape, not by the StructuredGeometry tag (slab is slab — asymmetry is
+# shape, not by the coordinate system (slab is slab — asymmetry is
 # a BC concept, not a coordinate concept).
-_TAG_TO_KIND: dict[str, str] = {
-    "SLB": "slab",
-    "SPH": "sphere",
-    "CYL": "cylinder",
+_COORD_TO_KIND: dict[CoordSystem, str] = {
+    CoordSystem.CARTESIAN: "slab",
+    CoordSystem.SPHERICAL: "sphere",
+    CoordSystem.CYLINDRICAL: "cylinder",
 }
 
 
@@ -966,13 +970,7 @@ def _infer_geometry_kind(
     selected when *alpha* is a dict carrying ``alpha_left`` /
     ``alpha_right`` keys.
     """
-    tag = geom.geometry
-    if tag not in _TAG_TO_KIND:
-        raise ValueError(
-            f"Billiard cannot construct on StructuredGeometry tag "
-            f"{tag!r}; supported: {sorted(_TAG_TO_KIND)}."
-        )
-    kind = _TAG_TO_KIND[tag]
+    kind = _COORD_TO_KIND[homogeneous_body(geom, owner="Billiard").coord]
     if kind == "slab" and isinstance(alpha, dict):
         keys = set(alpha.keys())
         if "alpha_left" in keys or "alpha_right" in keys:
@@ -986,20 +984,19 @@ def _geometry_payload_for_solver(
 ) -> dict[str, Any]:
     """Build the per-geometry payload the dispatchers consume.
 
-    Maps the :class:`StructuredGeometry` extent onto the
-    geometry-specific kwargs of the underlying
-    ``solve_greens_function_*`` entry points.
+    Maps the homogeneous body's extent onto the geometry-specific kwargs
+    of the underlying ``solve_greens_function_*`` entry points.
 
     Slab convention reminder
     ------------------------
-    :attr:`StructuredGeometry.domain_extent_cm` is the FULL slab width
-    (sum of region thicknesses). The underlying
+    The body's extent is the FULL slab width. The underlying
     :func:`solve_greens_function_slab` consumes ``L`` = full slab
     width, so this is a direct pass-through (no halving / doubling).
 
-    For sphere / cylinder, ``domain_extent_cm`` is the outer radius.
+    For a sphere or a cylinder the extent is the radius (the body is
+    solid, :func:`homogeneous_body`).
     """
-    extent = geom.domain_extent_cm
+    extent = homogeneous_body(geom, owner="Billiard").extent_cm
     if geometry_kind in ("sphere", "cylinder"):
         return {"R": float(extent)}
     if geometry_kind in ("slab", "slab_asymmetric"):
@@ -1011,21 +1008,22 @@ def _geometry_payload_for_solver(
 
 def _mixture_to_solver_xs_payload(
     materials: dict[int, Mixture],
+    mat_id: int,
     geometry_kind: str,
 ) -> dict[str, Any]:
-    """Translate a Mixture-keyed dict to the solver-facing XS payload.
+    """Translate the body's Mixture to the solver-facing XS payload.
 
     The ``solve_greens_function_*`` entry points consume raw numpy
     arrays (``sigma_t``, ``sigma_s``, ``nu_sigma_f``, ``chi``); this
     helper extracts those from the production-protocol
-    :class:`Mixture` at ``materials[0]``.
+    :class:`Mixture` of the body's material, ``materials[mat_id]``.
     """
-    if 0 not in materials:
+    if mat_id not in materials:
         raise ValueError(
-            f"Billiard: materials must contain key 0 "
-            f"(the active mat_id). Got keys {sorted(materials.keys())}."
+            f"Billiard: materials must contain the body's material id "
+            f"{mat_id}. Got keys {sorted(materials.keys())}."
         )
-    mix = materials[0]
+    mix = materials[mat_id]
     sig_t = np.asarray(mix.SigT)
     sig_s_p0 = np.asarray(mix.SigS[0].todense())
     nu_sigma_f = np.asarray(mix.SigP)

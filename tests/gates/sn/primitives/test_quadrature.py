@@ -305,7 +305,7 @@ class TestL0TermVerification:
         The fundamental correctness criterion for curvilinear SN.
         The ΔA/w factor ensures exact per-ordinate cancellation.
         """
-        from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
         from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.sn.problem import SNProblem
 
@@ -314,15 +314,12 @@ class TestL0TermVerification:
         else:
             quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
-        tag = {
-            CoordSystem.SPHERICAL: "SPH",
-            CoordSystem.CYLINDRICAL: "CYL",
-        }[coord]
         mesh = Mesh1D.from_geometry(
             StructuredGeometry(
-                geometry=tag,
-                regions=(Region(mat_id=0, outer_thickness_cm=1.0),),
-                bcs=(BC.reflective,),
+                coord=coord,
+                breakpoints=(0.0, 1.0),
+                mat_ids=(0,),
+                boundaries=(BC.reflective,),
             ),
             region_meshes=(RegionMesh(n_cells=10),),
         )
@@ -361,19 +358,16 @@ class TestL0TermVerification:
     ])
     def test_delta_A_magnitude(self, coord):
         """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
-        from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
         from orpheus.mesh import Mesh1D, RegionMesh
         from orpheus.sn.problem import SNProblem
 
-        tag = {
-            CoordSystem.SPHERICAL: "SPH",
-            CoordSystem.CYLINDRICAL: "CYL",
-        }[coord]
         mesh = Mesh1D.from_geometry(
             StructuredGeometry(
-                geometry=tag,
-                regions=(Region(mat_id=0, outer_thickness_cm=1.0),),
-                bcs=(BC.reflective,),
+                coord=coord,
+                breakpoints=(0.0, 1.0),
+                mat_ids=(0,),
+                boundaries=(BC.reflective,),
             ),
             region_meshes=(RegionMesh(n_cells=5),),
         )

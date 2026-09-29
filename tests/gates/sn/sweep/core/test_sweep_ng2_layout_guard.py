@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -46,9 +46,10 @@ pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]
 
 def _slab_1d(n_cells: int) -> Mesh1D:
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 

@@ -46,7 +46,7 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_1g_continuous,
     derive_2g_continuous,
 )
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -64,7 +64,11 @@ pytestmark = pytest.mark.foundation
 
 # ─── geometry fixtures (homogeneous fissile, reflective → k_eff = k_inf) ──
 
-_GEOMETRY_TAG = {"slab": "SLB", "sphere": "SPH", "cylinder": "CYL"}
+_COORD = {
+    "slab": CoordSystem.CARTESIAN,
+    "sphere": CoordSystem.SPHERICAL,
+    "cylinder": CoordSystem.CYLINDRICAL,
+}
 _CASE_BUILDERS = {"1eg": derive_1g_continuous, "2eg": derive_2g_continuous}
 
 
@@ -77,9 +81,10 @@ def _homogeneous_mesh(coord: str, mat_id: int) -> Mesh1D:
     refl = BC("reflective")
     bcs = (refl, refl) if coord == "slab" else (refl,)
     geom = StructuredGeometry(
-        geometry=_GEOMETRY_TAG[coord],
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=2.0),),
-        bcs=bcs,
+        coord=_COORD[coord],
+        breakpoints=(0.0, 2.0),
+        mat_ids=(mat_id,),
+        boundaries=bcs,
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=6),))
 

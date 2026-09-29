@@ -20,7 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -36,9 +36,10 @@ pytestmark = [pytest.mark.foundation]
 
 def _slab(bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=bcs,
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=bcs,
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=4)

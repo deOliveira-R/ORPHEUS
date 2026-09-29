@@ -77,16 +77,17 @@ def _solve_kinf(
     Returns ``Solution.keff``.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, Region, StructuredGeometry
+    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
     from orpheus.mesh import Mesh1D, RegionMesh
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),

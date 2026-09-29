@@ -34,7 +34,8 @@ is about.
 
 ⚠ **The user path stops one step short of ideal, and this module says so rather
 than implying otherwise.** The declaration itself is fully public since the
-declaration channel landed (`985497b5`): a law object is a legal ``bcs=`` entry,
+declaration channel landed (`985497b5`): a law object is a legal entry of the
+geometry's ``boundaries``,
 and ``solve_sn_fixed_source`` resolves it. What is still a stopgap is
 :class:`_ManufacturedFaceInflow` — every constructor argument it takes is
 information the shipped ``InflowSourceSpec`` Protocol cannot supply. That is

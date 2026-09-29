@@ -1,112 +1,108 @@
 r"""Structured 1-D geometry — pure geometry layer, no mesh concerns.
 
-A :class:`StructuredGeometry` describes the SHAPE of a 1-D problem domain:
+A :class:`StructuredGeometry` is an interval of positions in one
+coordinate system, cut into material intervals, with a boundary law at
+every point of its boundary:
 
-* **What kind of geometry** (slab / cylinder / sphere → coordinate system).
-* **How many regions** (single homogeneous medium or layered stack).
-* **What boundary conditions** apply at the geometry's endpoints.
+* **the coordinate system** (:class:`CoordSystem`: slab, cylinder,
+  sphere), which fixes the measure of an interval and the topology of
+  its boundary;
+* **the breakpoints** :math:`r_0 < r_1 < \dots < r_R`, the positions
+  where one material interval ends and the next begins; they are stored
+  as given and never re-derived;
+* **one material id per interval** :math:`[r_k, r_{k+1}]`;
+* **one boundary law per boundary point**, in the order (inner, outer).
 
-It is "structured" in the memory-layout sense: regions can be traversed
-by a simple for-loop with no database lookup. This is the
-counterpart to a future ``ConstructiveSolidGeometry`` (CSG) that would
-describe unstructured / Boolean-composed shapes — but those need
-different machinery (BVH lookups, ray–surface intersection) that is
-out of scope for the first slice.
+It is "structured" in the memory-layout sense: the intervals are
+traversed in order with no lookup. This is the counterpart to a future
+``ConstructiveSolidGeometry`` (CSG) that would describe unstructured,
+Boolean-composed shapes, which need different machinery (BVH lookups,
+ray–surface intersection).
 
 The class lives at the **geometry layer**, not the mesh layer, and
-deliberately knows nothing about cell counts, discretization methods,
-or numerics. The same :class:`StructuredGeometry` can be discretized
-multiple ways for different studies (mesh refinement,
-uniform-vs-equal-volume comparison, future temperature-aware schemes)
-by passing different :class:`RegionMesh` tuples to
-:meth:`Mesh1D.from_geometry`.
+knows nothing about cell counts, discretisation rules or numerics. The
+same geometry is discretised in several ways for different studies
+(mesh refinement, equal-width against equal-volume cells) at the mesh
+layer, :mod:`orpheus.mesh`.
+
+The boundary is derived, not declared
+-------------------------------------
+
+The boundary of the region :math:`[r_0, r_R]` is its topological
+boundary in its coordinate system, so the number of laws a geometry
+takes follows from the coordinate system and :math:`r_0`:
+
+======================  =====================  =====================
+coordinate system       :math:`r_0 = 0`        :math:`r_0 > 0`
+======================  =====================  =====================
+Cartesian (slab)        2 (left, right)        2 (left, right)
+cylindrical, spherical  1 (outer)              2 (inner, outer)
+======================  =====================  =====================
+
+A slab admits any :math:`r_0` (a position on a line). On a cylinder or
+a sphere :math:`r_0 \ge 0` is a radius, and the centre :math:`r = 0` of
+a solid body is an interior point of the region, not a boundary point:
+the regularity of the solution there is a property of the coordinate
+chart, and no law is declared at it. A hollow body
+(:math:`r_0 > 0`) has an inner surface, which carries a law like any
+other boundary point. :attr:`StructuredGeometry.boundary_points` lists
+the positions, paired one to one with
+:attr:`StructuredGeometry.boundaries`.
 
 Architectural role
 ------------------
 
-In the project's two-role solver split:
-
 * **Reference solution generators** (``Billiard``, ``MomentSpace``,
-  ``Spectrum``, ``BasisSpace``) consume
-  :class:`StructuredGeometry` directly via their ``__init__`` —
-  no mesh, no cell counts.
+  ``Spectrum``, ``BasisSpace``) consume a :class:`StructuredGeometry`
+  directly: no mesh, no cell counts.
 * **Discrete production solvers** (``solve_cp``, ``solve_sn``,
-  ``solve_moc``, ``solve_mc``) consume a :class:`Mesh1D` built via
-  :meth:`Mesh1D.from_geometry`. The discretization description (per-
-  region cell counts and methods) is supplied at that build step,
-  not on the geometry.
-
-The geometry → mesh transition is the single explicit point where
-discretization information enters the pipeline. Above it: pure
-geometry + materials. Below it: solver-specific augmented meshes
-(``CPMesh``, ``SNProblem``) built by each solver.
-
-Geometry kinds and orbit-space classification
----------------------------------------------
-
-The supported tags are uppercase three-letter mnemonics:
-
-==========  ===============  ==================  ==============
-Tag         Coordinate       Endpoints (BC)      Centreline
-==========  ===============  ==================  ==============
-``"SLB"``   Cartesian        2 (left, right)     n/a
-``"CYL"``   Cylindrical      1 (outer)           implicit reflective
-``"SPH"``   Spherical        1 (outer)           implicit reflective
-==========  ===============  ==================  ==============
-
-The endpoint count comes from the orbit-space classification of the
-geometry's billiard table: SLB has two flat surfaces (orbit-space
-rank 2); CYL and SPH have one outer surface plus an implicit
-centreline reflection (orbit-space rank 1). This is the same
-classification the trajectory_resolvent ``Billiard`` class uses.
-
-When future geometries land that genuinely have two surfaces
-(``HSPH`` for hollow sphere, ``ANN`` for annulus), they extend
-this map with two-endpoint BC tuples.
+  ``solve_moc``, ``solve_mc``) consume a :class:`~orpheus.mesh.Mesh1D`
+  built from the geometry; the discretisation is supplied at that build
+  step, never stored on the geometry.
 
 Examples
 --------
 
-A bare-critical Sood sphere — single region, one outer BC::
+A bare-critical sphere, one region, one outer law::
 
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.872),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.872),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
 
-A reflected-slab NM-1980 case — three regions (reflector | core |
-reflector), two outer BCs::
+A reflected slab (reflector | core | reflector), two laws::
+
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(0.5, 2.0, 0.5),
+        mat_ids=(1, 0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
+    )
+
+A hollow sphere, an inner and an outer law::
 
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=1, outer_thickness_cm=0.5),  # reflector left
-            Region(mat_id=0, outer_thickness_cm=2.0),  # core
-            Region(mat_id=1, outer_thickness_cm=0.5),  # reflector right
-        ),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.5, 1.0, 2.0),
+        mat_ids=(1, 0),
+        boundaries=(BC.reflective, BC.vacuum),
     )
 
-A PWR pin cell via the Wigner–Seitz factory::
+A PWR pin cell through the Wigner–Seitz factory::
 
     geom = StructuredGeometry.wigner_seitz_pin_cell(
         r_fuel=0.9, r_clad=1.1, pitch=3.6,
     )
-
-Building a mesh from any of these — discretization specified at the
-mesh layer::
-
-    from orpheus.mesh.structured import Mesh1D, RegionMesh
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),
-        RegionMesh(n_cells=3),
-        RegionMesh(n_cells=7),
-    ))
 """
 from __future__ import annotations
 
+import itertools
+import math
+from collections.abc import Iterable
 from dataclasses import dataclass
+from numbers import Real
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -118,269 +114,173 @@ if TYPE_CHECKING:
     from .boundary import BoundaryTraceLaw
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# Geometry-tag → coordinate-system map
-# ═══════════════════════════════════════════════════════════════════════
+def _parse_real(value: object, where: str) -> float:
+    """A real scalar as a ``float``, or a keyed refusal.
 
-_GEOMETRY_TO_COORD: dict[str, CoordSystem] = {
-    "SLB": CoordSystem.CARTESIAN,
-    "CYL": CoordSystem.CYLINDRICAL,
-    "SPH": CoordSystem.SPHERICAL,
-}
-
-# Endpoint counts by geometry tag (orbit-space rank for the BC tuple).
-# SLB: 2 endpoints (left, right). CYL/SPH: 1 endpoint (outer);
-# the centreline is implicit reflective.
-_GEOMETRY_TO_N_ENDPOINTS: dict[str, int] = {
-    "SLB": 2,
-    "CYL": 1,
-    "SPH": 1,
-}
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Region — one layer of a StructuredGeometry
-# ═══════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True)
-class Region:
-    """A layer of a :class:`StructuredGeometry`. Pure geometry — no mesh
-    concerns.
-
-    A region carries a material identifier and the literal cm thickness
-    of its outer-bound layer. It does NOT carry a cell count or a
-    discretization method — those live on :class:`RegionMesh` at the
-    mesh layer and are supplied when building a :class:`Mesh1D` from
-    the geometry.
-
-    Parameters
-    ----------
-    mat_id : int
-        Material identifier matching a key in the ``materials:
-        dict[int, Mixture]`` payload that downstream consumers receive
-        alongside the geometry.
-    outer_thickness_cm : float
-        Literal thickness of this region in cm. NOT cumulative
-        (see :class:`StructuredGeometry` for ordering convention).
-        Must be positive.
-
-    Examples
-    --------
-
-    Single-region homogeneous sphere::
-
-        Region(mat_id=0, outer_thickness_cm=2.872)
-
-    Three-region reflected slab (the tuple ordering is left-to-right
-    on the slab; for sphere/cylinder it is inside-out)::
-
-        (
-            Region(mat_id=1, outer_thickness_cm=0.5),  # reflector left
-            Region(mat_id=0, outer_thickness_cm=2.0),  # core
-            Region(mat_id=1, outer_thickness_cm=0.5),  # reflector right
-        )
-
-    See Also
-    --------
-    StructuredGeometry : The class that holds a tuple of Regions.
-    RegionMesh : The mesh-layer per-region descriptor (n_cells +
-        method) that pairs with a Region at mesh-build time.
+    ``bool`` is refused (``True`` is an ``int``), and ``-0.0`` is
+    canonicalised to ``+0.0``: the two compare equal, so they are one
+    breakpoint, and a digest over the bits must see one value.
     """
-
-    mat_id: int
-    outer_thickness_cm: float
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.mat_id, (int, np.integer)):
-            raise TypeError(
-                f"Region.mat_id must be int, got {type(self.mat_id).__name__}"
-            )
-        if not isinstance(self.outer_thickness_cm, (int, float)):
-            raise TypeError(
-                f"Region.outer_thickness_cm must be a real number, "
-                f"got {type(self.outer_thickness_cm).__name__}"
-            )
-        if self.outer_thickness_cm <= 0.0:
-            raise ValueError(
-                f"Region.outer_thickness_cm must be > 0; "
-                f"got {self.outer_thickness_cm!r}"
-            )
+    if not isinstance(value, Real) or isinstance(value, bool):
+        raise TypeError(
+            f"{where} must be a real number, got {type(value).__name__}"
+        )
+    return float(value) + 0.0
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# StructuredGeometry — 1-D structured geometry (the geometry layer)
-# ═══════════════════════════════════════════════════════════════════════
+def _parse_integer(value: object, where: str) -> int:
+    """An integer scalar as an ``int``, or a keyed refusal."""
+    if not isinstance(value, (int, np.integer)) or isinstance(value, bool):
+        raise TypeError(
+            f"{where}: a material id is an int, got {type(value).__name__}"
+        )
+    return int(value)
 
-@dataclass(frozen=True)
+
+def _entries(value: object, where: str, expected: str) -> tuple[object, ...]:
+    """The entries of a sequence field as a tuple, or a keyed refusal."""
+    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+        raise TypeError(f"{where} must be a sequence of {expected}, got {type(value).__name__}")
+    return tuple(value)
+
+
+@dataclass(frozen=True, kw_only=True)
 class StructuredGeometry:
-    """1-D structured geometry — pure geometry, no mesh, no materials data.
-
-    The geometry layer sits between the registry (problem definition)
-    and the mesh layer (discretization). It carries:
-
-    * Geometry kind (``"SLB"`` / ``"CYL"`` / ``"SPH"``) — determines
-      the coordinate system and the orbit-space endpoint count.
-    * An ordered tuple of :class:`Region` instances — the layered
-      material structure. Single-region cases are 1-tuples.
-    * A tuple of :class:`BC` instances — boundary conditions at the
-      geometry's endpoints. The tuple length matches the geometry's
-      endpoint count (SLB → 2, CYL/SPH → 1).
-
-    What is NOT here
-    ----------------
-
-    * **No cell counts.** Discretization is a mesh concern. The same
-      :class:`StructuredGeometry` can be meshed differently for
-      different studies. Supply :class:`RegionMesh` instances to
-      :meth:`Mesh1D.from_geometry` at mesh-build time.
-    * **No critical-dimension or mfp values.** Those are
-      registry-truth artifacts (a published critical configuration
-      "happens to be" this size). They live on registry truth records
-      (e.g., ``La13511Truth.critical_dimension_mfp``), not on the
-      geometry.
-    * **No energy-group count.** That comes from the materials:
-      ``mixture.SigT.shape[0]``.
-    * **No infinite-medium kind.** Solving an infinite medium means
-      using :func:`solve_homogeneous_infinite` (no geometry) or
-      :meth:`MomentSpace.solve_kinf` (no geometry). A "functionally
-      infinite" finite domain can be expressed via reflective BCs.
+    r"""A 1-D geometry: a coordinate system, breakpoints, one material id
+    per interval and one boundary law per boundary point.
 
     Parameters
     ----------
-    geometry : str
-        One of ``"SLB"`` (Cartesian slab), ``"CYL"`` (cylindrical),
-        ``"SPH"`` (spherical).
-    regions : tuple[Region, ...]
-        Ordered layer stack. Ordering is **inside-out** for sphere /
-        cylinder (innermost region first), **left-to-right** for
-        slab. Always a tuple — single-region geometries use a
-        1-tuple ``(Region(...),)``.
-    bcs : tuple[BC, ...]
-        Boundary conditions at the geometry's endpoints. Length
-        matches :attr:`n_endpoints`. For ``"SLB"``: 2 BCs (left,
-        right). For ``"CYL"`` / ``"SPH"``: 1 BC (outer surface; the
-        centreline is implicit reflective).
+    coord : CoordSystem
+        The coordinate system. The retired string kind tags (``"SLB"``,
+        ``"CYL"``, ``"SPH"``) are refused.
+    breakpoints : sequence of real numbers
+        :math:`r_0 < r_1 < \dots < r_R`, at least two, finite, strictly
+        increasing; :math:`r_0 \ge 0` on a cylinder or a sphere. Stored
+        as a tuple of ``float``, bit for bit as given: a breakpoint is
+        never re-derived from widths (the thickness constructor is
+        :meth:`from_thicknesses`).
+    mat_ids : sequence of int
+        One material id per interval :math:`[r_k, r_{k+1}]`, inside-out
+        on a cylinder or a sphere and left to right on a slab. Adjacent
+        intervals may share a material. The ids key the
+        ``materials: dict[int, Mixture]`` that consumers receive beside
+        the geometry.
+    boundaries : tuple of BC or BoundaryTraceLaw
+        One law per boundary point, paired one to one with
+        :attr:`boundary_points` (inner first). A declaration is either a
+        :class:`BC` tag or an already-typed ``BoundaryTraceLaw``; the
+        law arm exists because a tag cannot carry a function (a
+        prescribed inflow whose source is a manufactured solution), and
+        declaring such a law on the geometry is what makes it survive
+        the method-mesh rebuild every public solver entry performs.
+        ``None`` is not a law.
 
     Notes
     -----
+    **What is not here.** No cell counts and no discretisation rule (the
+    mesh layer's); no critical dimension (a registry's truth record); no
+    group count (the materials'); no infinite medium (a problem with no
+    geometry, or a finite domain with reflective laws).
 
-    **Slab convention.** :attr:`domain_extent_cm` is the FULL slab
-    width (sum of all region thicknesses, end-to-end). This is the
-    production-natural convention — a user with "a slab of thickness
-    L" passes ``L`` directly. F_N's natural half-thickness ``a = L /
-    2`` is computed by reference solvers internally.
-
-    **Materials coupling.** The geometry knows ``mat_id`` integers
-    but not the materials themselves. Solvers receive the
-    ``materials: dict[int, Mixture]`` payload alongside the geometry
-    and resolve the dict at solve time. This decoupling means the
-    same materials can be reused with different geometries and vice
-    versa.
-
-    **Boundary-condition resolution.** :class:`BC` is a tag (``kind`` +
-    optional ``params``). Each solver's augmented mesh resolves what
-    a tag means via its own ``BC_REGISTRY``. The geometry layer never
-    interprets BCs.
-
-    Examples
-    --------
-
-    See module docstring.
-
-    See Also
-    --------
-    Region : One layer of a multi-region geometry.
-    Mesh1D.from_geometry : Build a discrete mesh from this geometry.
+    **The geometry never interprets a law.** Each method's mesh resolves
+    what a tag means through its own admission table.
     """
 
-    geometry: str
-    regions: tuple[Region, ...]
-    bcs: "tuple[BC | BoundaryTraceLaw, ...]"
+    coord: CoordSystem
+    breakpoints: tuple[float, ...]
+    mat_ids: tuple[int, ...]
+    boundaries: "tuple[BC | BoundaryTraceLaw, ...]"
 
     def __post_init__(self) -> None:
-        if self.geometry not in _GEOMETRY_TO_COORD:
-            raise ValueError(
-                f"StructuredGeometry.geometry must be one of "
-                f"{sorted(_GEOMETRY_TO_COORD)}; got {self.geometry!r}"
-            )
-        if not isinstance(self.regions, tuple):
+        if not isinstance(self.coord, CoordSystem):
             raise TypeError(
-                f"StructuredGeometry.regions must be a tuple, "
-                f"got {type(self.regions).__name__}"
+                f"StructuredGeometry.coord must be a CoordSystem member, got "
+                f"{type(self.coord).__name__} {self.coord!r}; the string "
+                f"kind tags ('SLB', 'CYL', 'SPH') are retired."
             )
-        if len(self.regions) == 0:
-            raise ValueError(
-                "StructuredGeometry.regions must be non-empty; "
-                "single-region geometries use a 1-tuple."
-            )
-        for k, region in enumerate(self.regions):
-            if not isinstance(region, Region):
-                raise TypeError(
-                    f"StructuredGeometry.regions[{k}] must be a Region, "
-                    f"got {type(region).__name__}"
-                )
-
-        if not isinstance(self.bcs, tuple):
-            raise TypeError(
-                f"StructuredGeometry.bcs must be a tuple, "
-                f"got {type(self.bcs).__name__}"
-            )
-        expected_n_bcs = _GEOMETRY_TO_N_ENDPOINTS[self.geometry]
-        if len(self.bcs) != expected_n_bcs:
-            raise ValueError(
-                f"StructuredGeometry: geometry={self.geometry!r} "
-                f"requires {expected_n_bcs} BC(s); got {len(self.bcs)}."
-            )
-        # A declaration is EITHER a ``BC`` tag or an already-typed
-        # ``BoundaryTraceLaw``. The law arm exists because a tag cannot
-        # express a law that carries a FUNCTION: ``BC.params`` is
-        # ``dict[str, float]``, so a prescribed inflow whose source is a
-        # manufactured solution restricted to a face has no tag spelling.
-        # Before this arm such a law could only be installed by mutating a
-        # constructed mesh's resolved ``bc`` dict — which the public solver
-        # entry points then DISCARDED, because they rebuild the method mesh
-        # from the raw geometry. Declaring on the geometry is what makes the
-        # law survive that rebuild.
-        #
-        # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
-        # THIS module, so a top-level import cycles.
-        from orpheus.geometry.boundary import BoundaryTraceLaw
-
-        for k, bc in enumerate(self.bcs):
-            if not isinstance(bc, (BC, BoundaryTraceLaw)):
-                raise TypeError(
-                    f"StructuredGeometry.bcs[{k}] must be a BC tag or a "
-                    f"BoundaryTraceLaw instance, got {type(bc).__name__}"
-                )
+        object.__setattr__(
+            self, "breakpoints", _parse_breakpoints(self.coord, self.breakpoints),
+        )
+        object.__setattr__(
+            self, "mat_ids", _parse_mat_ids(self.mat_ids, len(self.breakpoints) - 1),
+        )
+        object.__setattr__(
+            self, "boundaries",
+            _entries(self.boundaries, "StructuredGeometry.boundaries", "boundary laws"),
+        )
+        _check_boundaries(self)
 
     @property
-    def coord(self) -> CoordSystem:
-        """Coordinate system implied by :attr:`geometry`."""
-        return _GEOMETRY_TO_COORD[self.geometry]
+    def is_hollow(self) -> bool:
+        r"""A cylinder or sphere whose first breakpoint :math:`r_0 > 0`.
 
-    @property
-    def n_endpoints(self) -> int:
-        """Number of geometry endpoints carrying a BC.
-
-        SLB → 2 (left, right). CYL/SPH → 1 (outer; centreline is
-        implicit reflective at the coordinate origin).
+        The one place the centre's role is decided: on a solid cylinder
+        or sphere (:math:`r_0 = 0`) the centre is an interior point of the
+        region and carries no law; a hollow one has an inner surface. A
+        slab has no centre and is never hollow.
         """
-        return _GEOMETRY_TO_N_ENDPOINTS[self.geometry]
+        return self.coord is not CoordSystem.CARTESIAN and self.breakpoints[0] > 0.0
+
+    @property
+    def boundary_points(self) -> tuple[float, ...]:
+        r"""The positions of the boundary, inner first; one law each.
+
+        :math:`(r_0, r_R)` on a slab and on a hollow cylinder or sphere;
+        :math:`(r_R,)` on a solid cylinder or sphere, whose centre is an
+        interior point.
+        """
+        r_0, r_R = self.breakpoints[0], self.breakpoints[-1]
+        if self.coord is CoordSystem.CARTESIAN or self.is_hollow:
+            return (r_0, r_R)
+        return (r_R,)
 
     @property
     def domain_extent_cm(self) -> float:
-        """Total geometric extent in cm — sum of region thicknesses.
+        r"""The width :math:`r_R - r_0` of the interval of positions, in cm.
 
-        For ``"SLB"`` this is the full slab width (production
-        convention). For ``"CYL"`` / ``"SPH"`` this is the outer
-        radius. Always positive.
+        The full slab width on a slab (the production convention: a user
+        with "a slab of thickness L" means L); the outer radius on a
+        solid cylinder or sphere; the shell thickness on a hollow one.
         """
-        return float(sum(r.outer_thickness_cm for r in self.regions))
+        return self.breakpoints[-1] - self.breakpoints[0]
 
     # ─────────────────────────────────────────────────────────────────
-    # Construction helpers — earn their keep when the conceptual
-    # transformation is non-trivial
+    # Constructors for the callers that speak another vocabulary
     # ─────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def from_thicknesses(
+        cls,
+        *,
+        coord: CoordSystem,
+        thicknesses: Iterable[float],
+        mat_ids: Iterable[int],
+        boundaries: "tuple[BC | BoundaryTraceLaw, ...]",
+        r_0: float = 0.0,
+    ) -> "StructuredGeometry":
+        r"""The geometry whose intervals have the given widths, from ``r_0``.
+
+        For the registries that publish a layered configuration as
+        thicknesses. The breakpoints are the left fold
+        :math:`r_{k+1} = r_k + t_k` evaluated in order, the same
+        sequential sum every mesh built from thicknesses has used, so a
+        registry's geometry keeps its bits. A thickness :math:`\le 0` is
+        refused as a non-increasing breakpoint pair.
+        """
+        breakpoints = tuple(itertools.accumulate(
+            (
+                _parse_real(t, f"StructuredGeometry.from_thicknesses: thicknesses[{k}]")
+                for k, t in enumerate(thicknesses)
+            ),
+            initial=_parse_real(r_0, "StructuredGeometry.from_thicknesses: r_0"),
+        ))
+        return cls(
+            coord=coord,
+            breakpoints=breakpoints,
+            mat_ids=tuple(mat_ids),
+            boundaries=boundaries,
+        )
 
     @classmethod
     def wigner_seitz_pin_cell(
@@ -389,61 +289,39 @@ class StructuredGeometry:
         r_fuel: float = 0.9,
         r_clad: float = 1.1,
         pitch: float = 3.6,
-        bcs: tuple[BC, ...] = (BC("white"),),
+        boundaries: "tuple[BC | BoundaryTraceLaw, ...]" = (BC("white"),),
     ) -> "StructuredGeometry":
         r"""Wigner–Seitz equivalent pin-cell geometry.
 
-        Replaces a square unit cell of side ``pitch`` with a cylinder
-        of equal cross-sectional area:
+        Replaces a square unit cell of side ``pitch`` with a cylinder of
+        equal cross-sectional area,
 
         .. math::
 
-            r_{\rm cell} = \frac{\rm pitch}{\sqrt{\pi}}
+            r_{\rm cell} = \frac{\rm pitch}{\sqrt{\pi}},
 
-        The resulting cylindrical geometry has three regions:
-        fuel pellet (``mat_id=2``), cladding (``mat_id=1``), and
-        coolant (``mat_id=0``). Region thicknesses are the *literal
-        cm extents* of each annulus:
-
-        * fuel:    ``r_fuel - 0`` (inner-most layer)
-        * clad:    ``r_clad - r_fuel``
-        * coolant: ``r_cell - r_clad``
-
-        Default outer BC is :class:`BC("white") <BC>` — the unit-cell
-        symmetry assumption that maps a periodic lattice to a single
-        cell with isotropic re-entry probability.
+        cut at the fuel and cladding radii: breakpoints
+        :math:`(0, r_{\rm fuel}, r_{\rm clad}, r_{\rm cell})`, material
+        ids fuel ``2``, cladding ``1``, coolant ``0``. The default outer
+        law is ``BC("white")``, the unit-cell symmetry assumption that
+        maps a periodic lattice to one cell with isotropic re-entry.
 
         Parameters
         ----------
-        r_fuel : float
-            Outer radius of the fuel pellet (cm). Default 0.9.
-        r_clad : float
-            Outer radius of the cladding (cm). Default 1.1.
+        r_fuel, r_clad : float
+            The fuel-pellet and cladding outer radii (cm).
         pitch : float
-            Square unit-cell side length (cm). Default 3.6.
-        bcs : tuple[BC, ...]
-            Outer-surface boundary condition. CYL geometry has 1
-            endpoint, so this is a 1-tuple. Default ``(BC("white"),)``.
-
-        Returns
-        -------
-        StructuredGeometry
-            A CYL geometry with three regions in the conventional
-            (fuel, clad, coolant) ordering.
-
-        See Also
-        --------
-        Mesh1D.from_geometry : Discretize this geometry into a mesh.
+            The square unit cell's side (cm).
+        boundaries : tuple
+            The law at the outer surface, a 1-tuple (the cylinder is
+            solid).
         """
-        r_cell = pitch / np.sqrt(np.pi)
+        r_cell = float(pitch / np.sqrt(np.pi))
         return cls(
-            geometry="CYL",
-            regions=(
-                Region(mat_id=2, outer_thickness_cm=float(r_fuel)),
-                Region(mat_id=1, outer_thickness_cm=float(r_clad - r_fuel)),
-                Region(mat_id=0, outer_thickness_cm=float(r_cell - r_clad)),
-            ),
-            bcs=bcs,
+            coord=CoordSystem.CYLINDRICAL,
+            breakpoints=(0.0, float(r_fuel), float(r_clad), r_cell),
+            mat_ids=(2, 1, 0),
+            boundaries=boundaries,
         )
 
     @classmethod
@@ -453,61 +331,121 @@ class StructuredGeometry:
         fuel_half: float = 0.9,
         clad_thick: float = 0.2,
         cool_thick: float = 0.7,
-        bcs: tuple[BC, ...] = (BC("reflective"), BC("reflective")),
+        boundaries: "tuple[BC | BoundaryTraceLaw, ...]" = (
+            BC("reflective"), BC("reflective"),
+        ),
     ) -> "StructuredGeometry":
         r"""Cartesian 1-D PWR half-cell geometry: fuel | clad | coolant.
 
-        Encodes the conceptual symmetry of a square PWR unit cell about
-        the fuel centreline. The geometry starts at ``x = 0`` (the
-        symmetry plane through the fuel centre) and extends outward
-        through ``fuel_half`` (half the fuel thickness), ``clad_thick``,
-        and ``cool_thick`` to the unit-cell boundary at the coolant
-        side.
-
-        Material IDs follow the project convention:
-        ``2`` = fuel, ``1`` = clad, ``0`` = coolant.
-
-        Default BCs are reflective on both ends — the standard infinite-
-        lattice eigenvalue convention. Override ``bcs`` to (reflective,
-        white) for an isolated unit cell with isotropic re-entry on
-        the coolant boundary, or to (reflective, vacuum) for a
-        right-vacuum boundary configuration.
+        The symmetry of a square PWR unit cell about the fuel centreline:
+        the slab starts at the symmetry plane :math:`x = 0` and crosses
+        half the fuel, the cladding and the coolant to the unit-cell
+        boundary. Material ids fuel ``2``, cladding ``1``, coolant ``0``.
+        The default laws are reflective on both faces, the infinite-
+        lattice convention; ``(reflective, white)`` models an isolated
+        cell with isotropic re-entry on the coolant face.
 
         Parameters
         ----------
-        fuel_half : float
-            Half-thickness of the fuel slab (cm). Default 0.9.
-        clad_thick : float
-            Cladding thickness (cm). Default 0.2.
-        cool_thick : float
-            Coolant thickness (cm). Default 0.7.
-        bcs : tuple[BC, ...]
-            ``(bc_left, bc_right)`` BCs. Default
-            ``(BC("reflective"), BC("white"))``.
-
-        Returns
-        -------
-        StructuredGeometry
-            An SLB geometry with three regions in the conventional
-            (fuel, clad, coolant) ordering.
-
-        See Also
-        --------
-        Mesh1D.from_geometry : Discretize this geometry into a mesh.
-        wigner_seitz_pin_cell : The cylindrical equivalent.
+        fuel_half, clad_thick, cool_thick : float
+            Half the fuel thickness, the cladding and the coolant
+            thicknesses (cm).
+        boundaries : tuple
+            ``(left, right)`` laws.
         """
-        return cls(
-            geometry="SLB",
-            regions=(
-                Region(mat_id=2, outer_thickness_cm=float(fuel_half)),
-                Region(mat_id=1, outer_thickness_cm=float(clad_thick)),
-                Region(mat_id=0, outer_thickness_cm=float(cool_thick)),
-            ),
-            bcs=bcs,
+        return cls.from_thicknesses(
+            coord=CoordSystem.CARTESIAN,
+            thicknesses=(fuel_half, clad_thick, cool_thick),
+            mat_ids=(2, 1, 0),
+            boundaries=boundaries,
         )
 
 
+def _parse_breakpoints(
+    coord: CoordSystem, breakpoints: object,
+) -> tuple[float, ...]:
+    """The breakpoints as a tuple of ``float``, or a keyed refusal."""
+    entries = _entries(breakpoints, "StructuredGeometry.breakpoints", "real numbers")
+    parsed = tuple(
+        _parse_real(value, f"StructuredGeometry.breakpoints[{k}]")
+        for k, value in enumerate(entries)
+    )
+    if len(parsed) < 2:
+        raise ValueError(
+            f"StructuredGeometry needs at least 2 breakpoints (one interval); "
+            f"got {len(parsed)}"
+        )
+    if not all(math.isfinite(value) for value in parsed):
+        raise ValueError(
+            f"StructuredGeometry.breakpoints must be finite; got {parsed}"
+        )
+    if any(b <= a for a, b in itertools.pairwise(parsed)):
+        raise ValueError(
+            f"StructuredGeometry.breakpoints must be strictly increasing "
+            f"(every interval has positive width); got {parsed}"
+        )
+    if coord is not CoordSystem.CARTESIAN and parsed[0] < 0.0:
+        raise ValueError(
+            f"a radial coordinate starts at r_0 >= 0: the {coord.name.lower()} "
+            f"geometry's first breakpoint is {parsed[0]!r}"
+        )
+    return parsed
+
+
+def _parse_mat_ids(mat_ids: object, n_intervals: int) -> tuple[int, ...]:
+    """The material ids as a tuple of ``int``, one per interval."""
+    entries = tuple(
+        _parse_integer(value, f"StructuredGeometry.mat_ids[{k}]")
+        for k, value in enumerate(_entries(mat_ids, "StructuredGeometry.mat_ids", "int"))
+    )
+    if len(entries) != n_intervals:
+        raise ValueError(
+            f"StructuredGeometry takes one material id per interval: "
+            f"{n_intervals} interval(s), {len(entries)} material id(s)"
+        )
+    return entries
+
+
+def _check_boundaries(geometry: StructuredGeometry) -> None:
+    """One law per boundary point, each a ``BC`` tag or a typed law."""
+    # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
+    # THIS module, so a top-level import cycles.
+    from orpheus.geometry.boundary import BoundaryTraceLaw
+
+    boundaries = geometry.boundaries
+    for k, law in enumerate(boundaries):
+        if law is None:
+            raise TypeError(
+                f"StructuredGeometry.boundaries[{k}] is None, and None is not "
+                f"a boundary law: declare the law the boundary point carries."
+            )
+        if not isinstance(law, (BC, BoundaryTraceLaw)):
+            raise TypeError(
+                f"StructuredGeometry.boundaries[{k}] must be a BC tag or a "
+                f"BoundaryTraceLaw instance, got {type(law).__name__}"
+            )
+    points = geometry.boundary_points
+    if len(boundaries) == len(points):
+        return
+    if geometry.coord is CoordSystem.CARTESIAN:
+        reason = "a slab has two boundary points (left, right)"
+    elif not geometry.is_hollow:
+        reason = (
+            f"the centre r = 0 of a solid {geometry.coord.name.lower()} "
+            f"geometry is an interior point and carries no law; the only "
+            f"boundary point is the outer surface"
+        )
+    else:
+        reason = (
+            f"a hollow {geometry.coord.name.lower()} geometry (r_0 = "
+            f"{points[0]!r} > 0) has an inner surface, which needs its own law"
+        )
+    raise ValueError(
+        f"StructuredGeometry: {reason}; expected {len(points)} law(s) at "
+        f"r = {points}, got {len(boundaries)}."
+    )
+
+
 __all__ = [
-    "Region",
     "StructuredGeometry",
 ]

@@ -3961,10 +3961,7 @@ one with:
 
    from orpheus.derivations.common.xs_library import make_mixture
    from orpheus.derivations.continuous.trajectory_resolvent import Billiard
-   from orpheus.geometry import BC
-   from orpheus.geometry.structured_geometry import (
-       Region, StructuredGeometry,
-   )
+   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
    mix = make_mixture(
        sig_t=np.array([0.5]), sig_c=np.array([0.05]),
@@ -3972,9 +3969,10 @@ one with:
        chi=np.array([1.0]), sig_s=np.array([[0.40]]),
    )
    geom = StructuredGeometry(
-       geometry="SPH",
-       regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
-       bcs=(BC.reflective,),
+       coord=CoordSystem.SPHERICAL,
+       breakpoints=(0.0, 5.0),
+       mat_ids=(0,),
+       boundaries=(BC.reflective,),
    )
    b = Billiard(
        materials={0: mix},

@@ -15,7 +15,7 @@ import pytest
 from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 from orpheus.cp.solver import solve_cp, CPParams
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 
 # L2 cross-code MC ↔ CP consistency.
@@ -48,23 +48,16 @@ def test_mc_vs_cp_cylinder():
     mat_ids = gp["mat_ids"]
 
     # ── CP solve ──────────────────────────────────────────────────────
-    # Build a multi-region cylinder via StructuredGeometry: each region
-    # carries the layer thickness (literal, not cumulative) plus its
-    # material ID; the mesh layer takes 5 cells per region.
-    regions = []
-    inner = 0.0
-    for r_outer, m in zip(radii, mat_ids):
-        regions.append(
-            Region(mat_id=int(m), outer_thickness_cm=float(r_outer - inner)),
-        )
-        inner = r_outer
+    # The case states the regions' outer radii, so they are the
+    # breakpoints; the mesh layer takes 5 cells per region.
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=tuple(regions),
-        bcs=(BC.white,),  # CP supports vacuum/white only
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, *(float(r) for r in radii)),
+        mat_ids=tuple(int(m) for m in mat_ids),
+        boundaries=(BC.white,),  # CP supports vacuum/white only
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=tuple(
-        RegionMesh(n_cells=5) for _ in regions
+        RegionMesh(n_cells=5) for _ in geom.mat_ids
     ))
     cp_result = solve_cp(case.materials, mesh=mesh)
 
@@ -111,13 +104,11 @@ def test_mc_vs_cp_slab():
     # ── CP solve (slab half-cell: fuel | moderator) ──────────────────
     t_fuel = 0.9
     t_mod = 0.9
-    geom_cp = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=2, outer_thickness_cm=t_fuel),
-            Region(mat_id=0, outer_thickness_cm=t_mod),
-        ),
-        bcs=(BC.white, BC.white),  # CP supports vacuum/white only
+    geom_cp = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(t_fuel, t_mod),
+        mat_ids=(2, 0),
+        boundaries=(BC.white, BC.white),
     )
     mesh = Mesh1D.from_geometry(geom_cp, region_meshes=(
         RegionMesh(n_cells=10),

@@ -39,7 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
@@ -61,9 +61,10 @@ _NX = 8
 def _solve(xmin_declaration, inner: str = "source_iteration") -> np.ndarray:
     """Drive the FULLY PUBLIC entry point — no private helper anywhere."""
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(xmin_declaration, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(xmin_declaration, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=_NX),))
     quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)

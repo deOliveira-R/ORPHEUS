@@ -656,7 +656,11 @@ condition resolution.  The BC is declared on the base geometry via
 <orpheus.mesh.structured.Mesh1D.bc_right>` and resolved at :class:`MCMesh`
 construction time.  :attr:`MCMesh.BC_REGISTRY` currently supports only
 ``"periodic"`` (the default); additional BC types can be registered in
-the future.
+the future.  The periodic law is applied to every face of the unit
+cell, so a declared left or inner law other than ``periodic`` is
+refused at :class:`MCMesh` construction with ``NotImplementedError``
+naming #513 (an undeclared one is admitted). The table of what each
+method reads is :ref:`structured-geometry-hollow-inner-law`.
 
 The unit cell is a square of side length :math:`p` (``pitch``).  When a
 neutron exits the cell, its position wraps via the modulo operation:

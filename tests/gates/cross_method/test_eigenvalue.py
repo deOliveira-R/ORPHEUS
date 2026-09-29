@@ -84,10 +84,7 @@ pytestmark = [
 
 from dataclasses import replace
 
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry import CoordSystem
 
 from .adapters import (
     ADAPTERS_BY_NAME,
@@ -154,22 +151,11 @@ def _shadow_with_thickness_mfp(
     cd_mfp = a_critical_mfp if a_critical_mfp is not None else R_critical_mfp
     cd_cm = float(cd_mfp) / sigma_t
 
-    if base_geom.geometry == "SLB":
-        # Slab: published critical dimension is the half-thickness;
-        # the structured-geometry extent is the FULL slab width.
-        full_width_cm = 2.0 * cd_cm
-        new_geom = StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=full_width_cm),),
-            bcs=base_geom.bcs,
-        )
-    else:
-        # SPH / CYL: published critical dimension IS the radius.
-        new_geom = StructuredGeometry(
-            geometry=base_geom.geometry,
-            regions=(Region(mat_id=0, outer_thickness_cm=cd_cm),),
-            bcs=base_geom.bcs,
-        )
+    # Slab: the published critical dimension is the half-thickness and
+    # the geometry's extent the FULL slab width. Sphere / cylinder: the
+    # published critical dimension IS the radius.
+    extent_cm = 2.0 * cd_cm if base_geom.coord is CoordSystem.CARTESIAN else cd_cm
+    new_geom = replace(base_geom, breakpoints=(0.0, extent_cm), mat_ids=(0,))
     return replace(case, structured_geometry=new_geom)
 
 

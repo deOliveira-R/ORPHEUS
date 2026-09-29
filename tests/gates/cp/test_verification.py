@@ -23,38 +23,27 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 
-_COORD_TO_TAG = {
-    CoordSystem.CARTESIAN: "SLB",
-    CoordSystem.CYLINDRICAL: "CYL",
-    CoordSystem.SPHERICAL: "SPH",
-}
-
-
-def _bcs_for(tag: str):
-    """Default white-BC tuple — CP only supports ``"vacuum"`` / ``"white"``."""
-    if tag == "SLB":
+def _bcs_for(coord: CoordSystem):
+    """White laws, one per boundary point of a solid geometry in ``coord``
+    (CP supports only ``"vacuum"`` and ``"white"``)."""
+    if coord is CoordSystem.CARTESIAN:
         return (BC.white, BC.white)
     return (BC.white,)
 
 
 def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
     """Two-region mesh helper for the L0/L1 properties tests.
-    Replaces the legacy ``mesh1d_from_zones([Zone(...), Zone(...)])``
-    pattern with the StructuredGeometry → Mesh1D.from_geometry flow.
-    Edges are absolute (cumulative), so region thicknesses are
-    derived as ``outers[0]`` and ``outers[1] - outers[0]``.
+    ``outers`` are the regions' outer positions, so they are the
+    geometry's breakpoints after the origin.
     """
-    tag = _COORD_TO_TAG[coord]
     geom = StructuredGeometry(
-        geometry=tag,
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=outers[0]),
-            Region(mat_id=1, outer_thickness_cm=outers[1] - outers[0]),
-        ),
-        bcs=_bcs_for(tag),
+        coord=coord,
+        breakpoints=(0.0, *outers),
+        mat_ids=(0, 1),
+        boundaries=_bcs_for(coord),
     )
     return Mesh1D.from_geometry(geom, region_meshes=tuple(
         RegionMesh(n_cells=n) for n in n_cells

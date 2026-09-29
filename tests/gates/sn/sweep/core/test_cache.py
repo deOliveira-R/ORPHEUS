@@ -256,21 +256,18 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     is deliberately out of scope for an R2 declaration pass.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import Region, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import RegionMesh
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     materials = {0: fuel, 1: mod}
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=0.5),
-            Region(mat_id=1, outer_thickness_cm=1.0),
-            Region(mat_id=0, outer_thickness_cm=0.5),
-        ),
-        bcs=(BC("reflective"), BC("reflective")),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(0.5, 1.0, 0.5),
+        mat_ids=(0, 1, 0),
+        boundaries=(BC("reflective"), BC("reflective")),
     )
     mesh = Mesh1D.from_geometry(
         geom,

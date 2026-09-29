@@ -631,6 +631,12 @@ construction time.  :attr:`MOCMesh.BC_REGISTRY` currently supports only
 ``"reflective"`` (the default); additional BC types (e.g., vacuum for
 isolated-pin transport) can be registered in the future.
 
+``MOCMesh`` reads its mesh as the solid Wigner--Seitz cylinder of a
+square pin cell, so any other mesh (a slab, a sphere, a hollow
+cylinder) is refused at construction with ``NotImplementedError``
+naming #514, rather than reinterpreted. The table of what each method
+reads is :ref:`structured-geometry-hollow-inner-law`.
+
 For a pin cell with reflective BCs, each ray that exits through a cell
 wall re-enters as a reflected ray.  The outgoing angular flux from one
 track becomes the incoming flux for the reflected track.

@@ -28,6 +28,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.geometry import CoordSystem
+
 from .protocol import CrossMethodCase, ScalarResult
 
 
@@ -117,8 +120,8 @@ class FNReflectedSlabAdapter:
     regions in left-to-right order ``(reflector, core, reflector)``.
     The Case–Zweifel ``c`` for each material is read off
     :attr:`Mixture.scattering_ratio`; the reflector half-thickness in
-    cm is read off ``structured_geometry.regions[0].outer_thickness_cm``
-    and converted to mfp via the reflector mixture's :math:`\Sigma_t`
+    cm is the width of the geometry's first interval
+    (``breakpoints[1] - breakpoints[0]``), converted to mfp via the reflector mixture's :math:`\Sigma_t`
     (group 0).
 
     There is currently no trajectory_resolvent counterpart for
@@ -139,8 +142,8 @@ class FNReflectedSlabAdapter:
         )
 
         # Read c values off the inline materials and the reflector
-        # half-thickness off structured_geometry.regions[0]. The expected
-        # region layout is (reflector, core, reflector); we cross-
+        # half-thickness off the geometry's first interval. The expected
+        # interval layout is (reflector, core, reflector); we cross-
         # check that to fail loudly on accidental ordering bugs.
         if case.materials is None or 0 not in case.materials or 1 not in case.materials:
             raise ValueError(
@@ -150,21 +153,18 @@ class FNReflectedSlabAdapter:
                 f"{None if case.materials is None else sorted(case.materials)}"
             )
         geom = _structured_geometry_for(case)
-        regions = geom.regions
-        if len(regions) != 3:
+        if len(geom.mat_ids) != 3:
             raise ValueError(
                 f"FNReflectedSlabAdapter: case {case.case_id!r} must "
-                f"carry a 3-region StructuredGeometry "
+                f"carry a 3-interval StructuredGeometry "
                 f"(reflector, core, reflector); got "
-                f"{len(regions)} regions"
+                f"{len(geom.mat_ids)} intervals"
             )
-        if (regions[0].mat_id, regions[1].mat_id, regions[2].mat_id) != (1, 0, 1):
+        if geom.mat_ids != (1, 0, 1):
             raise ValueError(
-                f"FNReflectedSlabAdapter: case {case.case_id!r} region "
+                f"FNReflectedSlabAdapter: case {case.case_id!r} interval "
                 f"layout must be (reflector=1, core=0, reflector=1); "
-                f"got mat_ids "
-                f"({regions[0].mat_id}, {regions[1].mat_id}, "
-                f"{regions[2].mat_id})"
+                f"got mat_ids {geom.mat_ids}"
             )
         c_core = float(case.materials[0].scattering_ratio[0])
         c_reflector = float(case.materials[1].scattering_ratio[0])
@@ -175,7 +175,7 @@ class FNReflectedSlabAdapter:
         # unit-equivalence assumption from the call site.
         sigma_t_reflector = float(case.materials[1].SigT[0])
         reflector_half_thickness_mfp = (
-            float(regions[0].outer_thickness_cm) * sigma_t_reflector
+            (geom.breakpoints[1] - geom.breakpoints[0]) * sigma_t_reflector
         )
 
         res = solve_fn_slab_reflected_critical(
@@ -215,7 +215,7 @@ class TrajectoryResolventSlabAdapter:
     truth thickness).
 
     The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.bcs[-1]`` (slab cases use symmetric BCs by
+    ``structured_geometry.boundaries[-1]`` (slab cases use symmetric BCs by
     convention) via :meth:`BC.to_alpha`; bare-critical slab registry
     cases are vacuum-on-vacuum (``α = 0``), closed slab is reflective-
     on-reflective (``α = 1``).
@@ -284,7 +284,7 @@ class TrajectoryResolventSphereAdapter:
     radius, ``k_eff`` should be 1.0.
 
     The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.bcs[-1]`` (the outer-surface BC) via
+    ``structured_geometry.boundaries[-1]`` (the outer-surface BC) via
     :meth:`BC.to_alpha`. The inner BC at ``r = 0`` is the natural
     centreline reflective and is not parametrically relevant to the
     trajectory_resolvent operator.
@@ -356,7 +356,7 @@ class TrajectoryResolventSphereClosedAdapter:
     Geometry, XS, and radius come from the case's inline
     ``materials`` + ``structured_geometry`` (the registry-less path).
     The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.bcs[-1]`` via :meth:`BC.to_alpha`; closed
+    ``structured_geometry.boundaries[-1]`` via :meth:`BC.to_alpha`; closed
     sphere is :attr:`BC.reflective` on the outer surface, giving
     ``α = 1.0``.
     """
@@ -502,16 +502,17 @@ def _structured_geometry_for(case: CrossMethodCase):
 def _sphere_R_cm(case: CrossMethodCase) -> float:
     r"""Return the sphere radius in cm from the case's StructuredGeometry.
 
-    For SPH geometry, ``domain_extent_cm`` IS R_cm (single-region
-    radius, sum trivially equals the radius).
+    Read through the one body reading,
+    :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`,
+    which refuses a hollow sphere (whose extent is a shell thickness).
     """
-    geom = _structured_geometry_for(case)
-    if geom.geometry != "SPH":
+    body = homogeneous_body(_structured_geometry_for(case), owner="_sphere_R_cm")
+    if body.coord is not CoordSystem.SPHERICAL:
         raise ValueError(
             f"_sphere_R_cm: case {case.case_id!r} structured geometry "
-            f"is {geom.geometry!r}, expected 'SPH'"
+            f"is {body.coord!r}, expected a sphere"
         )
-    return float(geom.domain_extent_cm)
+    return float(body.extent_cm)
 
 
 def _slab_L_full_cm(case: CrossMethodCase) -> float:
@@ -521,26 +522,26 @@ def _slab_L_full_cm(case: CrossMethodCase) -> float:
     FULL slab width :math:`[0, L]`, which is exactly what
     :func:`solve_greens_function_slab` expects as its ``L`` argument.
     """
-    geom = _structured_geometry_for(case)
-    if geom.geometry != "SLB":
+    body = homogeneous_body(_structured_geometry_for(case), owner="_slab_L_full_cm")
+    if body.coord is not CoordSystem.CARTESIAN:
         raise ValueError(
             f"_slab_L_full_cm: case {case.case_id!r} structured "
-            f"geometry is {geom.geometry!r}, expected 'SLB'"
+            f"geometry is {body.coord!r}, expected a slab"
         )
-    return float(geom.domain_extent_cm)
+    return float(body.extent_cm)
 
 
 def _outer_bc_for(case: CrossMethodCase):
     """Return the outer-surface BC for a case.
 
-    For ``SLB`` geometry the slab is symmetric vacuum-vacuum (or
-    closed reflective-reflective); both endpoints share the same kind
-    in the cases this protocol covers, so we return ``bcs[1]``
-    (the right end). For ``SPH`` / ``CYL`` geometry the single endpoint
-    in :attr:`StructuredGeometry.bcs` IS the outer-surface BC.
+    On a slab the geometry is symmetric vacuum-vacuum (or closed
+    reflective-reflective); both boundary points share the same kind in
+    the cases this protocol covers, so we return the right-hand law. On
+    a solid sphere or cylinder the single law in
+    :attr:`StructuredGeometry.boundaries` IS the outer-surface law.
     """
     geom = _structured_geometry_for(case)
-    return geom.bcs[-1]
+    return geom.boundaries[-1]
 
 
 # ═══════════════════════════════════════════════════════════════════

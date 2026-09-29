@@ -54,7 +54,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
@@ -89,9 +89,10 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     fuel = get_mixture("B", "1g")
     R = 2.0
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=R),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, R),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
@@ -160,9 +161,10 @@ def test_cylinder_three_way_standoff(
     fuel = get_mixture("B", "1g")
     R = 2.0
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=R),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, R),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),

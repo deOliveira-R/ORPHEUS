@@ -152,7 +152,7 @@ def _err052_fixture():
     """
     import numpy as _np
     from orpheus.derivations.reference_values import get
-    from orpheus.geometry import Region, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import Mesh1D as _Mesh1D, RegionMesh
 
     case = get("sn_slab_2eg_1rg")
@@ -160,9 +160,10 @@ def _err052_fixture():
     materials = {0: mix}
     mesh_refl = _Mesh1D.from_geometry(
         StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-            bcs=(BC.reflective, BC.reflective),
+            coord=CoordSystem.CARTESIAN,
+            breakpoints=(0.0, 2.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective, BC.reflective),
         ),
         region_meshes=(RegionMesh(n_cells=20),),
     )

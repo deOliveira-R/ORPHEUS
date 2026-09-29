@@ -14,45 +14,86 @@ Key facts
   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` +
   ``materials: dict[int, Mixture]`` — but diverge on whether they
   want a discrete mesh.
-* :class:`StructuredGeometry` is **pure shape**: a geometry tag
-  (``"SLB"`` / ``"CYL"`` / ``"SPH"``), an ordered tuple of
-  :class:`~orpheus.geometry.structured_geometry.Region` (each a
-  ``(mat_id, outer_thickness_cm)`` pair), and a tuple of
-  :class:`~orpheus.geometry.boundary.BC` instances at the geometry's
-  endpoints. **No cell counts, no critical-dimension scalars, no
-  energy-group count, no infinite-medium kind.**
+* :class:`StructuredGeometry` is **pure shape**, a frozen value with
+  four keyword-only fields: the coordinate system ``coord`` (a
+  :class:`~orpheus.geometry.coord.CoordSystem` member), the
+  ``breakpoints`` :math:`r_0 < r_1 < \dots < r_R`, one material id per
+  interval :math:`[r_k, r_{k+1}]` in ``mat_ids``, and one boundary law
+  per boundary point in ``boundaries`` (a
+  :class:`~orpheus.geometry.boundary.BC` tag or a typed
+  ``BoundaryTraceLaw``). **No cell counts, no critical-dimension
+  scalars, no energy-group count, no infinite-medium kind.** The field
+  set is :ref:`structured-geometry-value`.
+* **The boundary is derived, not declared.** The boundary points are
+  the topological boundary of :math:`[r_0, r_R]` in the coordinate
+  system, read by the derived property ``boundary_points``: two on a
+  slab, one (the outer surface) on a solid cylinder or sphere, whose
+  centre :math:`r = 0` is an interior point and carries no law, and two
+  (inner, outer) on a hollow cylinder or sphere (:math:`r_0 > 0`). The
+  constructor refuses a law count that disagrees, and refuses ``None``
+  as a law (:ref:`structured-geometry-derived-boundary`).
+* **Breakpoints are stored bit for bit, never re-derived.** Re-adding a
+  stack's widths loses bits (``(0, .17, .45, .62, 1.0)`` comes back as
+  ``(0.0, 0.17, 0.45000000000000007, 0.6200000000000001, 1.0)``), so a
+  geometry states positions. A registry that publishes thicknesses uses
+  :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.from_thicknesses`,
+  the left fold :math:`r_{k+1} = r_k + t_k`
+  (:ref:`structured-geometry-stored-breakpoints`).
+* **Hollow cylinders and spheres are declarable, and every method
+  refuses a declared law it would drop.** S\ :sub:`N` and diffusion
+  admit only a reflective inner law on a hollow body (#511), which is
+  verified to be the void cavity it models; CP admits a slab only with
+  equal left and right laws, and no inner law (#513); MoC admits only a
+  solid cylinder (#514); MC admits only a ``periodic`` left law (#513).
+  Each refusal is a ``NotImplementedError`` at the method's own door
+  (:ref:`structured-geometry-hollow-inner-law`).
 * The geometry → mesh transition is **the single explicit point**
   where discretization information enters the pipeline.
   :meth:`Mesh1D.from_geometry(geom, region_meshes=...) <orpheus.mesh.structured.Mesh1D.from_geometry>`
   takes a tuple of
-  :class:`~orpheus.mesh.structured.RegionMesh` (one per region;
+  :class:`~orpheus.mesh.structured.RegionMesh` (one per interval;
   ``n_cells`` + ``method`` ∈ {``"equal-volume"``, ``"uniform"``}) and
-  emits a discretized :class:`~orpheus.mesh.structured.Mesh1D`.
+  emits a discretized :class:`~orpheus.mesh.structured.Mesh1D` whose
+  first edge is :math:`r_0` and whose last is :math:`r_R`; the laws
+  reach ``bc_left`` / ``bc_right`` by the boundary point they belong
+  to.
 * Reference solvers (``Billiard``, ``MomentSpace``, ``Spectrum``,
   ``BasisSpace``) take ``(geometry: StructuredGeometry, materials,
   **method_kwargs)`` directly via ``__init__``. They never see a
-  mesh. They never see ``n_cells``.
+  mesh. They never see ``n_cells``. All four solve one material
+  filling a slab or a solid cylinder or sphere, and read that body
+  through one function,
+  :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`,
+  which refuses a geometry holding more than one material, or a hollow
+  one
+  (:ref:`structured-geometry-homogeneous-body`).
 * Discrete production solvers take ``(materials, mesh, params)``
   where ``mesh`` is built via ``Mesh1D.from_geometry``.
 * Slab convention: :attr:`StructuredGeometry.domain_extent_cm` is
-  the **full slab width** (sum of all region thicknesses,
-  end-to-end). F_N's natural half-thickness ``a = L / 2`` is
-  recovered inside :class:`MomentSpace`.
+  :math:`r_R - r_0`, the **full slab width** on a slab (end to end).
+  F_N's natural half-thickness ``a = L / 2`` is recovered inside
+  :class:`MomentSpace`. On a solid cylinder or sphere the same
+  property is the outer radius, and on a hollow one the shell
+  thickness.
 * The Sood case registry adapter is
   :meth:`La13511Case.to_geometry()
   <orpheus.derivations.continuous.sood_registry.la13511.La13511Case.to_geometry>`,
   which materialises a :class:`StructuredGeometry` from the case's
-  ``geometry_kind`` tag and ``truth.critical_dimension_mfp`` (cm = mfp / Σ_t).
+  ``geometry_kind`` tag (mapped to a
+  :class:`~orpheus.geometry.coord.CoordSystem` member) and
+  ``truth.critical_dimension_mfp`` (cm = mfp / Σ_t).
   Infinite-medium cases raise — for ``k_\infty`` use
   :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
   or :meth:`MomentSpace.solve_kinf`.
 * Two non-trivial classmethods earn their keep on
   :class:`StructuredGeometry`:
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
-  (CYL with the ``r_cell = pitch / √π`` equal-area transformation)
+  (a solid cylinder with the ``r_cell = pitch / √π`` equal-area
+  transformation, its radii stored as literal breakpoints)
   and
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
-  (SLB with reflective fuel-centre symmetry plane).
+  (a Cartesian half-cell from the reflective fuel-centre symmetry
+  plane, built by ``from_thicknesses``).
 
 
 Architectural role
@@ -66,15 +107,16 @@ and with the mesh layer (the same ``GeometrySpec`` had a ``build()``
 method that took a cell count). Both conflations leaked solver-tuning
 parameters into reference-solver call sites that have no use for
 them — a reference solver that solves a Sood-Pu sphere needs the
-geometry kind and the radius in cm, it does not need a cell count
+coordinate system and the radius in cm, it does not need a cell count
 and it does not need the published critical dimension's name.
 
 Phase F separates the three concerns into three layers:
 
 1. **Geometry layer** —
-   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`,
-   :class:`~orpheus.geometry.structured_geometry.Region`. Pure
-   shape + BCs. No cell counts. No scalars from a published table.
+   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`.
+   Pure shape and boundary laws: a coordinate system, breakpoints, a
+   material id per interval, a law per boundary point. No cell counts.
+   No scalars from a published table.
 2. **Mesh layer** —
    :class:`~orpheus.mesh.structured.Mesh1D`,
    :class:`~orpheus.mesh.structured.RegionMesh`. Discrete
@@ -104,29 +146,485 @@ reference-solver call site read
 instead of carrying a cell count it never uses.
 
 
-Geometry-tag semantics
-======================
+.. _structured-geometry-value:
 
-The supported tags are uppercase three-letter mnemonics:
+The value: coordinate system, breakpoints, materials, laws
+==========================================================
 
-==========  ===============  ==================  ==============
-Tag         Coordinate       Endpoints (BC)      Centreline
-==========  ===============  ==================  ==============
-``"SLB"``   Cartesian        2 (left, right)     n/a
-``"CYL"``   Cylindrical      1 (outer)           implicit reflective
-``"SPH"``   Spherical        1 (outer)           implicit reflective
-==========  ===============  ==================  ==============
+A :class:`StructuredGeometry` is an interval of positions in one
+coordinate system, cut into material intervals, with a boundary law at
+every point of its boundary. Its four fields are keyword-only, so every
+construction names each of them, and the dataclass is frozen:
 
-The endpoint count comes from the orbit-space classification of the
-geometry's billiard table: SLB has two flat surfaces (orbit-space
-rank 2); CYL and SPH have one outer surface plus an implicit
-centreline reflection (orbit-space rank 1). This is the same
-classification the trajectory-resolvent ``Billiard`` class uses.
+.. list-table:: The fields of :class:`StructuredGeometry`
+   :header-rows: 1
+   :widths: 16 34 50
 
-When future geometries land that genuinely have two surfaces
-(``HSPH`` for hollow sphere, ``ANN`` for annulus), they extend
-this map with two-endpoint BC tuples — the central abstraction
-generalises cleanly.
+   * - Field
+     - Type and constraint
+     - What it carries, and why it is spelled this way
+   * - ``coord``
+     - a :class:`~orpheus.geometry.coord.CoordSystem` member
+       (``CARTESIAN``, ``CYLINDRICAL``, ``SPHERICAL``); any other type,
+       a string included, is a ``TypeError``
+     - The measure of an interval (length, annulus area, shell volume)
+       and the topology of its boundary. It is the same enum every mesh,
+       axis and volume formula dispatches on, so the geometry and the
+       mesh built from it cannot disagree on the chart.
+   * - ``breakpoints``
+     - at least two real numbers, finite, strictly increasing;
+       :math:`r_0 \ge 0` on a cylinder or a sphere (a radius); a
+       ``bool`` is a ``TypeError``; stored as a tuple of ``float``, bit
+       for bit as given, except that ``-0.0`` is stored as ``+0.0``
+     - The positions :math:`r_0 < r_1 < \dots < r_R` where one material
+       interval ends and the next begins, the first and the last being
+       the ends of the region. A slab admits any :math:`r_0`, since a
+       position on a line has no preferred origin.
+   * - ``mat_ids``
+     - one ``int`` per interval (``R`` of them); a ``bool`` or a
+       ``float`` is a ``TypeError``, a wrong count a ``ValueError``
+     - The key of the material filling :math:`[r_k, r_{k+1}]`, into the
+       ``materials: dict[int, Mixture]`` that consumers receive beside
+       the geometry. Inside-out on a cylinder or a sphere, left to
+       right on a slab. Adjacent intervals may share a material (an
+       interval boundary need not be a material boundary).
+   * - ``boundaries``
+     - a sequence, stored as a ``tuple``, one entry per boundary point,
+       each a :class:`~orpheus.geometry.boundary.BC` tag or a typed
+       ``BoundaryTraceLaw``; a non-sequence (a string included) and a
+       ``None`` entry are a ``TypeError``
+     - The law each boundary point carries, paired one to one with
+       ``boundary_points`` in the order (inner, outer). A typed law is
+       admitted beside the tag because a tag cannot carry a function (a
+       prescribed inflow whose source is a manufactured solution), and
+       declaring such a law on the geometry is what makes it survive the
+       method-mesh rebuild every public solver entry performs.
+
+Three properties are derived, never stored: ``is_hollow`` and
+``boundary_points`` (the next section), and
+:attr:`StructuredGeometry.domain_extent_cm`, the width
+:math:`r_R - r_0` of the interval of positions. The three sequence
+fields are parsed alike: any sequence is canonicalised to a tuple (of
+``float``, of ``int``, of laws), and a non-sequence, a string included,
+is refused with a ``TypeError`` naming the field.
+
+**The geometry never interprets a law.** It checks that each entry is a
+law and that there is one per boundary point; what a ``BC`` tag means
+(what ``"white"`` does to the returning flux, whether a method supports
+``"albedo"``) is resolved by each method's mesh through its own
+admission table, at solver construction.
+
+**What is not here, and where it lives instead.** No cell counts and no
+discretisation rule: those are the mesh layer's, supplied at
+``Mesh1D.from_geometry``. No critical dimension: that is a registry's
+truth record. No group count: that is the materials'. No infinite
+medium: an infinite medium is either a problem with no geometry
+(``solve_homogeneous_infinite``, ``MomentSpace.solve_kinf``) or a finite
+domain with reflective laws.
+
+A declaration for each shape of boundary:
+
+.. code-block:: python
+
+   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+
+   # A bare sphere: one interval, one law at the outer surface.
+   sphere = StructuredGeometry(
+       coord=CoordSystem.SPHERICAL,
+       breakpoints=(0.0, 2.872),
+       mat_ids=(0,),
+       boundaries=(BC.vacuum,),
+   )
+   assert sphere.boundary_points == (2.872,)
+
+   # A reflected slab (reflector | core | reflector): two laws.
+   slab = StructuredGeometry(
+       coord=CoordSystem.CARTESIAN,
+       breakpoints=(0.0, 0.5, 2.5, 3.0),
+       mat_ids=(1, 0, 1),
+       boundaries=(BC.vacuum, BC.vacuum),
+   )
+   assert slab.boundary_points == (0.0, 3.0)
+
+   # A hollow sphere: an inner and an outer law.
+   shell = StructuredGeometry(
+       coord=CoordSystem.SPHERICAL,
+       breakpoints=(0.5, 1.0, 2.0),
+       mat_ids=(1, 0),
+       boundaries=(BC.reflective, BC.vacuum),
+   )
+   assert shell.boundary_points == (0.5, 2.0)
+   assert shell.domain_extent_cm == 1.5
+
+
+.. _structured-geometry-derived-boundary:
+
+The boundary is derived, not declared
+=====================================
+
+The number of laws a geometry takes is not a property of its
+coordinate system alone. The boundary of the region :math:`[r_0, r_R]`
+is its **topological boundary** in its coordinate system, and that
+depends on :math:`r_0`:
+
+.. list-table:: Boundary points, and so laws, per coordinate system
+   :header-rows: 1
+   :widths: 28 36 36
+
+   * - Coordinate system
+     - :math:`r_0 = 0`
+     - :math:`r_0 > 0`
+   * - Cartesian (slab)
+     - 2: :math:`(r_0, r_R)`, left and right
+     - 2: :math:`(r_0, r_R)`, left and right
+   * - cylindrical, spherical
+     - 1: :math:`(r_R,)`, the outer surface
+     - 2: :math:`(r_0, r_R)`, inner and outer
+
+On a slab :math:`[r_0, r_R]` is an interval of a line and its boundary
+is its two ends, wherever :math:`r_0` sits. On a cylinder or a sphere
+the coordinate :math:`r` is a radius and the region is a disk or ball
+of radius :math:`r_R` with, when :math:`r_0 > 0`, the concentric disk
+or ball of radius :math:`r_0` removed. When :math:`r_0 = 0` nothing is
+removed: the centre :math:`r = 0` is a point of the region's
+**interior**, every neighbourhood of it lies inside the body, and a
+point of the interior carries no boundary law. The boundary is the
+outer surface alone. When :math:`r_0 > 0` the removed cavity has a
+surface, and that surface is a boundary point of the radial interval
+like any other, with its own law.
+
+**Why the centre takes no law, not a reflective one.** In the radial
+chart the point :math:`r = 0` is where the chart itself degenerates
+(the areas :math:`2\pi r` and :math:`4\pi r^2` vanish there), and what a
+solution must satisfy at it is regularity: a finite flux, with the
+symmetry the chart imposes. That is a property of the **coordinate
+chart**, which the methods' curvilinear machinery carries (an
+S\ :sub:`N` radial axis, for one, has one law slot, the outer surface,
+and treats the pole as a coordinate singularity rather than an
+endpoint), not a choice the user makes. Declaring a law there would state a second,
+possibly contradictory, condition at a point where the chart already
+fixes one; the constructor therefore refuses it.
+
+Whether the centre is in the region is decided in one place, the
+derived property ``is_hollow``: true exactly for a cylinder or a sphere
+with :math:`r_0 > 0`, and never true for a slab, which has no centre.
+The property ``boundary_points`` reads it and lists the positions of
+the boundary, inner first, and the constructor requires ``len(boundaries) ==
+len(boundary_points)``. The refusals are keyed to the three ways a law
+count can be wrong, each naming the reason in its message:
+
+* **a law at the centre** — two laws on a solid cylinder or sphere:
+  *"the centre r = 0 of a solid … geometry is an interior point and
+  carries no law"*;
+* **a hollow body missing its inner law** — one law with
+  :math:`r_0 > 0`: *"a hollow … geometry … has an inner surface, which
+  needs its own law"*;
+* **a slab with one law**: *"a slab has two boundary points (left,
+  right)"*;
+
+and, before the count is read, ``None`` in any position: *"None is not
+a boundary law: declare the law the boundary point carries."* ``None``
+is refused on the geometry because it means nothing there. On a
+:class:`~orpheus.mesh.structured.Mesh1D` a ``None`` face means "use the
+solver's default"; a geometry declares the problem, and a default is a
+method's, not the problem's.
+
+The laws are indexed by boundary point, (inner, outer), never by a
+coordinate-specific name (``left``, ``centreline``, ``outer``), so one
+rule, ``Mesh1D.from_geometry``'s, routes them onto the mesh for every
+coordinate system: two points give ``(inner, outer)`` to ``(bc_left,
+bc_right)``; one point gives its law to ``bc_right`` and leaves
+``bc_left`` ``None``, since the centre is an interior point.
+
+The gates of these laws are the foundation rows
+``tests/gates/geometry/test_structured_geometry.py::TestTheBoundaryIsDerived``
+(the six cells coordinate × {:math:`r_0 = 0`, :math:`r_0 > 0`} and the
+keyed refusals); the mesh routing is ``TestMesh1DFromGeometry``, whose
+``test_a_hollow_body_propagates_its_inner_law`` pins the two laws of a
+hollow body onto ``(bc_left, bc_right)`` and the first edge onto
+:math:`r_0`.
+
+
+.. _structured-geometry-stored-breakpoints:
+
+Breakpoints are stored, never re-derived
+========================================
+
+A geometry states the **positions** of its interval boundaries, and
+stores them exactly as given. The one exception is ``-0.0``, which is
+stored as ``+0.0``: the two compare equal, so they are one breakpoint,
+and a digest taken over the stored bits must see one value. It does not store thicknesses and add
+them up, because floating-point addition does not return the positions
+a thickness list was taken from:
+
+.. code-block:: python
+
+   import itertools
+   import numpy as np
+
+   E = (0.0, 0.17, 0.45, 0.62, 1.0)
+   widths = np.diff(E).tolist()
+   refolded = tuple(itertools.accumulate(widths, initial=0.0))
+   assert refolded == (0.0, 0.17, 0.45000000000000007, 0.6200000000000001, 1.0)
+   assert refolded != E
+
+Two of the five positions come back one unit in the last place (ULP)
+away from the numbers that were written. This is the one-ULP site the
+census of the reference-solution campaign found in the test corpus
+(``test_g_adjoint_reciprocity.py``, a slab whose interfaces are stated
+as positions), and it is the reason for the rule: an interface position
+moved by one ULP moves the cell edges and volumes of every mesh built
+on it, and a reference or a snapshot pinned bitwise against the
+written positions then disagrees with a mesh that was supposed to be
+the same. Storing the breakpoints makes the geometry the single source
+of its own interface positions.
+
+**The thickness constructor.** Registries and factories that publish a
+layered configuration as thicknesses (reflector, core, reflector; fuel
+half-width, cladding, coolant) build it with
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.from_thicknesses`:
+
+.. math::
+
+   r_0 = r_0^{\rm given}, \qquad r_{k+1} = r_k + t_k,
+
+evaluated left to right, which is ``itertools.accumulate(thicknesses,
+initial=r_0)``. This is the same sequential sum ``Mesh1D.from_geometry``
+evaluated while a geometry stored thicknesses, so a registry's geometry
+keeps its bits across the change to stored breakpoints. A thickness :math:`t_k \le 0` is refused as a
+non-increasing breakpoint pair. The association is load-bearing: a
+pairwise or compensated (``math.fsum``) cumulative sum differs from
+the left fold on ``(0.1, 0.2, 0.3, 0.4, 0.5)``, which is the input the
+gate uses to show it can tell them apart.
+
+**The Wigner–Seitz factory states radii.** A pin cell is published as
+radii (fuel, cladding, cell), so
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
+stores ``(0, r_fuel, r_clad, r_cell)`` as literal breakpoints, with
+:math:`r_{\rm cell} = {\rm pitch}/\sqrt{\pi}`. `[M]` 2026-09-29, at the
+default arguments ``(0.9, 1.1, 3.6)``: the literal radii and the
+thickness fold of the earlier spelling agree bit for bit,
+``(0.0, 0.9, 1.1, 2.0310825007719226)``, so no mesh built on the
+default pin cell moves. The half-cell slab
+(:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`)
+is published as thicknesses and uses ``from_thicknesses``.
+
+The gates are ``TestBreakpointsAreStored`` (the round trip of
+``(0, .17, .45, .62, 1.0)``, with a positive control that re-adding
+the widths misses) and ``TestFromThicknesses`` (the left fold at three
+origins, the association control, and the refusal of a non-positive
+thickness) in ``tests/gates/geometry/test_structured_geometry.py``.
+
+
+.. _structured-geometry-hollow-inner-law:
+
+Hollow bodies, and the laws each method reads (#511, #513, #514)
+================================================================
+
+A hollow cylinder or sphere (:math:`r_0 > 0`) is a legal geometry:
+it declares two laws, and ``Mesh1D.from_geometry`` builds a mesh whose
+first edge is :math:`r_0` and puts the inner law on ``bc_left``. The
+same routing puts a slab's left law on ``bc_left``.
+
+The geometry never interprets a law, so what happens to the law on
+``bc_left`` is each method's. **No method in the tree today reads every
+law a geometry can declare**: S\ :sub:`N` and diffusion have no
+inner-surface slot on a curvilinear axis, collision probability (CP)
+and Monte Carlo (MC) resolve only ``bc_right``, and the method of
+characteristics (MoC) reads any mesh as a solid pin cell. Before P1
+step 2 each dropped the law it did not read, silently; since step 2,
+each **refuses a declared law it would drop, at its own door**, with
+``NotImplementedError`` naming the issue that tracks the missing
+machinery. Every such refusal is a **declared scope boundary**
+(``SCOPE-BOUNDARY[guard]`` in the code, with the machinery that would
+retire it, the ruling, and what would overturn it): the edge of what
+the method computes, not a defect in the declaration. In CP and MC
+the law the method reads is resolved first against its registry, and
+only then is the law it would drop refused, so an unsupported read law
+still reports the registry's own ``ValueError``; MoC's refusal is on the
+mesh itself and comes before any law is read.
+
+.. list-table:: What each method reads, and what it refuses
+   :header-rows: 1
+   :widths: 14 30 30 26
+
+   * - Method
+     - Laws it reads
+     - Refused (``NotImplementedError``)
+     - Guard, issue
+   * - S\ :sub:`N`, diffusion
+     - slab: left and right; solid cylinder or sphere: the outer law;
+       hollow: the outer law, and the cavity is reflective
+     - a hollow cylinder or sphere whose inner law is not
+       ``reflective``
+     - ``_refuse_an_inner_law_the_radial_axis_drops``
+       (``orpheus/mesh/axis.py``), #511
+   * - CP
+     - ``bc_right`` only (default ``white``)
+     - a slab whose left law differs from its right law; any inner law
+       on a hollow cylinder or sphere
+     - ``_refuse_a_law_cp_drops`` (``orpheus/cp/solver.py``), #513
+   * - MoC
+     - the outer law of a solid cylinder, read as the Wigner–Seitz
+       cylinder of a square pin cell
+     - any mesh that is not a solid cylinder: a slab, a sphere, a hollow
+       cylinder
+     - ``_refuse_a_mesh_moc_misreads`` (``orpheus/moc/geometry.py``),
+       #514
+   * - MC
+     - ``bc_right`` only; ``periodic``, its registry's one kind, applied
+       to every face of the unit cell
+     - a declared left or inner law that is not ``periodic``
+     - ``_refuse_a_law_mc_drops`` (``orpheus/mc/solver.py``), #513
+
+An undeclared law (``None`` on the mesh) is admitted by every guard:
+a mesh built directly from edges, not from a geometry, can still carry
+one until P1 step 3 retires ``None`` as a mesh declaration. The
+geometry itself refuses ``None``.
+
+**S**\ :sub:`N` **and diffusion (#511).** Both build their spatial axis
+through ``axes_from_legacy_mesh``, and the curvilinear axis it builds,
+:class:`~orpheus.mesh.axis.RadialAxisMesh`, has one law slot,
+``bc_outer``: it has no inner-surface trace. `[M]` 2026-09-25 (the P1
+specification's probe ``hollow_inner_law.py``): before the guard, on a
+cylinder and a sphere with :math:`r_0 = 0.5`, an inner ``vacuum`` law
+and an inner ``reflective`` law gave bit-identical S\ :sub:`N` fluxes,
+while the slab control, whose left law has a slot, moved. The guard
+sits at the one adapter, so it covers both routes to a hollow mesh (the
+geometry and a mesh built directly from edges) and both methods. It
+retires when the radial axis gains an inner-surface trace, which is the
+curvilinear S\ :sub:`N` build the user has deferred.
+
+**The admitted inner law is a void cavity, verified as if derived.**
+Admitting ``reflective`` is correct only if what the methods compute
+for it is a physical answer, and it is: in one-dimensional cylindrical
+or spherical symmetry, a ray that enters a void core crosses it along
+a chord and leaves at the same impact parameter with its radial
+direction cosine reversed, which is exactly specular reflection at
+:math:`r_0`. So a hollow body with a reflective inner law must equal a
+**solid** body whose core :math:`[0, r_0]` is empty. The gate
+``test_a_reflective_inner_law_is_a_void_cavity`` makes the core a pure
+absorber of total cross section :math:`\varepsilon` (no source in the
+core), measures the maximum relative gap between the two bodies' shell
+scalar fluxes at :math:`\varepsilon = 10^{-6}` and :math:`10^{-4}`, and
+extrapolates it linearly to :math:`\varepsilon = 0`. `[M]` 2026-09-29,
+the gate's own fixture (a 2-group material on the shell
+:math:`[0.5, 2.0]` meshed 8 cells, the core 4 cells, vacuum outer law;
+Gauss–Legendre 8 on the sphere, ``folded_product(n_mu=4, n_phi=8)`` on
+the cylinder):
+
+.. list-table:: Hollow reflective body against a solid body with an absorbing core
+   :header-rows: 1
+   :widths: 16 18 18 22 26
+
+   * - Geometry
+     - gap / ε at ε = 1e-6
+     - gap / ε at ε = 1e-4
+     - gap extrapolated to ε = 0
+     - control: black core, σ = 50
+   * - sphere
+     - 0.3263
+     - 0.3263
+     - :math:`2.0\times10^{-11}`
+     - 0.36
+   * - cylinder
+     - 0.9983
+     - 0.9982
+     - :math:`1.4\times10^{-10}`
+     - 0.55
+
+The gap is linear in :math:`\varepsilon` (its ratio to
+:math:`\varepsilon` is constant to four digits across two decades) and
+extrapolates to zero at round-off, so the discrete void-cavity answer
+is the hollow reflective answer; a black core, which is not a void,
+differs at :math:`O(1)`. The gate asserts the growth (the larger gap
+exceeds ten times the smaller), the intercept (below :math:`10^{-3}`
+of the larger gap) and the control (above 0.1). The gate's docstring
+records the same linearity on the sphere under Gauss–Legendre 8 and 16
+and core meshes of 2 and 8 cells.
+
+**CP (#513).** CP resolves only ``bc_right``, the outer cell surface.
+`[M]` 2026-09-25 (the specification's probe ``cp_slab_left_law.py``):
+a white, a vacuum and an undeclared left law gave the same
+:math:`k = 1.8749980808246423` to all sixteen digits. On a slab the
+only declaration that means what CP computes is therefore left law
+equal to right law, and that is the one admitted. On a hollow cylinder
+or sphere what CP realises at the inner surface is not established, so
+no inner law is admitted. Which law CP realises on a slab's left face
+is itself open, and recorded on #513: `[M]` 2026-09-25 (probe
+``cp_mirror.py``), a fuel | moderator slab with both faces white and its
+mirror image give :math:`k` differing by :math:`5.0\times10^{-5}`
+relative, and neither equals the mirrored double slab, so the left face
+is neither the right law nor a mirror.
+
+**MoC (#514).** ``MOCMesh`` reads a :class:`~orpheus.mesh.structured.Mesh1D`
+as the Wigner–Seitz cylinder of a square pin cell: region 0 is a disk
+and the pitch is ``edges[-1] * sqrt(pi)``. `[M]` 2026-09-25 (the probe
+``partial_law_readers.py``): a Cartesian mesh with the cylinder's edges
+gave exactly the cylinder's :math:`k`, and a hollow cylinder with
+:math:`r_0 = 0.1` was realised inconsistently (the region areas read
+``edges[0]`` while the tracks treat region 0 as a disk). The refusal is
+on the mesh, before any law is read, and it retires with a 2-D
+geometry value for MoC to read.
+
+**MC (#513).** ``MCMesh`` resolves only ``bc_right`` and applies its
+registry's one kind, ``periodic``, to every face of the unit cell.
+`[M]` 2026-09-25 (the same probe): a slab with a ``vacuum`` left law and
+a ``periodic`` right law constructed and ran as periodic. A declared
+left or inner law other than ``periodic`` is refused.
+
+The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` (the
+S\ :sub:`N` refusal for the inner laws ``vacuum``, ``white`` and
+``albedo(0.5)`` on a cylinder and a sphere; the direct-mesh route;
+diffusion; the admitted leg, where an inner ``reflective`` law and an
+undeclared one give the same S\ :sub:`N` flux bit for bit; and the
+void-cavity witness above) and
+``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a slab whose
+laws differ refused both ways, an equal or undeclared left law built, a
+hollow cylinder and sphere with an inner law refused; MoC: a slab and a
+hollow cylinder refused, the solid pin cell built; MC: a ``vacuum`` or
+``reflective`` left law refused, a ``periodic`` or undeclared one
+built).
+
+
+.. _structured-geometry-homogeneous-body:
+
+One-material reference generators read one body
+================================================
+
+Four continuous reference generators, ``Spectrum`` (singular
+eigenfunctions), ``MomentSpace`` (F\ :sub:`N`), ``BasisSpace``
+(Galerkin spectral) and ``Billiard`` (trajectory resolvent), solve one
+material filling a slab of width :math:`L`, or a cylinder or sphere of
+radius :math:`R` centred at the origin. A geometry can say more than
+such a body: intervals of different materials, or a hollow
+cylinder or sphere whose width :math:`r_R - r_0` is a shell thickness
+and not a radius. Read naively as a body, the first would be solved as
+its first material alone and the second as a solid of the wrong
+radius, both without an error.
+
+:func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`
+is the one place that reading happens. It returns a
+:class:`~orpheus.derivations.common.homogeneous_body.HomogeneousBody`
+``(coord, extent_cm, mat_id)`` when the geometry holds one material
+and, on a cylinder or a sphere, is solid; otherwise it raises
+``ValueError`` naming the generator that asked (*"Spectrum solves one
+material filling the whole body; the geometry holds the materials
+[0, 1]"*, *"… solves a solid spherical body centred at r = 0; the
+geometry is hollow"*). The test is on materials, not on intervals:
+several intervals of one material are one body, because an interior
+breakpoint between two intervals of the same material is not a
+material interface. A slab has no centre, so its :math:`r_0` is a
+translation and every one-material slab is a body. Each of the four generators reads its coordinate
+system, its extent and its material id through this function, so the
+refusal and the reading cannot drift apart between generators.
+
+The gates are ``tests/gates/derivations/test_homogeneous_body.py``: the
+reading on a slab, a solid cylinder and a solid sphere; a sphere of
+two intervals of one material read as one body; the two refusals; and
+a route row over all four generators × {a hollow sphere, a
+two-material slab}, asserting that each refusal starts with the
+generator's name.
 
 
 End-state spot checks
@@ -189,8 +687,10 @@ removed surfaces, lives in the implementation plan
   Sood-style XS no longer fabricates a fake energy grid.
 * Locked decision 3 (slab convention) — full slab width, accepting
   ULP drift from the F_N half-thickness path inside ``MomentSpace``.
-* Locked decision 5 (``Region`` is geometry-only) — no ``n_cells``
-  on a region; that lives on :class:`RegionMesh` at the mesh layer.
+* Locked decision 5 (the geometry carries no discretisation; spelled at
+  the time as "``Region`` is geometry-only") — no ``n_cells`` on the
+  geometry; cell counts live on :class:`RegionMesh` at the mesh layer,
+  one per interval.
 * Locked decision 6 (``Mesh1D.from_geometry``) — the single explicit
   point where discretization enters.
 
@@ -1329,3 +1829,59 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
   fields, sources, cross-section data, the scattering kernel and the
   eigenvalue driver (:mod:`orpheus.transport`) — which is a different
   and genuinely satisfied sharing claim.
+
+
+.. _structured-geometry-history:
+
+Development history
+===================
+
+Reverse-chronological (latest first) changelog of this page's subject,
+the geometry value. Entries marked *(in development)* live on an
+unmerged feature branch and have no landed merge-to-``main`` hash yet;
+trust ``git`` over this table for merge status.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 54 10 26
+
+   * - When
+     - Milestone
+     - Issue
+     - Where
+   * - 2026-09-29
+     - **The geometry value is (coordinate system, breakpoints,
+       material per interval, law per boundary point).** The string
+       kind tag (``"SLB"`` / ``"CYL"`` / ``"SPH"``), the ``Region``
+       class, and the ``regions``, ``bcs`` and ``n_endpoints`` fields
+       retired, with the tag maps ``_GEOMETRY_TO_COORD`` and
+       ``_GEOMETRY_TO_N_ENDPOINTS``. The law count became derived from
+       the topological boundary (so hollow cylinders and spheres became
+       declarable, and the S\ :sub:`N` / diffusion inner-law guard of
+       #511 landed with them); breakpoints became stored rather than
+       re-added from thicknesses; ``Mesh1D.from_geometry`` lost its
+       ``origin=`` argument (the first breakpoint is the origin); the
+       four one-material reference generators gained the shared
+       ``homogeneous_body`` reading, which refuses the multi-material
+       geometry they used to read as its first region's material. CP,
+       MoC and MC gained refusals of the laws they drop (#513, #514),
+       and the admitted S\ :sub:`N` inner law gained its void-cavity
+       witness. Rulings: the
+       user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``;
+       gates S2.1 to S2.5 of ``.claude/plans/reference_p1_spec.md``.
+     - #405, #511, #513, #514
+     - *(in development)* branch ``refactor/reference-specification``
+   * - 2026-05-04
+     - **Phase F: the geometry layer separates from the registry and
+       mesh layers.** ``StructuredGeometry`` was then a kind tag, a
+       tuple of ``Region(mat_id, outer_thickness_cm)`` and a tuple of
+       endpoint ``bcs`` whose length the tag fixed (``SLB`` 2, ``CYL``
+       and ``SPH`` 1, the centreline described as "implicit
+       reflective"). The endpoint count was justified by the billiard's
+       orbit-space rank, and hollow bodies were anticipated as new tags
+       (``HSPH``, ``ANN``). Both readings were superseded on
+       2026-09-29: the count follows from :math:`r_0`, not from the
+       coordinate system alone, so no new tag is needed, and the centre
+       of a solid body is an interior point, not a reflecting surface.
+     - —
+     - plan ``.claude/plans/dazzling-cuddling-boot.md``

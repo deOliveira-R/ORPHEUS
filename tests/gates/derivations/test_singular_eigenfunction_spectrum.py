@@ -33,11 +33,7 @@ from orpheus.derivations.continuous.singular_eigenfunction.slab.one_group import
 from orpheus.derivations.continuous.singular_eigenfunction.sphere.one_group import (
     solve_case_method_sphere_critical,
 )
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
 # ----------------------------------------------------------------------
@@ -81,9 +77,10 @@ def _slab_geometry(R_albedo: float = 0.0) -> StructuredGeometry:
     else:
         outer_bc = BC("partial", {"albedo": R_albedo})
     return StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0 * 0.93772556),),
-        bcs=(BC.vacuum, outer_bc),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0 * 0.93772556),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, outer_bc),
     )
 
 
@@ -94,18 +91,20 @@ def _sphere_geometry(R_albedo: float = 0.0) -> StructuredGeometry:
     else:
         outer_bc = BC("partial", {"albedo": R_albedo})
     return StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.4248249802),),
-        bcs=(outer_bc,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.4248249802),
+        mat_ids=(0,),
+        boundaries=(outer_bc,),
     )
 
 
 def _cylinder_geometry() -> StructuredGeometry:
     r"""Bare cylinder geometry (Sood ``Ua-1-0-CY``)."""
     return StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=1.72500292),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, 1.72500292),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
 
 
@@ -352,9 +351,10 @@ def test_spectrum_rejects_missing_mat_id() -> None:
     """Region's mat_id must be present in the materials dict."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=42, outer_thickness_cm=1.88),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 1.88),
+        mat_ids=(42,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     with pytest.raises(ValueError, match="mat_id=42"):
         Spectrum(geometry=geom, materials={0: mix})

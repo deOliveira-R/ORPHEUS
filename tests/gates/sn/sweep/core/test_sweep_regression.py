@@ -22,7 +22,7 @@ right level for a structural-bug guard now that the helpers are gone.
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.sn.problem import SNProblem
 
@@ -30,9 +30,10 @@ from orpheus.sn.problem import SNProblem
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper (replaces legacy ``homogeneous_1d``)."""
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, total_width),
+        mat_ids=(mat_id,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 from orpheus.numerics.quadrature import Quadrature

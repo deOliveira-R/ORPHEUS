@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
@@ -78,9 +78,10 @@ pytestmark = [pytest.mark.foundation]
 
 def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -91,9 +92,10 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     # The seed-carrying geometry (R12a): the only mesh on which System B —
     # and therefore A_BB — exists.
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)

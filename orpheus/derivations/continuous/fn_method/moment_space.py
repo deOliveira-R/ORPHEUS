@@ -73,7 +73,8 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
 FluxReconstructionStrategy = Literal["none", "atkinson_nystrom", "legacy_gl"]
@@ -100,15 +101,13 @@ class MomentSpace:
     Direct construction with a :class:`StructuredGeometry` (slab or
     sphere) and a ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry.structured_geometry import (
-            Region, StructuredGeometry,
-        )
-        from orpheus.geometry import BC
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
         geom = StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
-            bcs=(BC.vacuum, BC.vacuum),
+            coord=CoordSystem.CARTESIAN,
+            breakpoints=(0.0, L_full),
+            mat_ids=(0,),
+            boundaries=(BC.vacuum, BC.vacuum),
         )
         ms = MomentSpace(geometry=geom, materials={0: mix})
         sol = ms.solve_critical()
@@ -121,9 +120,11 @@ class MomentSpace:
     Parameters
     ----------
     geometry : :class:`StructuredGeometry`
-        Pure-geometry layer object. Tag MUST be ``"SLB"`` (Cartesian
-        slab) or ``"SPH"`` (spherical). Cylinder (``"CYL"``) is out
-        of pillar (Westfall–Metcalf 1972 — see
+        Pure-geometry layer object: one material filling a slab
+        (``CoordSystem.CARTESIAN``) or a solid sphere
+        (``CoordSystem.SPHERICAL``), read by
+        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        A cylinder is out of pillar (Westfall–Metcalf 1972 — see
         :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID.
@@ -153,10 +154,11 @@ class MomentSpace:
         non-convergent for the bare cylinder. Cylinder critical
         dimensions ship via :mod:`...singular_eigenfunction.cylinder`.
         """
-        if self.geometry.geometry not in {"SLB", "SPH"}:
+        body = homogeneous_body(self.geometry, owner="MomentSpace")
+        if body.coord not in (CoordSystem.CARTESIAN, CoordSystem.SPHERICAL):
             raise ValueError(
-                f"MomentSpace supports geometry ∈ {{SLB, SPH}}, "
-                f"got {self.geometry.geometry!r}. Cylinder (CYL) is out "
+                f"MomentSpace supports a slab or a sphere, got "
+                f"{body.coord.name.lower()}. A cylinder is out "
                 f"of pillar (Westfall-Metcalf 1972 — see "
                 f"singular_eigenfunction.cylinder). For infinite-medium "
                 f"k_inf, use MomentSpace.solve_kinf(mixture) — no "
@@ -184,7 +186,7 @@ class MomentSpace:
     @property
     def _mat_id(self) -> int:
         """Active mat_id — the single region's material identifier."""
-        return self.geometry.regions[0].mat_id
+        return homogeneous_body(self.geometry, owner="MomentSpace").mat_id
 
     @property
     def _mixture(self) -> Mixture:
@@ -255,7 +257,7 @@ class MomentSpace:
         -------
         :class:`CriticalSolution`
         """
-        tag = self.geometry.geometry
+        coord = self.geometry.coord
         mixture = self._mixture
         sig_t = np.asarray(mixture.SigT, dtype=float)
         n_groups = sig_t.shape[0]
@@ -275,19 +277,20 @@ class MomentSpace:
         c = float((sig_s_p0[0, 0] + nu_sig_f[0]) / sig_t[0])
         if c <= 1.0:
             raise ValueError(
-                f"F_N bare-critical {tag} requires c > 1 "
+                f"F_N bare-critical {coord.name.lower()} requires c > 1 "
                 f"(multiplying medium); got c={c} from mixture "
                 f"sigma_s + nu_sigma_f = {sig_s_p0[0, 0] + nu_sig_f[0]}, "
                 f"sigma_t = {sig_t[0]}."
             )
 
-        if tag == "SLB":
-            return self._solve_critical_slab(c, n_bracket, bisect_tol, max_bisect)
-        if tag == "SPH":
-            return self._solve_critical_sphere(c, n_bracket, bisect_tol, max_bisect)
+        match coord:
+            case CoordSystem.CARTESIAN:
+                return self._solve_critical_slab(c, n_bracket, bisect_tol, max_bisect)
+            case CoordSystem.SPHERICAL:
+                return self._solve_critical_sphere(c, n_bracket, bisect_tol, max_bisect)
 
         raise NotImplementedError(  # pragma: no cover (validated above)
-            f"MomentSpace.solve_critical: unhandled geometry {tag!r}"
+            f"MomentSpace.solve_critical: unhandled coordinate system {coord!r}"
         )
 
     def _solve_critical_slab(
@@ -488,13 +491,14 @@ class MomentSpace:
                 "expansion coefficients."
             )
 
-        tag = self.geometry.geometry
-        if tag == "SLB":
-            return self._reconstruct_slab(raw, n_panels, z_eval, critical)
-        if tag == "SPH":
-            return self._reconstruct_sphere(raw, n_panels, z_eval, critical)
+        match self.geometry.coord:
+            case CoordSystem.CARTESIAN:
+                return self._reconstruct_slab(raw, n_panels, z_eval, critical)
+            case CoordSystem.SPHERICAL:
+                return self._reconstruct_sphere(raw, n_panels, z_eval, critical)
         raise NotImplementedError(  # pragma: no cover
-            f"MomentSpace.reconstruct_flux: unhandled geometry {tag!r}."
+            f"MomentSpace.reconstruct_flux: unhandled coordinate system "
+            f"{self.geometry.coord!r}."
         )
 
     def _reconstruct_slab(

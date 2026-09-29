@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12714**
+Total tests collected: **12794**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1345, 10.6%
-   L1, 1969, 15.5%
+   L0, 1345, 10.5%
+   L1, 1969, 15.4%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9302, 73.2%
+   foundation, 9382, 73.3%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12608
+   explicit, 12688
    class-name, 46
    func-name, 0
    case, 33
@@ -189,6 +189,7 @@ Module × level grid
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood_table10_symmetric_pu_h2o, 0, 1, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
+   derivations/test_homogeneous_body, 0, 0, 0, 0, 15, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
    derivations/test_la13511_to_geometry, 0, 0, 0, 0, 131, 0
@@ -307,7 +308,7 @@ Module × level grid
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
-   geometry/test_structured_geometry, 0, 0, 0, 0, 43, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 80, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -323,6 +324,8 @@ Module × level grid
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
+   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 14, 0
+   mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 11, 0
    mesh/test_module_layout, 0, 0, 0, 0, 7, 0
@@ -571,7 +574,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 390, 0
+   test_layer_imports, 0, 0, 0, 0, 391, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

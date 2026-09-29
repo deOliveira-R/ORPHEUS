@@ -48,7 +48,7 @@ def build_mesh(case: "La13511Case", n_cells: int = 64) -> Mesh1D:
 
     geom = case.to_geometry()
     region_meshes = tuple(
-        RegionMesh(n_cells=n_cells) for _ in geom.regions
+        RegionMesh(n_cells=n_cells) for _ in geom.mat_ids
     )
     return Mesh1D.from_geometry(geom, region_meshes=region_meshes)
 

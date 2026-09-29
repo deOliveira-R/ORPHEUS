@@ -33,7 +33,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
@@ -55,9 +55,10 @@ _VALUE = 2.5
 
 def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNProblem:
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -252,11 +253,11 @@ def _het_slab(n_ord: int = 8) -> SNProblem:
     """
     from orpheus.derivations.common.xs_library import get_mixture
 
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=1.0),
-                 Region(mat_id=1, outer_thickness_cm=2.0)),
-        bcs=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(1.0, 2.0),
+        mat_ids=(0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),

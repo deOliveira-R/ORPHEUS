@@ -40,7 +40,7 @@ from typing import Callable
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
@@ -60,9 +60,10 @@ def _n_groups(ng: str) -> int:
 def _slab_homogeneous(ng: str, n_cells: int) -> dict:
     fuel = get_mixture("A", ng)
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
@@ -76,14 +77,11 @@ def _slab_3region(ng: str, n_cells: int) -> dict:
     """Fuel | moderator | fuel, equal thicknesses summing to 2 cm."""
     fuel = get_mixture("A", ng)
     mod = get_mixture("B", ng)
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=0.5),
-            Region(mat_id=1, outer_thickness_cm=1.0),
-            Region(mat_id=0, outer_thickness_cm=0.5),
-        ),
-        bcs=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(0.5, 1.0, 0.5),
+        mat_ids=(0, 1, 0),
+        boundaries=(BC.reflective, BC.reflective),
     )
     # equal subdivision across regions: total cells split per outer thickness
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
@@ -101,9 +99,10 @@ def _slab_3region(ng: str, n_cells: int) -> dict:
 def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
     fuel = get_mixture("A", ng)
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     return dict(
@@ -116,14 +115,11 @@ def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
 def _sphere_3region(ng: str, n_cells: int) -> dict:
     fuel = get_mixture("A", ng)
     mod = get_mixture("B", ng)
-    geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=0.5),
-            Region(mat_id=1, outer_thickness_cm=1.0),
-            Region(mat_id=0, outer_thickness_cm=0.5),
-        ),
-        bcs=(BC.reflective,),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.SPHERICAL,
+        thicknesses=(0.5, 1.0, 0.5),
+        mat_ids=(0, 1, 0),
+        boundaries=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesh1D.from_geometry(
@@ -140,9 +136,10 @@ def _sphere_3region(ng: str, n_cells: int) -> dict:
 def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
     fuel = get_mixture("A", ng)
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     if quad_kind == "folded_4x8":
@@ -162,14 +159,11 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
 def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
     fuel = get_mixture("A", ng)
     mod = get_mixture("B", ng)
-    geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=0.5),
-            Region(mat_id=1, outer_thickness_cm=1.0),
-            Region(mat_id=0, outer_thickness_cm=0.5),
-        ),
-        bcs=(BC.reflective,),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CYLINDRICAL,
+        thicknesses=(0.5, 1.0, 0.5),
+        mat_ids=(0, 1, 0),
+        boundaries=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesh1D.from_geometry(
@@ -209,9 +203,10 @@ def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
     n_groups = _n_groups(ng)
     n_ord = 8
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective, BC.reflective),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -243,9 +238,10 @@ def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
     n_groups = _n_groups(ng)
     n_ord = 8
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)

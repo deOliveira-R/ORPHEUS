@@ -61,7 +61,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
@@ -118,9 +118,10 @@ def test_homogeneous_streaming_equilibrium_sphere(
     """
     fuel = get_mixture("B", "1g")
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=_R_SPHERE),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, _R_SPHERE),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
@@ -222,9 +223,10 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     """
     fuel = get_mixture("B", "1g")
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=_R_CYL),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, _R_CYL),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
@@ -289,9 +291,10 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
     """
     fuel = get_mixture("B", "1g")
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=_R_SPHERE),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, _R_SPHERE),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=40),))
     quad = Quadrature.gauss_legendre(n_ordinates=8)

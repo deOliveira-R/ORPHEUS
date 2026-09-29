@@ -271,7 +271,7 @@ class CrossMethodCase:
            both set, ``registry_case`` is ``None``. The adapter reads
            XS + geometry directly off the case. Multi-region cases
            (NM 1980 reflected slab, layered reactors) live here via
-           :attr:`StructuredGeometry.regions`.
+           the intervals of a :class:`StructuredGeometry`.
         3. **Override** (registry XS + inline geometry): ``registry_case``
            is set AND ``structured_geometry`` is set (with
            ``materials=None``). Used by cross-method agreement tests

@@ -54,7 +54,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration, seeded_inverse
@@ -97,13 +97,11 @@ def _mix(sig_t, p0):
 
 def _het_scattering_slab() -> SNProblem:
     """Two-material 2G VACUUM slab, GL-4 — het σ_t AND het asymmetric SigS."""
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=1.0),
-            Region(mat_id=1, outer_thickness_cm=2.0),
-        ),
-        bcs=(BC("vacuum"), BC("vacuum")),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(1.0, 2.0),
+        mat_ids=(0, 1),
+        boundaries=(BC("vacuum"), BC("vacuum")),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=3), RegionMesh(n_cells=3)),

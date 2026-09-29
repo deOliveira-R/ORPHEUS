@@ -521,6 +521,31 @@ def coord_system(axes: tuple[Axis1D, ...]):
 # Legacy-mesh → axis-tuple adapter
 # ═══════════════════════════════════════════════════════════════════════
 
+def _refuse_an_inner_law_the_radial_axis_drops(mesh) -> None:
+    """Refuse a hollow curvilinear mesh whose inner law is not reflective.
+
+    **SCOPE-BOUNDARY[guard]** — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
+    revisit: the curvilinear SN build, deferred by the user, which gives the radial axis its inner slot.
+
+    The radial axis has one law slot, ``bc_outer``, so the declared inner
+    law of a hollow cylinder or sphere is dropped and every method built
+    on the axes (SN, diffusion) computes a reflective cavity instead. The
+    guard lands with the step that makes a hollow geometry declarable.
+    Reflective is admitted because it is what the methods compute, and an
+    undeclared (``None``) inner law until P1 step 3 retires ``None``.
+    """
+    inner_law = mesh.bc_left
+    if mesh.edges[0] > 0.0 and inner_law is not None and inner_law.kind != "reflective":
+        raise NotImplementedError(
+            f"a hollow {mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}) "
+            f"declares the inner law {inner_law!r}, which the radial axis "
+            f"cannot carry: it has no inner-surface trace, so the law would "
+            f"be dropped and a reflective cavity computed instead (#511). "
+            f"Only a reflective inner law is admitted."
+        )
+
+
 def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     r"""Extract the canonical axis tuple from a legacy ``Mesh1D`` /
     ``Mesh2D``.
@@ -536,11 +561,13 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges, bc_low=mesh.bc_left,
       bc_high=mesh.bc_right),)``.
     * ``SPHERICAL`` → ``(RadialAxisMesh(edges=mesh.edges,
-      coord=RADIAL_SPHERICAL, bc_outer=mesh.bc_right),)``. The
-      centreline ``mesh.bc_left`` is implicit-reflective per
-      :meth:`Mesh1D.from_geometry`; it does NOT become a BC on the
-      axis because the pole is a coordinate singularity, not an
-      endpoint.
+      coord=RADIAL_SPHERICAL, bc_outer=mesh.bc_right),)``. On a solid
+      body ``mesh.bc_left`` is ``None`` (:meth:`Mesh1D.from_geometry`):
+      the centre is an interior point, not an endpoint, and carries no
+      law. On a hollow body the inner surface is an endpoint the radial
+      axis has no slot for, so only a reflective (or undeclared) inner
+      law is admitted, the one the methods compute; any other is refused
+      (#511).
     * ``CYLINDRICAL`` → same as SPHERICAL with
       ``RADIAL_CYLINDRICAL``.
 
@@ -567,6 +594,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 ),
             )
         if mesh.coord == CoordSystem.SPHERICAL:
+            _refuse_an_inner_law_the_radial_axis_drops(mesh)
             return (
                 RadialAxisMesh(
                     edges=mesh.edges,
@@ -575,6 +603,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 ),
             )
         if mesh.coord == CoordSystem.CYLINDRICAL:
+            _refuse_an_inner_law_the_radial_axis_drops(mesh)
             return (
                 RadialAxisMesh(
                     edges=mesh.edges,

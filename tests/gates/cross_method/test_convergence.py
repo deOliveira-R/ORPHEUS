@@ -4,7 +4,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -35,13 +35,11 @@ def test_sn_approaches_cp_reference():
     mod = get_mixture("B", "1g")
     materials = {2: fuel, 0: mod}
 
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=2, outer_thickness_cm=0.5),  # fuel
-            Region(mat_id=0, outer_thickness_cm=0.5),  # moderator
-        ),
-        bcs=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(0.5, 0.5),
+        mat_ids=(2, 0),
+        boundaries=(BC.reflective, BC.reflective),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=40),

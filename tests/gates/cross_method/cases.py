@@ -55,8 +55,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UD2O_1_0_SL,
     UD2O_1_0_SP,
 )
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 from .protocol import CrossMethodCase
 
@@ -305,13 +304,13 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
 #   - mat_id=1 → reflector: 1G isotropic with Σ_t=1, Σ_s=c_refl,
 #     νΣ_f=0 (pure scattering, c < 1).
 # * GeometrySpec:
-#   - ``regions`` is the ORDERED slab layout ``(reflector, core,
+#   - the intervals are the ORDERED slab layout ``(reflector, core,
 #     reflector)`` — left-to-right with the symmetric Pu+H2O
 #     convention.
-#   - ``Region.outer_thickness_*`` for the reflector layers is the
-#     published Δ (mfp ≡ cm with σ_t=1). For the core layer the
-#     thickness is ``2 * truth_value`` (the FULL core, of which τ
-#     is the half-thickness).
+#   - the reflector intervals' thickness is the published Δ
+#     (mfp ≡ cm with σ_t=1). For the core interval the thickness is
+#     ``2 * truth_value`` (the FULL core, of which τ is the
+#     half-thickness).
 #   - ``critical_dimension_{mfp,cm}`` carries the published
 #     core-half-thickness τ_c — the truth scalar — for diagnostics.
 #     For multi-region specs ``domain_extent_cm`` is taken from the
@@ -402,14 +401,14 @@ def _build_reflected_slab_case(
 
     * ``materials = {0: core_mixture, 1: reflector_mixture}``
       built via :func:`_make_unit_sigma_t_one_group_mixture`.
-    * ``structured_geometry.regions = (reflector, core, reflector)``
-      with cm thicknesses ``(Δ, 2·τ, Δ)`` (≡ mfp under σ_t=1). The
+    * ``structured_geometry.mat_ids = (1, 0, 1)`` (reflector, core,
+      reflector) with cm thicknesses ``(Δ, 2·τ, Δ)`` (≡ mfp under σ_t=1). The
       core thickness uses the published critical τ as the half-
       thickness.
 
     The FN reflected-slab adapter reads ``c_core`` and
     ``c_reflector`` from the materials' :attr:`scattering_ratio` and
-    the reflector half-thickness from ``regions[0].outer_thickness_cm``
+    the reflector half-thickness from the first interval's width
     (under the σ_t=1 convention this equals the half-thickness in
     mfp directly).
     """
@@ -418,14 +417,11 @@ def _build_reflected_slab_case(
     # Unit σ_t convention → cm ≡ mfp for these problems.
     refl_thickness_cm = float(reflector_half_thickness_mfp)
     core_thickness_cm = 2.0 * float(truth_value)
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=1, outer_thickness_cm=refl_thickness_cm),  # left reflector
-            Region(mat_id=0, outer_thickness_cm=core_thickness_cm),  # core (2·τ)
-            Region(mat_id=1, outer_thickness_cm=refl_thickness_cm),  # right reflector
-        ),
-        bcs=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(refl_thickness_cm, core_thickness_cm, refl_thickness_cm),
+        mat_ids=(1, 0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     return CrossMethodCase(
         case_id=case_id,
@@ -570,9 +566,10 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         # to its α=1 albedo. R_cm = 5.0 (τ_R = σ_t · R_cm = 0.5 · 5.0
         # = 2.5).
         structured_geometry=StructuredGeometry(
-            geometry="SPH",
-            regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
-            bcs=(BC.reflective,),
+            coord=CoordSystem.SPHERICAL,
+            breakpoints=(0.0, 5.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
         ),
         geometry="closed-sphere-1d",
         truth_tag="k_inf",

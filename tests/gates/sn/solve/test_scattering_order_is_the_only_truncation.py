@@ -39,7 +39,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.data.micro_xs.isotope import NG
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -59,12 +59,11 @@ def _mixture(name: str, density: float):
 
 
 def _slab(refl_cm: float, core_cm: float, refl_cells: int, core_cells: int) -> Mesh1D:
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=1, outer_thickness_cm=refl_cm),
-                 Region(mat_id=0, outer_thickness_cm=core_cm),
-                 Region(mat_id=1, outer_thickness_cm=refl_cm)),
-        bcs=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(refl_cm, core_cm, refl_cm),
+        mat_ids=(1, 0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=refl_cells), RegionMesh(n_cells=core_cells), RegionMesh(n_cells=refl_cells)))

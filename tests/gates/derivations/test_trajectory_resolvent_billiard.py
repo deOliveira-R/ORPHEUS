@@ -34,11 +34,7 @@ from orpheus.derivations.continuous.trajectory_resolvent import (
     greens_function_slab as gf_slab,
     greens_function_slab_asymmetric as gf_slab_asym,
 )
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -115,18 +111,20 @@ def _mixture_from_xs(
 def _sphere_geom(R_cm: float) -> StructuredGeometry:
     """Closed homogeneous sphere geometry at radius :math:`R_{\\rm cm}`."""
     return StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=float(R_cm)),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, float(R_cm)),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
 
 
 def _cylinder_geom(R_cm: float) -> StructuredGeometry:
     """Closed homogeneous cylinder geometry at radius :math:`R_{\\rm cm}`."""
     return StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=float(R_cm)),),
-        bcs=(BC.reflective,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, float(R_cm)),
+        mat_ids=(0,),
+        boundaries=(BC.reflective,),
     )
 
 
@@ -138,9 +136,10 @@ def _slab_geom(L_cm: float) -> StructuredGeometry:
     :func:`solve_greens_function_slab`.
     """
     return StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=float(L_cm)),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, float(L_cm)),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
 
 
@@ -249,21 +248,15 @@ def test_billiard_with_alpha_returns_modified_copy():
 
 
 @pytest.mark.foundation
-def test_billiard_unsupported_geometry_raises():
-    """Construction on a tag Billiard cannot dispatch raises ValueError.
+def test_billiard_dispatches_every_coordinate_system():
+    """RE-POSED from ``test_billiard_unsupported_geometry_raises``, whose
+    body was ``pass``: the geometry now refuses a string tag, so the
+    dispatcher's contract is that it covers every ``CoordSystem`` member."""
+    from orpheus.derivations.continuous.trajectory_resolvent.billiard import (
+        _COORD_TO_KIND,
+    )
 
-    ``Billiard`` accepts ``"SLB"`` / ``"SPH"`` / ``"CYL"`` only. If a
-    future :class:`StructuredGeometry` tag (e.g. ``"HSPH"``) lands
-    before the dispatcher learns it, construction fails fast.
-    """
-    # We construct an ad-hoc StructuredGeometry with a fake-supported
-    # tag by patching its validator. Easier: use the SPH path with a
-    # non-existent override approach; we instead test the dispatcher
-    # raises when geometry_kind is unrecognised. A direct ValueError
-    # path through _infer_geometry_kind isn't reachable today since
-    # StructuredGeometry only accepts SLB/CYL/SPH, but pin the
-    # dispatcher contract.
-    pass  # The StructuredGeometry validator already gates unsupported tags.
+    assert set(_COORD_TO_KIND) == set(CoordSystem)
 
 
 # ─────────────────────────────────────────────────────────────────────

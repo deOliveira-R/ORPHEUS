@@ -100,7 +100,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -134,9 +134,10 @@ pytestmark = [
 
 def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC(bc), BC(bc)),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC(bc), BC(bc)),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -145,9 +146,10 @@ def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNPro
 
 def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC(bc),),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC(bc),),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     # Gauss-Legendre, NOT level_symmetric: the 1-D spherical closure's
@@ -164,9 +166,10 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
 
 def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC(bc),),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC(bc),),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)

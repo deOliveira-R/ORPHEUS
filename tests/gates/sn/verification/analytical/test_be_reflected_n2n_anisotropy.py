@@ -102,7 +102,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -176,14 +176,11 @@ def library():
 
 @pytest.fixture(scope="module")
 def mesh():
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=1, outer_thickness_cm=3.0),
-            Region(mat_id=0, outer_thickness_cm=4.0),
-            Region(mat_id=1, outer_thickness_cm=3.0),
-        ),
-        bcs=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(3.0, 4.0, 3.0),
+        mat_ids=(1, 0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     return Mesh1D.from_geometry(
         geom,

@@ -118,7 +118,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
 from orpheus.numerics.quadrature import Quadrature
@@ -194,11 +194,11 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
     """
     from orpheus.derivations.common.xs_library import get_mixture
 
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=1.0),
-                 Region(mat_id=1, outer_thickness_cm=2.0)),
-        bcs=(xmin, BC.reflective if xmax is None else xmax),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(1.0, 2.0),
+        mat_ids=(0, 1),
+        boundaries=(xmin, BC.reflective if xmax is None else xmax),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),

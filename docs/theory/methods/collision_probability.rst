@@ -514,6 +514,12 @@ The default is ``BC("white")``, matching the infinite-lattice assumption
 used throughout the CP derivation above.  The vacuum BC is useful for
 studying isolated fuel pins where neutrons escaping the cell are lost.
 
+A law CP does not read is refused rather than dropped: a slab whose
+left law differs from its right law, or any inner law on a hollow
+cylinder or sphere, raises ``NotImplementedError`` naming #513 (an
+undeclared left law is admitted). The table of what each method reads
+is :ref:`structured-geometry-hollow-inner-law`.
+
 :meth:`CPMesh.compute_pinf_group` calls ``self._bc_transform(P_cell,
 sig_t_g)`` to apply whichever BC was resolved at construction time.
 Factory docstrings serve as descriptions for programmatic query::
@@ -2502,7 +2508,7 @@ Equal-Volume Mesh Subdivision
 .. the edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
 .. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
-.. (its CYL row), which by design carries no ``verifies(...)``: the radius
+.. (its ``cylindrical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
 .. ERR-020's invariant, stored from the algebraic invariant rather than read
@@ -2527,7 +2533,7 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 .. edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
 .. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
-.. (its SPH row), which by design carries no ``verifies(...)``: the radius
+.. (its ``spherical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
 .. ERR-020's invariant, stored from the algebraic invariant rather than read

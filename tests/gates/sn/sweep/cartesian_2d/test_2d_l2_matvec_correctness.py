@@ -37,7 +37,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -93,9 +93,10 @@ def _vacuum_xy_2d_with_scatter(nx: int = 4, ny: int = 4) -> SNProblem:
 def _slab_homogeneous_2g(nx: int = 4) -> SNProblem:
     r"""1-D slab counterpart for the 2-D-reflective-y reduction test."""
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=(BC("reflective"), BC("reflective")),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=(BC("reflective"), BC("reflective")),
     )
     mesh = Mesh1D.from_geometry(
         geom, region_meshes=(RegionMesh(n_cells=nx),),

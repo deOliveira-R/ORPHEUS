@@ -1,8 +1,9 @@
 """The geometry layer: shapes, coordinate systems and boundary laws, with no discretisation.
 
-* :class:`StructuredGeometry` and :class:`Region`: the 1-D layered
-  geometry, a pure shape and boundary description with no cell counts.
-  Reference solvers consume it directly.
+* :class:`StructuredGeometry`: the 1-D layered geometry (a coordinate
+  system, breakpoints, one material id per interval and one law per
+  boundary point), a pure shape and boundary description with no cell
+  counts. Reference solvers consume it directly.
 * :class:`CoordSystem` and the volume and area formulas of each coordinate
   system.
 * :mod:`~orpheus.geometry.boundary`: the boundary-condition tag
@@ -18,7 +19,7 @@ The mesh is an overlay on the geometry and lives in its own package,
 
 from .boundary import BC
 from .coord import CoordSystem, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
-from .structured_geometry import Region, StructuredGeometry
+from .structured_geometry import StructuredGeometry
 from .transformation import (
     NotAFinitePointGroupError,
     Permutation,
@@ -31,7 +32,6 @@ __all__ = [
     "CoordSystem",
     "NotAFinitePointGroupError",
     "Permutation",
-    "Region",
     "RigidMotion",
     "StructuredGeometry",
     "close_group",

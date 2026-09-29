@@ -10,10 +10,10 @@ on demand.
 
 These tests cover:
 
-* Slab (1G): full-width cm + vacuum-vacuum BCs, geometry tag
-  ``"SLB"`` with two endpoints.
-* Sphere (1G): radius-cm region + single vacuum BC, tag ``"SPH"``.
-* Cylinder (1G): radius-cm region + single vacuum BC, tag ``"CYL"``.
+* Slab (1G): full-width cm + vacuum-vacuum laws, a Cartesian geometry
+  with two boundary points.
+* Sphere (1G): a solid sphere of radius cm + one outer vacuum law.
+* Cylinder (1G): a solid cylinder of radius cm + one outer vacuum law.
 * Infinite-medium: raises :class:`ValueError` pointing the caller at
   ``MomentSpace.solve_kinf`` / ``solve_homogeneous_infinite``.
 * Round-trip consistency: the new-API ``domain_extent_cm`` matches
@@ -43,11 +43,7 @@ from orpheus.derivations.continuous.sood_registry.atalay1997 import (
     ATALAY_ALL_CASES,
 )
 from orpheus.derivations.continuous.sood_registry.la13511 import _ALL_CASES
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import (
-    Region as StructuredRegion,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -57,7 +53,7 @@ from orpheus.geometry.structured_geometry import (
 
 @pytest.mark.foundation
 def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
-    r"""1G slab case: ``to_geometry()`` returns SLB with full-width cm.
+    r"""1G slab case: ``to_geometry()`` returns a slab with full-width cm.
 
     For ``Ua-1-0-SL`` (U-235 (a), 1G isotropic, ``c=1.30``):
 
@@ -66,8 +62,8 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
     * Expected full slab width: :math:`2 \cdot 0.93772556 / 0.32640
       = 5.74586815...` cm.
 
-    The new-API geometry must be ``"SLB"`` with one region of that
-    full-width cm thickness and vacuum-vacuum BCs.
+    The geometry must be a slab with one interval of that full-width cm
+    and vacuum-vacuum laws.
     """
     case = UA_1_0_SL_STUB
     geom = case.to_geometry()
@@ -76,21 +72,17 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
     expected_full_width_cm = 2.0 * case.truth.critical_dimension_mfp / sigma_t
 
     assert isinstance(geom, StructuredGeometry)
-    assert geom.geometry == "SLB"
-    assert len(geom.regions) == 1
-    region = geom.regions[0]
-    assert isinstance(region, StructuredRegion)
-    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
-    assert math.isclose(
-        region.outer_thickness_cm, expected_full_width_cm, rel_tol=1e-12,
-    )
+    assert geom.coord is CoordSystem.CARTESIAN
+    assert geom.mat_ids == (0,)  # registry convention: primary mixture at mat_id=0
+    assert geom.breakpoints[0] == 0.0
+    assert math.isclose(geom.breakpoints[-1], expected_full_width_cm, rel_tol=1e-12)
     assert math.isclose(
         geom.domain_extent_cm, expected_full_width_cm, rel_tol=1e-12,
     )
 
-    # SLB carries 2 BCs (left, right); both vacuum.
-    assert geom.n_endpoints == 2
-    assert geom.bcs == (BC.vacuum, BC.vacuum)
+    # A slab has two boundary points (left, right); both vacuum.
+    assert geom.boundary_points == (0.0, geom.breakpoints[-1])
+    assert geom.boundaries == (BC.vacuum, BC.vacuum)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -100,7 +92,7 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
 
 @pytest.mark.foundation
 def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
-    r"""1G sphere case: ``to_geometry()`` returns SPH with radius cm.
+    r"""1G sphere case: ``to_geometry()`` returns a sphere with radius cm.
 
     For ``Ua-1-0-SP`` (U-235 (a), 1G isotropic, ``c=1.30``):
 
@@ -116,19 +108,16 @@ def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
     expected_R_cm = case.truth.critical_dimension_mfp / sigma_t
 
     assert isinstance(geom, StructuredGeometry)
-    assert geom.geometry == "SPH"
-    assert len(geom.regions) == 1
-    region = geom.regions[0]
-    assert isinstance(region, StructuredRegion)
-    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
-    assert math.isclose(
-        region.outer_thickness_cm, expected_R_cm, rel_tol=1e-12,
-    )
+    assert geom.coord is CoordSystem.SPHERICAL
+    assert geom.mat_ids == (0,)  # registry convention: primary mixture at mat_id=0
+    assert geom.breakpoints[0] == 0.0
+    assert math.isclose(geom.breakpoints[-1], expected_R_cm, rel_tol=1e-12)
     assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
 
-    # SPH carries 1 BC (outer); centreline reflective is implicit.
-    assert geom.n_endpoints == 1
-    assert geom.bcs == (BC.vacuum,)
+    # A solid body has one boundary point, the outer surface; the centre
+    # is an interior point and carries no law.
+    assert geom.boundary_points == (geom.breakpoints[-1],)
+    assert geom.boundaries == (BC.vacuum,)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -138,7 +127,7 @@ def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
 
 @pytest.mark.foundation
 def test_cylinder_to_geometry_radius_with_vacuum_outer_bc() -> None:
-    r"""1G cylinder case: ``to_geometry()`` returns CYL with radius cm.
+    r"""1G cylinder case: ``to_geometry()`` returns a cylinder with radius cm.
 
     For ``Ua-1-0-CY`` (U-235 (a), 1G isotropic, ``c=1.30``):
 
@@ -153,19 +142,16 @@ def test_cylinder_to_geometry_radius_with_vacuum_outer_bc() -> None:
     expected_R_cm = case.truth.critical_dimension_mfp / sigma_t
 
     assert isinstance(geom, StructuredGeometry)
-    assert geom.geometry == "CYL"
-    assert len(geom.regions) == 1
-    region = geom.regions[0]
-    assert isinstance(region, StructuredRegion)
-    assert region.mat_id == 0  # registry convention: primary mixture at mat_id=0
-    assert math.isclose(
-        region.outer_thickness_cm, expected_R_cm, rel_tol=1e-12,
-    )
+    assert geom.coord is CoordSystem.CYLINDRICAL
+    assert geom.mat_ids == (0,)  # registry convention: primary mixture at mat_id=0
+    assert geom.breakpoints[0] == 0.0
+    assert math.isclose(geom.breakpoints[-1], expected_R_cm, rel_tol=1e-12)
     assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
 
-    # CYL carries 1 BC (outer); centreline reflective is implicit.
-    assert geom.n_endpoints == 1
-    assert geom.bcs == (BC.vacuum,)
+    # A solid body has one boundary point, the outer surface; the centre
+    # is an interior point and carries no law.
+    assert geom.boundary_points == (geom.breakpoints[-1],)
+    assert geom.boundaries == (BC.vacuum,)
 
 
 # ═══════════════════════════════════════════════════════════════════

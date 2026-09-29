@@ -21,6 +21,8 @@ about cell counts.
 
 from __future__ import annotations
 
+import itertools
+
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
@@ -134,8 +136,8 @@ class RegionMesh:
     --------
     Mesh1D.from_geometry : Construct a Mesh1D from a
         :class:`StructuredGeometry` + tuple of :class:`RegionMesh`.
-    Region : The geometry-layer per-region descriptor that this
-        :class:`RegionMesh` pairs with at mesh-build time.
+    StructuredGeometry : Its intervals :math:`[r_k, r_{k+1}]`, one per
+        material id, are what the :class:`RegionMesh` tuple pairs with.
     """
 
     n_cells: int
@@ -357,61 +359,49 @@ class Mesh1D:
         geometry: "StructuredGeometry",
         *,
         region_meshes: tuple[RegionMesh, ...],
-        origin: float = 0.0,
     ) -> "Mesh1D":
         r"""Build a :class:`Mesh1D` from a :class:`StructuredGeometry`
-        plus a per-region discretization description.
+        plus a per-interval discretization description.
 
         This is the canonical geometry → mesh transition. Production
         solvers (CP, SN, MOC, MC) consume the resulting :class:`Mesh1D`
         directly; reference solvers do not need a mesh and consume the
         :class:`StructuredGeometry` instead.
 
-        Each region in :attr:`geometry.regions <StructuredGeometry.regions>`
-        is paired with the matching :class:`RegionMesh` at the same
-        index. The lengths must match. For each pair:
+        Each interval :math:`[r_k, r_{k+1}]` between consecutive
+        :attr:`~StructuredGeometry.breakpoints` is paired with the
+        :class:`RegionMesh` at the same index; the counts must match. For
+        each pair the interval's material id is broadcast across its
+        cells, and the interval's ends with the region-mesh's ``n_cells``
+        and ``method`` determine the cell edges and volumes. The two end
+        edges of every interval ARE its breakpoints, so the mesh starts at
+        :math:`r_0` and ends at :math:`r_R`.
 
-        * The region's ``mat_id`` is broadcast across the resulting
-          cells.
-        * The region's ``outer_thickness_cm`` and the region-mesh's
-          ``n_cells`` and ``method`` determine the cell edges and
-          volumes.
-
-        Edges are accumulated across regions starting from
-        ``origin`` (default 0). The first region starts at
-        ``origin``; the last region ends at ``origin +
-        geometry.domain_extent_cm``.
-
-        BCs from :attr:`geometry.bcs <StructuredGeometry.bcs>` are
-        propagated onto the resulting mesh's :attr:`bc_left` /
-        :attr:`bc_right` fields:
-
-        * ``"SLB"``: ``bcs[0] → bc_left``, ``bcs[1] → bc_right``.
-        * ``"CYL"`` / ``"SPH"``: ``bcs[0] → bc_right`` (outer surface);
-          ``bc_left`` is left ``None`` (the centreline is implicit
-          reflective at the coordinate origin and is interpreted by
-          each solver's augmented mesh).
+        The geometry's :attr:`~StructuredGeometry.boundaries` are
+        propagated onto :attr:`bc_left` / :attr:`bc_right` by the
+        boundary points they belong to: two points (a slab, or a hollow
+        cylinder or sphere) give ``(inner, outer)`` to ``(bc_left,
+        bc_right)``; one point (a solid cylinder or sphere) gives its law
+        to ``bc_right`` and leaves ``bc_left`` ``None``, since the centre
+        is an interior point.
 
         Parameters
         ----------
         geometry : StructuredGeometry
             The geometry to discretize.
         region_meshes : tuple[RegionMesh, ...]
-            Per-region discretization descriptors. Length must equal
-            ``len(geometry.regions)``.
-        origin : float, optional
-            Position of the inner-most edge in cm. Default 0.0.
+            Per-interval discretization descriptors, one per material id.
 
         Returns
         -------
         Mesh1D
             A frozen mesh with cells, mat_ids, exact precomputed
-            volumes, and BCs propagated from the geometry.
+            volumes, and the laws propagated from the geometry.
 
         Raises
         ------
         ValueError
-            If ``len(region_meshes) != len(geometry.regions)``.
+            If ``len(region_meshes) != len(geometry.mat_ids)``.
 
         Examples
         --------
@@ -432,24 +422,22 @@ class Mesh1D:
         # for type checking above.
         from .factories import _subdivide_zone
 
-        if len(region_meshes) != len(geometry.regions):
+        if len(region_meshes) != len(geometry.mat_ids):
             raise ValueError(
                 f"Mesh1D.from_geometry: len(region_meshes)="
-                f"{len(region_meshes)} must equal "
-                f"len(geometry.regions)={len(geometry.regions)}."
+                f"{len(region_meshes)} must equal the geometry's interval "
+                f"count {len(geometry.mat_ids)}."
             )
 
         coord = geometry.coord
         edges_list: list[np.ndarray] = []
         mat_ids_list: list[np.ndarray] = []
         volumes_list: list[np.ndarray] = []
-        inner = float(origin)
 
-        for region, region_mesh in zip(
-            geometry.regions, region_meshes, strict=True,
+        for (inner, outer), mat_id, region_mesh in zip(
+            itertools.pairwise(geometry.breakpoints), geometry.mat_ids,
+            region_meshes, strict=True,
         ):
-            outer = inner + float(region.outer_thickness_cm)
-
             if region_mesh.method == "equal-volume":
                 sub_edges, sub_volumes = _subdivide_zone(
                     inner, outer, region_mesh.n_cells, coord,
@@ -460,29 +448,26 @@ class Mesh1D:
                 )
                 sub_volumes = compute_volumes_1d(coord, sub_edges)
 
-            # Skip the first sub-edge (== previous region's outer edge)
-            # to avoid duplication at the inter-region boundary.
+            # Skip the first sub-edge (== previous interval's outer edge)
+            # to avoid duplication at the inter-interval boundary.
             edges_list.append(sub_edges[1:])
             mat_ids_list.append(
-                np.full(region_mesh.n_cells, region.mat_id, dtype=int)
+                np.full(region_mesh.n_cells, mat_id, dtype=int)
             )
             volumes_list.append(sub_volumes)
-            inner = outer
 
-        edges = np.concatenate([[float(origin)], *edges_list])
+        edges = np.concatenate([[geometry.breakpoints[0]], *edges_list])
         mat_ids = np.concatenate(mat_ids_list)
         volumes = np.concatenate(volumes_list)
 
-        # Map geometry BCs onto the mesh's bc_left / bc_right fields.
-        # The BC tuple's arity is the authority here — construction
-        # guards it to _GEOMETRY_TO_N_ENDPOINTS, so the tuple itself
-        # says which layout it carries: two endpoints (slab: left,
-        # right) or one (curvilinear: outer only; centreline implicit).
-        if len(geometry.bcs) == 2:
-            bc_left, bc_right = geometry.bcs
+        # The laws pair one to one with the geometry's boundary points:
+        # (inner, outer) when there are two; the outer law alone on a
+        # solid cylinder or sphere, whose centre carries no law.
+        if len(geometry.boundaries) == 2:
+            bc_left, bc_right = geometry.boundaries
         else:
             bc_left = None
-            (bc_right,) = geometry.bcs
+            (bc_right,) = geometry.boundaries
 
         return cls(
             edges=edges,

@@ -228,11 +228,12 @@ demand via :meth:`La13511Case.to_geometry`:
 .. code-block:: python
 
    geom = case.to_geometry()
-   # Returns StructuredGeometry with cm = mfp / Σ_t,
-   # tag "SLB" / "SPH" / "CYL", and BCs:
-   #   slab    → (BC.vacuum, BC.vacuum) — full-width 2a
-   #   sphere  → (BC.vacuum,) — outer; centreline implicit reflective
-   #   cylinder→ (BC.vacuum,) — outer; centreline implicit reflective
+   # Returns StructuredGeometry with cm = mfp / Σ_t, the coordinate
+   # system CARTESIAN / SPHERICAL / CYLINDRICAL, and the laws:
+   #   slab    → breakpoints (0, 2a), laws (BC.vacuum, BC.vacuum)
+   #   sphere  → breakpoints (0, R), law (BC.vacuum,) at the outer
+   #             surface; the centre is an interior point, no law
+   #   cylinder→ breakpoints (0, R), law (BC.vacuum,), likewise
 
 Slab convention: returns the FULL slab width (``2 *
 critical_dimension_mfp / Σ_t``) with vacuum-vacuum BCs — the
@@ -350,12 +351,12 @@ per-``geometry_kind`` conventions:
        :class:`MomentSpace` from ``domain_extent_cm / 2``.
    * - ``"sphere"``
      - ``cm``
-     - vacuum at outer; reflective at :math:`r=0` (implicit at the
-       coordinate origin)
+     - vacuum at the outer surface; the centre :math:`r=0` is an
+       interior point and carries no law
      - Single region of radius :math:`R`.
    * - ``"cylinder"``
      - ``cm``
-     - vacuum at outer; reflective at :math:`r=0` (implicit)
+     - vacuum at the outer surface; no law at the centre
      - Single region of radius :math:`R`. Same as sphere convention.
 
 Cross-method dimension conversion
@@ -384,7 +385,7 @@ consumer is responsible for the correct interpretation:
    * - sphere / cylinder
      - radius :math:`R`
      - :math:`R` (Eq 46 BC)
-     - Mesh extent :math:`R` (reflective at 0, vacuum at R)
+     - Mesh extent :math:`R` (vacuum at R; the centre carries no law)
 
 The registry stores the as-published value; consumers convert
 via the unambiguous rules above. The

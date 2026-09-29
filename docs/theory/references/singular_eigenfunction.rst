@@ -711,13 +711,12 @@ isotropic):
        chi=np.array([1.0]),
        sig_s=np.array([[0.7]]),  # c = (0.7 + 0.6)/1.0 = 1.30
    )
-   from orpheus.geometry.structured_geometry import (
-       Region, StructuredGeometry,
-   )
+   from orpheus.geometry import CoordSystem, StructuredGeometry
    geom = StructuredGeometry(
-       geometry="CYL",
-       regions=(Region(mat_id=0, outer_thickness_cm=1.72500292),),
-       bcs=(BC.vacuum,),
+       coord=CoordSystem.CYLINDRICAL,
+       breakpoints=(0.0, 1.72500292),
+       mat_ids=(0,),
+       boundaries=(BC.vacuum,),
    )
    spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=24)
    sol = spec.solve_critical()
@@ -739,9 +738,10 @@ Reflected slab with linear anisotropy (Atalay 1997 Table 2,
        sig_s1=np.array([[0.20 * 0.7]]),  # f1 = SigS[1]/SigS[0] = 0.20
    )
    geom = StructuredGeometry(
-       geometry="SLB",
-       regions=(Region(mat_id=0, outer_thickness_cm=2.0),),  # placeholder full width
-       bcs=(BC.vacuum, BC("partial", {"albedo": 0.50})),  # R = 0.50 outer
+       coord=CoordSystem.CARTESIAN,
+       breakpoints=(0.0, 2.0),  # placeholder full width
+       mat_ids=(0,),
+       boundaries=(BC.vacuum, BC("partial", {"albedo": 0.50})),  # R = 0.50 outer
    )
    spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=8)
    sol = spec.solve_critical()

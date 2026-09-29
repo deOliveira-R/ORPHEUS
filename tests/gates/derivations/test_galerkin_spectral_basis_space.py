@@ -28,11 +28,7 @@ from orpheus.derivations.continuous.galerkin_spectral.slab import (
 from orpheus.derivations.continuous.galerkin_spectral.sphere import (
     solve_galerkin_spectral_sphere,
 )
-from orpheus.geometry import BC
-from orpheus.geometry.structured_geometry import (
-    Region,
-    StructuredGeometry,
-)
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -79,9 +75,10 @@ def _slab_geometry(d_mfp: float = 2.0) -> StructuredGeometry:
     coherent, but BasisSpace does not consult it.
     """
     return StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=0, outer_thickness_cm=float(d_mfp)),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, float(d_mfp)),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
 
 
@@ -89,9 +86,10 @@ def _sphere_geometry(d_mfp: float = 2.0) -> StructuredGeometry:
     """Bare-critical sphere geometry."""
     R = d_mfp / 2.0
     return StructuredGeometry(
-        geometry="SPH",
-        regions=(Region(mat_id=0, outer_thickness_cm=float(R)),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.SPHERICAL,
+        breakpoints=(0.0, float(R)),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
 
 
@@ -123,9 +121,10 @@ def test_basis_space_rejects_cylinder_geometry() -> None:
     r"""Cylinder is out of pillar (Westfall-Metcalf 1972)."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     cyl = StructuredGeometry(
-        geometry="CYL",
-        regions=(Region(mat_id=0, outer_thickness_cm=1.72500292),),
-        bcs=(BC.vacuum,),
+        coord=CoordSystem.CYLINDRICAL,
+        breakpoints=(0.0, 1.72500292),
+        mat_ids=(0,),
+        boundaries=(BC.vacuum,),
     )
     with pytest.raises(ValueError, match="singular_eigenfunction"):
         BasisSpace(geometry=cyl, materials={0: mix})
@@ -151,9 +150,10 @@ def test_basis_space_rejects_invalid_n_quad() -> None:
 def test_basis_space_rejects_missing_mat_id() -> None:
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(Region(mat_id=99, outer_thickness_cm=1.0),),
-        bcs=(BC.vacuum, BC.vacuum),
+        coord=CoordSystem.CARTESIAN,
+        breakpoints=(0.0, 1.0),
+        mat_ids=(99,),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     with pytest.raises(ValueError, match="mat_id=99"):
         BasisSpace(geometry=geom, materials={0: mix})

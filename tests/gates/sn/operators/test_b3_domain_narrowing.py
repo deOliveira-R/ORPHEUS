@@ -41,7 +41,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
@@ -72,16 +72,17 @@ pytestmark = [pytest.mark.foundation]
 # ── Fixtures: every geometry the SN boundary machinery reaches ────────
 
 
-def _sn_1d(geometry: str, bcs: tuple, nx: int = 4, ng: int = 2) -> SNProblem:
+def _sn_1d(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 2) -> SNProblem:
     geom = StructuredGeometry(
-        geometry=geometry,
-        regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-        bcs=bcs,
+        coord=coord,
+        breakpoints=(0.0, 2.0),
+        mat_ids=(0,),
+        boundaries=bcs,
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
     quad = (
         Quadrature.folded_product(n_mu=2, n_phi=4)
-        if geometry == "CYL"
+        if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
@@ -101,11 +102,11 @@ def _sn_2d(ng: int = 2) -> SNProblem:
 #: 2-D case is deliberately MIXED (vacuum on xmin, reflective elsewhere) and
 #: RECTANGULAR (nx ≠ ny) so a face↔face swap or an axis transpose cannot hide.
 _FIXTURES = {
-    "slab_vacuum_reflective": lambda: _sn_1d("SLB", (BC.vacuum, BC.reflective)),
-    "slab_reflective_reflective": lambda: _sn_1d("SLB", (BC.reflective, BC.reflective)),
-    "sphere_reflective": lambda: _sn_1d("SPH", (BC.reflective,)),
+    "slab_vacuum_reflective": lambda: _sn_1d(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective)),
+    "slab_reflective_reflective": lambda: _sn_1d(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective)),
+    "sphere_reflective": lambda: _sn_1d(CoordSystem.SPHERICAL, (BC.reflective,)),
     # The only fixture with TANGENTIAL ordinates (4 of 8 per face).
-    "cyl_reflective": lambda: _sn_1d("CYL", (BC.reflective,)),
+    "cyl_reflective": lambda: _sn_1d(CoordSystem.CYLINDRICAL, (BC.reflective,)),
     "cart2d_mixed": _sn_2d,
 }
 

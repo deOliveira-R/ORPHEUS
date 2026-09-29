@@ -161,7 +161,8 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.solution_types import CriticalSolution
-from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.derivations.common.homogeneous_body import homogeneous_body
+from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -474,15 +475,13 @@ class BasisSpace:
     Direct construction with a :class:`StructuredGeometry` and a
     ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry.structured_geometry import (
-            Region, StructuredGeometry,
-        )
-        from orpheus.geometry import BC
+        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
         geom = StructuredGeometry(
-            geometry="SLB",
-            regions=(Region(mat_id=0, outer_thickness_cm=L_full),),
-            bcs=(BC.vacuum, BC.vacuum),
+            coord=CoordSystem.CARTESIAN,
+            breakpoints=(0.0, L_full),
+            mat_ids=(0,),
+            boundaries=(BC.vacuum, BC.vacuum),
         )
         bs = BasisSpace(geometry=geom, materials={0: mix})
         sol = bs.solve_critical(d=2.0)
@@ -496,9 +495,11 @@ class BasisSpace:
     Parameters
     ----------
     geometry : :class:`StructuredGeometry`
-        Pure-geometry layer object. Tag MUST be ``"SLB"`` or
-        ``"SPH"``. ``"CYL"`` is out of pillar (Westfall–Metcalf 1972
-        — see :mod:`...singular_eigenfunction.cylinder`).
+        Pure-geometry layer object: one material filling a slab or a
+        solid sphere, read by
+        :func:`~orpheus.derivations.common.homogeneous_body.homogeneous_body`.
+        A cylinder is out of pillar (Westfall–Metcalf 1972 — see
+        :mod:`...singular_eigenfunction.cylinder`).
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
         Galerkin spectral method as shipped is 1G only.
@@ -524,9 +525,9 @@ class BasisSpace:
         **1G linearly anisotropic scattering**. Cylinder is out of
         pillar (Westfall–Metcalf 1972).
         """
-        tag = self.geometry.geometry
-        if tag not in {"SLB", "SPH"}:
-            if tag == "CYL":
+        body = homogeneous_body(self.geometry, owner="BasisSpace")
+        if body.coord not in (CoordSystem.CARTESIAN, CoordSystem.SPHERICAL):
+            if body.coord is CoordSystem.CYLINDRICAL:
                 raise ValueError(
                     "BasisSpace does not support cylinder geometry — "
                     "Westfall-Metcalf 1972 documents the Mitsis-style "
@@ -536,8 +537,8 @@ class BasisSpace:
                     ".cylinder for the cylinder benchmark."
                 )
             raise ValueError(
-                f"BasisSpace supports geometry ∈ {{SLB, SPH}}, "
-                f"got {tag!r}. For infinite-medium k_inf use "
+                f"BasisSpace supports a slab or a sphere, got "
+                f"{body.coord.name.lower()}. For infinite-medium k_inf use "
                 f"MomentSpace.solve_kinf or the multi-group F_N machinery."
             )
         if self.basis_order < 1:
@@ -569,7 +570,7 @@ class BasisSpace:
     @property
     def _mat_id(self) -> int:
         """Active mat_id — the single region's material identifier."""
-        return self.geometry.regions[0].mat_id
+        return homogeneous_body(self.geometry, owner="BasisSpace").mat_id
 
     @property
     def _mixture(self) -> Mixture:
@@ -722,14 +723,14 @@ class BasisSpace:
             mu_bar = self.mu_bar
 
         c_material = self.c
-        tag = self.geometry.geometry
 
-        if tag == "SLB":
-            return self._solve_critical_slab(c_material, d, mu_bar)
-        if tag == "SPH":
-            return self._solve_critical_sphere(c_material, d, mu_bar)
+        match self.geometry.coord:
+            case CoordSystem.CARTESIAN:
+                return self._solve_critical_slab(c_material, d, mu_bar)
+            case CoordSystem.SPHERICAL:
+                return self._solve_critical_sphere(c_material, d, mu_bar)
         raise NotImplementedError(  # pragma: no cover (validated above)
-            f"unhandled geometry {tag!r}"
+            f"unhandled coordinate system {self.geometry.coord!r}"
         )
 
     def _solve_critical_slab(

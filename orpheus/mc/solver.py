@@ -141,6 +141,36 @@ class SlabPinCell:
         )
 
 
+def _refuse_a_mesh_mc_misreads(mesh: Mesh1D) -> None:
+    """Refuse a hollow cylinder, and a declared left or inner law that is not periodic.
+
+    **SCOPE-BOUNDARY[guard]** — machinery: per-face law resolution and a cavity region in the MC flight loop (#513).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.14).
+    revisit: MC's campaign, which recycles the shared machinery (the direction of development).
+
+    ``MCMesh`` resolves only ``bc_right``, and its registry's only kind is
+    ``periodic``, which it applies to every face of the unit cell. A
+    declared left law of another kind is dropped (``[M]`` 2026-09-25: a slab
+    with a vacuum left law and a periodic right law constructed and ran as
+    periodic). Its material lookup clamps a radius below the first edge to
+    region 0, so a hollow cylinder's cavity is filled with the innermost
+    material (``[M]`` 2026-09-29, qa: breakpoints (0.5, 1.0, 2.0) returned
+    material 7 at r = 0). An undeclared (``None``) left law is admitted
+    until P1 step 3 retires ``None``.
+    """
+    if mesh.coord is CoordSystem.CYLINDRICAL and mesh.edges[0] != 0.0:
+        raise NotImplementedError(
+            f"MC fills a hollow cylinder's cavity (r_0 = {float(mesh.edges[0])!r}) "
+            f"with its innermost material; only a solid cylinder is read (#513)."
+        )
+    left_law = mesh.bc_left
+    if left_law is not None and left_law.kind != "periodic":
+        raise NotImplementedError(
+            f"MC applies the periodic law to every face; the declared left / "
+            f"inner law {left_law!r} would be dropped (#513)."
+        )
+
+
 class MCMesh:
     """Augmented geometry for Monte Carlo delta-tracking.
 
@@ -190,6 +220,8 @@ class MCMesh:
                 f"MC solver does not support boundary condition '{bc.kind}'. "
                 f"Supported: {supported}."
             )
+        # The law MC reads is admitted first; then the one it would drop.
+        _refuse_a_mesh_mc_misreads(mesh)
         self.bc_kind: str = factory(self, bc)
 
     def material_id_at(self, x: float, y: float) -> int:

@@ -134,6 +134,39 @@ def _e3(x):
 # CPMesh — augmented geometry for the collision probability method
 # ═══════════════════════════════════════════════════════════════════════
 
+def _refuse_a_law_cp_drops(mesh: Mesh1D) -> None:
+    """Refuse a declared law the CP transform never reads.
+
+    **SCOPE-BOUNDARY[guard]** — machinery: a CP transform that reads the inner / left face law (#513).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.12).
+    revisit: CP's campaign (the direction of development takes CP after SN, diffusion and the baseline).
+
+    CP resolves only ``bc_right``. On a slab, a left law equal to the
+    right one is what CP computes (``[M]`` 2026-09-25: a white, vacuum or
+    undeclared left law gave k = 1.8749980808246423 to all 16 digits, so
+    the left law is dropped), so only that one is admitted. On a hollow
+    cylinder or sphere, what CP realises at the inner surface is not
+    established, so no inner law is admitted. An undeclared (``None``)
+    left law is admitted until P1 step 3 retires ``None``.
+    """
+    inner_law = mesh.bc_left
+    if inner_law is None:
+        return
+    if mesh.coord is CoordSystem.CARTESIAN:
+        if inner_law != mesh.bc_right:
+            raise NotImplementedError(
+                f"CP reads only a slab's right-hand law ({mesh.bc_right!r}); "
+                f"the declared left law {inner_law!r} differs from it and would "
+                f"be dropped (#513). Declare the same law on both faces."
+            )
+    elif mesh.edges[0] > 0.0:
+        raise NotImplementedError(
+            f"CP reads only the outer law of a hollow "
+            f"{mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}); "
+            f"the declared inner law {inner_law!r} would be dropped (#513)."
+        )
+
+
 class CPMesh:
     """Augmented geometry for the collision probability method.
 
@@ -234,6 +267,8 @@ class CPMesh:
                 f"CP method does not support boundary condition '{bc.kind}'. "
                 f"Supported: {supported}."
             )
+        # The law CP reads is admitted first; then the one it would drop.
+        _refuse_a_law_cp_drops(mesh)
         self._bc_transform: Callable = factory(self, bc)
 
     # ── P_inf computation ─────────────────────────────────────────────
@@ -914,9 +949,11 @@ def solve_cp(
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
         →
         :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`.
-        The mesh's boundary conditions (``bc_left`` / ``bc_right``)
-        are honoured verbatim — the CP kernel registry handles
-        ``white`` / ``vacuum``.
+        CP reads the mesh's OUTER law (``bc_right``; the kernel registry
+        handles ``white`` / ``vacuum``) and nothing else, so a declared
+        law it would drop is refused: a slab's left law must equal its
+        right law, and a hollow cylinder or sphere takes no inner law
+        (#513).
     params : CPParams, optional
         Solver parameters (tolerances, Ki table size, chord-quadrature
         order via ``n_quad_y``, solver mode, inner-iteration limits).

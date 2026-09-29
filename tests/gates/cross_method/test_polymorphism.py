@@ -148,7 +148,7 @@ def test_dispatch_trajectory_resolvent_slab_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.bcs[-1].to_alpha()
+    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
@@ -183,7 +183,7 @@ def test_dispatch_trajectory_resolvent_sphere_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.bcs[-1].to_alpha()
+    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,
@@ -217,7 +217,7 @@ def test_dispatch_closed_sphere_matches_adapter():
     res_adapter = adapter.solve(case)
 
     geom = _structured_geom_for(case)
-    alpha = geom.bcs[-1].to_alpha()
+    alpha = geom.boundaries[-1].to_alpha()
 
     billiard = Billiard(
         geometry=geom,

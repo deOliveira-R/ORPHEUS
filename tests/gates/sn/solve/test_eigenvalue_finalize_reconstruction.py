@@ -335,7 +335,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.convergence import ConvergenceWarning
@@ -418,14 +418,11 @@ _LIBRARY_N2N = {2: _FUEL, 0: _MOD_N2N}
 
 def _slab(bc: BC) -> Mesh1D:
     """moderator | fuel | moderator, 20 cells."""
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=2.0),
-            Region(mat_id=2, outer_thickness_cm=6.0),
-            Region(mat_id=0, outer_thickness_cm=2.0),
-        ),
-        bcs=(bc, bc),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(2.0, 6.0, 2.0),
+        mat_ids=(0, 2, 0),
+        boundaries=(bc, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=6), RegionMesh(n_cells=8), RegionMesh(n_cells=6),
@@ -1566,14 +1563,11 @@ def be_library() -> dict[int, Mixture]:
 @pytest.fixture(scope="module")
 def be_mesh() -> Mesh1D:
     """The #426 §0 fixture verbatim: Be | U-235 metal | Be, vacuum."""
-    geom = StructuredGeometry(
-        geometry="SLB",
-        regions=(
-            Region(mat_id=1, outer_thickness_cm=3.0),
-            Region(mat_id=0, outer_thickness_cm=4.0),
-            Region(mat_id=1, outer_thickness_cm=3.0),
-        ),
-        bcs=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(3.0, 4.0, 3.0),
+        mat_ids=(1, 0, 1),
+        boundaries=(BC.vacuum, BC.vacuum),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=12), RegionMesh(n_cells=16), RegionMesh(n_cells=12),

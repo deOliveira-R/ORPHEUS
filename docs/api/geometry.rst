@@ -5,10 +5,11 @@ The :mod:`orpheus.geometry` package is the geometry layer: the shapes,
 the coordinate systems and the boundary declarations of a problem, with
 no discretisation. It holds four things:
 
-* :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` and
-  :class:`~orpheus.geometry.structured_geometry.Region`: the 1-D layered
-  geometry, a pure shape and boundary description that carries no cell
-  counts. Reference solvers consume it directly.
+* :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`: the
+  1-D layered geometry (a coordinate system, breakpoints, one material id
+  per interval and one boundary law per boundary point), a pure shape and
+  boundary description that carries no cell counts. Reference solvers
+  consume it directly.
 * :class:`~orpheus.geometry.coord.CoordSystem` and the volume and area
   formulas of each coordinate system (:mod:`orpheus.geometry.coord`).
 * :mod:`orpheus.geometry.boundary`: the boundary-condition tag
@@ -52,9 +53,12 @@ carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
 boundary face — :class:`~orpheus.mesh.structured.Mesh1D` has
 ``bc_left`` and ``bc_right``;
 :class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``,
-``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. A value of ``None``
-means "use the solver's default," which varies by method (e.g.
-reflective for SN eigenvalue, white for CP).
+``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. On a mesh a value of
+``None`` means "use the solver's default," which varies by method (e.g.
+reflective for SN eigenvalue, white for CP); a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+refuses ``None``, because it declares the problem and a default is a
+method's.
 
 The geometry module makes **no assumptions** about what a given
 ``kind`` means physically. Semantics are resolved by each method's own
@@ -209,19 +213,28 @@ Structured geometry
 -------------------
 
 A :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-is the pure shape of a 1-D problem: the geometry kind, an ordered
-tuple of :class:`~orpheus.geometry.structured_geometry.Region` layers
-(each a material ID and an outer thickness), and the endpoint
-:class:`~orpheus.geometry.boundary.BC`\ s. It carries **no** cell
-counts. Reference solution generators (``Billiard``, ``MomentSpace``,
+is the pure shape of a 1-D problem: its coordinate system ``coord``
+(a :class:`~orpheus.geometry.coord.CoordSystem` member), its
+``breakpoints`` :math:`r_0 < \dots < r_R` (stored bit for bit as given),
+one material id per interval in ``mat_ids``, and one law per boundary
+point in ``boundaries`` (a :class:`~orpheus.geometry.boundary.BC` tag or
+a typed law; ``None`` is refused). The boundary points are derived, not
+declared: two on a slab, the outer surface alone on a solid cylinder or
+sphere (whose centre is an interior point and carries no law), inner
+and outer on a hollow one. It carries **no** cell counts. The reasons
+for each of these choices are on
+:doc:`/theory/foundations/structured_geometry`. Reference solution generators (``Billiard``, ``MomentSpace``,
 ``Spectrum``, ``BasisSpace``) consume it directly, because they need no
 mesh; the discrete production solvers consume the
 :class:`~orpheus.mesh.structured.Mesh1D` that
 :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`
 builds from it (the construction path is on :doc:`/api/mesh`).
 
-Two conventional PWR shapes ship as
-:class:`StructuredGeometry` classmethods:
+A configuration published as thicknesses is built with
+:meth:`StructuredGeometry.from_thicknesses
+<orpheus.geometry.structured_geometry.StructuredGeometry.from_thicknesses>`,
+the left fold :math:`r_{k+1} = r_k + t_k`. Two conventional PWR shapes
+ship as :class:`StructuredGeometry` classmethods:
 
 * :meth:`StructuredGeometry.pwr_slab_half_cell
   <orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell>`

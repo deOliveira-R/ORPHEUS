@@ -1306,13 +1306,14 @@ class TestExitBalanceDefect:
         must cost the number, never the warning), and the number is absent
         rather than wrong.
         """
-        from orpheus.geometry import Region, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
         from orpheus.mesh import Mesh1D, RegionMesh
 
         geom = StructuredGeometry(
-            geometry="SPH",
-            regions=(Region(mat_id=0, outer_thickness_cm=2.0),),
-            bcs=(BC.reflective,),
+            coord=CoordSystem.SPHERICAL,
+            breakpoints=(0.0, 2.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
         )
         mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=20),))
         with pytest.warns(ConvergenceWarning) as caught:

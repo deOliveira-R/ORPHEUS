@@ -123,27 +123,29 @@ Construction — the geometry to mesh path
 
 The recommended 1-D construction path is **two-layered**: declare a
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-(pure shape — geometry kind, an ordered tuple of
-:class:`~orpheus.geometry.structured_geometry.Region` layers, and the
-endpoint :class:`~orpheus.geometry.boundary.BC`\ s), then discretize it
-with :meth:`Mesh1D.from_geometry
+(pure shape — a coordinate system, breakpoints, one material id per
+interval and one :class:`~orpheus.geometry.boundary.BC` per boundary
+point), then discretize it with :meth:`Mesh1D.from_geometry
 <orpheus.mesh.structured.Mesh1D.from_geometry>` by supplying one
-:class:`~orpheus.mesh.structured.RegionMesh` per region. The geometry
+:class:`~orpheus.mesh.structured.RegionMesh` per interval. The mesh
+starts at the first breakpoint and ends at the last, and the laws reach
+``bc_left`` / ``bc_right`` by the boundary point they belong to: a slab
+or a hollow cylinder or sphere gives ``(inner, outer)``, a solid
+cylinder or sphere gives its one law to ``bc_right`` and leaves
+``bc_left`` ``None``. The geometry
 carries **no** cell counts; the discretization description enters at
 exactly one point, the ``from_geometry`` call.
 
 .. code-block:: python
 
-   from orpheus.geometry import BC
-   from orpheus.geometry.structured_geometry import (
-       Region, StructuredGeometry,
-   )
+   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
    from orpheus.mesh import Mesh1D, RegionMesh
 
    geom = StructuredGeometry(
-       geometry="SPH",
-       regions=(Region(mat_id=0, outer_thickness_cm=5.0),),
-       bcs=(BC.vacuum,),
+       coord=CoordSystem.SPHERICAL,
+       breakpoints=(0.0, 5.0),
+       mat_ids=(0,),
+       boundaries=(BC.vacuum,),
    )
    mesh = Mesh1D.from_geometry(
        geom, region_meshes=(RegionMesh(n_cells=64),),

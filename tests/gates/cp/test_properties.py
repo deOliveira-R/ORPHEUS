@@ -14,7 +14,7 @@ Cylindrical, and Spherical.
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import Mesh1D, RegionMesh
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations.common.xs_library import get_xs
@@ -38,22 +38,15 @@ pytestmark = [pytest.mark.l0, pytest.mark.verifies(
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
-_COORD_TO_GEOMETRY_TAG = {
-    CoordSystem.CARTESIAN: "SLB",
-    CoordSystem.CYLINDRICAL: "CYL",
-    CoordSystem.SPHERICAL: "SPH",
-}
-
-
-def _bcs_for(tag: str) -> tuple[BC, ...]:
-    """Default white-BC tuple matching the geometry tag's endpoint count.
+def _bcs_for(coord: CoordSystem) -> tuple[BC, ...]:
+    """White laws, one per boundary point of a solid geometry in ``coord``.
 
     The CP method only supports ``"vacuum"`` and ``"white"`` BCs;
     the algebraic-invariant tests in this file were historically
     written with the CP default (white at the outer surface), so
     we keep that convention here.
     """
-    if tag == "SLB":
+    if coord is CoordSystem.CARTESIAN:
         return (BC.white, BC.white)
     return (BC.white,)
 
@@ -67,14 +60,11 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
     xs_b = get_xs("B", "1g")
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
 
-    tag = _COORD_TO_GEOMETRY_TAG[coord]
-    geom = StructuredGeometry(
-        geometry=tag,
-        regions=(
-            Region(mat_id=0, outer_thickness_cm=0.5),
-            Region(mat_id=1, outer_thickness_cm=0.5),
-        ),
-        bcs=_bcs_for(tag),
+    geom = StructuredGeometry.from_thicknesses(
+        coord=coord,
+        thicknesses=(0.5, 0.5),
+        mat_ids=(0, 1),
+        boundaries=_bcs_for(coord),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=1),
@@ -87,12 +77,12 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
 
 def _build_pinf_1region(coord: CoordSystem):
     """Build P_inf for a 1G 1-region problem (homogeneous limit)."""
-    tag = _COORD_TO_GEOMETRY_TAG[coord]
     extent_cm = 0.5 if coord == CoordSystem.CARTESIAN else 1.0
     geom = StructuredGeometry(
-        geometry=tag,
-        regions=(Region(mat_id=0, outer_thickness_cm=extent_cm),),
-        bcs=_bcs_for(tag),
+        coord=coord,
+        breakpoints=(0.0, extent_cm),
+        mat_ids=(0,),
+        boundaries=_bcs_for(coord),
     )
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=1),))
 

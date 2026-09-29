@@ -347,16 +347,10 @@ def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
 # verification/analytical/) share ONE definition rather than each
 # carrying a copy.
 
-_COORD_TO_TAG = {
-    "CARTESIAN": "SLB",
-    "CYLINDRICAL": "CYL",
-    "SPHERICAL": "SPH",
-}
-
-
-def _bcs_for(tag: str, bc):
-    """BC tuple matching the geometry tag's endpoint count."""
-    if tag == "SLB":
+def _bcs_for(coord, bc):
+    """``bc`` at every boundary point of a solid geometry in ``coord``."""
+    from orpheus.geometry import CoordSystem
+    if coord is CoordSystem.CARTESIAN:
         return (bc, bc)
     return (bc,)
 
@@ -374,17 +368,17 @@ def curvilinear_homogeneous_mesh(
     convention). CP tests must override to ``BC.white`` because CP
     only supports ``"vacuum"`` / ``"white"``.
     """
-    from orpheus.geometry import BC, CoordSystem, Region, StructuredGeometry
+    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
     from orpheus.mesh import Mesh1D, RegionMesh
     if coord is None:
         coord = CoordSystem.CARTESIAN
     if bc is None:
         bc = BC.reflective
-    tag = _COORD_TO_TAG[coord.name]
     geom = StructuredGeometry(
-        geometry=tag,
-        regions=(Region(mat_id=mat_id, outer_thickness_cm=total_width),),
-        bcs=_bcs_for(tag, bc),
+        coord=coord,
+        breakpoints=(0.0, total_width),
+        mat_ids=(mat_id,),
+        boundaries=_bcs_for(coord, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
 
@@ -396,20 +390,17 @@ def curvilinear_two_region_mesh(
     coord,
     bc=None,
 ):
-    """Two-region mesh with absolute outer-edge convention."""
-    from orpheus.geometry import BC, Region, StructuredGeometry
+    """Two-region mesh; ``outers`` are the regions' outer positions."""
+    from orpheus.geometry import BC, StructuredGeometry
     from orpheus.mesh import RegionMesh
     from orpheus.mesh import Mesh1D
     if bc is None:
         bc = BC.reflective
-    tag = _COORD_TO_TAG[coord.name]
     geom = StructuredGeometry(
-        geometry=tag,
-        regions=(
-            Region(mat_id=mat_ids[0], outer_thickness_cm=outers[0]),
-            Region(mat_id=mat_ids[1], outer_thickness_cm=outers[1] - outers[0]),
-        ),
-        bcs=_bcs_for(tag, bc),
+        coord=coord,
+        breakpoints=(0.0, *outers),
+        mat_ids=tuple(mat_ids),
+        boundaries=_bcs_for(coord, bc),
     )
     return Mesh1D.from_geometry(geom, region_meshes=(
         RegionMesh(n_cells=n_cells[0]),
