@@ -905,31 +905,38 @@ In Sood notation (:math:`g=2` fast, :math:`g=1` slow,
          -(\Sigma_{12s} + \tfrac{\chi_1}{k}\nu_2\Sigma_{2f})
        \end{pmatrix} .
 
-.. (vv-status rationale) derivation: Sood Eq 25 transcription — the 2G fission-balance matrix that yields k_inf via det(M)=0; verified by V_fn2.1 SymPy derivation (the "derived general 2G formula"). The published Eq 28 has a typo; corrected form lives in the SymPy module.
+.. (vv-status rationale) derivation: Sood Eq 25 transcription — the 2G fission-balance matrix that yields k_inf via det(M)=0; verified by V_fn2.1 SymPy derivation (the "derived general 2G formula"), which equals the published Eq 28 as printed.
 .. vv-status: sood-eq25-2g-matrix documented
 
 The SymPy derivation expands :math:`\det M(k) = 0`, multiplies through
 by :math:`k^2` to land on a polynomial in :math:`k`, solves for the
 two roots, and discards the :math:`k=0` solution. The surviving root
-is the **derived general 2G formula** — the corrected Sood Eq 28.
+is the **derived general 2G formula**, and it equals Sood Eq 28 as
+printed:
 
-**Discovery — Sood Eq 28 has a typo.** As printed, the :math:`\chi_g`
-numerator factors are mis-paired with their respective
-:math:`\Sigma_g^{\rm rem}` removal cross sections. With Eq 28 as
-printed and :math:`\Sigma_{21s} = 0`, the result is :math:`k_\infty
-\approx 2.862` for Case 5 (PU-2-0-IN) — not the published 2.684. The
-correct form (verified symbolically via :math:`\det M = 0`) swaps
-the pairing, after which:
+.. math::
 
-* The no-upscatter limit (:math:`\Sigma_{21s} = 0`) reduces to the
-  correctly-printed Eq 29.
-* The numerical reference values in LA-13511 (k_inf = 2.683767,
-  :math:`\phi_2/\phi_1 = 0.675229`) match.
+   k_\infty = \frac{\chi_1\,(\nu_2\Sigma_{2f}\,\Sigma_{21s} + \Sigma_2^{\rm rem}\,\nu_1\Sigma_{1f})
+                  + \chi_2\,(\nu_1\Sigma_{1f}\,\Sigma_{12s} + \Sigma_1^{\rm rem}\,\nu_2\Sigma_{2f})}
+                 {\Sigma_1^{\rm rem}\,\Sigma_2^{\rm rem} - \Sigma_{12s}\,\Sigma_{21s}} .
 
-The corrected Eq 28 (output of the SymPy ``derive_*``) is what the
-Branch-2 ``compute_kinf_2g_general`` evaluates. The
-``sood_registry`` notes field on ``PU_2_0_IN`` flags the typo with a
-pointer to this V_fn.
+Its no-upscatter limit (:math:`\Sigma_{21s} = 0`) is Eq 29, and on
+Case 5 (PU-2-0-IN) it gives the published :math:`k_\infty = 2.683767`.
+The Branch-2 ``compute_kinf_2g_general`` evaluates this form.
+
+**A refuted claim: "Sood Eq 28 has a typo".** Until 2026-09-29 this
+section reported a typo in Eq 28, and V_fn2.1 certified it. The claim
+came from a mis-transcription of the equation into the SymPy module:
+the "as printed" form typed there paired :math:`\chi_1` with
+:math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` and :math:`\chi_2` with
+:math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`, which gives
+:math:`k_\infty \approx 2.862` on PU-2-0-IN. The report prints the
+pairing above (the 1999 page image, and the text of both editions:
+the 2003 edition prints the same body as Eq (A.11)). The gate compared
+the derivation with the mis-transcription and asserted that they
+differ, a check that any wrong transcription passes; the corrected
+gate asserts that the derivation equals the printed equation, which a
+swapped transcription fails (ERR-092).
 
 .. _fn-method-V-fn2-2:
 
@@ -965,11 +972,10 @@ the published formula directly.
 The two checks together close the proof that:
 
 1. The general-form derivation in V_fn2.1 is correct (Eq 25 → quadratic
-   → non-trivial root).
-2. The published Eq 29 is the correct no-upscatter limit (V_fn2.2).
-3. Therefore, the printed Eq 28 must be a typo (it disagrees with
-   the correct general form whose specialisation is the printed
-   Eq 29).
+   → non-trivial root), and it is the printed Eq 28.
+2. The published Eq 29 is the correct no-upscatter limit (V_fn2.2),
+   reached from the general form (V_fn2.1) and checked against
+   :math:`\det M` directly (V_fn2.2).
 
 .. _fn-method-V-fn2-3:
 

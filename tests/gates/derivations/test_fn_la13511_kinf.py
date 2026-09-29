@@ -98,22 +98,18 @@ def test_v_fn1_2_kinf_eq_20_simplifies_to_eq_19():
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-092")
 def test_v_fn2_1_kinf_2g_general_from_matrix():
-    """V_fn2.1 — 2G general k_inf from det(M)=0 matches Eq 29 in no-upscatter limit;
-    Sood's Eq 28 typo is confirmed algebraically."""
+    """V_fn2.1 — 2G general k_inf from det(M)=0 is Sood's Eq 28 as printed,
+    and reduces to Eq 29 in the no-upscatter limit."""
     result = derive_kinf_2g_general_from_matrix()
+    assert result["pass_eq28_match"], (
+        "V_fn2.1: derived 2G k_inf does not match Eq 28 as printed; "
+        f"diff = {result['diff_eq28']}"
+    )
     assert result["pass_eq29_match"], (
         "V_fn2.1: derived 2G k_inf does not reduce to Eq 29 at no-upscatter; "
         f"diff = {result['diff_eq29']}"
-    )
-    assert result["pass_eq28_corrected"], (
-        "V_fn2.1: derived 2G k_inf does not match the *corrected* Eq 28; "
-        f"diff = {result['diff_eq28_corrected']}"
-    )
-    assert result["pass_eq28_typo_confirmed"], (
-        "V_fn2.1: Eq 28 as printed appears to algebraically match the "
-        "derived form — but it should NOT (we expect a typo). "
-        f"diff_printed = {result['diff_eq28_printed']}"
     )
 
 

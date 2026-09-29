@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**91 entries · 329 catching tests · 0 uncaught · 5 dormant.**
+**92 entries · 330 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-092` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-092")`.
+Append a `.. error-entry:: ERR-093` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-093")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -137,3 +137,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-089 | 1 |  | ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −… |
 | ERR-090 | 3 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
+| ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 by comparing the derivation with a mis-transcription o… |

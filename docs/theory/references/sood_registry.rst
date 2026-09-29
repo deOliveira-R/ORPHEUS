@@ -436,12 +436,12 @@ Per-case provenance + cross-method status:
   cross-checked against
   :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous` to
   ≥ 12 digits.
-* **PU-2-0-IN**: **Sood Eq 28 has a typo** (caught by V_fn2.1 SymPy
-  derivation; the printed Eq 28 reduces to 2.862 instead of the
-  published 2.684 at no-upscatter); the corrected form lives in
-  the SymPy module, the Branch-2 ``compute_kinf_2g_general`` evaluates
-  the corrected form. Sood Eq 29 (printed correctly) is verified via
-  V_fn2.2; the flux ratio Eq 32 is verified via V_fn2.3.
+* **PU-2-0-IN**: Sood Eq 28 (the general form) is verified as printed
+  by V_fn2.1, which derives it from :math:`\det M = 0`; the
+  Branch-2 ``compute_kinf_2g_general`` evaluates it. An earlier claim
+  that Eq 28 has a typo was a mis-transcription (ERR-092). Sood Eq 29
+  is verified via V_fn2.2; the flux ratio Eq 32 is verified via
+  V_fn2.3.
 * **Ua-1-0-SL**: KLL 1974 NSE 54 truth source. Slab F_N solver
   (:func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`,
   Siewert-Benoist 1979 + Grandjean-Siewert 1979) reproduces at
@@ -489,7 +489,7 @@ solve TODAY, plus stubs for cases pending solver dispatch:
    * - 2G k_inf infinite-medium (with upscatter)
      - 2
      - active
-     - :func:`compute_kinf_2g_general` (Sood Eq 28 corrected)
+     - :func:`compute_kinf_2g_general` (Sood Eq 28)
    * - 3G k_inf infinite-medium
      - 1
      - active

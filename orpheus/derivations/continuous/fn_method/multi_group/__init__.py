@@ -4,8 +4,8 @@ Public entry points:
 
 * :func:`compute_kinf_1g` — Sood Eq 19/20 (1G infinite medium).
 * :func:`compute_kinf_2g_no_upscatter` — Sood Eq 29 (2G, no upscatter).
-* :func:`compute_kinf_2g_general` — Sood Eq 28 corrected form
-  (general 2G, with upscatter possible).
+* :func:`compute_kinf_2g_general` — Sood Eq 28 (general 2G, with
+  upscatter possible).
 * :func:`compute_kinf_mg` — Sood Eq 76 (general G).
 * :func:`compute_flux_ratio_2g_no_upscatter` — Sood Eq 32
   (:math:`\\phi_2/\\phi_1` for no upscatter).

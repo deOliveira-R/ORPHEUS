@@ -154,13 +154,12 @@ def compute_kinf_2g_general(
     nu_sigma_f: np.ndarray,
     chi: np.ndarray,
 ) -> float:
-    r"""2G infinite-medium :math:`k_\infty` via the corrected Sood Eq 28.
+    r"""2G infinite-medium :math:`k_\infty` via Sood Eq 28.
 
-    Sood Eq 28 as printed contains a typo (the :math:`\chi_g` numerator
-    has the wrong :math:`\Sigma_g^{\rm rem}` factor; see
-    :func:`..origins.k_inf_derivations.derive_kinf_2g_general_from_matrix`
-    for the SymPy proof of this). This function uses the **corrected
-    Eq 28** as derived from :math:`\det(M(k)) = 0` of Sood Eq 25:
+    Sood Eq 28 is the non-trivial root of :math:`\det(M(k)) = 0` of
+    Sood Eq 25, printed correctly (the SymPy proof is
+    :func:`..origins.k_inf_derivations.derive_kinf_2g_general_from_matrix`;
+    an earlier typo claim here was a mis-transcription, ERR-092):
 
     .. math::
 

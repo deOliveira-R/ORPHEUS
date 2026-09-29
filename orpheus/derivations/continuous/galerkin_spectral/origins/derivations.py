@@ -657,11 +657,11 @@ def derive_carlvik_eq4b_corrected_form() -> dict:
        source, and Carlvik 1968 Eq. (4b) is the primary source for
        :math:`B_{m,n}`. Anyone trying to derive the recurrences from
        first principles needs to be warned.
-    2. **Pattern-recognition signal**: the project has now caught
-       multiple published-equation typos
-       (Sood Eq. 28, WM-72 Eq. 17, plus this one). A documented
-       expectation that primary literature contains errata is an
-       institutional asset.
+    2. **Pattern-recognition signal**: primary literature can
+       contain errata, and a claimed erratum can equally be a
+       mis-transcription: the Sood Eq. 28 "typo" once listed here was
+       one (ERR-092). This claim and WM-72 Eq. 17 await a page-image
+       check (#537).
 
     The verification claim is therefore: "we are aware of and account
     for Carlvik 1968 Eq. (4b) printed-sign error." This passes by

@@ -8,9 +8,9 @@ Appendix A (Eqs 18-32 + 72-76). Branch-1 SymPy proves that:
   algebraically reduces to the simpler form (Eq 19) :math:`k_\infty
   = \nu\Sigma_f / (\Sigma_t - \Sigma_s)`. The :math:`c` factor cancels
   identically.
-* The 2G general formula (Eq 28, derived here directly from
-  :math:`\det(M)=0` of Eq 25) and the no-upscatter reduction (Eq 29)
-  follow from the 2G matrix balance equation.
+* The 2G general formula (Eq 28) is the non-trivial root of
+  :math:`\det(M)=0` of Eq 25, as printed, and its no-upscatter
+  reduction is Eq 29.
 * The 2G flux-ratio formula (Eq 32) follows from adding Eq 23 and
   Eq 24 with :math:`\chi_1 + \chi_2 = 1`.
 * The general multi-group formula (Eq 76)
@@ -19,24 +19,23 @@ Appendix A (Eqs 18-32 + 72-76). Branch-1 SymPy proves that:
   \phi + (1/k)\, \chi (\nu\Sigma_f^T \phi)`.
 * The MG formula at :math:`G=1` reduces bit-for-bit to Eq 19.
 
-A note on Sood's typo
-=====================
+Eq 28 is printed correctly (a refuted typo claim)
+=================================================
 
-The published Eq 28 contains a typo: when the no-upscatter limit
-:math:`\Sigma_{21s} \to 0` is taken and the result simplified, it
-does NOT reduce to the printed Eq 29. The typo is in which
-:math:`\Sigma_g^{\rm rem}` factor multiplies which :math:`\chi_g`
-in the numerator: as printed, the :math:`\chi_1` numerator has
-:math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` (and :math:`\chi_2`
-has :math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`); the correct form
-that matches Eq 29 swaps these so :math:`\chi_1` carries
-:math:`\Sigma_2^{\rm rem}` and :math:`\chi_2` carries
-:math:`\Sigma_1^{\rm rem}`. The SymPy derivation here computes
-:math:`\det(M)=0` from Eq 25 directly and proves the corrected form
-algebraically, then verifies the printed Eq 29 against the
-corrected general form. The numerical reference values in
-LA-13511 (k_inf = 2.683767, phi_ratio = 0.675229) match Eq 29 and
-the corrected Eq 28; they do NOT match Eq 28 as printed.
+Until 2026-09-29 this module asserted that the published Eq 28 has a
+typo, and its gate certified the claim. The claim came from a
+mis-transcription: the "as printed" form typed here paired
+:math:`\chi_1` with :math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` and
+:math:`\chi_2` with :math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`,
+while the report prints :math:`\chi_1` with
+:math:`\Sigma_2^{\rm rem}\,\nu_1\Sigma_{1f}` and :math:`\chi_2` with
+:math:`\Sigma_1^{\rm rem}\,\nu_2\Sigma_{2f}` (the 1999 page image and
+both editions' text; the 2003 edition prints the same body as
+Eq (A.11)). The printed Eq 28 is the non-trivial root of
+:math:`\det(M)=0`, and on PU-2-0-IN it gives the published
+k_inf = 2.683767. The mis-transcribed form gives 2.862. The gate that
+certified the typo compared the derivation with the mis-transcription,
+so it would have passed for any wrong transcription (ERR-092).
 
 Sood's group convention
 =======================
@@ -208,13 +207,13 @@ def derive_kinf_2g_general_from_matrix() -> dict:
        the resulting quadratic for :math:`k`.
     3. Discards the :math:`k=0` root.
     4. Returns the surviving root as the **derived general 2G
-       formula**, which is the corrected Eq 28.
+       formula**.
 
-    The PASS flag verifies that the derived root, when restricted
-    to :math:`\Sigma_{21s} = 0` (no upscatter), reduces to Eq 29
-    (which IS printed correctly in LA-13511 and matches the
-    numerical reference). This indirectly proves Eq 28 as printed
-    has a typo.
+    The PASS flag verifies that the derived root equals Eq 28 as
+    printed, and that its restriction to :math:`\Sigma_{21s} = 0`
+    (no upscatter) is Eq 29. An Eq 28 transcription that swaps the
+    :math:`\Sigma_g^{\rm rem}` factors between the two
+    :math:`\chi_g` terms fails the first check (ERR-092).
     """
     # Sood symbols verbatim. positive=True for reals; we let k range
     # over the reals since at quadratic level we will pick the
@@ -289,49 +288,32 @@ def derive_kinf_2g_general_from_matrix() -> dict:
     diff_29 = sp.simplify(k_no_upscatter_derived - k_eq29_simplified)
     pass_eq29_match = (diff_29 == 0)
 
-    # ALSO check Eq 28 as printed in the PDF — which we expect to FAIL
-    # (i.e. NOT match k_general_derived). This documents the typo
-    # algebraically rather than just by numerical example.
-    # Eq 28 as printed:
-    #   k = [chi_1·(nu_2·Sigma_2f·Sigma_21s + Sigma_1^rem·nu_1·Sigma_1f)
-    #        + chi_2·(nu_1·Sigma_1f·Sigma_12s + Sigma_2^rem·nu_2·Sigma_2f)]
+    # Sood Eq 28 (verbatim transcription; the 1999 page image):
+    #   k = [chi_1·(nu_2·Sigma_2f·Sigma_21s + Sigma_2^rem·nu_1·Sigma_1f)
+    #        + chi_2·(nu_1·Sigma_1f·Sigma_12s + Sigma_1^rem·nu_2·Sigma_2f)]
     #     / [Sigma_1^rem·Sigma_2^rem - Sigma_12s·Sigma_21s]
-    k_eq28_as_printed = (
-        chi_1 * (nu_2 * Sigma_2f * Sigma_21s + Sigma_1rem * nu_1 * Sigma_1f)
-        + chi_2 * (nu_1 * Sigma_1f * Sigma_12s + Sigma_2rem * nu_2 * Sigma_2f)
-    ) / (Sigma_1rem * Sigma_2rem - Sigma_12s * Sigma_21s)
-
-    # The corrected Eq 28 (what the SymPy derivation should produce):
-    k_eq28_corrected = (
+    k_eq28 = (
         chi_1 * (nu_2 * Sigma_2f * Sigma_21s + Sigma_2rem * nu_1 * Sigma_1f)
         + chi_2 * (nu_1 * Sigma_1f * Sigma_12s + Sigma_1rem * nu_2 * Sigma_2f)
     ) / (Sigma_1rem * Sigma_2rem - Sigma_12s * Sigma_21s)
 
-    diff_28_printed = sp.simplify(k_general_derived - k_eq28_as_printed)
-    diff_28_corrected = sp.simplify(k_general_derived - k_eq28_corrected)
+    diff_28 = sp.simplify(k_general_derived - k_eq28)
+    pass_eq28_match = (diff_28 == 0)
 
-    pass_eq28_typo_confirmed = (diff_28_printed != 0)
-    pass_eq28_corrected = (diff_28_corrected == 0)
-
-    pass_overall = bool(
-        pass_eq29_match and pass_eq28_typo_confirmed and pass_eq28_corrected
-    )
+    pass_overall = bool(pass_eq29_match and pass_eq28_match)
 
     return {
         "name": "V_fn2.1: 2G general k_inf derived from det(M)=0; "
-                "Eq 29 verified, Eq 28 typo confirmed",
+                "Eq 28 and Eq 29 verified",
         "M": M,
         "k_general_derived": k_general_derived,
         "k_no_upscatter_derived": k_no_upscatter_derived,
         "k_eq29": k_eq29_simplified,
         "diff_eq29": diff_29,
         "pass_eq29_match": pass_eq29_match,
-        "k_eq28_as_printed": k_eq28_as_printed,
-        "k_eq28_corrected": k_eq28_corrected,
-        "diff_eq28_printed": diff_28_printed,
-        "diff_eq28_corrected": diff_28_corrected,
-        "pass_eq28_typo_confirmed": pass_eq28_typo_confirmed,
-        "pass_eq28_corrected": pass_eq28_corrected,
+        "k_eq28": k_eq28,
+        "diff_eq28": diff_28,
+        "pass_eq28_match": pass_eq28_match,
         "pass": pass_overall,
     }
 

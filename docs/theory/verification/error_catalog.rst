@@ -8685,3 +8685,61 @@ older entries classify against.
    body.** A reshape that sets the dimension it then reads is a constant,
    and a reduction replaced by its first term is invisible on the one-term
    case every smoke test uses.
+
+.. error-entry:: ERR-092
+   :title: V_fn2.1 certified a typo in Sood's Eq 28 by comparing the derivation with a mis-transcription of the equation
+
+   **Status:** ✅ **FIXED 2026-09-29, P1 step 2b** of the reference-solution
+   campaign (``.claude/plans/reference_cache.md``), found while re-citing
+   the Sood registry to the 2003 edition.
+
+   **Module:** ``orpheus/derivations/continuous/fn_method/origins/k_inf_derivations.py``
+   (``derive_kinf_2g_general_from_matrix``, V_fn2.1), with the claim
+   repeated in ``fn_method/multi_group/k_inf.py`` (``compute_kinf_2g_general``),
+   the registry note on ``PU-2-0-IN``, and the theory pages
+   :doc:`/theory/references/fn_method` and
+   :doc:`/theory/references/sood_registry`.
+
+   **Failure mode:** **#2 (variable swap)**, in the transcription of a
+   published equation: the two :math:`\Sigma_g^{\rm rem}` factors of
+   Sood's two-group :math:`k_\infty` (1999 Eq 28, 2003 Eq (A.11)) were
+   exchanged between the :math:`\chi_1` and :math:`\chi_2` terms.
+
+   **What happened.**  The module typed "Eq 28 as printed" with
+   :math:`\chi_1` paired to :math:`\Sigma_1^{\rm rem}\,\nu_1\Sigma_{1f}` and
+   :math:`\chi_2` to :math:`\Sigma_2^{\rm rem}\,\nu_2\Sigma_{2f}`. The report
+   prints :math:`\chi_1` with :math:`\Sigma_2^{\rm rem}\,\nu_1\Sigma_{1f}` and
+   :math:`\chi_2` with :math:`\Sigma_1^{\rm rem}\,\nu_2\Sigma_{2f}`, which is
+   exactly the non-trivial root of :math:`\det M(k) = 0`. The gate derived
+   that root, found it different from the mis-transcription, and recorded
+   ``pass_eq28_typo_confirmed``. The code, a docstring, a registry note and
+   two theory pages then reported a typo in the report that does not
+   exist. On PU-2-0-IN the mis-transcribed form gives 2.862 and the printed
+   form gives the published 2.683767.
+
+   **How it hid.**  The gate asserted that two expressions DIFFER. A
+   difference is what every wrong transcription produces, so the check
+   could not fail on the defect it was written for: it read "typo
+   confirmed" for the swapped form and would have read the same for any
+   other error. The numbers were never affected: the Branch-2 formula is
+   the derived root, which is the printed equation. Nobody re-read the
+   page, because the gate said the page had already been checked.
+
+   **Fix.**  V_fn2.1 transcribes Eq 28 as printed (checked against the
+   1999 page image, 2026-09-29; the 2003 text prints the same body) and
+   asserts that it EQUALS the derived root, besides the existing
+   reduction to Eq 29. The typo claim is removed from every site, and the
+   theory page records it as a refuted claim.
+
+   **Caught by:**
+   ``tests/gates/derivations/test_fn_la13511_kinf.py::test_v_fn2_1_kinf_2g_general_from_matrix``.
+   Mutation witness: restoring the swapped transcription reddens it
+   (P1 step 2b's battery,
+   ``scratch/reference_architecture/p1step2b/mut/mut_eq28.py``).
+
+   **Lesson.**  ⭐ **A gate that asserts two expressions differ certifies
+   nothing about either: a transcription error passes it. A claim that a
+   published equation is wrong is verified against the page image, and
+   its gate asserts the equality the corrected reading satisfies.** When
+   a derivation disagrees with a transcribed equation, the transcription
+   is the first suspect, before the paper.

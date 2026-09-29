@@ -86,11 +86,13 @@ Why we re-derive even when the published equation is "obviously
 right"
 ----------------------------------------------------------------
 
-The ``algebra-of-record`` discipline mandates this. The Sood Eq. 28
-typo discovered in the F_N first slice (k_inf 2G case), and the
-ERR-032 family of "two implementations agreed via a shared upstream
-identity" bugs, both prove that re-deriving even simple-looking
-published equations is a load-bearing V&V practice, not boilerplate.
+The ``algebra-of-record`` discipline mandates this. The ERR-032
+family of "two implementations agreed via a shared upstream identity"
+bugs proves that re-deriving even simple-looking published equations
+is a load-bearing V&V practice, not boilerplate. ERR-092 proves the
+converse: a derivation that disagrees with a TRANSCRIBED equation
+convicts the transcription first, and the paper only after the page
+image is read (a "typo" in Sood Eq. 28 was a mis-transcription).
 
 """
 from __future__ import annotations
@@ -244,9 +246,11 @@ def derive_discrete_pseudo_eigenfunction() -> dict:
 
        The single-:math:`\nu_0` form would give :math:`\nu_0^2`
        (not :math:`\nu_0^4`) in :math:`N_0`, contradicting Eq. 21d.
-       This is a transcription error analogous to the Sood Eq. 28
-       finding in the F_N first slice — re-derivation in SymPy
-       caught it immediately.
+       Re-derivation in SymPy caught the disagreement immediately.
+       Whether the error is the paper's or this transcription's is
+       settled only by the page image of Eq. 17, which has not been
+       read (#537; the analogous Sood Eq. 28 "typo" was a
+       mis-transcription, ERR-092).
 
        Branch-2 production code uses the corrected form.
 
