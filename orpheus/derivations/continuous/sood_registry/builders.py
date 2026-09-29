@@ -24,7 +24,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import Mesh1D
 
 if TYPE_CHECKING:
-    from .sood2003 import La13511Case
+    from .case import La13511Case
 
 
 def build_materials(case: "La13511Case") -> dict[int, Mixture]:

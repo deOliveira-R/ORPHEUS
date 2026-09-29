@@ -38,7 +38,6 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
 )
-from orpheus.derivations.continuous.sood_registry.sood2003 import _ALL_CASES
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 
@@ -193,7 +192,7 @@ def test_infinite_2g_to_geometry_raises() -> None:
     "case_id",
     [
         c.case_id
-        for c in _ALL_CASES
+        for c in SOOD2003_CASES.values()
         if c.geometry_kind != "infinite"
     ],
 )
@@ -227,7 +226,7 @@ def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
     "case_id",
     [
         c.case_id
-        for c in _ALL_CASES
+        for c in SOOD2003_CASES.values()
         if c.geometry_kind != "infinite"
     ],
 )
@@ -253,7 +252,7 @@ def test_truth_critical_dimension_mfp_populated(case_id: str) -> None:
     "case_id",
     [
         c.case_id
-        for c in _ALL_CASES
+        for c in SOOD2003_CASES.values()
         if c.geometry_kind == "infinite"
     ],
 )

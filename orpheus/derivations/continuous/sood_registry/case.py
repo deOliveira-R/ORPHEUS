@@ -39,10 +39,12 @@ class La13511Truth:
         Reference :math:`k_{\\rm eff}` (finite cases — usually 1.0,
         critical) or :math:`k_\\infty` (infinite cases).
     sources : tuple of Citation
-        Where the values are printed, and the primary sources the
-        publication credits for them: at least one. For a Sood case, the
-        table or page of the 2003 paper, then the works its reference
-        column names.
+        The citations of the published values: where each is printed (a
+        table or page of the case's paper, or of a primary source that
+        prints it) and the primary sources the paper credits for them. At
+        least one. The tuple pools the values' citations: which citation
+        supports which value is not recorded (P2's ``PublishedSolution``
+        cites per printed value).
     flux_ratios : Mapping[float, float] | None
         For 1G cases with published flux table: dict mapping
         ``r/r_c`` to :math:`\\phi(r)/\\phi(0)`.
@@ -83,6 +85,21 @@ class La13511Truth:
     extrapolated_endpoint_mfp: float | None = None
 
     def __post_init__(self) -> None:
+        """Parse ``sources``: a non-empty tuple of :class:`Citation`.
+
+        **ELEGANCE-DEBT[guard] #405** — a run-time refusal stands where the
+        type cannot say "every printed value cites its source"; it retires
+        when P4's ``PublishedSolution`` replaces this class and carries one
+        required :class:`Citation` per printed value
+        (``.claude/plans/reference_cache.md``).
+        """
+        if not isinstance(self.sources, tuple) or not all(
+            isinstance(source, Citation) for source in self.sources
+        ):
+            raise TypeError(
+                "La13511Truth.sources must be a tuple of Citation; got "
+                f"{self.sources!r}"
+            )
         if not self.sources:
             raise ValueError(
                 "La13511Truth.sources is empty: a published value cites where "

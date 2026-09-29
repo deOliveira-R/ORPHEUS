@@ -479,7 +479,7 @@ REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
     ),
     # NM 1980 Table 1 Case 6 — the canonical c_core=1.50, c_reflector=0.90,
     # Δ=1.0 cross-comparator (also referenced by
-    # test_fn_sood_pua_h2o_symmetric_slab.py).
+    # test_fn_sood2003_pua_h2o_symmetric_slab.py).
     _build_reflected_slab_case(
         case_id="NM-1980-Case6-c150-c090-D10",
         description=(

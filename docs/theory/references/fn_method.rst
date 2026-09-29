@@ -2412,7 +2412,7 @@ value converged in :math:`N` is 0.4301459, 0.4301477 and 0.4301459 at
 :math:`N = 11, 13, 15` (an oscillation of :math:`1.9 \times 10^{-6}`;
 `[M]` 2026-09-29, recorded in the gate's docstring), inside 2003's
 interval and outside 1999's at each of these :math:`N`.
-``tests/gates/derivations/test_fn_sood_pua_h2o_symmetric_slab.py::test_pua_h2o_05_at_the_published_digit``
+``tests/gates/derivations/test_fn_sood2003_pua_h2o_symmetric_slab.py::test_pua_h2o_05_at_the_published_digit``
 asserts both, at each :math:`N`. It calls the bare
 :func:`~orpheus.derivations.continuous.fn_method.slab.reflected.solve_fn_slab_reflected_critical`,
 which the facade reaches bit for bit (the route gate above).

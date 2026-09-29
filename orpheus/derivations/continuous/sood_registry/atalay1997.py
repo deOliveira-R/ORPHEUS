@@ -106,7 +106,6 @@ ATALAY_SLAB_C130_R000_F0 = La13511Case(
     geometry_kind="slab",
     scattering_order=0,
     truth=La13511Truth(k_eff_or_kinf=1.0, sources=(Citation("Atalay1997", "Table 2, c = 1.30, R = 0.00, f_1 = 0.00"),), critical_dimension_mfp=0.93883),
-  # Atalay Table 2
     notes="Atalay-anchored vacuum case; cross-check vs Sood Ua-1-0-SL gives 1.87545 (KLL 1974).",
 )
 
@@ -175,8 +174,7 @@ ATALAY_SLAB_C130_R050_F010 = La13511Case(
 )
 
 
-# All Atalay catalogue cases as a tuple
-ATALAY_SLAB_CASES: tuple[La13511Case, ...] = (
+_ALL_CASES: tuple[La13511Case, ...] = (
     ATALAY_SLAB_C130_R000_F0,
     ATALAY_SLAB_C130_R025_F0,
     ATALAY_SLAB_C130_R050_F0,
@@ -185,7 +183,11 @@ ATALAY_SLAB_CASES: tuple[La13511Case, ...] = (
     ATALAY_SLAB_C130_R050_F010,
 )
 
-ATALAY_ALL_CASES: tuple[La13511Case, ...] = ATALAY_SLAB_CASES
+
+ATALAY1997_CASES: dict[str, La13511Case] = {
+    case.case_id: case for case in _ALL_CASES
+}
+"""Case id → case, the Atalay 1997 catalogue (the form of ``SOOD2003_CASES``)."""
 
 
 __all__ = [
@@ -196,7 +198,5 @@ __all__ = [
     "ATALAY_SLAB_C130_R075_F0",
     "ATALAY_SLAB_C130_R000_F010",
     "ATALAY_SLAB_C130_R050_F010",
-    # Tuples
-    "ATALAY_SLAB_CASES",
-    "ATALAY_ALL_CASES",
+    "ATALAY1997_CASES",
 ]

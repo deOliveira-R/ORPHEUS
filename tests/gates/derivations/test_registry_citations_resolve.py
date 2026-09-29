@@ -51,7 +51,7 @@ from orpheus.data import Citation
 # The two collections, named in ONE place: P1 step 2c's step 3 renames the
 # first to ``SOOD2003_CASES``, a one-line edit here.
 from orpheus.derivations.continuous.sood_registry import (
-    ATALAY_ALL_CASES as ATALAY_CASES,
+    ATALAY1997_CASES as ATALAY_CASES,
     SOOD2003_CASES as SOOD_CASES,
 )
 
@@ -126,13 +126,9 @@ def _unresolved(citations: Iterable[tuple[str, Citation]], keys: frozenset[str])
     return [f"{path}: {citation!r}" for path, citation in citations if citation.bibkey not in keys]
 
 
-def _cases(collection: object) -> tuple:
-    """A collection's cases, whether it is a mapping by case id or a tuple."""
-    if isinstance(collection, Mapping):
-        return tuple(collection.values())
-    if isinstance(collection, (tuple, list)):
-        return tuple(collection)
-    raise TypeError(f"not a case collection: {type(collection).__name__}")
+def _cases(collection: Mapping) -> tuple:
+    """A collection's cases: both registries map case id to case."""
+    return tuple(collection.values())
 
 
 def _citations(value: object, path: str = "case") -> Iterator[tuple[str, Citation]]:
@@ -387,19 +383,39 @@ def test_provenance_fields_are_retired(case_id: str) -> None:
     _require(not hasattr(sood_registry, "Provenance"), "sood_registry still exports Provenance")
 
 
+_SCHEMA = frozenset({"La13511Case", "La13511Truth"})
+
+
+def _schema_imports_not_from_case(source: str) -> list[str]:
+    """The imports of a schema class, in ``source``, from anywhere but ``.case``."""
+    bad = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom) and _SCHEMA & {alias.name for alias in node.names}:
+            home = node.module or ""
+            if not (home == "case" or home.endswith("sood_registry.case")):
+                bad.append(f"{'.' * node.level}{home}")
+    return bad
+
+
 def test_the_case_schema_has_its_own_module() -> None:
-    """The schema lives in ``sood_registry/case.py``, and ``atalay1997.py``
-    imports it from there, not from the Sood cases' module (the weld step 2
-    dissolves)."""
+    """The schema lives in ``sood_registry/case.py``, and every module of the
+    package imports it from there, never from a data module (the weld step 2
+    dissolved). Positive control: the import ``builders.py`` carried before
+    the review fix is flagged."""
     case_module = f"{sood_registry.__name__}.case"
     for case in (_SOOD[0], _ATALAY[0]):
         _require(
             type(case).__module__ == case_module and type(case.truth).__module__ == case_module,
             f"{case.case_id}: schema from {type(case).__module__} / {type(case.truth).__module__}",
         )
-    source = (Path(sood_registry.__file__).parent / "atalay1997.py").read_text(encoding="utf-8")
-    relative = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.ImportFrom) and node.level == 1]
-    from_case = {alias.name for node in relative if node.module == "case" for alias in node.names}
-    _require({"La13511Case", "La13511Truth"} <= from_case, f"atalay1997 imports {sorted(from_case)} from .case")
-    from_sood = [node.module for node in relative if node.module in {"sood2003"}]
-    _require(not from_sood, f"atalay1997 still imports from the Sood module: {from_sood}")
+    _require(
+        _schema_imports_not_from_case("from .sood2003 import La13511Case\n") == [".sood2003"],
+        "the weld detector cannot see a schema import from the Sood module",
+    )
+    package = Path(sood_registry.__file__).parent
+    welds = {
+        module.name: bad
+        for module in sorted(package.glob("*.py"))
+        if (bad := _schema_imports_not_from_case(module.read_text(encoding="utf-8")))
+    }
+    _require(not welds, f"schema imported from a data module: {welds}")

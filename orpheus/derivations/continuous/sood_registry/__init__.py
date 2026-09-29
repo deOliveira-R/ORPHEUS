@@ -123,8 +123,7 @@ from .sood2003 import (
     WIDE_SLICE_STUBS,
 )
 from .atalay1997 import (
-    ATALAY_ALL_CASES,
-    ATALAY_SLAB_CASES,
+    ATALAY1997_CASES,
     ATALAY_SLAB_C130_R000_F0,
     ATALAY_SLAB_C130_R000_F010,
     ATALAY_SLAB_C130_R025_F0,
@@ -208,13 +207,12 @@ __all__ = [
     "sood_cache",
     "clear_cache",
     "cache_info",
-    # Atalay 1997 reflected slab + sphere catalogue (Wave 2-B)
+    # Atalay 1997 reflected-slab catalogue (Wave 2-B)
     "ATALAY_SLAB_C130_R000_F0",
     "ATALAY_SLAB_C130_R025_F0",
     "ATALAY_SLAB_C130_R050_F0",
     "ATALAY_SLAB_C130_R075_F0",
     "ATALAY_SLAB_C130_R000_F010",
     "ATALAY_SLAB_C130_R050_F010",
-    "ATALAY_SLAB_CASES",
-    "ATALAY_ALL_CASES",
+    "ATALAY1997_CASES",
 ]

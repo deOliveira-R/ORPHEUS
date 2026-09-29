@@ -34,7 +34,7 @@ Key Facts
     dispatch). Total: **47 Sood cases** (``len(SOOD2003_CASES)``,
     `[M]` 2026-09-29).
   * **Atalay 1997**: 6 reflected slab cases, 4 with isotropic and 2
-    with linearly anisotropic scattering (``len(ATALAY_ALL_CASES)``,
+    with linearly anisotropic scattering (``len(ATALAY1997_CASES)``,
     `[M]` 2026-09-29; :ref:`sood-registry-atalay-cases`).
   * **Total: 53 cases shipped** (47 Sood + 6 Atalay).
 - **Citations**: each case cites the problem it poses (``problem``),
@@ -325,14 +325,17 @@ A case makes two kinds of claim, and each carries its own citation, a
   The problem number is not a field of the case: it is the locator of
   the problem's citation.
 * **The published values.** ``case.truth.sources`` cites where the
-  values are printed, then the primary sources the publication credits
-  for them. For a Sood case the first source is the place in the 2003
-  paper: a table for the 25 finite cases, and a page for the 22
+  values are printed and the primary sources the publication credits
+  for them; the tuple pools them, and which citation supports which
+  value is not recorded. For a Sood case the place in the 2003 paper is
+  a table for the 25 finite cases, and a page for the 22
   infinite-medium cases, whose :math:`k_\infty` is printed in the text.
   The works Sood's reference column names follow, and 27 of the 47 Sood
   cases credit at least one. ``Ua-1-0-SP`` (problem 14), for example,
-  cites the 2003 Table 10, then Kaper, Lindeman and Leaf (1974) as a
-  whole, then that paper's Table VII, which prints the flux ratios. An
+  cites the 2003 Tables 10 (its radius) and 11 (its flux ratios), then
+  Kaper, Lindeman and Leaf (1974) as a whole, then that paper's Table
+  VII, whose :math:`c = 1.30` row the registry's flux ratios were
+  transcribed from. An
   Atalay case's one source is its table row. The truth refuses an empty
   tuple at construction.
 * **Not in data: the method's literature.** The equation a generator
@@ -778,7 +781,7 @@ mirroring how Atalay published the cases. Each case's ``problem``
 cites the Atalay table row that prints it, and its truth's one source
 is the same row.
 
-Cases shipped (``ATALAY_ALL_CASES``, 6 cases, `[M]` 2026-09-29):
+Cases shipped (``ATALAY1997_CASES``, 6 cases, `[M]` 2026-09-29):
 
 .. list-table:: Atalay 1997 cases
    :header-rows: 1
@@ -828,8 +831,10 @@ Cases shipped (``ATALAY_ALL_CASES``, 6 cases, `[M]` 2026-09-29):
      - :math:`2d = 0.89831`
 
 The catalogue has no sphere case. A vacuum sphere at :math:`c = 1.30`
-with isotropic scattering is Sood's problem 14 (``Ua-1-0-SP``, the same
-mixture and radius), and Atalay prints sphere results, the odd slab
+with isotropic scattering is Sood's problem 14 (``Ua-1-0-SP``: the same
+problem, since the one-group critical radius depends on
+:math:`\Sigma_t` and :math:`c` alone; the retired case built a different
+mixture with the same :math:`\Sigma_t` and :math:`c`), and Atalay prints sphere results, the odd slab
 modes, only at :math:`f_1 = 0.10` (his Table 10); the Atalay-named twin of
 problem 14, ``atalay-1997-sphere-c1.30-R0.00-f1_0.00``, retired on
 2026-09-29 (:ref:`sood-registry-history`).

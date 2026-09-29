@@ -248,7 +248,7 @@ class TestAssertBalancedIntrinsic:
 # homogeneous derive builders. The Atalay criticality-parameter Mixtures,
 # the structural scaffolds, and the billiard carrier are deliberately
 # imbalanced and are EXCLUDED (Atalay is structurally absent from
-# SOOD2003_CASES — it lives in ATALAY_ALL_CASES — so no filter is needed).
+# SOOD2003_CASES — it lives in ATALAY1997_CASES — so no filter is needed).
 
 
 def _xs_library_mixtures():
@@ -376,7 +376,7 @@ class TestExemptionIntegrity:
     def test_atalay_criticality_mixture_constructs(self) -> None:
         """Atalay νΣf=(c-1)Σt c>1 mixture (residual≈SigF) still builds.
 
-        Atalay is in ATALAY_ALL_CASES, NOT in SOOD2003_CASES, so gate 2 never
+        Atalay is in ATALAY1997_CASES, NOT in SOOD2003_CASES, so gate 2 never
         touches it. Confirm it constructs and IS imbalanced (the exemption is
         real, not an accident of a balanced fixture).
         """

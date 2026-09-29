@@ -180,6 +180,7 @@ Module × level grid
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood2003_kinf, 0, 0, 0, 0, 39, 0
+   derivations/test_fn_sood2003_pua_h2o_symmetric_slab, 0, 4, 0, 0, 2, 0
    derivations/test_fn_sood2003_slab, 0, 0, 0, 0, 21, 0
    derivations/test_fn_sood2003_slab_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_sood2003_slab_flux_symbolic, 0, 0, 0, 0, 6, 0
@@ -188,7 +189,6 @@ Module × level grid
    derivations/test_fn_sood2003_sphere, 0, 0, 0, 0, 11, 0
    derivations/test_fn_sood2003_sphere_flux, 0, 10, 0, 0, 0, 0
    derivations/test_fn_sood2003_sphere_xverif, 0, 3, 0, 0, 0, 0
-   derivations/test_fn_sood_pua_h2o_symmetric_slab, 0, 4, 0, 0, 2, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
    derivations/test_kernels, 55, 0, 0, 0, 0, 0
