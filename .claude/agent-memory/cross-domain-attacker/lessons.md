@@ -351,6 +351,75 @@ adjoint-weighted derivative by an adjoint-weighted rate is an IDENTITY for any w
 its only content is the derivative itself. → pointer:
 `posing_ontology_clean_attack_frames.md`
 
+**D18 — On a RE-CONSOLIDATED design text, count each named datum's HOMES before checking any
+identity; and once an identity is confirmed `[M]`, attack its attached QUANTIFIER with the degenerate
+fixture.** A consolidation merges rulings made on different days, and the failure mode is not a wrong
+equation but one datum assigned two homes in two paragraphs (a constructor home vs a derived-view
+home; a layer-2 value vs a layer-3 plan; a word retired vs assigned). Instrument: list the named data,
+grep the text for each, count homes; ≥2 is a finding before mathematics. `[M]` 2026-09-28 clean attack 2:
+6 of 6 checked identities held (1e-16) while 4 of ~30 data had two homes (`derived_SigT`, the material
+field, the implicit/explicit labelling, `project`), and 4 universals attached to correct identities
+failed ("iff" on the two-step law — exact with a fractional second kernel when mid = fine; "the
+canonical dual does not depend on ν" — the FRAME does, the projector does not; "every spatial kernel";
+"bit-identically" for a coarse-denominator ratio). The quantifier test: the degenerate member of the
+family (mid = fine, ν = counting vs pushforward, the harmonic leaf's `analysis(1) = [2,0,0]`) decides an
+"iff"/"every"/"total" in one line. TELL: a `[M]` tolerance quoted beside an "iff"/"every"/"never" — the
+tolerance measured the identity, not the quantifier. → pointer:
+`posing_ontology_clean_attack_frames.md` (second attack section). RIDER (2026-09-28, coproduct
+attack): a TABLE and a WORKED EXAMPLE in the same memo are two homes of one datum — diff them before
+trusting either. `[M]` the trace-inflow memo's table said `L_tt = diag(+I, −I)` while its own worked
+row carried `− ψ_in(t2)`; the block has 16 of 32 off-diagonal entries.
+
+**D20 — A control that stays green is a THEOREM or a DEFECT, and the automorphism group of the fixture
+decides which.** Before calling a law "blind" to a relabelling / reordering / permutation, compute
+`Aut` of the object the control permutes: if the permuted members are isomorphic, every
+isomorphism-invariant law (round trips, metric, zeros, adjoint pairing) is blind BY THEOREM and the only
+separating datum is the label — so the label must enter the identity; if they are not isomorphic, the
+blindness is a gate defect (the gate did not read the datum that separates them). Then count the
+shipped fixtures with `Aut ≠ 1` (a positive control for "labels matter") and name the first consumer
+where it is non-trivial. `[M]` 2026-09-28: 0 of 3 coproduct fixtures isomorphic; on a synthetic
+isomorphic pair 4 of 4 gates blind; the first real consumer is the 6-group precursor summand family.
+TELL: a memo reporting "the law is invariant under relabelling" as a blindness without saying whether
+the relabelled parts are isomorphic. → pointer: `coproduct_direct_sum_two_level_frames.md`
+
+**D19 — An object defined "up to X" has no X to ask for: before minting a type or a field to
+carry a quotient datum (a scale, a sign, a phase, a gauge), WRITE the X-invariant the object
+actually is and test its invariance under the group; the datum then belongs to a REPRESENTATIVE
+(a section), and a "kind" claimed for its admissibility is measured on a fixture WITHOUT symmetry
+and one WITH.** TELL: "the fundamental mode happens to have the appropriate gauge"; "only the X
+admits a Y-gauge"; a proposal to ask an equivalence class for a datum that the class quotients
+out. Instrument: the Laurent residue / Riesz projector `ψ⊗ψ†/⟨ψ†,T_d ψ⟩` under random `(a, b)`
+rescalings, and the contour integral as the eigenvector-free control; then the admissibility
+predicate counted over ALL poles on an asymmetric fixture (a unary predicate on a mode is usually
+binary on (mode, functional) and ternary with the symmetry group). `[M]` 2026-09-28: invariance
+1.6e-16, contour = formula 1e-14; the positive section existed on 20 of 20 and 240 of 240 modes on
+the asymmetric body and on exactly the reflection-EVEN ones on the symmetric body; the DD
+fundamental left the cone (14 of 240) with its section intact. The frame that DOES partition
+modes there is the symmetry quotient — decisive for another question, refuted for the type.
+→ pointer: `fundamental_mode_gauge_attack.md`
+
+**D21 — A NESTED iteration's inner strategy is tested with a FINITE inner count from the nest's own
+start before its `ρ` is trusted; a cold-started inexact inner converges to the WRONG fixed point and the
+increment stop accepts it.** `x ← B_m(rhs)` from zero has fixed point `(B_m⁻¹ + A − D) x = q`; the
+correction form `x ← x + B_m(rhs − D x)` from the previous outer iterate is the two-stage iteration
+(right fixed point, `ρ` by the identity probe). TELL: an `inner=(piece, rhs)` callback with no slot for
+the piece's previous state; a nest memo whose numbers were all taken at an exact inner. Instrument:
+run m = 1 cold and read the final error against a dense solve (`[M]` 2026-09-29: relative error 1.0
+accepted after 7 passes; tol-based cold gives error = the tolerance). Not covered by D11 (one Strategy)
+or D17 (tautology): the defect is a contract with a missing state slot. → pointer:
+`ordering_cut_interface_augmentation_frames.md`
+
+**D22 — Before reporting `ρ`, a CW bracket, a Krylov count or a singularity guard on a stationary
+iteration, RESTRICT to the cut's INTERFACE (the range of `N`, `rank N ≪ n`): the nonzero spectrum of
+`M⁻¹N` lives there, `K ≥ 0` is the predicate the bracket needs (regularity of `M⁻¹` is sufficient, not
+necessary), Krylov terminates in ≤ `rank N` + 1 steps there, and `1 ∈ spec K` is the singularity.**
+TELL: `error_propagation()` returning an `n × n` dense matrix; "regular" asked of `M⁻¹`; a
+feedback-arc set weighted by coupling strength offered as the cut chooser (equal weights, different `ρ`
+— the cost is `A⁻¹`-non-local). Rider: an augmentation that copies the whole space (`expose` as a copy
+of `V`) inflates the interface from `rank T` to `n` — expose the RANGE. `[M]` 2026-09-29: 8 cuts ≤
+3e-9; CW valid on two non-regular fixtures; GMRES 17 vs 255. → pointer:
+`ordering_cut_interface_augmentation_frames.md`
+
 ---
 
 ## Part 3 — Smell-promotion ledger
@@ -369,9 +438,11 @@ already promoted (Smell #15, Smell #16).
 | The name states a contract the content violates — a class documented as "data/descriptor/field" whose method list says `apply_*`; distinct from Smell #16 shape 1 (one path, wrong LAYER); FIX is relocation, and the name is usually right (→ L-012) | 1 | a second, non-XS-field host |
 | Identity-scarcity accretion — a container wins every placement because no candidate owner's `__eq__` separates the inputs (→ L-019 / M1.8) | 2 (one inverted: everything induced has structural `__eq__`, the hub has none) | a third outside the SN container family |
 | A precondition spelled as a 30-line docstring caveat on a 3-line body wants to be a TYPE — declare the structure (DIAGONAL / POU / DENSE) and RAISE on the unhandled case (→ L-010) | 1 | a second non-Gram precondition |
-| A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation × CHART × reduction) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named, or a second-difference test with no chart named; FIX: the second-difference test per scheme IN THE PARAMETER'S NATURAL CHART (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (transverse-coupling order; affinity in a width; 2026-09-27 the diffusion P1 face closure — a NON-SN scheme — makes the slab dilation rational while SN-DD is an exact pencil in 1/λ) | PROPOSED for Part C (third sighting met, non-SN scheme); the chart rider is the 2026-09-27 addition |
+| A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation × CHART × reduction) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named, or a second-difference test with no chart named; FIX: the second-difference test per scheme IN THE PARAMETER'S NATURAL CHART (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (transverse-coupling order; affinity in a width; 2026-09-27 the diffusion P1 face closure — a NON-SN scheme — makes the slab dilation rational while SN-DD is an exact pencil in 1/λ); a 4th of a DIFFERENT class 2026-09-28: "a mode admits a positive-functional gauge" stated of the MODE when it belongs to (mode × functional × symmetry group) — `[M]` parity, not kind (D19) | PROPOSED for Part C (third sighting met, non-SN scheme); the chart rider is the 2026-09-27 addition; the 2026-09-28 sighting widens the smell from "physical parameter" to "any unary predicate that is a product" |
 | Multiplier-algebra embedding `f ↦ M_f` — scalar "coefficients" on terms that are really FIELDS per region/group; the scalars are the constant sections; unshielded composition directions are vectors in it (→ `coefficient_field_promotion_frames.md`; `posing_ontology_clean_attack_frames.md`) | 2 (XS-field promotion; 2026-09-27 the question space's cell coordinates) | PROPOSED for Part A.3 at this second sighting (a different problem class: question posing, not carrier typing) |
 | Projector-vs-Markov split on a positive PoU table (D16) — a row-sum normaliser on a non-one-hot coupling yields a conservative disintegration, not a projection; TELL: `project` whose callers want conservation, a Gram-structure tag dispatch; FIX: the coefficient-measure SLOT with its three fillers (→ `frame_hierarchy_kernel_coupling_frames.md`) | 1 (2026-09-28 energy condensation; the CP `_normalize_rcp` and the MC per-lethargy tally are the SAME verb but were named from D4, not sighted independently) | a second sighting on a non-XS coupling (a non-nested SPATIAL remap, a response-matrix normalisation) with the idempotency and composition tests |
+| Interface-blind iteration analysis — `ρ`/CW/Krylov/guard computed on the dense `M⁻¹N` when they live on `range N` (D22) | 1 (2026-09-29, SN cuts; the coproduct attack's "response form" was an [R] sighting of the same object, not an independent payoff) | a second sighting on a non-SN cut (a CP group loop, a coupled-physics lag) with the `K ≥ 0` test |
+| Section-of-a-retraction augmentation — `expose` (term image) and a Galerkin-correction summand are two SECTIONS of `reduce`; TELL: "X is REDUCE's inverse" measured one way; a coarse correction called "outside the ordering" (D21/D22 pointer file) | 1 (2026-09-29) | a second augmentation kind (an overlap duplicate, a Lagrange multiplier) spelled as a section with a cut |
 | Smell #17 (a) third form — a verb listed as "new" in a memo's NEEDS that is a COMPOSITION of two shipped verbs (`pushforward(φ).consolidate()`; `basis_space.apply_metric∘analysis`) | 2 (2026-09-28, both in the frame hierarchy attack) | already promoted as #17; this row only records that a memo's own NEEDS list is a place to run the #17 check |
 
 ## Part 4 — Refuted-frame ledger (high-prior frames that keep NOT firing)

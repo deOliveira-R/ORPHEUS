@@ -52,4 +52,5 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Source by method](source_by_method_projection.md) — projection differs, source doesn't; CP/MoC fixed-source renormalise.
 - [Geometry value + mesh verb](geometry_value_and_mesh_verb.md) — StructuredGeometry is the value; BC unhashable; kind spelled 13 ways.
 - [Mesh1D direct-construction census](mesh1d_direct_construction_census.md) — 410/450 geometry+rule; D bit-exact as region-per-cell; default method moves curvilinear.
+- [Method-hub commonality](method_hub_commonality.md) — ends at MaterialMesh; 2-of-6 boundary quartet; seams sit below hubs.
 - [Problem-side accessor uses](problem_side_accessor_uses.md) — k = sides Rayleigh; SN gauge straddles sides; two mechanisms not one.

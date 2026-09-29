@@ -330,6 +330,35 @@ never read the flag. And read `git log` for the ruling's history before grading 
 this one had already flipped once on an unmeasured ground (F8), so the finding is "land it
 with a witness", not "land it".
 
+### L-028 — An AST Name census is BLIND to a quoted forward-reference annotation; and on a RENAME set, census the DESTINATIONS first
+Sharpens standing order 2 (a surprising null is a tooling bug) by naming the spelling that
+hides: `def f(m: "TransportMethod[OpT]")` is a `Constant` string with brackets, so a
+`Name`/`Attribute` walk and an identifier-only string filter both report 0 consumers, and I
+had a Pattern-6 "zero production consumers, trim" finding drafted before a `def` grep showed
+the one consumer. `[M]` 2026-09-28 posing-sequence W5. Before any zero-consumer verdict,
+grep `["']Name\b` and `Name\[` as well. Second half, not in `retirement-audit` F.23 (which
+covers a rename's RESIDUE): a design that renames N symbols owes a census of the N
+DESTINATIONS for existing occupants holding a DIFFERENT quantity; `[M]` 3 of 24 were taken
+(`balance_defect` = a relative norm, `ordinate_idx` = the global index the cylinder arm does
+not pass, `provenance` = two citation-record classes), and each was the review's top finding.
+Also from that review: prototype a design's "bit-identical" claim on the CORNER fixture (a
+straddling grid), not the nested one; it is where the retyped verb and its would-be twin
+(`(MR)⁻¹M` vs the row-sum ratio) separate (0.36) while agreeing everywhere else.
+
+### L-029 — On a design that "collapses an enum into a derived pattern", count the enum's production DISCRIMINATION sites first; on a control battery that permutes the design's own data, feed it an ALIEN from the other fixture
+Not covered by the skill's "a repeated conditional is a missing type" (which presumes a
+conditional exists) nor by X1 in general. `[M]` 2026-09-28, the coproduct W5: my AST dispatch
+census printed 0 production sites with a FAILED control (the control I chose, `a if a is b else
+Enum.X`, is a `Compare` with no enum operand) — a grep of every line naming a member, with the
+join line as control, then hand classification, found the same 0 branches, so the enum was
+test-pinned metadata (44 of 44 `isinstance` marker reads in `tests/`), and the finding was L-007's
+trim plus a present-tense-false "dispatches on" comment, NOT a missing type; grading it as the
+memo framed it would have credited the design for retiring a dispatch that did not exist.
+Second half: 48 mis-ORDER controls all reddened and none could see that the new arrows admit a
+composite from another mesh (production's `admit_composite` refuses it); the alien was the other
+fixture the battery already held. Third: reproduce a concept-count claim ("11 → 8") under a
+STATED definition and add back what the memo's own text says it KEEPS (28 → 31 as prototyped).
+
 ### L-026 — On a "every X is the <induced arrow> of one map" unification, check the ROLE the arrow plays per instance
 Not covered by the type-vs-property test (`coding-standards`), which a real concept passes
 while the role assignment is still wrong. `[M]` 2026-09-27 (`Pullback(φ)` W5): the pullback
@@ -340,3 +369,18 @@ ask whether φ is injective or surjective and which induced arrow the tree calls
 retraction; grep the theory corpus for a sentence already refuting the identification
 (`spaces.rst` "The pullback is not the section"). Also probe a point-map type spelled by
 node POSITION (`lambda nodes: nodes[idx]`) on a reordered array: it answered wrongly.
+
+### L-030 — On a GRAPH-structured design (an ordering, a cut, an SCC), construct the input whose declared effect the STRUCTURE absorbs, and run it to the answer; and check whether a declared-order constructor DERIVES its cut or makes the call site compute it
+Not covered by L-025 (producers of a refused state), L-029 (an alien from the other fixture) or the
+mutation battery, which all vary the design's INPUTS; here the state is a legal input whose effect
+the structure swallows. `[M]` 2026-09-29, the `Ordering` W5: every fixture cut broke its SCC, so 13
+gates and 4 mutation arms were blind to a cut whose ends stay strongly connected through a second
+cycle — accepted, lagged AND kept inside the piece's own block, "converged" in 8 passes to 7.8e-2
+(control 1.7e-15). Build the degenerate by hand (a 3-block second cycle), solve to the answer, and
+read the piece's own block for the cut entry. Second half: production's Gauss–Seidel DERIVES its
+lagged rows from the declared order (`lower_inflow_rows`); the prototype REFUSED an order with
+upstream edges and its task file computed the cut with three lines of index arithmetic above the
+"call site" marker — grep the prototype's task file for arithmetic between the fixture and the
+marker, because the memo counts statements only below it. Third: each "made unspellable" claim in a
+prototype memo is a prose claim (X3); spy the verb it names (`Split.M` was called once on the very
+path the memo called unassembled).
