@@ -855,10 +855,28 @@ Plan of record: `/Users/rodrigo/.claude/plans/zesty-dazzling-hanrahan.md`.
 Read in order:
 1. "P1, the carve order". Steps 1, 2, 2b and 2c have LANDED (`main` `216cd017`). Step 3 is `Mesh1D(geometry, partition)`.
 2. "P1 step 2 opened", its rulings 1–7, and "Step 3's scope after step 2": the open items step 3 owns.
-3. `.claude/plans/reference_p1_spec.md` §1.3 (step 3's gates) and §3 (the migration protocol).
-4. "P1 step 2c": the inputs recorded for P2 (per-value citations; a typed locator), and #538.
+3. "The posing sequence's seeds for P1": seed 2 is step 3's.
+4. `.claude/plans/reference_p1_spec.md` §0 (the measured facts the laws rest on), §1.3 (step 3's gates), §2 (#495) and §3 (the migration protocol).
+5. "P1 step 2c": the inputs recorded for P2 (per-value citations; a typed locator), and #538.
 
-Step 3 runs as W3 on a branch `refactor/reference-specification`, recreated from `main`. The Sood registry is now `sood_registry/sood2003.py` (47 cases, `SOOD2003_CASES`) and `atalay1997.py` (6 cases, `ATALAY1997_CASES`). Both are built on `sood_registry/case.py`, whose `La13511Case`/`La13511Truth` retire in P4. `orpheus.data.Citation` is the typed citation P2's `PublishedSolution` will hold.
+**Step 3, what it is.** `Mesh1D(geometry, partition)`.
+- The argument is `partition`, by the user's perfect-match ruling. The spec's `Mesh1D(geometry, discretization)` is superseded: the unqualified word belongs to the method's discretisation.
+- The types: `Partition` (cell edges and exact measures per interval, checked against the geometry's breakpoints), `CellsByCount(counts, spacing)` with `.uniform_width(n)`/`.uniform_volume(n)`, `CellsByMaxWidth(widths, spacing)`, the spacing rules, and `2 * d`.
+- The retirements: `precomputed_volumes`, `RegionMesh`, `from_geometry`, `bc_left`/`bc_right`, and `None` as a boundary declaration.
+- The migration: about 450 direct `Mesh1D` sites and about 102 `from_geometry` sites. Each is checked bit-identical by the spec's rebuild probe, or its change is explained.
+- #495 is fixed at its root. `Mesh2D` keeps its constructor.
+
+**Its gates:** spec §1.3.
+- To build: S3.1-S3.8, S3.10 and S3.11.
+- Already LANDED in step 2: S3.9, S3.12, S3.13 and S3.14.
+- The posing sequence's seed 2 adds two items ("The posing sequence's seeds for P1", above): a gate that the mesh refines the region partition (every cell in exactly one region), and a discretisation digest keyed on the partition and the frames, never on the materials.
+- #495's gate is spec §2.
+
+**Before the first edit:** the migration protocol is spec §3. Capture 1 records every `Mesh1D` the suite builds; capture 2 records the resolved boundary law per face. Both are full-suite captures run through the detached per-tree driver (`scratch/reference_architecture/p1step2c/gate/driver.sh` is the latest form). The last `-m "not slow"` baseline is 12614 passed and 0 failed, at `216cd017`, in 38 min.
+
+**The open items step 3 owns:** qa finding 4 (a centre law on a direct solid `Mesh1D` passes the #511 door); N3 (an `outer_law`/`law_at(point)` accessor); N1 (the `_bcs_for` test helpers, for step 4). #535 (`coord is not CARTESIAN`) is related.
+
+Step 3 runs as W3, the main agent writing and test-architect specifying the gates first, on a branch `refactor/reference-specification` recreated from `main`. The Sood registry is now `sood_registry/sood2003.py` (47 cases, `SOOD2003_CASES`) and `atalay1997.py` (6 cases, `ATALAY1997_CASES`). Both are built on `sood_registry/case.py`, whose `La13511Case`/`La13511Truth` retire in P4. `orpheus.data.Citation` is the typed citation P2's `PublishedSolution` will hold.
 
 Durable lessons of step 2c (beside step 2b's):
 - **A rename can hide a relocation.** `La13511Case` looked like a Sood class; its census showed the Atalay cases were built on it too, so the right move was a schema module, not a new name. Census the type's constructors before choosing a name.
