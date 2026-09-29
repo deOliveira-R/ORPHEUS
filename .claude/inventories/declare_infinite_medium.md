@@ -209,7 +209,7 @@ facts are stated once here.
   `A` is the page's `A` under a relabelling, not literally; (ii) it keeps `χ`
   and the upscatter entry **general**, so the page's forms are its
   specialisation at `χ = [1,0]`, `Σ_s(2→1) = 0`; (iii) `[M]` its only consumer
-  is `tests/gates/derivations/test_fn_la13511_kinf.py:146`, which carries
+  is `tests/gates/derivations/test_fn_sood2003_kinf.py` (renamed from `test_fn_la13511_kinf.py` in P1 step 2c), which carries
   `@pytest.mark.foundation` and **no `verifies` marker** — so none of the 12/8
   claiming tests execute it. Declaring it adds a true implementer that the
   claims cannot reach.

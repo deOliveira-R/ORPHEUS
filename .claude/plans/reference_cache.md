@@ -24,7 +24,7 @@ Sizes are `[R]` estimates in sessions, sizing only. Each phase lands green on `m
 - **P1, the specification and the question (about 2).** In the geometry and data layers: the specification (materials, geometry as a value including the infinite medium, `Source`); the stored question sum type (`Eigen(k | c | ...)`, `FixedSource`, `CriticalParameter`, forward/adjoint) with the source-derived default; the `Source` field protocol in `numerics`; `geometry.mesh(discretization)` with `CellsByCount`, `CellsByMaxWidth` (the axis product designed in, 1-D built), `RegionMesh` retired (keeping #495's fix), `from_homogeneous`; one geometry-kind vocabulary and the production boundary types; a stable content digest for `Mixture` and the specification.
 - **P2, the solutions and certificates (about 2).** The `evaluate(functional) -> value with bound` protocol over `numerics.Functional`; `PublishedSolution` (with `Withdrawn`) and `ReferenceSolution`, each declaring its equation `(specification, approximations)`; the graded-panel Chebyshev field representation with the geometric-tail refusal; `ReferenceCertificate[Subject]` (bound, establishment method, corroborations with independence notes, applicability, `Valid`/`Invalid`/`Withdrawn`), with the X4 decision on `Evidence`'s `NotYet`/`Certified`; `Citation(bibkey, locator)` and its `refs.bib` gate; the comparison verb returning a `VerificationCertificate` (a `Valid` `ReferenceSolution` of the same equation only; the tolerance-derived floor).
 - **P3, the traced memo (about 2).** The recorder (`sys.monitoring` from session start, imports, the environment as an explicit setting, the pinned mpmath context); the traced-memo primitive with child entries validated recursively; the gate banning raw `functools` memoisation in `orpheus/` and the migration of its 19 sites; self-validating `.npz`/JSON entries under `.cache/`; the X1 witnesses (a mutation in a traced function or in a memoised child misses; a mutation elsewhere hits; flipping the route setting misses); the measurement of each generator under a foreign global `mp.dps`.
-- **P4, the families, hottest first (about 3 to 5).** The registry keyed on the specification and question; per family: the generator returns a specification and a `ReferenceSolution` with its equation, its own convergence tests become its certificate run, and its consumers assemble `MaterialMesh(spec.geometry.mesh(d), spec.materials)`. Order: the cylinder multi-region Green's function, the rest of the trajectory resolvent, MMS (the source becomes `Symbolic`), the homogeneous, diffusion and CP `_CASES` (the flat-source CP cases as discrete-exact solutions), Sood (F_N certified against LA-13511 as `PublishedSolution` anchors, #305 re-scoped), then F_N, Case, Galerkin and the critical-size generators (`CriticalParameter`). Retired at the end: `ContinuousReferenceSolution`, `ProblemSpec`, `_CASES`, the lazy builders, both `Provenance` classes, `CriticalSolution`, `FluxSolution`; the `withdrawn` markers become `Withdrawn` certificates.
+- **P4, the families, hottest first (about 3 to 5).** The registry keyed on the specification and question; per family: the generator returns a specification and a `ReferenceSolution` with its equation, its own convergence tests become its certificate run, and its consumers assemble `MaterialMesh(spec.geometry.mesh(d), spec.materials)`. Order: the cylinder multi-region Green's function, the rest of the trajectory resolvent, MMS (the source becomes `Symbolic`), the homogeneous, diffusion and CP `_CASES` (the flat-source CP cases as discrete-exact solutions), Sood (F_N certified against LA-13511 as `PublishedSolution` anchors, #305 re-scoped), then F_N, Case, Galerkin and the critical-size generators (`CriticalParameter`). Retired at the end: `ContinuousReferenceSolution`, `ProblemSpec`, `_CASES`, the lazy builders, `continuous_reference.Provenance` (the Sood registry's `Provenance` retired early, in P1 step 2c, into `Citation`), the Sood registry's `La13511Case` and `La13511Truth` (`sood_registry/case.py`; the Sood step splits them into `Specification` + `PublishedSolution`, and with them the `ELEGANCE-DEBT` #405 refusal of an empty `sources`), `CriticalSolution`, `FluxSolution`; the `withdrawn` markers become `Withdrawn` certificates.
 - **P5, CI (about 1).** The `references` job with read-only shards; the scheduled cold rebuild (agreement within a fraction of the bound, not bit equality); the check that every `Withdrawn` tag names an open issue and an existing generator; `test-durations` again, #405's measurement of the result; the measurement of CPU-model variation within one runner label.
 
 Compaction points: after P2 and after P4 (plan-authoring §6), each with the phase-to-commit table, the superseding corrections, the red baseline with gate costs, and the durable lessons.
@@ -682,7 +682,7 @@ Open items that step 3 owns:
 - qa finding 4: a centre law declared on a DIRECT solid `Mesh1D` still passes the #511 door. It retires when every mesh has a geometry behind it.
 - The elegance review's N3: consumers pick laws by position (`len(boundaries) == 2`, `boundaries[-1]`). An `outer_law` / `law_at(point)` accessor is owed when `Mesh1D(geometry, partition)` becomes a consumer.
 - N1: the test-side `_bcs_for(coord, law)` helpers (3 copies). The step-4 `from_homogeneous` absorbs the one-interval case.
-Open items that P4 owns: the generators store their body once, instead of re-reading it on each `_mat_id` access (C3); la13511's and billiard's coord/kind tables are one bijection (N2).
+Open items that P4 owns: the generators store their body once, instead of re-reading it on each `_mat_id` access (C3); the Sood registry's (`sood_registry/case.py`, `La13511Case.to_geometry`) and billiard's coord/kind tables are one bijection (N2).
 Filed: #535, `coord is not CARTESIAN` is a missing `CoordSystem` property (18 compare sites, the elegance review's S3 note).
 
 ## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2 (superseded by the point after step 2b, at the end of this file)
@@ -802,12 +802,12 @@ The pre-merge gate at `e8b83fc9`: `tests/gates` with `-m "not slow"`, serial `-O
 
 #536's body now says Billiard reaches the reflected spheres and cylinders, and that problem 4 is gated at the published digit. #421 was closed by hand: GitHub read `Closes #190, #421` as closing #190 only.
 
-**Open after step 2b, waiting for the user:**
+**Open after step 2b, both ruled 2026-09-29 and closed by P1 step 2c:**
 - **Naming.** the module `sood_registry/la13511.py`, the classes `La13511Case` and `La13511Truth`, `LA13511_CASES`, and the test files `test_*la13511*` and `test_fn_sood_table10_*` carry the 1999 report's number. The registry now cites the 2003 paper.
 
 - **The `edition` field.** The ruling asked for one. `paper_id="Sood-2003"` carries the edition instead, since a field beside it would state the same fact twice.
 
-## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2b (supersedes the point after step 2)
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2b (superseded by the point after step 2c, at the end of this file)
 
 Read in order:
 1. "P1, the carve order". Steps 1, 2 and 2b have LANDED (`main` `071e582e`). Step 3 is `Mesh1D(geometry, partition)`.
@@ -822,3 +822,44 @@ Durable lessons of step 2b:
 - **A re-citation between editions is a map, not an offset.** Tables and appendix equations shifted uniformly between 1999 and 2003. References shifted in three blocks, and some values changed. About ten of the registry's own citations were wrong under either numbering. Every row was measured against both texts (`citation_map.md`); a computed offset would have produced about ten wrong citations.
 - **Stale prose clusters around a rewrite.** One edition swap found eight false present-tense claims (a displayed equation, counts, attributions, "placeholder" modules). Budget a claims check beside every citation pass, not only the renumbering.
 - **GitHub closes only the first issue of `Closes #A, #B`.** Write one `Closes` per issue.
+
+## P1 step 2c (2026-09-29): `Citation` lands, the Sood registry drops the 1999 number
+
+Ruled by the user (2026-09-29):
+- Rename everything that carries the 1999 report's number, since a mixed provenance is not justified here.
+- Keep `paper_id` carrying the edition, with no `edition` field. After this step the edition is the `Citation`'s bibkey.
+- "Citation now, split in P4". The case schema is not given a new interim name: its successors are this plan's `Specification` + `PublishedSolution`.
+- "The case number is related to provenance": the problem number is the locator of the problem's `Citation`.
+
+Plan of record: `/Users/rodrigo/.claude/plans/zesty-dazzling-hanrahan.md`.
+
+**Merged @ `216cd017`** (`--ff-only`, 2026-09-29, the branch deleted). The pre-merge gate (`tests/gates`, `-m "not slow"`, serial `-O`, per tree): 12614 passed, 0 failed, in 38 min. The commits:
+- `61b20383`: `orpheus/data/citation.py`, `Citation(bibkey, locator | None)`, with its laws gate and 11 primary-source entries in `docs/refs.bib`.
+- `2644bd47`: `La13511Case.problem: Citation` and `La13511Truth.sources: tuple[Citation, ...]`. The schema moves to `sood_registry/case.py`, and the Sood registry's `Provenance` retires. The Atalay sphere case, a twin of Sood problem 14, retires. Gate: `tests/gates/derivations/test_registry_citations_resolve.py` (test-architect, 326 rows).
+- `228d6f20`: `la13511.py` → `sood2003.py`, `LA13511_CASES` → `SOOD2003_CASES`, the tests renamed, and the table-keyed names keyed on Sood's identifiers.
+- `e0ca4ab2`: the docs (the archivist).
+- `216cd017`: the review fixes: two citations, the bibliography rebuilt by pure insertion, `ATALAY1997_CASES`, the `builders.py` weld, the complete parse of `sources` tagged `ELEGANCE-DEBT` #405, and `_problem`/`_printed`.
+
+**Inputs for P2**, from the two reviews:
+- `sources` pools the values' citations. 8 of 47 Sood cases have values printed in different places, so `PublishedSolution` cites per printed value: one `Citation` per observable.
+- The locator is free text, so equality depends on spelling. Consider a typed locator (`Problem(n)`, `Table(n)`, `Page(n)`, `Row(table, key)`) if a consumer ever needs to compare locators.
+
+**Filed:** #538. The Atalay cases drop their reflection coefficient R and their P1 moment: 4 of 6 cases pose a vacuum, isotropic slab. It is blocked on a case carrying its boundary laws, which is `Specification` work.
+
+**Lessons:**
+- A retirement's census found a twin that no gate could see: an Atalay-named copy of a Sood problem, citing a table the paper does not have. Moving provenance into typed citations is what exposed it. A citation that must name a real place in a real work cannot be written for a problem the work does not pose.
+- `refs.bib` is loosely sorted, and Zotero's marker comments belong to the entry below them. Insert entries as text beside the largest smaller key; never re-join the file, and never read a diff with blank lines filtered out.
+
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 2c (supersedes the point after step 2b)
+
+Read in order:
+1. "P1, the carve order". Steps 1, 2, 2b and 2c have LANDED (`main` `216cd017`). Step 3 is `Mesh1D(geometry, partition)`.
+2. "P1 step 2 opened", its rulings 1–7, and "Step 3's scope after step 2": the open items step 3 owns.
+3. `.claude/plans/reference_p1_spec.md` §1.3 (step 3's gates) and §3 (the migration protocol).
+4. "P1 step 2c": the inputs recorded for P2 (per-value citations; a typed locator), and #538.
+
+Step 3 runs as W3 on a branch `refactor/reference-specification`, recreated from `main`. The Sood registry is now `sood_registry/sood2003.py` (47 cases, `SOOD2003_CASES`) and `atalay1997.py` (6 cases, `ATALAY1997_CASES`). Both are built on `sood_registry/case.py`, whose `La13511Case`/`La13511Truth` retire in P4. `orpheus.data.Citation` is the typed citation P2's `PublishedSolution` will hold.
+
+Durable lessons of step 2c (beside step 2b's):
+- **A rename can hide a relocation.** `La13511Case` looked like a Sood class; its census showed the Atalay cases were built on it too, so the right move was a schema module, not a new name. Census the type's constructors before choosing a name.
+- **Ask what the planned design already says.** The user pointed at the campaign's own `Citation`, `Specification` and `PublishedSolution` when an interim name (`BenchmarkCase`) was about to be minted for an object the plan retires.
