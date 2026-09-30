@@ -34,11 +34,58 @@ import numpy as np
 
 
 class CoordSystem(Enum):
-    """Coordinate system identifier."""
+    r"""Coordinate system identifier, and the measure of its position axis.
+
+    The measure of an interval :math:`[a, b]` of positions is
+
+    .. math::
+
+        m(a, b) = c\,(b^{d} - a^{d}),
+
+    with the exponent :math:`d` the dimension the position sweeps (1 for a
+    slab, 2 for a cylinder, 3 for a sphere) and the constant :math:`c`
+    (1, :math:`\pi`, :math:`\tfrac43\pi`): a slab's length per unit
+    transverse area, a cylinder's area per unit height, a sphere's volume.
+    :math:`T(r) = r^{d}` is the coordinate in which the measure is uniform,
+    so equal-measure cells are equal steps of :math:`T`.
+    """
 
     CARTESIAN = "cartesian"
     CYLINDRICAL = "cylindrical"
     SPHERICAL = "spherical"
+
+    @property
+    def measure_exponent(self) -> int:
+        r"""The exponent :math:`d` of :math:`m(a, b) = c\,(b^d - a^d)`."""
+        match self:
+            case CoordSystem.CARTESIAN:
+                return 1
+            case CoordSystem.CYLINDRICAL:
+                return 2
+            case CoordSystem.SPHERICAL:
+                return 3
+
+    @property
+    def measure_constant(self) -> float:
+        r"""The constant :math:`c` of :math:`m(a, b) = c\,(b^d - a^d)`."""
+        match self:
+            case CoordSystem.CARTESIAN:
+                return 1.0
+            case CoordSystem.CYLINDRICAL:
+                return np.pi
+            case CoordSystem.SPHERICAL:
+                return (4.0 / 3.0) * np.pi
+
+    def interval_measure(self, a: float, b: float) -> float:
+        r"""The measure :math:`m(a, b) = c\,(b^d - a^d)` of the interval :math:`[a, b]`.
+
+        Evaluated on scalars, in the order the equal-volume subdivision has
+        always used (``π · (b² − a²)``), so an equal-volume cell stored as
+        ``m(a, b) / n`` keeps its bits (ERR-020). The array form over cell
+        edges is :func:`compute_volumes_1d`.
+        """
+        d = self.measure_exponent
+        return self.measure_constant * (b**d - a**d)
 
 
 # ── 1-D formulas ─────────────────────────────────────────────────────

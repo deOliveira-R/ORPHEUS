@@ -12,6 +12,10 @@ sections to the cells is the transport layer's
 * :mod:`~orpheus.mesh.structured`: the structured meshes :class:`Mesh1D` and
   :class:`Mesh2D`, and the per-region discretisation descriptor
   :class:`RegionMesh`.
+* :mod:`~orpheus.mesh.partition`: the :class:`Partition` of a geometry's
+  intervals into cells, and the rules that make one (:class:`CellsByCount`,
+  :class:`CellsByMaxWidth`, :class:`CellEdges`, and their spacing rules
+  :class:`EqualWidth` and :class:`EqualVolume`).
 * :mod:`~orpheus.mesh.factories`: the 2-D pin-cell factory :func:`pwr_pin_2d`
   and the equal-volume subdivision of one interval.
 * :mod:`~orpheus.mesh.axis`: the per-axis primitives (:class:`AxisMesh`,
@@ -39,17 +43,37 @@ from orpheus.mesh.axis import (
     spatial_shape,
 )
 from orpheus.mesh.factories import pwr_pin_2d
+from orpheus.mesh.partition import (
+    CellEdges,
+    CellsByCount,
+    CellsByMaxWidth,
+    EqualVolume,
+    EqualWidth,
+    Partition,
+    PartitionRule,
+    Refined,
+    Spacing,
+)
 from orpheus.mesh.structured import Mesh1D, Mesh2D, RegionMesh
 
 __all__ = [
     "Axis1D",
     "AxisCoord",
     "AxisMesh",
+    "CellEdges",
+    "CellsByCount",
+    "CellsByMaxWidth",
+    "EqualVolume",
+    "EqualWidth",
     "FaceLabel",
     "Mesh1D",
     "Mesh2D",
+    "Partition",
+    "PartitionRule",
     "RadialAxisMesh",
+    "Refined",
     "RegionMesh",
+    "Spacing",
     "axes_from_legacy_mesh",
     "coord_system",
     "face_labels",

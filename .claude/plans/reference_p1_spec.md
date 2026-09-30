@@ -86,6 +86,69 @@ The measure `m(a, b)` of an interval `[a, b]` is `b − a` (slab), `π(b² − a
 
 The equal-volume `2 * d` and the equal-width `2 * d` legs of S3.6 use one population: intervals `(0, 1)`, `(0, 3)`, `(0, 2.872)`, `(0.9, 1.1)`, `(1.1, 1.8)`, `(0, 0.41)`, `(0.01, 2)`, `(2, 7)`, and n up to 500, the probe's own.
 
+### 1.3a Step 3 split into 3a, 3b and 3c (added 2026-09-29)
+
+Written by the test-architect after the user's rulings of 2026-09-29 (`.claude/plans/reference_cache.md`, "P1 step 3 opened": ruling 1 splits step 3 into three sub-commits, ruling 3 adds the named-face geometry constructors, ruling 4 moves the discretisation digest to step 5). The step-3a production was read in the main tree (uncommitted, on `refactor/reference-specification` at `08fe3e72`): `orpheus/mesh/partition.py`, `CoordSystem.measure_exponent`/`measure_constant`/`interval_measure` in `orpheus/geometry/coord.py`, and the constructors `slab`, `cylinder`, `sphere`, `uniform_boundary` and `from_homogeneous` on `StructuredGeometry`.
+
+**Premises measured or corrected while writing the 3a gates.**
+
+1. `[M]` The strict xfail §2 placed at step 1 never landed: `git grep 495` over `tests/gates/mesh/`, `test_structured_geometry.py` and `test_geometry.py` returns nothing. The #495 law is therefore born green in 3a, on partitions, with no mark to remove; its mesh-level leg lands in 3b.
+2. `[M]` (scratchpad probe, 21 035 random (interval, n) cases per coordinate) The R2 body without end pinning lands its last edge off the breakpoint in 168 cylinder and 21 sphere cases (0 on a slab). `_subdivide_zone` does not pin, so a `from_geometry` curvilinear mesh can in principle differ from its partition at an interval's last edge; capture 1 found 0 such sites in the suite (§3.4, all `from_geometry` rows `ev`), so `[R]` 3b's capture should show none.
+3. `[M]` `k * rule` nests bit for bit only when `k` is a power of two: fine[::k] differs from coarse in 0 of 7176 cases for k = 2, 4, 8, in 3909 for k = 3 and 5300 for k = 5 (worst 2 ULP). Ruled 2026-09-29 (the orchestrator, option (a)): a factor that is not a power of two is refused, ValueError "a refinement factor is a power of two".
+4. `[M]` The nominal widest cell of the equal-volume body on a slab must be `fl(L/n)`, not the first realised cell: on `[0, 3]` with `h = 0.3` the realised first cell `fl(fl(1/10)·3) = 0.30000000000000004` exceeds `h` (1 of 54 144 slab pairs), which would give 11 cells for equal volume and 10 for equal width. The landed `Spacing.widest_cell` takes the `p = 1` branch for both rules on a slab, so the one-body law holds; the row `TestIssue495::test_max_width_is_one_body_on_a_slab[0-3-h0.3]` pins it.
+5. `[REMEDIED 2026-09-29]` `uniform_boundary` decided hollowness a second time, on the RAW first breakpoint (`== 0.0`), while the geometry decides it on the PARSED float. Witness: `Fraction(1, 10**400)` (a `Real` whose float is 0.0) was refused. The orchestrator moved both decisions onto `_is_hollow`/`_boundary_points` over parsed breakpoints; the witness row is `TestUniformBoundary::test_hollowness_is_the_geometry_s_decision`.
+6. `[M]` The spelling of the interval measure (`c·(b^d − a^d)` against `c·b^d − c·a^d`) is invisible on most intervals: the two agree on 16 of 16 intervals of the law population on a sphere and 15 of 16 on a cylinder. `(0.3, 0.7)` is added to the population as the sphere's witness, so the bitwise `fl(m/n)` pin sees a re-association.
+7. `[M]` The spec's "3 distinct volumes at n = 5 on `[0, 3]`" is a property of today's `np.linspace` edges; the R2 edges' differences take 2 distinct values there. The discriminating row asserts "not all equal".
+
+**Where every row of §1.3 lands.** Gate files: `tests/gates/mesh/test_partition.py` (195 rows) and `tests/gates/geometry/test_named_face_constructors.py` (58 rows); `[M]` 253 passed under `.venv/bin/python -O -m pytest` in 1.7 s, and `npx pyright` reports 0 errors on both files. Every row is `foundation` and carries `rests_on` edges into S2.1/S2.2 (`test_structured_geometry.py`) and within the two files (21 distinct targets, all collected node ids, `[M]`).
+
+| row | 3a (landed with this spec section) | 3b | 3c / 5 |
+|---|---|---|---|
+| S3.1 nesting | `TestPartitionValue` (12 keyed refusals and their disjointness row, equality bitwise, copy and read-only, the flat views stored once, `partition(g) is p`, the unhashable RECORD row), `TestNesting` (both spacings × three coordinates × 17 intervals × 10 counts, plus a three-interval body; the pinning's own witness row) | — | the unhashable row reds at step 5 by design and is re-posed as the eq/hash contract |
+| S3.2 sum law | `TestSumLaw` (6 rows, 170 cases each) | — | — |
+| S3.3 equal volume | `TestEqualVolume`: `fl(m/n)` broadcast, per interval, bitwise (`catches("ERR-020")`, earned: see the battery), the R2 edges, and the keystone against `_subdivide_zone` | the keystone row RETIRES with `_subdivide_zone`; the six `from_geometry` rows of `test_structured_geometry.py` (`test_multi_region_cylinder_equal_volume`, `test_equal_volume_cylindrical_invariant`, `test_equal_volume_spherical_invariant`, `test_equal_volume_multi_region_invariant[×3]`, all `catches("ERR-020")`, and `test_equal_volume_edges_bound_the_volumes`) are re-spelled onto `Mesh1D(g, CellsByCount.uniform_volume(n))` and keep their markers (`retirement-audit` C.13); the ERR-020 arm is re-run on them before the markers are believed | — |
+| S3.4 equal width | `TestEqualWidth` (R2 edges; widths within `2 ulp(b)` of `fl(L/n)`; slab measure `fl(L/n)`, curvilinear shells between the realised edges; the slab discriminator) | — | — |
+| S3.5 #495 | `TestIssue495`: partitions equal on a slab for n ∈ 1..64 ∪ {100, 127, 255, 1000} over four slab bodies; n = 5, 7, 9, 11 by name; the curvilinear negative leg; the max-width one-body law | the mesh leg `Mesh1D(g, uniform_width(n)) == Mesh1D(g, uniform_volume(n))` on a slab (needs S3.8's equality), and the from_geometry `"uniform"` rows (`test_single_region_slab_uniform`, `test_multi_region_slab`, `test_the_first_breakpoint_is_the_origin`) re-spelled onto `uniform_width` | — |
+| S3.6 refinement | `TestRefinement` (k ∈ {2, 4, 8} × both spacings × three coordinates × 8 intervals × 70 counts; measures additive under refinement where they are `fl(m/n)`; max-width `2 * d` is the doubled realised count; the refuted halving exhibited) and `TestRefinementRefusals` (the factor, including 3 and 6; `2 * Partition`, `2 * CellEdges`) | — | — |
+| S3.7 max width | `TestMaxWidthCount` (equal width: the least `n` with `fl(L/n) ≤ h`, checked by brute force over every smaller count; equal volume on a cylinder or sphere: the widest realised cell within `2 ulp(b)` of `h` and no smaller count fits; the discriminating rows (1, fl(1/3)) → 3, (3, fl(1/3)) → 9, (1, 0.1) → 10, (3, 0.3) → 10; one width per interval) and `TestCellsByMaxWidthRefusals` | — | — |
+| rules' refusals | `TestCellsByCountRefusals` (no default spacing; no `CellsByCount.uniform`; a string spacing refused), `TestCellsByMaxWidthRefusals`, `TestCellEdges` | the re-posed `TestRegionMesh` rows of `test_structured_geometry.py` (S3.11: count ≤ 0 and non-int → `TestCellsByCountRefusals`; the unknown `method=` row is DEAD, deleted with `RegionMesh`) | — |
+| posing seed 2 | `TestEveryCellInExactlyOneInterval` (15 rows: five rules × three coordinates; the owner decided by grouping and by containment, independently) | the mesh leg: `mesh.mat_ids` is each interval's material broadcast over its cells (S3.8(b)) | the discretisation digest: step 5 (ruling 4) |
+| S3.8 the one constructor | — | all of (a) to (e) and its refusals; (a)'s hash leg moves to step 5 (ruling 4: the geometry is unhashable until `BC` is); (c) is `mesh.volumes is mesh.partition.all_measures` and `mesh.edges is mesh.partition.all_edges` (the orchestrator's note: both are stored fields of `Partition`) | the hash leg: step 5 |
+| S3.9, S3.12–S3.14 | LANDED in step 2 | — | — |
+| S3.10 retirements | — | the `Mesh1D` field legs (`bc_left`, `bc_right`, `precomputed_volumes` raise `AttributeError`) | the `None` refusal on the mesh path and the `boundary_condition=` signature leg, proven by capture 2 |
+| S3.11 re-posed refusals | — | all five sites (spec §1.3) | — |
+| S4.1 `from_homogeneous` | `TestFromHomogeneous`, `TestFromHomogeneousRefusals` | — | — |
+| S4.2 k∞ legs | — | re-spelled through `from_homogeneous(w, BC.reflective)` with the new mesh constructor | — |
+| ruling 3 constructors | `TestSlab`, `TestRadial`, `TestUniformBoundary` and their refusal classes: each constructor equals the bare constructor field by field over `dataclasses.fields(StructuredGeometry)`, laws by identity; each refusal is the bare constructor's own message (compared as strings, the route witness of one boundary check) | the test-site migration consumes them (N1's `_bcs_for` helpers retire onto `uniform_boundary`) | — |
+
+**The step-3a mutation battery, run 2026-09-29** `[M]`. Instrument: `scratch/reference_architecture/p1step3/battery3a/battery3a.py`, a `-p` plugin installed at `pytest_configure` in the pytest process; the arm is chosen by `ORPHEUS_ARM`; each arm raises `Uninstallable` unless the mutant's answer on a probe input differs from the honest one (probes compare array BYTES: an ndarray `repr` truncates to 8 digits and read two arms as uninstallable before the fix), and prints `installed=1 rebinds=N`. Driver: `run_battery.sh <arm>...`; logs in `battery_out/`. Scope: the two new files (253 rows); `test_structured_geometry.py` is excluded because its mesh rows still build through `from_geometry` and `_subdivide_zone`, which no arm touches. Each run takes about 2 s. Every arm reddened its target row; 0 collection errors in every run.
+
+| arm | mutation (installed in-process) | target rows | red | verdict |
+|---|---|---|---|---|
+| control-err020 (positive control) | every measure re-derived from the realised edges (`compute_volumes_1d`), ERR-020 itself | S3.3 measure rows | 19 | red on all three coordinates: `test_measures_are_the_interval_measure_over_n[×3]`, `test_multi_interval_measures_are_per_interval[×3]`, keystone ×3, the slab equal-width measure row and its discriminator, the four named #495 rows, measure additivity ×3, the CellEdges slab row. DECLARED BLIND: `test_equal_width_is_equal_volume_on_a_slab` stays green, because the mutant corrupts both rules identically (the equality law's stabiliser); the named rows see it through the distinct-measure count |
+| unpinned-ends | the spacing body without `edges[0], edges[-1] = a, b` | the pinning witness row | 2 | red (cylinder, sphere). DECLARED BLIND: the population rows of `TestNesting` stay green, the population holding 0 witnesses |
+| measure-from-origin | equal measures `m(0, b)/n` | S3.2, S3.3 | 14 | red wherever `a > 0` |
+| interval-measure-association | `c·b^d − c·a^d` | S3.3 bitwise, keystone | 4 | red on cylinder and sphere through the added `(0.3, 0.7)` witness (premise 6) |
+| r1-linspace-width | equal width placed by `np.linspace(a, b, n+1)` | S3.4 edges, S3.5 | 11 | red |
+| slab-width-measure-is-diff | equal-width measures from the edges (today's `"uniform"`) | S3.4 slab measure, S3.5 | 15 | red |
+| max-width-halved | `2 * CellsByMaxWidth(h)` as `CellsByMaxWidth(h/2)` | S3.6 max-width rows | 7 | red |
+| count-ceil-realised | `n = ceil(L/h)`, raised until the realised widths fit | S3.7 rows `(1, 0.1)` | 18 | red |
+| count-exact-rational | `n = ceil(Fraction(L)/Fraction(h))` | S3.7 rows `fl(1/3)` | 15 | red |
+| widest-is-realised-first-cell | the nominal widest cell read off the realised first cell for every spacing | the one-body max-width row `(0, 3), h = 0.3` | 7 | red |
+| any-factor | the power-of-two clause removed | the factor 3 and 6 refusals | 7 | red |
+| eq-ignores-measures | `Partition.__eq__` compares edges only | the equality `measure` row | 2 | red |
+| no-nesting-check | `Partition.partition` returns `self` unchecked | interval-count and end-edge refusals | 5 | red |
+| all-edges-duplicates-breakpoints | `all_edges = concatenate(edges)` | seed 2 | 16 | red on all 15 seed-2 rows and `test_derived_views` |
+| cell-edges-slab-formula | `CellEdges` measures `diff(edges)` in every coordinate | the shell rows | 4 | red on cylinder and sphere |
+| radial-swapped-laws | `cylinder`/`sphere` store `(outer, inner)` | hollow equals-bare | 2 | red |
+| uniform-boundary-raw-hollowness | the pre-fix `uniform_boundary` | the Fraction witness | 2 | red (and green on the fixed tree) |
+| homogeneous-one-face | `from_homogeneous` puts vacuum on the right face | S4.1 identity legs | 12 | red |
+| homogeneous-no-own-check | `from_homogeneous` without its width check | S4.1 keyed refusals | 4 | red: the rows pin the verb's own message, not the bare constructor's |
+
+**The ERR-020 markers.** The control arm re-drops ERR-020 into the production rule, and the two rows it reddens on all three coordinates, `TestEqualVolume::test_measures_are_the_interval_measure_over_n` and `TestEqualVolume::test_multi_interval_measures_are_per_interval`, now carry `catches("ERR-020")`. The keystone reddened too and carries none, since it retires at 3b. At 3b, after the six `from_geometry` catchers are re-spelled, the same arm is re-run against them; a re-spelled row that stays green loses its marker.
+
+**3b owes, beyond the table:** the capture comparison of §3 over the migrated tree; the retirement audit of §4's step-3 row minus the 3c items; and a per-arm re-run of this battery (the gates of 3a must stay red under their arms once `Mesh1D` consumes the partition).
+
 ### 1.4 Step 4: `from_homogeneous(width, boundary)`
 
 The infinite medium realised by the test as a finite slab: one interval `[0, width]`, one material, both boundary points carrying `boundary`.

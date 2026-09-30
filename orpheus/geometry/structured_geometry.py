@@ -220,7 +220,7 @@ class StructuredGeometry:
         region and carries no law; a hollow one has an inner surface. A
         slab has no centre and is never hollow.
         """
-        return self.coord is not CoordSystem.CARTESIAN and self.breakpoints[0] > 0.0
+        return _is_hollow(self.coord, self.breakpoints)
 
     @property
     def boundary_points(self) -> tuple[float, ...]:
@@ -230,10 +230,7 @@ class StructuredGeometry:
         :math:`(r_R,)` on a solid cylinder or sphere, whose centre is an
         interior point.
         """
-        r_0, r_R = self.breakpoints[0], self.breakpoints[-1]
-        if self.coord is CoordSystem.CARTESIAN or self.is_hollow:
-            return (r_0, r_R)
-        return (r_R,)
+        return _boundary_points(self.coord, self.breakpoints)
 
     @property
     def domain_extent_cm(self) -> float:
@@ -244,6 +241,113 @@ class StructuredGeometry:
         solid cylinder or sphere; the shell thickness on a hollow one.
         """
         return self.breakpoints[-1] - self.breakpoints[0]
+
+    # ─────────────────────────────────────────────────────────────────
+    # Constructors that name each boundary point's law
+    # ─────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def slab(
+        cls,
+        breakpoints: Iterable[float],
+        mat_ids: Iterable[int],
+        *,
+        left: "BC | BoundaryTraceLaw",
+        right: "BC | BoundaryTraceLaw",
+    ) -> "StructuredGeometry":
+        r"""A slab, with the law at its left and at its right face."""
+        return cls(
+            coord=CoordSystem.CARTESIAN, breakpoints=tuple(breakpoints),
+            mat_ids=tuple(mat_ids), boundaries=(left, right),
+        )
+
+    @classmethod
+    def cylinder(
+        cls,
+        breakpoints: Iterable[float],
+        mat_ids: Iterable[int],
+        *,
+        outer: "BC | BoundaryTraceLaw",
+        inner: "BC | BoundaryTraceLaw | None" = None,
+    ) -> "StructuredGeometry":
+        r"""A cylinder, with the law at its outer surface, and at its inner one when hollow.
+
+        ``inner`` is given exactly when the first breakpoint is positive: the
+        centre of a solid cylinder is an interior point and carries no law.
+        """
+        return cls._radial(CoordSystem.CYLINDRICAL, breakpoints, mat_ids, inner, outer)
+
+    @classmethod
+    def sphere(
+        cls,
+        breakpoints: Iterable[float],
+        mat_ids: Iterable[int],
+        *,
+        outer: "BC | BoundaryTraceLaw",
+        inner: "BC | BoundaryTraceLaw | None" = None,
+    ) -> "StructuredGeometry":
+        r"""A sphere, with the law at its outer surface, and at its inner one when hollow.
+
+        ``inner`` is given exactly when the first breakpoint is positive: the
+        centre of a solid sphere is an interior point and carries no law.
+        """
+        return cls._radial(CoordSystem.SPHERICAL, breakpoints, mat_ids, inner, outer)
+
+    @classmethod
+    def _radial(
+        cls,
+        coord: CoordSystem,
+        breakpoints: Iterable[float],
+        mat_ids: Iterable[int],
+        inner: "BC | BoundaryTraceLaw | None",
+        outer: "BC | BoundaryTraceLaw",
+    ) -> "StructuredGeometry":
+        # An absent ``inner`` keyword is no law at all, never a stored None;
+        # whether the body needs one is decided by the one boundary check.
+        laws = (outer,) if inner is None else (inner, outer)
+        return cls(
+            coord=coord, breakpoints=tuple(breakpoints),
+            mat_ids=tuple(mat_ids), boundaries=laws,
+        )
+
+    @classmethod
+    def uniform_boundary(
+        cls,
+        coord: CoordSystem,
+        breakpoints: Iterable[float],
+        mat_ids: Iterable[int],
+        law: "BC | BoundaryTraceLaw",
+    ) -> "StructuredGeometry":
+        r"""The geometry whose every boundary point carries ``law``.
+
+        Coordinate-generic: two laws on a slab or a hollow body, one on a
+        solid cylinder or sphere. For a test parametrised over coordinate
+        systems whose body has one law on its whole boundary.
+        """
+        parsed = _parse_breakpoints(coord, breakpoints)
+        return cls(
+            coord=coord, breakpoints=parsed, mat_ids=tuple(mat_ids),
+            boundaries=(law,) * len(_boundary_points(coord, parsed)),
+        )
+
+    @classmethod
+    def from_homogeneous(
+        cls, width: float, boundary: "BC | BoundaryTraceLaw",
+    ) -> "StructuredGeometry":
+        r"""A slab ``[0, width]`` of material 0, with ``boundary`` on both faces.
+
+        The infinite medium as a test realises it: one finite slab whose
+        faces carry one law (reflective, for the infinite medium itself).
+        Only a slab: a finite curvilinear body is not an infinite medium in
+        continuous transport.
+        """
+        extent = _parse_real(width, "StructuredGeometry.from_homogeneous: width")
+        if not (math.isfinite(extent) and extent > 0.0):
+            raise ValueError(
+                f"StructuredGeometry.from_homogeneous: the width is positive and "
+                f"finite, got {width!r}"
+            )
+        return cls.slab((0.0, extent), (0,), left=boundary, right=boundary)
 
     # ─────────────────────────────────────────────────────────────────
     # Constructors for the callers that speak another vocabulary
@@ -359,6 +463,21 @@ class StructuredGeometry:
             mat_ids=(2, 1, 0),
             boundaries=boundaries,
         )
+
+
+def _is_hollow(coord: CoordSystem, breakpoints: tuple[float, ...]) -> bool:
+    """A cylinder or sphere whose first (parsed) breakpoint is positive."""
+    return coord is not CoordSystem.CARTESIAN and breakpoints[0] > 0.0
+
+
+def _boundary_points(
+    coord: CoordSystem, breakpoints: tuple[float, ...],
+) -> tuple[float, ...]:
+    """The boundary's positions, inner first, from parsed breakpoints."""
+    r_0, r_R = breakpoints[0], breakpoints[-1]
+    if coord is CoordSystem.CARTESIAN or _is_hollow(coord, breakpoints):
+        return (r_0, r_R)
+    return (r_R,)
 
 
 def _parse_breakpoints(
