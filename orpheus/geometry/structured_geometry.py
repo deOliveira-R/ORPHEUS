@@ -102,46 +102,16 @@ import itertools
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from numbers import Real
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .coord import CoordSystem
+from .scalars import parse_entries, parse_integer, parse_positive_real, parse_real
 from .boundary import BC
 
 if TYPE_CHECKING:
     from .boundary import BoundaryTraceLaw
-
-
-def _parse_real(value: object, where: str) -> float:
-    """A real scalar as a ``float``, or a keyed refusal.
-
-    ``bool`` is refused (``True`` is an ``int``), and ``-0.0`` is
-    canonicalised to ``+0.0``: the two compare equal, so they are one
-    breakpoint, and a digest over the bits must see one value.
-    """
-    if not isinstance(value, Real) or isinstance(value, bool):
-        raise TypeError(
-            f"{where} must be a real number, got {type(value).__name__}"
-        )
-    return float(value) + 0.0
-
-
-def _parse_integer(value: object, where: str) -> int:
-    """An integer scalar as an ``int``, or a keyed refusal."""
-    if not isinstance(value, (int, np.integer)) or isinstance(value, bool):
-        raise TypeError(
-            f"{where}: a material id is an int, got {type(value).__name__}"
-        )
-    return int(value)
-
-
-def _entries(value: object, where: str, expected: str) -> tuple[object, ...]:
-    """The entries of a sequence field as a tuple, or a keyed refusal."""
-    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
-        raise TypeError(f"{where} must be a sequence of {expected}, got {type(value).__name__}")
-    return tuple(value)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -193,12 +163,7 @@ class StructuredGeometry:
     boundaries: "tuple[BC | BoundaryTraceLaw, ...]"
 
     def __post_init__(self) -> None:
-        if not isinstance(self.coord, CoordSystem):
-            raise TypeError(
-                f"StructuredGeometry.coord must be a CoordSystem member, got "
-                f"{type(self.coord).__name__} {self.coord!r}; the string "
-                f"kind tags ('SLB', 'CYL', 'SPH') are retired."
-            )
+        _parse_coord(self.coord)
         object.__setattr__(
             self, "breakpoints", _parse_breakpoints(self.coord, self.breakpoints),
         )
@@ -207,7 +172,7 @@ class StructuredGeometry:
         )
         object.__setattr__(
             self, "boundaries",
-            _entries(self.boundaries, "StructuredGeometry.boundaries", "boundary laws"),
+            parse_entries(self.boundaries, "StructuredGeometry.boundaries", "boundary laws"),
         )
         _check_boundaries(self)
 
@@ -231,6 +196,20 @@ class StructuredGeometry:
         interior point.
         """
         return _boundary_points(self.coord, self.breakpoints)
+
+    @property
+    def intervals(self) -> tuple[tuple[float, float], ...]:
+        r"""The material intervals :math:`[r_k, r_{k+1}]`, in order."""
+        return tuple(itertools.pairwise(self.breakpoints))
+
+    def measure(self, edges: np.ndarray) -> np.ndarray:
+        r"""The measures of the cells between ``edges``, in this geometry's coordinate system.
+
+        Lengths on a slab, areas per unit height on a cylinder, volumes on a
+        sphere: :meth:`CoordSystem.measure`, the one definition. An
+        interval's measure is the one-cell case, ``measure([r_k, r_{k+1}])``.
+        """
+        return self.coord.measure(edges)
 
     @property
     def domain_extent_cm(self) -> float:
@@ -324,7 +303,7 @@ class StructuredGeometry:
         solid cylinder or sphere. For a test parametrised over coordinate
         systems whose body has one law on its whole boundary.
         """
-        parsed = _parse_breakpoints(coord, breakpoints)
+        parsed = _parse_breakpoints(_parse_coord(coord), breakpoints)
         return cls(
             coord=coord, breakpoints=parsed, mat_ids=tuple(mat_ids),
             boundaries=(law,) * len(_boundary_points(coord, parsed)),
@@ -341,12 +320,9 @@ class StructuredGeometry:
         Only a slab: a finite curvilinear body is not an infinite medium in
         continuous transport.
         """
-        extent = _parse_real(width, "StructuredGeometry.from_homogeneous: width")
-        if not (math.isfinite(extent) and extent > 0.0):
-            raise ValueError(
-                f"StructuredGeometry.from_homogeneous: the width is positive and "
-                f"finite, got {width!r}"
-            )
+        extent = parse_positive_real(
+            width, "StructuredGeometry.from_homogeneous", "the width",
+        )
         return cls.slab((0.0, extent), (0,), left=boundary, right=boundary)
 
     # ─────────────────────────────────────────────────────────────────
@@ -374,10 +350,10 @@ class StructuredGeometry:
         """
         breakpoints = tuple(itertools.accumulate(
             (
-                _parse_real(t, f"StructuredGeometry.from_thicknesses: thicknesses[{k}]")
+                parse_real(t, f"StructuredGeometry.from_thicknesses: thicknesses[{k}]")
                 for k, t in enumerate(thicknesses)
             ),
-            initial=_parse_real(r_0, "StructuredGeometry.from_thicknesses: r_0"),
+            initial=parse_real(r_0, "StructuredGeometry.from_thicknesses: r_0"),
         ))
         return cls(
             coord=coord,
@@ -465,6 +441,17 @@ class StructuredGeometry:
         )
 
 
+def _parse_coord(coord: object) -> CoordSystem:
+    """The coordinate system, or the keyed refusal of anything else."""
+    if not isinstance(coord, CoordSystem):
+        raise TypeError(
+            f"StructuredGeometry.coord must be a CoordSystem member, got "
+            f"{type(coord).__name__} {coord!r}; the string "
+            f"kind tags ('SLB', 'CYL', 'SPH') are retired."
+        )
+    return coord
+
+
 def _is_hollow(coord: CoordSystem, breakpoints: tuple[float, ...]) -> bool:
     """A cylinder or sphere whose first (parsed) breakpoint is positive."""
     return coord is not CoordSystem.CARTESIAN and breakpoints[0] > 0.0
@@ -484,9 +471,9 @@ def _parse_breakpoints(
     coord: CoordSystem, breakpoints: object,
 ) -> tuple[float, ...]:
     """The breakpoints as a tuple of ``float``, or a keyed refusal."""
-    entries = _entries(breakpoints, "StructuredGeometry.breakpoints", "real numbers")
+    entries = parse_entries(breakpoints, "StructuredGeometry.breakpoints", "real numbers")
     parsed = tuple(
-        _parse_real(value, f"StructuredGeometry.breakpoints[{k}]")
+        parse_real(value, f"StructuredGeometry.breakpoints[{k}]")
         for k, value in enumerate(entries)
     )
     if len(parsed) < 2:
@@ -514,8 +501,8 @@ def _parse_breakpoints(
 def _parse_mat_ids(mat_ids: object, n_intervals: int) -> tuple[int, ...]:
     """The material ids as a tuple of ``int``, one per interval."""
     entries = tuple(
-        _parse_integer(value, f"StructuredGeometry.mat_ids[{k}]")
-        for k, value in enumerate(_entries(mat_ids, "StructuredGeometry.mat_ids", "int"))
+        parse_integer(value, f"StructuredGeometry.mat_ids[{k}]", "a material id")
+        for k, value in enumerate(parse_entries(mat_ids, "StructuredGeometry.mat_ids", "int"))
     )
     if len(entries) != n_intervals:
         raise ValueError(

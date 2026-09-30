@@ -88,6 +88,8 @@ The equal-volume `2 * d` and the equal-width `2 * d` legs of S3.6 use one popula
 
 ### 1.3a Step 3 split into 3a, 3b and 3c (added 2026-09-29)
 
+⛔ The 3a column of the placement table and the round-1 battery table below describe the retired `Partition` API; read "Round 2" at the end of this section first.
+
 Written by the test-architect after the user's rulings of 2026-09-29 (`.claude/plans/reference_cache.md`, "P1 step 3 opened": ruling 1 splits step 3 into three sub-commits, ruling 3 adds the named-face geometry constructors, ruling 4 moves the discretisation digest to step 5). The step-3a production was read in the main tree (uncommitted, on `refactor/reference-specification` at `08fe3e72`): `orpheus/mesh/partition.py`, `CoordSystem.measure_exponent`/`measure_constant`/`interval_measure` in `orpheus/geometry/coord.py`, and the constructors `slab`, `cylinder`, `sphere`, `uniform_boundary` and `from_homogeneous` on `StructuredGeometry`.
 
 **Premises measured or corrected while writing the 3a gates.**
@@ -148,6 +150,65 @@ Written by the test-architect after the user's rulings of 2026-09-29 (`.claude/p
 **The ERR-020 markers.** The control arm re-drops ERR-020 into the production rule, and the two rows it reddens on all three coordinates, `TestEqualVolume::test_measures_are_the_interval_measure_over_n` and `TestEqualVolume::test_multi_interval_measures_are_per_interval`, now carry `catches("ERR-020")`. The keystone reddened too and carries none, since it retires at 3b. At 3b, after the six `from_geometry` catchers are re-spelled, the same arm is re-run against them; a re-spelled row that stays green loses its marker.
 
 **3b owes, beyond the table:** the capture comparison of §3 over the migrated tree; the retirement audit of §4's step-3 row minus the 3c items; and a per-arm re-run of this battery (the gates of 3a must stay red under their arms once `Mesh1D` consumes the partition).
+
+#### Round 2 (2026-09-29, after the review of `2c62f9f2`): the interval rules and the one measure
+
+This block SUPERSEDES the 3a column of the placement table above and the round-1 battery table, both of which describe the `Partition` API that retired (`reference_cache.md`, "P1 step 3a, after review": `Partition`/`PartitionRule` retire; rules are interval rules `rule.cells(geometry, (a, b)) -> (edges, measures)`; the measure has one correctly-rounded definition `coord.measure(edges) = c·diff(T(edges))`; whole-geometry realisation moves to the `Mesher` in 3b). The round-1 text is kept as history.
+
+**What moved.**
+- `[REFUTED 2026-09-29]` "S3.1 nesting across intervals and posing seed 2 are 3a's": there is no free-standing multi-interval object in 3a any more. S3.1 keeps its PER-INTERVAL legs in 3a; the cross-interval legs (every breakpoint is a cell edge, every cell in exactly one interval, the flat views) are 3b's, on `Mesher(g).partition(rule).mesh`, together with the mesh-level #495 leg.
+- `[REFUTED 2026-09-29]` the keystone "equal volume is bitwise `_subdivide_zone`" as a law (ruling 5: numpy's power replaces Python's scalar `**`). The row is deleted; its successor is the ERR-020 invariant (equal shares bitwise identical, each `m(a, b)/n` with `m` the one definition) plus the one-definition ROUTE row.
+- `Partition`'s value rows (equality, hash RECORD, flat views) are deleted with the type; `CellEdges` is now the value type with rows of its own (value equality and hash, `-0.0` canonicalisation, copy and read-only).
+- The refinement factor law is on `Refined` (the type), gated through the constructor and through the operator; `Refined` of `Refined` flattens by the product.
+
+**The 3a rows, round 2** (`[M]` 255 passed under `.venv/bin/python -O -m pytest` in 1.2 s, `npx pyright` 0 errors; 21 `rests_on` targets, all collected node ids). `tests/gates/mesh/test_partition.py` (193 rows):
+
+| class | rows | law |
+|---|---|---|
+| `TestTheOneMeasure` | 14 | the measure is `c·diff(edges**d)` on arrays (bitwise, 3 coordinates × 17 intervals × 3 counts); ROUTE: a decoy `CoordSystem.measure` moves `compute_volumes_1d`, `geometry.measure`, equal shares and realised shells by exactly its factor; `compute_volumes_1d` is a one-line delegate (RECORD, retires in 3b); the measure coordinate per system and its inverse; `MeasureCoordinate` refuses exponents 0, 4, −1, 1.5; `geometry.intervals` and `geometry.measure` |
+| `TestNesting` | 11 | S3.1 per interval (both spacings × 3 coordinates × 17 intervals × 10 counts); the pinning's own witness row; returned arrays are fresh |
+| `TestSumLaw` | 6 | S3.2 |
+| `TestEqualVolume` | 9 | S3.3: shares bitwise `m(a, b)/n` (`catches("ERR-020")`); each interval its own share on `(0, .5, 1.5, 2)` meshed 5/7/11 (`catches("ERR-020")`); the R2 edges |
+| `TestEqualWidth` | 7 | S3.4 |
+| `TestIssue495` | 14 | S3.5 per interval: equal cells on a slab over 5 intervals (one with a negative origin) × 68 counts; n = 5, 7, 9, 11 named; the curvilinear negative leg; `CellsByMaxWidth` one body on a slab |
+| `TestRefinement`, `TestRefinementRefusals` | 36 + 26 | S3.6: nesting for k ∈ {2, 4, 8}; equal shares additive; `2 * (4 * r) == 4 * (2 * r) == Refined(r, 8)`; the `4 * (2 * d)` row (qa F3); the refined max-width rule; the refuted halving; factor refusals (0, −2, 3, 6: power of two; 2.0, `True`: int) through the operator AND the constructor; `Refined(CellEdges)` and `2 * CellEdges` refused |
+| `TestMaxWidthCount` | 28 | S3.7 as in round 1, plus qa F2: a width below the interval's float resolution and an estimate above 2**31 cells are refused at once (5 rows) |
+| `TestRuleRefusals` | 28 | `CellsByCount`, `CellsByMaxWidth` (a tuple count or width is refused: the per-interval choice is the Mesher's), `CellEdges` (qa F5: strings and bools refused), one disjointness row each |
+| `TestCellEdges` | 9 | the geometry's measures between the given edges; curvilinear equal width is its own edges, the slab is not; value equality and hash; qa F4 `-0.0`; copy and read-only |
+| two module rows | 5 | every rule is an `IntervalRule`; the spacings are values |
+
+`tests/gates/geometry/test_named_face_constructors.py` (62 rows): round 1's rows, plus elegance F8 (`uniform_boundary("SLB", (−1, 1), …)` gives the bare constructor's keyed retirement refusal, message compared as a string), qa F4 (`slab((−0.0, 1.0), …)` equals the slab from `0.0`; `from_homogeneous(−0.0, …)` is refused as non-positive).
+
+**3b owes, updated:** S3.1's cross-interval legs and posing seed 2 on the mesh; the mesh-level #495 leg; S3.8 on `Mesh1D(geometry, edges, volumes)` including the construction law of ruling 2 (each stored volume against `geometry.measure` of its cell within the derived bound; every breakpoint a cell edge) with its wrong-coordinate control; the `Mesher` (`partition(rule)` and `partition((r0, r1, …))`, `.mesh`, `refine(2)`, and `refine` nesting the current mesh); the six ERR-020 catchers of `test_structured_geometry.py` re-spelled through the Mesher and re-adjudicated by the control arm.
+
+**The battery, round 2** `[M]` 2026-09-29. Instrument `scratch/reference_architecture/p1step3/battery3a/battery3a.py` (rewritten for the interval rules), driver `run_battery.sh`, logs `battery_out_round2/` (round 1's logs stay in `battery_out/`). Scope: the two files, 255 rows. 24 arms, every one installed (`installed=1`, a byte-compared precondition) and red on its target, 0 collection errors. Two arms first hung or would have: `count-ceil-realised` walked into the 2**31-cell rows because the mutant also dropped the refusals; the count arms now call the honest `count` first (keeping the refusals) and mutate only the count.
+
+| arm | red | target read red |
+|---|---|---|
+| control-err020 (shares re-derived from the edges) | 16 | both ERR-020 rows on 3 coordinates, the slab width rows, the named #495 rows, share additivity. DECLARED BLIND: the #495 equality rows (both rules mutated alike) |
+| unpinned-ends | 2 | the pinning witness rows (the population rows hold no witness) |
+| measure-from-origin | 11 | shares and the sum law where `a > 0` |
+| measure-association (`c·T(b) − c·T(a)`) | 8 | the one-measure rows, shares, shells, `CellEdges` (cylinder, sphere) |
+| second-measure-spelling (`compute_volumes_1d` given its own body) | 2 | the ROUTE row and the delegate RECORD row |
+| r1-linspace-width | 12 | S3.4 edges, S3.5 |
+| slab-width-measure-is-diff | 16 | S3.4 slab measure, S3.5 |
+| max-width-halved | 7 | the refined max-width rows, the halving row |
+| count-ceil-realised | 17 | `(1, 0.1)` and the equal-width count rows |
+| count-exact-rational | 15 | the `fl(1/3)` rows |
+| no-resolution-guard (the pre-fix `ZeroDivisionError`) | 2 | the two below-resolution rows |
+| widest-is-realised-first-cell | 7 | the one-body max-width row `(0, 3), h = 0.3` |
+| any-factor | 9 | factors 3 and 6, both routes |
+| factor-sum (qa F3's arm) | 9 | the `4 * (2 * d)` rows and the flattening row (0 red in round 1) |
+| negative-zero-kept | 4 | the three `-0.0` rows and `CellEdges` (0 red in round 1) |
+| cell-edges-np-array-parse | 5 | the string and bool entries (qa F5) |
+| cell-edges-no-end-check | 2 | the wrong-ends refusal and its disjointness row |
+| cell-edges-slab-formula | 6 | the geometry-measure rows (cylinder, sphere) |
+| cell-edges-identity-eq | 2 | value equality and `-0.0` |
+| measure-coordinate-any-exponent | 4 | the exponent refusals |
+| radial-swapped-laws | 2 | hollow equals-bare |
+| uniform-boundary-raw-hollowness | 2 | the Fraction witness |
+| uniform-boundary-coord-late (elegance F8's arm) | 1 | the `(−1, 1)` string-coordinate row; the `(0, 1)` row stays green, the input on which the late parse was already right |
+| homogeneous-one-face | 13 | S4.1 identity legs |
 
 ### 1.4 Step 4: `from_homogeneous(width, boundary)`
 

@@ -28,26 +28,62 @@ Spherical   :math:`A = 4\\pi r^2`
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 
 
+@dataclass(frozen=True)
+class MeasureCoordinate:
+    r"""The coordinate :math:`T(r) = r^{p}`, :math:`p \in \{1, 2, 3\}`, and its inverse.
+
+    A measure on the position axis that is uniform in :math:`T` gives an
+    interval :math:`[a, b]` the measure :math:`c\,(T(b) - T(a))`; cells of
+    equal measure are equal steps of :math:`T`. Evaluated on arrays, so
+    :math:`T` is numpy's correctly-rounded power (Python's scalar ``b**2``
+    calls libm ``pow``, which is not correctly rounded in about 1 case in
+    1000).
+    """
+
+    exponent: int
+
+    def __post_init__(self) -> None:
+        if self.exponent not in (1, 2, 3):
+            raise ValueError(
+                f"a measure coordinate is r, r**2 or r**3; got the exponent {self.exponent!r}"
+            )
+
+    def __call__(self, r: np.ndarray) -> np.ndarray:
+        return np.asarray(r, dtype=float) ** self.exponent
+
+    def inverse(self, t: np.ndarray) -> np.ndarray:
+        t = np.asarray(t, dtype=float)
+        match self.exponent:
+            case 1:
+                return t.copy()
+            case 2:
+                return np.sqrt(t)
+            case _:
+                return np.cbrt(t)
+
+
 class CoordSystem(Enum):
     r"""Coordinate system identifier, and the measure of its position axis.
 
-    The measure of an interval :math:`[a, b]` of positions is
+    The measure of the cells between edges :math:`r_0 < r_1 < \dots` is
 
     .. math::
 
-        m(a, b) = c\,(b^{d} - a^{d}),
+        m_j = c\,\bigl(T(r_{j+1}) - T(r_j)\bigr), \qquad T(r) = r^{d},
 
-    with the exponent :math:`d` the dimension the position sweeps (1 for a
-    slab, 2 for a cylinder, 3 for a sphere) and the constant :math:`c`
-    (1, :math:`\pi`, :math:`\tfrac43\pi`): a slab's length per unit
-    transverse area, a cylinder's area per unit height, a sphere's volume.
-    :math:`T(r) = r^{d}` is the coordinate in which the measure is uniform,
-    so equal-measure cells are equal steps of :math:`T`.
+    with :math:`d` the dimension the position sweeps (1 for a slab, 2 for a
+    cylinder, 3 for a sphere) and :math:`c` (1, :math:`\pi`,
+    :math:`\tfrac43\pi`): a slab's length per unit transverse area, a
+    cylinder's area per unit height, a sphere's volume. :math:`T` is the
+    :class:`MeasureCoordinate` in which the measure is uniform. This is the
+    one definition of the measure: :meth:`measure` evaluates it, and an
+    interval's measure is its one-cell case.
     """
 
     CARTESIAN = "cartesian"
@@ -55,19 +91,19 @@ class CoordSystem(Enum):
     SPHERICAL = "spherical"
 
     @property
-    def measure_exponent(self) -> int:
-        r"""The exponent :math:`d` of :math:`m(a, b) = c\,(b^d - a^d)`."""
+    def measure_coordinate(self) -> MeasureCoordinate:
+        r"""The coordinate :math:`T(r) = r^{d}` in which this system's measure is uniform."""
         match self:
             case CoordSystem.CARTESIAN:
-                return 1
+                return MeasureCoordinate(1)
             case CoordSystem.CYLINDRICAL:
-                return 2
+                return MeasureCoordinate(2)
             case CoordSystem.SPHERICAL:
-                return 3
+                return MeasureCoordinate(3)
 
     @property
     def measure_constant(self) -> float:
-        r"""The constant :math:`c` of :math:`m(a, b) = c\,(b^d - a^d)`."""
+        r"""The constant :math:`c` of :math:`m_j = c\,(T(r_{j+1}) - T(r_j))`."""
         match self:
             case CoordSystem.CARTESIAN:
                 return 1.0
@@ -76,16 +112,9 @@ class CoordSystem(Enum):
             case CoordSystem.SPHERICAL:
                 return (4.0 / 3.0) * np.pi
 
-    def interval_measure(self, a: float, b: float) -> float:
-        r"""The measure :math:`m(a, b) = c\,(b^d - a^d)` of the interval :math:`[a, b]`.
-
-        Evaluated on scalars, in the order the equal-volume subdivision has
-        always used (``π · (b² − a²)``), so an equal-volume cell stored as
-        ``m(a, b) / n`` keeps its bits (ERR-020). The array form over cell
-        edges is :func:`compute_volumes_1d`.
-        """
-        d = self.measure_exponent
-        return self.measure_constant * (b**d - a**d)
+    def measure(self, edges: np.ndarray) -> np.ndarray:
+        r"""The measures :math:`c\,(T(r_{j+1}) - T(r_j))` of the cells between ``edges``."""
+        return self.measure_constant * np.diff(self.measure_coordinate(edges))
 
 
 # ── 1-D formulas ─────────────────────────────────────────────────────
@@ -105,15 +134,7 @@ def compute_volumes_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
     ndarray, shape (N,)
         Volume of each cell.
     """
-    match coord:
-        case CoordSystem.CARTESIAN:
-            return np.diff(edges)
-        case CoordSystem.CYLINDRICAL:
-            return np.pi * np.diff(edges**2)
-        case CoordSystem.SPHERICAL:
-            return (4.0 / 3.0) * np.pi * np.diff(edges**3)
-        case _:
-            raise ValueError(f"Unknown coordinate system: {coord}")
+    return coord.measure(edges)
 
 
 def compute_areas_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:

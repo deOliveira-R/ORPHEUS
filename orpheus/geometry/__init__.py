@@ -18,7 +18,7 @@ The mesh is an overlay on the geometry and lives in its own package,
 """
 
 from .boundary import BC
-from .coord import CoordSystem, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
+from .coord import CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .structured_geometry import StructuredGeometry
 from .transformation import (
     NotAFinitePointGroupError,
@@ -30,6 +30,7 @@ from .transformation import (
 __all__ = [
     "BC",
     "CoordSystem",
+    "MeasureCoordinate",
     "NotAFinitePointGroupError",
     "Permutation",
     "RigidMotion",

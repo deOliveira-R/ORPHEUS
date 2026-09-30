@@ -132,6 +132,14 @@ _SLAB_REFUSALS = [
 ]
 
 
+def test_negative_zero_is_one_position():
+    """qa F4: ``-0.0`` is canonicalised to ``+0.0`` by the shared parser, so
+    a slab from ``-0.0`` is the slab from ``0.0``, bit for bit."""
+    g = StructuredGeometry.slab((-0.0, 1.0), (0,), left=_LAW_A, right=_LAW_A)
+    assert math.copysign(1.0, g.breakpoints[0]) == 1.0
+    assert g == StructuredGeometry.slab((0.0, 1.0), (0,), left=_LAW_A, right=_LAW_A)
+
+
 class TestSlabRefusals:
     @pytest.mark.parametrize(
         "build, error, fragment", [pytest.param(b, e, f, id=c) for c, b, e, f in _SLAB_REFUSALS],
@@ -299,6 +307,18 @@ class TestUniformBoundary:
         assert g.boundaries == (_LAW_A,)
         assert math.copysign(1.0, g.breakpoints[0]) == 1.0
 
+    @pytest.mark.parametrize("breakpoints", [(-1.0, 1.0), (0.0, 1.0)], ids=["negative-origin", "origin"])
+    def test_a_string_coordinate_gets_the_retirement_refusal(self, breakpoints):
+        """elegance F8: the coordinate is parsed FIRST, so a retired string
+        tag gets the keyed retirement refusal, the bare constructor's own,
+        whatever the breakpoints (with ``(-1, 1)`` it used to raise an
+        ``AttributeError`` from the breakpoint parser)."""
+        with pytest.raises(TypeError, match=re.escape("kind tags ('SLB', 'CYL', 'SPH') are retired")):
+            StructuredGeometry.uniform_boundary("SLB", breakpoints, (0,), _LAW_A)  # type: ignore[arg-type]  # a refusal input
+        assert _message(
+            lambda: StructuredGeometry.uniform_boundary("SLB", breakpoints, (0,), _LAW_A), TypeError,  # type: ignore[arg-type]  # a refusal input
+        ) == _message(lambda: _bare("SLB", breakpoints, (0,), (_LAW_A, _LAW_A)), TypeError)
+
     def test_a_none_law_is_refused_by_the_bare_check(self):
         with pytest.raises(TypeError, match="None is not a boundary law"):
             StructuredGeometry.uniform_boundary(_SPHERE, (0.0, 1.0), (0,), None)  # type: ignore[arg-type]  # a refusal input
@@ -335,6 +355,8 @@ class TestFromHomogeneous:
 
 
 _HOMOGENEOUS_REFUSALS = [
+    ("negative-zero", lambda: StructuredGeometry.from_homogeneous(-0.0, _LAW_B),
+     ValueError, "the width is positive and finite"),
     ("zero", lambda: StructuredGeometry.from_homogeneous(0.0, _LAW_B),
      ValueError, "the width is positive and finite"),
     ("negative", lambda: StructuredGeometry.from_homogeneous(-1.0, _LAW_B),

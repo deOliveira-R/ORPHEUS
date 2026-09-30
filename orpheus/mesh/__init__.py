@@ -12,10 +12,10 @@ sections to the cells is the transport layer's
 * :mod:`~orpheus.mesh.structured`: the structured meshes :class:`Mesh1D` and
   :class:`Mesh2D`, and the per-region discretisation descriptor
   :class:`RegionMesh`.
-* :mod:`~orpheus.mesh.partition`: the :class:`Partition` of a geometry's
-  intervals into cells, and the rules that make one (:class:`CellsByCount`,
-  :class:`CellsByMaxWidth`, :class:`CellEdges`, and their spacing rules
-  :class:`EqualWidth` and :class:`EqualVolume`).
+* :mod:`~orpheus.mesh.partition`: the interval rules that place a geometry's
+  cells (:class:`CellsByCount`, :class:`CellsByMaxWidth`, :class:`Refined`,
+  :class:`CellEdges`, and the spacing rules :class:`EqualWidth` and
+  :class:`EqualVolume`).
 * :mod:`~orpheus.mesh.factories`: the 2-D pin-cell factory :func:`pwr_pin_2d`
   and the equal-volume subdivision of one interval.
 * :mod:`~orpheus.mesh.axis`: the per-axis primitives (:class:`AxisMesh`,
@@ -47,10 +47,10 @@ from orpheus.mesh.partition import (
     CellEdges,
     CellsByCount,
     CellsByMaxWidth,
+    CountedRule,
     EqualVolume,
     EqualWidth,
-    Partition,
-    PartitionRule,
+    IntervalRule,
     Refined,
     Spacing,
 )
@@ -63,13 +63,13 @@ __all__ = [
     "CellEdges",
     "CellsByCount",
     "CellsByMaxWidth",
+    "CountedRule",
     "EqualVolume",
     "EqualWidth",
     "FaceLabel",
+    "IntervalRule",
     "Mesh1D",
     "Mesh2D",
-    "Partition",
-    "PartitionRule",
     "RadialAxisMesh",
     "Refined",
     "RegionMesh",

@@ -1,38 +1,33 @@
-r"""The laws of a partition of a geometry's intervals into cells (P1 step 3a).
+r"""The laws of the interval rules and of the one measure (P1 step 3a, round 2).
 
-A :class:`~orpheus.mesh.Partition` refines a
-:class:`~orpheus.geometry.StructuredGeometry`'s cut at its breakpoints
-:math:`r_0 < \dots < r_R`: every interval :math:`[r_k, r_{k+1}]` is divided
-into cells, and per interval the partition stores the cell edges and the cell
-measures (lengths, areas per unit height, volumes). The rules that make one
-are :class:`~orpheus.mesh.CellsByCount`, :class:`~orpheus.mesh.CellsByMaxWidth`,
-:class:`~orpheus.mesh.CellEdges` and ``2 * rule``, with the spacing rules
-:class:`~orpheus.mesh.EqualWidth` and :class:`~orpheus.mesh.EqualVolume`.
+An interval rule divides ONE interval :math:`[a, b]` of a
+:class:`~orpheus.geometry.StructuredGeometry` into cells:
+``rule.cells(geometry, (a, b)) -> (edges, measures)``. A rule places the
+edges; the geometry gives every measure, from the one definition owned by its
+coordinate system, :math:`m_j = c\,(T(r_{j+1}) - T(r_j))` with
+:math:`T(r) = r^d` evaluated by numpy (``CoordSystem.measure``). The rules are
+:class:`~orpheus.mesh.CellsByCount`, :class:`~orpheus.mesh.CellsByMaxWidth`,
+:class:`~orpheus.mesh.Refined` (``k * rule``, ``k`` a power of two) and
+:class:`~orpheus.mesh.CellEdges`, with the spacing rules
+:class:`~orpheus.mesh.EqualWidth` (steps of :math:`r`) and
+:class:`~orpheus.mesh.EqualVolume` (steps of the coordinate system's
+:math:`T`). Applying rules to a whole geometry is the ``Mesher``'s (step 3b),
+so the whole-geometry legs (nesting across intervals, every cell in exactly
+one interval, the mesh-level #495 law) are step 3b's, on the mesh.
 
 The gate ids S3.1 to S3.7 are those of the P1 verification specification
 (``.claude/plans/reference_p1_spec.md`` §1.3, placed per step in §1.3a). Every
-test here is ``foundation`` (a mathematical or software invariant with no
-theory-page label, so no ``verifies``) and states its claim kind:
+test is ``foundation`` (no theory-page label, so no ``verifies``) and states
+its claim kind: THEOREM (a law over a stated population) or RECORD (what the
+code does today, designed to red when a later step changes it on purpose).
 
-* THEOREM: a law true for every admissible input, asserted over a stated
-  population;
-* RECORD: what the code does on a given day, designed to red when a later step
-  changes it on purpose.
-
-The measure of an interval :math:`[a, b]` is :math:`m(a, b) = c\,(b^d - a^d)`
-with :math:`(c, d) = (1, 1)` on a slab, :math:`(\pi, 2)` on a cylinder and
-:math:`(\tfrac43\pi, 3)` on a sphere. The spacing body (R2, the ruling of
-2026-09-25) places ``n`` cells at equal steps of :math:`T(r) = r^p`,
-:math:`p = 1` for equal width and :math:`p = d` for equal volume, with both
-end edges pinned to the breakpoints.
-
-Two rows carry ``catches("ERR-020")``, earned rather than inherited: the
-step-3a battery re-dropped ERR-020 into the production rule (every measure
-re-derived from the realised edges by ``compute_volumes_1d``, installed
-in-process) and both rows reddened on all three coordinates under
-``python -O`` ([M] 2026-09-29, spec §1.3a). The existing catchers on
-``Mesh1D.from_geometry`` move onto ``Mesh1D(g, CellsByCount.uniform_volume(n))``
-in step 3b, when ``from_geometry`` retires.
+Bit identity with ``_subdivide_zone`` is NOT a law here (the ruling of
+2026-09-29: the measure has one correctly-rounded definition, numpy's power,
+where the predecessor used Python's scalar ``**``). ERR-020's invariant is:
+equal shares are bit-identical and each is the interval's measure over ``n``,
+never a re-derivation from the edges. Two rows carry ``catches("ERR-020")``,
+earned by the battery of spec §1.3a (ERR-020 re-dropped in-process, both rows
+red on all three coordinates under ``python -O``).
 """
 from __future__ import annotations
 
@@ -44,15 +39,17 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
+import orpheus.geometry.coord as coord_module
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry, compute_volumes_1d
+from orpheus.geometry.coord import MeasureCoordinate
 from orpheus.mesh import (
     CellEdges,
     CellsByCount,
     CellsByMaxWidth,
+    CountedRule,
     EqualVolume,
     EqualWidth,
-    Partition,
-    PartitionRule,
+    IntervalRule,
     Refined,
     Spacing,
 )
@@ -62,11 +59,9 @@ pytestmark = pytest.mark.foundation
 _HERE = "tests/gates/mesh/test_partition.py"
 _GEOMETRY = "tests/gates/geometry/test_structured_geometry.py"
 _NAMED = "tests/gates/geometry/test_named_face_constructors.py"
-
-#: S2.1, the breakpoint laws every partition's geometry rests on.
 _S2_1 = f"{_GEOMETRY}::TestBreakpointLaws::test_refusal"
-#: The coordinate-generic constructor every fixture geometry here is built by.
 _UNIFORM_BOUNDARY = f"{_NAMED}::TestUniformBoundary::test_equals_the_bare_constructor"
+_ONE_MEASURE = f"{_HERE}::TestTheOneMeasure::test_the_measure_is_c_times_the_difference_of_T"
 
 _SLAB = CoordSystem.CARTESIAN
 _CYLINDER = CoordSystem.CYLINDRICAL
@@ -74,45 +69,36 @@ _SPHERE = CoordSystem.SPHERICAL
 _COORDS = (_SLAB, _CYLINDER, _SPHERE)
 _CURVILINEAR = (_CYLINDER, _SPHERE)
 _SPACINGS = (EqualWidth(), EqualVolume())
+_SPACING_IDS = {EqualWidth: "equal-width", EqualVolume: "equal-volume"}
 
 #: The measure's exponent d and constant c, written from geometry here and
-#: never read from ``CoordSystem``, so the tests do not share the SUT's table.
+#: never read from ``CoordSystem``.
 _EXPONENT = {_SLAB: 1, _CYLINDER: 2, _SPHERE: 3}
+_CONSTANT = {_SLAB: 1.0, _CYLINDER: np.pi, _SPHERE: (4.0 / 3.0) * np.pi}
 
 
-def _measure(coord: CoordSystem, a: float, b: float) -> float:
-    """The closed-form measure of [a, b], spelled in the order the
-    equal-volume subdivision has always used (``c * (b**d - a**d)``)."""
-    match coord:
-        case CoordSystem.CARTESIAN:
-            return b - a
-        case CoordSystem.CYLINDRICAL:
-            return np.pi * (b**2 - a**2)
-        case CoordSystem.SPHERICAL:
-            return (4.0 / 3.0) * np.pi * (b**3 - a**3)
-    raise ValueError(coord)
+def _measure(coord: CoordSystem, edges) -> np.ndarray:
+    """The ruled definition, written in the test: ``c * diff(edges**d)`` on arrays."""
+    e = np.asarray(edges, dtype=float)
+    return _CONSTANT[coord] * np.diff(e ** _EXPONENT[coord])
 
 
 def _r2_edges(p: int, a: float, b: float, n: int) -> np.ndarray:
-    """The ruled R2 body: ``T^-1(T(a) + f_j (T(b) - T(a)))``, ends pinned.
+    """The ruled R2 body ``T^-1(T(a) + f_j (T(b) - T(a)))``, ends pinned, on arrays.
 
-    This is the LAW the spacing rules are ruled to realise (spec §0 item 2),
-    written out in the test. It is not an independent reference for the
-    formula (a rule and this copy agree by construction if both are
-    transcribed from the ruling); its job is the definition pin. The
-    independent anchors are the keystone against ``_subdivide_zone`` (the
-    verified predecessor), the sum law against the closed-form measure, and
-    the refinement law.
+    The definition pin, not an independent reference (a rule and this copy
+    agree if both are transcribed from the ruling); the independent anchors
+    are the sum law, the refinement law and the ERR-020 invariant.
     """
-    f = np.linspace(0.0, 1.0, n + 1)
-    t = a**p + f * (b**p - a**p)
-    edges = {1: np.asarray(t, dtype=float), 2: np.sqrt(t), 3: np.cbrt(t)}[p]
+    t_a, t_b = np.array([a, b]) ** p
+    t = t_a + np.linspace(0.0, 1.0, n + 1) * (t_b - t_a)
+    edges = {1: t.copy(), 2: np.sqrt(t), 3: np.cbrt(t)}[p]
     edges[0], edges[-1] = a, b
     return edges
 
 
 def _power(spacing: Spacing, coord: CoordSystem) -> int:
-    """The spacing's power, from the ruling (not read from the SUT)."""
+    """The spacing's exponent, from the ruling (not read from the SUT)."""
     return 1 if isinstance(spacing, EqualWidth) else _EXPONENT[coord]
 
 
@@ -123,9 +109,8 @@ def _geometry(coord: CoordSystem, breakpoints: tuple[float, ...]) -> StructuredG
     )
 
 
-def _arrays(*rows: object) -> tuple[np.ndarray, ...]:
-    """Per-interval rows as float arrays (the stored type of the fields)."""
-    return tuple(np.array(row, dtype=float) for row in rows)
+def _cells(rule: IntervalRule, coord: CoordSystem, interval: tuple[float, float]):
+    return rule.cells(_geometry(coord, interval), interval)
 
 
 def _ulp(x: float) -> float:
@@ -139,21 +124,26 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _report(failures: list[str], population: int, what: str) -> None:
-    """Fail with ``k of N`` and the first failures, or pass; a gate whose
-    population is empty is a broken harness, never a pass."""
+    """Fail with ``k of N`` and the first failures; an empty population is a
+    broken harness, never a pass."""
     _require(population > 0, f"{what}: the population is empty")
     _require(
         not failures,
-        f"{what}: {len(failures)} of {population} cases fail; first: "
-        + "; ".join(failures[:5]),
+        f"{what}: {len(failures)} of {population} cases fail; first: " + "; ".join(failures[:5]),
     )
+
+
+def _coord_spacing_params() -> list:
+    return [
+        pytest.param(c, s, id=f"{c.name.lower()}-{_SPACING_IDS[type(s)]}")
+        for c, s in itertools.product(_COORDS, _SPACINGS)
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Populations
 # ─────────────────────────────────────────────────────────────────────
 
-#: The cell counts of S3.2-S3.4: small, prime, odd, a power of two, and large.
 _COUNTS = (1, 2, 3, 5, 8, 13, 64, 100, 1000, 4096)
 
 #: The probe's own interval population (S3.6), hollow bodies included.
@@ -173,276 +163,144 @@ def _seeded_intervals(k: int, seed: int) -> tuple[tuple[float, float], ...]:
     return tuple(out)
 
 
-#: ``(0.3, 0.7)`` is the witness of the measure's SPELLING: on a sphere
-#: ``c * (b**3 - a**3)`` and ``c * b**3 - c * a**3`` differ there and agree on
-#: every other interval of this population ([M] 2026-09-29: 0 of 16 on a
-#: sphere, 1 of 16 on a cylinder), so without it the bitwise ``fl(m/n)`` pin
-#: could not see a re-association of the measure.
+#: ``(0.3, 0.7)``: on a sphere ``c * (b**3 - a**3)`` and ``c * b**3 - c * a**3``
+#: differ there, so a re-association of the measure is visible (spec §1.3a,
+#: premise 6).
 _LAW_INTERVALS = _INTERVALS + ((0.3, 0.7),) + _seeded_intervals(8, seed=405)
 
 #: The S3.6 counts: the probe's ``ns`` up to 500.
 _REFINE_COUNTS = tuple(range(1, 65)) + (100, 127, 128, 200, 255, 256)
 
-#: A three-interval body whose inner radius changes at every interface, meshed
-#: with counts that are not powers of two (ERR-020's multi-region fixture).
-_THREE_BREAKPOINTS = (0.0, 0.5, 1.5, 2.0)
-_THREE_COUNTS = (5, 7, 11)
-
-_SPACING_IDS = {EqualWidth: "equal-width", EqualVolume: "equal-volume"}
-
-
-def _coord_spacing_params() -> list:
-    return [
-        pytest.param(c, s, id=f"{c.name.lower()}-{_SPACING_IDS[type(s)]}")
-        for c, s in itertools.product(_COORDS, _SPACINGS)
-    ]
-
 
 # ─────────────────────────────────────────────────────────────────────
-# The value: a Partition's own refusals and its equality
+# The one measure
 # ─────────────────────────────────────────────────────────────────────
 
-#: A two-interval slab [0, 1] | [1, 3] and a valid partition of it.
-_G2 = _geometry(_SLAB, (0.0, 1.0, 3.0))
-_OK_EDGES = _arrays([0.0, 0.5, 1.0], [1.0, 2.0, 3.0])
-_OK_MEASURES = _arrays([0.5, 0.5], [1.0, 1.0])
-_ONE_BELOW = float(np.nextafter(1.0, 0.0))
-_THREE_BELOW = float(np.nextafter(3.0, 0.0))
 
+class TestTheOneMeasure:
+    r"""The measure has one definition, owned by the coordinate system (the
+    ruling of 2026-09-29): ``coord.measure(edges) = c * diff(T(edges))``,
+    ``T`` numpy's power; the geometry asks it; ``compute_volumes_1d`` is it.
 
-#: (case id, edges, measures, error type, the fragment that keys the refusal).
-#: Each row is built INSIDE ``pytest.raises`` and checked against ``_G2``, so a
-#: clause may live at construction or in ``partition(geometry)``.
-_PARTITION_REFUSALS = [
-    ("interval-count", ([0.0, 0.5, 1.0],), ([0.5, 0.5],),
-     ValueError, "refines the geometry's intervals one for one"),
-    ("interior-end-edge-one-ulp-off",
-     ([0.0, 0.5, _ONE_BELOW], [_ONE_BELOW, 2.0, 3.0]), _OK_MEASURES,
-     ValueError, "end edges must be the breakpoints, bit for bit"),
-    ("outer-end-edge-one-ulp-off",
-     ([0.0, 0.5, 1.0], [1.0, 2.0, _THREE_BELOW]), _OK_MEASURES,
-     ValueError, "end edges must be the breakpoints, bit for bit"),
-    ("equal-interior-edges", ([0.0, 1.0, 1.0], [1.0, 2.0, 3.0]), _OK_MEASURES,
-     ValueError, "must be strictly increasing"),
-    ("decreasing-interior-edges", ([0.0, 0.5, 1.0], [1.0, 3.5, 3.0]), _OK_MEASURES,
-     ValueError, "must be strictly increasing"),
-    ("zero-measure", _OK_EDGES, ([0.5, 0.0], [1.0, 1.0]),
-     ValueError, "a cell measure is positive"),
-    ("negative-measure", _OK_EDGES, ([0.5, 0.5], [-1.0, 1.0]),
-     ValueError, "a cell measure is positive"),
-    ("measure-count", _OK_EDGES, ([0.5], [1.0, 1.0]),
-     ValueError, "2 cell(s) need 2 measure(s), got 1"),
-    ("measure-array-count", _OK_EDGES, ([0.5, 0.5],),
-     ValueError, "one measure array per interval"),
-    ("unshared-breakpoint", ([0.0, 0.5, 1.0], [1.5, 2.0, 3.0]), _OK_MEASURES,
-     ValueError, "must share their breakpoint"),
-    ("no-cell", ([0.0], [1.0, 2.0, 3.0]), ([], [1.0, 1.0]),
-     ValueError, "needs at least one cell"),
-    ("non-finite-edge", ([0.0, math.nan, 1.0], [1.0, 2.0, 3.0]), _OK_MEASURES,
-     ValueError, "must be finite"),
-]
-
-
-class TestPartitionValue:
-    r"""S3.1's explicit half: a :class:`Partition` checked against a geometry.
-
-    Claim kind: THEOREM (the defining refusals of a new type, and its
-    equality). First red: every row is defining; the input that motivates the
-    end-edge row exists in the tree (a breakpoint re-derived by re-adding
-    thicknesses is 1 ULP off, spec §0 item 4's census site).
+    Claim kind: THEOREM. The route row swaps the definition for a decoy and
+    requires every reader to move (a second spelling left anywhere stays
+    unmoved and reds).
     """
 
-    @pytest.mark.rests_on(_S2_1)
-    @pytest.mark.parametrize(
-        "edges, measures, error, fragment",
-        [pytest.param(e, m, err, f, id=i) for i, e, m, err, f in _PARTITION_REFUSALS],
-    )
-    def test_refusal(self, edges, measures, error, fragment):
-        with pytest.raises(error, match=_literal(fragment)):
-            Partition(edges=_arrays(*edges), measures=_arrays(*measures)).partition(_G2)
+    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
+    def test_the_measure_is_c_times_the_difference_of_T(self, coord):
+        failures = []
+        for (a, b), n in itertools.product(_LAW_INTERVALS, (1, 5, 64)):
+            edges = _r2_edges(1, a, b, n)
+            if not np.array_equal(coord.measure(edges), _measure(coord, edges)):
+                failures.append(f"[{a}, {b}] n={n}")
+        _report(failures, 3 * len(_LAW_INTERVALS), f"{coord.name} measure")
 
-    @pytest.mark.rests_on(f"{_HERE}::TestPartitionValue::test_refusal")
-    def test_refusal_fragments_are_disjoint(self):
-        """Each refusal carries its own fragment and no other row's."""
-        messages = {}
-        for case, edges, measures, error, _ in _PARTITION_REFUSALS:
-            with pytest.raises(error) as caught:
-                Partition(edges=_arrays(*edges), measures=_arrays(*measures)).partition(_G2)
-            messages[case] = str(caught.value)
-        for case, *_, fragment in _PARTITION_REFUSALS:
-            for other, message in messages.items():
-                if fragment == _fragment_of(other):
-                    continue
-                assert fragment not in message, (
-                    f"the fragment of {case!r} ({fragment!r}) also appears in "
-                    f"the refusal of {other!r}: {message!r}"
-                )
+    @pytest.mark.rests_on(_ONE_MEASURE)
+    def test_every_reader_asks_the_one_definition(self, monkeypatch):
+        """A ROUTE gate: with ``CoordSystem.measure`` replaced by a decoy
+        (twice the honest measure), ``compute_volumes_1d``, the geometry's
+        ``measure`` and both kinds of rule measure (equal shares and realised
+        shells) all move by exactly that factor."""
+        g = _geometry(_SPHERE, (0.5, 2.0))
+        edges = _r2_edges(1, 0.5, 2.0, 7)
+        honest = {
+            "compute_volumes_1d": compute_volumes_1d(_SPHERE, edges),
+            "geometry.measure": g.measure(edges),
+            "equal shares": CellsByCount.uniform_volume(7).cells(g, (0.5, 2.0))[1],
+            "realised shells": CellsByCount.uniform_width(7).cells(g, (0.5, 2.0))[1],
+        }
+        original = CoordSystem.measure
+        monkeypatch.setattr(CoordSystem, "measure", lambda self, e: 2.0 * original(self, e))
+        decoyed = {
+            "compute_volumes_1d": compute_volumes_1d(_SPHERE, edges),
+            "geometry.measure": g.measure(edges),
+            "equal shares": CellsByCount.uniform_volume(7).cells(g, (0.5, 2.0))[1],
+            "realised shells": CellsByCount.uniform_width(7).cells(g, (0.5, 2.0))[1],
+        }
+        for reader, value in honest.items():
+            np.testing.assert_array_equal(
+                decoyed[reader], 2.0 * value, err_msg=f"{reader} does not read CoordSystem.measure",
+            )
 
-    def test_a_valid_partition_is_its_own_rule(self):
-        """The positive leg: a checked partition returns itself."""
-        p = Partition(edges=_OK_EDGES, measures=_OK_MEASURES)
-        assert p.partition(_G2) is p
+    def test_compute_volumes_1d_is_a_delegate(self):
+        """RECORD of the retirement's residue: the legacy name survives only
+        as a one-line delegate (3b's migration retires it)."""
+        import inspect
 
-    def test_arrays_are_copied_and_read_only(self):
-        """A frozen value: the caller's arrays are copied, the stored ones
-        refuse writes, and the flat views are stored once."""
-        edges = [np.array(e) for e in _OK_EDGES]
-        measures = [np.array(m) for m in _OK_MEASURES]
-        p = Partition(edges=tuple(edges), measures=tuple(measures))
-        edges[0][1] = 0.25
-        measures[0][0] = 9.0
-        np.testing.assert_array_equal(p.edges[0], [0.0, 0.5, 1.0])
-        np.testing.assert_array_equal(p.measures[0], [0.5, 0.5])
-        for array in (*p.edges, *p.measures, p.all_edges, p.all_measures):
-            assert not array.flags.writeable
-        assert p.all_edges is p.all_edges
-        assert p.all_measures is p.all_measures
+        body = inspect.getsource(coord_module.compute_volumes_1d)
+        assert "coord.measure(edges)" in body
+        assert "match" not in body
 
-    def test_derived_views(self):
-        """``cell_counts``, and the flat edges with each shared breakpoint
-        once, and the flat measures, in order."""
-        p = Partition(edges=_OK_EDGES, measures=_OK_MEASURES)
-        assert p.cell_counts == (2, 2)
-        np.testing.assert_array_equal(p.all_edges, [0.0, 0.5, 1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(p.all_measures, [0.5, 0.5, 1.0, 1.0])
+    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
+    def test_the_measure_coordinate_is_the_systems(self, coord):
+        T = coord.measure_coordinate
+        assert T == MeasureCoordinate(_EXPONENT[coord])
+        r = np.array([0.0, 0.3, 1.7, 2.0])
+        np.testing.assert_array_equal(T(r), r ** _EXPONENT[coord])
+        np.testing.assert_allclose(T.inverse(T(r)), r, rtol=4 * np.finfo(float).eps, atol=0.0)
+        assert coord.measure_constant == _CONSTANT[coord]
 
-    @pytest.mark.parametrize(
-        "change",
-        ["interior-edge", "measure", "interval-structure"],
-    )
-    def test_equality_is_bitwise_over_edges_and_measures(self, change):
-        """Two partitions built from equal values in different objects are
-        equal; a one-ULP change of an edge or a measure, or the same flat
-        cells grouped into different intervals, makes them unequal."""
-        p = Partition(edges=_OK_EDGES, measures=_OK_MEASURES)
-        twin = Partition(
-            edges=tuple(np.array(e) for e in _OK_EDGES),
-            measures=tuple(np.array(m) for m in _OK_MEASURES),
-        )
-        assert p == twin
-        match change:
-            case "interior-edge":
-                other = Partition(
-                    edges=_arrays([0.0, float(np.nextafter(0.5, 1.0)), 1.0], _OK_EDGES[1]),
-                    measures=_OK_MEASURES,
-                )
-            case "measure":
-                other = Partition(
-                    edges=_OK_EDGES,
-                    measures=_arrays(_OK_MEASURES[0], [1.0, float(np.nextafter(1.0, 2.0))]),
-                )
-            case "interval-structure":
-                other = Partition(
-                    edges=_arrays([0.0, 0.5, 1.0, 2.0, 3.0]), measures=_arrays([0.5, 0.5, 1.0, 1.0]),
-                )
-            case _:
-                raise ValueError(change)
-        assert p != other
-        assert other != p
+    def test_the_identity_inverse_does_not_alias(self):
+        t = np.array([0.0, 1.0])
+        assert MeasureCoordinate(1).inverse(t) is not t
 
-    def test_a_partition_is_not_equal_to_another_type(self):
-        p = Partition(edges=_OK_EDGES, measures=_OK_MEASURES)
-        assert p != _OK_EDGES
-        assert (p == 3) is False
+    @pytest.mark.parametrize("exponent", [0, 4, -1, 1.5], ids=["0", "4", "-1", "1.5"])
+    def test_a_measure_coordinate_is_r_r2_or_r3(self, exponent):
+        with pytest.raises(ValueError, match=re.escape("a measure coordinate is r, r**2 or r**3")):
+            MeasureCoordinate(exponent)  # type: ignore[arg-type]  # a refusal input
 
-    def test_a_partition_is_unhashable_until_step_5(self):
-        """RECORD: content identity (the digest) is P1 step 5's (ruling 4 of
-        2026-09-29). When it lands this row reds on purpose: re-pose it as
-        the eq/hash contract, never delete it."""
-        with pytest.raises(TypeError, match="unhashable"):
-            hash(Partition(edges=_OK_EDGES, measures=_OK_MEASURES))
-
-    @pytest.mark.parametrize(
-        "rule",
-        [
-            pytest.param(CellsByCount(2, EqualWidth()), id="cells-by-count"),
-            pytest.param(CellsByMaxWidth(0.5, EqualVolume()), id="cells-by-max-width"),
-            pytest.param(2 * CellsByMaxWidth(0.5, EqualVolume()), id="refined"),
-            pytest.param(CellEdges(edges=_OK_EDGES), id="cell-edges"),
-            pytest.param(Partition(edges=_OK_EDGES, measures=_OK_MEASURES), id="partition"),
-        ],
-    )
-    def test_every_rule_is_a_partition_rule(self, rule):
-        """Every rule answers ``partition(geometry) -> Partition``."""
-        assert isinstance(rule, PartitionRule)
-        assert isinstance(rule.partition(_G2), Partition)
-
-
-def _literal(fragment: str) -> str:
-    """A fragment as a regular expression matching it literally."""
-    return re.escape(fragment)
-
-
-def _fragment_of(case: str) -> str:
-    return next(f for c, *_, f in _PARTITION_REFUSALS if c == case)
+    def test_the_geometry_s_intervals_and_measure(self):
+        g = _geometry(_CYLINDER, (0.0, 0.5, 1.5, 2.0))
+        assert g.intervals == ((0.0, 0.5), (0.5, 1.5), (1.5, 2.0))
+        edges = np.array([0.0, 0.5, 1.5, 2.0])
+        np.testing.assert_array_equal(g.measure(edges), _CYLINDER.measure(edges))
 
 
 # ─────────────────────────────────────────────────────────────────────
-# S3.1 — every rule's partition nests in the geometry
+# S3.1 — an interval rule's cells nest in their interval
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _check_nesting(p: Partition, g: StructuredGeometry, counts: tuple[int, ...]) -> list[str]:
-    """The nesting law of one partition against its geometry, as failures."""
+def _nesting_failures(edges, measures, a, b, n) -> list[str]:
     failures = []
-    if p.cell_counts != counts:
-        failures.append(f"cell_counts {p.cell_counts} != {counts}")
-        return failures
-    for k, (e, m) in enumerate(zip(p.edges, p.measures, strict=True)):
-        a, b = g.breakpoints[k], g.breakpoints[k + 1]
-        if e[0] != a or e[-1] != b:
-            failures.append(f"interval {k}: ends ({e[0]!r}, {e[-1]!r}) are not ({a!r}, {b!r})")
-        if not np.all(np.diff(e) > 0):
-            failures.append(f"interval {k}: edges not strictly increasing")
-        if len(e) != counts[k] + 1 or len(m) != counts[k]:
-            failures.append(f"interval {k}: {len(e)} edges, {len(m)} measures for {counts[k]} cells")
-        if not np.all(m > 0):
-            failures.append(f"interval {k}: a non-positive measure")
-        if e.flags.writeable or m.flags.writeable:
-            failures.append(f"interval {k}: a writeable array")
+    if edges[0] != a or edges[-1] != b:
+        failures.append(f"ends ({edges[0]!r}, {edges[-1]!r}) are not ({a!r}, {b!r})")
+    if not np.all(np.diff(edges) > 0):
+        failures.append("edges not strictly increasing")
+    if len(edges) != n + 1 or len(measures) != n:
+        failures.append(f"{len(edges)} edges, {len(measures)} measures for {n} cells")
+    if not np.all(measures > 0):
+        failures.append("a non-positive measure")
     return failures
 
 
 class TestNesting:
-    r"""S3.1: a rule's partition refines the geometry's intervals.
+    r"""S3.1, per interval: the end edges ARE the interval's breakpoints, bit
+    for bit; the edges strictly increase; the measures are positive; the
+    realised count is the rule's.
 
-    Claim kind: THEOREM. In every interval the end edges ARE the breakpoints,
-    bit for bit; the edges strictly increase; the measures are positive; the
-    realised count is the rule's. Mutation witness: remove the end pinning
-    from the spacing body; the unpinned last edge misses the breakpoint in
-    168 cylinder and 21 sphere cases of 21 035 random (interval, n) cases
-    per coordinate, and in NONE of this class's population ([M] 2026-09-29,
-    the step-3a battery: the population rows stay green), so the pinning's
-    catcher is ``test_the_ends_are_pinned_where_the_body_misses_them``,
-    which searches for its own witness.
+    Claim kind: THEOREM. The whole-geometry legs are step 3b's, on the mesh.
+    Mutation witness: remove the end pinning; the unpinned last edge misses
+    the breakpoint in 168 cylinder and 21 sphere cases of 21 035 random
+    cases per coordinate and in NONE of this population, so the pinning's
+    catcher is the row that searches for its own witness.
     """
 
-    @pytest.mark.rests_on(_S2_1, _UNIFORM_BOUNDARY, f"{_HERE}::TestPartitionValue::test_refusal")
+    @pytest.mark.rests_on(_S2_1, _UNIFORM_BOUNDARY, _ONE_MEASURE)
     @pytest.mark.parametrize("coord, spacing", _coord_spacing_params())
     def test_cells_by_count_nests(self, coord, spacing):
         failures = []
         cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            g = _geometry(coord, (a, b))
+            edges, measures = _cells(CellsByCount(n, spacing), coord, (a, b))
             cases += 1
-            failures += [
-                f"[{a}, {b}] n={n}: {f}"
-                for f in _check_nesting(CellsByCount(n, spacing).partition(g), g, (n,))
-            ]
-        g = _geometry(coord, _THREE_BREAKPOINTS)
-        cases += 1
-        failures += [
-            f"three intervals: {f}"
-            for f in _check_nesting(CellsByCount(_THREE_COUNTS, spacing).partition(g), g, _THREE_COUNTS)
-        ]
+            failures += [f"[{a}, {b}] n={n}: {f}" for f in _nesting_failures(edges, measures, a, b, n)]
         _report(failures, cases, f"{coord.name} {type(spacing).__name__} nesting")
 
     @pytest.mark.rests_on(_S2_1, _UNIFORM_BOUNDARY)
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
     def test_the_ends_are_pinned_where_the_body_misses_them(self, coord):
-        """The discriminating input of the pinning: an interval on which the
-        unpinned R2 body lands its last edge off the breakpoint. Found by a
-        search in the test itself, so the row states its own witness."""
         p = _EXPONENT[coord]
         rng = np.random.default_rng(11)
         witness = None
@@ -450,16 +308,30 @@ class TestNesting:
             a = float(rng.uniform(0.0, 3.0))
             b = a + float(rng.uniform(0.01, 5.0))
             n = int(rng.integers(1, 100))
-            f = np.linspace(0.0, 1.0, n + 1)
-            t = a**p + f * (b**p - a**p)
-            last = float(np.sqrt(t[-1]) if p == 2 else np.cbrt(t[-1]))
+            t_a, t_b = np.array([a, b]) ** p
+            t_last = t_a + 1.0 * (t_b - t_a)  # the body's last step, f_n = 1
+            last = float(np.sqrt(t_last) if p == 2 else np.cbrt(t_last))
             if last != b:
                 witness = (a, b, n)
                 break
         assert witness is not None, "no interval in the search misses its end: the row is vacuous"
         a, b, n = witness
-        partition = CellsByCount(n, EqualVolume()).partition(_geometry(coord, (a, b)))
-        assert partition.edges[0][-1] == b
+        edges, _ = _cells(CellsByCount(n, EqualVolume()), coord, (a, b))
+        assert edges[-1] == b
+
+    @pytest.mark.parametrize("rule", [
+        pytest.param(CellsByCount(3, EqualWidth()), id="count"),
+        pytest.param(CellsByMaxWidth(0.3, EqualVolume()), id="max-width"),
+        pytest.param(2 * CellsByCount(3, EqualVolume()), id="refined"),
+    ])
+    def test_the_returned_arrays_are_fresh(self, rule):
+        """Two calls return equal, distinct arrays: a caller's write cannot
+        reach the rule or the next call."""
+        g = _geometry(_SPHERE, (0.0, 2.0))
+        (e1, m1), (e2, m2) = rule.cells(g, (0.0, 2.0)), rule.cells(g, (0.0, 2.0))
+        np.testing.assert_array_equal(e1, e2)
+        np.testing.assert_array_equal(m1, m2)
+        assert e1 is not e2 and m1 is not m2
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -468,15 +340,11 @@ class TestNesting:
 
 
 class TestSumLaw:
-    r"""S3.2: per interval :math:`|\sum m_j - m(a, b)| \le (2 + \lceil\log_2 n\rceil)\,\mathrm{ulp}(m)`.
+    r"""S3.2: :math:`|\sum m_j - m(a, b)| \le (2 + \lceil\log_2 n\rceil)\,\mathrm{ulp}(m)`.
 
-    Claim kind: THEOREM with a derived tolerance: a stored equal measure
-    ``fl(m/n)`` carries half an ULP of ``m/n``, ``n`` of them about one ULP
-    of ``m``, and the pairwise sum at most ``ceil(log2 n)`` half-ULPs; the
-    shell measures of equal width telescope to the same bound. ``m(a, b)`` is
-    the closed form written in the test. Mutation witness: a measure that
-    drops the interval's inner radius, ``m(0, b)/n``, reds every interval
-    with ``a > 0`` (ERR-020's second leg, generalised).
+    Claim kind: THEOREM with a derived tolerance (spec §1.3 S3.2); ``m(a, b)``
+    is the one-cell measure written in the test. Mutation witness: equal
+    shares of ``m(0, b)`` (the inner radius dropped) red every ``a > 0``.
     """
 
     @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
@@ -485,35 +353,27 @@ class TestSumLaw:
         failures = []
         cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount(n, spacing).partition(_geometry(coord, (a, b)))
-            m = _measure(coord, a, b)
-            total = float(np.sum(partition.measures[0]))
+            _, measures = _cells(CellsByCount(n, spacing), coord, (a, b))
+            m = float(_measure(coord, [a, b])[0])
+            total = float(np.sum(measures))
             bound = (2 + math.ceil(math.log2(n))) * _ulp(m)
             cases += 1
             if abs(total - m) > bound:
-                failures.append(
-                    f"[{a}, {b}] n={n}: |sum - m| = {abs(total - m) / _ulp(m):.1f} ulp "
-                    f"> {bound / _ulp(m):.0f}"
-                )
+                failures.append(f"[{a}, {b}] n={n}: {abs(total - m) / _ulp(m):.1f} ulp")
         _report(failures, cases, f"{coord.name} {type(spacing).__name__} sum law")
 
 
 # ─────────────────────────────────────────────────────────────────────
-# S3.3 — equal volume: ERR-020's invariant, on the partition
+# S3.3 — equal volume: ERR-020's invariant
 # ─────────────────────────────────────────────────────────────────────
 
 
 class TestEqualVolume:
-    r"""S3.3: equal-volume measures are bit-identical and each is ``fl(m/n)``.
+    r"""S3.3: equal-volume measures are bit-identical, and each is the
+    interval's measure over ``n``; the edges are the R2 body with ``p = d``.
 
-    Claim kind: THEOREM. Per interval every stored measure is the closed
-    form ``m(a, b)`` divided by ``n``, broadcast (ERR-020's invariant: never
-    re-derived from the edges, whose ``sqrt``/``cbrt`` round trip loses about
-    an ULP per cell). The edges are the R2 body with ``p = d``. Mutation
-    witness: measures from ``compute_volumes_1d(coord, edges)`` (ERR-020
-    itself) → the equality leg reds on all three coordinates (the three-region
-    fixture takes 3/3/2 distinct values per region on a slab, 4/3/3 on a
-    cylinder, 5/6/5 on a sphere, spec §1.3 S3.3).
+    Claim kind: THEOREM. Mutation witness: measures re-derived from the
+    realised edges (ERR-020 itself) red on all three coordinates.
     """
 
     @pytest.mark.catches("ERR-020")
@@ -526,66 +386,37 @@ class TestEqualVolume:
         failures = []
         cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount.uniform_volume(n).partition(_geometry(coord, (a, b)))
-            expected = _measure(coord, a, b) / n
+            _, measures = _cells(CellsByCount.uniform_volume(n), coord, (a, b))
+            expected = _measure(coord, [a, b])[0] / n
             cases += 1
-            if not np.array_equal(partition.measures[0], np.full(n, expected)):
-                distinct = len(set(partition.measures[0].tolist()))
-                failures.append(f"[{a}, {b}] n={n}: {distinct} distinct measure(s), not fl(m/n)")
+            if not np.array_equal(measures, np.full(n, expected)):
+                failures.append(f"[{a}, {b}] n={n}: {len(set(measures.tolist()))} distinct")
         _report(failures, cases, f"{coord.name} equal-volume measures")
 
     @pytest.mark.catches("ERR-020")
     @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_multi_interval_measures_are_per_interval(self, coord):
-        """The three-region fixture: in each interval the measures are
-        bit-identical, and they are THAT interval's measure over its count
-        (so a measure computed from the origin, ``m(0, b)/n``, reds beyond
-        the first interval)."""
-        g = _geometry(coord, _THREE_BREAKPOINTS)
-        partition = CellsByCount(_THREE_COUNTS, EqualVolume()).partition(g)
-        for k, n in enumerate(_THREE_COUNTS):
-            a, b = _THREE_BREAKPOINTS[k], _THREE_BREAKPOINTS[k + 1]
+    def test_each_interval_takes_its_own_share(self, coord):
+        """The three-interval body ``(0, .5, 1.5, 2)`` meshed 5 / 7 / 11: in
+        each interval the shares are that interval's measure over its count,
+        so a share computed from the origin reds beyond the first interval."""
+        g = _geometry(coord, (0.0, 0.5, 1.5, 2.0))
+        for (a, b), n in zip(g.intervals, (5, 7, 11), strict=True):
+            _, measures = CellsByCount(n, EqualVolume()).cells(g, (a, b))
             np.testing.assert_array_equal(
-                partition.measures[k], np.full(n, _measure(coord, a, b) / n),
-                err_msg=f"interval {k} ({coord.name}): not fl(m(a, b)/n)",
+                measures, np.full(n, _measure(coord, [a, b])[0] / n),
+                err_msg=f"[{a}, {b}] ({coord.name}): not m(a, b)/n",
             )
 
     @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
     def test_edges_are_the_r2_body(self, coord):
         failures = []
-        cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount.uniform_volume(n).partition(_geometry(coord, (a, b)))
-            cases += 1
-            if not np.array_equal(partition.edges[0], _r2_edges(_EXPONENT[coord], a, b, n)):
+            edges, _ = _cells(CellsByCount.uniform_volume(n), coord, (a, b))
+            if not np.array_equal(edges, _r2_edges(_EXPONENT[coord], a, b, n)):
                 failures.append(f"[{a}, {b}] n={n}")
-        _report(failures, cases, f"{coord.name} equal-volume edges != R2 body")
-
-    @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
-    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_keystone_the_predecessor_subdivision(self, coord):
-        """The carve keystone (step 3a only): ``_subdivide_zone``, the
-        verified equal-volume predecessor that ``Mesh1D.from_geometry`` still
-        calls, gives the same interior edges and measures bit for bit; the
-        end edges are the breakpoints (the predecessor does not pin them).
-        This row retires with ``_subdivide_zone`` at step 3b; the capture of
-        spec §3 then carries the bit-identity end to end."""
-        from orpheus.mesh.factories import _subdivide_zone
-
-        failures = []
-        cases = 0
-        for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount.uniform_volume(n).partition(_geometry(coord, (a, b)))
-            edges, volumes = _subdivide_zone(a, b, n, coord)
-            cases += 1
-            if not (
-                np.array_equal(partition.edges[0][1:-1], edges[1:-1])
-                and np.array_equal(partition.measures[0], volumes)
-            ):
-                failures.append(f"[{a}, {b}] n={n}")
-        _report(failures, cases, f"{coord.name} equal volume != _subdivide_zone")
+        _report(failures, len(_LAW_INTERVALS) * len(_COUNTS), f"{coord.name} equal-volume edges")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -594,58 +425,47 @@ class TestEqualVolume:
 
 
 class TestEqualWidth:
-    r"""S3.4: equal-width edges are the R2 body with ``p = 1``; the measures
-    are ``fl((b - a)/n)`` on a slab and the shells between the realised edges
+    r"""S3.4: equal-width edges are the R2 body with ``p = 1``; widths within
+    ``2 ulp(b)`` of ``fl((b - a)/n)``; the measures are ``fl((b - a)/n)`` on a
+    slab (equal shares) and the geometry's shells between the realised edges
     on a cylinder or a sphere.
 
-    Claim kind: THEOREM. Realised widths are within ``2 ulp(b)`` of the
-    nominal ``fl((b - a)/n)`` (bitwise equal widths are unrealisable, spec §0
-    item 6). Mutation witness: store ``diff(edges)`` as the slab measure
-    (today's ``"uniform"``) → the slab measure leg reds at ``n = 5`` on
-    ``[0, 3]`` (3 distinct values, spec §2).
+    Claim kind: THEOREM. Mutation witness: slab measures from the edges
+    (today's ``"uniform"``) → the slab leg reds at ``n = 5`` on ``[0, 3]``.
     """
 
     @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
     def test_edges_are_the_r2_body_and_widths_are_nominal(self, coord):
         failures = []
-        cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount.uniform_width(n).partition(_geometry(coord, (a, b)))
-            edges = partition.edges[0]
-            cases += 1
+            edges, _ = _cells(CellsByCount.uniform_width(n), coord, (a, b))
             if not np.array_equal(edges, _r2_edges(1, a, b, n)):
                 failures.append(f"[{a}, {b}] n={n}: edges != R2 body")
             excess = float(np.max(np.abs(np.diff(edges) - (b - a) / n)))
             if excess > 2 * _ulp(b):
                 failures.append(f"[{a}, {b}] n={n}: a width is {excess / _ulp(b):.2f} ulp(b) off")
-        _report(failures, cases, f"{coord.name} equal-width edges")
+        _report(failures, len(_LAW_INTERVALS) * len(_COUNTS), f"{coord.name} equal-width edges")
 
-    @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
+    @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests", _ONE_MEASURE)
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
     def test_measures(self, coord):
         failures = []
-        cases = 0
         for (a, b), n in itertools.product(_LAW_INTERVALS, _COUNTS):
-            partition = CellsByCount.uniform_width(n).partition(_geometry(coord, (a, b)))
-            if coord is _SLAB:
-                expected = np.full(n, (b - a) / n)
-            else:
-                expected = compute_volumes_1d(coord, partition.edges[0])
-            cases += 1
-            if not np.array_equal(partition.measures[0], expected):
+            edges, measures = _cells(CellsByCount.uniform_width(n), coord, (a, b))
+            expected = np.full(n, (b - a) / n) if coord is _SLAB else _measure(coord, edges)
+            if not np.array_equal(measures, expected):
                 failures.append(f"[{a}, {b}] n={n}")
-        _report(failures, cases, f"{coord.name} equal-width measures")
+        _report(failures, len(_LAW_INTERVALS) * len(_COUNTS), f"{coord.name} equal-width measures")
 
     @pytest.mark.rests_on(f"{_HERE}::TestEqualWidth::test_measures")
     def test_the_slab_measure_is_not_the_edge_difference(self):
         """The discriminating input of the slab leg: on ``[0, 3]`` with 5
         cells the R2 edge differences are not all equal (2 distinct values;
-        today's ``np.linspace`` edges give 3, spec §2), so a slab measure
-        read off the edges is visible here."""
-        partition = CellsByCount.uniform_width(5).partition(_geometry(_SLAB, (0.0, 3.0)))
-        assert len(set(np.diff(partition.edges[0]).tolist())) > 1
-        assert len(set(partition.measures[0].tolist())) == 1
+        today's ``np.linspace`` edges give 3), the measures are."""
+        edges, measures = _cells(CellsByCount.uniform_width(5), _SLAB, (0.0, 3.0))
+        assert len(set(np.diff(edges).tolist())) > 1
+        assert len(set(measures.tolist())) == 1
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -653,64 +473,57 @@ class TestEqualWidth:
 # ─────────────────────────────────────────────────────────────────────
 
 _SLAB_495_COUNTS = tuple(range(1, 65)) + (100, 127, 255, 1000)
-_SLAB_495_BODIES = (
-    (0.0, 3.0), (0.0, 2.872), (1.1, 1.8), (0.0, 0.5, 1.5, 2.0),
-)
+_SLAB_495_INTERVALS = ((0.0, 3.0), (0.0, 2.872), (1.1, 1.8), (0.5, 1.5), (-1.0, 2.0))
+
+
+def _same_cells(x, y) -> bool:
+    return all(np.array_equal(p, q) for p, q in zip(x, y, strict=True))
 
 
 class TestIssue495:
-    r"""S3.5, the #495 law: on a slab the two spacing rules are one body.
+    r"""S3.5, the #495 law per interval: on a slab the two spacing rules are
+    one body, so they give the same cells (edges and measures, bitwise); on a
+    cylinder and a sphere they differ at every ``n >= 2`` (the negative leg).
 
-    Claim kind: THEOREM. ``uniform_width(n)`` and ``uniform_volume(n)`` give
-    EQUAL partitions (edges and measures, bitwise) on a slab; on a cylinder
-    and a sphere they differ at every ``n >= 2`` (the negative leg, which
-    shows the comparison can fail). The dyadic counts are blind (``n = 4``
-    and ``16`` agreed even under today's ``"uniform"``), so ``n = 5, 7, 9,
-    11`` are named rows. Mutation witness: give ``EqualWidth`` its own body
-    ``np.linspace(a, b, n + 1)`` (R1) → the edge leg reds in 576 of 852
-    cases (``partition_laws.out`` (b)). The mesh-level leg (equal meshes) is
-    step 3b's, once ``Mesh1D(geometry, partition)`` exists.
+    Claim kind: THEOREM. ``n = 5, 7, 9, 11`` are named rows (the dyadic
+    counts agreed even under today's ``"uniform"``). Mutation witness: give
+    ``EqualWidth`` its own body ``np.linspace(a, b, n + 1)`` (R1). The mesh
+    leg (equal meshes) is step 3b's.
     """
 
     @pytest.mark.rests_on(
         f"{_HERE}::TestEqualVolume::test_measures_are_the_interval_measure_over_n",
         f"{_HERE}::TestEqualWidth::test_measures",
     )
-    @pytest.mark.parametrize(
-        "breakpoints", _SLAB_495_BODIES, ids=lambda b: "-".join(str(x) for x in b),
-    )
-    def test_equal_width_is_equal_volume_on_a_slab(self, breakpoints):
-        g = _geometry(_SLAB, breakpoints)
+    @pytest.mark.parametrize("interval", _SLAB_495_INTERVALS, ids=lambda i: f"{i[0]}-{i[1]}")
+    def test_equal_width_is_equal_volume_on_a_slab(self, interval):
         failures = [
-            f"n={n}"
-            for n in _SLAB_495_COUNTS
-            if CellsByCount.uniform_width(n).partition(g)
-            != CellsByCount.uniform_volume(n).partition(g)
+            f"n={n}" for n in _SLAB_495_COUNTS
+            if not _same_cells(
+                _cells(CellsByCount.uniform_width(n), _SLAB, interval),
+                _cells(CellsByCount.uniform_volume(n), _SLAB, interval),
+            )
         ]
-        _report(failures, len(_SLAB_495_COUNTS), f"slab {breakpoints}: width != volume")
+        _report(failures, len(_SLAB_495_COUNTS), f"slab {interval}: width != volume")
 
     @pytest.mark.rests_on(f"{_HERE}::TestIssue495::test_equal_width_is_equal_volume_on_a_slab")
     @pytest.mark.parametrize("n", (5, 7, 9, 11))
     def test_the_counts_today_s_uniform_got_wrong(self, n):
-        """The first red of #495 on ``[0, 3]``: today's ``"uniform"`` stored
-        3, 5, 5 and 3 distinct volumes at n = 5, 7, 9, 11 (spec §2)."""
-        g = _geometry(_SLAB, (0.0, 3.0))
-        width = CellsByCount.uniform_width(n).partition(g)
-        assert width == CellsByCount.uniform_volume(n).partition(g)
-        assert len(set(width.measures[0].tolist())) == 1
+        width = _cells(CellsByCount.uniform_width(n), _SLAB, (0.0, 3.0))
+        assert _same_cells(width, _cells(CellsByCount.uniform_volume(n), _SLAB, (0.0, 3.0)))
+        assert len(set(width[1].tolist())) == 1
 
     @pytest.mark.rests_on(f"{_HERE}::TestIssue495::test_equal_width_is_equal_volume_on_a_slab")
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
     def test_the_rules_differ_on_a_curved_body(self, coord):
-        """The negative leg: the comparison can fail, and does, wherever the
-        measure is not uniform in r."""
         failures = []
-        for breakpoints in ((0.0, 3.0), (0.0, 2.872), (1.1, 1.8)):
-            g = _geometry(coord, breakpoints)
+        for interval in ((0.0, 3.0), (0.0, 2.872), (1.1, 1.8)):
             for n in _SLAB_495_COUNTS[1:]:
-                if (CellsByCount.uniform_width(n).partition(g)
-                        == CellsByCount.uniform_volume(n).partition(g)):
-                    failures.append(f"{breakpoints} n={n}: equal")
+                if _same_cells(
+                    _cells(CellsByCount.uniform_width(n), coord, interval),
+                    _cells(CellsByCount.uniform_volume(n), coord, interval),
+                ):
+                    failures.append(f"{interval} n={n}: equal")
         _report(failures, 3 * (len(_SLAB_495_COUNTS) - 1), f"{coord.name}: rules coincide")
 
     @pytest.mark.rests_on(
@@ -718,45 +531,42 @@ class TestIssue495:
         f"{_HERE}::TestMaxWidthCount::test_equal_width_count_is_the_least_nominal_count",
     )
     @pytest.mark.parametrize(
-        "breakpoints, h, count",
+        "interval, h, count",
         [
             pytest.param((0.0, 3.0), 0.3, 10, id="0-3-h0.3"),
             pytest.param((0.0, 1.0), 0.1, 10, id="0-1-h0.1"),
             pytest.param((1.1, 1.8), 0.07, None, id="1.1-1.8-h0.07"),
-            pytest.param((0.0, 0.5, 1.5, 2.0), 0.13, None, id="three-intervals-h0.13"),
         ],
     )
-    def test_max_width_is_one_body_on_a_slab(self, breakpoints, h, count):
-        """The one-body law reaches ``CellsByMaxWidth``: on a slab its count
-        rule is the same for both spacings. ``(0, 3), h = 0.3`` is the input
-        on which the first REALISED cell of the equal-volume body,
-        ``fl(fl(1/10) * 3) = 0.30000000000000004``, exceeds ``h`` while the
-        nominal ``fl(3/10) = 0.3`` does not ([M] scratchpad probe, 1 of 54 144
-        slab pairs), so a count read off the realised first cell gives 11."""
-        g = _geometry(_SLAB, breakpoints)
-        width = CellsByMaxWidth(h, EqualWidth()).partition(g)
-        assert width == CellsByMaxWidth(h, EqualVolume()).partition(g)
+    def test_max_width_is_one_body_on_a_slab(self, interval, h, count):
+        """On a slab ``CellsByMaxWidth`` counts the same for both spacings.
+        ``(0, 3), h = 0.3``: the realised first cell of the stepped body is
+        ``0.30000000000000004 > h`` while the nominal ``fl(3/10) = 0.3`` fits,
+        so a count read off the realised first cell gives 11."""
+        g = _geometry(_SLAB, interval)
+        width, volume = CellsByMaxWidth(h, EqualWidth()), CellsByMaxWidth(h, EqualVolume())
+        assert width.count(g, interval) == volume.count(g, interval)
+        assert _same_cells(width.cells(g, interval), volume.cells(g, interval))
         if count is not None:
-            assert width.cell_counts == (count,)
+            assert width.count(g, interval) == count
 
 
 # ─────────────────────────────────────────────────────────────────────
-# S3.6 — 2 * d refines d
+# S3.6 — k * d refines d
 # ─────────────────────────────────────────────────────────────────────
 
 
 class TestRefinement:
-    r"""S3.6: ``(k * d).partition(g)`` refines ``d.partition(g)``.
+    r"""S3.6: ``(k * d).cells`` refines ``d.cells`` for ``k`` a power of two:
+    the fine edges at indices ``0, k, 2k, ...`` ARE the coarse edges, bitwise,
+    and the count is ``k`` times the coarse count. The factor law lives on
+    :class:`Refined` (a type, not the operator), and a refinement of a
+    refinement flattens: ``k * (m * r) == Refined(r, k m)``.
 
-    Claim kind: THEOREM. Per interval the fine edges at the indices
-    ``0, k, 2k, ...`` ARE the coarse edges, bitwise, for ``k`` a power of two
-    (``fl(1/(kn)) = fl(1/n)/k``, a power-of-two scaling), and the rule
-    realises ``k`` times the coarse counts. A factor that is not a power of
-    two is refused: its fine fractions miss the coarse ones by up to 2 ULP
-    (``[M]`` 3909 of 7176 cases at k = 3), and cells that do not nest are not
-    a refinement (the ruling of 2026-09-29). Mutation witness: spell
-    ``2 * CellsByMaxWidth(h)`` as ``CellsByMaxWidth(h / 2)`` → the max-width
-    leg reds at ``L = 1, h = 0.3`` (counts 4 and 7).
+    Claim kind: THEOREM. Mutation witnesses: ``2 * CellsByMaxWidth(h)`` spelled
+    ``CellsByMaxWidth(h / 2)`` reds the max-width rows; a composition by
+    ``k + m`` instead of ``k m`` reds the ``4 * (2 * d)`` row (qa F3: at
+    ``2 * (2 * d)`` the sum and the product coincide).
     """
 
     @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
@@ -767,57 +577,62 @@ class TestRefinement:
         cases = 0
         for (a, b), n in itertools.product(_INTERVALS, _REFINE_COUNTS):
             g = _geometry(coord, (a, b))
-            coarse = CellsByCount(n, spacing).partition(g)
-            fine = (factor * CellsByCount(n, spacing)).partition(g)
+            rule = factor * CellsByCount(n, spacing)
+            coarse, _ = CellsByCount(n, spacing).cells(g, (a, b))
+            fine, _ = rule.cells(g, (a, b))
             cases += 1
-            if fine.cell_counts != (factor * n,):
-                failures.append(f"[{a}, {b}] n={n}: counts {fine.cell_counts}")
-            elif not np.array_equal(fine.edges[0][::factor], coarse.edges[0]):
+            if rule.count(g, (a, b)) != factor * n or len(fine) != factor * n + 1:
+                failures.append(f"[{a}, {b}] n={n}: count {rule.count(g, (a, b))}")
+            elif not np.array_equal(fine[::factor], coarse):
                 failures.append(f"[{a}, {b}] n={n}: a coarse edge is not a fine edge")
         _report(failures, cases, f"{coord.name} {type(spacing).__name__} x{factor}")
 
     @pytest.mark.rests_on(f"{_HERE}::TestRefinement::test_the_fine_edges_contain_the_coarse")
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_equal_measures_are_additive_under_refinement(self, coord):
-        """Where the measure is ``fl(m/n)`` (equal volume, and equal width on
-        a slab) two fine measures sum to the coarse one bit for bit:
+    def test_equal_shares_are_additive_under_refinement(self, coord):
+        """Where the measure is an equal share (equal volume, and equal width
+        on a slab), two fine shares sum to the coarse one bit for bit:
         ``fl(m/(2n)) = fl(m/n)/2``."""
         spacings = _SPACINGS if coord is _SLAB else (EqualVolume(),)
         failures = []
         cases = 0
         for spacing, (a, b), n in itertools.product(spacings, _INTERVALS, _REFINE_COUNTS):
-            g = _geometry(coord, (a, b))
-            coarse = CellsByCount(n, spacing).partition(g).measures[0]
-            fine = (2 * CellsByCount(n, spacing)).partition(g).measures[0]
+            _, coarse = _cells(CellsByCount(n, spacing), coord, (a, b))
+            _, fine = _cells(2 * CellsByCount(n, spacing), coord, (a, b))
             cases += 1
             if not np.array_equal(fine[0::2] + fine[1::2], coarse):
                 failures.append(f"{type(spacing).__name__} [{a}, {b}] n={n}")
-        _report(failures, cases, f"{coord.name}: measures not additive")
-
-    @pytest.mark.rests_on(f"{_HERE}::TestRefinement::test_the_fine_edges_contain_the_coarse")
-    @pytest.mark.parametrize("spacing", _SPACINGS, ids=lambda s: _SPACING_IDS[type(s)])
-    def test_a_multi_interval_rule_refines_per_interval(self, spacing):
-        g = _geometry(_SPHERE, _THREE_BREAKPOINTS)
-        coarse = CellsByCount(_THREE_COUNTS, spacing).partition(g)
-        fine = (2 * CellsByCount(_THREE_COUNTS, spacing)).partition(g)
-        assert fine.cell_counts == tuple(2 * n for n in _THREE_COUNTS)
-        for k in range(3):
-            np.testing.assert_array_equal(fine.edges[k][::2], coarse.edges[k])
+        _report(failures, cases, f"{coord.name}: shares not additive")
 
     @pytest.mark.parametrize("spacing", _SPACINGS, ids=lambda s: _SPACING_IDS[type(s)])
-    def test_the_refined_rule_is_the_rule_with_doubled_counts(self, spacing):
-        assert 2 * CellsByCount(3, spacing) == CellsByCount(6, spacing)
-        assert 2 * CellsByCount((3, 5), spacing) == CellsByCount((6, 10), spacing)
-        assert 4 * CellsByCount(3, spacing) == 2 * (2 * CellsByCount(3, spacing))
-        assert np.int64(2) * CellsByCount(3, spacing) == CellsByCount(6, spacing)
-        assert 1 * CellsByCount(3, spacing) == CellsByCount(3, spacing)
+    def test_the_refinement_type(self, spacing):
+        """``k * rule`` is :class:`Refined`; refinements flatten by the
+        PRODUCT of the factors; the spacing is the rule's."""
+        r = CellsByCount(3, spacing)
+        assert 2 * r == Refined(r, 2)
+        assert 2 * (4 * r) == Refined(r, 8)
+        assert 4 * (2 * r) == Refined(r, 8)
+        assert Refined(Refined(r, 2), 4) == Refined(r, 8)
+        assert np.int64(2) * r == Refined(r, 2)
+        assert (1 * r).count(_geometry(_SLAB, (0.0, 1.0)), (0.0, 1.0)) == 3
+        assert (2 * r).spacing == spacing
+        assert isinstance(2 * r, CountedRule)
+
+    @pytest.mark.rests_on(f"{_HERE}::TestRefinement::test_the_refinement_type")
+    @pytest.mark.parametrize("coord, spacing", _coord_spacing_params())
+    def test_a_composed_refinement_multiplies_its_factors(self, coord, spacing):
+        """qa F3: ``4 * (2 * d)`` realises 8 times the coarse count and nests
+        in it (a factor composed by the sum, 6, would be refused or give 6)."""
+        g = _geometry(coord, (0.01, 2.0))
+        d = CellsByCount(5, spacing)
+        coarse, _ = d.cells(g, (0.01, 2.0))
+        fine, _ = (4 * (2 * d)).cells(g, (0.01, 2.0))
+        assert (4 * (2 * d)).count(g, (0.01, 2.0)) == 40
+        np.testing.assert_array_equal(fine[::8], coarse)
 
     @pytest.mark.rests_on(f"{_HERE}::TestMaxWidthCount::test_equal_width_count_is_the_least_nominal_count")
     @pytest.mark.parametrize("coord, spacing", _coord_spacing_params())
-    def test_a_refined_max_width_rule_doubles_its_realised_counts(self, coord, spacing):
-        """``2 * CellsByMaxWidth(h, s)`` on ``g`` is ``CellsByCount(2 * <the
-        counts it realises on g>, s)``, and it nests; ``2 * (2 * d)`` is the
-        factor 4."""
+    def test_a_refined_max_width_rule_doubles_its_realised_count(self, coord, spacing):
         failures = []
         cases = 0
         for (a, b), h in itertools.product(_INTERVALS, (0.3, 0.07, 1.0)):
@@ -825,90 +640,74 @@ class TestRefinement:
                 continue
             g = _geometry(coord, (a, b))
             d = CellsByMaxWidth(h, spacing)
-            coarse = d.partition(g)
-            fine = (2 * d).partition(g)
-            quadruple = (2 * (2 * d)).partition(g)
+            n = d.count(g, (a, b))
+            coarse, _ = d.cells(g, (a, b))
+            fine, _ = (2 * d).cells(g, (a, b))
             cases += 1
-            if fine != CellsByCount(tuple(2 * n for n in d.counts(g)), spacing).partition(g):
+            if not _same_cells((2 * d).cells(g, (a, b)), CellsByCount(2 * n, spacing).cells(g, (a, b))):
                 failures.append(f"[{a}, {b}] h={h}: 2 * d is not the doubled count")
-            elif not np.array_equal(fine.edges[0][::2], coarse.edges[0]):
+            elif not np.array_equal(fine[::2], coarse):
                 failures.append(f"[{a}, {b}] h={h}: does not nest")
-            elif quadruple != (4 * CellsByCount(d.counts(g), spacing)).partition(g):
-                failures.append(f"[{a}, {b}] h={h}: 2 * (2 * d) is not the factor 4")
         _report(failures, cases, f"{coord.name} {type(spacing).__name__} refined max width")
 
-    @pytest.mark.rests_on(f"{_HERE}::TestRefinement::test_a_refined_max_width_rule_doubles_its_realised_counts")
+    @pytest.mark.rests_on(f"{_HERE}::TestRefinement::test_a_refined_max_width_rule_doubles_its_realised_count")
     def test_halving_the_width_is_not_a_refinement(self):
-        """The refuted spelling, exhibited: on ``[0, 1]`` with ``h = 0.3``
-        the rule realises 4 cells; ``h / 2`` realises 7, an odd count that
-        cannot nest; ``2 * d`` realises 8."""
+        """On ``[0, 1]`` with ``h = 0.3`` the rule realises 4 cells; ``h / 2``
+        realises 7, an odd count that cannot nest; ``2 * d`` realises 8."""
         g = _geometry(_SLAB, (0.0, 1.0))
         d = CellsByMaxWidth(0.3, EqualWidth())
-        assert d.counts(g) == (4,)
-        assert CellsByMaxWidth(0.15, EqualWidth()).counts(g) == (7,)
-        assert (2 * d).partition(g).cell_counts == (8,)
+        assert d.count(g, (0.0, 1.0)) == 4
+        assert CellsByMaxWidth(0.15, EqualWidth()).count(g, (0.0, 1.0)) == 7
+        assert (2 * d).count(g, (0.0, 1.0)) == 8
         assert isinstance(2 * d, Refined)
 
 
-#: (case id, factor, error type, fragment). ``factor * rule`` for each rule.
 _FACTOR_REFUSALS = [
-    ("zero", 0, TypeError, "a refinement factor is a positive int"),
-    ("negative", -2, TypeError, "a refinement factor is a positive int"),
-    ("float", 2.0, TypeError, "a refinement factor is a positive int"),
-    ("bool", True, TypeError, "a refinement factor is a positive int"),
+    ("zero", 0, ValueError, "a refinement factor is a power of two"),
+    ("negative", -2, ValueError, "a refinement factor is a power of two"),
     ("three", 3, ValueError, "a refinement factor is a power of two"),
     ("six", 6, ValueError, "a refinement factor is a power of two"),
+    ("float", 2.0, TypeError, "a refinement factor is an int"),
+    ("bool", True, TypeError, "a refinement factor is an int"),
 ]
 
 
 class TestRefinementRefusals:
-    """The factor and the rules that cannot be refined.
-
-    Claim kind: THEOREM (defining refusals). A :class:`Partition` and a
-    :class:`CellEdges` carry no spacing rule, so there is nowhere to put the
-    new edges.
-    """
+    """The factor law, on the type and through the operator; the rules that
+    cannot be refined. Claim kind: THEOREM (defining refusals)."""
 
     @pytest.mark.parametrize(
-        "factor, error, fragment",
-        [pytest.param(f, e, m, id=i) for i, f, e, m in _FACTOR_REFUSALS],
+        "factor, error, fragment", [pytest.param(f, e, m, id=i) for i, f, e, m in _FACTOR_REFUSALS],
     )
-    @pytest.mark.parametrize(
-        "rule",
-        [
-            pytest.param(CellsByCount(3, EqualWidth()), id="cells-by-count"),
-            pytest.param(CellsByMaxWidth(0.3, EqualVolume()), id="cells-by-max-width"),
-            pytest.param(2 * CellsByMaxWidth(0.3, EqualVolume()), id="refined"),
-        ],
-    )
-    def test_factor_refusal(self, rule, factor, error, fragment):
-        with pytest.raises(error, match=_literal(fragment)):
+    @pytest.mark.parametrize("rule", [
+        pytest.param(CellsByCount(3, EqualWidth()), id="cells-by-count"),
+        pytest.param(CellsByMaxWidth(0.3, EqualVolume()), id="cells-by-max-width"),
+        pytest.param(Refined(CellsByCount(3, EqualWidth()), 2), id="refined"),
+    ])
+    def test_factor_refusal_through_the_operator(self, rule, factor, error, fragment):
+        with pytest.raises(error, match=re.escape(fragment)):
             _ = factor * rule
 
-    def test_factor_fragments_are_disjoint(self):
-        rule = CellsByCount(3, EqualWidth())
-        messages = {}
-        for case, factor, error, _ in _FACTOR_REFUSALS:
-            with pytest.raises(error) as caught:
-                _ = factor * rule
-            messages[case] = str(caught.value)
-        for case, _, _, fragment in _FACTOR_REFUSALS:
-            for other, message in messages.items():
-                other_fragment = next(f for c, _, _, f in _FACTOR_REFUSALS if c == other)
-                if other_fragment == fragment:
-                    continue
-                assert fragment not in message, (case, other, message)
-
     @pytest.mark.parametrize(
-        "rule",
-        [
-            pytest.param(Partition(edges=_OK_EDGES, measures=_OK_MEASURES), id="partition"),
-            pytest.param(CellEdges(edges=_OK_EDGES), id="cell-edges"),
-        ],
+        "factor, error, fragment", [pytest.param(f, e, m, id=i) for i, f, e, m in _FACTOR_REFUSALS],
     )
-    def test_a_rule_with_no_spacing_cannot_be_refined(self, rule):
+    def test_factor_refusal_on_the_type(self, factor, error, fragment):
+        """elegance F2: the law is the type's, so the constructor refuses too."""
+        with pytest.raises(error, match=re.escape(fragment)):
+            Refined(CellsByCount(3, EqualWidth()), factor)
+
+    @pytest.mark.rests_on(f"{_HERE}::TestRefinementRefusals::test_factor_refusal_on_the_type")
+    def test_factor_fragments_are_disjoint(self):
+        _assert_disjoint([
+            (c, (lambda f=f: Refined(CellsByCount(3, EqualWidth()), f)), e, m)
+            for c, f, e, m in _FACTOR_REFUSALS
+        ])
+
+    def test_only_a_counted_rule_is_refined(self):
+        with pytest.raises(TypeError, match=re.escape("Refined.rule is a counted rule")):
+            Refined(CellEdges(np.array([0.0, 1.0])), 2)  # type: ignore[arg-type]  # a refusal input
         with pytest.raises(TypeError, match="no spacing rule"):
-            _ = 2 * rule
+            _ = 2 * CellEdges(np.array([0.0, 1.0]))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -922,9 +721,7 @@ _MAX_WIDTH_INTERVALS = (
 
 def _max_width_bounds() -> tuple[float, ...]:
     rng = np.random.default_rng(7)
-    return (0.1, 0.2, 0.3, 0.05, 1 / 3, 0.7, 5.0) + tuple(
-        float(h) for h in rng.uniform(0.01, 2.0, 16)
-    )
+    return (0.1, 0.2, 0.3, 0.05, 1 / 3, 0.7, 5.0) + tuple(float(h) for h in rng.uniform(0.01, 2.0, 16))
 
 
 _MAX_WIDTH_BOUNDS = _max_width_bounds()
@@ -933,28 +730,20 @@ _MAX_WIDTH_BOUNDS = _max_width_bounds()
 def _real_count(p: int, a: float, b: float, h: float) -> float:
     """The count whose first cell is exactly ``h`` wide, in real arithmetic:
     ``(b^p - a^p) / ((a + h)^p - a^p)``. It sizes the population: from the
-    origin of a sphere it grows as ``(b/h)^3``, so a bound on ``(b - a)/h``
-    alone admits partitions of millions of cells."""
+    origin of a sphere it grows as ``(b/h)^3``."""
     return (b**p - a**p) / ((a + h) ** p - a**p)
 
 
 class TestMaxWidthCount:
-    r"""S3.7: per interval, ``n = min{n : w(n) <= h}`` with ``w`` the rule's
-    nominal widest cell.
+    r"""S3.7: ``n = min{n : w(n) <= h}`` with ``w`` the nominal widest cell.
 
-    Claim kind: THEOREM. For equal width ``w(n) = fl((b - a)/n)`` in every
-    coordinate system, written in the test and checked by brute force over
-    every smaller count (the least count, never "a count that fits"). For
-    equal volume on a cylinder or sphere the nominal widest cell is the
-    first cell of the spacing body (the widest: the shells thin outward); the
-    law is asserted on the realised partition: its widest cell is within
-    ``2 ulp(b)`` of ``h`` from below, and the partition with one cell fewer
-    has a first cell wider than ``h``. Discriminating rows: ``(1, fl(1/3))
-    -> 3`` and ``(3, fl(1/3)) -> 9`` (the exact-rational count gives 4 and
-    10); ``(1, 0.1) -> 10`` (a count checked on realised widths gives 11,
-    spec §0 item 7). Mutation witnesses: ``ceil(L/h)`` checked on realised
-    widths → the ``(1, 0.1)`` row reds; ``ceil(Fraction(L)/Fraction(h))`` →
-    the ``fl(1/3)`` rows red.
+    Claim kind: THEOREM. Equal width: ``w(n) = fl((b - a)/n)`` in every
+    coordinate system, checked by brute force over every smaller count. Equal
+    volume on a cylinder or sphere: the widest realised cell is within
+    ``2 ulp(b)`` of ``h`` from below and no smaller count's first cell fits.
+    Discriminating rows: ``(1, fl(1/3)) -> 3``, ``(3, fl(1/3)) -> 9`` (the
+    exact-rational count gives 4, 10); ``(1, 0.1) -> 10`` (a count checked on
+    realised widths gives 11).
     """
 
     @pytest.mark.rests_on(f"{_HERE}::TestEqualWidth::test_edges_are_the_r2_body_and_widths_are_nominal")
@@ -966,16 +755,16 @@ class TestMaxWidthCount:
             if _real_count(1, a, b, h) > 2000:
                 continue
             g = _geometry(coord, (a, b))
-            (n,) = CellsByMaxWidth(h, EqualWidth()).counts(g)
-            smaller = (b - a) / np.arange(1, n, dtype=float)
+            rule = CellsByMaxWidth(h, EqualWidth())
+            n = rule.count(g, (a, b))
             cases += 1
             if (b - a) / n > h:
                 failures.append(f"[{a}, {b}] h={h}: n={n} does not fit")
-            elif np.any(smaller <= h):
+            elif np.any((b - a) / np.arange(1, n, dtype=float) <= h):
                 failures.append(f"[{a}, {b}] h={h}: n={n} is not the least")
-            widest = float(np.max(np.diff(CellsByMaxWidth(h, EqualWidth()).partition(g).edges[0])))
-            if widest > h + 2 * _ulp(b):
-                failures.append(f"[{a}, {b}] h={h}: realised width {widest!r}")
+            edges, _ = rule.cells(g, (a, b))
+            if float(np.max(np.diff(edges))) > h + 2 * _ulp(b):
+                failures.append(f"[{a}, {b}] h={h}: a realised width exceeds h + 2 ulp(b)")
         _report(failures, cases, f"{coord.name} equal-width max-width count")
 
     @pytest.mark.rests_on(f"{_HERE}::TestEqualVolume::test_edges_are_the_r2_body")
@@ -988,13 +777,13 @@ class TestMaxWidthCount:
                 continue
             g = _geometry(coord, (a, b))
             rule = CellsByMaxWidth(h, EqualVolume())
-            (n,) = rule.counts(g)
-            edges = rule.partition(g).edges[0]
+            n = rule.count(g, (a, b))
+            edges, _ = rule.cells(g, (a, b))
             cases += 1
             if float(np.max(np.diff(edges))) > h + 2 * _ulp(b):
-                failures.append(f"[{a}, {b}] h={h}: n={n}, widest cell exceeds h")
+                failures.append(f"[{a}, {b}] h={h}: n={n}, the widest cell exceeds h")
             for m in range(1, n):
-                fewer = CellsByCount(m, EqualVolume()).partition(g).edges[0]
+                fewer, _ = CellsByCount(m, EqualVolume()).cells(g, (a, b))
                 if fewer[1] - fewer[0] <= h - 2 * _ulp(b):
                     failures.append(f"[{a}, {b}] h={h}: n={n} but {m} cells fit")
                     break
@@ -1015,40 +804,49 @@ class TestMaxWidthCount:
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
     def test_discriminating_rows(self, coord, length, h, count):
         g = _geometry(coord, (0.0, length))
-        assert CellsByMaxWidth(h, EqualWidth()).counts(g) == (count,)
-        assert CellsByMaxWidth(h, EqualWidth()).partition(g).cell_counts == (count,)
+        rule = CellsByMaxWidth(h, EqualWidth())
+        assert rule.count(g, (0.0, length)) == count
+        assert len(rule.cells(g, (0.0, length))[1]) == count
 
-    def test_a_width_per_interval(self):
-        """One bound per interval: each interval takes its own least count."""
-        g = _geometry(_SLAB, _THREE_BREAKPOINTS)
-        rule = CellsByMaxWidth((0.1, 0.5, 0.25), EqualWidth())
-        assert rule.counts(g) == (5, 2, 2)
-        assert rule.partition(g).cell_counts == (5, 2, 2)
+    @pytest.mark.parametrize(
+        "coord, interval, h, fragment",
+        [
+            pytest.param(_SLAB, (1000.0, 2000.0), 1e-14, "below the float resolution", id="slab-below-resolution"),
+            pytest.param(_SPHERE, (1000.0, 1001.0), 1e-14, "below the float resolution", id="hollow-sphere-below-resolution"),
+            pytest.param(_SLAB, (0.0, 1.0), 1e-10, "more than 2147483648", id="slab-too-many-cells"),
+            pytest.param(_SPHERE, (0.0, 2.0), 1e-3, "more than 2147483648", id="sphere-too-many-cells"),
+            pytest.param(_SPHERE, (1000.0, 1001.0), 1e-13, "more than 2147483648", id="hollow-sphere-too-many-cells"),
+        ],
+    )
+    def test_an_unrealisable_width_is_refused_at_once(self, coord, interval, h, fragment):
+        """qa F2: a width below the interval's float resolution raised a raw
+        ``ZeroDivisionError``, and one just above it walked about 1e13 counts
+        (a hang); both are keyed refusals now, before any walk."""
+        g = _geometry(coord, interval)
+        # From a sphere's centre only equal volume places (b/h)^3 cells;
+        # equal width places b/h = 2000 there and is admitted.
+        spacings = (EqualVolume(),) if (coord, interval, h) == (_SPHERE, (0.0, 2.0), 1e-3) else _SPACINGS
+        for spacing in spacings:
+            with pytest.raises(ValueError, match=re.escape(fragment)):
+                CellsByMaxWidth(h, spacing).count(g, interval)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# The rules' refusals
+# The rules' refusals and values
 # ─────────────────────────────────────────────────────────────────────
 
-_G3 = _geometry(_SLAB, _THREE_BREAKPOINTS)
-
-#: (case id, a callable building the rule and partitioning _G3, error, fragment).
 _COUNT_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
     ("zero", lambda: CellsByCount(0, EqualWidth()), ValueError, "a cell count is at least 1"),
     ("negative", lambda: CellsByCount(-3, EqualWidth()), ValueError, "a cell count is at least 1"),
-    ("zero-in-tuple", lambda: CellsByCount((2, 0, 2), EqualWidth()),
-     ValueError, "CellsByCount.counts[1]: a cell count is at least 1"),
     ("float", lambda: CellsByCount(2.0, EqualWidth()),  # type: ignore[arg-type]  # a refusal input
      TypeError, "a cell count is an int"),
     ("bool", lambda: CellsByCount(True, EqualWidth()), TypeError, "a cell count is an int"),
-    ("string", lambda: CellsByCount("3", EqualWidth()),  # type: ignore[arg-type]  # a refusal input
+    ("tuple", lambda: CellsByCount((2, 3), EqualWidth()),  # type: ignore[arg-type]  # a refusal input
      TypeError, "a cell count is an int"),
-    ("no-spacing", lambda: CellsByCount(3),  # type: ignore[arg-type]  # a refusal input
+    ("no-spacing", lambda: CellsByCount(3),  # type: ignore[call-arg]  # a refusal input
      TypeError, "'spacing'"),
     ("string-spacing", lambda: CellsByCount(3, "uniform"),  # type: ignore[arg-type]  # a refusal input
      TypeError, "the spacing is EqualWidth() or EqualVolume()"),
-    ("count-per-interval", lambda: CellsByCount((2, 2), EqualWidth()).partition(_G3),
-     ValueError, "CellsByCount.counts: 2 entries for 3 interval(s)"),
 ]
 
 _MAX_WIDTH_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
@@ -1057,22 +855,34 @@ _MAX_WIDTH_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]
     ("inf", lambda: CellsByMaxWidth(math.inf, EqualWidth()), ValueError, "a width is positive and finite"),
     ("nan", lambda: CellsByMaxWidth(math.nan, EqualWidth()), ValueError, "a width is positive and finite"),
     ("string", lambda: CellsByMaxWidth("0.1", EqualWidth()),  # type: ignore[arg-type]  # a refusal input
-     TypeError, "a width is a real number"),
-    ("bool", lambda: CellsByMaxWidth(True, EqualWidth()), TypeError, "a width is a real number"),
-    ("no-spacing", lambda: CellsByMaxWidth(0.1),  # type: ignore[arg-type]  # a refusal input
+     TypeError, "must be a real number"),
+    ("bool", lambda: CellsByMaxWidth(True, EqualWidth()), TypeError, "must be a real number"),
+    ("tuple", lambda: CellsByMaxWidth((0.1, 0.2), EqualWidth()),  # type: ignore[arg-type]  # a refusal input
+     TypeError, "must be a real number"),
+    ("no-spacing", lambda: CellsByMaxWidth(0.1),  # type: ignore[call-arg]  # a refusal input
      TypeError, "'spacing'"),
     ("string-spacing", lambda: CellsByMaxWidth(0.1, "uniform"),  # type: ignore[arg-type]  # a refusal input
      TypeError, "the spacing is EqualWidth() or EqualVolume()"),
-    ("width-per-interval", lambda: CellsByMaxWidth((0.1, 0.2), EqualWidth()).partition(_G3),
-     ValueError, "CellsByMaxWidth.widths: 2 entries for 3 interval(s)"),
+]
+
+_EDGES_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
+    ("string-entry", lambda: CellEdges(["0", 1.0]),  # type: ignore[arg-type]  # a refusal input
+     TypeError, "must be a real number"),
+    ("bool-entry", lambda: CellEdges([False, True]),  # type: ignore[arg-type]  # a refusal input
+     TypeError, "must be a real number"),
+    ("string", lambda: CellEdges("01"),  # type: ignore[arg-type]  # a refusal input
+     TypeError, "must be a sequence of"),
+    ("nan", lambda: CellEdges(np.array([0.0, math.nan, 1.0])), ValueError, "must be finite"),
+    ("one-edge", lambda: CellEdges(np.array([0.0])), ValueError, "at least two strictly increasing"),
+    ("equal-edges", lambda: CellEdges(np.array([0.0, 0.5, 0.5, 1.0])), ValueError, "at least two strictly increasing"),
+    ("wrong-ends", lambda: CellEdges(np.array([0.0, 0.5, float(np.nextafter(1.0, 0.0))])).cells(
+        _geometry(_SLAB, (0.0, 1.0)), (0.0, 1.0)),
+     ValueError, "the end edges are the breakpoints, bit for bit"),
 ]
 
 
-def _refusal_rows(table):
-    return [pytest.param(build, err, frag, id=case) for case, build, err, frag in table]
-
-
 def _assert_disjoint(table) -> None:
+    """Each row's fragment is in its own message and in no other row's."""
     messages = {}
     for case, build, error, _ in table:
         with pytest.raises(error) as caught:
@@ -1081,29 +891,40 @@ def _assert_disjoint(table) -> None:
     for case, _, _, fragment in table:
         for other, message in messages.items():
             other_fragment = next(f for c, _, _, f in table if c == other)
-            if other_fragment == fragment or fragment in other_fragment:
+            if other_fragment == fragment:
                 continue
-            _require(
-                fragment not in message,
-                f"the fragment of {case!r} ({fragment!r}) is in {other!r}: {message!r}",
-            )
+            _require(fragment not in message, f"the fragment of {case!r} ({fragment!r}) is in {other!r}: {message!r}")
 
 
-class TestCellsByCountRefusals:
-    """The count rule's defining refusals and its spellings.
+def _refusal_rows(table):
+    return [pytest.param(build, err, frag, id=case) for case, build, err, frag in table]
 
-    Claim kind: THEOREM. There is no default spacing (the ruling of
-    2026-09-25), and there is no ``CellsByCount.uniform``.
-    """
+
+class TestRuleRefusals:
+    """The rules' defining refusals (claim kind: THEOREM). There is no
+    default spacing, no ``CellsByCount.uniform``, and a count or width is one
+    scalar per rule (the per-interval choice is the Mesher's, step 3b)."""
 
     @pytest.mark.parametrize("build, error, fragment", _refusal_rows(_COUNT_REFUSALS))
-    def test_refusal(self, build, error, fragment):
-        with pytest.raises(error, match=_literal(fragment)):
+    def test_cells_by_count(self, build, error, fragment):
+        with pytest.raises(error, match=re.escape(fragment)):
             build()
 
-    @pytest.mark.rests_on(f"{_HERE}::TestCellsByCountRefusals::test_refusal")
-    def test_refusal_fragments_are_disjoint(self):
-        _assert_disjoint(_COUNT_REFUSALS)
+    @pytest.mark.parametrize("build, error, fragment", _refusal_rows(_MAX_WIDTH_REFUSALS))
+    def test_cells_by_max_width(self, build, error, fragment):
+        with pytest.raises(error, match=re.escape(fragment)):
+            build()
+
+    @pytest.mark.parametrize("build, error, fragment", _refusal_rows(_EDGES_REFUSALS))
+    def test_cell_edges(self, build, error, fragment):
+        """qa F5: strings and bools are refused by the shared scalar parser."""
+        with pytest.raises(error, match=re.escape(fragment)):
+            build()
+
+    @pytest.mark.parametrize("table", [_COUNT_REFUSALS, _MAX_WIDTH_REFUSALS, _EDGES_REFUSALS],
+                             ids=["cells-by-count", "cells-by-max-width", "cell-edges"])
+    def test_fragments_are_disjoint(self, table):
+        _assert_disjoint(table)
 
     def test_there_is_no_default_named_uniform(self):
         assert not hasattr(CellsByCount, "uniform")
@@ -1115,136 +936,79 @@ class TestCellsByCountRefusals:
         assert CellsByCount(np.int64(4), EqualWidth()) == CellsByCount(4, EqualWidth())  # type: ignore[arg-type]  # a numpy int is admitted
 
 
-class TestCellsByMaxWidthRefusals:
-    """The max-width rule's defining refusals. Claim kind: THEOREM."""
-
-    @pytest.mark.parametrize("build, error, fragment", _refusal_rows(_MAX_WIDTH_REFUSALS))
-    def test_refusal(self, build, error, fragment):
-        with pytest.raises(error, match=_literal(fragment)):
-            build()
-
-    @pytest.mark.rests_on(f"{_HERE}::TestCellsByMaxWidthRefusals::test_refusal")
-    def test_refusal_fragments_are_disjoint(self):
-        _assert_disjoint(_MAX_WIDTH_REFUSALS)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# CellEdges — the explicit rule
-# ─────────────────────────────────────────────────────────────────────
-
-
 class TestCellEdges:
-    r"""The explicit rule: given edges per interval, the measures are the
-    geometry's shell measures between them.
+    """The explicit rule: one interval's edges, the geometry's measures.
 
-    Claim kind: THEOREM. Its nesting refusals are the partition's own (one
-    check, reached through ``Partition.partition``).
+    Claim kind: THEOREM.
     """
 
-    @pytest.mark.rests_on(f"{_HERE}::TestPartitionValue::test_refusal")
+    @pytest.mark.rests_on(_ONE_MEASURE)
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_measures_are_the_shells_between_the_edges(self, coord):
-        edges = _arrays([0.0, 0.17, 0.5], [0.5, 0.9, 1.3, 1.5], [1.5, 2.0])
-        g = _geometry(coord, _THREE_BREAKPOINTS)
-        partition = CellEdges(edges=edges).partition(g)
-        for k, e in enumerate(edges):
-            np.testing.assert_array_equal(partition.edges[k], e)
-            np.testing.assert_array_equal(
-                partition.measures[k], compute_volumes_1d(coord, np.asarray(e)),
-            )
+    def test_measures_are_the_geometry_s(self, coord):
+        edges = [0.5, 0.9, 1.3, 1.5]
+        cells_edges, measures = _cells(CellEdges(np.array(edges)), coord, (0.5, 1.5))
+        np.testing.assert_array_equal(cells_edges, edges)
+        np.testing.assert_array_equal(measures, _measure(coord, edges))
 
     @pytest.mark.rests_on(f"{_HERE}::TestEqualWidth::test_measures")
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
     def test_equal_width_on_a_curved_body_is_its_own_edges(self, coord):
-        """On a cylinder or a sphere the equal-width measures ARE the shells
-        between the realised edges, so re-stating the edges gives the same
-        partition."""
-        g = _geometry(coord, (0.01, 2.0))
-        width = CellsByCount.uniform_width(13).partition(g)
-        assert CellEdges(edges=width.edges).partition(g) == width
+        width = _cells(CellsByCount.uniform_width(13), coord, (0.01, 2.0))
+        assert _same_cells(_cells(CellEdges(width[0]), coord, (0.01, 2.0)), width)
 
     @pytest.mark.rests_on(f"{_HERE}::TestEqualWidth::test_the_slab_measure_is_not_the_edge_difference")
     def test_equal_width_on_a_slab_is_not_its_own_edges(self):
-        """On a slab they differ: the equal-width measure is ``fl(L/n)``, the
-        explicit edges' measure is their difference (``[0, 3]``, n = 5)."""
-        g = _geometry(_SLAB, (0.0, 3.0))
-        width = CellsByCount.uniform_width(5).partition(g)
-        explicit = CellEdges(edges=width.edges).partition(g)
-        np.testing.assert_array_equal(explicit.edges[0], width.edges[0])
-        assert explicit != width
+        width = _cells(CellsByCount.uniform_width(5), _SLAB, (0.0, 3.0))
+        explicit = _cells(CellEdges(width[0]), _SLAB, (0.0, 3.0))
+        np.testing.assert_array_equal(explicit[0], width[0])
+        assert not np.array_equal(explicit[1], width[1])
 
-    def test_the_nesting_refusal_is_the_partitions(self):
-        with pytest.raises(ValueError, match="end edges must be the breakpoints, bit for bit"):
-            CellEdges(edges=_arrays([0.0, 0.5, _ONE_BELOW], [_ONE_BELOW, 2.0, 3.0])).partition(_G2)
-        with pytest.raises(ValueError, match="one for one"):
-            CellEdges(edges=_arrays([0.0, 0.5, 1.0])).partition(_G2)
+    def test_value_equality_and_hash(self):
+        """Equal edges from different objects are one value with one hash; a
+        one-ULP change of an edge is another value."""
+        x = CellEdges(np.array([0.0, 0.5, 1.0]))
+        y = CellEdges(np.array([0.0, 0.5, 1.0]))
+        z = CellEdges(np.array([0.0, float(np.nextafter(0.5, 1.0)), 1.0]))
+        assert x == y and hash(x) == hash(y)
+        assert x != z
+        assert len({x, y, z}) == 2
+        assert (x == [0.0, 0.5, 1.0]) is False
 
+    def test_negative_zero_is_canonicalised(self):
+        """qa F4: ``-0.0`` and ``+0.0`` are one position, so one value with
+        one hash, and the stored bit is ``+0.0``."""
+        x = CellEdges(np.array([-0.0, 1.0]))
+        assert not np.signbit(x.edges[0])
+        assert x == CellEdges(np.array([0.0, 1.0])) and hash(x) == hash(CellEdges(np.array([0.0, 1.0])))
 
-# ─────────────────────────────────────────────────────────────────────
-# Posing seed 2 — every cell lies in exactly one interval
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _rules_on_three_intervals() -> list:
-    return [
-        pytest.param(CellsByCount(_THREE_COUNTS, EqualWidth()), id="count-width"),
-        pytest.param(CellsByCount(_THREE_COUNTS, EqualVolume()), id="count-volume"),
-        pytest.param(CellsByMaxWidth((0.07, 0.3, 0.11), EqualVolume()), id="max-width-volume"),
-        pytest.param(2 * CellsByMaxWidth(0.13, EqualWidth()), id="refined-max-width"),
-        pytest.param(
-            CellEdges(edges=_arrays([0.0, 0.17, 0.5], [0.5, 0.9, 1.3, 1.5], [1.5, 2.0])),
-            id="cell-edges",
-        ),
-    ]
-
-
-class TestEveryCellInExactlyOneInterval:
-    r"""The posing sequence's seed 2, stated on the partition (step 3a): the
-    partition refines the material partition, so every flat cell lies in
-    exactly one interval, the one whose material it will carry. The
-    mesh-level leg (``mesh.mat_ids`` is each interval's material broadcast
-    over its cells) is step 3b's.
-
-    Claim kind: THEOREM. The owner of each flat cell is decided twice,
-    independently: from the partition's grouping (``cell_counts``), and from
-    containment in the geometry's breakpoints. Mutation witness: a flat
-    ``all_edges`` that keeps each shared breakpoint twice → a zero-width
-    cell lies in two intervals and the containment count reads 2.
-    """
-
-    @pytest.mark.rests_on(f"{_HERE}::TestNesting::test_cells_by_count_nests")
-    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    @pytest.mark.parametrize("rule", _rules_on_three_intervals())
-    def test_every_cell_in_exactly_one_interval(self, coord, rule):
-        g = _geometry(coord, _THREE_BREAKPOINTS)
-        partition = rule.partition(g)
-        flat = partition.all_edges
-        n_cells = sum(partition.cell_counts)
-        assert len(flat) == n_cells + 1
-        assert len(partition.all_measures) == n_cells
-        np.testing.assert_array_equal(
-            partition.all_measures, np.concatenate(partition.measures),
-        )
-        left, right = flat[:-1], flat[1:]
-        r = np.asarray(g.breakpoints)
-        contained = (r[None, :-1] <= left[:, None]) & (right[:, None] <= r[None, 1:])
-        np.testing.assert_array_equal(contained.sum(axis=1), np.ones(n_cells, dtype=int))
-        owner = np.repeat(np.arange(len(g.mat_ids)), partition.cell_counts)
-        np.testing.assert_array_equal(np.argmax(contained, axis=1), owner)
-        offsets = np.concatenate([[0], np.cumsum(partition.cell_counts)])
-        np.testing.assert_array_equal(flat[offsets], r)
+    def test_the_edges_are_copied_and_read_only(self):
+        source = np.array([0.0, 0.5, 1.0])
+        x = CellEdges(source)
+        source[1] = 0.25
+        assert x.edges[1] == 0.5
+        assert not x.edges.flags.writeable
+        returned, _ = x.cells(_geometry(_SLAB, (0.0, 1.0)), (0.0, 1.0))
+        assert returned is not x.edges
 
 
-# ─────────────────────────────────────────────────────────────────────
-# The spacing rules are values
-# ─────────────────────────────────────────────────────────────────────
+@pytest.mark.parametrize("rule", [
+    pytest.param(CellsByCount(2, EqualWidth()), id="cells-by-count"),
+    pytest.param(CellsByMaxWidth(0.5, EqualVolume()), id="cells-by-max-width"),
+    pytest.param(2 * CellsByMaxWidth(0.5, EqualVolume()), id="refined"),
+    pytest.param(CellEdges(np.array([0.0, 0.4, 1.0])), id="cell-edges"),
+])
+def test_every_rule_is_an_interval_rule(rule):
+    """Claim kind: THEOREM. Every rule answers ``cells(geometry, interval)``."""
+    assert isinstance(rule, IntervalRule)
+    edges, measures = rule.cells(_geometry(_SPHERE, (0.0, 1.0)), (0.0, 1.0))
+    assert len(edges) == len(measures) + 1
 
 
 def test_the_spacing_rules_are_values():
-    """Claim kind: THEOREM. Two instances of one spacing rule are equal, the
-    two rules are not (the string tags they replace are refused by the
-    rules' ``string-spacing`` rows)."""
+    """Claim kind: THEOREM."""
     assert EqualWidth() == EqualWidth()
     assert EqualVolume() == EqualVolume()
     assert EqualWidth() != EqualVolume()
     assert isinstance(EqualWidth(), Spacing) and isinstance(EqualVolume(), Spacing)
+    assert EqualWidth().coordinate(_SPHERE) == MeasureCoordinate(1)
+    assert EqualVolume().coordinate(_SPHERE) == MeasureCoordinate(3)
