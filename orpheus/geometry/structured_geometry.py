@@ -369,7 +369,6 @@ class StructuredGeometry:
         r_fuel: float = 0.9,
         r_clad: float = 1.1,
         pitch: float = 3.6,
-        boundaries: "tuple[BC | BoundaryTraceLaw, ...]" = (BC("white"),),
     ) -> "StructuredGeometry":
         r"""Wigner–Seitz equivalent pin-cell geometry.
 
@@ -382,9 +381,12 @@ class StructuredGeometry:
 
         cut at the fuel and cladding radii: breakpoints
         :math:`(0, r_{\rm fuel}, r_{\rm clad}, r_{\rm cell})`, material
-        ids fuel ``2``, cladding ``1``, coolant ``0``. The default outer
-        law is ``BC("white")``, the unit-cell symmetry assumption that
-        maps a periodic lattice to one cell with isotropic re-entry.
+        ids fuel ``2``, cladding ``1``, coolant ``0``. The outer law is
+        ``BC("white")``, and it is part of the model, not a default: the
+        Wigner–Seitz cell IS the cylindricalised lattice cell with isotropic
+        re-entry at its outer surface, the assumption that maps a periodic
+        lattice to one cell. The same radii under another law are a
+        different body, built with :meth:`cylinder`.
 
         Parameters
         ----------
@@ -392,16 +394,13 @@ class StructuredGeometry:
             The fuel-pellet and cladding outer radii (cm).
         pitch : float
             The square unit cell's side (cm).
-        boundaries : tuple
-            The law at the outer surface, a 1-tuple (the cylinder is
-            solid).
         """
         r_cell = float(pitch / np.sqrt(np.pi))
         return cls(
             coord=CoordSystem.CYLINDRICAL,
             breakpoints=(0.0, float(r_fuel), float(r_clad), r_cell),
             mat_ids=(2, 1, 0),
-            boundaries=boundaries,
+            boundaries=(BC("white"),),
         )
 
     @classmethod
@@ -411,9 +410,6 @@ class StructuredGeometry:
         fuel_half: float = 0.9,
         clad_thick: float = 0.2,
         cool_thick: float = 0.7,
-        boundaries: "tuple[BC | BoundaryTraceLaw, ...]" = (
-            BC("reflective"), BC("reflective"),
-        ),
     ) -> "StructuredGeometry":
         r"""Cartesian 1-D PWR half-cell geometry: fuel | clad | coolant.
 
@@ -421,23 +417,23 @@ class StructuredGeometry:
         the slab starts at the symmetry plane :math:`x = 0` and crosses
         half the fuel, the cladding and the coolant to the unit-cell
         boundary. Material ids fuel ``2``, cladding ``1``, coolant ``0``.
-        The default laws are reflective on both faces, the infinite-
-        lattice convention; ``(reflective, white)`` models an isolated
-        cell with isotropic re-entry on the coolant face.
+        Both faces are reflective, and that is part of the model, not a
+        default: the fuel centreline and the unit-cell boundary are both
+        symmetry planes of the infinite lattice the half cell stands for.
+        The same stack under other laws (an isolated cell, say, white on
+        the coolant face) is a different body, built with :meth:`slab`.
 
         Parameters
         ----------
         fuel_half, clad_thick, cool_thick : float
             Half the fuel thickness, the cladding and the coolant
             thicknesses (cm).
-        boundaries : tuple
-            ``(left, right)`` laws.
         """
         return cls.from_thicknesses(
             coord=CoordSystem.CARTESIAN,
             thicknesses=(fuel_half, clad_thick, cool_thick),
             mat_ids=(2, 1, 0),
-            boundaries=boundaries,
+            boundaries=(BC("reflective"), BC("reflective")),
         )
 
 
@@ -517,6 +513,41 @@ def _check_boundaries(geometry: StructuredGeometry) -> None:
     )
 
 
+def parse_boundary_law(law: object, where: str) -> "BC | BoundaryTraceLaw":
+    """One boundary law: a ``BC`` tag or a typed ``BoundaryTraceLaw``, never ``None``.
+
+    The one check of a single boundary declaration, shared by the geometry,
+    both meshes and both axis classes.
+
+    **Why the law arm exists.** A ``BC`` tag is
+    ``(kind: str, params: dict[str, float])``, structurally unable to carry a
+    law whose content is a FUNCTION: a
+    :class:`~orpheus.geometry.boundary.PrescribedInflow` whose source is a
+    manufactured solution restricted to a face has no tag spelling. Declaring
+    such a law on the mesh is what lets it survive the public solver entries,
+    which rebuild the method mesh from the declaration: the shared
+    :func:`~orpheus.transport.method.resolve_boundary_conditions` reads the
+    declared law, so a law reaches the realizer through the path a tag does.
+    The tag remains the spelling for everything expressible as one: it is
+    serialisable, comparable, and the input-deck surface.
+    """
+    # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
+    # THIS module, so a top-level import cycles.
+    from orpheus.geometry.boundary import BoundaryTraceLaw
+
+    if law is None:
+        raise TypeError(
+            f"{where} is None, and None is not a boundary law: "
+            f"declare the law the boundary carries."
+        )
+    if not isinstance(law, (BC, BoundaryTraceLaw)):
+        raise TypeError(
+            f"{where} must be a BC tag or a BoundaryTraceLaw "
+            f"instance, got {type(law).__name__}"
+        )
+    return law
+
+
 def parse_boundary_laws(
     laws: "tuple[object, ...]",
     coord: CoordSystem,
@@ -526,29 +557,18 @@ def parse_boundary_laws(
 ) -> "tuple[BC | BoundaryTraceLaw, ...]":
     """One law per boundary point of ``[r_0, r_R]`` in ``coord``, or a keyed refusal.
 
-    The one check of a boundary declaration, for the geometry's laws and a
-    mesh's face laws alike: each law is a ``BC`` tag or a typed
-    ``BoundaryTraceLaw`` (``None`` is not a law), and there is one per
-    :meth:`CoordSystem.boundary_points`.
+    The check of the geometry's boundary declaration: each law passes
+    :func:`parse_boundary_law`, and there is one per
+    :meth:`CoordSystem.boundary_points`. A mesh's face laws are checked by
+    :meth:`~orpheus.mesh.face_laws.FaceLaws.over` against the same
+    boundary points, named.
     """
-    # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
-    # THIS module, so a top-level import cycles.
-    from orpheus.geometry.boundary import BoundaryTraceLaw
-
-    for k, law in enumerate(laws):
-        if law is None:
-            raise TypeError(
-                f"{where}[{k}] is None, and None is not a boundary law: "
-                f"declare the law the boundary point carries."
-            )
-        if not isinstance(law, (BC, BoundaryTraceLaw)):
-            raise TypeError(
-                f"{where}[{k}] must be a BC tag or a BoundaryTraceLaw "
-                f"instance, got {type(law).__name__}"
-            )
+    parsed = tuple(
+        parse_boundary_law(law, f"{where}[{k}]") for k, law in enumerate(laws)
+    )
     points = coord.boundary_points(r_0, r_R)
-    if len(laws) == len(points):
-        return laws  # type: ignore[return-value]  # every entry checked above
+    if len(parsed) == len(points):
+        return parsed
     if coord is CoordSystem.CARTESIAN:
         reason = "a slab has two boundary points (left, right)"
     elif len(points) == 1:
@@ -570,5 +590,6 @@ def parse_boundary_laws(
 
 __all__ = [
     "StructuredGeometry",
+    "parse_boundary_law",
     "parse_boundary_laws",
 ]

@@ -114,8 +114,12 @@ def _cartesian_2d_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),     # non-uniform
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
         mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(
@@ -383,8 +387,12 @@ def _ld_mesh(geometry: str) -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
         mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(geom, quad, materials, scheme=LinearDiscontinuous())

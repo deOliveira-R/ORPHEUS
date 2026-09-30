@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -70,6 +71,10 @@ def test_do_mesh_convergence(ng_key, label):
             edges_x=np.linspace(0, nx * delta, nx + 1),
             edges_y=np.linspace(0, ny * delta, ny + 1),
             mat_map=mat,
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         result = solve_sn(
             materials, mesh, quad,

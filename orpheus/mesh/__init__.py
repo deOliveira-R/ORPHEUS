@@ -55,6 +55,7 @@ from orpheus.mesh.partition import (
     Spacing,
 )
 from orpheus.mesh.mesher import Mesher
+from orpheus.mesh.face_laws import FaceLaws, face_inventory
 from orpheus.mesh.structured import Mesh1D, Mesh2D
 
 __all__ = [
@@ -69,6 +70,8 @@ __all__ = [
     "EqualWidth",
     "FaceLabel",
     "IntervalRule",
+    "FaceLaws",
+    "face_inventory",
     "Mesh1D",
     "Mesh2D",
     "Mesher",

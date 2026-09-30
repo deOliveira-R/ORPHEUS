@@ -816,7 +816,8 @@ class TestP4RemTheProducerBindsTheAxis:
         from orpheus.mesh import AxisMesh
 
         axes = tuple(
-            AxisMesh(edges=np.linspace(0.0, ext, n + 1))
+            AxisMesh(edges=np.linspace(0.0, ext, n + 1),
+                     bc_low=BC.reflective, bc_high=BC.reflective)
             for ext, n in zip((1.0, 2.0), (2, 3))
         )
         sn = SNProblem.from_axes(

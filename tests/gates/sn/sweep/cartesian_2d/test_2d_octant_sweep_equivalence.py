@@ -224,10 +224,10 @@ compared — the four face views — and nothing more.
 def _build_2d_mesh(
     nx: int,
     ny: int,
-    bc_xmin: str,
-    bc_xmax: str,
-    bc_ymin: str,
-    bc_ymax: str,
+    xmin: str,
+    xmax: str,
+    ymin: str,
+    ymax: str,
     *,
     n_materials: int = 1,
 ) -> Mesh2D:
@@ -251,20 +251,22 @@ def _build_2d_mesh(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat_map,
-        bc_xmin=BC(bc_xmin),
-        bc_xmax=BC(bc_xmax),
-        bc_ymin=BC(bc_ymin),
-        bc_ymax=BC(bc_ymax),
+        face_laws={
+            "xmin": BC(xmin),
+            "xmax": BC(xmax),
+            "ymin": BC(ymin),
+            "ymax": BC(ymax),
+        },
     )
 
 
 def _build_sn_mesh(
     nx: int = 3,
     ny: int = 3,
-    bc_xmin: str = "vacuum",
-    bc_xmax: str = "vacuum",
-    bc_ymin: str = "vacuum",
-    bc_ymax: str = "vacuum",
+    xmin: str = "vacuum",
+    xmax: str = "vacuum",
+    ymin: str = "vacuum",
+    ymax: str = "vacuum",
     quadrature: str = "LS4",
     n_materials: int = 1,
     ng: int = 1,
@@ -272,8 +274,8 @@ def _build_sn_mesh(
     """Build a 3×3 Cartesian SNProblem wired for the 2-D wavefront sweep."""
     mesh = _build_2d_mesh(
         nx, ny,
-        bc_xmin=bc_xmin, bc_xmax=bc_xmax,
-        bc_ymin=bc_ymin, bc_ymax=bc_ymax,
+        xmin=xmin, xmax=xmax,
+        ymin=ymin, ymax=ymax,
         n_materials=n_materials,
     )
     if quadrature == "LS4":
@@ -475,8 +477,8 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="vacuum", bc_xmax="vacuum",
-        bc_ymin="vacuum", bc_ymax="vacuum",
+        xmin="vacuum", xmax="vacuum",
+        ymin="vacuum", ymax="vacuum",
         quadrature="LS4", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
@@ -514,8 +516,8 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="reflective", bc_xmax="reflective",
-        bc_ymin="reflective", bc_ymax="reflective",
+        xmin="reflective", xmax="reflective",
+        ymin="reflective", ymax="reflective",
         quadrature="LS4", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
@@ -571,8 +573,8 @@ def _case_3_mixed_bc_het() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="reflective", bc_xmax="vacuum",
-        bc_ymin="reflective", bc_ymax="vacuum",
+        xmin="reflective", xmax="vacuum",
+        ymin="reflective", ymax="vacuum",
         quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
@@ -603,8 +605,8 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="vacuum", bc_xmax="vacuum",
-        bc_ymin="vacuum", bc_ymax="vacuum",
+        xmin="vacuum", xmax="vacuum",
+        ymin="vacuum", ymax="vacuum",
         quadrature="LS6", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
@@ -655,8 +657,8 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="reflective", bc_xmax="vacuum",
-        bc_ymin="reflective", bc_ymax="vacuum",
+        xmin="reflective", xmax="vacuum",
+        ymin="reflective", ymax="vacuum",
         quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
@@ -709,8 +711,8 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="vacuum", bc_xmax="vacuum",
-        bc_ymin="vacuum", bc_ymax="vacuum",
+        xmin="vacuum", xmax="vacuum",
+        ymin="vacuum", ymax="vacuum",
         quadrature="Lebedev5", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
@@ -796,8 +798,8 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     """
     problem = _build_sn_mesh(
         nx=3, ny=3,
-        bc_xmin="reflective", bc_xmax="reflective",
-        bc_ymin="reflective", bc_ymax="reflective",
+        xmin="reflective", xmax="reflective",
+        ymin="reflective", ymax="reflective",
         quadrature="LS4", n_materials=1,
     )
     # "C" mixture = strong absorber, minimal scattering — closest
@@ -1048,7 +1050,6 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
             (inputs.problem.quad.N, *inputs.Q.shape),
         ).copy(),
         scattering_order=0,
-        boundary_condition="reflective",
         # Wave O #208 O.4b E1/E2: the 2-D sweep is now BARE — the reflective
         # coupling is the EXTERNAL reflect_outflow_into_inflow applied once per
         # source iteration (inter-sweep, Jacobi-like on the boundary), replacing

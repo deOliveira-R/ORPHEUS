@@ -263,6 +263,7 @@ class TestN2NActivationInProductionRate:
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 0.8, 5), edges_y=np.linspace(0.0, 0.6, 4),
             mat_map=np.zeros((4, 3), dtype=int),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}))
         ng = solver.ng

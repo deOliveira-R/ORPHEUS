@@ -44,6 +44,10 @@ from orpheus.numerics.quadrature import Quadrature
 # software invariants that the verification ladder depends on.
 pytestmark = [pytest.mark.foundation]
 
+# The law every axis here declares where its subject is not the boundary: every
+# consumer resolved an undeclared face to it before step 3c (#405).
+_REFLECTIVE = BC("reflective")
+
 
 # ─── Fixtures ────────────────────────────────────────────────────────────
 
@@ -71,11 +75,11 @@ def _level_symmetric_quad_2d(order: int = 4):
 
 def test_f0_1_axismesh_endpoints_min_max() -> None:
     """AxisMesh's two endpoints are ``min`` and ``max`` (Cartesian convention)."""
-    ax = AxisMesh(edges=np.linspace(0.0, 1.0, 16))
+    ax = AxisMesh(edges=np.linspace(0.0, 1.0, 16), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE)
     assert ax.endpoints == ("min", "max")
     assert ax.coord == AxisCoord.CARTESIAN
     assert ax.n == 15  # n derived from len(edges) - 1
-    assert ax.bc == {"min": None, "max": None}
+    assert ax.bc == {"min": _REFLECTIVE, "max": _REFLECTIVE}  # the declaration, keyed by endpoint
 
 
 def test_f0_1_axismesh_endpoints_relabelable() -> None:
@@ -92,7 +96,7 @@ def test_f0_1_axismesh_endpoints_relabelable() -> None:
 def test_f0_1_axismesh_monotonicity_validated() -> None:
     """Non-monotonic edges raise at construction."""
     with pytest.raises(ValueError, match="monotonically increasing"):
-        AxisMesh(edges=np.array([0.0, 1.0, 0.5]))
+        AxisMesh(edges=np.array([0.0, 1.0, 0.5]), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE)
 
 
 # ─── F0.2 ────────────────────────────────────────────────────────────────
@@ -127,7 +131,7 @@ def test_f0_2_radial_axismesh_rejects_cartesian_coord() -> None:
     with pytest.raises(ValueError, match="RADIAL_SPHERICAL or RADIAL_CYLINDRICAL"):
         RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 6),
-            coord=AxisCoord.CARTESIAN,
+            coord=AxisCoord.CARTESIAN, bc_outer=_REFLECTIVE,
         )
 
 
@@ -137,8 +141,8 @@ def test_f0_2_radial_axismesh_rejects_cartesian_coord() -> None:
 def test_f0_3_from_axes_2d_cartesian_shape_and_face_labels() -> None:
     """SNProblem.from_axes 2-D Cart: shape (nx, ny) + 4 face labels."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 11)),  # n=10
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 11), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=10
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=7
     )
     mesh = SNProblem.from_axes(
         axes,
@@ -207,8 +211,8 @@ def test_f0_4_slab_1d_has_two_face_labels() -> None:
 def test_f0_5_face_shape_2d_each_face() -> None:
     """face_shape: the face on axis-i has shape over the OTHER axis."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),   # n=5
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=5
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=7
     )
     assert face_shape(axes, FaceLabel(0, "min")) == (7,)
     assert face_shape(axes, FaceLabel(0, "max")) == (7,)
@@ -219,9 +223,9 @@ def test_f0_5_face_shape_2d_each_face() -> None:
 def test_f0_5_face_shape_3d_synthetic() -> None:
     """3-D synthetic: face on axis-1 has shape over (axis-0, axis-2)."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),   # n=5
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
-        AxisMesh(edges=np.linspace(0.0, 1.0, 10)),  # n=9
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=5
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 10), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=9
     )
     assert face_shape(axes, FaceLabel(0, "min")) == (7, 9)
     assert face_shape(axes, FaceLabel(1, "min")) == (5, 9)
@@ -232,7 +236,7 @@ def test_f0_5_face_shape_radial_solid_no_inner_face() -> None:
     """Solid radial mesh has only the outer face; shape is empty tuple."""
     axes = (RadialAxisMesh(
         edges=np.linspace(0.0, 1.0, 11),
-        coord=AxisCoord.RADIAL_SPHERICAL,
+        coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
     ),)
     labels = face_labels(axes)
     assert labels == (FaceLabel(0, "outer"),)
@@ -244,7 +248,7 @@ def test_f0_5_face_shape_radial_solid_no_inner_face() -> None:
 
 def test_f0_6_face_outflow_ordinates_matches_inline_expression_1d() -> None:
     """Outflow ordinate mask matches np.where(sign * mu > 1e-15)."""
-    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11)),)
+    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_max = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
     out_min = face_outflow_ordinates(axes, FaceLabel(0, "min"), quad)
@@ -257,8 +261,8 @@ def test_f0_6_face_outflow_ordinates_matches_inline_expression_1d() -> None:
 def test_f0_6_face_outflow_ordinates_2d_LS4() -> None:
     """2-D LS4: outflow at each face is the half-sphere of that axis."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
     )
     quad = _level_symmetric_quad_2d(order=4)
     out_xmax = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
@@ -275,7 +279,7 @@ def test_f0_6_face_outflow_ordinates_radial() -> None:
     """Solid sphere outer-face outflow uses the polar GL cosines."""
     axes = (RadialAxisMesh(
         edges=np.linspace(0.0, 1.0, 11),
-        coord=AxisCoord.RADIAL_SPHERICAL,
+        coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
     ),)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_outer = face_outflow_ordinates(axes, FaceLabel(0, "outer"), quad)
@@ -295,9 +299,9 @@ def test_f0_7_synthetic_3d_admission_six_face_labels() -> None:
     followup once :class:`Mesh3D` is in tree.
     """
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),   # n=5
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
-        AxisMesh(edges=np.linspace(0.0, 1.0, 10)),  # n=9
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=5
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 10), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=9
     )
     assert spatial_shape(axes) == (5, 7, 9)
     labels = face_labels(axes)
@@ -328,9 +332,9 @@ def test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty() -> None:
     zeros.
     """
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     # GL1D's measure is 1-D scalar — only axis 0 carries real cosines.
@@ -353,9 +357,9 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
     same shape contract as axis-0 / axis-1.
     """
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
     )
     quad = _level_symmetric_quad_2d(order=4)
     out_zmax = face_outflow_ordinates(axes, FaceLabel(2, "max"), quad)
@@ -372,7 +376,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
 
 def test_f0_8_n_unknowns_flat_slab() -> None:
     """Slab 1-D: n_cells + outflow at min + outflow at max."""
-    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11)),)  # n=10
+    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),)  # n=10
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
@@ -405,8 +409,8 @@ def test_f0_8_n_unknowns_flat_sphere() -> None:
 def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
     """2-D Cart: n_cells + (xmin + xmax) faces over y + (ymin + ymax) over x."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),  # n=5
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),  # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=5
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=7
     )
     quad = _level_symmetric_quad_2d(order=4)
     mesh = SNProblem.from_axes(
@@ -433,9 +437,9 @@ def test_f0_8_n_unknowns_flat_synthetic_3d() -> None:
     non-empty for this 3-D admission gate.
     """
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 6)),   # n=5
-        AxisMesh(edges=np.linspace(0.0, 1.0, 8)),   # n=7
-        AxisMesh(edges=np.linspace(0.0, 1.0, 10)),  # n=9
+        AxisMesh(edges=np.linspace(0.0, 1.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=5
+        AxisMesh(edges=np.linspace(0.0, 1.0, 8), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),   # n=7
+        AxisMesh(edges=np.linspace(0.0, 1.0, 10), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),  # n=9
     )
     quad = _level_symmetric_quad_2d(order=4)
     ng = 1

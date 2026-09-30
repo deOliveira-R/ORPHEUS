@@ -60,6 +60,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -95,6 +96,7 @@ def solver_2g_case() -> tuple[SNSolver, dict, SNProblem, Quadrature]:
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=mat,
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.lebedev(order=17)
     problem = SNProblem(mesh, quad, materials)

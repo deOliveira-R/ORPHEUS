@@ -253,7 +253,7 @@ def test_ciii_coarse_sphere_fixed_source_finite_positive():
     for driver in ("source_iteration", "krylov"):
         sol = solve_sn_fixed_source(
             materials, mesh, Quadrature.gauss_legendre(8), source,
-            boundary_condition="vacuum", inner_solver=driver,
+            inner_solver=driver,
         )
         flux = np.asarray(sol.scalar_flux.values)
         assert np.all(np.isfinite(flux)), f"[{driver}] non-finite flux"

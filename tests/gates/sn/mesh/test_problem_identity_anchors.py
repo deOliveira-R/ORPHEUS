@@ -93,14 +93,14 @@ _SHARED_QUAD = Quadrature.level_symmetric(sn_order=4)
 _SHARED_MATS = _mats()
 
 
-def _axes(d: int, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(None, None)):
+def _axes(d: int, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(BC.reflective, BC.reflective)):
     return tuple(
         AxisMesh(edges=np.linspace(0.0, e, n + 1), bc_low=bc[0], bc_high=bc[1])
         for e, n in list(zip(extents, cells))[:d]
     )
 
 
-def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(None, None),
+def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(BC.reflective, BC.reflective),
          quad=None, mats=None, scheme=None, mat_map=None) -> SNProblem:
     """A hub over the SHARED quadrature and materials — the spatial leg isolated."""
     return SNProblem.from_axes(

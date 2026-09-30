@@ -95,8 +95,12 @@ def _ld2d_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
         edges_y=np.array([0.0, 0.9, 2.0]),
         mat_map=np.zeros((3, 2), dtype=int),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=2),

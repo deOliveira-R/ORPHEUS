@@ -129,12 +129,10 @@ def _reflective_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
 def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     """B-mixture VACUUM slab fixture (G-4 negative control).
 
-    IMPORTANT: the BC must be baked into the mesh as ``BC.vacuum`` — the
-    ``boundary_condition=`` kwarg of ``solve_sn_fixed_source`` is IGNORED
-    when the mesh carries explicit BC fields (per its docstring: "When the
-    mesh carries explicit BC fields, those take precedence").  A reflective
-    mesh + ``boundary_condition="vacuum"`` silently re-solves REFLECTIVE
-    (655, not 128) — the latent bug this fixture exists to avoid.
+    The vacuum law is declared on the geometry's two faces, the only place
+    a boundary law is declared: ``solve_sn_fixed_source`` takes no boundary
+    argument.  A reflective mesh here would re-solve REFLECTIVE (655 sweeps,
+    not 128), which is the mistake this fixture exists to avoid.
     """
     m = get_mixture(mat, ng_key)
     mats = {0: m}
@@ -154,7 +152,7 @@ def _iso_source(m, mesh, quad, mats):
     ).values
 
 
-def _si_count(mats, mesh, quad, source, bc="reflective", tol=_TOL, schedule="gauss_seidel"):
+def _si_count(mats, mesh, quad, source, tol=_TOL, schedule="gauss_seidel"):
     """SI sweep count to reach ``tol`` under ``schedule`` (asserts convergence).
 
     ``schedule`` selects the BOUNDARY splitting: ``"jacobi"`` lags ``B`` fully;
@@ -163,7 +161,7 @@ def _si_count(mats, mesh, quad, source, bc="reflective", tol=_TOL, schedule="gau
     identical; only the iteration count differs.
     """
     sol = solve_sn_fixed_source(
-        mats, mesh, quad, source, boundary_condition=bc,
+        mats, mesh, quad, source,
         inner_solver="source_iteration", inner_schedule=schedule,
         max_inner=20000, inner_tol=tol,
     )
@@ -209,8 +207,12 @@ def test_boundary_gs_recovers_reflective_2d_si():
         return Mesh2D(
             edges_x=edges, edges_y=edges,
             mat_map=np.zeros((nx, ny), dtype=int),
-            bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-            bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+            face_laws={
+                "xmin": BC.reflective,
+                "xmax": BC.reflective,
+                "ymin": BC.reflective,
+                "ymax": BC.reflective,
+            },
         )
 
     quad = Quadrature.product(n_mu=2, n_phi=4)
@@ -218,7 +220,7 @@ def test_boundary_gs_recovers_reflective_2d_si():
 
     def _solve(schedule, solver_kind="source_iteration"):
         return solve_sn_fixed_source(
-            mats, _mesh(), quad, source, boundary_condition="reflective",
+            mats, _mesh(), quad, source,
             inner_solver=solver_kind, inner_schedule=schedule,
             max_inner=20000, inner_tol=_TOL,
         )
@@ -313,7 +315,7 @@ def test_jacobi_si_far_above_krylov_lower_bound():
     source = _iso_source(m, mesh, quad, mats)
     n_si = _si_count(mats, mesh, quad, source, tol=1e-10, schedule="jacobi")
     sol_k = solve_sn_fixed_source(
-        mats, mesh, quad, source, boundary_condition="reflective",
+        mats, mesh, quad, source,
         inner_solver="krylov", max_inner=20000, inner_tol=1e-10,
     )
     n_krylov = sol_k.record.n_iterations
@@ -374,11 +376,11 @@ def test_recovery_si_matches_krylov_fixed_point_2g():
     m, mats, mesh, quad = _reflective_slab("B", "2g")
     source = _iso_source(m, mesh, quad, mats)
     sol_si = solve_sn_fixed_source(
-        mats, mesh, quad, source, boundary_condition="reflective",
+        mats, mesh, quad, source,
         inner_solver="source_iteration", max_inner=20000, inner_tol=1e-10,
     )
     sol_k = solve_sn_fixed_source(
-        mats, mesh, quad, source, boundary_condition="reflective",
+        mats, mesh, quad, source,
         inner_solver="krylov", max_inner=20000, inner_tol=1e-10,
     )
     phi_si = sol_si.scalar_flux.values
@@ -402,7 +404,7 @@ def test_recovery_flat_flux_balance_limit():
     m, mats, mesh, quad = _reflective_slab("B", "2g")
     source = _iso_source(m, mesh, quad, mats)
     sol = solve_sn_fixed_source(
-        mats, mesh, quad, source, boundary_condition="reflective",
+        mats, mesh, quad, source,
         inner_solver="source_iteration", max_inner=20000, inner_tol=1e-12,
     )
     phi = sol.scalar_flux.values  # (ng, *spatial)
@@ -425,12 +427,11 @@ def test_recovery_vacuum_count_unchanged():
     (~128, +/-2).  Proves the recovery touches ONLY reflective coupling.
     PASSES on both Jacobi and G-S (the count is identical).
 
-    The mesh is built with EXPLICIT ``BC.vacuum`` (see ``_vacuum_slab``) —
-    NOT a reflective mesh + ``boundary_condition="vacuum"`` (which is
-    silently ignored and would re-solve reflective at 655)."""
+    The mesh declares ``BC.vacuum`` on both faces (see ``_vacuum_slab``);
+    a reflective mesh would re-solve reflective at 655 sweeps."""
     m, mats, mesh, quad = _vacuum_slab("B", "2g")
     source = _iso_source(m, mesh, quad, mats)
-    n_inner = _si_count(mats, mesh, quad, source, bc="vacuum")
+    n_inner = _si_count(mats, mesh, quad, source)
     assert abs(n_inner - _N_JACOBI_VACUUM_2G) <= 2, (
         f"vacuum SI count {n_inner} drifted from baseline "
         f"{_N_JACOBI_VACUUM_2G} — the recovery wrongly altered the bare "

@@ -68,8 +68,12 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
         edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((4, 4), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     # Genuine 2-D Cartesian reflective box ⟹ O_h symmetry. The SN-canonical
     # level-symmetric set is the right tool; Lebedev is the SO(3) moment
@@ -128,8 +132,12 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
         edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     # SI-vs-Krylov EQUIVALENCE on a genuine 2-D Cartesian (8×4, fuel|mod,
     # vacuum-x/reflective-y) heterogeneous case ⟹ O_h symmetry. Both inners

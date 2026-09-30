@@ -51,15 +51,20 @@ carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
 (e.g. ``{"albedo": 0.7}``). The meshes of :doc:`/api/mesh` store a
 ``BC`` tag or an already-typed boundary law on each boundary face:
 :class:`~orpheus.mesh.structured.Mesh1D` has ``face_laws``, one per
-boundary point of its interval, inner first;
-:class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``,
-``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. A
-:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` and a
-``Mesh1D`` refuse ``None``, because a declaration states the problem and
-a default is a method's. On a ``Mesh2D`` face a value of ``None`` still
-means "use the solver's default" (the shared resolution of S\ :sub:`N`
-and diffusion reads it as reflective) until
-step 3c of #405 retires it there too.
+boundary face, keyed by face name (``xmin`` and ``xmax``, or ``xmax``
+alone on a solid cylinder or sphere);
+:class:`~orpheus.mesh.structured.Mesh2D` has ``face_laws`` over its
+faces ``xmin``, ``xmax``, ``ymin``, ``ymax`` (no ``xmin`` on a solid
+:math:`(r, z)` mesh). Both are one value,
+:class:`~orpheus.mesh.face_laws.FaceLaws`. A
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, both
+meshes and the S\ :sub:`N` axis primitives refuse ``None``, through one
+element parser,
+:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`,
+because a declaration states the problem and a default is a method's.
+No method fills an unstated face: the shared resolution of
+S\ :sub:`N` and diffusion reads the declared law and nothing else
+(:ref:`structured-geometry-no-default-law`).
 
 The geometry module makes **no assumptions** about what a given
 ``kind`` means physically. Semantics are resolved by each method's own
@@ -140,10 +145,10 @@ defined in :mod:`orpheus.geometry.boundary` and exported from
    bc_a = BC("albedo", params={"albedo": 0.7})
 
    # Declare each boundary point's law on the geometry; the mesher
-   # carries the laws onto the mesh's faces, inner (left) first.
+   # carries the laws onto the mesh's named faces.
    geom = StructuredGeometry.slab((0.0, 10.0), (0,), left=BC.reflective, right=BC.vacuum)
    mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
-   assert mesh.face_laws == (BC.reflective, BC.vacuum)
+   assert mesh.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum}
    assert mesh.outer_law == BC.vacuum
 
 Three convenience class-level instances are pre-defined:
@@ -241,13 +246,21 @@ ship as :class:`StructuredGeometry` classmethods:
 * :meth:`StructuredGeometry.pwr_slab_half_cell
   <orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell>`
   — Cartesian 3-region (fuel / clad / coolant) half-cell starting at
-  the reflective symmetry plane :math:`x = 0`.
+  the reflective symmetry plane :math:`x = 0`. Both faces are
+  reflective, and that is part of the model (both are symmetry planes
+  of the lattice), not a parameter.
 * :meth:`StructuredGeometry.wigner_seitz_pin_cell
   <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
   — cylindrical Wigner--Seitz equivalent pin cell. The square unit
   cell of side *pitch* is replaced by a cylinder of equal
   cross-sectional area, :math:`r_{\rm cell} = {\rm pitch} /
-  \sqrt{\pi}`.
+  \sqrt{\pi}`. The outer law is white, and that is part of the model
+  (isotropic re-entry is what maps the lattice to one cylindrical
+  cell), not a parameter.
+
+Neither named cell takes a law: the same stack under another law is a
+different body, built with ``StructuredGeometry.slab`` or
+``StructuredGeometry.cylinder``.
 
 **Material ID convention:**
 ``2 = fuel``, ``1 = clad``, ``0 = coolant / moderator``. This

@@ -24,7 +24,8 @@ the geometry's regions and boundary laws onto the cells and faces.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass, field, replace
 
 import numpy as np
 
@@ -35,50 +36,7 @@ from orpheus.geometry.coord import (
     compute_volumes_2d,
 )
 from orpheus.geometry.scalars import parse_entries, parse_integer, parse_positions
-from orpheus.geometry.structured_geometry import parse_boundary_laws
-
-# ═══════════════════════════════════════════════════════════════════════
-# Boundary condition declaration
-# ═══════════════════════════════════════════════════════════════════════
-
-
-def _check_boundary_declaration(mesh: object, attrs: "tuple[str, ...]") -> None:
-    r"""Every boundary declaration is a ``BC`` tag OR an already-typed law.
-
-    One spelling for all six endpoint fields (``Mesh1D``'s two, ``Mesh2D``'s
-    four); before this it was two near-identical loops, and the widening would
-    otherwise have had to land in both.
-
-    **Why the law arm exists.** A ``BC`` tag is
-    ``(kind: str, params: dict[str, float])`` — structurally unable to carry a
-    law whose content is a FUNCTION. A
-    :class:`~orpheus.geometry.boundary.PrescribedInflow` whose source is a
-    manufactured solution restricted to a face has no tag spelling and never
-    will, so before this arm the only way to install one was to mutate a
-    constructed method-mesh's already-resolved ``bc`` dict — and every public
-    solver entry point then DISCARDED it, because they rebuild the method mesh
-    from the raw geometry (``solve_sn_fixed_source`` → ``_as_problem``).
-    Declaring on the GEOMETRY is what makes such a law survive that rebuild:
-    the shared
-    :func:`~orpheus.transport.method.resolve_boundary_conditions` body reads
-    this field, so a law declared here reaches the realizer through exactly the
-    path a tag does.
-
-    The tag remains the right spelling for everything expressible as one — it
-    is serialisable, comparable, and the input-deck surface. The law arm is for
-    the cases a float dict cannot reach, not a replacement.
-
-    """
-    for attr in attrs:
-        bc = getattr(mesh, attr)
-        if bc is not None and not isinstance(bc, (BC, BoundaryTraceLaw)):
-            raise TypeError(
-                f"{attr} must be a BC tag, a BoundaryTraceLaw instance, or "
-                f"None; got {type(bc).__name__}"
-            )
-
-
-
+from orpheus.mesh.face_laws import FaceLaws, face_inventory
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh1D
@@ -129,20 +87,20 @@ class Mesh1D:
         within :func:`_volume_ulps` ulp.
     mat_ids : array_like of int, shape (N,)
         The material id of each cell.
-    face_laws : tuple of BC or BoundaryTraceLaw
-        The law on each boundary face, inner first:
-        :meth:`CoordSystem.boundary_points` of ``(edges[0], edges[-1])``
-        (two on a slab or a hollow body, one on a solid cylinder or sphere,
-        whose centre carries no law). In 1-D each boundary point is one
-        face; the per-face form is the seed for 2-D, where one boundary is
-        several faces that may carry different laws.
+    face_laws : mapping of face name to BC or BoundaryTraceLaw
+        The law on each boundary face, over exactly the mesh's
+        :func:`~orpheus.mesh.face_laws.face_inventory`: ``xmin`` and ``xmax``
+        on a slab or a hollow body, ``xmax`` alone on a solid cylinder or
+        sphere, whose centre carries no law. Stored as a
+        :class:`~orpheus.mesh.face_laws.FaceLaws`, the value
+        :class:`Mesh2D` stores too.
     """
 
     coord: CoordSystem
     edges: np.ndarray
     volumes: np.ndarray
     mat_ids: np.ndarray
-    face_laws: "tuple[BC | BoundaryTraceLaw, ...]"
+    face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
 
     widths: np.ndarray = field(init=False, repr=False)
     centers: np.ndarray = field(init=False, repr=False)
@@ -193,9 +151,9 @@ class Mesh1D:
             raise ValueError(
                 f"Mesh1D.mat_ids: {n} cell(s) need {n} material id(s), got {len(mat_ids)}"
             )
-        face_laws = parse_boundary_laws(
-            parse_entries(self.face_laws, "Mesh1D.face_laws", "boundary laws"),
-            self.coord, float(edges[0]), float(edges[-1]), "Mesh1D.face_laws",
+        face_laws = FaceLaws.over(
+            face_inventory(self.coord, edges, 1), self.face_laws,
+            "Mesh1D.face_laws", self.coord,
         )
         mat_ids.flags.writeable = False
         widths = np.diff(edges)
@@ -233,14 +191,14 @@ class Mesh1D:
         return float(self.edges[-1] - self.edges[0])
 
     @property
-    def boundary_faces(self) -> tuple[float, ...]:
-        """The positions of the boundary faces, inner first, paired with :attr:`face_laws`."""
+    def boundary_points(self) -> tuple[float, ...]:
+        """The positions of the boundary faces, inner first, in the order of :attr:`face_laws`."""
         return self.coord.boundary_points(float(self.edges[0]), float(self.edges[-1]))
 
     @property
     def outer_law(self) -> "BC | BoundaryTraceLaw":
         r"""The law on the outer face, :math:`r = r_R` (a slab's right face)."""
-        return self.face_laws[-1]
+        return self.face_laws["xmax"]
 
     @property
     def volume_measure(self):
@@ -327,6 +285,15 @@ class Mesh1D:
 class Mesh2D:
     """Two-dimensional mesh: Cartesian (x, y) or cylindrical (r, z).
 
+    The boundary faces follow the one topology rule of
+    :func:`~orpheus.mesh.face_laws.face_inventory`, as :class:`Mesh1D`'s do:
+    along the first axis the :meth:`CoordSystem.boundary_points` of its edges
+    (both ends on (x, y) and on a hollow (r, z); only the outer surface on a
+    solid (r, z), whose axis :math:`r = 0` is interior and carries no law),
+    and along the second axis (y or z) both ends, named ``xmin``, ``xmax``,
+    ``ymin``, ``ymax``. A law per face, rather than per side, is the seed for
+    a side whose faces carry different laws.
+
     Parameters
     ----------
     edges_x : ndarray, shape (Nx+1,)
@@ -335,6 +302,13 @@ class Mesh2D:
         Edge positions in the second direction (y or z).
     mat_map : ndarray, shape (Nx, Ny)
         Integer material ID for each cell.
+    face_laws : mapping of face name to BC or BoundaryTraceLaw
+        Keyword-only. One law per boundary face of the mesh's
+        :func:`~orpheus.mesh.face_laws.face_inventory`, exactly: a missing
+        face and an extra face are both refused, and ``None`` is not a law
+        (:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`).
+        Stored as a :class:`~orpheus.mesh.face_laws.FaceLaws`, in inventory
+        order, the value :class:`Mesh1D` stores too.
     coord : CoordSystem
         ``CARTESIAN`` for (x, y) or ``CYLINDRICAL`` for (r, z).
     """
@@ -342,11 +316,9 @@ class Mesh2D:
     edges_x: np.ndarray
     edges_y: np.ndarray
     mat_map: np.ndarray
+    _: KW_ONLY
+    face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
     coord: CoordSystem = CoordSystem.CARTESIAN
-    bc_xmin: "BC | BoundaryTraceLaw | None" = None
-    bc_xmax: "BC | BoundaryTraceLaw | None" = None
-    bc_ymin: "BC | BoundaryTraceLaw | None" = None
-    bc_ymax: "BC | BoundaryTraceLaw | None" = None
 
     def __post_init__(self) -> None:
         edges_x = np.asarray(self.edges_x, dtype=float)
@@ -373,11 +345,12 @@ class Mesh2D:
                 f"Mesh2D supports CARTESIAN or CYLINDRICAL, got {self.coord}"
             )
 
-        # Validate BC fields
-        _check_boundary_declaration(
-            self, ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"),
+        face_laws = FaceLaws.over(
+            face_inventory(self.coord, edges_x, 2), self.face_laws,
+            "Mesh2D.face_laws", self.coord,
         )
 
+        object.__setattr__(self, "face_laws", face_laws)
         object.__setattr__(self, "edges_x", edges_x)
         object.__setattr__(self, "edges_y", edges_y)
         object.__setattr__(self, "mat_map", mat_map)

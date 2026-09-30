@@ -280,7 +280,7 @@ def _cart2d_product44_problem(
         edges_y=np.linspace(0.0, _PRODUCT44_EXTENTS[1], ny + 1),
         mat_map=(np.add.outer(np.arange(nx), np.arange(ny)) % 2).astype(int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=bc, bc_xmax=bc, bc_ymin=bc, bc_ymax=bc,
+        face_laws={"xmin": bc, "xmax": bc, "ymin": bc, "ymax": bc},
     )
     return SNProblem(
         mesh, Quadrature.product(4, 4), materials,
@@ -355,8 +355,12 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
         edges_x=np.array([0.0, 0.17, 0.45, 0.62, 1.0]),
         edges_y=np.array([0.0, 0.33, 0.8, 1.4]),
         mat_map=np.zeros((4, 3), dtype=int),
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     sn = SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=ng),
@@ -879,8 +883,12 @@ def _full_loss_case_cart2d():
         edges_y=np.linspace(0.0, 3.0, 6),
         mat_map=np.array([[0, 1, 1, 0, 0], [1, 0, 0, 1, 0],
                           [0, 0, 1, 0, 1], [1, 0, 0, 0, 1]]),
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     mixtures = {
         0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),

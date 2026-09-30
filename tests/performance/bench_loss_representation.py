@@ -67,7 +67,7 @@ def _problem(config: str) -> tuple[SNProblem, np.ndarray, np.ndarray]:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1), edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_xmin=reflective, bc_xmax=reflective, bc_ymin=reflective, bc_ymax=reflective,
+        face_laws={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
     )
     problem = SNProblem(mesh, Quadrature.level_symmetric(order), {0: get_mixture("A", f"{ng}g")})
     rng = np.random.default_rng(7)
@@ -163,8 +163,12 @@ class FixedSourceSolve:
         self.mesh = Mesh2D(
             edges_x=np.linspace(0.0, 12.0, nx + 1), edges_y=np.linspace(0.0, 12.0, ny + 1),
             mat_map=mat,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("reflective"),
+                "ymax": BC("reflective"),
+            },
         )
         self.quad = Quadrature.level_symmetric(8)
         self.materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}

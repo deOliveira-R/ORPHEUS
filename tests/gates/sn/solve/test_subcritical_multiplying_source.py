@@ -162,7 +162,7 @@ def _gauge_singular_box():
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((3, 4), dtype=int),
-        bc_xmin=reflective, bc_xmax=reflective, bc_ymin=reflective, bc_ymax=reflective,
+        face_laws={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
     )
     source = np.full((quadrature.weights.size, 2, 3, 4), 1.0 / float(quadrature.weights.sum()))
     return {0: _dilute_fissile()}, mesh, quadrature, source
@@ -196,18 +196,18 @@ def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> Non
     from orpheus.numerics.outcome import Measured
     from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning, gauge_freedom
     mats, mesh, quad, source = _gauge_singular_box()
-    hub = _as_problem(mesh, quad, mats, None)
+    hub = _as_problem(mesh, quad, mats)
     _require(gauge_freedom(hub).present, "non-vacuity: the hub must be gauge-singular")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         mult = solve_sn_multiplying_source(
-            mats, mesh, quad, source, boundary_condition=None,
+            mats, mesh, quad, source,
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     with warnings.catch_warnings(record=True) as sibling_caught:
         warnings.simplefilter("always")
         pure = solve_sn_fixed_source(
-            mats, mesh, quad, source, boundary_condition=None, inner_solver="source_iteration",
+            mats, mesh, quad, source, inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     _require(any(issubclass(w.category, GaugeFreedomWarning) for w in caught), "the multiplying entry must say the trace was gauge-fixed")

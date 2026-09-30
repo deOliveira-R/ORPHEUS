@@ -250,12 +250,14 @@ class TestG14GramEquivalenceLD:
 
 def _cart_axes():
     # A minimal 1-D Cartesian axis tuple (P4.6: the family consumes axes).
-    return (AxisMesh(edges=np.array([0.0, 1.0])),)
+    return (AxisMesh(edges=np.array([0.0, 1.0]),
+                     bc_low=BC.reflective, bc_high=BC.reflective),)
 
 
 def _radial_axes(kind: AxisCoord):
     # A minimal 1-D radial axis tuple of the given kind (P4.6).
-    return (RadialAxisMesh(edges=np.array([0.0, 1.0]), coord=kind),)
+    return (RadialAxisMesh(edges=np.array([0.0, 1.0]), coord=kind,
+                           bc_outer=BC.reflective),)
 
 
 class TestMomentAxisAdmission:

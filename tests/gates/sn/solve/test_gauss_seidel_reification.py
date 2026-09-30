@@ -319,8 +319,12 @@ def test_w2_fixed_point_equivalence_diagonal_cubature():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     q_ext = np.full((quad.N, 2, nx, ny), 1.0 / float(quad.weights.sum()))

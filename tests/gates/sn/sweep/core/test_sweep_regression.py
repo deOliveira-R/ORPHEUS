@@ -123,6 +123,10 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 0.5, 3),
             mat_map=np.zeros((3, 2), dtype=int),
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         quad = Quadrature.lebedev(order=17)
         problem = SNProblem(mesh, quad, placeholder_materials())
@@ -139,6 +143,10 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 3),
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((2, 2), dtype=int),
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         problem = SNProblem(
             mesh, Quadrature.lebedev(order=5), placeholder_materials(),
@@ -159,6 +167,10 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),  # 3 cells, dx=1/3
             edges_y=np.linspace(0, 0.5, 3),  # 2 cells, dy=0.25
             mat_map=np.zeros((3, 2), dtype=int),
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         quad = Quadrature.lebedev(order=17)
         problem = SNProblem(mesh, quad, placeholder_materials())
@@ -192,6 +204,10 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((3, 2), dtype=int),
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         quad = Quadrature.lebedev(order=17)
         problem = SNProblem(mesh, quad, placeholder_materials())
@@ -284,6 +300,10 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 11),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((10, 1), dtype=int),
+            face_laws={
+                "xmin": BC.reflective, "xmax": BC.reflective,
+                "ymin": BC.reflective, "ymax": BC.reflective,
+            },
         )
         quad_2d = Quadrature.product(n_mu=8, n_phi=4)
         solver_2d = SNSolver(SNProblem(mesh_2d, quad_2d, {0: mix}), max_inner=500, inner_tol=1e-10)

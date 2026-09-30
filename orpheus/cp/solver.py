@@ -148,9 +148,9 @@ def _refuse_a_law_cp_drops(mesh: Mesh1D) -> None:
     cylinder or sphere, what CP realises at the inner surface is not
     established, so no inner law is admitted.
     """
-    if len(mesh.face_laws) < 2:  # a solid cylinder or sphere: the outer face only
+    if "xmin" not in mesh.face_laws:  # a solid cylinder or sphere: the outer face only
         return
-    inner_law = mesh.face_laws[0]
+    inner_law = mesh.face_laws["xmin"]
     if mesh.coord is CoordSystem.CARTESIAN:
         if inner_law != mesh.outer_law:
             raise NotImplementedError(

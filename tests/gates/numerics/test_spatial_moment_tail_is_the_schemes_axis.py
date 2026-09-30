@@ -59,8 +59,12 @@ def _ld_2d() -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((3, 2), dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
 
@@ -75,8 +79,12 @@ def _dd_2d() -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((3, 2), dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=DiamondDifference())
 

@@ -119,7 +119,7 @@ def _solve_1g_slab(scheme):
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
     return solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=scheme,
-        boundary_condition="vacuum", inner_solver="krylov",
+        inner_solver="krylov",
         max_inner=500, inner_tol=1e-10,
     )
 

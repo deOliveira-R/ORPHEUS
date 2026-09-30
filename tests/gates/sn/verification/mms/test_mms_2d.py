@@ -56,7 +56,6 @@ def test_sn_2d_cartesian_mms_converges_second_order():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            boundary_condition="vacuum",
             max_inner=500,
             inner_tol=1e-13,
         )
@@ -105,7 +104,6 @@ def test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order():
 
         result = solve_sn_fixed_source(
             materials, mesh, case.quadrature, Q,
-            boundary_condition="vacuum",
             max_inner=500, inner_tol=1e-12,
         )
 

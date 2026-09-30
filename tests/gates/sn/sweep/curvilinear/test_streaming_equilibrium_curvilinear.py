@@ -136,7 +136,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        boundary_condition="reflective", inner_solver=inner_solver,
+        inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi = result.angular_flux.interior.values   # (N, ng, nx)
@@ -237,7 +237,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        boundary_condition="reflective", inner_solver=inner_solver,
+        inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi = result.angular_flux.interior.values   # (N, ng, nx)
@@ -303,7 +303,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        boundary_condition="reflective", inner_solver=inner_solver,
+        inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi_at_pole = result.angular_flux.interior.values[:, 0, 0]   # (N,)

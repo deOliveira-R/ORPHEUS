@@ -90,6 +90,7 @@ def test_mesh2d_volume_measure_is_discrete_measure():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
+        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
     )
     mu = mesh.volume_measure
     assert isinstance(mu, DiscreteMeasure)
@@ -106,6 +107,7 @@ def test_mesh2d_volume_measure_node_layout_matches_meshgrid():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
+        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
     )
     mu = mesh.volume_measure
     cx = mesh.centers_x
@@ -125,6 +127,7 @@ def test_mesh2d_volume_measure_weights_match_flattened_volumes():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
+        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
     )
     mu = mesh.volume_measure
     np.testing.assert_array_equal(mu.weights, mesh.volumes.ravel())
@@ -140,6 +143,7 @@ def test_mesh2d_volume_measure_integrates_constant_to_total_volume():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
+        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
     )
     mu = mesh.volume_measure
     one = np.ones(mesh.volumes.size)

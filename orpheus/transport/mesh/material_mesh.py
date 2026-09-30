@@ -95,11 +95,9 @@ class InconsistentMaterialsError(ValueError):
 def _law_key(law) -> object:
     """A boundary-law tag's content: a :class:`~orpheus.geometry.boundary.BC` by
     kind + sorted params; a frozen trace law by itself (its own content
-    equality); ``None`` as ``None``. A law with no content identity (a
+    equality). A law with no content identity (a
     callable-bearing inflow) keys by type and object — honest: a callable
     has no content to compare."""
-    if law is None:
-        return None
     if isinstance(law, BC):
         return ("BC", law.kind, tuple(sorted(law.params.items())))
     try:

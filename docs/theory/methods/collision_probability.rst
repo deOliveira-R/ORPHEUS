@@ -515,8 +515,10 @@ mesher onto the mesh's outer face law, :attr:`Mesh1D.outer_law
 
 The pin-cell factory
 :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
-declares ``BC("white")`` unless told otherwise, matching the
-infinite-lattice assumption used throughout the CP derivation above. CP
+declares ``BC("white")``, and the law is part of that model: it is the
+infinite-lattice assumption used throughout the CP derivation above.
+A pin with another outer law is a different body, built with
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.cylinder`. CP
 itself has no default: since P1 step 3b of #405 every face of a mesh
 carries a declared law (until then an undeclared outer law was read as
 white).  The vacuum BC is useful for

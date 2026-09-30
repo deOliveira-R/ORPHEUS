@@ -630,8 +630,12 @@ def _plane_solution():
     quad = Quadrature.product(4, 8)
     mesh = Mesh2D(edges_x=np.linspace(0.0, 2.0, 6), edges_y=np.linspace(0.0, 1.0, 4),
                   mat_map=np.zeros((5, 3), dtype=int), coord=CoordSystem.CARTESIAN,
-                  bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-                  bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"))
+                  face_laws={
+                      "xmin": BC("vacuum"),
+                      "xmax": BC("vacuum"),
+                      "ymin": BC("vacuum"),
+                      "ymax": BC("vacuum"),
+                  })
     source = np.zeros((quad.N, 1, 5, 3))
     source[:, :, :2, :1] = 1.0                 # x- AND y-asymmetric corner source
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,

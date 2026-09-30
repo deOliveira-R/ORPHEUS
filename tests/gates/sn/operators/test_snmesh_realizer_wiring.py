@@ -117,8 +117,12 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["xmin"], _BoundBoundaryOperator)
@@ -152,8 +156,12 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert isinstance(sn.bc["ymax"], _BoundBoundaryOperator)
@@ -190,8 +198,12 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     sn = SNProblem(mesh, quad_2d, placeholder_materials())
     for face, axis, wrong_axis in (
@@ -229,6 +241,7 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     sn = SNProblem(mesh, quad_2d, placeholder_materials())
     assert sn._trace is not None
@@ -291,7 +304,8 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     )
     two_d = SNProblem(
         Mesh2D(edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
-               mat_map=np.zeros((4, 3), dtype=int)),
+               mat_map=np.zeros((4, 3), dtype=int),
+               face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")}),
         quad_2d, placeholder_materials(),
     )
     sphere = SNProblem(

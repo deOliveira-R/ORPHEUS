@@ -67,7 +67,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
     problem = _as_problem(
-        mesh, case.quadrature, case.materials, "vacuum", mat_map=None,
+        mesh, case.quadrature, case.materials, mat_map=None,
      scattering_order=0)
     solver = SNSolver(
         problem, inner_solver="source_iteration", max_inner=10, inner_tol=1e-13,

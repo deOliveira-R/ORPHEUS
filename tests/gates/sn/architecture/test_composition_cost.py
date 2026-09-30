@@ -350,8 +350,12 @@ def _cart2d(nx: int, ny: int, *, ng: int = 2, sn_order: int = 4) -> SNProblem:
         edges_y=_stretched_edges(3.0, ny, ratio=1.03),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("reflective"),
+            "ymax": BC("vacuum"),
+        },
     )
     materials = _two_region_materials() if ng == 2 else _ng_generic_materials(ng)
     return SNProblem(mesh, Quadrature.level_symmetric(sn_order=sn_order), materials)

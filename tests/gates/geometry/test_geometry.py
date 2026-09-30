@@ -164,19 +164,19 @@ class TestPWRPin2D:
     """:func:`pwr_pin_2d` 2-D factory invariants."""
 
     def test_pin_2d_shape(self):
-        mesh = pwr_pin_2d(n_cells=10)
+        mesh = pwr_pin_2d(n_cells=10, law=BC.reflective)
         assert mesh.nx == 10
         assert mesh.ny == 10
         assert mesh.mat_map.shape == (10, 10)
 
     def test_pin_2d_has_all_materials(self):
-        mesh = pwr_pin_2d(n_cells=20)
+        mesh = pwr_pin_2d(n_cells=20, law=BC.reflective)
         mats = set(mesh.mat_map.ravel())
         assert mats == {0, 1, 2}
 
     def test_pin_2d_mat_ids_flat(self):
         """mat_ids returns flat array for assemble_cell_xs."""
-        mesh = pwr_pin_2d(n_cells=5)
+        mesh = pwr_pin_2d(n_cells=5, law=BC.reflective)
         assert mesh.mat_ids.shape == (25,)
 
 
@@ -216,7 +216,7 @@ class TestMesh1D:
         """The bare constructor accepts lists; edges become float, mat_ids int."""
         mesh = Mesh1D(
             coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
-            mat_ids=[0, 1], face_laws=(BC.reflective, BC.reflective),  # type: ignore[arg-type]
+            mat_ids=[0, 1], face_laws={"xmin": BC.reflective, "xmax": BC.reflective},
         )
         assert mesh.edges.dtype == float
         assert mesh.mat_ids.dtype == int
@@ -244,6 +244,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0, 3.0]),
             edges_y=np.array([0.0, 0.5]),
             mat_map=np.array([[0], [1]]),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         np.testing.assert_allclose(mesh.dx, [1.0, 2.0])
         np.testing.assert_allclose(mesh.dy, [0.5])
@@ -253,6 +254,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 2.0]),
             edges_y=np.array([0.0, 3.0]),
             mat_map=np.array([[0]]),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         np.testing.assert_allclose(mesh.volumes, [[6.0]])
 
@@ -262,6 +264,7 @@ class TestMesh2D:
             edges_y=np.array([0.0, 5.0]),   # axial
             mat_map=np.array([[0]]),
             coord=CoordSystem.CYLINDRICAL,
+            face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         np.testing.assert_allclose(mesh.volumes, [[np.pi * 5.0]])
 
@@ -271,6 +274,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0, 2.0]),
             edges_y=np.array([0.0, 1.0, 2.0]),
             mat_map=mat_map,
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         np.testing.assert_array_equal(mesh.mat_ids, [0, 1, 2, 3])
 
@@ -279,6 +283,7 @@ class TestMesh2D:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 1, 6),
             mat_map=np.zeros((3, 5), dtype=int),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         assert mesh.nx == 3
         assert mesh.ny == 5
@@ -288,6 +293,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0]),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.array([[0]]),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         with pytest.raises(AttributeError):
             mesh.edges_x = np.array([0.0, 2.0])
@@ -298,6 +304,7 @@ class TestMesh2D:
                 edges_x=np.array([0.0, 1.0, 2.0]),
                 edges_y=np.array([0.0, 1.0]),
                 mat_map=np.array([[0, 1]]),  # should be (2, 1)
+                face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
             )
 
     def test_spherical_2d_raises(self):
@@ -307,6 +314,7 @@ class TestMesh2D:
                 edges_y=np.array([0.0, 1.0]),
                 mat_map=np.array([[0]]),
                 coord=CoordSystem.SPHERICAL,
+                face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
             )
 
 
@@ -358,23 +366,23 @@ class TestBC:
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.vacuum,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        assert mesh.face_laws == (BC("reflective"), BC("vacuum"))
+        assert mesh.face_laws == {"xmin": BC("reflective"), "xmax": BC("vacuum")}
         assert mesh.outer_law == BC("vacuum")
-        assert mesh.boundary_faces == (0.0, 2.0)
+        assert mesh.boundary_points == (0.0, 2.0)
 
     def test_mesh1d_bc_frozen(self):
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.reflective,
         )).partition(CellsByCount.uniform_width(1)).mesh
         with pytest.raises(AttributeError):
-            mesh.face_laws = (BC.vacuum, BC.vacuum)  # type: ignore[misc]  # the frozen field is the subject
+            mesh.face_laws = {"xmin": BC.vacuum, "xmax": BC.vacuum}  # type: ignore[misc]  # the frozen field is the subject
 
     def test_mesh1d_bc_invalid_type_raises(self):
         with pytest.raises(TypeError, match="must be a BC tag or a BoundaryTraceLaw"):
             Mesh1D(
                 coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
                 volumes=np.array([1.0]), mat_ids=np.array([0]),
-                face_laws=("vacuum", BC.vacuum),  # type: ignore[arg-type]  # a refusal input
+                face_laws={"xmin": "vacuum", "xmax": BC.vacuum},  # type: ignore[dict-item]  # a refusal input
             )
 
     def test_mesh1d_bc_accepts_a_typed_law(self):
@@ -393,7 +401,7 @@ class TestBC:
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 1.0), (0,), left=law, right=BC.reflective,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        assert mesh.face_laws[0] is law
+        assert mesh.face_laws["xmin"] is law
 
     # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
 
@@ -418,49 +426,53 @@ class TestBC:
 
     # ── Mesh2D BC fields ─────────────────────────────────────────────
 
-    def test_mesh2d_bc_defaults_none(self):
-        mesh = Mesh2D(
-            edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-        )
-        assert mesh.bc_xmin is None
-        assert mesh.bc_xmax is None
-        assert mesh.bc_ymin is None
-        assert mesh.bc_ymax is None
-
     def test_mesh2d_bc_explicit(self):
         mesh = Mesh2D(
             edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-            bc_xmin=BC.reflective, bc_xmax=BC.vacuum,
-            bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
+            face_laws={
+                "xmin": BC.reflective,
+                "xmax": BC.vacuum,
+                "ymin": BC.reflective,
+                "ymax": BC.vacuum,
+            },
         )
-        assert mesh.bc_xmin == BC("reflective")
-        assert mesh.bc_xmax == BC("vacuum")
+        assert mesh.face_laws["xmin"] == BC("reflective")
+        assert mesh.face_laws["xmax"] == BC("vacuum")
 
     def test_mesh2d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="bc_xmin must be a BC tag"):
+        with pytest.raises(TypeError, match=r"face_laws\['xmin'\] must be a BC tag"):
             Mesh2D(
                 edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                bc_xmin="reflective",
+                face_laws={
+                    "xmin": "reflective",  # type: ignore[dict-item]  # the refusal input
+                    "xmax": BC.reflective,
+                    "ymin": BC.reflective,
+                    "ymax": BC.reflective,
+                },
             )
 
     def test_mesh2d_bc_accepts_a_typed_law(self):
         """The 2-D arm of the declaration channel — all four faces.
 
-        Parameterised over every endpoint because the four fields were
-        validated by a hand-written loop until the channel landed; a widening
-        that reached only ``bc_xmin`` would pass a single-face row.
+        Parameterised over every face because the four laws were validated
+        by a hand-written loop until the channel landed; a widening that
+        reached only ``xmin`` would pass a single-face row.
         """
         from orpheus.geometry.boundary import (
-            ConstantInflowSource, PrescribedInflow,
+            BoundaryTraceLaw, ConstantInflowSource, PrescribedInflow,
         )
 
         law = PrescribedInflow(source=ConstantInflowSource(value=1.0))
-        for face in ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax"):
+        for face in ("xmin", "xmax", "ymin", "ymax"):
+            face_laws: dict[str, BC | BoundaryTraceLaw] = dict.fromkeys(
+                ("xmin", "xmax", "ymin", "ymax"), BC.reflective,
+            )
+            face_laws[face] = law
             mesh = Mesh2D(
                 edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                **{face: law},
+                face_laws=face_laws,
             )
-            assert getattr(mesh, face) is law, face
+            assert mesh.face_laws[face] is law, face
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -472,4 +484,4 @@ class TestPWRPin2DEdgeCases:
 
     def test_pin_2d_wrong_mat_ids_length_raises(self):
         with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
-            pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2])
+            pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2], law=BC.reflective)

@@ -119,9 +119,13 @@ class TestTheLift:
         np.testing.assert_array_equal(mesh.volumes, np.concatenate([v for _, v in cells]))
         np.testing.assert_array_equal(mesh.mat_ids, np.repeat(g.mat_ids, counts))
         assert mesh.coord is g.coord
-        assert len(mesh.face_laws) == len(g.boundaries)
-        assert all(m is l for m, l in zip(mesh.face_laws, g.boundaries, strict=True))
-        assert mesh.boundary_faces == g.boundary_points
+        # the geometry's laws, one per boundary point inner first, land on the
+        # faces named by the inventory rule: xmin/xmax, or xmax alone on a
+        # solid radial body (written here by hand, not read from face_inventory)
+        faces = ("xmin", "xmax") if len(g.boundary_points) == 2 else ("xmax",)
+        assert tuple(mesh.face_laws) == faces
+        assert all(mesh.face_laws[f] is law for f, law in zip(faces, g.boundaries, strict=True))
+        assert mesh.boundary_points == g.boundary_points
 
     @pytest.mark.rests_on(f"{_HERE}::TestTheLift::test_the_mesh_is_the_intervals_cells")
     @pytest.mark.parametrize("body", _BODIES, ids=str)

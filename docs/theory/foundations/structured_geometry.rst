@@ -103,7 +103,10 @@ Key facts
   and
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
   (a Cartesian half-cell from the reflective fuel-centre symmetry
-  plane, built by ``from_thicknesses``).
+  plane, built by ``from_thicknesses``). Each carries its model's laws
+  and takes no law argument: white on the Wigner–Seitz cell's outer
+  surface, reflective on both faces of the half-cell (candidate 9 of
+  :ref:`structured-geometry-mesh-refuted`).
 
 
 Architectural role
@@ -321,12 +324,15 @@ Whether the centre is in the region is decided in one place,
 which lists the positions of the boundary of :math:`[r_0, r_R]`, inner
 first: both ends on a slab and on a cylinder or a sphere with
 :math:`r_0 > 0`, the outer end alone on a solid one. The geometry's
-``boundary_points`` and the mesh's ``boundary_faces`` both read it; the
+``boundary_points``, the mesh's ``boundary_points`` and the face
+inventory of both meshes (:ref:`structured-geometry-face-laws`) read it; the
 derived property ``is_hollow`` is true exactly for a cylinder or a
 sphere with :math:`r_0 > 0`, and never for a slab, which has no centre.
-One check, ``parse_boundary_laws``, requires one law per boundary point,
-for the geometry's ``boundaries`` and a mesh's ``face_laws`` alike. The refusals are keyed to the three ways a law
-count can be wrong, each naming the reason in its message:
+One check, ``parse_boundary_laws``, requires one law per boundary point
+of the geometry's ``boundaries`` (a mesh's ``face_laws`` are checked
+against the face inventory, with the same reasons in its messages). The
+refusals are keyed to the three ways a law count can be wrong, each
+naming the reason in its message:
 
 * **a law at the centre** — two laws on a solid cylinder or sphere:
   *"the centre r = 0 of a solid … body is an interior point and
@@ -337,22 +343,27 @@ count can be wrong, each naming the reason in its message:
 * **a slab with one law**: *"a slab has two boundary points (left,
   right)"*;
 
-and, before the count is read, ``None`` in any position: *"None is not
-a boundary law: declare the law the boundary point carries."* ``None``
+and, before the count is read, ``None`` in any position, refused by
+the element parser ``parse_boundary_law`` that ``parse_boundary_laws``
+calls on each law: *"StructuredGeometry.boundaries[0] is None, and None
+is not a boundary law: declare the law the boundary carries."* ``None``
 is refused because it means nothing there: a geometry declares the
-problem, and a default is a method's, not the problem's. Until P1 step
-3b a ``None`` face on a :class:`~orpheus.mesh.structured.Mesh1D` meant
-"use the solver's default"; since then the mesh refuses it with the same
-message, so every face of a 1-D mesh carries a declared law (``Mesh2D``
-and the S\ :sub:`N` axis tuples still admit ``None`` until step 3c).
+problem, and a default is a method's, not the problem's. Every other
+boundary declaration in the tree (the face laws of
+:class:`~orpheus.mesh.structured.Mesh1D` and
+:class:`~orpheus.mesh.structured.Mesh2D`, and the endpoint laws of the
+S\ :sub:`N` axes) passes through the same parser and is refused the
+same way (:ref:`structured-geometry-no-default-law`).
 
-The laws are indexed by boundary point, (inner, outer), never by a
-coordinate-specific name (``left``, ``centreline``, ``outer``), so the
-Mesher carries them onto the mesh unchanged for every coordinate
-system: the mesh's ``face_laws`` are the geometry's ``boundaries``,
-paired one to one with its ``boundary_faces``. Two boundary points give
-two faces (inner, outer); one point gives one face, since the centre is
-an interior point. The call site names each law through the named-face
+The geometry's laws are indexed by boundary point, (inner, outer),
+never by a coordinate-specific name (``left``, ``centreline``,
+``outer``), and the Mesher lifts them onto the mesh's named faces
+through the face inventory, pairing the tuple with the inventory in
+order: two boundary points give the faces ``xmin`` and ``xmax``; one
+point gives ``xmax`` alone, since the centre is an interior point. The
+geometry keeps its positional tuple, so one declaration has two
+spellings across the lift, a tuple on the geometry and a
+:class:`~orpheus.mesh.face_laws.FaceLaws` on the mesh. The call site names each law through the named-face
 constructors, which build the indexed tuple:
 ``StructuredGeometry.slab(breakpoints, mat_ids, left=, right=)``;
 ``cylinder(…)`` and ``sphere(…)`` with ``outer=`` and ``inner=``, the
@@ -367,9 +378,9 @@ The gates of these laws are the foundation rows
 (the six cells coordinate × {:math:`r_0 = 0`, :math:`r_0 > 0`} and the
 keyed refusals); the mesh routing is ``TestMeshingAGeometry`` in the
 same file, whose ``test_a_hollow_body_propagates_its_inner_law`` pins the
-two laws of a hollow body onto ``face_laws``, the faces onto
-``boundary_faces`` :math:`= (r_0, r_R)`, and the first edge onto
-:math:`r_0`.
+two laws of a hollow body onto ``face_laws["xmin"]`` and
+``face_laws["xmax"]``, the positions onto ``boundary_points``
+:math:`= (r_0, r_R)`, and the first edge onto :math:`r_0`.
 
 
 .. _structured-geometry-stored-breakpoints:
@@ -495,8 +506,8 @@ A session reads like this:
    )).mesh
    assert mesh.N == 12
    assert mesh.mat_ids.tolist() == [1, 1] + [0] * 8 + [1, 1]
-   assert mesh.face_laws == (BC.vacuum, BC.reflective)
-   assert mesh.boundary_faces == (0.0, 3.0)
+   assert mesh.face_laws == {"xmin": BC.vacuum, "xmax": BC.reflective}
+   assert mesh.boundary_points == (0.0, 3.0)
 
 
 .. _structured-geometry-one-measure:
@@ -555,17 +566,22 @@ geometry. Its construction laws, each a refusal with a keyed message:
   within a band of :math:`2p + 5` units in the last place (ulp) of
   :math:`c\,T(r_{j+1})`, :math:`p` the exponent of :math:`T`;
 * ``mat_ids`` are one integer per cell;
-* ``face_laws`` are one law per boundary point of
-  :math:`[r_0, r_R]`, inner first, each a :class:`~orpheus.geometry.boundary.BC`
-  tag or a typed ``BoundaryTraceLaw``. ``None`` is refused, with the
-  same message the geometry gives (*"None is not a boundary law: declare
-  the law the boundary point carries."*), because both declarations go
-  through one check, ``parse_boundary_laws``.
+* ``face_laws`` are any mapping from face name to law over exactly the
+  mesh's face inventory: ``xmin`` and ``xmax`` on a slab or a hollow
+  cylinder or sphere, ``xmax`` alone on a solid one. Each law is a
+  :class:`~orpheus.geometry.boundary.BC` tag or a typed
+  ``BoundaryTraceLaw``; ``None`` is refused with the message the
+  geometry gives (*"Mesh1D.face_laws['xmin'] is None, and None is not a
+  boundary law: declare the law the boundary carries."*), because every
+  declaration goes through one element parser, ``parse_boundary_law``.
+  The mesh stores a :class:`~orpheus.mesh.face_laws.FaceLaws`
+  (:ref:`structured-geometry-face-laws`).
 
 The derived quantities are ``widths``, ``centers``, ``areas``,
-``boundary_faces`` (the positions paired with ``face_laws``) and
-``outer_law`` (the law on :math:`r = r_R`, a slab's right face, which
-is the one law collision probability, characteristics and Monte Carlo
+``boundary_points`` (the positions of the boundary faces, inner first,
+in the order of ``face_laws``) and ``outer_law``, which reads
+``face_laws["xmax"]`` (the law on :math:`r = r_R`, a slab's right face,
+the one law collision probability, characteristics and Monte Carlo
 read). Equality is bitwise over the five fields. A mesh has no hash
 yet: its content identity, and the discretisation digest that keys on
 it, land in step 5 of the reference-solution plan together with the
@@ -605,14 +621,234 @@ answer: the coordinate system and the breakpoints only; the materials
 and the laws rode along, with about 30 and about 29 production reads
 going through the mesh. So the mesh stores the coordinate system, the
 cells, the material of each cell and the law of each face, and the
-geometry stays one layer down. The laws are **per face**, not per
-coordinate-specific name: in 1-D each boundary point is one face, and
-the per-face form is the seed for 2-D, where one boundary is several
-faces that may carry different laws. A specialised
+geometry stays one layer down. The laws are **per face**, keyed by the
+face's name (:ref:`structured-geometry-face-laws`): in 1-D each
+boundary point is one face, and the per-face form is the seed for 2-D,
+where one side of the boundary may be several faces carrying different
+laws. A specialised
 ``(geometry, edges, volumes)`` constructor was considered and not built:
 its one consumer would be the Mesher's own lift, while a relabelling
 (``with_distinct_cell_ids``), an adaptation or the axis adapter starts
 from a mesh or from axes.
+
+
+.. _structured-geometry-face-laws:
+
+.. _structured-geometry-mesh2d:
+
+The face laws: one inventory rule, one value, both meshes
+---------------------------------------------------------
+
+A mesh's boundary is a finite set of faces, each carrying one law. Both
+meshes, :class:`~orpheus.mesh.structured.Mesh1D` and
+:class:`~orpheus.mesh.structured.Mesh2D`, derive the set by one rule
+and store the laws in one value, both in :mod:`orpheus.mesh.face_laws`.
+
+**The inventory rule.**
+``face_inventory(coord, first_axis_edges, dimension)`` names the
+boundary faces of a mesh, axis by axis, inner face first:
+
+* along the first axis (:math:`x`, or :math:`r`), the coordinate
+  system's boundary points of :math:`[x_0, x_{N}]`,
+  :meth:`~orpheus.geometry.coord.CoordSystem.boundary_points`, the rule
+  the geometry uses: both ends on a slab and on a hollow cylinder or
+  sphere, the outer surface alone on a solid one, whose centre or axis
+  :math:`r = 0` is interior and carries no law;
+* along every further axis (the :math:`y` of :math:`(x, y)`, the
+  :math:`z` of :math:`(r, z)`), both ends;
+* each face is named by the crosswalk
+  :class:`~orpheus.mesh.axis.FaceLabel` (axis index and endpoint give
+  ``face_name``), a solid radial axis's outer surface being ``xmax``.
+
+.. list-table:: The face inventory, by mesh
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Mesh
+     - Faces
+     - Why
+   * - ``Mesh1D``, slab
+     - ``xmin``, ``xmax``
+     - both ends bound the slab
+   * - ``Mesh1D``, solid cylinder or sphere (:math:`r_0 = 0`)
+     - ``xmax``
+     - the centre is an interior point
+   * - ``Mesh1D``, hollow cylinder or sphere (:math:`r_0 > 0`)
+     - ``xmin``, ``xmax``
+     - the inner surface :math:`r = r_0` bounds the body
+   * - ``Mesh2D``, :math:`(x, y)`
+     - ``xmin``, ``xmax``, ``ymin``, ``ymax``
+     - both ends of both axes bound the rectangle
+   * - ``Mesh2D``, solid :math:`(r, z)`
+     - ``xmax``, ``ymin``, ``ymax``
+     - the axis :math:`r = 0` is an interior line and carries no law
+   * - ``Mesh2D``, hollow :math:`(r, z)`
+     - ``xmin``, ``xmax``, ``ymin``, ``ymax``
+     - the inner surface bounds the body
+
+The names are the ones S\ :sub:`N`'s resolved boundary table
+(``SNProblem.bc``) is keyed by, and the ones the axis adapter reads and
+writes (``axes_from_legacy_mesh`` reads ``face_laws["xmin"]`` and so on
+into the axes' endpoint slots; ``legacy_mesh_from_axes`` builds the
+mapping from ``face_labels(axes)``), so a face has one name from its
+declaration to its realised operator. A consumer that asks whether a
+body has an inner face asks ``"xmin" in mesh.face_laws``.
+
+**The value.** :class:`~orpheus.mesh.face_laws.FaceLaws` is a frozen,
+ordered, picklable mapping from face name to law. A mesh is given its
+laws as any mapping keyed by face name, and builds the value with
+``FaceLaws.over(inventory, laws, where, coord)``, which refuses, each
+with a keyed message:
+
+* a declaration whose key set is not the inventory exactly, a missing
+  face and an extra face alike; the message names the inventory, and
+  adds the reason when the difference is ``xmin``: the centre of a solid
+  body carries no law, or a hollow body's inner surface needs its own;
+* ``None``, or any object that is not a ``BC`` tag or a
+  ``BoundaryTraceLaw``, on a face, through the one element parser
+  (*"Mesh2D.face_laws['xmin'] is None, and None is not a boundary law:
+  declare the law the boundary carries."*); a string such as
+  ``"vacuum"`` is not a tag and is refused too;
+* a declaration that is not a mapping, the retired positional tuple
+  among them.
+
+The value iterates the face names in inventory order, whatever the
+order of the caller's mapping, so ``tuple(mesh.face_laws)`` is the
+inventory; its equality is a mapping's (the same faces carrying equal
+laws), so it compares equal to a plain ``dict``; assigning to it raises.
+It is picklable because the reference-solution cache (step 5 of #405)
+pickles its entries, and a mesh is part of what it stores: `[M]` the
+read-only view the first 2-D spelling stored, a ``MappingProxyType``,
+raises ``TypeError: cannot pickle 'mappingproxy' object``.
+
+``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` passes
+``dimension=1`` to the rule, and
+``Mesh2D(edges_x, edges_y, mat_map, *, face_laws, coord=CARTESIAN)``,
+whose ``face_laws`` is keyword-only with no default, passes
+``dimension=2``. ``Mesh1D.boundary_points`` gives the positions of its
+faces (the vocabulary of ``CoordSystem``), and ``Mesh1D.outer_law``
+reads ``face_laws["xmax"]``.
+
+.. code-block:: python
+
+   import numpy as np
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.geometry.coord import CoordSystem
+   from orpheus.mesh import CellsByCount, Mesh2D, Mesher
+
+   rod1d = Mesher(StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC.white)).partition(
+       CellsByCount.uniform_volume(4)).mesh
+   assert tuple(rod1d.face_laws) == ("xmax",)
+   assert rod1d.outer_law == BC.white
+
+   box = Mesh2D(
+       [0.0, 1.0, 2.0], [0.0, 1.0], np.zeros((2, 1), dtype=int),
+       face_laws={"ymax": BC.vacuum, "xmin": BC.reflective,
+                  "xmax": BC.vacuum, "ymin": BC.reflective},
+   )
+   assert tuple(box.face_laws) == ("xmin", "xmax", "ymin", "ymax")
+   assert box.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum,
+                            "ymin": BC.reflective, "ymax": BC.vacuum}
+
+   # A solid (r, z) mesh: the axis r = 0 carries no law.
+   rod = Mesh2D(
+       [0.0, 0.5, 1.0], [0.0, 2.0], np.zeros((2, 1), dtype=int),
+       face_laws={"xmax": BC.vacuum, "ymin": BC.reflective, "ymax": BC.reflective},
+       coord=CoordSystem.CYLINDRICAL,
+   )
+   assert tuple(rod.face_laws) == ("xmax", "ymin", "ymax")
+
+   import pickle
+   assert pickle.loads(pickle.dumps(rod.face_laws)) == rod.face_laws
+
+A ``Mesh2D`` has no geometry value to be built from (there is no 2-D
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`), so
+it is constructed directly.
+
+The one 2-D factory, :func:`~orpheus.mesh.factories.pwr_pin_2d`, takes
+a required keyword ``law`` for its four faces, because a factory does
+not choose a physical boundary on the caller's behalf: a lattice cell
+is reflective or periodic, an isolated cell vacuum.
+
+
+.. _structured-geometry-no-default-law:
+
+No boundary law is undeclared
+-----------------------------
+
+Every boundary declaration in the tree passes through one element
+parser, ``parse_boundary_law`` in
+:mod:`orpheus.geometry.structured_geometry`, which accepts a
+:class:`~orpheus.geometry.boundary.BC` tag or a ``BoundaryTraceLaw`` and
+refuses ``None`` and every other object. Its five callers are the five
+places a law is declared:
+
+.. list-table:: Where a boundary law is declared
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Declaration
+     - Laws
+   * - ``StructuredGeometry.boundaries``
+     - one per boundary point, through ``parse_boundary_laws``
+   * - ``Mesh1D.face_laws``
+     - one per boundary face, keyed by face name, through
+       ``FaceLaws.over``
+   * - ``Mesh2D.face_laws``
+     - one per boundary face, keyed by face name, through
+       ``FaceLaws.over``
+   * - ``AxisMesh.bc_low``, ``AxisMesh.bc_high``
+     - both required, parsed at construction
+   * - ``RadialAxisMesh.bc_outer``
+     - required, parsed at construction
+
+The consumers take the declaration verbatim. The shared resolution,
+:func:`~orpheus.transport.method.resolve_boundary_conditions`, reads the
+law each axis declares for each face and parses the tag into its typed
+law, with no default to fall back on; the S\ :sub:`N` entry points
+(``solve_sn``, ``solve_sn_adjoint``, ``solve_sn_fixed_source``,
+``solve_sn_adjoint_fixed_source``, ``solve_sn_multiplying_source``)
+have no parameter that supplies a law, and nothing fills a face. The law
+on a boundary is read from the problem's declaration alone.
+
+The one law the tree supplies is not a default: the inner surface of a
+hollow radial axis. :class:`~orpheus.mesh.axis.RadialAxisMesh` has no
+slot for it, so S\ :sub:`N` realises the cavity as reflective, and the
+geometry and the mesh refuse every other inner law at the axis adapter
+(:ref:`structured-geometry-hollow-inner-law`, #511). A declared
+``reflective`` inner law is therefore the only one that reaches it.
+
+**Why there is no default.** A ``None`` that a consumer read as a law
+was a behavioural default, and a behavioural default hides a
+precondition no type states (lesson L19 of
+:doc:`/development/evidence/lessons`: type the precondition or force an
+explicit choice). Here the precondition was *which problem the caller
+meant*, and the answer depended on the door the mesh went through. The
+fixed-source entries filled an all-undeclared ``Mesh2D`` or axis tuple
+with vacuum (their ``boundary_condition="vacuum"`` parameter); the
+eigenvalue entry and a directly constructed ``SNProblem`` resolved the
+same undeclared faces as reflective (the shared resolver's default);
+and the fill was all-or-nothing, so a partly declared mesh kept
+reflective faces even under a fixed-source entry. One mesh was two
+problems, and nothing in the mesh said which. The operator algebra met
+the same pattern in an operator's optional spaces, where ``None``
+silently meant "Euclidean" (:ref:`bound-operator`), and removed it the
+same way: the value must say what it is.
+
+`[M]` The exposure before the retirement (the post-step-3b runtime
+capture, ``-m "not slow"``, serial; the census
+``scratch/reference_architecture/p1step3c/blast_set.md``): 272 tests in
+36 files resolved an undeclared face through ``SNProblem``, as
+face-resolutions ``xmin`` 293, ``xmax`` 295, ``ymin`` 282, ``ymax``
+282, ``zmin`` 33 and ``zmax`` 33; 6 tests received an entry's fill; the
+diffusion hub resolved none. Statically, 147 ``Mesh2D`` constructions
+under ``tests/`` (68 of them missing a law) and 88 axis constructions
+(56 missing a law, a floor: a law forwarded through a test helper's
+default is invisible to the static count) had to state their laws.
+
+Deciding what an undeclared face means is not the mesh's job, and not a
+method's either: a problem whose boundary is unstated is not yet a
+problem. The retirement therefore has no successor default anywhere.
 
 
 The Mesher: a meshing session
@@ -741,7 +977,8 @@ where the two coordinates differ.
 What was tried, and why it was refuted
 --------------------------------------
 
-The design went through four candidates before the one described above;
+The design went through the candidates below before the one described
+above (candidates 1 to 4 for the 1-D mesh, 5 to 9 for the declared laws);
 each is recorded with the structural reason it failed, so that a later
 session does not re-attempt it.
 
@@ -770,6 +1007,53 @@ session does not re-attempt it.
    the specification's shape for this step. Superseded by the bare
    constructor, for the reason measured above: the mesh needs the
    coordinate system and the breakpoints, not the geometry.
+5. **Four required fields on** ``Mesh2D``, ``bc_xmin``, ``bc_xmax``,
+   ``bc_ymin`` and ``bc_ymax`` with their ``None`` defaults removed.
+   `[REFUTED 2026-09-29]` by the user's ruling for step 3c: a solid
+   :math:`(r, z)` mesh would then have to declare a law on its axis
+   :math:`r = 0`, which is not a boundary, or keep ``None`` there
+   meaning "no face here", a second meaning of ``None`` beside the
+   retired "use the default". The per-face mapping has neither problem:
+   the axis is simply not a key. The fact that survives: in 2-D, as in
+   1-D, the set of faces is derived from the coordinate system, so the
+   declaration is keyed by the derived faces, not by fixed slots.
+6. **Keeping** ``None`` **on** ``Mesh2D`` **and on the axes**, with only the
+   entries' ``boundary_condition=`` fill retired and the resolver's
+   reflective default kept as the one convention. This was the scope
+   question of step 3c. `[REFUTED 2026-09-29]` by the user's ruling
+   that ``None`` retires as a boundary declaration everywhere: under
+   this candidate the method, not the declaration, decides what an
+   unstated face is, so a mesh cannot be read as a problem on its own
+   (:ref:`structured-geometry-no-default-law`).
+7. **A default law on** ``pwr_pin_2d`` (the factory used to build its
+   mesh with every face ``None``, which the fixed-source entries read as
+   vacuum and the eigenvalue entry as reflective). Refused in the design
+   of step 3c: the factory has no knowledge of whether its cell is a
+   lattice member or isolated, so its ``law`` keyword is required.
+8. **A local rename of the two face-law spellings, with their
+   unification filed as an issue.** Before the review of step 3c,
+   ``Mesh1D.face_laws`` was a positional tuple (inner face first) and
+   ``Mesh2D.face_laws`` a read-only mapping keyed by face name, and
+   ``boundary_faces`` meant positions on one and names on the other
+   (`[M]` the elegance review: ``zip(m2.boundary_faces, m2.face_laws)``
+   paired names with names, in silence). `[REFUTED 2026-09-30]` by the
+   user's ruling: a rename would leave one concept in two spellings,
+   the stop signal of Cardinal Rule 2, so both meshes store one
+   ``FaceLaws`` derived by one inventory rule. The 2-D mapping was also
+   unpicklable, which the step-5 cache could not have stored.
+9. **A law parameter on the named cells.**
+   ``wigner_seitz_pin_cell`` and ``pwr_slab_half_cell`` took an
+   overridable ``boundaries=`` (default white, and reflective on both
+   faces). `[REFUTED 2026-09-30]` by the user's ruling that a named
+   cell's law is part of its model: the Wigner–Seitz cell is the
+   cylindricalised lattice cell with isotropic (white) re-entry, and
+   the half-cell's two faces are symmetry planes of the lattice
+   (reflective). Two alternatives were refused with it: requiring the
+   law (the name already fixes it) and keeping the overridable default
+   (a default a caller can inherit without seeing it). Another law is a
+   different body, built with ``StructuredGeometry.cylinder`` or
+   ``StructuredGeometry.slab``; `[M]` 2 test sites overrode the law
+   before the ruling.
 
 Two smaller decisions went the same way. Bit identity of the
 equal-volume edges with the retired subdivision helper was dropped in
@@ -778,18 +1062,16 @@ favour of the one measure (0 of 414 captured intervals moved). The fixed
 worst case sat within 0.38 ulp of it.
 
 
-What this step does not do
---------------------------
+What the mesh layer does not carry
+----------------------------------
 
-* ``None`` as a boundary declaration is gone from ``Mesh1D`` and
-  ``StructuredGeometry``; it survives on ``Mesh2D``'s four faces, on the
-  axis tuples, and as S\ :sub:`N`'s ``boundary_condition=`` parameters.
-  Their retirement, with the consumers' defaults, is the next sub-step
-  (3c) of #405. Until then the axis adapter gives the adapter mesh of an
-  axis tuple the reflective law S\ :sub:`N` resolves for an undeclared
-  axis law (``ELEGANCE-DEBT[guard]``, #405) and for the inner face of a
-  hollow radial axis, which has no law slot (``SCOPE-BOUNDARY[guard]``,
-  #511).
+* The inner surface of a hollow radial axis has no law slot on
+  :class:`~orpheus.mesh.axis.RadialAxisMesh`. The axis adapter gives the
+  adapter mesh of such an axis the reflective cavity S\ :sub:`N`
+  computes there (``SCOPE-BOUNDARY[guard]``, #511); the geometry and the
+  mesh refuse any other inner law before it reaches the axis.
+* A ``Mesh2D`` has no geometry value to be built from, so no Mesher
+  builds it.
 * The discretisation digest and the mesh's hash are step 5's.
 * Quality, preview, adaptation and external meshers are #539.
 
@@ -801,7 +1083,27 @@ The gates
 (``TestConstructionLaws``, ``TestTheVolumeLaw`` with the band and the
 wrong-coordinate control, ``TestTheValue`` for equality,
 ``TestTheRetirements`` for the retired fields and constructors, and
-``TestOneBoundaryLawCheck`` for the shared law check).
+``TestTheDefaultsAreGone``: no S\ :sub:`N` entry takes a
+``boundary_condition``, the fill helper is gone, and the resolver
+neither completes an undeclared face nor constructs a law).
+``tests/gates/mesh/test_mesh2d_face_laws.py`` carries the face laws
+(``test_the_inventory`` against hand-written 2-D inventories,
+``TestRefusals``, the storage in inventory order,
+``TestTheOneElementParser``, a route gate that every declaration of the
+five classes calls ``parse_boundary_law``; ``TestTheOneInventoryRule``,
+that both meshes name the same first-axis faces and both constructors
+ask ``face_inventory``; ``TestFaceLaws`` for the value's order,
+immutability, mapping equality and pickle round trips of the value and
+of both meshes; and ``TestTheNamedCells``, that the two named cells take
+no law keyword and carry their model's laws).
+``tests/gates/mesh/test_axis_adapter_laws.py`` carries the axes
+(``TestTheAxisLaws``: an omitted law and a non-law refused on both
+axis classes, the default-filling verb gone, no ``None`` in a ``bc``
+table; ``TestTheRoundTrip`` through the adapter in one and two
+dimensions), and ``test_axes_declared_laws_are_taken_verbatim`` in
+``tests/gates/sn/solve/test_d3_admission.py`` checks, face by face,
+that the S\ :sub:`N` entry realises a mixed declaration on a 3-D axis
+tuple as declared.
 ``tests/gates/mesh/test_mesher.py`` carries the session (``TestTheLift``:
 every cell in exactly one interval, one rule meaning that rule on every
 interval; ``TestRefine``; ``TestEveryBreakpointIsAnEdge``, whose stub
@@ -827,8 +1129,8 @@ Hollow bodies, and the laws each method reads (#511, #513, #514)
 
 A hollow cylinder or sphere (:math:`r_0 > 0`) is a legal geometry:
 it declares two laws, and a ``Mesher`` builds a mesh whose first edge
-is :math:`r_0` and whose first face law, ``face_laws[0]``, is the inner
-law. The same routing puts a slab's left law in ``face_laws[0]``.
+is :math:`r_0` and whose face law ``face_laws["xmin"]`` is the inner
+law. The same routing puts a slab's left law in ``face_laws["xmin"]``.
 
 The geometry never interprets a law, so what happens to the law on the
 first face is each method's. **No method in the tree today reads every
@@ -2653,6 +2955,28 @@ trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-09-30
+     - **No boundary law is undeclared.** ``None`` retired as a boundary
+       declaration everywhere: ``Mesh2D``'s four ``bc_*`` fields gave
+       way to ``face_laws``, a mapping from face name to law over the
+       inventory the 1-D topology law derives axis by axis; the axis
+       classes' laws became required and parsed; one element parser,
+       ``parse_boundary_law``, replaced ``_check_boundary_declaration``
+       (which admitted ``None``). The S\ :sub:`N` entries'
+       ``boundary_condition=`` parameter, the ``_apply_default_bcs``
+       fill, the axes' ``with_uniform_bc`` and the shared resolver's
+       reflective default retired; ``pwr_pin_2d`` takes a required
+       ``law``. After review, both meshes store one ``FaceLaws`` (a
+       frozen, ordered, picklable mapping from face name to law) over
+       one inventory rule, ``face_inventory``: ``Mesh1D``'s positional
+       tuple and ``boundary_faces`` (renamed ``boundary_points``) and
+       ``Mesh2D.boundary_faces`` retired; ``wigner_seitz_pin_cell`` and
+       ``pwr_slab_half_cell`` lost ``boundaries=``, their laws being
+       part of the model. Rulings: the user, 2026-09-29 and 2026-09-30,
+       P1 step 3c of ``.claude/plans/reference_cache.md``; the refused
+       candidates are 5 to 9 of :ref:`structured-geometry-mesh-refuted`.
+     - #405
+     - *(in development)* branch ``refactor/p1-step3c-declared-laws``
    * - 2026-09-29
      - **The mesh refines the geometry, and a Mesher builds it.** The
        measure got one definition, ``CoordSystem.measure``, asked
@@ -2676,7 +3000,7 @@ trust ``git`` over this table for merge status.
        2026-09-29, P1 step 3 of ``.claude/plans/reference_cache.md``;
        what was refuted on the way: :ref:`structured-geometry-mesh-refuted`.
      - #405, #495, #539
-     - *(in development)* branch ``refactor/reference-specification``
+     - ``3a6468e6``
    * - 2026-09-29
      - **Each reference generator serves the bodies its solvers
        solve.** The ``homogeneous_body`` reading, which refused every

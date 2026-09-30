@@ -211,7 +211,7 @@ class TransportMethod(Protocol[OpT_co]):
         """Realize one typed law on one face — the per-method arm.
 
         The shared :func:`resolve_boundary_conditions` body owns the
-        face loop, the reflective default, and the tag → law parse;
+        face loop and the tag → law parse;
         this hook owns everything genuinely method-specific: building
         the method space for ``face`` and dispatching the method's own
         realizer.
@@ -229,13 +229,10 @@ def resolve_boundary_conditions(
     ``DiffusionMesh._resolve_bcs`` loops; a third spelling on the
     diffusion solver died at P7a). Per face label of ``method.axes``:
 
-    1. read the axis's declaration for that endpoint —
-       ``axes[label.axis_index].bc[label.endpoint]``; ``None`` defaults
-       to ``BC("reflective")`` (the infinite-lattice / eigenvalue
-       convention of SN and diffusion; CP, MoC and MC read no ``None``,
-       because a :class:`~orpheus.mesh.Mesh1D` declares every face).
-       Only a :class:`~orpheus.mesh.Mesh2D` or an axis tuple still
-       reaches this with ``None`` (P1 step 3c decides its retirement);
+    1. read the axis's declaration for that endpoint,
+       ``axes[label.axis_index].bc[label.endpoint]``. Every axis declares a
+       law on every endpoint (its constructor refuses ``None``), so there is
+       no default to fill: the law is the declared one;
     2. parse the tag into its typed law via the method's
        :attr:`~TransportMethod.BOUNDARY_OPERATOR_REGISTRY` (see
        :func:`_law_from_tag` — unsupported tags and a parameter-less
@@ -258,10 +255,9 @@ def resolve_boundary_conditions(
         ``realize_boundary_law`` return — the kind-tagged shim for SN,
         a bare :class:`LinearOperator` for diffusion).
     """
-    default = BC("reflective")
     resolved: dict[str, OpT] = {}
     for label in face_labels(method.axes):
-        tag = method.axes[label.axis_index].bc[label.endpoint] or default
+        tag = method.axes[label.axis_index].bc[label.endpoint]
         law = _law_from_tag(method, tag, label)
         resolved[label.face_name] = method.realize_boundary_law(
             law, label.face_name,
@@ -282,9 +278,9 @@ def _law_from_tag(
     law whose content is a FUNCTION — a
     :class:`~orpheus.geometry.boundary.PrescribedInflow` carrying a
     manufactured-solution source has no tag spelling and never will. See
-    :func:`~orpheus.mesh.structured._check_boundary_declaration` for why the
-    declaration has to ride the GEOMETRY rather than a constructed mesh's
-    resolved table.
+    :func:`~orpheus.geometry.structured_geometry.parse_boundary_law` for why
+    the declaration has to ride the mesh rather than a constructed method
+    mesh's resolved table.
 
     ⚠ **The two arms are not equivalent in what they guarantee.** A tag is
     parsed HERE, so the parse can supply construction context the tag omits —

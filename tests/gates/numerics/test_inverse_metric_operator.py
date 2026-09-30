@@ -44,8 +44,12 @@ def _trace_space(quadrature: Quadrature):
     mesh = Mesh2D(
         edges_x=edges, edges_y=edges,
         mat_map=np.zeros((3, 3), dtype=int),
-        bc_xmin=_REFLECTIVE, bc_xmax=_REFLECTIVE,
-        bc_ymin=_REFLECTIVE, bc_ymax=_REFLECTIVE,
+        face_laws={
+            "xmin": _REFLECTIVE,
+            "xmax": _REFLECTIVE,
+            "ymin": _REFLECTIVE,
+            "ymax": _REFLECTIVE,
+        },
     )
     problem = SNProblem(mesh, quadrature, {0: get_mixture("B", "2g")})
     space = problem.full_field_space.trace_space

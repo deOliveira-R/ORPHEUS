@@ -32,13 +32,14 @@ nowhere to round-trip through before the mesh became dim-agnostic.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
 from orpheus.geometry import BC
+from orpheus.geometry.structured_geometry import parse_boundary_law
 
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryTraceLaw
@@ -175,10 +176,11 @@ class Axis1D(Protocol):
       (``"outer"``); the pole at :math:`r=0` is intentionally NOT an
       endpoint here — it carries an angular-closure regularity
       condition, not a BC trace law.
-    * ``bc`` — mapping ``endpoint_label → BC | BoundaryTraceLaw | None``.
-      A declaration is EITHER a ``BC`` tag or an already-typed law; the
-      law arm carries what a tag structurally cannot (a source that is a
-      FUNCTION). See ``orpheus.mesh.structured._check_boundary_declaration``.
+    * ``bc`` — mapping ``endpoint_label → BC | BoundaryTraceLaw``, one
+      declared law per endpoint. A declaration is EITHER a ``BC`` tag or an
+      already-typed law; the law arm carries what a tag structurally cannot
+      (a source that is a FUNCTION). See
+      :func:`~orpheus.geometry.structured_geometry.parse_boundary_law`.
 
     Pole rationale (D3 of the ultraplan): a BC trace law is a linear
     operator ``bc.apply(outflow) → inflow`` that closes the transport
@@ -216,19 +218,7 @@ class Axis1D(Protocol):
     def endpoints(self) -> tuple[str, ...]: ...
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]": ...
-
-    def with_uniform_bc(self, bc: BC) -> "Axis1D":
-        """Return a copy with EVERY endpoint's BC set to ``bc``.
-
-        Each axis knows its own endpoint structure (two Cartesian
-        slots, one radial outer slot), so the per-endpoint field names
-        stay private to the implementation — consumers filling a
-        default BC (e.g. the ``solve_sn`` ``boundary_condition``
-        parameter) speak this verb instead of reaching for
-        ``bc_low``/``bc_outer`` per class.
-        """
-        ...
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]": ...
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -249,18 +239,18 @@ class AxisMesh:
     ----------
     edges : ndarray, shape (n+1,)
         Strictly monotonically increasing cell-face positions.
-    bc_low : BC, BoundaryTraceLaw, or None
-        Boundary condition at the low endpoint. ``None`` means "use
-        the mesh-level default" (typically reflective).
-    bc_high : BC, BoundaryTraceLaw, or None
-        Boundary condition at the high endpoint.
+    bc_low : BC or BoundaryTraceLaw
+        Boundary law at the low endpoint; required, and ``None`` is not a
+        law (:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`).
+    bc_high : BC or BoundaryTraceLaw
+        Boundary law at the high endpoint.
     label_low, label_high : str
         Endpoint labels; default ``"min"`` / ``"max"``.
     """
 
     edges: np.ndarray
-    bc_low: "BC | BoundaryTraceLaw | None" = None
-    bc_high: "BC | BoundaryTraceLaw | None" = None
+    bc_low: "BC | BoundaryTraceLaw"
+    bc_high: "BC | BoundaryTraceLaw"
     label_low: str = "min"
     label_high: str = "max"
 
@@ -276,6 +266,10 @@ class AxisMesh:
                 "AxisMesh.edges must be strictly monotonically increasing"
             )
         object.__setattr__(self, "edges", edges)
+        for name in ("bc_low", "bc_high"):
+            object.__setattr__(
+                self, name, parse_boundary_law(getattr(self, name), f"AxisMesh.{name}"),
+            )
 
     @property
     def coord(self) -> AxisCoord:
@@ -296,12 +290,8 @@ class AxisMesh:
         return (self.label_low, self.label_high)
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]":
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]":
         return {self.label_low: self.bc_low, self.label_high: self.bc_high}
-
-    def with_uniform_bc(self, bc: BC) -> "AxisMesh":
-        """Return a copy with both endpoints' BCs set to ``bc``."""
-        return replace(self, bc_low=bc, bc_high=bc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,15 +312,16 @@ class RadialAxisMesh:
     coord : AxisCoord
         Must be :attr:`AxisCoord.RADIAL_SPHERICAL` or
         :attr:`AxisCoord.RADIAL_CYLINDRICAL`.
-    bc_outer : BC, BoundaryTraceLaw, or None
-        Boundary condition at the outer radial surface.
+    bc_outer : BC or BoundaryTraceLaw
+        Boundary law at the outer radial surface; required, and ``None`` is
+        not a law.
     label_outer : str
         Endpoint label; default ``"outer"``.
     """
 
     edges: np.ndarray
     coord: AxisCoord
-    bc_outer: "BC | BoundaryTraceLaw | None" = None
+    bc_outer: "BC | BoundaryTraceLaw"
     label_outer: str = "outer"
 
     def __post_init__(self) -> None:
@@ -356,6 +347,9 @@ class RadialAxisMesh:
                 f"RADIAL_CYLINDRICAL; got {self.coord!r}"
             )
         object.__setattr__(self, "edges", edges)
+        object.__setattr__(
+            self, "bc_outer", parse_boundary_law(self.bc_outer, "RadialAxisMesh.bc_outer"),
+        )
 
     @property
     def has_constant_volume_element(self) -> bool:
@@ -372,16 +366,8 @@ class RadialAxisMesh:
         return (self.label_outer,)
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw | None]":
+    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]":
         return {self.label_outer: self.bc_outer}
-
-    def with_uniform_bc(self, bc: BC) -> "RadialAxisMesh":
-        """Return a copy with the outer endpoint's BC set to ``bc``.
-
-        The pole at :math:`r=0` is not an endpoint (see :class:`Axis1D`),
-        so "every endpoint" is the single outer surface.
-        """
-        return replace(self, bc_outer=bc)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -534,9 +520,9 @@ def _refuse_an_inner_law_the_radial_axis_drops(mesh) -> None:
     guard lands with the step that makes a hollow geometry declarable.
     Reflective is admitted because it is what the methods compute.
     """
-    if len(mesh.face_laws) < 2:
+    if "xmin" not in mesh.face_laws:
         return
-    inner_law = mesh.face_laws[0]
+    inner_law = mesh.face_laws["xmin"]
     if inner_law.kind != "reflective":
         raise NotImplementedError(
             f"a hollow {mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}) "
@@ -560,7 +546,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     Mesh1D mapping (per coordinate system):
 
     * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges,
-      bc_low=mesh.face_laws[0], bc_high=mesh.face_laws[1]),)``.
+      bc_low=mesh.face_laws["xmin"], bc_high=mesh.face_laws["xmax"]),)``.
     * ``SPHERICAL`` → ``(RadialAxisMesh(edges=mesh.edges,
       coord=RADIAL_SPHERICAL, bc_outer=mesh.outer_law),)``. A solid body
       has one face (the centre is an interior point and carries no law).
@@ -574,9 +560,9 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     not used by any SN sweep today):
 
     * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges_x,
-      bc_low=mesh.bc_xmin, bc_high=mesh.bc_xmax),
-      AxisMesh(edges=mesh.edges_y, bc_low=mesh.bc_ymin,
-      bc_high=mesh.bc_ymax))``.
+      bc_low=face_laws["xmin"], bc_high=face_laws["xmax"]),
+      AxisMesh(edges=mesh.edges_y, bc_low=face_laws["ymin"],
+      bc_high=face_laws["ymax"]))``.
     """
     # Local import to avoid a circular dependency at module import time
     # (mesh.py is imported by sn/geometry.py which imports this module).
@@ -588,8 +574,8 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
             return (
                 AxisMesh(
                     edges=mesh.edges,
-                    bc_low=mesh.face_laws[0],
-                    bc_high=mesh.face_laws[1],
+                    bc_low=mesh.face_laws["xmin"],
+                    bc_high=mesh.face_laws["xmax"],
                 ),
             )
         if mesh.coord == CoordSystem.SPHERICAL:
@@ -621,17 +607,10 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 f"(coord={mesh.coord!r}) has no SN sweep today; "
                 f"axis-tuple extraction is undefined."
             )
+        laws = mesh.face_laws
         return (
-            AxisMesh(
-                edges=mesh.edges_x,
-                bc_low=mesh.bc_xmin,
-                bc_high=mesh.bc_xmax,
-            ),
-            AxisMesh(
-                edges=mesh.edges_y,
-                bc_low=mesh.bc_ymin,
-                bc_high=mesh.bc_ymax,
-            ),
+            AxisMesh(edges=mesh.edges_x, bc_low=laws["xmin"], bc_high=laws["xmax"]),
+            AxisMesh(edges=mesh.edges_y, bc_low=laws["ymin"], bc_high=laws["ymax"]),
         )
 
     raise TypeError(
@@ -648,29 +627,21 @@ def _face_laws_of_axis(ax, coord, edges):
     """The adapter mesh's face laws: the laws SN resolves on this axis.
 
     ``SNProblem.from_axes`` resolves its laws from the axes themselves; the
-    adapter mesh only needs a declaration, so it carries what SN computes.
-    Two different things are carried, each with its own retirement:
-
-    * an undeclared axis law is SN's reflective default
-      (:func:`~orpheus.transport.method.resolve_boundary_conditions`).
-      ELEGANCE-DEBT[guard] #405: retires when an axis cannot be declared
-      without its laws (P1 step 3c, the undeclared axis law);
-    * the inner face of a hollow radial axis, which has no law slot, is the
-      reflective cavity SN computes.
-      SCOPE-BOUNDARY[guard] — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
-      ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
-      revisit: the curvilinear SN build, deferred by the user.
+    adapter mesh only needs a declaration, so it carries the axis's declared
+    laws, and on the inner face of a hollow radial axis, which has no law
+    slot, the reflective cavity SN computes.
+    SCOPE-BOUNDARY[guard] — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
+    revisit: the curvilinear SN build, deferred by the user.
     """
     from orpheus.geometry.boundary import BC
 
-    def declared(law):
-        return BC("reflective") if law is None else law
-
     if isinstance(ax, AxisMesh):
-        return (declared(ax.bc_low), declared(ax.bc_high))
-    outer = declared(ax.bc_outer)
+        return {"xmin": ax.bc_low, "xmax": ax.bc_high}
     points = coord.boundary_points(float(edges[0]), float(edges[-1]))
-    return (BC("reflective"), outer) if len(points) == 2 else (outer,)
+    if len(points) == 2:
+        return {"xmin": BC("reflective"), "xmax": ax.bc_outer}
+    return {"xmax": ax.bc_outer}
 
 
 def legacy_mesh_from_axes(
@@ -736,16 +707,13 @@ def legacy_mesh_from_axes(
                 f"legacy_mesh_from_axes: 2-D non-Cartesian (axes coords "
                 f"{ax0.coord!r}, {ax1.coord!r}) has no Mesh2D today."
             )
-        assert isinstance(ax0, AxisMesh) and isinstance(ax1, AxisMesh)
         return Mesh2D(
-            edges_x=ax0.edges,
-            edges_y=ax1.edges,
-            mat_map=mat_map,
+            ax0.edges, ax1.edges, mat_map,
+            face_laws={
+                label.face_name: axes[label.axis_index].bc[label.endpoint]
+                for label in face_labels(axes)
+            },
             coord=CoordSystem.CARTESIAN,
-            bc_xmin=ax0.bc_low,
-            bc_xmax=ax0.bc_high,
-            bc_ymin=ax1.bc_low,
-            bc_ymax=ax1.bc_high,
         )
 
     raise NotImplementedError(

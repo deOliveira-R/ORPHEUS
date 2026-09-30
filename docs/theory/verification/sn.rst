@@ -91,14 +91,15 @@ is the **bulk-only / vacuum** special case of the composite source
 ``q = q_bulk ⊕ q_∂`` the solver also accepts (see
 :ref:`sn-composite-fixed-source`); this isotropic slab MMS is
 vacuum-automatic, so the boundary leaf is identically zero.  Vacuum
-boundary conditions are applied via the mesh-level BC infrastructure
-described in :ref:`boundary-conditions`:
-:func:`solve_sn_fixed_source` defaults its ``boundary_condition``
-parameter to ``"vacuum"`` and the internal helper
-``_apply_default_bcs`` stamps :attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`
-onto every face of the mesh that lacks an explicit BC declaration.
-:class:`SNProblem` then resolves these to the ``"vacuum"`` kind string,
-which the sweep reads directly.  In the 1-D cumprod path, the
+boundary conditions are declared on the mesh and resolved by the
+mesh-level BC infrastructure described in :ref:`boundary-conditions`:
+the case's mesh declares
+:attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>` on both faces
+(the 2-D manufactured boxes of the same module declare it on all four),
+because the manufactured solution vanishes on the boundary, and
+:class:`SNProblem` resolves each to the ``"vacuum"`` kind string,
+which the sweep reads directly.  The entry supplies no law of its own
+(:ref:`structured-geometry-no-default-law`).  In the 1-D cumprod path, the
 recurrence starts from zero; in the 2-D wavefront path, the
 reflective-partner copy is skipped, leaving incoming-face angular
 fluxes at their zero initialisation (which is correct because no

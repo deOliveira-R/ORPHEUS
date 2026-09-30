@@ -59,6 +59,12 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))

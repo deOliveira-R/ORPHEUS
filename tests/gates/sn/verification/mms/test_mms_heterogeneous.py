@@ -75,7 +75,6 @@ def test_sn_heterogeneous_mms_converges_second_order():
 
         result = solve_sn_fixed_source(
             materials, mesh, quad, Q,
-            boundary_condition="vacuum",
             max_inner=500, inner_tol=1e-12,
         )
 

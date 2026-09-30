@@ -19,14 +19,14 @@ laws is one of the things it owns.
 The laws are declared on the
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, one per
 boundary point, and the :class:`~orpheus.mesh.mesher.Mesher` carries them
-onto the mesh: :class:`~orpheus.mesh.structured.Mesh1D` carries
-``face_laws``, one per boundary face, inner first (a slab's left and
-right, a solid body's outer surface, a hollow body's inner and outer);
-:class:`~orpheus.mesh.structured.Mesh2D` carries
-``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``. Each is a ``BC`` tag or
-an already-typed boundary law; a ``Mesh2D`` face may still be ``None``
-(the method's default) until step 3c of #405, while a ``Mesh1D`` refuses
-``None`` since step 3b.
+onto the mesh: :class:`~orpheus.mesh.structured.Mesh1D` and
+:class:`~orpheus.mesh.structured.Mesh2D` both carry ``face_laws``, a
+mapping from face name to law over exactly their boundary faces
+(``xmin`` and ``xmax`` on a slab or a hollow body, ``xmax`` alone on a
+solid one, and ``ymin``/``ymax`` added in 2-D;
+:ref:`structured-geometry-face-laws`); an axis
+tuple declares a law on every axis endpoint. Each law is a ``BC`` tag or
+an already-typed boundary law, and ``None`` is refused everywhere.
 :class:`~orpheus.geometry.boundary.BC` is a frozen dataclass with two fields:
 
 - ``kind: str`` --- an identifier such as ``"vacuum"``, ``"reflective"``,
@@ -38,9 +38,9 @@ Convenience instances are available for the common cases:
 :attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`,
 :attr:`BC.reflective <orpheus.geometry.boundary.BC.reflective>`, and
 :attr:`BC.white <orpheus.geometry.boundary.BC.white>`.
-When a face is left as ``None``, the solver applies its own default
-(reflective for the SN solver, matching the infinite-lattice /
-eigenvalue convention).
+The solver has no default law: every face carries the law the problem
+declares, and a face cannot be left undeclared
+(:ref:`structured-geometry-no-default-law`).
 
 **Stage 2 --- Solver resolution via the BC realizer.**
 :class:`SNProblem` owns a class-level
@@ -108,16 +108,17 @@ for the operator-algebra view and
 :ref:`theory-boundary-conditions` for the full trace-law /
 realizer architecture.
 
-**Backward compatibility.**
-:func:`solve_sn_fixed_source` still accepts a ``boundary_condition: str``
-parameter (default ``"vacuum"``).  Internally it calls
-``_apply_default_bcs(mesh, boundary_condition)``, which applies the
-string to **all faces** that lack explicit :class:`~orpheus.geometry.boundary.BC`
-declarations.  When the mesh already carries explicit BCs, the parameter
-is silently ignored --- mesh-level declarations always take precedence.
-:func:`solve_sn` (the eigenvalue entry point) does not expose a
-``boundary_condition`` parameter; eigenvalue problems use whatever the
-mesh declares (defaulting to reflective on all faces).
+**The declaration is the only source of a law.**
+No S\ :sub:`N` entry point takes a boundary argument: the eigenvalue
+entries (:func:`~orpheus.sn.solver.solve_sn`, ``solve_sn_adjoint``) and
+the source entries (:func:`~orpheus.sn.solver.solve_sn_fixed_source`,
+``solve_sn_adjoint_fixed_source``, ``solve_sn_multiplying_source``) read
+the laws the mesh or the axis tuple declares, verbatim, and
+:class:`SNProblem` resolves each through the shared
+:func:`~orpheus.transport.method.resolve_boundary_conditions`, which has
+no default. A fixed-source problem on a vacuum-bounded domain declares
+``vacuum`` on its faces; an infinite-lattice eigenvalue problem declares
+``reflective``.
 
 .. note::
 
@@ -125,7 +126,13 @@ mesh declares (defaulting to reflective on all faces).
    reflective BCs on all faces and the then-production ``transport_sweep``
    entry accepted a ``boundary_condition: str`` parameter.  That parameter
    has been removed --- BCs now flow exclusively through the mesh → SNProblem
-   resolution path described above.
+   resolution path described above.  The source entries later carried a
+   ``boundary_condition`` parameter of their own (default ``"vacuum"``),
+   which filled every face of an all-undeclared ``Mesh2D`` or axis tuple
+   through a helper, ``_apply_default_bcs``, while the resolver read any
+   face left undeclared as reflective; P1 step 3c of #405 (2026-09-30)
+   retired the parameter, the helper and the resolver's default together
+   with ``None`` as a declaration.
 
 Supported Types
 ---------------
@@ -144,8 +151,9 @@ where :math:`n'` is the reflected partner ordinate (negating the
 appropriate direction cosine).  The pairing is derived from the mirror
 motion by each :term:`quadrature`'s
 :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
-(:eq:`quadrature-ordinate-permutation`).  This is the
-default for eigenvalue problems (infinite lattice / infinite medium).
+(:eq:`quadrature-ordinate-permutation`).  It is the law an
+infinite-lattice or infinite-medium eigenvalue problem declares on its
+faces.
 The CP solver uses white (isotropic) BCs instead; see
 :ref:`white-bc-quality` for a comparison showing the ~1% gap between
 the two approaches.
@@ -163,13 +171,11 @@ the two approaches.
    :math:`\dim\ker A = 12` on a 2-D ``level_symmetric`` :math:`S_4`
    2-group box, :math:`138` at :math:`d=3` :math:`(3,4,5)` — and the
    returned boundary trace is one member of a solution manifold.  This
-   is the DEFAULT for :func:`~orpheus.sn.solver.solve_sn`, which has no
-   ``boundary_condition`` parameter, and for any bare
-   :class:`SNProblem`.  Nothing a user normally checks reveals it — every
+   is the STANDARD infinite-lattice :math:`k_\infty` declaration (every
+   face reflective) for :func:`~orpheus.sn.solver.solve_sn` in two or
+   more dimensions.  Nothing a user normally checks reveals it — every
    mirror-even functional is blind by theorem — and the solver projects
-   the trace onto the canonical member and says so.  ⚠ ``_apply_default_bcs``
-   fills only when **all** faces are ``None``, so a *partial* declaration
-   silently leaves the rest reflective.  Full treatment:
+   the trace onto the canonical member and says so.  Full treatment:
    :ref:`sn-loss-kernel-gauge` in :doc:`cartesian_multid`.
 
 **Vacuum** (zero incoming flux).

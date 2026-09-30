@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**92 entries · 332 catching tests · 0 uncaught · 5 dormant.**
+**93 entries · 333 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-093` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-093")`.
+Append a `.. error-entry:: ERR-094` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-094")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -138,3 +138,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-090 | 3 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
 | ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |
+| ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |

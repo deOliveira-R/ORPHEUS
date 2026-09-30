@@ -92,8 +92,12 @@ def _sn_2d(ng: int = 2) -> SNProblem:
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 5), edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((4, 3), dtype=int),   # (nx, ny) — deliberately nx != ny
-        bc_xmin=BC.vacuum, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.vacuum,
+            "xmax": BC.reflective,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
 

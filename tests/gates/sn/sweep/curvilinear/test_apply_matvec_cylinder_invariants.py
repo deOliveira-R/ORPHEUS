@@ -178,11 +178,11 @@ def test_cylinder_three_way_standoff(
 
     res_si = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        boundary_condition="reflective", inner_solver="source_iteration",
+        inner_solver="source_iteration",
     )
     res_k = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        boundary_condition="reflective", inner_solver="krylov",
+        inner_solver="krylov",
     )
 
     # D-H.1d: Solution.angular_flux is TimedFullField.

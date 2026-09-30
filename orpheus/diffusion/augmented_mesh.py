@@ -242,9 +242,9 @@ class DiffusionMesh(MaterialMesh):
 
         # Resolve the per-axis BC declarations through the ONE shared
         # TransportMethod body (#290 P7b): the face loop over the SAME
-        # ``face_labels`` inventory the trace was built from, the
-        # ``BC("reflective")`` infinite-lattice default, and the
-        # tag → law parse are method-generic;
+        # ``face_labels`` inventory the trace was built from and the
+        # tag → law parse are method-generic (every face law is
+        # declared; there is no default);
         # :meth:`realize_boundary_law` below is the diffusion arm. Law
         # coverage ≡ trace-face coverage by construction, with no
         # separate validation to drift.
@@ -286,7 +286,7 @@ class DiffusionMesh(MaterialMesh):
 
     # ── Boundary condition resolution ──────────────────────────────────
     #
-    # The face loop, the reflective default, and the tag → law parse
+    # The face loop and the tag → law parse
     # (ruling-3 semantics: ``"vacuum"`` → :class:`VacuumInflow`, the
     # Marshak :math:`J^- = 0`; ``"zero_flux"`` → the honestly-named
     # Dirichlet idealization :math:`\mathcal{A} = -1`) live in the ONE

@@ -571,11 +571,12 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     """
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.sn.problem import SNProblem
+    from orpheus.geometry import BC
     from orpheus.mesh import AxisMesh
     from tests.gates.sn._test_helpers import placeholder_materials
 
     axes = tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1))
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC("reflective"), bc_high=BC("reflective"))
         for ext, n in zip((1.0, 2.0, 3.0), (2, 3, 2))
     )
     sn = SNProblem.from_axes(

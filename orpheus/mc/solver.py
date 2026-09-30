@@ -162,8 +162,8 @@ def _refuse_a_mesh_mc_misreads(mesh: Mesh1D) -> None:
             f"MC fills a hollow cylinder's cavity (r_0 = {float(mesh.edges[0])!r}) "
             f"with its innermost material; only a solid cylinder is read (#513)."
         )
-    if len(mesh.face_laws) == 2 and mesh.face_laws[0].kind != "periodic":
-        left_law = mesh.face_laws[0]
+    if "xmin" in mesh.face_laws and mesh.face_laws["xmin"].kind != "periodic":
+        left_law = mesh.face_laws["xmin"]
         raise NotImplementedError(
             f"MC applies the periodic law to every face; the declared left / "
             f"inner law {left_law!r} would be dropped (#513)."

@@ -24,8 +24,9 @@ Inner solver dispatch
   ERR-026).  On Cartesian meshes it is bit-identical math to the
   legacy BiCGSTAB FD path.
 
-Boundary conditions default to reflective (infinite lattice) but are
-configurable via :class:`~orpheus.geometry.boundary.BC` on the mesh.
+Boundary laws are declared on the mesh or the axis tuple (a
+:class:`~orpheus.geometry.boundary.BC` tag or a typed law on every face) and
+taken verbatim: no entry point supplies a default law.
 
 .. seealso:: :ref:`theory-discrete-ordinates` — Key Facts, equations, gotchas.
 """
@@ -118,42 +119,10 @@ if TYPE_CHECKING:
     from orpheus.numerics.operator import SupportsInverse
 
 
-def _apply_default_bcs(
-    geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
-    boundary_condition: str,
-) -> "Mesh1D | Mesh2D | tuple[Axis1D, ...]":
-    """Apply *boundary_condition* string to all faces that lack explicit BCs.
-
-    Returns the original declaration unchanged when it already carries
-    ANY explicit :class:`~orpheus.geometry.boundary.BC`, so user-set BCs
-    always take precedence over the ``boundary_condition`` parameter.
-
-    C5.5 (#225): handles BOTH entry-surface geometry declarations — a
-    legacy :class:`Mesh1D` / :class:`Mesh2D` (per-face dataclass
-    fields) and an axis tuple (per-endpoint ``bc`` slots on each
-    :class:`~orpheus.mesh.axis.AxisMesh` /
-    :class:`~orpheus.mesh.axis.RadialAxisMesh`). The all-or-nothing
-    semantics are identical on both representations.
-    """
-    bc = BC(boundary_condition)
-    if isinstance(geometry, Mesh1D):  # a Mesh1D declares a law on every face
-        return geometry
-    if isinstance(geometry, Mesh2D):
-        faces = ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax")
-        if all(getattr(geometry, f) is None for f in faces):
-            return replace(geometry, **{f: bc for f in faces})
-        return geometry
-    axes = tuple(geometry)
-    if any(b is not None for ax in axes for b in ax.bc.values()):
-        return axes
-    return tuple(ax.with_uniform_bc(bc) for ax in axes)
-
-
 def _as_problem(
     geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: "Quadrature",
     materials: "dict[int, Mixture]",
-    boundary_condition: "str | None" = None,
     mat_map: "np.ndarray | None" = None,
     *,
     scheme: "DiscretizationSchemeBase | None" = None,
@@ -165,18 +134,13 @@ def _as_problem(
     #225): ``geometry`` is a legacy :class:`Mesh1D` / :class:`Mesh2D`
     (the d≤2 user-facing declaration) or an axis tuple — the
     axis-native surface and the ONLY 3-D entry
-    (:meth:`SNProblem.from_axes`). ``boundary_condition`` (the
-    fixed-source vacuum convention) fills faces only when the
-    declaration carries no explicit BC, on either representation;
-    ``None`` (the eigenvalue entry) leaves the declaration verbatim —
-    unset faces then resolve to the SNProblem-level reflective default
-    (the infinite-lattice eigenvalue convention). ``mat_map`` is the
+    (:meth:`SNProblem.from_axes`). Both representations declare a law on
+    every boundary face, and the declaration is taken verbatim: there is no
+    entry-level default to fill a face with. ``mat_map`` is the
     axes-entry material-assignment channel (shape ``spatial_shape``;
     defaults to single-material id 0) — a legacy mesh carries its own
     and combining the two raises.
     """
-    if boundary_condition is not None:
-        geometry = _apply_default_bcs(geometry, boundary_condition)
     if isinstance(geometry, (Mesh1D, Mesh2D)):
         if mat_map is not None:
             raise ValueError(
@@ -2289,8 +2253,8 @@ def solve_sn(
     for slab, level-symmetric / product quadrature for curvilinear, or
     Lebedev for 2-D.
 
-    The mesh's boundary conditions (``face_laws`` for 1-D,
-    ``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` for 2-D) are
+    The mesh's boundary laws (``face_laws``, a mapping from face name to
+    law, or each axis's ``bc``) are
     honoured verbatim — the SN sweep handles ``vacuum`` and
     ``reflective``.
 
@@ -2354,8 +2318,8 @@ def solve_sn(
     # Pose the Problem (precomputes the streaming stencil).
     # Issue #197 PR-TYPED-0: materials now lives on SNProblem — the
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
-    # legacy mesh or an axis tuple (the only 3-D entry); unset faces
-    # resolve to the SNProblem reflective default (eigenvalue convention).
+    # legacy mesh or an axis tuple (the only 3-D entry); every face law is
+    # the declared one.
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
@@ -2705,8 +2669,8 @@ def solve_sn_adjoint(
     :class:`~orpheus.numerics.iteration.SourceIteration`), so the
     forward's ``inner_solver`` / ``inner_schedule`` strategy selectors do
     not appear.  Boundary conditions ride the mesh declaration exactly as
-    in :func:`solve_sn` (unset faces resolve to the reflective eigenvalue
-    default); reflective and vacuum are handled by the transpose
+    in :func:`solve_sn` (every face law is the declared one); reflective
+    and vacuum are handled by the transpose
     machinery structurally — an adjoint vacuum is the transpose of the
     forward vacuum, never a user-facing BC flip.
 
@@ -2825,7 +2789,6 @@ def solve_sn_adjoint_fixed_source(
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: Quadrature,
     detector_response: "np.ndarray | FullField",
-    boundary_condition: "str | None" = "vacuum",
     scattering_order: int = 0,
     max_inner: int | None = None,
     inner_tol: float = 1e-12,
@@ -2847,7 +2810,7 @@ def solve_sn_adjoint_fixed_source(
 
     Signature mirrors :func:`solve_sn_fixed_source` (the forward
     sibling) for every shared parameter (``materials``, ``mesh``,
-    ``quadrature``, ``boundary_condition``, ``scattering_order``,
+    ``quadrature``, ``scattering_order``,
     ``max_inner``, ``inner_tol``, ``mat_map``, ``scheme``); only the
     adjoint source is new.
 
@@ -2893,7 +2856,7 @@ def solve_sn_adjoint_fixed_source(
     # name the budget that actually bound (`None` in a message is useless).
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
     problem = _as_problem(
-        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        mesh, quadrature, materials, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
     if problem.radial_characteristic_field_space is not None:
@@ -3242,7 +3205,6 @@ def solve_sn_fixed_source(
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: Quadrature,
     external_source: "np.ndarray | TimedFullField",
-    boundary_condition: "str | None" = "vacuum",
     scattering_order: int = 0,
     max_inner: int | None = None,
     inner_tol: float = 1e-12,
@@ -3277,7 +3239,8 @@ def solve_sn_fixed_source(
         * ``np.ndarray`` of shape ``(N, ng, nx, ny)`` — the per-ordinate
           volumetric BULK source :math:`Q^{\text{ext}}_n(x)` in
           **per-ordinate density magnitude** (R-1 Step 4 A1 convention),
-          with a **vacuum** boundary. Callers with an iso scalar source
+          with no boundary source term (the faces are closed by the
+          mesh's declared laws alone). Callers with an iso scalar source
           :math:`Q(\vec r, g)` should project to per-ordinate via
           :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`
           before passing (the :math:`1/W` projection lives at the producer
@@ -3293,17 +3256,8 @@ def solve_sn_fixed_source(
           boundary via
           :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
           (the affine-BC inhomogeneous term :math:`q`, consumed by the sweep
-          as the inflow seed). The legacy array form is exactly the
-          bulk-only / vacuum special case of this composite.
-    boundary_condition : {"vacuum", "reflective"} or None
-        Applied to all faces when a :class:`Mesh2D` or an axis tuple has
-        no explicit BC declarations (every face ``None``); a
-        :class:`Mesh1D` declares a law on every face, so it is ignored
-        there. When the mesh carries explicit
-        :class:`~orpheus.geometry.boundary.BC` fields, those take
-        precedence and this parameter is ignored.
-        Vacuum is the default because the intended consumer is
-        Method of Manufactured Solutions verification on a finite slab.
+          as the inflow seed). The array form is exactly the
+          bulk-only special case of this composite (``q_∂ = 0``).
     max_inner, inner_tol :
         Inner solver iteration limits.
     inner_solver : {"source_iteration", "krylov", None}
@@ -3419,11 +3373,10 @@ def solve_sn_fixed_source(
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
 
     # Normalize the geometry declaration (legacy mesh OR axis tuple —
-    # the only 3-D entry; C5.5 #225) into the SN phase space;
-    # boundary_condition fills faces only when the declaration carries
-    # no explicit BC.
+    # the only 3-D entry; C5.5 #225) into the SN phase space; every face
+    # law is the declared one.
     problem = _as_problem(
-        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        mesh, quadrature, materials, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
 
@@ -3540,7 +3493,6 @@ def solve_sn_multiplying_source(
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: Quadrature,
     external_source: "np.ndarray | TimedFullField",
-    boundary_condition: "str | None" = "vacuum",
     scattering_order: int = 0,
     max_inner: int | None = None,
     inner_tol: float = 1e-12,
@@ -3573,7 +3525,7 @@ def solve_sn_multiplying_source(
     t_start = time.perf_counter()
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
     problem = _as_problem(
-        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        mesh, quadrature, materials, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
     # the admissibility k-solve runs on the SAME Problem (hub) the source

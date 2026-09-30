@@ -56,8 +56,12 @@ class CompositionOverhead:
         mesh = Mesh2D(
             edges_x=_graded_edges(2.0, nx, ratio=1.02), edges_y=_graded_edges(3.0, ny, ratio=1.03),
             mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("reflective"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
+            face_laws={
+                "xmin": BC("reflective"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("reflective"),
+                "ymax": BC("vacuum"),
+            },
         )
         problem = SNProblem(
             mesh, Quadrature.level_symmetric(sn_order=4),
@@ -159,6 +163,7 @@ class SolverComponents:
         mesh = Mesh2D(
             edges_x=np.linspace(0, nx * delta, nx + 1), edges_y=np.linspace(0, ny * delta, ny + 1),
             mat_map=mat,
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         problem = SNProblem(mesh, Quadrature.lebedev(order=17), {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")})
         self.solver = SNSolver(problem)

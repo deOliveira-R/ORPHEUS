@@ -5949,10 +5949,10 @@ form derived here is therefore a property of the diamond closure and the
 reflective faces alone.  ``Aψ = q`` then has a solution *manifold*, not
 a solution, and a converged solve returns whichever member the iteration
 happened to freeze — a function of the cold start and of the schedule,
-not of the problem.  That is not a corner case: :func:`~orpheus.sn.solver.solve_sn`
-has no ``boundary_condition`` parameter at all and a bare
-:class:`~orpheus.sn.problem.SNProblem` resolves to all-reflective,
-so this **is** the standard :math:`\kinf` lattice.
+not of the problem.  That is not a corner case: the infinite-lattice
+:math:`\kinf` problem declares every face reflective, so this **is** the
+standard lattice that :func:`~orpheus.sn.solver.solve_sn` is asked to
+solve.
 
 Three facts make it tractable rather than alarming, and this section is
 their derivation, their evidence and their remedy:

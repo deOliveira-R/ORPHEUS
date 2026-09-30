@@ -167,8 +167,12 @@ def _fissile_cart2d() -> "tuple[dict[int, Mixture], Mesh2D, Quadrature, int]":
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=mat_map,
-        bc_xmin=BC("reflective"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("reflective"),
+            "ymax": BC("vacuum"),
+        },
     )
     return materials, mesh, Quadrature.level_symmetric(4), 1
 

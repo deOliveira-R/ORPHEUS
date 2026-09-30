@@ -160,7 +160,7 @@ def _solve_sphere(nx: int) -> np.ndarray:
     src = case.external_source(mesh)
     sol = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, src,
-        boundary_condition="vacuum", scattering_order=0,
+        scattering_order=0,
         max_inner=8000, inner_tol=1e-13,
     )
     return np.asarray(sol.scalar_flux.values)[0]
@@ -172,7 +172,7 @@ def _solve_cylinder(nx: int) -> np.ndarray:
     src = case.external_source(mesh)
     sol = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, src,
-        boundary_condition="vacuum", scattering_order=0,
+        scattering_order=0,
         max_inner=8000, inner_tol=1e-13,
     )
     return np.asarray(sol.scalar_flux.values)[0]
@@ -218,7 +218,7 @@ def test_sphere_global_L2_second_order_dual_reference():
         src = case.external_source(mesh)
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
-            boundary_condition="vacuum", scattering_order=0,
+            scattering_order=0,
             max_inner=8000, inner_tol=1e-13,
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
@@ -267,7 +267,7 @@ def test_cylinder_global_L2_second_order():
         src = case.external_source(mesh)
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
-            boundary_condition="vacuum", scattering_order=0,
+            scattering_order=0,
             max_inner=8000, inner_tol=1e-13,
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
@@ -328,7 +328,7 @@ def test_sphere_pole_cell_first_order_and_Linf_dominant():
         src = case.external_source(mesh)
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
-            boundary_condition="vacuum", scattering_order=0,
+            scattering_order=0,
             max_inner=8000, inner_tol=1e-13,
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
@@ -394,7 +394,7 @@ def test_cylinder_pole_first_order_vs_volume_average_masked_by_midpoint():
         src = case.external_source(mesh)
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
-            boundary_condition="vacuum", scattering_order=0,
+            scattering_order=0,
             max_inner=8000, inner_tol=1e-13,
         )
         phi = np.asarray(sol.scalar_flux.values)[0]

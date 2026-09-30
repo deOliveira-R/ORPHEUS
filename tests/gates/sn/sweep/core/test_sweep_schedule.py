@@ -46,13 +46,15 @@ def _slab(bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _box(*, nx: int = 4, ny: int = 4, ng: int = 1, quad=None, **bc_kwargs) -> SNProblem:
+def _box(
+    *, face_laws: dict[str, BC], nx: int = 4, ny: int = 4, ng: int = 1, quad=None,
+) -> SNProblem:
     edges = np.linspace(0.0, 2.0, nx + 1)
     mesh = Mesh2D(
         edges_x=edges,
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        **bc_kwargs,
+        face_laws=face_laws,
     )
     if quad is None:
         quad = Quadrature.product(n_mu=2, n_phi=4)
@@ -115,8 +117,8 @@ def test_jacobi_is_one_group_no_reflect_slab():
 
 def test_jacobi_is_one_group_no_reflect_box():
     sn = _box(
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
+                   "ymin": BC.reflective, "ymax": BC.reflective},
     )
     sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert len(sched.groups) == 1
@@ -169,8 +171,8 @@ def test_gs_slab_full_vacuum_no_reflect_anywhere():
 
 def test_gs_box_all_reflective_each_octant_reflects_its_outgoing_faces():
     sn = _box(
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
+                   "ymin": BC.reflective, "ymax": BC.reflective},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     labels = [g.sweeps[0].label for g in sched.groups]
@@ -192,8 +194,8 @@ def test_gs_box_all_reflective_each_octant_reflects_its_outgoing_faces():
 def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
     # x reflective (both faces), y vacuum (both faces): only x faces reflect.
     sn = _box(
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.vacuum, bc_ymax=BC.vacuum,
+        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
+                   "ymin": BC.vacuum, "ymax": BC.vacuum},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     for g in sched.groups:
@@ -224,8 +226,8 @@ def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
     quad = Quadrature.lebedev(order=17)
     sn = _box(
         quad=quad,
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
+                   "ymin": BC.reflective, "ymax": BC.reflective},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     order = {g.sweeps[0].label: i for i, g in enumerate(sched.groups)}
@@ -255,8 +257,8 @@ def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
 
 def test_jacobi_and_gs_sweep_identical_ordinates():
     sn = _box(
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
+                   "ymin": BC.reflective, "ymax": BC.reflective},
     )
     full = list(range(sn.quad.N))
     assert _all_indices(SweepSchedule.jacobi(sn.ndim, sn.quad.octants)) == full

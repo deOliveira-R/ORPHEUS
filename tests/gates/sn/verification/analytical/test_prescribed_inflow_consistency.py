@@ -169,18 +169,19 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     elif config == "cart2d_reflective_y":
         quad = Quadrature.level_symmetric(4)
         n = 8
-        # EXPLICIT reflective-y on the Mesh2D constructor (NOT a
-        # boundary_condition='reflective' string kwarg an explicit mesh
-        # BC would silently override — the G-4 latent-dud parallel).
+        # Reflective-y declared on the Mesh2D faces: the mesh is the only
+        # place a boundary law is declared.
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 2.0, n + 1),
             edges_y=np.linspace(0.0, 2.0, n + 1),
             mat_map=np.zeros((n, n), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"),
-            bc_xmax=BC("vacuum"),
-            bc_ymin=BC("reflective"),  # B≠0 → G-S folds it
-            bc_ymax=BC("reflective"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("reflective"),
+                "ymax": BC("reflective"),
+            },
         )
         run_gs = True
     else:  # pragma: no cover - guarded by parametrize

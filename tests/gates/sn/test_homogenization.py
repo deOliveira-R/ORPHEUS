@@ -642,8 +642,12 @@ def test_homogenize_2d_rate_preservation(materials):
     fine = Mesh2D(
         edges_x=np.linspace(0.0, 4.0, 5), edges_y=np.linspace(0.0, 4.0, 5),
         mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sol = solve_sn(materials, fine, quad, scattering_order=0)
@@ -651,8 +655,12 @@ def test_homogenize_2d_rate_preservation(materials):
     coarse = Mesh2D(
         edges_x=np.array([0.0, 2.0, 4.0]), edges_y=np.array([0.0, 2.0, 4.0]),
         mat_map=np.zeros((2, 2), dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     mm = sol.homogenize(coarse)
     assert mm.ndim == 2 and len(mm.materials) == 4

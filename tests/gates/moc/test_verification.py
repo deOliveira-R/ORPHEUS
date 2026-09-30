@@ -1060,7 +1060,7 @@ class TestXVCrossVerification:
         try:
             from orpheus.cp.solver import solve_cp
             # CP reads the outer law as white; MoC reads it as reflective.
-            result_cp = solve_cp(materials, replace(mesh, face_laws=(BC.white,)))
+            result_cp = solve_cp(materials, replace(mesh, face_laws={"xmax": BC.white}))
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")
@@ -1096,7 +1096,7 @@ class TestXVCrossVerification:
         try:
             from orpheus.cp.solver import solve_cp
             # CP reads the outer law as white; MoC reads it as reflective.
-            result_cp = solve_cp(materials, replace(mesh, face_laws=(BC.white,)))
+            result_cp = solve_cp(materials, replace(mesh, face_laws={"xmax": BC.white}))
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")

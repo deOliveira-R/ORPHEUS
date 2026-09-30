@@ -171,7 +171,7 @@ def _cart2d_mesh(
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        bc_xmin=bc, bc_xmax=bc, bc_ymin=bc, bc_ymax=bc,
+        face_laws={"xmin": bc, "xmax": bc, "ymin": bc, "ymax": bc},
     )
     quad = Quadrature.level_symmetric(sn_order=sn_order)
     return SNProblem(mesh, quad, {0: mix})

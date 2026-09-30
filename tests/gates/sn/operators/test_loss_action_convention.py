@@ -91,8 +91,12 @@ def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNProblem:
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
 

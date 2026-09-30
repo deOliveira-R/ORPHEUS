@@ -20,6 +20,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
+from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -31,11 +32,11 @@ _V = BC("vacuum")
 _EDGES = np.linspace(0.0, 1.0, 4)
 
 
-def _sn_mesh_2d(**boundary_conditions) -> SNProblem:
+def _sn_mesh_2d(**face_laws) -> SNProblem:
     mesh = Mesh2D(
         edges_x=_EDGES, edges_y=_EDGES,
         mat_map=np.zeros((3, 3), dtype=int),
-        **boundary_conditions,
+        face_laws=face_laws,
     )
     return SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
@@ -45,7 +46,7 @@ def _sn_mesh_2d(**boundary_conditions) -> SNProblem:
 @pytest.mark.foundation
 def test_an_all_reflective_box_counts_every_axis():
     assert _sn_mesh_2d(
-        bc_xmin=_R, bc_xmax=_R, bc_ymin=_R, bc_ymax=_R,
+        xmin=_R, xmax=_R, ymin=_R, ymax=_R,
     ).reflective_axis_pairs == 2
 
 
@@ -53,7 +54,7 @@ def test_an_all_reflective_box_counts_every_axis():
 def test_one_vacuum_face_breaks_its_axis():
     """`[M]` #344: this is the configuration where ``dim ker A`` drops 12 → 0."""
     assert _sn_mesh_2d(
-        bc_xmin=_R, bc_xmax=_R, bc_ymin=_R, bc_ymax=_V,
+        xmin=_R, xmax=_R, ymin=_R, ymax=_V,
     ).reflective_axis_pairs == 1
 
 
@@ -65,7 +66,7 @@ def test_a_MIXED_axis_contributes_nothing():
     leg, so the x axis cannot host a closed loop no matter how
     reflective its other face is.
     """
-    mesh = _sn_mesh_2d(bc_xmin=_R, bc_xmax=_V, bc_ymin=_R, bc_ymax=_R)
+    mesh = _sn_mesh_2d(xmin=_R, xmax=_V, ymin=_R, ymax=_R)
     assert mesh.reflective_axis_pairs == 1
 
     reflective_faces = sum(
@@ -89,7 +90,7 @@ def test_TWO_mixed_axes_are_worth_zero_not_one():
     faces, ``2 // 2 = 1`` by the face rule, but **0** closed loops —
     every path out of this box escapes on its first bounce.
     """
-    mesh = _sn_mesh_2d(bc_xmin=_R, bc_xmax=_V, bc_ymin=_R, bc_ymax=_V)
+    mesh = _sn_mesh_2d(xmin=_R, xmax=_V, ymin=_R, ymax=_V)
 
     reflective_faces = sum(
         1 for face in mesh.bc
@@ -106,26 +107,25 @@ def test_TWO_mixed_axes_are_worth_zero_not_one():
 @pytest.mark.foundation
 def test_an_all_vacuum_box_has_none():
     assert _sn_mesh_2d(
-        bc_xmin=_V, bc_xmax=_V, bc_ymin=_V, bc_ymax=_V,
+        xmin=_V, xmax=_V, ymin=_V, ymax=_V,
     ).reflective_axis_pairs == 0
 
 
 @pytest.mark.foundation
-def test_a_BARE_mesh_is_all_reflective_and_the_predicate_sees_it():
-    """⚠ The silent default, and why the exposure is broad.
+def test_a_LAW_declared_box_is_all_reflective_and_the_predicate_sees_it():
+    """The predicate reads the REALIZED law, not the tag a caller passed.
 
-    ``resolve_boundary_conditions`` fills unset faces with
-    ``BC("reflective")``, and neither ``solve_sn`` nor
-    ``solve_sn_adjoint`` even takes a ``boundary_condition`` argument —
-    so the canonical ``k_inf`` lattice, written with zero BC arguments,
-    is in the singular class.  The predicate must read the REALIZED law,
-    not the tag a caller passed.
+    Re-posed at step 3c: the row used to build a BARE mesh, whose unset faces
+    ``resolve_boundary_conditions`` filled with ``BC("reflective")``; that
+    default is retired (every face now declares its law). What survives is the
+    half about the realized law: here every face declares the already-typed
+    :class:`~orpheus.geometry.boundary.ReflectiveBoundary` rather than the
+    ``BC`` tag, so a predicate that read the declared tag's ``kind`` would
+    miss all four faces.
     """
-    mesh = Mesh2D(
-        edges_x=_EDGES, edges_y=_EDGES, mat_map=np.zeros((3, 3), dtype=int),
-    )
-    problem = SNProblem(
-        mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
+    problem = _sn_mesh_2d(
+        xmin=ReflectiveBoundary(axis="x"), xmax=ReflectiveBoundary(axis="x"),
+        ymin=ReflectiveBoundary(axis="y"), ymax=ReflectiveBoundary(axis="y"),
     )
     assert problem.reflective_axis_pairs == problem.ndim == 2
 

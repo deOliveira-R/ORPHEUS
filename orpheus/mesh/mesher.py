@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.mesh.face_laws import face_inventory
 from orpheus.mesh.partition import IntervalRule
 from orpheus.mesh.structured import Mesh1D
 
@@ -85,7 +86,10 @@ class Mesher:
             edges=edges,
             volumes=volumes,
             mat_ids=mat_ids,
-            face_laws=self._geometry.boundaries,
+            face_laws=dict(zip(
+                face_inventory(self._geometry.coord, edges, 1),
+                self._geometry.boundaries, strict=True,
+            )),
         )
         self._rules = rules
         return self

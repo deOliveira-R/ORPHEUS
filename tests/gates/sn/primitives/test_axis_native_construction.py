@@ -35,6 +35,10 @@ from orpheus.sn.problem import SNProblem
 
 pytestmark = [pytest.mark.foundation]
 
+# The law every axis here declares where its subject is not the boundary: every
+# consumer resolved an undeclared face to it before step 3c (#405).
+_REFLECTIVE = BC("reflective")
+
 
 def _one_group_mixture():
     """A trivial 1-group, 1-region material used for shape-only tests."""
@@ -69,8 +73,12 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
         Mesh2D(
             edges_x=edges_x, edges_y=edges_y, mat_map=mat_map,
             coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("reflective"), bc_ymax=BC("vacuum"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("reflective"),
+                "ymax": BC("vacuum"),
+            },
         ),
         quad, _MATERIALS,
     )
@@ -135,8 +143,8 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
 def test_from_axes_stores_axes_verbatim() -> None:
     """The supplied axis OBJECTS are the mesh's axes — no re-derivation."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 5)),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
     )
     mesh = SNProblem.from_axes(
         axes, Quadrature.lebedev(17), _MATERIALS,
@@ -160,7 +168,7 @@ def test_from_axes_custom_labels_fail_loud() -> None:
     """
     axes = (
         AxisMesh(
-            edges=np.linspace(0.0, 1.0, 5),
+            edges=np.linspace(0.0, 1.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE,
             label_low="left", label_high="right",
         ),
     )
@@ -228,9 +236,9 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
 def _d3_axes() -> tuple:
     """nx=3, ny=4, nz=5 with distinct extents — Mode-2 asymmetry."""
     return (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
-        AxisMesh(edges=np.linspace(0.0, 2.0, 5)),
-        AxisMesh(edges=np.linspace(0.0, 3.0, 6)),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 2.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 3.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
     )
 
 
@@ -300,12 +308,12 @@ def test_volume_measure_d3_integrates_to_total_volume() -> None:
 
 def test_coord_system_primitive() -> None:
     """Single-axis maps; multi-axis all-Cartesian; mixed refuses."""
-    cart = AxisMesh(edges=np.linspace(0.0, 1.0, 3))
+    cart = AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE)
     sph = RadialAxisMesh(
-        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_SPHERICAL,
+        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
     )
     cyl = RadialAxisMesh(
-        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_CYLINDRICAL,
+        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_CYLINDRICAL, bc_outer=_REFLECTIVE,
     )
     np.testing.assert_equal(coord_system((cart,)), CoordSystem.CARTESIAN)
     np.testing.assert_equal(coord_system((sph,)), CoordSystem.SPHERICAL)
@@ -322,7 +330,7 @@ def test_coord_system_primitive() -> None:
 
 def _slab_sn() -> SNProblem:
     return SNProblem.from_axes(
-        (AxisMesh(edges=np.linspace(0.0, 4.0, 9)),),
+        (AxisMesh(edges=np.linspace(0.0, 4.0, 9), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),),
         Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
     )
 
@@ -357,7 +365,10 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
     edges_x = np.linspace(0.0, 2.0, 5)
     edges_y = np.linspace(0.0, 3.0, 8)
     sn = SNProblem.from_axes(
-        (AxisMesh(edges=edges_x), AxisMesh(edges=edges_y)),
+        (
+            AxisMesh(edges=edges_x, bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+            AxisMesh(edges=edges_y, bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        ),
         Quadrature.lebedev(17), _MATERIALS,
     )
     rng = np.random.default_rng(42)
@@ -383,6 +394,11 @@ def test_2d_cylindrical_mesh_refused_at_construction() -> None:
         edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
         coord=CoordSystem.CYLINDRICAL,
+        face_laws={
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     with pytest.raises(NotImplementedError, match="non-Cartesian"):
         SNProblem(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS)
@@ -395,7 +411,7 @@ def test_d2_trace_builds_for_every_constructible_geometry() -> None:
     sphere = SNProblem.from_axes(
         (RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 4),
-            coord=AxisCoord.RADIAL_SPHERICAL,
+            coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
         ),),
         Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
     )

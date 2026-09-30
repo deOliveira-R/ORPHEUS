@@ -354,6 +354,7 @@ class TestTheKindTagRetires:
 
 class TestWignerSeitzPinCell:
     def test_default_construction(self):
+        """The outer law is white: part of the Wigner-Seitz model, not a default."""
         g = StructuredGeometry.wigner_seitz_pin_cell(
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
@@ -374,12 +375,6 @@ class TestWignerSeitzPinCell:
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
         assert g.domain_extent_cm == float(3.6 / np.sqrt(np.pi))
-
-    def test_custom_outer_law(self):
-        g = StructuredGeometry.wigner_seitz_pin_cell(
-            r_fuel=0.9, r_clad=1.1, pitch=3.6, boundaries=(BC.vacuum,),
-        )
-        assert g.boundaries == (BC.vacuum,)
 
 
 class TestPwrSlabHalfCell:
@@ -511,7 +506,7 @@ class TestMeshingAGeometry:
         # stored volume is the equal share m/n (ERR-020's invariant).
         assert np.all(mesh.volumes == mesh.volumes[0])
         # One face law, the outer one: the centre carries none.
-        assert mesh.face_laws == (BC.vacuum,)
+        assert mesh.face_laws == {"xmax": BC.vacuum}
 
     def test_single_region_slab_uniform(self):
         g = StructuredGeometry(
@@ -525,7 +520,7 @@ class TestMeshingAGeometry:
         assert mesh.coord == CoordSystem.CARTESIAN
         np.testing.assert_allclose(mesh.edges, [0.0, 1.0, 2.0, 3.0, 4.0])
         # A slab has two faces, left then right.
-        assert mesh.face_laws == (BC.vacuum, BC.reflective)
+        assert mesh.face_laws == {"xmin": BC.vacuum, "xmax": BC.reflective}
 
     def test_multi_region_slab(self):
         g = StructuredGeometry.from_thicknesses(
@@ -573,7 +568,7 @@ class TestMeshingAGeometry:
         assert (mesh.mat_ids == 2).sum() == 10
         assert (mesh.mat_ids == 1).sum() == 3
         assert (mesh.mat_ids == 0).sum() == 7
-        assert mesh.face_laws == (BC("white"),)
+        assert mesh.face_laws == {"xmax": BC("white")}
         _assert_equal_volume_regions(
             mesh,
             mat_ids=(2, 1, 0),
@@ -618,8 +613,8 @@ class TestMeshingAGeometry:
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(4)).mesh
         assert mesh.edges[0] == 0.5
         assert mesh.edges[-1] == 2.0
-        assert mesh.face_laws == (BC.reflective, BC.vacuum)
-        assert mesh.boundary_faces == (0.5, 2.0)
+        assert mesh.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum}
+        assert mesh.boundary_points == (0.5, 2.0)
 
     @pytest.mark.catches("ERR-020")
     def test_equal_volume_cylindrical_invariant(self):

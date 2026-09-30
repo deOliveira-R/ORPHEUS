@@ -68,15 +68,20 @@ def _legacy_2d() -> MaterialMesh:
         edges_x=np.linspace(0.0, 1.0, 3),
         edges_y=np.linspace(0.0, 2.0, 4),
         mat_map=np.zeros((2, 3), dtype=int),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return MaterialMesh(mesh2d, placeholder_materials(ng=2))
 
 
 def _axes(*extents_and_cells: tuple[float, int]) -> tuple[AxisMesh, ...]:
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1)) for ext, n in extents_and_cells
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC("reflective"), bc_high=BC("reflective"))
+        for ext, n in extents_and_cells
     )
 
 

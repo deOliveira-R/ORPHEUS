@@ -145,6 +145,7 @@ class TestAdmissionRefusals:
             edges_x=np.array([0.0, 1.0, 2.0]),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((2, 1), dtype=int),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         with pytest.raises(ValueError, match="1-D"):
             DiffusionMesh(mesh2d, _MATS)
@@ -154,6 +155,7 @@ class TestAdmissionRefusals:
             edges_x=np.array([0.0, 1.0, 2.0]),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((2, 1), dtype=int),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
         )
         with pytest.raises(ValueError, match="1-D"):
             DiffusionMesh.from_material_mesh(MaterialMesh(mesh2d, _MATS))

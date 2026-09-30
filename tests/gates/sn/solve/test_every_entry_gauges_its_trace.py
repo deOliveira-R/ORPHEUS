@@ -110,7 +110,7 @@ def _reflective_mesh2d(cells):
         edges_x=np.linspace(0.0, 1.0, cells[0] + 1),
         edges_y=np.linspace(0.0, 2.0, cells[1] + 1),
         mat_map=np.zeros(cells, dtype=int),
-        bc_xmin=_R, bc_xmax=_R, bc_ymin=_R, bc_ymax=_R,
+        face_laws={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
     )
 
 
@@ -219,7 +219,7 @@ def test_every_exercisable_entry_reports_a_gauge_correction():
         fixed = solve_sn_fixed_source(
             {0: _absorber()}, _reflective_axes(_EXCITED_CELLS), _QUAD,
             external_source=_uniform_source(_EXCITED_CELLS),
-            boundary_condition=None, inner_solver="source_iteration",
+            inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     assert isinstance(fixed.certificate.gauge, Measured), (
@@ -245,7 +245,6 @@ def test_BOTH_fixed_source_arms_gauge_not_just_one(schedule):
         solution = solve_sn_fixed_source(
             {0: _absorber()}, _reflective_axes(_EXCITED_CELLS), _QUAD,
             external_source=_uniform_source(_EXCITED_CELLS),
-            boundary_condition=None,
             inner_solver="krylov" if schedule == "krylov"
             else "source_iteration",
             inner_schedule="gauss_seidel",
@@ -279,7 +278,7 @@ def test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone():
         solution = solve_sn_fixed_source(
             {0: _absorber()}, _reflective_axes(_EXCITED_CELLS), _QUAD,
             external_source=_uniform_source(_EXCITED_CELLS),
-            boundary_condition=None, inner_solver="source_iteration",
+            inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     problem = _as_problem(_reflective_axes(_EXCITED_CELLS), _QUAD,
@@ -360,7 +359,7 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
         solution = solve_sn_fixed_source(
             {0: _absorber()}, axes, _QUAD,
             external_source=_uniform_source(_EXCITED_CELLS),
-            boundary_condition=None, inner_solver="source_iteration",
+            inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     gauged = np.asarray(solution.boundary_flux.values, dtype=float)
@@ -437,13 +436,13 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
         warnings.simplefilter("ignore", GaugeFreedomWarning)
         skewed = solve_sn_fixed_source(
             {0: _absorber()}, axes, _QUAD, external_source=anisotropic,
-            boundary_condition=None, inner_solver="source_iteration",
+            inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
         symmetric = solve_sn_fixed_source(
             {0: _absorber()}, axes, _QUAD,
             external_source=_uniform_source(cells),
-            boundary_condition=None, inner_solver="source_iteration",
+            inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     skewed_gauge, symmetric_gauge = skewed.certificate.gauge, symmetric.certificate.gauge
@@ -557,7 +556,7 @@ def test_the_warning_blames_the_CALLER_not_orpheus(entry):
             solve_sn_fixed_source(
                 {0: _absorber()}, _reflective_axes(_EXCITED_CELLS), _QUAD,
                 external_source=_uniform_source(_EXCITED_CELLS),
-                boundary_condition=None, inner_solver="source_iteration",
+                inner_solver="source_iteration",
                 inner_schedule="gauss_seidel", inner_tol=1e-13,
                 max_inner=400_000,
             )

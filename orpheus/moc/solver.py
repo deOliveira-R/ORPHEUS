@@ -81,6 +81,27 @@ class MoCResult:
 # Public API
 # ---------------------------------------------------------------------------
 
+def default_pin_cell_mesh() -> Mesh1D:
+    """``solve_moc``'s default mesh: the standard PWR pin cell's radii under a reflective law.
+
+    The radii are those of
+    :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`;
+    the law is reflective, the one law the ray tracer links, because the
+    Wigner-Seitz model's own white law is refused by :class:`MOCMesh`.
+    Fuel, cladding and coolant are meshed into 10, 3 and 7 equal-volume cells.
+    """
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+
+    cell = StructuredGeometry.wigner_seitz_pin_cell()
+    body = StructuredGeometry.cylinder(cell.breakpoints, cell.mat_ids, outer=BC("reflective"))
+    return Mesher(body).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
+
+
 def solve_moc(
     materials: dict[int, Mixture],
     mesh: Mesh1D | None = None,
@@ -101,9 +122,10 @@ def solve_moc(
         Macroscopic cross sections keyed by material ID.
     mesh : Mesh1D, optional
         Cylindrical 1-D Wigner-Seitz mesh. Defaults to the standard PWR
-        pin cell built via
-        :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-        meshed by a :class:`~orpheus.mesh.mesher.Mesher`.
+        pin cell's radii (those of
+        :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`)
+        under a reflective outer law, the one MoC realises, meshed by a
+        :class:`~orpheus.mesh.mesher.Mesher`.
     n_azi : int
         Number of azimuthal angles in [0, pi).
     n_polar : int
@@ -139,13 +161,7 @@ def solve_moc(
     t_start = time.perf_counter()
 
     if mesh is None:
-        from orpheus.geometry import StructuredGeometry as _SG
-        from orpheus.mesh import CellsByCount as _N, Mesher as _Mesher
-        mesh = _Mesher(_SG.wigner_seitz_pin_cell()).partition((
-            _N.uniform_volume(10),  # fuel
-            _N.uniform_volume(3),   # clad
-            _N.uniform_volume(7),   # cool
-        )).mesh
+        mesh = default_pin_cell_mesh()
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg

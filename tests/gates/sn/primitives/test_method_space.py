@@ -97,6 +97,12 @@ def test_for_face_derives_inflow_indices_from_trace():
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, 5), edges_y=np.linspace(0.0, 1.5, 4),
         mat_map=np.zeros((4, 3), dtype=np.int64),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.lebedev(17)
     trace = _cartesian2d_trace(mesh, quad, nx=4, ny=3)

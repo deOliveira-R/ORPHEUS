@@ -673,7 +673,7 @@ def test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules():
             warnings.simplefilter("ignore", GaugeFreedomWarning)
             solution = solve_sn_fixed_source(
                 {0: absorber()}, entry_axes, quad, external_source=source,
-                boundary_condition=None, inner_solver="source_iteration",
+                inner_solver="source_iteration",
                 inner_schedule=schedule, inner_tol=1e-13, max_inner=400_000,
             )
         assert isinstance(solution.certificate.gauge, Measured), (

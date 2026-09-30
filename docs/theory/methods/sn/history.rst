@@ -42,6 +42,19 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-30
+     - **The S**\ :sub:`N` **entries take the declared boundary laws
+       verbatim** — ``solve_sn_fixed_source``,
+       ``solve_sn_adjoint_fixed_source`` and
+       ``solve_sn_multiplying_source`` lost their
+       ``boundary_condition=`` parameter (default ``"vacuum"``), the
+       ``_apply_default_bcs`` fill it drove retired, and the shared
+       resolver lost its reflective default for an undeclared face.
+       ``None`` is no longer a boundary declaration anywhere: a
+       ``Mesh2D`` declares ``face_laws`` by face name and each axis a
+       law per endpoint (:ref:`structured-geometry-no-default-law`).
+     - #405
+     - *(in development)* branch ``refactor/p1-step3c-declared-laws``
    * - 2026-09-23
      - **The octant face transmission becomes an algebra of record** —
        step, diamond and linear discontinuous as one Petrov–Galerkin

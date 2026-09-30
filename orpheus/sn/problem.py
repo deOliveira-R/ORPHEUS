@@ -422,9 +422,8 @@ class SNProblem(MaterialMesh):
 
         # Resolve the per-axis BC declarations through the ONE shared
         # TransportMethod body (#290 P7b): the face loop over
-        # ``face_labels``, the ``BC("reflective")`` infinite-lattice /
-        # eigenvalue default, and the tag → law parse are method-
-        # generic; :meth:`realize_boundary_law` below is the SN arm.
+        # ``face_labels`` and the tag → law parse are method-generic
+        # (every face law is declared; there is no default); :meth:`realize_boundary_law` below is the SN arm.
         # The face inventory IS the BC inventory by construction (C4,
         # #220): a face that exists has exactly one entry; the curvilinear
         # pole has none (Pattern 4 — a pole-BC is unrepresentable).
@@ -478,7 +477,7 @@ class SNProblem(MaterialMesh):
 
     # ── Boundary condition resolution ─────────────────────────────────
     #
-    # The face loop, the reflective default, and the tag → law parse
+    # The face loop and the tag → law parse
     # live in the ONE shared TransportMethod body,
     # :func:`~orpheus.transport.method.resolve_boundary_conditions`
     # (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
@@ -1068,10 +1067,12 @@ class SNProblem(MaterialMesh):
         was **inert** (0 of 25 gates red) because the survivor guarded
         the gate.
 
-        ⚠ Reads the *realized law*, not the tag a caller passed:
-        ``resolve_boundary_conditions`` fills unset faces with
-        ``BC("reflective")``, so a bare ``SNProblem(mesh, quad, mats)`` is
-        all-reflective and this returns every axis.
+        ⚠ Reads the *realized law*, not the tag a caller passed: a face
+        declared with the typed
+        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
+        rather than ``BC("reflective")`` is reflective too, and a predicate
+        that read the tag's ``kind`` would miss it (the witness is
+        ``test_a_LAW_declared_box_is_all_reflective_and_the_predicate_sees_it``).
         """
         from orpheus.geometry.boundary.reflective import ReflectiveBoundary
 

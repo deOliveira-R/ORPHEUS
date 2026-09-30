@@ -129,8 +129,12 @@ def _cart2d_probe_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.0]),
         edges_y=np.array([0.0, 0.7, 1.5]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),
@@ -147,8 +151,12 @@ def _cart2d_square_uniform_mesh() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, 4),
         edges_y=np.linspace(0.0, 2.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2), {0: get_mixture("A", "2g")},
@@ -519,8 +527,12 @@ def test_assembled_mt_2d_per_ordinate_block():
             edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
             edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
             mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("vacuum"),
+                "ymax": BC("vacuum"),
+            },
         ),
         Quadrature.level_symmetric(sn_order=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
@@ -754,9 +766,15 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
     rng = np.random.default_rng(20260808)
     sn = SNProblem.from_axes(
         (
-            AxisMesh(edges=np.array([0.0, 0.6, 1.0])),             # nx=2
-            AxisMesh(edges=np.array([0.0, 0.4, 1.1, 2.0])),        # ny=3
-            AxisMesh(edges=np.array([0.0, 0.3, 0.7, 1.2, 2.0])),   # nz=4
+            AxisMesh(  # nx=2
+                edges=np.array([0.0, 0.6, 1.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+            ),
+            AxisMesh(  # ny=3
+                edges=np.array([0.0, 0.4, 1.1, 2.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+            ),
+            AxisMesh(  # nz=4
+                edges=np.array([0.0, 0.3, 0.7, 1.2, 2.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+            ),
         ),
         Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g")},
@@ -793,8 +811,12 @@ def _ld2d_probe_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.0]),
         edges_y=np.array([0.0, 0.7, 1.5]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),
@@ -811,8 +833,12 @@ def _ld2d_reflective_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
         edges_y=np.array([0.0, 0.9, 2.0]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),

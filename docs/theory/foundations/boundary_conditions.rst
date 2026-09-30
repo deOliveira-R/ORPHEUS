@@ -5147,7 +5147,7 @@ mesher carries it onto the mesh's first face:
        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("reflective"),
    )
    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(10)).mesh
-   assert mesh.face_laws == (BC("vacuum"), BC("reflective"))
+   assert mesh.face_laws == {"xmin": BC("vacuum"), "xmax": BC("reflective")}
 
 The :class:`~orpheus.geometry.boundary.BC` dataclass is a thin wrapper
 ``BC(kind: str, params: dict)`` with no SN-specific knowledge. The
@@ -7247,22 +7247,32 @@ inventory ``axes[label.axis_index].bc[label.endpoint]`` — the
 *same* axes that ``face_labels`` derives the labels from. The face
 inventory **is** the BC inventory: a face that exists has exactly
 one declaration; a face that does not (the pole) has no label and no
-entry. The resolution loop is one comprehension:
+entry. The resolution is one loop over the labels, the body of
+:func:`~orpheus.transport.method.resolve_boundary_conditions` in
+``orpheus/transport/method.py``:
 
 .. code-block:: python
 
-   # orpheus/sn/geometry.py — _resolve_bcs (post-C4)
-   default = BC("reflective")
-   self.bc: dict[str, _BoundBoundaryOperator] = {
-       label.face_name: self._resolve_one(
-           self.axes[label.axis_index].bc[label.endpoint] or default,
-           label,
-       )
-       for label in self.face_labels
-   }
+   from orpheus.mesh.axis import face_labels
+   from orpheus.transport.method import _law_from_tag
 
-``None`` on an axis defaults to ``BC("reflective")`` (the
-infinite-lattice / eigenvalue convention). Each declaration is
+   def resolve_boundary_conditions(method):
+       resolved = {}
+       for label in face_labels(method.axes):
+           tag = method.axes[label.axis_index].bc[label.endpoint]
+           law = _law_from_tag(method, tag, label)
+           resolved[label.face_name] = method.realize_boundary_law(
+               law, label.face_name,
+           )
+       return resolved
+
+Every axis declares a law on each of its endpoints (its constructor
+refuses ``None``), so the declaration is read verbatim and there is no
+default to fall back on (:ref:`structured-geometry-no-default-law`).
+The C4-era body read ``… or default`` with ``default =
+BC("reflective")``, filling an undeclared axis law as reflective; P1
+step 3c of #405 (2026-09-30) retired that default together with
+``None`` as a declaration. Each declaration is
 realized by
 :meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`
 — the SN arm of the :class:`~orpheus.transport.method.TransportMethod`
@@ -8009,22 +8019,22 @@ None``) on the d-generic
   tuple** — the *only* 3-D entry — through one inbound seam
   (``_as_problem``). A new ``mat_map`` keyword is the axes-entry
   material channel (it raises if combined with a legacy mesh, which
-  carries its own material map). Default-BC semantics are handled per
-  surface (``_apply_default_bcs`` accepts both declaration styles —
-  per-face dataclass fields *or* per-endpoint axis slots — with the
-  same all-or-nothing semantics).
+  carries its own material map). The entry takes every face law from
+  the declaration, on both surfaces: each axis declares a law on each
+  endpoint, and no entry fills a face
+  (:ref:`structured-geometry-no-default-law`).
 
 .. note::
 
-   **Two default-BC conventions, by design.** The *solver* entry
-   defaults un-declared faces to **vacuum** (the fixed-source
-   convention — an un-specified boundary leaks); a freshly constructed
-   :class:`SNProblem` with no BC declarations defaults to **reflective**
-   (the infinite-lattice / eigenvalue convention — see
-   :ref:`bc-face-name-carve`). The d=3 admission preserves **both**
-   conventions on their respective surfaces; the value gates below
-   exercise the reflective (eigenvalue) convention for the headline
-   :math:`k_\infty` identity and a mixed convention for the Mode-9 box.
+   **Every law is declared.** The value gates below declare their
+   laws: every face reflective for the headline
+   :math:`k_\infty` identity and the closed-form flux identities, and a
+   mixed declaration for the Mode-9 box.
+   ``test_axes_declared_laws_are_taken_verbatim`` checks that the
+   entry realises a mixed 3-D declaration face by face as declared.
+   Until P1 step 3c of #405 (2026-09-30) an undeclared face had two
+   readings, vacuum under a fixed-source entry's fill and reflective
+   under the resolver's default; both retired.
 
 .. _sn-c5-value-gates:
 

@@ -45,6 +45,12 @@ def _mesh2d(coord: CoordSystem, nx: int = 3, ny: int = 3) -> Mesh2D:
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=coord,
+        # edges_x starts at 0: on a solid (r, z) mesh the axis r = 0 is interior and carries no law
+        face_laws=dict.fromkeys(
+            ("xmin", "xmax", "ymin", "ymax") if coord is CoordSystem.CARTESIAN
+            else ("xmax", "ymin", "ymax"),
+            BC("reflective"),
+        ),
     )
 
 

@@ -63,6 +63,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -105,6 +106,7 @@ def build_p1_solver() -> SNSolver:
         edges_x=np.linspace(0, nx * 0.4, nx + 1),
         edges_y=np.linspace(0, ny * 0.4, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.lebedev(order=17)
     return SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=1))
@@ -133,6 +135,7 @@ def build_p3_solver() -> SNSolver:
         edges_x=np.linspace(0, nx * 0.4, nx + 1),
         edges_y=np.linspace(0, ny * 0.4, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.lebedev(order=17)
     return SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=3))

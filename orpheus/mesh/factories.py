@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from orpheus.geometry.boundary import BC, BoundaryTraceLaw
 from orpheus.mesh.structured import Mesh2D
 
 
@@ -22,6 +23,8 @@ def pwr_pin_2d(
     mat_ids: list[int] | None = None,
     pitch: float = 3.6,
     n_cells: int = 10,
+    *,
+    law: "BC | BoundaryTraceLaw",
 ) -> Mesh2D:
     """2-D Cartesian mesh from concentric annular regions.
 
@@ -38,6 +41,10 @@ def pwr_pin_2d(
         the outermost radius.  Default: [2, 1, 0].
     pitch : float
         Unit cell side length (cm).
+    law : BC or BoundaryTraceLaw
+        The law on all four faces of the cell; required, because a factory
+        does not choose a physical boundary on the caller's behalf (a lattice
+        cell is reflective or periodic, an isolated one vacuum).
     n_cells : int
         Number of mesh cells per side.
     """
@@ -61,7 +68,10 @@ def pwr_pin_2d(
     for k in range(len(radii) - 1, -1, -1):
         mat_map[r <= radii[k]] = mat_ids[k]
 
-    return Mesh2D(edges_x=edges, edges_y=edges, mat_map=mat_map)
+    return Mesh2D(
+        edges, edges, mat_map,
+        face_laws={face: law for face in ("xmin", "xmax", "ymin", "ymax")},
+    )
 
 
 __all__ = [

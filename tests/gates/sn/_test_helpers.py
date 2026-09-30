@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.sparse import csr_matrix
+from orpheus.geometry import BC
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn import solve_sn_fixed_source
@@ -254,6 +255,7 @@ def material_xs_from_raw(
         edges_x=np.arange(nx + 1, dtype=float),
         edges_y=np.arange(ny + 1, dtype=float),
         mat_map=mat_map,
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
 
@@ -429,8 +431,12 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNProblem":
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
 

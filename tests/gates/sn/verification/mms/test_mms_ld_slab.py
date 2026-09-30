@@ -95,7 +95,7 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            boundary_condition="vacuum", max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13,
             scheme=LinearDiscontinuous(),
         )
         phi_num = result.scalar_flux.values[0, :]
@@ -129,11 +129,11 @@ def test_sn_1d_slab_ld_mms_krylov_matches_si() -> None:
     mesh = case.build_mesh(80)
     Q = case.external_source(mesh)
     si = solve_sn_fixed_source(
-        case.materials, mesh, case.quadrature, Q, boundary_condition="vacuum",
+        case.materials, mesh, case.quadrature, Q,
         max_inner=500, inner_tol=1e-13, scheme=LinearDiscontinuous(),
     )
     kry = solve_sn_fixed_source(
-        case.materials, mesh, case.quadrature, Q, boundary_condition="vacuum",
+        case.materials, mesh, case.quadrature, Q,
         max_inner=500, inner_tol=1e-13, inner_solver="krylov",
         scheme=LinearDiscontinuous(),
     )
@@ -237,7 +237,7 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
         NotImplementedError, match="no moment mass on a radial_spherical",
     ):
         solve_sn_fixed_source(
-            materials, sphere, quad, Q, boundary_condition="vacuum",
+            materials, sphere, quad, Q,
             scheme=LinearDiscontinuous(),
         )
 
@@ -332,11 +332,11 @@ def test_ld_thick_diffusive_limit() -> None:
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()   # uniform iso source
     dd = solve_sn_fixed_source(
-        materials, mesh, quad, Q, boundary_condition="vacuum",
+        materials, mesh, quad, Q,
         inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
     )
     ld = solve_sn_fixed_source(
-        materials, mesh, quad, Q, boundary_condition="vacuum",
+        materials, mesh, quad, Q,
         inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
         scheme=LinearDiscontinuous(),
     )
@@ -385,7 +385,7 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 2, nx)) / quad.weights.sum()
-    common = dict(boundary_condition="vacuum", inner_solver="krylov",
+    common = dict(inner_solver="krylov",
                   max_inner=4000, inner_tol=1e-10)
     dd = solve_sn_fixed_source(materials, mesh, quad, Q, **common)
     ld = solve_sn_fixed_source(materials, mesh, quad, Q,

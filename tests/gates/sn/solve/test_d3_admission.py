@@ -47,7 +47,7 @@ from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisMesh
 from orpheus.sn.solver import (
-    _apply_default_bcs,
+    _as_problem,
     _maybe_window,
     solve_sn,
     solve_sn_fixed_source,
@@ -56,8 +56,9 @@ from orpheus.sn.problem import SNProblem
 
 
 def _d3_axes(extents=(1.0, 2.0, 3.0), cells=(3, 4, 5), bcs=None):
-    """Distinct counts AND extents per axis (Mode-2 asymmetry)."""
-    bcs = bcs or [(None, None)] * 3
+    """Distinct counts AND extents per axis (Mode-2 asymmetry); all-reflective
+    unless ``bcs`` declares the per-axis ``(low, high)`` laws."""
+    bcs = bcs or [(BC.reflective, BC.reflective)] * 3
     return tuple(
         AxisMesh(
             edges=np.linspace(0.0, ext, n + 1), bc_low=lo, bc_high=hi,
@@ -76,8 +77,8 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
     """k_inf on a homogeneous all-reflective box at d=1, 2, 3.
 
     Closed-form reference: ``case.k_inf`` (matrix eigenvalue, never
-    touches the sweep). All-reflective with no explicit BCs — the
-    SNProblem reflective default — on every surface. Cell counts are
+    touches the sweep). All-reflective, declared on every surface of
+    each dimension's mesh. Cell counts are
     deliberately small AND asymmetric (k_inf is mesh-independent, so
     the asymmetry is free Mode-2 insurance).
     """
@@ -97,6 +98,7 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
             edges_x=np.linspace(0.0, 0.5, 3),
             edges_y=np.linspace(0.0, 0.75, 4),
             mat_map=np.zeros((2, 3), dtype=int),
+            face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
         ),
         quad3, keff_tol=1e-10, inner_tol=1e-11,
     )
@@ -175,7 +177,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
 
     sol = solve_sn_fixed_source(
         {0: mix}, _d3_axes(), quad,
-        external_source=q, boundary_condition="reflective",
+        external_source=q,
         inner_tol=1e-13,
         max_inner=4000,          # [M] 1631 sweeps needed here; ~2.5x headroom
     )
@@ -215,7 +217,7 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
 
     sol = solve_sn_fixed_source(
         {0: mix}, _d3_axes(), quad,
-        external_source=q, boundary_condition="reflective",
+        external_source=q,
         inner_tol=1e-13,
         # Same all-reflective boundary iteration as the pure-absorber gate
         # above, with a scattering iteration ON TOP, so the budget is
@@ -336,16 +338,19 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
 
 
 @pytest.mark.foundation
-def test_axes_default_bc_semantics() -> None:
-    """C5-G18: the entry default fills axes ONLY when no BC is declared."""
-    vac = BC("vacuum")
-    bare = _d3_axes()
-    filled = _apply_default_bcs(bare, "vacuum")
-    for ax in filled:
-        np.testing.assert_equal(
-            [b.kind for b in ax.bc.values()], ["vacuum", "vacuum"],
-        )
-    partially = _d3_axes(bcs=[(vac, None), (None, None), (None, None)])
+def test_axes_declared_laws_are_taken_verbatim() -> None:
+    """C5-G18, re-posed at step 3c: the entry takes each axis's declared law
+    verbatim, face by face — there is no default left to fill (the retired
+    entry default filled an all-undeclared tuple and left a partly declared
+    one alone; an undeclared law is now refused at ``AxisMesh``).
+    A mixed declaration is the input a fill or an overwrite would change."""
+    refl, vac = BC("reflective"), BC("vacuum")
+    axes = _d3_axes(bcs=[(vac, refl), (refl, vac), (vac, vac)])
+    problem = _as_problem(
+        axes, Quadrature.level_symmetric(sn_order=4), {0: get_mixture("A", "2g")},
+    )
     np.testing.assert_equal(
-        _apply_default_bcs(partially, "reflective") is partially, True,
+        {face: problem.bc[face].kind for face in problem.bc},
+        {"xmin": "vacuum", "xmax": "reflective", "ymin": "reflective",
+         "ymax": "vacuum", "zmin": "vacuum", "zmax": "vacuum"},
     )

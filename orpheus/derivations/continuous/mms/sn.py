@@ -85,6 +85,11 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
 
+_VACUUM_FACES_2D = {face: BC("vacuum") for face in ("xmin", "xmax", "ymin", "ymax")}
+"""The laws of the 2-D manufactured boxes here: each manufactured solution is a
+product of ``sin(pi x / L_x)`` and ``sin(pi y / L_y)`` factors, which vanishes on
+all four faces, so the inflow the solution prescribes is vacuum."""
+
 @dataclass(frozen=True)
 class SNSlabMMSCase:
     r"""Closed-form MMS fixed-source problem for 1D slab SN verification.
@@ -720,7 +725,7 @@ class SN2DCartesianMMSCase:
         edges_x = np.linspace(0.0, self.length_x, nx + 1)
         edges_y = np.linspace(0.0, self.length_y, ny + 1)
         mat_map = np.full((nx, ny), self.mat_id, dtype=int)
-        return Mesh2D(edges_x=edges_x, edges_y=edges_y, mat_map=mat_map)
+        return Mesh2D(edges_x, edges_y, mat_map, face_laws=_VACUUM_FACES_2D)
 
     def external_source(self, mesh: Mesh2D) -> np.ndarray:
         r"""Per-ordinate external source on a 2D mesh.
@@ -872,7 +877,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
         edges_x = np.linspace(0.0, self.length_x, nx + 1)
         edges_y = np.linspace(0.0, self.length_y, ny + 1)
         mat_map = np.arange(nx * ny, dtype=int).reshape(nx, ny)
-        return Mesh2D(edges_x=edges_x, edges_y=edges_y, mat_map=mat_map)
+        return Mesh2D(edges_x, edges_y, mat_map, face_laws=_VACUUM_FACES_2D)
 
     def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:
         """Build per-cell materials by sampling Σ(x,y) at cell centres."""
@@ -1481,10 +1486,8 @@ class SN2DCartesianLDStressMMSCase:
         edges_y = np.linspace(0.0, self.length_y, ny + 1)
         mat_map = np.arange(nx * ny, dtype=int).reshape(nx, ny)
         return Mesh2D(
-            edges_x=edges_x, edges_y=edges_y, mat_map=mat_map,
-            coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+            edges_x, edges_y, mat_map,
+            face_laws=_VACUUM_FACES_2D, coord=CoordSystem.CARTESIAN,
         )
 
     def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:

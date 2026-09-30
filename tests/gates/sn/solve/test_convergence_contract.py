@@ -119,7 +119,6 @@ def _fixed_source(max_inner: int, **kw):
     return solve_sn_fixed_source(
         {0: _absorber_2g()}, _d3_reflective_axes(), quad,
         external_source=_uniform_source(quad, (3, 4, 5)),
-        boundary_condition="reflective",
         inner_tol=1e-13, max_inner=max_inner, **kw,
     )
 
@@ -258,7 +257,6 @@ def _sn_mesh_for_budget_probe():
         (AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFL, bc_high=_REFL),),
         Quadrature.level_symmetric(sn_order=2),
         {0: _absorber_2g()},
-        "reflective",
     )
 
 
@@ -993,7 +991,7 @@ def _fixed_source_slab(inner_solver: str):
     axes, quad, source = _tiny_slab_inputs()
     return solve_sn_fixed_source(
         {0: _absorber_2g()}, axes, quad, external_source=source,
-        boundary_condition="reflective", inner_solver=inner_solver,
+        inner_solver=inner_solver,
     )
 
 
@@ -1021,7 +1019,6 @@ def _adjoint_fixed_source_slab():
     return solve_sn_adjoint_fixed_source(
         {0: _absorber_2g()}, axes, quad,
         detector_response=np.ones((2, 4)),
-        boundary_condition="reflective",
     )
 
 
@@ -1046,7 +1043,6 @@ def _starved_adjoint_fixed_source():
     return solve_sn_adjoint_fixed_source(
         {0: _absorber_2g()}, axes, quad,
         detector_response=np.ones((2, 4)),
-        boundary_condition="reflective",
         max_inner=2, inner_tol=1e-13,
     )
 
@@ -1453,8 +1449,7 @@ class TestTheWarningBlamesTheCallerAtEverySNEntry:
             solve_sn_fixed_source(
                 {0: _absorber_2g()}, _d3_reflective_axes(), quad,
                 external_source=_uniform_source(quad, (3, 4, 5)),
-                boundary_condition="reflective",
-                inner_tol=1e-13, max_inner=2,
+                        inner_tol=1e-13, max_inner=2,
             )
         conv = [w for w in caught
                 if issubclass(w.category, ConvergenceWarning)]

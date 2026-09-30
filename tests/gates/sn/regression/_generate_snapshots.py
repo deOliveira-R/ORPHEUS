@@ -264,8 +264,12 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
         edges_x=np.linspace(0.0, L, n_per_side + 1),
         edges_y=np.linspace(0.0, L, n_per_side + 1),
         mat_map=np.zeros((n_per_side, n_per_side), dtype=int),
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.reflective,
+            "xmax": BC.reflective,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     return dict(
         materials={0: fuel}, mesh=mesh,
@@ -306,8 +310,12 @@ def _cartesian_2d_het_si(ng: str) -> dict:
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.reflective,
+            "xmax": BC.reflective,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     return dict(
         materials={2: fuel, 0: mod}, mesh=mesh,
@@ -359,8 +367,12 @@ def _cartesian_2d_p1_aniso_het_si(ng: str) -> dict:
         mat_map=mat,
         # vacuum-x / reflective-y: the x-split + vacuum-x drives a non-flat
         # profile; reflective-y keeps the y-trace exercise (subtlety (c)).
-        bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.vacuum,
+            "xmax": BC.vacuum,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     quadrature = Quadrature.level_symmetric(sn_order=4)
     n_ord = quadrature.N             # derive N from the quadrature (Pattern 14)

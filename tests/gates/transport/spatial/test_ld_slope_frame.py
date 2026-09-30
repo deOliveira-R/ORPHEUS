@@ -67,7 +67,7 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
     ld = solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=LinearDiscontinuous(),
-        boundary_condition="vacuum", inner_solver="krylov",
+        inner_solver="krylov",
         max_inner=2000, inner_tol=1e-10,
     )
     ang = ld.angular_flux.interior.values   # (N, ng, nx, 2)

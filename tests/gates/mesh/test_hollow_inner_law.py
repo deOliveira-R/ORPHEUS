@@ -67,7 +67,7 @@ def _direct_hollow_mesh(coord: CoordSystem, inner_law) -> Mesh1D:
     edges = np.linspace(0.5, 2.0, 9)
     return Mesh1D(
         coord=coord, edges=edges, volumes=coord.measure(edges),
-        mat_ids=np.zeros(8, int), face_laws=(inner_law, BC.vacuum),
+        mat_ids=np.zeros(8, int), face_laws={"xmin": inner_law, "xmax": BC.vacuum},
     )
 
 
@@ -129,7 +129,6 @@ def _shell_flux_with_core(coord: CoordSystem, core, n_core: int = 4) -> np.ndarr
     )
     flux = np.asarray(solve_sn_fixed_source(
         {0: get_mixture("B", "2g"), 1: core}, mesh, quadrature, source,
-        boundary_condition=None,
     ).scalar_flux.values)
     return flux[:, n_core:]
 
@@ -160,7 +159,7 @@ def test_a_reflective_inner_law_is_a_void_cavity(coord):
     """
     hollow = np.asarray(solve_sn_fixed_source(
         _materials(), _hollow_mesh(coord, BC.reflective), _quadrature(coord),
-        np.ones((_quadrature(coord).N, 2, 8)), boundary_condition=None,
+        np.ones((_quadrature(coord).N, 2, 8)),
     ).scalar_flux.values)
     scale = np.max(np.abs(hollow))
 

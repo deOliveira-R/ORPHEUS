@@ -494,6 +494,7 @@ class TestCompositeInvariants:
             edges_x=np.linspace(0.0, 1.0, 4),
             edges_y=np.linspace(0.0, 1.0, 4),
             mat_map=np.zeros((3, 3), dtype=int),
+            face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
         )
         quad = Quadrature.level_symmetric(sn_order=4)
         problem = SNProblem(mesh, quad, placeholder_materials(ng=2))

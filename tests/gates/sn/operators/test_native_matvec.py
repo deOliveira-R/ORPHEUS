@@ -517,8 +517,12 @@ class TestTwoDCartesianRaises:
             edges_y=np.array([0.0, 1.0, 2.0]),
             mat_map=np.zeros((2, 2), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("vacuum"),
+                "ymax": BC("vacuum"),
+            },
         )
         # A genuine-2-D quadrature is required: the y-faces need ordinates
         # with non-zero mu_y. The 1-D gauss_legendre set has mu_y=0 for

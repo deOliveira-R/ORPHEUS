@@ -74,24 +74,24 @@ class TestSNBCResolution:
         assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
 
     def test_explicit_vacuum(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws=(BC.vacuum, BC.vacuum))
+        mesh = replace(slab_mesh, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum})
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, VacuumInflow)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_mixed_bcs(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws=(BC.reflective, BC.vacuum))
+        mesh = replace(slab_mesh, face_laws={"xmin": BC.reflective, "xmax": BC.vacuum})
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_unknown_bc_raises(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws=(BC("white"), BC.reflective))
+        mesh = replace(slab_mesh, face_laws={"xmin": BC("white"), "xmax": BC.reflective})
         with pytest.raises(ValueError, match="does not support.*'white'"):
             SNProblem(mesh, quad, placeholder_materials())
 
     def test_error_lists_supported(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws=(BC("periodic"), BC.reflective))
+        mesh = replace(slab_mesh, face_laws={"xmin": BC("periodic"), "xmax": BC.reflective})
         with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
             SNProblem(mesh, quad, placeholder_materials())
 
@@ -106,8 +106,12 @@ class TestSNBCResolution:
             edges_x=np.linspace(0, 2, 3),
             edges_y=np.linspace(0, 2, 3),
             mat_map=np.zeros((2, 2), dtype=int),
-            bc_xmin=BC.reflective, bc_xmax=BC.vacuum,
-            bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
+            face_laws={
+                "xmin": BC.reflective,
+                "xmax": BC.vacuum,
+                "ymin": BC.reflective,
+                "ymax": BC.vacuum,
+            },
         )
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
@@ -148,7 +152,7 @@ def _err052_fixture():
     mesh_refl = Mesher(StructuredGeometry.slab(
         (0.0, 2.0), (0,), left=BC.reflective, right=BC.reflective,
     )).partition(CellsByCount.uniform_volume(20)).mesh
-    mesh_vac = replace(mesh_refl, face_laws=(BC.vacuum, BC.vacuum))
+    mesh_vac = replace(mesh_refl, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum})
     # The fixture mixture is (n,2n)-free, so total production IS fission
     # production — asserted here so the hand formula below stays honest
     # if the reference case ever gains a Σ₂ channel.

@@ -5,10 +5,12 @@
 segments, reflective boundary links) for a pin-cell with concentric
 annuli inside a square lattice cell.
 
-**Inverse Wigner-Seitz**: the ``Mesh1D`` is built via
-:meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-meshed by a :class:`~orpheus.mesh.mesher.Mesher`,
-whose outer edge is the Wigner-Seitz radius ``r_cell = pitch / sqrt(pi)``.
+**Inverse Wigner-Seitz**: the ``Mesh1D`` is a solid cylinder with a
+reflective outer law (the one law the ray tracer links), meshed by a
+:class:`~orpheus.mesh.mesher.Mesher`, whose outer edge is the Wigner-Seitz
+radius ``r_cell = pitch / sqrt(pi)``. The radii are those of
+:meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`,
+whose own white law MoC refuses.
 ``MOCMesh`` recovers the pitch and reinterprets the outermost annular
 region as the square border bounded by the cell walls.
 """

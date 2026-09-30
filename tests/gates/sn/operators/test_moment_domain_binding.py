@@ -96,8 +96,12 @@ def problem() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, _NX + 1),
         edges_y=np.linspace(0.0, 1.0, _NY + 1),
         mat_map=mat,
-        bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.vacuum,
+            "xmax": BC.vacuum,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     return SNProblem(
         mesh,
@@ -548,8 +552,12 @@ def _sn_mesh_with_n2n() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, _NX + 1),
         edges_y=np.linspace(0.0, 1.0, _NY + 1),
         mat_map=mat,
-        bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
-        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+        face_laws={
+            "xmin": BC.vacuum,
+            "xmax": BC.vacuum,
+            "ymin": BC.reflective,
+            "ymax": BC.reflective,
+        },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L)
 

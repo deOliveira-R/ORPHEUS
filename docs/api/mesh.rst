@@ -9,11 +9,15 @@ that division: cell edges, the material ID of each cell, cell volumes and
 face areas, and the boundary declaration on each face. Solvers receive a
 mesh and build mutable, method-specific state on top of it.
 
-The package holds five modules:
+The package holds six modules:
 
 * :mod:`orpheus.mesh.structured`: the structured meshes
   :class:`~orpheus.mesh.structured.Mesh1D` and
   :class:`~orpheus.mesh.structured.Mesh2D`.
+* :mod:`orpheus.mesh.face_laws`: the face inventory rule
+  :func:`~orpheus.mesh.face_laws.face_inventory` and the value
+  :class:`~orpheus.mesh.face_laws.FaceLaws` both meshes store their
+  boundary laws in.
 * :mod:`orpheus.mesh.mesher`: the :class:`~orpheus.mesh.mesher.Mesher`,
   the meshing session that builds a ``Mesh1D`` from a geometry and
   interval rules, and the only way one is built.
@@ -35,7 +39,7 @@ The package holds five modules:
   structured phase-space mesh, and the pure shape functions on tuples of
   axes.
 
-Every public name of the five modules is exported from
+Every public name of the six modules is exported from
 :mod:`orpheus.mesh` itself (``from orpheus.mesh import Mesher,
 CellsByCount``); :mod:`orpheus.geometry` and :mod:`orpheus.transport.mesh`
 do not export them.
@@ -120,15 +124,21 @@ on :ref:`structured-geometry-mesh`.
 **Boundary laws on the faces.**
 Each boundary face of a structured mesh carries a boundary law: a
 :class:`~orpheus.geometry.boundary.BC` tag or an already-typed law.
-:class:`~orpheus.mesh.structured.Mesh1D` has ``face_laws``, one law per
-boundary point of its interval, inner first, paired with
-``boundary_faces`` (two on a slab or a hollow body, one on a solid
-cylinder or sphere, whose centre is an interior point); ``outer_law``
-reads the last. ``None`` is not a law on a ``Mesh1D``, as on a
-geometry: both are parsed by one check.
-:class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``, ``bc_xmax``,
-``bc_ymin`` and ``bc_ymax``, which still admit ``None`` for the
-method's default until step 3c of #405. The tag, the laws and the
+Both :class:`~orpheus.mesh.structured.Mesh1D` and
+:class:`~orpheus.mesh.structured.Mesh2D` store their laws as one value,
+``face_laws``, a :class:`~orpheus.mesh.face_laws.FaceLaws`: a frozen,
+ordered, picklable mapping from face name to law over exactly the faces
+that :func:`~orpheus.mesh.face_laws.face_inventory` derives. A
+``Mesh1D`` has ``xmin`` and ``xmax`` on a slab or a hollow body and
+``xmax`` alone on a solid cylinder or sphere, whose centre is an
+interior point; ``boundary_points`` gives the faces' positions and
+``outer_law`` reads ``face_laws["xmax"]``. A ``Mesh2D`` adds ``ymin``
+and ``ymax``; a solid :math:`(r, z)` mesh has no ``xmin``, its axis
+:math:`r = 0` being interior. The axis primitives declare a law on each
+endpoint too. ``None`` is not a law on
+any of them, as on a geometry: every declaration passes one element
+parser, and no consumer supplies a default law for an unstated face
+(:ref:`structured-geometry-no-default-law`). The tag, the laws and the
 deferred resolution of a tag by each method's hub are geometry-layer
 concepts, documented on :doc:`/api/geometry`.
 
@@ -161,7 +171,7 @@ the rules handed to the mesher.
    mesh = mesher.mesh
    finer = mesher.refine(2).mesh
    assert (mesh.N, finer.N) == (64, 128)
-   assert mesh.face_laws == (BC.vacuum,)
+   assert mesh.face_laws == {"xmax": BC.vacuum}
 
 The general constructor
 ``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` is what the
@@ -257,17 +267,57 @@ Interval rules and spacing rules
    :noindex:
 
 
-Two-dimensional factories
--------------------------
+The 2-D mesh and its factory
+----------------------------
 
-There is no 2-D :class:`StructuredGeometry` yet, so the 2-D Cartesian
-path keeps a standalone factory:
-:func:`~orpheus.mesh.factories.pwr_pin_2d` builds a
-:class:`~orpheus.mesh.structured.Mesh2D` on a uniform grid with material
-IDs assigned by radial distance from the pin centre (by default
-``2 = fuel``, ``1 = clad``, ``0 = coolant``).
+There is no 2-D :class:`StructuredGeometry` yet, so a
+:class:`~orpheus.mesh.structured.Mesh2D` is constructed directly from
+its edges, its material map and its laws:
+``Mesh2D(edges_x, edges_y, mat_map, *, face_laws, coord=CARTESIAN)``.
+``face_laws`` is keyword-only and required: any mapping from face name
+to law whose keys are exactly the faces ``face_inventory`` derives
+(the rule ``Mesh1D`` uses, with both ends of the second axis added).
+The faces are named by :class:`~orpheus.mesh.axis.FaceLabel`, the names
+S\ :sub:`N`'s resolved ``bc`` table uses. A missing face, an extra face
+(``xmin`` on a solid :math:`(r, z)` mesh among them), ``None``, a
+non-law object and a non-mapping are refused. The laws are stored as a
+``FaceLaws`` in inventory order, so ``tuple(mesh.face_laws)`` is the
+inventory:
+
+.. code-block:: python
+
+   import numpy as np
+   from orpheus.geometry import BC
+   from orpheus.mesh import Mesh2D
+
+   mesh = Mesh2D(
+       [0.0, 1.0, 2.0], [0.0, 1.0], np.zeros((2, 1), dtype=int),
+       face_laws={"xmin": BC.reflective, "xmax": BC.vacuum,
+                  "ymin": BC.reflective, "ymax": BC.reflective},
+   )
+   assert tuple(mesh.face_laws) == ("xmin", "xmax", "ymin", "ymax")
+
+The design, the inventory table and the candidates it replaced are
+:ref:`structured-geometry-face-laws`.
+
+The one 2-D factory, :func:`~orpheus.mesh.factories.pwr_pin_2d`, builds
+a Cartesian ``Mesh2D`` on a uniform grid with material IDs assigned by
+radial distance from the pin centre (by default ``2 = fuel``,
+``1 = clad``, ``0 = coolant``). Its keyword ``law``, the law on all four
+faces, is required: a factory does not choose a physical boundary on
+the caller's behalf.
 
 .. automodule:: orpheus.mesh.factories
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+
+Face laws
+---------
+
+.. automodule:: orpheus.mesh.face_laws
    :members:
    :undoc-members:
    :show-inheritance:
@@ -284,7 +334,10 @@ satisfies; :class:`~orpheus.mesh.axis.AxisMesh` is a Cartesian axis with
 two boundary-bearing endpoints (``min`` and ``max``);
 :class:`~orpheus.mesh.axis.RadialAxisMesh` is a solid radial axis
 (sphere or cylinder) with one endpoint (``outer``), because the pole at
-:math:`r = 0` is a coordinate singularity and not a boundary face.
+:math:`r = 0` is a coordinate singularity and not a boundary face. Each
+endpoint's law is a required constructor argument (``bc_low`` and
+``bc_high``, or ``bc_outer``), parsed like every other declaration, so
+an axis's ``bc`` table holds a law on every endpoint and never ``None``.
 :class:`~orpheus.mesh.axis.AxisCoord` is the coordinate system of one
 axis, distinct from the whole-mesh
 :class:`~orpheus.geometry.coord.CoordSystem` because an

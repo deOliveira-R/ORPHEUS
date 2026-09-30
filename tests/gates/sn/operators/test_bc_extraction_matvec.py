@@ -445,8 +445,12 @@ class TestVacuumMatvecBitIdentity:
             edges_y=np.linspace(0.0, 3.0, ny + 1),
             mat_map=np.zeros((nx, ny), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+            face_laws={
+                "xmin": BC("vacuum"),
+                "xmax": BC("vacuum"),
+                "ymin": BC("vacuum"),
+                "ymax": BC("vacuum"),
+            },
         )
         quad = Quadrature.level_symmetric(sn_order=4)
         problem = SNProblem(mesh, quad, placeholder_materials())

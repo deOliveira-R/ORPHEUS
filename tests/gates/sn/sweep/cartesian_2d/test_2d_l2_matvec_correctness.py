@@ -59,10 +59,12 @@ def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        bc_xmin=BC("reflective"),
-        bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"),
-        bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
@@ -81,10 +83,12 @@ def _vacuum_xy_2d_with_scatter(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        bc_xmin=BC("vacuum"),
-        bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"),
-        bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
@@ -116,10 +120,12 @@ def _reflective_y_2d_for_1d_reduction(nx: int = 4, ny: int = 2) -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        bc_xmin=BC("reflective"),
-        bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"),
-        bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(geom, quad, {0: get_mixture("A", "2g")})

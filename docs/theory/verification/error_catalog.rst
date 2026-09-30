@@ -8764,3 +8764,54 @@ older entries classify against.
    its gate asserts the equality the corrected reading satisfies.** When
    a derivation disagrees with a transcribed equation, the transcription
    is the first suspect, before the paper.
+
+.. error-entry:: ERR-093
+   :title: solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links reflective only: solve_moc(materials) with no mesh raised before tracing a ray
+
+   **Status:** ✅ **FIXED 2026-09-30, P1 step 3c** of the reference-solution
+   campaign (``.claude/plans/reference_cache.md``); uncommitted at the
+   time of writing, the hash is added at merge.
+
+   **Module:** ``orpheus/moc/solver.py`` (``solve_moc``, its ``mesh=None``
+   default).
+
+   **Failure mode:** **#6 (convention drift)**: the definition site (the
+   Wigner–Seitz cell declares a white outer law, the isotropic re-entry
+   of its model) and the usage site (:class:`MOCMesh`'s registry, which
+   links ``"reflective"`` only) disagreed about which law the default
+   pin cell carries.
+
+   **What happened.**  With no mesh, ``solve_moc`` built
+   ``StructuredGeometry.wigner_seitz_pin_cell()`` and meshed it with a
+   ``Mesher`` (10, 3 and 7 equal-volume cells). That cell's outer law is
+   ``BC("white")``, and ``MOCMesh`` resolves the outer law against a
+   registry holding only ``"reflective"``, so ``solve_moc(materials)``
+   raised *"MOC solver does not support boundary condition 'white'.
+   Supported: 'reflective'."* before a single ray was traced. The defect
+   predates step 3b: the earlier default built the same geometry through
+   ``Mesh1D.from_geometry``, whose right-face law was the geometry's
+   white.
+
+   **How it hid.**  No test called ``solve_moc`` with its default mesh:
+   every MoC gate passes a mesh it builds with a reflective law. A default
+   argument that nothing exercises is a code path with no test, however
+   short. It surfaced when the named cells' laws became part of their
+   models (step 3c) and the MoC documentation was re-read against the
+   cell's law.
+
+   **Fix.**  :func:`~orpheus.moc.solver.default_pin_cell_mesh`: the
+   Wigner–Seitz radii and materials under a reflective outer law, built
+   with ``StructuredGeometry.cylinder`` and the same 10 / 3 / 7 rule.
+   `[M]` 2026-09-30: ``solve_moc`` with every default argument runs, and
+   returns :math:`k = 1.1267968960885864` on ``get_mixture`` A / A / B,
+   one group (111 s).
+
+   **Caught by:**
+   ``tests/gates/mesh/test_dropped_laws_are_refused.py::TestMOC::test_the_default_mesh_builds``
+   (builds :class:`MOCMesh` on the default mesh). First red measured on
+   the old default, in process.
+
+   **Lesson.**  ⭐ **A default argument is a call site: it owes a test
+   that calls the function without it.** And a named model's law is
+   its own, so a method that cannot realise that law cannot borrow the
+   model whole; it borrows the geometry and declares its own law.

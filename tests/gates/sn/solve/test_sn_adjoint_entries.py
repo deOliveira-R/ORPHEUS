@@ -309,7 +309,7 @@ class TestSolveSnAdjointFixedSource:
         ).copy()
         fwd = solve_sn_fixed_source(
             mats, mesh, quad, q_per_ord,
-            boundary_condition="vacuum", inner_tol=1e-12, max_inner=2000,
+            inner_tol=1e-12, max_inner=2000,
         )
 
         # Adjoint: thermal (g=1) detector in the RIGHT region.
@@ -317,7 +317,7 @@ class TestSolveSnAdjointFixedSource:
         sigma_d[1, 6:8] = 0.7
         adj = solve_sn_adjoint_fixed_source(
             mats, mesh, quad, sigma_d,
-            boundary_condition="vacuum", inner_tol=1e-12, max_inner=2000,
+            inner_tol=1e-12, max_inner=2000,
         )
 
         # The pairings, on the SAME independent G.

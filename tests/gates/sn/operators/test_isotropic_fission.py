@@ -35,6 +35,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import Mesh2D
+from orpheus.geometry import BC
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
@@ -73,6 +74,7 @@ def _mat_xs():
         edges_x=np.arange(_NX + 1, dtype=float),
         edges_y=np.arange(2, dtype=float),
         mat_map=mat_map,
+        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
 

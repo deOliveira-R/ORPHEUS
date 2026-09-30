@@ -15,6 +15,7 @@ the declared one.
 """
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from orpheus.cp.solver import CPMesh
@@ -79,13 +80,27 @@ class TestMOC:
             MOCMesh(mesh, self._QUADRATURE)
 
     def test_the_solid_pin_cell_builds(self):
-        geometry = StructuredGeometry.wigner_seitz_pin_cell(
-            boundaries=(BC.reflective,),
+        geometry = StructuredGeometry.cylinder(
+            (0.0, 0.9, 1.1, 3.6 / np.sqrt(np.pi)), (2, 1, 0), outer=BC.reflective,
         )
         mesh = Mesher(geometry).partition((
             CellsByCount.uniform_volume(2), CellsByCount.uniform_volume(1),
             CellsByCount.uniform_volume(2),
         )).mesh
+        MOCMesh(mesh, self._QUADRATURE)
+
+    @pytest.mark.catches("ERR-093")
+    def test_the_default_mesh_builds(self):
+        """``solve_moc``'s default mesh is one MoC admits.
+
+        Its first red: the default was the Wigner-Seitz cell, whose model law
+        is white, so ``solve_moc(materials)`` raised "MOC solver does not
+        support boundary condition 'white'" before a single ray was traced.
+        """
+        from orpheus.moc.solver import default_pin_cell_mesh
+
+        mesh = default_pin_cell_mesh()
+        assert mesh.face_laws == {"xmax": BC.reflective}
         MOCMesh(mesh, self._QUADRATURE)
 
 

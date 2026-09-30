@@ -184,7 +184,7 @@ def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SN
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC(bc), bc_xmax=BC(bc), bc_ymin=BC(bc), bc_ymax=BC(bc),
+        face_laws={"xmin": BC(bc), "xmax": BC(bc), "ymin": BC(bc), "ymax": BC(bc)},
     )
     return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=ng))
 

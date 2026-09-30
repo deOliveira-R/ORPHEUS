@@ -122,7 +122,7 @@ def _scattering_op(coord: CoordSystem, quad, scattering_order: int):
     """
     mat = get_mixture("A", "1g")
     mesh = curvilinear_homogeneous_mesh(8, 2.0, mat_id=0, coord=coord)
-    problem = _as_problem(mesh, quad, {0: mat}, "vacuum", mat_map=None, scattering_order=scattering_order)
+    problem = _as_problem(mesh, quad, {0: mat}, mat_map=None, scattering_order=scattering_order)
     solver = SNSolver(
         problem,
         inner_solver="source_iteration",

@@ -89,9 +89,11 @@ def _mesh(d: int):
     if d == 2:
         return Mesh2D(edges_x=np.linspace(0.0, 1.0, 4),
                       edges_y=np.linspace(0.0, 2.0, 5),
-                      mat_map=np.zeros((3, 4), dtype=int)), (3, 4)
+                      mat_map=np.zeros((3, 4), dtype=int),
+                      face_laws={face: BC.reflective
+                                 for face in ("xmin", "xmax", "ymin", "ymax")}), (3, 4)
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=None, bc_high=None)
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC.reflective, bc_high=BC.reflective)
         for ext, n in zip((1.0, 2.0, 3.0), (3, 4, 5))
     ), (3, 4, 5)
 
@@ -108,7 +110,7 @@ def _solve(d: int, s: float):
     ).copy()
     sol = solve_sn_fixed_source(
         {0: _absorber(sig)}, mesh, quad, external_source=q,
-        boundary_condition="reflective", inner_tol=_INNER_TOL,
+        inner_tol=_INNER_TOL,
     )
     psi = np.asarray(sol.angular_flux.interior.values)
     flat = _Q_G / (W * np.asarray(sig))

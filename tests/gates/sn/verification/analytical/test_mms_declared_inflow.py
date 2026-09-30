@@ -167,10 +167,10 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     # mesh and `resolve_boundary_conditions` reads the law straight off it.
     mesh = replace(
         mesh0,
-        face_laws=(
-            PrescribedInflow(source=specs["xmin"]),
-            PrescribedInflow(source=specs["xmax"]),
-        ),
+        face_laws={
+            "xmin": PrescribedInflow(source=specs["xmin"]),
+            "xmax": PrescribedInflow(source=specs["xmax"]),
+        },
     )
 
     # A BULK-ONLY source: `_build_fixed_source_rhs`'s array arm calls
@@ -378,10 +378,10 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
     specs = {face: _face_spec(case, face, x) for face, x in _faces(case)}
     mesh = replace(
         mesh0,
-        face_laws=(
-            PrescribedInflow(source=specs["xmin"]),
-            PrescribedInflow(source=specs["xmax"]),
-        ),
+        face_laws={
+            "xmin": PrescribedInflow(source=specs["xmin"]),
+            "xmax": PrescribedInflow(source=specs["xmax"]),
+        },
     )
     sn = SNProblem(mesh, case.quadrature, case.materials)
 
@@ -434,7 +434,7 @@ def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
     mesh0 = case.build_mesh(20)
     spec = _face_spec(case, "xmin", 0.0)
 
-    mesh = replace(mesh0, face_laws=(PrescribedInflow(source=spec), mesh0.outer_law))
+    mesh = replace(mesh0, face_laws={"xmin": PrescribedInflow(source=spec), "xmax": mesh0.outer_law})
     sn = SNProblem(mesh, case.quadrature, case.materials)
     q = AngularBoundarySourceSink.from_problem_laws(sn)
 

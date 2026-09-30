@@ -291,7 +291,7 @@ class Test188WiringContracts:
         the outer radius (``xmax`` / ``mesh.outer_law``) — realized through
         :class:`SNBoundaryRealizer` to a 1-arg operator. The pole r=0
         is the angular closure's regularity condition, NOT a BC face,
-        so ``bc_xmin`` is ``None``: a solid sphere's mesh carries one
+        so there is no ``xmin`` face: a solid sphere's mesh carries one
         face law, the outer one, and none at the centre.
 
         Compatibility against the pre-C188.3 bound-quadrature path

@@ -138,8 +138,12 @@ def _build_2d_aniso_het_vacuum():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
@@ -167,8 +171,12 @@ def _build_2d_het_all_reflective():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+        face_laws={
+            "xmin": BC("reflective"),
+            "xmax": BC("reflective"),
+            "ymin": BC("reflective"),
+            "ymax": BC("reflective"),
+        },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
@@ -280,6 +288,7 @@ def test_g6_eigenvalue_hits_kinf_window():
         edges_x=np.linspace(0.0, 1.0, 3),
         edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((2, 2), dtype=int),
+        face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     with window_forced() as hits:
         sol = solve_sn(
@@ -311,6 +320,7 @@ def test_g6_si_krylov_heterogeneous_window():
         edges_x=np.linspace(0.0, nx * 0.25, nx + 1),
         edges_y=np.linspace(0.0, ny * 0.25, ny + 1),
         mat_map=mat,
+        face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.level_symmetric(sn_order=4)
 

@@ -72,8 +72,12 @@ def _nonsquare_het_2g_mesh(nx: int = 5, ny: int = 4):
         edges_y=np.linspace(0.0, 0.9, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     return SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("A", "2g")},
@@ -112,7 +116,7 @@ def test_ld_2d_converges_second_order_smoke():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             materials, mesh, case.quadrature, Q,
-            boundary_condition="vacuum", max_inner=500, inner_tol=1e-12,
+            max_inner=500, inner_tol=1e-12,
             scheme=LinearDiscontinuous(),
         )
         phi = result.scalar_flux.values                     # (ng, nx, ny)
@@ -203,7 +207,7 @@ def test_dd_and_ld_2d_converge_to_different_values():
     mesh = case.build_mesh(12)                      # coarse — closures diverge
     materials = case.build_materials(mesh)
     Q = case.external_source(mesh)
-    kw = dict(boundary_condition="vacuum", max_inner=300, inner_tol=1e-11)
+    kw = dict(max_inner=300, inner_tol=1e-11)
     phi_dd = solve_sn_fixed_source(
         materials, mesh, case.quadrature, Q, scheme=DiamondDifference(), **kw,
     ).scalar_flux.values
@@ -264,8 +268,12 @@ def test_ld_2d_krylov_equals_si_pure_z_quadrature():
         edges_y=np.linspace(0.0, 0.9, ny + 1),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        face_laws={
+            "xmin": BC("vacuum"),
+            "xmax": BC("vacuum"),
+            "ymin": BC("vacuum"),
+            "ymax": BC("vacuum"),
+        },
     )
     # Lebedev order 5 (N=14) carries 2 pure-z ordinates (the ±z poles) AND
     # genuine mu_y — the cheap pure-z habitat (the production 2-D Cartesian MMS
@@ -285,7 +293,7 @@ def test_ld_2d_krylov_equals_si_pure_z_quadrature():
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
     kw = dict(
-        boundary_condition="vacuum", max_inner=500, inner_tol=1e-12,
+        max_inner=500, inner_tol=1e-12,
         scheme=LinearDiscontinuous(),
     )
     # WITHOUT the fix this raises ValueError on the first Krylov matvec.

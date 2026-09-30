@@ -661,7 +661,6 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         mesh=mesh,
         quadrature=quad,
         external_source=Q_external,
-        boundary_condition="reflective",
         max_inner=500,
         inner_tol=1e-12,
     )
@@ -903,6 +902,10 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
         edges_x=np.linspace(0.0, 1.0, 4),
         edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
+        face_laws={
+            "xmin": BC.reflective, "xmax": BC.reflective,
+            "ymin": BC.reflective, "ymax": BC.reflective,
+        },
     )
     sn2d = SNProblem(
         mesh2d, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2),

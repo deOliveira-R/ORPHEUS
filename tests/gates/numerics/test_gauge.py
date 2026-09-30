@@ -90,7 +90,7 @@ def _gauge_singular_hub():
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((3, 4), dtype=int),
-        bc_xmin=_R, bc_xmax=_R, bc_ymin=_R, bc_ymax=_R,
+        face_laws={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
     )
     return _as_problem(mesh, _QUAD, {0: _absorber()})
 

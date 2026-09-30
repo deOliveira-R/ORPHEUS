@@ -98,10 +98,12 @@ The MOC solver follows the same two-layer pattern as all ORPHEUS
 deterministic solvers:
 
 1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` with
-   ``CoordSystem.CYLINDRICAL``, typically constructed via
-   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
-   →
-   :class:`~orpheus.mesh.mesher.Mesher`.  Stores radial cell
+   ``CoordSystem.CYLINDRICAL``: a solid cylinder at the Wigner–Seitz
+   radii with a reflective outer law, built with
+   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.cylinder`
+   and meshed by a :class:`~orpheus.mesh.mesher.Mesher`
+   (``solve_moc``'s default is
+   :func:`~orpheus.moc.solver.default_pin_cell_mesh`).  Stores radial cell
    edges, material IDs, volumes, and the law on its outer face.
 
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
@@ -135,10 +137,11 @@ deterministic solvers:
 Inverse Wigner-Seitz Geometry
 -----------------------------
 
-The base ``Mesh1D`` is constructed from
-:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`, which
-approximates the square unit cell (side = pitch) by a cylinder of equal
-area:
+The base ``Mesh1D`` takes the radii of
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`,
+which approximates the square unit cell (side = pitch) by a cylinder of
+equal area, under a reflective outer law (the Wigner–Seitz model's own
+law is white, which MoC does not link; ERR-093):
 
 .. math::
    :label: moc-wigner-seitz
@@ -631,9 +634,10 @@ face law (:attr:`Mesh1D.outer_law
 <orpheus.mesh.structured.Mesh1D.outer_law>`), and resolved at
 :class:`MOCMesh` construction time.  :attr:`MOCMesh.BC_REGISTRY`
 currently supports only ``"reflective"``, so a pin cell meshed for MoC
-declares a reflective outer law (``wigner_seitz_pin_cell``'s default is
-``white``); there is no default at the mesh, because a mesh face always
-carries a declared law.
+is built with ``StructuredGeometry.cylinder(..., outer=BC.reflective)``:
+``wigner_seitz_pin_cell`` carries a white outer law as part of its
+model and takes no other, and MoC refuses it. There is no default at
+the mesh, because a mesh face always carries a declared law.
 Additional BC types (e.g., vacuum for isolated-pin transport) can be
 registered in the future.
 
@@ -1289,12 +1293,13 @@ the MOC geometry directly on the square cell (as the old pedagogical
 solver did with ``MoCGeometry``, now removed).  This would require a separate
 geometry class for the square cell + annuli combination.
 
-**Advantage of the current approach:** The same ``Mesh1D`` created from
-:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
-is reused by CP, SN,
-MC, and now MOC.  The pitch is encoded in the outer Wigner-Seitz radius,
-and each solver's augmented geometry recovers whatever it needs.  No
-duplication.
+**Advantage of the current approach:** The same cylindrical radii,
+those of
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`,
+serve CP, SN, MC and MOC; only the outer law differs by method (white
+for CP's Wigner–Seitz model, reflective for MoC's ray links).  The pitch
+is encoded in the outer Wigner-Seitz radius, and each solver's augmented
+geometry recovers whatever it needs.  No duplication of the geometry.
 
 **Limitation:** The Wigner-Seitz approximation is exact for the cell
 *area* but not for the *shape*.  Corner regions of the square cell

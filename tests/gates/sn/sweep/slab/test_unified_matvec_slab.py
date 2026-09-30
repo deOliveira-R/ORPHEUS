@@ -20,7 +20,7 @@ the slab form ``2|μ|·1 + Σ_t·V`` with neutral closure constants — no
 algebraic shortcut, just neutral data.
 
 Phase 1 (pole/inner) seed difference from curvilinear: slab uses
-``face_laws[0].apply(ψ_view[:, :, 0, 0])`` (BC-applied cell-centre proxy
+``face_laws["xmin"].apply(ψ_view[:, :, 0, 0])`` (BC-applied cell-centre proxy
 at x=0) where curvilinear uses ``ψ_view[:, :, 0, 0]`` directly
 (cell-centre IS the pole-face proxy for r=0). The Phase 2 inward IC
 uses ``outer_law.apply(ψ_view[:, :, -1, 0])`` symmetrically.

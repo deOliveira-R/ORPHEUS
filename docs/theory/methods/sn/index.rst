@@ -271,13 +271,12 @@ second layer has grown.
    :class:`~orpheus.mesh.structured.Mesh2D` stores cell edges, material IDs,
    coordinate system, and **boundary condition declarations**.
    A ``Mesh1D`` carries one declared law per boundary face
-   (``face_laws``, inner first, paired with ``boundary_faces``), which the
-   :class:`~orpheus.mesh.mesher.Mesher` copies from the geometry; ``None``
-   is refused there. A ``Mesh2D`` carries an optional
-   :class:`~orpheus.geometry.boundary.BC` field per face
-   (``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``); when it is ``None``
-   the solver applies its own default, reflective for the SN solver,
-   until step 3c of #405 retires ``None`` there too.
+   (``face_laws``, keyed by face name, ``xmin``/``xmax``), which the
+   :class:`~orpheus.mesh.mesher.Mesher` lifts from the geometry. A
+   ``Mesh2D`` carries ``face_laws`` over ``xmin``/``xmax``/``ymin``/``ymax``;
+   both are one value, a :class:`~orpheus.mesh.face_laws.FaceLaws`. ``None`` is refused on both, and the solver supplies
+   no default law: every face is declared
+   (:ref:`structured-geometry-no-default-law`).
    See :ref:`boundary-conditions` for details.
 
 2. **The Problem** --- :class:`SNProblem` pairs the spatial mesh
