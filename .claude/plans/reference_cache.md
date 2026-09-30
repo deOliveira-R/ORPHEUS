@@ -953,3 +953,19 @@ Filed during step 3: #539 (Mesher quality, preview, adaptation, protocol), #540 
 - `uniform_width(1)` and `uniform_volume(1)` are two spellings of one mesh (64 sites; a named one-cell rule);
 - `IntervalRule.__rmul__` is a protocol member that `CellEdges` implements only to refuse (#539's scope);
 - the libm dependence of the worst-case volume-band rows (re-measure on Linux, never widen).
+
+## P1 step 3c opened (2026-09-29): no boundary law is left undeclared
+
+**Ruled (the user, 2026-09-29): `None` retires as a boundary declaration everywhere.** It was already gone from `Mesh1D`. Now every `Mesh2D` face (`bc_xmin`, `bc_xmax`, `bc_ymin`, `bc_ymax`) and every axis endpoint (`AxisMesh.bc_low`/`bc_high`, `RadialAxisMesh.bc_outer`) must declare a law. Retiring with it:
+- SN's `boundary_condition=` parameter on `solve_sn_fixed_source`, `solve_sn_adjoint_fixed_source`, `solve_sn_multiplying_source` and `solve_sn`;
+- `_apply_default_bcs` and `_as_problem`'s `boundary_condition` argument;
+- the reflective default in `resolve_boundary_conditions` (`orpheus/transport/method.py`);
+- the axis adapter's ELEGANCE-DEBT arm in `orpheus/mesh/axis.py::_face_laws_of_axis`.
+
+Spec S3.10's signature leg is owned here. The migration declares, at each undeclared site, the law its consumer resolved in the pre-carve capture (`scratch/reference_architecture/p1step3/capture/undeclared_laws.json`), and is gated by the same capture-and-compare tools as step 3b.
+
+`[M]` The premise, measured 2026-09-29:
+- `boundary_condition=` has 64 sites in 25 test files and 0 in `orpheus/`.
+- The pre-carve capture's injections into an all-`None` declaration: `Mesh2D` 2, axis tuple 5, `Mesh1D` 10 (the last are already gone at 3b).
+- The reflective fallback's resolutions: `SNProblem` y faces 261 each, z faces 24 each; `DiffusionMesh` `xmin` 70 and `xmax` 32.
+- `Mesh2D(` appears at 147 test sites and 5 production sites.
