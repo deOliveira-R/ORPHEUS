@@ -336,7 +336,7 @@ from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.convergence import ConvergenceWarning
 from orpheus.numerics.quadrature import Quadrature
@@ -424,9 +424,11 @@ def _slab(bc: BC) -> Mesh1D:
         mat_ids=(0, 2, 0),
         boundaries=(bc, bc),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=6), RegionMesh(n_cells=8), RegionMesh(n_cells=6),
-    ))
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(6),
+        CellsByCount.uniform_volume(8),
+        CellsByCount.uniform_volume(6),
+    )).mesh
 
 
 def _curvilinear(coord: CoordSystem, bc: BC) -> Mesh1D:
@@ -1569,9 +1571,11 @@ def be_mesh() -> Mesh1D:
         mat_ids=(1, 0, 1),
         boundaries=(BC.vacuum, BC.vacuum),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=12), RegionMesh(n_cells=16), RegionMesh(n_cells=12),
-    ))
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(12),
+        CellsByCount.uniform_volume(16),
+        CellsByCount.uniform_volume(12),
+    )).mesh
 
 
 class TestOnProductionData:

@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 
 
@@ -35,7 +35,7 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
         mat_ids=(mat_id,),
         boundaries=(BC.reflective, BC.reflective),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import sweep_once
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -98,8 +98,9 @@ class TestSNProblem:
         """streaming(0)[n,i] is the RAW down-face streaming |μ_x[n]| / dx[i]
         (#240) — the diamond 2 = 1/w_DD is the scheme's, applied in the cell
         kernel, NOT baked into this geometric accessor."""
-        mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
-                      mat_ids=np.array([0, 1, 2]))
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 0.1, 0.3, 0.6), (0, 1, 2), left=BC.reflective, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
         problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
@@ -172,7 +173,10 @@ class TestSNProblem:
 
     def test_mesh1d_shapes(self):
         """SNProblem from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
-        mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
+        mesh = Mesher(StructuredGeometry.slab(
+            tuple(np.linspace(0, 1, 6)), (0, 1, 2, 1, 0),
+            left=BC.reflective, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
         problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
@@ -200,10 +204,9 @@ class TestSNProblem:
 
     def test_cylindrical_requires_level_quadrature(self):
         """Cylindrical coords require a quadrature with level structure."""
-        from orpheus.geometry import CoordSystem
-
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                      coord=CoordSystem.CYLINDRICAL)
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
         with pytest.raises(ValueError, match="level structure"):
             SNProblem(mesh, quad, placeholder_materials())
@@ -212,8 +215,9 @@ class TestSNProblem:
         """Spherical SNProblem must precompute face areas and α coefficients."""
         from orpheus.geometry import CoordSystem
 
-        mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
-                      coord=CoordSystem.SPHERICAL)
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, 0.5, 1.0), (0, 1), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
         problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 

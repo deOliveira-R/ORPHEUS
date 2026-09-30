@@ -38,7 +38,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -98,9 +98,7 @@ def _slab_homogeneous_2g(nx: int = 4) -> SNProblem:
         mat_ids=(0,),
         boundaries=(BC("reflective"), BC("reflective")),
     )
-    mesh = Mesh1D.from_geometry(
-        geom, region_meshes=(RegionMesh(n_cells=nx),),
-    )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, {0: get_mixture("A", "2g")})
 

@@ -31,8 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import RealSpace
@@ -60,13 +60,9 @@ _L = 2
 
 
 def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -251,13 +247,9 @@ class TestMint:
         minted faces close the square on the SAME derived moment space."""
         from orpheus.transport.spatial import LinearDiscontinuous
 
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+            CellsByCount.uniform_width(4),
+        ).mesh
         m = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),

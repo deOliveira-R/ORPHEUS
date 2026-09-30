@@ -35,8 +35,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
@@ -112,12 +112,9 @@ def _solve_1g_slab(scheme):
 
     nx = 8
     materials = {0: _make_1g_mixture(1.0, 0.5)}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
     return solve_sn_fixed_source(
@@ -169,12 +166,9 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     from tests.gates.sn._test_helpers import placeholder_materials
 
     nx = 5
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(4)
     ld_sn_mesh = SNProblem(
         mesh, quad, placeholder_materials(ng=2), scheme=LinearDiscontinuous(),

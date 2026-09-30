@@ -30,8 +30,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -40,6 +40,24 @@ pytestmark = [pytest.mark.l0, pytest.mark.cap("solve")]
 NG = 2
 _FINE_EDGES = np.linspace(0.0, 4.0, 9)            # 8 fine cells
 _MAT_IDS = np.array([0, 0, 0, 1, 1, 0, 1, 1])     # heterogeneous, interleaved
+
+
+def _fine_mesh(left: BC) -> Mesh1D:
+    """The 8-cell interleaved slab: its material interfaces are the breakpoints
+    (3, 2, 1, 2 cells of 0, 1, 0, 1); reflective on the right, ``left`` on the left."""
+    geometry = StructuredGeometry.slab(
+        (0.0, 1.5, 2.5, 3.0, 4.0), (0, 1, 0, 1), left=left, right=BC("reflective"),
+    )
+    width = CellsByCount.uniform_width
+    return Mesher(geometry).partition((width(3), width(2), width(1), width(2))).mesh
+
+
+def _coarse_mesh(breakpoints: tuple[float, ...], *, left: BC = BC("reflective")) -> Mesh1D:
+    """One coarse cell per interval, each its own region id (the homogenisation target)."""
+    geometry = StructuredGeometry.slab(
+        breakpoints, range(len(breakpoints) - 1), left=left, right=BC("reflective"),
+    )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _balanced_fissile(sig_c, sig_f, nu, chi, sig_s, sig_s1=None):
@@ -69,21 +87,14 @@ def materials():
 
 @pytest.fixture(scope="module")
 def solution(materials):
-    fine = Mesh1D(
-        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    fine = _fine_mesh(BC("reflective"))
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return solve_sn(materials, fine, quad, scattering_order=0)
 
 
 def _coarse_two_region():
     """Two coarse cells [0,2],[2,4], each mixing materials 0 and 1."""
-    return Mesh1D(
-        edges=np.array([0.0, 2.0, 4.0]), mat_ids=np.array([0, 1]),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    return _coarse_mesh((0.0, 2.0, 4.0))
 
 
 def _fine_region_indices(coarse_edges):
@@ -195,10 +206,7 @@ def test_effective_xs_bracketed_by_fine_extremes(solution, materials):
 def test_identity_homogenization_recovers_per_cell_materials(solution, materials):
     """Homogenize onto the SAME fine mesh → each coarse cell is one fine cell,
     so the effective material equals that cell's original (avg over one cell)."""
-    same = Mesh1D(
-        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    same = _fine_mesh(BC("reflective"))
     mm = solution.homogenize(same)
     for i in range(len(_MAT_IDS)):
         orig = materials[_MAT_IDS[i]]
@@ -212,18 +220,12 @@ def test_identity_homogenization_recovers_per_cell_materials(solution, materials
 def test_single_material_region_recovers_material(materials):
     """A coarse cell containing only material m homogenizes to m (flux cancels)."""
     # Uniform single-material fine mesh → any coarse partition gives m back.
-    fine = Mesh1D(
-        edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    fine = Mesher(StructuredGeometry.from_homogeneous(3.0, BC("reflective"))).partition(
+        CellsByCount.uniform_width(6),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn({0: materials[0]}, fine, quad, scattering_order=0)
-    mm = sol.homogenize(Mesh1D(
-        edges=np.array([0.0, 1.5, 3.0]), mat_ids=np.array([0, 1]),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    ))
+    mm = sol.homogenize(_coarse_mesh((0.0, 1.5, 3.0)))
     for mix in mm.materials.values():
         np.testing.assert_allclose(mix.SigT, materials[0].SigT, atol=1e-12)
 
@@ -231,11 +233,7 @@ def test_single_material_region_recovers_material(materials):
 # ── Guard ─────────────────────────────────────────────────────────────
 
 def test_outer_boundary_mismatch_raises(solution):
-    bad = Mesh1D(
-        edges=np.array([0.0, 2.0, 3.5]),  # outer 3.5 ≠ fine outer 4.0
-        mat_ids=np.array([0, 1]), coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    bad = _coarse_mesh((0.0, 2.0, 3.5))  # outer 3.5 ≠ fine outer 4.0
     with pytest.raises(ValueError, match="outer boundary"):
         solution.homogenize(bad)
 
@@ -249,18 +247,13 @@ def test_homogenization_is_flux_weighted_not_volume_weighted(materials):
     Σ_t makes the φV-weighted effective Σ_t and the dV-weighted one numerically
     distinct; production MUST equal the φV one.  Reds a regression that drops φ
     from the weight (volume-only averaging)."""
-    fine = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 5), mat_ids=np.array([0, 0, 1, 1]),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("reflective"),   # strong flux tilt
-    )
+    fine = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (0, 1),
+        left=BC("vacuum"), right=BC("reflective"),   # strong flux tilt
+    )).partition(CellsByCount.uniform_width(2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(materials, fine, quad, scattering_order=0)
-    coarse = Mesh1D(
-        edges=np.array([0.0, 2.0]), mat_ids=np.array([0]),   # ONE region
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("reflective"),
-    )
+    coarse = _coarse_mesh((0.0, 2.0), left=BC("vacuum"))   # ONE region
     mm = sol.homogenize(coarse)
 
     phi = sol.scalar_flux.values                 # (ng, n_fine)
@@ -399,10 +392,7 @@ def tilted_pair():
     from orpheus.sn.solver import solve_sn_adjoint
 
     materials = _nonselfadjoint_materials()
-    fine = Mesh1D(
-        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("reflective"),
-    )
+    fine = _fine_mesh(BC("vacuum"))
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     fwd = solve_sn(materials, fine, quad, scattering_order=0)
     adj = solve_sn_adjoint(materials, fine, quad, scattering_order=0)

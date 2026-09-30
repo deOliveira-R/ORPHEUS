@@ -435,14 +435,18 @@ def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> No
     # with it.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
     from orpheus.homogeneous.solver import _pose_space
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
     quotient = _pose_space(mix)
     one_cell_mesh = MaterialMesh(
-        Mesh1D(edges=np.array([0.0, 2.0]), mat_ids=np.array([0])), {0: mix}
+        Mesher(StructuredGeometry.from_homogeneous(2.0, BC.reflective)).partition(
+            CellsByCount.uniform_width(1),
+        ).mesh,
+        {0: mix},
     )
     _require(
         bool(np.array_equal(one_cell_mesh.volumes, [2.0])),
@@ -472,15 +476,17 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.diffusion import DiffusionMesh
-    from orpheus.geometry import BC
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellEdges, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
     # Non-uniform edges, so the volumes are NOT all-ones and the weights
     # survive canonicalization (a uniform unit mesh would collapse to the
     # counting spelling and this gate would assert nothing).
-    mesh1d = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]), mat_ids=np.array([0, 0, 0]))
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(6.0, BC.reflective)).partition(
+        CellEdges(np.array([0.0, 1.0, 3.0, 6.0])),
+    ).mesh
     carrier = MaterialMesh(mesh1d, {0: mix})
     space = carrier.bulk_space
     _require(space.shape == (2, 3), f"scalar bulk shape {space.shape} != (2, 3)")
@@ -494,12 +500,7 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     )
 
     diffusion_mesh = DiffusionMesh(
-        Mesh1D(
-            edges=np.array([0.0, 1.0, 3.0, 6.0]),
-            mat_ids=np.array([0, 0, 0]),
-            bc_left=BC("reflective"),
-            bc_right=BC("reflective"),
-        ),
+        mesh1d,
         {0: mix},
     )
     _require(
@@ -520,14 +521,17 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     is structurally independent of every array it threads.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellEdges, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
     # Cartesian slab, edges 0|1|3|6 ⟹ BY HAND: widths (=volumes) 1,2,3;
     # centres 0.5, 2.0, 4.5. Non-uniform, so canonicalization keeps them.
     carrier = MaterialMesh(
-        Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]), mat_ids=np.array([0, 0, 0])),
+        Mesher(StructuredGeometry.from_homogeneous(6.0, BC.reflective)).partition(
+            CellEdges(np.array([0.0, 1.0, 3.0, 6.0])),
+        ).mesh,
         {0: mix},
     )
     space = carrier.bulk_space

@@ -76,8 +76,8 @@ from orpheus.numerics.invariance import _embedded_nodes
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
@@ -239,13 +239,10 @@ def test_a_sigma_x_unclosed_rule_refuses_through_the_public_funnel():
     green across the wrong refusal).
     """
     nx = 4
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),          # r = 0 symmetry axis
-        bc_right=BC("vacuum"),             # no mirror demand from the BC tier
-    )
+    # Vacuum outer surface: no mirror demand from the boundary tier.
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.product(n_mu=4, n_phi=5)
     Q = np.full((quad.N, 1, nx), 1.0)
     with pytest.raises(ValueError, match="non-carrying"):

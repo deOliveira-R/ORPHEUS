@@ -25,8 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -40,11 +40,9 @@ from tests.gates.sn._test_helpers import placeholder_materials
 @pytest.mark.foundation
 def test_dag_walk_spherical_outward_matches_per_ordinate():
     """Spherical +1 direction yields same cell sequence as any μ ≥ 0 ordinate."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
     problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -66,11 +64,9 @@ def test_dag_walk_spherical_outward_matches_per_ordinate():
 @pytest.mark.foundation
 def test_dag_walk_spherical_inward_matches_per_ordinate():
     """Spherical -1 direction yields same cell sequence as any μ < 0 ordinate."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
     problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -91,11 +87,9 @@ def test_dag_walk_spherical_inward_matches_per_ordinate():
 @pytest.mark.foundation
 def test_dag_walk_slab_matches_per_ordinate():
     """Slab (1-D Cartesian) sweep direction yields the same cell sequence."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 13),
-        mat_ids=np.zeros(12, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(12)).mesh
     quad = Quadrature.gauss_legendre(6)
     problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -131,11 +125,9 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
         "sphere": (CoordSystem.SPHERICAL, Quadrature.gauss_legendre(8)),
     }
     for name, (coord, quad) in geometries.items():
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, 11),
-            mat_ids=np.zeros(10, dtype=int),
-            coord=coord,
-        )
+        mesh = Mesher(
+            StructuredGeometry.uniform_boundary(coord, (0.0, 2.0), (0,), BC.reflective),
+        ).partition(CellsByCount.uniform_width(10)).mesh
         problem = SNProblem(mesh, quad, placeholder_materials())
         for sign in (+1, -1):
             twin = list(problem.dag_walk_cell_indices(direction_sign=sign))
@@ -150,11 +142,9 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
 
     # Cylinder: per-μ-level, both signs (the degenerate pure-azimuthal
     # ordinates take the forward-order branch in BOTH twins by contract).
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.5, 9),
-        mat_ids=np.zeros(8, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     for level_p in range(len(quad.level_indices)):
@@ -180,11 +170,9 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
 @pytest.mark.foundation
 def test_dag_walk_cylindrical_per_level_matches():
     """Cylindrical per-level direction yields same cell sequence as level ordinates."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.5, 9),
-        mat_ids=np.zeros(8, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -226,11 +214,9 @@ def test_dag_walk_cylindrical_per_level_matches():
 
 @pytest.mark.foundation
 def test_dag_walk_invalid_sign_raises():
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="direction_sign"):
@@ -241,11 +227,9 @@ def test_dag_walk_invalid_sign_raises():
 
 @pytest.mark.foundation
 def test_dag_walk_cylindrical_requires_level():
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="mu_level_idx"):
@@ -255,11 +239,9 @@ def test_dag_walk_cylindrical_requires_level():
 @pytest.mark.foundation
 def test_dag_walk_xor_signature_enforced():
     """``dag_walk`` rejects both / neither of (ordinate_idx, direction_sign)."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC.reflective),
+    ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     # Neither supplied → ValueError.

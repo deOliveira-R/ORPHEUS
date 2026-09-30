@@ -42,8 +42,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisMesh
 from orpheus.sn.solver import (
@@ -102,11 +102,9 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
     )
     sol1 = solve_sn(
         materials,
-        Mesh1D(
-            edges=np.linspace(0.0, 0.5, 3),
-            mat_ids=np.zeros(2, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-        ),
+        Mesher(StructuredGeometry.from_homogeneous(0.5, BC.reflective)).partition(
+            CellsByCount.uniform_width(2),
+        ).mesh,
         Quadrature.gauss_legendre(n_ordinates=8),
         keff_tol=1e-10, inner_tol=1e-11,
     )

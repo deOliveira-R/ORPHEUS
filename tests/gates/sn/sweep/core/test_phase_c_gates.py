@@ -47,8 +47,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     SelfPairedDeck,
@@ -96,13 +96,9 @@ def _make_spherical_sn_mesh(
         quad = Quadrature.gauss_legendre(8)
     else:
         raise ValueError(quad_name)
-    edges = np.linspace(0.0, R, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=bc_outer or BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, R), (0,), outer=bc_outer or BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return problem, sig_t
@@ -124,13 +120,9 @@ def _make_cylindrical_sn_mesh(
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     else:
         raise ValueError(quad_name)
-    edges = np.linspace(0.0, R, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_right=bc_outer or BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, R), (0,), outer=bc_outer or BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return problem, sig_t
@@ -573,13 +565,9 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     are zero at zero input (linearity guard on the composite carrier).
     """
     nx = 6
-    edges = np.linspace(0.0, 1.0, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d

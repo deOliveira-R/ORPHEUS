@@ -358,8 +358,10 @@ But some tests exist that are **not** about physics:
      - Every cell in an equal-volume zone has bit-identical volume
        by construction (the algebraic invariant that caught
        ERR-020). Not a physics claim — a round-trip
-       correctness property of ``Mesh1D.from_geometry`` equal-volume
-       subdivision.
+       correctness property of the equal-volume spacing rule, which
+       stores each cell's volume as the equal share of its interval's
+       measure (``Mesh1D.from_geometry``'s subdivision until P1 step 3b
+       of #405).
    * - ``test_geometry::TestPWRPin2D``
      - ``StructuredGeometry.wigner_seitz_pin_cell`` returns the
        correct cell radius from the Wigner-Seitz identity. Geometric

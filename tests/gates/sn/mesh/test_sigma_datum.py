@@ -26,8 +26,8 @@ import pytest
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -42,11 +42,10 @@ def _require(cond: object, msg: str) -> None:
 
 
 def _mesh() -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, 2.0, 9),
-        mat_ids=np.array([0] * 4 + [1] * 4, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
     )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
 
 def _mats():

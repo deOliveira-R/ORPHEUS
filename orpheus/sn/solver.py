@@ -136,9 +136,7 @@ def _apply_default_bcs(
     semantics are identical on both representations.
     """
     bc = BC(boundary_condition)
-    if isinstance(geometry, Mesh1D):
-        if geometry.bc_left is None and geometry.bc_right is None:
-            return replace(geometry, bc_left=bc, bc_right=bc)
+    if isinstance(geometry, Mesh1D):  # a Mesh1D declares a law on every face
         return geometry
     if isinstance(geometry, Mesh2D):
         faces = ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax")
@@ -2283,7 +2281,7 @@ def solve_sn(
     directly: materials are :class:`~orpheus.data.macro_xs.mixture.Mixture`
     objects keyed by material ID, ``mesh`` is a
     :class:`~orpheus.mesh.Mesh1D` / :class:`~orpheus.mesh.Mesh2D`
-    (build via :meth:`Mesh1D.from_geometry` for multi-region 1-D cases)
+    (a 1-D mesh is built by a :class:`~orpheus.mesh.mesher.Mesher`)
     OR an axis tuple — the axis-native surface and the ONLY 3-D entry
     (C5.5, #225; per-axis BCs ride the axes, ``mat_map=`` carries the
     material assignment), and ``quadrature`` is an explicitly chosen
@@ -2291,7 +2289,7 @@ def solve_sn(
     for slab, level-symmetric / product quadrature for curvilinear, or
     Lebedev for 2-D.
 
-    The mesh's boundary conditions (``bc_left`` / ``bc_right`` for 1-D,
+    The mesh's boundary conditions (``face_laws`` for 1-D,
     ``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` for 2-D) are
     honoured verbatim — the SN sweep handles ``vacuum`` and
     ``reflective``.
@@ -3298,10 +3296,12 @@ def solve_sn_fixed_source(
           as the inflow seed). The legacy array form is exactly the
           bulk-only / vacuum special case of this composite.
     boundary_condition : {"vacuum", "reflective"} or None
-        Applied to all faces when the mesh has no explicit BC
-        declarations (``bc_left`` etc. are ``None``).  When the mesh
-        carries explicit :class:`~orpheus.geometry.boundary.BC` fields,
-        those take precedence and this parameter is ignored.
+        Applied to all faces when a :class:`Mesh2D` or an axis tuple has
+        no explicit BC declarations (every face ``None``); a
+        :class:`Mesh1D` declares a law on every face, so it is ignored
+        there. When the mesh carries explicit
+        :class:`~orpheus.geometry.boundary.BC` fields, those take
+        precedence and this parameter is ignored.
         Vacuum is the default because the intended consumer is
         Method of Manufactured Solutions verification on a finite slab.
     max_inner, inner_tol :

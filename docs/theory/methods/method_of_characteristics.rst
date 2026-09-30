@@ -101,16 +101,17 @@ deterministic solvers:
    ``CoordSystem.CYLINDRICAL``, typically constructed via
    :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
    →
-   :meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`.  Stores radial cell
-   edges, material IDs, and volumes.
+   :class:`~orpheus.mesh.mesher.Mesher`.  Stores radial cell
+   edges, material IDs, volumes, and the law on its outer face.
 
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
    an :class:`MOCQuadrature`, precomputing all ray-tracing data:
    tracks, segments through flat-source regions, effective ray spacings,
    and :term:`reflective boundary condition` links.  The BC is declared on
-   the base geometry via :class:`~orpheus.geometry.boundary.BC` on
-   :attr:`Mesh1D.bc_right <orpheus.mesh.structured.Mesh1D.bc_right>` and resolved
-   at construction time against :attr:`MOCMesh.BC_REGISTRY`.
+   the base geometry via :class:`~orpheus.geometry.boundary.BC`, read
+   from the mesh's outer face law
+   (:attr:`Mesh1D.outer_law <orpheus.mesh.structured.Mesh1D.outer_law>`), and
+   resolved at construction time against :attr:`MOCMesh.BC_REGISTRY`.
 
 3. **Solver** --- :class:`MOCSolver` satisfies the
    :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol.
@@ -625,11 +626,16 @@ Reflective Boundary Conditions
 
 The MOC solver uses the project-wide ``BC_REGISTRY`` pattern for
 boundary condition resolution.  The BC is declared on the base geometry
-via :class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
-<orpheus.mesh.structured.Mesh1D.bc_right>` and resolved at :class:`MOCMesh`
-construction time.  :attr:`MOCMesh.BC_REGISTRY` currently supports only
-``"reflective"`` (the default); additional BC types (e.g., vacuum for
-isolated-pin transport) can be registered in the future.
+via :class:`~orpheus.geometry.boundary.BC`, read from the mesh's outer
+face law (:attr:`Mesh1D.outer_law
+<orpheus.mesh.structured.Mesh1D.outer_law>`), and resolved at
+:class:`MOCMesh` construction time.  :attr:`MOCMesh.BC_REGISTRY`
+currently supports only ``"reflective"``, so a pin cell meshed for MoC
+declares a reflective outer law (``wigner_seitz_pin_cell``'s default is
+``white``); there is no default at the mesh, because a mesh face always
+carries a declared law.
+Additional BC types (e.g., vacuum for isolated-pin transport) can be
+registered in the future.
 
 ``MOCMesh`` reads its mesh as the solid Wigner--Seitz cylinder of a
 square pin cell, so any other mesh (a slab, a sphere, a hollow
@@ -1352,9 +1358,9 @@ is even smaller.
 
 The flat-source error can be reduced by subdividing regions into
 thinner annuli (more cells in the ``Mesh1D``).  The per-region cell
-resolution is chosen at
-:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry` time via each
-region's ``RegionMesh(n_cells=...)``; a typical 10 fuel + 3 clad + 7
+resolution is chosen by the interval rule the
+:class:`~orpheus.mesh.mesher.Mesher` applies to each region (for
+example ``CellsByCount.uniform_volume(n)``); a typical 10 fuel + 3 clad + 7
 coolant subdivision is adequate for most applications.
 
 

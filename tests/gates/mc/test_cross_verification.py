@@ -16,7 +16,7 @@ from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 from orpheus.cp.solver import solve_cp, CPParams
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 
 # L2 cross-code MC ↔ CP consistency.
 pytestmark = [
@@ -56,9 +56,7 @@ def test_mc_vs_cp_cylinder():
         mat_ids=tuple(int(m) for m in mat_ids),
         boundaries=(BC.white,),  # CP supports vacuum/white only
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=tuple(
-        RegionMesh(n_cells=5) for _ in geom.mat_ids
-    ))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(5)).mesh
     cp_result = solve_cp(case.materials, mesh=mesh)
 
     # ── MC solve ──────────────────────────────────────────────────────
@@ -110,10 +108,7 @@ def test_mc_vs_cp_slab():
         mat_ids=(2, 0),
         boundaries=(BC.white, BC.white),
     )
-    mesh = Mesh1D.from_geometry(geom_cp, region_meshes=(
-        RegionMesh(n_cells=10),
-        RegionMesh(n_cells=10),
-    ))
+    mesh = Mesher(geom_cp).partition(CellsByCount.uniform_volume(10)).mesh
     cp_result = solve_cp(materials, mesh=mesh)
 
     # ── MC solve (full cell: mod|fuel|mod for periodic BCs) ──────────

@@ -25,8 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
@@ -38,13 +38,9 @@ source_emission = DiscretizationSchemeBase.source_emission
 
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    return Mesher(StructuredGeometry.from_homogeneous(length, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
 
 
 def _slab_visit(cell_idx: int = 2, n_ord: int = 4, *, positive: bool = True):

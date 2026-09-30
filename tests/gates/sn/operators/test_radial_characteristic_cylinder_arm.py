@@ -45,8 +45,8 @@ import pytest
 from tests.gates.sn._test_helpers import rc_march
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
@@ -74,13 +74,8 @@ def _mixture(c: float):
 
 
 def _folded_cylinder(c: float = 0.0) -> tuple[SNProblem, Mesh1D]:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, _RADIUS, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.cylinder((0.0, _RADIUS), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
     sn = SNProblem(mesh, Quadrature.folded_product(4, 8), {0: _mixture(c)})
     return sn, mesh
 

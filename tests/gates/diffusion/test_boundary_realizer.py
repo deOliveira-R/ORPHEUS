@@ -37,6 +37,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
 from orpheus.diffusion.method_space import DiffusionMethodSpace
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
@@ -55,7 +56,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     ZeroOperator,
 )
-from orpheus.mesh import Mesh1D
+from orpheus.mesh import CellsByCount, Mesher
 
 # V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a
 # module-level ``pytestmark = [pytest.mark.foundation]`` blanket while
@@ -405,7 +406,8 @@ class TestComposition:
 class TestDiffusionMethodSpace:
     @staticmethod
     def _mesh() -> DiffusionMesh:
-        mesh1d = Mesh1D(np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int))
+        geometry = StructuredGeometry.from_homogeneous(10.0, BC.reflective)
+        mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 
     def test_minimal_is_metadata_free(self):

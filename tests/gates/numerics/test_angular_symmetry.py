@@ -36,8 +36,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.manifold import SPHERE, Quotient, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
@@ -616,9 +616,8 @@ def _evenness(psi: np.ndarray, perm: np.ndarray) -> float:
 @pytest.fixture(scope="module")
 def _cylinder_solution():
     quad = Quadrature.folded_product(4, 8)
-    mesh = Mesh1D(edges=np.linspace(0.0, 2.0, 9), mat_ids=np.zeros(8, dtype=int),
-                  coord=CoordSystem.CYLINDRICAL,
-                  bc_left=BC("reflective"), bc_right=BC("vacuum"))
+    mesh = Mesher(StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
+                  ).partition(CellsByCount.uniform_width(8)).mesh
     source = np.zeros((quad.N, 1, 8))
     source[:, :, :4] = 1.0                     # r-ASYMMETRIC: no flat-flux nulling
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
@@ -643,9 +642,9 @@ def _plane_solution():
 @pytest.fixture(scope="module")
 def _slab_solution():
     quad = Quadrature.gauss_legendre(8)
-    mesh = Mesh1D(edges=np.linspace(0.0, 2.0, 9), mat_ids=np.zeros(8, dtype=int),
-                  coord=CoordSystem.CARTESIAN,
-                  bc_left=BC("vacuum"), bc_right=BC("vacuum"))
+    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"),
+                                          right=BC("vacuum")),
+                  ).partition(CellsByCount.uniform_width(8)).mesh
     source = np.zeros((quad.N, 1, 8))
     source[:, :, :4] = 1.0
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,

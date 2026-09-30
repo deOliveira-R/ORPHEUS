@@ -33,8 +33,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -53,13 +53,9 @@ _N_CELLS = 8
 
 def _cylinder_mesh(n_phi: int) -> SNProblem:
     """Cylinder fixture; ``n_phi ≡ 2 (mod 4)`` activates the per-cell path."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, 2.0, _N_CELLS + 1),
-        mat_ids=np.zeros(_N_CELLS, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
     return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
 

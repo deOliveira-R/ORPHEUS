@@ -31,8 +31,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import Composite, FullField
@@ -46,8 +46,15 @@ _SIG_T_B = np.array([0.3416, 0.9431])
 _SIG_S_A = np.array([[0.1900, 0.0160], [0.0, 0.4200]])
 _SIG_S_B = np.array([[0.1000, 0.0020], [0.0, 0.0500]])
 _SIG_F_A = np.array([0.0024, 0.0489])
-_EDGES = np.array([0.0, 0.5, 1.5, 3.0, 5.0])
-_MAT_IDS = np.array([0, 1, 1, 0])
+# Material A on [0, 0.5] and [3, 5], material B on [0.5, 3] (two cells).
+_GEOMETRY = StructuredGeometry.slab(
+    (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("reflective"), right=BC("vacuum"),
+)
+_CELLS = (
+    CellEdges(np.array([0.0, 0.5])),
+    CellEdges(np.array([0.5, 1.5, 3.0])),
+    CellEdges(np.array([3.0, 5.0])),
+)
 
 
 def _materials() -> dict[int, object]:
@@ -66,10 +73,7 @@ def _materials() -> dict[int, object]:
 
 @pytest.fixture
 def mesh() -> DiffusionMesh:
-    mesh1d = Mesh1D(
-        edges=_EDGES, mat_ids=_MAT_IDS,
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-    )
+    mesh1d = Mesher(_GEOMETRY).partition(_CELLS).mesh
     return DiffusionMesh(mesh1d, _materials())
 
 

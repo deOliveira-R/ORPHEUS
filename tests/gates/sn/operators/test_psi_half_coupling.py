@@ -58,8 +58,8 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.geometry.boundary import WhiteBoundary
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -203,8 +203,8 @@ def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4,
     corner swap — the vacuum floor never exercises that arm (``_reflect_corner``
     returns zeros for vacuum), so the ``B_b`` gates below need it.
     """
-    mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-                  coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC(bc))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
 
 
@@ -618,9 +618,9 @@ class TestBoundaryUnweld:
         ``(S, B_a)`` gains — DP-seedless). The ray of ``B_a``'s output stays
         ``None``."""
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         with pytest.raises(ValueError, match="carries no ψ½ ray"):
             RadialCharacteristicBoundaryOperator(slab.radial_characteristic_field_space, slab.bc["xmax"].law)
@@ -872,8 +872,8 @@ def _graded_sphere(nx: int, ng: int = 2, p: float = 1.5, R: float = 4.0,
     uniform mesh ``dr[::-1] == dr`` and ``dr[k−1] == dr[k]``, so those gates are
     vv Mode-5 vacuous — the grading breaks the blind spot (§0.6)."""
     edges = R * (np.arange(nx + 1, dtype=float) / nx) ** p
-    mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
-                  coord=CoordSystem.SPHERICAL, bc_right=BC(bc))
+    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=BC(bc))
+    mesh = Mesher(geom).partition(CellEdges(edges)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)})
 
 
@@ -1245,9 +1245,9 @@ class TestA_BB_RadialBVP:
         Positive control: a σ_t on THIS mesh constructs cleanly."""
         # Non-carrying CONTROL — the slab (the only admitted seedless geometry).
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
@@ -1515,8 +1515,8 @@ def _fissile_mixture(sig_t: float, sig_s: float, ng: int):
 
 def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4):
     """A seed-carrying FISSILE sphere (GL S4) — the F-arm carrier (non-vacuous emission)."""
-    mesh = Mesh1D(edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-                  coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4),
                   {0: _fissile_mixture(sigma, c * sigma, ng)})
 
@@ -1794,9 +1794,9 @@ class TestA_BA_SchurFold:
         (Until Q5.6.3 an LS cylinder was the second control; a non-carrying
         cylinder is unconstructible since the admission flip.)"""
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         for tag, sn in (("slab", slab),):
             if sn.radial_characteristic_field_space is not None:
@@ -2262,9 +2262,9 @@ class TestCoupledLift:
                         "RadialCharacteristicEmission at (B,A) — A_BA is not "
                         "wired as a block gain.")
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
@@ -2839,9 +2839,9 @@ class TestA_AB_SeedInjection:
         ``apply`` / ``apply_transpose`` refuse a field on a DIFFERENT
         sphere."""
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
@@ -3077,16 +3077,17 @@ class TestCoupledBuilder:
             pytest.fail(f"carrying sphere built {grid.n_rows}×{grid.n_cols}, "
                         f"expected 2×2.")
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         # Q5.6.3: the ADMITTED cylinder is folded = CARRYING, so its presence
         # row joins the sphere's 2x2 leg; the slab is the only admitted
         # 1x1 (non-carrying) geometry.
         cyl_folded = SNProblem(
-            Mesh1D(edges=np.linspace(0.05, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CYLINDRICAL, bc_right=BC("vacuum")),
+            Mesher(StructuredGeometry.cylinder(
+                (0.05, 4.0), (0,), inner=BC.reflective, outer=BC("vacuum"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.folded_product(n_mu=4, n_phi=8),
             {0: _mixture(1.0, 0.4, 2)})
         op_cyl, _space_cyl = build_coupled_system(
@@ -3398,9 +3399,9 @@ class TestWithinGroupSystem:
         # rebuilding with injection and checking the seedless arm below.)
         # Seedless: the pure re-package.
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         slab_solver = SNSolver(slab)
         # C3b (2026-09-13): the record is the HUB's ONE posed record — built
@@ -3511,9 +3512,9 @@ class TestWithinGroupSystem:
         bypassing driver cannot even be CONSTRUCTED; the sentinel's teeth are
         now the type system plus this seedless control.)"""
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         counters = {"N": 0, "M": 0}
         real_n = CoupledOperator.apply
@@ -3716,9 +3717,9 @@ class TestWithinGroupSystem:
         (array_equal) to the hand-built ``SourceIteration(L+C⁻¹, S, B_a)``
         on the same rhs. A drift here is a bug, never principled-equiv."""
         slab = SNProblem(
-            Mesh1D(edges=np.linspace(0.0, 4.0, 6), mat_ids=np.zeros(5, dtype=int),
-                   coord=CoordSystem.CARTESIAN, bc_right=BC("reflective"),
-                   bc_left=BC("reflective")),
+            Mesher(StructuredGeometry.slab(
+                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         tol, mi = 1e-11, 3000
         q_np = np.ones((slab.quad.N, slab.ng, slab.nx))
@@ -3820,10 +3821,8 @@ def _pure_absorber_reflective_sphere(ng: int = 2, nx: int = 8):
     scattering (pure capture) — the Mode-6 group-swap catcher: each group's
     equilibrium ratio ``Q_g/Σ_t,g`` is distinct.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.3, 0.0, ng)}
 
 

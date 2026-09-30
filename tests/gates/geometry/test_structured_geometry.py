@@ -1,4 +1,4 @@
-"""Foundation tests for :class:`StructuredGeometry` and :meth:`Mesh1D.from_geometry`.
+"""Foundation tests for :class:`StructuredGeometry` and the mesher that lifts it onto cells.
 
 These tests pin the geometry value and the geometry → mesh transition: the
 defining refusals of the value (its breakpoints, its material ids, its
@@ -25,7 +25,7 @@ from orpheus.geometry import (
     StructuredGeometry,
     compute_volumes_1d,
 )
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 
 
 pytestmark = pytest.mark.foundation
@@ -394,35 +394,9 @@ class TestPwrSlabHalfCell:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# RegionMesh — mesh-layer per-region descriptor
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestRegionMesh:
-    def test_default_method(self):
-        rm = RegionMesh(n_cells=10)
-        assert rm.n_cells == 10
-        assert rm.method == "equal-volume"
-
-    def test_uniform_method(self):
-        rm = RegionMesh(n_cells=5, method="uniform")
-        assert rm.method == "uniform"
-
-    def test_zero_cells_rejected(self):
-        with pytest.raises(ValueError, match="must be ≥ 1"):
-            RegionMesh(n_cells=0)
-
-    def test_negative_cells_rejected(self):
-        with pytest.raises(ValueError, match="must be ≥ 1"):
-            RegionMesh(n_cells=-1)
-
-    def test_unknown_method_rejected(self):
-        with pytest.raises(ValueError, match="must be 'equal-volume' or 'uniform'"):
-            RegionMesh(n_cells=5, method="invalid")  # type: ignore[arg-type]
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Mesh1D.from_geometry — the canonical geometry → mesh bridge
+# The mesher lifts a geometry onto its cells (P1 step 3b). The class and
+# test names are the pre-carve node ids, kept so the migration capture
+# compares each mesh bitwise with the one it replaced.
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -515,12 +489,12 @@ def _three_region_mesh(coord: CoordSystem) -> Mesh1D:
             (BC.vacuum, BC.vacuum) if coord is _SLAB else (BC.reflective,)
         ),
     )
-    return Mesh1D.from_geometry(g, region_meshes=tuple(
-        RegionMesh(n_cells=n) for n in _THREE_REGION_CELLS
-    ))
+    return Mesher(g).partition(tuple(
+        CellsByCount.uniform_volume(n) for n in _THREE_REGION_CELLS
+    )).mesh
 
 
-class TestMesh1DFromGeometry:
+class TestMeshingAGeometry:
     def test_single_region_sphere_equal_volume(self):
         g = StructuredGeometry(
             coord=CoordSystem.SPHERICAL,
@@ -528,17 +502,16 @@ class TestMesh1DFromGeometry:
             mat_ids=(0,),
             boundaries=(BC.vacuum,),
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(RegionMesh(n_cells=8),))
+        mesh = Mesher(g).partition(CellsByCount.uniform_volume(8)).mesh
         assert mesh.N == 8
         assert mesh.coord == CoordSystem.SPHERICAL
         assert mesh.edges[0] == 0.0
         assert mesh.edges[-1] == pytest.approx(2.0)
-        # All cells in an equal-volume zone are bit-identical by
-        # construction (the precomputed_volumes invariant).
+        # All cells in an equal-volume interval are bit-identical: the
+        # stored volume is the equal share m/n (ERR-020's invariant).
         assert np.all(mesh.volumes == mesh.volumes[0])
-        # BC propagation: SPH → bc_right populated, bc_left None.
-        assert mesh.bc_left is None
-        assert mesh.bc_right == BC.vacuum
+        # One face law, the outer one: the centre carries none.
+        assert mesh.face_laws == (BC.vacuum,)
 
     def test_single_region_slab_uniform(self):
         g = StructuredGeometry(
@@ -547,15 +520,12 @@ class TestMesh1DFromGeometry:
             mat_ids=(0,),
             boundaries=(BC.vacuum, BC.reflective),
         )
-        mesh = Mesh1D.from_geometry(
-            g, region_meshes=(RegionMesh(n_cells=4, method="uniform"),),
-        )
+        mesh = Mesher(g).partition(CellsByCount.uniform_width(4)).mesh
         assert mesh.N == 4
         assert mesh.coord == CoordSystem.CARTESIAN
         np.testing.assert_allclose(mesh.edges, [0.0, 1.0, 2.0, 3.0, 4.0])
-        # SLB → both BCs propagated.
-        assert mesh.bc_left == BC.vacuum
-        assert mesh.bc_right == BC.reflective
+        # A slab has two faces, left then right.
+        assert mesh.face_laws == (BC.vacuum, BC.reflective)
 
     def test_multi_region_slab(self):
         g = StructuredGeometry.from_thicknesses(
@@ -564,11 +534,11 @@ class TestMesh1DFromGeometry:
             mat_ids=(1, 0, 1),
             boundaries=(BC.vacuum, BC.vacuum),
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(
-            RegionMesh(n_cells=2, method="uniform"),
-            RegionMesh(n_cells=4, method="uniform"),
-            RegionMesh(n_cells=2, method="uniform"),
-        ))
+        mesh = Mesher(g).partition((
+            CellsByCount.uniform_width(2),
+            CellsByCount.uniform_width(4),
+            CellsByCount.uniform_width(2),
+        )).mesh
         assert mesh.N == 8
         assert mesh.edges[-1] == pytest.approx(3.0)
         # mat_id walks: 1 1 | 0 0 0 0 | 1 1
@@ -589,11 +559,11 @@ class TestMesh1DFromGeometry:
         g = StructuredGeometry.wigner_seitz_pin_cell(
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(
-            RegionMesh(n_cells=10),
-            RegionMesh(n_cells=3),
-            RegionMesh(n_cells=7),
-        ))
+        mesh = Mesher(g).partition((
+            CellsByCount.uniform_volume(10),
+            CellsByCount.uniform_volume(3),
+            CellsByCount.uniform_volume(7),
+        )).mesh
         assert mesh.N == 20
         assert mesh.coord == CoordSystem.CYLINDRICAL
         # Outer edge equals r_cell.
@@ -603,8 +573,7 @@ class TestMesh1DFromGeometry:
         assert (mesh.mat_ids == 2).sum() == 10
         assert (mesh.mat_ids == 1).sum() == 3
         assert (mesh.mat_ids == 0).sum() == 7
-        assert mesh.bc_right == BC("white")
-        assert mesh.bc_left is None
+        assert mesh.face_laws == (BC("white"),)
         _assert_equal_volume_regions(
             mesh,
             mat_ids=(2, 1, 0),
@@ -613,14 +582,16 @@ class TestMesh1DFromGeometry:
         )
 
     def test_length_mismatch_raises(self):
+        """RE-POSED from the ``from_geometry`` count mismatch: a tuple of
+        rules pairs one to one with the intervals."""
         g = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN,
             thicknesses=(1.0, 1.0),
             mat_ids=(0, 1),
             boundaries=(BC.vacuum, BC.vacuum),
         )
-        with pytest.raises(ValueError, match="must equal"):
-            Mesh1D.from_geometry(g, region_meshes=(RegionMesh(n_cells=4),))
+        with pytest.raises(ValueError, match=r"1 rule\(s\) for 2 interval\(s\)"):
+            Mesher(g).partition((CellsByCount.uniform_volume(4),))
 
     def test_the_first_breakpoint_is_the_origin(self):
         """RE-POSED from ``test_origin_offset``: ``origin=`` retired, since
@@ -631,26 +602,24 @@ class TestMesh1DFromGeometry:
             mat_ids=(0,),
             boundaries=(BC.vacuum, BC.vacuum),
         )
-        mesh = Mesh1D.from_geometry(
-            g, region_meshes=(RegionMesh(n_cells=2, method="uniform"),),
-        )
+        mesh = Mesher(g).partition(CellsByCount.uniform_width(2)).mesh
         np.testing.assert_allclose(mesh.edges, [5.0, 6.0, 7.0])
 
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
     def test_a_hollow_body_propagates_its_inner_law(self, coord):
-        """The two laws of a hollow body go to (bc_left, bc_right), and the
-        mesh starts at the inner radius."""
+        """The two laws of a hollow body are its two face laws, inner
+        first, and the mesh starts at the inner radius."""
         g = StructuredGeometry(
             coord=coord,
             breakpoints=(0.5, 2.0),
             mat_ids=(0,),
             boundaries=(BC.reflective, BC.vacuum),
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(RegionMesh(n_cells=4),))
+        mesh = Mesher(g).partition(CellsByCount.uniform_volume(4)).mesh
         assert mesh.edges[0] == 0.5
         assert mesh.edges[-1] == 2.0
-        assert mesh.bc_left == BC.reflective
-        assert mesh.bc_right == BC.vacuum
+        assert mesh.face_laws == (BC.reflective, BC.vacuum)
+        assert mesh.boundary_faces == (0.5, 2.0)
 
     @pytest.mark.catches("ERR-020")
     def test_equal_volume_cylindrical_invariant(self):
@@ -661,7 +630,7 @@ class TestMesh1DFromGeometry:
             mat_ids=(0,),
             boundaries=(BC("white"),),
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(RegionMesh(n_cells=10),))
+        mesh = Mesher(g).partition(CellsByCount.uniform_volume(10)).mesh
         # All cells exactly equal volume — no ULP drift.
         assert np.all(mesh.volumes == mesh.volumes[0])
         # Total volume from cells matches geometric formula.
@@ -676,7 +645,7 @@ class TestMesh1DFromGeometry:
             mat_ids=(0,),
             boundaries=(BC.vacuum,),
         )
-        mesh = Mesh1D.from_geometry(g, region_meshes=(RegionMesh(n_cells=12),))
+        mesh = Mesher(g).partition(CellsByCount.uniform_volume(12)).mesh
         assert np.all(mesh.volumes == mesh.volumes[0])
         expected_total = (4.0 / 3.0) * np.pi * 3.0 ** 3
         np.testing.assert_allclose(mesh.volumes.sum(), expected_total, rtol=1e-14)
@@ -717,10 +686,10 @@ class TestMesh1DFromGeometry:
         "coord", [_SLAB, _CYLINDER, _SPHERE], ids=lambda c: c.name.lower(),
     )
     def test_equal_volume_edges_bound_the_volumes(self, coord):
-        """The equal-volume edges and the precomputed volumes are one mesh.
+        """The equal-volume edges and the stored equal shares are one mesh.
 
-        ``Mesh1D.from_geometry`` stores the equal-volume cell volumes
-        computed from the algebraic invariant (the ERR-020 fix), so the
+        The mesher stores the equal-volume cell volumes as the equal
+        share of the interval's measure (the ERR-020 fix), so the
         volumes no longer read the edges, and no volume assertion can
         see an error in the equal-volume RADIUS formula
         ``r_k = (r_in^p + k/n (r_out^p - r_in^p))^(1/p)``. This row is

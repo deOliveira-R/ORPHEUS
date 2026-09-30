@@ -1,77 +1,18 @@
 """Mesh construction factories — 2-D Cartesian only.
 
-Phase F retired the 1-D ``Zone`` / ``mesh1d_from_zones`` /
-``pwr_pin_equivalent`` / ``pwr_slab_half_cell`` / ``homogeneous_1d``
-/ ``slab_fuel_moderator`` factories. The 1-D path is now
-:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` →
-:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`, with
+The 1-D path is :class:`~orpheus.mesh.mesher.Mesher` over a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, with
 :meth:`StructuredGeometry.wigner_seitz_pin_cell` and
-:meth:`StructuredGeometry.pwr_slab_half_cell` for the conventional
-PWR pin-cell shapes.
-
-What survives here:
-
-* :func:`pwr_pin_2d` — 2-D Cartesian factory. There is no 2-D
-  :class:`StructuredGeometry` yet, so this stays as a standalone
-  helper.
-* :func:`_subdivide_zone` — private equal-volume subdivision helper
-  used internally by :meth:`Mesh1D.from_geometry`. Kept as the single
-  algebraic invariant for "equal-volume cells" across all three
-  coordinate systems (catches ERR-020 round-trip drift).
+:meth:`StructuredGeometry.pwr_slab_half_cell` for the conventional PWR
+pin-cell shapes. What survives here is :func:`pwr_pin_2d`, the 2-D Cartesian
+factory: there is no 2-D :class:`StructuredGeometry` yet.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from orpheus.geometry.coord import CoordSystem
-from orpheus.mesh.structured import Mesh1D, Mesh2D
-
-
-# ── Equal-volume subdivision (private helper for Mesh1D.from_geometry) ─
-
-def _subdivide_zone(
-    inner: float,
-    outer: float,
-    n: int,
-    coord: CoordSystem,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return *n + 1* edge positions AND *n* exact cell volumes for a region.
-
-    Subdivision guarantees equal-volume cells in each coordinate
-    system — and this function returns volumes computed **directly
-    from the algebraic invariant**, not re-derived from the edges
-    after the fact. Deriving from edges via
-    :func:`~orpheus.geometry.coord.compute_volumes_1d` loses ~1 ULP
-    per cell because ``cbrt(x)**3 != x`` exactly (and likewise
-    ``sqrt(x)**2``), which breaks the "equal-volume region" property
-    at ``rtol=1e-14``.
-
-    * Cartesian:   ``x_k = inner + k/n * (outer - inner)``,
-      ``V_cell = (outer - inner) / n``.
-    * Cylindrical: ``r_k = sqrt(inner^2 + k/n * (outer^2 - inner^2))``,
-      ``V_cell = π (outer^2 - inner^2) / n``.
-    * Spherical:   ``r_k = cbrt(inner^3 + k/n * (outer^3 - inner^3))``,
-      ``V_cell = (4/3) π (outer^3 - inner^3) / n``.
-
-    Each cell gets the same ``V_cell`` (a scalar broadcast), so every
-    cell in the region is **bit-identical** by construction.
-    """
-    fracs = np.linspace(0.0, 1.0, n + 1)
-    match coord:
-        case CoordSystem.CARTESIAN:
-            edges = inner + fracs * (outer - inner)
-            v_cell = (outer - inner) / n
-        case CoordSystem.CYLINDRICAL:
-            edges = np.sqrt(inner**2 + fracs * (outer**2 - inner**2))
-            v_cell = np.pi * (outer**2 - inner**2) / n
-        case CoordSystem.SPHERICAL:
-            edges = np.cbrt(inner**3 + fracs * (outer**3 - inner**3))
-            v_cell = (4.0 / 3.0) * np.pi * (outer**3 - inner**3) / n
-        case _:
-            raise ValueError(f"Unknown coordinate system: {coord}")
-    volumes = np.full(n, v_cell, dtype=float)
-    return edges, volumes
+from orpheus.mesh.structured import Mesh2D
 
 
 # ── 2-D Cartesian PWR pin factory ────────────────────────────────────

@@ -163,8 +163,8 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     a non-flat random per-ordinate source.  One sweep each, on a fresh boundary
     (the sweep mutates it in place).
     """
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
@@ -173,10 +173,9 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     materials = {0: _make_2g_asymmetric_mixture(
         np.array([1.0, 1.5]), np.array([[0.3, 0.2], [0.0, 0.6]]),
     )}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 5.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 5.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     ld_mesh = SNProblem(mesh, quad, materials, scheme=LinearDiscontinuous())
     N, ng = quad.N, ld_mesh.ng
@@ -222,17 +221,16 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     predicate (a *value* signal — P4.9a: the assembled ``angular_denom_term``
     non-neutral) instead of a path that merely happened to reach it.
     """
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
 
     nx = 8
     materials = {0: _make_1g_mixture(1.0, 0.5)}
-    sphere = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_left=BC("reflective"), bc_right=BC("vacuum"),
-    )
+    sphere = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
     with pytest.raises(
@@ -322,16 +320,15 @@ def test_ld_thick_diffusive_limit() -> None:
     Σ_s^T·φ̂ couples groups; a 1G-only gate is a degeneracy guard failure).
     """
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
 
     nx, length, sigma_t, c = 4, 1.0, 40.0, 0.99   # σ_t·h = 10/cell (thick), c→1
     materials = {0: _make_1g_mixture(sigma_t, c * sigma_t)}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()   # uniform iso source
     dd = solve_sn_fixed_source(
@@ -374,8 +371,8 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     the 1G gate (the `vv-principles` 1-group-degeneracy rule / H1; #240 D5b-S3 GATE 5).
     """
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
 
     nx, length = 4, 1.0
@@ -383,10 +380,9 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     sig_t = np.array([40.0, 40.0])
     sig_s = np.array([[30.0, 9.6], [0.0, 39.6]])   # c≈0.99 each group, asym
     materials = {0: _make_2g_asymmetric_mixture(sig_t, sig_s)}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 2, nx)) / quad.weights.sum()
     common = dict(boundary_condition="vacuum", inner_solver="krylov",

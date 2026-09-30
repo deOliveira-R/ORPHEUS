@@ -24,30 +24,18 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
-
-def _bcs_for(coord: CoordSystem):
-    """White laws, one per boundary point of a solid geometry in ``coord``
-    (CP supports only ``"vacuum"`` and ``"white"``)."""
-    if coord is CoordSystem.CARTESIAN:
-        return (BC.white, BC.white)
-    return (BC.white,)
-
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 
 def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
     """Two-region mesh helper for the L0/L1 properties tests.
     ``outers`` are the regions' outer positions, so they are the
     geometry's breakpoints after the origin.
     """
-    geom = StructuredGeometry(
-        coord=coord,
-        breakpoints=(0.0, *outers),
-        mat_ids=(0, 1),
-        boundaries=_bcs_for(coord),
-    )
-    return Mesh1D.from_geometry(geom, region_meshes=tuple(
-        RegionMesh(n_cells=n) for n in n_cells
-    ))
+    # White on every boundary point (CP admits only vacuum and white).
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, *outers), (0, 1), BC.white)
+    return Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for n in n_cells),
+    ).mesh
 
 
 from orpheus.cp.solver import CPMesh, CPParams, CPSolver, solve_cp
@@ -178,21 +166,38 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
 
 
 def _slab_mesh_homogeneous(thickness: float, mat_id: int = 0) -> Mesh1D:
-    """Single-region slab mesh."""
-    return Mesh1D(
-        edges=np.array([0.0, thickness]),
-        mat_ids=np.array([mat_id]),
-        coord=CoordSystem.CARTESIAN,
+    """Single-region, single-cell slab mesh; white on both faces (CP reads the right)."""
+    geometry = StructuredGeometry.slab(
+        (0.0, thickness), (mat_id,), left=BC.white, right=BC.white,
     )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _slab_mesh_2region(t1: float, t2: float) -> Mesh1D:
-    """Two-region slab mesh with mat_ids [0, 1]."""
-    return Mesh1D(
-        edges=np.array([0.0, t1, t1 + t2]),
-        mat_ids=np.array([0, 1]),
-        coord=CoordSystem.CARTESIAN,
+    """Two-region slab mesh with mat_ids [0, 1], one cell each; white on both faces."""
+    return Mesher(_slab_geometry((t1, t2), (0, 1))).partition(
+        CellsByCount.uniform_width(1),
+    ).mesh
+
+
+def _slab_geometry(thicknesses, mat_ids) -> StructuredGeometry:
+    """The slab stacked from ``thicknesses``; white on both faces (CP reads the right)."""
+    return StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
+        mat_ids=mat_ids, boundaries=(BC.white, BC.white),
     )
+
+
+def _case_mesh(case) -> Mesh1D:
+    """One cell per region of a registered CP case; white at the outer surface."""
+    gp = case.geom_params
+    if case.geometry == "slab":
+        geometry = _slab_geometry(gp["thicknesses"], gp["mat_ids"])
+    else:
+        geometry = StructuredGeometry.cylinder(
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+        )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _compute_analytical_kinf_slab(
@@ -318,8 +323,9 @@ class TestDirectPinfComparison:
         P_ref = _slab_cp_matrix(sig_t_all, t_arr)
 
         # Solver P_inf (vectorised E3)
-        edges = np.concatenate([[0.0], np.cumsum(t_arr)])
-        mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+        mesh = Mesher(_slab_geometry(t_arr, mat_ids)).partition(
+            CellsByCount.uniform_width(1),
+        ).mesh
         cp_mesh = CPMesh(mesh)
 
         for g in range(ng):
@@ -814,14 +820,7 @@ class TestConvergenceRate:
         """
         from orpheus.derivations import get
         case = get("cp_slab_2eg_2rg")
-        gp = case.geom_params
-        thicknesses = np.array(gp["thicknesses"])
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(gp["mat_ids"]),
-            coord=CoordSystem.CARTESIAN,
-        )
+        mesh = _case_mesh(case)
         result = solve_cp(
             case.materials, mesh,
             CPParams(keff_tol=1e-8, flux_tol=1e-7),
@@ -856,14 +855,7 @@ class TestConvergenceRate:
         """
         from orpheus.derivations import get
         case = get("cp_slab_4eg_4rg")
-        gp = case.geom_params
-        thicknesses = np.array(gp["thicknesses"])
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(gp["mat_ids"]),
-            coord=CoordSystem.CARTESIAN,
-        )
+        mesh = _case_mesh(case)
         result = solve_cp(
             case.materials, mesh,
             CPParams(keff_tol=1e-8, flux_tol=1e-7),
@@ -910,8 +902,9 @@ class TestManyRegions:
 
         thicknesses = np.array([0.25] * n_reg)
         mat_ids = np.array([0, 1] * (n_reg // 2))
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+        mesh = Mesher(_slab_geometry(thicknesses, mat_ids)).partition(
+            CellsByCount.uniform_width(1),
+        ).mesh
 
         # Verify CP matrix properties
         cp_mesh = CPMesh(mesh)
@@ -947,16 +940,9 @@ class TestManyRegions:
         keffs = []
         for n_sub in [1, 2, 4]:
             # Each original region is subdivided into n_sub cells
-            t_a = 0.5 / n_sub
-            t_b = 0.5 / n_sub
-            thicknesses = [t_a] * n_sub + [t_b] * n_sub
-            mat_ids_arr = [0] * n_sub + [1] * n_sub
-            edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-            mesh = Mesh1D(
-                edges=edges,
-                mat_ids=np.array(mat_ids_arr),
-                coord=CoordSystem.CARTESIAN,
-            )
+            mesh = Mesher(_slab_geometry((0.5, 0.5), (0, 1))).partition(
+                CellsByCount.uniform_width(n_sub),
+            ).mesh
             result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6))
             keffs.append(result.keff)
 
@@ -1000,14 +986,7 @@ class TestGSInnerIterations:
         """
         from orpheus.derivations import get
         case = get("cp_slab_4eg_4rg")
-        gp = case.geom_params
-        thicknesses = np.array(gp["thicknesses"])
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(gp["mat_ids"]),
-            coord=CoordSystem.CARTESIAN,
-        )
+        mesh = _case_mesh(case)
         params = CPParams(
             keff_tol=1e-7, flux_tol=1e-6,
             solver_mode="gauss_seidel",
@@ -1059,14 +1038,7 @@ class TestGSInnerIterations:
         """
         from orpheus.derivations import get
         case = get("cp_slab_4eg_4rg")
-        gp = case.geom_params
-        thicknesses = np.array(gp["thicknesses"])
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(gp["mat_ids"]),
-            coord=CoordSystem.CARTESIAN,
-        )
+        mesh = _case_mesh(case)
 
         params_j = CPParams(keff_tol=1e-7, flux_tol=1e-6, solver_mode="jacobi")
         params_gs = CPParams(keff_tol=1e-7, flux_tol=1e-6, solver_mode="gauss_seidel")
@@ -1169,14 +1141,7 @@ class TestKi4Resolution:
         """
         from orpheus.derivations import get
         case = get("cp_cyl1D_2eg_2rg")
-        gp = case.geom_params
-        radii = np.array(gp["radii"])
-        edges = np.concatenate([[0.0], radii])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(gp["mat_ids"]),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        mesh = _case_mesh(case)
 
         keffs = {}
         for n_ki in [5000, 20000, 40000]:

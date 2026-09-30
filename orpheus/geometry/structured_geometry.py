@@ -461,10 +461,7 @@ def _boundary_points(
     coord: CoordSystem, breakpoints: tuple[float, ...],
 ) -> tuple[float, ...]:
     """The boundary's positions, inner first, from parsed breakpoints."""
-    r_0, r_R = breakpoints[0], breakpoints[-1]
-    if coord is CoordSystem.CARTESIAN or _is_hollow(coord, breakpoints):
-        return (r_0, r_R)
-    return (r_R,)
+    return coord.boundary_points(breakpoints[0], breakpoints[-1])
 
 
 def _parse_breakpoints(
@@ -514,44 +511,64 @@ def _parse_mat_ids(mat_ids: object, n_intervals: int) -> tuple[int, ...]:
 
 def _check_boundaries(geometry: StructuredGeometry) -> None:
     """One law per boundary point, each a ``BC`` tag or a typed law."""
+    parse_boundary_laws(
+        geometry.boundaries, geometry.coord, geometry.breakpoints[0],
+        geometry.breakpoints[-1], "StructuredGeometry.boundaries",
+    )
+
+
+def parse_boundary_laws(
+    laws: "tuple[object, ...]",
+    coord: CoordSystem,
+    r_0: float,
+    r_R: float,
+    where: str,
+) -> "tuple[BC | BoundaryTraceLaw, ...]":
+    """One law per boundary point of ``[r_0, r_R]`` in ``coord``, or a keyed refusal.
+
+    The one check of a boundary declaration, for the geometry's laws and a
+    mesh's face laws alike: each law is a ``BC`` tag or a typed
+    ``BoundaryTraceLaw`` (``None`` is not a law), and there is one per
+    :meth:`CoordSystem.boundary_points`.
+    """
     # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
     # THIS module, so a top-level import cycles.
     from orpheus.geometry.boundary import BoundaryTraceLaw
 
-    boundaries = geometry.boundaries
-    for k, law in enumerate(boundaries):
+    for k, law in enumerate(laws):
         if law is None:
             raise TypeError(
-                f"StructuredGeometry.boundaries[{k}] is None, and None is not "
-                f"a boundary law: declare the law the boundary point carries."
+                f"{where}[{k}] is None, and None is not a boundary law: "
+                f"declare the law the boundary point carries."
             )
         if not isinstance(law, (BC, BoundaryTraceLaw)):
             raise TypeError(
-                f"StructuredGeometry.boundaries[{k}] must be a BC tag or a "
-                f"BoundaryTraceLaw instance, got {type(law).__name__}"
+                f"{where}[{k}] must be a BC tag or a BoundaryTraceLaw "
+                f"instance, got {type(law).__name__}"
             )
-    points = geometry.boundary_points
-    if len(boundaries) == len(points):
-        return
-    if geometry.coord is CoordSystem.CARTESIAN:
+    points = coord.boundary_points(r_0, r_R)
+    if len(laws) == len(points):
+        return laws  # type: ignore[return-value]  # every entry checked above
+    if coord is CoordSystem.CARTESIAN:
         reason = "a slab has two boundary points (left, right)"
-    elif not geometry.is_hollow:
+    elif len(points) == 1:
         reason = (
-            f"the centre r = 0 of a solid {geometry.coord.name.lower()} "
-            f"geometry is an interior point and carries no law; the only "
-            f"boundary point is the outer surface"
+            f"the centre r = 0 of a solid {coord.name.lower()} body is an "
+            f"interior point and carries no law; the only boundary point is "
+            f"the outer surface"
         )
     else:
         reason = (
-            f"a hollow {geometry.coord.name.lower()} geometry (r_0 = "
-            f"{points[0]!r} > 0) has an inner surface, which needs its own law"
+            f"a hollow {coord.name.lower()} body (r_0 = {points[0]!r} > 0) "
+            f"has an inner surface, which needs its own law"
         )
     raise ValueError(
-        f"StructuredGeometry: {reason}; expected {len(points)} law(s) at "
-        f"r = {points}, got {len(boundaries)}."
+        f"{where}: {reason}; expected {len(points)} law(s) at r = {points}, "
+        f"got {len(laws)}."
     )
 
 
 __all__ = [
     "StructuredGeometry",
+    "parse_boundary_laws",
 ]

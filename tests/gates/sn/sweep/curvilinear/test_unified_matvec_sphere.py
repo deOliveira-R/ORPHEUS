@@ -45,8 +45,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
@@ -54,13 +54,9 @@ from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materi
 
 
 def _build_sphere(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, n_cells + 1),
-        mat_ids=np.zeros(n_cells, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("reflective")),
+    ).partition(CellsByCount.uniform_width(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials())
 

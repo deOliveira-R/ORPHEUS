@@ -10,8 +10,7 @@ diffusion phase space rather than bare data:
   boundary face to the realized albedo operator :math:`J^- =
   \mathcal{A} J^+`, with the ruling-3 tag semantics (vacuum = Marshak
   :math:`\mathcal{A}=0`; zero-flux = the Dirichlet idealization
-  :math:`\mathcal{A}=-1`) and the reflective infinite-lattice default
-  on undeclared faces;
+  :math:`\mathcal{A}=-1`);
 * **law coverage ≡ face coverage** — ``bc`` and the trace derive from
   the ONE ``face_labels`` inventory (the structural invariant that
   retired the P4 boundary operator's coverage validation);
@@ -38,8 +37,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 pytestmark = [pytest.mark.foundation]
@@ -47,11 +46,9 @@ pytestmark = [pytest.mark.foundation]
 _MATS = {0: get_mixture("A", "2g")}
 
 
-def _mesh1d(bc_left: BC | None = None, bc_right: BC | None = None) -> Mesh1D:
-    return Mesh1D(
-        np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int),
-        bc_left=bc_left, bc_right=bc_right,
-    )
+def _mesh1d(left: BC = BC.reflective, right: BC = BC.reflective) -> Mesh1D:
+    geometry = StructuredGeometry.slab((0.0, 10.0), (0,), left=left, right=right)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
 
 _PROBE = np.array([1.5, 2.5])   # a J⁺ face slot, (ng,)
@@ -83,15 +80,6 @@ class TestRealizedBoundaryLaws:
             rtol=1e-15,
         )
 
-    def test_undeclared_faces_default_to_reflective(self):
-        """The infinite-lattice convention (the SN default, mirrored):
-        an axis with no BC declaration realizes 𝒜 = 1."""
-        dm = DiffusionMesh(_mesh1d(), _MATS)
-        for face in ("xmin", "xmax"):
-            np.testing.assert_array_equal(
-                np.asarray(dm.bc[face].apply(_PROBE)), _PROBE,
-            )
-
     def test_law_coverage_equals_face_coverage(self):
         """bc and the trace derive from the ONE face_labels inventory —
         the structural invariant that made the P4 boundary operator's
@@ -102,10 +90,9 @@ class TestRealizedBoundaryLaws:
     def test_sphere_pole_is_not_a_bc_face(self):
         """Curvilinear: the r=0 pole is a regularity condition, not a
         face — bc and trace both carry only the outer face."""
-        sphere = Mesh1D(
-            np.linspace(0.0, 5.0, 4), np.zeros(3, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-        )
+        sphere = Mesher(
+            StructuredGeometry.sphere((0.0, 5.0), (0,), outer=BC.reflective),
+        ).partition(CellsByCount.uniform_width(3)).mesh
         dm = DiffusionMesh(sphere, _MATS)
         assert dm.scalar_trace.face_names == ("xmax",)
         assert set(dm.bc) == {"xmax"}

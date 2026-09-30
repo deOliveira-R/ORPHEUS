@@ -288,31 +288,26 @@ class Test188WiringContracts:
 
     def test_curvilinear_realize_boundary_law_routes_through_realizer(self):
         """A 1-D spherical :class:`SNProblem` has exactly ONE boundary —
-        the outer radius (``xmax`` / ``bc_right``) — realized through
+        the outer radius (``xmax`` / ``mesh.outer_law``) — realized through
         :class:`SNBoundaryRealizer` to a 1-arg operator. The pole r=0
         is the angular closure's regularity condition, NOT a BC face,
-        so ``bc_left`` / ``bc_xmin`` are ``None`` (the mesh's
-        ``bc_left`` declaration is moot — the centreline is always
-        symmetric by geometry).
+        so ``bc_xmin`` is ``None``: a solid sphere's mesh carries one
+        face law, the outer one, and none at the centre.
 
         Compatibility against the pre-C188.3 bound-quadrature path
         is verified end-to-end by the curvilinear SN regression
         suite (``tests/gates/sn/test_spherical.py`` etc.); here we pin
         the structural contract.
         """
-        from orpheus.geometry import BC, CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.operator import ZeroMorphism
         from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
 
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(
+            StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+        ).partition(CellsByCount.uniform_width(4)).mesh
         quad = Quadrature.gauss_legendre(8)
         sn = SNProblem(mesh, quad, placeholder_materials())
 
@@ -373,20 +368,16 @@ class Test188WiringContracts:
         ``tests/gates/sn/operators/test_sn_boundary_operator.py``. Neither fixture
         covers the other; both gates are load-bearing.)
         """
-        from orpheus.geometry import BC, CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.operator import TensorProductOperator
         from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
         from tests.gates.sn._test_helpers import local_positions
 
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("reflective"),
-            bc_right=BC("reflective"),
-        )
+        mesh = Mesher(
+            StructuredGeometry.from_homogeneous(1.0, BC("reflective")),
+        ).partition(CellsByCount.uniform_width(4)).mesh
         quad = Quadrature.gauss_legendre(4)
         sn = SNProblem(mesh, quad, placeholder_materials())
 

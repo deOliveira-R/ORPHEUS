@@ -76,8 +76,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
@@ -118,34 +118,21 @@ def _build_sn_mesh(geometry: str, n_cells: int = 5, n_ord: int = 4) -> SNProblem
     a second per geometry. The decomposition contract is size-independent.
     """
     if geometry == "SPH":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("reflective"),
-        )
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("reflective"))
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "CYL":
-        mesh = Mesh1D(
-            edges=np.linspace(0.01, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("reflective"),
+        geom = StructuredGeometry.cylinder(
+            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
         )
         quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     elif geometry == "CART":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("reflective"),
-            bc_right=BC("reflective"),
+        geom = StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
     return SNProblem(mesh, quad, placeholder_materials())
 
 

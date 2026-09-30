@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**92 entries · 330 catching tests · 0 uncaught · 5 dormant.**
+**92 entries · 332 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -65,7 +65,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-017 | 1 |  | Wigner-Seitz pitch formula doubled in MC heterogeneous tests |
 | ERR-018 | 1 |  | Direction sampling uses uniform theta instead of isotropic |
 | ERR-019 | 1 |  | Missing 4π·sin(θ) weight factor in MOC scalar flux update |
-| ERR-020 | 4 |  | ULP-noisy cell volumes from cbrt → **3 round trip |
+| ERR-020 | 6 |  | ULP-noisy cell volumes from cbrt → **3 round trip |
 | ERR-021 | 2 |  | Degenerate ray tangent to pin-cell corner raises IndexError |
 | ERR-022 | 1 |  | Negative lethargy bin width flips flux-per-lethargy sign |
 | ERR-023 | 2 |  | MC solver silently ignores Sig2 (n,2n) reactions |

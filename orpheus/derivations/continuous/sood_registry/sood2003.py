@@ -22,7 +22,7 @@ Each case now carries:
   :meth:`La13511Case.to_geometry` materialises a
   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
   on demand (raises for the infinite kind). Discrete consumers
-  build a mesh via :meth:`Mesh1D.from_geometry`; reference solvers
+  build a mesh with a :class:`~orpheus.mesh.mesher.Mesher`; reference solvers
   consume the geometry directly.
 * **`truth: La13511Truth`** — all published reference values bundled
   in one struct. Different cases populate different subsets,

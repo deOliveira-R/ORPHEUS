@@ -27,8 +27,8 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesh2D, Mesher
 from orpheus.numerics.functional import Functional
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -50,20 +50,16 @@ def _non_uniform_slab(ng: int) -> SNProblem:
     ``∫·dV`` weighting.
     """
     edges = np.array([0.0, 0.1, 0.3, 0.6, 1.0])  # widths 0.1 / 0.2 / 0.3 / 0.4
-    mesh = Mesh1D(
-        edges=edges, mat_ids=np.zeros(4, dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng))
 
 def _stretched_nonuniform_slab(ng: int) -> SNProblem:
     """The non-uniform slab at doubled width — same shape, different cell
     volumes (the F2 content discriminator)."""
     edges = 2.0 * np.array([0.0, 0.1, 0.3, 0.6, 1.0])
-    mesh = Mesh1D(
-        edges=edges, mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.from_homogeneous(2.0, BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         placeholder_materials(ng=ng),

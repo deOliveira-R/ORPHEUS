@@ -33,8 +33,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.convergence import (
     IterationBudget,
@@ -71,13 +71,9 @@ pytestmark = pytest.mark.foundation
 
 def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Build a small slab :class:`SNProblem` for unit testing."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -85,13 +81,9 @@ def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
 def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """GL(8) sibling — the ANGULAR-only discriminator: the (energy,
     spatial) marginal is identical, so only the ψ gate can refuse it."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8),
         placeholder_materials(ng=ng),
@@ -416,10 +408,9 @@ class TestSolutionCompare:
         """Two SNProblem wrappers over the same constituents realize ONE phase
         space (content identity) — ``compare`` must accept, and so must the
         state-on-domain law (the state's space equals the sibling's by content)."""
-        geometry = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
+        geometry = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(4)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         materials = placeholder_materials(ng=2)
         m1 = SNProblem(geometry, quad, materials)

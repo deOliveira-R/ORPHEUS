@@ -15,8 +15,8 @@ law gave bit-identical SN fluxes on a cylinder and a sphere with
 The refusal is a declared scope boundary (``SCOPE-BOUNDARY[guard]``): the
 machinery that would remove it is an inner-surface trace on the radial axis.
 Reflective is admitted because it is what the methods compute, and that
-is the void-cavity answer (the last gate); an undeclared (``None``) inner
-law is admitted until P1 step 3 retires ``None``.
+is the void-cavity answer (the last gate). ``None`` is no law: since P1
+step 3b a mesh refuses it on every face.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
@@ -59,14 +59,15 @@ def _hollow_mesh(coord: CoordSystem, inner_law) -> Mesh1D:
         mat_ids=(0,),
         boundaries=(inner_law, BC.vacuum),
     )
-    return Mesh1D.from_geometry(geometry, region_meshes=(RegionMesh(n_cells=8),))
+    return Mesher(geometry).partition(CellsByCount.uniform_volume(8)).mesh
 
 
 def _direct_hollow_mesh(coord: CoordSystem, inner_law) -> Mesh1D:
-    """The same body built directly, the route that existed before step 2."""
+    """The same body built by the bare constructor, with no geometry."""
+    edges = np.linspace(0.5, 2.0, 9)
     return Mesh1D(
-        np.linspace(0.5, 2.0, 9), np.zeros(8, int), coord=coord,
-        bc_left=inner_law, bc_right=BC.vacuum,
+        coord=coord, edges=edges, volumes=coord.measure(edges),
+        mat_ids=np.zeros(8, int), face_laws=(inner_law, BC.vacuum),
     )
 
 
@@ -80,7 +81,8 @@ def test_sn_refuses_a_declared_inner_law_it_would_drop(coord, law):
 
 @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
 def test_a_direct_mesh_is_refused_too(coord):
-    """The guard sits at the one adapter, so the pre-geometry route is covered."""
+    """The guard sits at the one adapter, so a mesh built without a
+    geometry (the bare constructor) is covered."""
     mesh = _direct_hollow_mesh(coord, BC.vacuum)
     with pytest.raises(NotImplementedError, match="#511"):
         SNProblem(mesh, _quadrature(coord), _materials())
@@ -95,20 +97,13 @@ def test_diffusion_refuses_it_too():
 
 @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
 def test_an_undeclared_inner_law_is_the_reflective_one(coord):
-    """A RECORD of the admitted pair: SN computes the same flux, bit for
-    bit, for a declared reflective inner law and for an undeclared one
-    (both reach the radial axis, which has no inner slot). What that flux
-    IS is the next gate's claim."""
-    quadrature = _quadrature(coord)
-    source = np.ones((quadrature.N, 2, 8))
-    fluxes = [
-        np.asarray(solve_sn_fixed_source(
-            _materials(), _direct_hollow_mesh(coord, law), quadrature, source,
-            boundary_condition=None,
-        ).scalar_flux.values)
-        for law in (BC.reflective, None)
-    ]
-    np.testing.assert_array_equal(fluxes[0], fluxes[1])
+    """RE-POSED at P1 step 3b. Until then this was a RECORD that an
+    undeclared (``None``) inner law and a declared reflective one gave the
+    same flux bit for bit. ``None`` is no longer a law: the mesh refuses it,
+    so the only way to spell that cavity is ``inner=BC.reflective``, whose
+    answer the next gate verifies."""
+    with pytest.raises(TypeError, match="None is not a boundary law"):
+        _direct_hollow_mesh(coord, None)
 
 
 def _core_mixture(sigma: float):
@@ -126,9 +121,9 @@ def _shell_flux_with_core(coord: CoordSystem, core, n_core: int = 4) -> np.ndarr
         coord=coord, breakpoints=(0.0, 0.5, 2.0), mat_ids=(1, 0),
         boundaries=(BC.vacuum,),
     )
-    mesh = Mesh1D.from_geometry(
-        geometry, region_meshes=(RegionMesh(n_cells=n_core), RegionMesh(n_cells=8)),
-    )
+    mesh = Mesher(geometry).partition(
+        (CellsByCount.uniform_volume(n_core), CellsByCount.uniform_volume(8)),
+    ).mesh
     source = np.concatenate(
         [np.zeros((quadrature.N, 2, n_core)), np.ones((quadrature.N, 2, 8))], axis=2,
     )

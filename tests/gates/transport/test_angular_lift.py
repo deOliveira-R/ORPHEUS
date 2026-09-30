@@ -35,8 +35,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.problem import SNProblem
@@ -62,10 +62,9 @@ _L1_ABS_BAND = 2.3e-16
 
 def _sn() -> SNProblem:
     materials = {0: get_mixture("A", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 21), mat_ids=np.zeros(20, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(20),
+    ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials)
 
 

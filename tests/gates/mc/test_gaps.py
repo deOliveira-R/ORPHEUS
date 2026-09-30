@@ -686,14 +686,11 @@ def test_mcmesh_vs_concentric_keff():
     result1 = solve_monte_carlo(case.materials, params1)
 
     # MCMesh geometry (same radii)
-    from orpheus.geometry import CoordSystem
-    from orpheus.mesh import Mesh1D
-    edges = np.array([0.0] + list(radii))
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.array(mat_ids),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, *(float(r) for r in radii)), mat_ids, outer=BC("periodic"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     geom_mesh = MCMesh(mesh, pitch=pitch)
     params2 = MCParams(
         n_neutrons=200, n_inactive=50, n_active=300,

@@ -50,8 +50,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature
@@ -162,13 +162,9 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     if config == "slab_1d":
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, 21),
-            mat_ids=np.zeros(20, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(20)).mesh
         run_gs = False
     elif config == "cart2d_reflective_y":
         quad = Quadrature.level_symmetric(4)

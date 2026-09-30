@@ -29,8 +29,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.discrete.sn import dsa
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation.assembly import assemble_ordinate_blocks
 from orpheus.sn.problem import SNProblem
@@ -43,12 +43,14 @@ _RTOL = 1e-11  # sparse-order ≠ dense-order ⇒ never 0-ULP (the L16 gate valu
 @pytest.fixture(scope="module")
 def slab() -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups, vacuum."""
-    mesh1d = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-        mat_ids=np.array([0, 1, 1, 0]),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh1d = Mesher(geom).partition((
+        CellsByCount.uniform_width(1),
+        CellEdges(np.array([0.5, 1.5, 3.0])),
+        CellsByCount.uniform_width(1),
+    )).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}

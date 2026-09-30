@@ -36,8 +36,8 @@ import numpy as np
 import pytest
 
 from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
@@ -233,13 +233,9 @@ class TestTagEquivalence:
 
 def _slab(left: str, right: str) -> SNProblem:
     return SNProblem(
-        Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC(left),
-            bc_right=BC(right),
-        ),
+        Mesher(
+            StructuredGeometry.slab((0.0, 1.0), (0,), left=BC(left), right=BC(right)),
+        ).partition(CellsByCount.uniform_width(4)).mesh,
         Quadrature.gauss_legendre(4),
         placeholder_materials(),
     )
@@ -247,13 +243,9 @@ def _slab(left: str, right: str) -> SNProblem:
 
 def _sphere(outer: str) -> SNProblem:
     return SNProblem(
-        Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC(outer),
-        ),
+        Mesher(
+            StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC(outer)),
+        ).partition(CellsByCount.uniform_width(4)).mesh,
         Quadrature.gauss_legendre(8),
         placeholder_materials(),
     )

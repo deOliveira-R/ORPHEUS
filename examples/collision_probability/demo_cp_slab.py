@@ -12,7 +12,7 @@ from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp
 
 OUTPUT = Path("results")
@@ -34,11 +34,11 @@ def main():
     geom = StructuredGeometry.pwr_slab_half_cell(
         fuel_half=0.9, clad_thick=0.2, cool_thick=0.7,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # cool
-    ))
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
 
     n_fuel = (mesh.mat_ids == 2).sum()
     n_clad = (mesh.mat_ids == 1).sum()

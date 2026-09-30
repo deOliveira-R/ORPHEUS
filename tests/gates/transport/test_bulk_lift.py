@@ -35,8 +35,8 @@ from scipy import sparse
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.assembled_operator import SparseAssembledOperator
 from orpheus.numerics.operator import BlockRole, MissingAssembly
 from orpheus.transport.fields._bases import FieldRole
@@ -73,10 +73,10 @@ def _mesh(n_cells: int = 4) -> DiffusionMesh:
         sig_t=_SIG_T, sig_c=_SIG_T - _SIG_S.sum(axis=1),
         sig_f=np.zeros(2), nu=np.zeros(2), chi=np.zeros(2), sig_s=_SIG_S,
     )
-    mesh1d = Mesh1D(
-        edges=np.linspace(0.0, 2.0, n_cells + 1), mat_ids=np.zeros(n_cells, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(n_cells)).mesh
     return DiffusionMesh(mesh1d, {0: mix})
 
 

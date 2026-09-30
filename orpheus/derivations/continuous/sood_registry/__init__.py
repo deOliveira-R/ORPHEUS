@@ -21,8 +21,8 @@ Each :class:`La13511Case` carries:
   ``"cylinder"`` / ``"infinite"``). Use
   :meth:`La13511Case.to_geometry` to materialise a
   :class:`StructuredGeometry`; production solvers consume
-  ``materials`` + a :class:`Mesh1D` built via
-  :meth:`Mesh1D.from_geometry`.
+  ``materials`` + a :class:`Mesh1D` built by a
+  :class:`~orpheus.mesh.mesher.Mesher`.
 * **Tabulated truth values**: :math:`k_{\rm eff}` / :math:`k_\infty`,
   flux ratios, critical dimensions, etc. — whatever the published
   reference tabulates.

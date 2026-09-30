@@ -54,8 +54,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -71,17 +71,10 @@ def _require(cond: bool, msg: str) -> None:
 
 
 def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
-    edges = np.linspace(0.0, 1.0, nx + 1)
-    mat_ids = np.zeros(nx, dtype=int)
-    # Cartesian carries a left (inner) BC; curvilinear's inner edge is the pole
-    # (a regularity condition, not a BC face). Explicit branches — a **kwargs
-    # dict spread confuses the type-checker's positional-arg inference.
-    if coord is CoordSystem.CARTESIAN:
-        mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=coord,
-                      bc_right=BC("reflective"), bc_left=BC("reflective"))
-    else:
-        mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=coord,
-                      bc_right=BC("reflective"))
+    # Reflective on every boundary point: both faces of the slab, the outer
+    # surface of the solid body (whose centre is an interior point, no law).
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 

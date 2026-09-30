@@ -24,14 +24,15 @@ Failure modes targeted:
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations.common.xs_library import make_mixture, get_mixture, get_xs
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.moc.geometry import MOCMesh
@@ -57,13 +58,11 @@ pytestmark = pytest.mark.verifies(
 # Helpers
 # =====================================================================
 
-def _ws_mesh(edges, mat_ids):
-    """Build a cylindrical Mesh1D (Wigner-Seitz convention)."""
-    return Mesh1D(
-        edges=np.array(edges, dtype=float),
-        mat_ids=np.array(mat_ids, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+def _ws_mesh(breakpoints, mat_ids):
+    """A solid Wigner-Seitz cylinder, one cell per region, reflective at its outer surface."""
+    return Mesher(StructuredGeometry.cylinder(
+        tuple(float(r) for r in breakpoints), mat_ids, outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _homogeneous_ws_mesh(pitch=2.0, mat_id=0):
@@ -1048,11 +1047,7 @@ class TestXVCrossVerification:
         pitch = 2.0
         ws_r = pitch / np.sqrt(np.pi)
 
-        mesh = Mesh1D(
-            edges=np.array([0.0, r_fuel, ws_r]),
-            mat_ids=np.array([2, 0]),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        mesh = _ws_mesh([0.0, r_fuel, ws_r], [2, 0])
 
         # MOC solve
         result_moc = _quick_solve(
@@ -1064,7 +1059,8 @@ class TestXVCrossVerification:
         # CP solve
         try:
             from orpheus.cp.solver import solve_cp
-            result_cp = solve_cp(materials, mesh)
+            # CP reads the outer law as white; MoC reads it as reflective.
+            result_cp = solve_cp(materials, replace(mesh, face_laws=(BC.white,)))
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")
@@ -1089,11 +1085,7 @@ class TestXVCrossVerification:
         pitch = 2.0
         ws_r = pitch / np.sqrt(np.pi)
 
-        mesh = Mesh1D(
-            edges=np.array([0.0, r_fuel, ws_r]),
-            mat_ids=np.array([2, 0]),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        mesh = _ws_mesh([0.0, r_fuel, ws_r], [2, 0])
 
         result_moc = _quick_solve(
             materials, mesh,
@@ -1103,7 +1095,8 @@ class TestXVCrossVerification:
 
         try:
             from orpheus.cp.solver import solve_cp
-            result_cp = solve_cp(materials, mesh)
+            # CP reads the outer law as white; MoC reads it as reflective.
+            result_cp = solve_cp(materials, replace(mesh, face_laws=(BC.white,)))
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")

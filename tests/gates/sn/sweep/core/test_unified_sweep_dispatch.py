@@ -47,8 +47,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.diamond import DiamondDifference
@@ -73,39 +73,27 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNProblem:
     """Slab SNProblem with vacuum BCs and Gauss-Legendre 1D quadrature."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
-    """Spherical SNProblem with reflective inner / vacuum outer BCs."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    """Solid spherical SNProblem with a vacuum outer surface."""
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
-    """Cylindrical SNProblem with reflective inner / vacuum outer BCs."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    """Solid cylindrical SNProblem with a vacuum outer surface."""
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, radius), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials())
 
@@ -244,13 +232,10 @@ class TestHonestCurvilinearSchemeSelection:
             if coord is CoordSystem.SPHERICAL
             else Quadrature.folded_product(n_mu=4, n_phi=8)
         )
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            coord=coord,
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry(
+            coord=coord, breakpoints=(0.0, 1.0), mat_ids=(0,),
+            boundaries=(BC("vacuum"),),
+        )).partition(CellsByCount.uniform_width(8)).mesh
         kwargs = {} if scheme is None else {"scheme": scheme}
         return SNProblem(mesh, quad, placeholder_materials(), **kwargs)
 
@@ -306,13 +291,9 @@ class TestHonestCurvilinearSchemeSelection:
     def test_slab_ld_still_selects_cumprod_scan(self):
         """Negative control: slab-LD is UNAFFECTED — the gate excludes only
         CURVILINEAR meshes; LD on a Cartesian (slab) mesh is fully supported."""
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         problem = SNProblem(
             mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
@@ -712,13 +693,9 @@ class TestDefaultDiscretizationScheme:
     def test_explicit_scheme_honored(self):
         """User-passed ``scheme`` is stored on the mesh."""
         custom = DiamondDifference()  # the only strategy that ships in Wave D
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         problem = SNProblem(mesh, quad, placeholder_materials(), scheme=custom)
         if problem.scheme is not custom:

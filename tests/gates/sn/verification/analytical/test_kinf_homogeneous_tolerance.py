@@ -81,7 +81,7 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_4g_continuous,
 )
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -98,14 +98,10 @@ _BUILDERS = {"2eg": derive_2g_continuous, "4eg": derive_4g_continuous}
 
 
 def _mesh(coord: str, mat_id: int, n_cells: int = 10, length: float = 2.0) -> Mesh1D:
-    bcs = (BC.reflective, BC.reflective) if coord == "slab" else (BC.reflective,)
-    geom = StructuredGeometry(
-        coord=_COORD[coord],
-        breakpoints=(0.0, length),
-        mat_ids=(mat_id,),
-        boundaries=bcs,
+    geom = StructuredGeometry.uniform_boundary(
+        _COORD[coord], (0.0, length), (mat_id,), BC.reflective,
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def _quadrature(coord: str):

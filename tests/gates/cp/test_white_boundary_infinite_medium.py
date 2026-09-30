@@ -91,8 +91,8 @@ from orpheus.cp.solver import CPParams, CPResult, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations import get as get_case
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 
 _MAT_ID = 2
 
@@ -148,12 +148,14 @@ class WhiteCell:
         return np.array([0.0, self.radius])
 
     def mesh1d(self) -> Mesh1D:
-        edges = self.edges()
-        # The slab has two faces; the curvilinear cell one (its axis or
-        # centre is not a boundary).
-        bc_left = BC.white if self.coord is CoordSystem.CARTESIAN else None
-        return Mesh1D(edges=edges, mat_ids=np.full(len(edges) - 1, _MAT_ID),
-                      coord=self.coord, bc_left=bc_left, bc_right=BC.white)
+        # White on every boundary point: both slab faces, the curvilinear
+        # cell's outer surface (its axis or centre is not a boundary).
+        geometry = StructuredGeometry.uniform_boundary(
+            self.coord, (0.0, self.radius), (_MAT_ID,), BC.white,
+        )
+        rule = (CellEdges(self.edges()) if self.mesh == "graded"
+                else CellsByCount.uniform_width(self.n_cells))
+        return Mesher(geometry).partition(rule).mesh
 
     def foundation_rungs(self) -> tuple[str, ...]:
         """The CP matrix-property rungs for this coordinate (2G): the

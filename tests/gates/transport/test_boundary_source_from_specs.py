@@ -38,8 +38,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -51,13 +51,8 @@ pytestmark = pytest.mark.l1
 
 def _slab(n_ord: int = 8, ng: int = 2, nx: int = 4) -> SNProblem:
     """A two-face slab. ``ng = 2`` so the trailing-axis broadcast is exercised."""
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    geom = StructuredGeometry.from_homogeneous(2.0, BC.vacuum)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 

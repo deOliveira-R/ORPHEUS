@@ -52,8 +52,8 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     """
     import sympy as sp
     from orpheus.derivations.discrete.sn.balance import derive_cumprod_recurrence
-    from orpheus.geometry import CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.sn.mesh.reduced_operator import slab_streaming
     from orpheus.transport.spatial.scheme import CellVisit, UpstreamState
     from orpheus.transport.spatial.diamond import DiamondDifference
@@ -73,12 +73,10 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     Q_val = 3.0
 
     quad = Quadrature.gauss_legendre(4)
-    edges = np.array([0.0, dx_val])
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(1, dtype=int),
-        coord=CoordSystem.CARTESIAN,
+    geom = StructuredGeometry.slab(
+        (0.0, dx_val), (0,), left=BC.reflective, right=BC.reflective,
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(1)).mesh
     op = slab_streaming(mesh, quad)
     W = quad.weights.sum()
     n_half = quad.N // 2

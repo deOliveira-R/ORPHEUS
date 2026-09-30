@@ -6,12 +6,14 @@ SNProblem construction, and correct behavior in sweeps.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -30,7 +32,9 @@ def quad():
 
 @pytest.fixture
 def slab_mesh():
-    return Mesh1D(edges=np.linspace(0, 5, 11), mat_ids=np.zeros(10, dtype=int))
+    return Mesher(StructuredGeometry.slab(
+        (0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(10)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -63,43 +67,31 @@ class TestSNBCRegistry:
 class TestSNBCResolution:
     """BC resolution at SNProblem construction time."""
 
-    def test_default_is_reflective(self, slab_mesh, quad):
-        """None on mesh resolves to 'reflective' (eigenvalue default)."""
+    def test_declared_reflective(self, slab_mesh, quad):
+        """The reflective law declared on both faces resolves to ReflectiveBoundary."""
         sn = SNProblem(slab_mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
 
     def test_explicit_vacuum(self, slab_mesh, quad):
-        mesh = Mesh1D(
-            edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
-            bc_left=BC.vacuum, bc_right=BC.vacuum,
-        )
+        mesh = replace(slab_mesh, face_laws=(BC.vacuum, BC.vacuum))
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, VacuumInflow)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_mixed_bcs(self, slab_mesh, quad):
-        mesh = Mesh1D(
-            edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
-            bc_left=BC.reflective, bc_right=BC.vacuum,
-        )
+        mesh = replace(slab_mesh, face_laws=(BC.reflective, BC.vacuum))
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     def test_unknown_bc_raises(self, slab_mesh, quad):
-        mesh = Mesh1D(
-            edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
-            bc_left=BC("white"),
-        )
+        mesh = replace(slab_mesh, face_laws=(BC("white"), BC.reflective))
         with pytest.raises(ValueError, match="does not support.*'white'"):
             SNProblem(mesh, quad, placeholder_materials())
 
     def test_error_lists_supported(self, slab_mesh, quad):
-        mesh = Mesh1D(
-            edges=slab_mesh.edges, mat_ids=slab_mesh.mat_ids,
-            bc_left=BC("periodic"),
-        )
+        mesh = replace(slab_mesh, face_laws=(BC("periodic"), BC.reflective))
         with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
             SNProblem(mesh, quad, placeholder_materials())
 
@@ -128,11 +120,8 @@ class TestSNBCResolution:
         at the outer face. Vacuum support added in commits 655e3e5 / 37c5bbf
         (the curvilinear-only-reflective gate was removed and the inward
         sweep now branches on ``is_vacuum_outer``)."""
-        mesh = Mesh1D(
-            edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_right=BC.vacuum,
-        )
+        geom = StructuredGeometry.sphere((0.1, 1.0), (0,), inner=BC.reflective, outer=BC.vacuum)
+        mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
         sn = SNProblem(mesh, quad, placeholder_materials())
         assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
@@ -152,25 +141,14 @@ def _err052_fixture():
     """
     import numpy as _np
     from orpheus.derivations.reference_values import get
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.mesh import Mesh1D as _Mesh1D, RegionMesh
 
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
-    mesh_refl = _Mesh1D.from_geometry(
-        StructuredGeometry(
-            coord=CoordSystem.CARTESIAN,
-            breakpoints=(0.0, 2.0),
-            mat_ids=(0,),
-            boundaries=(BC.reflective, BC.reflective),
-        ),
-        region_meshes=(RegionMesh(n_cells=20),),
-    )
-    mesh_vac = Mesh1D(
-        edges=mesh_refl.edges, mat_ids=mesh_refl.mat_ids,
-        bc_left=BC.vacuum, bc_right=BC.vacuum,
-    )
+    mesh_refl = Mesher(StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_volume(20)).mesh
+    mesh_vac = replace(mesh_refl, face_laws=(BC.vacuum, BC.vacuum))
     # The fixture mixture is (n,2n)-free, so total production IS fission
     # production — asserted here so the hand formula below stays honest
     # if the reference case ever gains a Σ₂ channel.

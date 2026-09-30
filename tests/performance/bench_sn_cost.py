@@ -17,8 +17,8 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
@@ -104,10 +104,9 @@ class SlabSweep:
 
     def setup(self) -> None:
         nx, ng = 160, 4
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+            CellsByCount.uniform_width(nx),
+        ).mesh
         self.problem = SNProblem(mesh, Quadrature.gauss_legendre(16), {0: get_mixture("A", f"{ng}g")})
         self.rep = CumprodScan.pose(self.problem)
         self.stratum = self.rep.bind_sigma(np.ones((ng, nx)))
@@ -129,10 +128,9 @@ class CumprodAgainstSpine:
 
     def setup(self, representation: str) -> None:
         nx = 4096
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 10.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-            coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.from_homogeneous(10.0, BC("vacuum"))).partition(
+            CellsByCount.uniform_width(nx),
+        ).mesh
         self.problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), {0: get_mixture("A", "2g")})
         rng = np.random.default_rng(99)
         sig_t = rng.uniform(0.3, 3.0, size=(self.problem.ng, nx))

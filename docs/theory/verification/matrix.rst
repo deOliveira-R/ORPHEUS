@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **13161**
+Total tests collected: **13567**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1345, 10.2%
-   L1, 1972, 15.0%
+   L0, 1345, 9.9%
+   L1, 1972, 14.5%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 9746, 74.1%
+   foundation, 10152, 74.8%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 13055
+   explicit, 13461
    class-name, 46
    func-name, 0
    case, 33
@@ -266,7 +266,7 @@ Module × level grid
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    derivations/test_trajectory_resolvent_regionwise_source, 2, 0, 0, 0, 1, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
-   diffusion/test_augmented_mesh, 0, 0, 0, 0, 11, 0
+   diffusion/test_augmented_mesh, 0, 0, 0, 0, 10, 0
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
@@ -274,7 +274,7 @@ Module × level grid
    diffusion/test_operators, 17, 0, 0, 0, 22, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    diffusion/test_sigma_variant_reach, 0, 0, 0, 0, 1, 0
-   diffusion/test_solver, 0, 0, 3, 0, 15, 0
+   diffusion/test_solver, 0, 0, 3, 0, 14, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 22, 13, 0, 0, 0
@@ -303,14 +303,15 @@ Module × level grid
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
-   geometry/test_geometry, 0, 0, 0, 0, 57, 0
+   geometry/test_geometry, 0, 0, 0, 0, 51, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
+   geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
-   geometry/test_structured_geometry, 0, 0, 0, 0, 80, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 75, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -325,12 +326,16 @@ Module × level grid
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
+   mesh/test_axis_adapter_laws, 0, 0, 0, 0, 8, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
-   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 14, 0
+   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 12, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 11, 0
+   mesh/test_mesh1d, 0, 0, 0, 0, 54, 0
+   mesh/test_mesher, 0, 0, 0, 0, 101, 0
    mesh/test_module_layout, 0, 0, 0, 0, 7, 0
+   mesh/test_partition, 0, 0, 0, 0, 193, 0
    mesh/test_problem_identity_anchors, 0, 0, 0, 0, 26, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
@@ -576,7 +581,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 393, 0
+   test_layer_imports, 0, 0, 0, 0, 396, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

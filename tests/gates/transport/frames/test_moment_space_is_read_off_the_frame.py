@@ -59,8 +59,8 @@ from dataclasses import dataclass, replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
@@ -167,10 +167,9 @@ class _ForeignTruncatedBasis(Basis):
 
 
 def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, BC("reflective"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=n_ord), placeholder_materials(ng=ng))
 
 

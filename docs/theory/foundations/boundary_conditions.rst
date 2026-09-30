@@ -5132,23 +5132,22 @@ SNProblem construction time. The example uses a 1-D Cartesian slab; the same
 chain runs on Mesh2D with face labels ``xmin`` / ``xmax`` /
 ``ymin`` / ``ymax``.
 
-Step 1 — declaration on the mesh
---------------------------------
+Step 1 — declaration on the geometry
+------------------------------------
 
-The user declares the vacuum BC on the mesh's left face:
+The user declares the vacuum BC on the geometry's left face, and the
+mesher carries it onto the mesh's first face:
 
 .. code-block:: python
 
-   from orpheus.geometry import BC
-   from orpheus.mesh import Mesh1D
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.mesh import CellsByCount, Mesher
 
-   mesh = Mesh1D(
-       edges=np.linspace(0.0, 1.0, 11),
-       mat_ids=np.zeros(10, dtype=int),
-       coord=CoordSystem.CARTESIAN,
-       bc_left=BC("vacuum"),
-       bc_right=BC("reflective"),
+   geometry = StructuredGeometry.slab(
+       (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("reflective"),
    )
+   mesh = Mesher(geometry).partition(CellsByCount.uniform_width(10)).mesh
+   assert mesh.face_laws == (BC("vacuum"), BC("reflective"))
 
 The :class:`~orpheus.geometry.boundary.BC` dataclass is a thin wrapper
 ``BC(kind: str, params: dict)`` with no SN-specific knowledge. The
@@ -7825,7 +7824,9 @@ SN-side ``keff`` rate consumers (the production / absorption rates in
 :mod:`~orpheus.sn.solver`) a native source: they read it instead of
 reaching through ``problem.mesh.volume_measure``. While the
 :math:`d \le 2` adapter is present it delegates to the dataclass
-measure (bit-identical, including the ``precomputed_volumes`` hatch);
+measure (bit-identical, including the stored equal-volume cell
+measures, which the ``precomputed_volumes`` hatch carried until P1 step
+3b of #405 and the required ``Mesh1D.volumes`` field carries since);
 the axis-native arm lands with C5.5.
 
 .. _sn-c5-geometry-blind-trace:

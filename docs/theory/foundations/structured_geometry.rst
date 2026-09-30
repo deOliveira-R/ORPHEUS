@@ -44,19 +44,22 @@ Key facts
   admit only a reflective inner law on a hollow body (#511), which is
   verified to be the void cavity it models; CP admits a slab only with
   equal left and right laws, and no inner law (#513); MoC admits only a
-  solid cylinder (#514); MC admits only a ``periodic`` left law (#513).
+  solid cylinder (#514); MC admits only a slab or a solid cylinder, and
+  only a ``periodic`` left law (#513).
   Each refusal is a ``NotImplementedError`` at the method's own door
   (:ref:`structured-geometry-hollow-inner-law`).
 * The geometry → mesh transition is **the single explicit point**
-  where discretization information enters the pipeline.
-  :meth:`Mesh1D.from_geometry(geom, region_meshes=...) <orpheus.mesh.structured.Mesh1D.from_geometry>`
-  takes a tuple of
-  :class:`~orpheus.mesh.structured.RegionMesh` (one per interval;
-  ``n_cells`` + ``method`` ∈ {``"equal-volume"``, ``"uniform"``}) and
-  emits a discretized :class:`~orpheus.mesh.structured.Mesh1D` whose
-  first edge is :math:`r_0` and whose last is :math:`r_R`; the laws
-  reach ``bc_left`` / ``bc_right`` by the boundary point they belong
-  to.
+  where discretization information enters the pipeline. A
+  :class:`~orpheus.mesh.mesher.Mesher` loads the geometry, divides
+  each interval by an interval rule (:mod:`orpheus.mesh.partition`:
+  ``CellsByCount.uniform_width(n)``, ``CellsByCount.uniform_volume(n)``,
+  ``CellsByMaxWidth``, ``CellEdges``, and ``k * rule`` to refine), and
+  returns a :class:`~orpheus.mesh.structured.Mesh1D`,
+  ``Mesher(geom).partition(rule).mesh``, whose first edge is
+  :math:`r_0` and whose last is :math:`r_R`. The mesh holds the
+  coordinate system, the cells, a material per cell and a law per
+  boundary face, and no geometry; the geometry owns the measure, which
+  has one definition (:ref:`structured-geometry-mesh`).
 * Reference solvers (``Billiard``, ``MomentSpace``, ``Spectrum``,
   ``BasisSpace``) take ``(geometry: StructuredGeometry, materials,
   **method_kwargs)`` directly via ``__init__``. They never see a
@@ -75,7 +78,7 @@ Key facts
   (the table of which generator serves which shape under which laws:
   :ref:`structured-geometry-reference-body`).
 * Discrete production solvers take ``(materials, mesh, params)``
-  where ``mesh`` is built via ``Mesh1D.from_geometry``.
+  where ``mesh`` is built by a ``Mesher``.
 * Slab convention: :attr:`StructuredGeometry.domain_extent_cm` is
   :math:`r_R - r_0`, the **full slab width** on a slab (end to end).
   F_N's natural half-thickness ``a = L / 2`` is recovered inside
@@ -125,10 +128,11 @@ Phase F separates the three concerns into three layers:
    material id per interval, a law per boundary point. No cell counts.
    No scalars from a published table.
 2. **Mesh layer** —
-   :class:`~orpheus.mesh.structured.Mesh1D`,
-   :class:`~orpheus.mesh.structured.RegionMesh`. Discrete
-   representation. Discretization is supplied at this layer's
-   construction step, not pinned to the geometry. The mesh layer is its
+   :class:`~orpheus.mesh.structured.Mesh1D`, the
+   :class:`~orpheus.mesh.mesher.Mesher` and the interval rules of
+   :mod:`orpheus.mesh.partition`. Discrete representation.
+   Discretization is supplied by the interval rules a Mesher applies,
+   not pinned to the geometry. The mesh layer is its
    own package, :mod:`orpheus.mesh` (:doc:`/api/mesh`), which imports
    :mod:`orpheus.geometry` and is never imported by it.
 3. **Registry layer** —
@@ -222,8 +226,8 @@ law and that there is one per boundary point; what a ``BC`` tag means
 admission table, at solver construction.
 
 **What is not here, and where it lives instead.** No cell counts and no
-discretisation rule: those are the mesh layer's, supplied at
-``Mesh1D.from_geometry``. No critical dimension: that is a registry's
+discretisation rule: those are the mesh layer's, the interval rules a
+``Mesher`` applies. No critical dimension: that is a registry's
 truth record. No group count: that is the materials'. No infinite
 medium: an infinite medium is either a problem with no geometry
 (``solve_homogeneous_infinite``, ``MomentSpace.solve_kinf``) or a finite
@@ -312,43 +316,59 @@ endpoint), not a choice the user makes. Declaring a law there would state a seco
 possibly contradictory, condition at a point where the chart already
 fixes one; the constructor therefore refuses it.
 
-Whether the centre is in the region is decided in one place, the
-derived property ``is_hollow``: true exactly for a cylinder or a sphere
-with :math:`r_0 > 0`, and never true for a slab, which has no centre.
-The property ``boundary_points`` reads it and lists the positions of
-the boundary, inner first, and the constructor requires ``len(boundaries) ==
-len(boundary_points)``. The refusals are keyed to the three ways a law
+Whether the centre is in the region is decided in one place,
+:meth:`CoordSystem.boundary_points <orpheus.geometry.coord.CoordSystem.boundary_points>`,
+which lists the positions of the boundary of :math:`[r_0, r_R]`, inner
+first: both ends on a slab and on a cylinder or a sphere with
+:math:`r_0 > 0`, the outer end alone on a solid one. The geometry's
+``boundary_points`` and the mesh's ``boundary_faces`` both read it; the
+derived property ``is_hollow`` is true exactly for a cylinder or a
+sphere with :math:`r_0 > 0`, and never for a slab, which has no centre.
+One check, ``parse_boundary_laws``, requires one law per boundary point,
+for the geometry's ``boundaries`` and a mesh's ``face_laws`` alike. The refusals are keyed to the three ways a law
 count can be wrong, each naming the reason in its message:
 
 * **a law at the centre** — two laws on a solid cylinder or sphere:
-  *"the centre r = 0 of a solid … geometry is an interior point and
+  *"the centre r = 0 of a solid … body is an interior point and
   carries no law"*;
 * **a hollow body missing its inner law** — one law with
-  :math:`r_0 > 0`: *"a hollow … geometry … has an inner surface, which
+  :math:`r_0 > 0`: *"a hollow … body … has an inner surface, which
   needs its own law"*;
 * **a slab with one law**: *"a slab has two boundary points (left,
   right)"*;
 
 and, before the count is read, ``None`` in any position: *"None is not
 a boundary law: declare the law the boundary point carries."* ``None``
-is refused on the geometry because it means nothing there. On a
-:class:`~orpheus.mesh.structured.Mesh1D` a ``None`` face means "use the
-solver's default"; a geometry declares the problem, and a default is a
-method's, not the problem's.
+is refused because it means nothing there: a geometry declares the
+problem, and a default is a method's, not the problem's. Until P1 step
+3b a ``None`` face on a :class:`~orpheus.mesh.structured.Mesh1D` meant
+"use the solver's default"; since then the mesh refuses it with the same
+message, so every face of a 1-D mesh carries a declared law (``Mesh2D``
+and the S\ :sub:`N` axis tuples still admit ``None`` until step 3c).
 
 The laws are indexed by boundary point, (inner, outer), never by a
-coordinate-specific name (``left``, ``centreline``, ``outer``), so one
-rule, ``Mesh1D.from_geometry``'s, routes them onto the mesh for every
-coordinate system: two points give ``(inner, outer)`` to ``(bc_left,
-bc_right)``; one point gives its law to ``bc_right`` and leaves
-``bc_left`` ``None``, since the centre is an interior point.
+coordinate-specific name (``left``, ``centreline``, ``outer``), so the
+Mesher carries them onto the mesh unchanged for every coordinate
+system: the mesh's ``face_laws`` are the geometry's ``boundaries``,
+paired one to one with its ``boundary_faces``. Two boundary points give
+two faces (inner, outer); one point gives one face, since the centre is
+an interior point. The call site names each law through the named-face
+constructors, which build the indexed tuple:
+``StructuredGeometry.slab(breakpoints, mat_ids, left=, right=)``;
+``cylinder(…)`` and ``sphere(…)`` with ``outer=`` and ``inner=``, the
+second given exactly when the body is hollow;
+``uniform_boundary(coord, breakpoints, mat_ids, law)``, one law on every
+boundary point in any coordinate system; and
+``from_homogeneous(width, boundary)``, a slab :math:`[0, w]` of
+material 0 with one law on both faces.
 
 The gates of these laws are the foundation rows
 ``tests/gates/geometry/test_structured_geometry.py::TestTheBoundaryIsDerived``
 (the six cells coordinate × {:math:`r_0 = 0`, :math:`r_0 > 0`} and the
-keyed refusals); the mesh routing is ``TestMesh1DFromGeometry``, whose
-``test_a_hollow_body_propagates_its_inner_law`` pins the two laws of a
-hollow body onto ``(bc_left, bc_right)`` and the first edge onto
+keyed refusals); the mesh routing is ``TestMeshingAGeometry`` in the
+same file, whose ``test_a_hollow_body_propagates_its_inner_law`` pins the
+two laws of a hollow body onto ``face_laws``, the faces onto
+``boundary_faces`` :math:`= (r_0, r_R)`, and the first edge onto
 :math:`r_0`.
 
 
@@ -396,8 +416,9 @@ half-width, cladding, coolant) build it with
    r_0 = r_0^{\rm given}, \qquad r_{k+1} = r_k + t_k,
 
 evaluated left to right, which is ``itertools.accumulate(thicknesses,
-initial=r_0)``. This is the same sequential sum ``Mesh1D.from_geometry``
-evaluated while a geometry stored thicknesses, so a registry's geometry
+initial=r_0)``. This is the same sequential sum the mesh construction
+of the time (``Mesh1D.from_geometry``, since retired) evaluated while a
+geometry stored thicknesses, so a registry's geometry
 keeps its bits across the change to stored breakpoints. A thickness :math:`t_k \le 0` is refused as a
 non-increasing breakpoint pair. The association is load-bearing: a
 pairwise or compensated (``math.fsum``) cumulative sum differs from
@@ -423,21 +444,397 @@ origins, the association control, and the refusal of a non-positive
 thickness) in ``tests/gates/geometry/test_structured_geometry.py``.
 
 
+.. _structured-geometry-mesh:
+
+The mesh refines the geometry: the one measure, the Mesher, the interval rules
+==============================================================================
+
+The step from a geometry to a mesh is the one point where discretisation
+enters the pipeline. Four objects take part, each in its own place:
+
+* the **geometry**, which owns the measure of its coordinate system
+  (lengths on a slab, areas per unit height on a cylinder, volumes on a
+  sphere);
+* the **interval rules** (:mod:`orpheus.mesh.partition`), each of which
+  says how one material interval :math:`[r_k, r_{k+1}]` is divided into
+  cells;
+* the **Mesher** (:mod:`orpheus.mesh.mesher`), a meshing session on one
+  geometry, which applies the rules, holds the mesh it built, and refines
+  it;
+* the **mesh**, :class:`~orpheus.mesh.structured.Mesh1D`, which holds the
+  coordinate system, the cells, the material of each cell and the law on
+  each boundary face, and no geometry.
+
+A session reads like this:
+
+.. code-block:: python
+
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.mesh import CellEdges, CellsByCount, CellsByMaxWidth, EqualWidth, Mesher
+
+   # The CP and MoC default pin cell: equal-volume cells, 10 / 3 / 7 per region.
+   pin = StructuredGeometry.wigner_seitz_pin_cell(r_fuel=0.9, r_clad=1.1, pitch=3.6)
+   mesher = Mesher(pin).partition((
+       CellsByCount.uniform_volume(10),
+       CellsByCount.uniform_volume(3),
+       CellsByCount.uniform_volume(7),
+   ))
+   coarse = mesher.mesh
+   fine = mesher.refine(2).mesh           # twice the cells of every rule
+   assert (coarse.N, fine.N) == (20, 40)
+   assert set(coarse.edges) <= set(fine.edges)   # every coarse edge stays, bit for bit
+
+   # One rule per interval, and the spacings may differ between intervals.
+   slab = StructuredGeometry.slab(
+       (0.0, 0.5, 2.5, 3.0), (1, 0, 1), left=BC.vacuum, right=BC.reflective,
+   )
+   mesh = Mesher(slab).partition((
+       CellsByCount.uniform_width(2),
+       CellsByMaxWidth(0.25, EqualWidth()),
+       CellEdges([2.5, 2.6, 3.0]),
+   )).mesh
+   assert mesh.N == 12
+   assert mesh.mat_ids.tolist() == [1, 1] + [0] * 8 + [1, 1]
+   assert mesh.face_laws == (BC.vacuum, BC.reflective)
+   assert mesh.boundary_faces == (0.0, 3.0)
+
+
+.. _structured-geometry-one-measure:
+
+The geometry owns the measure, and it has one definition
+--------------------------------------------------------
+
+The measure of the cells between edges :math:`r_0 < r_1 < \dots` is
+
+.. math::
+
+   m_j = c\,\bigl(T(r_{j+1}) - T(r_j)\bigr), \qquad T(r) = r^{d},
+
+with :math:`d` the dimension the position sweeps (1 on a slab, 2 on a
+cylinder, 3 on a sphere) and :math:`c` equal to 1, :math:`\pi` and
+:math:`\tfrac43\pi`: a slab's length per unit transverse area, a
+cylinder's area per unit height, a sphere's volume. :math:`T` is the
+coordinate in which the measure is uniform, the
+:class:`~orpheus.geometry.coord.MeasureCoordinate` of the coordinate
+system. The coordinate system owns the definition
+(:meth:`~orpheus.geometry.coord.CoordSystem.measure`, with
+``measure_constant`` for :math:`c` and ``measure_coordinate`` for
+:math:`T`), the geometry answers it through
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.measure`,
+and the measure of an interval is the one-cell case,
+``measure([r_k, r_{k+1}])``. ``compute_volumes_1d`` is the same call.
+There is no second spelling anywhere in the mesh layer.
+
+:math:`T` is evaluated on numpy arrays, whose power is correctly
+rounded. Python's scalar ``b**2`` calls the C library's ``pow``, which
+is not: `[M]` 2026-09-29 (the elegance review of P1 step 3a, macOS libm),
+22 of 20 000 random squares differ from the correctly rounded value,
+against 0 for numpy's. Adopting the one definition moved the volumes of
+0 of the 414 equal-volume intervals the pre-carve capture recorded, so
+bit identity with the retired subdivision helper was dropped as a
+constraint rather than kept by a second spelling.
+
+The measure belongs to the geometry because a measure means nothing
+without the coordinate system that defines it. The first design of this
+step stored measures in a free-standing value and was refuted on exactly
+that point (:ref:`structured-geometry-mesh-refuted`).
+
+
+The mesh: cells, a material per cell, a law per boundary face
+-------------------------------------------------------------
+
+:class:`~orpheus.mesh.structured.Mesh1D` is constructed from exactly
+what a 1-D discretisation is:
+``Mesh1D(coord, edges, volumes, mat_ids, face_laws)``. It holds no
+geometry. Its construction laws, each a refusal with a keyed message:
+
+* ``edges`` are at least two finite, strictly increasing positions, and
+  :math:`r_0 \ge 0` on a cylinder or a sphere;
+* ``volumes`` are positive, one per cell, and each is the coordinate
+  system's measure of its cell (the formula above)
+  within a band of :math:`2p + 5` units in the last place (ulp) of
+  :math:`c\,T(r_{j+1})`, :math:`p` the exponent of :math:`T`;
+* ``mat_ids`` are one integer per cell;
+* ``face_laws`` are one law per boundary point of
+  :math:`[r_0, r_R]`, inner first, each a :class:`~orpheus.geometry.boundary.BC`
+  tag or a typed ``BoundaryTraceLaw``. ``None`` is refused, with the
+  same message the geometry gives (*"None is not a boundary law: declare
+  the law the boundary point carries."*), because both declarations go
+  through one check, ``parse_boundary_laws``.
+
+The derived quantities are ``widths``, ``centers``, ``areas``,
+``boundary_faces`` (the positions paired with ``face_laws``) and
+``outer_law`` (the law on :math:`r = r_R`, a slab's right face, which
+is the one law collision probability, characteristics and Monte Carlo
+read). Equality is bitwise over the five fields. A mesh has no hash
+yet: its content identity, and the discretisation digest that keys on
+it, land in step 5 of the reference-solution plan together with the
+shared encoder.
+
+**Why the volumes are stored, and why they are checked.** An
+equal-volume cell's volume is stored as the equal share :math:`m/n` of
+its interval's measure, because the shell between the realised edges is
+not exact: the ``sqrt`` or ``cbrt`` that places an edge and the power
+that re-evaluates :math:`T` there do not round-trip (ERR-020). `[M]` on
+a sphere :math:`[0, 3]` in 12 equal-volume cells, the 12 stored shares
+are one value and the 12 shells recomputed from the edges are 10
+distinct values. A stored volume that is not checked could be anything,
+though, so the constructor checks each against the shell of its cell.
+The band is derived, not chosen. Each realised edge carries at most 1
+ulp from forming :math:`t_j = T(a) + f_j\,\Delta T`, at most 1 ulp from
+the root (allowing a :math:`\sqrt[3]{\cdot}` that is not correctly
+rounded) amplified by :math:`p` when :math:`T` is re-evaluated, and
+½ ulp from that evaluation: :math:`p + 1.5` ulp per edge. Two edges,
+plus the subtraction, the constant and the share (about 2 ulp together),
+give :math:`2p + 5`: 7 on a slab, 9 on a cylinder, 11 on a sphere.
+`[M]` The largest gap over about 46 000 random legal equal-volume
+partitions is 3.05, 6.53 and 7.62 ulp (the elegance review of P1 step
+3b, macOS libm), while a volume from the wrong coordinate system is
+:math:`10^{15}` to :math:`10^{16}` ulp off (`[M]` 6e15 in that review;
+1.9e16 for a cylinder's annuli handed to a slab mesh on :math:`[0, 2]`,
+2026-09-29). The first version used one band of 8 ulp
+for every coordinate system; the sphere's measured 7.62 left it 0.38 ulp
+of margin, which is why the band became a function of :math:`p`. A
+volume that comes with its edges (a :class:`~orpheus.mesh.partition.CellEdges`
+rule, or a width-spaced cell on a curved body) is the measure itself
+and sits 0 ulp from it.
+
+**Why the mesh holds no geometry.** Before settling the constructor the
+user asked what a ``Mesh1D`` needs the geometry for. The measured
+answer: the coordinate system and the breakpoints only; the materials
+and the laws rode along, with about 30 and about 29 production reads
+going through the mesh. So the mesh stores the coordinate system, the
+cells, the material of each cell and the law of each face, and the
+geometry stays one layer down. The laws are **per face**, not per
+coordinate-specific name: in 1-D each boundary point is one face, and
+the per-face form is the seed for 2-D, where one boundary is several
+faces that may carry different laws. A specialised
+``(geometry, edges, volumes)`` constructor was considered and not built:
+its one consumer would be the Mesher's own lift, while a relabelling
+(``with_distinct_cell_ids``), an adaptation or the axis adapter starts
+from a mesh or from axes.
+
+
+The Mesher: a meshing session
+-----------------------------
+
+:class:`~orpheus.mesh.mesher.Mesher` loads one
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` and
+holds its current mesh, the way a meshing program holds the mesh it
+previews:
+
+* ``partition(rule)`` applies one interval rule to every interval, and
+  ``partition((rule_0, …, rule_{R-1}))`` one rule per interval; it builds
+  the current mesh and returns the mesher, so a session chains;
+* ``refine(k)`` rebuilds the mesh from ``k * rule`` for each rule of the
+  last partition (:math:`k` a power of two);
+* ``mesh`` returns the current mesh.
+
+Building the mesh is the **lift** of the geometry onto the cells: each
+cell takes the material of the interval it lies in, and the face laws are
+the geometry's boundary laws, one per boundary point. The mesher
+asserts that every breakpoint is a cell edge, bit for bit, because an
+interval rule is an open protocol and a rule that misplaced an end edge
+would produce cells straddling two materials. So every cell lies in
+exactly one interval: the mesh **refines** the geometry's region
+partition, which is the gate the reference-solution plan requires of
+this step.
+
+The Mesher is the only construction path, in production and in the
+tests: ``Mesher(g).partition(CellsByCount.uniform_width(8)).mesh``.
+There is no ``Mesh1D(geometry, rule)`` shorthand. Quality measures, a
+preview, adaptive refinement on a field (a flux gradient) and a protocol
+for external meshers are the next members of the session, filed as
+#539; the session exists now because they need it.
+
+
+Interval rules and spacing rules
+--------------------------------
+
+.. list-table:: The interval rules of :mod:`orpheus.mesh.partition`
+   :header-rows: 1
+   :widths: 26 44 30
+
+   * - Rule
+     - Cells it places in :math:`[a, b]`
+     - Refines as
+   * - ``CellsByCount(n, spacing)``, with ``CellsByCount.uniform_width(n)``
+       and ``CellsByCount.uniform_volume(n)``
+     - :math:`n` cells, placed by the spacing rule
+     - ``k * rule`` (``Refined``)
+   * - ``CellsByMaxWidth(h, spacing)``
+     - the fewest cells whose nominal widest cell is no wider than
+       :math:`h`
+     - ``k * rule`` (``Refined``)
+   * - ``Refined(rule, k)``, spelled ``k * rule``
+     - :math:`k` times the cells of ``rule``, by the same spacing;
+       ``k * (m * rule)`` is ``(k m) * rule``
+     - ``k * rule``
+   * - ``CellEdges(edges)``
+     - the edges written out, the end edges being the interval's
+       breakpoints bit for bit; the geometry gives the measures
+     - refused (``TypeError``): it has no spacing rule to place new edges
+
+A spacing rule is the measure coordinate whose equal steps place the
+cells. With :math:`T(r) = r^{p}` it places :math:`n` cells at
+
+.. math::
+
+   r_j = T^{-1}\!\left(T(a) + \tfrac{j}{n}\bigl(T(b) - T(a)\bigr)\right),
+   \qquad j = 0, \dots, n,
+
+with both end edges pinned to the breakpoints. ``EqualWidth`` steps in
+:math:`T(r) = r` in every coordinate system; ``EqualVolume`` steps in the
+coordinate system's own measure coordinate (:math:`r`, :math:`r^2`,
+:math:`r^3`), where the measure is uniform. The two are one body with
+one parameter, the exponent :math:`p`. When the spacing's coordinate is
+the measure coordinate, the cells are equal shares of the interval's
+measure and each is stored as the share :math:`m/n`, which is ERR-020's
+fix in its present spelling; otherwise each volume is the geometry's
+measure of the realised cell. There is no default spacing: a count
+without one is refused (the user's ruling of 2026-09-25), so
+``CellsByCount(8)`` does not silently mean equal volume.
+
+**The refinement factor is a power of two.** The fine fractions are
+:math:`j\,\mathrm{fl}(1/(kn))`; for :math:`k = 2^m` that equals
+:math:`(j/k)\,\mathrm{fl}(1/n)` exactly, a power-of-two scaling, so every
+coarse edge is a fine edge bit for bit. For any other :math:`k` they
+differ by up to 2 ulp (`[M]` 3909 of 7176 cases at :math:`k = 3`, the
+docstring of ``_parse_factor``), and cells that do not nest are not a
+refinement. The same reason makes ``2 * CellsByMaxWidth(h, s)`` the
+refinement and ``CellsByMaxWidth(h / 2, s)`` not: halving the bound can
+give an odd count.
+
+**The width bound is nominal.** ``CellsByMaxWidth`` bounds the width of
+the widest cell as the spacing places it: stepping in :math:`r`, every
+cell's nominal width is :math:`\mathrm{fl}((b - a)/n)`, and a realised
+width differs from it by up to 2 ulp of :math:`b`; stepping in
+:math:`r^2` or :math:`r^3` the cells narrow outward and the first cell
+is the widest.
+
+
+.. _structured-geometry-issue-495:
+
+#495, fixed at its root
+-----------------------
+
+The retired per-region descriptor had two spellings of an equal-width
+slab: ``"equal-volume"`` stored the exact share :math:`(b - a)/n`, while
+``"uniform"`` placed its edges with ``np.linspace`` and recomputed each
+volume from them, so the volumes of one slab interval were not equal to
+each other: `[M]` on :math:`[0, 3]`, 3, 5, 5 and 3 distinct volumes at
+:math:`n = 5, 7, 9, 11` (the pre-carve reading recorded in the gate's
+docstring). The two spellings described one mesh, and one of them was
+wrong. The repair is not a patch to ``"uniform"``: on a slab
+:math:`T(r) = r` is both the width coordinate and the measure
+coordinate, so ``EqualWidth`` and ``EqualVolume`` are one body with
+:math:`p = 1`, both store the share, and they give one mesh. The gate
+``TestIssue495Mesh`` in ``tests/gates/mesh/test_mesher.py`` asserts that
+``uniform_width(n)`` and ``uniform_volume(n)`` build equal meshes on
+four slabs at every :math:`n` from 1 to 64 and at 100, 127, 255 and 1000,
+and that they differ at every :math:`n \ge 2` on a cylinder and a sphere,
+where the two coordinates differ.
+
+
+.. _structured-geometry-mesh-refuted:
+
+What was tried, and why it was refuted
+--------------------------------------
+
+The design went through four candidates before the one described above;
+each is recorded with the structural reason it failed, so that a later
+session does not re-attempt it.
+
+1. **A free-standing measured partition.** Step 3a (``2c62f9f2``)
+   shipped a ``Partition`` value holding the edges and the measures of
+   each interval. `[REFUTED 2026-09-29]` by the review of that commit:
+   the value held measures without the coordinate system that gives
+   them meaning. `[M]` a cylinder's equal-volume partition was accepted
+   by a slab with the same breakpoints, and
+   ``Partition(([0, 1],), ([42.0],))`` was accepted. The fact that
+   survives: no measure exists apart from its geometry. ``Partition``
+   retired; the mesh stores the cells.
+2. **A three-stage Mesher**, ``Mesher(geometry)``,
+   ``.partition(rule)``, ``.mesh(cells)``, the user's first answer to
+   that review. `[REFUTED 2026-09-29]` as a separate object in 1-D: it
+   held nothing but the geometry, and the partition *is* the mesh, so
+   the three stages collapse to one function of (geometry, rule).
+3. **The Mesher as a session**, the user's second answer: the mesher
+   builds a mesh it can check for quality, refine, and later adapt to a
+   field, and ``.mesh`` returns it; it is the seam for a front end. This
+   one landed. What changed is that the object now holds state (the
+   current mesh) and mesh-to-mesh operations (refine, adapt) that are
+   functions of neither the geometry nor the rule alone, which is what
+   the second candidate lacked.
+4. **A mesh that stores its geometry**, ``Mesh1D(geometry, partition)``,
+   the specification's shape for this step. Superseded by the bare
+   constructor, for the reason measured above: the mesh needs the
+   coordinate system and the breakpoints, not the geometry.
+
+Two smaller decisions went the same way. Bit identity of the
+equal-volume edges with the retired subdivision helper was dropped in
+favour of the one measure (0 of 414 captured intervals moved). The fixed
+8-ulp volume band became :math:`2p + 5` once the sphere's measured
+worst case sat within 0.38 ulp of it.
+
+
+What this step does not do
+--------------------------
+
+* ``None`` as a boundary declaration is gone from ``Mesh1D`` and
+  ``StructuredGeometry``; it survives on ``Mesh2D``'s four faces, on the
+  axis tuples, and as S\ :sub:`N`'s ``boundary_condition=`` parameters.
+  Their retirement, with the consumers' defaults, is the next sub-step
+  (3c) of #405. Until then the axis adapter gives the adapter mesh of an
+  axis tuple the reflective law S\ :sub:`N` resolves for an undeclared
+  axis law (``ELEGANCE-DEBT[guard]``, #405) and for the inner face of a
+  hollow radial axis, which has no law slot (``SCOPE-BOUNDARY[guard]``,
+  #511).
+* The discretisation digest and the mesh's hash are step 5's.
+* Quality, preview, adaptation and external meshers are #539.
+
+
+The gates
+---------
+
+``tests/gates/mesh/test_mesh1d.py`` carries the constructor's laws
+(``TestConstructionLaws``, ``TestTheVolumeLaw`` with the band and the
+wrong-coordinate control, ``TestTheValue`` for equality,
+``TestTheRetirements`` for the retired fields and constructors, and
+``TestOneBoundaryLawCheck`` for the shared law check).
+``tests/gates/mesh/test_mesher.py`` carries the session (``TestTheLift``:
+every cell in exactly one interval, one rule meaning that rule on every
+interval; ``TestRefine``; ``TestEveryBreakpointIsAnEdge``, whose stub
+rules miss their interval and are refused; ``TestSessionRefusals``;
+``TestIssue495Mesh``). ``tests/gates/mesh/test_partition.py`` carries
+the rules and the measure (``TestTheOneMeasure``, ``TestNesting``,
+``TestSumLaw``, ``TestEqualVolume``, ``TestEqualWidth``,
+``TestIssue495``, ``TestRefinement``, ``TestRefinementRefusals``,
+``TestMaxWidthCount``, ``TestRuleRefusals``, ``TestCellEdges``).
+``TestMeshingAGeometry`` in
+``tests/gates/geometry/test_structured_geometry.py`` meshes named
+geometries the way production does, and holds four of the six tests
+that catch ERR-020; the other two are
+``TestEqualVolume::test_measures_are_the_interval_measure_over_n`` and
+``TestEqualVolume::test_each_interval_takes_its_own_share`` in
+``test_partition.py``.
+
+
 .. _structured-geometry-hollow-inner-law:
 
 Hollow bodies, and the laws each method reads (#511, #513, #514)
 ================================================================
 
 A hollow cylinder or sphere (:math:`r_0 > 0`) is a legal geometry:
-it declares two laws, and ``Mesh1D.from_geometry`` builds a mesh whose
-first edge is :math:`r_0` and puts the inner law on ``bc_left``. The
-same routing puts a slab's left law on ``bc_left``.
+it declares two laws, and a ``Mesher`` builds a mesh whose first edge
+is :math:`r_0` and whose first face law, ``face_laws[0]``, is the inner
+law. The same routing puts a slab's left law in ``face_laws[0]``.
 
-The geometry never interprets a law, so what happens to the law on
-``bc_left`` is each method's. **No method in the tree today reads every
+The geometry never interprets a law, so what happens to the law on the
+first face is each method's. **No method in the tree today reads every
 law a geometry can declare**: S\ :sub:`N` and diffusion have no
 inner-surface slot on a curvilinear axis, collision probability (CP)
-and Monte Carlo (MC) resolve only ``bc_right``, and the method of
+and Monte Carlo (MC) read only the outer law (``outer_law``), and the method of
 characteristics (MoC) reads any mesh as a solid pin cell. Before P1
 step 2 each dropped the law it did not read, silently; since step 2,
 each **refuses a declared law it would drop, at its own door**, with
@@ -467,7 +864,7 @@ mesh itself and comes before any law is read.
      - ``_refuse_an_inner_law_the_radial_axis_drops``
        (``orpheus/mesh/axis.py``), #511
    * - CP
-     - ``bc_right`` only (default ``white``)
+     - the outer law only
      - a slab whose left law differs from its right law; any inner law
        on a hollow cylinder or sphere
      - ``_refuse_a_law_cp_drops`` (``orpheus/cp/solver.py``), #513
@@ -479,15 +876,16 @@ mesh itself and comes before any law is read.
      - ``_refuse_a_mesh_moc_misreads`` (``orpheus/moc/geometry.py``),
        #514
    * - MC
-     - ``bc_right`` only; ``periodic``, its registry's one kind, applied
-       to every face of the unit cell
-     - a declared left or inner law that is not ``periodic``
-     - ``_refuse_a_law_mc_drops`` (``orpheus/mc/solver.py``), #513
+     - the outer law only; ``periodic``, its registry's one kind,
+       applied to every face of the unit cell
+     - a hollow cylinder; a declared left or inner law that is not
+       ``periodic``
+     - ``_refuse_a_mesh_mc_misreads`` (``orpheus/mc/solver.py``), #513
 
-An undeclared law (``None`` on the mesh) is admitted by every guard:
-a mesh built directly from edges, not from a geometry, can still carry
-one until P1 step 3 retires ``None`` as a mesh declaration. The
-geometry itself refuses ``None``.
+Every guard reads declared laws only: since P1 step 3b a
+:class:`~orpheus.mesh.structured.Mesh1D` refuses ``None`` as a face law,
+as the geometry does, so a mesh built directly from edges declares its
+laws too. Until then an undeclared law was admitted by every guard.
 
 **S**\ :sub:`N` **and diffusion (#511).** Both build their spatial axis
 through ``axes_from_legacy_mesh``, and the curvilinear axis it builds,
@@ -550,7 +948,7 @@ of the larger gap) and the control (above 0.1). The gate's docstring
 records the same linearity on the sphere under Gauss–Legendre 8 and 16
 and core meshes of 2 and 8 cells.
 
-**CP (#513).** CP resolves only ``bc_right``, the outer cell surface.
+**CP (#513).** CP reads only the outer law, the outer cell surface.
 `[M]` 2026-09-25 (the specification's probe ``cp_slab_left_law.py``):
 a white, a vacuum and an undeclared left law gave the same
 :math:`k = 1.8749980808246423` to all sixteen digits. On a slab the
@@ -574,24 +972,31 @@ gave exactly the cylinder's :math:`k`, and a hollow cylinder with
 on the mesh, before any law is read, and it retires with a 2-D
 geometry value for MoC to read.
 
-**MC (#513).** ``MCMesh`` resolves only ``bc_right`` and applies its
+**MC (#513).** ``MCMesh`` reads only the outer law and applies its
 registry's one kind, ``periodic``, to every face of the unit cell.
 `[M]` 2026-09-25 (the same probe): a slab with a ``vacuum`` left law and
 a ``periodic`` right law constructed and ran as periodic. A declared
-left or inner law other than ``periodic`` is refused.
+left or inner law other than ``periodic`` is refused. So is a hollow
+cylinder: MC's material lookup clamps a radius below the first edge to
+region 0, so the cavity would be filled with the innermost material
+(`[M]` 2026-09-29, qa: breakpoints ``(0.5, 1.0, 2.0)`` returned
+material 7 at :math:`r = 0`).
 
 The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` (the
 S\ :sub:`N` refusal for the inner laws ``vacuum``, ``white`` and
 ``albedo(0.5)`` on a cylinder and a sphere; the direct-mesh route;
-diffusion; the admitted leg, where an inner ``reflective`` law and an
-undeclared one give the same S\ :sub:`N` flux bit for bit; and the
+diffusion; ``test_an_undeclared_inner_law_is_the_reflective_one``,
+which until P1 step 3b recorded that an undeclared inner law and a
+declared ``reflective`` one gave the same S\ :sub:`N` flux bit for bit,
+and now asserts that ``None`` is refused, which leaves
+``inner=BC.reflective`` as the one spelling of the cavity; and the
 void-cavity witness above) and
 ``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a slab whose
-laws differ refused both ways, an equal or undeclared left law built, a
-hollow cylinder and sphere with an inner law refused; MoC: a slab and a
-hollow cylinder refused, the solid pin cell built; MC: a ``vacuum`` or
-``reflective`` left law refused, a ``periodic`` or undeclared one
-built).
+laws differ refused both ways, an equal left law built, a hollow
+cylinder and sphere with an inner law refused; MoC: a slab and a hollow
+cylinder refused, the solid pin cell built; MC: a ``vacuum`` or
+``reflective`` left law refused, a ``periodic`` one built, a hollow
+cylinder refused).
 
 
 .. _structured-geometry-reference-body:
@@ -1033,11 +1438,11 @@ Production user — no registry, no truth, no critical anything::
     geom = StructuredGeometry.wigner_seitz_pin_cell(
         r_fuel=0.9, r_clad=1.1, pitch=3.6,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),
-        RegionMesh(n_cells=3),
-        RegionMesh(n_cells=7),
-    ))
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_volume(10),
+        CellsByCount.uniform_volume(3),
+        CellsByCount.uniform_volume(7),
+    )).mesh
     materials: Materials = {2: uo2_fuel(), 1: zircaloy(), 0: borated_water()}
     result = solve_cp(materials, mesh, CPParams())
     print(result.keff)
@@ -1046,10 +1451,10 @@ Registry consumer — Sood case::
 
     case = SOOD2003_CASES["Ua-1-0-SP"]
     geom = case.to_geometry()
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=64),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(64)).mesh
     result = solve_cp(case.materials, mesh, CPParams())
 
-Reference solver direct — NO mesh, NO RegionMesh::
+Reference solver direct — NO mesh, NO Mesher::
 
     moment = MomentSpace(
         geometry=case.to_geometry(),
@@ -1085,10 +1490,13 @@ removed surfaces, lives in the implementation plan
   ULP drift from the F_N half-thickness path inside ``MomentSpace``.
 * Locked decision 5 (the geometry carries no discretisation; spelled at
   the time as "``Region`` is geometry-only") — no ``n_cells`` on the
-  geometry; cell counts live on :class:`RegionMesh` at the mesh layer,
-  one per interval.
+  geometry; cell counts lived on ``RegionMesh`` at the mesh layer, one
+  per interval. Since P1 step 3 (2026-09-29) they are the interval
+  rules a ``Mesher`` applies (:ref:`structured-geometry-mesh`).
 * Locked decision 6 (``Mesh1D.from_geometry``) — the single explicit
-  point where discretization enters.
+  point where discretization enters. The point is unchanged; since P1
+  step 3 it is ``Mesher(geometry).partition(rules)``, and
+  ``from_geometry`` is retired.
 
 Phase F replaces the now-deleted ``transport_solver_protocol.rst`` (the
 Phase D casualty — that protocol conflated discrete and reference
@@ -2246,6 +2654,30 @@ trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-09-29
+     - **The mesh refines the geometry, and a Mesher builds it.** The
+       measure got one definition, ``CoordSystem.measure``, asked
+       through the geometry. The interval rules (``CellsByCount``,
+       ``CellsByMaxWidth``, ``Refined`` as ``k * rule`` for :math:`k` a
+       power of two, ``CellEdges``) and the spacing rules
+       (``EqualWidth``, ``EqualVolume``, one body in the measure
+       coordinate) replaced ``RegionMesh``; one rule or one per interval,
+       so mixed spacing became spellable. ``Mesh1D`` became
+       ``(coord, edges, volumes, mat_ids, face_laws)`` with no geometry,
+       stored volumes checked against the measure within :math:`2p + 5`
+       ulp, and one declared law per boundary face; ``from_geometry``,
+       ``precomputed_volumes``, ``bc_left`` / ``bc_right``, the subdivision
+       helper and ``None`` as a ``Mesh1D`` face law retired. The
+       ``Mesher`` session (``partition``, ``refine``, ``mesh``) became the
+       only construction path. #495 was fixed at its root (on a slab the
+       two spacings are one body), and ERR-020's fix became the stored
+       share :math:`m/n`. The named-face geometry constructors
+       (``slab``, ``cylinder``, ``sphere``, ``uniform_boundary``,
+       ``from_homogeneous``) landed with it. Rulings: the user,
+       2026-09-29, P1 step 3 of ``.claude/plans/reference_cache.md``;
+       what was refuted on the way: :ref:`structured-geometry-mesh-refuted`.
+     - #405, #495, #539
+     - *(in development)* branch ``refactor/reference-specification``
+   * - 2026-09-29
      - **Each reference generator serves the bodies its solvers
        solve.** The ``homogeneous_body`` reading, which refused every
        multi-material or hollow geometry for all four generators,
@@ -2268,7 +2700,7 @@ trust ``git`` over this table for merge status.
        Rulings: the user, 2026-09-29, P1 step 2b of
        ``.claude/plans/reference_cache.md``.
      - #405, #190, #421, #536
-     - *(in development)* branch ``refactor/reference-body-routing``
+     - ``1aab17a6``
    * - 2026-09-29
      - **The geometry value is (coordinate system, breakpoints,
        material per interval, law per boundary point).** The string

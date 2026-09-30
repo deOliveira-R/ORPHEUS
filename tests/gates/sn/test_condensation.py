@@ -26,8 +26,8 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -73,11 +73,9 @@ def problem(materials):
     """The SHARED (mesh, quad) constituents — the two-entry pairing pattern:
     forward and adjoint solves must be built from the SAME objects for
     ``same_phase_space`` to accept the pair (P6 B2; by CONTENT since 2026-09-12)."""
-    fine = Mesh1D(
-        edges=np.linspace(0.0, 4.0, 9), mat_ids=np.zeros(8, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("reflective"),
-    )
+    fine = Mesher(StructuredGeometry.slab(
+        (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return fine, quad
 

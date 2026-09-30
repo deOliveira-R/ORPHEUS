@@ -31,8 +31,8 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 pytestmark = PEIERLS_NYSTROM_WITHDRAWN
@@ -178,14 +178,9 @@ class TestCPvsPeierlsAtThickR:
         )
 
         # Build CP mesh with same material and R
-        n_cells = 20
-        edges = np.linspace(0.0, R, n_cells + 1)
         materials = {2: get_mixture("A", "1g")}
-        mat_ids = np.full(n_cells, 2)
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=BC.white)
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(20)).mesh
         result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8))
 
         # Compare eigenvalues (CPResult uses `.keff`, Peierls uses `.k_eff`)
@@ -204,15 +199,11 @@ class TestCPvsPeierlsAtThickR:
             n_beta=20, n_rho=20, n_phi=20, dps=20,
         )
 
-        n_cells = 20
-        edges = np.linspace(0.0, R, n_cells + 1)
-        centers = 0.5 * (edges[:-1] + edges[1:])
         materials = {2: get_mixture("A", "1g")}
-        mat_ids = np.full(n_cells, 2)
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=BC.white)
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(20)).mesh
+        edges = mesh.edges
+        centers = 0.5 * (edges[:-1] + edges[1:])
         result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8))
 
         phi_cp = result.flux[:, 0]

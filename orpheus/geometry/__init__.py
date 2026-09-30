@@ -13,7 +13,7 @@
 
 The mesh is an overlay on the geometry and lives in its own package,
 :mod:`orpheus.mesh`, which imports this one and never the reverse:
-:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry` discretises a
+a :class:`~orpheus.mesh.mesher.Mesher` discretises a
 :class:`StructuredGeometry`.
 """
 

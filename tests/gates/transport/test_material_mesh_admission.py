@@ -39,8 +39,8 @@ import numpy as np
 import pytest
 
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -57,11 +57,9 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _legacy_1d() -> MaterialMesh:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(5),
+    ).mesh
     return MaterialMesh(mesh, placeholder_materials(ng=2))
 
 
@@ -167,7 +165,9 @@ class TestG73MeshNoneHasOneMeaning:
         """The retired 'no faces at all' arm's complement: every 1-D carrier
         answers ``areas`` (a Mesh1D concept), including a one-cell one."""
         one_cell = MaterialMesh(
-            Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.zeros(1, dtype=int)),
+            Mesher(StructuredGeometry.from_homogeneous(1.0, BC("reflective"))).partition(
+                CellsByCount.uniform_width(1),
+            ).mesh,
             placeholder_materials(ng=2),
         )
         _require(one_cell.areas.shape == (2,), "a one-cell 1-D carrier has two faces")

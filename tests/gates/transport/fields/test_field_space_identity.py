@@ -25,8 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -47,15 +47,12 @@ def _mesh(
     edges: np.ndarray = _EDGES,
     n_ord: int = 4,
     ng: int = 2,
-    bc_left: str = "vacuum",
+    left: str = "vacuum",
 ) -> SNProblem:
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(edges.size - 1, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC(bc_left),
-        bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (edges[0], edges[-1]), (0,), left=BC(left), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ord), placeholder_materials(ng=ng)
     )
@@ -65,7 +62,7 @@ def _mesh(
 #: ``==`` expected) — the `[M]` table of verification plan §4.
 _TABLE = [
     ("twin", {}, True, True),
-    ("bc_only", {"bc_left": "reflective"}, True, True),
+    ("bc_only", {"left": "reflective"}, True, True),
     ("volumes", {"edges": _EDGES_MOVED}, False, False),
     ("quadrature", {"n_ord": 8}, False, True),
     ("ng", {"ng": 3}, False, False),
@@ -130,7 +127,7 @@ class TestG22ScalarQuadratureBlindness:
         out = phi4 + phi8
         assert isinstance(out, ScalarFlux)
 
-        vac, refl = _mesh(), _mesh(bc_left="reflective")
+        vac, refl = _mesh(), _mesh(left="reflective")
         a = AngularFlux.zeros(vac.angular_bulk_space)
         b = AngularFlux.zeros(refl.angular_bulk_space)
         out2 = a + b

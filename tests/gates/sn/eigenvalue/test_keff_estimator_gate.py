@@ -45,7 +45,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -64,10 +64,9 @@ def _mesh(regions, bc, coord):
         mat_ids=tuple(m for m, _, _ in regions),
         boundaries=(bc, bc) if coord is CoordSystem.CARTESIAN else (bc,),
     )
-    return Mesh1D.from_geometry(
-        geom,
-        region_meshes=tuple(RegionMesh(n_cells=n) for *_, n in regions),
-    )
+    return Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for *_, n in regions),
+    ).mesh
 
 
 def _solve(materials, mesh, scattering_order=0):

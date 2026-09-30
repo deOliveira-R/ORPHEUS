@@ -73,8 +73,8 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn
@@ -100,13 +100,9 @@ _LENGTH = 6.0            # slab thickness (cm)
 
 def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNProblem:
     """Heterogeneous-capable slab SNProblem, mixture A, Gauss-Legendre S8."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, _LENGTH, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC(bc),
-        bc_right=BC(bc),
-    )
+    mesh = Mesher(
+        StructuredGeometry.slab((0.0, _LENGTH), (0,), left=BC(bc), right=BC(bc)),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNProblem(mesh, quad, {0: get_mixture("A", ng_key)})
 
@@ -190,13 +186,9 @@ def test_cumprod_path_hits_analytical_kinf():
     # Reflective slab → infinite medium. Thick enough that the eigenvalue is the
     # bulk k_inf (BC leakage negligible).
     nx = 12
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 50.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 50.0), (0,), left=BC("reflective"), right=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(
         {0: mix}, mesh, quad, keff_tol=1e-9, flux_tol=1e-8,

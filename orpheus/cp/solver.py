@@ -141,25 +141,24 @@ def _refuse_a_law_cp_drops(mesh: Mesh1D) -> None:
     ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.12).
     revisit: CP's campaign (the direction of development takes CP after SN, diffusion and the baseline).
 
-    CP resolves only ``bc_right``. On a slab, a left law equal to the
+    CP resolves only the outer law. On a slab, a left law equal to the
     right one is what CP computes (``[M]`` 2026-09-25: a white, vacuum or
     undeclared left law gave k = 1.8749980808246423 to all 16 digits, so
     the left law is dropped), so only that one is admitted. On a hollow
     cylinder or sphere, what CP realises at the inner surface is not
-    established, so no inner law is admitted. An undeclared (``None``)
-    left law is admitted until P1 step 3 retires ``None``.
+    established, so no inner law is admitted.
     """
-    inner_law = mesh.bc_left
-    if inner_law is None:
+    if len(mesh.face_laws) < 2:  # a solid cylinder or sphere: the outer face only
         return
+    inner_law = mesh.face_laws[0]
     if mesh.coord is CoordSystem.CARTESIAN:
-        if inner_law != mesh.bc_right:
+        if inner_law != mesh.outer_law:
             raise NotImplementedError(
-                f"CP reads only a slab's right-hand law ({mesh.bc_right!r}); "
+                f"CP reads only a slab's right-hand law ({mesh.outer_law!r}); "
                 f"the declared left law {inner_law!r} differs from it and would "
                 f"be dropped (#513). Declare the same law on both faces."
             )
-    elif mesh.edges[0] > 0.0:
+    else:
         raise NotImplementedError(
             f"CP reads only the outer law of a hollow "
             f"{mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}); "
@@ -259,7 +258,7 @@ class CPMesh:
 
     def _resolve_bc(self, mesh: Mesh1D) -> None:
         """Resolve the outer-surface BC into a P_cell → P_inf transform."""
-        bc = mesh.bc_right or BC("white")  # outer surface, default white
+        bc = mesh.outer_law
         factory = self.BC_REGISTRY.get(bc.kind)
         if factory is None:
             supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
@@ -932,8 +931,7 @@ def solve_cp(
     Production callers consume ``(materials, mesh, params)`` directly:
     materials are :class:`~orpheus.data.macro_xs.mixture.Mixture` objects
     keyed by material ID, ``mesh`` is a :class:`~orpheus.mesh.Mesh1D`
-    (build via :meth:`Mesh1D.from_geometry` for multi-region cases or
-    via the geometry factory helpers), and ``params`` carries the solver
+    (built by a :class:`~orpheus.mesh.mesher.Mesher` from a geometry), and ``params`` carries the solver
     tolerances and chord-quadrature order.
 
     The kernel is selected automatically based on ``mesh.coord``:
@@ -945,11 +943,10 @@ def solve_cp(
         Macroscopic cross sections keyed by material ID. Keys must
         match every ``mat_id`` referenced by the mesh.
     mesh : Mesh1D, optional
-        1-D mesh.  Defaults to a cylindrical PWR pin cell built via
+        1-D mesh.  Defaults to a cylindrical PWR pin cell,
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-        →
-        :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`.
-        CP reads the mesh's OUTER law (``bc_right``; the kernel registry
+        meshed by a :class:`~orpheus.mesh.mesher.Mesher`.
+        CP reads the mesh's OUTER law (``outer_law``; the kernel registry
         handles ``white`` / ``vacuum``) and nothing else, so a declared
         law it would drop is refused: a slab's left law must equal its
         right law, and a hollow cylinder or sphere takes no inner law
@@ -967,13 +964,12 @@ def solve_cp(
 
     if mesh is None:
         from orpheus.geometry import StructuredGeometry as _SG
-        from orpheus.mesh import Mesh1D as _M, RegionMesh as _RM
-        _geom = _SG.wigner_seitz_pin_cell()
-        mesh = _M.from_geometry(_geom, region_meshes=(
-            _RM(n_cells=10),  # fuel
-            _RM(n_cells=3),   # clad
-            _RM(n_cells=7),   # cool
-        ))
+        from orpheus.mesh import CellsByCount as _N, Mesher as _Mesher
+        mesh = _Mesher(_SG.wigner_seitz_pin_cell()).partition((
+            _N.uniform_volume(10),  # fuel
+            _N.uniform_volume(3),   # clad
+            _N.uniform_volume(7),   # cool
+        )).mesh
     if params is None:
         params = CPParams()
 

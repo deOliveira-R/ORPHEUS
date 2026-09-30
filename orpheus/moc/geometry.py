@@ -7,7 +7,7 @@ annuli inside a square lattice cell.
 
 **Inverse Wigner-Seitz**: the ``Mesh1D`` is built via
 :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-→ :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`,
+meshed by a :class:`~orpheus.mesh.mesher.Mesher`,
 whose outer edge is the Wigner-Seitz radius ``r_cell = pitch / sqrt(pi)``.
 ``MOCMesh`` recovers the pitch and reinterprets the outermost annular
 region as the square border bounded by the cell walls.
@@ -332,7 +332,7 @@ class MOCMesh:
 
     def _resolve_bc(self, mesh: Mesh1D) -> None:
         """Resolve the outer-surface BC into a track-linking strategy."""
-        bc = mesh.bc_right or BC("reflective")  # default: reflective
+        bc = mesh.outer_law
         factory = self.BC_REGISTRY.get(bc.kind)
         if factory is None:
             supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))

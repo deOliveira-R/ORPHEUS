@@ -34,8 +34,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -56,37 +56,26 @@ pytestmark = pytest.mark.foundation
 
 
 def _slab_mesh(nx: int = 4, length: float = 1.0) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
 def _spherical_mesh(nx: int = 4, radius: float = 1.0) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.cylinder(
+        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials(ng=2))
 

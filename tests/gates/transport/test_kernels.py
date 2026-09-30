@@ -574,13 +574,13 @@ def test_module_imports_nothing_from_scattering_or_frames():
 def _diffusion_binding():
     """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
 
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 7), mat_ids=np.zeros(6, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
     dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")})
     return dm, dm.mat_xs, dm.full_field_space
 
@@ -808,18 +808,14 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.problem import SNProblem
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.operators.scattering import ScatteringOperator
 
     carrier = unit_cell_carrier({0: get_mixture("A", "2g")})
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(4),
+    ).mesh
     problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
     )
@@ -870,8 +866,8 @@ def test_energy_conformity_guard_three_rows():
        ships certified by a fixture family that reddens on demand while
        the axes-less real bindings never touch it.
     """
-    from orpheus.geometry import BC, CoordSystem
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
 
@@ -928,10 +924,10 @@ def test_energy_conformity_guard_three_rows():
     # EnergyAxis, so the per-END guard reaches a bind the axes-less
     # composite alone could never let it see. The inertness this row
     # used to record is CLOSED, not merely relocated.
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     sn_2g = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g")},

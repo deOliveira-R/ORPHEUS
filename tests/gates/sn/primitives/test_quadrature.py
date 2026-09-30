@@ -222,15 +222,14 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
-        from orpheus.geometry import CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
-        mesh = Mesh1D(
-            edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         problem = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = problem.reduced
@@ -246,15 +245,14 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
-        from orpheus.geometry import CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
-        mesh = Mesh1D(
-            edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         problem = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = problem.reduced
@@ -268,15 +266,14 @@ class TestAlphaRedistribution:
     @pytest.mark.sentinel
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
-        from orpheus.geometry import CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = Quadrature.gauss_legendre(8)
-        mesh = Mesh1D(
-            edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-            coord=CoordSystem.SPHERICAL,
-        )
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         problem = SNProblem(mesh, quad, placeholder_materials())
 
         reduced = problem.reduced
@@ -306,7 +303,7 @@ class TestL0TermVerification:
         The ΔA/w factor ensures exact per-ordinate cancellation.
         """
         from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-        from orpheus.mesh import Mesh1D, RegionMesh
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         if coord == CoordSystem.SPHERICAL:
@@ -314,15 +311,12 @@ class TestL0TermVerification:
         else:
             quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
-        mesh = Mesh1D.from_geometry(
-            StructuredGeometry(
-                coord=coord,
-                breakpoints=(0.0, 1.0),
-                mat_ids=(0,),
-                boundaries=(BC.reflective,),
-            ),
-            region_meshes=(RegionMesh(n_cells=10),),
-        )
+        mesh = Mesher(StructuredGeometry(
+            coord=coord,
+            breakpoints=(0.0, 1.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
+        )).partition(CellsByCount.uniform_volume(10)).mesh
         sn = SNProblem(mesh, quad, placeholder_materials())
         reduced = sn.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -359,18 +353,15 @@ class TestL0TermVerification:
     def test_delta_A_magnitude(self, coord):
         """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
         from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-        from orpheus.mesh import Mesh1D, RegionMesh
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
-        mesh = Mesh1D.from_geometry(
-            StructuredGeometry(
-                coord=coord,
-                breakpoints=(0.0, 1.0),
-                mat_ids=(0,),
-                boundaries=(BC.reflective,),
-            ),
-            region_meshes=(RegionMesh(n_cells=5),),
-        )
+        mesh = Mesher(StructuredGeometry(
+            coord=coord,
+            breakpoints=(0.0, 1.0),
+            mat_ids=(0,),
+            boundaries=(BC.reflective,),
+        )).partition(CellsByCount.uniform_volume(5)).mesh
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(4)
         else:

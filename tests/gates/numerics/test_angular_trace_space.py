@@ -18,8 +18,9 @@ import dataclasses
 import numpy as np
 import pytest
 
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.coord import CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, TANGENTIAL_EPS
@@ -34,11 +35,8 @@ from orpheus.numerics.quadrature import Quadrature
 
 
 def _mesh1d(coord: CoordSystem, n: int = 4) -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, n + 1),
-        mat_ids=np.zeros(n, dtype=int),
-        coord=coord,
-    )
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC.reflective)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(n)).mesh
 
 
 def _mesh2d(coord: CoordSystem, nx: int = 3, ny: int = 3) -> Mesh2D:

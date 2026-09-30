@@ -24,8 +24,8 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import (
     slab_streaming,
     spherical_streaming,
@@ -218,23 +218,15 @@ class FakeCurvilinearStrategy:
 # ═══════════════════════════════════════════════════════════════════════
 
 def _slab_mesh() -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    return Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(5)).mesh
 
 
 def _spherical_mesh() -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    return Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(5)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════

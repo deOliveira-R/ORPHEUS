@@ -50,7 +50,8 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_adjoint_spectrum_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solution import AdjointSolution, Solution
 from orpheus.sn.solver import (
@@ -74,11 +75,13 @@ def _quad():
     return Quadrature.gauss_legendre(n_ordinates=8)
 
 
-def _homogeneous_2g():
+def _homogeneous_2g(law: BC = BC.reflective):
+    """The homogeneous 2G slab [0, 5], 10 cells, ``law`` on both faces
+    (reflective: the infinite medium)."""
     mix = get_mixture("A", "2g")
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 5.0, 11), mat_ids=np.zeros(10, dtype=int),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, law)).partition(
+        CellsByCount.uniform_width(10),
+    ).mesh
     return {0: mix}, mesh, mix
 
 
@@ -215,11 +218,13 @@ class TestSolveSnAdjoint:
 def _het_vacuum_slab():
     r"""2-material heterogeneous VACUUM slab, asymmetric SigS (A/B 2G)."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, 9),
-        mat_ids=np.array([0, 0, 1, 1, 1, 1, 0, 0]),
-        bc_left=None, bc_right=None,  # vacuum via the entry default
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=BC.vacuum, right=BC.vacuum,
+    )).partition((
+        CellsByCount.uniform_width(2),
+        CellsByCount.uniform_width(4),
+        CellsByCount.uniform_width(2),
+    )).mesh
     return mats, mesh
 
 
@@ -230,8 +235,11 @@ class TestSolveSnAdjointFixedSource:
         — the role is the TYPE, stamped by the entry, never a field the
         caller inspects.  (The eigenvalue-adjoint leaf is pinned in
         :meth:`TestSolveSnAdjoint.test_solution_packaging_contract`;
-        this row covers the remaining three on the cheap fixture.)"""
-        materials, mesh, _ = _homogeneous_2g()
+        this row covers the remaining three on the cheap fixture: the
+        fixed-source entries on the vacuum slab, the eigenvalue entry on the
+        reflective one.)"""
+        materials, mesh, _ = _homogeneous_2g(BC.vacuum)
+        _, reflective_mesh, _ = _homogeneous_2g(BC.reflective)
         quad = _quad()
         N, ng, nx = quad.N, 2, 10
 
@@ -257,7 +265,7 @@ class TestSolveSnAdjointFixedSource:
             "SourceOutcome, no keff attribute at all) — the two "
             "discrimination axes are independent.",
         )
-        fwd_k = solve_sn(materials, mesh, quad)
+        fwd_k = solve_sn(materials, reflective_mesh, quad)
         require(
             type(fwd_k) is Solution,
             "solve_sn must return exactly the forward Solution leaf "
@@ -361,14 +369,10 @@ class TestSolveSnAdjointFixedSource:
     def test_carrying_mesh_refusal_is_typed_and_loud(self):
         r"""The daggered coupled fixed-source arm ships as a REFUSAL, not
         silently unexercised (#276 A4 scope note)."""
-        from orpheus.geometry import CoordSystem
-
         mats = {0: get_mixture("A", "2g")}
-        sphere = Mesh1D(
-            edges=np.linspace(0.0, 3.0, 7),
-            mat_ids=np.zeros(6, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-        )
+        sphere = Mesher(StructuredGeometry.sphere(
+            (0.0, 3.0), (0,), outer=BC.vacuum,
+        )).partition(CellsByCount.uniform_width(6)).mesh
         with pytest.raises(NotImplementedError, match="(?i)coupled"):
             solve_sn_adjoint_fixed_source(
                 mats, sphere, Quadrature.gauss_legendre(n_ordinates=8),

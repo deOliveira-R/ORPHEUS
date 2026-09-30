@@ -103,7 +103,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -182,12 +182,11 @@ def mesh():
         mat_ids=(1, 0, 1),
         boundaries=(BC.vacuum, BC.vacuum),
     )
-    return Mesh1D.from_geometry(
-        geom,
-        region_meshes=(
-            RegionMesh(n_cells=12), RegionMesh(n_cells=16), RegionMesh(n_cells=12),
-        ),
-    )
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(12),
+        CellsByCount.uniform_volume(16),
+        CellsByCount.uniform_volume(12),
+    )).mesh
 
 
 @pytest.fixture(scope="module")

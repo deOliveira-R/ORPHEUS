@@ -232,7 +232,10 @@ def resolve_boundary_conditions(
     1. read the axis's declaration for that endpoint —
        ``axes[label.axis_index].bc[label.endpoint]``; ``None`` defaults
        to ``BC("reflective")`` (the infinite-lattice / eigenvalue
-       convention, uniform across methods);
+       convention of SN and diffusion; CP, MoC and MC read no ``None``,
+       because a :class:`~orpheus.mesh.Mesh1D` declares every face).
+       Only a :class:`~orpheus.mesh.Mesh2D` or an axis tuple still
+       reaches this with ``None`` (P1 step 3c decides its retirement);
     2. parse the tag into its typed law via the method's
        :attr:`~TransportMethod.BOUNDARY_OPERATOR_REGISTRY` (see
        :func:`_law_from_tag` — unsupported tags and a parameter-less

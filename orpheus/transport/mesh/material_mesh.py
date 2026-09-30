@@ -242,7 +242,7 @@ class MaterialMesh:
         self.mat_map: np.ndarray = mat_map
         # Cell volumes / radial face areas stay dataclass-owned while the
         # adapter is present (preserves the Mesh1D curvilinear formulas +
-        # the ``precomputed_volumes`` ULP escape hatch bit-identically).
+        # the stored equal-volume cell measures bit-identically).
         # Axis-native (mesh-less, d≥3 — all-Cartesian by construction):
         # the cell volume is the tensor-product cell measure, the
         # iterated outer product of the per-axis widths. 2-D per-face
@@ -658,7 +658,7 @@ class MaterialMesh:
 
         Delegates to the legacy dataclass's measure while the adapter is
         present (bit-identity: same atoms, same construction — including
-        the ``precomputed_volumes`` escape hatch and the curvilinear
+        the stored equal-volume cell measures and the curvilinear
         volume formulas the dataclass owns).  Axis-native
         (``self.mesh is None``, d≥3): the rank-d analogue — atoms are the
         cell-centre tuples ordered with ``np.meshgrid(..., indexing='ij')``

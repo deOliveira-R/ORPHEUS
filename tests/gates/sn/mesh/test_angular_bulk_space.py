@@ -37,8 +37,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
@@ -57,13 +57,10 @@ _NG = 2
 
 
 def _slab(*, scheme=None, ng: int = _NG) -> SNProblem:
-    mesh = Mesh1D(
-        edges=_EDGES,
-        mat_ids=np.zeros(_EDGES.size - 1, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (_EDGES[0], _EDGES[-1]), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellEdges(_EDGES)).mesh
     kwargs = {} if scheme is None else {"scheme": scheme}
     return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), **kwargs

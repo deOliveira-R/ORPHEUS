@@ -65,9 +65,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
-from orpheus.geometry.coord import CoordSystem
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, _adjoint_posing_parts, _as_problem
@@ -89,11 +88,10 @@ def _slab_hub() -> SNProblem:
     unless it says otherwise.
     """
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 9),
-        mat_ids=np.array([0, 0, 0, 0, 1, 1, 1, 1]),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
     return _as_problem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), materials,
         scattering_order=0,
@@ -103,11 +101,10 @@ def _slab_hub() -> SNProblem:
 def _sphere_hub() -> SNProblem:
     """The CARRYING arm — a sphere, where the adjoint's ``F`` is the lift."""
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, 2.0, 9),
-        mat_ids=np.array([0, 0, 0, 0, 1, 1, 1, 1]),
-        coord=CoordSystem.SPHERICAL,
+    geom = StructuredGeometry.sphere(
+        (0.01, 1.005, 2.0), (0, 1), inner=BC.reflective, outer=BC.reflective,
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
     return _as_problem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), materials,
         scattering_order=0,

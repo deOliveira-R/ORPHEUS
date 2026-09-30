@@ -56,6 +56,6 @@ def test_the_boundary_tag_is_one_definition_in_the_geometry_boundary_package() -
 def test_the_mesh_package_exports_the_moved_names() -> None:
     import orpheus.mesh
 
-    for name in ("Mesh1D", "Mesh2D", "RegionMesh", "pwr_pin_2d", "AxisMesh", "RadialAxisMesh",
+    for name in ("Mesh1D", "Mesh2D", "Mesher", "pwr_pin_2d", "AxisMesh", "RadialAxisMesh",
                  "Axis1D", "AxisCoord", "FaceLabel"):
         assert getattr(orpheus.mesh, name).__module__.startswith("orpheus.mesh."), name

@@ -26,8 +26,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -116,11 +116,9 @@ def test_inflow_indices_for_face_delegates_to_trace():
     held trace space, so realizers can request indices by face name
     without knowing about the trace-space type.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 3.0, 7),
-        mat_ids=np.zeros(6, dtype=np.int64),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(6)).mesh
     quad = Quadrature.gauss_legendre(8)
     trace = _slab_trace(mesh, quad)
 

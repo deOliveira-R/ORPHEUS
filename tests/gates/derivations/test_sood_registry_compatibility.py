@@ -187,8 +187,7 @@ def test_slab_mesh_builds_full_symmetric_domain() -> None:
     assert mesh.coord == CoordSystem.CARTESIAN
     expected_total = 2.0 * _critical_dimension_cm(case)
     assert mesh.total_width == pytest.approx(expected_total, abs=1e-12)
-    assert mesh.bc_left == BC.vacuum
-    assert mesh.bc_right == BC.vacuum
+    assert mesh.face_laws == (BC.vacuum, BC.vacuum)
     assert mesh.N == 16
 
 
@@ -196,17 +195,17 @@ def test_slab_mesh_builds_full_symmetric_domain() -> None:
 def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
     """Sphere mesh covers ``[0, R]``; centreline reflective is implicit.
 
-    :meth:`Mesh1D.from_geometry` for SPH sets ``bc_left=None`` (the
-    centreline at the coordinate origin is implicit reflective and is
-    interpreted by each solver's augmented mesh, e.g. ``SNProblem``
-    defaults ``None`` → ``BC.reflective``).
+    A solid sphere has one boundary face, the outer surface: the
+    centre at the coordinate origin is an interior point and carries
+    no law (the centreline reflection is each method's own symmetry
+    condition, not a declared law).
     """
     case = UA_1_0_SP_STUB
     mesh = build_mesh(case, n_cells=24)
     assert mesh.coord == CoordSystem.SPHERICAL
     assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
-    assert mesh.bc_left is None  # centreline implicit reflective
-    assert mesh.bc_right == BC.vacuum
+    assert mesh.boundary_faces == (mesh.total_width,)  # the centre carries no law
+    assert mesh.face_laws == (BC.vacuum,)
 
 
 @pytest.mark.foundation
@@ -216,8 +215,8 @@ def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
     mesh = build_mesh(case, n_cells=20)
     assert mesh.coord == CoordSystem.CYLINDRICAL
     assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
-    assert mesh.bc_left is None  # axis implicit reflective
-    assert mesh.bc_right == BC.vacuum
+    assert mesh.boundary_faces == (mesh.total_width,)  # the axis carries no law
+    assert mesh.face_laws == (BC.vacuum,)
 
 
 @pytest.mark.foundation

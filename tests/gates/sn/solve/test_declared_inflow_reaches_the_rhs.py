@@ -34,7 +34,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import (
     ConstantInflowSource,
     NoSource,
@@ -54,13 +54,8 @@ _VALUE = 2.5
 
 
 def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNProblem:
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    geom = StructuredGeometry.from_homogeneous(2.0, BC.vacuum)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -259,9 +254,7 @@ def _het_slab(n_ord: int = 8) -> SNProblem:
         mat_ids=(0, 1),
         boundaries=(BC.vacuum, BC.vacuum),
     )
-    mesh = Mesh1D.from_geometry(
-        geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),
-    )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(6)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
         {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},

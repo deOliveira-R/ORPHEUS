@@ -774,8 +774,9 @@ older entries classify against.
    path accidentally passed.
 
    **Fix:** Compute cell volumes **from the algebraic invariant** at
-   subdivision time, not from the edges after the fact. ``_subdivide_zone``
-   now returns ``(edges, volumes)``; for each coordinate system:
+   subdivision time, not from the edges after the fact. In 2026-04 the fix
+   made ``_subdivide_zone`` return ``(edges, volumes)``; for each coordinate
+   system:
 
    * Cartesian:   ``V_cell = (outer - inner) / n``
    * Cylindrical: ``V_cell = π · (outer² - inner²) / n``
@@ -784,21 +785,40 @@ older entries classify against.
    One scalar per zone, broadcast to every cell — no round trip through
    ``sqrt``/``cbrt``, so every cell in an equal-volume zone is bit-identical
    by construction. ``Mesh1D`` gained an optional
-   ``precomputed_volumes`` field that overrides the edge-derived default;
-   ``mesh1d_from_zones`` populates it. Manually-constructed meshes with
-   arbitrary edges continue to fall back to ``compute_volumes_1d`` from
-   edges.
+   ``precomputed_volumes`` field that overrode the edge-derived default,
+   which ``mesh1d_from_zones`` (later ``Mesh1D.from_geometry``) populated,
+   and a mesh built from arbitrary edges fell back to
+   ``compute_volumes_1d``.
+
+   **The fix as it stands (P1 step 3b of #405, 2026-09-29).** The helper,
+   the field and the fallback retired together. The invariant is now the
+   **stored equal share** :math:`m/n`: a spacing rule whose coordinate is
+   the coordinate system's measure coordinate (``EqualVolume``, and on a
+   slab ``EqualWidth`` too) stores each cell's volume as its interval's
+   measure over :math:`n`, one scalar per interval, and every other cell's
+   volume is the geometry's measure of the realised cell
+   (``Spacing.cells`` in ``orpheus/mesh/partition.py``). ``Mesh1D`` takes
+   ``volumes`` as a required field, never recomputes them, and checks each
+   against the measure of its cell within :math:`2p + 5` ulp, so a stored
+   volume can be exact without being unchecked. The measure itself has
+   one definition, ``CoordSystem.measure``
+   (:ref:`structured-geometry-mesh`).
 
    **Test that catches it:**
-   ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_multi_region_invariant``
+   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_multi_region_invariant``
    (parametrised over the coordinate systems, ids ``cartesian``,
    ``cylindrical`` and ``spherical``),
-   ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_multi_region_cylinder_equal_volume``
+   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_multi_region_cylinder_equal_volume``
    and
-   ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
-   (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-020")``).
-   Each builds its mesh through ``StructuredGeometry`` and
-   ``Mesh1D.from_geometry``, as production does, and asserts region by region
+   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
+   (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-020")``;
+   the class was named ``TestMesh1DFromGeometry`` until P1 step 3b), and, at
+   the rule level,
+   ``tests/gates/mesh/test_partition.py::TestEqualVolume::test_measures_are_the_interval_measure_over_n``
+   and ``::TestEqualVolume::test_each_interval_takes_its_own_share``.
+   The four in ``test_structured_geometry.py`` build their mesh through a
+   ``StructuredGeometry`` and a ``Mesher`` (``Mesh1D.from_geometry`` until
+   P1 step 3b), as production does, and assert region by region
    that the cell volumes are EXACTLY equal (``==``, not a tolerance) and sum to
    the closed-form region volume at ``rtol=1e-14``. The multi-region meshes are
    three regions with radii 0, 0.5, 1.5 and 2.0 cm meshed 5 / 7 / 11, and the
@@ -8603,7 +8623,8 @@ older entries classify against.
    1.35808, so the row reported 2e-4 agreement between two wrong numbers.
    The Phase E rows evaluated the reference at uniformly spaced cell
    centres, while the snapshot meshes are equal-volume (sphere) and
-   equal-area (cylinder), ``RegionMesh``'s default since b5e85c2d; that
+   equal-area (cylinder), the default of ``RegionMesh`` (retired at P1
+   step 3b of #405) since b5e85c2d; that
    put a persistent 4 % (sphere) and 2 % (cylinder) error into the shape
    metric that no refinement could remove, and it read as the SN solve's.
    (d) The red that surfaced it was the cylinder Phase E row, which reddened

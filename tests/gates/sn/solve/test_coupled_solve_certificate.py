@@ -35,8 +35,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
@@ -56,10 +56,9 @@ _MATERIALS = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
 
 
 def _mesh1d() -> Mesh1D:
-    return Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
-                  mat_ids=np.array([0, 1, 0]),
-                  bc_left=BC("reflective"), bc_right=BC("vacuum"),
-                  coord=CoordSystem.SPHERICAL)
+    return Mesher(StructuredGeometry.sphere(
+        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _sphere() -> SNProblem:

@@ -13,7 +13,7 @@ import pytest
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -34,13 +34,10 @@ pytestmark = pytest.mark.verifies(
 
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper (reflective BCs — eigenvalue convention)."""
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, total_width),
-        mat_ids=(mat_id,),
-        boundaries=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.slab(
+        (0.0, total_width), (mat_id,), left=BC.reflective, right=BC.reflective,
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def _slab_fuel_moderator_mesh(
@@ -53,10 +50,10 @@ def _slab_fuel_moderator_mesh(
         mat_ids=(2, 0),
         boundaries=(BC.reflective, BC.reflective),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=n_fuel),
-        RegionMesh(n_cells=n_mod),
-    ))
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(n_fuel),
+        CellsByCount.uniform_volume(n_mod),
+    )).mesh
 
 
 def _convergence_order(values, spacings, reference):
@@ -165,9 +162,6 @@ def test_heterogeneous_absolute_keff():
     recurrence now matches to 5e-5 at n_per=320.
     """
     from orpheus.derivations.reference_values import continuous_get
-    from orpheus.geometry import CoordSystem
-    from orpheus.mesh import Mesh1D
-
     ref = continuous_get("sn_slab_1eg_2rg_S8")
     geom = ref.problem.geometry_params
     materials = ref.problem.materials
@@ -176,9 +170,9 @@ def test_heterogeneous_absolute_keff():
     N_ord = int(geom["n_ordinates"])
 
     n_per = 320
-    edges = np.linspace(0.0, H_A + H_B, 2 * n_per + 1)
-    mat_ids = np.array([0] * n_per + [1] * n_per)
-    mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(n_per)).mesh
     quad = Quadrature.gauss_legendre(N_ord)
 
     result = solve_sn(

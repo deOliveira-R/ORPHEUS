@@ -62,9 +62,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -135,25 +135,18 @@ def _slab_mesh(
     *, ng: int, bc_left: BC, bc_right: BC, nx: int = 20, N: int = 8,
 ) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        bc_left=bc_left,
-        bc_right=bc_right,
-    )
+    mesh = Mesher(StructuredGeometry.slab((0.0, 4.0), (0,), left=bc_left, right=bc_right)).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(N)
     return SNProblem(mesh, quad, {0: mix})
 
 
 def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),  # pole (r=0); structural, NOT physical
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(N)
     return SNProblem(mesh, quad, {0: mix})
 
@@ -161,13 +154,9 @@ def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNProblem:
 def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNProblem:
     """Cylinder on the carrying folded family (μ-levels; LS until Q5.6.3)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),  # pole
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
     return SNProblem(mesh, quad, {0: mix})
 

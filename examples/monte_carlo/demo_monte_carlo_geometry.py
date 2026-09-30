@@ -2,7 +2,7 @@
 """Monte Carlo simulation using the unified geometry scheme.
 
 Demonstrates the MCMesh augmented geometry, which wraps a base Mesh1D
-(from :meth:`Mesh1D.from_geometry`) and provides point-wise material
+(built by :class:`~orpheus.mesh.mesher.Mesher`) and provides point-wise material
 lookup for delta-tracking — the same pattern used by CPMesh and SNProblem.
 
 Two cases:
@@ -13,7 +13,7 @@ Two cases:
 from pathlib import Path
 
 from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.mc.solver import MCMesh, MCParams, solve_monte_carlo
 from plotting import plot_mc_keff, plot_mc_spectrum
@@ -57,11 +57,11 @@ def main():
     geom_cyl = StructuredGeometry.wigner_seitz_pin_cell(
         r_fuel=0.9, r_clad=1.1, pitch=pitch,
     )
-    mesh_cyl = Mesh1D.from_geometry(geom_cyl, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # cool
-    ))
+    mesh_cyl = Mesher(geom_cyl).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
     mc_cyl = MCMesh(mesh_cyl, pitch=pitch)
     result_cyl = run_case("Cylindrical pin cell (MCMesh)", mc_cyl, materials)
 
@@ -69,11 +69,11 @@ def main():
     geom_slab = StructuredGeometry.pwr_slab_half_cell(
         fuel_half=0.9, clad_thick=0.2, cool_thick=0.7,
     )
-    mesh_slab = Mesh1D.from_geometry(geom_slab, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # cool
-    ))
+    mesh_slab = Mesher(geom_slab).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
     mc_slab = MCMesh(mesh_slab, pitch=pitch)
     result_slab = run_case("Cartesian slab (MCMesh)", mc_slab, materials)
 

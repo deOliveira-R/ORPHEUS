@@ -54,8 +54,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -76,12 +76,10 @@ pytestmark = [
 
 def _slab_2g(nx: int = 5) -> SNProblem:
     """1-D slab, reflective, 2G (CumprodScan → M_spatial._compute_LpC)."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 

@@ -92,8 +92,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
 
@@ -413,9 +413,11 @@ def build_moc_mesh(case: MOCPinCellMMSCase, n_annuli: int) -> MOCMesh:
     area_per_annulus = area_inscribed / n_annuli
     radii = [np.sqrt(k * area_per_annulus / np.pi) for k in range(1, n_annuli + 1)]
     edges = np.array([0.0] + radii + [ws_r])
-    mat_ids = np.zeros(n_annuli + 1, dtype=int)
-
-    mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CYLINDRICAL)
+    # One material; the equal-area annuli and the square-border cell are the
+    # irregularity the case needs, written out. MoC reads the outer law
+    # only, and it is reflective (the lattice cell).
+    geometry = StructuredGeometry.cylinder((0.0, ws_r), (0,), outer=BC("reflective"))
+    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     quad = MOCQuadrature.create(n_azi=case.n_azi, n_polar=case.n_polar)
     return MOCMesh(mesh, quad, ray_spacing=case.ray_spacing)
 

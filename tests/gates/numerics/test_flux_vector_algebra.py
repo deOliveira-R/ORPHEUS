@@ -42,8 +42,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -61,20 +61,16 @@ _LEAVES = ["angular", "scalar", "moment", "boundary"]
 
 
 def _mesh() -> SNProblem:
-    m = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    m = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
 
 
 def _stretched_mesh() -> SNProblem:
     """Doubled width, same shape — the cell VOLUMES differ, so the carrier
     mints an UNEQUAL space (the F2 content discriminator)."""
-    m = Mesh1D(
-        edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    m = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials())
 
 

@@ -104,8 +104,8 @@ from orpheus.derivations.continuous.mms.sn import (
     build_cylindrical_mms_case,
     build_cylindrical_anisotropic_mms_case,
 )
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import (
     STAGGERED,
@@ -474,12 +474,9 @@ class _CylXiOddMMSCase:
         return self.A(r)
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        return Mesh1D(
-            edges=np.linspace(0.0, self.radius, n_cells + 1),
-            mat_ids=np.full(n_cells, self.mat_id, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"), bc_right=BC("vacuum"),
-        )
+        return Mesher(StructuredGeometry.cylinder(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r = mesh.centers

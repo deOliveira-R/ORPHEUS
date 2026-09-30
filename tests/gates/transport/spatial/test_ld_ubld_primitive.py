@@ -42,8 +42,8 @@ import pytest
 import sympy as sp
 
 from orpheus.derivations.discrete.sn import ld_ubld as sym
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
@@ -365,13 +365,9 @@ class TestProductionViewsAnchoredToPrimitive:
     @staticmethod
     def _slab_cell():
         """A concrete slab cell + ordinate from the production factory."""
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 6),
-            mat_ids=np.zeros(5, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+            CellsByCount.uniform_width(5),
+        ).mesh
         quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
         cell_idx, direction_idx = 2, quad.N - 1     # most-positive ordinate

@@ -34,8 +34,8 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -52,13 +52,9 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _slab(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng))
 
 

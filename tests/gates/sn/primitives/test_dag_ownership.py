@@ -25,8 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.loss_representation import (
@@ -63,12 +63,14 @@ def _build_mesh(coord: str) -> SNProblem:
         "sphere": CoordSystem.SPHERICAL,
         "cyl": CoordSystem.CYLINDRICAL,
     }[coord]
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 4),
-        mat_ids=np.zeros(3, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-        coord=coord_sys,
+    # Reflective at a slab's left face; a solid body's centre carries no law.
+    laws = (
+        (BC("reflective"), BC("vacuum")) if coord_sys is CoordSystem.CARTESIAN
+        else (BC("vacuum"),)
     )
+    mesh = Mesher(StructuredGeometry(
+        coord=coord_sys, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=laws,
+    )).partition(CellsByCount.uniform_width(3)).mesh
     quad = (
         Quadrature.gauss_legendre(8)
         if coord in ("slab", "sphere")

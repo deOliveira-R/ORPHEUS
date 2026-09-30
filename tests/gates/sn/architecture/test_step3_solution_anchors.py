@@ -79,9 +79,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
-from orpheus.geometry.coord import CoordSystem
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.eigenvalue import ProductionRateSolver, power_iteration
 from orpheus.numerics.quadrature import Quadrature
@@ -129,18 +128,17 @@ _QUAD_N = 8
 _SUBCRITICAL_LENGTH = 4.0
 
 
-def _slab(length: float = _SUBCRITICAL_LENGTH, bc_right: str = "vacuum"):
+def _slab(length: float = _SUBCRITICAL_LENGTH, right: str = "vacuum"):
     """Fuel | moderator 2-G slab, GL-8, reflective | vacuum, 4 + 4 cells.
 
     The ``tests/gates/sn/solve/test_subcritical_multiplying_source.py`` fixture,
     spelled once here (its own ``_slab``); the two modules pin the same k.
     """
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, 9),
-        mat_ids=np.array([0] * 4 + [1] * 4, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC(bc_right),
+    geometry = StructuredGeometry.slab(
+        (0.0, length / 2, length), (0, 1), left=BC("reflective"), right=BC(right),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return materials, mesh, Quadrature.gauss_legendre(_QUAD_N)
 
 
@@ -148,10 +146,8 @@ def _carrying_sphere():
     """A CARRYING (System-B bearing) hub — the arm whose adjoint iterates on
     the coupled carrier while the seedless one iterates on a bare field."""
     materials = {0: get_mixture("A", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
     return materials, mesh, Quadrature.gauss_legendre(_QUAD_N)
 
 

@@ -11,9 +11,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.coord import CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.measure import DiscreteMeasure
+
+
+def _uniform_mesh(coord: CoordSystem, extent: float, n: int) -> Mesh1D:
+    """``n`` equal-width cells on ``[0, extent]``, one material, reflective faces."""
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, extent), (0,), BC.reflective)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(n)).mesh
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -24,35 +31,27 @@ from orpheus.numerics.measure import DiscreteMeasure
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_is_discrete_measure():
     """``mesh.volume_measure`` returns a DiscreteMeasure."""
-    edges = np.linspace(0.0, 5.0, 6)
-    mat_ids = np.zeros(5, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.CARTESIAN, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.CARTESIAN, 5.0, 5)
     mu = mesh.volume_measure
     assert isinstance(mu, DiscreteMeasure)
 
 
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_nodes_are_centers():
-    edges = np.linspace(0.0, 5.0, 6)
-    mat_ids = np.zeros(5, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.CARTESIAN, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.CARTESIAN, 5.0, 5)
     np.testing.assert_array_equal(mesh.volume_measure.nodes, mesh.centers)
 
 
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_weights_are_volumes():
-    edges = np.linspace(0.0, 5.0, 6)
-    mat_ids = np.zeros(5, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.CARTESIAN, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.CARTESIAN, 5.0, 5)
     np.testing.assert_array_equal(mesh.volume_measure.weights, mesh.volumes)
 
 
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_integrates_constant_to_total_volume():
     """``mu(1) == sum(volumes)``."""
-    edges = np.linspace(0.0, 5.0, 6)
-    mat_ids = np.zeros(5, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.CARTESIAN, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.CARTESIAN, 5.0, 5)
     mu = mesh.volume_measure
     one = np.ones(mesh.N)
     assert mu(one) == pytest.approx(mesh.volumes.sum())
@@ -61,9 +60,7 @@ def test_mesh1d_volume_measure_integrates_constant_to_total_volume():
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_array_overload_matches_explicit_sum():
     """``mu(values) == sum(volumes * values)`` for arbitrary values."""
-    edges = np.linspace(0.0, 5.0, 6)
-    mat_ids = np.zeros(5, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.CARTESIAN, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.CARTESIAN, 5.0, 5)
     mu = mesh.volume_measure
     values = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     assert mu(values) == pytest.approx(np.sum(mesh.volumes * values))
@@ -72,9 +69,7 @@ def test_mesh1d_volume_measure_array_overload_matches_explicit_sum():
 @pytest.mark.foundation
 def test_mesh1d_volume_measure_spherical():
     """Volume measure on a spherical mesh integrates ``1`` to total volume."""
-    edges = np.linspace(0.0, 2.0, 5)
-    mat_ids = np.zeros(4, dtype=int)
-    mesh = Mesh1D(coord=CoordSystem.SPHERICAL, edges=edges, mat_ids=mat_ids)
+    mesh = _uniform_mesh(CoordSystem.SPHERICAL, 2.0, 4)
     mu = mesh.volume_measure
     one = np.ones(mesh.N)
     assert mu(one) == pytest.approx(mesh.volumes.sum())

@@ -19,8 +19,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     SupercriticalSourceProblem, _as_problem, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
@@ -34,10 +34,11 @@ def _require(cond: object, msg: str) -> None:
         raise AssertionError(msg)
 
 
-def _slab(L: float, bc_right: str = "vacuum"):
+def _slab(L: float, right: str = "vacuum"):
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(edges=np.linspace(0.0, L, 9), mat_ids=np.array([0] * 4 + [1] * 4, dtype=int),
-                  bc_left=BC("reflective"), bc_right=BC(bc_right))
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, L / 2, L), (0, 1), left=BC("reflective"), right=BC(right),
+    )).partition(CellsByCount.uniform_width(4)).mesh
     return mats, mesh, Quadrature.gauss_legendre(8)
 
 
@@ -79,7 +80,7 @@ def test_the_multiplying_solution_exceeds_the_pure_transport_one_cellwise() -> N
 
 
 def test_a_supercritical_hub_is_REFUSED_at_the_driver() -> None:
-    mats, mesh, quad = _slab(8.0, bc_right="reflective")
+    mats, mesh, quad = _slab(8.0, right="reflective")
     with pytest.raises(SupercriticalSourceProblem, match=r"k_eff = 1\.37"):
         solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8))
 

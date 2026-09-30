@@ -164,8 +164,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 
@@ -217,12 +217,9 @@ def infinite_medium_flux() -> dict[int, float]:
     row passing or failing for an undocumented reason.
     """
     quadrature = Quadrature.gauss_legendre(n_ordinates=_N_ORDINATES)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, _SLAB_WIDTH, _N_CELLS + 1),
-        mat_ids=np.zeros(_N_CELLS, dtype=int),
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(_SLAB_WIDTH, BC("reflective"))).partition(
+        CellsByCount.uniform_width(_N_CELLS),
+    ).mesh
     source = np.full((_N_ORDINATES, 1, _N_CELLS), _SOURCE_PER_ORDINATE)
 
     fluxes: dict[int, float] = {}
@@ -333,12 +330,9 @@ def test_high_order_anisotropic_slab_does_not_raise() -> None:
     is a property of the 1-D chart, not of the order.
     """
     quadrature = Quadrature.gauss_legendre(n_ordinates=16)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, _SLAB_WIDTH, _N_CELLS + 1),
-        mat_ids=np.zeros(_N_CELLS, dtype=int),
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(_SLAB_WIDTH, BC("reflective"))).partition(
+        CellsByCount.uniform_width(_N_CELLS),
+    ).mesh
     solution = solve_sn_fixed_source(
         materials={0: _one_group_mixture(len(_MOMENTS))},
         mesh=mesh,

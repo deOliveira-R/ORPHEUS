@@ -44,8 +44,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -101,13 +101,8 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC.vacuum, right=BC.vacuum)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -115,25 +110,17 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
 def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
-    geom = StructuredGeometry(
-        coord=CoordSystem.SPHERICAL,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.vacuum)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 

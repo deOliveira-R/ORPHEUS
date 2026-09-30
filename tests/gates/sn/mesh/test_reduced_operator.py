@@ -94,8 +94,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -116,35 +116,20 @@ from tests.gates.sn._test_helpers import placeholder_materials
 
 def _slab_mesh() -> Mesh1D:
     """Cartesian slab — 5-cell uniform mesh on [0, 1]."""
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
 def _spherical_mesh() -> Mesh1D:
     """Spherical 5-cell mesh on [0, 1]."""
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum"))
+    return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
 def _cylindrical_mesh() -> Mesh1D:
     """Cylindrical 5-cell mesh on [0, 1]."""
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("vacuum"))
+    return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -805,11 +790,8 @@ class TestP4RemTheProducerBindsTheAxis:
         from tests.gates.sn._test_helpers import placeholder_materials
 
         quad = quad_factory()
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=coord,
-        )
+        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         from orpheus.sn.problem import SNProblem
 
         sn = SNProblem(mesh, quad, placeholder_materials())
@@ -929,11 +911,8 @@ class TestP4RemTheProducerBindsTheAxis:
         cylinder 8/12 packets moved; this row pins those same counts.
         """
         quad = quad_factory()
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=coord,
-        )
+        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         ar_true = angular_redistribution(quad, coord)
         decoy = _scale_decoy(quad)
 
@@ -999,11 +978,8 @@ class TestP4RemTheProducerBindsTheAxis:
         ``mu_x`` untouched is exactly the isolation this row needs.
         """
         quad = Quadrature.folded_product(4, 6)
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 1.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-        )
+        geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective"))
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         ar_true = angular_redistribution(quad, CoordSystem.CYLINDRICAL)
         decoy = _level_roll_decoy(quad)
         assert quad.axis() == decoy.axis()  # same measure ⟹ invisible

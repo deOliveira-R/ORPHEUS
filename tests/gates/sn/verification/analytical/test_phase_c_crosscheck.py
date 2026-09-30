@@ -41,7 +41,8 @@ What changed on 2026-09-26 (ERR-090, and two defects of this file):
    eigenvalue is now read from the snapshot file.
 3. The Phase E rows evaluated the reference at uniformly spaced cell centres,
    but the snapshot meshes are equal-volume (sphere) and equal-area (cylinder)
-   (``RegionMesh``'s default since b5e85c2d). The reference is now
+   (the default rule of the retired region-mesh spelling since b5e85c2d,
+   ``CellsByCount.uniform_volume`` now). The reference is now
    compared as volume-weighted cell averages over the SN's own cells, read
    from the mesh that produced the SN flux.
 
@@ -73,8 +74,8 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function import 
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
     solve_greens_function_cylinder,
 )
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
     _regionwise_cubic_spline,
 )
@@ -164,13 +165,9 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
     )
 
     nx = 20
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 2.0), (0,), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     result = solve_sn(
         materials={0: mat},

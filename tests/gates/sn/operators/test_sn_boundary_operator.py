@@ -72,7 +72,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.boundary import PeriodicBoundary
 from orpheus.numerics.operator import (
     BlockRole,
@@ -102,7 +102,7 @@ def _sn(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
         mat_ids=(0,),
         boundaries=bcs,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     # Cylinder's angular redistribution needs a level-structured quadrature;
     # slab / sphere accept the 1-D Gauss–Legendre set.
     quad = (

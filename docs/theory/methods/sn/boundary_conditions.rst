@@ -16,10 +16,17 @@ mechanics (how to enforce it in the :term:`sweep`).  ⛔ Until #412
 laws is one of the things it owns.
 
 **Stage 1 --- Geometry declaration.**
-:class:`~orpheus.mesh.structured.Mesh1D` carries ``bc_left`` and
-``bc_right``; :class:`~orpheus.mesh.structured.Mesh2D` carries
-``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``. Each is a ``BC`` tag, an
-already-typed boundary law, or ``None`` (the method's default).
+The laws are declared on the
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, one per
+boundary point, and the :class:`~orpheus.mesh.mesher.Mesher` carries them
+onto the mesh: :class:`~orpheus.mesh.structured.Mesh1D` carries
+``face_laws``, one per boundary face, inner first (a slab's left and
+right, a solid body's outer surface, a hollow body's inner and outer);
+:class:`~orpheus.mesh.structured.Mesh2D` carries
+``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``. Each is a ``BC`` tag or
+an already-typed boundary law; a ``Mesh2D`` face may still be ``None``
+(the method's default) until step 3c of #405, while a ``Mesh1D`` refuses
+``None`` since step 3b.
 :class:`~orpheus.geometry.boundary.BC` is a frozen dataclass with two fields:
 
 - ``kind: str`` --- an identifier such as ``"vacuum"``, ``"reflective"``,

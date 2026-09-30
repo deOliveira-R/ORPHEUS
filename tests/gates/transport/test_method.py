@@ -33,13 +33,12 @@ cross-method Protocol facts.
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -50,23 +49,21 @@ pytestmark = [pytest.mark.foundation]
 _MATS = {0: get_mixture("A", "2g")}
 
 
-def _mesh1d(
-    bc_left: BC | None = None, bc_right: BC | None = None,
-) -> Mesh1D:
-    return Mesh1D(
-        np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int),
-        bc_left=bc_left, bc_right=bc_right,
+def _mesh1d(right: BC = BC("reflective")) -> Mesh1D:
+    geometry = StructuredGeometry.slab(
+        (0.0, 10.0), (0,), left=BC("reflective"), right=right,
     )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
 
-def _sn_mesh(**bc_kwargs: "BC | None") -> SNProblem:
+def _sn_mesh(**law_kwargs: BC) -> SNProblem:
     return SNProblem(
-        _mesh1d(**bc_kwargs), Quadrature.gauss_legendre(4), _MATS,
+        _mesh1d(**law_kwargs), Quadrature.gauss_legendre(4), _MATS,
     )
 
 
-def _diffusion_mesh(**bc_kwargs: "BC | None") -> DiffusionMesh:
-    return DiffusionMesh(_mesh1d(**bc_kwargs), _MATS)
+def _diffusion_mesh(**law_kwargs: BC) -> DiffusionMesh:
+    return DiffusionMesh(_mesh1d(**law_kwargs), _MATS)
 
 
 class TestStructuralConformance:
@@ -104,4 +101,4 @@ class TestSharedResolveBody:
                 r"on face 'xmax'\. Supported: 'reflective', 'vacuum'\."
             ),
         ):
-            _sn_mesh(bc_right=BC("albedo", {"albedo": 0.5}))
+            _sn_mesh(right=BC("albedo", {"albedo": 0.5}))

@@ -10,14 +10,14 @@ sections to the cells is the transport layer's
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, one layer up.
 
 * :mod:`~orpheus.mesh.structured`: the structured meshes :class:`Mesh1D` and
-  :class:`Mesh2D`, and the per-region discretisation descriptor
-  :class:`RegionMesh`.
+  :class:`Mesh2D`.
+* :mod:`~orpheus.mesh.mesher`: the :class:`Mesher`, which builds a
+  :class:`Mesh1D` from a geometry and interval rules.
 * :mod:`~orpheus.mesh.partition`: the interval rules that place a geometry's
   cells (:class:`CellsByCount`, :class:`CellsByMaxWidth`, :class:`Refined`,
   :class:`CellEdges`, and the spacing rules :class:`EqualWidth` and
   :class:`EqualVolume`).
-* :mod:`~orpheus.mesh.factories`: the 2-D pin-cell factory :func:`pwr_pin_2d`
-  and the equal-volume subdivision of one interval.
+* :mod:`~orpheus.mesh.factories`: the 2-D pin-cell factory :func:`pwr_pin_2d`.
 * :mod:`~orpheus.mesh.axis`: the per-axis primitives (:class:`AxisMesh`,
   :class:`RadialAxisMesh`, :class:`AxisCoord`) whose tensor product is a
   structured phase-space mesh, and the pure shape functions on axis tuples.
@@ -54,7 +54,8 @@ from orpheus.mesh.partition import (
     Refined,
     Spacing,
 )
-from orpheus.mesh.structured import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh.mesher import Mesher
+from orpheus.mesh.structured import Mesh1D, Mesh2D
 
 __all__ = [
     "Axis1D",
@@ -70,9 +71,9 @@ __all__ = [
     "IntervalRule",
     "Mesh1D",
     "Mesh2D",
+    "Mesher",
     "RadialAxisMesh",
     "Refined",
-    "RegionMesh",
     "Spacing",
     "axes_from_legacy_mesh",
     "coord_system",

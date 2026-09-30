@@ -66,8 +66,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     ConstantInflowSource,
@@ -136,17 +136,12 @@ _PRESCRIBED_INFLOW = PrescribedInflow(source=ConstantInflowSource(value=2.5))
 
 def _make_slab(
     nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5,
-    bc_left: "BC | BoundaryTraceLaw" = BC("reflective"),
-    bc_right: "BC | BoundaryTraceLaw" = BC("reflective"),
+    left: "BC | BoundaryTraceLaw" = BC("reflective"),
+    right: "BC | BoundaryTraceLaw" = BC("reflective"),
 ):
     quad = Quadrature.gauss_legendre(4)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, R, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=bc_left,
-        bc_right=bc_right,
-    )
+    geom = StructuredGeometry.slab((0.0, R), (0,), left=left, right=right)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     # Per-group-varying σ_t so the 2g row is non-degenerate in the group axis
     # (exercises the G_bulk broadcast over ng); rank-d (ng, *spatial).
@@ -158,12 +153,8 @@ def _make_slab(
 
 def _make_sphere(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     quad = Quadrature.gauss_legendre(4)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, R, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
@@ -182,12 +173,8 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     re-captured with the swap.)
     """
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, R, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.full((ng, nx), sigma)
     return sn, sig_t
@@ -215,12 +202,8 @@ def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0
     choice).
     """
     quad = Quadrature.folded_product(n_mu=2, n_phi=6)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, R, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
@@ -242,13 +225,10 @@ def _make_ld_slab(ng: int = 2, sigma: float = 0.5):
 
     quad = Quadrature.gauss_legendre(4)
     edges = np.array([0.0, 0.17, 0.45, 0.62, 1.0])       # non-uniform h
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellEdges(edges)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng),
                 scheme=LinearDiscontinuous())
     nx = sn.spatial_shape[0]
@@ -440,10 +420,10 @@ _BUILDERS = {
     # (#189), and these rows assert reciprocity of ``B``, NOT that a white-faced
     # SN solve is a supported configuration.
     "slab_declared_prescribed_2g": lambda: _make_slab(
-        ng=2, bc_left=_PRESCRIBED_INFLOW,
+        ng=2, left=_PRESCRIBED_INFLOW,
     ),
     "slab_declared_prescribed_white_2g": lambda: _make_slab(
-        ng=2, bc_left=_PRESCRIBED_INFLOW, bc_right=WhiteBoundary(),
+        ng=2, left=_PRESCRIBED_INFLOW, right=WhiteBoundary(),
     ),
 }
 
@@ -796,7 +776,7 @@ def _mix_4g(p0: np.ndarray):
 
 def _full_loss_case(
     coord: CoordSystem, ng: int,
-    bc_left: "BC | BoundaryTraceLaw" = BC("reflective"),
+    left: "BC | BoundaryTraceLaw" = BC("reflective"),
 ):
     r"""Het 2-material mesh + the full loss ``A = (L + C) - S - A_BA - B``.
 
@@ -824,34 +804,37 @@ def _full_loss_case(
     complete loss and catches an A_BA transpose that is present-but-wrong.
     """
     quad = Quadrature.gauss_legendre(4)
-    edges = np.linspace(0.0, 1.0, 5)
-    mat_ids = np.array([0, 1, 1, 0])
+    breakpoints, mat_ids = (0.0, 0.25, 0.75, 1.0), (0, 1, 0)
+    rules = (
+        CellsByCount.uniform_width(1),
+        CellsByCount.uniform_width(2),
+        CellsByCount.uniform_width(1),
+    )
     if coord is CoordSystem.CARTESIAN:
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids, coord=coord,
-            bc_left=bc_left, bc_right=BC("reflective"),
+        geom = StructuredGeometry.slab(
+            breakpoints, mat_ids, left=left, right=BC("reflective"),
         )
     else:
         # A solid sphere/cylinder has ONE true face, so there is no partner to
-        # carry the reciprocity content — ``bc_left`` is the centre, which is
+        # carry the reciprocity content — a ``left`` law would sit at the centre, which is
         # not a boundary at all. The P5 declared cases are Cartesian only.
         #
-        # ⛔ REFUSE rather than silently drop. Accepting a ``bc_left`` here and
+        # ⛔ REFUSE rather than silently drop. Accepting a ``left`` here and
         # ignoring it would hand back a mesh with NO declaration and a
         # permanently-green row — a silently-inert declaration, which is
         # precisely the pre-P2′ defect this whole campaign exists to close.
         # Reproducing it inside the campaign's own gates would be the joke that
         # writes itself. A comment is not a guard; this is.
-        if bc_left != BC("reflective"):
+        if left != BC("reflective"):
             raise ValueError(
                 f"_full_loss_case: {coord.name} has one true face, so "
-                f"bc_left={bc_left!r} has nowhere to go and would be silently "
-                f"dropped. Declare on bc_right, or use a Cartesian case."
+                f"left={left!r} has nowhere to go and would be silently "
+                f"dropped. Declare on the outer face, or use a Cartesian case."
             )
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids, coord=coord,
-            bc_right=BC("reflective"),
+        geom = StructuredGeometry.uniform_boundary(
+            coord, breakpoints, mat_ids, BC("reflective"),
         )
+    mesh = Mesher(geom).partition(rules).mesh
     if ng == 2:
         mixtures = {
             0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
@@ -926,7 +909,7 @@ _FULL_LOSS_BUILDERS = {
     # ``xmin`` declares a prescribed inflow. Reflective partner (see the
     # ``_BUILDERS`` note on why a partner is mandatory).
     "slab_declared_prescribed_2g": lambda: _full_loss_case(
-        CoordSystem.CARTESIAN, 2, bc_left=_PRESCRIBED_INFLOW,
+        CoordSystem.CARTESIAN, 2, left=_PRESCRIBED_INFLOW,
     ),
 }
 

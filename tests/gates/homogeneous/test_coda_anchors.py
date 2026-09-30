@@ -326,11 +326,13 @@ class TestNoMaterialMeshIsBuiltOnTheHomogeneousPath:
         (`vv` anti-#17: the harness lies before the code does, and it lies
         in the safe-looking direction).
         """
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
 
         calls = self._count(monkeypatch)
         MaterialMesh(
-            Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0])),
+            Mesher(StructuredGeometry.from_homogeneous(1.0, BC.reflective))
+            .partition(CellsByCount.uniform_width(1)).mesh,
             {0: _d5_cases()["homo_2eg"]},
         )
         _require(

@@ -481,16 +481,19 @@ Boundary Condition Infrastructure
 
 The CP solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
 condition resolution.  The boundary condition is **declared** on the base
-geometry via :class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
-<orpheus.mesh.structured.Mesh1D.bc_right>` (the outer cell surface), and
+geometry via :class:`~orpheus.geometry.boundary.BC`, carried by the
+mesher onto the mesh's outer face law, :attr:`Mesh1D.outer_law
+<orpheus.mesh.structured.Mesh1D.outer_law>` (the outer cell surface), and
 **resolved** at :class:`CPMesh` construction time against the registry:
 
 .. code-block:: python
 
-   # Declaration (on geometry)
-   mesh = Mesh1D(..., bc_right=BC("vacuum"))
+   # Declaration (on the geometry; the mesher carries it to the outer face)
+   geometry = StructuredGeometry.cylinder(..., outer=BC("vacuum"))
+   mesh = Mesher(geometry).partition(...).mesh
 
    # Resolution (in CPMesh.__init__)
+   bc = mesh.outer_law
    factory = CPMesh.BC_REGISTRY[bc.kind]
    self._bc_transform = factory(self, bc)
 
@@ -510,14 +513,18 @@ geometry via :class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
      - No re-entry (isolated cell)
      - :math:`P^{\infty} = P^{\text{cell}}` (rows sum to < 1)
 
-The default is ``BC("white")``, matching the infinite-lattice assumption
-used throughout the CP derivation above.  The vacuum BC is useful for
+The pin-cell factory
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
+declares ``BC("white")`` unless told otherwise, matching the
+infinite-lattice assumption used throughout the CP derivation above. CP
+itself has no default: since P1 step 3b of #405 every face of a mesh
+carries a declared law (until then an undeclared outer law was read as
+white).  The vacuum BC is useful for
 studying isolated fuel pins where neutrons escaping the cell are lost.
 
 A law CP does not read is refused rather than dropped: a slab whose
 left law differs from its right law, or any inner law on a hollow
-cylinder or sphere, raises ``NotImplementedError`` naming #513 (an
-undeclared left law is admitted). The table of what each method reads
+cylinder or sphere, raises ``NotImplementedError`` naming #513. The table of what each method reads
 is :ref:`structured-geometry-hollow-inner-law`.
 
 :meth:`CPMesh.compute_pinf_group` calls ``self._bc_transform(P_cell,
@@ -1602,8 +1609,8 @@ Slab Geometry: The :math:`E_3` Kernel
 The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
 to the cell edge (:math:`x = L`).  Geometry built via
 :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
-and meshed through
-:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`; the Cartesian
+and meshed by a
+:class:`~orpheus.mesh.mesher.Mesher`; the Cartesian
 coordinate system is intrinsic to that factory rather than a parameter
 of it (Phase F retired the free-function
 ``geometry.factories.pwr_slab_half_cell`` that took a ``coord``).
@@ -1870,8 +1877,8 @@ In :meth:`CPMesh._setup_spherical`::
     # Spherical weight: extra factor of y in the quadrature
     self._y_wts = self._y_wts * self._y_pts
 
-Geometry built via :meth:`~orpheus.mesh.structured.Mesh1D.from_geometry`
-(``coord = CoordSystem.SPHERICAL``).
+Mesh built by a :class:`~orpheus.mesh.mesher.Mesher` from a spherical
+geometry (``coord = CoordSystem.SPHERICAL``).
 
 Second-Difference Formula (Spherical)
 -------------------------------------
@@ -2490,7 +2497,11 @@ discrepancy in ``BickleyTables``" (safety argument for the swap).
 Equal-Volume Mesh Subdivision
 -------------------------------
 
-:func:`~orpheus.mesh.factories._subdivide_zone` creates equal-volume cells:
+The ``EqualVolume`` spacing rule
+(:class:`~orpheus.mesh.partition.EqualVolume`, which
+``CellsByCount.uniform_volume(n)`` applies) creates equal-volume cells by
+stepping evenly in the coordinate system's measure coordinate
+:math:`T(r) = r^d` (:ref:`structured-geometry-mesh`); the edges are:
 
 **Cartesian:** :math:`x_k = x_0 + k(x_N - x_0)/N`.
 
@@ -2507,7 +2518,7 @@ Equal-Volume Mesh Subdivision
 .. radius for cylindrical zone subdivision. Its verifiable content — that
 .. the edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its ``cylindrical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
@@ -2515,6 +2526,10 @@ Equal-Volume Mesh Subdivision
 .. off these radii, so the gates that catch ERR-020
 .. (``test_equal_volume_cylindrical_invariant`` and its multi-region
 .. siblings) cannot see this formula.
+.. Since P1 step 3b of #405 (2026-09-29) the Mesh1D construction law also
+.. sees it: each stored volume must be the measure of its cell within 2p + 5
+.. ulp, so equally spaced radii beside stored equal shares are refused at
+.. construction (the class was TestMesh1DFromGeometry until then).
 .. vv-status: equal-volume-radius-cylindrical documented
 
 For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
@@ -2532,7 +2547,7 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 .. :eq:`equal-volume-radius-cylindrical`. Its verifiable content — that the
 .. edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/gates/geometry/test_structured_geometry.py::TestMesh1DFromGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its ``spherical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
@@ -2540,6 +2555,10 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 .. off these radii, so the gates that catch ERR-020
 .. (``test_equal_volume_spherical_invariant`` and its multi-region siblings)
 .. cannot see this formula.
+.. Since P1 step 3b of #405 (2026-09-29) the Mesh1D construction law also
+.. sees it: each stored volume must be the measure of its cell within 2p + 5
+.. ulp, so equally spaced radii beside stored equal shares are refused at
+.. construction (the class was TestMesh1DFromGeometry until then).
 .. vv-status: equal-volume-radius-spherical documented
 
 For :math:`R_0 = 0`: :math:`R_k = R_N(k/N)^{1/3}`.

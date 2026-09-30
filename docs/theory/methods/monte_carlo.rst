@@ -652,14 +652,17 @@ Periodic Boundary Conditions
 
 The MC solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
 condition resolution.  The BC is declared on the base geometry via
-:class:`~orpheus.geometry.boundary.BC` on :attr:`Mesh1D.bc_right
-<orpheus.mesh.structured.Mesh1D.bc_right>` and resolved at :class:`MCMesh`
-construction time.  :attr:`MCMesh.BC_REGISTRY` currently supports only
-``"periodic"`` (the default); additional BC types can be registered in
-the future.  The periodic law is applied to every face of the unit
+:class:`~orpheus.geometry.boundary.BC`, read from the mesh's outer face
+law (:attr:`Mesh1D.outer_law <orpheus.mesh.structured.Mesh1D.outer_law>`),
+and resolved at :class:`MCMesh` construction time.
+:attr:`MCMesh.BC_REGISTRY` currently supports only ``"periodic"``, which
+the mesh must declare (a mesh face always carries a declared law, so
+there is no default); additional BC types can be registered in the
+future.  The periodic law is applied to every face of the unit
 cell, so a declared left or inner law other than ``periodic`` is
 refused at :class:`MCMesh` construction with ``NotImplementedError``
-naming #513 (an undeclared one is admitted). The table of what each
+naming #513, and so is a hollow cylinder, whose cavity MC's material
+lookup would fill with the innermost material. The table of what each
 method reads is :ref:`structured-geometry-hollow-inner-law`.
 
 The unit cell is a square of side length :math:`p` (``pitch``).  When a

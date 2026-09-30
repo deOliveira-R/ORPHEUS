@@ -17,7 +17,7 @@ from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPParams, solve_cp
 from plotting import (
     plot_cp_convergence,
@@ -54,11 +54,11 @@ def main():
     geom = StructuredGeometry.wigner_seitz_pin_cell(
         r_fuel=0.9, r_clad=1.1, pitch=3.6,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel — equal-volume default
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # coolant
-    ))
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_volume(10),  # fuel — equal-volume default
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # coolant
+    )).mesh
     params = CPParams(solver_mode=solver_mode)
 
     n_fuel = (mesh.mat_ids == 2).sum()

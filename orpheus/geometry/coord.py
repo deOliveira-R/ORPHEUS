@@ -112,6 +112,17 @@ class CoordSystem(Enum):
             case CoordSystem.SPHERICAL:
                 return (4.0 / 3.0) * np.pi
 
+    def boundary_points(self, r_0: float, r_R: float) -> tuple[float, ...]:
+        r"""The boundary points of the interval :math:`[r_0, r_R]` in this system, inner first.
+
+        Both ends on a slab, and on a hollow cylinder or sphere
+        (:math:`r_0 > 0`); only :math:`r_R` on a solid one, whose centre
+        :math:`r = 0` is an interior point of the region and carries no law.
+        """
+        if self is CoordSystem.CARTESIAN or r_0 > 0.0:
+            return (r_0, r_R)
+        return (r_R,)
+
     def measure(self, edges: np.ndarray) -> np.ndarray:
         r"""The measures :math:`c\,(T(r_{j+1}) - T(r_j))` of the cells between ``edges``."""
         return self.measure_constant * np.diff(self.measure_coordinate(edges))

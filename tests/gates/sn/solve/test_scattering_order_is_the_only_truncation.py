@@ -40,7 +40,7 @@ from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.data.micro_xs.isotope import NG
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -65,8 +65,11 @@ def _slab(refl_cm: float, core_cm: float, refl_cells: int, core_cells: int) -> M
         mat_ids=(1, 0, 1),
         boundaries=(BC.vacuum, BC.vacuum),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=refl_cells), RegionMesh(n_cells=core_cells), RegionMesh(n_cells=refl_cells)))
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(refl_cells),
+        CellsByCount.uniform_volume(core_cells),
+        CellsByCount.uniform_volume(refl_cells),
+    )).mesh
 
 
 def _solve(materials, mesh, L: int, **tol):

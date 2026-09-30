@@ -37,8 +37,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.transport.spatial import LinearDiscontinuous
@@ -60,10 +60,9 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
     sigma_t, c, length = 40.0, 0.99, 1.0
     nx = 16
     materials = {0: _make_1g_mixture(sigma_t, c * sigma_t)}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(length, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
     ld = solve_sn_fixed_source(

@@ -106,8 +106,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.problem import SNProblem
@@ -210,12 +210,10 @@ _RTOL = 1e-12
 
 
 def _build_solver() -> SNSolver:
-    mat_ids = np.zeros(_NX, dtype=int)
-    mat_ids[_NX // 2:] = 1
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, _WIDTH, _NX + 1), mat_ids=mat_ids,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, _WIDTH / 2, _WIDTH), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(_NX // 2)).mesh
     problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: _FUEL, 1: _MODERATOR},

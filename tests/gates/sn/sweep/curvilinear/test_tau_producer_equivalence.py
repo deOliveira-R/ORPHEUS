@@ -78,8 +78,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import (
@@ -395,12 +395,9 @@ def test_identity_closure_tau_is_neutral_one():
     contribution vanishes identically.
     """
     nx = 8
-    edges = np.linspace(0.0, 5.0, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     problem = SNProblem(mesh, quad, placeholder_materials())
     reduced = problem.reduced

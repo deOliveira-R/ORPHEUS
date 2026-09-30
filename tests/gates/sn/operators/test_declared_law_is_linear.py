@@ -119,7 +119,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
@@ -200,9 +200,7 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
         mat_ids=(0, 1),
         boundaries=(xmin, BC.reflective if xmax is None else xmax),
     )
-    mesh = Mesh1D.from_geometry(
-        geom, region_meshes=(RegionMesh(n_cells=6), RegionMesh(n_cells=6)),
-    )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(6)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},

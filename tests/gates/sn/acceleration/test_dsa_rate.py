@@ -58,9 +58,9 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.mesh import Mesh1D
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection, DSALowOrderSystem
 from orpheus.sn.solver import Solution, solve_sn_fixed_source
@@ -100,12 +100,9 @@ def _uniform_solve_raw(
     max_inner: int = 4000,
 ) -> Solution:
     """1G homogeneous slab, K cells of optical thickness ``sth``."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, k * sth, k + 1),
-        mat_ids=np.zeros(k, dtype=int),
-        bc_left=BC(bc[0]),
-        bc_right=BC(bc[1]),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, k * sth), (0,), left=BC(bc[0]), right=BC(bc[1]),
+    )).partition(CellsByCount.uniform_width(k)).mesh
     return solve_sn_fixed_source(
         materials={0: _mix_1g(c)},
         mesh=mesh,
@@ -573,12 +570,9 @@ class TestS2Exactness:
     def test_heterogeneous_exactness(self):
         """K₂ = 0 is a property of the ANGULAR closure, not of material
         uniformity — the exact landing must survive heterogeneity."""
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 20.0, 21),
-            mat_ids=np.array([0] * 10 + [1] * 10),
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 10.0, 20.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(10)).mesh
         sol = solve_sn_fixed_source(
             materials={0: _mix_1g(0.9), 1: _mix_1g(0.5, sigma_t=2.0)},
             mesh=mesh,
@@ -631,12 +625,9 @@ def _p1_solve(
 ) -> Solution:
     """1G homogeneous ℓ≥1 slab (c₀ = 0.9, σ_t·h = 1), sweep retaining
     ℓ = 1 — the anisotropy-ladder configuration."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, float(k), k + 1),
-        mat_ids=np.zeros(k, dtype=int),
-        bc_left=BC(bc[0]),
-        bc_right=BC(bc[1]),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, float(k)), (0,), left=BC(bc[0]), right=BC(bc[1]),
+    )).partition(CellsByCount.uniform_width(k)).mesh
     return solve_sn_fixed_source(
         materials={0: _mix_1g_p1(0.9, eta)},
         mesh=mesh,
@@ -1002,12 +993,9 @@ class TestD9NoMasking:
     pytestmark = pytest.mark.l2
 
     def _solve_two_zone(self, mats, acceleration=None):
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 16.0, 33),
-            mat_ids=np.array([0] * 16 + [1] * 16),
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 8.0, 16.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(16)).mesh
         return solve_sn_fixed_source(
             materials=mats,
             mesh=mesh,
@@ -1094,12 +1082,9 @@ class TestSigmaRFoldCaught:
     pytestmark = [pytest.mark.l2, pytest.mark.catches("ERR-070")]
 
     def _solve(self, mats, acceleration=None):
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 20.0, 41),
-            mat_ids=np.array([0] * 20 + [1] * 20),
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 10.0, 20.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(20)).mesh
         return solve_sn_fixed_source(
             materials=mats,
             mesh=mesh,

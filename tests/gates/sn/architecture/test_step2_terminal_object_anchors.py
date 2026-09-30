@@ -87,8 +87,8 @@ import pytest
 import orpheus.sn.coupled_system as _cs_mod
 import orpheus.sn.solver as _solver_mod
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import (
@@ -140,11 +140,10 @@ def _fissile_slab() -> "tuple[dict[int, Mixture], Mesh1D, Quadrature, int]":
     from orpheus.derivations.common.xs_library import get_mixture
 
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 9),
-        mat_ids=np.array([0, 0, 0, 0, 1, 1, 1, 1]),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), 0
 
 

@@ -63,9 +63,9 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 
 from ...common.continuous_reference import (
@@ -142,9 +142,10 @@ class SNSlabMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         """Uniform Cartesian slab mesh with ``n_cells`` equal cells."""
-        edges = np.linspace(0.0, self.slab_length, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(edges=edges, mat_ids=mat_ids)
+        return Mesher(StructuredGeometry.slab(
+            (0.0, self.slab_length), (self.mat_id,),
+            left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate-density external source :math:`Q^{\text{ext}}_n` on ``mesh``.
@@ -409,9 +410,12 @@ class SNSlab2GHeterogeneousMMSCase:
     def build_mesh(self, n_cells: int) -> Mesh1D:
         """Uniform Cartesian slab mesh with ``n_cells`` cells and
         a unique material ID per cell."""
-        edges = np.linspace(0.0, self.slab_length, n_cells + 1)
-        mat_ids = np.arange(n_cells, dtype=int)
-        return Mesh1D(edges=edges, mat_ids=mat_ids)
+        # One interval per cell: the cross sections vary continuously, and
+        # each cell samples them at its centre as its own material.
+        return Mesher(StructuredGeometry.slab(
+            np.linspace(0.0, self.slab_length, n_cells + 1), range(n_cells),
+            left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(1)).mesh
 
     def build_materials(self, mesh: Mesh1D) -> dict[int, Mixture]:
         r"""Build a per-cell material dictionary by sampling the
@@ -1842,9 +1846,10 @@ class SNP1AnisoMMSCase:
         return np.sin(np.pi * np.asarray(x) / self.slab_length)
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        edges = np.linspace(0.0, self.slab_length, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(edges=edges, mat_ids=mat_ids)
+        return Mesher(StructuredGeometry.slab(
+            (0.0, self.slab_length), (self.mat_id,),
+            left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate external source for the P1 MMS ansatz.
@@ -1971,14 +1976,9 @@ class SNSphericalMMSCase:
         return (np.pi / R) * np.cos(np.pi * np.asarray(r) / R)
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        edges = np.linspace(0.0, self.radius, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),   # r = 0: symmetry
-            bc_right=BC("vacuum"),      # r = R: vacuum
-        )
+        return Mesher(StructuredGeometry.sphere(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r = mesh.centers
@@ -2058,14 +2058,9 @@ class SNCylindricalMMSCase:
         return (np.pi / R) * np.cos(np.pi * np.asarray(r) / R)
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        edges = np.linspace(0.0, self.radius, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),   # r = 0: symmetry
-            bc_right=BC("vacuum"),      # r = R: vacuum
-        )
+        return Mesher(StructuredGeometry.cylinder(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r = mesh.centers
@@ -3113,14 +3108,9 @@ class SNSphericalAnisotropicMMSCase:
     # ── Mesh + source construction ───────────────────────────────────
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        edges = np.linspace(0.0, self.radius, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),   # r = 0: symmetry
-            bc_right=BC("vacuum"),      # r = R: vacuum
-        )
+        return Mesher(StructuredGeometry.sphere(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate external source :math:`Q^{\rm ext}_n(r)` on
@@ -3305,13 +3295,10 @@ class SNSlabNonVacuumMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         """VACUUM-BC slab mesh; prescribed inflow is the ``q.boundary`` slot."""
-        edges = np.linspace(0.0, self.slab_length, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
+        return Mesher(StructuredGeometry.slab(
+            (0.0, self.slab_length), (self.mat_id,),
+            left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate-density bulk source on ``mesh``. Shape
@@ -3596,14 +3583,9 @@ class SNSphericalNonVacuumMMSCase:
         r"""Spherical mesh; r=0 symmetry (reflective), r=R VACUUM — the
         prescribed inflow at r=R is the ``q.boundary`` slot (NOT a mesh
         BC)."""
-        edges = np.linspace(0.0, self.radius, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),   # r=0 symmetry
-            bc_right=BC("vacuum"),      # r=R: prescribed inflow via q.boundary
-        )
+        return Mesher(StructuredGeometry.sphere(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate-density bulk source on ``mesh``. Shape
@@ -3808,14 +3790,9 @@ class SNCylindricalAnisotropicMMSCase:
     # ── Mesh + source construction ───────────────────────────────────
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
-        edges = np.linspace(0.0, self.radius, n_cells + 1)
-        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
-        return Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),   # r = 0: symmetry
-            bc_right=BC("vacuum"),      # r = R: vacuum
-        )
+        return Mesher(StructuredGeometry.cylinder(
+            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate external source on ``mesh``. Shape

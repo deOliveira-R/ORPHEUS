@@ -32,8 +32,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver, solve_diffusion_1d
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous import solve_homogeneous_infinite
 from orpheus.numerics.eigenvalue import ProductionRateSolver, direct_eigenvalue
 from orpheus.numerics.flat_operator import FlattenedOperator
@@ -90,15 +90,17 @@ def _fuel_3g():
     )
 
 
-_EDGES_HET = np.array([0.0, 0.5, 1.5, 3.0, 5.0])   # non-uniform
-_MAT_IDS_HET = np.array([0, 1, 1, 0])
-
-
-def _het_mesh(bc_left: BC, bc_right: BC) -> Mesh1D:
-    return Mesh1D(
-        edges=_EDGES_HET, mat_ids=_MAT_IDS_HET,
-        bc_left=bc_left, bc_right=bc_right,
+def _het_mesh(left: BC, right: BC) -> Mesh1D:
+    """Fuel [0, 0.5] | reflector [0.5, 3] (two cells, at 1.5) | fuel [3, 5]:
+    non-uniform cells, one ``CellEdges`` per material region."""
+    geometry = StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=left, right=right,
     )
+    return Mesher(geometry).partition((
+        CellEdges(np.array([0.0, 0.5])),
+        CellEdges(np.array([0.5, 1.5, 3.0])),
+        CellEdges(np.array([3.0, 5.0])),
+    )).mesh
 
 
 def _het_materials():
@@ -123,7 +125,7 @@ class TestEngineCrossGate:
     composite eigenvector must coincide (the campaign's 1e-10 gate)."""
 
     @pytest.mark.parametrize(
-        "bc_left, bc_right",
+        "left, right",
         [
             (BC("zero_flux"), BC("zero_flux")),
             (BC("reflective"), BC("zero_flux")),
@@ -132,9 +134,9 @@ class TestEngineCrossGate:
         ],
         ids=["zeroflux", "refl-zeroflux", "refl-albedo", "marshak-vacuum"],
     )
-    def test_power_matches_direct(self, bc_left, bc_right):
+    def test_power_matches_direct(self, left, right):
         materials = _het_materials()
-        mesh = _het_mesh(bc_left, bc_right)
+        mesh = _het_mesh(left, right)
 
         result = _solve_tight(materials, mesh)
 
@@ -175,11 +177,9 @@ class TestInfiniteMedium:
         ng = mix.ng
         # Non-uniform mesh — the constant mode is annihilated by L on ANY
         # spacing (the P4 gate), so k∞ must be reproduced exactly.
-        mesh = Mesh1D(
-            edges=np.array([0.0, 0.7, 1.5, 2.2]),
-            mat_ids=np.zeros(3, dtype=int),
-            bc_left=BC("reflective"), bc_right=BC("reflective"),
-        )
+        mesh = Mesher(
+            StructuredGeometry.from_homogeneous(2.2, BC("reflective")),
+        ).partition(CellEdges(np.array([0.0, 0.7, 1.5, 2.2]))).mesh
         result = _solve_tight({0: mix}, mesh)
         reference = solve_homogeneous_infinite(mix)
 
@@ -199,11 +199,9 @@ class TestInfiniteMedium:
         skip-scatter 1→3 and a split χ) IS the structural kill of the
         flip trick — no 2G rearrangement reproduces it."""
         mix = _fuel_3g()
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 40.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            bc_left=BC("zero_flux"), bc_right=BC("zero_flux"),
-        )
+        mesh = Mesher(
+            StructuredGeometry.from_homogeneous(40.0, BC("zero_flux")),
+        ).partition(CellsByCount.uniform_width(8)).mesh
         result = _solve_tight({0: mix}, mesh)
         # Leaky ⟹ strictly below k∞; positive fundamental mode.
         assert 0.0 < result.keff < solve_homogeneous_infinite(mix).k_inf
@@ -379,12 +377,3 @@ class TestProtocolAndDefaults:
     # (BC-tag / albedo-parameter / multi-D refusals moved to the PHASE
     # SPACE at #290 P7a — they fire at DiffusionMesh construction and
     # are gated in test_augmented_mesh.py.)
-
-    def test_undeclared_bcs_default_to_reflective(self):
-        """The infinite-lattice convention (the SN default, mirrored)."""
-        materials = _het_materials()
-        bare = Mesh1D(edges=_EDGES_HET, mat_ids=_MAT_IDS_HET)
-        explicit = _het_mesh(BC("reflective"), BC("reflective"))
-        k_bare = _solve_tight(materials, bare).keff
-        k_explicit = _solve_tight(materials, explicit).keff
-        assert abs(k_bare - k_explicit) < 1e-13

@@ -40,8 +40,8 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -252,11 +252,8 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
     RE-POSED at **B3.2** from "zeros only the inflow rows, passes the rest
     through" — see the 2-D sibling for why the pass-through claim retired.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0, 2, 9),
-        mat_ids=np.zeros(8, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(8)).mesh
     sn = SNProblem(mesh, quad_1d, placeholder_materials())
     assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
@@ -287,7 +284,9 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     code ever read) are retired, dict misses fail loud below.
     """
     slab = SNProblem(
-        Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
+        Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(4)).mesh,
         quad_1d, placeholder_materials(),
     )
     two_d = SNProblem(
@@ -296,13 +295,15 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
         quad_2d, placeholder_materials(),
     )
     sphere = SNProblem(
-        Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
-               coord=CoordSystem.SPHERICAL),
+        Mesher(StructuredGeometry.sphere(
+            (0.1, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(5)).mesh,
         quad_1d, placeholder_materials(),
     )
     cylinder = SNProblem(
-        Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
-               coord=CoordSystem.CYLINDRICAL),
+        Mesher(StructuredGeometry.cylinder(
+            (0.1, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(5)).mesh,
         Quadrature.folded_product(n_mu=4, n_phi=8), placeholder_materials(),
     )
     expected = {
@@ -326,7 +327,9 @@ def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):
     cycle).
     """
     slab = SNProblem(
-        Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
+        Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(4)).mesh,
         quad_1d, placeholder_materials(),
     )
     with pytest.raises(KeyError):
@@ -358,12 +361,8 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     Cartesian ones — is what this test is for and it is unchanged; only the
     object at the end of that path moved.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.1, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.1, 1.0), (0,), inner=BC.reflective, outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
     sn = SNProblem(mesh, quad_1d, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg op — since B3.2 the honest
     # ``Γ₊ → Γ₋`` zero map (no tensor-product lift: there is no full-face
@@ -398,7 +397,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
 
 def test_1d_cylindrical_one_boundary_outer_reflective():
     """A solid cylinder has ONE boundary — the outer radius (``xmax``).
-    Any ``bc_left`` declaration at the pole r=0 is moot: the centreline
+    Any law on the inner face is moot: the centreline
     is a geometry-forced symmetry handled by the angular closure,
     not an externally-imposed BC. So the ``bc`` dict has no pole
     entry, and only the outer reflective BC is realized. The
@@ -412,16 +411,14 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     restricted, with the partner map from the independent geometric
     reference (§7d.3).
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.1, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    geom = StructuredGeometry.cylinder(
+        (0.1, 1.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sn = SNProblem(mesh, quad, placeholder_materials())
-    # ONE boundary: no inner-face entry at the pole (the bc_left
-    # declaration on the mesh is ignored — the axis is the pole
+    # ONE boundary: no inner-face entry at the pole (the inner-face
+    # law on the mesh is ignored — the axis is the pole
     # closure's regularity condition, always symmetric by geometry).
     assert set(sn.bc) == {"xmax"}
     assert sn._trace is not None
@@ -469,9 +466,7 @@ def test_unknown_bc_kind_raises_valueerror(quad_1d):
     """Unsupported BC kind raises ``ValueError`` listing the supported
     set. Pinned for the BC-resolution diagnostic contract.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("periodic"),
-    )
+    geom = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("periodic"), right=BC.reflective)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
     with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
         SNProblem(mesh, quad_1d, placeholder_materials())

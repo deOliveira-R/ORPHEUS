@@ -20,8 +20,8 @@ from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import reference_values
 from orpheus.derivations.common.xs_library import LAYOUTS, get_mixture
 from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 pytestmark = PEIERLS_NYSTROM_WITHDRAWN
@@ -60,20 +60,12 @@ class TestPeierlsFluxConvergence:
 
         # Run CP with a fine mesh (16 subdivisions per region = 32 cells)
         n_sub = 16
-        all_thicknesses = []
-        all_mat_ids = []
-        for r_idx in range(n_regions):
-            t_sub = thicknesses[r_idx] / n_sub
-            mid = mat_ids_base[r_idx]
-            all_thicknesses.extend([t_sub] * n_sub)
-            all_mat_ids.extend([mid] * n_sub)
-
-        edges = np.concatenate([[0.0], np.cumsum(all_thicknesses)])
-        mesh = Mesh1D(
-            edges=edges,
-            mat_ids=np.array(all_mat_ids),
-            coord=CoordSystem.CARTESIAN,
+        geometry = StructuredGeometry.from_thicknesses(
+            coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
+            mat_ids=mat_ids_base, boundaries=(BC.white, BC.white),
         )
+        mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_sub)).mesh
+        edges = mesh.edges
 
         result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8, flux_tol=1e-7))
 

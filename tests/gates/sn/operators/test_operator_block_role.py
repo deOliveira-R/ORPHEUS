@@ -39,7 +39,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     ConstantInflowSource,
@@ -82,7 +82,7 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
         mat_ids=(0,),
         boundaries=(BC.vacuum, BC.vacuum),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -268,7 +268,7 @@ class TestBoundaryLeaves:
             mat_ids=(0,),
             boundaries=(BC.vacuum, BC.reflective),
         )
-        mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=4),))
+        mesh = Mesher(geom).partition(CellsByCount.uniform_volume(4)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn = SNProblem(mesh, quad, placeholder_materials(ng=1))
         for face in ("xmin", "xmax"):

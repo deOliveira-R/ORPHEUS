@@ -67,9 +67,9 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.mesh import Mesh1D
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry import BC
-from orpheus.geometry import CoordSystem
+from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     _adjoint_posing_parts,
@@ -115,28 +115,29 @@ def _mix_arrays(mix):
 
 def _infinite_medium(ng_key: str):
     mix = get_mixture("A", ng_key)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 5.0, 11), mat_ids=np.zeros(10, dtype=int),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+        CellsByCount.uniform_width(10),
+    ).mesh
     return {0: mix}, mesh, mix
 
 
 def _het_slab():
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, 9),
-        mat_ids=np.array([0, 0, 1, 1, 1, 1, 0, 0]),
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=BC("reflective"), right=BC("reflective"),
+    )).partition((
+        CellsByCount.uniform_width(2),
+        CellsByCount.uniform_width(4),
+        CellsByCount.uniform_width(2),
+    )).mesh
     return mats, mesh
 
 
 def _sphere():
     mats = {0: get_mixture("A", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 3.0), (0,), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(6)).mesh
     return mats, mesh
 
 
@@ -384,11 +385,9 @@ def _het_sphere():
     regions make φ* differ from φ spatially AND angularly.
     """
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 3.0, 7),
-        mat_ids=np.array([0, 0, 0, 1, 1, 1]),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.5, 3.0), (0, 1), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(3)).mesh
     return mats, mesh
 
 

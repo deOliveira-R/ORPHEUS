@@ -36,8 +36,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.coupled_system import (
@@ -64,37 +64,27 @@ pytestmark = pytest.mark.foundation
 # structure).  Fuel "A" (fission) + moderator "B".
 
 
-def _slab_2g_2region(nx: int = 6) -> tuple:
+def _slab_2g_2region(n_per_region: int = 3) -> tuple:
     """1-D slab, 2 regions (fuel | moderator), 2G, vacuum BCs."""
-    mat_ids = np.array([1] * (nx // 2) + [0] * (nx - nx // 2), dtype=int)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=mat_ids,
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (1, 0), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(n_per_region)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     materials = {1: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     return mesh, quad, materials
 
 
-def _sphere_2g_2region(nx: int = 6) -> tuple:
-    """1-D sphere, 2 regions, 2G, reflective centre + vacuum outer.
+def _sphere_2g_2region(n_per_region: int = 3) -> tuple:
+    """1-D sphere, 2 regions, 2G, vacuum outer (the centre carries no law).
 
     The curvilinear sibling: ``inner_solver="source_iteration"`` is passed
     explicitly so the fixed-source entry routes to ``_solve_fixed_source_si``
     (overriding the curvilinear ``"krylov"`` default) — i.e. it exercises the
     SAME SI primitive on a curvilinear mesh.
     """
-    mat_ids = np.array([1] * (nx // 2) + [0] * (nx - nx // 2), dtype=int)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=mat_ids,
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0, 2.0), (1, 0), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(n_per_region)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     materials = {1: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     return mesh, quad, materials

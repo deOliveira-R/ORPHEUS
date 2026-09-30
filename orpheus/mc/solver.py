@@ -148,23 +148,22 @@ def _refuse_a_mesh_mc_misreads(mesh: Mesh1D) -> None:
     ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.14).
     revisit: MC's campaign, which recycles the shared machinery (the direction of development).
 
-    ``MCMesh`` resolves only ``bc_right``, and its registry's only kind is
+    ``MCMesh`` resolves only the outer law, and its registry's only kind is
     ``periodic``, which it applies to every face of the unit cell. A
     declared left law of another kind is dropped (``[M]`` 2026-09-25: a slab
     with a vacuum left law and a periodic right law constructed and ran as
     periodic). Its material lookup clamps a radius below the first edge to
     region 0, so a hollow cylinder's cavity is filled with the innermost
     material (``[M]`` 2026-09-29, qa: breakpoints (0.5, 1.0, 2.0) returned
-    material 7 at r = 0). An undeclared (``None``) left law is admitted
-    until P1 step 3 retires ``None``.
+    material 7 at r = 0).
     """
     if mesh.coord is CoordSystem.CYLINDRICAL and mesh.edges[0] != 0.0:
         raise NotImplementedError(
             f"MC fills a hollow cylinder's cavity (r_0 = {float(mesh.edges[0])!r}) "
             f"with its innermost material; only a solid cylinder is read (#513)."
         )
-    left_law = mesh.bc_left
-    if left_law is not None and left_law.kind != "periodic":
+    if len(mesh.face_laws) == 2 and mesh.face_laws[0].kind != "periodic":
+        left_law = mesh.face_laws[0]
         raise NotImplementedError(
             f"MC applies the periodic law to every face; the declared left / "
             f"inner law {left_law!r} would be dropped (#513)."
@@ -212,7 +211,7 @@ class MCMesh:
         self._center = pitch / 2.0
 
         # Resolve boundary condition from mesh
-        bc = mesh.bc_right or BC("periodic")
+        bc = mesh.outer_law
         factory = self.BC_REGISTRY.get(bc.kind)
         if factory is None:
             supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))

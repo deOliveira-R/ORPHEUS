@@ -49,16 +49,17 @@ provides :class:`~orpheus.geometry.boundary.BC`, a frozen dataclass
 carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
 ``"white"``) and an optional ``params`` dict for numeric parameters
 (e.g. ``{"albedo": 0.7}``). The meshes of :doc:`/api/mesh` store a
-``BC`` tag, an already-typed boundary law, or ``None`` on each
-boundary face — :class:`~orpheus.mesh.structured.Mesh1D` has
-``bc_left`` and ``bc_right``;
+``BC`` tag or an already-typed boundary law on each boundary face:
+:class:`~orpheus.mesh.structured.Mesh1D` has ``face_laws``, one per
+boundary point of its interval, inner first;
 :class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``,
-``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. On a mesh a value of
-``None`` means "use the solver's default," which varies by method (e.g.
-reflective for SN eigenvalue, white for CP); a
-:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-refuses ``None``, because it declares the problem and a default is a
-method's.
+``bc_xmax``, ``bc_ymin``, and ``bc_ymax``. A
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` and a
+``Mesh1D`` refuse ``None``, because a declaration states the problem and
+a default is a method's. On a ``Mesh2D`` face a value of ``None`` still
+means "use the solver's default" (the shared resolution of S\ :sub:`N`
+and diffusion reads it as reflective) until
+step 3c of #405 retires it there too.
 
 The geometry module makes **no assumptions** about what a given
 ``kind`` means physically. Semantics are resolved by each method's own
@@ -79,8 +80,8 @@ construction raises ``ValueError`` listing the supported kinds.
 
 This pattern has three advantages:
 
-1. **Solver-agnostic problem setup.** The same ``Mesh1D`` with
-   ``bc_right=BC.vacuum`` can be passed to SN, CP, or diffusion
+1. **Solver-agnostic problem setup.** The same ``Mesh1D`` with a
+   vacuum outer law can be passed to SN, CP, or diffusion
    solvers without modification — each method-mesh resolves the tag
    through its own registry.
 2. **Extensibility.** Adding a new BC type (e.g. albedo, periodic)
@@ -127,10 +128,8 @@ defined in :mod:`orpheus.geometry.boundary` and exported from
 
 .. code-block:: python
 
-   import numpy as np
-
-   from orpheus.geometry import BC, CoordSystem
-   from orpheus.mesh import Mesh1D
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.mesh import CellsByCount, Mesher
 
    # Pre-built convenience instances (tab-completable)
    bc_v = BC.vacuum       # BC("vacuum")
@@ -140,14 +139,12 @@ defined in :mod:`orpheus.geometry.boundary` and exported from
    # Custom BC with parameters
    bc_a = BC("albedo", params={"albedo": 0.7})
 
-   # Attach to mesh faces — None means "use solver default"
-   mesh = Mesh1D(
-       edges=np.linspace(0, 10, 21),
-       mat_ids=np.zeros(20, dtype=int),
-       coord=CoordSystem.CARTESIAN,
-       bc_left=BC.reflective,
-       bc_right=BC.vacuum,
-   )
+   # Declare each boundary point's law on the geometry; the mesher
+   # carries the laws onto the mesh's faces, inner (left) first.
+   geom = StructuredGeometry.slab((0.0, 10.0), (0,), left=BC.reflective, right=BC.vacuum)
+   mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
+   assert mesh.face_laws == (BC.reflective, BC.vacuum)
+   assert mesh.outer_law == BC.vacuum
 
 Three convenience class-level instances are pre-defined:
 :obj:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`,
@@ -226,9 +223,14 @@ for each of these choices are on
 :doc:`/theory/foundations/structured_geometry`. Reference solution generators (``Billiard``, ``MomentSpace``,
 ``Spectrum``, ``BasisSpace``) consume it directly, because they need no
 mesh; the discrete production solvers consume the
-:class:`~orpheus.mesh.structured.Mesh1D` that
-:meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`
-builds from it (the construction path is on :doc:`/api/mesh`).
+:class:`~orpheus.mesh.structured.Mesh1D` that a
+:class:`~orpheus.mesh.mesher.Mesher` builds from it (the construction
+path is on :doc:`/api/mesh`). The named-face constructors
+``StructuredGeometry.slab(breakpoints, mat_ids, left=, right=)``,
+``cylinder`` and ``sphere`` (``outer=``, and ``inner=`` exactly when the
+body is hollow), ``uniform_boundary(coord, breakpoints, mat_ids, law)``
+and ``from_homogeneous(width, boundary)`` name each boundary point's law
+at the call site.
 
 A configuration published as thicknesses is built with
 :meth:`StructuredGeometry.from_thicknesses

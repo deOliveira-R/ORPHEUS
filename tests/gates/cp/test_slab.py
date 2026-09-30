@@ -1,11 +1,10 @@
 """Verify the slab collision probability solver against analytical CP eigenvalues."""
 
-import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPParams, solve_cp
 
 # Every test in this file exercises the slab CP pipeline end-to-end
@@ -43,13 +42,11 @@ def test_slab_cp_eigenvalue(case_name):
     """Slab CP solver must match the analytical CP eigenvalue."""
     case = get(case_name)
     gp = case.geom_params
-    thicknesses = np.array(gp["thicknesses"])
-    edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.array(gp["mat_ids"]),
-        coord=CoordSystem.CARTESIAN,
+    geometry = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
+        mat_ids=gp["mat_ids"], boundaries=(BC.white, BC.white),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     result = solve_cp(case.materials, mesh,
                       params=CPParams(
                           keff_tol=1e-7, flux_tol=1e-6))

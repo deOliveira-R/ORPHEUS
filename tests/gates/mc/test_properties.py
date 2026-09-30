@@ -20,8 +20,8 @@ from orpheus.mc.solver import (
     ConcentricPinCell, SlabPinCell, MCMesh, MCGeometry,
     MCParams, solve_monte_carlo,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_xs, get_mixture
 
@@ -115,11 +115,11 @@ def test_1g_homogeneous_deterministic():
 def test_mcmesh_satisfies_protocol():
     """MCMesh must satisfy the MCGeometry runtime protocol."""
     geom = StructuredGeometry.pwr_slab_half_cell()
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # cool
-    ))
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
     mc = MCMesh(mesh, pitch=3.6)
     assert isinstance(mc, MCGeometry)
 
@@ -130,11 +130,9 @@ def test_mcmesh_cartesian_lookup():
     Hand calculation: mesh edges [0, 0.5, 1.0], mat_ids [2, 0].
     x=0.25 → cell 0 → mat 2.  x=0.75 → cell 1 → mat 0.
     """
-    mesh = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.0]),
-        mat_ids=np.array([2, 0]),
-        coord=CoordSystem.CARTESIAN,
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 0.5, 1.0), (2, 0), left=BC("periodic"), right=BC("periodic"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     mc = MCMesh(mesh, pitch=2.0)
 
     assert mc.material_id_at(0.25, 0.5) == 2  # cell 0
@@ -155,11 +153,9 @@ def test_mcmesh_cylindrical_lookup():
     (1.5, 1.5) → r=0.0 → cell 0 → mat 2.
     (1.5, 2.2) → r=0.7 → cell 1 → mat 0.
     """
-    mesh = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.0]),
-        mat_ids=np.array([2, 0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, 0.5, 1.0), (2, 0), outer=BC("periodic"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     mc = MCMesh(mesh, pitch=3.0)
     center = 1.5
 
@@ -184,11 +180,11 @@ def test_mcmesh_cylindrical_matches_concentric():
     geom = StructuredGeometry.wigner_seitz_pin_cell(
         r_fuel=0.9, r_clad=1.1, pitch=3.6,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=10),  # fuel
-        RegionMesh(n_cells=3),   # clad
-        RegionMesh(n_cells=7),   # cool
-    ))
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_volume(10),  # fuel
+        CellsByCount.uniform_volume(3),   # clad
+        CellsByCount.uniform_volume(7),   # cool
+    )).mesh
     mc = MCMesh(mesh, pitch=3.6)
     ref = ConcentricPinCell.default_pwr(pitch=3.6)
 
@@ -205,11 +201,9 @@ def test_mcmesh_cylindrical_matches_concentric():
 
 def test_mcmesh_rejects_spherical():
     """MCMesh must reject spherical coordinate system."""
-    mesh = Mesh1D(
-        edges=np.array([0.0, 1.0]),
-        mat_ids=np.array([0]),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=BC("periodic"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     with pytest.raises(ValueError, match="SPHERICAL"):
         MCMesh(mesh, pitch=2.0)
 

@@ -106,8 +106,7 @@ discretisation of concentric pin-cell regions: the MOC mesh is
 built by tracking rays through the Wigner–Seitz cell that
 :meth:`StructuredGeometry.wigner_seitz_pin_cell
 <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-declares and :meth:`Mesh1D.from_geometry
-<orpheus.mesh.structured.Mesh1D.from_geometry>` discretises. 2-D
+declares and a :class:`~orpheus.mesh.mesher.Mesher` discretises. 2-D
 Cartesian assemblies are not yet supported; see the open MOC issues
 for the roadmap.
 

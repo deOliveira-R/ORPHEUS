@@ -122,8 +122,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -179,34 +179,20 @@ def _build_sn_mesh(
     """
     bc_obj = BC(bc)
     if geometry == "SLB":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=bc_obj,
-            bc_right=bc_obj,
-        )
+        geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=bc_obj, right=bc_obj)
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "SPH":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),  # r=0 pole — regularity, not a BC
-            bc_right=bc_obj,
-        )
+        # r=0 is the pole (regularity, not a boundary): no law there.
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=bc_obj)
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "CYL":
-        mesh = Mesh1D(
-            edges=np.linspace(0.01, 2.0, n_cells + 1),
-            mat_ids=np.zeros(n_cells, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),
-            bc_right=bc_obj,
+        geom = StructuredGeometry.cylinder(
+            (0.01, 2.0), (0,), inner=BC("reflective"), outer=bc_obj,
         )
         quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     else:
         raise ValueError(geometry)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
     return SNProblem(mesh, quad, placeholder_materials())
 
 

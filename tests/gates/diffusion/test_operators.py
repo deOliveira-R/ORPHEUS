@@ -49,8 +49,8 @@ from orpheus.diffusion import (
     DiffusionMesh,
     LeakageOperator,
 )
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (
@@ -96,6 +96,10 @@ _SIG_S_A = np.array([[0.1900, 0.0160], [0.0, 0.4200]])   # [g_from, g_to]
 _SIG_S_B = np.array([[0.1000, 0.0020], [0.0, 0.0500]])
 _EDGES = np.array([0.0, 0.5, 1.5, 3.0, 5.0])             # non-uniform
 _MAT_IDS = np.array([0, 1, 1, 0])
+# The material regions of the fixture: [0, 0.5] and [3, 5] of material 0,
+# [0.5, 3] of material 1 (two cells).
+_BREAKPOINTS = (0.0, 0.5, 3.0, 5.0)
+_REGION_MATS = (0, 1, 0)
 
 
 _SIG_F_A = np.array([0.0024, 0.0489])
@@ -120,16 +124,24 @@ def _fixture_materials() -> dict[int, object]:
     return {0: mix_a, 1: mix_b}
 
 
+def _fixture_mesh1d(left: BC, right: BC, scale: float = 1.0) -> Mesh1D:
+    """The fixture's non-uniform cells (``scale * _EDGES``), one
+    ``CellEdges`` per material region, with ``left``/``right`` laws."""
+    edges = scale * _EDGES
+    geometry = StructuredGeometry.slab(
+        tuple(scale * b for b in _BREAKPOINTS), _REGION_MATS, left=left, right=right,
+    )
+    return Mesher(geometry).partition(tuple(
+        CellEdges(edges[(edges >= a) & (edges <= b)]) for a, b in geometry.intervals
+    )).mesh
+
+
 def _diffusion_mesh(
-    bc_left: BC = BC("reflective"), bc_right: BC = BC("vacuum"),
+    left: BC = BC("reflective"), right: BC = BC("vacuum"),
 ) -> DiffusionMesh:
     """The fixture phase space; boundary laws declared as mesh BC tags
     and realized at construction (#290 P7a)."""
-    mesh1d = Mesh1D(
-        edges=_EDGES, mat_ids=_MAT_IDS,
-        bc_left=bc_left, bc_right=bc_right,
-    )
-    return DiffusionMesh(mesh1d, _fixture_materials())
+    return DiffusionMesh(_fixture_mesh1d(left, right), _fixture_materials())
 
 
 @pytest.fixture
@@ -269,8 +281,8 @@ _CONFIGS = {
 def _config_setup(config: str):
     """(mesh, mat_xs, template, albedos) for one BC config — the
     composite template must live on the config's own mesh instance."""
-    (bc_left, bc_right), albedos = _CONFIGS[config]
-    mesh = _diffusion_mesh(bc_left, bc_right)
+    (left, right), albedos = _CONFIGS[config]
+    mesh = _diffusion_mesh(left, right)
     template = FullField.zeros(
         interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=mesh.full_field_space,
     )
@@ -519,7 +531,7 @@ class TestLeakageOperator:
         ))
         # A carrier whose volumes differ refuses (space-content invariant).
         other = DiffusionMesh(
-            Mesh1D(edges=2.0 * _EDGES, mat_ids=_MAT_IDS),
+            _fixture_mesh1d(BC("reflective"), BC("reflective"), scale=2.0),
             _fixture_materials(),
         )
         foreign = FullField(
@@ -533,10 +545,9 @@ class TestLeakageOperator:
         """Uniform-h single-material sanity: (Lφ)_i = −D(φ_{i+1} − 2φ_i
         + φ_{i−1})/h² in the interior — the classic 3-point stencil."""
         mats = _fixture_materials()
-        mesh1d = Mesh1D(
-            edges=np.linspace(0.0, 4.0, 5), mat_ids=np.zeros(4, dtype=int),
-            bc_left=BC("reflective"), bc_right=BC("reflective"),
-        )
+        mesh1d = Mesher(
+            StructuredGeometry.from_homogeneous(4.0, BC("reflective")),
+        ).partition(CellsByCount.uniform_width(4)).mesh
         mm = DiffusionMesh(mesh1d, {0: mats[0]})
         L = LeakageOperator(mm)
         rng = np.random.default_rng(3)

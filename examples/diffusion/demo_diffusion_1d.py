@@ -28,8 +28,8 @@ import numpy as np
 
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 
 OUTPUT = Path("results")
 
@@ -64,12 +64,17 @@ def main():
     # 50 cm reflector | 300 cm fuel | 50 cm reflector, dz = 5 cm.
     dz = 5.0
     n_refl, n_fuel = 10, 60
-    edges = np.arange(0.0, (2 * n_refl + n_fuel) * dz + dz / 2, dz)
-    mat_ids = np.array([0] * n_refl + [1] * n_fuel + [0] * n_refl)
-    mesh = Mesh1D(
-        edges=edges, mat_ids=mat_ids,
-        bc_left=BC("zero_flux"), bc_right=BC("zero_flux"),
+    geometry = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=(n_refl * dz, n_fuel * dz, n_refl * dz),
+        mat_ids=(0, 1, 0),
+        boundaries=(BC("zero_flux"), BC("zero_flux")),
     )
+    mesh = Mesher(geometry).partition((
+        CellsByCount.uniform_width(n_refl),
+        CellsByCount.uniform_width(n_fuel),
+        CellsByCount.uniform_width(n_refl),
+    )).mesh
 
     result = solve_diffusion_1d(_core1d_materials(), mesh)
 
@@ -79,8 +84,8 @@ def main():
 
     # The eigenmode is production-normalized (∫νΣf·φ dV = 1); rescaling
     # to an absolute flux at a target power is one multiplication.
-    z_cells = 0.5 * (edges[:-1] + edges[1:])
-    z_faces = edges
+    z_cells = mesh.centers
+    z_faces = mesh.edges
     flux = result.flux.bulk.values          # (2, n_cells)
     current = result.current                # (2, n_faces), axis-signed
 

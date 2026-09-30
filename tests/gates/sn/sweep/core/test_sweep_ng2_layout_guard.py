@@ -34,7 +34,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
@@ -51,7 +51,7 @@ def _slab_1d(n_cells: int) -> Mesh1D:
         mat_ids=(0,),
         boundaries=(BC.reflective, BC.reflective),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def test_sweep_ng2_layout_shapes():

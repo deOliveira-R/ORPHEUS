@@ -13,8 +13,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -49,8 +49,9 @@ class TestAlphaCoefficients:
     @pytest.mark.parametrize("N", [4, 8, 16, 32])
     def test_alpha_boundary_conditions(self, N):
         """α_{1/2} = 0 and α_{N+1/2} = 0 by GL antisymmetry."""
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                      coord=CoordSystem.SPHERICAL)
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(N)
         problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -66,8 +67,9 @@ class TestAlphaCoefficients:
         wrong Bailey paper (a piecewise-linear FE *diffusion* paper,
         unrelated to curvilinear SN), retracted at #168 Phase B.
         """
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                      coord=CoordSystem.SPHERICAL)
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(8)
         problem = SNProblem(mesh, quad, placeholder_materials())
 
@@ -83,8 +85,9 @@ class TestAlphaCoefficients:
 
         Follows from GL symmetry (w_n = w_{N-1-n}, μ_n = -μ_{N-1-n}).
         """
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                      coord=CoordSystem.SPHERICAL)
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(8)
         problem = SNProblem(mesh, quad, placeholder_materials())
 

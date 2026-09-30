@@ -347,14 +347,6 @@ def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
 # verification/analytical/) share ONE definition rather than each
 # carrying a copy.
 
-def _bcs_for(coord, bc):
-    """``bc`` at every boundary point of a solid geometry in ``coord``."""
-    from orpheus.geometry import CoordSystem
-    if coord is CoordSystem.CARTESIAN:
-        return (bc, bc)
-    return (bc,)
-
-
 def curvilinear_homogeneous_mesh(
     n_cells: int,
     total_width: float,
@@ -369,18 +361,13 @@ def curvilinear_homogeneous_mesh(
     only supports ``"vacuum"`` / ``"white"``.
     """
     from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-    from orpheus.mesh import Mesh1D, RegionMesh
+    from orpheus.mesh import CellsByCount, Mesher
     if coord is None:
         coord = CoordSystem.CARTESIAN
     if bc is None:
         bc = BC.reflective
-    geom = StructuredGeometry(
-        coord=coord,
-        breakpoints=(0.0, total_width),
-        mat_ids=(mat_id,),
-        boundaries=_bcs_for(coord, bc),
-    )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, total_width), (mat_id,), bc)
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def curvilinear_two_region_mesh(
@@ -392,20 +379,13 @@ def curvilinear_two_region_mesh(
 ):
     """Two-region mesh; ``outers`` are the regions' outer positions."""
     from orpheus.geometry import BC, StructuredGeometry
-    from orpheus.mesh import RegionMesh
-    from orpheus.mesh import Mesh1D
+    from orpheus.mesh import CellsByCount, Mesher
     if bc is None:
         bc = BC.reflective
-    geom = StructuredGeometry(
-        coord=coord,
-        breakpoints=(0.0, *outers),
-        mat_ids=tuple(mat_ids),
-        boundaries=_bcs_for(coord, bc),
-    )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=n_cells[0]),
-        RegionMesh(n_cells=n_cells[1]),
-    ))
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, *outers), mat_ids, bc)
+    return Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for n in n_cells),
+    ).mesh
 
 
 def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNProblem":

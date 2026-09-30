@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations import get
 from orpheus.moc.solver import solve_moc
 
@@ -29,11 +29,9 @@ pytestmark = pytest.mark.verifies(
 def _build_homogeneous_mesh(mix):
     """Build a single-region Wigner-Seitz mesh for homogeneous tests."""
     r_cell = 3.6 / np.sqrt(np.pi)
-    return Mesh1D(
-        edges=np.array([0.0, r_cell]),
-        mat_ids=np.array([0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    return Mesher(StructuredGeometry.cylinder(
+        (0.0, r_cell), (0,), outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(1)).mesh
 
 
 @pytest.mark.parametrize("case_name", [

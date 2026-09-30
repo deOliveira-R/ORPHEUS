@@ -150,6 +150,10 @@ class IntervalRule(Protocol):
         """The edges and the measures of the cells of ``interval``."""
         ...
 
+    def __rmul__(self, factor: int) -> "IntervalRule":
+        """The rule's refinement, ``factor`` a power of two (refused by rules that cannot refine)."""
+        ...
+
 
 class CountedRule(ABC):
     r"""An interval rule that places a number of cells by a spacing rule.

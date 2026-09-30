@@ -47,8 +47,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.problem import SNProblem
@@ -81,17 +81,11 @@ from tests.gates.sn.verification.analytical._certified_agreement import (
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_cyl(n_cells: int, quad, edges=None) -> SNProblem:
-    """Build a homogeneous reflective cylinder mesh."""
-    if edges is None:
-        edges = np.linspace(0.1, 1.0, n_cells + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(n_cells, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+def _build_cyl(n_cells: int, quad) -> SNProblem:
+    """Build a homogeneous reflective hollow cylinder mesh."""
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.1, 1.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(n_cells)).mesh
     return SNProblem(mesh, quad, placeholder_materials())
 
 
@@ -393,24 +387,14 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
         i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
         for i in range(3)
     }
-    # Cell-edge-aligned region boundaries.
-    edges = np.linspace(0.0, ABA_RADII[-1], nx + 1)
-    mat_ids = np.zeros(nx, dtype=int)
-    cell_centres = 0.5 * (edges[:-1] + edges[1:])
-    for i_cell, r_c in enumerate(cell_centres):
-        if r_c <= ABA_RADII[0]:
-            mat_ids[i_cell] = 0
-        elif r_c <= ABA_RADII[1]:
-            mat_ids[i_cell] = 1
-        else:
-            mat_ids[i_cell] = 0
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=mat_ids,
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    # Regions A | B | A end at ABA_RADII; nx equal-width cells over the
+    # whole radius, so each region holds its width's share of them.
+    radii = (0.0, *map(float, ABA_RADII))
+    geom = StructuredGeometry.cylinder(radii, (0, 1, 0), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(tuple(
+        CellsByCount.uniform_width(round(nx * (b - a) / radii[-1]))
+        for a, b in geom.intervals
+    )).mesh
     return mesh, materials
 
 
@@ -526,13 +510,9 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
     )
 
     nx = 20
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("reflective")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
     sol = solve_sn(

@@ -50,8 +50,8 @@ import pytest
 from orpheus.derivations import continuous_get
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
@@ -90,17 +90,16 @@ def _zero_flux_problem(
     Returns the mesh and the cell-centre coordinates the continuous
     reference is evaluated at.
     """
-    n_cells = [round(h / dz) for h in region_heights]
-    length = float(sum(region_heights))
-    edges = np.linspace(0.0, length, sum(n_cells) + 1)
-    mat_ids = np.concatenate(
-        [np.full(n, i, dtype=int) for i, n in enumerate(n_cells)]
+    geometry = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN,
+        thicknesses=region_heights,
+        mat_ids=range(len(region_heights)),
+        boundaries=(BC("zero_flux"), BC("zero_flux")),
     )
-    mesh = Mesh1D(
-        edges=edges, mat_ids=mat_ids,
-        bc_left=BC("zero_flux"), bc_right=BC("zero_flux"),
-    )
-    z_cells = 0.5 * (edges[:-1] + edges[1:])
+    mesh = Mesher(geometry).partition(
+        tuple(CellsByCount.uniform_width(round(h / dz)) for h in region_heights),
+    ).mesh
+    z_cells = 0.5 * (mesh.edges[:-1] + mesh.edges[1:])
     return mesh, z_cells
 
 

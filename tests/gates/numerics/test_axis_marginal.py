@@ -37,8 +37,8 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.manifold import IndexSet
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -64,12 +64,10 @@ def _product() -> FunctionSpace:
 
 
 def _sn() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0]),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.slab((0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geometry).partition(
+        CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
+    ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 
@@ -446,16 +444,14 @@ class TestFrameInduction:
         This row pins the BOUND (≤ 1 ulp on the divisor; ≤ 4 nulp on
         the kernel), not the inequality — a future numpy that closes
         the gap tightens silently, which is the correct direction."""
-        from orpheus.geometry import BC, CoordSystem
-        from orpheus.mesh import Mesh1D
         from orpheus.sn.problem import SNProblem
 
-        mesh = Mesh1D(
-            edges=np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0]),
-            mat_ids=np.zeros(5, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+        geometry = StructuredGeometry.slab(
+            (0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
         )
+        mesh = Mesher(geometry).partition(
+            CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
+        ).mesh
         sn = SNProblem(
             mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2),
         )

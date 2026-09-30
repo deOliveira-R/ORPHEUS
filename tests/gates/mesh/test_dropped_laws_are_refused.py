@@ -1,25 +1,26 @@
 """CP, MoC and MC refuse a declared law they would drop (#513, #514).
 
 Each of the three reads only part of a mesh's declared boundary: CP and MC
-resolve only ``bc_right``, and MoC reads any mesh as the solid Wigner–Seitz
+resolve only the outer law, and MoC reads any mesh as the solid Wigner–Seitz
 cylinder of a square pin cell. Before P1 step 2 a law they did not read was
 dropped silently (``[M]`` 2026-09-25, the P1 specification's probes
 ``cp_slab_left_law.py`` and ``partial_law_readers.py``). Step 2 makes a
 hollow body and a declared inner law expressible on a
 :class:`~orpheus.geometry.StructuredGeometry`, so each method's refusal lands
 with it (the specification's S3.12 to S3.14, moved into step 2 by the user's
-ruling of 2026-09-29). Each refusal is a declared scope boundary; an
-undeclared (``None``) law is admitted until P1 step 3 retires ``None``.
+ruling of 2026-09-29). Each refusal is a declared scope boundary. Since
+P1 step 3b ``None`` is not a law (the mesh refuses it), so the rows that
+admitted an undeclared left law are gone; each method's admitted pair is
+the declared one.
 """
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from orpheus.cp.solver import CPMesh
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mc.solver import MCMesh
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
 
@@ -27,14 +28,15 @@ pytestmark = pytest.mark.foundation
 
 
 def _slab(left, right) -> Mesh1D:
-    return Mesh1D(np.linspace(0.0, 2.0, 5), np.zeros(4, int), bc_left=left, bc_right=right)
+    geometry = StructuredGeometry.slab((0.0, 2.0), (0,), left=left, right=right)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
 
 def _hollow(coord: CoordSystem, inner, outer) -> Mesh1D:
     geometry = StructuredGeometry(
         coord=coord, breakpoints=(0.5, 2.0), mat_ids=(0,), boundaries=(inner, outer),
     )
-    return Mesh1D.from_geometry(geometry, region_meshes=(RegionMesh(n_cells=4),))
+    return Mesher(geometry).partition(CellsByCount.uniform_volume(4)).mesh
 
 
 # ── S3.12: CP reads only the outer law ─────────────────────────────────
@@ -49,7 +51,7 @@ class TestCP:
         with pytest.raises(NotImplementedError, match="#513"):
             CPMesh(_slab(left, right))
 
-    @pytest.mark.parametrize("left", [BC.white, None], ids=["equal", "undeclared"])
+    @pytest.mark.parametrize("left", [BC.white], ids=["equal"])
     def test_a_slab_whose_left_law_is_read_builds(self, left):
         CPMesh(_slab(left, BC.white))
 
@@ -80,9 +82,10 @@ class TestMOC:
         geometry = StructuredGeometry.wigner_seitz_pin_cell(
             boundaries=(BC.reflective,),
         )
-        mesh = Mesh1D.from_geometry(geometry, region_meshes=(
-            RegionMesh(n_cells=2), RegionMesh(n_cells=1), RegionMesh(n_cells=2),
-        ))
+        mesh = Mesher(geometry).partition((
+            CellsByCount.uniform_volume(2), CellsByCount.uniform_volume(1),
+            CellsByCount.uniform_volume(2),
+        )).mesh
         MOCMesh(mesh, self._QUADRATURE)
 
 
@@ -95,7 +98,7 @@ class TestMC:
         with pytest.raises(NotImplementedError, match="#513"):
             MCMesh(_slab(left, BC("periodic")), pitch=2.0)
 
-    @pytest.mark.parametrize("left", [BC("periodic"), None], ids=["periodic", "undeclared"])
+    @pytest.mark.parametrize("left", [BC("periodic")], ids=["periodic"])
     def test_a_periodic_or_undeclared_left_law_builds(self, left):
         MCMesh(_slab(left, BC("periodic")), pitch=2.0)
 

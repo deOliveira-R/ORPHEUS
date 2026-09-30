@@ -37,8 +37,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
     CumprodScan,
@@ -74,13 +74,10 @@ def require(condition: bool, message: str) -> None:
 def _slab(scheme=None, ng: int = 2):
     """Reflective 2G slab; per-group-varying σ_t (the reciprocity-file recipe)."""
     quad = Quadrature.gauss_legendre(4)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), scheme=scheme)
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 0.5 * (1.0 + 0.5 * g)) for g in range(ng)], axis=0

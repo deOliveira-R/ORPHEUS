@@ -28,8 +28,8 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis import Basis, IndicatorBasis
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
@@ -187,11 +187,10 @@ def test_evaluate_rejects_wrong_dimension():
 # ── role separation (negative) ────────────────────────────────────────
 def test_mesh_is_not_a_basis_but_yields_one():
     """The mesh YIELDS a basis view; it does NOT inherit Basis (role separation)."""
-    mesh = Mesh1D(
-        edges=_COARSE_EDGES, mat_ids=np.array([0, 1]),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    geometry = StructuredGeometry.slab(
+        _COARSE_EDGES, (0, 1), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     assert not isinstance(mesh, Basis)
     assert isinstance(mesh.indicator_basis(), Basis)
     # the yielded basis is built from the mesh's own edges

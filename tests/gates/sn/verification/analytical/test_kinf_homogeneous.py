@@ -86,7 +86,7 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_4g_continuous,
 )
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -135,14 +135,10 @@ def _homogeneous_mesh(coord: str, n_cells: int, length: float, mat_id: int) -> M
     guarantees no neutron leakage so the discrete eigenvalue converges
     to k_inf.
     """
-    bcs = (BC.reflective, BC.reflective) if coord == "slab" else (BC.reflective,)
-    geom = StructuredGeometry(
-        coord=_COORD[coord],
-        breakpoints=(0.0, length),
-        mat_ids=(mat_id,),
-        boundaries=bcs,
+    geom = StructuredGeometry.uniform_boundary(
+        _COORD[coord], (0.0, length), (mat_id,), BC.reflective,
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def _quadrature_for(coord: str):

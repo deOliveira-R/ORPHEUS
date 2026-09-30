@@ -37,8 +37,8 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -59,13 +59,9 @@ NEW_BOUNDARY_LEAVES = [AngularBoundarySourceSink, AngularBoundaryResidual]
 
 
 def _slab_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -73,25 +69,17 @@ def _slab_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
 def _quad8_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
     """GL(8) sibling of ``_slab_mesh`` — the boundary-trace CONTENT (and
     shape) differs, so the carrier mints an UNEQUAL trace space (F2)."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _sphere_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 

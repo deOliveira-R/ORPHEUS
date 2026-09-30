@@ -30,8 +30,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection
 from orpheus.sn.solver import Solution, solve_sn_fixed_source
@@ -56,12 +56,9 @@ def _solve(
 ) -> Solution:
     """Het 2-zone, 2G, ℓ ≥ 1 slab, S4 — the Mode-9-honest config."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 20.0, 41),
-        mat_ids=np.array([0] * 20 + [1] * 20),
-        bc_left=BC(bc[0]),
-        bc_right=BC(bc[1]),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 10.0, 20.0), (0, 1), left=BC(bc[0]), right=BC(bc[1]),
+    )).partition(CellsByCount.uniform_width(20)).mesh
     return solve_sn_fixed_source(
         materials=mats,
         mesh=mesh,
@@ -142,12 +139,9 @@ class TestD6CorrectionVanishes:
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 20.0, 41),
-            mat_ids=np.array([0] * 20 + [1] * 20),
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 10.0, 20.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(20)).mesh
         problem = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),

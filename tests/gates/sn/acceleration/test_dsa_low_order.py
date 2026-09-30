@@ -28,14 +28,14 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.discrete.sn import dsa as dsa_reference
-from orpheus.geometry import BC
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     PrescribedInflow,
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.mesh import Mesh1D
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
 from orpheus.sn.problem import SNProblem
@@ -44,16 +44,23 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 pytestmark = pytest.mark.foundation
 
 
-def _slab(bc_left: str = "vacuum", bc_right: str = "vacuum") -> SNProblem:
+def _four_cell_mesh(left: BC, right: BC):
+    """The non-uniform 4-cell slab: materials 0 | 1 | 0 on [0, 0.5, 3, 5],
+    the middle region split at 1.5."""
+    return Mesher(StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=left, right=right,
+    )).partition((
+        CellEdges(np.array([0.0, 0.5])),
+        CellEdges(np.array([0.5, 1.5, 3.0])),
+        CellEdges(np.array([3.0, 5.0])),
+    )).mesh
+
+
+def _slab(left: str = "vacuum", right: str = "vacuum") -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups (the 3a tie
     fixture — mixtures carry real P1 data, so the (23c) D is exercised
     beyond the bare-P0 coincidence)."""
-    mesh1d = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-        mat_ids=np.array([0, 1, 1, 0]),
-        bc_left=BC(bc_left),
-        bc_right=BC(bc_right),
-    )
+    mesh1d = _four_cell_mesh(BC(left), BC(right))
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
@@ -179,12 +186,7 @@ class TestAdmissionTeeth:
             LinearDiscontinuous,
         )
 
-        mesh1d = Mesh1D(
-            edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-            mat_ids=np.array([0, 1, 1, 0]),
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh1d = _four_cell_mesh(BC("vacuum"), BC("vacuum"))
         problem = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=4),
@@ -273,12 +275,7 @@ class TestRestrictionProlongation:
         (``[M]`` 2026-09-28: max rel 2.2e-16 at GL8 for both; the same
         re-association ``test_g61_retraction_of_section_is_the_identity``
         records)."""
-        mesh1d = Mesh1D(
-            edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-            mat_ids=np.array([0, 1, 1, 0]),
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh1d = _four_cell_mesh(BC("vacuum"), BC("vacuum"))
         problem = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=n_ordinates),

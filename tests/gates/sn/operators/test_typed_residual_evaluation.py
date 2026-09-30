@@ -26,8 +26,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import FullFieldSpace
@@ -57,12 +57,10 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     posed, never a re-composed twin)."""
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
-    mat_ids = np.zeros(nx, dtype=int)
-    mat_ids[: nx // 2] = 2  # fuel | moderator split
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=mat_ids,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(  # fuel | moderator split
+        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(problem, inner_solver="source_iteration")
@@ -95,10 +93,8 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     r"""[L11 paired] well-formed same-class source operands → AngularResidual
     on the ``"angular_residual"`` space; a flux operand (wrong units) RAISES."""
     fuel = get_mixture("A", "2g")
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 9), mat_ids=np.zeros(8, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     problem = SNProblem(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
@@ -200,12 +196,10 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
     only construction, not the SI fixed point."""
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
-    mat_ids = np.zeros(nx, dtype=int)
-    mat_ids[: nx // 2] = 2  # fuel | moderator split
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=mat_ids,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(  # fuel | moderator split
+        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(
@@ -348,13 +342,9 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
 
 
 def _tiny_sphere_2g(nx: int = 5):
-    from orpheus.geometry import CoordSystem
-
     fuel = get_mixture("A", "2g")
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: fuel})
 
 
@@ -568,10 +558,10 @@ class TestSolutionRayMember:
 
         # Seedless: the member is None…
         fuel = get_mixture("A", "2g")
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, 6), mat_ids=np.zeros(5, dtype=int),
-            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+        geom = StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
         )
+        mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
         sol = solve_sn_fixed_source(
             {0: fuel}, mesh, Quadrature.gauss_legendre(4),
             np.ones((4, 2, 5)),

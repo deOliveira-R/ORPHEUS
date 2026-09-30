@@ -31,8 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicBoundarySpace as Boundary,
@@ -62,19 +62,10 @@ def _legs(levels: tuple[int, ...]) -> list[tuple[int, int]]:
 
 
 def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
-    edges = np.linspace(0.0, 1.0, nx + 1)
-    mat_ids = np.zeros(nx, dtype=int)
-    # Cartesian gets a reflective LEFT edge too; curvilinear leaves the r = 0
-    # pole/axis to the Mesh1D default (the symmetry condition).
-    if coord is CoordSystem.CARTESIAN:
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids, coord=coord,
-            bc_left=BC("reflective"), bc_right=BC("reflective"),
-        )
-    else:
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids, coord=coord, bc_right=BC("reflective"),
-        )
+    # Reflective on every boundary point: both slab faces; on a solid body
+    # the r = 0 pole/axis is an interior point and carries no law.
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 

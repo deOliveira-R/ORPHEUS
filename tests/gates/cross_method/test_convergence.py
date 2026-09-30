@@ -5,7 +5,7 @@ import pytest
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -41,10 +41,7 @@ def test_sn_approaches_cp_reference():
         mat_ids=(2, 0),
         boundaries=(BC.reflective, BC.reflective),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=40),
-        RegionMesh(n_cells=40),
-    ))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(40)).mesh
     quad = Quadrature.gauss_legendre(32)
     result = solve_sn(
         materials, mesh, quad,

@@ -98,8 +98,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
@@ -122,14 +122,9 @@ def _heterogeneous_2g_cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12):
     a homogeneous or 1-group fixture would null exactly the terms the
     angular recurrence redistributes (`vv-principles` #3/#4).
     """
-    edges = np.linspace(0.0, 2.0, nx + 1)
-    r_mid = 0.5 * (edges[:-1] + edges[1:])
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.where(r_mid < 1.0, 0, 1).astype(int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, 1.0, 2.0), (0, 1), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     return SNProblem(mesh, quad, materials)

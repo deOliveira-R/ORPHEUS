@@ -20,8 +20,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh, solve_diffusion_1d
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 
 pytestmark = pytest.mark.foundation
 
@@ -42,8 +42,8 @@ def _keff(hub: DiffusionMesh) -> float:
 
 def test_a_sigma_variant_hub_reaches_the_diffusion_removal_term() -> None:
     mats = {0: get_mixture("A", "2g")}
-    mesh = Mesh1D(edges=np.linspace(0.0, 4.0, 9), mat_ids=np.zeros(8, dtype=int),
-                  bc_left=BC("reflective"), bc_right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=BC("reflective"), right=BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(8)).mesh
     hub = DiffusionMesh(mesh, mats)
     hub_b = hub.with_cross_sections(3.0 * hub.sigma_t_cell)
     _require(hub_b != hub and hub_b.same_phase_space(hub), "a σ-variant: another Problem, the same phase space")

@@ -170,8 +170,8 @@ from typing import TYPE_CHECKING, Any, Iterator
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation as _loss_representation
 from orpheus.sn.problem import SNProblem
@@ -364,14 +364,15 @@ def _slab(nx: int, *, n_ord: int = 8) -> SNProblem:
     Shaped after the same file's ``_slab``, widened with grading and the
     two-region split.
     """
-    mat_ids = np.zeros(nx, dtype=int)
-    mat_ids[nx // 2:] = 1
-    mesh = Mesh1D(
-        edges=_stretched_edges(4.0, nx, ratio=1.01),
-        mat_ids=mat_ids,
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    edges = _stretched_edges(4.0, nx, ratio=1.01)
+    split = nx // 2   # the fuel | moderator interface is the edge between the halves
+    geometry = StructuredGeometry.slab(
+        (edges[0], edges[split], edges[-1]), (0, 1),
+        left=BC("reflective"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(
+        (CellEdges(edges[: split + 1]), CellEdges(edges[split:])),
+    ).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
         _two_region_materials(),

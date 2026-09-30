@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations import get
 from orpheus.moc.solver import solve_moc
 
@@ -16,11 +16,9 @@ def _homogeneous_result():
     case = get("moc_cyl1D_1eg_1rg")
     mix = next(iter(case.materials.values()))
     r_cell = 3.6 / np.sqrt(np.pi)
-    mesh = Mesh1D(
-        edges=np.array([0.0, r_cell]),
-        mat_ids=np.array([0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, r_cell), (0,), outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(1)).mesh
     return solve_moc(
         {0: mix}, mesh,
         n_azi=8, n_polar=3, ray_spacing=0.05,
@@ -73,11 +71,9 @@ def test_heterogeneous_flux_depression():
     r_fuel = 0.5
     pitch = 2.0
     ws_r = pitch / np.sqrt(np.pi)
-    mesh = Mesh1D(
-        edges=np.array([0.0, r_fuel, ws_r]),
-        mat_ids=np.array([2, 0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, r_fuel, ws_r), (2, 0), outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(1)).mesh
 
     result = solve_moc(
         {2: fuel, 0: cool}, mesh,

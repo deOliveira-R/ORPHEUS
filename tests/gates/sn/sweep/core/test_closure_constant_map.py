@@ -40,8 +40,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
     slab_streaming,
@@ -106,13 +106,9 @@ def test_sphere_closure_map_matches_inline():
     loops all ``N`` ordinates × all cells so the full accessor and the
     surrogate's cell-independence are both exercised.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
     problem = SNProblem(mesh, quad, placeholder_materials())
     op = spherical_streaming(mesh, quad)
@@ -135,13 +131,9 @@ def test_multilevel_cylinder_closure_map_matches_inline():
     (2 μ-levels) exercises the gather across DISTINCT level blocks — a
     wrong block scatter would mis-map a whole level and reds here.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.5, 9),
-        mat_ids=np.zeros(8, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     op = cylindrical_streaming(mesh, quad)
@@ -184,13 +176,9 @@ def test_slab_closure_map_is_neutral():
     verified via the inline recompute (which also yields the neutral
     values for slab) AND an explicit literal so a non-zero leak reds.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, placeholder_materials())
     op = slab_streaming(mesh, quad)

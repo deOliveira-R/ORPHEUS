@@ -29,8 +29,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
 from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux
@@ -41,14 +41,18 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
-    mesh1d = Mesh1D(np.linspace(0.0, width, nx + 1), np.zeros(nx, dtype=int))
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, BC("reflective"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 
 
 def _one_group_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
     """1-group sibling — the scalar-trace CONTENT (and shape) differs, so
     the carrier mints an UNEQUAL trace space (F2)."""
-    mesh1d = Mesh1D(np.linspace(0.0, width, nx + 1), np.zeros(nx, dtype=int))
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, BC("reflective"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     return DiffusionMesh(mesh1d, {0: get_mixture("A", "1g")})
 
 
@@ -74,10 +78,8 @@ class TestScalarTraceSpace:
     def test_sphere_has_single_outer_face_with_surface_area(self):
         """The pole is NOT a face; the metric is the outer surface 4πR²."""
         r_outer = 5.0
-        mesh1d = Mesh1D(
-            np.linspace(0.0, r_outer, 4), np.zeros(3, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-        )
+        geometry = StructuredGeometry.sphere((0.0, r_outer), (0,), outer=BC("reflective"))
+        mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(3)).mesh
         mm = DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
         ts = mm.scalar_trace
         if ts.face_names != ("xmax",):
@@ -198,7 +200,9 @@ class TestPartialCurrentGuards:
         MaterialMesh data carrier owns no scalar trace, so a trace
         field cannot be built on one — the family diagnosis points at
         the promotion."""
-        mesh1d = Mesh1D(np.linspace(0.0, 10.0, 5), np.zeros(4, dtype=int))
+        mesh1d = Mesher(StructuredGeometry.from_homogeneous(10.0, BC("reflective"))).partition(
+            CellsByCount.uniform_width(4),
+        ).mesh
         mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
         # Post-S5 the family diagnosis lives on the space hook (the surface
         # space_on and the keyed factories ride).

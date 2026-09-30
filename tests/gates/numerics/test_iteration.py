@@ -31,7 +31,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.iteration import (
     KEigenvalue,
     KrylovAcceleration,
@@ -624,10 +625,9 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # ``test_solver_components.py`` uses for component checks.
     mix = get_mixture("A", "2g")
     materials = {0: mix}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 5.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+        CellsByCount.uniform_width(10),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
     # Reference: solve_sn (legacy power_iteration path).
@@ -811,9 +811,9 @@ def _sn_composite_triple():
 
     mix = get_mixture("A", "2g")
     materials = {0: mix}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 5.0, 11), mat_ids=np.zeros(10, dtype=int),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+        CellsByCount.uniform_width(10),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     ref = solve_sn(
         materials, mesh, quad,

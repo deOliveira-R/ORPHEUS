@@ -39,18 +39,12 @@ def build_mesh(case: "La13511Case", n_cells: int = 64) -> Mesh1D:
     :meth:`La13511Case.to_geometry` (raises for ``case.geometry_kind ==
     "infinite"`` — infinite-medium cases have no spatial mesh and
     should be consumed via :func:`build_materials` alone) and pairs
-    each region with a :class:`RegionMesh(n_cells, "equal-volume")`.
-    For first-slice (single-region) cases this puts all ``n_cells``
-    in the one region; for future multi-region cases callers should
-    bypass this helper and construct the mesh directly.
+    meshes every region with ``n_cells`` equal-volume cells
+    (:meth:`CellsByCount.uniform_volume <orpheus.mesh.partition.CellsByCount.uniform_volume>`).
     """
-    from orpheus.mesh import RegionMesh
+    from orpheus.mesh import CellsByCount, Mesher
 
-    geom = case.to_geometry()
-    region_meshes = tuple(
-        RegionMesh(n_cells=n_cells) for _ in geom.mat_ids
-    )
-    return Mesh1D.from_geometry(geom, region_meshes=region_meshes)
+    return Mesher(case.to_geometry()).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def build_cp_params(case: "La13511Case", **kwargs):  # type: ignore[no-untyped-def]

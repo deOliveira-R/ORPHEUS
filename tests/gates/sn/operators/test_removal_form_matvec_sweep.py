@@ -101,7 +101,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -139,7 +139,7 @@ def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNPro
         mat_ids=(0,),
         boundaries=(BC(bc), BC(bc)),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -151,7 +151,7 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
         mat_ids=(0,),
         boundaries=(BC(bc),),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     # Gauss-Legendre, NOT level_symmetric: the 1-D spherical closure's
     # weight-sum edge convention needs a μ-LINE rule (sorted, Σw = 2).
     # This fixture shipped with level_symmetric(4) — a raw 3-D rule whose
@@ -171,7 +171,7 @@ def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
         mat_ids=(0,),
         boundaries=(BC(bc),),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 

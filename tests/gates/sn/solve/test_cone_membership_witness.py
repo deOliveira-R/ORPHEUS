@@ -40,8 +40,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
 
@@ -64,11 +64,9 @@ def _mix() -> Mixture:
 
 
 def _solve(nx: int, width: float):
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, width, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(width, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=2)
     q = np.zeros((quad.N, 1, nx))
     # Per-ordinate source of 100 in cell 0 — the asymmetry that drives the

@@ -68,8 +68,8 @@ import pytest
 from numpy.typing import NDArray
 
 from orpheus.data.energy_grid import EnergyGrid
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis import (
     Basis,
     IndicatorBasis,
@@ -334,11 +334,10 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     ``support=basis.domain``, so the two cannot differ. It is asserted below as
     a third pair rather than as an exception.
     """
-    mesh = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    geometry = StructuredGeometry.slab(
+        (0.0, 0.5, 1.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     grid = EnergyGrid(edges=np.array([2.0e7, 1.0, 1.0e-5]))
 
     pairs = [

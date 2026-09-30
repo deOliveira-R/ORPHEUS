@@ -29,8 +29,8 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
@@ -56,22 +56,18 @@ pytestmark = pytest.mark.foundation
 _SIGNS = (-1, +1)
 
 
-def _mesh(coord: CoordSystem, **bc) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
-        coord=coord, **bc,
-    )
+def _mesh(coord: CoordSystem) -> SNProblem:
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
 
 
 def _sphere() -> SNProblem:
-    return _mesh(CoordSystem.SPHERICAL, bc_right=BC("reflective"))
+    return _mesh(CoordSystem.SPHERICAL)
 
 
 def _slab() -> SNProblem:
-    return _mesh(
-        CoordSystem.CARTESIAN, bc_left=BC("reflective"), bc_right=BC("reflective"),
-    )
+    return _mesh(CoordSystem.CARTESIAN)
 
 
 def _rand_composite(sn: SNProblem, seed: int) -> RadialCharacteristicField:

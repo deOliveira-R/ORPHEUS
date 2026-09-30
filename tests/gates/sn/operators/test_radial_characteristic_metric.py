@@ -57,8 +57,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -115,10 +115,8 @@ def _build_sphere(nx: int, ng: int, sigma: float):
     adjoint-structure claims here are geometry/algebra facts, insensitive to the
     specific σ values.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)], axis=0)

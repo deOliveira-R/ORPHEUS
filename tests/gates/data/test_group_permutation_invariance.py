@@ -106,8 +106,8 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
@@ -172,10 +172,11 @@ def _heterogeneous_slab(n_cells_per_zone: int = 4, half_width: float = 2.0) -> M
     The material boundary at ``x = w`` is what makes the reversal thread
     through a per-cell, per-material in-scatter loop (heterogeneous).
     """
-    n = n_cells_per_zone
-    edges = np.linspace(0.0, 2.0 * half_width, 2 * n + 1)
-    mat_ids = np.array([0] * n + [1] * n, dtype=int)
-    return Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+    geom = StructuredGeometry.slab(
+        (0.0, half_width, 2.0 * half_width), (0, 1),
+        left=BC.reflective, right=BC.reflective,
+    )
+    return Mesher(geom).partition(CellsByCount.uniform_width(n_cells_per_zone)).mesh
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -280,13 +281,11 @@ class TestSNFixedSourcePermutation:
         materials_rev = {0: reverse_mixture(mat_b)}
 
         ng = mat_b.ng
-        # Homogeneous slab, vacuum BC (default). Uniform isotropic source,
+        # Homogeneous slab, vacuum on both faces. Uniform isotropic source,
         # group-flat so it is invariant under the group reversal.
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 4.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-        )
+        mesh = Mesher(
+            StructuredGeometry.slab((0.0, 4.0), (0,), left=BC.vacuum, right=BC.vacuum),
+        ).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         n_cells = 8
         # external_source shape for a 1-D mesh: (N, ng, *spatial) =

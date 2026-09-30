@@ -54,8 +54,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicInteriorSpace,
@@ -79,15 +79,8 @@ pytestmark = pytest.mark.foundation
 
 
 def _mesh_1d(coord: CoordSystem, quad, *, nx: int = 4, ng: int = 2) -> SNProblem:
-    kwargs = {"bc_right": BC("reflective")}
-    if coord is CoordSystem.CARTESIAN:
-        kwargs["bc_left"] = BC("reflective")
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=coord,
-        **kwargs,
-    )
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 

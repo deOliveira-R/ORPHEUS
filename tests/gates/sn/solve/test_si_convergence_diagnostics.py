@@ -26,8 +26,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
@@ -59,10 +59,9 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         SigS=[csr_matrix(np.array([[sig_s]]))],  # P0 within-group scatter
         Sig2=[csr_matrix((1, 1))], chi=z.copy(),
     )
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, width, nx + 1), mat_ids=np.zeros(nx, dtype=int),
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(width, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     problem = SNProblem(mesh, quad, {0: mat}, scattering_order=0)
     return SNSolver(problem, inner_solver="source_iteration")

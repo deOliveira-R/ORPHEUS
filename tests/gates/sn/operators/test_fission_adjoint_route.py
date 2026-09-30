@@ -71,8 +71,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.solver import solve_sn_adjoint
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.isotropic_transfer import (
@@ -102,17 +102,12 @@ _SPHERE_K = 0.4845397047151718
 
 def _mesh(coord: CoordSystem) -> Mesh1D:
     """4 cells over ``[0, 5]`` — the cheapest carrying/non-carrying pair."""
-    curvilinear = coord is not CoordSystem.CARTESIAN
-    return Mesh1D(
-        edges=np.linspace(0.0, 5.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=coord,
-        **(
-            {"bc_left": BC("reflective"), "bc_right": BC("vacuum")}
-            if curvilinear
-            else {}
-        ),
+    geom = (
+        StructuredGeometry.slab((0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective)
+        if coord is CoordSystem.CARTESIAN
+        else StructuredGeometry.uniform_boundary(coord, (0.0, 5.0), (0,), BC("vacuum"))
     )
+    return Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
 
 
 def _solve(coord: CoordSystem):

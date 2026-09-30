@@ -29,8 +29,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.radial_characteristic_field import (
@@ -66,14 +66,19 @@ def _mixtures():
     return {0: mix_a, 1: mix_b}
 
 
-def _mesh_slab(bc_left: str) -> SNProblem:
+def _mesh_slab(left: str) -> SNProblem:
+    geom = StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0, 6.0, 8.0), (0, 1, 0, 1, 0),
+        left=BC(left), right=BC("vacuum"),
+    )
     return SNProblem(
-        Mesh1D(
-            edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0, 6.0, 8.0]),
-            mat_ids=np.array([0, 1, 1, 0, 1, 0]),
-            bc_left=BC(bc_left),
-            bc_right=BC("vacuum"),
-        ),
+        Mesher(geom).partition((
+            CellEdges(np.array([0.0, 0.5])),
+            CellEdges(np.array([0.5, 1.5, 3.0])),
+            CellEdges(np.array([3.0, 5.0])),
+            CellEdges(np.array([5.0, 6.0])),
+            CellEdges(np.array([6.0, 8.0])),
+        )).mesh,
         Quadrature.gauss_legendre(n_ordinates=4),
         _mixtures(),
     )
@@ -89,13 +94,9 @@ def _mesh_cyl() -> SNProblem:
     # System B.  xmax-only trace layout — exercises the restore's
     # per-face membership loop on the curvilinear face set.
     return SNProblem(
-        Mesh1D(
-            edges=np.array([0.0, 0.3, 0.8, 1.0]),
-            mat_ids=np.array([0, 1, 0]),
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-            coord=CoordSystem.CYLINDRICAL,
-        ),
+        Mesher(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(1)).mesh,
         Quadrature.folded_product(n_mu=4, n_phi=6),
         _mixtures(),
     )
@@ -108,13 +109,9 @@ def _mesh_sphere() -> SNProblem:
     # domain" note in test_loss_transpose_solve.G3); ERR-078's fix
     # covers both curvilinear arms, so both are gated here.
     return SNProblem(
-        Mesh1D(
-            edges=np.array([0.0, 0.3, 0.8, 1.0]),
-            mat_ids=np.array([0, 1, 0]),
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-            coord=CoordSystem.SPHERICAL,
-        ),
+        Mesher(StructuredGeometry.sphere(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(1)).mesh,
         Quadrature.gauss_legendre(n_ordinates=4),
         _mixtures(),
     )

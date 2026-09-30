@@ -26,9 +26,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.outcome import (
@@ -174,12 +173,16 @@ class TestLawTheEvidenceSum:
 
 def _slab(length: float = 4.0):
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    mesh = Mesh1D(edges=np.linspace(0.0, length, 9), mat_ids=np.array([0] * 4 + [1] * 4, dtype=int), bc_left=BC("reflective"), bc_right=BC("vacuum"))
+    geometry = StructuredGeometry.slab(
+        (0.0, length / 2, length), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+    )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return _as_problem(mesh, Quadrature.gauss_legendre(8), materials)
 
 
 def _carrying_sphere():
-    mesh = Mesh1D(edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int), coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
     return _as_problem(mesh, Quadrature.gauss_legendre(8), {0: get_mixture("A", "2g")})
 
 

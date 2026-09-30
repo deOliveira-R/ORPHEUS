@@ -11,20 +11,20 @@ once created, their fields cannot be reassigned.
 Mesh construction from geometry
 -------------------------------
 
-The canonical path from a :class:`StructuredGeometry` to a
-:class:`Mesh1D` is :meth:`Mesh1D.from_geometry`, which takes the
-per-region discretization description as a tuple of
-:class:`RegionMesh` instances. Discretization (cell counts, scheme)
-is a mesh-layer concern — the geometry itself doesn't know or care
-about cell counts.
+A :class:`Mesh1D` is built by a :class:`~orpheus.mesh.mesher.Mesher`: load a
+:class:`~orpheus.geometry.StructuredGeometry`, partition it by interval rules
+(:mod:`orpheus.mesh.partition`), read the mesh::
+
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(8)).mesh
+
+The mesh itself holds no geometry: its coordinate system, cells, the material
+of each cell and the law on each boundary face are all it is. The mesher lifts
+the geometry's regions and boundary laws onto the cells and faces.
 """
 
 from __future__ import annotations
 
-import itertools
-
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -32,13 +32,10 @@ from orpheus.geometry.boundary import BC, BoundaryTraceLaw
 from orpheus.geometry.coord import (
     CoordSystem,
     compute_areas_1d,
-    compute_volumes_1d,
     compute_volumes_2d,
 )
-
-if TYPE_CHECKING:
-    from orpheus.geometry.structured_geometry import StructuredGeometry
-
+from orpheus.geometry.scalars import parse_entries, parse_integer, parse_positions
+from orpheus.geometry.structured_geometry import parse_boundary_laws
 
 # ═══════════════════════════════════════════════════════════════════════
 # Boundary condition declaration
@@ -84,180 +81,144 @@ def _check_boundary_declaration(mesh: object, attrs: "tuple[str, ...]") -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# RegionMesh — per-region discretization description (mesh-layer concern)
-# ═══════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True)
-class RegionMesh:
-    r"""How to discretize one region of a :class:`StructuredGeometry`.
-
-    Lives at the **mesh layer** because discretization is a mesh
-    concern, not a geometry concern. The same
-    :class:`StructuredGeometry` can be meshed with different
-    :class:`RegionMesh` tuples for different studies (mesh refinement,
-    uniform-vs-equal-volume comparison, future temperature-aware
-    schemes).
-
-    Parameters
-    ----------
-    n_cells : int
-        Number of sub-cells inside this region. Must be ≥ 1.
-    method : str
-        Discretization scheme. Today's options:
-
-        * ``"equal-volume"`` (default) — cells of equal volume.
-          Yields uniform width for Cartesian; radially-graded width
-          for cylindrical (``r ∝ √k``) and spherical (``r ∝ k^(1/3)``)
-          per the equal-volume invariants in
-          :func:`~orpheus.mesh.factories._subdivide_zone`.
-        * ``"uniform"`` — cells of equal radial extent regardless of
-          coordinate system. Useful when a method's accuracy depends
-          on radial spacing rather than volume.
-
-        Future: ``"temperature-graded"`` for inhomogeneous-temperature
-        cases (Doppler-broadening grids), ``"adaptive"`` for output
-        of refinement studies.
-
-    Examples
-    --------
-
-    Default scheme (equal-volume), single region with 64 cells::
-
-        RegionMesh(n_cells=64)
-
-    Uniform discretization, fine outer mesh::
-
-        (
-            RegionMesh(n_cells=10),                          # equal-volume
-            RegionMesh(n_cells=20, method="uniform"),        # uniform
-        )
-
-    See Also
-    --------
-    Mesh1D.from_geometry : Construct a Mesh1D from a
-        :class:`StructuredGeometry` + tuple of :class:`RegionMesh`.
-    StructuredGeometry : Its intervals :math:`[r_k, r_{k+1}]`, one per
-        material id, are what the :class:`RegionMesh` tuple pairs with.
-    """
-
-    n_cells: int
-    method: Literal["equal-volume", "uniform"] = "equal-volume"
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.n_cells, (int, np.integer)):
-            raise TypeError(
-                f"RegionMesh.n_cells must be int, "
-                f"got {type(self.n_cells).__name__}"
-            )
-        if self.n_cells < 1:
-            raise ValueError(
-                f"RegionMesh.n_cells must be ≥ 1; got {self.n_cells}"
-            )
-        if self.method not in ("equal-volume", "uniform"):
-            raise ValueError(
-                f"RegionMesh.method must be 'equal-volume' or 'uniform'; "
-                f"got {self.method!r}"
-            )
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # Mesh1D
 # ═══════════════════════════════════════════════════════════════════════
 
-@dataclass(frozen=True)
+def _volume_ulps(coord: CoordSystem) -> int:
+    r"""How far a stored cell volume may sit from its cell's measure, in ulp of :math:`c\,T(r_{j+1})`.
+
+    The stored volume of an equal-measure cell is the share :math:`m/n`; the
+    measure it is checked against is the shell :math:`c\,(T(r_{j+1}) - T(r_j))`
+    between the realised edges, :math:`T(r) = r^p`. Each realised edge carries
+    at most 1 ulp from forming :math:`t_j = T(a) + f_j\,\Delta T`, the root's
+    rounding (at most 1 ulp, allowing a :math:`\sqrt[3]{\cdot}` that is not
+    correctly rounded) amplified by :math:`p` in :math:`T(r)`, and ½ ulp from
+    re-evaluating :math:`T`: :math:`p + 1.5` ulp per edge. Two edges, plus the
+    subtraction, the constant and the share (about 2 ulp together), give
+    :math:`2p + 5`: 7 on a slab, 9 on a cylinder, 11 on a sphere. `[M]` The
+    largest gap over about 46 000 random legal equal-volume partitions is 3.05,
+    6.53 and 7.62 ulp (the elegance review of P1 step 3b, macOS libm); a volume
+    from the wrong coordinate system is about 6e15 ulp off. A volume given with
+    its edges (``CellEdges``, a shell) is the measure itself: 0 ulp.
+    """
+    return 2 * coord.measure_coordinate.exponent + 5
+
+
+
+@dataclass(frozen=True, eq=False)
 class Mesh1D:
-    """One-dimensional mesh in Cartesian, cylindrical, or spherical coordinates.
+    r"""A 1-D mesh: cells in one coordinate system, a material in each, a law on each boundary face.
+
+    The general constructor takes exactly what a 1-D discretisation is. A
+    mesh is normally built by a :class:`~orpheus.mesh.mesher.Mesher` from a
+    :class:`~orpheus.geometry.StructuredGeometry` and interval rules; the
+    constructor is what the mesher, a relabelling or a refinement calls.
 
     Parameters
     ----------
-    edges : ndarray, shape (N+1,)
-        Monotonically increasing cell boundary positions.
-        For cylindrical / spherical meshes these are radii.
-    mat_ids : ndarray, shape (N,)
-        Integer material ID for each cell.
     coord : CoordSystem
-        Coordinate system (default: Cartesian).
-    precomputed_volumes : ndarray or None, shape (N,)
-        Optional override for cell volumes. When provided, the
-        :attr:`volumes` property returns this array verbatim instead
-        of recomputing it from ``edges``. This is the escape hatch for
-        equal-volume subdivisions (cylindrical / spherical) where
-        recomputation from edges loses ~1 ULP per cell through the
-        ``sqrt→**2`` or ``cbrt→**3`` round trip and breaks invariants
-        like "every cell in a region has identical volume." Set by
-        :meth:`Mesh1D.from_geometry`; None for manually-constructed
-        meshes with arbitrary edges, which still derive volumes from
-        edges as before.
+        The coordinate system; it gives the measure and the face areas.
+    edges : array_like, shape (N+1,)
+        The cell edges, strictly increasing and finite; :math:`r_0 \ge 0` on a
+        cylinder or a sphere.
+    volumes : array_like, shape (N,)
+        The cell volumes (lengths on a slab, areas per unit height on a
+        cylinder). Stored, not recomputed: an equal share :math:`m/n` of an
+        interval is exact, and the shell between realised edges is not
+        (ERR-020). Each must be the coordinate system's measure of its cell
+        within :func:`_volume_ulps` ulp.
+    mat_ids : array_like of int, shape (N,)
+        The material id of each cell.
+    face_laws : tuple of BC or BoundaryTraceLaw
+        The law on each boundary face, inner first:
+        :meth:`CoordSystem.boundary_points` of ``(edges[0], edges[-1])``
+        (two on a slab or a hollow body, one on a solid cylinder or sphere,
+        whose centre carries no law). In 1-D each boundary point is one
+        face; the per-face form is the seed for 2-D, where one boundary is
+        several faces that may carry different laws.
     """
 
+    coord: CoordSystem
     edges: np.ndarray
+    volumes: np.ndarray
     mat_ids: np.ndarray
-    coord: CoordSystem = CoordSystem.CARTESIAN
-    precomputed_volumes: np.ndarray | None = None
-    bc_left: "BC | BoundaryTraceLaw | None" = None
-    bc_right: "BC | BoundaryTraceLaw | None" = None
+    face_laws: "tuple[BC | BoundaryTraceLaw, ...]"
 
-    # Derived geometric attributes, computed eagerly in ``__post_init__`` and
-    # stored via ``object.__setattr__`` (frozen).  Declared here so the public
-    # ``.widths`` / ``.centers`` / ``.volumes`` / ``.areas`` surface is
-    # statically known; ``init=False`` keeps them out of ``__init__`` and
-    # ``repr=False`` / ``compare=False`` keep ``__repr__`` / ``__eq__`` /
-    # ``__hash__`` byte-for-byte unchanged (pure static-visibility decls).
-    widths: np.ndarray = field(init=False, repr=False, compare=False)
-    centers: np.ndarray = field(init=False, repr=False, compare=False)
-    volumes: np.ndarray = field(init=False, repr=False, compare=False)
-    areas: np.ndarray = field(init=False, repr=False, compare=False)
+    widths: np.ndarray = field(init=False, repr=False)
+    centers: np.ndarray = field(init=False, repr=False)
+    areas: np.ndarray = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        edges = np.asarray(self.edges, dtype=float)
-        mat_ids = np.asarray(self.mat_ids, dtype=int)
-
-        if edges.ndim != 1 or mat_ids.ndim != 1:
-            raise ValueError("edges and mat_ids must be 1-D arrays")
-        if len(edges) < 2:
-            raise ValueError("edges must have at least 2 elements (1 cell)")
-        if len(mat_ids) != len(edges) - 1:
-            raise ValueError(
-                f"len(mat_ids)={len(mat_ids)} must equal "
-                f"len(edges)-1={len(edges) - 1}"
+        if not isinstance(self.coord, CoordSystem):
+            raise TypeError(
+                f"Mesh1D.coord is a CoordSystem member, got {type(self.coord).__name__}"
             )
-        if not np.all(np.diff(edges) > 0):
-            raise ValueError("edges must be strictly monotonically increasing")
-
-        precomputed = self.precomputed_volumes
-        if precomputed is not None:
-            precomputed = np.asarray(precomputed, dtype=float)
-            if precomputed.shape != (len(edges) - 1,):
-                raise ValueError(
-                    f"precomputed_volumes shape {precomputed.shape} must be "
-                    f"({len(edges) - 1},)"
-                )
-            if not np.all(precomputed > 0):
-                raise ValueError("precomputed_volumes must be strictly positive")
-
-        # Validate BC fields
-        _check_boundary_declaration(self, ("bc_left", "bc_right"))
-
-        # Store validated arrays (frozen bypass via object.__setattr__)
-        object.__setattr__(self, "edges", edges)
-        object.__setattr__(self, "mat_ids", mat_ids)
-        object.__setattr__(self, "precomputed_volumes", precomputed)
-
-        # Derived geometric attributes (PR-TYPED-6.5 Phase 1). Computed
-        # eagerly because ``Mesh1D`` is frozen — none of these can ever
-        # change after construction, so lazy ``@cached_property`` only
-        # buys first-access surprise and an extra branch per read.
+        edges = parse_positions(self.edges, "Mesh1D.edges")
+        if len(edges) < 2 or not np.all(np.diff(edges) > 0):
+            raise ValueError(
+                f"Mesh1D.edges are at least two strictly increasing positions; got {edges}"
+            )
+        if self.coord is not CoordSystem.CARTESIAN and edges[0] < 0.0:
+            raise ValueError(
+                f"Mesh1D.edges: a radial coordinate starts at r_0 >= 0, got {edges[0]!r}"
+            )
+        n = len(edges) - 1
+        volumes = parse_positions(self.volumes, "Mesh1D.volumes")
+        if volumes.shape != (n,):
+            raise ValueError(
+                f"Mesh1D.volumes: {n} cell(s) need {n} volume(s), got shape {volumes.shape}"
+            )
+        if not np.all(volumes > 0.0):
+            j = int(np.argmin(volumes))
+            raise ValueError(
+                f"Mesh1D.volumes[{j}] = {volumes[j]!r}: a cell volume is positive"
+            )
+        shells = self.coord.measure(edges)
+        ulps = np.spacing(self.coord.measure_constant * self.coord.measure_coordinate(edges[1:]))
+        off = np.abs(volumes - shells) / ulps
+        band = _volume_ulps(self.coord)
+        if not np.all(off <= band):
+            j = int(np.argmax(off))
+            raise ValueError(
+                f"Mesh1D.volumes[{j}] = {volumes[j]!r} is not the {self.coord.name.lower()} "
+                f"measure of the cell [{edges[j]!r}, {edges[j + 1]!r}], {shells[j]!r} "
+                f"({off[j]:.3g} ulp off; at most {band})"
+            )
+        mat_ids = np.array(
+            [parse_integer(m, f"Mesh1D.mat_ids[{k}]", "a material id")
+             for k, m in enumerate(parse_entries(self.mat_ids, "Mesh1D.mat_ids", "int"))],
+            dtype=int,
+        )
+        if mat_ids.shape != (n,):
+            raise ValueError(
+                f"Mesh1D.mat_ids: {n} cell(s) need {n} material id(s), got {len(mat_ids)}"
+            )
+        face_laws = parse_boundary_laws(
+            parse_entries(self.face_laws, "Mesh1D.face_laws", "boundary laws"),
+            self.coord, float(edges[0]), float(edges[-1]), "Mesh1D.face_laws",
+        )
+        mat_ids.flags.writeable = False
         widths = np.diff(edges)
         centers = 0.5 * (edges[:-1] + edges[1:])
-        volumes = (
-            precomputed if precomputed is not None
-            else compute_volumes_1d(self.coord, edges)
-        )
         areas = compute_areas_1d(self.coord, edges)
-        object.__setattr__(self, "widths", widths)
-        object.__setattr__(self, "centers", centers)
-        object.__setattr__(self, "volumes", volumes)
-        object.__setattr__(self, "areas", areas)
+        for name, value in (
+            ("edges", edges), ("volumes", volumes), ("mat_ids", mat_ids),
+            ("face_laws", face_laws), ("widths", widths), ("centers", centers),
+            ("areas", areas),
+        ):
+            object.__setattr__(self, name, value)
+
+    def __eq__(self, other: object) -> bool:
+        # Content identity (a hash, a digest) is P1 step 5's.
+        if not isinstance(other, Mesh1D):
+            return NotImplemented
+        return (
+            self.coord is other.coord
+            and self.edges.tobytes() == other.edges.tobytes()
+            and self.volumes.tobytes() == other.volumes.tobytes()
+            and self.mat_ids.tobytes() == other.mat_ids.tobytes()
+            and self.face_laws == other.face_laws
+        )
 
     # ── Derived properties ────────────────────────────────────────────
 
@@ -270,6 +231,16 @@ class Mesh1D:
     def total_width(self) -> float:
         """Total extent of the mesh (outer edge minus inner edge)."""
         return float(self.edges[-1] - self.edges[0])
+
+    @property
+    def boundary_faces(self) -> tuple[float, ...]:
+        """The positions of the boundary faces, inner first, paired with :attr:`face_laws`."""
+        return self.coord.boundary_points(float(self.edges[0]), float(self.edges[-1]))
+
+    @property
+    def outer_law(self) -> "BC | BoundaryTraceLaw":
+        r"""The law on the outer face, :math:`r = r_R` (a slab's right face)."""
+        return self.face_laws[-1]
 
     @property
     def volume_measure(self):
@@ -335,148 +306,17 @@ class Mesh1D:
         )
 
     def with_distinct_cell_ids(self) -> "Mesh1D":
-        r"""A geometry-identical copy whose every cell is its **own** material id.
+        r"""This mesh with every cell its **own** material id, ``0 .. N-1`` in cell order.
 
-        Returns this mesh with ``mat_ids = (0, 1, …, N-1)`` — one distinct id per
-        cell, in cell order — the geometry the **homogenisation** result needs: a
-        coarse :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` carries one
-        fresh effective :class:`~orpheus.data.macro_xs.mixture.Mixture` per cell, so
-        the cell-indexed homogenised materials key 1:1 into the cells. Polymorphic
-        with :meth:`Mesh2D.with_distinct_cell_ids` (which relabels the 2-D
-        ``mat_map``), so ``Solution.homogenize`` stays dimension-agnostic — no
-        ``Mesh1D``/``Mesh2D`` reconstruction branch. The geometry (edges, coord, BCs,
-        any precomputed volumes) carries through unchanged.
+        The geometry the **homogenisation** result needs: a coarse
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` carries one
+        fresh effective :class:`~orpheus.data.macro_xs.mixture.Mixture` per cell,
+        so the cell-indexed homogenised materials key 1:1 into the cells.
+        Polymorphic with :meth:`Mesh2D.with_distinct_cell_ids`, so
+        ``Solution.homogenize`` stays dimension-agnostic. Edges, volumes and face
+        laws carry through unchanged.
         """
         return replace(self, mat_ids=np.arange(self.N, dtype=int))
-
-    # ─────────────────────────────────────────────────────────────────
-    # Construction from StructuredGeometry — the canonical entry point
-    # ─────────────────────────────────────────────────────────────────
-
-    @classmethod
-    def from_geometry(
-        cls,
-        geometry: "StructuredGeometry",
-        *,
-        region_meshes: tuple[RegionMesh, ...],
-    ) -> "Mesh1D":
-        r"""Build a :class:`Mesh1D` from a :class:`StructuredGeometry`
-        plus a per-interval discretization description.
-
-        This is the canonical geometry → mesh transition. Production
-        solvers (CP, SN, MOC, MC) consume the resulting :class:`Mesh1D`
-        directly; reference solvers do not need a mesh and consume the
-        :class:`StructuredGeometry` instead.
-
-        Each interval :math:`[r_k, r_{k+1}]` between consecutive
-        :attr:`~StructuredGeometry.breakpoints` is paired with the
-        :class:`RegionMesh` at the same index; the counts must match. For
-        each pair the interval's material id is broadcast across its
-        cells, and the interval's ends with the region-mesh's ``n_cells``
-        and ``method`` determine the cell edges and volumes. The two end
-        edges of every interval ARE its breakpoints, so the mesh starts at
-        :math:`r_0` and ends at :math:`r_R`.
-
-        The geometry's :attr:`~StructuredGeometry.boundaries` are
-        propagated onto :attr:`bc_left` / :attr:`bc_right` by the
-        boundary points they belong to: two points (a slab, or a hollow
-        cylinder or sphere) give ``(inner, outer)`` to ``(bc_left,
-        bc_right)``; one point (a solid cylinder or sphere) gives its law
-        to ``bc_right`` and leaves ``bc_left`` ``None``, since the centre
-        is an interior point.
-
-        Parameters
-        ----------
-        geometry : StructuredGeometry
-            The geometry to discretize.
-        region_meshes : tuple[RegionMesh, ...]
-            Per-interval discretization descriptors, one per material id.
-
-        Returns
-        -------
-        Mesh1D
-            A frozen mesh with cells, mat_ids, exact precomputed
-            volumes, and the laws propagated from the geometry.
-
-        Raises
-        ------
-        ValueError
-            If ``len(region_meshes) != len(geometry.mat_ids)``.
-
-        Examples
-        --------
-
-        Three-region pin cell::
-
-            geom = StructuredGeometry.wigner_seitz_pin_cell(
-                r_fuel=0.9, r_clad=1.1, pitch=3.6,
-            )
-            mesh = Mesh1D.from_geometry(geom, region_meshes=(
-                RegionMesh(n_cells=10),
-                RegionMesh(n_cells=3),
-                RegionMesh(n_cells=7),
-            ))
-        """
-        # Local imports to avoid circular: structured_geometry imports
-        # from this module (BC), and we import StructuredGeometry only
-        # for type checking above.
-        from .factories import _subdivide_zone
-
-        if len(region_meshes) != len(geometry.mat_ids):
-            raise ValueError(
-                f"Mesh1D.from_geometry: len(region_meshes)="
-                f"{len(region_meshes)} must equal the geometry's interval "
-                f"count {len(geometry.mat_ids)}."
-            )
-
-        coord = geometry.coord
-        edges_list: list[np.ndarray] = []
-        mat_ids_list: list[np.ndarray] = []
-        volumes_list: list[np.ndarray] = []
-
-        for (inner, outer), mat_id, region_mesh in zip(
-            itertools.pairwise(geometry.breakpoints), geometry.mat_ids,
-            region_meshes, strict=True,
-        ):
-            if region_mesh.method == "equal-volume":
-                sub_edges, sub_volumes = _subdivide_zone(
-                    inner, outer, region_mesh.n_cells, coord,
-                )
-            else:  # "uniform"
-                sub_edges = np.linspace(
-                    inner, outer, region_mesh.n_cells + 1,
-                )
-                sub_volumes = compute_volumes_1d(coord, sub_edges)
-
-            # Skip the first sub-edge (== previous interval's outer edge)
-            # to avoid duplication at the inter-interval boundary.
-            edges_list.append(sub_edges[1:])
-            mat_ids_list.append(
-                np.full(region_mesh.n_cells, mat_id, dtype=int)
-            )
-            volumes_list.append(sub_volumes)
-
-        edges = np.concatenate([[geometry.breakpoints[0]], *edges_list])
-        mat_ids = np.concatenate(mat_ids_list)
-        volumes = np.concatenate(volumes_list)
-
-        # The laws pair one to one with the geometry's boundary points:
-        # (inner, outer) when there are two; the outer law alone on a
-        # solid cylinder or sphere, whose centre carries no law.
-        if len(geometry.boundaries) == 2:
-            bc_left, bc_right = geometry.boundaries
-        else:
-            bc_left = None
-            (bc_right,) = geometry.boundaries
-
-        return cls(
-            edges=edges,
-            mat_ids=mat_ids,
-            coord=coord,
-            precomputed_volumes=volumes,
-            bc_left=bc_left,
-            bc_right=bc_right,
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

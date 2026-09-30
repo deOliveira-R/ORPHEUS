@@ -1306,16 +1306,11 @@ class TestExitBalanceDefect:
         must cost the number, never the warning), and the number is absent
         rather than wrong.
         """
-        from orpheus.geometry import CoordSystem, StructuredGeometry
-        from orpheus.mesh import Mesh1D, RegionMesh
+        from orpheus.geometry import StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
 
-        geom = StructuredGeometry(
-            coord=CoordSystem.SPHERICAL,
-            breakpoints=(0.0, 2.0),
-            mat_ids=(0,),
-            boundaries=(BC.reflective,),
-        )
-        mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=20),))
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective)
+        mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
         with pytest.warns(ConvergenceWarning) as caught:
             sol = solve_sn(
                 {0: get_mixture("A", "2g")}, mesh,

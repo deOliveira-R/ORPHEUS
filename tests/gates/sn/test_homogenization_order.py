@@ -11,8 +11,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -69,37 +69,29 @@ class TestC2ComparativeKeffOrder:
 
         mats = _contrast_materials(eps)
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        fine = Mesh1D(
-            edges=self._EDGES16, mat_ids=self._MAT16,
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("reflective"),
-        )
+        # One material per cell: every edge is a material interface.
+        fine = Mesher(StructuredGeometry.slab(
+            self._EDGES16, self._MAT16, left=BC("vacuum"), right=BC("reflective"),
+        )).partition(CellsByCount.uniform_width(1)).mesh
         fwd = solve_sn(mats, fine, quad, scattering_order=0)
         adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0)
         k_fine = fwd.outcome.keff
         assert k_fine is not None
 
         P = 2
-        coarse = Mesh1D(
-            edges=np.linspace(0.0, 4.0, P + 1), mat_ids=np.zeros(P, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("reflective"),
-        )
-        centers = 0.5 * (self._EDGES16[:-1] + self._EDGES16[1:])
-        region_of = np.clip(
-            np.searchsorted(coarse.edges, centers, side="right") - 1, 0, P - 1,
-        )
+        coarse = Mesher(StructuredGeometry.slab(
+            (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
+        )).partition(CellsByCount.uniform_width(P)).mesh
         gaps = {}
         for tag, mm in (
             ("adj", fwd.homogenize(coarse, adjoint=adj)),
             ("fwd", fwd.homogenize(coarse)),
         ):
-            # SAME-MESH replacement: the fine geometry, region-constant XS.
-            replaced = Mesh1D(
-                edges=self._EDGES16, mat_ids=region_of.astype(int),
-                coord=CoordSystem.CARTESIAN,
-                bc_left=BC("vacuum"), bc_right=BC("reflective"),
-            )
+            # SAME-MESH replacement: the fine geometry, region-constant XS. The
+            # coarse cells are the material intervals, each holding its fine cells.
+            replaced = Mesher(StructuredGeometry.slab(
+                coarse.edges, range(P), left=BC("vacuum"), right=BC("reflective"),
+            )).partition(CellsByCount.uniform_width((self._EDGES16.size - 1) // P)).mesh
             k = solve_sn(dict(mm.materials), replaced, quad,
                          scattering_order=0).outcome.keff
             assert k is not None

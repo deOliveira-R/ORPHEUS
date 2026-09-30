@@ -36,8 +36,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
 from orpheus.sn.problem import SNProblem
@@ -65,36 +65,23 @@ _MEMO_SLOTS = ("_geom_cache", "_pole_mirror_cache")  # _coll_cache retired at C3
 
 
 def _slab_mesh() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
 
 
 def _cylinder_mesh(n_phi: int) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, 2.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.cylinder(
+        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
     return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
 
 
 def _sphere_mesh() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
 
 

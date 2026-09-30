@@ -1,11 +1,10 @@
 """Verify the cylindrical collision probability solver against analytical CP eigenvalues."""
 
-import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
@@ -46,13 +45,10 @@ def test_cylinder_cp_eigenvalue(case_name):
     """Cylindrical CP solver must match the analytical CP eigenvalue."""
     case = get(case_name)
     gp = case.geom_params
-    radii = np.array(gp["radii"])
-    edges = np.concatenate([[0.0], radii])
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.array(gp["mat_ids"]),
-        coord=CoordSystem.CYLINDRICAL,
+    geometry = StructuredGeometry.cylinder(
+        (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
     )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     result = solve_cp(case.materials, mesh)
 
     err = abs(result.keff - case.k_inf)

@@ -52,8 +52,8 @@ from tests.gates.sn._test_helpers import rc_march
 
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
@@ -88,9 +88,8 @@ def _mixture(ng: int):
 
 def _sphere(edges: np.ndarray, ng: int = _NG):
     """A seed-carrying sphere (GL S4) on the given radial edges."""
-    nx = edges.size - 1
-    mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
-                  coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+    geom = StructuredGeometry.sphere((edges[0], edges[-1]), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellEdges(edges)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(ng)})
 
 

@@ -99,8 +99,8 @@ def _scalar_composite_cotangent():
     """
     from orpheus.derivations.common.xs_library import make_mixture
     from orpheus.diffusion import DiffusionMesh
-    from orpheus.geometry import BC
-    from orpheus.mesh import Mesh1D
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.full_field import FullField
@@ -114,12 +114,9 @@ def _scalar_composite_cotangent():
         sig_s=np.array([[0.38, 0.10], [0.05, 0.90]]),
     )
     mesh = DiffusionMesh(
-        Mesh1D(
-            edges=np.linspace(0.0, 2.0, 5),
-            mat_ids=np.zeros(4, dtype=int),
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        ),
+        Mesher(StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(4)).mesh,
         {0: mix},
     )
     rng = np.random.default_rng(19)

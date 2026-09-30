@@ -34,8 +34,8 @@ import pytest
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import get
 from orpheus.diffusion.solver import solve_diffusion_1d
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.moc.solver import solve_moc
 from orpheus.numerics.eigenvalue import RecordingSolver
 
@@ -53,24 +53,24 @@ _SLAB_CASE = "cp_slab_2eg_2rg"
 _MOC_CASE = "moc_cyl1D_1eg_1rg"   # 1-group: the cheap certified MoC solve
 
 
-def _slab():
-    """The shipped 2-group / 2-region slab, as CP's own tests build it."""
+def _slab(law: BC):
+    """The shipped 2-group / 2-region slab, as CP's own tests build it,
+    with ``law`` on both faces: white for CP (which reads the right face),
+    reflective for diffusion."""
     case = get(_SLAB_CASE)
     gp = case.geom_params
-    edges = np.concatenate([[0.0], np.cumsum(np.array(gp["thicknesses"]))])
-    return case, Mesh1D(
-        edges=edges, mat_ids=np.array(gp["mat_ids"]),
-        coord=CoordSystem.CARTESIAN,
+    geometry = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
+        mat_ids=gp["mat_ids"], boundaries=(law, law),
     )
+    return case, Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _ws_pin():
     """Single-region Wigner-Seitz cell, as ``tests/gates/moc`` builds it."""
     r_cell = 3.6 / np.sqrt(np.pi)
-    return Mesh1D(
-        edges=np.array([0.0, r_cell]), mat_ids=np.array([0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    geometry = StructuredGeometry.cylinder((0.0, r_cell), (0,), outer=BC.reflective)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _moc(**kw):
@@ -82,12 +82,12 @@ def _moc(**kw):
 
 
 def _cp(**params):
-    case, mesh = _slab()
+    case, mesh = _slab(BC.white)
     return solve_cp(case.materials, mesh, CPParams(**params))
 
 
 def _diffusion(**kw):
-    case, mesh = _slab()
+    case, mesh = _slab(BC.reflective)
     return solve_diffusion_1d(case.materials, mesh, **kw)
 
 
@@ -216,7 +216,7 @@ class TestTheTreeHasTheShapeEachDesignImplies:
     ) -> None:
         """``ng`` children per outer, each judging the residual CP already
         computed and used to throw away (#340 N4)."""
-        case, _ = _slab()
+        case, _ = _slab(BC.white)
         ng = next(iter(case.materials.values())).ng
         record = _cp(solver_mode="gauss_seidel").record
         assert len(record.children) == ng * record.n_iterations
@@ -311,7 +311,7 @@ class TestTheTreeHasTheShapeEachDesignImplies:
         from orpheus.diffusion.augmented_mesh import DiffusionMesh
         from orpheus.diffusion.solver import DiffusionSolver
 
-        case, mesh = _slab()
+        case, mesh = _slab(BC.reflective)
         solver = DiffusionSolver(DiffusionMesh(mesh, case.materials))
         assert isinstance(solver, RecordingSolver)
         assert list(solver.inner_records) == [], (
@@ -534,7 +534,7 @@ class TestTheWarningBlamesTheCALLER:
 
         from orpheus.numerics.convergence import ConvergenceWarning
 
-        case, mesh = _slab()
+        case, mesh = _slab(BC.reflective)
         frame = inspect.currentframe()
         assert frame is not None, "CPython always provides one here"
         expected = frame.f_lineno + 3

@@ -416,7 +416,7 @@ class TestTheTargetIsReadTheWaySphinxReadsIt:
         "raw",
         [
             "solve_galerkin_spectral_slab(c=..., d=...)",  # a signature, not a path
-            "RegionMesh(n_cells, 'equal-volume')",
+            "CellsByCount(n_cells, EqualVolume())",
             "FaceLayout[tuple[int, int, str]]",  # a subscripted generic
             "",
             # ⭐ The case that corrected the implementation. A phrase separated

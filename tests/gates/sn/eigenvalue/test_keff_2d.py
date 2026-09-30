@@ -28,12 +28,20 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
 
 pytestmark = pytest.mark.l0  # SN 2-D eigenvalue component checks
+
+
+def _reflective_slab_1d():
+    """The 1-D homogeneous reflective slab [0, 2], 4 equal-width cells."""
+    return Mesher(StructuredGeometry.from_homogeneous(2.0, BC.reflective)).partition(
+        CellsByCount.uniform_width(4),
+    ).mesh
 
 
 def _uniform_2d(nx, ny, delta, mat_map):
@@ -141,7 +149,7 @@ class TestBicgstabNormalization:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
 
-        mesh = Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int))
+        mesh = _reflective_slab_1d()
         gl = Quadrature.gauss_legendre(8)
         solver = SNSolver(SNProblem(mesh, gl, {0: mix}), inner_solver="krylov", max_inner=2000, inner_tol=1e-6)
 
@@ -185,7 +193,7 @@ class TestBicgstabNormalization:
 
         results = {}
         for label, mesh, quad in [
-            ("GL", Mesh1D(edges=np.linspace(0, 2, 5), mat_ids=np.zeros(4, dtype=int)),
+            ("GL", _reflective_slab_1d(),
              Quadrature.gauss_legendre(8)),
             ("Lebedev", _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int)),
              Quadrature.lebedev(order=17)),

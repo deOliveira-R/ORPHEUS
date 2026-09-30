@@ -45,8 +45,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -85,13 +85,10 @@ _NX, _NG, _L = 4, 2, 1
 
 
 def _mesh():
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )
+    return Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
 
 
 def _mat_xs(sig_s=_SIGS, sig2=_SIG2):

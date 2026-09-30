@@ -34,8 +34,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.reference_values import continuous_get
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -56,10 +56,10 @@ pytestmark = pytest.mark.verifies(
 
 
 def _build_2region_mesh(H_A: float, H_B: float, n_per: int) -> Mesh1D:
-    """Two-region uniform mesh with ``n_per`` cells per region."""
-    edges = np.linspace(0.0, H_A + H_B, 2 * n_per + 1)
-    mat_ids = np.array([0] * n_per + [1] * n_per)
-    return Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+    """Two-region reflective slab, ``n_per`` equal-width cells per region."""
+    return Mesher(StructuredGeometry.slab(
+        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(n_per)).mesh
 
 
 @pytest.mark.l1

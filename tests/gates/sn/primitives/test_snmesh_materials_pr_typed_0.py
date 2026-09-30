@@ -16,8 +16,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByMaxWidth, EqualWidth, Mesh1D, Mesher
 from orpheus.sn.problem import InconsistentMaterialsError, SNProblem
 from orpheus.numerics.quadrature import Quadrature
 
@@ -34,15 +34,13 @@ def _mix(ng: int) -> Mixture:
     )
 
 
-def _slab_mesh(mat_ids=None) -> Mesh1D:
-    if mat_ids is None:
-        mat_ids = np.zeros(4, dtype=int)
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, len(mat_ids) + 1),
-        mat_ids=np.asarray(mat_ids, dtype=int),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+def _slab_mesh(
+    breakpoints: tuple[float, ...] = (0.0, 1.0), mat_ids: tuple[int, ...] = (0,),
+) -> Mesh1D:
+    """A vacuum slab over ``[0, 1]`` in cells of width 1/4, one material per interval."""
+    return Mesher(StructuredGeometry.slab(
+        breakpoints, mat_ids, left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByMaxWidth(0.25, EqualWidth())).mesh
 
 
 def test_materials_required_positional_arg() -> None:
@@ -66,7 +64,7 @@ def test_ng_property_returns_uniform_ng() -> None:
 
 def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
     """Criterion 4: mismatched ng across materials raises InconsistentMaterialsError."""
-    mesh = _slab_mesh(mat_ids=[0, 0, 1, 1])
+    mesh = _slab_mesh((0.0, 0.5, 1.0), (0, 1))
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2), 1: _mix(ng=4)}
     with pytest.raises(InconsistentMaterialsError, match="uniform ng"):
@@ -75,7 +73,7 @@ def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
 
 def test_missing_material_id_raises_value_error() -> None:
     """Criterion 5: ``mat_map`` referencing an id missing from materials raises."""
-    mesh = _slab_mesh(mat_ids=[0, 1, 1, 0])
+    mesh = _slab_mesh((0.0, 0.25, 0.75, 1.0), (0, 1, 0))
     quad = Quadrature.gauss_legendre(4)
     # Only id 0 is present; id 1 used in mat_ids triggers the validation.
     with pytest.raises(ValueError, match=r"material ids \[1\]"):

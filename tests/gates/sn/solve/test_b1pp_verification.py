@@ -30,8 +30,8 @@ import pytest
 from scipy.sparse.linalg import LinearOperator as SciLinearOperator
 from scipy.sparse.linalg import gmres
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
@@ -55,40 +55,25 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 
 def _build_cylinder(nx: int, sn_order: int = 4) -> SNProblem:
-    edges = np.linspace(0.01, 2.0, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _build_sphere(nx: int, n_ord: int = 8) -> SNProblem:
-    edges = np.linspace(0.0, 2.0, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 2.0), (0,), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _build_slab(nx: int, n_ord: int = 8) -> SNProblem:
-    edges = np.linspace(0.0, 2.0, nx + 1)
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, BC("reflective"))).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials())
 

@@ -9,15 +9,24 @@ that division: cell edges, the material ID of each cell, cell volumes and
 face areas, and the boundary declaration on each face. Solvers receive a
 mesh and build mutable, method-specific state on top of it.
 
-The package holds three modules:
+The package holds five modules:
 
 * :mod:`orpheus.mesh.structured`: the structured meshes
   :class:`~orpheus.mesh.structured.Mesh1D` and
-  :class:`~orpheus.mesh.structured.Mesh2D`, and the per-region
-  discretisation descriptor :class:`~orpheus.mesh.structured.RegionMesh`.
+  :class:`~orpheus.mesh.structured.Mesh2D`.
+* :mod:`orpheus.mesh.mesher`: the :class:`~orpheus.mesh.mesher.Mesher`,
+  the meshing session that builds a ``Mesh1D`` from a geometry and
+  interval rules, and the only way one is built.
+* :mod:`orpheus.mesh.partition`: the interval rules
+  (:class:`~orpheus.mesh.partition.CellsByCount`,
+  :class:`~orpheus.mesh.partition.CellsByMaxWidth`,
+  :class:`~orpheus.mesh.partition.Refined`,
+  :class:`~orpheus.mesh.partition.CellEdges`) and the spacing rules
+  (:class:`~orpheus.mesh.partition.EqualWidth`,
+  :class:`~orpheus.mesh.partition.EqualVolume`) that place the cells of
+  one interval.
 * :mod:`orpheus.mesh.factories`: the 2-D pin-cell factory
-  :func:`~orpheus.mesh.factories.pwr_pin_2d` and the equal-volume
-  subdivision of one interval.
+  :func:`~orpheus.mesh.factories.pwr_pin_2d`.
 * :mod:`orpheus.mesh.axis`: the per-axis primitives
   (:class:`~orpheus.mesh.axis.AxisMesh`,
   :class:`~orpheus.mesh.axis.RadialAxisMesh`,
@@ -26,9 +35,9 @@ The package holds three modules:
   structured phase-space mesh, and the pure shape functions on tuples of
   axes.
 
-Every public name of the three modules is exported from
-:mod:`orpheus.mesh` itself (``from orpheus.mesh import Mesh1D,
-RegionMesh``); :mod:`orpheus.geometry` and :mod:`orpheus.transport.mesh`
+Every public name of the five modules is exported from
+:mod:`orpheus.mesh` itself (``from orpheus.mesh import Mesher,
+CellsByCount``); :mod:`orpheus.geometry` and :mod:`orpheus.transport.mesh`
 do not export them.
 
 .. contents::
@@ -42,7 +51,7 @@ Where the mesh sits in the layers
 Posing a problem is a chain of overlays: materials, then geometry, then
 mesh. A mesh is a complex enough overlay on the geometry to be its own
 package rather than a module of :mod:`orpheus.geometry`: its vocabulary
-(cells, subdivision schemes, per-axis primitives, face inventories) is
+(cells, interval rules, per-axis primitives, face inventories) is
 not the geometry's, and it is the home for every kind of mesh, of which
 the structured ones are the kinds that exist today.
 
@@ -77,43 +86,49 @@ function of its inputs and prevents whole classes of bugs where a
 downstream routine accidentally mutates mesh state shared across
 iterations.
 
-**Equal-volume subdivision.**
-Curvilinear zones (cylindrical, spherical) are subdivided by default
-into **equal-volume** annuli or shells rather than equal-width cells.
-With equal widths the cell volume grows with radius
+**Two spacings, and no default.**
+Cells are placed in an interval at equal steps of a measure coordinate
+:math:`T(r) = r^{p}`. :class:`~orpheus.mesh.partition.EqualWidth` steps
+in :math:`r` (:math:`p = 1`) in every coordinate system;
+:class:`~orpheus.mesh.partition.EqualVolume` steps in the coordinate
+system's own measure coordinate (:math:`r`, :math:`r^2`, :math:`r^3`),
+so every cell of the interval holds the same share of its measure. With
+equal widths on a curved body the cell volume grows with radius
 (:math:`V \propto r\,\Delta r` for an annulus,
 :math:`V \propto r^2\,\Delta r` for a shell), so the innermost cells
-hold a small fraction of the zone's volume; equal volumes give every
-cell of the zone the same share. In Cartesian geometry the two schemes
-coincide.
+hold a small fraction of the interval's volume. On a slab the two
+spacings are one body and give one mesh. A counted rule states its
+spacing: there is no default (``CellsByCount.uniform_width(n)`` and
+``CellsByCount.uniform_volume(n)`` are the short spellings).
 
-**Precomputed volumes — the ULP escape hatch.**
-:class:`~orpheus.mesh.structured.Mesh1D` accepts an optional
-``precomputed_volumes`` override, and
-:meth:`~orpheus.mesh.structured.Mesh1D.from_geometry` always sets it.
-For an ``"equal-volume"`` region the volumes come from
-:func:`~orpheus.mesh.factories._subdivide_zone`, which returns the
-*algebraic* cell volume (e.g.
-:math:`V_{\rm cell} = \pi(r_{\rm out}^2 - r_{\rm in}^2)/n` in the
-cylindrical case) broadcast as a scalar to every cell in the region.
-Deriving those volumes from the *edges* after the fact via
-:func:`~orpheus.geometry.coord.compute_volumes_1d` would pass
-through a ``sqrt → **2`` or ``cbrt → **3`` round trip that loses
-roughly one ULP per cell and breaks the invariant "every cell in
-an equal-volume region is bit-identical" at ``rtol=1e-14`` (ERR-020).
-For a ``"uniform"`` region, ``from_geometry`` computes the region's
-volumes from its own edges with
-:func:`~orpheus.geometry.coord.compute_volumes_1d`. A mesh constructed
-directly, without ``precomputed_volumes``, derives every volume from
-its edges.
+**Stored volumes, checked against the one measure.**
+:class:`~orpheus.mesh.structured.Mesh1D` stores its cell volumes; it
+does not recompute them from its edges. An equal-volume cell's volume
+is the equal share :math:`m/n` of its interval's measure, one scalar
+broadcast over the interval, because re-deriving it from the edges goes
+through a ``sqrt → **2`` or ``cbrt → **3`` round trip that moves it by
+about one unit in the last place (ulp) per cell and breaks the invariant
+"every cell of an equal-volume interval is bit-identical" (ERR-020). Any
+other cell's volume is the geometry's measure of the realised cell. The
+constructor checks every stored volume against the coordinate system's
+measure of its cell, :meth:`~orpheus.geometry.coord.CoordSystem.measure`,
+within a band of :math:`2p + 5` ulp derived from the rounding of the
+edge placement (7 on a slab, 9 on a cylinder, 11 on a sphere), and
+refuses a non-positive volume. The derivation and its measurements are
+on :ref:`structured-geometry-mesh`.
 
-**Boundary declarations on the faces.**
-Each face of a structured mesh carries a boundary declaration: a
-:class:`~orpheus.geometry.boundary.BC` tag, an already-typed boundary
-law, or ``None`` for the method's default.
-:class:`~orpheus.mesh.structured.Mesh1D` has ``bc_left`` and
-``bc_right``; :class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``,
-``bc_xmax``, ``bc_ymin`` and ``bc_ymax``. The tag, the laws and the
+**Boundary laws on the faces.**
+Each boundary face of a structured mesh carries a boundary law: a
+:class:`~orpheus.geometry.boundary.BC` tag or an already-typed law.
+:class:`~orpheus.mesh.structured.Mesh1D` has ``face_laws``, one law per
+boundary point of its interval, inner first, paired with
+``boundary_faces`` (two on a slab or a hollow body, one on a solid
+cylinder or sphere, whose centre is an interior point); ``outer_law``
+reads the last. ``None`` is not a law on a ``Mesh1D``, as on a
+geometry: both are parsed by one check.
+:class:`~orpheus.mesh.structured.Mesh2D` has ``bc_xmin``, ``bc_xmax``,
+``bc_ymin`` and ``bc_ymax``, which still admit ``None`` for the
+method's default until step 3c of #405. The tag, the laws and the
 deferred resolution of a tag by each method's hub are geometry-layer
 concepts, documented on :doc:`/api/geometry`.
 
@@ -121,35 +136,39 @@ concepts, documented on :doc:`/api/geometry`.
 Construction — the geometry to mesh path
 ----------------------------------------
 
-The recommended 1-D construction path is **two-layered**: declare a
+The 1-D construction path is **two-layered**: declare a
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-(pure shape — a coordinate system, breakpoints, one material id per
+(pure shape: a coordinate system, breakpoints, one material id per
 interval and one :class:`~orpheus.geometry.boundary.BC` per boundary
-point), then discretize it with :meth:`Mesh1D.from_geometry
-<orpheus.mesh.structured.Mesh1D.from_geometry>` by supplying one
-:class:`~orpheus.mesh.structured.RegionMesh` per interval. The mesh
-starts at the first breakpoint and ends at the last, and the laws reach
-``bc_left`` / ``bc_right`` by the boundary point they belong to: a slab
-or a hollow cylinder or sphere gives ``(inner, outer)``, a solid
-cylinder or sphere gives its one law to ``bc_right`` and leaves
-``bc_left`` ``None``. The geometry
-carries **no** cell counts; the discretization description enters at
-exactly one point, the ``from_geometry`` call.
+point), then mesh it with a :class:`~orpheus.mesh.mesher.Mesher`:
+``partition`` takes one interval rule for every interval, or a tuple of
+one rule per interval, builds the mesh and returns the mesher;
+``refine(k)`` rebuilds it with ``k`` times the cells of every rule
+(``k`` a power of two); ``mesh`` returns the current mesh. The mesh
+starts at the first breakpoint and ends at the last, every breakpoint
+is a cell edge, each cell takes the material of its interval, and the
+face laws are the geometry's boundary laws. The geometry carries
+**no** cell counts; the discretisation enters at exactly one point,
+the rules handed to the mesher.
 
 .. code-block:: python
 
-   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-   from orpheus.mesh import Mesh1D, RegionMesh
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.mesh import CellsByCount, Mesher
 
-   geom = StructuredGeometry(
-       coord=CoordSystem.SPHERICAL,
-       breakpoints=(0.0, 5.0),
-       mat_ids=(0,),
-       boundaries=(BC.vacuum,),
-   )
-   mesh = Mesh1D.from_geometry(
-       geom, region_meshes=(RegionMesh(n_cells=64),),
-   )
+   geom = StructuredGeometry.sphere((0.0, 5.0), (0,), outer=BC.vacuum)
+   mesher = Mesher(geom).partition(CellsByCount.uniform_volume(64))
+   mesh = mesher.mesh
+   finer = mesher.refine(2).mesh
+   assert (mesh.N, finer.N) == (64, 128)
+   assert mesh.face_laws == (BC.vacuum,)
+
+The general constructor
+``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` is what the
+mesher calls, and what a relabelling
+(:meth:`~orpheus.mesh.structured.Mesh1D.with_distinct_cell_ids`) or the
+axis adapter calls; a test or a script builds its mesh through the
+mesher.
 
 This split is what lets **reference** solution generators (``Billiard``,
 ``MomentSpace``, ``Spectrum``, ``BasisSpace``) consume the
@@ -160,13 +179,26 @@ This split is what lets **reference** solution generators (``Billiard``,
 shapes that ship as :class:`StructuredGeometry` classmethods, and the
 material ID convention, are on :doc:`/api/geometry`.
 
-Per-region subdivision
-~~~~~~~~~~~~~~~~~~~~~~
+Interval rules
+~~~~~~~~~~~~~~
 
-:class:`~orpheus.mesh.structured.RegionMesh` selects the scheme per
-region. ``"equal-volume"`` (the default) routes through
-:func:`~orpheus.mesh.factories._subdivide_zone`, which carries the
-three coordinate-system invariants:
+An interval rule says how one interval :math:`[a, b]` is divided:
+
+* :class:`~orpheus.mesh.partition.CellsByCount` — ``n`` cells placed by
+  a spacing rule;
+* :class:`~orpheus.mesh.partition.CellsByMaxWidth` — the fewest cells
+  whose nominal widest cell is no wider than a bound;
+* :class:`~orpheus.mesh.partition.Refined` — ``k * rule``, ``k`` times
+  the cells of a counted rule by the same spacing, ``k`` a power of two
+  so every coarse edge stays a fine edge bit for bit;
+* :class:`~orpheus.mesh.partition.CellEdges` — the edges written out,
+  for a grid whose irregularity is the point; it cannot be refined.
+
+A spacing rule places ``n`` cells at
+:math:`r_j = T^{-1}\bigl(T(a) + (j/n)\,(T(b) - T(a))\bigr)`, with both
+end edges pinned to the breakpoints. For
+:class:`~orpheus.mesh.partition.EqualVolume` this is, per coordinate
+system:
 
 * **Cartesian** — equal-width cells
   :math:`x_k = x_0 + (k/n)\,(x_n - x_0)`.
@@ -175,34 +207,50 @@ three coordinate-system invariants:
 * **Spherical** — equal-volume shells
   :math:`r_k = \sqrt[3]{r_0^3 + (k/n)\,(r_n^3 - r_0^3)}`.
 
-It returns both the edges **and** the exact per-cell volume (a
-broadcast scalar), which ``from_geometry`` passes to the frozen
-:class:`Mesh1D` as ``precomputed_volumes`` — see the design principle
-above. ``"uniform"`` instead lays down equal radial extents and derives
-the region's volumes from its edges via
-:func:`~orpheus.geometry.coord.compute_volumes_1d`.
+The theory (the one measure, the volume band, the Mesher's design and
+the candidates it replaced) is :ref:`structured-geometry-mesh`.
 
-.. note:: **Retired 1-D factory surface.**
+.. note:: **Retired 1-D factory and mesh surfaces.**
 
    Phase F retired the free functions ``Zone``, ``mesh1d_from_zones``,
    ``pwr_pin_equivalent``, ``pwr_slab_half_cell``, ``homogeneous_1d``
    and ``slab_fuel_moderator`` from the factories module (then
    ``orpheus.geometry.factories``, now :mod:`orpheus.mesh.factories`).
-   Their jobs are now split between the geometry layer (the
-   :class:`StructuredGeometry` classmethods) and the mesh layer
-   (:meth:`Mesh1D.from_geometry
-   <orpheus.mesh.structured.Mesh1D.from_geometry>` +
-   :class:`~orpheus.mesh.structured.RegionMesh`) — which is what removed
-   the old "a factory both shapes AND meshes the problem" conflation.
-   A homogeneous or two-region slab is now a one-liner
-   ``StructuredGeometry`` literal, so no dedicated convenience
-   function survives for it.
+   Their jobs were split between the geometry layer (the
+   :class:`StructuredGeometry` classmethods) and the mesh layer, then
+   ``Mesh1D.from_geometry`` with one ``RegionMesh`` per interval, which
+   removed the old "a factory both shapes AND meshes the problem"
+   conflation. P1 step 3 of #405 (2026-09-29) retired
+   ``Mesh1D.from_geometry``, ``RegionMesh``, the ``_subdivide_zone``
+   helper, the ``precomputed_volumes`` field and the ``bc_left`` /
+   ``bc_right`` fields in favour of the Mesher, the interval rules and
+   ``face_laws``.
 
 
 Structured meshes
 -----------------
 
 .. automodule:: orpheus.mesh.structured
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+
+The Mesher
+----------
+
+.. automodule:: orpheus.mesh.mesher
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+
+Interval rules and spacing rules
+--------------------------------
+
+.. automodule:: orpheus.mesh.partition
    :members:
    :undoc-members:
    :show-inheritance:

@@ -55,7 +55,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration, seeded_inverse
 from orpheus.numerics.operator import (
@@ -103,9 +103,7 @@ def _het_scattering_slab() -> SNProblem:
         mat_ids=(0, 1),
         boundaries=(BC("vacuum"), BC("vacuum")),
     )
-    mesh = Mesh1D.from_geometry(
-        geom, region_meshes=(RegionMesh(n_cells=3), RegionMesh(n_cells=3)),
-    )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(3)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: _mix([1.0, 1.5], [[0.38, 0.10], [0.05, 0.60]]),

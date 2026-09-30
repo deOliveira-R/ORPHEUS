@@ -270,11 +270,14 @@ second layer has grown.
 1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` or
    :class:`~orpheus.mesh.structured.Mesh2D` stores cell edges, material IDs,
    coordinate system, and **boundary condition declarations**.
-   Each face carries an optional :class:`~orpheus.geometry.boundary.BC` field
-   (``bc_left``/``bc_right`` for 1-D;
-   ``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax`` for 2-D).
-   When ``None`` (the default), the solver applies its own default
-   --- for the SN solver, that default is reflective.
+   A ``Mesh1D`` carries one declared law per boundary face
+   (``face_laws``, inner first, paired with ``boundary_faces``), which the
+   :class:`~orpheus.mesh.mesher.Mesher` copies from the geometry; ``None``
+   is refused there. A ``Mesh2D`` carries an optional
+   :class:`~orpheus.geometry.boundary.BC` field per face
+   (``bc_xmin``/``bc_xmax``/``bc_ymin``/``bc_ymax``); when it is ``None``
+   the solver applies its own default, reflective for the SN solver,
+   until step 3c of #405 retires ``None`` there too.
    See :ref:`boundary-conditions` for details.
 
 2. **The Problem** --- :class:`SNProblem` pairs the spatial mesh
@@ -781,8 +784,8 @@ Reproduce it by counting both constructors around a solve:
    import numpy as np
    from scipy.sparse import csr_matrix
    from orpheus.data.macro_xs.mixture import Mixture
-   from orpheus.geometry import BC
-   from orpheus.mesh import Mesh1D
+   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.mesh import CellsByCount, Mesher
    from orpheus.numerics.quadrature import Quadrature
    from orpheus.sn.operators.streaming import StreamingOperator
    from orpheus.sn.solver import solve_sn
@@ -794,9 +797,10 @@ Reproduce it by counting both constructors around a solve:
                       SigP=np.array([0.12, 0.25]), SigS=[S],
                       Sig2=[csr_matrix(np.zeros((2, 2)))], chi=np.array([1.0, 0.0]))}
    nx = 200
-   mesh = Mesh1D(edges=np.linspace(0.0, 10.0, nx + 1),
-                 mat_ids=np.zeros(nx, dtype=int),
-                 bc_left=BC("reflective"), bc_right=BC("vacuum"))
+   geometry = StructuredGeometry.slab(
+       (0.0, 10.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+   )
+   mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
    quad = Quadrature.gauss_legendre(16)
 
    n = {"op": 0, "tab": 0}

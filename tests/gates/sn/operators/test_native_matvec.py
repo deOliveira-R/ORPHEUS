@@ -77,8 +77,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -99,39 +99,26 @@ pytestmark = pytest.mark.foundation
 
 def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D slab with vacuum BCs + GL N=4."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D sphere with reflective inner / vacuum outer + GL N=4."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
 def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D cylinder with reflective inner / vacuum outer + the folded rule."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.cylinder(
+        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -254,13 +241,10 @@ def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNProblem:
     """Reflective slab (homogeneous infinite slab) — flat-flux invariant
     needs reflective BC so the outflow at the boundary reflects back as
     inflow, nulling the net streaming on uniform ψ."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials())
 
@@ -270,26 +254,18 @@ def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNProblem:
     the outer BC to reflect the outflow back as inflow (so the net
     radial streaming on uniform ψ cancels).  Pole at r=0 always
     handles regularity via M-M Carlson seed."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),  # unused — pole regularity
-        bc_right=BC("reflective"),
-    )
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("reflective"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNProblem:
     """Reflective outer cylinder — same flat-flux logic as sphere."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.cylinder(
+        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials())
 

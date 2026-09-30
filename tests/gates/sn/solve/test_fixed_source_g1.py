@@ -67,8 +67,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -84,26 +84,18 @@ pytestmark = [pytest.mark.l1, pytest.mark.catches("ERR-049")]
 
 def _sphere_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
     """Sphere with reflective outer BC + GL N=8."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, radius), (0,), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return mesh, quad
 
 
 def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
     """Cylinder with reflective outer BC + folded(2,4) quadrature."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     return mesh, quad
 

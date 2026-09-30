@@ -12,20 +12,17 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper."""
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, total_width),
-        mat_ids=(mat_id,),
-        boundaries=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.slab(
+        (0.0, total_width), (mat_id,), left=BC.reflective, right=BC.reflective,
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
 def _slab_fuel_moderator_mesh(
@@ -38,10 +35,10 @@ def _slab_fuel_moderator_mesh(
         mat_ids=(2, 0),
         boundaries=(BC.reflective, BC.reflective),
     )
-    return Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=n_fuel),
-        RegionMesh(n_cells=n_mod),
-    ))
+    return Mesher(geom).partition((
+        CellsByCount.uniform_volume(n_fuel),
+        CellsByCount.uniform_volume(n_mod),
+    )).mesh
 
 pytestmark = pytest.mark.l0  # SN property checks (quadrature weights, symmetry, balance)
 

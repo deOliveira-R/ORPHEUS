@@ -23,8 +23,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -55,13 +55,10 @@ pytestmark = pytest.mark.foundation
 
 
 def _slab(*, width: float = 1.0, nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, width, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.slab(
+        (0.0, width), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
     )
@@ -71,12 +68,8 @@ def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNProblem:
     """Seed-carrying sphere; ``power != 1`` grades the radii (the ray-content
     discriminator — same shape, different Δr, different ray metric)."""
     radii = 4.0 * (np.arange(nx + 1) / nx) ** power
-    mesh = Mesh1D(
-        edges=radii,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellEdges(radii)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
     )
@@ -98,9 +91,10 @@ class TestO4DiffusionBoundaryOperator:
         )
 
         def _dmesh(width: float) -> DiffusionMesh:
-            m = Mesh1D(
-                np.linspace(0.0, width, 5), np.zeros(4, dtype=int),
+            geom = StructuredGeometry.slab(
+                (0.0, width), (0,), left=BC.reflective, right=BC.reflective,
             )
+            m = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
             return DiffusionMesh(m, {0: get_mixture("A", "2g")})
 
         op = DiffusionBoundaryOperator(_dmesh(10.0))
@@ -124,13 +118,9 @@ class TestO5AdjointEntryDetector:
         with pytest.raises(ValueError, match="space-content"):
             solve_sn_adjoint_fixed_source(
                 base.materials,
-                Mesh1D(
-                    edges=np.linspace(0.0, 1.0, 5),
-                    mat_ids=np.zeros(4, dtype=int),
-                    coord=CoordSystem.CARTESIAN,
-                    bc_left=BC("vacuum"),
-                    bc_right=BC("vacuum"),
-                ),
+                Mesher(StructuredGeometry.slab(
+                    (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+                )).partition(CellsByCount.uniform_width(4)).mesh,
                 Quadrature.gauss_legendre(4),
                 q_star,
             )

@@ -33,8 +33,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.axis import BasisKind
 from orpheus.numerics.moment_layout import (
     SPATIAL_MOMENT_AXIS_LABEL,
@@ -66,10 +66,8 @@ def _ld_2d() -> SNProblem:
 
 
 def _ld_1d() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6), mat_ids=np.zeros(5, dtype=int), coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous())
 
 

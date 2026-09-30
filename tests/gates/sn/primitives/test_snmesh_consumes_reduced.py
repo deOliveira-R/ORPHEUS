@@ -50,8 +50,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -64,31 +64,25 @@ from tests.gates.sn._test_helpers import placeholder_materials
 
 
 def _slab_mesh() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _sphere_mesh() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     return SNProblem(mesh, quad, placeholder_materials())
 
 
 def _cylinder_mesh() -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.01, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=4)
     return SNProblem(mesh, quad, placeholder_materials())
 

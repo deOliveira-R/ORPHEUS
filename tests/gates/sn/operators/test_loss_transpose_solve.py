@@ -36,8 +36,8 @@ import pytest
 from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -58,11 +58,25 @@ from tests.gates.sn.sweep.test_assembly_mode import (
 _RTOL = 1e-10
 
 
+def _het_slab_mesh() -> Mesh1D:
+    """Vacuum slab, materials 0 | 1 | 0, the middle region cut in two cells."""
+    geom = StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
+    )
+    return Mesher(geom).partition((
+        CellEdges(np.array([0.0, 0.5])),
+        CellEdges(np.array([0.5, 1.5, 3.0])),
+        CellEdges(np.array([3.0, 5.0])),
+    )).mesh
+
+
+def _one_cell_per_region(geom: StructuredGeometry) -> Mesh1D:
+    return Mesher(geom).partition(CellsByCount.uniform_width(1)).mesh
+
+
 def _slab() -> SNProblem:
     return SNProblem(
-        Mesh1D(edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-               mat_ids=np.array([0, 1, 1, 0]),
-               bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _het_slab_mesh(),
         Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
@@ -70,10 +84,9 @@ def _slab() -> SNProblem:
 
 def _sphere() -> SNProblem:
     return SNProblem(
-        Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
-               mat_ids=np.array([0, 1, 0]),
-               bc_left=BC("reflective"), bc_right=BC("vacuum"),
-               coord=CoordSystem.SPHERICAL),
+        _one_cell_per_region(StructuredGeometry.sphere(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        )),
         Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
@@ -88,10 +101,9 @@ def _cyl_degenerate() -> SNProblem:
     # (like every admitted cylinder rule) a LIVE seed-fold — both
     # cylinder-specific transpose terms active.
     return SNProblem(
-        Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
-               mat_ids=np.array([0, 1, 0]),
-               bc_left=BC("reflective"), bc_right=BC("vacuum"),
-               coord=CoordSystem.CYLINDRICAL),
+        _one_cell_per_region(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        )),
         Quadrature.folded_product(n_mu=4, n_phi=6),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
@@ -106,10 +118,9 @@ def _cyl_regular() -> SNProblem:
     # carrying rule's seed is live, so the Mode-7 discrimination
     # narrows to the degenerate axis (see G5).
     return SNProblem(
-        Mesh1D(edges=np.array([0.0, 0.3, 0.8, 1.0]),
-               mat_ids=np.array([0, 1, 0]),
-               bc_left=BC("reflective"), bc_right=BC("vacuum"),
-               coord=CoordSystem.CYLINDRICAL),
+        _one_cell_per_region(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        )),
         Quadrature.folded_product(n_mu=8, n_phi=16),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
@@ -123,9 +134,7 @@ def _ld_slab() -> SNProblem:
     )
 
     return SNProblem(
-        Mesh1D(edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-               mat_ids=np.array([0, 1, 1, 0]),
-               bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _het_slab_mesh(),
         Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         scheme=LinearDiscontinuous(),

@@ -43,8 +43,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 
@@ -127,9 +127,9 @@ def solve_uniform_source_ball(*, sigma_t, radius, nx, quad,
                          for t in shipped(q, coord))
         pac.morel_montry_tau_per_level = producer
     try:
-        edges = np.linspace(0.0, radius, nx + 1)
-        mesh = Mesh1D(edges=edges, mat_ids=np.zeros(nx, dtype=int),
-                      coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+        mesh = Mesher(StructuredGeometry.sphere(
+            (0.0, radius), (0,), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(nx)).mesh
         source = np.full((quad.N, 1, nx), 1.0 / float(quad.weights.sum()))
         solution = solve_sn_fixed_source(
             {0: _pure_scatterer(sigma_t)}, mesh, quad, source,

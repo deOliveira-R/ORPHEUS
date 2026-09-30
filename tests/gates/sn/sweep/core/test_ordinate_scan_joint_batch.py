@@ -26,8 +26,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import loss_representation as sweep_module
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -38,13 +38,9 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 
 def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
@@ -54,13 +50,9 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
 
 
 def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.

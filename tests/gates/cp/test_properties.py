@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations.common.xs_library import get_xs
 
@@ -38,19 +38,6 @@ pytestmark = [pytest.mark.l0, pytest.mark.verifies(
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
-def _bcs_for(coord: CoordSystem) -> tuple[BC, ...]:
-    """White laws, one per boundary point of a solid geometry in ``coord``.
-
-    The CP method only supports ``"vacuum"`` and ``"white"`` BCs;
-    the algebraic-invariant tests in this file were historically
-    written with the CP default (white at the outer surface), so
-    we keep that convention here.
-    """
-    if coord is CoordSystem.CARTESIAN:
-        return (BC.white, BC.white)
-    return (BC.white,)
-
-
 def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.0):
     """Build P_inf for a 1G 2-region problem in any coordinate system.
 
@@ -60,16 +47,11 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
     xs_b = get_xs("B", "1g")
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
 
-    geom = StructuredGeometry.from_thicknesses(
-        coord=coord,
-        thicknesses=(0.5, 0.5),
-        mat_ids=(0, 1),
-        boundaries=_bcs_for(coord),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(
-        RegionMesh(n_cells=1),
-        RegionMesh(n_cells=1),
-    ))
+    # White on every boundary point: the CP method admits only vacuum and
+    # white, and these algebraic-invariant tests were written with the CP
+    # default (white at the outer surface).
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, 0.5, 1.0), (0, 1), BC.white)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(1)).mesh
     cp_mesh = CPMesh(mesh)
     P_inf = cp_mesh.compute_pinf_group(sig_t_g)
     return P_inf, sig_t_g, mesh.volumes
@@ -78,13 +60,8 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
 def _build_pinf_1region(coord: CoordSystem):
     """Build P_inf for a 1G 1-region problem (homogeneous limit)."""
     extent_cm = 0.5 if coord == CoordSystem.CARTESIAN else 1.0
-    geom = StructuredGeometry(
-        coord=coord,
-        breakpoints=(0.0, extent_cm),
-        mat_ids=(0,),
-        boundaries=_bcs_for(coord),
-    )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=1),))
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, extent_cm), (0,), BC.white)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(1)).mesh
 
     sig_t_g = np.array([1.0])
     cp_mesh = CPMesh(mesh)

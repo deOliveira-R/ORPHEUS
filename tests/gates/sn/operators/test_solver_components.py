@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.mesh import Mesh2D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -305,20 +305,15 @@ class TestComputeGroupRates:
         regardless of FP reduction order, mesh resolution, or quadrature.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-        from orpheus.mesh import Mesh1D, RegionMesh
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
 
         fuel = get_mixture("A", "2g")
-        geom = StructuredGeometry(
-            coord=CoordSystem.CARTESIAN,
-            breakpoints=(0.0, 2.0),
-            mat_ids=(0,),
-            boundaries=(BC.reflective, BC.reflective),
+        geom = StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC.reflective, right=BC.reflective,
         )
-        mesh = Mesh1D.from_geometry(
-            geom, region_meshes=(RegionMesh(n_cells=20),)
-        )
+        mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
         result = solve_sn(
             materials={0: fuel}, mesh=mesh,
             quadrature=Quadrature.gauss_legendre(n_ordinates=8),

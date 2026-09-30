@@ -85,8 +85,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import sweep_once
@@ -150,31 +150,19 @@ def _build_sn_mesh(geometry: str) -> SNProblem:
     """
     mats = placeholder_materials(ng=_NG)
     if geometry == "SLB":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, _N_CELLS + 1),
-            mat_ids=np.zeros(_N_CELLS, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)
     elif geometry == "SPH":
-        mesh = Mesh1D(
-            edges=np.linspace(0.0, 2.0, _N_CELLS + 1),
-            mat_ids=np.zeros(_N_CELLS, dtype=int),
-            coord=CoordSystem.SPHERICAL,
-            bc_left=BC("reflective"),  # r=0 pole — regularity, not a BC
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(
+            StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum")),
+        ).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)
     elif geometry == "CYL":
-        mesh = Mesh1D(
-            edges=np.linspace(0.01, 2.0, _N_CELLS + 1),
-            mat_ids=np.zeros(_N_CELLS, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=2 * _N_ORD)
     elif geometry == "CYL_DEG":
         # Same cylinder mesh as CYL; the quadrature differs ONLY in n_phi.
@@ -182,13 +170,9 @@ def _build_sn_mesh(geometry: str) -> SNProblem:
         # μ-level (degenerate: no downstream radial face), routing those
         # ordinates through the slow per-cell path — the sole production
         # route into ``scheme.update`` (see _GEOMS_1D note above).
-        mesh = Mesh1D(
-            edges=np.linspace(0.01, 2.0, _N_CELLS + 1),
-            mat_ids=np.zeros(_N_CELLS, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=6)
     else:  # pragma: no cover - guarded by parametrize
         raise ValueError(geometry)

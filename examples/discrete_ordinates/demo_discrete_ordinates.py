@@ -13,7 +13,8 @@ from pathlib import Path
 import numpy as np
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 from plotting import plot_do_convergence, plot_do_spectra
@@ -65,9 +66,14 @@ def main():
     materials = {2: fuel, 1: clad, 0: cool}
 
     # 2. Set up 1D slab geometry: fuel(5) + clad(1) + coolant(4), δ=0.2 cm
-    edges = np.linspace(0.0, 2.0, 11)  # 10 cells, δ = 0.2 cm
-    mat_ids = np.array([2, 2, 2, 2, 2, 1, 0, 0, 0, 0], dtype=int)
-    mesh = Mesh1D(edges=edges, mat_ids=mat_ids)
+    geometry = StructuredGeometry.slab(
+        (0.0, 1.0, 1.2, 2.0), (2, 1, 0), left=BC.reflective, right=BC.reflective,
+    )
+    mesh = Mesher(geometry).partition((
+        CellsByCount.uniform_width(5),
+        CellsByCount.uniform_width(1),
+        CellsByCount.uniform_width(4),
+    )).mesh
 
     # 3. Angular quadrature
     n_ord = 16

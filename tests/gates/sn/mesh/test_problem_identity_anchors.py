@@ -55,9 +55,8 @@ import pytest
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import IdentityAngularClosure
 from orpheus.sn.problem import SNProblem
@@ -126,15 +125,18 @@ def _hub_independent(d: int = 3, **kw) -> SNProblem:
 
 def _slab_two_region() -> tuple[dict[int, Mixture], Mesh1D, Quadrature]:
     """The two-region 2-group slab the order rows solve on."""
-    mesh = Mesh1D(edges=np.linspace(0.0, 2.0, 9),
-                  mat_ids=np.array([0] * 4 + [1] * 4, dtype=int))
+    geometry = StructuredGeometry.slab(
+        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("reflective"),
+    )
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return _mats(), mesh, Quadrature.gauss_legendre(4)
 
 
 #: The closure pair's shared geometry and quadrature — shared by ``is`` so the
 #: pair isolates the CLOSURE and nothing else.
-_SPHERE_MESH = Mesh1D(edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
-                      coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
+_SPHERE_MESH = Mesher(
+    StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+).partition(CellsByCount.uniform_width(4)).mesh
 _SPHERE_QUAD = Quadrature.gauss_legendre(4)
 
 

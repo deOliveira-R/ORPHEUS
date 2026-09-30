@@ -18,8 +18,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 
 pytestmark = pytest.mark.l0  # Diffusion property checks (BC law, positivity, symmetry)
 
@@ -38,11 +38,8 @@ _CORE1D_FUEL = dict(
 
 def _bare_slab(bc: BC, n_cells: int = 20, height: float = 50.0):
     """Uniform bare fuel slab under the same BC on both faces."""
-    edges = np.linspace(0.0, height, n_cells + 1)
-    mesh = Mesh1D(
-        edges=edges, mat_ids=np.zeros(n_cells, dtype=int),
-        bc_left=bc, bc_right=bc,
-    )
+    geometry = StructuredGeometry.from_homogeneous(height, bc)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_cells)).mesh
     materials = {0: mixture_from_diffusion_tables(_CORE1D_FUEL)}
     return solve_diffusion_1d(
         materials, mesh, keff_tol=1e-12, flux_tol=1e-10, max_outer=3000,

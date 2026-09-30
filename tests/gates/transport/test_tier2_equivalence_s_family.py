@@ -16,8 +16,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 from orpheus.sn.problem import SNProblem
@@ -54,13 +54,9 @@ def _mat_xs():
 
 
 def _sn(mat_xs):
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(_NX),
+    ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials)
 
 

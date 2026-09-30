@@ -60,9 +60,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import spherical_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -149,12 +148,9 @@ def test_flat_field_coefficient_tau_independent():
     """
     R = 5.0
     nx = 20
-    edges = np.linspace(0.0, R, nx + 1)
-    mesh = Mesh1D(
-        edges=edges, mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, R), (0,), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(16)
     op = spherical_streaming(mesh, quad)
     tau_clamped, tau_raw = _clamped_and_raw_tau(quad)

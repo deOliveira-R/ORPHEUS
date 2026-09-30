@@ -33,8 +33,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -47,27 +47,19 @@ pytestmark = pytest.mark.foundation
 
 
 def _slab_mesh() -> SNProblem:
-    geom = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(geom, quad, placeholder_materials(ng=2))
+    return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
 def _spherical_mesh() -> SNProblem:
-    geom = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(geom, quad, placeholder_materials(ng=2))
+    return SNProblem(mesh, quad, placeholder_materials(ng=2))
 
 
 def _cartesian_2d_mesh() -> SNProblem:

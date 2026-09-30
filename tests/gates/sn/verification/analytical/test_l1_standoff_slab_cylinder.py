@@ -43,8 +43,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.reference_values import continuous_get
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.derivations._trajectory_resolvent_ladders import (
@@ -102,23 +102,16 @@ def _build_cyl_mesh(nx: int) -> tuple[Mesh1D, dict]:
         i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
         for i in range(3)
     }
-    edges = np.linspace(0.0, ABA_RADII[-1], nx + 1)
-    mat_ids = np.zeros(nx, dtype=int)
-    cell_centres = 0.5 * (edges[:-1] + edges[1:])
-    for i_cell, r_c in enumerate(cell_centres):
-        if r_c <= ABA_RADII[0]:
-            mat_ids[i_cell] = 0
-        elif r_c <= ABA_RADII[1]:
-            mat_ids[i_cell] = 1
-        else:
-            mat_ids[i_cell] = 0
-    mesh = Mesh1D(
-        edges=edges,
-        mat_ids=mat_ids,
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    # The regions (A, B, A) end at ABA_RADII = (0.5, 1.5, 2.0): nx cells of
+    # equal width 2/nx over the whole radius put nx/4, nx/2, nx/4 in them.
+    geom = StructuredGeometry.cylinder(
+        (0.0, *ABA_RADII), (0, 1, 0), outer=BC("reflective"),
     )
+    mesh = Mesher(geom).partition((
+        CellsByCount.uniform_width(nx // 4),
+        CellsByCount.uniform_width(nx // 2),
+        CellsByCount.uniform_width(nx // 4),
+    )).mesh
     return mesh, materials
 
 
@@ -303,9 +296,10 @@ def _build_slab_2region_mesh(n_per: int) -> tuple[Mesh1D, dict, int]:
     H_A = float(geom["fuel_height"])
     H_B = float(geom["refl_height"])
     N_ord = int(geom["n_ordinates"])
-    edges = np.linspace(0.0, H_A + H_B, 2 * n_per + 1)
-    mat_ids = np.array([0] * n_per + [1] * n_per)
-    mesh = Mesh1D(edges=edges, mat_ids=mat_ids, coord=CoordSystem.CARTESIAN)
+    slab = StructuredGeometry.slab(
+        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
+    )
+    mesh = Mesher(slab).partition(CellsByCount.uniform_width(n_per)).mesh
     return mesh, materials, N_ord
 
 

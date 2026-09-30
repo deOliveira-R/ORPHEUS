@@ -103,8 +103,7 @@ def solve_moc(
         Cylindrical 1-D Wigner-Seitz mesh. Defaults to the standard PWR
         pin cell built via
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
-        →
-        :meth:`Mesh1D.from_geometry <orpheus.mesh.structured.Mesh1D.from_geometry>`.
+        meshed by a :class:`~orpheus.mesh.mesher.Mesher`.
     n_azi : int
         Number of azimuthal angles in [0, pi).
     n_polar : int
@@ -141,13 +140,12 @@ def solve_moc(
 
     if mesh is None:
         from orpheus.geometry import StructuredGeometry as _SG
-        from orpheus.mesh import Mesh1D as _M, RegionMesh as _RM
-        _geom = _SG.wigner_seitz_pin_cell()
-        mesh = _M.from_geometry(_geom, region_meshes=(
-            _RM(n_cells=10),  # fuel
-            _RM(n_cells=3),   # clad
-            _RM(n_cells=7),   # cool
-        ))
+        from orpheus.mesh import CellsByCount as _N, Mesher as _Mesher
+        mesh = _Mesher(_SG.wigner_seitz_pin_cell()).partition((
+            _N.uniform_volume(10),  # fuel
+            _N.uniform_volume(3),   # clad
+            _N.uniform_volume(7),   # cool
+        )).mesh
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg

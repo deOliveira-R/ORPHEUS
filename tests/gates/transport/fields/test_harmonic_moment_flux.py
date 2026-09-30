@@ -33,8 +33,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -64,12 +64,9 @@ def _sn(family: str = "flat") -> SNProblem:
     ``"rectangular"`` — ``level_symmetric(4)``: a full-sphere rule, so the head
     is the harmonics' ``(L+1, 2L+1)``.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, _NX + 1),
-        mat_ids=np.zeros(_NX, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        CellsByCount.uniform_width(_NX),
+    ).mesh
     quadrature = (
         Quadrature.gauss_legendre(4) if family == "flat"
         else Quadrature.level_symmetric(4)

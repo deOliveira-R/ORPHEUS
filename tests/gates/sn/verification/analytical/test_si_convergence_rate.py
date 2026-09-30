@@ -76,8 +76,8 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_continuous,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
@@ -118,13 +118,10 @@ def _reflective_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     """B-mixture reflective slab fixture: (mixture, materials, mesh, quad)."""
     m = get_mixture(mat, ng_key)
     mats = {0: m}
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, length),
-        mat_ids=(0,),
-        boundaries=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC.reflective, right=BC.reflective,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return m, mats, mesh, quad
 
@@ -141,13 +138,10 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     """
     m = get_mixture(mat, ng_key)
     mats = {0: m}
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, length),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
+    geom = StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC.vacuum, right=BC.vacuum,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=nx),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return m, mats, mesh, quad
 
@@ -344,13 +338,10 @@ def test_recovery_preserves_kinf_2g():
     """
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(mat_id,),
-        boundaries=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (mat_id,), left=BC.reflective, right=BC.reflective,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=10),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(10)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(
         case.problem.materials, mesh, quad,
@@ -472,13 +463,10 @@ def test_eigenvalue_path_surfaces_total_inner_iterations():
     :func:`test_recovery_preserves_kinf_2g`)."""
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0),
-        mat_ids=(mat_id,),
-        boundaries=(BC.reflective, BC.reflective),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (mat_id,), left=BC.reflective, right=BC.reflective,
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=10),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(10)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(
         case.problem.materials, mesh, quad, inner_solver="source_iteration",

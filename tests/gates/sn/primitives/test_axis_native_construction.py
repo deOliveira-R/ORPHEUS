@@ -27,8 +27,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh, coord_system
 from orpheus.sn.problem import SNProblem
@@ -109,11 +109,9 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
     legacy = SNProblem(
-        Mesh1D(
-            edges=edges, mat_ids=np.zeros(8, dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"), bc_right=BC("reflective"),
-        ),
+        Mesher(StructuredGeometry.slab(
+            (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
+        )).partition(CellsByCount.uniform_width(8)).mesh,
         quad, _MATERIALS,
     )
     native = SNProblem.from_axes(
@@ -205,10 +203,9 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
         quad, _MATERIALS,
     )
     legacy = SNProblem(
-        Mesh1D(
-            edges=edges, mat_ids=np.zeros(5, dtype=int), coord=sys,
-            bc_left=None, bc_right=BC("vacuum"),
-        ),
+        Mesher(StructuredGeometry(
+            coord=sys, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=(BC("vacuum"),),
+        )).partition(CellsByCount.uniform_width(5)).mesh,
         quad, _MATERIALS,
     )
     np.testing.assert_equal(native.coord, sys)

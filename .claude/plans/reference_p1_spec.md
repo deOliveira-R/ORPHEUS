@@ -210,6 +210,94 @@ This block SUPERSEDES the 3a column of the placement table above and the round-1
 | uniform-boundary-coord-late (elegance F8's arm) | 1 | the `(−1, 1)` string-coordinate row; the `(0, 1)` row stays green, the input on which the late parse was already right |
 | homogeneous-one-face | 13 | S4.1 identity legs |
 
+#### Step 3b's gates and the migration of `tests/gates/mesh` and `tests/gates/geometry` (2026-09-29)
+
+The constructor ruled after round 2 is `Mesh1D(coord, edges, volumes, mat_ids, face_laws)` (option A: the mesh holds no geometry). The `Mesher` is the one call site that lifts a geometry: `Mesher(g).partition(rule | rules).mesh`, `.refine(k)`. S3.8's legs (a) "equal to the mesh of its partition" and (d) "`mesh.boundaries is geometry.boundaries`" are re-posed accordingly: (a) is bitwise equality of the value, and (d) is the lift, where each face law IS the geometry's law object.
+
+New gate files:
+- `tests/gates/mesh/test_mesh1d.py`, 46 rows:
+  - S3.8 and S3.11: 19 keyed construction refusals and their disjointness row. The S3.11 rows are the old `test_geometry.py::TestMesh1D` refusals, re-posed; the material-id count is a law again under option A.
+  - The volume law: a ±4-ulp volume is admitted, a 64-ulp one refused, on both the first and the last cell, and the wrong-coordinate control is refused in four pairs. The stored volume is not recomputed.
+  - The value: bitwise equality over each field; the unhashable RECORD row for step 5; frozen and read-only; the inputs copied; the derived views; `with_distinct_cell_ids`.
+  - S3.10: `bc_left`, `bc_right`, `precomputed_volumes`, `from_geometry`, `RegionMesh` and `_subdivide_zone` are gone; the `__init__` field list is exactly the five fields.
+- `tests/gates/mesh/test_mesher.py`, 93 rows:
+  - The lift, 5 rules (one of them a per-interval mixed tuple) × 3 coordinates × solid and hollow bodies: the mesh is the concatenation of each interval's `rule.cells`, with the materials repeated per interval and the laws taken by identity.
+  - Posing seed 2 and S3.1 across intervals: every breakpoint is an edge at the count offsets, bitwise, and every cell lies in exactly one interval (by containment), the one whose material it carries.
+  - Broadcast and per-interval rules give one mesh; the session chains.
+  - `refine` nests, composes by the product, is refused for `CellEdges` and for a factor that is not a power of two.
+  - Six keyed session refusals.
+  - The #495 mesh leg: slab meshes are equal over 4 bodies × 68 counts, and the curvilinear negative leg holds.
+  - A population control row.
+
+**The migration** (`migration_brief.md`).
+- Migrated in place: `test_mesh.py`, `test_bound_compat.py`, `test_boundary_factor_consumers.py`, `test_geometry.py`, `test_structured_geometry.py`, `test_hollow_inner_law.py`, `test_dropped_laws_are_refused.py`, `test_module_layout.py`.
+- The ERR-020 catchers of `test_structured_geometry.py` keep their node ids and markers, and so do the rest of the `TestMesh1DFromGeometry` rows (the class was renamed `TestMeshingAGeometry` by the archivist's docs pass of 2026-09-29, with the error catalogue's and the CP page's citations updated in the same pass).
+- Deleted or re-posed (brief rule 5):
+  - `TestRegionMesh` (5 rows) is deleted. The count refusals are `test_partition.py::TestRuleRefusals`; the `method=` row is dead with `RegionMesh`.
+  - `test_geometry.py`: the 4 `TestMesh1D` refusal rows are re-posed in `test_mesh1d.py`; `test_mesh1d_bc_defaults_none` and `test_mesh1d_backward_compat` are deleted, since their subject was the retired `None` default.
+  - `test_dropped_laws_are_refused.py`: the two `[undeclared]` parameters are deleted, because `None` is refused at the mesh.
+  - `test_hollow_inner_law.py::test_an_undeclared_inner_law_is_the_reflective_one` is re-posed as the `None` refusal.
+- The capture gate `[M]`:
+  - mesh tree: 364 passed; meshes `a` 29; 6 `pre_unmatched`, all in the deleted or re-posed `None` rows; 1019 `post_unmatched`, all in the two new gate files (991 in `test_mesher.py`, 28 in `test_mesh1d.py`); 4 law mismatches, the same four `None` rows.
+  - geometry tree: 821 passed; `a` 39; `c` 5 (`test_mesh.py`, `linspace(0, 5, 6)` against the R2 edges, 1 ulp per edge, volumes unchanged); 3 `pre_unmatched`, all in the two deleted `None`-default rows; 0 law mismatches.
+
+**The step-3b battery** `[M]` 2026-09-29. Instrument: `scratch/reference_architecture/p1step3/battery3a/battery3b.py` with `run_battery3b.sh`; logs in `battery_out_3b/`. Scope: `tests/gates/mesh`, plus `test_structured_geometry.py`, `test_geometry.py` and `test_mesh.py` (500 rows, `-m "not slow"`). 13 arms, every one installed with a byte-compared precondition and red on its target; 0 collection errors.
+
+| arm | red | target |
+|---|---|---|
+| control-err020 (equal shares re-derived from the edges, through the mesher) | 27 | the six re-spelled ERR-020 catchers of `test_structured_geometry.py` (all red: their markers are re-adjudicated), the partition-level catchers, and the #495 named rows |
+| lift-materials-by-position | 66 | the lift and seed-2 rows |
+| lift-default-laws | 53 | the lift's law-identity leg |
+| volume-law-off | 10 | the volume-law rows and the two volume refusals |
+| volume-law-tight (0 ulp) | 99 | the band's admitted legs, and every mesher mesh whose equal shares are not the realised shells |
+| volumes-recomputed | 34 | `test_the_volumes_are_stored_not_recomputed` and the ERR-020 catchers |
+| eq-ignores-face-laws | 1 | the equality row |
+| refine-forgets-its-factor | 12 | `test_refine_nests` (the second refine is the product) |
+| mesh-before-partition-is-none | 2 | the session refusal and its disjointness row |
+| slab-face-count-everywhere | 49 | the face-count refusals and every solid curvilinear build |
+| no-negative-radius-check | 2 | the negative-radius refusal |
+| retired-field-back (`Mesh1D.bc_left`) | 1 | the retirement row |
+| slab-width-measure-is-diff | 20 | the #495 mesh leg (4 rows) and the partition-level slab rows |
+
+#### Step 3b, review round (2026-09-29): the derived volume band, positivity, the span check, one boundary-law check, the axis adapter
+
+The fixes of `review3b_qa.md` and `review3b_elegance.md` landed in production. The gates changed as follows.
+
+- **The volume band** is `_volume_ulps(coord) = 2p + 5`: 7 on a slab, 9 on a cylinder, 11 on a sphere. The derivation is in its docstring; the flat `_VOLUME_ULPS = 8` is gone.
+  - `TestTheVolumeLaw::test_the_band` asserts the formula per coordinate. It tests two edges of the band: `band − 1` ulp is admitted and `band + 1` refused, on the first and the last cell. Adding `k` ulp rounds by at most half an ulp, so the two edges are unambiguous.
+  - New `test_the_worst_legal_output_is_admitted`: the worst measured equal-volume outputs are admitted, and each must stay within 1 ulp of its recorded gap. `[M]` 2026-09-29, macOS libm, 4000 random intervals per coordinate (scales 1e-3 to 1e3, n < 3000):
+
+    | coordinate | interval | n | worst gap | band |
+    |---|---|---|---|---|
+    | sphere (the elegance case) | (0.06675753124937545, 0.9507586186918889) | 2400 | 7.504 ulp | 11 |
+    | sphere | (43.0446014117623, 81.72750086937991) | 2677 | 7.460 ulp | 11 |
+    | cylinder | (5.8405877264467225, 23.15910405796302) | 997 | 6.623 ulp | 9 |
+    | slab | (7.13e-05, 0.00278) | 2827 | 3.082 ulp | 7 |
+
+  - The claim kind is a THEOREM with a derived tolerance; the measured worst is the RECORD.
+  - The slab's derivation is conservative by a factor of 2.3.
+- **qa F4, positivity.** Two refusal rows sit on a cell one ulp wide, `[1, nextafter(1)]`, with volumes `0.0` and `−1e-300`. Both lie inside the absolute band of the measure, so positivity is the law that refuses them (fragment "a cell volume is positive").
+- **Elegance Q3, the span check.** `TestEveryBreakpointIsAnEdge` uses two stub interval rules that pass the protocol door: their edges are shifted by one ulp at the right end and at the left end. They are refused on 3 coordinates with a keyed rule index, and there is a new session-refusal row.
+- **One boundary-law check.** `TestOneBoundaryLawCheck` has two rows. The identity row asserts that `Mesh1D`'s `parse_boundary_laws` is the geometry's. The route row rebinds a decoy in every binding, needing at least 2, and both constructors must raise it.
+- **The axis adapter.** New `tests/gates/mesh/test_axis_adapter_laws.py` (8 rows):
+  - a hollow `RadialAxisMesh` gets a reflective inner face and its outer law by identity (SCOPE-BOUNDARY #511); the solid control gets no inner face;
+  - an undeclared `AxisMesh` or radial outer law becomes reflective (ELEGANCE-DEBT #405), with a declared control.
+
+**Battery, re-run** `[M]` (`run_battery3b.sh`, logs in `battery_out_3b_round2/`). 19 arms over 524 rows; every one installed and red on its target, 0 errors. New and re-posed arms:
+
+| arm | red | target |
+|---|---|---|
+| volume-law-off | 10 | the band rows and the two volume refusals |
+| volume-law-flat-8 (7 ulp everywhere) | 4 | the cylinder and sphere band rows and both sphere worst-case rows; the slab stays green, as it must, since 7 is the slab's value |
+| volume-law-tight (0 ulp) | 103 | every mesh whose shares are not the shells |
+| no-positivity-law | 3 | the two thin-cell rows and their disjointness row |
+| no-span-check | 11 | the six stub rows, their session row and disjointness rows |
+| second-boundary-check (a weaker copy in the mesh module) | 11 | the three count rows, the `None` rows and both route rows |
+| adapter-inner-is-outer | 3 | the hollow inner-face row |
+| adapter-undeclared-is-vacuum | 3 | the three undeclared rows |
+
+The control arm now reds 31 rows, including the six ERR-020 catchers. The other arms are as in the table above; their counts moved only by the rows added.
+
 ### 1.4 Step 4: `from_homogeneous(width, boundary)`
 
 The infinite medium realised by the test as a finite slab: one interval `[0, width]`, one material, both boundary points carrying `boundary`.

@@ -535,19 +535,15 @@ class TestMintedScanConstants:
 
     @staticmethod
     def _mm_cylinder():
-        from orpheus.geometry import BC, CoordSystem
-        from orpheus.mesh import Mesh1D
+        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.problem import SNProblem
         from tests.gates.sn._test_helpers import placeholder_materials
 
-        mesh = Mesh1D(
-            edges=np.linspace(0.01, 2.0, 9),
-            mat_ids=np.zeros(8, dtype=int),
-            coord=CoordSystem.CYLINDRICAL,
-            bc_left=BC("reflective"),
-            bc_right=BC("vacuum"),
-        )
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.folded_product(n_mu=4, n_phi=6)
         sn = SNProblem(mesh, quad, placeholder_materials(ng=2))
         closure = sn.angular_closure

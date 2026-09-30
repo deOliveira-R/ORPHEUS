@@ -49,8 +49,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -81,13 +81,8 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNProblem:
     path-forward matvec (the mesh.ng vs sig_t.ng dimensional sin per
     #205 closes at the test boundary).
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -95,13 +90,8 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNProblem:
 def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -111,13 +101,8 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum"))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -127,13 +112,10 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProble
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0.01, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
+    geom = StructuredGeometry.cylinder(
+        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("vacuum"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
@@ -608,7 +590,7 @@ PRE_T4_SNAPSHOTS_PATH = (
 )
 
 
-def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNProblem:
+def _slab_for_snapshot_arm(*, ng: int, left: BC, right: BC) -> SNProblem:
     """Reconstruct the slab fixture used by the T.4a snapshot script.
 
     Mirrors `tests/gates/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py`'s
@@ -642,12 +624,8 @@ def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNProblem:
         )
         mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)])
 
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, 21),
-        mat_ids=np.zeros(20, dtype=int),
-        bc_left=bc_left,
-        bc_right=bc_right,
-    )
+    geom = StructuredGeometry.slab((0.0, 4.0), (0,), left=left, right=right)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return SNProblem(mesh, quad, {0: mix})
 
@@ -786,7 +764,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_1g_vacuum",
             problem=_slab_for_snapshot_arm(
-                ng=1, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+                ng=1, left=BC("vacuum"), right=BC("vacuum"),
             ),
             seed=20260531 + 1,
         )
@@ -796,7 +774,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_2g_vacuum",
             problem=_slab_for_snapshot_arm(
-                ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+                ng=2, left=BC("vacuum"), right=BC("vacuum"),
             ),
             seed=20260531 + 2,
         )
@@ -810,7 +788,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_2g_reflective",
             problem=_slab_for_snapshot_arm(
-                ng=2, bc_left=BC("reflective"), bc_right=BC("vacuum"),
+                ng=2, left=BC("reflective"), right=BC("vacuum"),
             ),
             seed=20260531 + 3,
         )

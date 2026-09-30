@@ -10,8 +10,9 @@ Tests cover:
 The 1-D ``Zone`` / ``mesh1d_from_zones`` / ``pwr_*`` / ``homogeneous_1d``
 / ``slab_fuel_moderator`` factories were retired in Phase F. Their
 equal-volume invariants and discretization correctness are now
-exercised by :mod:`tests.gates.geometry.test_structured_geometry` via the
-:class:`StructuredGeometry` → :meth:`Mesh1D.from_geometry` flow.
+exercised by :mod:`tests.gates.geometry.test_structured_geometry` and
+:mod:`tests.gates.mesh.test_partition` via the mesher,
+``Mesher(geometry).partition(rule).mesh``.
 """
 
 from __future__ import annotations
@@ -25,8 +26,9 @@ from orpheus.geometry import (
     compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
+    StructuredGeometry,
 )
-from orpheus.mesh import Mesh1D, Mesh2D, pwr_pin_2d
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesh2D, Mesher, pwr_pin_2d
 
 # Every test in this file is a FOUNDATION test — it verifies a
 # software invariant of orpheus.geometry (volume formulas, factory
@@ -183,58 +185,51 @@ class TestPWRPin2D:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestMesh1D:
-    """Mesh1D derived properties and input validation."""
+    """Mesh1D derived properties. The construction refusals (edges, volumes,
+    material ids, face laws) are the keyed table of
+    ``tests/gates/mesh/test_mesh1d.py`` (S3.8 and S3.11, re-posed there at P1
+    step 3b from the rows that lived here)."""
 
     def test_widths(self):
-        mesh = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]),
-                      mat_ids=np.array([0, 1, 2]))
+        mesh = _mesh_with_edges((0.0, 1.0, 3.0, 6.0))
         np.testing.assert_allclose(mesh.widths, [1.0, 2.0, 3.0])
 
     def test_centers(self):
-        mesh = Mesh1D(edges=np.array([0.0, 2.0, 6.0]),
-                      mat_ids=np.array([0, 1]))
+        mesh = _mesh_with_edges((0.0, 2.0, 6.0))
         np.testing.assert_allclose(mesh.centers, [1.0, 4.0])
 
     def test_total_width(self):
-        mesh = Mesh1D(edges=np.array([1.0, 3.0, 7.0]),
-                      mat_ids=np.array([0, 1]))
+        mesh = _mesh_with_edges((1.0, 3.0, 7.0))
         assert mesh.total_width == 6.0
 
     def test_N(self):
-        mesh = Mesh1D(edges=np.arange(6.0),
-                      mat_ids=np.zeros(5, dtype=int))
+        geometry = StructuredGeometry.from_homogeneous(5.0, BC.reflective)
+        mesh = Mesher(geometry).partition(CellEdges(np.arange(6.0))).mesh
         assert mesh.N == 5
 
     def test_frozen(self):
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]),
-                      mat_ids=np.array([0]))
+        mesh = _mesh_with_edges((0.0, 1.0))
         with pytest.raises(AttributeError):
-            mesh.edges = np.array([0.0, 2.0])
-
-    def test_non_monotonic_edges_raises(self):
-        with pytest.raises(ValueError, match="monotonically increasing"):
-            Mesh1D(edges=np.array([0.0, 2.0, 1.0]),
-                   mat_ids=np.array([0, 1]))
-
-    def test_equal_edges_raises(self):
-        with pytest.raises(ValueError, match="monotonically increasing"):
-            Mesh1D(edges=np.array([0.0, 1.0, 1.0]),
-                   mat_ids=np.array([0, 1]))
-
-    def test_wrong_mat_ids_length_raises(self):
-        with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
-            Mesh1D(edges=np.array([0.0, 1.0, 2.0]),
-                   mat_ids=np.array([0, 1, 2]))
-
-    def test_too_few_edges_raises(self):
-        with pytest.raises(ValueError, match="at least 2"):
-            Mesh1D(edges=np.array([0.0]), mat_ids=np.array([]))
+            mesh.edges = np.array([0.0, 2.0])  # type: ignore[misc]  # the frozen field is the subject
 
     def test_coerces_to_float_and_int(self):
-        """Accepts lists; coerces edges to float, mat_ids to int."""
-        mesh = Mesh1D(edges=[0, 1, 2], mat_ids=[0, 1])
+        """The bare constructor accepts lists; edges become float, mat_ids int."""
+        mesh = Mesh1D(
+            coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
+            mat_ids=[0, 1], face_laws=(BC.reflective, BC.reflective),  # type: ignore[arg-type]
+        )
         assert mesh.edges.dtype == float
         assert mesh.mat_ids.dtype == int
+
+
+def _mesh_with_edges(breakpoints: tuple[float, ...]) -> Mesh1D:
+    """One cell per interval, a distinct material in each, reflective faces:
+    the literal edges ARE the geometry's breakpoints."""
+    geometry = StructuredGeometry.slab(
+        breakpoints, tuple(range(len(breakpoints) - 1)),
+        left=BC.reflective, right=BC.reflective,
+    )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -352,53 +347,53 @@ class TestBC:
         assert repr(BC("vacuum")) == "BC('vacuum')"
         assert repr(BC("white", {"albedo": 0.7})) == "BC('white', {'albedo': 0.7})"
 
-    # ── Mesh1D BC fields ─────────────────────────────────────────────
-
-    def test_mesh1d_bc_defaults_none(self):
-        mesh = Mesh1D(edges=[0, 1, 2], mat_ids=[0, 1])
-        assert mesh.bc_left is None
-        assert mesh.bc_right is None
+    # ── Mesh1D face laws ─────────────────────────────────────────────
+    # RE-POSED at P1 step 3b: ``bc_left``/``bc_right`` and the ``None``
+    # default retired; a mesh carries one law per boundary face. The
+    # ``None`` default row and the "backward compatible" row are deleted
+    # (their subject was the retired default); ``None`` is refused on a face
+    # by ``tests/gates/mesh/test_mesh1d.py`` (S3.10).
 
     def test_mesh1d_bc_explicit(self):
-        mesh = Mesh1D(
-            edges=[0, 1, 2], mat_ids=[0, 1],
-            bc_left=BC.reflective, bc_right=BC.vacuum,
-        )
-        assert mesh.bc_left == BC("reflective")
-        assert mesh.bc_right == BC("vacuum")
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.vacuum,
+        )).partition(CellsByCount.uniform_width(1)).mesh
+        assert mesh.face_laws == (BC("reflective"), BC("vacuum"))
+        assert mesh.outer_law == BC("vacuum")
+        assert mesh.boundary_faces == (0.0, 2.0)
 
     def test_mesh1d_bc_frozen(self):
-        mesh = Mesh1D(
-            edges=[0, 1, 2], mat_ids=[0, 1],
-            bc_left=BC.reflective,
-        )
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         with pytest.raises(AttributeError):
-            mesh.bc_left = BC.vacuum
+            mesh.face_laws = (BC.vacuum, BC.vacuum)  # type: ignore[misc]  # the frozen field is the subject
 
     def test_mesh1d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="bc_left must be a BC tag"):
-            Mesh1D(edges=[0, 1], mat_ids=[0], bc_left="vacuum")
+        with pytest.raises(TypeError, match="must be a BC tag or a BoundaryTraceLaw"):
+            Mesh1D(
+                coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
+                volumes=np.array([1.0]), mat_ids=np.array([0]),
+                face_laws=("vacuum", BC.vacuum),  # type: ignore[arg-type]  # a refusal input
+            )
 
     def test_mesh1d_bc_accepts_a_typed_law(self):
-        """The declaration channel: a LAW OBJECT is a legal declaration.
+        """The declaration channel: a LAW OBJECT is a legal face law.
 
         The positive leg of the row above (``vv`` anti-pattern #11). A ``BC``
         tag is ``(kind, dict[str, float])`` and so cannot express a law whose
-        content is a FUNCTION — a ``PrescribedInflow`` carrying a
-        manufactured-solution source has no tag spelling. Declaring the law
-        object directly is the channel for those; see
-        ``orpheus.mesh.structured._check_boundary_declaration``.
-
-        Without this leg the widened guard could reject every law and the row
-        above would still pass.
+        content is a FUNCTION: a ``PrescribedInflow`` carrying a
+        manufactured-solution source has no tag spelling.
         """
         from orpheus.geometry.boundary import (
             ConstantInflowSource, PrescribedInflow,
         )
 
         law = PrescribedInflow(source=ConstantInflowSource(value=2.5))
-        mesh = Mesh1D(edges=[0, 1], mat_ids=[0], bc_left=law)
-        assert mesh.bc_left is law
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=law, right=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
+        assert mesh.face_laws[0] is law
 
     # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
 
@@ -420,15 +415,6 @@ class TestBC:
     def test_bc_to_alpha_unsupported_kind_raises(self):
         with pytest.raises(NotImplementedError, match="no specular-albedo equivalent"):
             BC.white.to_alpha()
-
-    def test_mesh1d_backward_compat(self):
-        """All existing Mesh1D constructors (no BC args) still work."""
-        m1 = Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]),
-                     mat_ids=np.array([0, 1, 2]))
-        assert m1.N == 3
-        m2 = Mesh1D(edges=[0, 1], mat_ids=[0],
-                     coord=CoordSystem.CYLINDRICAL)
-        assert m2.coord == CoordSystem.CYLINDRICAL
 
     # ── Mesh2D BC fields ─────────────────────────────────────────────
 

@@ -49,8 +49,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
     slab_streaming,
@@ -103,35 +103,23 @@ def _dAw_of(op, cell_idx, direction_idx, mu_level_idx=None):
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
     """Slab mesh with vacuum BCs and uniform spacing."""
-    return Mesh1D(
-        edges=np.linspace(0.0, length, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    return Mesher(StructuredGeometry.slab(
+        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _spherical_mesh(nx: int = 5, radius: float = 1.0) -> Mesh1D:
-    """Spherical mesh with reflective inner / vacuum outer BCs."""
-    return Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    """Solid spherical mesh, vacuum outer surface, uniform spacing."""
+    return Mesher(
+        StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _cylindrical_mesh(nx: int = 5, radius: float = 1.0) -> Mesh1D:
-    """Cylindrical mesh with reflective inner / vacuum outer BCs."""
-    return Mesh1D(
-        edges=np.linspace(0.0, radius, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    """Solid cylindrical mesh, vacuum outer surface, uniform spacing."""
+    return Mesher(
+        StructuredGeometry.cylinder((0.0, radius), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════

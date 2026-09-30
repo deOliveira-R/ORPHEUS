@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -121,8 +121,9 @@ class TestAzimuthalRedistribution:
         Failure means the ξ-weighted sum doesn't vanish, which would
         cause non-physical angular flux generation.
         """
-        mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
-                      coord=CoordSystem.CYLINDRICAL)
+        mesh = Mesher(StructuredGeometry.cylinder(
+            (0.0, 1.0), (0,), outer=BC.reflective,
+        )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         problem = SNProblem(mesh, quad, placeholder_materials())
 

@@ -1,11 +1,10 @@
 """Verify CP solver diagnostics: residual tracking, Gauss-Seidel mode, inner iterations."""
 
-import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp, CPParams
 
 # Diagnostic *term* tests (residuals, inner-iter counts) are L0.
@@ -19,23 +18,24 @@ from orpheus.cp.solver import solve_cp, CPParams
 # ═══════════════════════════════════════════════════════════════════════
 
 def _make_mesh(case):
-    """Build a Mesh1D from a VerificationCase."""
+    """Build the one-cell-per-region CP mesh of a VerificationCase (white outer law)."""
     gp = case.geom_params
     if case.geometry == "slab":
-        thicknesses = np.array(gp["thicknesses"])
-        edges = np.concatenate([[0.0], np.cumsum(thicknesses)])
-        coord = CoordSystem.CARTESIAN
+        geometry = StructuredGeometry.from_thicknesses(
+            coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
+            mat_ids=gp["mat_ids"], boundaries=(BC.white, BC.white),
+        )
     elif case.geometry == "cyl1D":
-        radii = np.array(gp["radii"])
-        edges = np.concatenate([[0.0], radii])
-        coord = CoordSystem.CYLINDRICAL
+        geometry = StructuredGeometry.cylinder(
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+        )
     elif case.geometry == "sph1D":
-        radii = np.array(gp["radii"])
-        edges = np.concatenate([[0.0], radii])
-        coord = CoordSystem.SPHERICAL
+        geometry = StructuredGeometry.sphere(
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+        )
     else:
         raise ValueError(f"Unknown geometry: {case.geometry}")
-    return Mesh1D(edges=edges, mat_ids=np.array(gp["mat_ids"]), coord=coord)
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _tolerance_for(case):

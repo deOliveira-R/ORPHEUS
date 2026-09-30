@@ -65,7 +65,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 from orpheus.derivations.common.xs_library import get_mixture
@@ -92,9 +92,7 @@ def homog_cyl_2g_thick2_n20():
         mat_ids=(0,),
         boundaries=(BC.reflective,),
     )
-    mesh = Mesh1D.from_geometry(
-        geom, region_meshes=(RegionMesh(n_cells=20),),
-    )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
     quad = Quadrature.folded_product(n_mu=8, n_phi=16)
     return fuel, mesh, quad
 

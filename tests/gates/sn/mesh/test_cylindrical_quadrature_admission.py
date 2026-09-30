@@ -35,8 +35,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.manifold import SPHERE
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
@@ -69,12 +69,8 @@ _F_STRUCTURELESS = "level structure"
 
 
 def _cyl_mesh(nx: int = 4) -> Mesh1D:
-    return Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-        bc_right=BC("reflective"),
-    )
+    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective"))
+    return Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _build(quad: Quadrature) -> SNProblem:
@@ -146,12 +142,8 @@ def test_a_hand_built_sigma_y_quotient_constructs_without_the_factory_tag():
 def test_the_spherical_arm_is_untouched():
     """A-P3 — the guard is CYLINDRICAL-scoped: the open-GL sphere (carrying
     by the same predicate) constructs exactly as before the flip."""
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_right=BC("reflective"),
-    )
+    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("reflective"))
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials())
     if sn.radial_characteristic_levels != (0,):
         pytest.fail("sphere carrier moved — the admission guard leaked "

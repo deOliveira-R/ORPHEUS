@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.moc.geometry import (
     MOCMesh,
     Track,
@@ -37,22 +37,21 @@ pytestmark = [pytest.mark.l0, pytest.mark.verifies(
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+def _ws_mesh(breakpoints, mat_ids) -> Mesh1D:
+    """A solid cylinder, one cell per region, reflective at its outer surface."""
+    return Mesher(StructuredGeometry.cylinder(
+        breakpoints, mat_ids, outer=BC.reflective,
+    )).partition(CellsByCount.uniform_width(1)).mesh
+
+
 def _homogeneous_mesh(r_outer: float = 1.0, mat_id: int = 0) -> Mesh1D:
     """Single-region cylindrical mesh (Wigner-Seitz)."""
-    return Mesh1D(
-        edges=np.array([0.0, r_outer]),
-        mat_ids=np.array([mat_id]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    return _ws_mesh((0.0, r_outer), (mat_id,))
 
 
 def _two_region_mesh(r_fuel: float = 0.5, r_cell: float = 1.0) -> Mesh1D:
     """Two-region cylindrical mesh: fuel (id=2) + coolant (id=0)."""
-    return Mesh1D(
-        edges=np.array([0.0, r_fuel, r_cell]),
-        mat_ids=np.array([2, 0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    return _ws_mesh((0.0, r_fuel, r_cell), (2, 0))
 
 
 def _three_region_mesh(
@@ -61,11 +60,7 @@ def _three_region_mesh(
     r_cell: float = 1.0,
 ) -> Mesh1D:
     """Three-region mesh: fuel (2) + clad (1) + coolant (0)."""
-    return Mesh1D(
-        edges=np.array([0.0, r_fuel, r_clad, r_cell]),
-        mat_ids=np.array([2, 1, 0]),
-        coord=CoordSystem.CYLINDRICAL,
-    )
+    return _ws_mesh((0.0, r_fuel, r_clad, r_cell), (2, 1, 0))
 
 
 # ── Ray-circle intersection ─────────────────────────────────────────

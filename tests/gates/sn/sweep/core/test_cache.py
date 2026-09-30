@@ -30,8 +30,8 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
@@ -66,24 +66,17 @@ def _trivial_materials(ng: int = 1) -> dict:
 
 
 def _make_slab(nx: int = 10, N: int = 8) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(N)
     return SNProblem(mesh, quad, _trivial_materials(ng=1))
 
 
 def _make_sphere(nx: int = 10, N: int = 8) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-        bc_left=BC("reflective"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(N)
     return SNProblem(mesh, quad, _trivial_materials(ng=1))
 
@@ -256,8 +249,6 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     is deliberately out of scope for an R2 declaration pass.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.mesh import RegionMesh
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
@@ -269,14 +260,9 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
         mat_ids=(0, 1, 0),
         boundaries=(BC("reflective"), BC("reflective")),
     )
-    mesh = Mesh1D.from_geometry(
-        geom,
-        region_meshes=(
-            RegionMesh(n_cells=2),
-            RegionMesh(n_cells=4),
-            RegionMesh(n_cells=2),
-        ),
-    )
+    mesh = Mesher(geom).partition(tuple(
+        CellsByCount.uniform_volume(n) for n in (2, 4, 2)
+    )).mesh
     quad = Quadrature.gauss_legendre(4)
 
     # Reset counter, then run a converged eigenvalue (~7 outer × N inner).
@@ -341,12 +327,9 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 6),
-        mat_ids=np.zeros(5, dtype=int),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, materials)
     solver = SNSolver(problem=problem)
@@ -663,12 +646,9 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 11),
-        mat_ids=np.zeros(10, dtype=int),
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
+    )).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(4)
     problem = SNProblem(mesh, quad, materials)
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
@@ -838,12 +818,9 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     from orpheus.sn.sweep.cache import StreamingCoefficientCache
     from tests.gates.sn._test_helpers import placeholder_materials
 
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("vacuum"),
-        bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     materials = placeholder_materials(ng=2)
     problem = SNProblem(mesh, quad, materials)
@@ -949,8 +926,9 @@ def test_two_sigmas_on_one_strategy_give_two_answers() -> None:
     from orpheus.sn.loss_representation import default_for
     from tests.gates.sn._test_helpers import placeholder_materials
 
-    mesh = Mesh1D(edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
-                  bc_left=BC("vacuum"), bc_right=BC("vacuum"))
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     hub = SNProblem(mesh, quad, placeholder_materials(ng=2))
     rep = default_for(hub, hub.scheme, hub.angular_closure)

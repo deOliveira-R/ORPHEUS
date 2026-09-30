@@ -20,10 +20,10 @@ the slab form ``2|μ|·1 + Σ_t·V`` with neutral closure constants — no
 algebraic shortcut, just neutral data.
 
 Phase 1 (pole/inner) seed difference from curvilinear: slab uses
-``bc_left.apply(ψ_view[:, :, 0, 0])`` (BC-applied cell-centre proxy
+``face_laws[0].apply(ψ_view[:, :, 0, 0])`` (BC-applied cell-centre proxy
 at x=0) where curvilinear uses ``ψ_view[:, :, 0, 0]`` directly
 (cell-centre IS the pole-face proxy for r=0). The Phase 2 inward IC
-uses ``bc_right.apply(ψ_view[:, :, -1, 0])`` symmetrically.
+uses ``outer_law.apply(ψ_view[:, :, -1, 0])`` symmetrically.
 
 Important: the unified Cartesian matvec is WDD-based, whereas the
 since-retired legacy ``transport_operator_matvec`` was FD-based.  Those
@@ -50,8 +50,8 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.problem import SNProblem
@@ -66,13 +66,10 @@ from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materi
 
 
 def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, n_cells + 1),
-        mat_ids=np.zeros(n_cells, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials())
 
@@ -171,13 +168,10 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
         np.asarray(nu_sig_f), np.asarray(chi),
     )
 
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 2.0, nx + 1),
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_left=BC("reflective"),
-        bc_right=BC("reflective"),
+    geom = StructuredGeometry.slab(
+        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
     )
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
     sol = solve_sn(

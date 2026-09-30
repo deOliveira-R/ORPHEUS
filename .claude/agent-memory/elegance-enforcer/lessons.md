@@ -394,3 +394,12 @@ files did not include the ledger. So grep the diff for `SCOPE-BOUNDARY|ELEGANCE-
 and run the gate that reads each token. Second: a vocabulary classmethod (`from_thicknesses`) that pre-coerces
 with `float()` before delegating admitted `"0.5"` and `True`, which `__post_init__` refuses. Probe each
 `from_*` with the primary's refusal fixtures, in-process.
+
+### L-032 — A twin kept "for bit identity" is graded by replaying the regression CAPTURE under the collapsed spelling, and by asking which spelling is correctly rounded
+Not covered by leg 2's coextensiveness check (the two spellings DISAGREE, and the disagreement is the stated reason to keep
+both) nor by L-028 (prototype on the corner fixture). `[M]` 2026-09-29, #405 P1 3a: `interval_measure` (Python `b**2` = libm
+`pow`) was kept beside `compute_volumes_1d` (numpy square) "for ERR-020 bit identity". Against a `Fraction` oracle, the kept
+spelling was the INEXACT one (22 of 20 000 against 0), and replaying the pre-carve capture's 414 curvilinear equal-volume
+intervals under the array spelling moved 0 (control: the re-association moved 6). The identity protected only a gate against a
+function retiring next step. So: find the capture the identity claims to protect, replay it with a positive control, and
+test both spellings against an exact oracle before crediting "kept for bit identity".

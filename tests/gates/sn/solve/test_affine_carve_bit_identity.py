@@ -99,8 +99,8 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
@@ -255,13 +255,9 @@ def _build_slab():
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     nx = 16
-    mat_ids = np.zeros(nx, dtype=int)
-    mat_ids[: nx // 2] = 2
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, 4.0, nx + 1),
-        mat_ids=mat_ids,
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-    )
+    mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sum_w = float(quad.weights.sum())
     q_ext = np.full((quad.N, 2, nx), 1.0 / sum_w)

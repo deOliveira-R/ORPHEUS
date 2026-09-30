@@ -60,9 +60,8 @@ import pytest
 from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh2D
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.numerics.operator import MissingAssembly
 from orpheus.numerics.quadrature import Quadrature
@@ -90,12 +89,20 @@ _RTOL = 1e-11   # L16: sparse-order ≠ apply-order ⇒ never 0-ULP (measured ~6
 # ── Fixtures: het, non-uniform h, ≥2G, vacuum (zero-inflow posing) ─────
 
 
-def _slab_mesh() -> SNProblem:
-    mesh1d = Mesh1D(
-        edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),       # non-uniform
-        mat_ids=np.array([0, 1, 1, 0]),                  # heterogeneous
-        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+def _heterogeneous_slab_mesh1d():
+    """Non-uniform cells on a heterogeneous slab (materials 0 | 1 | 0), vacuum faces."""
+    geom = StructuredGeometry.slab(
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
     )
+    return Mesher(geom).partition((
+        CellEdges(np.array([0.0, 0.5])),
+        CellEdges(np.array([0.5, 1.5, 3.0])),
+        CellEdges(np.array([3.0, 5.0])),
+    )).mesh
+
+
+def _slab_mesh() -> SNProblem:
+    mesh1d = _heterogeneous_slab_mesh1d()
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
@@ -369,11 +376,7 @@ def _ld_mesh(geometry: str) -> SNProblem:
     with the bilinear closure selected)."""
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     if geometry == "slab":
-        mesh1d = Mesh1D(
-            edges=np.array([0.0, 0.5, 1.5, 3.0, 5.0]),
-            mat_ids=np.array([0, 1, 1, 0]),
-            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
+        mesh1d = _heterogeneous_slab_mesh1d()
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         return SNProblem(mesh1d, quad, materials, scheme=LinearDiscontinuous())
     geom = Mesh2D(
@@ -509,12 +512,9 @@ def test_curvilinear_refuses_the_cartesian_walk():
     Cartesian accessor's own gate refuses, and this assembler inherits
     that honesty (the per-ordinate factorization does not exist there;
     see the #282 characterization below for WHY)."""
-    mesh1d = Mesh1D(
-        edges=np.linspace(0.0, 1.0, 5),
-        mat_ids=np.zeros(4, dtype=int),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh1d = Mesher(
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+    ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     problem = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")})
     with pytest.raises(AttributeError, match="Cartesian-only"):
@@ -685,12 +685,10 @@ def test_282_augmented_walk_order_is_triangular(coord):
       a Gauss-Lobatto sphere rule, #415. (The α-dome "telescoping the
       seed away" misreading stays corrected per #280 Phase 2.5b.)
     """
-    mesh1d = Mesh1D(
-        edges=np.array([0.0, 0.3, 0.8, 1.0]),
-        mat_ids=np.array([0, 1, 0]),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-        coord=coord,
-    )
+    mesh1d = Mesher(StructuredGeometry(
+        coord=coord, breakpoints=(0.0, 0.3, 0.8, 1.0), mat_ids=(0, 1, 0),
+        boundaries=(BC("vacuum"),),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     quad = (
         Quadrature.gauss_legendre(n_ordinates=4)
         if coord is CoordSystem.SPHERICAL
@@ -726,12 +724,9 @@ def test_282_teeth_coupling_direction_swap_reds():
     """
     from orpheus.sn.angular.closure import MorelMontryAngularSweep
 
-    mesh1d = Mesh1D(
-        edges=np.array([0.0, 0.3, 0.8, 1.0]),
-        mat_ids=np.array([0, 1, 0]),
-        bc_left=BC("reflective"), bc_right=BC("vacuum"),
-        coord=CoordSystem.SPHERICAL,
-    )
+    mesh1d = Mesher(StructuredGeometry.sphere(
+        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+    )).partition(CellsByCount.uniform_width(1)).mesh
     problem = SNProblem(
         mesh1d, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},

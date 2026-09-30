@@ -532,11 +532,12 @@ def _refuse_an_inner_law_the_radial_axis_drops(mesh) -> None:
     law of a hollow cylinder or sphere is dropped and every method built
     on the axes (SN, diffusion) computes a reflective cavity instead. The
     guard lands with the step that makes a hollow geometry declarable.
-    Reflective is admitted because it is what the methods compute, and an
-    undeclared (``None``) inner law until P1 step 3 retires ``None``.
+    Reflective is admitted because it is what the methods compute.
     """
-    inner_law = mesh.bc_left
-    if mesh.edges[0] > 0.0 and inner_law is not None and inner_law.kind != "reflective":
+    if len(mesh.face_laws) < 2:
+        return
+    inner_law = mesh.face_laws[0]
+    if inner_law.kind != "reflective":
         raise NotImplementedError(
             f"a hollow {mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}) "
             f"declares the inner law {inner_law!r}, which the radial axis "
@@ -558,16 +559,14 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 
     Mesh1D mapping (per coordinate system):
 
-    * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges, bc_low=mesh.bc_left,
-      bc_high=mesh.bc_right),)``.
+    * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges,
+      bc_low=mesh.face_laws[0], bc_high=mesh.face_laws[1]),)``.
     * ``SPHERICAL`` → ``(RadialAxisMesh(edges=mesh.edges,
-      coord=RADIAL_SPHERICAL, bc_outer=mesh.bc_right),)``. On a solid
-      body ``mesh.bc_left`` is ``None`` (:meth:`Mesh1D.from_geometry`):
-      the centre is an interior point, not an endpoint, and carries no
-      law. On a hollow body the inner surface is an endpoint the radial
-      axis has no slot for, so only a reflective (or undeclared) inner
-      law is admitted, the one the methods compute; any other is refused
-      (#511).
+      coord=RADIAL_SPHERICAL, bc_outer=mesh.outer_law),)``. A solid body
+      has one face (the centre is an interior point and carries no law).
+      On a hollow body the inner face is an endpoint the radial axis has
+      no slot for, so only a reflective inner law is admitted, the one
+      the methods compute; any other is refused (#511).
     * ``CYLINDRICAL`` → same as SPHERICAL with
       ``RADIAL_CYLINDRICAL``.
 
@@ -589,8 +588,8 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
             return (
                 AxisMesh(
                     edges=mesh.edges,
-                    bc_low=mesh.bc_left,
-                    bc_high=mesh.bc_right,
+                    bc_low=mesh.face_laws[0],
+                    bc_high=mesh.face_laws[1],
                 ),
             )
         if mesh.coord == CoordSystem.SPHERICAL:
@@ -599,7 +598,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 RadialAxisMesh(
                     edges=mesh.edges,
                     coord=AxisCoord.RADIAL_SPHERICAL,
-                    bc_outer=mesh.bc_right,
+                    bc_outer=mesh.outer_law,
                 ),
             )
         if mesh.coord == CoordSystem.CYLINDRICAL:
@@ -608,7 +607,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 RadialAxisMesh(
                     edges=mesh.edges,
                     coord=AxisCoord.RADIAL_CYLINDRICAL,
-                    bc_outer=mesh.bc_right,
+                    bc_outer=mesh.outer_law,
                 ),
             )
         raise ValueError(
@@ -644,6 +643,35 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 # ═══════════════════════════════════════════════════════════════════════
 # Axis-tuple → legacy-mesh ADAPTER builder (for SNProblem.from_axes)
 # ═══════════════════════════════════════════════════════════════════════
+
+def _face_laws_of_axis(ax, coord, edges):
+    """The adapter mesh's face laws: the laws SN resolves on this axis.
+
+    ``SNProblem.from_axes`` resolves its laws from the axes themselves; the
+    adapter mesh only needs a declaration, so it carries what SN computes.
+    Two different things are carried, each with its own retirement:
+
+    * an undeclared axis law is SN's reflective default
+      (:func:`~orpheus.transport.method.resolve_boundary_conditions`).
+      ELEGANCE-DEBT[guard] #405: retires when an axis cannot be declared
+      without its laws (P1 step 3c, the undeclared axis law);
+    * the inner face of a hollow radial axis, which has no law slot, is the
+      reflective cavity SN computes.
+      SCOPE-BOUNDARY[guard] — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
+      ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
+      revisit: the curvilinear SN build, deferred by the user.
+    """
+    from orpheus.geometry.boundary import BC
+
+    def declared(law):
+        return BC("reflective") if law is None else law
+
+    if isinstance(ax, AxisMesh):
+        return (declared(ax.bc_low), declared(ax.bc_high))
+    outer = declared(ax.bc_outer)
+    points = coord.boundary_points(float(edges[0]), float(edges[-1]))
+    return (BC("reflective"), outer) if len(points) == 2 else (outer,)
+
 
 def legacy_mesh_from_axes(
     axes: tuple[Axis1D, ...],
@@ -691,35 +719,14 @@ def legacy_mesh_from_axes(
 
     if len(axes) == 1:
         (ax,) = axes
-        if ax.coord == AxisCoord.CARTESIAN:
-            assert isinstance(ax, AxisMesh)
-            return Mesh1D(
-                edges=ax.edges,
-                mat_ids=mat_map.ravel(),
-                coord=CoordSystem.CARTESIAN,
-                bc_left=ax.bc_low,
-                bc_right=ax.bc_high,
-            )
-        if ax.coord == AxisCoord.RADIAL_SPHERICAL:
-            assert isinstance(ax, RadialAxisMesh)
-            return Mesh1D(
-                edges=ax.edges,
-                mat_ids=mat_map.ravel(),
-                coord=CoordSystem.SPHERICAL,
-                bc_left=None,
-                bc_right=ax.bc_outer,
-            )
-        if ax.coord == AxisCoord.RADIAL_CYLINDRICAL:
-            assert isinstance(ax, RadialAxisMesh)
-            return Mesh1D(
-                edges=ax.edges,
-                mat_ids=mat_map.ravel(),
-                coord=CoordSystem.CYLINDRICAL,
-                bc_left=None,
-                bc_right=ax.bc_outer,
-            )
-        raise ValueError(
-            f"legacy_mesh_from_axes: unsupported AxisCoord {ax.coord!r}"
+        coord = coord_system(axes)
+        edges = np.asarray(ax.edges, dtype=float)
+        return Mesh1D(
+            coord=coord,
+            edges=edges,
+            volumes=coord.measure(edges),
+            mat_ids=mat_map.ravel(),
+            face_laws=_face_laws_of_axis(ax, coord, edges),
         )
 
     if len(axes) == 2:

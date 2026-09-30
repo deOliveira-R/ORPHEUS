@@ -41,7 +41,7 @@ import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import Mesh1D, Mesh2D, RegionMesh
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 
@@ -65,7 +65,7 @@ def _slab_homogeneous(ng: str, n_cells: int) -> dict:
         mat_ids=(0,),
         boundaries=(BC.reflective, BC.reflective),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     return dict(
         materials={0: fuel}, mesh=mesh,
         quadrature=Quadrature.gauss_legendre(n_ordinates=8),
@@ -85,10 +85,9 @@ def _slab_3region(ng: str, n_cells: int) -> dict:
     )
     # equal subdivision across regions: total cells split per outer thickness
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
-    mesh = Mesh1D.from_geometry(
-        geom,
-        region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
-    )
+    mesh = Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for n in n_per_region),
+    ).mesh
     return dict(
         materials={0: fuel, 1: mod}, mesh=mesh,
         quadrature=Quadrature.gauss_legendre(n_ordinates=8),
@@ -104,7 +103,7 @@ def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
         mat_ids=(0,),
         boundaries=(BC.reflective,),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     return dict(
         materials={0: fuel}, mesh=mesh,
         quadrature=Quadrature.gauss_legendre(n_ordinates=8),
@@ -122,10 +121,9 @@ def _sphere_3region(ng: str, n_cells: int) -> dict:
         boundaries=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
-    mesh = Mesh1D.from_geometry(
-        geom,
-        region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
-    )
+    mesh = Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for n in n_per_region),
+    ).mesh
     return dict(
         materials={0: fuel, 1: mod}, mesh=mesh,
         quadrature=Quadrature.gauss_legendre(n_ordinates=8),
@@ -141,7 +139,7 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
         mat_ids=(0,),
         boundaries=(BC.reflective,),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     if quad_kind == "folded_4x8":
         quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
     elif quad_kind == "folded_4x6":
@@ -166,10 +164,9 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
         boundaries=(BC.reflective,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
-    mesh = Mesh1D.from_geometry(
-        geom,
-        region_meshes=tuple(RegionMesh(n_cells=n) for n in n_per_region),
-    )
+    mesh = Mesher(geom).partition(
+        tuple(CellsByCount.uniform_volume(n) for n in n_per_region),
+    ).mesh
     if quad_kind == "folded_4x8":
         quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
     elif quad_kind == "folded_4x6":
@@ -208,7 +205,7 @@ def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
         mat_ids=(0,),
         boundaries=(BC.reflective, BC.reflective),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
     # Iso scalar source magnitude 1.0 ⇒ per-ordinate density 1.0/sum_w
     # (R-1 Step 4 A1 producer-side /W projection convention).
@@ -243,7 +240,7 @@ def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
         mat_ids=(0,),
         boundaries=(BC.reflective,),
     )
-    mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
+    mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
     sum_w = float(quadrature.weights.sum())
     external_source = np.full((n_ord, n_groups, n_cells), 1.0 / sum_w)
@@ -389,12 +386,9 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     L = 2.0
     n_ord = 8
     n_groups = _n_groups(ng)
-    mesh = Mesh1D(
-        edges=np.linspace(0.0, L, n_cells + 1),
-        mat_ids=np.zeros(n_cells, dtype=int),
-        bc_left=BC.vacuum,
-        bc_right=BC.vacuum,
-    )
+    mesh = Mesher(StructuredGeometry.from_homogeneous(L, BC.vacuum)).partition(
+        CellsByCount.uniform_width(n_cells),
+    ).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
     # R-1 Step 4 A1 — ``external_source`` is **per-ordinate density**
     # (already projected via ``/sum_w`` at the caller boundary).
