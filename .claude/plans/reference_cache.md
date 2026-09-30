@@ -917,7 +917,7 @@ Rulings (the user, 2026-09-29):
 
 Consequence for the sub-commits: 3a is reworked (interval rules, the one measure, the review's fixes; `Partition` retires, since the mesh stores the cells and no free-standing measured partition exists); 3b adds `Mesh1D(geometry, edges, volumes)`, the `Mesher`, and the migration.
 
-### P1 step 3b (2026-09-29): the bare Mesh1D, the Mesher, the migration
+### P1 step 3b (2026-09-29): the bare Mesh1D, the Mesher, the migration `[LANDED 3a6468e6]` (merged to `main` with 3a, `2c62f9f2` and `2890efbf`; CI `gates` run 36671753995 green; #495 closed)
 
 Rulings (the user, 2026-09-29): **option A**, `Mesh1D(coord, edges, volumes, mat_ids, face_laws)` is the general constructor and holds no geometry (the mesh knows each cell's material and each boundary face's law; per-face laws are the seed for 2-D faces that carry different laws); a specialised `(geometry, edges, volumes)` constructor only if a good case exists: none does (its one consumer is the `Mesher`'s own lift; relabelling, adaptation and the axis adapter start from a mesh or axes), so the lift is a private step of `Mesher.partition`. Before that the user asked what `Mesh1D` needs the geometry for; the measured answer (coordinate system and breakpoints only; materials and laws only rode along, ~30 + ~29 production reads through the mesh) led to A.
 
@@ -935,3 +935,21 @@ Re-derived by spec §3.3 `[M]`: `tests/gates/sn/_data/bc_extraction_baseline/vac
 The review of 3b (qa `review3b_qa.md`, elegance `review3b_elegance.md`), acted on: the comparator gained a declared-law check (a law swap between two meshes passed it before; positive control: a planted vacuum-to-white swap in `transport` is a STOP, and the real captures read 0 STOP), preferring an exact-law partner when pairing; `Mesh1D` refuses a non-positive volume (qa F4); the volume band is derived per spacing power, `2p + 5` ulp (elegance: 7.62 ulp measured on a legal sphere partition against the chosen 8); `Mesher.partition` asserts every breakpoint is an edge; one `parse_boundary_laws` for geometry and mesh; the axis adapter uses `coord_system` and its tag is split (ELEGANCE-DEBT for the undeclared axis law, SCOPE-BOUNDARY #511 for the hollow inner face). The full post capture `[M]` (21:26, before these fixes): 12 996 passed, 0 failed (12 614 before; +394 new gate rows, the undeclared-default tests deleted), every non-class row in the accepted set.
 
 Open for 3b's close: the full post-carve capture (running); qa and elegance review; the archivist (13 Sphinx pages, ~98 lines name the retired API; `TestMesh1DFromGeometry`'s rename with the 5 doc lines citing its node id); `dead_references`; two examples were already broken before this carve (the SN demo imports `orpheus.sn.quadrature`, the diffusion demo reads `result.flux.bulk`).
+
+
+## ⏸ COMPACTION POINT — 2026-09-29, P1 after step 3b (supersedes the point after step 2c)
+
+Steps 3a and 3b have LANDED (`main` `3a6468e6`). Read, in order:
+1. "P1 step 3 opened" and the two sections after it: the user's rulings (the Mesher, the bare `Mesh1D(coord, edges, volumes, mat_ids, face_laws)` holding no geometry, interval rules with one or one-per-interval broadcast, the one measure on `CoordSystem`), the migration's results, and the review.
+2. `docs/theory/foundations/structured_geometry.rst`, section "The mesh" (`structured-geometry-mesh`): the landed design and its refuted candidates.
+
+`[M]` The final full run (`-m "not slow"`, post-carve capture, the settled tree): 13 020 passed, 0 failed; the slow tier of the 220 changed test files 81 passed, 7 xfailed (marked before), 0 failed. The capture tooling (`scratch/reference_architecture/p1step3/capture/`: the two plugins, `compare.py` with its declared-law check, `run_tree.sh`) is reusable for 3c.
+
+**Next: P1 step 3c.** What it owns:
+- SN's `boundary_condition=` parameters (`solve_sn_fixed_source`, `solve_sn_adjoint_fixed_source`, `solve_sn_multiplying_source`, `solve_sn`) and `_apply_default_bcs`, and spec S3.10's signature leg. A `Mesh1D` declares every law already, so these act only on a `Mesh2D` or an axis tuple.
+- Whether `None` retires on `Mesh2D` and on `AxisMesh`/`RadialAxisMesh` too, which decides `resolve_boundary_conditions`'s reflective default and the axis adapter's ELEGANCE-DEBT arm (`orpheus/mesh/axis.py::_face_laws_of_axis`). The pre-carve capture counted the injections: `Mesh2D` 3, axis tuples 6. Ask the user; this is the scope question.
+
+Filed during step 3: #539 (Mesher quality, preview, adaptation, protocol), #540 (two broken examples), #541 (a stale SN theory claim). Follow-ups noted by the reviews, not yet filed:
+- `uniform_width(1)` and `uniform_volume(1)` are two spellings of one mesh (64 sites; a named one-cell rule);
+- `IntervalRule.__rmul__` is a protocol member that `CellEdges` implements only to refuse (#539's scope);
+- the libm dependence of the worst-case volume-band rows (re-measure on Linux, never widen).
