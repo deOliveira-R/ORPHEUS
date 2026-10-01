@@ -1019,3 +1019,9 @@ Open at the close of step 3:
 - **Follow-ups filed:** #542 (`uniform_width(1)` and `uniform_volume(1)` are one mesh), #543 (`IntervalRule.__rmul__`, in #539's scope), #544 (the volume band's libm dependence), #545 (a uniform-law `FaceLaws` constructor).
 
 **Next:** P1 step 5, content identity ("P1, the carve order"; step 4, `from_homogeneous`, landed with step 3a). It makes `BC` hashable and gives `FaceLaws`, `Mesh1D` and the geometry their digests. The user's answer on the geometry question comes first, because it decides whether the geometry's digest is taken over a `FaceLaws`.
+
+### 2026-10-01: the step-5 question answered, and a detour
+
+The question put at step 3c's close ("should `StructuredGeometry` store a `FaceLaws`, so the Mesher's lift is the identity and step 5 digests one type?") opened the boundary-law ontology discussion (`.claude/plans/boundary_law_ontology.md`). **Answered (the user, 2026-10-01): no.** The geometry keeps its positional `boundaries` tuple for step 5; the ontology's architecture E will later replace it with deck transformations and integer boundary tags (the boundary conditions bound per method by `SNDiscretization(material_mesh, boundary_conditions)`), and that change re-keys the geometry's digest (a cache miss, never a stale hit). E executes after this campaign. The detour landed `8f9300b2` (ERR-094, ERR-095, CP's slab guard: 85 CP test declarations now reflective|white) and, next, a small reflective cleanup (`ReflectiveBoundary` without albedo), before step 5.
+
+**Next after the cleanup: P1 step 5, content identity** ("P1, the carve order").
