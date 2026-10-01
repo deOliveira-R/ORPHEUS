@@ -30,9 +30,11 @@ Test classes
   ``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) /
   ``_solve_recurrence`` (the dissolved ``sweep.py``) lines 117-123 +
   208-222 bit-for-bit on synthetic per-cell inputs.
-* :class:`TestBitIdenticalCurvilinear` — DD's curvilinear branch
-  reproduces ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) lines
-  350-361 bit-for-bit.
+* :class:`TestCurvilinearCellUpdate` — DD's curvilinear branch plus the
+  M-M march against the exact cell-balance value, within a derived radius.
+  (It was ``TestBitIdenticalCurvilinear``, a bit-for-bit reproduction of the
+  dissolved ``_sweep_1d_spherical``, until 2026-10-01: the two association
+  orders agree only for some inputs, so its verdict was rounding noise.)
 * :class:`TestCylindricalDegenerate` — DD's degenerate branch
   reproduces ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
   533-546 bit-for-bit and signals via
@@ -45,6 +47,10 @@ Test classes
 """
 
 from __future__ import annotations
+
+from fractions import Fraction
+
+from tests._harness.float_bounds import Tracked, U, gamma
 
 import numpy as np
 import pytest
@@ -351,258 +357,129 @@ class TestBitIdenticalSlab:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestBitIdenticalCurvilinear
+# TestCurvilinearCellUpdate
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestBitIdenticalCurvilinear:
-    """Curvilinear DD reproduces ``_sweep_1d_spherical`` (the dissolved ``sweep.py``)
-    bit-for-bit.
+def _F(x) -> Fraction:
+    return Fraction(float(x))
 
-    The reference scalar form below mirrors sweep.py:328-329
-    (closure constants ``c_out``, ``c_in``) and sweep.py:350-361
-    (denominator, numerator, WDD + M-M closures) verbatim.  The
-    structurally identical cylindrical inward / outward branches at
-    sweep.py:511-531 / :548-575 use the same algebra; spherical
-    coverage suffices to gate the curvilinear branch.
 
-    P4.9a re-point: ``update`` closes the SPATIAL axis only
-    (``outgoing_angular_state is None`` by contract).  The angular half of
-    each row now pins the OWNER —
-    :func:`orpheus.sn.angular.closure.march_psi_half_step` on
-    ``result.cell_average_flux`` — against the same hand-written M-M
-    reference, so the ``dd-mm-closure-constants`` claim keeps its catchers
-    with the relation's single production spelling as the subject.
+def _assert_dd_cell_update(*, st, A_downstream, total_xs, source, psi_spat_in,
+                           psi_angle_in, tau, dAw, c_in, c_out, result, marched):
+    r"""The DD + M-M cell update against its EXACT value, within an order-free derived bound.
+
+    Inputs (all floats, shared with production, never re-derived): the
+    streaming terms, the cross section, the source, the two upstream states,
+    :math:`\tau`, :math:`\Delta A/w` and the closure constants
+    :math:`c_{\rm in}, c_{\rm out}` — and the two closure CONTRIBUTIONS the
+    caller hands the scheme, :math:`(\Delta A/w)c_{\rm out}` and
+    :math:`(\Delta A/w)c_{\rm in}\psi^a_{\rm in}`, formed here exactly as the
+    caller forms them and passed through.
+
+    The exact value is the textbook formula in rational arithmetic:
+
+    .. math::
+
+       \bar\psi = \frac{q + |\mu|(A_{\rm in}+A_{\rm out})\psi^s_{\rm in} + a_n}
+                       {2|\mu|A_{\rm down} + a_d + \Sigma_t V},\quad
+       \psi^s_{\rm out} = 2\bar\psi - \psi^s_{\rm in},\quad
+       \psi^a_{\rm out} = \frac{\bar\psi - (1-\tau)\psi^a_{\rm in}}{\tau}.
+
+    The bounds (Higham, *Accuracy and Stability*, Lemma 3.1 and eq. (4.4),
+    any association of each sum):
+
+    * denominator, three terms of at most one rounding each, two additions:
+      :math:`\varepsilon_d \le \gamma_3\sum|\text{terms}|`;
+    * numerator, three terms (the spatial one carries three roundings:
+      :math:`A_{\rm in}+A_{\rm out}`, :math:`\times|\mu|`,
+      :math:`\times\psi^s_{\rm in}`), two additions:
+      :math:`\varepsilon_n \le \gamma_5\sum|\text{terms}|`;
+    * the quotient and the two closures by running error analysis
+      (:class:`Tracked`, Higham §3.3) from those radii.
+
+    ``nulp``/``array_equal`` were the wrong instrument: the reference's
+    numerator association ``(q + s) + a`` and production's ``q + (s + a)``
+    agree only by the draw (`[M]` red in 3 of 10 ±3-ULP perturbations of
+    the GL-8 rule at HEAD ``0a5a23fa``).
     """
+    abs_mu = _F(st.abs_mu)
+    A_in, A_out, A_d = _F(st.face_area_inner), _F(st.face_area_outer), _F(A_downstream)
+    V = _F(st.volume)
+    a_d = _F(dAw * c_out)
+    for g in range(len(total_xs)):
+        a_n = _F(dAw * c_in * psi_angle_in[g])
+        d_terms = (2 * abs_mu * A_d, a_d, _F(total_xs[g]) * V)
+        n_terms = (_F(source[g]), abs_mu * (A_in + A_out) * _F(psi_spat_in[g]), a_n)
+        d = Tracked(sum(d_terms), gamma(3) * sum(abs(t) for t in d_terms))
+        n = Tracked(sum(n_terms), gamma(5) * sum(abs(t) for t in n_terms))
+        avg = n / d
+        out = Tracked(2 * avg.v, 2 * avg.r) - Tracked.of(psi_spat_in[g])
+        ang = (avg - (Tracked.const(1) - Tracked.of(tau)) * Tracked.of(psi_angle_in[g])) / Tracked.of(tau)
+        for name, got, want in (
+            ("cell_average_flux", result.cell_average_flux[g], avg),
+            ("outgoing_spatial_flux", result.outgoing_spatial_flux[g], out),
+            ("march_psi_half_step", marched[g], ang),
+        ):
+            if abs(_F(got) - want.v) > want.r:
+                pytest.fail(
+                    f"group {g} {name} = {float(got)!r} is {float(abs(_F(got) - want.v)):.3e} "
+                    f"from the exact DD/M-M value {float(want.v)!r}, outside the derived "
+                    f"radius {float(want.r):.3e}"
+                )
+            # Non-vacuity: the radius is a few ULP, not a wide band.
+            if want.r > 64 * U * abs(want.v) + 64 * U:
+                pytest.fail(f"group {g} {name}: radius {float(want.r):.3e} is not a rounding-scale bound")
+
+
+def _curvilinear_row(cell_idx, direction_idx, outward, total_xs, Q, psi_spat_in, psi_angle_in):
+    mesh = _spherical_mesh(nx=5, radius=1.0)
+    quad = Quadrature.gauss_legendre(8)
+    op = spherical_streaming(mesh, quad)
+    st = op.streaming_terms(cell_idx, direction_idx)
+    if not st.abs_mu >= 1e-15:
+        pytest.fail("degenerate ordinate")
+    if (quad.mu_x[direction_idx] > 0) != outward:
+        pytest.fail("direction sign is not the row's")
+    weight_norm = 1.0 / quad.weights.sum()
+    source = Q * st.volume * weight_norm
+    upstream = UpstreamState(spatial_upstream=psi_spat_in)
+    tau, alpha_in, alpha_out = mm_constants_for_ordinate(op, cell_idx, direction_idx)
+    dAw = _dAw_of(op, cell_idx, direction_idx)
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
+    A_down = st.face_area_outer if outward else st.face_area_inner
+    visit = CellVisit(cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down)
+    result = DiamondDifference().update(
+        visit, total_xs, source, upstream,
+        angular_denom_term=dAw * c_out,
+        angular_numer_upstream=dAw * c_in * psi_angle_in,
+    )
+    marched = march_psi_half_step(result.cell_average_flux, psi_angle_in, tau)
+    _assert_dd_cell_update(
+        st=st, A_downstream=A_down, total_xs=total_xs, source=source,
+        psi_spat_in=psi_spat_in, psi_angle_in=psi_angle_in, tau=tau, dAw=dAw,
+        c_in=c_in, c_out=c_out, result=result, marched=marched,
+    )
+
+
+class TestCurvilinearCellUpdate:
+    """Curvilinear DD + the M-M march against the exact cell-balance value, within a derived radius."""
 
     @pytest.mark.sentinel
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-curvilinear-scalar", "dd-mm-closure-constants")
-    def test_spherical_outward_bit_identical(self):
-        """Outward-sweep cell (positive μ, away from r=0).
-
-        Mirrors sweep.py:368-394 for a single cell with synthetic
-        ``psi_spatial_in``, ``psi_angle_in``.
-        """
-        mesh = _spherical_mesh(nx=5, radius=1.0)
+    def test_spherical_outward_cell_update(self):
+        """Outward-sweep cell (positive μ, away from r=0): downstream face = OUTER."""
         quad = Quadrature.gauss_legendre(8)
-        op = spherical_streaming(mesh, quad)
+        _curvilinear_row(2, quad.N - 2, True, np.array([1.3, 0.9]), np.array([2.1, 0.4]),
+             np.array([0.21, 0.11]), np.array([0.05, 0.03]))
 
-        ng = 2
-        cell_idx = 2  # interior
-        direction_idx = quad.N - 2  # positive μ, not extremal
-        st = op.streaming_terms(cell_idx, direction_idx)
-        assert st.abs_mu >= 1e-15  # non-degenerate
-
-        total_xs = np.array([1.3, 0.9])
-        weight_norm = 1.0 / quad.weights.sum()
-        Q = np.array([2.1, 0.4])
-        source = Q * st.volume * weight_norm
-        psi_spat_in = np.array([0.21, 0.11])
-        psi_angle_in = np.array([0.05, 0.03])
-        upstream = UpstreamState(spatial_upstream=psi_spat_in)
-
-        # Reference scalar form — mirrors sweep.py:328-329 + 350-361.
-        # Outward (μ > 0): downstream face is the OUTER face.  Issue #236
-        # Step C: τ / α come from the independent surrogate (geometry-τ
-        # retired); c_* from the hand-transcribed formula.
-        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
-            op, cell_idx, direction_idx,
-        )
-        abs_mu = st.abs_mu
-        A_inner = st.face_area_inner
-        A_outer = st.face_area_outer
-        A_downstream = A_outer  # outward sweep
-        delta_A_over_w = _dAw_of(op, cell_idx, direction_idx)
-        V = st.volume
-        ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
-        ref_denom = (
-            2.0 * abs_mu * A_downstream + delta_A_over_w * ref_c_out + total_xs * V
-        )
-        ref_numer = (
-            source
-            + abs_mu * (A_inner + A_outer) * psi_spat_in
-            + delta_A_over_w * ref_c_in * psi_angle_in
-        )
-        ref_psi_avg = ref_numer / ref_denom
-        ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
-        ref_psi_angle_out = (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
-
-        # Outward visit: face_area_downstream = outer face.  Issue #236
-        # Phase 2 B3: DD.update reads the M-M c_in / c_out / τ off the visit;
-        # stamp them with the same closure-equivalent values the reference uses.
-        visit = CellVisit(
-            cell_idx=cell_idx,
-            streaming_terms=st,
-            face_area_downstream=A_outer,
-        )
-        strat = DiamondDifference()
-        # P4.9a: the caller assembles the closure contributions.
-        result = strat.update(
-            visit, total_xs, source, upstream,
-            angular_denom_term=delta_A_over_w * ref_c_out,
-            angular_numer_upstream=delta_A_over_w * ref_c_in * psi_angle_in,
-        )
-
-        # Bit-identical: np.array_equal, not np.allclose.
-        assert np.array_equal(result.cell_average_flux, ref_psi_avg)
-        assert np.array_equal(result.outgoing_spatial_flux, ref_psi_spat_out)
-        # P4.9a: the scheme closes no angular axis; the owner's march on the
-        # scheme's average reproduces the M-M reference bit-for-bit.
-        assert np.array_equal(
-            march_psi_half_step(result.cell_average_flux, psi_angle_in, tau),
-            ref_psi_angle_out,
-        )
 
     @pytest.mark.foundation
     @pytest.mark.verifies("dd-curvilinear-scalar", "dd-mm-closure-constants")
-    def test_spherical_inward_bit_identical(self):
-        """Inward-sweep cell (negative μ, marching outer → inner).
-
-        Mirrors sweep.py:336-366 — the inward branch differs only in
-        which face is "downstream" (the inner face for inward, the
-        outer face for outward).  The cell-update algebra is
-        identical; the sweep orchestrator (now via
-        :meth:`SNProblem.dag_walk`) resolves the downstream face
-        before issuing the visit, so the strategy sees no
-        sign-of-:math:`\\mu` branching.
-
-        Why this row asserts nULP and not ``array_equal``
-        -------------------------------------------------
-        The reference below sums the numerator left-to-right,
-        ``(source + spatial) + angular``; production groups the two
-        inflow terms, ``source + (spatial + angular)``
-        (``cell_balance.py`` → ``diamond.py``).  Identical in exact
-        arithmetic, and the ONLY difference between the two sides.
-
-        ⭐ The bit-identity this row used to assert was a **numerical
-        coincidence, never a guarantee**: with the pre-``579d5eaf``
-        Gauss-Legendre nodes the two associations happened to round
-        the same way.  ``579d5eaf`` moved the GL nodes/weights by
-        3/17 ULP (a verified improvement — the new GL8 integrates the
-        exact rational moments 5.8× better than ``numpy.leggauss``,
-        winning 7 of 7 non-trivial even moments), and the coincidence
-        stopped holding.  Nothing about the cell-update algebra moved.
-
-        ``[M]`` 2026-08-12, this fixture: the association hypothesis is
-        PROVEN, not inferred — ``array_equal(production, right-assoc)``
-        is ``True`` while ``array_equal(production, left-assoc)`` is
-        ``False``.  Drift, and its propagation from the single 1-ULP
-        numerator difference:
-
-        =========================  ====  ==========
-        quantity                   ULP   rel
-        =========================  ====  ==========
-        ``cell_average_flux``      1     2.059e-16
-        ``outgoing_spatial_flux``  2     2.528e-16
-        ``outgoing_angular_state`` 4     6.807e-16
-        =========================  ====  ==========
-
-        The amplification is dimensionally explainable:
-        ``2·avg − ψ_in`` carries a mild cancellation factor
-        (≈1.23), and ``(avg − (1−τ)ψ)/τ`` divides by τ ≈ ½.
-        ``nulp=8`` is 2× the worst measured value — headroom for
-        platform FP variation, and the same order as the
-        ``< 8 × ulp`` contract ``tests/gates/numerics/test_rules_1d.py``
-        already pins Gauss-Legendre against ``numpy`` with.
-
-        ⚠ This relaxation costs the gate **no catch power**: it exists
-        to catch a wrong cell-update algebra (sign flip, wrong
-        downstream face, wrong M-M closure constant), every one of
-        which is an O(1) error, not an O(ULP) one.  The outward
-        sibling still asserts strict ``array_equal`` — it is
-        unaffected only by ordinate-index luck, so if it ever reddens
-        at this scale, read this note before touching production.
-        """
-        mesh = _spherical_mesh(nx=5, radius=1.0)
-        quad = Quadrature.gauss_legendre(8)
-        op = spherical_streaming(mesh, quad)
-
-        ng = 2
-        cell_idx = 3
-        direction_idx = 1  # negative μ, second-most-negative
-        st = op.streaming_terms(cell_idx, direction_idx)
-        assert st.abs_mu >= 1e-15
-        # Confirm the streaming terms are direction-independent
-        # (geometric labels): inner == A[i], outer == A[i+1].
-        assert st.face_area_inner == float(op.face_areas[cell_idx])
-        assert st.face_area_outer == float(op.face_areas[cell_idx + 1])
-        # Signed mu (off the quadrature, P4.7) discriminates direction.
-        assert quad.mu_x[direction_idx] < 0
-
-        total_xs = np.array([0.8, 1.4])
-        weight_norm = 1.0 / quad.weights.sum()
-        Q = np.array([1.1, 0.7])
-        source = Q * st.volume * weight_norm
-        psi_spat_in = np.array([0.05, 0.02])
-        psi_angle_in = np.array([0.18, 0.09])
-        upstream = UpstreamState(spatial_upstream=psi_spat_in)
-
-        # Issue #236 Step C: τ / α from the independent surrogate.
-        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
-            op, cell_idx, direction_idx,
-        )
-        abs_mu = st.abs_mu
-        dAw = _dAw_of(op, cell_idx, direction_idx)
-        # Inward (μ < 0): downstream face is the INNER face.
-        A_downstream = st.face_area_inner
-        ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
-        ref_denom = (
-            2.0 * abs_mu * A_downstream
-            + dAw * ref_c_out
-            + total_xs * st.volume
-        )
-        ref_numer = (
-            source
-            + abs_mu * (st.face_area_inner + st.face_area_outer) * psi_spat_in
-            + dAw * ref_c_in * psi_angle_in
-        )
-        ref_psi_avg = ref_numer / ref_denom
-        ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
-        ref_psi_angle_out = (
-            (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
-        )
-
-        # Inward visit: face_area_downstream = inner face.  Issue #236
-        # Phase 2 B3: stamp the M-M c_in / c_out / τ DD.update reads off the
-        # visit with the same closure-equivalent values the reference uses.
-        visit = CellVisit(
-            cell_idx=cell_idx,
-            streaming_terms=st,
-            face_area_downstream=st.face_area_inner,
-        )
-        strat = DiamondDifference()
-        # P4.9a: the caller assembles the closure contributions.
-        result = strat.update(
-            visit, total_xs, source, upstream,
-            angular_denom_term=dAw * ref_c_out,
-            angular_numer_upstream=(
-                dAw * ref_c_in * psi_angle_in
-            ),
-        )
-
-        # An inward curvilinear visit MUST produce the spatial output; a
-        # None there is a contract breach, not a tolerance question.
-        # (P4.9a: ``outgoing_angular_state`` is None BY contract — the
-        # scheme closes no angular axis; the owner's march is pinned below.)
-        spat_out = result.outgoing_spatial_flux
-        if spat_out is None:
-            raise AssertionError(
-                "inward curvilinear visit returned no outgoing spatial "
-                f"state (spatial={spat_out!r})"
-            )
-
-        # nULP, not array_equal — see "Why this row asserts nULP" above.
-        # np.testing.* raises unconditionally, so this survives -O.
-        np.testing.assert_array_almost_equal_nulp(
-            result.cell_average_flux, ref_psi_avg, nulp=8,
-        )
-        np.testing.assert_array_almost_equal_nulp(
-            spat_out, ref_psi_spat_out, nulp=8,
-        )
-        np.testing.assert_array_almost_equal_nulp(
-            march_psi_half_step(result.cell_average_flux, psi_angle_in, tau),
-            ref_psi_angle_out, nulp=8,
-        )
+    def test_spherical_inward_cell_update(self):
+        """Inward-sweep cell (negative μ, marching outer → inner): downstream face = INNER."""
+        _curvilinear_row(3, 1, False, np.array([0.8, 1.4]), np.array([1.1, 0.7]),
+             np.array([0.05, 0.02]), np.array([0.18, 0.09]))
 
 
 # ═══════════════════════════════════════════════════════════════════════

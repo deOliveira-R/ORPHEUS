@@ -1,4 +1,4 @@
-"""Homogeneous infinite-medium reactor eigenvalue solver.
+r"""Homogeneous infinite-medium reactor eigenvalue solver.
 
 Solves for the neutron spectrum and k-infinity in an infinite homogeneous
 medium.  All spatial and angular dependence integrates out; the transport
@@ -21,13 +21,14 @@ C = diag(Σ_t) minus the model-shared isotropic energy operators
 is identically zero in an infinite medium and is dropped. The problem's
 TERMINAL OBJECT is the pencil ``(A, F)`` (R-cc2/R-cc5, 2026-09-12: a
 Problem builds its pencil as its last step; how the pencil is inverted
-is the Strategy's). The solver composes the resolvent
-``K = MatrixInverseOperator(A) @ F`` (one eager LU factorization at
-construction; the first production consumer of the dense direct inverse),
-whose materialization feeds the shared Perron–Frobenius extraction
-:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  The whole
-infinite-medium spectrum runs through the SAME operator algebra the
-meshed SN solver uses, not a bespoke matrix (#276).
+is the Strategy's). F is the rank-one fission dyad
+:math:`|\chi\rangle\langle\nu\Sigma_f|`, so the resolvent
+:math:`K = A^{-1}F` is rank one and its dominant eigenpair is exact in one
+solve: :math:`k_\infty = \langle\nu\Sigma_f, A^{-1}\chi\rangle`,
+:math:`\varphi \propto A^{-1}\chi` (one eager LU factorization through
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`).
+The operators are the SAME ones the meshed SN solver uses, not a bespoke
+matrix (#276).
 
 (n,2n) convention: the (n,2n) reaction is a loss-side multiplicity-2
 transfer.  It lives ONLY in A (as 2·Σ₂ᵀ), NOT in the fission production
@@ -47,7 +48,6 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
-from orpheus.numerics.eigenvalue import dominant_eigenpair
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -114,8 +114,9 @@ class HomogeneousResult:
     def flux(self) -> np.ndarray:
         r"""(NG,) — the group fluxes on the gauge's section (νΣf·φ = 100 n/cm³/s).
 
-        A view of the outcome's posed ``(NG, 1)`` column: the same bytes the
-        byte-stability gate has pinned since before the outcome existed."""
+        A view of the outcome's posed ``(NG, 1)`` column. Its accuracy is
+        pinned by ``test_kinf_exact_reference`` (the exact rational flux of
+        the float inputs, within a derived forward-error bound)."""
         return self.outcome.state[:, 0]
 
     @property
@@ -389,18 +390,15 @@ class HomogeneousProblem:
 def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     r"""Solve the infinite-medium eigenvalue problem for a homogeneous mixture.
 
-    Composes the multiplication operator :math:`\mathbf{K} =
-    \mathbf{A}^{-1}\mathbf{F}` in the operator algebra itself —
-    ``K = MatrixInverseOperator(problem.loss) @ problem.production``, the
-    Strategy's act on the problem's pencil (R-cc5) — from the loss
-    operator :math:`\mathbf{A} = C - K_\mathrm{iso} =
+    Poses the pencil on the problem's own hub, :class:`HomogeneousProblem`:
+    the loss operator :math:`\mathbf{A} = C - K_\mathrm{iso} =
     \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} - 2\Sigma_2^{T}`
-    (model-shared transport operators on the problem's own hub,
-    :class:`HomogeneousProblem`) and the
-    fission production dyad :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
-    then returns the dominant eigenpair of the materialized
-    :math:`\mathbf{K}`: :math:`k_\infty = \lambda_{\max}` and the flux
-    spectrum :math:`\varphi` (the corresponding right eigenvector),
+    (model-shared transport operators) and the fission production dyad
+    :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`. Because
+    :math:`\mathbf{F}` is rank one, so is :math:`\mathbf{K} =
+    \mathbf{A}^{-1}\mathbf{F}`, and its dominant eigenpair is exact:
+    :math:`k_\infty = \langle\nu\Sigma_f, \mathbf{A}^{-1}\chi\rangle`
+    and the flux spectrum :math:`\varphi \propto \mathbf{A}^{-1}\chi`,
     normalised so the fission production rate
     :math:`\nu\Sigma_f \cdot \varphi = 100` n/cm³/s.
 
@@ -424,20 +422,34 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     space = problem.space
     ng = problem.ng
 
-    # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the
-    # materialized K = A⁻¹F (the SAME operators the meshed SN solver uses;
-    # #276), extracted by the shared Perron–Frobenius primitive
-    # (:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, the one home
-    # of the complex-rejection + sign convention).  The 0-D infinite-medium
-    # spectrum is exactly solvable, so the dense direct engine is the right
-    # tool, not an iterative approximation.
-    # The STRATEGY: invert the pencil by an explicit dense inverse — one eager
-    # LU factorization at construction, the realization the exactly-solvable
-    # 0-D problem earns (the structure-keyed ``loss.inverse()`` would return
-    # the ITERATIVE splitting; constructing the matrix inverse explicitly IS
-    # the strategy choice, which is why it lives here and not on the hub).
-    multiplication = MatrixInverseOperator(problem.loss) @ problem.production
-    k_inf, phi = dominant_eigenpair(multiplication.as_matrix())
+    # k∞ and the flux spectrum φ from the RANK-ONE structure of the pencil.
+    # F = |χ⟩⟨νΣf| (the fission dyad: the emission spectrum column times the
+    # production-rate row), so K = A⁻¹F = |A⁻¹χ⟩⟨νΣf| is rank one too, and
+    # its only non-zero eigenvalue is
+    #
+    #     k∞ = ⟨νΣf, A⁻¹χ⟩,   with eigenvector   φ ∝ A⁻¹χ
+    #
+    # (K(A⁻¹χ) = A⁻¹χ ⟨νΣf, A⁻¹χ⟩). It is the dominant one unconditionally:
+    # every other eigenvalue of a rank-one operator is 0. The flux A⁻¹χ lies
+    # in the positive cone when A is a non-singular M-matrix (A⁻¹ ≥ 0), which
+    # holds when every group's removal exceeds its (n,2n) gain; an
+    # (n,2n)-dominated group can break that, and then φ, not k, is suspect.
+    # The flux is gauged by the hub's production rate below (the same νΣf
+    # row as the dyad's ``fission.production_rate``; on the 0-D pose the two
+    # agree, and the gauge's is the measure-carrying one). One solve and
+    # one contraction give the exact eigenpair — no dense eigen-solver, whose
+    # last bits are the platform library's (`[M]` 2026-10-01: a macOS update
+    # moved geev's k∞ by 1 ULP on an unchanged tree). The rank one is the
+    # model's: the mixture carries one fission spectrum (#549).
+    #
+    # The STRATEGY: invert the loss by an explicit dense inverse — one eager
+    # LU factorization, the realization the exactly-solvable 0-D problem
+    # earns (the structure-keyed ``loss.inverse()`` would return the
+    # ITERATIVE splitting; constructing the matrix inverse explicitly IS the
+    # strategy choice, which is why it lives here and not on the hub).
+    fission = problem.production
+    phi = MatrixInverseOperator(problem.loss).apply(fission.emission_spectrum)
+    k_inf = float(fission.production_rate.evaluate(phi).item())
 
     # The reaction rates are the typed integrated co-vectors ⟨Σx, ·⟩
     # (IntegratedReactionRate — EE-1, landed CS4b S7): production (νΣf)
@@ -459,8 +471,8 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # production rate νΣf·φ = 100 n/cm³/s".  The section is a recorded OBJECT
     # (the functional that ran + its target) on the outcome, not an anonymous
     # rescale: ``apply`` IS ``φ · 100 / ⟨νΣf, φ⟩`` — the arithmetic this line
-    # spelled by hand until step 3, bit-for-bit (the byte-stability gate pins
-    # it).  ⚠ The state is the POSED (ng, 1) column: ``IntegratedReactionRate.
+    # spelled by hand until step 3, bit-for-bit.  ⚠ The state is the POSED
+    # (ng, 1) column: ``IntegratedReactionRate.
     # evaluate`` silently accepts an (ng,) vector and returns the wrong
     # number (``[M]`` 200.0 at 2g where the column reads 100.0).
     gauge = ScaleGauge(production_rate.evaluate, 100.0)

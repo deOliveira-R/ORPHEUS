@@ -1,4 +1,4 @@
-"""Verify the infinite-medium eigenvalue solver against SymPy analytical solutions."""
+"""Verify the infinite-medium eigenvalue solver against the registry's analytical references."""
 
 import dataclasses
 
@@ -8,10 +8,13 @@ import pytest
 import orpheus.numerics.eigenvalue as _eig
 from orpheus.derivations import get
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
+from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 
 # File-level verifies marker: every test in this file exercises the
 # homogeneous eigenvalue chain end-to-end by asserting k_inf matches
-# the SymPy-derived analytical reference to 1e-12. That tolerance is
+# the registry's analytical reference (a float64 dense eigen-solve in
+# ``derivations.common.eigenvalue``; SymPy only typesets the equations)
+# to 1e-12. That tolerance is
 # tight enough to pin every step of the derivation — if any of the
 # labelled equations below were implemented incorrectly the k mismatch
 # would be far larger than 1e-12, so a passing test is equation-level
@@ -23,9 +26,11 @@ from orpheus.homogeneous.solver import solve_homogeneous_infinite
 #
 # The 2G labels (two-group-*) and the power-iteration step labels
 # (fission-source, fixed-source-solve, keff-update) are all exercised
-# by the homo_2eg / homo_4eg cases — the analytical k_inf is derived
-# symbolically via exactly those equations, so a solver k that matches
-# to 1e-12 implies every link in the chain is correct. The absorption-
+# by the homo_2eg / homo_4eg cases — the registry k_inf is computed from
+# exactly those equations (in float64, by a dense solve and eigen-solve in
+# ``derivations.common.eigenvalue``; the exact rational eigenpair is
+# ``test_kinf_exact_reference``), so a solver k that matches to 1e-12
+# implies every link in the chain is correct. The absorption-
 # xs label is the derived property used inside keff-update.
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "one-group-kinf",
@@ -125,7 +130,7 @@ def test_assemble_loss_operator_matches_fused_oracle():
     bug in the operator assembly faster than the end-to-end eig. It reads the
     RAW ``Mixture`` arrays (sharing only the datum with the hub's fields — so
     it is independent of the field/operator tier, NOT of the data), and
-    therefore PAIRS with the SymPy ``case.k_inf`` anchor
+    therefore PAIRS with the registry ``case.k_inf`` anchor
     in :func:`test_kinf_exact` rather than replacing it.  (Step 5b: the
     assembly now returns the UN-materialized OperatorSum — in production the
     MatrixInverseOperator ctor densifies it; the oracle comparison here
@@ -196,25 +201,24 @@ def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
 
 
 # ── The eigen-solve call path: #276 P4-D routed it through direct_eigenvalue;
-#    taxonomy step 5b re-spelled it as the K-operator composition
-#    ``K = MatrixInverseOperator(loss) @ production`` + dominant_eigenpair ──
+#    taxonomy step 5b re-spelled it as the K-operator composition; on
+#    2026-10-01 it became the rank-one route, with no eigen-solver at all ──
 #
-# These gates pin the production call path of the eigen-solve. Equivalence-
-# class history:
+# These gates pin the production call path of k∞. Equivalence-class history:
 #
 #   * P4-D (direct_eigenvalue rewire) — k_inf BIT-IDENTICAL: the eig
 #     computation was structurally unchanged (same ``eig(solve(A, F))``).
-#   * Step 5b (the K-operator spelling) — k_inf is PRINCIPLED-EQUIVALENCE,
-#     gated at rtol=1e-12: the resolvent formation deliberately changed
-#     LAPACK call sequence (one batched ``gesv`` → a held ``lu_factor`` +
-#     one ``lu_solve`` backsolve per basis column), so drift up to ~κ(A)·ULP
-#     is admissible on another BLAS build (measured bit-identical on this
-#     host). All three re-baseline criteria hold: the resolvent is formed by
-#     NAMED operators (MatrixInverseOperator = A⁻¹, the fission dyad = F,
-#     OperatorProduct = A⁻¹F); the structurally-INDEPENDENT anchor stays
-#     ``test_kinf_exact`` (SymPy ``case.k_inf``, 1e-12), into which
-#     dominant_eigenpair must NOT be wired; the FP drift (~1e-14) is ≪ any
-#     rewire bug (O(1e-3)+).
+#   * Step 5b (the K-operator spelling) — principled equivalence at
+#     rtol=1e-12: ``K = MatrixInverseOperator(loss) @ production`` then
+#     ``dominant_eigenpair`` (geev) on its materialization.
+#   * 2026-10-01 (the rank-one route) — F = |χ⟩⟨νΣf| is a dyad, so
+#     k∞ = ⟨νΣf, A⁻¹χ⟩ and φ ∝ A⁻¹χ exactly: ONE ``MatrixInverseOperator``
+#     apply and one contraction, no dense eigen-solve. The trigger was
+#     platform drift: a macOS update moved geev's k∞ by 1 ULP on an unchanged
+#     tree, so a bit pin on its output pinned the platform. The anchor is
+#     ``test_kinf_exact_reference`` (the exact rational eigenpair of the float
+#     inputs within a derived forward-error bound) beside ``test_kinf_exact``
+#     (the registry ``case.k_inf``, 1e-12).
 #   * rates / flux via IntegratedReactionRate — BIT-IDENTICAL on the shipped
 #     cases (ng ≤ 4): V_cell = 1 and the short Σ_g νΣf_g φ_g reduction matches
 #     ``νΣf @ φ`` exactly, comparing two computations on the SAME φ (whatever
@@ -228,52 +232,68 @@ def _require(condition: bool, message: str) -> None:
         pytest.fail(message)
 
 
-def test_dominant_eigenpair_is_on_the_homogeneous_call_path(monkeypatch):
-    """Mode-11: ``solve_homogeneous_infinite`` actually CALLS
-    ``dominant_eigenpair`` (the K-path eigenvalue primitive) — not a
-    routed-around inline ``eig``.
+class _ForbiddenEigenSolve(RuntimeError):
+    pass
 
-    In-process WRAP sentinel (the gold-standard Mode-11 proof): spies the
-    symbol in the SOLVER's own namespace (the module-level ``from ... import``
-    binding is the thing wrapped) and asserts the counter fires during the
-    solve. HARD requirement — post-carve, symbol absence is a REGRESSION
-    (the step-5b predecessor of this gate silently SKIPPED when its spied
-    symbol left the namespace; never again).
+
+def test_the_rank_one_route_is_the_homogeneous_call_path(monkeypatch):
+    """ROUTE gate (Mode-11 + the decoy swap), two legs.
+
+    (1) NO dense eigen-solve on the path: ``dominant_eigenpair`` (every
+    binding: the solver's namespace if it still imports it, and the
+    definition site) and the dense eigen drivers ``numpy.linalg.eig`` /
+    ``eigvals`` and ``scipy.linalg.eig`` / ``eigvals`` are replaced by decoys
+    that RAISE; the solve must still succeed and hand back the same answer.
+    (2) k∞ is READ OFF ``MatrixInverseOperator.apply``: a decoy ``apply``
+    returning ``2 · A⁻¹x`` must make ``k_inf`` exactly twice the honest value
+    (``⟨νΣf, 2u⟩ = 2⟨νΣf, u⟩`` bit for bit: a power-of-two scale commutes
+    with every rounding) and leave the gauged flux BIT-identical (the gauge
+    divides the scale out exactly), with the decoy's counter firing. Leg (2)
+    is what an output-equality spy cannot state: the answer depends on the
+    route. Re-target the spied name if the route is spelled through another
+    verb of ``MatrixInverseOperator``; never let this skip.
     """
+    import numpy.linalg
+    import scipy.linalg
+
     import orpheus.homogeneous.solver as hsolver
-
-    _require(
-        hasattr(hsolver, "dominant_eigenpair"),
-        "solver.py does not import dominant_eigenpair — the K-spelling rewire "
-        "regressed (or the solver re-binds a different eigenvalue engine; "
-        "re-target this spy, never let it skip).",
-    )
-
-    calls: list[int] = []
-
-    def _wrap(ns: object, name: str) -> None:
-        original = getattr(ns, name)
-
-        def spy(*args, **kwargs):
-            calls.append(1)
-            return original(*args, **kwargs)
-
-        monkeypatch.setattr(ns, name, spy)
-
-    _wrap(hsolver, "dominant_eigenpair")
-    if hasattr(_eig, "dominant_eigenpair"):  # definition site too (in-function import)
-        _wrap(_eig, "dominant_eigenpair")
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
-    result = solve_homogeneous_infinite(mix)
-    _require(
-        len(calls) >= 1,
-        "solve_homogeneous_infinite did NOT call dominant_eigenpair — the "
-        "K-path eigenvalue primitive is not on the call graph (Mode-11 "
-        "vacuous green).",
-    )
-    np.testing.assert_allclose(result.k_inf, case.k_inf, atol=1e-12, rtol=0)
+    honest = solve_homogeneous_infinite(mix)
+
+    def forbid(*_a, **_k):
+        raise _ForbiddenEigenSolve("a dense eigen-solve was called on the homogeneous path")
+
+    for ns, name in (
+        (hsolver, "dominant_eigenpair"),
+        (_eig, "dominant_eigenpair"),
+        (numpy.linalg, "eig"),
+        (numpy.linalg, "eigvals"),
+        (scipy.linalg, "eig"),
+        (scipy.linalg, "eigvals"),
+    ):
+        if hasattr(ns, name):
+            monkeypatch.setattr(ns, name, forbid)
+    try:
+        routed = solve_homogeneous_infinite(mix)
+    except _ForbiddenEigenSolve as exc:
+        pytest.fail(f"leg 1: {exc} — the rank-one route k = <nu Sigma_f, A^-1 chi> is not the path")
+    _require(routed.k_inf == honest.k_inf, "leg 1: the answer moved when the eigen drivers were removed")
+
+    calls: list[int] = []
+    original = MatrixInverseOperator.apply
+
+    def doubled(self, x, /, **kwargs):
+        calls.append(1)
+        return 2.0 * original(self, x, **kwargs)
+
+    monkeypatch.setattr(MatrixInverseOperator, "apply", doubled)
+    decoyed = solve_homogeneous_infinite(mix)
+    _require(len(calls) >= 1, "leg 2: MatrixInverseOperator.apply never ran — u = A^-1 chi is not on the path")
+    _require(decoyed.k_inf == 2.0 * honest.k_inf, f"leg 2: k_inf = {decoyed.k_inf!r} is not 2 x {honest.k_inf!r}: k is not read off A^-1 chi")
+    _require(np.array_equal(decoyed.flux, honest.flux), "leg 2: the gauged flux moved under a power-of-two scale of u")
+
 
 
 def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
@@ -282,12 +302,17 @@ def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
     ``direct_eigenvalue(A, F)`` (``np.linalg.solve`` resolvent) on the SAME
     assembled pair.
 
-    Both engines extract through the SAME ``dominant_eigenpair``, so this
-    localizes a REWIRE regression (factor swap, wrong basis_shape, transposed
-    resolvent — all O(1) on k) to the resolvent-FORMATION boundary. It is NOT
-    structurally independent on the eig side and PAIRS with ``test_kinf_exact``
-    (the SymPy anchor). rtol=1e-12 per the step-5b equivalence-class note
-    above: bit-identical on this host, κ(A)·ULP-portable across BLAS builds.
+    Since 2026-10-01 the two are structurally independent on the eigen
+    side: the solver reads k∞ = ⟨νΣf, A⁻¹χ⟩ off the rank-one dyad (no
+    eigen-solver), while ``direct_eigenvalue`` extracts the dominant
+    eigenvalue of the dense resolvent through ``dominant_eigenpair``. So
+    this gate was PROMOTED by the rank-one route (``retirement-audit``
+    D.15): it now pins the rank-one theorem itself on the same assembled
+    pair, as well as a rewire regression (factor swap, wrong basis_shape,
+    transposed resolvent — all O(1) on k). It pairs with
+    ``test_kinf_exact`` (the registry value) and
+    ``test_kinf_exact_reference`` (the exact rational eigenpair).
+    rtol=1e-12: κ(A)·ULP-portable across BLAS builds.
     """
     from orpheus.homogeneous.solver import HomogeneousProblem
 
@@ -309,7 +334,7 @@ def test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path(monkeypat
     ``MatrixInverseOperator.apply`` LU backsolve executes during
     ``solve_homogeneous_infinite`` (once per resolvent column).
 
-    The value gates (fused oracle, cross-engine, SymPy anchor) are
+    The value gates (fused oracle, cross-engine, registry anchor) are
     structurally BLIND to WHICH code formed the resolvent — only a fired
     sentinel proves the inverse operator is the genuine producer.
     ``K.as_matrix()`` *structurally must* route ``Minv.apply(F.apply(e_j))``
@@ -364,9 +389,11 @@ def test_K_operator_as_matrix_is_the_resolvent():
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
 
-    # CS4a K2: the line-for-line production mirror (solver.py builds K
-    # exactly this way — the mixture-minted pose threaded everywhere, no
-    # explicit basis_shape anywhere; the shapes derive from the domain).
+    # CS4a K2: the resolvent the pencil defines, built from the hub's own
+    # operators (the mixture-minted pose threaded everywhere, no explicit
+    # basis_shape anywhere; the shapes derive from the domain). Production
+    # no longer materializes K (since 2026-10-01 it reads k∞ off the
+    # rank-one dyad), so this is the resolvent's algebra, not a mirror.
     problem = HomogeneousProblem(mix)
     loss = problem.loss
     production = problem.production

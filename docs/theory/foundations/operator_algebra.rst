@@ -7378,8 +7378,10 @@ Fix a functional :math:`n` that is **homogeneous of degree 1** —
    on its target, idempotence to allclose, Γ-invariance over
    c ∈ {0.1, 0.5, 2, 10}, the sign leg, the zero-reading refusal, and the
    two-functionals negative leg), plus its first production witness, the
-   infinite medium's νΣf·φ = 100 rescale pinned byte-for-byte by
-   tests/gates/homogeneous/test_byte_stability.py.
+   infinite medium's νΣf·φ = 100 rescale, held to the exact rational
+   gauged flux within a derived bound by
+   tests/gates/homogeneous/test_kinf_exact_reference.py (a gauge target
+   off by 2^-40 reds its flux rows in all eight cases).
 .. vv-status: scale-gauge-section documented
 
 .. math::
@@ -7771,7 +7773,12 @@ full account, including the shape gotcha that makes the state the posed
        :math:`k_\infty`.  ≥ 2 groups on purpose (see the gotcha above)
    * - ``tests/gates/homogeneous/test_byte_stability.py``
      - that the rescale's arithmetic did not move — the same bit-identity
-       wall that licensed calling the CS4c coda a re-source
+       wall that licensed calling the CS4c coda a re-source.  Retired
+       2026-10-01: its bytes pinned the platform's LAPACK as well (a macOS
+       update moved the eigen-solve's :math:`k_\infty` by 1 ULP), and
+       ``tests/gates/homogeneous/test_kinf_exact_reference.py`` holds the
+       gauged flux to the exact rational answer within a derived bound
+       (:ref:`homogeneous-exact-reference`)
 
 .. _the-outcome-sn-realization:
 

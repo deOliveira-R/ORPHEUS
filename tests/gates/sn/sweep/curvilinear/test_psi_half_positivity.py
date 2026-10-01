@@ -94,6 +94,11 @@ coverage** (`vv-principles` #20):
 
 from __future__ import annotations
 
+from fractions import Fraction
+
+from orpheus.sn.angular.closure import angular_cell_edges_per_level
+from tests._harness.float_bounds import Tracked, U, gamma
+
 import numpy as np
 import pytest
 
@@ -266,40 +271,114 @@ def test_cylinder_recurrence_amplification_matches_the_closed_form(n_phi):
 
 @pytest.mark.parametrize("N", (4, 8, 16, 32, 64))
 def test_sphere_recurrence_is_neutrally_stable_across_the_level(N):
-    r"""The sphere arm of the end-to-end identity, and its :math:`A(N)`.
+    r"""The sphere arm of the end-to-end identity, and its :math:`A(N)` — every float claim carries a DERIVED bound.
 
-    Same algebra, cumulative-weight partition.  `[M]` 2026-08-11
-    :math:`A` = 1.639121 (N=4) / 2.015931 (8) / 2.510677 (16) /
-    3.145681 (32) / 3.952582 (64) — markedly gentler than the cylinder
-    at comparable ordinate counts, because Gauss–Legendre nodes sit
-    closer to their cells' barycentres than the arc's do.
+    ``[M]`` 2026-08-11 :math:`A` = 1.639121 (N=4) / 2.015931 (8) / 2.510677
+    (16) / 3.145681 (32) / 3.952582 (64). (Unchanged.)
 
-    **Pins** that the sphere's τ chart shares the neutral-stability
-    property (the reversal identity holds there too) and that its
-    amplification stays monotone in N.  **Cannot catch** a τ error that
-    is antisymmetric about :math:`\mu = 0` in the ratio sense — the
-    product identity is blind to it; the value rows in
-    ``test_tau_producer_equivalence.py`` own that.
+    **The identity, exactly.** For a rule symmetric to the bit
+    (:math:`\mu_i = -\mu_{N-1-i}`, :math:`w_i = w_{N-1-i}`) with exact
+    weight sum :math:`S = \sum w_i` (the float weights read as rationals),
+    the cumulative-weight edges :math:`e_n = -1 + \sum_{i<n} w_i` satisfy
+    :math:`e_{N-1-m} = S - 2 - e_{m+1}`, so the exact Morel–Montry weights
+    :math:`\tau_m = (\mu_m - e_m)/w_m` obey
+
+    .. math::
+
+       \tau_m + \tau_{N-1-m} = 1 - \frac{S-2}{w_m},
+       \qquad
+       \prod_k \frac{1-\tau_k}{\tau_k} = \prod_k\Bigl(1 + \frac{S-2}{w_k\,\tau_{N-1-k}}\Bigr),
+
+    the reversal identity with its mass-defect term. Asserted with ``==`` in
+    rational arithmetic: a theorem, so no tolerance exists to pick. At
+    :math:`S = 2` it is the old statement, product exactly 1.
+
+    **The float values, within derived radii.** Production marches the
+    edges left to right, :math:`\hat e_n = \mathrm{fl}(\hat e_{n-1} +
+    w_{n-1})`, so :math:`|\hat e_n - e_n| \le R_n = R_{n-1} +
+    u|\hat e_n|/(1-u)` (running error analysis, Higham §3.3, from the
+    computed edges), and :math:`\hat\tau_m =
+    \mathrm{fl}(\mathrm{fl}(\mu_m - \hat e_m)/\mathrm{fl}(\hat e_{m+1} -
+    \hat e_m))` carries the radius :class:`Tracked` propagates from
+    :math:`R_m, R_{m+1}`. The ratios :math:`(1-\hat\tau)/\hat\tau` are
+    tracked the same way, and ``np.prod`` adds :math:`\gamma_{N-1}`
+    relative in any order (Lemma 3.1).
+
+    Until 2026-10 this row asserted :math:`|\hat P - 1| \le 10^{-12}`: the
+    float product's own rounding reaches 1.8e-12 at N = 64 on the shipped
+    rule and 7.4e-12 on another eigensolver's, so the tolerance sat inside
+    the instrument's noise band (red in 7 of 10 ±3-ULP perturbations). The
+    derived radius at N = 64 is printed in the failure message.
+
+    **Cannot catch** (unchanged in kind): a τ error that preserves the
+    multiset of ratios — but :math:`\tau \to 1-\tau`, the inversion the
+    product is blind to, is now caught by the per-ordinate value leg.
     """
     quad = Quadrature.gauss_legendre(N)
     (tau,) = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)
-    ratios = (1.0 - tau) / tau
+    (edges,) = angular_cell_edges_per_level(quad, CoordSystem.SPHERICAL)
+    mu = [Fraction(float(m)) for m in quad.mu_x]
+    w = [Fraction(float(x)) for x in quad.weights]
 
-    np.testing.assert_allclose(
-        float(np.prod(ratios)), 1.0, rtol=0.0, atol=1e-12,
-        err_msg=(
-            f"sphere N={N}: prod (1-tau)/tau != 1 — the M-M recurrence is "
-            f"no longer neutrally stable across the level"
-        ),
-    )
+    # The rule's symmetry, to the bit — the identity's hypothesis.
+    if not (all(mu[i] == -mu[N - 1 - i] for i in range(N)) and all(w[i] == w[N - 1 - i] for i in range(N))):
+        pytest.fail(f"GL-{N} is not exactly symmetric: the reversal identity has no hypothesis")
+
+    # Exact τ and the exact identity.
+    S = sum(w)
+    e = [Fraction(-1)]
+    for wi in w:
+        e.append(e[-1] + wi)
+    tau_x = [(mu[m] - e[m]) / w[m] for m in range(N)]
+    for m in range(N):
+        if tau_x[m] + tau_x[N - 1 - m] != 1 - (S - 2) / w[m]:
+            pytest.fail(f"sphere N={N}: the exact reversal identity fails at m={m}")
+    ratio_x = [(1 - t) / t for t in tau_x]
+    P_x = Fraction(1)
+    for r in ratio_x:
+        P_x *= r
+    P_identity = Fraction(1)
+    for k in range(N):
+        P_identity *= 1 + (S - 2) / (w[k] * tau_x[N - 1 - k])
+    if P_x != P_identity:
+        pytest.fail(f"sphere N={N}: prod (1-tau)/tau != the mass-defect identity, exactly")
+
+    # Production τ̂ against the exact τ, within the running-error radius.
+    R = [Fraction(0)]
+    for n in range(1, N + 1):
+        R.append(R[-1] + U * abs(Fraction(float(edges[n]))) / (1 - U))
+    E = [Tracked(e[n], R[n]) for n in range(N + 1)]
+    ratio_t = []
+    for m in range(N):
+        t = (Tracked.of(quad.mu_x[m]) - E[m]) / (E[m + 1] - E[m])
+        if abs(Fraction(float(tau[m])) - t.v) > t.r:
+            pytest.fail(
+                f"sphere N={N}: tau[{m}] = {float(tau[m])!r} is not the Morel–Montry "
+                f"weight {float(t.v)!r} within its derived radius {float(t.r):.3e}"
+            )
+        ratio_t.append((Tracked.const(1) - t) / t)
+
+    # The float product, within the derived bound of the exact one.
+    P_hat = Fraction(float(np.prod((1.0 - tau) / tau)))
+    upper = Fraction(1)
+    for rt in ratio_t:
+        upper *= abs(rt.v) + rt.r
+    bound = (upper - abs(P_x)) + gamma(N - 1) * upper
+    if abs(P_hat - P_x) > bound:
+        pytest.fail(
+            f"sphere N={N}: prod (1-tau)/tau = {float(P_hat)!r} is "
+            f"{float(abs(P_hat - P_x)):.3e} from the exact {float(P_x)!r}, outside the "
+            f"derived bound {float(bound):.3e} — the M-M recurrence is no longer "
+            f"neutrally stable across the level"
+        )
+    if bound > Fraction(1, 10**8):
+        pytest.fail(f"sphere N={N}: derived bound {float(bound):.3e} is not a rounding-scale statement")
+
     amplification = _amplification(tau)
     if not 1.0 < amplification < 10.0:
         pytest.fail(
             f"sphere N={N}: the recurrence's worst partial amplification "
-            f"A = {amplification!r} left the characterised band (1, 10). "
-            f"`[M]` 2026-08-11 A = 1.64/2.02/2.51/3.15/3.95 at "
-            f"N = 4/8/16/32/64. A change here moves every psi_hat "
-            f"excursion on the spherical arm."
+            f"A = {amplification!r} left the characterised band (1, 10)."
         )
 
 

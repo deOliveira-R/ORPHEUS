@@ -281,13 +281,17 @@ def derive_2g() -> VerificationCase:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 4-group: symbolic matrix structure, numeric eigenvalue
+# 4-group: numeric cross sections, float64 eigenvalue
 # ═══════════════════════════════════════════════════════════════════════
 
 def derive_4g() -> VerificationCase:
     r"""4-group infinite medium eigenvalue.
 
-    Symbolic 4x4 matrix with numeric XS substituted before solving.
+    Numeric 4x4 cross sections; the eigenvalue is computed in float64 by
+    :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+    (a dense solve and eigen-solve), not symbolically. The exact rational
+    eigenpair of the same float inputs is
+    :mod:`~orpheus.derivations.common.exact_homogeneous`.
     """
     sig_c = np.array([0.01, 0.02, 0.03, 0.05])
     sig_f = np.array([0.005, 0.01, 0.05, 0.10])

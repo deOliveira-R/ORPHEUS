@@ -58,9 +58,12 @@ the legacy :math:`P_0/P_1` regression tests:
    Y_0^0 = 1, \quad Y_1^{-1} = \mu_z, \quad Y_1^0 = \mu_x,
    \quad Y_1^{+1} = \mu_y.
 
-For :math:`\ell \ge 2` the formula uses :func:`scipy.special.lpmv` with
-the Condon–Shortley phase :math:`(-1)^m` removed and norm
-:math:`\sqrt{2(\ell-m)!/(\ell+m)!}` for :math:`m \ne 0`.
+For :math:`\ell \ge 2` the :math:`m = 0` column is
+:func:`~orpheus.numerics.basis.legendre_basis.legendre_table` (Bonnet's
+recurrence: the zonal harmonic IS :math:`P_\ell(\mu_x)`), and the
+:math:`m \ne 0` columns use :func:`scipy.special.lpmv` with the
+Condon–Shortley phase :math:`(-1)^m` removed and norm
+:math:`\sqrt{2(\ell-m)!/(\ell+m)!}` (a platform seam, #550).
 
 Cross-method consumers
 ======================
@@ -98,6 +101,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 from scipy.special import lpmv
+
+from orpheus.numerics.basis.legendre_basis import legendre_table
 
 from orpheus.numerics.basis.base import Basis, GramStructure
 
@@ -606,8 +611,11 @@ def _evaluate_real_sh(
     sin_phi = np.where(on_axis, 0.0, mu_z / safe_st)
     phi = np.arctan2(sin_phi, cos_phi)
 
+    # m = 0: P_l(μ_x), the Legendre table itself (one spelling, so the
+    # 1-D descent of this column is exact at the bit).
+    zonal = legendre_table(L, cos_theta)
     for l in range(2, L + 1):
-        Y[:, l, l] = lpmv(0, l, cos_theta)  # m = 0: P_l(μ_x)
+        Y[:, l, l] = zonal[:, l]
         for m in range(1, l + 1):
             P_lm = lpmv(m, l, cos_theta)
             sign = (-1.0) ** m   # remove Condon–Shortley phase

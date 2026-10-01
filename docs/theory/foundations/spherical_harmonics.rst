@@ -66,10 +66,16 @@ Key Facts
   :math:`Y_0^0 = 1`, :math:`Y_1^{-1} = \mu_z`, :math:`Y_1^0 = \mu_x`,
   :math:`Y_1^{+1} = \mu_y`.
 
-- For :math:`\ell \ge 2` the formula uses
-  :func:`scipy.special.lpmv` with the Condon–Shortley
-  :math:`(-1)^m` phase removed and the norm
-  :math:`\sqrt{2(\ell-m)!/(\ell+m)!}` for :math:`m \ne 0`.
+- For :math:`\ell \ge 2` the :math:`m = 0` column is
+  :func:`~orpheus.numerics.basis.legendre_basis.legendre_table`, Bonnet's
+  recurrence :math:`\ell P_\ell = (2\ell-1)\mu P_{\ell-1} - (\ell-1)
+  P_{\ell-2}` evaluated at :math:`\mu = \mu_x` (the zonal harmonic IS
+  :math:`P_\ell(\mu_x)`), and the :math:`m \ne 0` columns use
+  :func:`scipy.special.lpmv` with the Condon–Shortley :math:`(-1)^m` phase
+  removed and the norm :math:`\sqrt{2(\ell-m)!/(\ell+m)!}`.  The
+  :math:`m \ne 0` columns are a platform seam: ``lpmv``'s algorithm is
+  scipy's and has no derived error bound
+  (`#550 <https://github.com/deOliveira-R/ORPHEUS/issues/550>`_).
 
 - The evaluator returns an ``(N, L+1, 2L+1)`` array. Index
   ``Y[n, ℓ, ℓ+m]`` holds :math:`Y_\ell^m(\hat\Omega_n)`. The
@@ -139,10 +145,10 @@ constants.
    P_n^m(\cos\theta)\,e^{im\phi}`. ORPHEUS does NOT consume that
    function. The
    :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
-   method builds real :math:`Y_\ell^m` from
-   :func:`scipy.special.lpmv` (associated Legendre values
-   :math:`P_\ell^m(\cos\theta)`) so the convention can be controlled
-   directly. Mixing the two conventions in one codebase is the
+   method builds real :math:`Y_\ell^m` from its own Legendre table at
+   :math:`m = 0` and :func:`scipy.special.lpmv` (associated Legendre values
+   :math:`P_\ell^m(\cos\theta)`) at :math:`m \ne 0`, so the convention can
+   be controlled directly. Mixing the two conventions in one codebase is the
    canonical way to introduce convention-drift bugs (failure mode 6
    in the V&V skill); the project's defense is "one evaluator, one
    convention, on
@@ -991,9 +997,9 @@ makes the descent an **isometry** rather than merely an isomorphism
       * - ``1.0`` / :math:`\mu` (the input array) / ``lpmv`` — shipped
         - ``array_equal``, **4 of 4** rules
 
-   The branching is what
-   :func:`~orpheus.numerics.basis.legendre_basis.legendre_table` ships,
-   and it is load-bearing one layer up. `[M]` with it, the converged
+   That branching is what
+   :func:`~orpheus.numerics.basis.legendre_basis.legendre_table` shipped
+   on 2026-09-02, and it was load-bearing one layer up. `[M]` with it, the converged
    slab flux at :math:`L = 0, 1` is ``array_equal`` to the pre-repair
    answer — the repair moves nothing where the old basis was already
    right; with pure ``lpmv`` the :math:`L = 1` row is not, and moves by
@@ -1002,6 +1008,26 @@ makes the descent an **isometry** rather than merely an isomorphism
    gate's positive controls, so that would have traded a bit-identity
    claim for a tolerance on exactly the arm that separates *"the fix
    works"* from *"the fixture stopped discriminating"*.
+
+   **The constraint as it stands.**  The table above measured a constraint
+   between TWO spellings, the harmonics' column and the Legendre table, that
+   had to agree bit for bit.  There is now one spelling:
+   :func:`~orpheus.numerics.basis.legendre_basis.legendre_table` evaluates
+   Bonnet's recurrence (DLMF Eq. 18.9.1), :math:`P_0 = 1`, :math:`P_1 = \mu` (the
+   input itself), :math:`\ell P_\ell = (2\ell-1)\mu P_{\ell-1} -
+   (\ell-1)P_{\ell-2}`, and the harmonics' :math:`m = 0` column for
+   :math:`\ell \ge 2` CALLS it, so the descent is exact at the bit by
+   construction rather than by a matched branching.  The recurrence uses only
+   :math:`+, -, \times, \div`, so the table is the same on every platform
+   and scipy version, and its rounding error has a derived running-error
+   bound; ``lpmv`` has neither.  `[M]` 2026-10-01 on correctly rounded
+   16-point Gauss–Legendre nodes, ``lpmv(0, 2, μ)`` sat
+   :math:`3.3\times10^{-16}` from the exact :math:`P_2(0.458\ldots)`
+   against a derived radius of :math:`1.7\times10^{-16}` for Bonnet's
+   recurrence, so no bound could be stated for it, and
+   ``test_legendre_values_lie_within_the_bonnet_error_radius_of_the_exact_value``
+   holds the table to the 50-digit hypergeometric value
+   (``mpmath.legendre``) within that derived bound.
 
 Two coordinate systems, and the pairing they buy
 ---------------------------------------------------

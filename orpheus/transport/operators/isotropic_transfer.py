@@ -494,6 +494,19 @@ class IsotropicFission(BoundOperator):
         )
 
     @cached_property
+    def emission_spectrum(self) -> np.ndarray:
+        r"""The emission spectrum :math:`\chi` — fission's rank-1 COLUMN-FACTOR,
+        cellwise, shape ``(ng, *spatial)`` (write-protected).
+
+        The partner of :attr:`production_rate`: :math:`F =
+        |\chi\rangle\langle\nu\Sigma_f|` is this column times that row, and
+        :attr:`kernel` is built from the two. Named so a consumer that needs
+        the column itself (the homogeneous :math:`k_\infty =
+        \langle\nu\Sigma_f, A^{-1}\chi\rangle`) reads the same array the
+        dyad does. Cached once."""
+        return self.fission.gather_chi(tuple(self.domain.shape[1:]))
+
+    @cached_property
     def kernel(self) -> "TensorProductOperator":
         r"""The rank-1 TP kernel — the §5.6 integral structure and the ONE
         arithmetic home of every route.
@@ -509,9 +522,7 @@ class IsotropicFission(BoundOperator):
         anywhere."""
         from orpheus.numerics.operator import IdentityOperator, outer
 
-        bulk = self.domain
-        chi = self.fission.gather_chi(tuple(bulk.shape[1:]))
-        return outer(chi, self.production_rate) & IdentityOperator()
+        return outer(self.emission_spectrum, self.production_rate) & IdentityOperator()
 
     def apply(self, phi: np.ndarray, /) -> np.ndarray:
         r""":math:`\chi\,(\nu\Sigma_f\cdot\phi)` — the per-cell fission source (no :math:`1/k`).

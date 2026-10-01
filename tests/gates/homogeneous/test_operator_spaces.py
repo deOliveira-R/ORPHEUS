@@ -347,9 +347,9 @@ def test_as_matrix_derives_the_basis_shape_from_the_threaded_domain() -> None:
 
 def _all_d5_mixtures():
     """The 8 D5 cases — the byte gate's own list (one source, Pattern 2)."""
-    from tests.gates.homogeneous.test_byte_stability import _mixture_cases
+    from tests.gates.homogeneous._homogeneous_population import mixture_cases
 
-    return _mixture_cases()
+    return mixture_cases()
 
 
 def test_minted_space_equals_a_genuine_unit_cell_carriers_bulk_space() -> None:

@@ -30,17 +30,19 @@ docstrings before touching a row:
   fabricated is built — declared, not discovered).
 
 **What this module deliberately does NOT duplicate.**
-``test_byte_stability.py`` (D5) is ALREADY the frozen pre-carve record of
-the end-to-end answer — ``_fixtures/cs1_prewiring.json``, captured at
-``24a991ba`` (PRE-wiring) and never regenerated. It is the coda's
-bit-identity wall for ``k_inf``/``flux``/``sig_prod``/``sig_abs`` and MUST
-NOT be re-captured. This module pins the tier D5 cannot localize: the
+The end-to-end answer (``k_inf``/``flux``/``sig_prod``/``sig_abs``) is
+pinned by ``test_kinf_exact_reference``: the exact rational answer of the float
+inputs, within a derived forward-error bound. (Until 2026-10-01 it was the
+byte record ``test_byte_stability.py`` / ``_fixtures/cs1_prewiring.json``,
+captured at ``24a991ba``; it retired when a macOS update moved the
+platform's eigen-solver by 1 ULP on an unchanged tree, so the record pinned
+the platform.) This module pins the tier that gate cannot localize: the
 assembled **operator matrices** :math:`A` and :math:`F`, on all eight D5
 cases (the tree pins :math:`A` on ONE case today, against the facade's own
 cached views — not an independent reference).
 
 **Population** — the eight D5 producing mixtures, imported from
-``test_byte_stability`` so there is ONE list (coding-elegance Pattern 2;
+``_homogeneous_population`` so there is ONE list (coding-elegance Pattern 2;
 the in-tree precedent is ``test_operator_spaces.py``'s ``_all_d5_mixtures``).
 
 **Activation, stated (`vv` anti-#20 / anti-#25).** The eight cases do NOT
@@ -93,9 +95,9 @@ def _require(condition: bool, message: str) -> None:
 
 def _d5_cases() -> dict[str, Mixture]:
     """The eight D5 producing mixtures — ONE list, D5's own (Pattern 2)."""
-    from tests.gates.homogeneous.test_byte_stability import _mixture_cases
+    from tests.gates.homogeneous._homogeneous_population import mixture_cases
 
-    return {k: v for k, v in _mixture_cases().items() if isinstance(v, Mixture)}
+    return {k: v for k, v in mixture_cases().items() if isinstance(v, Mixture)}
 
 
 #: Parametrize by LABEL, never by a value a production call produces: a

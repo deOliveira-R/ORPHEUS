@@ -91,65 +91,103 @@ class TestDenseMetricLaws:
         )
 
     def test_dense_metric_matrix_and_pairing_are_symmetric(self):
-        r"""A2 — symmetry of the INSTALLED matrix, on a Gram where the SPELLING is observable.
+        r"""A2 — the INSTALLED matrix is symmetric up to its own spelling's DERIVED rounding, element by element.
 
-        The matrix leg is the load-bearing one: ``np.linalg.pinv`` WITHOUT
-        ``hermitian=True`` returns a matrix that is only symmetric to
-        round-off, so the gate's job is to red on that spelling (battery arm
-        M3). A pairing-only gate is blind to it.
+        ``inverse_of`` installs ``pinv(G_sym, hermitian=True)``, which numpy
+        spells as :math:`M = U\,\mathrm{diag}(s_k t_k)\,U^{\mathsf T}` from ONE
+        eigendecomposition :math:`G_{\rm sym} = U \Lambda U^{\mathsf T}`
+        (``t_k = fl(1/|λ_k|)`` on the retained modes, zero below the cutoff,
+        ``s_k = sign λ_k`` exact). Each element is a sum of ``K`` terms
+        :math:`U_{ik} s_k t_k U_{jk}`, two roundings per term, in any
+        association, so both :math:`M_{ij}` and :math:`M_{ji}` lie within
+        :math:`\gamma_{K+1} A_{ij}` of ONE exact value symmetric in
+        :math:`(i, j)`, with :math:`A_{ij} = \sum_k |U_{ik}|\,t_k\,|U_{jk}|`
+        (Higham, *Accuracy and Stability*, Lemma 3.1 and eq. (4.4); an FMA
+        only removes roundings). Hence, a theorem:
+        :math:`|M_{ij} - M_{ji}| \le 2\gamma_{K+1} A_{ij}`, evaluated here in
+        exact rationals from the same eigendecomposition.
 
-        ⛔ **RE-KEYED 2026-09-02 (#429).** This rode ``gauss_legendre(8)``'s
-        :math:`L = 2` Gram, whose density was ERR-080's fabrication; the
-        repaired slab frame's Gram is DIAGONAL and its pinv is trivially
-        symmetric, so the gate would have gone INERT with no red — a
-        ``plan-authoring`` §6c demotion with no signal.
+        The bound is per element, and that is what makes the gate loaded. The
+        honest spelling's asymmetry is a product-rounding effect, so it is
+        small wherever :math:`A_{ij}` is small (the entries the Gram's own
+        symmetry nearly zeroes). The NAIVE spelling this gate exists to catch
+        (``pinv`` without ``hermitian=True``: an SVD whose two singular-vector
+        sets are computed separately) carries a backward-error asymmetry of
+        size :math:`u\,\kappa\,\|M\|` everywhere, uncorrelated with
+        :math:`A_{ij}`. The witness leg asserts that separation on every Gram,
+        two production ones and a constructed one with
+        :math:`\kappa = 10^4` (chosen so the naive spelling's asymmetry is a
+        MAGNITUDE effect too, while staying under the type's own
+        ``_DENSE_METRIC_SYMMETRY_RTOL`` refusal, which would otherwise catch
+        it first).
 
-        ⚠ **The obvious replacement does not work, and that is worth
-        recording.** `[M]` 2026-09-02, ``max|M − Mᵀ|`` for the honest
-        (``hermitian=True``) and the naive spelling:
-
-        ===============================  ===========  ===========
-        Gram                             hermitian    naive
-        ===============================  ===========  ===========
-        slab GL8 L=2 (post-repair)       ``0.0``      ``2.9e-16``
-        ``folded_product(2,4)`` L=2      ``1.9e-17``  ``9.0e-17``
-        ``folded_product(2,4)`` L=3      ``6.9e-18``  ``2.6e-17``
-        ``product(4,4)`` L=2             ``2.0e-17``  ``5.7e-16``
-        ``level_symmetric(4)`` L=3       ``4.2e-17``  ``3.7e-15``
-        **equispaced(8) L=4**            ``1.6e-30``  ``7.1e-15``
-        ===============================  ===========  ===========
-
-        The first three sit BELOW the ``1e-15`` threshold under BOTH
-        spellings, so keying A2 there would have kept a green gate that could
-        no longer red. The two rows below are the two that discriminate, and
-        they are different mechanisms (a 1-D Legendre measure and a
-        full-sphere harmonic one) so neither is fixture-bound.
+        ⛔ **Re-posed 2026-10 (platform drift).** The previous witness was a
+        GLOBAL threshold, ``max|M - Mᵀ| > 2e-15`` for the naive spelling on
+        the ``level_symmetric(4)`` L=3 Gram: a reading 1.8 times its floor,
+        which fell to ``3.7e-16`` when the spherical-harmonic ``m = 0``
+        column moved to Bonnet's recurrence. The installed-matrix leg was the
+        hand-picked ``max|M - Mᵀ| <= 1e-15``.
+        (History before that: re-keyed 2026-09-02, #429, off
+        ``gauss_legendre(8)``'s L=2 Gram, which the ERR-080 repair made
+        diagonal.)
         """
-        for label, gram, floor in (
-            ("equispaced(8)-L4", _equispaced_legendre_gram(L=4), 5e-15),
-            (
-                "LS4-L3",
-                np.asarray(Quadrature.level_symmetric(4).angular_frame(3).discrete_gram),
-                2e-15,
-            ),
-        ):
-            metric = DenseMetric.inverse_of(gram)
-            asym = float(np.max(np.abs(metric.matrix - metric.matrix.T)))
-            _require(
-                asym <= 1e-15,
-                f"{label}: installed matrix asymmetry {asym:.3e} > 1e-15",
+        from fractions import Fraction
+
+        from tests._harness.float_bounds import gamma
+
+        def honest_asymmetry_bound(gram: np.ndarray) -> np.ndarray:
+            g_sym = (gram + gram.T) / 2.0
+            lam, u = np.linalg.eigh(g_sym)
+            mag = np.abs(lam)
+            retained = mag > _DENSE_METRIC_RCOND * mag.max()
+            t = np.zeros_like(mag)
+            t[retained] = 1.0 / mag[retained]
+            k = mag.size
+            uf = [[Fraction(float(abs(u[i, m]))) for m in range(k)] for i in range(k)]
+            tf = [Fraction(float(v)) for v in t]
+            two_gamma = 2 * gamma(k + 1)
+            return np.array(
+                [
+                    [two_gamma * sum(uf[i][m] * tf[m] * uf[j][m] for m in range(k)) for j in range(k)]
+                    for i in range(k)
+                ],
+                dtype=object,
             )
 
-            # …and the NAIVE spelling this gate exists to catch really does
-            # exceed the threshold on this Gram (vv-principles #19: only the
+        def constructed_gram(k: int, kappa: float) -> np.ndarray:
+            q, _ = np.linalg.qr(np.random.default_rng(7).standard_normal((k, k)))
+            g = (q * np.geomspace(1.0, 1.0 / kappa, k)) @ q.T
+            return (g + g.T) / 2.0
+
+        def asymmetry(m: np.ndarray) -> np.ndarray:
+            f = np.vectorize(lambda v: Fraction(float(v)), otypes=[object])
+            return np.abs(f(m) - f(m.T))
+
+        for label, gram in (
+            ("equispaced(8)-L4", _equispaced_legendre_gram(L=4)),
+            ("LS4-L3", np.asarray(Quadrature.level_symmetric(4).angular_frame(3).discrete_gram)),
+            ("constructed-kappa1e4", constructed_gram(8, 1e4)),
+        ):
+            bound = honest_asymmetry_bound(gram)
+            metric = DenseMetric.inverse_of(gram)
+            outside = asymmetry(metric.matrix) > bound
+            if np.any(outside):
+                i, j = np.argwhere(outside)[0]
+                pytest.fail(
+                    f"{label}: installed |M[{i},{j}] - M[{j},{i}]| exceeds the derived "
+                    f"2·gamma_(K+1)·A_ij = {float(bound[i, j]):.3e} — the installed matrix "
+                    f"is not the hermitian pseudo-inverse's spelling"
+                )
+
+            # …and the NAIVE spelling this gate exists to catch violates the
+            # same per-element bound (vv-principles #19: only the
             # wrong-spelling reading tells you the gate is loaded).
             symmetric = (gram + gram.T) / 2.0
             naive = np.linalg.pinv(symmetric, rcond=_DENSE_METRIC_RCOND)
-            naive_asym = float(np.max(np.abs(naive - naive.T)))
             _require(
-                naive_asym > floor,
-                f"{label}: the naive pinv spelling reads {naive_asym:.3e} — "
-                f"this gate cannot red on it, so it is not a witness",
+                bool(np.any(asymmetry(naive) > 10 * bound)),
+                f"{label}: the naive pinv spelling sits inside 10x the derived bound "
+                f"everywhere — this gate cannot red on it, so it is not a witness",
             )
 
             rng = np.random.default_rng(20260830)

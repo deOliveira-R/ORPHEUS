@@ -287,7 +287,7 @@ def test_jacobi_specialises_to_the_named_families(
     bit-identically.
     """
     general = jacobi(a, b)
-    assert general.recurrence is not known.recurrence, (
+    assert general.exact_recurrence is not known.exact_recurrence, (
         "the two must be different code paths for this to verify anything"
     )
     gen_nodes, gen_weights = _sorted_rule(general, n)
@@ -707,3 +707,64 @@ def test_asymmetric_measures_are_not_symmetrised() -> None:
     rule = laguerre().gauss(8)
     assert not np.allclose(rule.nodes, -rule.nodes[::-1])
     assert np.all(rule.nodes > 0.0)
+
+
+# ===========================================================================
+# foundation — the correctly rounded construction refuses what it cannot certify
+# ===========================================================================
+
+
+@pytest.mark.foundation
+def test_a_value_its_error_interval_cannot_certify_is_refused(monkeypatch) -> None:
+    r"""The certification is live: a value whose error interval straddles a
+    float64 rounding boundary raises instead of shipping a guess.
+
+    The witness lowers the coarse precision to 16 digits, where the error
+    radius :math:`10^{10-16}` (relative) dwarfs a float64 spacing, so no value
+    of a 64-point Legendre rule can be certified. The positive control (the
+    shipped precisions certify the same rule) runs first.
+    """
+    import orpheus.numerics.generating_measure as gm
+
+    LEGENDRE.gauss(64)  # positive control: the shipped precisions certify
+    monkeypatch.setattr(gm, "_WORKING_DIGITS", (16, 60))
+    gm._correctly_rounded_rule.cache_clear()
+    try:
+        with pytest.raises(ArithmeticError, match="cannot be certified"):
+            LEGENDRE.gauss(64)
+    finally:
+        gm._correctly_rounded_rule.cache_clear()
+
+
+@pytest.mark.foundation
+def test_a_rule_that_rounds_differently_at_the_two_precisions_is_refused(monkeypatch) -> None:
+    r"""The two-precision comparison is live on its own: with the
+    certification disarmed (plain rounding), a 16-digit coarse run rounds the
+    64-point Legendre rule differently from the 60-digit run, and the
+    comparison refuses it. Disarming isolates this refusal from the
+    certification, which would otherwise fire first."""
+    import orpheus.numerics.generating_measure as gm
+
+    monkeypatch.setattr(gm, "_WORKING_DIGITS", (16, 60))
+    monkeypatch.setattr(gm, "_certified_float", lambda value, digits, measure, n: float(value))
+    gm._correctly_rounded_rule.cache_clear()
+    try:
+        with pytest.raises(ArithmeticError, match="rounds differently"):
+            LEGENDRE.gauss(64)
+    finally:
+        gm._correctly_rounded_rule.cache_clear()
+
+
+@pytest.mark.foundation
+def test_a_node_newton_cannot_converge_is_refused(monkeypatch) -> None:
+    r"""Newton's refusal is live: with no step allowed, no seed converges,
+    and the construction raises rather than rounding an unrefined seed."""
+    import orpheus.numerics.generating_measure as gm
+
+    monkeypatch.setattr(gm, "_NEWTON_STEP_LIMIT", 0)
+    gm._correctly_rounded_rule.cache_clear()
+    try:
+        with pytest.raises(ArithmeticError, match="did not converge"):
+            LEGENDRE.gauss(6)
+    finally:
+        gm._correctly_rounded_rule.cache_clear()

@@ -67,10 +67,12 @@ eigenpair *estimate* to the NEAREST eigenpair superlinearly (bordered /
 augmented-Newton).  Both direct engines terminate in one shared
 Perron–Frobenius extraction primitive,
 :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, which takes a
-materialized resolvent :math:`\mathbf{M}` — *however* it was formed, whether
-from the ``(A, F)`` pair or through the operator algebra as in the homogeneous
-:math:`k_\infty` solve — selects the dominant eigenpair, sign-normalises the
-mode, and rejects a complex dominant as a malformed problem.  The full
+materialized resolvent :math:`\mathbf{M}` — *however* it was formed —
+selects the dominant eigenpair, sign-normalises the mode, and rejects a
+complex dominant as a malformed problem.  The homogeneous :math:`k_\infty`
+solve uses none of them: its fission operator has rank one, so the eigenpair
+is one solve and one inner product
+(:ref:`homogeneous-rank-one-route`).  The full
 three-engine comparison, and the pure-math verification principle that lets a
 production solver and its oracle share an engine without contamination, is at
 :ref:`three-eigenvalue-engines`.
@@ -119,13 +121,14 @@ that does **not** implement this protocol: with no spatial coupling
 its loss operator is a single :math:`G \times G` dense block, so
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` takes
 the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` **directly**,
-with no power iteration.  It spells the resolvent in the operator algebra —
-``K = MatrixInverseOperator(loss) @ production`` (the first production
+with no power iteration and no eigen-solver.  Because the fission operator is
+the rank-one dyad :math:`\chi \otimes \nu\Sigma_f`, the eigenvalue is
+:math:`k_\infty = \langle\nu\Sigma_f, \mathbf{A}^{-1}\chi\rangle`: one
+``MatrixInverseOperator(loss).apply(emission_spectrum)`` (the first production
 consumer of
-:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`) —
-and extracts the eigenpair from the materialized :math:`[\mathbf{K}]` via the
-shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  See
-:ref:`theory-homogeneous` and :ref:`three-eigenvalue-engines`.
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`) and
+one contraction with the production-rate co-vector.  See
+:ref:`homogeneous-rank-one-route` and :ref:`three-eigenvalue-engines`.
 
 
 Operator Algebra (Wave A)

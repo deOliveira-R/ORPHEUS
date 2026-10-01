@@ -18,7 +18,7 @@ is a **regression contract** in the ``vv`` §bit-identity sense: the two sides
 share ``scipy.special.lpmv``, which is legal below the trusted-library line
 (``algebra-of-record``) but means this row on its own would test *convention
 agreement*, not correctness. Its independent leg is
-``tests/gates/numerics/test_legendre_basis.py::test_legendre_values_against_an_independent_three_term_recurrence``
+``tests/gates/numerics/test_legendre_basis.py::test_legendre_values_lie_within_the_bonnet_error_radius_of_the_exact_value``
 — read the two together (``vv-principles`` #22).
 
 ⚠ **The refusal is AXIS-keyed, and that is a measured design constraint.**

@@ -34,6 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.derivations.common.exact_homogeneous import exact_pencil_eigenpair
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import (
     HomogeneousProblem,
@@ -42,6 +43,7 @@ from orpheus.homogeneous.solver import (
 )
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from tests.gates.homogeneous.test_kinf_exact_reference import _Bounds, _report, _within
 
 pytestmark = pytest.mark.foundation
 
@@ -166,21 +168,38 @@ def test_H5_the_hub_constructs_no_material_mesh(monkeypatch: pytest.MonkeyPatch)
     _require(len(calls) == 0, f"the hub constructed {len(calls)} MaterialMesh objects — O1's honest pose fabricates nothing")
 
 
+@pytest.mark.rests_on(
+    "tests/gates/homogeneous/test_kinf_exact_reference.py::test_the_exact_reference_certifies_itself"
+)
 def test_R5_the_hub_owns_the_pencil_and_no_inverse_of_it() -> None:
     """R-cc5 (2026-09-12): the problem's terminal object is the PENCIL
     ``(loss, production)``; how it is inverted is the Strategy's, so no
     resolvent lives on the hub. Unspellable, not merely unused: the name
-    ``multiplication`` is absent from the class (re-adding it reddens this),
-    and the solver's answer is reproduced from the pair alone."""
-    from orpheus.numerics.eigenvalue import dominant_eigenpair
-    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-
+    ``multiplication`` is absent from the class (re-adding it reddens this).
+    And the solver's answer is the PAIR's answer: ``k_inf`` lies within the
+    derived LU forward-error bound (gate (c), ``test_kinf_exact_reference``)
+    of the EXACT eigenvalue of the pencil's own materialised ``A`` and the
+    production dyad's own factors ``(χ, νΣf)`` — read off the pencil, not the
+    mixture. (Until 2026-10-01 this asserted ``==`` against
+    ``dominant_eigenpair`` of the materialised resolvent, a second spelling
+    of the same LAPACK arithmetic; that equality was an accident of identical
+    call sequences and pinned the platform.)"""
     mix = get_mixture("A", "2g")
     problem = HomogeneousProblem(mix)
     _require(not hasattr(HomogeneousProblem, "multiplication"), "the hub carries a resolvent — a Strategy object on the Problem")
-    k_from_pair, _ = dominant_eigenpair((MatrixInverseOperator(problem.loss) @ problem.production).as_matrix())
-    _require(k_from_pair == solve_homogeneous_infinite(mix).k_inf, "the solver's k_inf is not the pencil's dominant eigenvalue")
-
+    pencil = problem.pencil
+    _require(pencil.lhs is problem.loss and pencil.rhs is problem.production, "the pencil is not (loss, production)")
+    a_hat = np.asarray(pencil.lhs.as_matrix(), dtype=float)
+    fission = problem.production.fission  # the pencil's rhs (asserted `is` above), typed
+    exact = exact_pencil_eigenpair(
+        loss=a_hat,
+        chi=fission.gather_chi((1,)),
+        nu_sigma_f=fission.gather_nu_sig_f((1,)),
+        sigma_a=mix.absorption_xs,
+    )
+    bound = _Bounds(exact, a_hat).k  # assembly error is exactly 0: A IS the pair's matrix
+    k = solve_homogeneous_infinite(mix).k_inf
+    _require(_within(k, exact.k_inf, bound), "the solver's k_inf is not the pencil's eigenvalue: " + _report("k_inf", k, exact.k_inf, bound))
 
 def test_the_hub_is_exported_and_is_a_function_space_owner() -> None:
     import orpheus.homogeneous as pkg

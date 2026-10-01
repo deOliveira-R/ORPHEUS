@@ -69,9 +69,11 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss`
     on :data:`~orpheus.numerics.generating_measure.LEGENDRE` — the same
     generic construction as every other Gauss family in the tree.
-    Agrees with :func:`numpy.polynomial.legendre.leggauss` to 1-4 ULP,
-    not bit-for-bit: numpy Newton-refines. Neither is "the" answer,
-    since the exact nodes are irrational.
+    Each node and weight is CORRECTLY ROUNDED: the float64 nearest the
+    exact (irrational) value, so the rule is the same on every platform.
+    (Until 2026-10-01 it was the platform ``eigh``'s output, 1-4 ULP from
+    :func:`numpy.polynomial.legendre.leggauss` and moved by a macOS update;
+    see the :mod:`~orpheus.numerics.generating_measure` docstring.)
 
     Polynomial exactness (Stoer & Bulirsch 2002, Theorem 3.6.20):
     integrates every polynomial of degree :math:`\le 2n - 1` exactly,
@@ -80,14 +82,16 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
 
     Weight sum: :math:`\sum_i w_i = 2`, matching the Lebesgue measure
     of :math:`[-1, 1]` (so the rule is unweighted in the classical
-    sense).
+    sense); `[M]` 2026-10-01 the correctly rounded weights sum to exactly
+    2.0 in float64 for :math:`n \in \{4, \dots, 128\}`.
 
     Symmetry: the tag is :math:`\sigma_x`, the reflection
     :math:`\mu \to -\mu` — the property SN consumers actually use, and
     the one this measure actually has. It holds **bit-exactly**: the
-    generic construction imposes it rather than inheriting it (`[M]`
-    defect 0.0 at every :math:`n`, where the previous route left
-    ~1e-16). So the slab's two sweep senses pair by integer index —
+    exact rule is symmetric and rounding commutes with negation, so the
+    correctly rounded rule is too (the construction computes the
+    non-negative half and mirrors it). So the slab's two sweep senses pair
+    by integer index —
     ``partner(i) = n - 1 - i`` is exact arithmetic, not a nearest-node
     search.
 
@@ -118,20 +122,17 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     """
     # ONE construction. This is the Gauss rule for the Legendre measure,
     # so it is built by asking that measure for it — the same generic
-    # Golub-Welsch body every other family goes through.
+    # correctly rounded body every other family goes through.
     #
-    # It used to call `numpy.leggauss` instead. Both are correct; the two
-    # differ by 1-4 ULP in the nodes because numpy Newton-refines, and
-    # neither is "the" answer since the exact nodes are irrational. The
-    # tie-breaker is that the generic body imposes the reflection
-    # symmetry (see `GeneratingMeasure.gauss`), so `mu -> -mu` maps the
-    # node set onto itself BIT-EXACTLY and the slab's two sweep senses
-    # pair by index rather than by tolerance. Consolidating cost a
-    # deliberate re-baselining of the SN slab snapshots, taken
-    # 2026-08-02 (user ruling), and bought a single source of truth for
-    # every Gauss rule in the tree.
+    # History: it called `numpy.leggauss` until 2026-08-02 (consolidated
+    # onto the generic Golub-Welsch body, a ruled re-baseline of the SN
+    # slab snapshots), and that body returned the platform `eigh`'s output
+    # until 2026-10-01, when a macOS update moved it by 1-2 ULP. Since then
+    # the rule is correctly rounded, so it is a property of the measure and
+    # not of the platform, and `mu -> -mu` maps the node set onto itself
+    # BIT-EXACTLY because the exact rule is symmetric.
     return LEGENDRE.gauss(n).with_metadata(
-        # σ_x: μ -> -μ, and the generic Golub-Welsch body imposes it
+        # σ_x: μ -> -μ, and the correctly rounded rule has it
         # BIT-EXACTLY (see the note above), which is what lets the slab's
         # two sweep senses pair by index rather than by tolerance.
         #

@@ -24,6 +24,10 @@ correctly to reproduce the legacy answer.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
+from tests._harness.float_bounds import gamma
+
 import numpy as np
 import pytest
 
@@ -1059,19 +1063,57 @@ class TestTheRealizedLawIsMETRICCorrect:
         )
 
     def test_the_SPECULAR_mirror_is_the_documented_blind_case(self):
-        r"""And the negative leg: on the mirror the two coincide EXACTLY.
+        r"""And the negative leg: on the mirror the weighted adjoint and the bare transpose coincide.
 
-        Not a defect — :math:`G_{\Gamma_-} = G_{\Gamma_+}\circ\pi` bit-exactly
-        because a mirror preserves :math:`|\Omega\cdot\hat n|\,w_n`. Pinned so
-        the discrimination check above is read as fixture-specific rather than
-        as a property of boundary operators in general.
+        Not a defect — :math:`G_{\Gamma_-}\circ\pi = G_{\Gamma_+}` because a
+        mirror preserves :math:`|\Omega\cdot\hat n|\,w_n`. Pinned so the
+        discrimination check above is read as fixture-specific rather than as a
+        property of boundary operators in general.
+
+        Two legs, each at the tier where it is exact.
+
+        **(1) The metric tier, bit-exact, a float theorem.** With
+        :math:`R^{\mathsf T}` a permutation (asserted: it returns a rearrangement
+        of its input, bit for bit), metric cancellation is the identity
+        :math:`R^{\mathsf T}(G_{\Gamma_-} y) = G_{\Gamma_+}(R^{\mathsf T} y)`:
+        entry :math:`i` on each side is the product of the SAME two floats
+        (:math:`g_{\pi(i)}` and :math:`y_{\pi(i)}`) iff the metric agreement
+        holds bit-exactly, so ``array_equal`` here is a theorem, not a draw.
+
+        **(2) The operator tier, within a derived bound.** :math:`R^{*} =
+        G_{\Gamma_+}^{-1}R^{\mathsf T}G_{\Gamma_-}` evaluates entry :math:`i` as
+        :math:`\mathrm{fl}(\mathrm{fl}(g\,y)/g)` — two roundings around an exact
+        permutation — so :math:`|(R^{*}y)_i - (R^{\mathsf T}y)_i| \le
+        \gamma_2\,|(R^{\mathsf T}y)_i|` (Higham Lemma 3.1). Until 2026-10 this
+        row asserted ``array_equal`` here, which is :math:`(a y)/a = y`, not an
+        IEEE identity: a correct operator went red in 3 of 10 random ±3-ULP
+        perturbations of the GL-8 rule. The Lambertian row above sits 87 %
+        apart, fifteen orders outside :math:`\gamma_2`.
         """
         op, _ = self._realized("specular")
         rng = np.random.default_rng(20260806)
         y = rng.standard_normal(op.codomain.shape)
+
+        transposed = np.asarray(op.apply_transpose(y))
+        if not np.array_equal(np.sort(transposed.ravel()), np.sort(y.ravel())):
+            pytest.fail("the specular transpose is not a permutation of its input")
+
+        # (1) metric agreement through the permutation — bit-exact by theorem.
         np.testing.assert_array_equal(
-            np.asarray(op.H.apply(y)), np.asarray(op.apply_transpose(y))
+            np.asarray(op.apply_transpose(op.codomain.apply_metric(y))),
+            np.asarray(op.domain.apply_metric(transposed)),
+            err_msg="G_{Γ-}∘π != G_{Γ+}: the mirror does not preserve |Ω·n̂|·w",
         )
+
+        # (2) the Hilbert adjoint equals the bare transpose to gamma_2, per entry.
+        hilbert = np.asarray(op.H.apply(y)).ravel()
+        bound = gamma(2)
+        for h, t in zip(hilbert, transposed.ravel()):
+            if abs(Fraction(float(h)) - Fraction(float(t))) > bound * abs(Fraction(float(t))):
+                pytest.fail(
+                    f"R* y = {h!r} vs R^T y = {t!r}: outside gamma_2 — the metric "
+                    f"does not cancel through the specular adjoint"
+                )
 
 
 @pytest.mark.l1

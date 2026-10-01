@@ -24,7 +24,7 @@ none of it needs the solver.
 §bit-identity): they pin that the descended table is spelled exactly as the
 harmonic table spells its :math:`m = 0` column, which is what lets the slab's
 :math:`L \le 1` flux be ``array_equal`` across the repair rather than merely
-close. They are paired with :func:`test_legendre_values_against_an_independent_three_term_recurrence`,
+close. They are paired with :func:`test_legendre_values_lie_within_the_bonnet_error_radius_of_the_exact_value`,
 which carries the *correctness* claim from a source that shares no ``scipy``
 call with either side — without it the bit rows would be a convention echo
 (``vv-principles`` #22 / ``algebra-of-record`` §"structural independence
@@ -39,6 +39,12 @@ echoing whatever the production spelling happens to be.
 """
 
 from __future__ import annotations
+
+from fractions import Fraction
+
+import mpmath
+
+from tests._harness.float_bounds import Tracked, mp_fraction
 
 import numpy as np
 import pytest
@@ -429,40 +435,57 @@ def test_the_slab_table_is_bit_identical_to_the_sh_m0_slot_at_low_order(label: s
     )
 
 
-def test_legendre_values_against_an_independent_three_term_recurrence() -> None:
-    r"""B3b — the CORRECTNESS claim, from a source that shares no ``scipy`` call.
+def _bonnet_tracked(mu: float, L: int) -> list[Tracked]:
+    """Bonnet's recurrence on one float node, in the oracle's own evaluation
+    order, with its rigorous running-error radius (Higham §3.3)."""
+    m = Tracked.of(mu)
+    p = [Tracked.const(1), m]
+    for ell in range(2, L + 1):
+        two_l_m1 = Tracked.const(2 * ell - 1)
+        l_m1 = Tracked.const(ell - 1)
+        p.append(((two_l_m1 * m) * p[ell - 1] - l_m1 * p[ell - 2]) / Tracked.const(ell))
+    return p[: L + 1]
 
-    B3's two sides both route through ``scipy.special.lpmv``. That is legal
-    (below the trusted-library line — ``algebra-of-record``), but it means B3
-    tests *agreement of conventions*, not *correctness of values*. This row
-    supplies the independent leg: Bonnet's recurrence
-    :math:`\ell P_\ell = (2\ell-1)\mu P_{\ell-1} - (\ell-1)P_{\ell-2}`,
-    evaluated in plain numpy.
 
-    ``[M]`` 2026-09-02 on GL16 at :math:`L = 6`: ``max|Δ| = 4.44e-16``,
-    ``nulp <= 32``. Not ``array_equal`` — and it must not be: a recurrence
-    accumulates its own rounding, so demanding bits here would pin an
-    arithmetic order rather than a value (``vv`` §bit-identity criterion 3,
-    drift bounded by reduction depth × ULP).
+def test_legendre_values_lie_within_the_bonnet_error_radius_of_the_exact_value() -> None:
+    r"""B3b — the CORRECTNESS claim, against an arbitrary-precision value, with a DERIVED bound.
+
+    The claim: ``legendre_table(L, mu)`` holds :math:`P_\ell(\mu)` at every
+    shipped node. Production evaluates Bonnet's recurrence
+    :math:`\ell P_\ell = (2\ell-1)\mu P_{\ell-1} - (\ell-1)P_{\ell-2}`
+    (DLMF Eq. 18.9.1 with Table 18.9.1) since 2026-10-01, so the independent
+    ground is the arbitrary-precision value alone:
+
+    * the **exact value** :math:`P_\ell(\mu)` of the float node, by
+      ``mpmath.legendre`` at 50 digits (a hypergeometric evaluation, DLMF
+      15.9.7 — shares no recurrence with production);
+    * the **forward-error radius** :math:`r_\ell(\mu)` of Bonnet's
+      evaluation order, by running error analysis carried in exact rational
+      arithmetic (Higham, *Accuracy and Stability*, §3.3; the standard model
+      eq. (2.4) per operation: the radius of each result is the propagated
+      radius of its operands plus :math:`u\,|\text{result}|`).
+
+    Three legs. (1) the exact Bonnet value inside the running analysis equals
+    the hypergeometric value to 1e-45: the recurrence form is right. (2) the
+    production table is within :math:`r_\ell(\mu)` of the exact value — a
+    theorem of the standard model for the algorithm production runs, so a red
+    means production is not evaluating that recurrence in that order. (3) the
+    sign-flipped recurrence (a different family) is outside the radius by
+    many orders: the radius discriminates. (A numpy copy of the recurrence
+    stood here as an "oracle" until production adopted the same expression;
+    it then compared production with itself, X4, and retired.)
+
+    Why not ``nulp``: a ULP count is relative to the value, and near a zero of
+    :math:`P_\ell` the value is small while the recurrence's error is not —
+    the old ``nulp=32`` read 37 on the correctly rounded GL-16 rule for an
+    error of 4.4e-16 at a node where :math:`|P_6| \approx 10^{-2}`. The
+    radius is absolute and scales with the recurrence's actual condition.
     """
     mu = np.asarray(_rule("gauss_legendre(16)").measure.nodes, dtype=float).reshape(-1)
     L = 6
 
     table = legendre_table(L, mu)
 
-    recurrence = np.zeros_like(table)
-    recurrence[:, 0] = 1.0
-    recurrence[:, 1] = mu
-    for ell in range(2, L + 1):
-        recurrence[:, ell] = (
-            (2 * ell - 1) * mu * recurrence[:, ell - 1] - (ell - 1) * recurrence[:, ell - 2]
-        ) / ell
-
-    assert_array_almost_equal_nulp(table, recurrence, nulp=32)
-
-    # NEGATIVE leg: the sign-flipped recurrence is a different family, and
-    # this row must be able to tell (vv #11 — otherwise "agrees to nulp 32"
-    # is compatible with agreeing with anything).
     wrong = np.zeros_like(table)
     wrong[:, 0] = 1.0
     wrong[:, 1] = mu
@@ -470,9 +493,33 @@ def test_legendre_values_against_an_independent_three_term_recurrence() -> None:
         wrong[:, ell] = (
             (2 * ell - 1) * mu * wrong[:, ell - 1] + (ell - 1) * wrong[:, ell - 2]
         ) / ell
-    assert not np.allclose(table, wrong, atol=1e-8), (
-        "the sign-flipped recurrence must NOT reproduce the table"
-    )
+
+    n_checked = 0
+    worst_wrong_margin = None
+    for i, m in enumerate(mu):
+        tracked = _bonnet_tracked(float(m), L)
+        for ell in range(L + 1):
+            with mpmath.workdps(50):
+                exact = mp_fraction(mpmath.legendre(ell, mpmath.mpf(float(m))))
+            radius = tracked[ell].r
+            if abs(tracked[ell].v - exact) > Fraction(1, 10**45):
+                pytest.fail(f"Bonnet's exact value disagrees with mpmath at mu={m!r}, ell={ell}")
+            if abs(Fraction(float(table[i, ell])) - exact) > radius:
+                pytest.fail(
+                    f"legendre_table(mu={m!r})[{ell}] = {table[i, ell]!r} is "
+                    f"{float(abs(Fraction(float(table[i, ell])) - exact)):.3e} from "
+                    f"P_ell(mu) = {float(exact)!r}, outside the derived radius {float(radius):.3e}"
+                )
+            if ell >= 2:
+                margin = abs(Fraction(float(wrong[i, ell])) - exact) / radius
+                worst_wrong_margin = margin if worst_wrong_margin is None else min(worst_wrong_margin, margin)
+            n_checked += 1
+    if n_checked != mu.size * (L + 1) or n_checked == 0:
+        pytest.fail(f"checked {n_checked} entries, expected {mu.size * (L + 1)}")
+    # NEGATIVE leg (vv #11): the sign-flipped family is outside the radius at
+    # every node and degree >= 2 — by a factor, not a hair.
+    if worst_wrong_margin is None or worst_wrong_margin <= 1:
+        pytest.fail(f"the sign-flipped recurrence sits inside the radius (margin {worst_wrong_margin})")
 
 
 # ══════════════════════════════════════════════════════════════════════

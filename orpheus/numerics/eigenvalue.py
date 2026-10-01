@@ -533,16 +533,13 @@ def dominant_eigenpair(
     rejected as a malformed problem (Cardinal Rule 1 — fail loud, never
     return a non-eigenvalue).
 
-    Two callers, one validation:
-
-    * :func:`direct_eigenvalue` — forms the resolvent from the posed
-      ``(A, F)`` pair via :func:`numpy.linalg.solve`, then delegates here.
-    * the homogeneous K-path
-      (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`) —
-      forms the resolvent through the operator algebra
-      ``K = MatrixInverseOperator(loss) @ production`` and materializes it
-      with :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`,
-      bypassing the ``(A, F)`` posing boundary entirely.
+    Its production caller is :func:`direct_eigenvalue`, which forms the
+    resolvent from the posed ``(A, F)`` pair via :func:`numpy.linalg.solve`
+    and delegates here. (The homogeneous solver
+    :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` called it
+    on the materialized resolvent until 2026-10-01; it now reads
+    :math:`k_\infty = \langle\nu\Sigma_f, A^{-1}\chi\rangle` off the
+    rank-one fission dyad and needs no eigen-solver.)
 
     Parameters
     ----------
@@ -617,8 +614,8 @@ def direct_eigenvalue(
     iterative engine would only approximate (at a dominance-ratio-dependent
     rate) an answer the dense solve gives exactly.  (The homogeneous solver
     :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` poses that
-    problem class through the operator algebra instead and reaches the shared
-    kernel via :func:`dominant_eigenpair` directly — taxonomy step 5b — so a
+    problem class through the operator algebra instead and, since
+    2026-10-01, reads :math:`k_\infty` off the rank-one fission dyad, so a
     change here does NOT move its :math:`k_\infty`.)
     Both engines solve the SAME posed problem
     :math:`(A_{\rm loss}, M) = (A, F)`; they differ only in exact-dense vs

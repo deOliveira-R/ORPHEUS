@@ -91,7 +91,8 @@ mutants** (`ReplaceTrueWith/FalseWith` on the `is_linear` /
 `@dataclass`). Exceeds the ≥90 % S2 target for the core sweep
 capability. The S2 gap-closers cost ~0 wall-clock (the gate stays at
 ~4.1 s): they promote already-cheap `DiamondDifference` unit tests
-(`test_diamond.py::TestResidual`, `TestBitIdenticalCurvilinear`,
+(`test_diamond.py::TestResidual`, `TestBitIdenticalCurvilinear` (since
+2026-10-01 `TestCurvilinearCellUpdate`),
 `test_dd_recurrence`) to sentinels.
 
 The 12 remaining survivors are all equivalent / near-equivalent: 5

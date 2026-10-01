@@ -1480,3 +1480,144 @@ is history and keeps its original glyphs and its original list numbering.
 
     Landed 2026-09-22 from the uplift queue of the 2026-08-03 distillation
     (qa's proposal A4; its digest B7, archive L-060).
+
+## 2026-10-01 the platform bit pin
+
+**Surprise.** On 2026-10-01 `.venv/bin/python -O -m pytest tests/gates -m "not slow"`
+failed 26 tests on a clean `main` (`0a5a23fa`). The same suite had passed 13 159
+tests at `8f9300b2` the day before, and no Python had changed in between. `[M]`
+`softwareupdate --history`: macOS 27.0.1 (build 26A434) was installed on
+2026-09-30 at 21:50, replacing macOS 26.6.1; numpy 2.4.4 and scipy 1.17.1 both
+link Apple's Accelerate for BLAS and LAPACK. A W2 probe cascade localised all 26
+reds to two LAPACK outputs that moved with the operating system, and found no
+production defect:
+
+- **24 reds came from the Gauss rules.** `GeneratingMeasure.gauss` built them
+  by Golub–Welsch, `np.linalg.eigh` of the Jacobi matrix: 20 reds trace to the
+  4-point Gauss–Legendre rule, 3 to the 8-point rule and 1 to the 64-point
+  rule.
+- **2 reds came from the homogeneous k∞.** `np.linalg.eig` (`geev`) of the
+  materialized resolvent returned k∞ 1 ULP away from its previous value on
+  `homo_4eg` and `mixture_A_4g`, and the byte pin on the homogeneous solve
+  compared k∞ as hex.
+
+The evidence was positive, not circumstantial. A coordinate search over ULP
+shifts of the four free numbers of a symmetric 4-point rule recovered the
+pre-update rule exactly: today's shifted by `(x1 −1, x2 0, w1 +1, w2 −2)` ULP,
+reproducing 496 of 496 frozen walk-matvec snapshot elements, with every
+coordinate sharp (one ULP more on any re-reddens a case). Swapping only that
+rule back into the suite turned 20 of the 26 reds green (activation count 22);
+unpatched, 26 of 26 stayed red (activation 0). The drift was deterministic:
+5 of 5 fresh processes, threaded or with `VECLIB_MAXIMUM_THREADS=1`, hashed the
+rules and k∞ identically. Probes and memo: `scratch/platform_drift/` (untracked).
+
+**The mechanism.** A bit pin (`array_equal`, a digest, a hex literal) whose
+input passes through a platform library's floating-point output pins the
+library. The library's last bits are not a property of the code under test, so
+the pin's reading changes on a state that is not a defect, and its red after an
+operating-system update is indistinguishable from a regression until a probe
+cascade has been run. The same drift exposes a second, worse class: a gate whose
+VERDICT is a function of rounding noise in a correct input.
+
+**Seven gates whose verdict was rounding noise.** The instrument was a jitter
+test: each node pair and weight pair of the Gauss–Legendre rule shifted by a
+random integer in `[−3, 3]` ULP with the symmetry kept, over 10 seeds. A correct
+input then reds a sound gate on no seed; these reddened on several:
+
+| gate | red in k of 10 seeds | why the verdict was not structural |
+|---|---|---|
+| `test_diamond` bit-identical curvilinear cell update (2 rows) | 3 | production computes `(source + (a + b)) / denom`, the reference `((source + a) + b) / denom`: two association orders, equal for some inputs only |
+| SN boundary realizer, SPECULAR "blind case" `array_equal(H.apply, apply_transpose)` | 3 | `H = ♯∘dual∘♭` divides and multiplies by the weight times the absolute direction cosine; `(a·y)/a == y` is not a floating-point identity |
+| `test_angular_bulk_space` G1.3, a scalar `==` | 3 | two reduction orders of one inner product |
+| `test_mms_ordering_blindness` restriction legs (2 rows), `assert_array_equal` | 6 | the folded and parent rules have different weight sums, so any weight-sum normalisation rounds differently |
+| `test_psi_half_positivity[64]`, `atol=1e-12` on `∏(1−τ)/τ` | 7 | the tolerance sits inside the instrument's own noise band: `−1.35e-14` on the correctly rounded rule, `±1.8e-12` under platform `eigh`, `2.5e-12` under `leggauss`; `N = 128` reaches `3.3e-11` |
+| `test_boundary` 4-point white boundary condition, `rtol=1e-15` against a literature table | 8 | tighter than Golub–Welsch's realised accuracy (#16): the old weight was 3 ULP from the published value, the new one 8 |
+
+**How each was re-posed** (`[M]` 2026-10-01, the test-architect's battery: each
+re-posed gate green on the pre-change tree, on correctly rounded rules and on
+10 of 10 jitter seeds, and red under a named mutation). No tolerance was
+widened; every bound that changed was derived, with its derivation in the
+gate's docstring, using one shared harness of Higham's error constants carried
+in exact rationals, `tests/_harness/float_bounds.py`:
+
+- **`test_diamond`** (class renamed `TestCurvilinearCellUpdate`): the diamond
+  difference cell balance, weighted closure and Morel–Montry march, against
+  the EXACT rational value of the same formula on the same float inputs, within
+  a running-error radius (Higham 2002, Lemma 3.1 and §3.3). The hand-picked
+  `nulp=8` of the inward row retired with it. Mutations: the area `A_tot →
+  2·A_down` and a sign flip of the angular numerator red both rows.
+- **SPECULAR blind case:** `Rᵀ` is asserted to be a permutation, and
+  `Rᵀ(G₋ ⊙ y) == G₊ ⊙ (Rᵀ y)` is asserted bit for bit, which is a theorem
+  (the same two floats are multiplied per element); the operator tier is held
+  to a derived radius. Mutation: `G₊⁻¹` off by `2⁻⁴⁴` reds.
+- **G1.3:** the Gram IS `V·w_n`, and the scalar faces are compared within a
+  derived reduction bound instead of `==` between two reduction orders.
+  Mutation: the Gram reading the volumes reversed reds.
+- **MMS restriction legs:** the folded source equals the parent's restricted to
+  the kept nodes up to the derived rounding of the two normalisers, plus an
+  exact-mass leg on the fold. Mutations: a folded normaliser about 512 ULP off
+  reds both rows; a fold keeping half an orbit's weight reds the mass leg.
+- **`psi_half_positivity`:** the reversal identity `τ_m + τ_{N−1−m} = 1` is
+  asserted on the τ values, and `∏(1−τ)/τ` is held to a DERIVED product bound
+  (`7.6e-11` at `N = 64`, against a measured `1.8e-12`). Mutations: one edge
+  moved by `1e-12` reds 5 rows; `τ → 1−τ` reds 5.
+- **`test_boundary`:** split in two. The FORMULA row (white = the
+  `|Ω·n̂|`-weighted mean of the outflow) is jitter-green. The PRODUCER row
+  holds the shipped 4-point rule to the published table within half a unit of
+  the table's 16th digit plus `1e-16`; it is red under platform `eigh` and
+  green under correctly rounded rules, by design, because it states the
+  correct-rounding claim.
+- **`test_legendre_basis`, the three-term recurrence check:** this one needed a
+  production ruling, not a test fix. `legendre_table` called scipy's `lpmv`,
+  whose error was up to 20 ULP and 1.24 times any forward three-term
+  recurrence's radius, so no bound could be derived for it. Production now
+  evaluates Bonnet's recurrence (`+ − × ÷` only), and the gate holds it to the
+  50-digit hypergeometric value within the recurrence's running-error radius.
+
+Three more gates with the same defect were found and re-posed in a second
+pass: `test_angular_bulk_space` G1.4 (a hand-picked `nulp ≤ 64`, now checked
+against the exact rational form within derived bounds), the MMS parity check
+(`atol=1e-15`, now the bit-exact theorem: mirror pairs carry identical
+operands, so the source is `array_equal` across them; `[M]` the old tolerance
+passed a 2⁻⁵⁰ odd-part mutation the new gate catches), and the dense-metric
+witness, whose "naive pinv is asymmetric" control on the level-symmetric
+Gram read 3.7e-16 once the zonal harmonic moved to Bonnet (it is now a
+per-element bound derived for `pinv(hermitian=True)`, the naive spelling
+required to exceed it tenfold).
+
+**The remedy: make the product a property, and pin the producer.**
+
+1. **The Gauss rules are correctly rounded**: computed in arbitrary precision
+   and rounded once, so every platform gets the same bytes. A correctly
+   rounded real is unique, which is the only kind of float a cross-platform
+   bit pin can hold. The construction and its gates are on
+   `docs/theory/foundations/discrete_measures.rst`, section "The Gauss rules
+   are correctly rounded".
+2. **A producer fingerprint stands in front of the consumers.**
+   `tests/gates/numerics/test_gauss_rule_fingerprint.py` hashes the
+   Gauss–Legendre nodes and weights at seven orders, with digests derived from
+   an independent 80-digit reference and never from production. About 100
+   frozen artefacts in 15 groups downstream are bytes fed by one of these
+   rules; on the next drift this one gate reds by name, saying the rule moved,
+   instead of 24 snapshot gates reporting flux changes. This is the founding
+   case of the `vv-principles` clause "a producer's TOLERANCE pin can never
+   warn its consumers' BIT-IDENTITY pins … owes a byte-level fingerprint".
+3. **The homogeneous k∞ leaves the eigen-solver.** The fission operator has
+   rank one, so k∞ = ⟨νΣf, A⁻¹χ⟩ is one LU solve and one inner product. Its
+   byte pin, `test_byte_stability.py`, retired for an exact rational reference
+   with a forward-error bound derived per case from the LU factors (3.75 to
+   43.2 ULP), which no platform can move; the LU solve's own bytes are
+   deliberately not pinned. `docs/theory/foundations/infinite_medium.rst`,
+   sections "Why one solve is the whole eigenproblem" and "The exact
+   reference, and the bound the solve is held to".
+
+The remaining platform seams of the same class did not drift this time and are
+filed: the level-symmetric weights (`np.linalg.solve`), the azimuthal nodes
+(system `cos`/`sin`) and 56 `leggauss` calls under `orpheus/derivations/`
+(#550).
+
+**Clause.** Proposed as a new `vv-principles` anti-pattern (a rule change, so
+the user's to land): never pin the bits of a platform library's floating-point
+output; pin a correctly rounded value or an exact reference with a derived
+bound, put a producer fingerprint in front of every frozen-byte consumer, and
+jitter the primitive's output to find the gates whose verdict is noise.

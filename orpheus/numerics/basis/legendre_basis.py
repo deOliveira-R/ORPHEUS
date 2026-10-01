@@ -29,22 +29,24 @@ space, no fabricated slots to zero. The isomorphism with the upstairs
 realization — the :math:`m = 0` column of the spherical-harmonic table — is
 :class:`~orpheus.numerics.basis.descent.Descent`'s witness, and it is exact
 at the BIT: :math:`Y_\ell^0(\Omega) = P_\ell(\Omega\cdot\hat e_x)` under the
-no-prefactor convention, and :meth:`LegendreBasis.evaluate` spells the
-polynomial exactly as ``_evaluate_real_sh`` spells that column.
+no-prefactor convention, and ``_evaluate_real_sh`` reads that column FROM
+:func:`legendre_table`, so the two are one spelling rather than two that
+agree.
 
-⚠ **The spelling is a measured constraint, not a taste** (`[M]` the
-verification memo's H-1, re-derived by the archivist 2026-09-02): no single
-``scipy`` routine reproduces the column bit-for-bit — ``lpmv(0, 1, μ)``
-differs from the input array at :math:`\ell = 1` by :math:`8\times10^{-17}`
-(GL8; :math:`1.1\times10^{-16}` on GL16, LS4, Lebedev) and ``eval_legendre``
-differs at :math:`\ell \ge 2` by up to :math:`4.8\times10^{-16}` over
-``gauss_legendre(2, 4, 8, 16)`` at :math:`L \le 4`. The column is
-:math:`P_0 = 1`, :math:`P_1 = \mu` (the input), :math:`P_\ell = ` ``lpmv(0, ℓ, μ)``
-for :math:`\ell \ge 2`, and so is this table. With it the slab's flux at
-:math:`L \le 1` is ``array_equal`` across the repair; with pure ``lpmv`` the
-TABLE moves by :math:`4.4\times10^{-16}` and the converged FLUX on
-ERR-080's own fixture by :math:`2.8\times10^{-14}` at :math:`L = 1` — a
-tolerance where a bit-identity claim was available.
+⚠ **The spelling is a measured constraint, not a taste.** History: until
+2026-10-01 both spelled :math:`P_\ell` (:math:`\ell \ge 2`) as scipy's
+``lpmv(0, ℓ, μ)``, because no scipy routine reproduces the column's
+:math:`P_1 = \mu` bit-for-bit (`[M]` 2026-09-02: ``lpmv(0, 1, μ)`` differs from
+the input by :math:`8\times10^{-17}` on GL8, and ``eval_legendre`` by up to
+:math:`4.8\times10^{-16}` at :math:`\ell \ge 2`). ``lpmv``'s algorithm is
+undocumented, and `[M]` 2026-10-01 on correctly rounded GL16 nodes it sat
+:math:`3.3\times10^{-16}` from the exact :math:`P_\ell` against a derived
+running-error radius of :math:`1.7\times10^{-16}` for Bonnet's recurrence: no
+bound could be derived for it. Bonnet's recurrence (:func:`legendre_table`)
+uses only :math:`+,-,\times,\div`, so the table is platform- and
+version-independent and its error is bounded by a theorem, and the
+spherical-harmonic column now reads it, so the descent stays exact at the
+bit.
 
 Conventions
 ===========
@@ -83,7 +85,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import lpmv
 
 from orpheus.numerics.basis.base import Basis, GramStructure
 
@@ -97,17 +98,29 @@ __all__ = ["LegendreBasis", "legendre_table"]
 
 
 def legendre_table(L: int, mu: NDArray) -> NDArray:
-    r"""The ``(N, L+1)`` table :math:`P_\ell(\mu_n)`, spelled as the spherical-harmonic
-    :math:`m = 0` column spells it (module docstring): ``1.0``, the input, then
-    ``lpmv(0, ℓ, μ)``. Class-free math, kept free so the descent witness can
-    call the same spelling the basis does."""
+    r"""The ``(N, L+1)`` table :math:`P_\ell(\mu_n)`, by Bonnet's recurrence.
+
+    :math:`P_0 = 1`, :math:`P_1 = \mu` (the input itself), and
+    :math:`\ell P_\ell = (2\ell-1)\,\mu\,P_{\ell-1} - (\ell-1)\,P_{\ell-2}`
+    (DLMF Eq. 18.9.1 with Table 18.9.1): the Legendre family's own
+    three-term recurrence (the Gauss rule is generated from the same
+    recurrence in its orthonormal form). Only :math:`+,-,\times,\div`, so the
+    table is the same on every platform and every scipy version, and its
+    rounding error has a derived running-error bound (the gate
+    ``test_legendre_values_lie_within_the_bonnet_error_radius_of_the_exact_value``
+    evaluates it). The spherical-harmonic table's :math:`m = 0` column IS this
+    table (``_evaluate_real_sh`` calls it), which is what keeps
+    :class:`~orpheus.numerics.basis.descent.Descent`'s witness exact at the bit.
+    Class-free math, kept free so both bases call the one spelling."""
     mu = np.asarray(mu, dtype=float).reshape(-1)
     table = np.zeros((mu.size, L + 1))
     table[:, 0] = 1.0
     if L >= 1:
         table[:, 1] = mu
     for ell in range(2, L + 1):
-        table[:, ell] = lpmv(0, ell, mu)
+        table[:, ell] = (
+            (2 * ell - 1) * mu * table[:, ell - 1] - (ell - 1) * table[:, ell - 2]
+        ) / ell
     return table
 
 

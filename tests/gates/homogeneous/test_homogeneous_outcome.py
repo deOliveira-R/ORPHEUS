@@ -5,7 +5,8 @@ the 0-D pencil, the gauged representative as the posed ``(ng, 1)`` column, λ = 
 with its one-point trajectory, and the ``ScaleGauge`` that fixed the representative
 (νΣf·φ = 100 n/cm³/s — the one shipped deliberately-named target, recorded as the
 functional that ran rather than applied anonymously). ``k_inf`` and ``flux`` are
-READ off it; the byte-stability gate pins that the arithmetic did not move.
+READ off it; ``test_kinf_exact_reference`` pins their accuracy against the exact
+rational answer of the float inputs.
 
 ⚠ ≥ 2G on purpose: ``[M]`` ``IntegratedReactionRate.evaluate`` silently accepts an
 ``(ng,)`` vector and returns the WRONG number (200.0 at 2g where the column reads

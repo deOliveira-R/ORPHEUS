@@ -24,7 +24,26 @@ the fission production matrix.
 
 For 1 group: :math:`k = \nu\Sigma_f / \Sigma_a`.
 
-For multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`.
+For multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`, which
+for the rank-one fission dyad is
+:math:`\langle\nu\Sigma_f, \mathbf{A}^{-1}\chi\rangle` (the proof:
+:ref:`homogeneous-rank-one-route`).
+
+Two references pin the solver, and they answer different questions.  The
+registry's analytical values below are float64 eigenvalues of the oracle's
+own fused assembly (:func:`numpy.linalg.solve`, then
+:func:`numpy.linalg.eig`), compared at :math:`10^{-12}`: they catch a wrong
+assembly or a wrong eigenvalue formula, and their last bits belong to the
+platform's LAPACK.  The **exact rational reference**
+(``orpheus/derivations/common/exact_homogeneous.py``) is the answer to the
+float inputs in exact arithmetic, self-certified against
+:math:`\mathbf{F}\phi = k\mathbf{A}\phi` with zero residual, and
+``tests/gates/homogeneous/test_kinf_exact_reference.py`` holds
+:math:`k_\infty`, the gauged flux and both condensed cross sections to it
+within a forward-error bound derived per case from the LU error bound
+(3.75 to 43.2 ULP in :math:`k_\infty`; `[M]` 2026-10-01 the solver reads at
+most 0.86 ULP off).  The derivation of the bound, its per-case table and
+what it cannot resolve are :ref:`homogeneous-exact-reference`.
 
 The full derivation of the infinite-medium balance and the operator
 treatment live in the theory chapter, :ref:`theory-homogeneous`; this

@@ -22,6 +22,11 @@ removed ``MixedBoundaryOperator`` composer); see
 
 from __future__ import annotations
 
+import math
+from fractions import Fraction
+
+from tests._harness.float_bounds import gamma, mp_fraction
+
 import numpy as np
 import pytest
 
@@ -282,95 +287,155 @@ _GL8_POSITIVE_TABLE = (
 )
 
 
+def _weighted_mean(g: list[Fraction], psi: list[Fraction]) -> Fraction:
+    return sum(gi * pi for gi, pi in zip(g, psi)) / sum(g)
+
+
+#: One unit in the 16th decimal place: the typed entries carry 16 correct
+#: decimals (truncated or rounded), the table's OWN precision contract.
+#: `[M]` 2026-10-01 against mpmath at 40 digits: the six GL-4/GL-8 entries
+#: sit 0.05 to 0.68 units from the exact values, so they are NOT uniformly
+#: rounded to 16 decimals (half a unit would red 0.3478548451374538 at 0.57).
+_TABLE_UNIT = Fraction(1, 10**16)
+
+
 @pytest.mark.foundation
 def test_white_bc_4_point_quadrature_hand_computed() -> None:
-    r"""White BC on 4-point GL: an explicit hand calculation, against a
-    ψ_out that is NOT constant over the outgoing hemisphere.
+    r"""White BC on 4-point GL: the |Ω·n̂|-weighted outgoing-hemisphere mean, with a DERIVED bound.
 
-    B0.3 REPAIR — this gate was **blind** (measured). It previously fed
-    a hemisphere-CONSTANT ψ_out (1.0 outgoing / 7.0 incoming) and
-    asserted the output was that same constant. A normalised weighted
-    average of a constant IS that constant **for any weights**, so the
-    measured functional's invariance group contained the entire
-    ``w·|Ω·n̂|`` weight formula (``vv-principles`` Mode 12): the test
-    PASSED with the ``|Ω·n̂|`` factor dropped, with the wrong
-    normaliser, and with the outgoing-hemisphere mask removed. It also
-    contained no hand-computed number at all — the expected ``1.0``
-    fell out of normalisation alone, so the docstring over-claimed.
+    (B0.3 / B3.4a history unchanged — see the original docstring for the
+    Mode-12 repair and the Γ₊-domain re-pose.)
 
-    The repair breaks the invariance by giving the two outgoing
-    ordinates DIFFERENT values, which makes the answer a genuine
-    cosine-weighted mean:
+    **What the gate claims** is the operator's FORMULA,
 
     .. math::
 
-        \psi_- \;=\;
-        \frac{w_1\mu_1\,\psi_1 \;+\; w_2\mu_2\,\psi_2}
-             {w_1\mu_1 \;+\; w_2\mu_2}
+        \psi_- = \frac{\sum_{i\in\Gamma_+} w_i|\mu_i|\,\psi_i}
+                      {\sum_{i\in\Gamma_+} w_i|\mu_i|},
 
-    with :math:`(\mu_1, w_1) = (0.33998104…,\,0.65214515…)`,
-    :math:`(\mu_2, w_2) = (0.86113631…,\,0.34785485…)` from the
-    published GL-4 table, :math:`\psi_1 = 1`, :math:`\psi_2 = 4`
-    :math:`\Rightarrow \psi_- = 2.723973656470134`.
+    on the rule it is handed — not the rule's accuracy, which is gate (a)'s
+    claim (``test_gauss_rules_correctly_rounded``) and the companion row
+    below. Until 2026-10 the two were welded: a ``rtol=1e-15`` precondition
+    on the rule against the published table sat in front of the formula, and
+    it was tighter than the Golub–Welsch rule's realised accuracy (8 ULP on
+    :math:`w_2`, 1.28e-15 relative), so a correct operator went red on a
+    macOS LAPACK update (`vv-principles` anti-pattern 16).
 
-    **B3.4a re-pose.** The old body also fed the INCOMING ordinates 7.0, to
-    constrain the outgoing-hemisphere mask (they must not enter the average).
-    That mask is gone: the law's domain is :math:`\Gamma_+`, so an inflow
-    ordinate cannot enter the average because it cannot be handed to the
-    operator at all. The constraint is preserved — strictly strengthened — as
-    the final leg: a full-face input is REFUSED. An erasure became an absence,
-    and an absence is not silently removable the way a mask was.
+    **The reference** is the formula evaluated in EXACT rational arithmetic
+    on the quadrature's own float arrays — inputs shared (the rule is the
+    operator's input, not its subject), formula independent (written here,
+    not read from production).
+
+    **The bound, derived.** The output is a ratio of two positive sums of
+    :math:`n = 2` terms; each numerator term is a product of
+    :math:`f = 3` factors (:math:`w, |\mu|, \psi`), each denominator term of
+    2. Whatever the association — products first, or the kernel normalised
+    first, :math:`(g_i/\sum g)\psi_i` — every term passes through at most
+    :math:`2(f-1) + 2(n-1) + 1 = 7` roundings, all on positive quantities, so
+    (Higham, *Accuracy and Stability*, Lemma 3.1 and eq. (4.4))
+    :math:`|\hat\psi_- - \psi_-| \le \gamma_7\,\psi_-` (about 7.8e-16
+    relative). The albedo is 1.0, an exact factor.
+
+    **Non-vacuity.** The two named defects — the :math:`|\Omega\cdot\hat n|`
+    factor dropped, and the weight dropped — move the exact mean by orders of
+    magnitude more than the bound (asserted below), so a green row
+    discriminates the formula.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     inflow, outflow = _half_traces(quad)
-    (mu_1, w_1), (mu_2, w_2) = _GL4_TABLE
-
-    # Precondition: the quadrature IS the published GL-4 rule. If this
-    # ever moves, the gate fails loudly rather than silently rebasing
-    # its reference on the new arrays.
-    np.testing.assert_allclose(
-        np.sort(np.abs(quad.mu_x)), [mu_1, mu_1, mu_2, mu_2],
-        rtol=1e-15, atol=0.0,
-        err_msg="GL-4 nodes no longer match the published table",
-    )
-    np.testing.assert_allclose(
-        np.sort(quad.weights), [w_2, w_2, w_1, w_1],
-        rtol=1e-15, atol=0.0,
-        err_msg="GL-4 weights no longer match the published table",
-    )
+    (mu_1, _), (mu_2, _) = _GL4_TABLE
 
     psi_1, psi_2 = 1.0, 4.0
     mu_out = quad.mu_x[outflow]
-    psi_out = np.empty((outflow.size, 1))
-    psi_out[np.isclose(mu_out, +mu_1)] = psi_1
-    psi_out[np.isclose(mu_out, +mu_2)] = psi_2
-    # Activation guard, OUTSIDE the claim: the two outgoing ordinates must
-    # genuinely carry DIFFERENT values, or the weighted mean is invariant
-    # under the whole w·|Ω·n̂| formula and the gate is the blind one B0.3
-    # repaired (vv Mode 12).
-    assert psi_out.min() != psi_out.max()
+    at_1 = np.isclose(mu_out, +mu_1)
+    at_2 = np.isclose(mu_out, +mu_2)
+    # Structural precondition, not an accuracy claim: the two outflow
+    # ordinates are the GL-4 pair, one each (a partition of Γ₊).
+    if not (at_1.sum() == 1 and at_2.sum() == 1 and np.all(at_1 ^ at_2)):
+        pytest.fail(f"the outflow ordinates {mu_out} are not the GL-4 pair")
+    psi_out = np.where(at_1, psi_1, psi_2).reshape(-1, 1)
+    # Activation guard (vv Mode 12): two different values, or the mean is
+    # invariant under the whole w·|Ω·n̂| formula.
+    if psi_out.min() == psi_out.max():
+        pytest.fail("the two outgoing ordinates carry one value: the gate is blind")
 
     bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     op = _realize_narrowed_for_face_right(bc, quad)
-    psi_in = op.apply(psi_out)
+    psi_in = np.asarray(op.apply(psi_out))
+    if psi_in.shape != (inflow.size, 1):
+        pytest.fail(f"psi_in has shape {psi_in.shape}, expected {(inflow.size, 1)}")
 
-    expected = (w_1 * mu_1 * psi_1 + w_2 * mu_2 * psi_2) / (
-        w_1 * mu_1 + w_2 * mu_2
-    )
-    assert abs(expected - 2.723973656470134) < 1e-14  # the docstring's number
-    assert psi_in.shape == (inflow.size, 1)
-    np.testing.assert_allclose(
-        psi_in, expected, rtol=1e-14, atol=0.0,
-        err_msg=(
-            "white BC is not the |Ω·n̂|-weighted outgoing-hemisphere "
-            "mean on GL-4"
-        ),
-    )
+    w = [Fraction(float(x)) for x in quad.weights[outflow]]
+    mu_abs = [Fraction(abs(float(x))) for x in mu_out]
+    psi = [Fraction(float(x)) for x in psi_out.ravel()]
+    exact = _weighted_mean([wi * mi for wi, mi in zip(w, mu_abs)], psi)
+    bound = gamma(7) * abs(exact)
+    for value in psi_in.ravel():
+        error = abs(Fraction(float(value)) - exact)
+        if error > bound:
+            pytest.fail(
+                f"white BC is not the |Ω·n̂|-weighted outgoing mean on GL-4: "
+                f"{float(value)!r} is {float(error):.3e} from the exact "
+                f"{float(exact)!r}, outside the derived bound {float(bound):.3e}"
+            )
+    for name, alternative in (
+        ("|Ω·n̂| dropped", _weighted_mean(w, psi)),
+        ("weights dropped", _weighted_mean(mu_abs, psi)),
+    ):
+        if abs(alternative - exact) <= 1000 * bound:
+            pytest.fail(f"the bound cannot tell the formula from '{name}'")
 
-    # The re-posed mask constraint: an inflow ordinate cannot enter the
-    # average because the whole face is not in the domain.
+    # The docstring's number, on the published table (exact arithmetic).
+    (m1, w1), (m2, w2) = (tuple(Fraction(str(x)) for x in row) for row in _GL4_TABLE)
+    published = _weighted_mean([w1 * m1, w2 * m2], [Fraction(1), Fraction(4)])
+    if abs(published - Fraction("2.723973656470134")) > Fraction(1, 2 * 10**15):
+        pytest.fail(f"the docstring value is not the published-table mean {float(published)!r}")
+
     with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
         op.apply(np.full((quad.N, 1), 7.0))
+
+
+@pytest.mark.foundation
+def test_the_gl4_rule_is_the_published_table() -> None:
+    r"""The PRODUCER claim the white-BC row no longer welds in: the shipped GL-4 rule is the A&S table.
+
+    Two contracts, each stated rather than picked:
+
+    * the table's own: every printed entry carries 16 correct decimals, so it
+      sits within one unit of its 16th decimal (:math:`10^{-16}`) of the
+      exact node or weight — checked against mpmath at 40 digits,
+      independently of production;
+    * the producer's: the shipped rule is CORRECTLY ROUNDED (gate (a)), so
+      each float is within :math:`\tfrac12\,\mathrm{ulp}` of the exact value.
+
+    Together: :math:`|\text{shipped} - \text{published}| \le
+    \tfrac12\mathrm{ulp} + 10^{-16}` per entry. This row is RED on a
+    Golub–Welsch rule that is not correctly rounded (8 ULP on :math:`w_2`
+    on macOS 27.0.1) and is the producer pin gate (a) already carries; it is
+    kept here only so the boundary module still states which table its
+    docstring numbers come from. (It may equally be retired into gate (a).)
+    """
+    import mpmath
+
+    with mpmath.workdps(40):
+        nodes, weights = mpmath.gauss_quadrature(4, "legendre")
+        exact = sorted(
+            ((mp_fraction(abs(x)), mp_fraction(w)) for x, w in zip(nodes, weights) if x > 0),
+            key=lambda t: t[0],
+        )
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    shipped_mu = sorted({abs(float(m)) for m in quad.mu_x})
+    shipped_w = {abs(float(m)): float(w) for m, w in zip(quad.mu_x, quad.weights)}
+    for (mu_t, w_t), (mu_x, w_x), mu_s in zip(_GL4_TABLE, exact, shipped_mu):
+        for printed, true, shipped in ((mu_t, mu_x, mu_s), (w_t, w_x, shipped_w[mu_s])):
+            if abs(Fraction(str(printed)) - true) > _TABLE_UNIT:
+                pytest.fail(f"the typed table entry {printed} does not carry 16 correct decimals")
+            contract = Fraction(math.ulp(shipped)) / 2 + _TABLE_UNIT
+            if abs(Fraction(shipped) - Fraction(str(printed))) > contract:
+                pytest.fail(
+                    f"shipped GL-4 entry {shipped!r} is {float(abs(Fraction(shipped) - Fraction(str(printed)))):.3e} "
+                    f"from the published {printed}: outside 1/2 ulp + 1e-16 = {float(contract):.3e}"
+                )
 
 
 @pytest.mark.foundation

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **13706**
+Total tests collected: **14041**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1349, 9.8%
-   L1, 1980, 14.4%
+   L0, 1349, 9.6%
+   L1, 2252, 16.0%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10279, 75.0%
+   foundation, 10342, 73.7%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 13600
+   explicit, 13935
    class-name, 46
    func-name, 0
    case, 33
@@ -300,7 +300,7 @@ Module × level grid
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 56, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
-   geometry/test_boundary, 0, 0, 0, 0, 25, 0
+   geometry/test_boundary, 0, 0, 0, 0, 26, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
@@ -314,12 +314,13 @@ Module × level grid
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 74, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
-   homogeneous/test_byte_stability, 0, 0, 0, 0, 8, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
    homogeneous/test_homogeneous_outcome, 0, 0, 0, 0, 3, 0
+   homogeneous/test_homogeneous_population, 0, 0, 0, 0, 1, 0
    homogeneous/test_homogeneous_problem, 0, 0, 0, 0, 12, 0
+   homogeneous/test_kinf_exact_reference, 0, 24, 0, 0, 16, 0
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 18, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
@@ -396,7 +397,9 @@ Module × level grid
    numerics/test_frame, 0, 15, 0, 0, 45, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
-   numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
+   numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
+   numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
+   numerics/test_generating_measure, 0, 78, 0, 0, 180, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_harmonic_axis, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
@@ -584,7 +587,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 397, 0
+   test_layer_imports, 0, 0, 0, 0, 398, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

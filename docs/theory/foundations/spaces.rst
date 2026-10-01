@@ -5449,13 +5449,16 @@ status.
      shipped scalar-metric case, paired with a deliberately
      non-physical per-group-weighted axis on which ``.H`` demonstrably
      MOVES.
-   - ``tests/gates/homogeneous/test_byte_stability.py`` — the migration gate
-     that measured the theorem. It pins the homogeneous solve
-     bit-exactly (``np.array_equal`` and exact ``==``, never
-     ``allclose``) against a baseline captured immediately before the
-     wiring, over every producing mixture the tree ships. `[M]` it held
-     bit-exactly across the rewiring on 2026-08-20 — which is the
-     evidence for the "no value motion" claim above. It is a CS1
-     migration gate by design and retires after the merge cycle,
-     subsumed by the L1 correctness anchor and the materialization byte
-     pin.
+   - ``tests/gates/homogeneous/test_kinf_exact_reference.py`` — the
+     homogeneous solve's value gate: :math:`k_\infty`, the gauged flux and
+     both condensed cross sections against the exact rational answer for
+     their float inputs, within a forward-error bound derived per case
+     (:ref:`homogeneous-exact-reference`), over every producing mixture the
+     tree ships.  The evidence for the "no value motion" claim above is its
+     predecessor's: the migration gate ``test_byte_stability.py`` pinned
+     the solve bit-exactly (``np.array_equal`` and exact ``==``) against a
+     baseline captured immediately before the wiring, and `[M]` it held
+     across the rewiring on 2026-08-20.  It retired on 2026-10-01, when a
+     macOS update moved the LAPACK eigen-solve under it by 1 ULP with no
+     ORPHEUS change: a byte pin on a platform library's output pins the
+     platform.

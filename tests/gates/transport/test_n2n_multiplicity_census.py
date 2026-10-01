@@ -47,6 +47,10 @@ _EXCLUDED_BY_FUNCTION = {("orpheus/mc/solver.py", "_random_walk", "pi")}
 _REFERENCE_LITERALS = {
     ("orpheus/derivations/common/eigenvalue.py", "_infinite_medium_matrices"),
     ("orpheus/derivations/common/eigenvalue.py", "kinf_from_cp"),
+    # The exact rational k∞ reference (2026-10-01): assembles A = diag Σt −
+    # Σs0ᵀ − 2Σ2ᵀ in Fractions; it is the derived-bound anchor of
+    # ``test_kinf_exact_reference``, so it must not read production's constant.
+    ("orpheus/derivations/common/exact_homogeneous.py", "exact_infinite_medium"),
 }
 
 

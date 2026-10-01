@@ -115,6 +115,17 @@ Key Facts
   exclusion and the seams live on
   :ref:`the space layer's page <spaces-axis-generator>`; ``kind`` is
   never a parameter of either mint — the generator's TYPE implies it.
+- **Every Gauss rule is correctly rounded**: each node and weight is the
+  float64 nearest its exact value, computed by Newton on the orthonormal
+  recurrence in arbitrary precision (seeded by the float Golub–Welsch
+  eigenvalues) and rounded once, at two working precisions that must agree,
+  with every value certified against its error interval.
+  The rule is therefore the same bytes on every platform; a float
+  eigen-solve is not (`[M]` a macOS update moved the 4-point rule by up to
+  2 ULP, and Golub–Welsch weights sit up to 445 ULP from the correctly
+  rounded ones at :math:`n = 64`).  A byte fingerprint of the
+  Gauss–Legendre rules is the platform-independence witness
+  (:ref:`gauss-rules-correctly-rounded`).
 
 
 Definitions
@@ -797,13 +808,221 @@ polar-azimuthal split.
    **left-endpoints**).
 
 
+.. _gauss-rules-correctly-rounded:
+
+The Gauss rules are correctly rounded
+-------------------------------------
+
+**The contract.**  Every node and every weight a
+:class:`~orpheus.numerics.generating_measure.GeneratingMeasure` returns from
+:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss` is the
+float64 **nearest to its exact value**.  A correctly rounded real is unique,
+so the rule is a property of the measure and of nothing else: not of the
+platform's linear-algebra library, its version or its thread count.  The
+contract covers every family the module ships (Legendre, Chebyshev of the
+first and second kinds, Jacobi :math:`(a, b)`, Laguerre :math:`(a)`,
+Hermite) and the affine remap
+:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.on`.
+Production reaches the Legendre family, through
+:func:`~orpheus.numerics.measure.gauss_legendre` and
+:func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`, and every
+product or folded angular quadrature carries a Gauss–Legendre factor through
+the latter.
+
+**Why the floats are not the textbook's.**  A measure
+:math:`d\lambda = w(x)\,dx` fixes monic orthogonal polynomials obeying
+:math:`p_{k+1}(x) = (x - \alpha_k)p_k(x) - \beta_k p_{k-1}(x)`, and the
+Golub–Welsch theorem (Golub and Welsch 1969) reads the :math:`n`-point Gauss
+rule off the symmetric tridiagonal Jacobi matrix :math:`J_n` with diagonal
+:math:`\alpha_0, \ldots, \alpha_{n-1}` and off-diagonal
+:math:`\sqrt{\beta_1}, \ldots, \sqrt{\beta_{n-1}}`:
+
+.. math::
+
+   x_i = \lambda_i(J_n), \qquad w_i = \mu_0\,\bigl[v_i\bigr]_1^{\,2},
+
+the eigenvalues and :math:`\mu_0 = \int d\lambda` times the squared first
+components of the unit eigenvectors.  That equation *defines* the rule.  Evaluated in float64 by a symmetric
+eigen-solver it does not produce the correctly rounded rule, for two
+measured reasons:
+
+- **The output is the platform's.**  `[M]` 2026-09-30, after macOS 27.0.1
+  replaced Accelerate, :func:`numpy.linalg.eigh` returned a Gauss–Legendre
+  4-point rule that differs from the previous release's by
+  :math:`(-1, 0, +1, -2)` ULP in :math:`(x_1, x_2, w_1, w_2)` (recovered by a
+  coordinate search over ULP shifts that reproduces 496 of 496 frozen
+  snapshot elements), and 24 bit-level pins downstream went red on an
+  unchanged tree (the evidence entry is "2026-10-01 the platform bit pin" on
+  :doc:`/development/evidence/vv-anti-patterns`).
+- **The output is not accurate to the last place, and the error grows with
+  the order.**  `[M]` 2026-10-01, Golub–Welsch Legendre rules against the
+  correctly rounded ones: nodes within 5 ULP up to :math:`n = 64` (36 at
+  :math:`n = 128`); weights 7 ULP at :math:`n = 4`, 14 at 8, 75 at 16, 122 at
+  32, **445 at 64** and 3428 at 128.  The weights degrade because an
+  eigen-solver delivers eigenvector components to an *absolute* accuracy near
+  :math:`u\,\lVert v\rVert = u` (:math:`u = 2^{-53}`), while the weights near
+  the interval's ends are small, so their *relative* error grows as they
+  shrink `[R]`.  For Hermite at :math:`n = 64` the tail weights have no
+  correct digit at all (off by :math:`6.7\times10^{16}` ULP).
+
+**The construction.**  The rule is computed in arbitrary precision with
+``mpmath`` and rounded once:
+
+1. **One definition of the measure.**  Each family's recurrence coefficients
+   :math:`(\alpha_k, \beta_k)`, with Gautschi's storage convention
+   :math:`\beta_0 = \mu_0`, are written once, as closed forms evaluated at the
+   caller's working precision
+   (:attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.exact_recurrence`).
+   The float coefficients
+   (:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.recurrence`)
+   and the mass are their rounded images, so a consumer reading coefficients
+   and a consumer reading the rule read the same numbers.
+2. **The orthonormal polynomials by their recurrence.**  With
+   :math:`\hat p_{-1} = 0` and :math:`\hat p_0 = \beta_0^{-1/2}`,
+
+   .. math::
+
+      \sqrt{\beta_{k+1}}\;\hat p_{k+1}(x) \;=\; (x - \alpha_k)\,\hat p_k(x)
+      \;-\; \sqrt{\beta_k}\;\hat p_{k-1}(x)
+
+   (Gautschi 2004, Eq. 1.3.13), and its derivative by the differentiated
+   recurrence,
+   :math:`\sqrt{\beta_{k+1}}\,\hat p'_{k+1} = \hat p_k + (x - \alpha_k)\,\hat
+   p'_k - \sqrt{\beta_k}\,\hat p'_{k-1}`.
+3. **The nodes by Newton.**  The nodes are the :math:`n` zeros of
+   :math:`\hat p_n`.  Each is reached by Newton's iteration
+   :math:`x \leftarrow x - \hat p_n(x)/\hat p'_n(x)` from a SEED, the
+   corresponding eigenvalue of the float :math:`J_n`.  The seed only selects
+   which root Newton converges to; it carries about sixteen correct digits,
+   Newton doubles them per step, and the iteration stops when the step is
+   below :math:`10^{5-d}` relative at :math:`d` working digits.  What the
+   platform's eigen-solver returns therefore cannot reach the rule `[R]`:
+   every seed in a root's basin converges to the same exact root.  A seed
+   that fails to converge in 50 steps, or two seeds that converge to one
+   root, raise :class:`ArithmeticError` rather than return a rule with a
+   missing node.
+4. **The weights are Christoffel numbers.**
+   :math:`w_i = 1 / \sum_{k=0}^{n-1} \hat p_k(x_i)^2` (Gautschi 2004,
+   Theorem 1.46).  This is the same number Golub–Welsch reads off the
+   eigenvector: the unit eigenvector of :math:`J_n` for :math:`x_i` is
+   :math:`(\hat p_0(x_i), \ldots, \hat p_{n-1}(x_i))` divided by its norm, so
+   :math:`\mu_0 [v_i]_1^2 = \mu_0\,\hat p_0^2 / \sum_k \hat p_k(x_i)^2 = 1 /
+   \sum_k \hat p_k(x_i)^2`, because :math:`\hat p_0^2 = 1/\mu_0`.  Computed
+   this way a small weight is a ratio of positive sums and keeps its relative
+   accuracy.
+5. **Two working precisions, one rounding each, and agreement required.**
+   The rule is computed at 40 and at 60 significant digits and each value is
+   rounded once to float64.  The two results must be identical bit for bit,
+   or the construction raises :class:`ArithmeticError`.  A disagreement means
+   that some exact value lies so close to the midpoint between two adjacent
+   floats that the 40-digit approximation could land on either side: the
+   construction refuses to choose rather than choose silently.  This is the
+   strategy of Ziv (1991) for correctly rounded functions.  Agreement of two
+   precisions alone does not certify the rounding (a value within the
+   60-digit error of a midpoint could round the same wrong way at both), so
+   every value is also **certified against its error interval**: with the
+   radius :math:`\rho = 10^{10-d}` relative at :math:`d` digits (generous
+   against Newton's quadratic convergence below its :math:`10^{5-d}`
+   stopping step and the Christoffel sum's few lost digits `[R]`), both ends
+   of :math:`[v - \rho|v|, v + \rho|v|]` must round to the same float64,
+   or the value is refused.  At 60 digits that radius is about 35 orders of
+   magnitude below a float64 spacing.  Each refusal has a witness in
+   ``tests/gates/numerics/test_generating_measure.py``:
+   ``test_a_value_its_error_interval_cannot_certify_is_refused`` lowers the
+   coarse precision to 16 digits, where no value of the 64-point Legendre
+   rule can be certified, and requires the raise;
+   ``test_a_rule_that_rounds_differently_at_the_two_precisions_is_refused``
+   disarms the certification and requires the comparison to refuse the same
+   rule (`[M]` 2026-10-01, removing the comparison reddens it); and
+   ``test_a_node_newton_cannot_converge_is_refused`` sets the Newton step
+   limit to zero and requires the non-convergence refusal of step 3.
+6. **Symmetry is a theorem, not an imposition.**  A weight is even exactly
+   when :math:`\alpha_k \equiv 0`, which
+   :attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.is_symmetric`
+   reads off the recurrence.  For such a measure the exact rule satisfies
+   :math:`x_i = -x_{n-1-i}` and :math:`w_i = w_{n-1-i}`, and round-to-nearest
+   commutes with negation, so the correctly rounded rule has the symmetry bit
+   for bit.  The construction therefore computes the non-negative half and
+   mirrors it, with an odd rule's centre node exactly :math:`0`; nothing is
+   averaged.
+7. **No zeroth-moment renormalisation.**  A float Gauss routine commonly
+   ends by rescaling its weights so that they sum to :math:`\mu_0` (numpy's
+   and scipy's do).  Applied to correctly rounded weights that rescale would
+   *un-round* them, so it is not applied.  The weight sum is a consequence:
+   ``test_weight_sum_is_within_one_float_step_of_the_mass`` gates it per
+   family, and the Legendre weights sum to exactly ``2.0``.
+8. **Cache, without shared arrays.**  The rounded nodes and weights are
+   cached per ``(measure, recurrence, n)`` as tuples, which cannot be
+   mutated.  Keying on the recurrence as well as the measure's identity keeps
+   two constructions of one measure (``jacobi(0, 0)`` and Legendre) computed
+   separately, so their agreement stays a cross-check and not a cache read
+   (`[M]` 2026-10-01, the elegance review: keyed on the measure alone, the
+   Jacobi construction was never run after Legendre's).  Every
+   call builds a fresh :class:`~orpheus.numerics.measure.DiscreteMeasure`
+   from fresh arrays, so no caller can corrupt the next caller's rule
+   (``test_a_returned_rule_cannot_corrupt_the_next_one``).  `[M]` 2026-10-01
+   one Legendre rule costs about 0.08 s at :math:`n = 64` and 0.29 s at
+   :math:`n = 128` at 60 digits, once per process.
+9. **The affine remap stays correctly rounded.**
+   :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.on`
+   transforms the coefficients in the working precision
+   (:math:`\alpha'_k = s\alpha_k + c`, :math:`\beta'_0 = s\beta_0`,
+   :math:`\beta'_k = s^2\beta_k` with :math:`s = (b-a)/2`,
+   :math:`c = (a+b)/2`); float endpoints are binary rationals and enter
+   exactly.
+
+A consequence worth naming: ``jacobi(0, 0)`` and ``LEGENDRE``, which reach
+their coefficients by different code, agree **bit for bit**, because both
+round the one exact rule.  A float construction does not give this: `[M]`
+2026-10-01 under Golub–Welsch 7 of the specialisation rows
+(``jacobi(-1/2, -1/2)`` against Chebyshev-1 and its siblings) read red, the
+float :math:`\beta_k` of the two routes differing in the last place and the
+eigen-solver amplifying the difference.
+
+**What verifies it.**
+
+- ``tests/gates/numerics/test_gauss_rules_correctly_rounded.py`` (277 rows)
+  compares every family at :math:`n \in \{1, 2, 3, 4, 5, 8, 16, 33, 64\}`
+  (and 128 for Legendre) with an independent reference computed at 80 digits
+  by a route that shares nothing with production above mpmath's arithmetic
+  (``instrument-doctrine`` X4): Newton on the classical polynomial in its
+  standard, non-monic normalisation (DLMF §18.9 recurrences for Legendre and
+  Jacobi, mpmath's hypergeometric ``laguerre`` and ``hermite``), with the
+  weights from the Christoffel closed forms in the derivative
+  :math:`P_n'` (Szegő 1975, Eqs. 15.3.1, 15.3.5, 15.3.6; Abramowitz and
+  Stegun 25.4.29, .38, .45, .46).  The reference is itself gated: its
+  recurrences against mpmath's own definitions, and its rules against the
+  closed-form moments :math:`x^0, \ldots, x^{2n-1}` of each weight.  The rows
+  assert the rule bit for bit, exact symmetry, the Jacobi specialisations
+  bit for bit, the weight sum, and the cache's isolation.  `[M]` 2026-10-01:
+  101 of 277 rows red on the pre-change tree; a battery of five mutations
+  against the shipped contract (renormalisation kept: 53 red; Golub–Welsch
+  without the mirror: 138; one weight off by 1 ULP: 105; a cache handing out
+  its arrays: 2; the contract itself: 0).
+- ``tests/gates/numerics/test_gauss_rule_fingerprint.py`` (21 rows) is the
+  **producer fingerprint**: the SHA-256 of the little-endian bytes of the
+  Gauss–Legendre nodes and weights for :math:`n \in \{2, 4, 8, 16, 20, 40,
+  64\}`, through both ``LEGENDRE.gauss`` and ``gauss_legendre_on_mu``.  About
+  100 frozen artefacts in 15 groups downstream (the S\ :sub:`N` regression
+  snapshots, the walk-matvec and affine-carve baselines, ...) are bytes fed by
+  one of these rules; when a rule's bytes move they all red at once with
+  messages about fluxes, and this gate reds FIRST and by name, saying the
+  rule moved.  The digests are computed from the 80-digit reference, never
+  from production, and a second row recomputes them, so a digest re-pinned
+  from a non-correctly-rounded production reds.  It is the platform
+  independence WITNESS: the same digests must hold on Linux (OpenBLAS) and on
+  macOS (Accelerate) alike `[R]` (the Linux reading is the continuous
+  integration run).  `[M]` 2026-10-01: 12 of 21 rows red on the pre-change
+  tree; :math:`n = 2` was green there because the imposed symmetry and mass
+  fix both numbers exactly.
+
 .. _discrete-measure-symmetry-groups:
 
 Symmetry groups for quadrature invariance
 =========================================
 
 A discrete measure :math:`\mu = \sum_i w_i \, \delta_{x_i}` is
-**:math:`G`-invariant** under the action of a group :math:`G` iff
+:math:`G`-**invariant** under the action of a group :math:`G` iff
 every :math:`g \in G` permutes the support points among themselves
 in a weight-preserving way:
 
@@ -2890,6 +3109,12 @@ discretisation pipeline; the snapshot match guarantees that the
 pipeline's downstream consumers (sweeps, operators, solvers) still
 produce the same answer they always did.
 
+A third layer sits in front of both for every rule with a Gauss–Legendre
+factor: the Gauss rules are correctly rounded, and the producer fingerprint
+``tests/gates/numerics/test_gauss_rule_fingerprint.py`` pins their bytes, so
+a change in the rule reds that one gate by name before the snapshot layer
+reports it as a flux change (:ref:`gauss-rules-correctly-rounded`).
+
 Forward references
 ==================
 
@@ -2921,6 +3146,21 @@ References
 * Stoer, J. and Bulirsch, R. (2002). *Introduction to Numerical
   Analysis*, 3rd ed. Springer. §3.6 (Gauss quadrature);
   Theorem 3.6.20 (polynomial exactness).
+* Golub, G.H. and Welsch, J.H. (1969). "Calculation of Gauss quadrature
+  rules." *Mathematics of Computation* **23**, no. 106, 221-230. The
+  eigenvalue characterisation of the Gauss rule.
+* Gautschi, W. (2004). *Orthogonal Polynomials: Computation and
+  Approximation*. Oxford University Press. §1.3 (the recurrence coefficients
+  of the classical families), Eq. 1.3.13 (the orthonormal recurrence),
+  Theorem 1.46 (the Christoffel numbers as the Gauss weights).
+* Ziv, A. (1991). "Fast evaluation of elementary mathematical functions with
+  correctly rounded last bit." *ACM Transactions on Mathematical Software*
+  **17**, no. 3, 410-423. The two-precision strategy for correct rounding.
+* Szegő, G. (1975). *Orthogonal Polynomials*, 4th ed. AMS Colloquium
+  Publications 23. Eqs. 15.3.1, 15.3.5, 15.3.6 (the Christoffel closed
+  forms the correct-rounding gate's reference uses).
+* NIST Digital Library of Mathematical Functions, §18.9 (the three-term
+  recurrences of the classical orthogonal polynomials).
 * Trefethen, L.N. (2008). "Is Gauss quadrature better than
   Clenshaw-Curtis?" *SIAM Review* **50**, 67-87. The measure-theoretic
   perspective on spectral integration rules.

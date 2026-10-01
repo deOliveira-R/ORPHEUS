@@ -33,8 +33,11 @@ metric claims), ``gauss_legendre(4)``, ``ng = 2``, vacuum/vacuum.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
+from tests._harness.float_bounds import gamma
+
 import numpy as np
-import numpy.testing as npt
 import pytest
 
 from orpheus.geometry import BC, StructuredGeometry
@@ -136,12 +139,44 @@ class TestG13GramEquivalenceDD:
         sn = _slab()
         assert sn.full_field_space.interior_space is sn.angular_bulk_space
 
+    @staticmethod
+    def _exact(a) -> np.ndarray:
+        return np.vectorize(lambda v: Fraction(float(v)), otypes=[object])(np.asarray(a, dtype=float))
+
     def test_all_three_metric_faces_agree_with_the_dense_oracle(self):
+        r"""G1.3 — every metric face of the axis-built bulk space is :math:`G = V\cdot w_n`, within a DERIVED bound.
+
+        The claim is the identity of the Gram, :math:`G_{n,g,i} = w_n V_i`; the
+        two spellings (the axis product and the hand-densified oracle) are
+        BOTH asserted against the EXACT bilinear form of the float inputs,
+        computed in rational arithmetic — so neither spelling is the reference
+        and the row is independent of how either associates.
+
+        **Bounds, derived** (Higham, *Accuracy and Stability*, Lemma 3.1 and
+        eq. (4.4); the standard model per operation, any association):
+
+        * scalar :math:`\langle x, y\rangle_G = \sum_k w_n V_i x_k y_k` — ``n``
+          terms, each a product of 4 factors (3 roundings in any order), summed
+          in any order (at most ``n − 1`` additions per term):
+          :math:`|\widehat{\langle x,y\rangle} - \langle x,y\rangle| \le
+          \gamma_{n+2}\sum_k |w_n V_i x_k y_k|`;
+        * norm :math:`\sqrt{\langle x, x\rangle_G}` — all terms positive, one
+          more rounding for the square root, and
+          :math:`|\sqrt{1+\theta}-1| \le |\theta|`: relative error
+          :math:`\le \gamma_{n+3}`, asserted squared in exact arithmetic;
+        * vector faces, per element: :math:`G x` is a 3-factor product, and
+          :math:`G^{-1}x` is :math:`x/(wV)` or :math:`(x/w)/V` — two roundings
+          either way: relative :math:`\gamma_2`.
+
+        Until 2026-10 the scalar faces asserted ``==`` between the two
+        spellings — two reduction orders of one inner product, equal only by the
+        draw (red in 3 of 10 ±3-ULP perturbations of the GL-4 rule). The
+        non-vacuity leg below shows the bound still separates the Gram from the
+        two named wrong ones (the angular weight or the cell volume dropped) by
+        orders of magnitude.
+        """
         sn = _slab()
         axis_built = sn.angular_bulk_space
-        # The oracle: G_bulk = V·w_n, densified BY HAND from raw mesh data
-        # (broadcast (N, 1, nx) — the retired production spelling, now the
-        # test-side reference).
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
         dense = FunctionSpace(
@@ -154,20 +189,44 @@ class TestG13GramEquivalenceDD:
         x = rng.standard_normal(dense.shape)
         y = rng.standard_normal(dense.shape)
 
-        # Scalar faces: bit-equal ([M] verification plan G1.3 — rel diff 0.0).
-        assert axis_built.inner_product(x, y) == dense.inner_product(x, y)
-        assert axis_built.norm(x) == dense.norm(x)
-        # Vector faces: ≤ 4 ulp ([M] max abs Δ 2.78e-17 on this fixture).
-        # apply_inverse_metric is the .H sandwich's other half (G⁻¹AᵀG) —
-        # the face the composite adjoint path consumes (G2.6's substance).
-        npt.assert_array_almost_equal_nulp(
-            axis_built.apply_metric(x), dense.apply_metric(x), nulp=4
-        )
-        npt.assert_array_almost_equal_nulp(
-            axis_built.apply_inverse_metric(x),
-            dense.apply_inverse_metric(x),
-            nulp=4,
-        )
+        W = self._exact(w).reshape(-1, 1, 1)
+        VV = self._exact(V).reshape(1, 1, -1)
+        X, Y = self._exact(x), self._exact(y)
+        terms = W * VV * X * Y
+        exact_ip = terms.sum()
+        abs_sum = np.abs(terms).sum()
+        n = terms.size
+        ip_bound = gamma(n + 2) * abs_sum
+        sq = (W * VV * X * X).sum()
+        norm_rel = gamma(n + 3)
+
+        for name, space in (("axis-built", axis_built), ("dense oracle", dense)):
+            ip = Fraction(float(space.inner_product(x, y)))
+            if abs(ip - exact_ip) > ip_bound:
+                pytest.fail(
+                    f"{name}: <x,y>_G = {float(ip)!r} is {float(abs(ip - exact_ip)):.3e} from "
+                    f"the exact {float(exact_ip)!r}, outside gamma_(n+2)·Σ|terms| = {float(ip_bound):.3e}"
+                )
+            nrm = Fraction(float(space.norm(x)))
+            if abs(nrm * nrm - sq) > sq * ((1 + norm_rel) ** 2 - 1):
+                pytest.fail(f"{name}: ||x||_G = {float(nrm)!r} is not sqrt of the exact form within gamma_(n+3)")
+            for face, got, want in (
+                ("apply_metric", space.apply_metric(x), W * VV * X),
+                ("apply_inverse_metric", space.apply_inverse_metric(x), X / (W * VV)),
+            ):
+                got_x = self._exact(np.broadcast_to(np.asarray(got, dtype=float), x.shape))
+                err = np.abs(got_x - want)
+                if np.any(err > gamma(2) * np.abs(want)):
+                    k = int(np.argmax(err > gamma(2) * np.abs(want)))
+                    pytest.fail(f"{name}.{face}: element {k} outside gamma_2 of the exact G-action")
+
+        # Non-vacuity: the bound separates G = w·V from the two named wrong Grams.
+        for wrong_name, wrong in (
+            ("angular weight dropped", (VV * X * Y).sum()),
+            ("cell volume dropped", (W * X * Y).sum()),
+        ):
+            if abs(wrong - exact_ip) <= 1000 * ip_bound:
+                pytest.fail(f"the scalar bound cannot tell G from the Gram with the {wrong_name}")
 
 
 class TestG14GramEquivalenceLD:
@@ -180,10 +239,13 @@ class TestG14GramEquivalenceLD:
     draw's luck, not a law — the two spellings associate the weight
     products differently, and on THIS fixture's ``rng(0)`` draw the
     near-cancelling bilinear form lands 6 ULP apart (measured 2026-08-22).
-    The honest bound is nulp ≤ 64 on the cancellation-conditioned scalar
-    face (vv #16: never assert tighter than construction gives); a
-    mass-placement error is O(θ·value) ≈ 1e14 ULP, so the gate's
-    discrimination is unharmed."""
+    A hand-picked ``nulp ≤ 64`` stood here until 2026-10-01; it was itself a
+    rounding accident (red under ±3-ULP jitter of the rule). Both spellings
+    are now checked against the exact rational form within derived bounds
+    (γ_{n+3} for the scalar face, γ_{n+4} for the norm, γ_3 for the vector
+    faces), and a non-vacuity leg shows the bound still tells the Gram from
+    versions with the moment mass, the angular weight or the cell volume
+    dropped."""
 
     def test_ld_composite_interior_is_the_widened_product(self):
         """The unification claim on the LD arm: the composite's interior
@@ -202,6 +264,37 @@ class TestG14GramEquivalenceLD:
         assert sn.full_field_space.interior_space is sn.angular_trial_space
 
     def test_all_three_metric_faces_agree_on_the_ld_interior(self):
+        r"""G1.4 — every metric face of the LD interior is :math:`G = w_n V_i m_j`, within a DERIVED bound.
+
+        The claim is the identity of the widened Gram,
+        :math:`G_{n,g,i,j} = w_n V_i m_j` with :math:`m` the scheme's moment
+        mass. The two spellings (the axis product widened by the scheme's
+        modal ``moment_axis``, and the hand-densified oracle built from raw
+        mesh and scheme data) are BOTH asserted against the EXACT bilinear
+        form of the float inputs, computed in rational arithmetic, so neither
+        spelling is the reference and the row is independent of how either
+        associates. The method is G1.3's; the only change is the fifth factor.
+
+        **Bounds, derived** (Higham, *Accuracy and Stability*, Lemma 3.1 and
+        eq. (4.4); the standard model per operation, any association):
+
+        * scalar :math:`\langle x, y\rangle_G = \sum_k w_n V_i m_j x_k y_k` —
+          ``n`` terms, each a product of 5 factors (4 roundings in any order),
+          summed in any order: :math:`\le \gamma_{n+3}\sum_k |\text{term}_k|`;
+        * norm — positive terms, one more rounding for the square root:
+          relative :math:`\le \gamma_{n+4}`, asserted squared in exact
+          arithmetic;
+        * vector faces, per element: :math:`G x` is a 4-factor product and
+          :math:`G^{-1}x` is :math:`x` divided by three factors in some
+          bracketing — three roundings either way: relative :math:`\gamma_3`.
+
+        Until 2026-10 the scalar face asserted ``nulp <= 64`` between the two
+        spellings and the other faces ``nulp <= 4``: hand-picked counts on a
+        cancellation-conditioned sum, with no derivation behind either number.
+        The non-vacuity leg shows the bound still separates the Gram from the
+        three named wrong ones (the moment mass, the angular weight or the cell
+        volume dropped) by more than three orders of magnitude.
+        """
         sn = _slab(scheme=LinearDiscontinuous())
         base = sn.angular_bulk_space
         assert base.axes is not None
@@ -213,40 +306,61 @@ class TestG14GramEquivalenceLD:
         # test-side fuller-view reference).
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
-        mass = sn.scheme.moment_mass_diagonal(sn.axes)
+        mass = np.asarray(sn.scheme.moment_mass_diagonal(sn.axes), dtype=float)
         g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
         dense = FunctionSpace(
             name="dense_oracle_ld",
             shape=widened.shape,
             inner_product_weights=g,
         )
-        assert widened.shape == dense.shape
+        if widened.shape != dense.shape:
+            pytest.fail(f"widened shape {widened.shape} != oracle shape {dense.shape}")
 
         rng = np.random.default_rng(0)
         x = rng.standard_normal(dense.shape)
         y = rng.standard_normal(dense.shape)
 
-        # Cancellation-conditioned scalar face: standard-normal x·G·y sums
-        # ~80 O(1) signed terms to ~0.2, so association differences amplify
-        # in result-relative ULPs ([M] 6 here).
-        npt.assert_array_almost_equal_nulp(
-            np.array([widened.inner_product(x, y)]),
-            np.array([dense.inner_product(x, y)]),
-            nulp=64,
-        )
-        # Positive-term faces: no cancellation, tight.
-        npt.assert_array_almost_equal_nulp(
-            np.array([widened.norm(x)]), np.array([dense.norm(x)]), nulp=4
-        )
-        npt.assert_array_almost_equal_nulp(
-            widened.apply_metric(x), dense.apply_metric(x), nulp=4
-        )
-        npt.assert_array_almost_equal_nulp(
-            widened.apply_inverse_metric(x),
-            dense.apply_inverse_metric(x),
-            nulp=4,
-        )
+        exact = TestG13GramEquivalenceDD._exact
+        W = exact(w).reshape(-1, 1, 1, 1)
+        VV = exact(V).reshape(1, 1, -1, 1)
+        M = exact(mass).reshape(1, 1, 1, -1)
+        X, Y = exact(x), exact(y)
+        G = W * VV * M
+        terms = G * X * Y
+        exact_ip = terms.sum()
+        n = terms.size
+        ip_bound = gamma(n + 3) * np.abs(terms).sum()
+        sq = (G * X * X).sum()
+        norm_rel = gamma(n + 4)
 
+        for name, space in (("axis-built", widened), ("dense oracle", dense)):
+            ip = Fraction(float(space.inner_product(x, y)))
+            if abs(ip - exact_ip) > ip_bound:
+                pytest.fail(
+                    f"{name}: <x,y>_G = {float(ip)!r} is {float(abs(ip - exact_ip)):.3e} from "
+                    f"the exact {float(exact_ip)!r}, outside gamma_(n+3)·Σ|terms| = {float(ip_bound):.3e}"
+                )
+            nrm = Fraction(float(space.norm(x)))
+            if abs(nrm * nrm - sq) > sq * ((1 + norm_rel) ** 2 - 1):
+                pytest.fail(f"{name}: ||x||_G = {float(nrm)!r} is not sqrt of the exact form within gamma_(n+4)")
+            for face, got, want in (
+                ("apply_metric", space.apply_metric(x), G * X),
+                ("apply_inverse_metric", space.apply_inverse_metric(x), X / G),
+            ):
+                got_x = exact(np.broadcast_to(np.asarray(got, dtype=float), x.shape))
+                outside = np.abs(got_x - want) > gamma(3) * np.abs(want)
+                if np.any(outside):
+                    k = int(np.argmax(outside))
+                    pytest.fail(f"{name}.{face}: element {k} outside gamma_3 of the exact G-action")
+
+        # Non-vacuity: the bound separates G = w·V·m from the three named wrong Grams.
+        for wrong_name, wrong in (
+            ("moment mass dropped", (W * VV * X * Y).sum()),
+            ("angular weight dropped", (VV * M * X * Y).sum()),
+            ("cell volume dropped", (W * M * X * Y).sum()),
+        ):
+            if abs(wrong - exact_ip) <= 1000 * ip_bound:
+                pytest.fail(f"the scalar bound cannot tell G from the Gram with the {wrong_name}")
 
 def _cart_axes():
     # A minimal 1-D Cartesian axis tuple (P4.6: the family consumes axes).

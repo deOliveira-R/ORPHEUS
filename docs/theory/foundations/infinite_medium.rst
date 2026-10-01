@@ -26,17 +26,29 @@ Key Facts
   into production — the retired bespoke bug — moves :math:`\kinf` by
   :math:`\sim 0.43` on the asymmetric-:math:`\Sigma_2` ``homo_2eg_n2n`` case.)
 - 1-group: :math:`k = \nu\Sigma_f / \Sigma_a` (exact, no iteration)
-- Multi-group: :math:`\kinf = \lambda_{\max}(\mathbf{K})`, the dominant
-  eigenpair of the multiplication operator
-  :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` **spelled in the operator
-  algebra** — ``K = MatrixInverseOperator(loss) @ production`` — and extracted
-  from the materialized :math:`[\mathbf{K}]` by the shared Perron--Frobenius
-  primitive :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`. There is
-  **no power iteration**: the 0-D spectrum is an *exact* eigenproblem, so the
-  direct dense inverse is used, not the iterative
-  :func:`~orpheus.numerics.eigenvalue.power_iteration` the spatially-coupled
-  solvers use (see :ref:`direct-eigensolve-solve`,
+- Multi-group: :math:`\kinf = \langle \nu\Sigma_f,\, \mathbf{A}^{-1}\chi \rangle`
+  with flux :math:`\boldsymbol{\phi} \propto \mathbf{A}^{-1}\chi`. The
+  multiplication operator :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F} =
+  (\mathbf{A}^{-1}\chi)\,(\nu\Sigma_f)^{\mathsf T}` has **rank one**, so this
+  is its only non-zero eigenvalue and, for a physical medium, its dominant
+  one (proof: :ref:`homogeneous-rank-one-route`). The solver performs **one**
+  LU solve, ``MatrixInverseOperator(problem.loss).apply(production.emission_spectrum)``,
+  and one :math:`G`-term contraction with the production-rate co-vector. It
+  calls **no eigen-solver**: the last bit of a dense eigen-solve belongs to
+  the platform's LAPACK, not to the problem (`[M]` 2026-09-30, a macOS
+  update moved ``geev``'s :math:`\kinf` by 1 ULP on an unchanged tree). There
+  is **no power iteration** either: the 0-D problem is solved exactly, not by
+  the iterative :func:`~orpheus.numerics.eigenvalue.power_iteration` the
+  spatially-coupled solvers use (see :ref:`direct-eigensolve-solve`,
   :ref:`three-eigenvalue-engines`)
+- **The rank one is the model's, not the solver's.** A mixture carries ONE
+  fission spectrum :math:`\chi`, the production-weighted average of its
+  isotopes' spectra taken at flat flux, so :math:`\mathbf{F} = \chi \otimes
+  \nu\Sigma_f` has rank one by that approximation; the exact operator over
+  :math:`K` fissile isotopes has rank up to :math:`K`
+  (`#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_). A
+  non-rank-one :math:`\mathbf{F}` is not spellable on this path: the fission
+  kernel requires one-dimensional factors
 - **Homogeneous is the FIRST production consumer of**
   :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
   (taxonomy step 5b). Constructing the matrix inverse *explicitly* — rather
@@ -82,7 +94,14 @@ Key Facts
   so the whole spectrum runs through the SAME operator algebra the meshed SN
   solver uses (cross-model single source, Cardinal Rule 2; campaign #276)
 - This is the reference eigenvalue for ALL solvers on homogeneous problems
-- Tolerance: < 1e-12 (limited only by FP arithmetic on small dense matrices)
+- Tolerance: :math:`\kinf` matches the registry's analytical values to
+  :math:`< 10^{-12}`, and the **exact** answer for its float inputs
+  (rational arithmetic, no rounding anywhere) within a forward-error bound
+  derived per case, 3.75 to 43.2 ULP; `[M]` 2026-10-01 the measured
+  deviation is at most 0.86 ULP on the eight shipped producing mixtures
+  (:ref:`homogeneous-exact-reference`). There is no byte pin: the one LU
+  solve on the path is the platform library's, and its last bits are not an
+  ORPHEUS property
 - **Gotcha**: this eigenvalue is flux-shape independent — it tests nothing
   about spatial or angular discretization
 
@@ -112,15 +131,16 @@ all other solvers build:
 
 This chapter derives the infinite-medium eigenvalue problem from first
 principles, describes the cross-section preparation pipeline, and
-presents the direct dense eigensolve used to compute :math:`\kinf`
+presents the direct rank-one solve used to compute :math:`\kinf`
 and :math:`\phi(E)`.
 
 The solver is the single function
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.  It reads
 the problem's hub, :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
 — which assembles the loss operator from the model-shared transport
-operators (see :ref:`direct-eigensolve`) — takes the dominant eigenpair of
-:math:`\mathbf{A}^{-1}\mathbf{F}`, and returns a
+operators (see :ref:`direct-eigensolve`) — reads the dominant eigenpair of
+:math:`\mathbf{A}^{-1}\mathbf{F}` off its rank-one structure (one solve and
+one contraction, :ref:`homogeneous-rank-one-route`), and returns a
 :class:`~orpheus.homogeneous.solver.HomogeneousResult`.
 
 
@@ -696,13 +716,18 @@ whose roots are:
 
 
 .. implements:: two-group-roots
-   :by: orpheus.numerics.eigenvalue.dominant_eigenpair
+   :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
 
    **Implemented by** 2 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
+   others. The solver executes the **rank-one specialisation**:
+   :math:`\det\mathbf{M} = 0`, so the root
+   :math:`\lambda_+ = \operatorname{tr}\mathbf{M} = \langle\nu\Sigma_f,
+   \mathbf{A}^{-1}\chi\rangle` (derived below the worked example); the
+   reference oracle runs a dense eigen-solve on the materialized
+   :math:`\mathbf{M}`.
 
 .. implements:: two-group-roots
    :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
@@ -765,10 +790,30 @@ matrix :math:`\mathbf{F} = \boldsymbol{\chi} \otimes \nu\Sigma_f` is a
 **rank-1 dyad** (fission emits with the single spectrum
 :math:`\boldsymbol{\chi}`), so :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}`
 is also rank 1 — it has exactly one non-zero eigenvalue,
-:math:`\kinf`, regardless of the group count.  The direct dense
-eigensolve (see :ref:`direct-eigensolve`) returns this dominant
-eigenpair immediately; there is no iteration whose convergence rate
-would depend on a dominance ratio.
+:math:`\kinf`, regardless of the group count.
+
+The general root formula :eq:`two-group-roots` shows why the trace is the
+answer and not an accident of these numbers. A rank-one :math:`2\times 2`
+matrix has :math:`\det\mathbf{M} = M_{11}M_{22} - M_{12}M_{21} = 0`, so the
+discriminant is
+
+.. math::
+
+   (M_{11} - M_{22})^2 + 4M_{12}M_{21}
+   \;=\; (M_{11} + M_{22})^2 - 4\det\mathbf{M}
+   \;=\; (\operatorname{tr}\mathbf{M})^2 ,
+
+and the two roots are
+:math:`\lambda_\pm = (\operatorname{tr}\mathbf{M} \pm
+\lvert\operatorname{tr}\mathbf{M}\rvert)/2`, that is
+:math:`\{\operatorname{tr}\mathbf{M},\, 0\}`. The solver reads that root
+without forming :math:`\mathbf{M}` at all: with
+:math:`\mathbf{M} = (\mathbf{A}^{-1}\boldsymbol{\chi})(\nu\Sigma_f)^{\mathsf T}`,
+:math:`\operatorname{tr}\mathbf{M} = \langle\nu\Sigma_f,
+\mathbf{A}^{-1}\boldsymbol{\chi}\rangle`, one solve and one dot product at
+any group count (:ref:`homogeneous-rank-one-route`). There is no
+iteration whose convergence rate would depend on a dominance ratio, and no
+eigen-solver whose last bit depends on the platform.
 
 .. note::
 
@@ -783,12 +828,50 @@ Four-Group Theory
 
 For four groups (fast, epithermal, thermal-1, thermal-2) with a full
 downscatter cascade and fission in all groups, the characteristic
-polynomial is degree 4 and has no convenient closed form.  The
-analytical eigenvalue is computed numerically by SymPy's symbolic
-eigenvalue solver applied to the :math:`4 \times 4` matrix
-:math:`\mathbf{A}^{-1} \mathbf{F}`.
+polynomial is degree 4.  It needs no closed form, because
+:math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` is rank one exactly as in
+two groups: its only non-zero root is
+:math:`\operatorname{tr}\mathbf{M} = \langle\nu\Sigma_f,
+\mathbf{A}^{-1}\boldsymbol{\chi}\rangle`, and for decimal cross sections that
+number is **rational**.
 
-**Result** (from :func:`orpheus.derivations.continuous.analytical.homogeneous.derive_4g`):
+**How the registry computes it.**
+:func:`orpheus.derivations.continuous.analytical.homogeneous.derive_4g`
+calls :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`,
+which forms :math:`\mathbf{M}` with :func:`numpy.linalg.solve` and takes its
+dominant eigenvalue with :func:`numpy.linalg.eig`: a float64 LAPACK
+computation, not a SymPy one (`[M]` 2026-10-01, reading the function; SymPy
+in that module only typesets the 1- and 2-group matrices for the generated
+LaTeX).
+
+**Result**, three readings of one quantity (`[M]` 2026-10-01):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - what is computed
+     - value
+     - how
+   * - exact, for the **decimal** data of ``derive_4g``
+     - :math:`31243/21000 = 1.48776190476190476\ldots`
+     - rational elimination
+   * - exact, for the **float64** inputs the solvers receive
+     - :math:`1.48776190476190405\ldots`
+     - rational elimination
+       (:mod:`orpheus.derivations.common.exact_homogeneous`)
+   * - the registry's ``case.k_inf``
+     - ``1.4877619047619044``
+     - ``numpy.linalg.eig`` of the float :math:`\mathbf{M}`
+   * - the production solver
+     - ``1.487761904761904``
+     - one LU solve and one dot product
+
+The first two rows differ by about 3.2 ULP because ``0.01`` and the other
+decimal cross sections are not binary numbers: the float inputs pose a
+slightly different problem, and the exact answer to THAT problem is the
+only thing a floating-point solver can be held to
+(:ref:`homogeneous-exact-reference`). To ten digits all four read
 
 .. math::
 
@@ -1129,9 +1212,11 @@ it is solved depends on whether the problem couples space:
 - **The infinite homogeneous medium** has no spatial coupling — the loss
   matrix :math:`\mathbf{A}` is a single :math:`G \times G` dense block —
   so the eigenpair is taken **directly**, with no iteration, by
-  :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.
+  :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`: because
+  the fission operator has rank one, the eigenpair is one linear solve and
+  one inner product (:ref:`homogeneous-rank-one-route`).
 
-The remainder of this section describes the direct dense eigensolve.
+The remainder of this section describes that direct solve.
 
 
 .. _direct-eigensolve-assembly:
@@ -1237,7 +1322,7 @@ is minted from it and from nothing else.
       read by nothing on the path — the falsifiable tell of objective O1
       ("no fabricated data reaches the operators"), and the reason the
       retirement is a *re-source* rather than a re-baseline (`[M]` the
-      byte gate is 8 of 8 across the change).  The factory retired with
+      byte gate of the day read 8 of 8 across the change).  The factory retired with
       its last consumer, and three arms that existed only to serve it
       went with it: ``areas``' "no faces at all" case, the
       :math:`S_N`-promotion refusal and the diffusion bounded-geometry
@@ -1294,8 +1379,8 @@ is minted from it and from nothing else.
    before CS1, every consumer passed ``basis_shape=(ng, 1)`` by hand) —
    **inside the**
    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-   **constructor** (one eager materialization + LU factorization; see
-   :ref:`direct-eigensolve-solve`). (The operators'
+   **constructor** (one eager materialization + LU factorization, then one
+   backsolve against :math:`\chi`; see :ref:`direct-eigensolve-solve`). (The operators'
    :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering.dense_per_material`
    accessor — the transpose read straight off the stored cross sections — is
    a storage-side *oracle* used by the verification gates as a
@@ -1325,29 +1410,36 @@ is minted from it and from nothing else.
 
 .. _direct-eigensolve-solve:
 
-The fission dyad and the dense eigensolve
------------------------------------------
+The fission dyad and the rank-one solve
+---------------------------------------
 
 The production matrix is the rank-1 dyad
 :math:`\mathbf{F} = \boldsymbol{\chi} \otimes \nu\Sigma_f`
-:eq:`fission-matrix`, assembled by
+:eq:`fission-matrix`, so solving the loss out of it is solving the loss out
+of ONE column:
 
 .. math::
    :label: fixed-source-solve
 
    \mathbf{M} \;=\; \mathbf{A}^{-1}\mathbf{F}
    \;=\; \mathbf{A}^{-1}\,\bigl(\boldsymbol{\chi}\otimes\nu\Sigma_f\bigr)
+   \;=\; \bigl(\mathbf{A}^{-1}\boldsymbol{\chi}\bigr)\otimes\nu\Sigma_f
 
-i.e. the loss matrix is **solved out** of the production once (rather than
-inverted explicitly), giving the :math:`G \times G` eigenvalue matrix
-:math:`\mathbf{M}`.  The eigenpair follows directly:
+i.e. the loss matrix is **solved out** of the production once, against the
+emission spectrum :math:`\boldsymbol{\chi}` that spans the range of
+:math:`\mathbf{F}` (one solve, not :math:`G`, and never an explicit
+:math:`[\mathbf{A}^{-1}]`), giving the column factor
+:math:`\mathbf{u} = \mathbf{A}^{-1}\boldsymbol{\chi}` of the
+:math:`G \times G` eigenvalue matrix :math:`\mathbf{M}`.  The eigenpair
+follows directly:
 
 .. math::
    :label: keff-update
 
-   \kinf \;=\; \lambda_{\max}(\mathbf{M}),
+   \kinf \;=\; \lambda_{\max}(\mathbf{M})
+   \;=\; \bigl\langle \nu\Sigma_f,\, \mathbf{A}^{-1}\boldsymbol{\chi} \bigr\rangle,
    \qquad
-   \boldsymbol{\phi} \;=\; \text{the dominant right eigenvector of }\mathbf{M},
+   \boldsymbol{\phi} \;\propto\; \mathbf{A}^{-1}\boldsymbol{\chi},
 
 
 .. implements:: keff-update
@@ -1357,35 +1449,163 @@ inverted explicitly), giving the :math:`G \times G` eigenvalue matrix
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
+   others. The solver and the exact rational reference execute the
+   right-hand form (one solve, one inner product); the dense engine and
+   the registry's oracle execute the middle form (an eigen-solve of the
+   materialized :math:`\mathbf{M}`; ``direct_eigenvalue`` delegates the
+   extraction to
+   :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`).
 
 .. implements:: keff-update
    :by: orpheus.numerics.eigenvalue.direct_eigenvalue
 
 .. implements:: keff-update
-   :by: orpheus.numerics.eigenvalue.dominant_eigenpair
+   :by: orpheus.derivations.common.exact_homogeneous.exact_pencil_eigenpair
 
 .. implements:: keff-update
    :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
 
-selected as the eigenpair with the largest real eigenvalue.  By the
-Perron–Frobenius theorem :cite:`Hebert2009` this dominant eigenvector is the
-unique non-negative solution — the **fundamental mode** — so the spectrum
-is sign-normalised to non-negative components.
+the dominant eigenpair, which for a physical medium is the unique
+non-negative solution — the **fundamental mode** of the Perron–Frobenius
+theorem :cite:`Hebert2009`.  Here the theorem is not invoked to *select*
+the mode: the rank-one structure *constructs* it, and the next subsection
+proves that it is the dominant one and that it lies in the positive cone.
 
-Both steps are spelled in the **operator algebra** rather than posed as a
-dense ``(A, F)`` pair, and since the CS4c coda the spelling lives on the
-hub.  The solver's own body is then three lines — build the problem,
-compose the resolvent of its pencil, take the eigenpair:
+.. _homogeneous-rank-one-route:
+
+Why one solve is the whole eigenproblem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The claim is that :eq:`keff-update` is exact — not an approximation of the
+eigenvalue, not the first step of an iteration — whenever
+:math:`\mathbf{F}` is the dyad :eq:`fission-matrix`.  Four steps.
+
+**1. The operator has rank one.**  For every group vector
+:math:`\mathbf{x}`, :math:`\mathbf{F}\mathbf{x} = \boldsymbol{\chi}\,
+\langle\nu\Sigma_f, \mathbf{x}\rangle`: fission collects ONE number, the
+production rate, and emits it with ONE spectrum.  So
+
+.. math::
+
+   \mathbf{K}\mathbf{x} \;=\; \mathbf{A}^{-1}\mathbf{F}\mathbf{x}
+   \;=\; \mathbf{u}\,\langle\nu\Sigma_f, \mathbf{x}\rangle,
+   \qquad \mathbf{u} = \mathbf{A}^{-1}\boldsymbol{\chi},
+
+that is :math:`\mathbf{K} = \mathbf{u}\,(\nu\Sigma_f)^{\mathsf T}`, whose
+range is the line spanned by :math:`\mathbf{u}`.
+
+**2. Its one non-zero eigenpair.**  Apply :math:`\mathbf{K}` to
+:math:`\mathbf{u}` itself:
+:math:`\mathbf{K}\mathbf{u} = \mathbf{u}\,\langle\nu\Sigma_f,\mathbf{u}\rangle`,
+so :math:`\mathbf{u}` is an eigenvector with eigenvalue
+:math:`k = \langle\nu\Sigma_f, \mathbf{u}\rangle`.  Conversely, if
+:math:`\mathbf{K}\mathbf{x} = \lambda\mathbf{x}` with :math:`\lambda \neq 0`
+then :math:`\mathbf{x} = \mathbf{K}\mathbf{x}/\lambda` lies in the range of
+:math:`\mathbf{K}`, the line through :math:`\mathbf{u}`; so every eigenvector
+with a non-zero eigenvalue is a multiple of :math:`\mathbf{u}`, and its
+eigenvalue is :math:`k`.  The characteristic polynomial is
+:math:`\lambda^{G-1}(\lambda - k)`, which is the general-:math:`G` form of the
+two-group factorisation :math:`\lambda(\lambda - \operatorname{tr}\mathbf{M})`
+above, and :math:`k = \operatorname{tr}\mathbf{K}`.
+
+**3. It is the dominant one, and the mode is in the cone.**  The loss
+matrix :math:`\mathbf{A} = \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf T}
+- 2\Sigma_2^{\mathsf T}` has non-positive off-diagonal entries
+:math:`-\Sigma_{s0}(g'\!\to g) - 2\Sigma_2(g'\!\to g)`, so it is a
+Z-matrix.  Column :math:`g'` of :math:`\mathbf{A}` sums to
+:math:`\Sigma_{t,g'} - \sum_g \bigl[\Sigma_{s0}(g'\!\to g) +
+2\Sigma_2(g'\!\to g)\bigr]`: one collision in group :math:`g'` removes one
+neutron and returns that many to the scattering system.  When every column
+sum is positive (each collision returns fewer neutrons than it removes —
+the sufficient condition of strict column diagonal dominance),
+:math:`\mathbf{A}` is a non-singular M-matrix, and a non-singular M-matrix
+is inverse-positive, :math:`\mathbf{A}^{-1} \geq 0` entrywise (Berman and
+Plemmons, *Nonnegative Matrices in the Mathematical Sciences*, SIAM 1994,
+Chapter 6).  With :math:`\boldsymbol{\chi} \geq 0` and
+:math:`\nu\Sigma_f \geq 0` this gives :math:`\mathbf{u} \geq 0` and
+:math:`k \geq 0`, strictly positive as soon as a fissile group receives
+flux.  Every other eigenvalue is :math:`0`, so :math:`k` is the spectral
+radius: the dominant eigenvalue, and :math:`\mathbf{u}` is the
+non-negative fundamental mode.  The flux is the gauged representative of
+that ray, :math:`\boldsymbol{\phi} = 100\,\mathbf{u}/k`
+(:eq:`normalisation`).
+
+**4. What is and is not checked at run time.**  The dense route's guards
+have nothing left to act on: an eigen-solver can return a complex dominant
+eigenvalue or an eigenvector of either sign, which is why
+``dominant_eigenpair`` rejected the first and sign-normalised the second;
+here :math:`k` is a real inner product and the sign of :math:`\mathbf{u}`
+is fixed by :math:`\boldsymbol{\chi}`, not by a solver's arbitrary
+orientation.  The cone membership of step 3 is a theorem for a physical
+:math:`\mathbf{A}`, and `[M]` 2026-10-01 nothing in
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` asserts it:
+an unphysical loss matrix would return whatever
+:math:`\langle\nu\Sigma_f, \mathbf{A}^{-1}\boldsymbol{\chi}\rangle` is.  A
+non-fissile mixture (:math:`\nu\Sigma_f = 0`) reads :math:`k = 0`, which
+the gauge's zero-reading refusal stops before a division by zero
+(:class:`~orpheus.numerics.gauge.ScaleGauge`).
+
+**The rank one is the model's.**  Every step above rests on
+:math:`\mathbf{F}` being one column times one row, and that is a property
+of the cross-section data, not of the transport physics.  A mixture
+carries a single fission spectrum: the production-weighted average of its
+isotopes' spectra, taken at flat flux.  The exact operator over :math:`K`
+fissile isotopes is :math:`\mathbf{X}\mathbf{N}^{\mathsf T}` (spectra as the
+columns of :math:`\mathbf{X}`, production cross sections as the columns of
+:math:`\mathbf{N}`), of rank up to :math:`K`, and its :math:`k` is the
+dominant eigenvalue of the :math:`K \times K` matrix
+:math:`\mathbf{N}^{\mathsf T}\mathbf{A}^{-1}\mathbf{X}` — the same
+construction one dimension up
+(`#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_).  On this
+path a non-rank-one :math:`\mathbf{F}` cannot be spelled: the fission kernel
+the hub builds requires one-dimensional factors, so the theorem's
+hypothesis is enforced by a type rather than assumed by the solver.
+
+**Why no eigen-solver.**  The last bit of a dense eigen-solve belongs to
+the platform's linear-algebra library, not to the problem.  `[M]`
+2026-09-30: after macOS 27.0.1 replaced Accelerate, :func:`numpy.linalg.eig`
+(LAPACK ``geev``) returned a :math:`\kinf` 1 ULP away from the previous
+release's on two of the eight shipped producing mixtures (``homo_4eg``,
+``mixture_A_4g``) with no ORPHEUS change (the evidence entry is "2026-10-01
+the platform bit pin" on :doc:`/development/evidence/vv-anti-patterns`).
+The rank-one route has no eigen-solver, so the only platform primitive on
+the path is one LU solve (``getrf`` then ``getrs``), whose bytes are
+deliberately not pinned (:ref:`homogeneous-exact-reference`).  It is also
+the more accurate route: `[M]` 2026-10-01, against the exact rational
+:math:`\kinf` of the float inputs over the eight mixtures, a ``geev``
+eigen-solve of the materialized :math:`[\mathbf{K}]` reads at most
+:math:`+1.55` ULP and the rank-one route at most :math:`0.86` ULP.
+
+The solver's own body is now four lines — build the problem, take the
+fission operator, solve the loss out of its emission spectrum, contract with
+its production rate:
 
 .. code-block:: python
 
    problem = HomogeneousProblem(mix)
-   multiplication = MatrixInverseOperator(problem.loss) @ problem.production   # the Strategy
-   k_inf, phi = dominant_eigenpair(multiplication.as_matrix())
+   fission = problem.production                                             # F = |χ⟩⟨νΣf|
+   phi = MatrixInverseOperator(problem.loss).apply(fission.emission_spectrum)  # u = A⁻¹χ, the Strategy
+   k_inf = float(fission.production_rate.evaluate(phi).item())             # k∞ = ⟨νΣf, u⟩
 
-with the PENCIL — the problem's terminal object, the pair
-:math:`(\mathbf{A}, \mathbf{F})` — posed on the one space
+:attr:`IsotropicFission.emission_spectrum
+<orpheus.transport.operators.isotropic_transfer.IsotropicFission.emission_spectrum>`
+is the dyad's column factor and
+:attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.production_rate`
+its row factor; the operator's
+:attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`
+is built from the same two objects, so the solver reads the very arrays the
+dyad applies.  The production rate is evaluated on the posed
+:math:`(n_g, 1)` column that ``apply`` returns, which matters: the
+reaction-rate functional silently broadcasts a flat vector
+(:ref:`homogeneous-rates-and-normalisation`).  The two factors are spelled
+from the operator's own factors, never from ``mix.chi`` and
+``mix.nu_sig_f``, so k is the contraction of the dyad the hub posed — and it
+is measure-free: the pose's point weight enters neither factor
+(`[M]` the ``test_operator_spaces`` G2.5 leg, which doubles the point weight,
+keeps :math:`\kinf` unchanged).
+
+The pencil — the problem's terminal object, the pair
+:math:`(\mathbf{A}, \mathbf{F})` — is posed on the one space
 :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.space`:
 
 .. code-block:: python
@@ -1405,9 +1625,9 @@ The last two lines are new: :attr:`HomogeneousProblem.pencil
 two types** the S\ :sub:`N` hub poses over its own operators
 (:ref:`sn-the-problem-poses-its-pencil`), which is why they live in
 :mod:`orpheus.numerics` and not in either method's package.  The
-addition is purely additive: the solver body below still composes the
-resolvent from ``problem.loss`` and ``problem.production``, so nothing
-about :math:`k_\infty` moved.  The full articulation — what a pencil IS,
+addition is purely additive: the solver reads ``problem.loss`` and
+``problem.production``, the pencil's two members, and no arithmetic of
+:math:`k_\infty` passes through the pencil type.  The full articulation — what a pencil IS,
 its degree contract, and why it carries no inverse — is
 :ref:`the-operator-pencil`.
 
@@ -1427,13 +1647,16 @@ uses as its structurally-independent reference against
 (``[M]`` bit-exact at 1g and 2g; **one ulp** apart at 4g — absolute
 :math:`2.2\times10^{-16}` on :math:`k_\infty = 1.4878`, relative
 :math:`1.5\times10^{-16}` — so it is pinned at ``rtol=1e-13``, never
-``array_equal``).
+``array_equal``).  The same closed form is the production route
+(:ref:`homogeneous-rank-one-route`).
 
 The resolvent :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` is NOT a
 property of the problem: *how* the pencil is inverted is a Strategy
 choice (the consumers campaign's ruling R-cc2/R-cc5, 2026-09-12 — a
 Problem builds its pencil as its last step; a resolvent picks an
-inversion of it), so the composition lives in the solver. (Until
+inversion of it), so the inversion lives in the solver, which inverts
+:math:`\mathbf{A}` against the one column :math:`\boldsymbol{\chi}` and
+composes no :math:`\mathbf{K}` at all. (Until
 2026-09-12 the hub carried it as a ``multiplication`` property — its own
 docstring already called the explicit inverse "the strategy choice".)
 ⚠ And the pencil landing did **not** change that: it deliberately
@@ -1476,29 +1699,25 @@ space to derive it from.)
    are the same object under both names.
 
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-materializes and LU-factors the loss operator **once** at construction; the
-``@`` composes it with the fission dyad into the multiplication operator
-:math:`\mathbf{K}` — in the solver, on the problem's pencil.  Its
-:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` then walks the
-:math:`G` basis columns — each column is one dyad apply
-:math:`\mathbf{F}\mathbf{e}_j` followed by one LU backsolve
-:math:`\mathbf{A}^{-1}(\cdot)` against the held factors — producing the dense
-:math:`G \times G` resolvent :math:`[\mathbf{K}] = \mathbf{A}^{-1}\mathbf{F}`
-(the loss matrix is still **solved out** of the production, never inverted
-into an explicit :math:`[\mathbf{A}^{-1}]`).
-
-The dominant eigenpair of that materialized resolvent is then taken by
-:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, the **shared
-Perron–Frobenius extraction primitive**: it runs :func:`numpy.linalg.eig`,
-selects the largest-real eigenpair, sign-normalises :math:`\boldsymbol{\phi}`
-so its components sum to a non-negative value, and **rejects a complex
-dominant eigenvalue** (:class:`ValueError`) — the resolvent
-:math:`\mathbf{A}^{-1}\mathbf{F}` of a well-posed criticality problem has a
-real, positive dominant by Perron–Frobenius, so a complex one signals a
-malformed :math:`(\mathbf{A}, \mathbf{F})` and is failed loud rather than
-silently truncated (Cardinal Rule 1).  This validation has **one home**
-(:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`); every direct
-spelling delegates to it.
+materializes and LU-factors the loss operator **once** at construction
+(one :func:`scipy.linalg.lu_factor` of the :math:`G \times G` block,
+produced by the operator's own
+:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`), and its
+:meth:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.apply`
+is one LU backsolve against the held factors.  The solver applies it once,
+to the emission spectrum: :math:`\mathbf{u} = \mathbf{A}^{-1}\boldsymbol{\chi}`,
+the loss **solved out** of the production's one column, never inverted into
+an explicit :math:`[\mathbf{A}^{-1}]` and never multiplied into a
+:math:`[\mathbf{K}]`.  The production-rate co-vector then reads
+:math:`\kinf = \langle\nu\Sigma_f, \mathbf{u}\rangle`.  The route is
+gated as a route, not only by its output:
+``tests/gates/homogeneous/test_homogeneous.py::test_the_rank_one_route_is_the_homogeneous_call_path``
+replaces every dense eigen driver (``dominant_eigenpair`` and the
+``numpy``/``scipy`` ``eig``/``eigvals``) by a decoy that raises and requires
+the solve to succeed with the same answer, and replaces
+``MatrixInverseOperator.apply`` by a decoy returning :math:`2\mathbf{A}^{-1}x`
+and requires :math:`\kinf` to double exactly and the gauged flux to stay
+bit-identical (a power-of-two scale commutes with every rounding).
 
 **Explicit direct realization — the strategy choice as a type.**  The
 homogeneous solver is the **first production consumer** of
@@ -1509,44 +1728,33 @@ operand tree :math:`C - K_\mathrm{iso}` (a sum with an invertible leading
 collision diagonal :math:`C`), would return the **iterative**
 :class:`~orpheus.numerics.green_operator.GreenOperator` preconditioned
 splitting.  For a 0-D loss operator that is a single small dense block the
-iterative splitting is the wrong realization and the exact dense inverse is
+iterative splitting is the wrong realization and an exact direct inverse is
 right; encoding that decision as the *type* ``MatrixInverseOperator`` — not a
 ``strategy=`` flag on ``.inverse()`` — is the taxonomy §3 strategy-override
 seam realized honestly (the type **is** the choice).
 
-The ``(A, F)``-posed convenience engine
-:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` is the **sibling
-spelling** of this same exact-dense extraction: it forms the resolvent from a
-dense ``(A, F)`` pair via :func:`numpy.linalg.solve` and then delegates to the
-identical :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  Both routes
-terminate in the one extraction home; they differ only in how the resolvent is
-*posed* — the homogeneous path builds it through the operator algebra and so
-**no longer calls** ``direct_eigenvalue``, which now has **zero production
-consumers**, retained as the ``(A, F)``-posed engine of the three-engine
-family (:ref:`three-eigenvalue-engines`) and the Rayleigh-quotient test oracle.
-
-.. note::
-
-   **Principled-equivalence re-baseline (step 5b).**  Re-spelling the
-   resolvent through the operator algebra changed the LAPACK call sequence:
-   the previous :func:`numpy.linalg.solve` formed
-   :math:`\mathbf{A}^{-1}\mathbf{F}` in one batched ``gesv``; the operator
-   path holds a single :func:`scipy.linalg.lu_factor` of :math:`\mathbf{A}`
-   and issues one ``lu_solve`` backsolve per basis column.  Because
-   floating-point addition is not associative, the two sequences may differ
-   at the ULP level, so the cross-engine regression contract widened from
-   byte-identity to ``rtol=1e-12`` (:math:`\kappa(\mathbf{A})\cdot`\ ULP
-   portable across BLAS builds; measured bit-identical on the reference host,
-   numpy 2.4 / scipy 1.17 sharing one LAPACK).  This satisfies all three
-   re-baseline criteria (:ref:`operator-algebra`): the resolvent is formed
-   from **named** operators (``MatrixInverseOperator`` is
-   :math:`\mathbf{A}^{-1}`, the fission dyad is :math:`\mathbf{F}`); the value
-   is anchored on a **structurally-independent** reference — the closed-form
-   SymPy :math:`\kinf` of ``test_kinf_exact`` (1e-12), into which
-   ``dominant_eigenpair`` is never wired; and the admissible drift
-   (:math:`\sim\kappa(\mathbf{A})\cdot`\ ULP) is orders of magnitude below any
-   rewire bug (a factor swap or dropped term moves :math:`k` by
-   :math:`O(10^{-3})` or more).
+The ``(A, F)``-posed engine
+:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` is the **dense
+sibling** of this route: it forms the resolvent from a dense ``(A, F)`` pair
+via :func:`numpy.linalg.solve` and extracts the dominant eigenpair with
+:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+(:func:`numpy.linalg.eig`, the largest-real eigenpair, a sign convention, and
+a refusal of a complex dominant eigenvalue).  The homogeneous route shares
+neither step with it, and `[M]` 2026-10-01 neither engine has a production
+caller: in ``orpheus/`` outside :mod:`orpheus.numerics.eigenvalue` itself, the
+only caller of ``dominant_eigenpair`` is the derivation oracle
+``kinf_and_adjoint_spectrum_homogeneous``, and ``direct_eigenvalue`` has none.
+Both remain the dense members of the three-engine family
+(:ref:`three-eigenvalue-engines`), and ``direct_eigenvalue`` is the
+cross-engine oracle of
+``tests/gates/homogeneous/test_homogeneous.py::test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair``:
+the solver's rank-one :math:`\kinf` against the dense engine's eigenvalue of
+the SAME assembled :math:`(\mathbf{A}, \mathbf{F})`, at ``rtol=1e-12``.  That
+gate is stronger than its own docstring says.  The two sides still share
+their input, the assembled pair, but no longer an eigen-solver: one reads a
+trace off a solve, the other runs ``geev``, so the comparison is
+independent on the derivation axis (``instrument-doctrine`` X4) and a rewire
+regression in either reds it.
 
 .. note::
 
@@ -1555,26 +1763,159 @@ family (:ref:`three-eigenvalue-engines`) and the Rayleigh-quotient test oracle.
    (:math:`\mathbf{A}\boldsymbol{\phi}^{(n)} = \mathbf{Q}_f^{(n)}`) and
    the production/absorption eigenvalue ratio of the retired power
    iteration.  They are retained on the **direct** analogues: the
-   loss-matrix solve :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` (the
-   single dense solve that replaces the per-iteration sequence) and the
-   eigenvalue extraction :math:`\kinf = \lambda_{\max}(\mathbf{M})` (the
-   converged limit the iteration ratio approached).  The classical
+   loss solve against the emission spectrum,
+   :math:`\mathbf{u} = \mathbf{A}^{-1}\boldsymbol{\chi}` (the single solve
+   that replaces the per-iteration sequence), and the eigenvalue
+   :math:`\kinf = \langle\nu\Sigma_f, \mathbf{u}\rangle` (the converged limit
+   the iteration ratio approached).  The classical
    production/absorption form
    :math:`k = (\nu\Sigma_f\cdot\phi)/(\Sigma_a\cdot\phi)` remains a valid
    one-group balance identity — it is the per-group balance the
    :class:`~data.macro_xs.mixture.Mixture.absorption_xs` property reports
-   alongside :math:`\kinf` — but it is no longer the computational path.
+   alongside :math:`\kinf` — but it is not the computational path.
 
 .. note::
 
    Because :math:`\mathbf{A}` is a single small dense block, the whole
-   solve is one :func:`scipy.linalg.lu_factor` of :math:`\mathbf{A}`,
-   :math:`G` ``lu_solve`` backsolves to form the resolvent
-   :math:`[\mathbf{K}]`, and one :func:`numpy.linalg.eig`.  There is **no
-   inner iteration and no outer iteration** — the homogeneous solver is the
-   one deterministic solver in ORPHEUS with no iteration at all.  This is what
+   solve is one :func:`scipy.linalg.lu_factor` of :math:`\mathbf{A}`, one
+   ``lu_solve`` backsolve against :math:`\boldsymbol{\chi}`, and one
+   :math:`G`-term inner product.  There is **no inner iteration, no outer
+   iteration and no eigen-solver** — the homogeneous solver is the one
+   deterministic solver in ORPHEUS with no iteration at all.  This is what
    makes it the instantaneous reference eigenvalue for every other solver on a
    homogeneous problem.
+
+.. _homogeneous-exact-reference:
+
+The exact reference, and the bound the solve is held to
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**What the solve is compared with.**  Every float64 is a dyadic rational, so
+the loss matrix and the dyad built from the FLOAT cross sections are exact
+rational matrices, and their eigenproblem has an exact rational answer.
+:mod:`orpheus.derivations.common.exact_homogeneous` computes it with
+:class:`fractions.Fraction`: :math:`\mathbf{A}` assembled exactly as
+:math:`\operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf T} -
+2\Sigma_{2,0}^{\mathsf T}`, :math:`\mathbf{A}^{-1}` by Gauss–Jordan elimination,
+:math:`\mathbf{u} = \mathbf{A}^{-1}\boldsymbol{\chi}`,
+:math:`\kinf = \langle\nu\Sigma_f, \mathbf{u}\rangle`, the flux in the
+production gauge :math:`\boldsymbol{\phi} = 100\,\mathbf{u}/\kinf`, and the
+one-group condensed cross sections
+:math:`\bar\sigma_x = \langle\Sigma_x, \boldsymbol{\phi}\rangle /
+\langle 1, \boldsymbol{\phi}\rangle`.  No rounding occurs anywhere.  This is
+"the exact answer for the float inputs", which differs from the exact
+answer for the decimal cross sections a library tabulates by a few ULP (the
+four-group table under "Analytical Solutions" above shows both); the former
+is the only thing a floating-point solver can be held to.
+
+**Why it is independent of the solver it checks.**  The reference uses the
+same rank-one identity as the solver, so agreement alone could be two
+spellings of one formula (``instrument-doctrine`` X4).  It therefore
+certifies itself against the DEFINING equations, in exact arithmetic, before
+any comparison with production:
+:math:`\mathbf{A}\mathbf{A}^{-1} = \mathbf{I}`,
+:math:`\mathbf{F}\boldsymbol{\phi} = \kinf\,\mathbf{A}\boldsymbol{\phi}` with
+zero residual, :math:`\operatorname{tr}(\mathbf{A}^{-1}\mathbf{F}) = \kinf`,
+the gauge, and the cone.  It reaches no production solver, operator or
+LAPACK routine; it shares only the float inputs with production, which is
+the point.  ``test_the_exact_reference_certifies_itself`` runs the
+certificate on every case.
+
+**The bound, derived rather than chosen.**  The gate
+``tests/gates/homogeneous/test_kinf_exact_reference.py`` asserts that
+production's :math:`\kinf`, flux and condensed cross sections lie within a
+forward-error bound of the exact values, evaluated per case in exact
+rationals from the solve's own LU factors.  With :math:`u = 2^{-53}` the unit
+roundoff and :math:`\gamma_m = mu/(1 - mu)` (Higham, *Accuracy and Stability
+of Numerical Algorithms*, 2nd ed., SIAM 2002, §3.1):
+
+1. **Assembly.**  :math:`\mathbf{E} = \hat{\mathbf{A}} - \mathbf{A}`, the
+   rounding of the float assembly, is computed exactly.
+2. **Solve.**  The computed :math:`\hat{\mathbf{u}}` satisfies
+   :math:`(\hat{\mathbf{A}} + \boldsymbol{\Delta})\hat{\mathbf{u}} =
+   \boldsymbol{\chi}` with :math:`\lvert\boldsymbol{\Delta}\rvert \le
+   \gamma_{3G}\,\mathbf{P}^{\mathsf T}\lvert\hat{\mathbf{L}}\rvert
+   \lvert\hat{\mathbf{U}}\rvert` (Higham Theorem 9.4), read from the computed
+   factors of the same :math:`\hat{\mathbf{A}}` in the same process, so the
+   bound holds for whatever LAPACK the host has.
+3. **Forward error.**  With :math:`\mathbf{W} = \lvert\mathbf{A}^{-1}\rvert
+   (\lvert\mathbf{E}\rvert + \gamma_{3G}\mathbf{P}^{\mathsf T}
+   \lvert\hat{\mathbf{L}}\rvert\lvert\hat{\mathbf{U}}\rvert)` and
+   :math:`r = \lVert\mathbf{W}\rVert_\infty < 1` (asserted),
+
+   .. math::
+
+      \lvert\hat{\mathbf{u}} - \mathbf{u}\rvert
+      \;\le\; (\mathbf{I} - \mathbf{W})^{-1}\mathbf{W}\lvert\mathbf{u}\rvert
+      \;\le\; \mathbf{W}\lvert\mathbf{u}\rvert
+      + \tfrac{r}{1-r}\,\bigl\lVert\mathbf{W}\lvert\mathbf{u}\rvert\bigr\rVert_\infty\,\mathbf{1},
+
+   the componentwise form of Higham Theorem 7.4 with no first-order
+   truncation (the Neumann series of a non-negative matrix of norm
+   :math:`r` majorises the inverse).
+4. **Inner product.**  A :math:`G`-term dot product in any summation order is
+   within :math:`\gamma_G\lvert\mathbf{a}\rvert^{\mathsf T}\lvert\mathbf{b}\rvert`
+   of the exact one (Higham Eq. 3.5); the gate uses :math:`\gamma_{G+1}`,
+   admitting one extra rounding per term for the pairing's weight multiply.
+5. **Gauge and condensation.**  Two roundings in
+   :math:`\hat{\mathbf{u}}\cdot\mathrm{fl}(100/\hat n)`, and, because every
+   term is non-negative (the cone), relative errors that add in the ratio
+   :math:`\bar\sigma_x`, plus one rounding for its division.
+
+The derivation is written out in full in the gate's docstring.  Evaluated
+per case (`[M]` 2026-10-01; ULP of the exact value):
+
+.. list-table:: The derived bound, per case
+   :header-rows: 1
+   :widths: 30 12 30 14 14
+
+   * - case
+     - :math:`\kinf`
+     - flux, per group
+     - :math:`\bar\sigma_{\rm prod}`
+     - :math:`\bar\sigma_{\rm abs}`
+   * - ``homo_1eg``, ``mixture_A_1g``
+     - 3.75
+     - 5.2
+     - 18.8
+     - 12.5
+   * - ``homo_2eg``, ``homo_2eg_with_eg``, ``mixture_A_2g``
+     - 18.4
+     - 24.0, 34.4
+     - 71.1
+     - 75.2
+   * - ``homo_2eg_n2n``
+     - 17.7
+     - 23.7, 30.5
+     - 45.1
+     - 76.9
+   * - ``homo_4eg``, ``mixture_A_4g``
+     - 43.2
+     - 47.3, 79.5, 52.4, 69.8
+     - 173.4
+     - 115.1
+
+`[M]` 2026-10-01 the rank-one route's :math:`\kinf` sits at most
+:math:`0.86` ULP from the exact value over the eight cases (``homo_1eg`` and
+``mixture_A_1g`` exactly, the 2-group cases :math:`-0.86`, ``homo_2eg_n2n``
+:math:`+0.73`, the 4-group cases :math:`-0.45`), and every flux component
+within 7 % of its bound; the gate's 40 rows pass.
+
+**What the bound can and cannot see.**  A worst-case bound holds for every
+rounding pattern of an LU solve, so it is loose by construction; its value
+is that no platform can move it.  The structural mutations a rewire would
+introduce red it by orders of magnitude (`[M]` 2026-10-01, the
+test-architect's battery over the 40 rows: a dropped dot-product term reds
+6, the :math:`(n,2n)` term dropped from :math:`\mathbf{A}` reds 3 — the one
+case that carries it — a non-transposed scattering matrix reds 18, a gauge
+target off by :math:`2^{-40}` reds 8).  A 1-ULP change of one :math:`\chi`
+entry does **not** red it, and cannot: it moves the exact :math:`\kinf` by
+about 1 ULP, inside every case's bound, and the rounding of the LU solve
+alone is entitled to more.  The resolution in :math:`\chi` is 8 ULP of the
+entry at one group, 16 at two, between 32 and 64 at four.  Nothing on the
+homogeneous route is pinned at the bit, deliberately: its one platform
+primitive is the LU solve, and bit-level platform independence is a claim
+this route does not make.
 
 
 .. _spectral-invisibility:
@@ -1587,9 +1928,28 @@ of the resolvent (:math:`\mathbf{F}\mathbf{A}^{-1}` instead of
 :math:`\mathbf{A}^{-1}\mathbf{F}`), and **transposing** the materialized
 resolvent — are *spectrally invisible*: they move :math:`\kinf` by **exactly
 zero**.  Every :math:`k`-level gate (the cross-engine equivalence, the
-closed-form SymPy anchor) is therefore structurally **blind** to them.  The
+registry's analytical anchor) is therefore structurally **blind** to them.  The
 reason is a pair of standard linear-algebra identities, and understanding them
 dictates *which* gate must catch the bug.
+
+.. note::
+
+   **Scope.**  The production solve forms no resolvent
+   (:ref:`homogeneous-rank-one-route`); the identities below are about the
+   composition ``MatrixInverseOperator(loss) @ production`` as an operator
+   of the algebra, which the object gate named below still constructs and
+   which any consumer materializing :math:`\mathbf{A}^{-1}\mathbf{F}` meets.
+   On the rank-one route neither mistake has a single-step analogue that
+   leaves :math:`\kinf` unmoved `[R]`: transposing :math:`\mathbf{A}` alone
+   gives :math:`\langle \mathbf{A}^{-1}\nu\Sigma_f, \boldsymbol{\chi}\rangle`,
+   which differs from :math:`\kinf` unless :math:`\mathbf{A}` is symmetric,
+   and so does exchanging the roles of :math:`\boldsymbol{\chi}` and
+   :math:`\nu\Sigma_f`.  The two together are the **adjoint** problem,
+   whose eigenvalue is :math:`\kinf` exactly and whose eigenvector,
+   :math:`\mathbf{A}^{-\mathsf T}\nu\Sigma_f`, is the importance rather than
+   the flux; the flux rows of the exact-reference gate
+   (:ref:`homogeneous-exact-reference`) are what see that pair, and a
+   non-transposed scattering matrix reds 18 of its 40 rows `[M]`.
 
 **Factor-order swap is a similarity transform.**  For any invertible
 :math:`\mathbf{A}`,
@@ -1705,10 +2065,9 @@ the same generalised eigenproblem
        :math:`\mathbf{A}^{-1}\mathbf{F}` via :func:`numpy.linalg.solve` and
        delegates the extraction to
        :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  The direct
-       (non-iterative) sibling of ``power_iteration``; the 0-D homogeneous
-       medium reaches the *same* exact extraction through the operator-algebra
-       spelling (:ref:`direct-eigensolve-solve`) rather than this ``(A, F)``
-       entry point.
+       (non-iterative) sibling of ``power_iteration``.  The 0-D homogeneous
+       medium does not use it: its rank-one fission makes the eigenpair one
+       solve and one inner product (:ref:`direct-eigensolve-solve`).
    * - :func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration`
      - iterative, **superlinear** (locally quadratic)
      - Polishing an eigenpair *estimate* to the eigenpair NEAREST its
@@ -1719,59 +2078,65 @@ the same generalised eigenproblem
        adjoint-:math:`\phi^*` vehicle, is
        `#277 <https://github.com/deOliveira-R/ORPHEUS/issues/277>`_.
 
-The infinite-medium :math:`\kinf` takes the **exact dense** route — the
-operator-algebra spelling ``MatrixInverseOperator(loss) @ production``
-extracted by :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
-(:ref:`direct-eigensolve-solve`) — because the 0-D loss matrix
-:math:`\mathbf{A}` is a single :math:`G \times G` block, so the spectrum of
-:math:`\mathbf{A}^{-1}\mathbf{F}` is **exactly solvable**: an iterative engine
-would only approximate, at a convergence tolerance, an answer the dense solve
-gives to machine precision in one shot.  That exactness matters here
-specifically: the homogeneous solver is verified against a :math:`10^{-12}`
-**closed-form** analytical eigenvalue (the ``homo_1eg`` / ``homo_2eg`` /
-``homo_4eg`` benchmarks below), and the cost an iterative engine pays to reach
-:math:`10^{-12}` is coupled to the dominance ratio :math:`|k_1/k_0|`, a
-dependence the direct dense inverse does not have.
+The infinite-medium :math:`\kinf` takes **none of the three**: it is the
+closed form :math:`\langle\nu\Sigma_f, \mathbf{A}^{-1}\boldsymbol{\chi}\rangle`
+(:ref:`homogeneous-rank-one-route`), one LU solve and one inner product.  An
+iterative engine would only approximate, at a convergence tolerance, an answer
+the closed form gives to the rounding of one solve; and a dense eigen-solve
+would add an eigen-solver whose last bit is the platform library's.  The
+closed form exists because the fission operator has rank one: the resolvent
+:math:`\mathbf{A}^{-1}\mathbf{F} = (\mathbf{A}^{-1}\boldsymbol{\chi})\,
+(\nu\Sigma_f)^{\mathsf T}` has a single non-zero eigenvalue and :math:`G-1`
+exact zeros, so its dominance ratio is :math:`0` and even
+:func:`~orpheus.numerics.eigenvalue.power_iteration` would converge in one
+step from any start with a component along :math:`\mathbf{A}^{-1}\boldsymbol{\chi}`.
 
 .. note::
 
-   **The rank-1 subtlety.**  For the *pure* fission dyad
-   :math:`\mathbf{F} = \boldsymbol{\chi}\otimes\nu\Sigma_f` the resolvent
-   :math:`\mathbf{A}^{-1}\mathbf{F} = (\mathbf{A}^{-1}\boldsymbol{\chi})\,
-   (\nu\Sigma_f)^{\mathsf T}` is **rank-1**: it has a single nonzero
-   eigenvalue and :math:`G-1` exact zeros, so the dominance ratio is
-   :math:`0` and :func:`~orpheus.numerics.eigenvalue.power_iteration` would
-   in fact converge in *one* step on this problem.  That one-step property
-   is a fragile consequence of :math:`\mathbf{F}`'s rank-1 structure, not a
-   general guarantee — it does not survive a future multi-spectrum
-   production term.  The **exact dense inverse** is exact for **any**
-   :math:`\mathbf{F}`, so it is the robust as well as the exact choice.
+   **The rank-one structure is a hypothesis, and the type enforces it.**
+   The route is exact only while :math:`\mathbf{F}` is one column times one
+   row.  That holds for every mixture the tree can pose: the mixture carries
+   one fission spectrum, and the fission kernel the hub builds refuses
+   factors that are not one-dimensional, so a multi-spectrum production term
+   is not spellable on this path rather than silently mishandled.  The
+   physics does not promise it: the flat-flux production-weighted
+   :math:`\chi` is a data-layer approximation, and the exact operator over
+   :math:`K` fissile isotopes has rank up to :math:`K`
+   (`#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_).
 
 **The pure-math verification of the engines.**  All three engines — and the
-shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` extraction they
-delegate to — are verified against a **transport-unrelated, hand-derived
-closed-form eigenproblem** — :math:`\mathbf{M} =
+shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` extraction the
+dense one delegates to — are verified against a **transport-unrelated,
+hand-derived closed-form eigenproblem** — :math:`\mathbf{M} =
 V\operatorname{diag}(\lambda)V^{-1}` with chosen eigenpairs, and the rank-1
 closed form :math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
 ``tests/gates/numerics/test_eigenvalue.py`` (the closed-form eigenproblem, the direct
 ``dominant_eigenpair`` surface with its one-home relocation proofs, and the RQI
 gates).  This is a **closed-form** reference: V&V pillar 1, the *only* pillar
-that proves an eigenvalue (MMS is source-driven and cannot).  No reference
-value is produced by calling the same :func:`numpy.linalg.eig` the engine uses,
-so the cross-check is structurally independent by construction.
+that proves an eigenvalue (MMS is source-driven and cannot).  In that file no
+reference VALUE is produced by :func:`numpy.linalg.eig`: `[M]` 2026-10-01 its
+four calls to it are a precondition that the host's LAPACK still returns a
+negative-sum eigenvector on the sign-convention fixture, the bodies of two
+stand-ins that neuter ``dominant_eigenpair`` to prove its guards have one
+home, and an executable copy of the engine's body that exists only to show
+each named mutation reddens its gate.
 
 Once an engine is pinned against domain-independent ground truth it is
-**trusted machinery**, and a production solver AND its verification oracle
-may BOTH call it without contamination.  The structural independence does
-NOT live in the eigensolver — it lives in how :math:`(\mathbf{A},
-\mathbf{F})` are *assembled*.  The homogeneous solver builds
-:math:`\mathbf{A} = C - K_\mathrm{iso}` through the transport operator
-algebra (:ref:`direct-eigensolve-assembly`); an oracle may build the same
-:math:`\mathbf{A} = \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} -
-2\Sigma_2^{T}` by the fused route.  Two different structural paths to the
-same matrix, cross-checked at the eigenvalue — the shared, pre-verified
-extraction (:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`) is not a
-contamination because the independence was never asked of it.
+**trusted machinery**, and two routes may both call it without contamination,
+provided they assemble its input differently.  That is the relationship
+between :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` and the
+registry's oracle
+:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`:
+both end in :func:`numpy.linalg.eig`, one on the pair the hub assembles
+through the transport operators (:ref:`direct-eigensolve-assembly`), the other
+on :math:`\mathbf{A} = \operatorname{diag}(\Sigma_t) - (\Sigma_{s} +
+2\Sigma_2)^{\mathsf T}` assembled by the fused route.  The production solver
+calls no eigen-solver, so its comparisons with both are independent on the
+derivation axis as well.  The registry's analytical values are therefore
+float64 LAPACK eigenvalues, accurate to a few ULP and platform-dependent in
+their last bits; the structurally independent value the solver is held to at
+the bit scale is the exact rational reference
+(:ref:`homogeneous-exact-reference`).
 
 
 .. _homogeneous-rates-and-normalisation:
@@ -1780,7 +2145,7 @@ Reaction rates, flux normalisation, and the one-group condensation
 -------------------------------------------------------------------
 
 The eigenvector :math:`\boldsymbol{\phi}` is determined only up to a
-scalar multiple.  After the eigensolve,
+scalar multiple.  After the solve,
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` normalises
 the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
 
@@ -1806,8 +2171,9 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
    transcription it actually ran, and
    ``tests/gates/homogeneous/test_homogeneous.py::test_post_solve_production_rate_is_100``
    runs all three.  (The solver's own body carried the ``phi * (100 / …)``
-   update by hand until U1; the arithmetic is unchanged — see the
-   byte-stability pin below.  And until the CS4c coda, 2026-09-08, both of
+   update by hand until U1; the arithmetic is unchanged, and the
+   exact-reference gate pins the gauged flux
+   (:ref:`homogeneous-exact-reference`).  And until the CS4c coda, 2026-09-08, both of
    the then-two directives named the solver — a duplicate from the
    94-equation declaration pass whose "2 sites" body counted one symbol
    twice.)
@@ -1870,16 +2236,18 @@ Two consequences for readers of the result type:
 * the section is interrogable after the fact: ``result.outcome.gauge``
   reports the functional **as the object that ran** and the target it
   landed on, so ``gauge.functional(outcome.state)`` re-reads
-  :math:`100` — ``[M]`` exactly ``100.0`` at 2 groups and
-  ``99.99999999999999`` at 4.
+  :math:`100` — ``[M]`` 2026-10-01 ``100.00000000000001`` at 2 groups and
+  exactly ``100.0`` at 4 (one rounding in the division and :math:`G`
+  in the re-read, so a last-place difference either way is the arithmetic,
+  not a defect).
 
 ⚠ **The state is the posed** :math:`(n_g, 1)` **column, and the shape is
 load-bearing.**  This is the gotcha the verification design surfaced, and
 it is silent in the dangerous direction:
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
 **accepts a flat** :math:`(n_g,)` **vector without complaint and returns a
-different number.**  ``[M]`` on the fissile ``A`` family, with the state
-already gauged so the column reads exactly its target:
+different number.**  ``[M]`` 2026-10-01 on the fissile ``A`` family, with
+the state already gauged so the column reads its target to the last place:
 
 .. list-table:: The same functional on the same flux, two shapes
    :header-rows: 1
@@ -1894,13 +2262,13 @@ already gauged so the column reads exactly its target:
      - ``100.0``
      - ``1.5``
    * - 2
-     - ``100.0``
+     - ``100.00000000000001``
      - ``200.0``
-     - ``1.8750000000000009``
+     - ``1.8750000000000004``
    * - 4
-     - ``99.99999999999999``
+     - ``100.0``
      - ``411.2729251352303``
-     - ``1.4877619047619042``
+     - ``1.487761904761904``
 
 **The mechanism is a silent broadcast, and it is worth spelling out
 because the wrong number is not obviously wrong.**  The cross-section
@@ -1944,11 +2312,11 @@ SHAPE the multiplication is written on changed (the flat vector became the
 re-running the retired expression beside the shipped one on the fissile
 ``A`` family at 1, 2 and 4 groups: the flux is ``np.array_equal`` on
 **3 of 3**, :math:`k_\infty` compares ``==``, and both condensed rates
-compare ``==``.  The standing adjudicator is
-``tests/gates/homogeneous/test_byte_stability.py``, which pins
-:math:`k_\infty`, the flux **bytes** and both rates against a capture
-taken at ``24a991ba`` — a capture whose whole value is that it predates
-every campaign that has since claimed to move no bytes.
+compare ``==``.  The standing adjudicator of the gauged flux and both
+rates is ``tests/gates/homogeneous/test_kinf_exact_reference.py``, which
+holds each to the exact rational answer for its float inputs within a
+derived bound (:ref:`homogeneous-exact-reference`); a gauge target off by
+:math:`2^{-40}` reds its flux rows in all eight cases `[M]`.
 
 ⚠ One aliasing consequence, deliberate and gated: ``result.flux`` is a
 **view** of ``result.outcome.state``, where before it was an independent
@@ -1961,12 +2329,13 @@ storage the outcome exists to remove.
 outcome carries the posing, the result can be asked for the *posing's own*
 eigenvalue estimate — the Rayleigh quotient :math:`\langle
 w, F\varphi\rangle / \langle w, A\varphi\rangle` of
-:eq:`posing-balance-functional` — beside the eigenvalue the dense engine
-returned.  ``[M]`` on this direct solve the two agree to **one ulp of**
-:math:`k` at both group counts (:math:`2.220446\times 10^{-16}` against
-:math:`k_\infty = 1.8750000000000009` and :math:`1.4877619047619042`),
-which is the tightest reading of that reference-class pair anywhere in the
-tree — there is no iteration here for a convergence residual to hide in.
+:eq:`posing-balance-functional` — beside the eigenvalue the solve
+returned.  ``[M]`` 2026-10-01 on this direct solve the two agree to a few
+ulp of :math:`k`: :math:`4.4\times 10^{-16}` (2 ulp) against
+:math:`k_\infty = 1.8750000000000004` and :math:`8.9\times 10^{-16}`
+(4 ulp) against :math:`1.487761904761904` — there is no iteration here for
+a convergence residual to hide in, so the gap is the rounding of the
+quotient's two matrix-vector products and one solve.
 This gap is the quantity
 :class:`~orpheus.numerics.outcome.ExitCertificate`'s ``rayleigh_gap``
 member exists to record — a diagnostic, deliberately never asserted at
@@ -2048,7 +2417,7 @@ one functional, one contraction, no 0-D special case.
       with no second space in scope there is no rebinding to forget, and
       the class of bug G2.5 catches becomes unspellable on this path
       rather than merely caught. `[M]` the change is bit-identical
-      end-to-end — the byte gate reads 8 of 8 on
+      end-to-end — the byte gate of the day read 8 of 8 on
       :math:`k_\infty`, the flux bytes and both rates — because the
       pose and the retired carrier's mint were content-equal all along;
       that equality is what made the rebinding safe, and its removal is
@@ -2296,12 +2665,16 @@ Comparison
 Verification — what pins this chapter
 =====================================
 
-The homogeneous solver's verification evidence — the SymPy-derived analytical
+The homogeneous solver's verification evidence — the registry's analytical
 :math:`\kinf` eigenvalues
-(:mod:`orpheus.derivations.continuous.analytical.homogeneous`), the multi-group
-matrix-eigenvalue chain, and the two 421-group industrial cross-checks against
-the legacy MATLAB implementation — lives in the verification part:
-:doc:`/theory/verification/homogeneous`. The same
+(:mod:`orpheus.derivations.continuous.analytical.homogeneous`; every value,
+the 1-group one included, is a float64 :func:`numpy.linalg.eig` eigenvalue of
+the oracle's own fused assembly, which at one group is the closed form
+:math:`\nu\Sigma_f/\Sigma_a` to one rounding), the
+multi-group matrix-eigenvalue chain, the exact rational reference with its
+derived bound (:ref:`homogeneous-exact-reference`), and the two 421-group
+industrial cross-checks against the legacy MATLAB implementation — lives in
+the verification part: :doc:`/theory/verification/homogeneous`. The same
 :class:`~orpheus.derivations.common.verification_case.VerificationCase` objects
 serve both that chapter's LaTeX equations and the test suite. The
 auto-generated :doc:`/theory/verification/matrix` reports per-equation test
@@ -2387,6 +2760,56 @@ hash, and ``git`` outranks this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-01
+     - **The eigenpair is read off the rank-one fission; no eigen-solver
+       remains on the path, and the byte pin retires for an exact
+       reference.**  The trigger was a platform drift, not a defect:
+       `[M]` after macOS 27.0.1 was installed on 2026-09-30 (Accelerate),
+       ``geev`` returned :math:`\kinf` 1 ULP from its previous value on
+       ``homo_4eg`` and ``mixture_A_4g`` with no ORPHEUS change, and the
+       homogeneous byte pin went red.  The user's ruling the same day:
+       compute :math:`\kinf = \langle\nu\Sigma_f, \mathbf{A}^{-1}\chi\rangle`
+       from the rank-one dyad, and re-pose the pin as an exact rational
+       reference with a ULP bound derived from the LU error bound, never a
+       hand-picked number.
+
+       **The route that retired.**  From taxonomy step 5b until this row
+       the solver composed ``K = MatrixInverseOperator(loss) @ production``,
+       materialized :math:`[\mathbf{K}]` column by column (:math:`G` LU
+       backsolves) and took its eigenpair with
+       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+       (:func:`numpy.linalg.eig`, largest real part, a
+       :math:`\sum\phi \ge 0` sign convention, a refusal of a complex
+       dominant).  Step 5b's re-baseline note justified the operator
+       spelling by "the closed-form SymPy :math:`\kinf` of
+       ``test_kinf_exact``"; that anchor was never SymPy — the registry
+       values come from ``kinf_and_spectrum_homogeneous``
+       (``numpy.linalg.solve`` then ``numpy.linalg.eig``), so it shared the
+       eigen-solver's LAPACK with the route it anchored.  The page's
+       four-group paragraph made the same false claim ("SymPy's symbolic
+       eigenvalue solver").  Both are corrected in the body above.
+
+       **The pin that retired.**  ``test_byte_stability.py`` and its
+       fixture ``cs1_prewiring.json`` (captured at ``24a991ba``) compared
+       :math:`\kinf` as hex, the flux as raw bytes and both condensed cross
+       sections as hex for the eight producing mixtures.  A byte of a
+       LAPACK output pins the platform; its successor,
+       ``test_kinf_exact_reference.py``, holds the same quantities to the
+       exact answer of their float inputs within a per-case derived bound
+       (:ref:`homogeneous-exact-reference`).  The shared population list
+       moved to ``tests/gates/homogeneous/_homogeneous_population.py``.
+       `[M]` the rank-one route reads at most 0.86 ULP from the exact
+       :math:`\kinf` over the eight cases, where ``geev`` read up to 1.55.
+
+       **What rode along.**  :attr:`IsotropicFission.emission_spectrum
+       <orpheus.transport.operators.isotropic_transfer.IsotropicFission.emission_spectrum>`
+       names the dyad's column factor, so the solver and the operator's
+       kernel read one array.  The Gauss-rule half of the same platform
+       drift is recorded on :ref:`gauss-rules-correctly-rounded`.
+     - `#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_
+       (the rank one is the model's)
+     - branch ``fix/platform-independent-quadrature``; the hash is
+       filled at merge
    * - 2026-09-08
      - **The infinite-medium problem gets its HUB, and the fabricated
        carrier retires** (campaign 1 residue, CS4c *coda*; rulings R-c1

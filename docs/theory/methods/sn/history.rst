@@ -2264,7 +2264,8 @@ them.  Trust ``git``, not this column.
        space becomes MANDATORY — the in-tree precedent every later phase
        of the campaign was measured against.  That none of this moved a value
        was **measured, not assumed**: the byte gate
-       ``tests/gates/homogeneous/test_byte_stability.py`` holds the homogeneous
+       ``tests/gates/homogeneous/test_byte_stability.py`` (retired 2026-10-01
+       for an exact rational reference) held the homogeneous
        solve bit-exactly across the rewiring on **8 of 8** rows —
        exhaustive over the producing mixtures the tree ships — and the
        frozen reaction-rate references moved 0 ULP.  ⭐ **The review round's own findings are the
