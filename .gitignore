@@ -59,3 +59,7 @@ scratch/literature_ocr/
 
 # airspeed velocity: per-machine environments, results and HTML (tests/performance/)
 .asv/
+
+# editor swap files (vim, and the ones a terminal session leaves beside an open file)
+*.swp
+*.swo
