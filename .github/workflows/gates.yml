@@ -33,6 +33,13 @@ jobs:
         run: .venv/bin/python -m tools.harness --check
       - name: The generator, the generated tree, the layer contract and the text ledgers, under -O
         run: .venv/bin/python -O -m pytest tests/gates/tools/test_harness_generator.py tests/gates/tools/test_write_guards.py tests/gates/test_harness_generated.py tests/gates/test_layer_imports.py tests/gates/test_error_catalogue_reconciles.py tests/gates/test_elegance_debt_is_tagged.py tests/gates/test_vv_harness_audit.py -q
+      # The platform-independence witness (2026-10-01): a macOS update moved
+      # the Gauss rules by 1-2 ULP when they were the platform eigen-solver's
+      # output. They are now correctly rounded, and the fingerprint gate pins
+      # their bytes, so the same frozen digests must hold on this Linux /
+      # OpenBLAS runner as on the macOS / Accelerate host. ~15 s.
+      - name: The Gauss rules are correctly rounded, with the same bytes on this platform, under -O
+        run: .venv/bin/python -O -m pytest tests/gates/numerics/test_gauss_rule_fingerprint.py tests/gates/numerics/test_gauss_rules_correctly_rounded.py tests/gates/numerics/test_generating_measure.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys
