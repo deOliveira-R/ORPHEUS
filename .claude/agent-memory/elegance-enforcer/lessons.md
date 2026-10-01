@@ -414,3 +414,13 @@ So: (1) read the tag property's body before grading what a string guard admits; 
 (axis, sign, amplitude) and run each through the guard AND through a sibling method that realizes the law, whose
 refusals are the free catalogue of ill-posed members; (3) the remedy is value equality with the law the method computes,
 not a structural predicate (`law_permutes_ordinates` also answers True for the wrong-axis mirror).
+
+### L-034 — When a design RE-HOMES a type to a new consumer, feed the new consumer the values the type stores today; guards written for the old consumer's blindness strip what the new one needs
+Not covered by L-031 (alternate constructors against one type's refusals) nor the skill's Pattern 4 (which asks what a type
+admits, not whether its stored data suffices for a different reader). `[M]` 2026-10-01, orbifold prototypes W5: decks were
+to move from the face law (read by the realizer, which sees only the linear part) to the geometry (which must generate the
+deck group). `SelfPairedDeck` refuses a mirror's offset and `PairedDeck` stores a unit wrap, both correctly, as Mode-12
+closures for the realizer. Fed to the geometry's consumer, `close_group` of a both-faces-mirrored slab's stored decks
+returned order 2 (Z2) for the true D-infinity, and the two decks were equal values. So: name the new consumer's verb,
+run it on the stored values from a shipped fixture, and expect the data model to invert (store the located object; derive
+the old consumer's view from it).

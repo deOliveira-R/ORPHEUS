@@ -58,6 +58,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [Q68 angular march](cylinder_angular_march_jacobi_ladder.md) — the redistribution IS the Jacobi–SL first-order factor; the level's nodes ARE its Gauss nodes (cyl = Chebyshev) ⇒ tridiagonal, free truncation, NO seed. Its ⛔ symplectic refutation holds for a DESIGN question only (next entry).
 - [α: chart vs measure, cross-method](alpha_dome_chart_vs_measure_cross_method.md) — Pomraning 1989 Eq. 68 (2nd fundamental form) ⇒ α is a CHART object; per-method table + the 3-clause discriminator; the shared primitive is `f`.
 - [quadrature sym](quadrature_symmetry_quotient_frames.md) — half-range = orbifold quotient; a level is a FIBER not an orbit; SPENT group: 3 fates.
+- [coordinate group / Weyl / orbifold](coordinate_group_weyl_orbifold_frames.md) — CoordSystem = G_c; decks in N(G_c)/G_c (trivial on 1-D cyl/sphere); spent = H∩orbit_stabiliser(H⁰); owed per-problem.
 - [#336 μ-line reduction](sphere_mu_line_reduction_frames.md) — GAUSS OPTIMALITY refutes REDUCE-as-value-path; admissibility = CDF internality (no moment condition implies it).
 
 ### Eigenvalue / iteration layering
