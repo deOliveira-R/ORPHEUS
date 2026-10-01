@@ -852,7 +852,7 @@ measured reasons:
   :math:`(-1, 0, +1, -2)` ULP in :math:`(x_1, x_2, w_1, w_2)` (recovered by a
   coordinate search over ULP shifts that reproduces 496 of 496 frozen
   snapshot elements), and 24 bit-level pins downstream went red on an
-  unchanged tree (the evidence entry is "2026-10-01 the platform bit pin" on
+  unchanged tree (the evidence entry is "AP38 platform bit pin" on
   :doc:`/development/evidence/vv-anti-patterns`).
 - **The output is not accurate to the last place, and the error grows with
   the order.**  `[M]` 2026-10-01, Golub–Welsch Legendre rules against the

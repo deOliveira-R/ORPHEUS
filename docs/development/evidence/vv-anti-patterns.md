@@ -843,6 +843,8 @@ is history and keeps its original glyphs and its original list numbering.
     scheme makes this instrument read zero, and is the mechanism under test
     even awake in this fixture?"**
 
+**The two-edges check, its founding measurement** (`[M]` 2026-09, `_DENSE_METRIC_RCOND`): the instrument offered as the threshold's justification read a flat `1.000000000` across `[1e-15, 1e-2]`, blind to the lower edge, while a construction guard already refused everything below `8.7e-17`; bisecting that guard's refusal boundary is what located the edge.
+
 ## AP25 bundled mechanisms
 
 25. **NEVER accept a "this artefact was unaffected because X" explanation for
@@ -1481,7 +1483,7 @@ is history and keeps its original glyphs and its original list numbering.
     Landed 2026-09-22 from the uplift queue of the 2026-08-03 distillation
     (qa's proposal A4; its digest B7, archive L-060).
 
-## 2026-10-01 the platform bit pin
+## AP38 platform bit pin
 
 **Surprise.** On 2026-10-01 `.venv/bin/python -O -m pytest tests/gates -m "not slow"`
 failed 26 tests on a clean `main` (`0a5a23fa`). The same suite had passed 13 159

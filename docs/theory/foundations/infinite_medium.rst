@@ -1566,8 +1566,8 @@ the platform's linear-algebra library, not to the problem.  `[M]`
 2026-09-30: after macOS 27.0.1 replaced Accelerate, :func:`numpy.linalg.eig`
 (LAPACK ``geev``) returned a :math:`\kinf` 1 ULP away from the previous
 release's on two of the eight shipped producing mixtures (``homo_4eg``,
-``mixture_A_4g``) with no ORPHEUS change (the evidence entry is "2026-10-01
-the platform bit pin" on :doc:`/development/evidence/vv-anti-patterns`).
+``mixture_A_4g``) with no ORPHEUS change (the evidence entry is "AP38
+platform bit pin" on :doc:`/development/evidence/vv-anti-patterns`).
 The rank-one route has no eigen-solver, so the only platform primitive on
 the path is one LU solve (``getrf`` then ``getrs``), whose bytes are
 deliberately not pinned (:ref:`homogeneous-exact-reference`).  It is also
