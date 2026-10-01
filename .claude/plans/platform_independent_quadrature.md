@@ -124,3 +124,13 @@ The test-architect specifies these gates before any code. Each new gate carries 
 - **Performance:** the suite's wall time is compared with the baseline (38 min); the cache must keep the mpmath cost under about 30 s.
 
 Sizing `[R]`: about one session; the re-capture and the noise-gate redesign are the bulk.
+
+## ⏹ Close-out — merged @ `a34f8c2c` (2026-10-01)
+
+Landed as four commits: `878e1953` (plan and agent memory), `473a68de` (correctly rounded Gauss rules, Bonnet's P_ℓ, k∞ from the rank-one fission, the exact reference and every re-posed gate), `c3abb3c1` (the ruled re-capture: 29 arrays moved, at most 1.5e-15 relative; 264 identical), `a34f8c2c` (CI runs the Gauss-rule gates on Linux).
+
+- `[M]` full `tests/gates -m "not slow"` on `c3abb3c1`: 13 491 passed, 4 failed, all four `test_write_guards` rows that fail only from a worktree path (green in the main tree and on CI). Wall time 37 min 15 s against the 38 min 01 s baseline.
+- `[M]` CI on Linux / OpenBLAS (run 36933094473): the Gauss-rule step 557 passed, fingerprint included, so the rules are the same bytes on both platforms.
+- Deviations from the plan, each reviewed: certification against an error interval was added beside the two-precision check (elegance review: agreement alone does not certify); the rule cache is keyed on the recurrence too (elegance blocker: keyed on the measure alone it turned the `jacobi(0,0)`/Legendre cross-check into a cache read); P_ℓ by Bonnet's recurrence (user ruling during step 1); three more noise-verdict gates re-posed (dense metric, G1.4, MMS parity).
+- Open, in GitHub: #549 (the mixture's χ is a flat-flux average), #550 (the remaining platform seams, now including the registry's homogeneous eigen-solve).
+- The proposed `vv-principles` anti-pattern line (the archivist's draft) waits for the user's ruling.
