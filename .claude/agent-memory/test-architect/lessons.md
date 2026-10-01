@@ -442,6 +442,12 @@ shelf life — check it against a concrete row before trusting a green.
   the integrand concentrates there: compute the weighted mean by mpmath and write
   the law from it. And a probe's sampled radii/regime are a SAMPLE: re-measure the
   edge (`r -> R`, thick cell) before inheriting its "spectral at n=64". → `L92`
+- **⛔ A rigorous forward-error bound on a float algorithm has a RESOLUTION FLOOR above 1 ULP** — a
+  brief demanding that a 1-ULP input mutation red such a gate is unsatisfiable; measure and report the
+  resolution (in ULP of the input) and put the bit-level witness on a different instrument (a producer
+  fingerprint). Certify an exact reference against its DEFINING equation when its derivation is the
+  production's own theorem. → `L98`
+
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
 Reference material, not a per-dispatch rule: moved to `lessons_archive.md`

@@ -624,3 +624,17 @@ reading was inverted. Cold: `_archive/rcond_threshold_rederivation.md`.
    `automodule`, so `-W` cannot gate any of that prose at any severity. (My two instrument deaths that
    session — an unflushed docutils `warning_stream`, and a spliced-file import failing inside
    `dataclasses` because the module was not in `sys.modules` — are M5.)
+
+## L28: Platform drift is proven by INVERTING the frozen snapshots, then sorting gates by whether ULP jitter flips them
+
+Not covered by `numerical-bug-signatures` Signature 10 (stale snapshot) or `vv-principles`
+anti-pattern 31 (single-draw bit-exact): those name the classes, not the instrument for a
+platform change with no old environment to run. `[M]` 2026-10-01, macOS 27.0.1 Accelerate.
+1. **The old primitive output is recoverable from the snapshots it fed.** A coordinate ULP search
+   over the few free numbers (GL-4: x1, x2, w1, w2) against the frozen walk-matvec `.npy` found a
+   unique rule reproducing 496 of 496 elements; substituting it alone turned 20 of 26 reds green.
+   That is a bit-exact positive control, which "it is probably LAPACK" never is.
+2. **Jitter a correct input by ±3 ULP over 10 seeds** and count reds per gate: a gate red in some
+   seeds and green in others is a noise-verdict gate (two FP association orders, `(a·y)/a == y`,
+   a tolerance inside its own noise band), and re-capturing does not cure it.
+Record: `scratch/platform_drift/memo.md` (untracked).

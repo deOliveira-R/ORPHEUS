@@ -11571,3 +11571,27 @@ leakage predicate, the curvilinear μ = ±1 corner (unscaled), DSA's admission. 
 4. Under `python -O` my probe's `assert frag in src` was stripped again (as in L96); the mutant
    still bit, which is the only reason I noticed. A probe or plugin guard is a `raise`
    (`coding-standards`, the bare-assert clause, covers it; recorded only as a repeat).
+
+## L98 — Platform drift W2 (correctly rounded Gauss rules; exact k∞): a rigorous FP bound has a resolution floor (2026-10-01; spec + gates a/b/c)
+
+Context: Accelerate moved Golub–Welsch GL rules 1–445 ULP and `geev` k∞ 1 ULP. Gates (a) CR rules vs an
+80-digit Newton/Christoffel reference, (b) sha256 producer pin, (c) exact rational k∞ with a derived LU
+forward-error bound (Higham 9.4 + componentwise 7.4, computed factors, exact assembly error).
+Spec `scratch/platform_drift/gates_spec.md`.
+
+1. **A brief asking "a 1-ULP input mutation must red" a gate built on a RIGOROUS bound for a float
+   algorithm is unsatisfiable, and saying so with the number is the deliverable.** The derived
+   k bound was 3.75–43 ULP (worst case over all rounding patterns); a 1-ULP χ entry moves the exact k by
+   ≤ ~1 ULP. Measured resolution: 8 / 16 / 32–64 ULP of χ at 1g / 2g / 4g. HEAD's `geev` (+1.55 ULP)
+   sits inside, so the first red is the mutation battery, not HEAD. The bit-level witness for such a
+   path is a different instrument (a producer fingerprint, or the absence of platform primitives).
+2. **`float(mpf)` follows the mpmath context's rounding mode** (`round_fast = round_down` in libmpf);
+   round once explicitly with `to_float(x._mpf_, rnd=round_nearest)` and refuse a near-tie.
+3. **An exact reference whose DERIVATION is the same theorem as production (k = ⟨νΣf, A⁻¹χ⟩) is made
+   independent by certifying it against the DEFINING equation** (Fφ = kAφ with zero rational residual,
+   tr(A⁻¹F) = k), not by a second derivation.
+4. **Golub–Welsch weights carry no relative accuracy in the tails** (HERMITE n=64: 6.7e16 ULP) and
+   production's closed-form μ0 was not correctly rounded (`np.sqrt(np.pi)`, Jacobi `exp(gammaln)`), so the
+   n = 1 rows red too: test n = 1 in any "correctly rounded" population.
+5. A route gate that wants "k is read off apply" uses a POWER-OF-TWO decoy (`2·apply`): k doubles bit for
+   bit and the gauged flux is bit-identical, so the gate is exact and association-free.

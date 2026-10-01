@@ -21,6 +21,8 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **#235 — the 2-D angular closure's ranking instrument** — design delivered, issue OPEN. → **`L48`**
 - **#358 — the test-dependence DAG** — memo delivered, issue OPEN. → **`L55`**
 - **#405 P1 — the specification/question carve** — spec delivered 2026-09-25 (`.claude/plans/reference_p1_spec.md`), gates S1.1–S8.5; step 3 split 3a/3b/3c in its §1.3a (2026-09-29, 3a gates + battery written; battery at `scratch/reference_architecture/p1step3/battery3a/`). → **`L95`** Step 3c gates written 2026-09-29 (`test_mesh2d_face_laws.py`, `TestTheDefaultsAreGone`); battery owed on resume.
+- **Reflective cleanup (W3, `refactor/reflective-is-a-mirror`)** — gates delivered 2026-10-01: spec `scratch/boundary_ontology/reflective_cleanup_gates.md`; carry fixture + batteries `scratch/boundary_ontology/reflective_gates/`. On resume: re-run the carry gate post-carve.
+- **Platform drift W2 (`fix/platform-independent-quadrature`)** — gates (a) CR Gauss rules, (b) GL fingerprint, (c) exact k∞ + bound, spec `scratch/platform_drift/gates_spec.md` (2026-10-01). On resume: confirm landed, re-run `cr_sim`/`r1_sim` arms. → **`L98`**
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
