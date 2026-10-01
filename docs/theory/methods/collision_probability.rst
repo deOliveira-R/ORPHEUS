@@ -525,9 +525,12 @@ white).  The vacuum BC is useful for
 studying isolated fuel pins where neutrons escaping the cell are lost.
 
 A law CP does not read is refused rather than dropped: a slab whose
-left law differs from its right law, or any inner law on a hollow
-cylinder or sphere, raises ``NotImplementedError`` naming #513. The table of what each method reads
-is :ref:`structured-geometry-hollow-inner-law`.
+left law is not ``reflective`` (the slab kernel puts a mirror at the
+left face whatever is declared there, through its reflected path
+:eq:`dc-slab`), or any inner law on a hollow cylinder or sphere, raises
+``NotImplementedError`` naming #513. The table of what each method reads,
+and the measurement that the slab's left face is a mirror, are
+:ref:`structured-geometry-hollow-inner-law`.
 
 :meth:`CPMesh.compute_pinf_group` calls ``self._bc_transform(P_cell,
 sig_t_g)`` to apply whichever BC was resolved at construction time.
@@ -1609,9 +1612,19 @@ Slab Geometry: The :math:`E_3` Kernel
 =======================================
 
 The 1D slab half-cell extends from the reflective centre (:math:`x = 0`)
-to the cell edge (:math:`x = L`).  Geometry built via
+to the cell edge (:math:`x = L`).  The centre's mirror is the kernel's
+own: the reflected path :eq:`dc-slab` below puts it at :math:`x = 0`
+whatever law is declared there, so CP admits a slab only with a
+reflective left law, and any other left law raises
+``NotImplementedError`` naming #513. The cell edge carries CP's outer
+law, white or vacuum.  The stack (fuel, cladding, coolant) is the one
 :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
-and meshed by a
+builds; that factory declares reflective laws on both faces (the
+infinite-lattice model), and CP's registry has no reflective outer
+law, so CP poses the same stack as
+``StructuredGeometry.from_thicknesses(coord=CoordSystem.CARTESIAN,
+thicknesses=(0.9, 0.2, 0.7), mat_ids=(2, 1, 0), boundaries=(BC.reflective,
+BC.white))``, meshed by a
 :class:`~orpheus.mesh.mesher.Mesher`; the Cartesian
 coordinate system is intrinsic to that factory rather than a parameter
 of it (Phase F retired the free-function

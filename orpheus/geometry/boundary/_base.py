@@ -116,12 +116,15 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
 
     .. note::
 
-       No shipped mesh can carry an albedo law yet
-       (``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` omits it, and all four callers
-       read ``problem.bc[face].law``), so this is a **latent** correction: it
-       fires the day issue **#189** registers the law. It is made now because
-       B3.4b is what makes the four spellings wrong, and leaving a known-false
-       predicate behind a registry gate is how a landmine gets planted.
+       The registry omits the albedo TAG (#189), but a typed law declared on
+       the mesh reaches all four callers (``problem.bc[face].law``) since
+       ``985497b5`` (2026-08-05), so this correction was live, not latent.
+       Answering "does it permute ordinates?" is not answering "is it a
+       mirror?": a partial specular reflector permutes ordinates too, and two
+       callers that read the yes as a mirror got wrong answers until
+       2026-09-30 (ERR-094: DSA's admission, and through the amplitude the
+       eigenvalue's leakage term). A caller that needs the mirror asks for
+       the response amplitude as well.
     """
     from ._factors import SpecularReemission
 

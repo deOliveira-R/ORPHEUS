@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**93 entries · 333 catching tests · 0 uncaught · 5 dormant.**
+**95 entries · 346 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-094` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-094")`.
+Append a `.. error-entry:: ERR-096` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-096")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -88,10 +88,10 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-040 | 1 |  | Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partiti… |
 | ERR-041 | 5 |  | Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-) |
 | ERR-042 | 8 |  | Reflection-index table inconsistent with quadrature weights (measure-non-preserving G) |
-| ERR-043 | 8 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
+| ERR-043 | 9 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
 | ERR-044 | 9 |  | Reflection permutation is not an involution (perm ∘ perm ≠ id) |
 | ERR-045 | 9 |  | Reflection maps an inflow ordinate to itself rather than to its outflow partner |
-| ERR-046 | 8 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
+| ERR-046 | 10 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
 | ERR-047 | 9 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
@@ -139,3 +139,5 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
 | ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |
 | ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |
+| ERR-094 | 9 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |
+| ERR-095 | 1 |  | The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a pres… |

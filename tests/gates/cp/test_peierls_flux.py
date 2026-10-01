@@ -62,7 +62,7 @@ class TestPeierlsFluxConvergence:
         n_sub = 16
         geometry = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
-            mat_ids=mat_ids_base, boundaries=(BC.white, BC.white),
+            mat_ids=mat_ids_base, boundaries=(BC.reflective, BC.white),
         )
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_sub)).mesh
         edges = mesh.edges

@@ -23,7 +23,7 @@ def _make_mesh(case):
     if case.geometry == "slab":
         geometry = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
-            mat_ids=gp["mat_ids"], boundaries=(BC.white, BC.white),
+            mat_ids=gp["mat_ids"], boundaries=(BC.reflective, BC.white),
         )
     elif case.geometry == "cyl1D":
         geometry = StructuredGeometry.cylinder(

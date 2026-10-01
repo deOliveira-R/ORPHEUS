@@ -11539,3 +11539,35 @@ its rows went strict-xfail on a `None` bound (a bound is a certified number or
 absent, never a lower bound declared as one). Probe asserts under `python -O`
 are stripped: my getsource-patch guard was inert and I only knew the patch bit
 because k moved.
+
+## L97 — ERR-094 gates (W2, boundary-law ontology): the edge catches what the interior band cannot; flat copies collide (2026-09-30; gates + battery)
+
+Context: SN partial reflectors (`ReflectiveBoundary(axis, α)`, `AlbedoBoundary(α, SpecularReturn)`,
+`WhiteBoundary(…, α)`) were accepted and read as closed faces in three places: the eigenvalue's
+leakage predicate, the curvilinear μ = ±1 corner (unscaled), DSA's admission. Gates landed in
+`test_keff_estimator_gate.py::TestPartialReturnLeakage`, `test_partial_reflector_resolvent.py`,
+`TestB_b_RayBoundary::test_partial_specular_corner_is_alpha_times_the_mirror`, `TestAdmissionTeeth`,
+`TestCP`; battery table `scratch/boundary_ontology/battery_err094.md` (16 arms, 0 blind).
+
+1. **The corner defect is a consistency error: its effect on k vanishes under refinement** (the
+   archivist's ladder: scaled vs unscaled corner 2.3e-4 at GL16, 1.2e-6 at GL64). Against an
+   independent reference (trajectory resolvent) no honest band can see it: the band must cover
+   the SN discretization error, which is the same order. Measured: the resolvent sphere row
+   stayed GREEN under the unscaled corner. The catcher was the EDGE: at α = 0 the honest problem
+   IS the vacuum problem, bitwise (6 of 6 rows equal to the last bit), while the unscaled corner is
+   maximally wrong there (re-emits the full outflow): 3.7e-3 sphere, 1.9e-3 cylinder, against a
+   band of 10 × keff_tol. Rule: for a defect inside the discretization floor, look for the edge
+   where the honest answer equals a foundation EXACTLY and the defect does not vanish; there the
+   band is the solver's tolerance, not the discretization's.
+2. **A complementary pair, measured.** The map-ratio estimator rows (tight, 5e-8) share the
+   realized boundary operator with the SUT: an `α → α²` realizer arm left all 11 green; the
+   resolvent rows (loose, 1e-3 from both ladders) red under it. Ship both, and run the arm that
+   separates them, or the pair reads as redundant.
+3. **Copy production files aside PRESERVING PATHS, into your own directory.** I `cp -a`'d five
+   files flat into the session scratchpad: `orpheus/sn/solver.py` and `orpheus/cp/solver.py`
+   collapsed into one `solver.py`, and the scratchpad is shared with other agents (the archivist's
+   files sat beside them), so same-named files of theirs may have been overwritten. The restore
+   copy was wrong without any error.
+4. Under `python -O` my probe's `assert frag in src` was stripped again (as in L96); the mutant
+   still bit, which is the only reason I noticed. A probe or plugin guard is a `raise`
+   (`coding-standards`, the bare-assert clause, covers it; recorded only as a repeat).

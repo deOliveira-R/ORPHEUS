@@ -1372,7 +1372,14 @@ Honest scope, deferrals, and rulings
 ====================================
 
 Arm 1 is **1-D slab, Cartesian, DD, within-group fixed source, P0 +
-P1, f-form**.  The build refuses everything outside it *loudly* (a
+P1, f-form**, and it admits two kinds of wall: a law that returns nothing
+(vacuum, the Marshak row (38)) and a mirror that returns everything
+(the reflecting row (39), zero net current).  A partial specular
+reflector permutes the ordinates as the mirror does but loses
+:math:`(1-\alpha)J^+` at the wall, which row (39) does not state, so it
+is refused with the albedo walls (ERR-094 records the divergence of the
+accelerated iteration when it was given row (39)).  The build refuses
+everything outside it *loudly* (a
 :class:`NotImplementedError` at
 :meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_problem`),
 because a silent approximation of the low-order operator is exactly the

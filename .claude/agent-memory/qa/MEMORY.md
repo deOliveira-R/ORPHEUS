@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W2 ERR-094 partial-reflector fixes (2026-09-30) | L-093 → F26 |
 | W3 P1 step 2b reference-body routing (2026-09-29) | L-092 → F25 |
 | W2 ERR-090 trajectory-resolvent regionwise source (2026-09-26) | L-091 → F24 |
 | harness re-evaluation, R5 second-reader recount (2026-09-21) | L-089 → E19, B-DISPATCH |

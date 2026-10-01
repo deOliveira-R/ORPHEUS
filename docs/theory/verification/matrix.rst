@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **13643**
+Total tests collected: **13706**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1345, 9.9%
-   L1, 1972, 14.5%
+   L0, 1349, 9.8%
+   L1, 1980, 14.4%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10228, 75.0%
+   foundation, 10279, 75.0%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 13537
+   explicit, 13600
    class-name, 46
    func-name, 0
    case, 33
@@ -48,7 +48,7 @@ Module × level grid
    :widths: 40, 6, 6, 6, 6, 6, 6
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
-   acceleration/test_dsa_low_order, 0, 0, 0, 0, 15, 0
+   acceleration/test_dsa_low_order, 0, 0, 0, 0, 23, 0
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
@@ -59,6 +59,7 @@ Module × level grid
    analytical/test_l1_standoff_slab_cylinder, 0, 14, 0, 0, 0, 0
    analytical/test_mms_declared_inflow, 0, 9, 0, 0, 0, 0
    analytical/test_mms_prescribed_inflow, 0, 3, 0, 0, 1, 0
+   analytical/test_partial_reflector_resolvent, 0, 2, 0, 0, 0, 0
    analytical/test_phase_c_crosscheck, 0, 9, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
@@ -278,7 +279,7 @@ Module × level grid
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 22, 13, 0, 0, 0
-   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 11, 0
+   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 36, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 28, 0
@@ -297,7 +298,7 @@ Module × level grid
    frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
+   geometry/test_bc_universal_invariants, 0, 56, 0, 0, 5, 0
    geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
@@ -328,7 +329,7 @@ Module × level grid
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 17, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
-   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 13, 0
+   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 19, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 11, 0
@@ -486,7 +487,7 @@ Module × level grid
    operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
    operators/test_operator_feeds_the_walk, 0, 0, 0, 0, 6, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 2, 0, 0, 83, 0
+   operators/test_psi_half_coupling, 0, 2, 0, 0, 95, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_cylinder_arm, 5, 0, 0, 0, 0, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
@@ -544,6 +545,7 @@ Module × level grid
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
    solve/test_declared_law_survives_the_public_entry, 0, 6, 0, 0, 0, 0
+   solve/test_eigen_entries_refuse_a_boundary_source, 4, 0, 0, 0, 0, 0
    solve/test_eigenvalue_finalize_reconstruction, 0, 93, 2, 0, 0, 0
    solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
@@ -726,6 +728,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``roulette-prob``, 17
    ``coupled-block-system-restriction-laws``, 16
    ``discrete-measure-integrate``, 16
+   ``sn-leakage-functional``, 16
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
@@ -788,6 +791,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``diffusion-trigonometric-branch``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``inverse-as-operator``, 7
+   ``sn-keff-update``, 7
    ``sn-loss-kernel-gauge-projection``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
@@ -807,7 +811,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``sn-direct-seed-augmented-composite``, 5
-   ``sn-keff-update``, 5
    ``sn-mms-nonvacuum-psi``, 5
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
@@ -852,7 +855,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-s2-exactness``, 3
    ``sn-homogenization-rate-preservation``, 3
    ``sn-kernel-mirror-blindness``, 3
-   ``sn-leakage-functional``, 3
    ``sn-mms-nonvacuum-qext-mg``, 3
    ``sn-space-angle-cross-term``, 3
    ``cp-second-difference-operator``, 2

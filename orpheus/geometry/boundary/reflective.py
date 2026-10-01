@@ -185,6 +185,47 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
             quadrature, self.axis, law_key="reflective",
         )
 
+    def assert_response_positive_if_declared(self) -> None:
+        r"""The specular albedo is non-negative (ERR-043).
+
+        The same bound :class:`~orpheus.geometry.boundary.AlbedoBoundary` and
+        :class:`~orpheus.geometry.boundary.WhiteBoundary` carry; until
+        2026-09-30 this law carried neither, so ``ReflectiveBoundary("x", -0.1)``
+        was realized by SN while the same matrix spelled as an albedo was
+        refused.
+
+        Raises
+        ------
+        BoundaryResponseNotPositiveError
+            When ``self.albedo < 0``.
+        """
+        if self.albedo < 0.0:
+            from ._errors import BoundaryResponseNotPositiveError
+            raise BoundaryResponseNotPositiveError(
+                f"Reflective BC albedo={self.albedo} < 0",
+                law="reflective",
+            )
+
+    def assert_submarkov(self) -> None:
+        r"""The specular albedo satisfies the sub-Markov bound :math:`\alpha \le 1` (ERR-046).
+
+        ``[M]`` 2026-09-30: without it SN realized ``ReflectiveBoundary("x",
+        1.2)`` and returned k = 2.0878 on a slab whose mirror k is 0.96, while
+        ``AlbedoBoundary(1.2, SpecularReturn("x"))``, the same matrix, was
+        refused.
+
+        Raises
+        ------
+        SubmarkovViolationError
+            When ``self.albedo > 1``.
+        """
+        if self.albedo > 1.0:
+            from ._errors import SubmarkovViolationError
+            raise SubmarkovViolationError(
+                f"Reflective BC albedo={self.albedo} > 1",
+                law="reflective",
+            )
+
     def assert_realizable(
         self,
         quadrature: "Quadrature",
@@ -210,5 +251,6 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         :mod:`~orpheus.geometry.boundary._specular`.
         """
         super().assert_realizable(quadrature, inflow_indices=inflow_indices)
+        self.assert_submarkov()
         self.assert_is_involutive(quadrature)
         self.assert_reflection_maps_inflow_to_outflow(quadrature)

@@ -5994,3 +5994,25 @@ Remedy was a tolerance one notch looser (4e-3); the mutant still reds (7.9e-3).
 The body classification made Billiard's `sphere_mr` constructor-reachable for the first time. The change routed and gated `solve_critical` (bit-identical to the bare solver). The same geometry kind also unlocked `solve_fixed_source`, a sibling method on the same arm that had been unreachable since it was written. It had 0 positive gates, and `[M]` it reported `n_groups = 1` on a two-group problem (`reshape(-1, 1).shape[1]` is 1 by construction). Its `phi_g` did match the bare solver. `retirement-audit` "The mirror" covers stale DEFERRAL prose when a capability lands. It does not cover the unexercised CODE behind the gate that just opened.
 
 A second observation from the same review: the author's mutation arm for the new cylinder route patched the solver's MODULE attribute, which the facade and the test's bare reference both call. Its red was a `TypeError` in both, not a discrimination. Two arms aimed at the facade alone (runs reversed, σₛ transposed) reddened the gate properly. This is #17(h) plus X4. It is not a new rule.
+
+## L-093 — a tightened guard's fixture census by red loop cannot see a WITHDRAWN or slow-deselected consumer (2026-09-30, W2 ERR-094 QA, `fix/boundary-law-wrong-answers` @ `5a5ffa7b` + uncommitted)
+
+The CP slab guard narrowed from "left law equal to the right" to "left law
+reflective". The author relabelled every CP slab declaration the red loop
+reported (85, `[R]` per the plan) and the targeted CP suite went green. One
+declaration survived: `tests/gates/cp/test_peierls_flux.py:65`,
+`boundaries=(BC.white, BC.white)` into `solve_cp`. Its module carries
+`pytestmark = PEIERLS_NYSTROM_WITHDRAWN` (#506) and the test is `slow`, so the
+canonical run skips it and no red loop can list it. The day #506 closes it
+raises the #513 refusal instead of testing its Peierls flux claim. Found by a
+static grep over every file that calls `solve_cp`/`CPMesh` for its
+`boundaries=(`/`left=`/`uniform_boundary(` lines, excluding the relabelled
+spellings. `retirement-audit` census member (8) says a pre-strictness fixture is
+"enumerated only by the consumers' red loop"; it does not say that the loop's
+population excludes withdrawn and deselected tests, which is where a fixture
+waits longest.
+
+Same review, a second observation already covered (Pattern 2, X4): the
+partial mirror has two spellings that realize one matrix, and only one of them
+is certified against the sub-Markov bound (`ReflectiveBoundary("x", 1.2)` is
+certified, `AlbedoBoundary(1.2, SpecularReturn("x"))` refused).

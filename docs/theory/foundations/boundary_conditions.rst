@@ -623,8 +623,13 @@ construction rather than by two transcriptions agreeing.
    BOTH factors non-trivial. A symmetry plane cannot absorb — that
    object is ``AlbedoBoundary(0.7, SpecularReturn(axis))`` wearing the
    geometry costume. It is unreachable from a ``BC(...)`` tag (the tag
-   parser hard-codes :math:`\alpha = 1`), so nothing production-facing
-   rides on it; retiring the parameter is campaign phase **B5**.
+   parser hard-codes :math:`\alpha = 1`), but a geometry or a mesh
+   declares it as a typed law, and S\ :sub:`N` solves it: its
+   eigenvalue counts the face's leakage :math:`(1-\alpha)J^+`, its
+   curvilinear corner returns :math:`\alpha` times the outflow, and DSA
+   refuses it (ERR-094, which records the three places it was read as a
+   perfect mirror until 2026-09-30); retiring the parameter is campaign
+   phase **B5**.
 .. note::
 
    **SN apply matvec honours the affine BC contract (Issue #168
@@ -2732,8 +2737,10 @@ planned. This was a prediction to check, not a reassurance to accept;
        loud-deferred (gotcha 4 above)
    * - :class:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem`
      - is the law's low-order edge row proven? A zero response gives
-       the Marshak row and an ordinate-permuting geometry gives the
-       zero-net-current row; a free-parameter inflow has **no row** in
+       the Marshak row and an ordinate-permuting law of amplitude 1 gives
+       the zero-net-current row (a partial specular reflector permutes
+       the ordinates too, but its net current is not zero, so it is
+       refused: ERR-094); a free-parameter inflow has **no row** in
        the low-order edge system
      - unchanged — excluded by family, because admitting it on a zero
        default :math:`q` would build a Marshak row and silently drop

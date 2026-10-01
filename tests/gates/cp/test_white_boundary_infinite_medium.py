@@ -93,6 +93,7 @@ from orpheus.derivations import get as get_case
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
+from tests.gates.cp._cp_geometry import cp_body
 
 _MAT_ID = 2
 
@@ -148,9 +149,10 @@ class WhiteCell:
         return np.array([0.0, self.radius])
 
     def mesh1d(self) -> Mesh1D:
-        # White on every boundary point: both slab faces, the curvilinear
-        # cell's outer surface (its axis or centre is not a boundary).
-        geometry = StructuredGeometry.uniform_boundary(
+        # White on the outer face (the curvilinear cell's only face: its axis
+        # or centre is not a boundary); on a slab, a mirror at the left face,
+        # which CP's kernel images whatever is declared (#513).
+        geometry = cp_body(
             self.coord, (0.0, self.radius), (_MAT_ID,), BC.white,
         )
         rule = (CellEdges(self.edges()) if self.mesh == "graded"

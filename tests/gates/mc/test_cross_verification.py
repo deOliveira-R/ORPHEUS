@@ -106,7 +106,7 @@ def test_mc_vs_cp_slab():
         coord=CoordSystem.CARTESIAN,
         thicknesses=(t_fuel, t_mod),
         mat_ids=(2, 0),
-        boundaries=(BC.white, BC.white),
+        boundaries=(BC.reflective, BC.white),
     )
     mesh = Mesher(geom_cp).partition(CellsByCount.uniform_volume(10)).mesh
     cp_result = solve_cp(materials, mesh=mesh)

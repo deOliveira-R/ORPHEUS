@@ -54,14 +54,14 @@ _MOC_CASE = "moc_cyl1D_1eg_1rg"   # 1-group: the cheap certified MoC solve
 
 
 def _slab(law: BC):
-    """The shipped 2-group / 2-region slab, as CP's own tests build it,
-    with ``law`` on both faces: white for CP (which reads the right face),
-    reflective for diffusion."""
+    """The shipped 2-group / 2-region slab, as CP's own tests build it: a
+    mirror on the left (the face CP's kernel images whatever is declared,
+    #513) and ``law`` on the right, white for CP, reflective for diffusion."""
     case = get(_SLAB_CASE)
     gp = case.geom_params
     geometry = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
-        mat_ids=gp["mat_ids"], boundaries=(law, law),
+        mat_ids=gp["mat_ids"], boundaries=(BC.reflective, law),
     )
     return case, Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 

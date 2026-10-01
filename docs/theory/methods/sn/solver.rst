@@ -412,8 +412,9 @@ and one boundary functional:
   :math:`(n,2n)` **collision once** (the neutron is removed from its
   incident group by the collision).  See
   :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`.
-* **Leakage** :math:`L` — the net vacuum-boundary outflow (below).  On a
-  reflective (lattice) problem it is a **structural zero**.
+* **Leakage** :math:`L` — the net outflow through the boundary faces
+  that lose particles (below).  On a closed (lattice) problem it is a
+  **structural zero**.
 * **Emission** :math:`E_{2n}(\phi) = \int_V \sum_{g,g'} 2\,\Sigma_{2,g'\to
   g}\,\phi_{g'}\,dV` — the :math:`(n,2n)` **emission** (two neutrons out
   per collision; the factor 2).  A gain, so it **reduces** net removal.
@@ -470,13 +471,21 @@ The leakage functional
 .. math::
    :label: sn-leakage-functional
 
-   L \;=\; \sum_{f\,\in\,\text{vacuum}} \oint_{f} dA\,
+   L \;=\; \sum_{f\,:\,\alpha_f \neq 1} \oint_{f} dA\,
            \sum_g J_g(\mathbf{r}_f)\,,
    \qquad
    J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
 
 is the face-area integral of the boundary trace's **net outward
-current**.  The angular-to-scalar reduction :math:`J_g` is
+current**, summed over the faces whose law loses particles.
+:math:`\alpha_f` is the response amplitude of face :math:`f`'s law
+(``law.response_kernel.amplitude``), the partial-current return ratio
+:math:`J^-/J^+`: 0 for a vacuum face and for a prescribed inflow (whose
+net current is the outflow minus the prescribed inflow), :math:`\alpha`
+for a partial reflector (whose net current is :math:`(1-\alpha)J^+`),
+and 1 for a face that returns every particle (the mirror, a white or
+unit-albedo wall, a periodic face), which is skipped (below).  The
+angular-to-scalar reduction :math:`J_g` is
 :meth:`AngularBoundaryFlux.net_current
 <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.net_current>`
 — the single source of the :math:`\Omega\cdot\hat n\,w` contraction, the
@@ -556,7 +565,23 @@ The reflective law equates a face's inflow to its reflected outflow
 :meth:`~orpheus.sn.solver.SNSolver._boundary_leakage_rate` therefore
 **skips** reflective faces — it never accumulates them, rather than
 accumulating a value that ought to be zero but carries
-:math:`\pm`-cancelling angular-sum floating-point noise.
+:math:`\pm`-cancelling angular-sum floating-point noise.  The skip is
+asked of the law's response amplitude, :math:`\alpha_f = 1`, so it
+covers every face that returns all its particles: the mirror, a white
+or unit-albedo wall (net current zero), and a periodic face (whose
+outflow re-enters through its partner, so the pair's net currents
+cancel).  A face with :math:`\alpha_f < 1` is summed.
+
+.. warning::
+
+   The skip is keyed on :math:`\alpha_f = 1`, never on the response
+   being nonzero.  Summing only the faces that return nothing
+   (``response_kernel.is_zero``) agrees with it on every law a ``BC``
+   tag can declare, and drops the leakage of a partially reflecting
+   typed law: the reported :math:`k` of a one-group homogeneous slab
+   under ``ReflectiveBoundary('x', 0.7)`` then comes out
+   :math:`k_\infty = 0.96`, where the posed problem's is 0.830.  That
+   was this predicate until 2026-09-30 (ERR-094).
 
 This is a deliberate design choice with a bit-level payoff.  On an
 all-reflective (lattice) problem :math:`L` is a structural ``0.0``, and
@@ -592,7 +617,8 @@ returned flux itself.  The **contract** is therefore: the flux handed to
 multiple of the last inner solve's flux (true for ``power_iteration`` and
 for every manual solve-then-estimate loop).
 
-If a vacuum face exists but **no** inner solve has stored a trace,
+If a face that loses particles exists (a vacuum face, a prescribed
+inflow, a partial reflector) but **no** inner solve has stored a trace,
 :meth:`~orpheus.sn.solver.SNSolver._boundary_leakage_rate` raises
 ``RuntimeError`` — the leakage cannot be answered honestly, and silently
 returning it as zero would *reproduce the #291 omission*.  Fail loud;
@@ -721,7 +747,14 @@ face-area convention), reflective bitwise-degenerate, reflective
 leakage-drop mutation reds the vacuum legs while staying bitwise-green
 on reflective; a leakage sign-flip crash-reds through the scale-bridge
 guard; and the old :math:`(n,2n)`-in-numerator convention reds the
-:math:`\Sigma_2\neq 0` leg.
+:math:`\Sigma_2\neq 0` leg.  The class ``TestPartialReturnLeakage`` in
+the same file extends the identity to faces that return a fraction
+:math:`0 < \alpha < 1` of their outflow (``ReflectiveBoundary``,
+``AlbedoBoundary`` with a specular return, ``WhiteBoundary`` with an
+albedo; a slab and a sphere), with the edges :math:`\alpha = 0` (the
+vacuum problem, exactly) and :math:`\alpha = 1` (bitwise the lattice
+functional): the face set of :eq:`sn-leakage-functional` is what those
+rows pin (ERR-094).
 
 This is a **consistency** gate: the map ratio is the structurally-
 independent ground truth for "does the estimator return the eigenvalue

@@ -503,8 +503,9 @@ Both method-meshes are the two witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol (#290 P7b),
 and BC resolution flows through the **one** shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body — the
-same face-loop, reflective-default, and tag-to-law parse for S\ :sub:`N`
-and diffusion alike; only each mesh's ``realize_boundary_law`` arm
+same face loop and tag-to-law parse for S\ :sub:`N` and diffusion alike,
+with no default to fill: every face reads the law its axis declares, and
+an axis refuses ``None`` as a law (#405); only each mesh's ``realize_boundary_law`` arm
 differs (the diffusion arm builds the albedo operator via
 :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`).
 Conformance is structural — neither mesh imports the Protocol. The

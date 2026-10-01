@@ -403,3 +403,14 @@ spelling was the INEXACT one (22 of 20 000 against 0), and replaying the pre-car
 intervals under the array spelling moved 0 (control: the re-association moved 6). The identity protected only a gate against a
 function retiring next step. So: find the capture the identity claims to protect, replay it with a positive control, and
 test both spellings against an exact oracle before crediting "kept for bit identity".
+
+### L-033 — An admission keyed on a family TAG: read the tag's definition first, then feed the guard every PARAMETER of the family, using a sibling method's realizer as the oracle of what is ill-posed
+Not covered by L-031 (an alternate constructor of ONE type against its primary's refusals) nor the skill's anti-#4 (which
+names the smell, not the probe). `[M]` 2026-09-30, ERR-094 review: I had "CP's `kind == "reflective"` guard re-admits a
+partial reflector" drafted; `ReflectiveBoundary.kind` returns `"partial"` at α ≠ 1 (a hidden fourth `albedo == 1.0`), so it
+was refuted by one read. The real hole was the parameter the bug report did NOT name: `ReflectiveBoundary("y")` on an
+x-face was admitted by CP (k bit-equal to the x-mirror) while SN's realizer refuses it as "not a boundary law at all".
+So: (1) read the tag property's body before grading what a string guard admits; (2) enumerate the family's parameters
+(axis, sign, amplitude) and run each through the guard AND through a sibling method that realizes the law, whose
+refusals are the free catalogue of ill-posed members; (3) the remedy is value equality with the law the method computes,
+not a structural predicate (`law_permutes_ordinates` also answers True for the wrong-axis mirror).

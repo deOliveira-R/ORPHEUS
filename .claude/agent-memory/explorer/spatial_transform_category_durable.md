@@ -78,7 +78,10 @@ within ~100 lines of one file, one as a literal `x_reverse: bool` parameter.
 - Coordinate-system identity has **four** parallel encodings: `CoordSystem`
   enum, `AxisCoord` enum, the bare string `SNMesh.curvature ∈ {None,
   "spherical", "cylindrical"}`, and the loss-rep's re-normalization that adds
-  `"cartesian"`.
+  `"cartesian"`. ⛔ STALE 2026-09-30: the `curvature` string retired
+  2026-08-26 (`SNProblem.is_cartesian` reads the enum); the live fourth
+  encoding is the quadrature registry's string keys, see
+  [[coordinate-system-group-seam]].
 - **No hand-built 2×2/3×3 transformation matrix exists in the spatial layer.**
   The only literal small matrices are LD element matrices (`_GRAD_1D`,
   `_FOUT_1D`). Every transformation matrix in the repo is in `symmetry.py`.

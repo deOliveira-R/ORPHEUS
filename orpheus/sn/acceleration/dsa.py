@@ -224,8 +224,12 @@ class DSALowOrderSystem:
             )
         # The two laws whose low-order row is PROVEN, asked structurally: a
         # zero response gives Marshak (38) — zero incoming partial current —
-        # and an ordinate-permuting geometry gives (39) — zero net current at
-        # the mirror. Until campaign phase B2 this was a set-difference against
+        # and an ordinate-permuting law that returns everything (amplitude 1)
+        # gives (39) — zero net current at the mirror. A partial specular
+        # reflector permutes ordinates too, but its net current is
+        # (1 - alpha) J+, which (39) does not state: it is refused, not read
+        # as a mirror (until 2026-09-30 it was admitted and given the
+        # mirror's row, ERR-094). Until campaign phase B2 this was a set-difference against
         # the tag frozenset ``{"vacuum", "reflective"}``; the answers coincide
         # on every registered law, but the structural form says WHICH property
         # each proof rests on, which is what the ``_build`` rows below select.
@@ -236,10 +240,11 @@ class DSALowOrderSystem:
         # test alone would admit it — measured while writing B2.)
         laws = (problem.bc["xmin"].law, problem.bc["xmax"].law)
         unsupported = sorted({
-            type(law).__name__ for law in laws
+            repr(law) for law in laws
             if isinstance(law, PrescribedInflow)
             or not (law.response_kernel.is_zero
-                    or law_permutes_ordinates(law))
+                    or (law_permutes_ordinates(law)
+                        and law.response_kernel.amplitude == 1.0))
         })
         if unsupported:
             raise NotImplementedError(

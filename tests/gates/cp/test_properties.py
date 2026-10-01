@@ -18,6 +18,7 @@ from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPMesh
 from orpheus.derivations.common.xs_library import get_xs
+from tests.gates.cp._cp_geometry import cp_body
 
 # CP matrix algebraic invariants (row sums, reciprocity, non-negativity).
 # The complementarity and reciprocity labels are named in the theory
@@ -47,10 +48,10 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
     xs_b = get_xs("B", "1g")
     sig_t_g = np.array([xs_a["sig_t"][0], xs_b["sig_t"][0]])
 
-    # White on every boundary point: the CP method admits only vacuum and
-    # white, and these algebraic-invariant tests were written with the CP
-    # default (white at the outer surface).
-    geom = StructuredGeometry.uniform_boundary(coord, (0.0, 0.5, 1.0), (0, 1), BC.white)
+    # The body CP computes (``cp_body``): white at the outer surface, the law
+    # these algebraic-invariant tests were written with, and on a slab a mirror
+    # at the left face, which CP's kernel images whatever is declared (#513).
+    geom = cp_body(coord, (0.0, 0.5, 1.0), (0, 1), BC.white)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(1)).mesh
     cp_mesh = CPMesh(mesh)
     P_inf = cp_mesh.compute_pinf_group(sig_t_g)
@@ -60,7 +61,7 @@ def _build_pinf_1g(coord: CoordSystem, r_inner: float = 0.0, r_outer: float = 1.
 def _build_pinf_1region(coord: CoordSystem):
     """Build P_inf for a 1G 1-region problem (homogeneous limit)."""
     extent_cm = 0.5 if coord == CoordSystem.CARTESIAN else 1.0
-    geom = StructuredGeometry.uniform_boundary(coord, (0.0, extent_cm), (0,), BC.white)
+    geom = cp_body(coord, (0.0, extent_cm), (0,), BC.white)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(1)).mesh
 
     sig_t_g = np.array([1.0])

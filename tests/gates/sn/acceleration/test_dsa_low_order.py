@@ -23,6 +23,8 @@ Levels: foundation (object identities; no physics reference).
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pytest
 
@@ -32,10 +34,12 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     PrescribedInflow,
+    ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.mesh import CellEdges, Mesher
+from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
 from orpheus.sn.problem import SNProblem
@@ -56,15 +60,20 @@ def _four_cell_mesh(left: BC, right: BC):
     )).mesh
 
 
-def _slab(left: str = "vacuum", right: str = "vacuum") -> SNProblem:
+def _four_cell_problem(left, right) -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups (the 3a tie
     fixture — mixtures carry real P1 data, so the (23c) D is exercised
-    beyond the bare-P0 coincidence)."""
-    mesh1d = _four_cell_mesh(BC(left), BC(right))
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    beyond the bare-P0 coincidence), with any declared laws, typed or
+    tagged."""
     return SNProblem(
-        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+        _four_cell_mesh(left, right), Quadrature.gauss_legendre(n_ordinates=4),
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
+
+
+def _slab(left: str = "vacuum", right: str = "vacuum") -> SNProblem:
+    """The tie fixture with the laws named by their ``BC`` tags."""
+    return _four_cell_problem(BC(left), BC(right))
 
 
 def _reference_inputs(problem: SNProblem):
@@ -152,10 +161,16 @@ class TestAdmissionTeeth:
         ids=["white", "albedo", "prescribed"],
     )
     def test_unsupported_boundary_refused(self, unadmitted):
-        """The albedo/white seam guard. SNProblem's own registry pre-refuses
-        these laws today, so the guard is defense-in-depth for a future
-        registry entry — exercised through a structural stub carrying
-        the admission surface (geometry, scheme, per-face laws).
+        """The albedo/white seam guard, on a structural stub carrying the
+        admission surface (geometry, scheme, per-face laws). The stub is for
+        the bare ``AlbedoBoundary(0.3)`` row: the SN realizer refuses an
+        albedo with no re-emission closure before this guard is reached.
+        The other two are not pre-refused: a typed law reaches
+        :class:`SNProblem` whatever its tag registry lists (since
+        ``985497b5``, 2026-08-05), so this guard is the live door for a
+        white or prescribed-inflow face (``[M]`` 2026-09-30: both build an
+        ``SNProblem`` and are refused here), and for the partial specular
+        reflector of ERR-094 (:meth:`test_a_partial_specular_reflector_is_refused`).
 
         The stub's faces carry REAL laws. Until campaign phase B2 they were
         ``SimpleNamespace(kind="white")`` tag surrogates, which could only
@@ -180,6 +195,114 @@ class TestAdmissionTeeth:
         )
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
             DSALowOrderSystem.from_problem(stub)  # type: ignore[arg-type]
+
+    _PARTIAL = [
+        (face, spelling)
+        for face in ("xmin", "xmax")
+        for spelling in ("reflective", "albedo-specular")
+    ]
+
+    @pytest.mark.catches("ERR-094")
+    @pytest.mark.parametrize(
+        "face, spelling", _PARTIAL, ids=[f"{f}-{s}" for f, s in _PARTIAL],
+    )
+    def test_a_partial_specular_reflector_is_refused(self, face, spelling):
+        r"""A specular law of amplitude 0.7 permutes ordinates like the mirror,
+        but its net current is :math:`(1 - \alpha) J^+`, which the mirror's
+        low-order row (39), :math:`f_1 = 0`, does not state. It has no proven
+        row and is refused, on a real :class:`SNProblem`, on either face.
+
+        First red, ``[M]`` 2026-09-30 with the amplitude condition removed
+        (the defect, ERR-094): all four rows build a system. What that system
+        did, on a 1-group slab of 40 cells, Gauss-Legendre 8, with
+        ``ReflectiveBoundary("x", 0.7)`` on both faces and source iteration
+        with DSA: at :math:`c = 0.9`, :math:`\sigma_t h = 1` it converged to the
+        right fixed point (rate 0.24); at :math:`c = 0.99`,
+        :math:`\sigma_t h = 5` it diverged (residual ``inf`` after 4000
+        iterations, flux 8e151 times the plain-SI answer); at
+        :math:`\sigma_t h = 20` it raised on a NaN. The mirror's row on a
+        partial reflector is the inconsistent low-order system of the
+        diffusive regime.
+        """
+        law = (
+            ReflectiveBoundary("x", 0.7) if spelling == "reflective"
+            else AlbedoBoundary(0.7, SpecularReturn("x"))
+        )
+        laws = {"xmin": VacuumInflow(), "xmax": VacuumInflow(), face: law}
+        problem = _four_cell_problem(laws["xmin"], laws["xmax"])
+        with pytest.raises(
+            NotImplementedError,
+            match=rf"{re.escape(repr(law))}.*Marshak-albedo",
+        ):
+            DSALowOrderSystem.from_problem(problem)
+
+    @pytest.mark.rests_on(
+        "tests/gates/sn/acceleration/test_dsa_low_order.py::TestAdmissionTeeth::"
+        "test_a_partial_specular_reflector_is_refused",
+    )
+    @pytest.mark.catches("ERR-094")
+    def test_the_dsa_entry_refuses_a_partial_reflector(self):
+        """The public route: ``solve_sn_fixed_source(..., acceleration="dsa")``
+        on a partial reflector refuses before a sweep runs, with the same
+        message (the admission is the operator build the entry calls)."""
+        from orpheus.sn.solver import solve_sn_fixed_source
+
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 5.0), (0,),
+            left=ReflectiveBoundary("x", 0.7), right=ReflectiveBoundary("x", 0.7),
+        )).partition(CellsByCount.uniform_width(5)).mesh
+        with pytest.raises(NotImplementedError, match="Marshak-albedo"):
+            solve_sn_fixed_source(
+                {0: get_mixture("A", "2g")}, mesh,
+                Quadrature.gauss_legendre(n_ordinates=4),
+                np.ones((4, 2, 5)), acceleration="dsa",
+            )
+
+    _EDGES = [
+        ("reflective-0", ReflectiveBoundary("x", 0.0), VacuumInflow()),
+        ("albedo-specular-0", AlbedoBoundary(0.0, SpecularReturn("x")), VacuumInflow()),
+        ("albedo-specular-1", AlbedoBoundary(1.0, SpecularReturn("x")),
+         ReflectiveBoundary("x")),
+    ]
+
+    @pytest.mark.rests_on(
+        "tests/gates/sn/acceleration/test_dsa_low_order.py::TestProductionTie::"
+        "test_low_order_matches_reference_builder",
+    )
+    @pytest.mark.parametrize(
+        "edge, law, foundation", _EDGES, ids=[e[0] for e in _EDGES],
+    )
+    def test_the_edges_build_the_foundation_rows(self, edge, law, foundation):
+        r"""The positive legs of the refusal above: a specular law returning
+        nothing builds the vacuum (Marshak) system, and one returning
+        everything, spelled as an albedo, builds the mirror's system, both
+        bitwise (``[M]`` 2026-09-30: ``a_low`` and ``g_map`` equal to the last
+        bit). The foundation laws' systems are tied to the derivation's
+        reference builder by the row this rests on, and differ from each
+        other (asserted), so equality picks the right one. A guard reading
+        the pairing on the geometry tier only (where the albedo spelling
+        carries the identity) refuses ``albedo-specular-1`` and reds it
+        (``[M]`` 2026-09-30, ``scratch/boundary_ontology/battery_err094.md``).
+        """
+        built = DSALowOrderSystem.from_problem(_four_cell_problem(law, law))
+        expected = DSALowOrderSystem.from_problem(
+            _four_cell_problem(foundation, foundation),
+        )
+        other = DSALowOrderSystem.from_problem(_four_cell_problem(
+            *((VacuumInflow(),) * 2 if foundation == ReflectiveBoundary("x")
+              else (ReflectiveBoundary("x"),) * 2),
+        ))
+        if np.array_equal(expected.a_low, other.a_low):
+            pytest.fail("the vacuum and mirror systems coincide: the edge rows "
+                        "cannot tell which foundation they reproduce")
+        np.testing.assert_array_equal(
+            built.a_low, expected.a_low,
+            err_msg=f"{edge}: the low-order matrix is not the foundation's",
+        )
+        np.testing.assert_array_equal(
+            built.g_map, expected.g_map,
+            err_msg=f"{edge}: the low-order source map is not the foundation's",
+        )
 
     def test_non_dd_scheme_refused(self):
         from orpheus.transport.spatial.linear_discontinuous import (

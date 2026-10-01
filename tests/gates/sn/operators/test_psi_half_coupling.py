@@ -60,7 +60,12 @@ from numpy.typing import NDArray
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
-from orpheus.geometry.boundary import WhiteBoundary
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    ReflectiveBoundary,
+    SpecularReturn,
+    WhiteBoundary,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import (
@@ -206,6 +211,20 @@ def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4,
     geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC(bc))
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
+
+
+def _posed_curvilinear(coord: CoordSystem, outer_law):
+    """A seed-carrying sphere (GL S4, one ray level) or folded cylinder
+    (``folded_product(4, 8)``, four ray levels) whose outer face carries the
+    typed law ``outer_law``: the partial specular laws have no ``BC`` tag."""
+    if coord is CoordSystem.SPHERICAL:
+        geometry = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=outer_law)
+        quadrature = Quadrature.gauss_legendre(4)
+    else:
+        geometry = StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=outer_law)
+        quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
+    return SNProblem(mesh, quadrature, {0: _mixture(1.0, 0.4, 2)})
 
 
 def _loss(sn, slope: float = 0.4):
@@ -788,6 +807,84 @@ class TestB_b_RayBoundary:
         np.testing.assert_array_equal(
             out.to_flat(), 0.0,
             err_msg="vacuum B_b emitted a non-zero corner (it did the reflective swap).")
+
+    _CORNER_CASES = [
+        (coord, spelling, alpha)
+        for coord in (CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL)
+        for spelling in ("reflective", "albedo-specular")
+        for alpha in (1.0, 0.7, 0.0)
+    ]
+
+    @pytest.mark.rests_on(
+        "tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::"
+        "test_reflective_corner_swap_forward",
+        "tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::"
+        "test_transpose_is_exact_euclidean_mirror",
+    )
+    @pytest.mark.catches("ERR-094")
+    @pytest.mark.parametrize(
+        "coord, spelling, alpha", _CORNER_CASES,
+        ids=[f"{c.name.lower()}-{s}-{a}" for c, s, a in _CORNER_CASES],
+    )
+    def test_partial_specular_corner_is_alpha_times_the_mirror(
+        self, coord, spelling, alpha,
+    ):
+        r"""A specular law of amplitude :math:`\alpha` returns at the corner
+        (the off-quadrature :math:`\mu = \pm 1` ray at :math:`r = R`) the
+        fraction :math:`\alpha` of what the mirror returns: as matrices,
+        ``B_b(α) = α · B_b(1)``, and its transpose is the Euclidean transpose
+        of that product. :math:`\alpha = 1` is bitwise the mirror.
+
+        The law is read from the POSED problem's outer face, as
+        ``build_within_group_system`` reads it. The sphere carries one ray
+        level and the folded cylinder four, so the cylinder rows see a corner
+        loop that stops after the first level.
+
+        First red, ``[M]`` 2026-09-30 with the scaling removed (the defect,
+        ERR-094): every :math:`\alpha = 0.7` and :math:`\alpha = 0` row, both
+        legs (the unscaled corner returns the full outflow, so ``B_b(0)`` is
+        the mirror instead of zero); the :math:`\alpha = 1` rows stay green.
+        With only the transpose's scaling removed, the same 8 rows red on the
+        transpose leg. A corner loop that stops after the first level reds
+        the 6 cylinder rows through the slot count. (``[M]`` 2026-09-30,
+        ``scratch/boundary_ontology/battery_err094.md``.)
+        """
+        law = (
+            ReflectiveBoundary("x", alpha) if spelling == "reflective"
+            else AlbedoBoundary(alpha, SpecularReturn("x"))
+        )
+        sn = _posed_curvilinear(coord, law)
+        mirror = _posed_curvilinear(coord, ReflectiveBoundary("x"))
+        space = sn.radial_characteristic_field_space
+        B_alpha = RadialCharacteristicBoundaryOperator(space, sn.bc["xmax"].law)
+        B_mirror = RadialCharacteristicBoundaryOperator(
+            mirror.radial_characteristic_field_space, mirror.bc["xmax"].law,
+        )
+        fwd = _dense_ray(B_alpha.apply, sn)
+        transpose = _dense_ray(B_alpha.apply_transpose, sn)
+        fwd_mirror = _dense_ray(B_mirror.apply, mirror)
+        # Non-vacuity: the mirror's corner block is one unit entry per corner
+        # slot (n_levels × ng), the only non-zeros B_b may have.
+        n_slots = len(sn.radial_characteristic_levels) * sn.ng
+        if np.count_nonzero(fwd_mirror) != n_slots or not np.all(
+            fwd_mirror[fwd_mirror != 0.0] == 1.0
+        ):
+            pytest.fail(
+                f"the mirror's corner block has {np.count_nonzero(fwd_mirror)} "
+                f"non-zeros, expected {n_slots} unit entries; the fixture no "
+                f"longer exercises the corner swap."
+            )
+        np.testing.assert_array_equal(
+            fwd, alpha * fwd_mirror,
+            err_msg=f"{coord.name} {spelling}({alpha}): the corner returns "
+                    f"other than alpha times the mirror's swap (ERR-094).",
+        )
+        np.testing.assert_array_equal(
+            transpose, fwd.T,
+            err_msg=f"{coord.name} {spelling}({alpha}): the corner's "
+                    f"apply_transpose is not the Euclidean transpose of its "
+                    f"apply (the amplitude is missing on one leg, ERR-094).",
+        )
 
     def test_unruled_outer_law_is_loud_deferred(self):
         r"""``kind ∈ {white, albedo, periodic}`` → ``NotImplementedError`` with the

@@ -47,6 +47,7 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.mesh import Mesh1D
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
@@ -141,22 +142,27 @@ def _refuse_a_law_cp_drops(mesh: Mesh1D) -> None:
     ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.12).
     revisit: CP's campaign (the direction of development takes CP after SN, diffusion and the baseline).
 
-    CP resolves only the outer law. On a slab, a left law equal to the
-    right one is what CP computes (``[M]`` 2026-09-25: a white, vacuum or
-    undeclared left law gave k = 1.8749980808246423 to all 16 digits, so
-    the left law is dropped), so only that one is admitted. On a hollow
-    cylinder or sphere, what CP realises at the inner surface is not
-    established, so no inner law is admitted.
+    CP resolves only the outer law. On a slab, the kernel's image term puts
+    a mirror at the left face whatever is declared there (``[M]`` 2026-09-25:
+    a white, vacuum or undeclared left law gave k = 1.8749980808246423 to all
+    16 digits), so the slab CP computes is the half of a symmetric slab, and
+    only a reflective left law, the mirror it computes, is admitted. Until
+    2026-09-30 this guard admitted a left law EQUAL to the right one, on the
+    claim that it was what CP computes; it is not (``[M]`` 2026-09-30: CP
+    declared white|white 1.212883, SN reflective|white 1.212884, SN
+    white|white 1.212537). On a hollow cylinder or sphere, what CP realises
+    at the inner surface is not established, so no inner law is admitted.
     """
     if "xmin" not in mesh.face_laws:  # a solid cylinder or sphere: the outer face only
         return
     inner_law = mesh.face_laws["xmin"]
     if mesh.coord is CoordSystem.CARTESIAN:
-        if inner_law != mesh.outer_law:
+        if inner_law not in (BC("reflective"), ReflectiveBoundary(axis="x")):
             raise NotImplementedError(
-                f"CP reads only a slab's right-hand law ({mesh.outer_law!r}); "
-                f"the declared left law {inner_law!r} differs from it and would "
-                f"be dropped (#513). Declare the same law on both faces."
+                f"CP's slab kernel puts a mirror at the left face whatever is "
+                f"declared there: the declared left law {inner_law!r} would be "
+                f"replaced by a reflective one (#513). Declare the left face "
+                f"reflective: the slab CP computes is half of a symmetric slab."
             )
     else:
         raise NotImplementedError(
@@ -948,9 +954,10 @@ def solve_cp(
         meshed by a :class:`~orpheus.mesh.mesher.Mesher`.
         CP reads the mesh's OUTER law (``outer_law``; the kernel registry
         handles ``white`` / ``vacuum``) and nothing else, so a declared
-        law it would drop is refused: a slab's left law must equal its
-        right law, and a hollow cylinder or sphere takes no inner law
-        (#513).
+        law it would drop is refused: a slab's left law must be
+        ``reflective``, the mirror the slab kernel computes there
+        whatever is declared, and a hollow cylinder or sphere takes no
+        inner law (#513).
     params : CPParams, optional
         Solver parameters (tolerances, Ki table size, chord-quadrature
         order via ``n_quad_y``, solver mode, inner-iteration limits).

@@ -39,12 +39,21 @@ pinned by an exact self-reference, not a literature value.
 from __future__ import annotations
 
 import copy
+import functools
+from typing import NamedTuple
 
 import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    ReflectiveBoundary,
+    SpecularReturn,
+    VacuumInflow,
+    WhiteBoundary,
+)
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
@@ -69,12 +78,20 @@ def _mesh(regions, bc, coord):
     ).mesh
 
 
-def _solve(materials, mesh, scattering_order=0):
+#: The eigenvalue tolerance ``_solve`` drives every solve with; a gate
+#: comparing two solves of one posed problem reads its band from this.
+_KEFF_TOL = 1e-9
+
+
+def _solve(materials, mesh, scattering_order=0, quadrature=None):
     """Converged eigenpair via the production driver, solver retained."""
-    problem = _as_problem(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
+    problem = _as_problem(
+        mesh, quadrature if quadrature is not None else Quadrature.gauss_legendre(8),
+        materials, scattering_order=scattering_order,
+    )
     solver = SNSolver(
         problem,
-        keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
+        keff_tol=_KEFF_TOL, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
     )
     _o = power_iteration(solver, max_iter=2000)
     keff, phi = _o.keff, _o.flux_distribution
@@ -485,3 +502,310 @@ class TestGateTeeth:
                     "broadcast AND matched k* — the d=3 vacuum leg has "
                     "no teeth against the axis swap."
                 )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ERR-094: a face that returns the fraction α < 1 of its outflow leaks
+# (1 − α) J⁺, and the reported k must count it.
+# ═══════════════════════════════════════════════════════════════════════
+
+_HERE = "tests/gates/sn/eigenvalue/test_keff_estimator_gate.py"
+_POSED = f"{_HERE}::TestReportedKeffIsThePosedEigenvalue"
+_THE_MIRROR_ACTION = (
+    "tests/gates/geometry/test_reemission_closure.py::"
+    "TestSpecularAgainstAnIndependentExpression::"
+    "test_matches_the_hand_written_mirror_gather"
+)
+_THE_DIFFUSE_ACTION = (
+    "tests/gates/geometry/test_reemission_closure.py::"
+    "TestDiffuseAgainstAnIndependentExpression::"
+    "test_matches_the_hand_written_cosine_weighted_average"
+)
+_THE_CORNER_ACTION = (
+    "tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::"
+    "test_partial_specular_corner_is_alpha_times_the_mirror"
+)
+
+#: The three spellings of a face returning the fraction ``alpha`` of its
+#: outflow. The first two realize to one matrix (a specular return); the
+#: third is the diffuse return, ``WhiteBoundary`` with an albedo, and was
+#: read as a closed face by the same predicate (``[M]`` 2026-09-30 below).
+#: ``outward_sign`` is the face's outward normal along x, which only the
+#: diffuse return reads.
+_RETURN_SPELLINGS = {
+    "reflective": lambda alpha, outward_sign: ReflectiveBoundary("x", alpha),
+    "albedo-specular": lambda alpha, outward_sign: AlbedoBoundary(
+        alpha, SpecularReturn("x"),
+    ),
+    "white": lambda alpha, outward_sign: WhiteBoundary("x", outward_sign, alpha),
+}
+
+#: Fuel (mixture A) on [0, 4] cm, moderator (mixture B) on [4, 6] cm: the
+#: two faces see different media, so the two faces' leakages differ and a
+#: defect reading one face for both is not cancelled by symmetry.
+_FUEL_MODERATOR = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+
+
+def _posed_mesh(shape: str, left, right):
+    """The three bodies of this section. ``left`` is read on the slab only;
+    the sphere and cylinder carry one face, the outer one (``right``)."""
+    if shape == "slab":
+        return Mesher(StructuredGeometry.slab(
+            (0.0, 4.0, 6.0), (0, 1), left=left, right=right,
+        )).partition(
+            (CellsByCount.uniform_width(20), CellsByCount.uniform_width(10)),
+        ).mesh
+    if shape == "sphere":
+        return Mesher(StructuredGeometry.sphere(
+            (0.0, 4.0), (0,), outer=right,
+        )).partition(CellsByCount.uniform_width(20)).mesh
+    if shape == "cylinder":
+        return Mesher(StructuredGeometry.cylinder(
+            (0.0, 6.0), (0,), outer=right,
+        )).partition(CellsByCount.uniform_width(12)).mesh
+    raise ValueError(shape)
+
+
+class _Eigenpair(NamedTuple):
+    reported_k: float
+    map_ratio_k: float
+    lattice_functional: float  # production / absorption, no leakage term
+
+
+@functools.lru_cache(maxsize=None)
+def _partial_return_eigenpair(shape: str, left, right) -> _Eigenpair:
+    """One converged solve per posed problem, shared by the rows below."""
+    quadrature = (
+        Quadrature.folded_product(n_mu=4, n_phi=8) if shape == "cylinder"
+        else None
+    )
+    solver, keff, phi = _solve(
+        _FUEL_MODERATOR, _posed_mesh(shape, left, right), quadrature=quadrature,
+    )
+    production = IntegratedReactionRate(
+        solver.problem.mat_xs.fission_production_field
+    ).evaluate(phi)
+    absorption = IntegratedReactionRate(
+        solver.problem.mat_xs.absorption_cross_section_field
+    ).evaluate(phi)
+    return _Eigenpair(
+        float(keff), float(_map_ratio_kstar(solver, phi)),
+        float(production / absorption),
+    )
+
+
+def _returning(shape: str, spelling: str, alpha: float) -> _Eigenpair:
+    """The eigenpair with the law ``spelling(alpha)`` on every face."""
+    law = _RETURN_SPELLINGS[spelling]
+    return _partial_return_eigenpair(shape, law(alpha, -1), law(alpha, +1))
+
+
+class TestPartialReturnLeakage:
+    r"""ERR-094: the leakage term of the SN eigenvalue counts every face whose
+    law's response amplitude :math:`\alpha` (the return ratio
+    :math:`J^-/J^+`) is not 1.
+
+    The ladder, each rung resting on the ones below it:
+
+    * foundations (reused): the vacuum slab and sphere and the bitwise
+      reflective lattice functional above, on which ERR-064 was caught;
+    * edges: :math:`\alpha = 0` is the vacuum problem, :math:`\alpha = 1` is
+      the closed problem whose estimator is bitwise the lattice functional;
+    * interior: :math:`0 < \alpha < 1`, the reported k against the map-ratio
+      eigenvalue, which never reads the leakage term;
+    * companion: k strictly increasing in :math:`\alpha`.
+
+    The physics value at :math:`0 < \alpha < 1` against a structurally
+    independent reference (the trajectory resolvent) is the L1 module
+    ``tests/gates/sn/verification/analytical/test_partial_reflector_resolvent.py``;
+    the rows here are the estimator's identity with the posed problem, and
+    they share the realized boundary operator with the solver, so they are
+    blind to an operator realizing the wrong amplitude (``[M]`` 2026-09-30,
+    the battery's realizer arm, ``scratch/boundary_ontology/battery_err094.md``).
+
+    Fixtures: two groups (mixtures A and B), Gauss-Legendre 8; the slab is
+    fuel on [0, 4] cm and moderator on [4, 6] cm (30 cells), the sphere is
+    fuel of radius 4 cm (20 cells), the cylinder fuel of radius 6 cm (12 cells,
+    folded product 4 x 8).
+    """
+
+    #: The map-ratio band of the ERR-064 rows, at the same solve settings
+    #: (``[M]`` 2026-09-30: agreement at most 6.5e-10 on the 11 interior rows).
+    RTOL = TestReportedKeffIsThePosedEigenvalue.RTOL
+
+    #: Two solves of one posed problem agree to the eigenvalue tolerance
+    #: that drove them; ten times it is the band.
+    EDGE_RTOL = 10 * _KEFF_TOL
+
+    _INTERIOR = [
+        *[("slab", s, a) for s in ("reflective", "albedo-specular", "white")
+          for a in (0.3, 0.7)],
+        *[("sphere", s, a) for s in ("reflective", "albedo-specular")
+          for a in (0.3, 0.7)],
+    ]
+
+    @pytest.mark.rests_on(
+        f"{_POSED}::test_vacuum_slab",
+        f"{_POSED}::test_vacuum_sphere_curvilinear_face_area",
+        f"{_POSED}::test_reflective_lattice_bitwise_degenerate",
+        f"{_HERE}::TestPartialReturnLeakage::test_alpha_zero_is_the_vacuum_problem",
+        f"{_HERE}::TestPartialReturnLeakage::test_alpha_one_is_the_lattice_functional",
+        _THE_MIRROR_ACTION, _THE_DIFFUSE_ACTION,
+    )
+    @pytest.mark.verifies("sn-leakage-functional")
+    @pytest.mark.catches("ERR-094")
+    @pytest.mark.parametrize(
+        "shape, spelling, alpha", _INTERIOR,
+        ids=[f"{sh}-{sp}-{a}" for sh, sp, a in _INTERIOR],
+    )
+    def test_reported_k_is_the_posed_eigenvalue(self, shape, spelling, alpha):
+        r"""Claim kind: THEOREM (the estimator equals the posed problem's
+        eigenvalue, whatever the law). Reference: the map ratio
+        :math:`P(M\phi^*)/P(\phi^*)`, one more application of the transport
+        inverse to the fission source, which never reads the leakage term.
+
+        First red, measured 2026-09-30 with the leakage predicate reverted to
+        ``response_kernel.is_zero`` (the defect): reported k against the map
+        ratio, slab reflective/albedo-specular 1.51527 vs 0.79402 at
+        :math:`\alpha = 0.3` (+91 %) and 1.51096 vs 1.06615 at 0.7 (+42 %),
+        slab white 1.51501 vs 0.79254 (+91 %) and 1.50977 vs 1.06396 (+42 %),
+        sphere 1.77787 vs 0.47292 (+276 %) and 1.82448 vs 0.88317 (+107 %).
+        """
+        pair = _returning(shape, spelling, alpha)
+        np.testing.assert_allclose(
+            pair.reported_k, pair.map_ratio_k, rtol=self.RTOL,
+            err_msg=(
+                f"{shape}, {spelling}({alpha}) on every face: the reported k "
+                f"is not the posed eigenvalue, so the leakage term dropped "
+                f"(or mis-weighted) the (1 - alpha) of the outflow this law "
+                f"does not return (ERR-094)."
+            ),
+        )
+
+    @pytest.mark.rests_on(
+        f"{_POSED}::test_vacuum_slab",
+        f"{_HERE}::TestPartialReturnLeakage::test_reported_k_is_the_posed_eigenvalue",
+    )
+    @pytest.mark.verifies("sn-leakage-functional")
+    @pytest.mark.catches("ERR-094")
+    def test_two_faces_returning_different_fractions(self):
+        r"""The two faces carry different laws and different amplitudes
+        (``ReflectiveBoundary("x", 0.3)`` left, ``AlbedoBoundary(0.7,
+        SpecularReturn("x"))`` right) over different media, so the leakage
+        sum must read each face's own law. First red (``is_zero`` predicate,
+        ``[M]`` 2026-09-30): 1.45591 vs 0.84509 (+72 %).
+        """
+        pair = _partial_return_eigenpair(
+            "slab", ReflectiveBoundary("x", 0.3),
+            AlbedoBoundary(0.7, SpecularReturn("x")),
+        )
+        np.testing.assert_allclose(
+            pair.reported_k, pair.map_ratio_k, rtol=self.RTOL,
+            err_msg="slab, reflective(0.3) | albedo-specular(0.7): the "
+                    "reported k is not the posed eigenvalue (ERR-094).",
+        )
+
+    _ZERO_EDGE = [
+        ("slab", "reflective"), ("slab", "albedo-specular"), ("slab", "white"),
+        ("sphere", "reflective"), ("sphere", "albedo-specular"),
+        ("cylinder", "reflective"),
+    ]
+
+    @pytest.mark.rests_on(
+        f"{_POSED}::test_vacuum_slab",
+        f"{_POSED}::test_vacuum_sphere_curvilinear_face_area",
+        _THE_CORNER_ACTION,
+    )
+    @pytest.mark.catches("ERR-094")
+    @pytest.mark.parametrize(
+        "shape, spelling", _ZERO_EDGE, ids=[f"{a}-{b}" for a, b in _ZERO_EDGE],
+    )
+    def test_alpha_zero_is_the_vacuum_problem(self, shape, spelling):
+        r"""Edge: a face returning nothing is a vacuum face, so the problem
+        with :math:`\alpha = 0` is the vacuum problem and its k is the
+        vacuum k. ``[M]`` 2026-09-30: equal to the last bit on all 6 rows.
+
+        What reddens it: on the sphere and the cylinder, the curvilinear
+        corner (the off-quadrature :math:`\mu = \pm 1` ray at the outer
+        surface) returning its full outflow instead of :math:`\alpha` of it,
+        the corner half of ERR-094. ``[M]``: the unscaled corner gives sphere
+        0.341797 vs 0.343057 (3.7e-3) and cylinder 0.892467 vs 0.890774
+        (1.9e-3). This is the end-to-end witness that the solve consumes the
+        corner action; the operator-level catcher is the corner gate this row
+        rests on. The slab rows are the control: a slab has no corner, and the
+        leakage predicate counted :math:`\alpha = 0` before the fix and after
+        it.
+        """
+        vacuum = _partial_return_eigenpair(shape, VacuumInflow(), VacuumInflow())
+        pair = _returning(shape, spelling, 0.0)
+        np.testing.assert_allclose(
+            pair.reported_k, vacuum.reported_k, rtol=self.EDGE_RTOL,
+            err_msg=(
+                f"{shape}, {spelling}(0): a face returning nothing must pose "
+                f"the vacuum problem; on a curved body a corner that re-emits "
+                f"its outflow is the defect (ERR-094)."
+            ),
+        )
+
+    _ONE_EDGE = [
+        ("slab", "albedo-specular"), ("slab", "white"), ("sphere", "albedo-specular"),
+    ]
+
+    @pytest.mark.rests_on(f"{_POSED}::test_reflective_lattice_bitwise_degenerate")
+    @pytest.mark.parametrize(
+        "shape, spelling", _ONE_EDGE, ids=[f"{a}-{b}" for a, b in _ONE_EDGE],
+    )
+    def test_alpha_one_is_the_lattice_functional(self, shape, spelling):
+        r"""Edge: a face returning everything is a structural zero of the
+        leakage sum, skipped and never accumulated, so the reported k is
+        BITWISE production / absorption, as for the mirror (the foundation
+        row). The rows are the spellings other than ``ReflectiveBoundary``
+        whose amplitude is 1: they pin that the skip reads the AMPLITUDE. A
+        skip spelled "is a perfect mirror" sums the white row's net current
+        (round-off) and reds it; a skip removed altogether reds all three
+        (``[M]`` the battery, ``scratch/boundary_ontology/battery_err094.md``).
+        """
+        pair = _returning(shape, spelling, 1.0)
+        assert pair.reported_k == pair.lattice_functional, (
+            f"{shape}, {spelling}(1): reported k={pair.reported_k!r} must be "
+            f"BITWISE the lattice functional {pair.lattice_functional!r}; a "
+            f"face returning every particle is a structural zero of the "
+            f"leakage sum, never a computed one."
+        )
+
+    _ORDERED = [
+        ("slab", "reflective"), ("slab", "albedo-specular"), ("slab", "white"),
+        ("sphere", "reflective"), ("sphere", "albedo-specular"),
+    ]
+
+    @pytest.mark.rests_on(
+        f"{_HERE}::TestPartialReturnLeakage::test_alpha_zero_is_the_vacuum_problem",
+        f"{_HERE}::TestPartialReturnLeakage::test_alpha_one_is_the_lattice_functional",
+        f"{_HERE}::TestPartialReturnLeakage::test_reported_k_is_the_posed_eigenvalue",
+    )
+    @pytest.mark.catches("ERR-094")
+    @pytest.mark.parametrize(
+        "shape, spelling", _ORDERED, ids=[f"{a}-{b}" for a, b in _ORDERED],
+    )
+    def test_k_rises_with_the_returned_fraction(self, shape, spelling):
+        r"""Companion, claim kind THEOREM: the boundary operator
+        :math:`\alpha B_1` is non-negative and increasing in :math:`\alpha`,
+        so the dominant eigenvalue is non-decreasing in it, strictly here
+        because the returned neutrons reach fissile material:
+        k(0) < k(0.3) < k(0.7) < k(1).
+
+        ``[M]`` 2026-09-30: slab 0.67922 < 0.79402 < 1.06615 < 1.48880
+        (white 0.79254, 1.06396, 1.48601); sphere 0.34306 < 0.47292 <
+        0.88317 < 1.87500. With the ``is_zero`` predicate the slab rows red
+        (1.51527 > 1.51096 > 1.48880, the order reversed). The sphere rows do
+        NOT red under that defect (1.77787 < 1.82448 < 1.87500, still
+        increasing): their teeth are the interior rows, and they are kept as
+        the ordering's statement on a curved body.
+        """
+        ks = [_returning(shape, spelling, a).reported_k for a in (0.0, 0.3, 0.7, 1.0)]
+        if not np.all(np.diff(ks) > 0.0):
+            pytest.fail(
+                f"{shape}, {spelling}: k must rise strictly with the returned "
+                f"fraction alpha in (0, 0.3, 0.7, 1); got {ks} (ERR-094: a "
+                f"leakage term that ignores alpha < 1 breaks the order)."
+            )

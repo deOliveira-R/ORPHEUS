@@ -935,12 +935,14 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
 
         The (R, μ = ∓1) corner pair closes the ray boundary on a seed-carrying
         mesh: the inward seed leg's r = R inflow is BC data, and for a
-        specular-reflective outer face the reflected partner of the outward ray
-        μ = +1 is EXACTLY the inward one μ = −1 (its own mirror — an
-        off-quadrature ray, so the per-face law OPERATOR cannot act on it; the
-        specular fact is applied directly). Forward:
-        ``out.corner(level, −1) = ψ½.corner(level, +1)`` per carried level;
-        Euclidean transpose: ``out.corner(level, +1) = χ̄.corner(level, −1)``.
+        specular outer face (a mirror, or a partial specular reflector of
+        amplitude α) the reflected partner of the outward ray μ = +1 is
+        EXACTLY the inward one μ = −1 (its own mirror — an off-quadrature ray,
+        so the per-face law OPERATOR cannot act on it; the specular fact is
+        applied directly). Forward:
+        ``out.corner(level, −1) = α·ψ½.corner(level, +1)`` per carried level;
+        Euclidean transpose: ``out.corner(level, +1) = α·χ̄.corner(level, −1)``
+        (α = 1 for a mirror).
         The opposite corners stay ZERO (``B_b`` touches only the inflow row /
         its transpose image — the exact ``_reflect_trace`` projection
         discipline); since the B.2b re-type the input IS the boundary member
@@ -966,17 +968,12 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         Until campaign phase B2 this dispatched on the ``kind`` STRING the
         pre-B2.0 shim carried.
 
-        .. warning::
-
-           The swap is **unscaled** — it does not multiply by :math:`R`. That
-           is exact for the α = 1 reflector every BC tag can declare
-           (``_law_from_tag`` hard-codes ``albedo=1.0`` for reflective), and
-           WRONG for a directly-constructed partially-reflecting law, which
-           would re-emit its full outflow at the corner. The defect predates
-           this phase — the tag set admitted every albedo too, since
-           ``ReflectiveBoundary.key`` is ``"reflective"`` regardless — and B2
-           preserved it deliberately rather than fold a physics fix into a
-           repoint. It closes when B4 composes :math:`R \circ G` here.
+        The specular swap is scaled by the response amplitude :math:`\alpha`,
+        so a partially reflecting law (``ReflectiveBoundary(axis, α)`` or
+        ``AlbedoBoundary(α, SpecularReturn(axis))``) returns the fraction
+        :math:`\alpha` of its corner outflow. Until 2026-09-30 the swap was
+        unscaled, exact for :math:`\alpha = 1` and wrong for a typed partial
+        reflector, which re-emitted its full outflow at the corner (ERR-094).
         """
         from orpheus.transport.source_sinks import (
             RadialCharacteristicBoundarySourceSink,
@@ -994,13 +991,16 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             )
         out = RadialCharacteristicBoundarySourceSink.zeros(seed.space)
         # R = 0 ⇒ zero corner emission (the all-zero ``out`` falls through);
-        # G permutes ⇒ the specular swap (the mirror of μ = +1 is exactly μ = −1).
+        # a specular law ⇒ R ∘ G at the corner: the mirror of μ = +1 is exactly
+        # μ = −1, and the response returns the fraction α of it (α = 1 for a
+        # mirror; a scalar, so the transpose carries the same α).
         if law_permutes_ordinates(law):
+            alpha = law.response_kernel.amplitude
             for level in seed.levels:
                 if method == "apply":
-                    out.corner(level, -1)[...] = seed.corner(level, +1)
+                    out.corner(level, -1)[...] = alpha * seed.corner(level, +1)
                 else:  # apply_transpose — the Euclidean mirror image
-                    out.corner(level, +1)[...] = seed.corner(level, -1)
+                    out.corner(level, +1)[...] = alpha * seed.corner(level, -1)
         return out
 
     def _apply_faces(

@@ -15,11 +15,16 @@ the declared one.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pytest
 
-from orpheus.cp.solver import CPMesh
+import orpheus.cp.solver as cp_solver
+from orpheus.cp.solver import CPMesh, solve_cp
+from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.mc.solver import MCMesh
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.moc.geometry import MOCMesh
@@ -45,16 +50,79 @@ def _hollow(coord: CoordSystem, inner, outer) -> Mesh1D:
 
 class TestCP:
     @pytest.mark.parametrize(
-        "left, right", [(BC.vacuum, BC.white), (BC.white, BC.vacuum)],
-        ids=["vacuum-white", "white-vacuum"],
+        "left, right",
+        [
+            (BC.vacuum, BC.white), (BC.white, BC.vacuum), (BC.white, BC.white),
+            (ReflectiveBoundary("x", 0.7), BC.white),
+            (ReflectiveBoundary("y"), BC.white),
+        ],
+        ids=["vacuum-white", "white-vacuum", "white-white", "partial-mirror-white",
+             "wrong-axis-mirror-white"],
     )
-    def test_a_slab_whose_laws_differ_is_refused(self, left, right):
-        with pytest.raises(NotImplementedError, match="#513"):
+    def test_a_slab_whose_left_law_is_not_the_mirror_is_refused(self, left, right):
+        """CP's slab kernel images a mirror at the left face, so any other left
+        law, even one equal to the right law, would be replaced. The
+        ``white-white`` row was admitted until 2026-09-30, on the false claim
+        that equal laws are what CP computes (``[M]``: CP declared white|white
+        1.212883, SN reflective|white 1.212884, SN white|white 1.212537).
+
+        The ``partial-mirror-white`` row is a ``ReflectiveBoundary`` of
+        amplitude 0.7: the right class, the wrong law. A guard asking the
+        law's type, or admitting the reflective family's ``"partial"`` kind
+        beside ``"reflective"``, admits it and CP computes a full mirror in its
+        place. The ``wrong-axis-mirror-white`` row is a perfect mirror about
+        y on the slab's x-face: the right kind, the wrong motion. A guard
+        asking ``kind == "reflective"`` admitted it and CP returned the
+        x-mirror's k to the last bit (the elegance review, 2026-09-30; SN
+        refuses the same declaration). The message names the declared law, so
+        each row is refused for its own law (the guard's reason, not only its
+        issue number)."""
+        with pytest.raises(
+            NotImplementedError,
+            match=rf"mirror at the left face.*{re.escape(repr(left))}.*#513",
+        ):
             CPMesh(_slab(left, right))
 
-    @pytest.mark.parametrize("left", [BC.white], ids=["equal"])
-    def test_a_slab_whose_left_law_is_read_builds(self, left):
-        CPMesh(_slab(left, BC.white))
+    @pytest.mark.rests_on(
+        "tests/gates/mesh/test_dropped_laws_are_refused.py::TestCP::"
+        "test_a_slab_with_the_mirror_on_its_left_builds",
+    )
+    @pytest.mark.parametrize("right", [BC.white, BC.vacuum], ids=["white", "vacuum"])
+    def test_the_slab_kernel_drops_the_left_law(self, right, monkeypatch):
+        """Why the mirror is the only honest left law, as a RECORD: with the
+        guard bypassed, CP's k does not depend on the left law at all, so a
+        declared vacuum, white or partially reflecting left face computes the
+        mirror's answer. ``[M]`` 2026-09-30, two groups, fuel (mixture A) on
+        [0, 1] cm and moderator (mixture B) on [1, 2.5] cm, 8 cells: the four
+        left laws give k = 1.0402206390766764 (white right) and
+        1.2301755431553738 (vacuum right) to the last bit.
+
+        This row reddens the day CP's slab kernel reads the left law; the
+        guard ``_refuse_a_law_cp_drops`` (``SCOPE-BOUNDARY[guard]``, #513) is
+        then to be widened to the laws it realizes, and this row re-posed."""
+        materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+
+        def heterogeneous_slab(left):
+            return Mesher(StructuredGeometry.slab(
+                (0.0, 1.0, 2.5), (0, 1), left=left, right=right,
+            )).partition(
+                (CellsByCount.uniform_width(4), CellsByCount.uniform_width(4)),
+            ).mesh
+
+        honest = solve_cp(materials, heterogeneous_slab(BC.reflective)).keff
+        monkeypatch.setattr(cp_solver, "_refuse_a_law_cp_drops", lambda mesh: None)
+        for left in (BC.vacuum, BC.white, ReflectiveBoundary("x", 0.3)):
+            k = solve_cp(materials, heterogeneous_slab(left)).keff
+            assert k == honest, (
+                f"CP's k with the left law {left!r} is {k!r}, the mirror's is "
+                f"{honest!r}: the slab kernel now reads the left law, so the "
+                f"guard that admits only the mirror refuses laws CP realizes "
+                f"(#513)."
+            )
+
+    @pytest.mark.parametrize("right", [BC.white, BC.vacuum], ids=["white", "vacuum"])
+    def test_a_slab_with_the_mirror_on_its_left_builds(self, right):
+        CPMesh(_slab(BC.reflective, right))
 
     @pytest.mark.parametrize(
         "coord", [CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL], ids=lambda c: c.name.lower(),

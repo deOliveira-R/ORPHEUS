@@ -43,7 +43,8 @@ Key facts
   refuses a declared law it would drop.** S\ :sub:`N` and diffusion
   admit only a reflective inner law on a hollow body (#511), which is
   verified to be the void cavity it models; CP admits a slab only with
-  equal left and right laws, and no inner law (#513); MoC admits only a
+  a reflective left law, the mirror its slab kernel computes at the left
+  face whatever is declared there, and no inner law (#513); MoC admits only a
   solid cylinder (#514); MC admits only a slab or a solid cylinder, and
   only a ``periodic`` left law (#513).
   Each refusal is a ``NotImplementedError`` at the method's own door
@@ -1166,9 +1167,10 @@ mesh itself and comes before any law is read.
      - ``_refuse_an_inner_law_the_radial_axis_drops``
        (``orpheus/mesh/axis.py``), #511
    * - CP
-     - the outer law only
-     - a slab whose left law differs from its right law; any inner law
-       on a hollow cylinder or sphere
+     - the outer law; on a slab the left face is always a mirror (the
+       kernel's image term), which a reflective left law declares
+     - a slab whose left law is not ``reflective``; any inner law on a
+       hollow cylinder or sphere
      - ``_refuse_a_law_cp_drops`` (``orpheus/cp/solver.py``), #513
    * - MoC
      - the outer law of a solid cylinder, read as the Wigner–Seitz
@@ -1251,18 +1253,73 @@ records the same linearity on the sphere under Gauss–Legendre 8 and 16
 and core meshes of 2 and 8 cells.
 
 **CP (#513).** CP reads only the outer law, the outer cell surface.
-`[M]` 2026-09-25 (the specification's probe ``cp_slab_left_law.py``):
-a white, a vacuum and an undeclared left law gave the same
-:math:`k = 1.8749980808246423` to all sixteen digits. On a slab the
-only declaration that means what CP computes is therefore left law
-equal to right law, and that is the one admitted. On a hollow cylinder
-or sphere what CP realises at the inner surface is not established, so
-no inner law is admitted. Which law CP realises on a slab's left face
-is itself open, and recorded on #513: `[M]` 2026-09-25 (probe
-``cp_mirror.py``), a fuel | moderator slab with both faces white and its
-mirror image give :math:`k` differing by :math:`5.0\times10^{-5}`
-relative, and neither equals the mirrored double slab, so the left face
-is neither the right law nor a mirror.
+On a slab its kernel computes a mirror at the left face whatever is
+declared there. The slab's reduced collision probabilities carry, beside
+the direct path between cells :math:`i` and :math:`j`, a reflected path
+through the plane :math:`x = r_0`, whose optical length is the sum of
+the two cells' optical distances from that plane (the reflected path
+:eq:`dc-slab` of the slab :math:`E_3` kernel,
+:doc:`/theory/methods/collision_probability`; ``gap_c = bnd_pos[i] +
+bnd_pos[j]`` in ``CPMesh._compute_slab_rcp``). So the slab CP
+computes is half of a slab symmetric about its left face, and a declared
+left law has no slot to enter. `[M]` 2026-09-25 (the specification's
+probe ``cp_slab_left_law.py``): a white, a vacuum and an undeclared left
+law gave the same :math:`k = 1.8749980808246423` to all sixteen digits.
+`[M]` 2026-09-30 (Census A's probe ``probe_cp_left.py``, re-measured on
+the fixed tree): a one-group fuel | moderator slab on :math:`[0, 2]`
+(the fuel 0.5 thick, 40 equal cells in each material; S\ :sub:`N` with Gauss–Legendre
+:math:`S_{32}`), white on the right face; "flipped" puts the moderator
+on the left:
+
+.. list-table:: Which law CP computes at a slab's left face
+   :header-rows: 1
+   :widths: 40 20 20
+
+   * - Solve
+     - fuel on the left
+     - flipped
+   * - CP, left law ``reflective`` (bit-identical to the ``white`` left
+       law CP was given before 2026-09-30)
+     - 1.215476
+     - 1.212883
+   * - S\ :sub:`N`, reflective left, white right
+     - 1.215494
+     - 1.212884
+   * - S\ :sub:`N`, white on both faces
+     - 1.212537
+     - 1.212537
+
+CP agrees with the S\ :sub:`N` mirror to :math:`1.5\times10^{-5}` and
+:math:`8\times10^{-7}` relative, and differs from the white left face by
+:math:`2.4\times10^{-3}` and :math:`2.9\times10^{-4}`; and CP's value
+changes when the slab is flipped, which a white left face, symmetric
+under the flip, would not do. A reflective left law is therefore the
+only declaration that means what CP computes, and it is the one
+admitted; any other left law, an equal right law included, is refused.
+On a hollow cylinder or sphere what CP realises at the inner surface is
+not established, so no inner law is admitted.
+
+.. dropdown:: What was admitted first, and why it was wrong
+   :color: muted
+
+   From P1 step 2 (2026-09-29) until 2026-09-30 the guard admitted a
+   left law EQUAL to the right one, on the reading that equal laws are
+   what CP computes, and this page recorded the left face's law as
+   open, verbatim: "a fuel | moderator slab with both faces white and
+   its mirror image give :math:`k` differing by :math:`5.0\times10^{-5}`
+   relative, and neither equals the mirrored double slab, so the left
+   face is neither the right law nor a mirror" (probe ``cp_mirror.py``).
+   The inference does
+   not follow. Under the mirror reading the two orientations are two
+   different bodies (a mirror, then fuel, moderator and a white face;
+   a mirror, then moderator, fuel and a white face), so their
+   eigenvalues must differ; and a doubled slab solved by CP is itself
+   mirrored at its own left face, so it is a third body, not the
+   reference the comparison needed. The table above compares CP with
+   S\ :sub:`N` solved under each candidate left law instead, and CP
+   matches the mirror. The equal-law guard was therefore admitting a declaration
+   CP replaced: a white left law was solved as a mirror (Census A, row
+   G1; the guard and this page corrected 2026-09-30).
 
 **MoC (#514).** ``MOCMesh`` reads a :class:`~orpheus.mesh.structured.Mesh1D`
 as the Wigner–Seitz cylinder of a square pin cell: region 0 is a disk
@@ -1294,8 +1351,9 @@ and now asserts that ``None`` is refused, which leaves
 ``inner=BC.reflective`` as the one spelling of the cavity; and the
 void-cavity witness above) and
 ``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a slab whose
-laws differ refused both ways, an equal left law built, a hollow
-cylinder and sphere with an inner law refused; MoC: a slab and a hollow
+left law is not the mirror refused, an equal white left law included,
+a reflective left law built under a white and a vacuum right law, a
+hollow cylinder and sphere with an inner law refused; MoC: a slab and a hollow
 cylinder refused, the solid pin cell built; MC: a ``vacuum`` or
 ``reflective`` left law refused, a ``periodic`` one built, a hollow
 cylinder refused).
@@ -2956,6 +3014,18 @@ trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-09-30
+     - **CP's slab left face is the mirror its kernel computes.** The
+       guard ``_refuse_a_law_cp_drops`` admitted a slab whose left law
+       equalled its right law, on the claim that equal laws are what CP
+       computes; Census A measured a white left law solved as a mirror
+       (CP 1.212883 against S\ :sub:`N` reflective | white 1.212884 and
+       white | white 1.212537), so the guard now admits only a reflective
+       left law, and the CP gates declare it (the test helper
+       ``cp_body``). Ruling: the user, 2026-09-30,
+       ``.claude/plans/boundary_law_ontology.md``, "Third exchange".
+     - #513
+     - *(in development)* branch ``fix/boundary-law-wrong-answers``
+   * - 2026-09-30
      - **No boundary law is undeclared.** ``None`` retired as a boundary
        declaration everywhere: ``Mesh2D``'s four ``bc_*`` fields gave
        way to ``face_laws``, a mapping from face name to law over the
@@ -2976,7 +3046,7 @@ trust ``git`` over this table for merge status.
        P1 step 3c of ``.claude/plans/reference_cache.md``; the refused
        candidates are 5 to 9 of :ref:`structured-geometry-mesh-refuted`.
      - #405
-     - *(in development)* branch ``refactor/p1-step3c-declared-laws``
+     - ``4318adc5``
    * - 2026-09-29
      - **The mesh refines the geometry, and a Mesher builds it.** The
        measure got one definition, ``CoordSystem.measure``, asked

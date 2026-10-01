@@ -3036,8 +3036,10 @@ both routed through :class:`IntegratedReactionRate
 <orpheus.transport.reaction_rate_functional.IntegratedReactionRate>`,
 which is what this section is about. The other two denominator terms are
 **not** :math:`\langle\Sigma_x,\phi\rangle` contractions and are added
-explicitly: :math:`L_{\rm leak}` is the net vacuum-boundary outflow (a
-**structural zero** on an all-reflective problem, which is what keeps a
+explicitly: :math:`L_{\rm leak}` is the net outflow through the
+boundary faces whose law loses particles, response amplitude
+:math:`\alpha_f \neq 1` (:eq:`sn-leakage-functional`; a
+**structural zero** on a closed problem, which is what keeps a
 lattice case bit-identical to the historical ``production /
 absorption``), and :math:`E_{2n}` is the :math:`(n,2n)` emission,
 *subtracted* because a gain reduces net removal.

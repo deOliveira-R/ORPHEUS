@@ -1094,11 +1094,15 @@ class TestEquivalenceHoldsAtTheFactorReadingConsumers:
 
     .. note::
 
-       ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` does not admit ``albedo`` yet
-       (#189) and all four sites read ``problem.bc[face].law``, so this is a
-       LATENT correction — it fires the day the law is registered. That is
-       exactly why it needs a gate now: an unreachable predicate that is
-       already false is a landmine, and nothing downstream would red.
+       ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` does not admit the ``albedo``
+       TAG (#189), but a typed law declared on the mesh reaches all four
+       sites (``problem.bc[face].law``) since ``985497b5`` (2026-08-05). The
+       correction was therefore live, not latent. Two of the four sites read
+       a partial reflector as a mirror until 2026-09-30, because a "yes, it
+       permutes" is not "it is a mirror": DSA's admission and the corner swap
+       (ERR-094, whose third site, the eigenvalue's leakage term, sits outside
+       this list). That is the case this gate was written for: a predicate
+       believed unreachable is a landmine, and nothing downstream reds.
     """
 
     #: ``(id, albedo_route, geometry_tier_sibling)`` — the pairs whose

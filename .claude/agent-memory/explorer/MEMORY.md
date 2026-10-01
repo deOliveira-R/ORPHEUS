@@ -55,3 +55,5 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Method-hub commonality](method_hub_commonality.md) — ends at MaterialMesh; 2-of-6 boundary quartet; seams sit below hubs.
 - [Problem-side accessor uses](problem_side_accessor_uses.md) — k = sides Rayleigh; SN gauge straddles sides; two mechanisms not one.
 - [Sood editions 1999 vs 2003](sood_editions_1999_vs_2003.md) — delta confined to 9 problems; 2003 XS = primary's; OCR tables live in the sidecar.
+- [Coordinate system vs group seam](coordinate_system_group_seam.md) — only the point stabiliser is typed; decks are elements; pole is a mirror deck.
+- [Boundary-law method matrix](boundary_law_method_matrix.md) — typed laws skip the registry; admitted-but-mis-realized is a status; no law in all five.

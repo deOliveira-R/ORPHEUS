@@ -8815,3 +8815,362 @@ older entries classify against.
    that calls the function without it.** And a named model's law is
    its own, so a method that cannot realise that law cannot borrow the
    model whole; it borrows the geometry and declares its own law.
+
+.. error-entry:: ERR-094
+   :title: A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror in three places: the eigenvalue omitted its leakage (k came out k∞ whatever α), the curvilinear μ = ±1 corner returned the full outflow, and DSA built the mirror's low-order row and diverged
+
+   **Status:** ✅ **FIXED 2026-09-30** on branch
+   ``fix/boundary-law-wrong-answers``; uncommitted at the time of
+   writing, the hash is added at merge. Found by Census A of the
+   boundary-law ontology discussion
+   (``.claude/plans/boundary_law_ontology.md``, "Census A's findings").
+
+   **Module:** ``orpheus/sn/solver.py`` (``SNSolver._boundary_leakage_rate``,
+   the eigenvalue's leakage term), ``orpheus/sn/operators/boundary.py``
+   (``RadialCharacteristicBoundaryOperator._reflect_corner``, the
+   curvilinear corner action) and ``orpheus/sn/acceleration/dsa.py``
+   (``DSALowOrderSystem.from_problem``, the DSA admission).
+
+   **Failure mode:** **#3 (missing factor)**, three times over one law: the
+   factor :math:`\alpha` of a partially reflecting law, read by three
+   consumers through predicates written for the only two laws a ``BC``
+   tag can declare, vacuum (:math:`R = 0`) and the perfect mirror
+   (:math:`G` a permutation, :math:`R = 1`). The ERR-064 family: the same
+   leakage term, omitted for a law the ERR-064 fix did not foresee.
+
+   **What happened.**  A partially reflecting law is
+   ``ReflectiveBoundary(axis, α)`` with :math:`\alpha < 1` (a mirror
+   :math:`G` with the response :math:`R = \alpha`),
+   ``AlbedoBoundary(α, SpecularReturn(axis))`` (the same matrix, with the
+   specular pairing in :math:`R`), or ``AlbedoBoundary(α,
+   IsotropicReturn(…))`` and ``WhiteBoundary(axis, sign, α)`` (an
+   isotropic return of the fraction :math:`\alpha`). No tag S\ :sub:`N`
+   admits can spell one (the tag parser builds the reflective law with
+   :math:`\alpha = 1`), but since ``985497b5`` (2026-08-05) a geometry or
+   a mesh declares a typed law where it declares a tag, and S\ :sub:`N`
+   realizes what is declared. Three consumers then read it as a mirror:
+
+   (a) *The eigenvalue.*
+       :math:`k = R_{\nu\Sigma_f} / (R_{\Sigma_a} + L - E_{2n})` sums the
+       leakage :math:`L` over the faces that lose
+       particles (:ref:`sn-keff-estimator`). The face list was
+       ``response_kernel.is_zero``, the faces whose law returns nothing,
+       so a partial reflector, which returns the fraction :math:`\alpha`
+       and loses the net current :math:`(1-\alpha)J^+`, was skipped.
+       Renormalised power iteration converges to the same flux whatever
+       the estimator (ERR-064's mechanism), so the flux was right and the
+       reported :math:`k` was the leakage-free ratio
+       :math:`R_{\nu\Sigma_f}/R_{\Sigma_a}`. On a one-group homogeneous
+       body that ratio is :math:`\nu\Sigma_f/\Sigma_a = k_\infty` for any
+       flux shape, so :math:`k` came out exactly :math:`k_\infty` for every
+       :math:`\alpha`.
+
+   (b) *The curvilinear corner.*  On a sphere or a cylinder the outer
+       face's inflow at the off-quadrature ray :math:`\mu = -1` is set
+       from the outflow at :math:`\mu = +1` by a direct swap, because the
+       law's operator acts on the quadrature ordinates only. The swap
+       copied the outflow without the factor :math:`\alpha`, so a partial
+       reflector re-emitted its full corner outflow. The defect was known
+       and recorded in a ``.. warning::`` on the method (*"exact for the
+       α = 1 reflector every BC tag can declare … and WRONG for a
+       directly-constructed partially-reflecting law"*), to be closed by
+       campaign phase B4.
+
+   (c) *DSA.*  The DSA low-order system (:ref:`sn-dsa-honest-scope`)
+       admitted a law whose response is zero (the Marshak row, Eq. (38)
+       of Larsen's derivation as the DSA page cites it) or whose pairing
+       permutes the ordinates (the reflecting row, Eq. (39), zero net
+       current). A partial specular reflector
+       permutes the ordinates, so it was admitted and given the mirror's
+       row, although its net current is :math:`(1-\alpha)J^+`. The
+       low-order operator was then inconsistent with the transport sweep
+       it accelerates, and the accelerated iteration diverged.
+
+   `[M]` 2026-09-30, the census material (one group,
+   :math:`\Sigma_t = 1`, :math:`\Sigma_s = 0.5`,
+   :math:`\nu\Sigma_f = 0.48`, :math:`k_\infty = 0.96`), slab width 2 and
+   sphere radius 2, 80 equal cells, Gauss–Legendre :math:`S_{16}`, the
+   same law on every face; before = the tree at ``5a5ffa7b`` in a
+   detached worktree, after = the working tree; the reference is the
+   trajectory resolvent (:doc:`/theory/references/trajectory_resolvent`,
+   ``solve_greens_function_slab`` / ``solve_greens_function_sphere`` at
+   their defaults), a continuous solution structurally independent of
+   S\ :sub:`N`:
+
+   .. list-table:: The reported eigenvalue on a partially reflecting body
+      :header-rows: 1
+      :widths: 36 16 16 16
+
+      * - Body and law
+        - before
+        - after
+        - trajectory resolvent
+      * - slab, vacuum (control)
+        - 0.617360
+        - 0.617360
+        - 0.617553
+      * - sphere, vacuum (control)
+        - 0.536098
+        - 0.536098
+        - 0.535792
+      * - slab, ``ReflectiveBoundary('x', 0.7)``
+        - 0.960000
+        - 0.830465
+        - 0.830636
+      * - slab, ``AlbedoBoundary(0.7, SpecularReturn('x'))``
+        - 0.960000
+        - 0.830465
+        - (the same matrix)
+      * - slab, ``ReflectiveBoundary('x', 0.3)``
+        - 0.960000
+        - 0.695985
+        - 0.696212
+      * - slab, ``WhiteBoundary('x', ∓1, 0.7)`` (isotropic return)
+        - 0.960000
+        - 0.830424
+        - (not a specular law)
+      * - sphere, ``ReflectiveBoundary('x', 0.7)``
+        - 0.960000
+        - 0.781685
+        - 0.781511
+      * - slab and sphere, the mirror (control)
+        - 0.960000
+        - 0.960000
+        - 0.960000
+
+   Refining both sides closes the slab's gap: `[M]` S\ :sub:`N` at
+   :math:`S_{16}`/80, :math:`S_{32}`/160 and :math:`S_{64}`/320 cells gives
+   0.8304654, 0.8306898, 0.8307466, and the trajectory resolvent at one,
+   two and four times its default resolution gives 0.8306362, 0.8307324,
+   0.8307573, so the finest pair agrees to :math:`1.3\times10^{-5}`
+   relative, against the 16 % of the pre-fix value.
+
+   The corner half is a different kind of defect: a consistency error of
+   the discrete operator that vanishes with angular refinement, so a
+   comparison with a continuous reference cannot adjudicate it at the
+   resolutions a test runs. `[M]` the same sphere, the corner scaled (the
+   fix) and unscaled (the old swap, restored in process):
+
+   .. list-table:: The sphere's eigenvalue with the corner scaled and unscaled
+      :header-rows: 1
+      :widths: 24 19 19 19 19
+
+      * - Resolution
+        - scaled (fix)
+        - unscaled (old)
+        - difference
+        - trajectory resolvent
+      * - :math:`S_{16}`, 80 cells
+        - 0.7816847
+        - 0.7815066
+        - :math:`1.8\times10^{-4}`
+        - 0.7815112 (default)
+      * - :math:`S_{32}`, 160 cells
+        - 0.7815470
+        - 0.7815308
+        - :math:`1.6\times10^{-5}`
+        - 0.7814901 (×2)
+      * - :math:`S_{64}`, 320 cells
+        - 0.7815037
+        - 0.7815028
+        - :math:`9\times10^{-7}`
+        - 0.7814883 (×3)
+
+   Both arms converge to one limit, and the difference vanishes under
+   refinement. At the coarsest rung the unscaled value happens to sit
+   closer to the reference than the scaled one; that is the discretization
+   error, which is of the same size there (the vacuum sphere's
+   S\ :sub:`N` :math:`k` is 0.5360977 against the reference's 0.5357923).
+   The scaled swap is right because it is the law: the response returns
+   the fraction :math:`\alpha` of the outflow in every direction, the ray
+   :math:`\mu = \pm 1` included. An exact edge does see the corner in the
+   eigenvalue, because it compares two problems in one discretization: a
+   specular law with :math:`\alpha = 0` returns nothing, so it poses the
+   vacuum problem, and the unscaled corner breaks that identity. `[M]`
+   2026-09-30, two groups (mixture A), sphere of radius 4, 20 cells,
+   :math:`S_8`: vacuum 0.343057, ``ReflectiveBoundary('x', 0.0)`` 0.343057
+   with the fix and 0.341797 with the unscaled corner (:math:`3.7\times
+   10^{-3}` relative).
+
+   The DSA half, `[M]` the same date, a one-group scatterer
+   (:math:`c = 0.99`, :math:`\Sigma_t = 1`), a slab of 40 cells of unit
+   optical thickness, :math:`S_8`, a uniform source, vacuum on the right,
+   inner tolerance :math:`10^{-11}`, the tree at ``5a5ffa7b``:
+
+   .. list-table:: DSA on a partial reflector, before the fix
+      :header-rows: 1
+      :widths: 34 14 18 34
+
+      * - Left law, acceleration
+        - status
+        - inner iterations
+        - mean scalar flux
+      * - mirror, none
+        - converged
+        - 2425
+        - 174.303
+      * - mirror, DSA
+        - converged
+        - 22
+        - 174.303
+      * - ``ReflectiveBoundary('x', 0.7)``, none
+        - converged
+        - 2159
+        - 156.98
+      * - ``ReflectiveBoundary('x', 0.7)``, DSA
+        - truncated
+        - 4000 (the budget)
+        - :math:`-6.4\times10^{156}`, with numpy overflow warnings
+
+   **How it hid.**  The code documented (a) and (b) as unreachable. The
+   leakage predicate's comment read "It is unreachable because
+   ``_law_from_tag`` hard-codes albedo = 1.0 for reflective … The honest
+   predicate is 'R != 1', and it becomes reachable the moment #189 admits
+   partial reflectors", and the corner's warning is quoted under (b)
+   above. Both arguments rested on
+   the tag parser, and the typed-law channel bypasses it: the defects
+   were reachable from ``985497b5`` on. Issue #367, reconciled against
+   the tree on 2026-08-14, nine days later, recorded both as defects owed
+   to campaign phase B4 and the leakage one as reachable only "the moment
+   #189 admits partial reflectors" (#189 is the tag registry). Nothing
+   re-checked the notes when the channel landed, because the channel's
+   commit touched neither file. Then every gate was blind for its own reason:
+
+   * no S\ :sub:`N` solve declared a partial reflector: `[M]` 2026-09-30,
+     before the catchers below landed, 0 of the 13 files under ``tests/``
+     that constructed one called an S\ :sub:`N` solve entry (101 files
+     did); those 13 tested the realized boundary operator, the factor
+     tier, diffusion and the reference generators. On every
+     other law the old predicate (:math:`R = 0`) and the corrected one
+     (amplitude not 1) agree: they differ exactly when the amplitude is
+     neither 0 nor 1, which among the laws S\ :sub:`N` admits is a
+     partial reflector;
+   * the flux was right (ERR-064's mechanism), so every fixed-source and
+     flux-shape gate was green, and the boundary operator itself was
+     correct on a slab (`[M]` a uniform-source slab's mean scalar flux is
+     1.852442 under ``ReflectiveBoundary('x', 0.7)`` and under
+     ``AlbedoBoundary(0.7, SpecularReturn('x'))``, between vacuum's
+     1.528589 and the mirror's 2.000000);
+   * on a one-group homogeneous body the wrong :math:`k` was exactly
+     :math:`k_\infty`, a value that reads as plausible;
+   * the corner's error shrinks with :math:`\Delta\mu` and sits inside
+     the discretization error, so no comparison with a continuous
+     reference sees it, and no gate posed the :math:`\alpha = 0` edge
+     against the vacuum problem, which does;
+   * the DSA divergence is audible (the record reads truncated, numpy
+     warns of overflow), but no gate built DSA on a partial specular
+     reflector: the DSA refusal test's albedo row,
+     ``AlbedoBoundary(albedo=0.3)``, carries no re-emission closure, so
+     it neither permutes the ordinates nor was ever admitted.
+
+   **Fix.**  Each consumer reads the factor :math:`\alpha`:
+
+   * the leakage term sums every face whose law's response amplitude
+     (the partial-current return ratio :math:`J^-/J^+`) is not 1: vacuum
+     and prescribed inflow (:math:`R = 0`) and a partial reflector. A
+     face that returns every particle (the mirror, a white or unit-albedo
+     wall, a periodic face) is still skipped, so closed problems keep
+     their bit-identical lattice arithmetic (:eq:`sn-leakage-functional`);
+   * the corner swap is :math:`R \circ G`: the mirror's swap times
+     :math:`\alpha`, forward and transpose;
+   * DSA admits the reflecting row only for a permuting law of amplitude
+     1, and refuses a partial reflector with ``NotImplementedError``
+     ("albedo walls need the Marshak-albedo generalization of Larsen
+     (38)") instead of building a row for a different law.
+
+   **Caught by:** nine tests marked ``catches("ERR-094")``, by half.
+
+   * The leakage term:
+     ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_reported_k_is_the_posed_eigenvalue``
+     (10 rows: a two-group fuel | moderator slab under the three
+     spellings and a two-group sphere under the two specular ones, at
+     :math:`\alpha = 0.3` and 0.7; the reported :math:`k` against the
+     map-ratio eigenvalue, which never reads the leakage term; first red
+     with the old predicate +42 % to +276 %),
+     ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_two_faces_returning_different_fractions``
+     (two laws and two amplitudes on one slab, +72 %), and
+     ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_k_rises_with_the_returned_fraction``
+     (the ordering :math:`k(0) < k(0.3) < k(0.7) < k(1)`; its slab rows
+     red under the defect, its sphere rows are measured blind to it).
+     These rows share the realized boundary operator with the solver;
+     the eigenvalue against the trajectory resolvent, which shares
+     nothing with S\ :sub:`N` above the trusted-library line, is
+     ``tests/gates/sn/verification/analytical/test_partial_reflector_resolvent.py::test_slab_with_two_partial_reflectors``
+     and
+     ``tests/gates/sn/verification/analytical/test_partial_reflector_resolvent.py::test_sphere_with_a_partial_reflector``
+     (L1, two groups, a band of :math:`10^{-3}` built from both methods'
+     refinement ladders; the defect reads +118 % and +107 %).
+   * The corner:
+     ``tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::test_partial_specular_corner_is_alpha_times_the_mirror``
+     (12 rows: the corner block of amplitude :math:`\alpha` equals
+     :math:`\alpha` times the mirror's, forward and transpose, bit for
+     bit, on a sphere and a folded cylinder, :math:`\alpha \in \{1, 0.7,
+     0\}`; the :math:`\alpha = 0.7` and 0 rows red under the unscaled
+     swap), and end to end
+     ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_alpha_zero_is_the_vacuum_problem``
+     (:math:`\alpha = 0` poses the vacuum problem exactly; its sphere and
+     cylinder rows red under the unscaled corner by :math:`3.7\times
+     10^{-3}` and :math:`1.9\times10^{-3}`, and its slab rows, which have
+     no corner, are the control).
+   * DSA:
+     ``tests/gates/sn/acceleration/test_dsa_low_order.py::TestAdmissionTeeth::test_a_partial_specular_reflector_is_refused``
+     (both specular spellings on either face of a real ``SNProblem``; with
+     the amplitude condition removed all four rows build a system) and
+     ``tests/gates/sn/acceleration/test_dsa_low_order.py::TestAdmissionTeeth::test_the_dsa_entry_refuses_a_partial_reflector``
+     (the public route, ``solve_sn_fixed_source(..., acceleration="dsa")``).
+     The divergence depends on the regime, as the first catcher's
+     docstring records: on a one-group slab with
+     ``ReflectiveBoundary('x', 0.7)`` on both faces, DSA converged to the
+     right fixed point at :math:`c = 0.9` and unit cell optical
+     thickness, diverged at :math:`c = 0.99` and cell optical thickness
+     5, and raised on a NaN at 20; the table above, with the partial
+     reflector on the left face only, diverged at :math:`c = 0.99` and
+     unit cell optical thickness.
+
+   **Lesson.**  ⭐ **A defect recorded beside the code as "unreachable" is
+   a claim about the admission surface, not about the code, and it
+   becomes false, with no test reddening, when a second channel reaches
+   that code: the commit that opens a channel owes a search for every
+   "unreachable" note in the code the channel now reaches.**
+
+.. error-entry:: ERR-095
+   :title: The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a prescribed inflow, dropping the declared source in silence
+
+   **Status:** ✅ **FIXED 2026-09-30** on branch
+   ``fix/boundary-law-wrong-answers`` (the hash is added at merge). Found
+   by the qa review of ERR-094.
+
+   **Module:** ``orpheus/sn/solver.py`` (``solve_sn``,
+   ``solve_sn_adjoint``; the refusal is ``_refuse_a_boundary_source``).
+
+   **Failure mode:** **#6 (convention drift)**: an eigenvalue question is
+   the homogeneous pencil :math:`A\psi = \mu F\psi`, and the boundary
+   source :math:`q` of a
+   :class:`~orpheus.geometry.boundary.PrescribedInflow` travels in the
+   source channel, never in the realized operator (vacuum and prescribed
+   inflow realize to the same operator,
+   :ref:`bc-affine-source-channel`). So an eigenvalue entry handed a
+   declaration with :math:`q \neq 0` solved the pencil, which is right
+   for the spectrum, and returned it as the answer to the declared
+   problem, which has a source and no eigenvalue at all.
+
+   **How it hid.** The answer is a valid eigenvalue: the vacuum
+   problem's. ``[M]`` 2026-09-30, a 2-group slab of 2 cm with a
+   prescribed inflow of q = 1 on its left face and vacuum on its right:
+   k = 0.17808816009631356, bitwise the vacuum slab's; q = 50 gave the
+   same. No test declared a source and asked for k.
+
+   **Fix.** Both eigenvalue entries refuse a declaration whose face laws
+   carry a source, naming the faces and pointing to the source
+   questions (``solve_sn_fixed_source``, ``solve_sn_multiplying_source``).
+   The multiplying-source entry's own admissibility k-solve reads the
+   homogeneous pencil on purpose and does not pass through the refusal.
+
+   **Caught by:**
+   ``tests/gates/sn/solve/test_eigen_entries_refuse_a_boundary_source.py::test_a_declared_boundary_source_is_refused``
+   (both entries; first red measured in process with the refusal
+   removed: the vacuum k returned for q = 1).
+
+   **Lesson.**  ⭐ **A question type that cannot hold part of a
+   declaration refuses the declaration; it never answers the part it
+   can hold.**

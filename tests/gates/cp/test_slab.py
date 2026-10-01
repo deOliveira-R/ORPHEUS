@@ -44,7 +44,7 @@ def test_slab_cp_eigenvalue(case_name):
     gp = case.geom_params
     geometry = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
-        mat_ids=gp["mat_ids"], boundaries=(BC.white, BC.white),
+        mat_ids=gp["mat_ids"], boundaries=(BC.reflective, BC.white),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     result = solve_cp(case.materials, mesh,

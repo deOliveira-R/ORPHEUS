@@ -31,8 +31,10 @@ def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
     ``outers`` are the regions' outer positions, so they are the
     geometry's breakpoints after the origin.
     """
-    # White on every boundary point (CP admits only vacuum and white).
-    geom = StructuredGeometry.uniform_boundary(coord, (0.0, *outers), (0, 1), BC.white)
+    # The body CP computes (``cp_body``): white on the outer face, and on a
+    # slab a mirror at the left face, which CP's kernel images whatever is
+    # declared (#513).
+    geom = cp_body(coord, (0.0, *outers), (0, 1), BC.white)
     return Mesher(geom).partition(
         tuple(CellsByCount.uniform_volume(n) for n in n_cells),
     ).mesh
@@ -96,6 +98,7 @@ from orpheus.derivations.common.xs_library import (
 )
 from orpheus.derivations.common.eigenvalue import kinf_from_cp
 from orpheus.derivations.continuous.flat_source_cp.slab import _slab_cp_matrix
+from tests.gates.cp._cp_geometry import cp_body
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -166,25 +169,25 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
 
 
 def _slab_mesh_homogeneous(thickness: float, mat_id: int = 0) -> Mesh1D:
-    """Single-region, single-cell slab mesh; white on both faces (CP reads the right)."""
+    """Single-region, single-cell slab mesh: a mirror on the left (CP's kernel), white on the right."""
     geometry = StructuredGeometry.slab(
-        (0.0, thickness), (mat_id,), left=BC.white, right=BC.white,
+        (0.0, thickness), (mat_id,), left=BC.reflective, right=BC.white,
     )
     return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _slab_mesh_2region(t1: float, t2: float) -> Mesh1D:
-    """Two-region slab mesh with mat_ids [0, 1], one cell each; white on both faces."""
+    """Two-region slab mesh with mat_ids [0, 1], one cell each: a mirror on the left, white on the right."""
     return Mesher(_slab_geometry((t1, t2), (0, 1))).partition(
         CellsByCount.uniform_width(1),
     ).mesh
 
 
 def _slab_geometry(thicknesses, mat_ids) -> StructuredGeometry:
-    """The slab stacked from ``thicknesses``; white on both faces (CP reads the right)."""
+    """The slab stacked from ``thicknesses``: a mirror on the left (CP's kernel), white on the right."""
     return StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
-        mat_ids=mat_ids, boundaries=(BC.white, BC.white),
+        mat_ids=mat_ids, boundaries=(BC.reflective, BC.white),
     )
 
 

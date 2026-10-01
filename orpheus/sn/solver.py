@@ -119,6 +119,34 @@ if TYPE_CHECKING:
     from orpheus.numerics.operator import SupportsInverse
 
 
+def _refuse_a_boundary_source(problem: "SNProblem", entry: str) -> None:
+    r"""Refuse an eigenvalue question posed on a declaration that carries a boundary source.
+
+    An eigenvalue question is the homogeneous pencil :math:`A\psi = \mu F\psi`:
+    a prescribed inflow :math:`q \neq 0` on a face is a source term, which the
+    pencil does not contain, so solving would answer the source-free problem
+    and drop the declared :math:`q` in silence (``[M]`` 2026-09-30, before this
+    refusal: k bitwise the vacuum k for q = 1 and q = 50). A source belongs to
+    a source question (:func:`solve_sn_fixed_source`,
+    :func:`solve_sn_multiplying_source`). The multiplying-source entry's own
+    admissibility k-solve reads the homogeneous pencil on purpose and does not
+    pass through here.
+    """
+    from orpheus.geometry.boundary._source import NoSource
+
+    sourced = sorted(
+        face for face, op in problem.bc.items()
+        if not isinstance(op.law.source, NoSource)
+    )
+    if sourced:
+        raise ValueError(
+            f"{entry} poses an eigenvalue question, which has no source term, "
+            f"but the face(s) {sourced} declare a prescribed inflow: it would be "
+            f"dropped. Pose the source with solve_sn_fixed_source or "
+            f"solve_sn_multiplying_source, or declare a source-free law there."
+        )
+
+
 def _as_problem(
     geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: "Quadrature",
@@ -1711,11 +1739,11 @@ class SNSolver:
         return production / (absorption + leakage - emission_n2n.sum())
 
     def _boundary_leakage_rate(self, fission_production: float) -> float:
-        r"""Net neutron outflow rate through the vacuum boundary faces [1/s].
+        r"""Net neutron outflow rate through the boundary faces that lose particles [1/s].
 
         .. math::
 
-            L \;=\; \sum_{f\,\in\,\text{vacuum}} \oint_{f} dA\,
+            L \;=\; \sum_{f\,:\,\alpha_f \neq 1} \oint_{f} dA\,
                     \sum_g J_g(\mathbf{r}_f)
             \,, \qquad
             J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
@@ -1725,16 +1753,22 @@ class SNSolver:
         <orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.net_current>`,
         the single source of the :math:`\Omega\cdot\hat n\,w`
         contraction), read from the trace of the last inner solve
-        (``self._inner.iterate.boundary``). On the converged trace a vacuum
-        face's inflow slots are zero, so net = outflow; the signed form
-        stays honest if a prescribed-inflow law ever lands.
+        (``self._inner.iterate.boundary``). The sum runs over the faces
+        whose law's response amplitude :math:`\alpha_f` (the partial-current
+        return ratio :math:`J^-/J^+`) is not 1: a vacuum face (net =
+        outflow), a prescribed-inflow face (in the homogeneous eigenvalue
+        solve its operator is vacuum's, the source :math:`q` riding the source
+        channel and never the operator, so net = outflow; the user-facing
+        eigenvalue entries refuse a declared source, ``_refuse_a_boundary_source``),
+        a partial reflector (net = :math:`(1-\alpha)J^+`).
 
-        Reflective faces are a **structural zero**: the reflective law
-        equates inflow to the reflected outflow exactly, so their net
-        current vanishes by construction — they are SKIPPED, never
-        accumulated, which keeps all-reflective problems' float
-        arithmetic bit-identical to the lattice functional (no
-        ±cancelling angular-sum noise enters the denominator).
+        A face whose law returns every particle (:math:`\alpha_f = 1`: a
+        mirror, a white or unit-albedo wall, a periodic face) is a
+        **structural zero**: its net current vanishes, or cancels against
+        its periodic partner's. Such faces are SKIPPED, never accumulated,
+        which keeps closed problems' float arithmetic bit-identical to the
+        lattice functional (no ±cancelling angular-sum noise enters the
+        denominator).
 
         Scale bridge: the stored trace belongs to the UN-renormalised
         last inner iterate, while the estimator's :math:`\phi` may be
@@ -1751,35 +1785,28 @@ class SNSolver:
         Raises
         ------
         RuntimeError
-            If a vacuum face exists but no inner solve has stored a
+            If a face that loses particles (a vacuum face, a prescribed
+            inflow, a partial reflector) exists but no inner solve has stored a
             boundary trace yet — the leakage term cannot be answered
             honestly, and answering without it would silently reproduce
             the #291 omission (fail loud; never return a non-eigenvalue).
         """
-        # A face LEAKS iff its law returns nothing: R = 0 means every particle
-        # crossing outward is lost to the k denominator. That is
-        # ``response_kernel.is_zero``, asked of the law directly; until
-        # campaign phase B2 it read ``op.kind == "vacuum"``, the same question
-        # spelled as a string because the pre-B2.0 shim discarded the law.
-        # Agreement is exact on SN's admitted set (vacuum R = 0, reflective
-        # R = 1) and on every law but ONE: a prescribed-inflow face also leaks
-        # its whole outflow, so it now joins this list where the tag test
-        # missed it. That is the correct answer and it is unreachable today
-        # (SN's admission table is {reflective, vacuum}), but it IS a
-        # divergence — recorded rather than left silent.
-        #
-        # Known incompleteness, PRE-EXISTING and unchanged here: a partially
-        # reflecting face (R = α < 1) leaks (1 − α) of its outflow and is in
-        # neither the old set nor this one. It is unreachable because
-        # ``_law_from_tag`` hard-codes albedo = 1.0 for reflective, and the
-        # filter is an optimization rather than a semantic gate — the term it
-        # skips is ``trace.net_current(face)``, which is identically zero for
-        # the perfect reflector this list is really excluding. The honest
-        # predicate is "R != 1", and it becomes reachable the moment #189
-        # admits partial reflectors.
+        # A face is skipped exactly when its law returns EVERY particle that
+        # crosses it outward: a response amplitude (the partial-current return
+        # ratio J- / J+) of exactly 1. Then its net current is a structural
+        # zero: a mirror, a white or unit-albedo wall, or a periodic face,
+        # whose outflow re-enters through its partner so the pair's net
+        # currents cancel. Every other face loses particles and is summed:
+        # vacuum and prescribed inflow (R = 0), and a partial reflector
+        # (amplitude alpha < 1), whose net current is (1 - alpha) J+.
+        # Until 2026-09-30 the predicate was ``response_kernel.is_zero``,
+        # which dropped the partial reflector's leakage: a typed
+        # ``ReflectiveBoundary(axis, alpha)`` or ``AlbedoBoundary(alpha, ...)``
+        # has reached SN since ``985497b5`` (2026-08-05), and its k came out
+        # as if the face were a perfect mirror (ERR-094).
         leaking_faces = [
             name for name, op in self.problem.bc.items()
-            if op.law.response_kernel.is_zero
+            if op.law.response_kernel.amplitude != 1.0
         ]
         if not leaking_faces:
             return 0.0
@@ -1787,7 +1814,7 @@ class SNSolver:
         phi_of_trace = getattr(self, "_phi_of_trace", None)
         if psi is None or phi_of_trace is None:
             raise RuntimeError(
-                "compute_keff on a vacuum-bounded problem needs the "
+                "compute_keff on a problem with a leaking face needs the "
                 "boundary trace of an inner solve (call "
                 "solve_fixed_source first): the leakage term of the k "
                 "denominator is read from psi.boundary, and answering "
@@ -2324,6 +2351,7 @@ def solve_sn(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
+    _refuse_a_boundary_source(problem, "solve_sn")
 
     solver = SNSolver(
         problem,
@@ -2691,6 +2719,7 @@ def solve_sn_adjoint(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
+    _refuse_a_boundary_source(problem, "solve_sn_adjoint")
     implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(problem)
 
     from orpheus.numerics.iteration import KEigenvalue

@@ -10,8 +10,8 @@ here — it is merged archaeology.
 
 ## 1. Lessons
 
-- **[Lessons — hot digest](lessons.md)** — 484 lines. The entries no rule, skill or definition clause carries (the workflows rule, invariant 6), each with a `→ LNN` pointer into the archive. Read it whole, every dispatch. Pruned 2026-09-22 by the agent-definitions audit: 73 entries restated a clause or are now carried by the definition.
-- **[Lessons — cold archive](lessons_archive.md)** — 11441 lines, sections L1–L91, append-ordered: the war stories, the carve-archetype lookup (§L87) and the pure-math primitive long form (§L88). Open one section at a time, when the digest's pointer says the detail matters.
+- **[Lessons — hot digest](lessons.md)** — 527 lines. The entries no rule, skill or definition clause carries (the workflows rule, invariant 6), each with a `→ LNN` pointer into the archive. Read it whole, every dispatch. Pruned 2026-09-22 by the agent-definitions audit: 73 entries restated a clause or are now carried by the definition.
+- **[Lessons — cold archive](lessons_archive.md)** — 11573 lines, sections L1–L97, append-ordered: the war stories, the carve-archetype lookup (§L87) and the pure-math primitive long form (§L88). Open one section at a time, when the digest's pointer says the detail matters.
 
 ## 2. Active verification work
 

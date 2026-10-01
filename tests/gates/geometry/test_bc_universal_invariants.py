@@ -417,6 +417,49 @@ class TestAlbedoSubmarkovInvariant:
 
 
 # ─────────────────────────────────────────────────────────────────────
+# ReflectiveBoundary's albedo bounds (ERR-043, ERR-046)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+class TestReflectiveAlbedoBounds:
+    """``ReflectiveBoundary``'s specular albedo carries the bounds its two
+    siblings carry, and its realization certifies them.
+
+    Their first red: until 2026-09-30 the law had neither check, and SN
+    realized ``ReflectiveBoundary("x", 1.2)`` (``[M]`` k = 2.0878 on a slab
+    whose mirror k is 0.96) and ``ReflectiveBoundary("x", -0.1)``, while
+    ``AlbedoBoundary(1.2, SpecularReturn("x"))``, the same matrix, was refused
+    (qa review of ERR-094). The law still carries an albedo at all only until
+    the deck/response retirement (planned phase B5).
+    """
+
+    @pytest.mark.catches("ERR-043")
+    def test_a_negative_albedo_is_refused(self) -> None:
+        with pytest.raises(BoundaryResponseNotPositiveError):
+            ReflectiveBoundary(axis="x", albedo=-0.1).assert_response_positive_if_declared()
+
+    @pytest.mark.catches("ERR-046")
+    def test_an_over_unity_albedo_is_refused(self) -> None:
+        with pytest.raises(SubmarkovViolationError):
+            ReflectiveBoundary(axis="x", albedo=1.2).assert_submarkov()
+
+    @pytest.mark.catches("ERR-046")
+    def test_realization_certifies_the_bound(self) -> None:
+        """The check fires where SN certifies every law it realizes."""
+        quadrature = Quadrature.gauss_legendre(8)
+        with pytest.raises(SubmarkovViolationError):
+            ReflectiveBoundary(axis="x", albedo=1.2).assert_realizable(quadrature)
+
+    @pytest.mark.parametrize("albedo", [0.0, 0.5, 1.0])
+    def test_the_unit_interval_is_admitted(self, albedo: float) -> None:
+        law = ReflectiveBoundary(axis="x", albedo=albedo)
+        law.assert_response_positive_if_declared()
+        law.assert_submarkov()
+        law.assert_realizable(Quadrature.gauss_legendre(8))
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Wave-7 sweep-cycle flag (§15A.2)
 # ─────────────────────────────────────────────────────────────────────
 

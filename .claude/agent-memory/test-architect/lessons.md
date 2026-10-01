@@ -200,6 +200,9 @@ only the ORPHEUS mechanisms they do not name.
   in the session and cannot see a subprocess** — key the install by (module, name) and re-install per
   test, attribute subprocess workers by reading, and prefer a CALL-time lock inside the target for
   anything permanent. → `L94`
+- **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
+  production files named `solver.py` collapse into one in a flat copy, silently, and the session
+  scratchpad is shared with other agents. → `L97`
 - **⚠ After adding a field to a type, grep the tests for REFLECTION walkers**
   (`vars(`, `asdict`, `fields(`) — a walker over arbitrary objects sweeps the
   new field's arrays into an unrelated count and reddens for the wrong reason.
@@ -387,6 +390,14 @@ shelf life — check it against a concrete row before trusting a green.
   reference's two-parameter ladder (spatial x angular, coupled when a kink
   angle moves with the node), the SN side read from the artefact that pins it,
   and the comparison on the SUT's own cells. → `L96`
+
+- **⭐ A defect whose effect on the answer vanishes under refinement (a consistency error) is
+  invisible against ANY reference at the interior, since an honest band covers the discretization
+  error of the same order. Catch it at the EDGE where the honest answer equals a foundation
+  EXACTLY and the defect is maximal (α = 0 IS vacuum, bitwise; the unscaled corner re-emits all of
+  its outflow there): the band is then the solver's tolerance. And ship the tight self-consistency
+  row and the loose independent-reference row together, with the arm that separates them (a
+  shared-operator mutant reds only the second). → `L97`
 
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
