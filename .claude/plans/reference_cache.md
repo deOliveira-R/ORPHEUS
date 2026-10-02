@@ -1039,3 +1039,42 @@ Its qa review measured a gap that belongs to this campaign. Loading a pickle nev
 **Ruled (the user, 2026-10-01): a requirement on step 5, not a runtime guard.** The content key covers the schema of every persisted class (its fields, and a version), so an entry written before a carve misses instead of loading. The alternative, a `__setstate__` refusal on each class, was declined: it adds a guard per carve, where a schema-covering key fixes every future carve once.
 
 The witness owed with step 5: a law or a composed tree pickled under an older schema must miss the cache, never load. Its fixture is a schema-changing carve such as this one.
+
+### 2026-10-02: P1 step 5, content identity — merged @ `a5113ac0` (`ee9e8943` code, `a5113ac0` docs)
+
+Landed on branch `refactor/content-identity`, uncommitted at the time of writing, so no hash yet. Gates: spec §1.5 of `.claude/plans/reference_p1_spec.md`; the design plan `/Users/rodrigo/.claude/plans/zesty-dazzling-hanrahan.md`; the census `scratch/reference_architecture/p1step5/census.md`. The record is `docs/theory/foundations/structured_geometry.rst`, section `structured-geometry-content-identity`; the axis's side is `docs/theory/foundations/spaces.rst`, subsection `spaces-generator-identity-third-answer`.
+
+**What changed.**
+- One encoder, `orpheus/numerics/content.py` (a leaf module importing nothing from `orpheus`): `encode(value) -> bytes`, recursive, every chunk type-tagged and length-prefixed; `content_digest(value)`, the blake2b-256 of it; `ContentlessError(TypeError)`, naming the path to the part that has no content; and the `ContentIdentity` mixin, whose `==` and `hash` are derived from the digest (the hash is the digest's first 8 bytes, the same in every process). A value holding a contentless part is equal only to itself and unhashable.
+- An object encodes as its schema tag (`module.qualname|v<__content_version__>|<part names>`) followed by its parts. This is the user's ruling of 2026-10-01 above ("a requirement on step 5, not a runtime guard"): an entry written under an older schema misses. Its witness is gate S5.8 (a field added, renamed or reordered, a version raised, a class moved or renamed: each moves the digest). The end-to-end witness, a pickled law under an older schema missing a real cache, waits for the cache.
+- Moved onto the encoder: `Mixture` (its `_identity_key` retired; `MaterialMesh._contractibility_key` folds `content_digest`), `Materials` (content identity, ids coerced to `int`, declared order kept and not content, picklable through `__reduce__`), `BC` (params a read-only mapping of real numbers; hashable; pickles), every registered boundary law and `LawSum`/`LawScaled`, `StructuredGeometry`, `FaceLaws` (no longer equal to a plain `dict`), `CellEdges`, `Mesh1D` (hashable; its hand-written `__eq__` retired; derived fields `compare=False`), `Mesh2D` (read-only copied arrays, `-0.0` canonicalised, `==` works), the `Axis` family (`content_parts` replaces `_identity_key`; `_structural_bytes` retired), and the five space-name digests (`FunctionSpace.of_axes`, the angular and scalar trace spaces, the radial characteristic spaces, `FullFieldSpace.from_blocks`). `MaterialMesh`'s law key keys a `BC` tag by the tag itself (its `("BC", kind, sorted params)` arm retired).
+- NaN is refused at construction, by parsing at the boundary: `parse_real`, `BC` params (a `str` or `bool` value is a `TypeError`), `AlbedoBoundary` and `WhiteBoundary` albedo, `ConstantInflowSource.value`, and every array of a `Mixture`.
+- Gates: five files, `[M]` 2026-10-02 253 collected and 253 passed under `python -O -m pytest`; the RECORD fingerprint (S5.7) pins three digests; a new step of the `gates` CI workflow runs the five files on Linux.
+
+**The rulings of 2026-10-02 (the user).**
+1. A real scalar's content follows `==`: `True == 1 == 1.0` is one value, `-0.0` is `+0.0`; NaN and an integer beyond 2**53 are refused.
+2. Equality is the digest: every content type's `==` and `hash` derive from it (X4, one definition), so equality and the cache key cannot drift. The two string arms (`VacuumInflow() == "vacuum"`, `ReflectiveBoundary(axis) == "reflective"`) are kept, by the ruling of 2026-10-01; `[M]` their hashes differ from the strings', so a law and its kind string must not share a set or a dict.
+3. The old encoders moved: `Axis._structural_bytes` and the four space-name mints call the one encoder.
+4. `Mesh2D` is included (read-only copies, signed zero canonicalised, content `==` and `hash`).
+5. `BC` params are real numbers only, and NaN is refused at construction everywhere a value is made; the encoder's refusal is the backstop for a bare value.
+
+**What remains for steps 6 to 8** (numbered as in the carve order above; the spec numbers them §1.6 phase-space functions, §1.7 question, §1.8 specification, with the source before the question):
+- **The source** (`Symbolic` through `srepr`, `RegionwiseConstant`): it digests through the encoder as a frozen dataclass or a `ContentIdentity` value; a `srepr` string encodes, a live SymPy expression does not (`[M]` 2026-10-02 the encoder refuses a `sympy.core.add.Add` with `ContentlessError`, met inside `DiscreteMeasure.support`).
+- **The question** (`Eigen(parameter)`, `FixedSource(source, point)`; spec S7.5): a `SpectralMap` holds lambdas, which have no content, so its part must be its `name`, as S7.5 says.
+- **The specification** (materials, geometry or none, question, source; spec S8.2, S8.5): its digest is the encoder's over those parts, with its own RECORD fingerprint.
+- **Open, measured 2026-10-02:** the directional `Quadrature` is a mutable dataclass (`frozen=False`) with a hand-written `_identity_key`, so `encode(Quadrature.gauss_legendre(4))` raises `ContentlessError`. Nothing in steps 6 to 8 keys on a quadrature (the specification is mesh-free and method-free); a persistent key that covers an S_N discretisation (P3) needs the quadrature moved onto the encoder first.
+- **Outside the encoder, by scope:** the Sood registry's result cache keys on a SHA-256 of sorted JSON (`1` and `1.0` differ, `-0.0` and `0.0` differ, NaN admitted, `{1: x}` collides with `{"1": x}`; census §1a), with no production consumer. `[R]` It is a candidate for retirement once the reference cache serves its one test consumer.
+
+**After review (2026-10-02; supersedes the details above where they differ).** The elegance review (S1–S6) and qa (D1–D3, G1, G3) changed the landed shape:
+- **`FrozenMapping`** (`orpheus/numerics/content.py`) is the one frozen mapping value. `Materials.mixtures` and `BC.params` hold one, and `FaceLaws` subclasses it. The `MappingProxyType` stores and their two `__reduce__` methods retired.
+- **Every value pickles through its constructor** (`ContentIdentity.__reduce__`), so a load re-runs the laws. A pickle written under an older schema fails with a `TypeError` naming the field. This is the mechanism behind the 2026-10-01 ruling for pickles; the persistent cache still keys on digests and stores data, never pickles.
+- **The `Axis` content is its dataclass fields**, with `generator` declared `field(compare=False)`. That is the one spelling of "not content", and the hand-written `content_parts` lists retired.
+- **The encoder refuses** a dataclass compared by identity, a mutable part inside an object, and complex values. Its 2**53 check no longer wraps on unsigned arrays.
+- **NaN is also refused at construction** in `LawScaled.scalar` and in the three response `alpha`s. The signs are integers. `Mesh2D` takes the shared parsers.
+- **Gates:** 262 rows. The S5.7 pins were re-pinned before the commit: the geometry and `Materials` digests moved with `FrozenMapping`, and mixture A did not.
+- **Full suite** `tests/gates -m "not slow"`: 13 974 passed. The 4 failures are `test_write_guards`' worktree-path rows.
+
+Issues: #553 (retire the string-equality arm), #554 (stale SN docs block), #555 (Quadrature content identity).
+
+**Next: P1 step 6** (the phase-space functions, spec §1.6) per the carve order above, then the question (§1.7) and the specification (§1.8).
+

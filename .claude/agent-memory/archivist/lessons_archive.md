@@ -14063,3 +14063,9 @@ at the new module, whose module docstring carried a new RST simple table.
   run it before.
 - The same pass fixed three pre-existing nested-markup defects (a role inside `**…**`) on pages it
   touched; the rendered-HTML scan (surviving `:role:` text) found them, the build did not.
+
+## L-117 — a carve that changes `==` breaks published code blocks the build never runs; separate them from pre-existing failures with a HEAD worktree
+
+`[M]` 2026-10-02, #405 P1 step 5 (content identity). The carve made `FaceLaws` equal only to another `FaceLaws`, so every published `assert mesh.face_laws == {...}` turned False: 5 blocks on 5 pages (`structured_geometry.rst` x2, `boundary_conditions.rst`, `api/geometry.rst`, `api/mesh.rst`), none on a page the brief listed, all silent under `-W`. Found by executing every `.. code-block:: python` on the touched pages (a script: extract, dedent, `exec` in a fresh namespace) against the live tree AND against a detached HEAD worktree (`PYTHONPATH=<worktree>`, run from outside the repo, `orpheus.__file__` printed): a block failing in both is pre-existing (fragments, CWD-relative census blocks), a block failing only live is the carve's. The grep that finds the rest of the family is the operator the carve changed, applied to a literal of the old partner type (`face_laws *== *\{`).
+Second finding, same pass: a module whose docstring holds a `===` section title can be documented without `automodule` (which would parse that docstring into a page with different title levels): `.. py:module::` mints the module target, then `autofunction`/`autoexception`/`autoclass` the members. 19 dead roles in production docstrings resolved, 0 new nitpick warnings.
+Third: my own one-line docs edit during a `-W` build reproduced the `vv_audit.json` input race (L-115): the input digest covers `docs/` too. Edit nothing while the verification build runs.

@@ -11595,3 +11595,20 @@ Spec `scratch/platform_drift/gates_spec.md`.
    n = 1 rows red too: test n = 1 in any "correctly rounded" population.
 5. A route gate that wants "k is read off apply" uses a POWER-OF-TWO decoy (`2·apply`): k doubles bit for
    bit and the gauged flux is bit-identical, so the gate is exact and association-free.
+
+## L99 — #405 P1 step 5 content identity (W3 gates before code): two instrument traps (2026-10-02; spec §1.5 + 4 gate files + 41-arm encoder battery)
+
+1. **A probe SCRIPT run from a worktree imports the MAIN tree.** `python ../probe.py` with cwd = the
+   worktree puts the script's directory at `sys.path[0]`, and the editable install then resolves
+   `orpheus` to the main checkout (the one another agent was editing). `code-search`'s check says
+   "run a probe SCRIPT from outside the repository and print `module.__file__` first": the first half
+   is exactly what imports the wrong tree; the second half caught it. Fix: `PYTHONPATH=$PWD` for any
+   script run against a worktree (`python -m pytest` from the worktree root was fine: `-m` puts cwd first).
+2. **A parametrize id with whitespace is truncated by an `-rf` reader parsing `^FAILED (\S+)`**, so
+   distinct rows collapse into one set member and a battery under-counts its reds (86 "distinct" of 91).
+   Fix: whitespace-free ids (`param_id`), then `len(set) == summary count` as the reader's own control.
+3. Design notes worth reusing: an attribution check inside each perturbation leg (every OTHER part
+   encodes equal) is what made the 20 per-field arms red exactly their own rows; a route gate needs a
+   STABILITY read (two honest builds equal) beside the activation count, or an identity hash reads
+   "moved" for the wrong reason; two field-less classes collide without the schema tag, so the tag is
+   load-bearing beyond schema evolution.

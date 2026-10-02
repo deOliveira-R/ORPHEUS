@@ -114,6 +114,12 @@ published "no carrier exists"). Before an `L<n>`/`#<n>` count means anything,
 discriminate the namespaces: a V&V level is not a lesson, "<agent> lessons L9"
 names THAT agent's memory, "`<skill>` L11" may name nothing at all. → L-083
 
+**A25. A rebinding loop compares against the ORIGINAL captured before the loop,
+never the defining module's live attribute** — rebinding the definer first
+turns every later `is` test false, and the activation counter still reads
+non-zero from the definer's own internal callers. Attribute activations PER
+CALLER MODULE, or the count certifies the wrong site. → L-095
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

@@ -137,6 +137,10 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   lines carry no `WARNING:` prefix, so read the whole log and grep `CRITICAL:` too. → L-114,
   L-070, L-060, L-002, L-027, L-040, L-054, L-055, L-048, L-095
 
+- **A carve that changes `==` or a signature breaks PUBLISHED code blocks `-W` never runs — execute every
+  `python` block on the touched pages, live and in a HEAD worktree, so a pre-existing failure is not
+  charged to the carve; grep the changed operator against a literal of the old partner type.** A
+  docstring with section titles is documented by `py:module::` + `autoclass`, not `automodule`. → L-117
 - **Re-pointing an `automodule` makes a docstring no build ever parsed a build input** — the baseline
   cannot see it, so parse the new module's docstring with `docutils` (old text as the positive
   control) BEFORE the verification build; a `.py` defect found by the build costs a third build. → L-116

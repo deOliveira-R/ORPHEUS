@@ -203,6 +203,11 @@ only the ORPHEUS mechanisms they do not name.
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`
+- **⛔ A probe SCRIPT run against a worktree imports the MAIN tree** through the editable install
+  (`sys.path[0]` is the script's directory, not cwd): set `PYTHONPATH` to the worktree, and still print
+  `module.__file__` first. Refines `code-search`'s "run a probe script from outside the repository".
+  And a battery reading `^FAILED (\S+)` collapses whitespace-bearing parametrize ids: mint ids without
+  spaces and check `len(set)` against the summary count. → `L99`
 - **⚠ After adding a field to a type, grep the tests for REFLECTION walkers**
   (`vars(`, `asdict`, `fields(`) — a walker over arbitrary objects sweeps the
   new field's arrays into an unrelated count and reddens for the wrong reason.

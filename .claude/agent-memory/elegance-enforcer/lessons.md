@@ -424,3 +424,12 @@ closures for the realizer. Fed to the geometry's consumer, `close_group` of a bo
 returned order 2 (Z2) for the true D-infinity, and the two decks were equal values. So: name the new consumer's verb,
 run it on the stored values from a shipped fixture, and expect the data model to invert (store the located object; derive
 the old consumer's view from it).
+
+### L-035 — A design claiming "the key covers every class's SCHEMA" is graded by diffing, at runtime, each class's emitted part names against its declared fields; a hand-enumerated part list is a second schema the claim and its gate are both blind to
+Not covered by L-028 (a census blind to quoted annotations) nor Pattern 2 as stated (it names the twin, not the probe that
+finds it). `[M]` 2026-10-02, #405 P1 step 5: the encoder's schema tag is the part NAMES, and `Axis` overrode
+`content_parts` to drop `generator` by omission while `Mesh1D` used `field(compare=False)`. So a field added to any of 4 of 22
+classes entered neither the digest nor the tag, and the S5.3 "a part added later reds" gate read the same override. So:
+(1) list `dataclasses.fields` against `content_parts()` names for every subclass (walk `__subclasses__`); (2) any exclusion
+spelled by omission rather than at the field declaration is a VIOLATION, remedied with `compare=False`; (3) ask which
+ladder-order dependence the override was hiding (here: ContentIdentity-before-dataclass).

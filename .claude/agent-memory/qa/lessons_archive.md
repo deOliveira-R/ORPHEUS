@@ -6033,3 +6033,16 @@ pickle files and no `.cache/`, so latent; the #405 reference cache is the
 consumer that would make it live. Not covered by `retirement-audit` (no
 persisted-state clause) nor by `coding-elegance` Pattern 4's `replace`
 corollary, which names only the route that DOES re-run `__post_init__`.
+
+## L-095 — a rebinding loop that compares each module's binding against the LIVE attribute of the defining module patches only that module, and the arm reads blind (2026-10-02, W3 #405 P1 step 5 QA, `refactor/content-identity` @ `1dc31163` + uncommitted)
+
+Arm "parse_real admits NaN": the plugin looped over `sys.modules` and rebound
+every `parse_real` that `is SC.parse_real`. The defining module
+`orpheus.geometry.scalars` was rebound first, so `SC.parse_real` became the
+mutant and no later importer (`_tag`, `albedo`, `white`, `_source`,
+`structured_geometry`) matched. The battery printed 19 988 activations (all
+from `scalars`' own internal callers) and 0 new reds; the 4 NaN-construction
+rows were in fact live. Capturing `_orig = SC.parse_real` before the loop: 4
+reds, exactly the target rows. Not covered by `vv-principles` #17(e) (it says
+patch every rebinding site, not how the site list is computed) nor by the
+activation-count check (the count was non-zero, from the wrong callers).

@@ -58,3 +58,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Coordinate system vs group seam](coordinate_system_group_seam.md) — only the point stabiliser is typed; decks are elements; pole is a mirror deck.
 - [Reflective albedo retirement blast](reflective_albedo_retirement_blast.md) — descriptor vs realized algebra; reflective_axes isinstance door; transcriptions break.
 - [Boundary-law method matrix](boundary_law_method_matrix.md) — typed laws skip the registry; admitted-but-mis-realized is a status; no law in all five.
+- [Content identity landscape](content_identity_landscape.md) — who hashes, who raises, Materials unpicklable; the eq/hash spy is the census.
