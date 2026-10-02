@@ -1150,3 +1150,31 @@ Commits: `4b084883` (the pullback; the mint keeps the marginal's forms and refus
 **Step 6 close-out (2026-10-02).** Merged `--ff-only` at `61f82a18`. Full suite `tests/gates -m "not slow"` in a detached worktree of `2d0f9539`: 14 086 passed, 264 skipped, 55 xfailed, 4 failed (the `test_write_guards` worktree artefacts, 22 of 22 green in the main tree); baseline 13 974 at `ee9e8943`, so +112 rows, all accounted for by the new gates. The merge push's tip carried `[skip ci]`, which skipped the push's CI run; this close-out commit is pushed without it so `gates` runs on the merged tree. Process lesson: a plan-only `[skip ci]` commit must never be the tip of a push that carries code. `[M]` 2026-10-02, twice: the close-out commit `36b61af3` was meant to trigger CI, but its message BODY quoted the skip token while explaining it, and GitHub matches the token anywhere in the message, so that push ran no CI either. A commit meant to trigger CI never quotes the token, even in prose; CI on the merged tree was triggered by the commit after it.
 
 Next: P1 step 7, the question (spec §1.7; S7.3 amended for the two step-6 types). Its open ruling: what `Eigen(c)` names and what `CriticalParameter` varies (waiting on the posing-sequence review).
+
+## ⏸ COMPACTION POINT — 2026-10-02, P1 after step 6 (supersedes the point after step 5)
+
+State: `main` `6ba7aab3`, clean apart from `scratch/`; CI `gates` run 37017185290 green on the merged tree. Merged since the point after step 5: **P1 step 6, the mesh-free functions and the retraction's adjoint**, at `61f82a18` (code `4b084883`..`43067473`, docs `2d0f9539`), closed out at `36b61af3` and `6ba7aab3`. Full-suite baseline (`tests/gates -m "not slow"`, detached worktree of `2d0f9539`, `.venv` linked): 14 086 passed, 264 skipped, 55 xfailed; the only failures are the 4 `test_write_guards` worktree artefacts (22 of 22 green in the main tree).
+
+What step 6 landed (the record is the two notes above, "P1 step 6 opened" and "P1 step 6 built"):
+- `AxisPullbackOperator`: `R.H` of `space.retraction(label)` is the closed-form pullback π*, minted by the retraction, `R.H.H is R`; the mint keeps the marginal's positioned forms (`FunctionSpace.without_axis` / `with_axis`, one overlay reader `_overlay_forms`) and refuses a form on the collapsed axis.
+- The SN adjoint detector lift is `retraction("angular").H` (bit-exact).
+- `CoordSystem.angular_chart` (polar axis, azimuth reference; the sphere has none).
+- `orpheus/numerics/mesh_free_function.py`: `RegionwiseConstant` (on the angle-integrated space) and `Symbolic` (q(r, mu, phi) per group as srepr text plus the SymPy version, whitelisted parse, real scalar functions only, isotropy by substitution). Branch 1: `orpheus/derivations/common/angular_measure.py`. SymPy is a core dependency.
+
+**Rulings that bind from here** (in addition to the content-identity ones of the step-5 point):
+- **The 4π is the measure (the user, 2026-10-02).** A per-region table lifts by the role's arrow: a source rate by the section E, a detector by R†. Neither type carries a role or a density; the specification's FIELD is the role. No mass is ever typed.
+- **The chart is the coordinate system's local frame** (the user, 2026-10-02); observability of the azimuth is the problem's symmetry, not the chart's.
+
+**Next: P1 step 7, the question values.** ⚠ Spec §1.7 (`reference_p1_spec.md`, written 2026-09-25) is STALE against the posing ontology, and this is the first thing to reconcile, before any gate:
+- §1.7 lists `Eigen(k)`, `Eigen(c)`, `FixedSource(σ)` and `CriticalParameter`. The posing sequence ruled on 2026-09-26 (`posing_sequence.md`, the rulings ledger) ONE eigen question, `Eigen(parameter)`, the parameter a closed set of declared coordinates of the system (`posing_sequence.md`, "The ontology as it stands": `CellCoefficient | GeometryExtent | NuclideDensity`, 2026-09-28; the k, c and α parameters are coefficients, an outer extent is a geometry coordinate). `CriticalParameter` dissolves into it, and the pencil and the spectral map are DERIVED from the parameter.
+- The 2026-09-29 ruling: the question values live in `numerics`, physics-free, naming the parameter as an opaque key the specification resolves (the "contradiction to rule" in `posing_sequence.md` "The work, ordered by dependence", item 1, proposes `Eigen(parameter, point, mode)` and `FixedSource(source, point)`).
+- S7.3 was amended 2026-10-02 for the two step-6 types: the adjoint fixed-source question's detector is a `RegionwiseConstant` (lifted by R†) or a `Symbolic`.
+
+First action: a short explorer census on what the posing campaign (#522, units #523-#529, plan files `posing_u0`..`posing_u6`) has already landed of the question vocabulary (`numerics/posing.py`: `EigenPosing`, `SourcePosing`, `K_MAP`, `ALPHA_MAP`; any `Eigen` / parameter-coordinate type), then the test-architect re-specifies §1.7 against it and measures each first red in a detached worktree. Then step 8, the specification.
+
+**Process lessons from step 6, for every later step:**
+- A plan-only commit carrying the CI skip token must never be the TIP of a push that carries code, and a commit meant to trigger CI never quotes the token, even in prose (GitHub matches it anywhere in the message).
+- A full-suite run is driven with its own log file per run, and stopped by PID (`pgrep -fl "pytest tests/gates"`), never by a path pattern: a relative-path launch evaded `pkill -f`, kept running while its worktree was moved, and interleaved with the next run's log.
+- A gate written from the spec can be designed green: S6.19(b) re-synthesised two columns from an angle computed out of the same two columns. Every new gate gets its mutation arm before commit.
+
+**Open issues from this stretch:** #551–#555 (from the step-5 stretch), #556 (MoC's typed 4π), #557 (the derivations' typed measure masses), #558 (a composite's adjoint does not reach the pullback), #559 (one real-number parser at L1), #560 (the iso + aniso source combine spells the section by hand; W defined twice; an SN-wide ULP re-baseline).
