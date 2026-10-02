@@ -2850,17 +2850,21 @@ def solve_sn_adjoint_fixed_source(
 
         * ``np.ndarray`` of shape ``(ng, *spatial)`` — the DETECTOR
           RESPONSE function :math:`\Sigma_d(\vec r, g)` (the canonical
-          adjoint source).  Lifted to the composite as the **angle-flat
-          broadcast** — no quadrature weights, no ``1/W``: under the
-          G-pairing (bulk metric :math:`V\,w_n`) the plain broadcast is
-          exactly the dual of the scalar-flux extraction,
-          :math:`\langle \mathbf{1}_\Omega\Sigma_d,\,\psi\rangle_G =
-          \sum_{\rm cells} V\,\Sigma_d\,\varphi = \langle\Sigma_d,
-          \varphi\rangle_V` — the detector-response functional.  (The
-          FORWARD iso-source lift divides by :math:`W`; the adjoint lift
-          must NOT — the two lifts are duals of different maps, the
-          source injection vs the flux extraction.  This asymmetry is
-          the P1.2 reciprocity gate's exact content.)
+          adjoint source).  Lifted to the composite by :math:`R^\dagger`,
+          the Hilbert adjoint of the angular retraction
+          :math:`R\psi = \sum_n w_n \psi_n = \varphi` (the pullback
+          :class:`~orpheus.numerics.operator.AxisPullbackOperator`, a
+          plain broadcast with no quadrature weights and no ``1/W``).
+          The detector-response functional is
+          :math:`\psi \mapsto \langle\Sigma_d, R\psi\rangle_V =
+          \sum_{\rm cells} V\,\Sigma_d\,\varphi`, and under the
+          G-pairing (bulk metric :math:`V\,w_n`) its Riesz representative
+          is :math:`R^\dagger\Sigma_d`.  The FORWARD iso-source lift is the
+          retraction's section :math:`E`, which divides by :math:`W` so
+          that :math:`R \circ E = \mathrm{id}`; the two lifts differ by
+          :math:`R \circ R^\dagger = W`, the mass of the angular measure,
+          and this asymmetry is the P1.2 reciprocity gate's exact
+          content.
         * :class:`~orpheus.transport.full_field.FullField` — the full
           composite adjoint source (bulk per-ordinate + boundary member)
           for angularly-selective detectors / prescribed adjoint inflow.
@@ -2922,14 +2926,11 @@ def solve_sn_adjoint_fixed_source(
                 f"solve_sn_adjoint_fixed_source: detector_response shape "
                 f"{sigma_d.shape} != (ng, *spatial) = {expected}."
             )
-        # The angle-flat dual lift (docstring above), moment-lifted
-        # through the ONE external-source policy (Q̂ = 0).
-        per_ord = np.broadcast_to(
-            sigma_d[None], (problem.quad.N, *sigma_d.shape),
-        )
-        bulk, _ = _lift_external_source_to_moments(
-            np.ascontiguousarray(per_ord), problem,
-        )
+        # The detector lift is the angular retraction's adjoint R† (the
+        # docstring above), moment-lifted through the ONE external-source
+        # policy (Q̂ = 0).
+        per_ord = problem.angular_bulk_space.retraction("angular").H.apply(sigma_d)
+        bulk, _ = _lift_external_source_to_moments(per_ord, problem)
         q_star = FullField(
             interior=AngularSourceSink(
                 values=bulk, space=problem.angular_trial_space,
@@ -3250,7 +3251,7 @@ def solve_sn_fixed_source(
     .. math::
 
         \mu_n \frac{\partial\psi_n}{\partial x}+\Sigma_t\psi_n
-        = \frac{1}{W}\left(\Sigma_s\phi + Q^{\text{ext}}_n\right)
+        = \frac{1}{W}\Sigma_s\phi + Q^{\text{ext}}_n
 
     for a prescribed per-ordinate external source ``external_source``,
     with vacuum or reflective boundary conditions. The fission source
