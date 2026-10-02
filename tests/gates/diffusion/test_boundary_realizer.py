@@ -45,6 +45,7 @@ from orpheus.geometry.boundary import (
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
@@ -142,8 +143,8 @@ class TestAlbedoTable:
             ),
             pytest.param(ZeroFluxBoundary(), -1.0, id="zero_flux->-1"),
             pytest.param(
-                ReflectiveBoundary(axis="x", albedo=0.7), 0.7,
-                id="reflective(0.7)",
+                AlbedoBoundary(0.7, SpecularReturn(axis="x")), 0.7,
+                id="albedo-specular(0.7)",
             ),
             pytest.param(
                 WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8),
@@ -167,9 +168,11 @@ class TestAlbedoTable:
         """The documented P1 coincidence: specular vs Lambertian
         return differ only in angular redistribution, which the
         half-range ℓ=0 moments integrate out — identical realized
-        action for equal return amplitude α."""
+        action for equal return amplitude α. The specular side is the wall
+        ``AlbedoBoundary(α, SpecularReturn)`` (the attenuated mirror
+        ``ReflectiveBoundary(axis, α)`` until the reflective cleanup)."""
         specular = realizer.realize(
-            ReflectiveBoundary(axis="x", albedo=0.6), minimal_ms,
+            AlbedoBoundary(0.6, SpecularReturn(axis="x")), minimal_ms,
         )
         lambertian = realizer.realize(
             WhiteBoundary(axis="x", outward_sign=+1, albedo=0.6),
@@ -324,9 +327,10 @@ class TestRefusals:
         object stopped getting a named :class:`BoundaryError` and
         started dying on a bare ``AttributeError`` deep in a factor
         read. **A collapsed dispatch ladder loses its last arm
-        silently** — the guard is restored as a ``response_kernel is
-        None`` check, placed first because everything after it
-        dereferences a factor.
+        silently** — the guard is restored as a ``not isinstance(law,
+        BoundaryTraceLaw)`` check (a ``response_kernel is None`` check until
+        2026-10-01), placed first because everything after it dereferences
+        a factor.
         """
 
         class _NotALaw:
@@ -336,22 +340,22 @@ class TestRefusals:
             realizer.realize(_NotALaw(), minimal_ms)  # type: ignore[arg-type]
 
     def test_law_with_unpopulated_factors_refused(self, realizer, minimal_ms):
-        """The shape the restored guard newly covers, and the LIKELIER one.
+        """The shape the restored guard covered until 2026-10-01, and the
+        likelier one: a :class:`BoundaryTraceLaw` subclass shipping without
+        its factors. The ABC then defaulted both to ``None``, and diffusion
+        refused such a law by name before dereferencing ``None.amplitude``.
 
-        Passing a non-law is a programming slip; a real
-        :class:`BoundaryTraceLaw` subclass shipping without its factors is a
-        plausible future mistake — the ABC still permits it (both factors
-        default to ``None``, pinned in
-        ``tests/gates/geometry/test_boundary_trace_law.py``). Since B2 diffusion
-        realizes a law THROUGH its response factor, such a law has no 𝒜 at
-        all, and must be told so by name rather than crash on ``None.amplitude``.
+        Both factors are abstract now, so the law is refused one step
+        earlier, at construction, by name; the realizer is never reached.
+        The construction witness for each factor is
+        ``tests/gates/geometry/test_boundary_trace_law.py::test_a_law_that_omits_a_factor_cannot_be_constructed``.
         """
         from orpheus.geometry.boundary import BoundaryTraceLaw
 
         class _LawWithoutFactors(BoundaryTraceLaw):
             pass
 
-        with pytest.raises(BoundaryError, match="_LawWithoutFactors"):
+        with pytest.raises(TypeError, match="_LawWithoutFactors"):
             realizer.realize(_LawWithoutFactors(), minimal_ms)
 
 
@@ -366,10 +370,14 @@ class TestComposition:
         self, realizer, minimal_ms, outflow_probe,
     ):
         """A Marshak-style mix realizes leaf-by-leaf through the
-        diffusion realizer: (0.3·reflective + 0.7·albedo(0.5)) acts
-        as the same weighted sum of realized leaf actions."""
+        diffusion realizer: (0.3·perfect specular wall + 0.7·albedo(0.5))
+        acts as the same weighted sum of realized leaf actions. The
+        specular leaf is the wall ``AlbedoBoundary(1, SpecularReturn)``: the
+        mirror ``ReflectiveBoundary`` is a symmetry and cannot be scaled or
+        mixed (refused at construction since the reflective cleanup,
+        ``tests/gates/geometry/test_deck_laws_do_not_compose.py``)."""
         tree = (
-            0.3 * ReflectiveBoundary(axis="x")
+            0.3 * AlbedoBoundary(1.0, SpecularReturn(axis="x"))
             + 0.7 * AlbedoBoundary(albedo=0.5)
         )
         composed = realize_recursively(tree, minimal_ms, realizer=realizer)
@@ -391,9 +399,16 @@ class TestComposition:
 
     def test_composition_refusal_propagates(self, realizer, minimal_ms):
         """A refused leaf inside a composition tree refuses the whole
-        realization — no silent partial tree."""
-        tree = 0.5 * PeriodicBoundary() + 0.5 * VacuumInflow()
-        with pytest.raises(BoundaryError, match="OPPOSITE face"):
+        realization — no silent partial tree.
+
+        The refused leaf is prescribed inflow (the rank-0 AFFINE law). It
+        was the periodic deck until the reflective cleanup, after which a
+        deck law cannot enter a composition at all (refused at
+        construction, ``tests/gates/geometry/test_deck_laws_do_not_compose.py``);
+        periodic's realizer refusal keeps its direct witness,
+        :meth:`TestRefusals.test_periodic_refused`."""
+        tree = 0.5 * PrescribedInflow() + 0.5 * VacuumInflow()
+        with pytest.raises(BoundaryError, match="rank-0 AFFINE"):
             realize_recursively(tree, minimal_ms, realizer=realizer)
 
 

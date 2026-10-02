@@ -37,8 +37,8 @@ suffices for the two laws below.
   discarded. Two campaign phases documented that survival as having "no
   consumer today"; the narrowing removes the question rather than answering
   it, because those rows are no longer in the operator's domain.
-* :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
-  ``albedo * PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
+* :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis)` →
+  ``PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
   where ``local_perm = Γ₊(f).to_local(π⁻¹[inflow])`` (a mirror is
   self-paired, so the domain face is the installation face; the general
   ``_deck_kernel`` doc speaks ``Γ₊(f')``) and :math:`\pi` is the
@@ -54,8 +54,10 @@ suffices for the two laws below.
   — G6.5: the space owns its row order — and it is mandatory: on a slab the
   mirror REVERSES order, so a hand-written ``arange`` is wrong there. The
   deck arm consequently REQUIRES the bound domain space, so its output is
-  always fully bound.) The ``albedo=1.0`` fast path returns the bare
-  :class:`PermutationOperator` TP.
+  always fully bound.) A symmetry has no amplitude, so the arm returns the
+  bare :class:`PermutationOperator` TP; the partial specular wall,
+  ``AlbedoBoundary(alpha, SpecularReturn(axis))``, reaches the same kernel
+  through its response and is scaled by its albedo.
 * :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * (IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))``
   (with the ``albedo=1.0`` fast path), narrowed at **B3.4a** to contract over
@@ -73,9 +75,10 @@ suffices for the two laws below.
   periodic) and an
   :class:`~orpheus.geometry.boundary.IsotropicReturn` to
   :func:`_checked_angular_average` (shared with white). So
-  ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
-  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as
-  matrices, by executing one construction rather than by two transcriptions
+  ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha` times
+  the mirror ``ReflectiveBoundary(a)`` and
+  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as a
+  matrix, by executing one construction rather than by two transcriptions
   agreeing. The laws still assert different physics — a wall's constitutive
   return versus a symmetry of the domain — which is the user's 2026-08-01
   ruling: the specular pairing belongs to :math:`R`, and
@@ -417,10 +420,14 @@ def _attenuated_kernel_operator(
       cannot express it, since
       :class:`~orpheus.numerics.operator.ScaledOperator` refuses a zero scalar
       as degenerate. Before B3.4b that refusal was reachable —
-      ``ReflectiveBoundary(axis, 0.0)`` and ``WhiteBoundary(..., 0.0)`` are
-      legal laws (:math:`\alpha = 0` satisfies every invariant, including
-      sub-Markov) and both died in the numerics layer with a message about
-      operator degeneracy rather than realizing the boundary they describe.
+      ``WhiteBoundary(..., 0.0)`` and the then-attenuated mirror
+      ``ReflectiveBoundary(axis, 0.0)`` were legal laws (:math:`\alpha = 0`
+      satisfies every invariant, including sub-Markov) and both died in the
+      numerics layer with a message about operator degeneracy rather than
+      realizing the boundary they describe. The mirror lost its amplitude on
+      2026-10-01 (a symmetry has none); the partial specular wall is
+      ``AlbedoBoundary(alpha, SpecularReturn(axis))``, whose zero end lands
+      here.
       Folding the four routes into one body is what made that visible, and one
       answer fixes all four.
     * :math:`0 < \alpha < 1` takes the scaled path.
@@ -902,8 +909,10 @@ class SNBoundaryRealizer:
             # certifications now run at realization through
             # ``ordinate_permutation``. The albedo arm below reaches the
             # same body: the mirror sits in this law's G (a symmetry of the
-            # domain) and in that law's R (a polished wall), and they
-            # realize to the same matrix because both read the same motion.
+            # domain) and in that law's R (a polished wall), so the wall at
+            # albedo α realizes to α times this matrix, because both read the
+            # same motion. A symmetry has no amplitude: its response is the
+            # unit scalar, read here from the factor.
             gamma_out = _outflow_restriction(method_space, "reflective")
             return _attenuated_kernel_operator(
                 _deck_kernel(
@@ -915,7 +924,7 @@ class SNBoundaryRealizer:
                         law.axis, method_space.face
                     ),
                 ),
-                law.albedo,
+                law.response_kernel.amplitude,
                 method_space=method_space, gamma_out=gamma_out, law_key="reflective",
             )
 

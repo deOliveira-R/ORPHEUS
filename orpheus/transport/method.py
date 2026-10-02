@@ -346,9 +346,7 @@ def _law_from_tag(
             f"Supported: {supported}."
         )
     if law_cls is ReflectiveBoundary:
-        return ReflectiveBoundary(
-            axis=AXIS_NAMES[label.axis_index], albedo=1.0,
-        )
+        return ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index])
     if law_cls is WhiteBoundary:
         # ⚠ White declares BOTH an axis and an outward SIGN, and both must
         # match the installation face or the realizer's B3.4a orientation

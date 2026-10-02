@@ -149,7 +149,9 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
       rows, keep the rest. Diagonal and symmetric, so its transpose is itself.
     * **reflective(α)** was ``α · PermutationOperator(reflection_index(axis))``
       — ``apply`` is ``np.take(x, perm, 0)``, ``apply_transpose`` the same
-      gather through ``inverse_perm``.
+      gather through ``inverse_perm``. Transcribed here at α = 1, the only
+      amplitude the mirror has had since the reflective cleanup (the
+      transcription read ``float(law.albedo)`` until then).
 
     Nothing here imports a B3.2 symbol: the input is the law DESCRIPTOR, the
     arithmetic is numpy, and the partner map comes from the independent
@@ -167,7 +169,7 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
         elif isinstance(law, ReflectiveBoundary):
             perm = mirror_partner_indices(quad, law.axis)
             inverse_perm = np.argsort(perm)  # NOT production's cached table
-            full_t = float(law.albedo) * np.take(masked, inverse_perm, axis=0)
+            full_t = np.take(masked, inverse_perm, axis=0)
         else:  # pragma: no cover - SN admits only the two
             raise AssertionError(f"unreachable law {type(law).__name__}")
         out[...] = full_t
@@ -177,7 +179,7 @@ def _pre_b32_face_action(law, face_in, inflow, quad, transpose: bool):
         full[inflow] = 0.0
     elif isinstance(law, ReflectiveBoundary):
         perm = mirror_partner_indices(quad, law.axis)
-        full = float(law.albedo) * np.take(face_in, perm, axis=0)
+        full = np.take(face_in, perm, axis=0)
     else:  # pragma: no cover
         raise AssertionError(f"unreachable law {type(law).__name__}")
     out[inflow] = full[inflow]
@@ -281,8 +283,7 @@ class TestBitIdentityAgainstTheRetiredExpression:
 #: spelling is absent for the same reason, with its own negative.
 _LAWS = {
     "vacuum": VacuumInflow(),
-    "reflective_a1": ReflectiveBoundary(axis="x", albedo=1.0),
-    "reflective_a07": ReflectiveBoundary(axis="x", albedo=0.7),
+    "reflective_a1": ReflectiveBoundary(axis="x"),
     # B3.4a narrowed these two. The law's axis / outward_sign must match the
     # fixture face ("xmax" ⇔ x, +1) or the realizer's orientation cross-check
     # fires — which is the point of that guard, not an inconvenience.

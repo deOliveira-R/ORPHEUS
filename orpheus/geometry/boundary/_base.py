@@ -49,7 +49,7 @@ References
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import numpy as np
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
 
     from ._composition import LawNode, LawScaled, LawSum
+    from ._factors import BoundaryGeometryMap, BoundaryResponseKernel
 
 
 __all__ = ["BoundaryTraceLaw", "law_permutes_ordinates"]
@@ -84,8 +85,9 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
     of the domain — so ``AlbedoBoundary(α, SpecularReturn(a))`` permutes
     ordinates with ``G = SelfPairedDeck.identity()``. Four inline spellings
     then became four
-    half-right answers, and since that law equals ``ReflectiveBoundary(a, α)``
-    as a matrix, each was a place where two identical operators behaved
+    half-right answers, and since that law was the same matrix as the
+    then-attenuated mirror ``ReflectiveBoundary(a, α)`` (the albedo retired
+    2026-10-01), each was a place where two identical operators behaved
     differently:
 
     * :func:`~orpheus.sn.loss_representation.sweep_schedule` — the reflecting-face
@@ -189,7 +191,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
 
-        law = ReflectiveBoundary(axis="x", albedo=0.5)
+        law = ReflectiveBoundary(axis="x")
         ms = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(law, ms)
         psi_in = op.apply(psi_out)   # 1-arg LinearOperator
@@ -198,7 +200,12 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
     .. code-block:: python
 
-        composed = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(...)
+        composed = (
+            0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
+            + 0.7 * WhiteBoundary(...)
+        )
+        # the leaves are responses: a deck law (ReflectiveBoundary,
+        # PeriodicBoundary) is a symmetry and is refused as an operand
         # composed is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...))
         # Still NOT callable. Realize the tree (the walker is
         # method-blind — pass the method's own realizer):
@@ -257,25 +264,31 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         return key
 
     @property
-    def geometry_map(self) -> Any:
+    @abstractmethod
+    def geometry_map(self) -> "BoundaryGeometryMap":
         r"""The deck transformation :math:`G : \Gamma_+ \to \Gamma_-`.
 
-        **Populated on every concrete law since campaign phase B1**, and read
+        **Declared by every concrete law since campaign phase B1**, and read
         by production: the sweep schedule's reflecting-face set, the DSA
-        admission guard, the ray-corner predicate and the diffusion realizer's
-        periodic refusal all ask it structural questions instead of comparing
-        ``kind`` strings (phase B2 moved them). The ``None`` here is the ABC's
-        default for a law that declares nothing; no shipped law uses it.
+        admission guard, the ray-corner predicate, the diffusion realizer's
+        periodic refusal and the descriptor algebra's deck refusal all ask it
+        structural questions instead of comparing ``kind`` strings (phase B2
+        moved them). Abstract since 2026-10-01: until then the ABC defaulted
+        it to ``None``, so a law declaring nothing could be built and then
+        failed wherever a consumer dereferenced the factor (the diffusion
+        realizer carried a named refusal for that state; the deck refusal
+        would have raised ``AttributeError``). A law that declares no factor
+        is now a ``TypeError`` at construction.
 
         Membership is decided by the two tests in
         :mod:`~orpheus.geometry.boundary._factors` — multiplicativity
         (necessary) and *is it a quotient of the domain* (sufficient) — whence
-        exactly one of :math:`G`, :math:`R` is non-trivial.
+        at most one of :math:`G`, :math:`R` is non-trivial.
         """
-        return None
 
     @property
-    def response_kernel(self) -> Any:
+    @abstractmethod
+    def response_kernel(self) -> "BoundaryResponseKernel":
         r"""The constitutive response — classified :math:`R`, realized
         :math:`\Gamma_+ \to \Gamma_-`.
 
@@ -293,9 +306,9 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         as its entire first stage, the SN realizer dispatches the albedo family
         on the kernel's TYPE (B3.4b), and the vacuum-detection sites read
         ``is_zero``. Every one of them formerly reached ``law.albedo`` as a
-        bare float or compared a ``kind`` tag.
+        bare float or compared a ``kind`` tag. Abstract since 2026-10-01, for
+        the reason :attr:`geometry_map` gives.
         """
-        return None
 
     @property
     def source(self) -> InflowSourceSpec:

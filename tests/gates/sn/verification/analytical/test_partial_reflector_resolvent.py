@@ -76,7 +76,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_as
     solve_greens_function_slab_asymmetric_mg,
 )
 from orpheus.geometry import StructuredGeometry
-from orpheus.geometry.boundary import AlbedoBoundary, ReflectiveBoundary, SpecularReturn
+from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn
@@ -126,9 +126,13 @@ def _sn_k(mesh, n_ordinates: int) -> float:
 @pytest.mark.verifies("sn-leakage-functional")
 @pytest.mark.catches("ERR-094")
 def test_slab_with_two_partial_reflectors():
-    r"""A homogeneous slab of 4 cm with ``ReflectiveBoundary("x", 0.3)`` on
-    the left and ``AlbedoBoundary(0.7, SpecularReturn("x"))`` on the right:
-    two amplitudes and both spellings on one body. Claim kind: REFERENCE.
+    r"""A homogeneous slab of 4 cm with the specular wall
+    ``AlbedoBoundary(0.3, SpecularReturn("x"))`` on the left and
+    ``AlbedoBoundary(0.7, SpecularReturn("x"))`` on the right: two amplitudes
+    on one body. Claim kind: REFERENCE. Until the reflective cleanup the left
+    wall was spelled ``ReflectiveBoundary("x", 0.3)``, the same matrix
+    (``[M]`` 2026-10-01, the carry fixture ``resolvent_slab``: SN k bitwise
+    equal).
 
     First red, ``[M]`` 2026-09-30 with the leakage predicate reverted to
     ``response_kernel.is_zero``: SN 1.82163 against the resolvent 0.83431
@@ -144,7 +148,7 @@ def test_slab_with_two_partial_reflectors():
         pytest.fail("the resolvent did not converge: no reference to compare")
     mesh = Mesher(StructuredGeometry.slab(
         (0.0, 4.0), (0,),
-        left=ReflectiveBoundary("x", 0.3),
+        left=AlbedoBoundary(0.3, SpecularReturn("x")),
         right=AlbedoBoundary(0.7, SpecularReturn("x")),
     )).partition(CellsByCount.uniform_width(80)).mesh
     k = _sn_k(mesh, 32)
@@ -161,8 +165,11 @@ def test_slab_with_two_partial_reflectors():
 @pytest.mark.verifies("sn-leakage-functional")
 @pytest.mark.catches("ERR-094")
 def test_sphere_with_a_partial_reflector():
-    r"""A homogeneous sphere of radius 4 cm with ``ReflectiveBoundary("x",
-    0.7)`` on its surface. Claim kind: REFERENCE.
+    r"""A homogeneous sphere of radius 4 cm with the specular wall
+    ``AlbedoBoundary(0.7, SpecularReturn("x"))`` on its surface (spelled
+    ``ReflectiveBoundary("x", 0.7)`` until the reflective cleanup; ``[M]``
+    2026-10-01, the carry fixture ``resolvent_sphere``: SN k bitwise equal).
+    Claim kind: REFERENCE.
 
     First red, ``[M]`` 2026-09-30 with the leakage predicate reverted to
     ``response_kernel.is_zero``: SN about 1.82 against the resolvent 0.88215
@@ -176,7 +183,7 @@ def test_sphere_with_a_partial_reflector():
     if not reference.converged:
         pytest.fail("the resolvent did not converge: no reference to compare")
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 4.0), (0,), outer=ReflectiveBoundary("x", 0.7),
+        (0.0, 4.0), (0,), outer=AlbedoBoundary(0.7, SpecularReturn("x")),
     )).partition(CellsByCount.uniform_width(40)).mesh
     k = _sn_k(mesh, 16)
     np.testing.assert_allclose(

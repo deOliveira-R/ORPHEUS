@@ -45,6 +45,7 @@ from orpheus.geometry.boundary import (
     LawScaled,
     LawSum,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
     realize_recursively,
@@ -55,8 +56,15 @@ from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import face_method_space
 
-#: ⚠ The mixed-law gates below compose reflective with **white**, and both are
-#: narrowed (B3.2 and B3.4a respectively), so the sum is well-typed and the
+#: The specular leaf of every tree below is the perfect specular wall
+#: ``AlbedoBoundary(1.0, SpecularReturn("x"))``, which realizes to the mirror's
+#: bare tensor product. It was the mirror ``ReflectiveBoundary("x")`` itself
+#: until the reflective cleanup (2026-10-01), which made a deck law (a
+#: symmetry of the domain) refuse to be scaled or mixed; that refusal is
+#: ``tests/gates/geometry/test_deck_laws_do_not_compose.py``.
+#:
+#: ⚠ The mixed-law gates below compose the specular wall with **white**, and
+#: both are narrowed (B3.2 and B3.4a respectively), so the sum is well-typed and the
 #: distributivity claim is stateable again — the two ``xfail(strict=True)``
 #: markers that stood here were deleted when B3.4a landed, exactly as their own
 #: reason text instructed.
@@ -87,7 +95,7 @@ from tests.gates.sn._test_helpers import face_method_space
 @pytest.mark.foundation
 def test_law_plus_law_returns_lawsum() -> None:
     """``law + law`` returns a :class:`LawSum`."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = spec + white
     assert isinstance(tree, LawSum)
@@ -98,7 +106,7 @@ def test_law_plus_law_returns_lawsum() -> None:
 @pytest.mark.foundation
 def test_scalar_times_law_returns_lawscaled() -> None:
     """``α * law`` returns a :class:`LawScaled` (and ``law * α`` too)."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     left = 0.3 * spec
     right = spec * 0.3
     assert isinstance(left, LawScaled)
@@ -113,7 +121,7 @@ def test_scalar_times_law_returns_lawscaled() -> None:
 def test_marshak_form_builds_law_sum_of_law_scaled() -> None:
     """``0.3 * spec + 0.7 * white`` is a :class:`LawSum` whose operands
     are :class:`LawScaled` wrappers around leaves."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.3 * spec + 0.7 * white
     assert isinstance(tree, LawSum)
@@ -128,12 +136,12 @@ def test_marshak_form_builds_law_sum_of_law_scaled() -> None:
 @pytest.mark.foundation
 def test_lawscaled_constant_folding_collapses_chain() -> None:
     """``α * (β * law) = (α*β) * law`` — the chain never re-nests."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     folded = 2.0 * (3.0 * spec)
     assert isinstance(folded, LawScaled)
     assert folded.scalar == 6.0
     # Inner is the leaf (not another LawScaled).
-    assert isinstance(folded.inner, ReflectiveBoundary)
+    assert isinstance(folded.inner, AlbedoBoundary)
     # Folds in either order:
     folded_other = (3.0 * spec) * 2.0
     assert isinstance(folded_other, LawScaled)
@@ -143,7 +151,7 @@ def test_lawscaled_constant_folding_collapses_chain() -> None:
 @pytest.mark.foundation
 def test_lawscaled_truediv_inverts_scalar() -> None:
     """``law / α = (1/α) * law``."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     tree = spec / 4.0
     assert isinstance(tree, LawScaled)
     assert tree.scalar == 0.25
@@ -153,7 +161,7 @@ def test_lawscaled_truediv_inverts_scalar() -> None:
 @pytest.mark.foundation
 def test_lawsum_minus_law_uses_minus_one_scaled() -> None:
     """``a - b`` rewrites as ``LawSum(a, LawScaled(-1, b))``."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = spec - white
     assert isinstance(tree, LawSum)
@@ -166,7 +174,7 @@ def test_lawsum_minus_law_uses_minus_one_scaled() -> None:
 @pytest.mark.foundation
 def test_neg_lawsum_wraps_as_minus_one_scaled() -> None:
     """``-sum_node`` wraps as ``LawScaled(-1, sum_node)``."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     s = spec + white
     neg = -s
@@ -182,7 +190,7 @@ def test_lawsum_plus_law_returns_lawsum() -> None:
     The tree is **not** flattened: ``(a + b) + c`` is
     ``LawSum(LawSum(a, b), c)``, distinct from ``LawSum(a, LawSum(b, c))``.
     """
-    a = ReflectiveBoundary(axis="x", albedo=1.0)
+    a = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     b = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     c = AlbedoBoundary(albedo=0.5)
     tree = (a + b) + c
@@ -212,7 +220,7 @@ def test_leaf_descriptor_has_no_apply() -> None:
 @pytest.mark.foundation
 def test_law_tree_has_no_apply() -> None:
     """LawSum / LawScaled compositions also have no ``apply``."""
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     sum_tree = spec + white
     scaled_tree = 0.5 * spec
@@ -236,7 +244,7 @@ def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
     # B3.2: a reflective leaf is typed Γ₊ → Γ₋, so it needs a FACE — a
     # faceless method space cannot name its domain.
     ms = face_method_space(quad, face="xmax")
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     walker_op = realize_recursively(spec, ms, SNBoundaryRealizer())
     direct_op = SNBoundaryRealizer().realize(spec, ms)
     rng = np.random.default_rng(0)
@@ -249,7 +257,7 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
     """``LawScaled(α, leaf)`` realises to ``ScaledOperator(α, realised_leaf)``."""
     quad = Quadrature.gauss_legendre(8)
     ms = face_method_space(quad, face="xmax")   # B3.2: the leaf needs a face
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     tree = 0.5 * spec
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
     assert isinstance(op, ScaledOperator)
@@ -268,7 +276,7 @@ def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     """``LawSum(a, b)`` realises to ``OperatorSum(realise(a), realise(b))``."""
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.3 * spec + 0.7 * white
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
@@ -291,7 +299,7 @@ def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
     """
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
     white_realised = SNBoundaryRealizer().realize(white, ms)
@@ -321,7 +329,7 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     """
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.5 * (0.3 * spec + 0.7 * white)
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
@@ -346,7 +354,7 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
     """
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     spec_realised = SNBoundaryRealizer().realize(spec, ms)
     white_realised = SNBoundaryRealizer().realize(white, ms)

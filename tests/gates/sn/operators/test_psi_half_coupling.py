@@ -809,9 +809,8 @@ class TestB_b_RayBoundary:
             err_msg="vacuum B_b emitted a non-zero corner (it did the reflective swap).")
 
     _CORNER_CASES = [
-        (coord, spelling, alpha)
+        (coord, "albedo-specular", alpha)
         for coord in (CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL)
-        for spelling in ("reflective", "albedo-specular")
         for alpha in (1.0, 0.7, 0.0)
     ]
 
@@ -840,19 +839,23 @@ class TestB_b_RayBoundary:
         level and the folded cylinder four, so the cylinder rows see a corner
         loop that stops after the first level.
 
+        The law is the specular wall ``AlbedoBoundary(α, SpecularReturn("x"))``
+        and the reference is the mirror ``ReflectiveBoundary("x")``, which
+        has no amplitude. Until the reflective cleanup the table carried a
+        second spelling of the wall, ``ReflectiveBoundary("x", α)``; its rows
+        were dropped (at α = 1 they compared the mirror with itself, and at
+        0.7 and 0 the wall's rows here are their twins).
+
         First red, ``[M]`` 2026-09-30 with the scaling removed (the defect,
         ERR-094): every :math:`\alpha = 0.7` and :math:`\alpha = 0` row, both
         legs (the unscaled corner returns the full outflow, so ``B_b(0)`` is
         the mirror instead of zero); the :math:`\alpha = 1` rows stay green.
-        With only the transpose's scaling removed, the same 8 rows red on the
+        With only the transpose's scaling removed, the same rows red on the
         transpose leg. A corner loop that stops after the first level reds
-        the 6 cylinder rows through the slot count. (``[M]`` 2026-09-30,
-        ``scratch/boundary_ontology/battery_err094.md``.)
+        the cylinder rows through the slot count. (``[M]`` 2026-09-30, on the
+        then 12-row table, ``scratch/boundary_ontology/battery_err094.md``.)
         """
-        law = (
-            ReflectiveBoundary("x", alpha) if spelling == "reflective"
-            else AlbedoBoundary(alpha, SpecularReturn("x"))
-        )
+        law = AlbedoBoundary(alpha, SpecularReturn("x"))
         sn = _posed_curvilinear(coord, law)
         mirror = _posed_curvilinear(coord, ReflectiveBoundary("x"))
         space = sn.radial_characteristic_field_space

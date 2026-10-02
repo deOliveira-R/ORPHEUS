@@ -75,7 +75,7 @@ class TestOnlyPrescribedInflowContributes:
 
     @pytest.mark.parametrize(
         "law",
-        [VacuumInflow(), ReflectiveBoundary(axis="x", albedo=1.0),
+        [VacuumInflow(), ReflectiveBoundary(axis="x"),
          PrescribedInflow(source=NoSource())],
         ids=["vacuum", "reflective", "prescribed(NoSource)"],
     )

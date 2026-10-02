@@ -82,11 +82,16 @@ _RETIRED_SUPPORTED_BC = frozenset({"vacuum", "reflective"})
 
 
 def _every_registered_law() -> list[BoundaryTraceLaw]:
-    """One instance of each registered law, with a NON-DEFAULT albedo.
+    """One instance of each registered law, with a NON-DEFAULT albedo
+    where the law has one.
 
     ``albedo=0.42`` matters: at the default 1.0 a response-vs-geometry mix-up
     would be invisible, since ``ScalarResponse(1.0)`` and "is a mirror" both
-    read as truthy. Off-default, the two are distinguishable.
+    read as truthy. Off-default, the two are distinguishable. The premise
+    lapses for the mirror: since the reflective cleanup (2026-10-01)
+    ``ReflectiveBoundary`` has no albedo (a symmetry has no amplitude), so its
+    row is the bare mirror at amplitude 1; the off-default specular row is
+    ``AlbedoBoundary``'s.
     """
     laws = []
     for _key, cls in sorted(BoundaryTraceLaw.registry.items()):
@@ -99,13 +104,19 @@ def _retired_diffusion_albedo(law: BoundaryTraceLaw) -> object:
     """``DiffusionBoundaryRealizer._partial_current_albedo``, as it was.
 
     The five-arm ``isinstance`` ladder B2 collapsed into
-    ``law.response_kernel.amplitude``, transcribed from the pre-B2 source.
+    ``law.response_kernel.amplitude``, transcribed from the pre-B2 source,
+    with one arm split by the reflective cleanup (2026-10-01): the pre-B2
+    ladder read ``ReflectiveBoundary``'s albedo, which the mirror no longer
+    has, so the mirror's arm is the hand-written 1 its amplitude always was
+    at the only value a tag could reach.
     """
     if isinstance(law, VacuumInflow):
         return 0.0
     if isinstance(law, ZeroFluxBoundary):
         return -1.0
-    if isinstance(law, (ReflectiveBoundary, WhiteBoundary)):
+    if isinstance(law, ReflectiveBoundary):
+        return 1.0
+    if isinstance(law, WhiteBoundary):
         return float(law.albedo)
     if isinstance(law, AlbedoBoundary):
         return float(law.albedo)

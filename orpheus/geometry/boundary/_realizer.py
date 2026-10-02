@@ -290,15 +290,20 @@ def realize_recursively(
     Realise the standard Marshak mixed boundary for SN::
 
         from orpheus.geometry.boundary import (
-            ReflectiveBoundary, WhiteBoundary, realize_recursively,
+            AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
         )
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
         from orpheus.numerics.quadrature import Quadrature
 
-        ms = SNMethodSpace.minimal(Quadrature.gauss_legendre(4))
+        # A face-ful method space: since B3.2 every narrowed law needs both
+        # half-traces of its face, which SNMethodSpace.minimal cannot name;
+        # ``trace`` is the problem's AngularTraceSpace over its faces.
+        ms = SNMethodSpace.for_face(
+            quadrature=Quadrature.gauss_legendre(4), face="xmax", trace=trace,
+        )
         law = (
-            0.3 * ReflectiveBoundary(axis="x")
+            0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
             + 0.7 * WhiteBoundary(axis="x", outward_sign=+1)
         )
         realised = realize_recursively(law, ms, SNBoundaryRealizer())

@@ -41,6 +41,8 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     ScalarResponse,
     SelfPairedDeck,
+    SpecularReemission,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
@@ -78,8 +80,12 @@ _LAW_SPECS: list[tuple[BoundaryTraceLaw, object, type, float, str]] = [
     (VacuumInflow(), SelfPairedDeck.identity(), ScalarResponse, 0.0, "vacuum"),
     (ReflectiveBoundary(), SelfPairedDeck.mirror(axis="x"), ScalarResponse,
      1.0, "reflective-a1"),
-    (ReflectiveBoundary(axis="y", albedo=0.7), SelfPairedDeck.mirror(axis="y"),
-     ScalarResponse, 0.7, "reflective-partial"),
+    # The partial specular wall: its pairing is in R, so G is the identity.
+    # Until the reflective cleanup this row was the attenuated mirror
+    # ``ReflectiveBoundary(axis="y", albedo=0.7)`` (G a y-mirror AND R = 0.7),
+    # which no longer exists.
+    (AlbedoBoundary(0.7, SpecularReturn(axis="y")), SelfPairedDeck.identity(),
+     SpecularReemission, 0.7, "albedo-specular"),
     (WhiteBoundary(axis="x", albedo=0.4), SelfPairedDeck.identity(),
      LambertianReemission, 0.4, "white"),
     (AlbedoBoundary(albedo=0.25), SelfPairedDeck.identity(), ScalarResponse,
@@ -160,7 +166,8 @@ def test_response_is_bit_identical_to_the_sn_realizer_float(
     if not hasattr(law, "albedo"):
         pytest.skip(
             f"{type(law).__name__} carries no `albedo` field — its response is "
-            f"structural (0 for the rank-0 laws, 1 for periodic), so there is "
+            f"structural (0 for the rank-0 laws, 1 for the deck laws), so "
+            f"there is "
             f"no realizer float to compare against."
         )
     assert law.response_kernel.amplitude == float(law.albedo)
@@ -248,10 +255,9 @@ def test_every_registered_law_is_covered_by_this_file() -> None:
     registered = {
         k for k in BoundaryTraceLaw.registry if not k.startswith("_")
     }
-    # ``kind`` is the registry key for every law EXCEPT a partially-reflecting
-    # ReflectiveBoundary, which reports "partial" (see the B2 warning below);
-    # compare on the registered class instead so this check is about coverage,
-    # not about that wrinkle.
+    # Compared on the registered class, so this check is about coverage. (A
+    # law's ``kind`` is its registry key; until the reflective cleanup the
+    # attenuated mirror reported "partial", the one exception.)
     covered = {type(law).key for law, _, _, _, _ in _LAW_SPECS}
     missing = registered - covered
     if missing:
@@ -297,24 +303,29 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
 
        **A correction to this file's own first draft.** It warned that
        repointing ``sweep_schedule.py`` here would NOT be behaviour-preserving,
-       reasoning that ``ReflectiveBoundary(albedo=0.7).kind`` is ``"partial"``
-       so the string compare must miss partial reflectors. **Measured, that is
-       wrong** — production never reads ``law.kind``:
+       reasoning that ``ReflectiveBoundary(albedo=0.7).kind`` was
+       ``"partial"`` so the string compare must miss partial reflectors.
+       **Measured, that was wrong** — production never read ``law.kind``:
 
        * ``SNProblem.realize_boundary_law`` returns
          ``_BoundBoundaryOperator(realized, kind=law.key)``
          (``sn/problem.py:435``) — it stores the **registry key**,
-       * and ``ReflectiveBoundary.key`` is ``"reflective"`` for **every**
-         albedo, including 0.7.
+       * and ``ReflectiveBoundary.key`` was ``"reflective"`` for **every**
+         albedo, including 0.7 (the mirror has had no albedo since the
+         reflective cleanup).
 
-       So ``bc[face] == "reflective"`` already matches partial reflectors, and
-       :attr:`permutes_ordinates` is ``True`` for both — **they agree**, and
-       repointing is behaviour-preserving. The legs below pin that agreement so
-       B2 can rely on it.
+       So ``bc[face] == "reflective"`` already matched partial reflectors, and
+       :attr:`permutes_ordinates` was ``True`` for both — **they agreed**, and
+       repointing was behaviour-preserving. The last leg below pins that
+       agreement for the mirror.
 
-       The wrinkle that IS real: ``law.kind`` and the wrapper's stored ``key``
-       diverge for a partial reflector, and only the latter reaches production
-       — because the wrapper discards the law entirely.
+       The wrinkle that was real then (``law.kind`` reading ``"partial"``
+       while the wrapper stored ``"reflective"``) retired in the reflective
+       cleanup (2026-10-01): the mirror has no amplitude, so its ``kind`` is
+       its key, and the partial specular wall is
+       ``AlbedoBoundary(α, SpecularReturn(axis))``, whose ``G`` is the
+       identity and whose pairing :func:`law_permutes_ordinates` reads in
+       ``R``.
     """
     # Posed on the ANSWER SET, not on the implementing TYPE.
     #
@@ -330,7 +341,7 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
         tid for law, _, _, _, tid in _LAW_SPECS
         if law.geometry_map.permutes_ordinates
     }
-    assert permuting_ids == {"reflective-a1", "reflective-partial"}, (
+    assert permuting_ids == {"reflective-a1"}, (
         f"expected exactly the reflective laws to permute ordinates; got "
         f"{sorted(permuting_ids)}. A change here silently alters which faces "
         f"the sweep schedule treats as reflective."
@@ -356,12 +367,10 @@ def test_specular_mirror_is_the_only_ordinate_permuting_geometry() -> None:
             f"identity and the wrap translation (det +1) relabel nothing."
         )
 
-    # The agreement B2 relies on, pinned. A partial reflector permutes AND
-    # carries the "reflective" registry key that production actually compares
-    # against, so the structural predicate and the string compare give the same
-    # answer for every reachable face.
-    partial = ReflectiveBoundary(axis="y", albedo=0.7)
-    assert partial.geometry_map.permutes_ordinates is True
-    assert type(partial).key == "reflective"   # what the wrapper stores
-    assert partial.kind == "partial"           # what the LAW says — divergent,
-    #                                            but production never sees it
+    # The agreement B2 relied on: a mirror permutes AND carries the
+    # "reflective" registry key that production compares against. The
+    # divergence leg that followed (an attenuated mirror's ``kind`` reading
+    # "partial") retired with the mirror's amplitude in the reflective cleanup.
+    mirror = ReflectiveBoundary(axis="y")
+    assert mirror.geometry_map.permutes_ordinates is True
+    assert type(mirror).key == "reflective"   # what the wrapper stores

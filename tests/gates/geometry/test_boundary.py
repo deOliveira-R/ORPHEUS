@@ -142,7 +142,7 @@ def test_specular_bc_indexes_through_reflection_partner() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
-    bc = ReflectiveBoundary(axis="x", albedo=1.0)
+    bc = ReflectiveBoundary(axis="x")
     ref = mirror_partner_indices(quad, "x")
     inflow, outflow = _half_traces(quad)
 
@@ -153,7 +153,10 @@ def test_specular_bc_indexes_through_reflection_partner() -> None:
 
 @pytest.mark.foundation
 def test_specular_bc_with_partial_albedo() -> None:
-    r"""ReflectiveBoundary scales by ``albedo``, on the narrowed domain.
+    r"""The specular wall ``AlbedoBoundary(α, SpecularReturn)`` scales the
+    mirror by its albedo, on the narrowed domain. (Spelled
+    ``ReflectiveBoundary(axis, 0.5)`` until the reflective cleanup made the
+    mirror amplitude-free.)
 
     ``gauss_legendre(4)`` at ``xmax``: ``ref[n] = N-1-n``, inflow = ``[0, 1]``
     (μ<0), outflow = ``[2, 3]``. So the image is ``0.5 * ψ[[3, 2]]`` — note
@@ -164,7 +167,7 @@ def test_specular_bc_with_partial_albedo() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.array([[1.0], [2.0], [3.0], [4.0]])
-    bc = ReflectiveBoundary(axis="x", albedo=0.5)
+    bc = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
     inflow, outflow = _half_traces(quad)
     np.testing.assert_array_equal(inflow, [0, 1])
     np.testing.assert_array_equal(outflow, [2, 3])
@@ -184,7 +187,7 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
     """
     quad = Quadrature.lebedev(order=9)
     psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
-    bc = ReflectiveBoundary(axis="y", albedo=1.0)
+    bc = ReflectiveBoundary(axis="y")
     space = face_method_space(
         quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"),
     )
@@ -726,7 +729,7 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     verbatim what it was; only the vector it is asserted on moved.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = ReflectiveBoundary(axis="x")
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_narrowed_for_face_right(spec, quad)
@@ -749,7 +752,7 @@ def test_all_primitives_are_resolved_bc() -> None:
     """The runtime-checkable Protocol accepts every primitive."""
     instances: list[BoundaryTraceLaw] = [
         VacuumInflow(),
-        ReflectiveBoundary(axis="x", albedo=1.0),
+        ReflectiveBoundary(axis="x"),
         WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
         PeriodicBoundary(),
         AlbedoBoundary(albedo=0.5),
@@ -792,10 +795,9 @@ def test_registry_contains_all_primitives() -> None:
 def test_registry_create_returns_concrete_instance() -> None:
     bc = BoundaryTraceLaw.create("vacuum")
     assert isinstance(bc, VacuumInflow)
-    bc = BoundaryTraceLaw.create("reflective", axis="x", albedo=1.0)
+    bc = BoundaryTraceLaw.create("reflective", axis="x")
     assert isinstance(bc, ReflectiveBoundary)
     assert bc.axis == "x"
-    assert bc.albedo == 1.0
     bc = BoundaryTraceLaw.create("zero_flux")
     assert isinstance(bc, ZeroFluxBoundary)
 
@@ -835,7 +837,7 @@ def test_specular_realized_op_advertises_apply_transpose() -> None:
     ``is_adjointable`` truth that consumers (sensitivity adjoints) inspect.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = ReflectiveBoundary(axis="x")
     realized = _realize_narrowed_for_face_right(spec, quad)
     assert realized.is_adjointable
 
@@ -861,7 +863,7 @@ def test_specular_apply_transpose_reciprocity_unweighted() -> None:
     psi_plus = rng.standard_normal((outflow.size, 2))
     phi_minus = rng.standard_normal((inflow.size, 2))
 
-    spec = ReflectiveBoundary(axis="x", albedo=0.7)
+    spec = AlbedoBoundary(0.7, SpecularReturn(axis="x"))
     realized = _realize_narrowed_for_face_right(spec, quad)
     Bpsi = realized.apply(psi_plus)
     BTphi = realized.apply_transpose(phi_minus)
@@ -897,7 +899,7 @@ def test_specular_narrowed_law_composed_with_its_transpose_is_alpha_squared() ->
     _, outflow = _half_traces(quad)
     x = rng.standard_normal((outflow.size, 2))
 
-    spec = ReflectiveBoundary(axis="x", albedo=0.7)
+    spec = AlbedoBoundary(0.7, SpecularReturn(axis="x"))
     realized = _realize_narrowed_for_face_right(spec, quad)
     round_trip = realized.apply_transpose(realized.apply(x))
 
@@ -928,7 +930,7 @@ def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     _, outflow = _half_traces(quad)
     psi_out = rng.standard_normal((outflow.size, 2))
 
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = ReflectiveBoundary(axis="x")
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_narrowed_for_face_right(spec, quad)

@@ -1,4 +1,8 @@
-r"""Specular (reflective) boundary condition.
+r"""The mirror symmetry plane: the reflective deck law.
+
+A partially or perfectly specular wall is a different law, a response:
+:class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
+:class:`~orpheus.geometry.boundary.SpecularReturn` closure.
 
 See :class:`ReflectiveBoundary` for the algebraic definition. This
 class was previously named ``SpecularBoundaryOperator``; the legacy
@@ -30,35 +34,46 @@ __all__ = ["ReflectiveBoundary"]
 
 @dataclass(frozen=True)
 class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
-    r"""Specular reflection with optional albedo.
+    r"""A symmetry plane of the domain: the deck mirror about ``axis``.
 
-    Tensor decomposition :math:`(G_{\text{refl}}, \alpha)` where
-    :math:`G_{\text{refl}}` is the index permutation realising
-    :math:`\Omega \mapsto \Omega - 2(\Omega \cdot \hat{n}) \hat{n}` on
-    the quadrature ordinates and :math:`\alpha \in [0, 1]` is the
-    specular albedo (1 = perfect reflection; the standard ``BC.reflective``
-    case). The same operator is the
-    :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward` of
-    the angular measure under the reflection map, with the Jacobian
-    convention ``|R| = 1`` since reflections are isometries.
+    Tensor decomposition :math:`(G_{\text{refl}}, I)`: :math:`G_{\text{refl}}`
+    is the Koopman operator of the mirror motion
+    :math:`\Omega \mapsto \Omega - 2(\Omega \cdot \hat{n}) \hat{n}`, realized
+    as the index permutation it induces on the quadrature ordinates, and the
+    response is the identity. The same operator is the
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward` of the
+    angular measure under the reflection map, with the Jacobian convention
+    ``|R| = 1`` since reflections are isometries.
 
-    This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
-    no ``apply`` / ``apply_transpose`` methods. Realise via
-    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to obtain
-    the 1-arg :class:`~orpheus.numerics.operator.PermutationOperator`
-    (α=1 fast path) or ``ScaledOperator(α, PermutationOperator)``
-    (α ≠ 1):
+    **A symmetry carries no amplitude.** The law states that the domain is a
+    fundamental domain of the group the mirror generates, so the solution on
+    the far side is the mirror image of the solution on this side; nothing is
+    absorbed and nothing is emitted, and the only datum is which plane. A
+    surface that returns a fraction :math:`\alpha` of its outflow specularly
+    is a response, :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
+    :class:`~orpheus.geometry.boundary.SpecularReturn` closure, and is a
+    different value even at :math:`\alpha = 1`, where the two realize to one
+    matrix. Until 2026-10-01 this law took an ``albedo`` and so spelled the
+    partial wall a second time with both factors non-trivial (the fossil of
+    the 2026-05 tensor-decomposition framing, and the root of ERR-094); for
+    the same reason a deck law cannot be scaled or mixed
+    (:mod:`~orpheus.geometry.boundary._composition`).
+
+    This is a **pure descriptor** (Issue #186 / B3 + β2): it carries no
+    ``apply`` / ``apply_transpose`` methods. Realize it via
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to obtain the
+    :class:`~orpheus.numerics.operator.PermutationOperator`:
 
     .. code-block:: python
 
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
-        law = ReflectiveBoundary(axis="x", albedo=0.7)
+        law = ReflectiveBoundary(axis="x")
         op = SNBoundaryRealizer().realize(
             law, SNMethodSpace.minimal(quad),
         )
         psi_in = op.apply(psi_out)        # forward
-        # The realised operator is adjointable as well (a working
+        # The realized operator is adjointable as well (a working
         # apply_transpose), consumed by the sensitivity-analysis adjoint
         # pipeline:
         phi_out = op.apply_transpose(phi_in)
@@ -81,12 +96,9 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         plane's NORMAL. The ordinate pairing is derived from the mirror
         motion via
         :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`.
-    albedo : float
-        Specular albedo. Defaults to 1 (perfect reflection).
     """
 
     axis: str = "x"
-    albedo: float = 1.0
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property
@@ -96,48 +108,21 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
 
     @property
     def response_kernel(self) -> "ScalarResponse":
-        r""":math:`R = \alpha`, the specular albedo.
-
-        The SAME number the SN realizer already multiplies by —
-        ``float(law.albedo) * base`` — now named rather than reached for.
-        """
-        return ScalarResponse(self.albedo)
-
-    @property
-    def kind(self) -> str:
-        r"""``"reflective"`` at :math:`\alpha = 1`, else ``"partial"``.
-
-        The ONE law that legitimately overrides the base's registry-key
-        derivation, because the *declaration* vocabulary distinguishes the two:
-        :meth:`~orpheus.geometry.boundary.BC.to_alpha` maps ``BC("partial",
-        albedo=…)`` to its specular albedo, so a partially-reflecting face is
-        declared as ``"partial"`` and must report itself the same way.
-
-        .. warning::
-
-           ``"partial"`` is **not** a law-registry key and appears in **no**
-           method's ``BOUNDARY_OPERATOR_REGISTRY`` — so a face reporting it
-           matches no admission entry, and an exact float compare
-           (``albedo == 1.0``) decides which name a caller sees. That is a
-           genuine semantic wrinkle, NOT an oversight, and it is deliberately
-           left alone by the B0 cleanup: campaign phase **B2** removes the
-           string dispatch that reads this tag at all, at which point the
-           question dissolves rather than needing an answer.
-        """
-        return "reflective" if self.albedo == 1.0 else "partial"
+        r""":math:`R = I`, the unit scalar response: a symmetry adds no
+        physics. The same factor :class:`~orpheus.geometry.boundary.PeriodicBoundary`,
+        the other deck law, declares."""
+        return ScalarResponse(1.0)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):
             return other == self.kind
         if isinstance(other, ReflectiveBoundary):
-            return (
-                self.axis == other.axis and self.albedo == other.albedo
-            )
+            return self.axis == other.axis
         return NotImplemented
 
     def __hash__(self) -> int:
         # Hash on the canonical (post-rename) class name.
-        return hash(("ReflectiveBoundary", self.axis, self.albedo))
+        return hash(("ReflectiveBoundary", self.axis))
 
     # ------------------------------------------------------------------
     # §16A.12 universal invariants — Wave 7 / C7.6 overrides.
@@ -185,47 +170,6 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
             quadrature, self.axis, law_key="reflective",
         )
 
-    def assert_response_positive_if_declared(self) -> None:
-        r"""The specular albedo is non-negative (ERR-043).
-
-        The same bound :class:`~orpheus.geometry.boundary.AlbedoBoundary` and
-        :class:`~orpheus.geometry.boundary.WhiteBoundary` carry; until
-        2026-09-30 this law carried neither, so ``ReflectiveBoundary("x", -0.1)``
-        was realized by SN while the same matrix spelled as an albedo was
-        refused.
-
-        Raises
-        ------
-        BoundaryResponseNotPositiveError
-            When ``self.albedo < 0``.
-        """
-        if self.albedo < 0.0:
-            from ._errors import BoundaryResponseNotPositiveError
-            raise BoundaryResponseNotPositiveError(
-                f"Reflective BC albedo={self.albedo} < 0",
-                law="reflective",
-            )
-
-    def assert_submarkov(self) -> None:
-        r"""The specular albedo satisfies the sub-Markov bound :math:`\alpha \le 1` (ERR-046).
-
-        ``[M]`` 2026-09-30: without it SN realized ``ReflectiveBoundary("x",
-        1.2)`` and returned k = 2.0878 on a slab whose mirror k is 0.96, while
-        ``AlbedoBoundary(1.2, SpecularReturn("x"))``, the same matrix, was
-        refused.
-
-        Raises
-        ------
-        SubmarkovViolationError
-            When ``self.albedo > 1``.
-        """
-        if self.albedo > 1.0:
-            from ._errors import SubmarkovViolationError
-            raise SubmarkovViolationError(
-                f"Reflective BC albedo={self.albedo} > 1",
-                law="reflective",
-            )
-
     def assert_realizable(
         self,
         quadrature: "Quadrature",
@@ -251,6 +195,5 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         :mod:`~orpheus.geometry.boundary._specular`.
         """
         super().assert_realizable(quadrature, inflow_indices=inflow_indices)
-        self.assert_submarkov()
         self.assert_is_involutive(quadrature)
         self.assert_reflection_maps_inflow_to_outflow(quadrature)

@@ -196,27 +196,23 @@ class TestAdmissionTeeth:
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
             DSALowOrderSystem.from_problem(stub)  # type: ignore[arg-type]
 
-    _PARTIAL = [
-        (face, spelling)
-        for face in ("xmin", "xmax")
-        for spelling in ("reflective", "albedo-specular")
-    ]
-
     @pytest.mark.catches("ERR-094")
     @pytest.mark.parametrize(
-        "face, spelling", _PARTIAL, ids=[f"{f}-{s}" for f, s in _PARTIAL],
+        "face", ("xmin", "xmax"), ids=lambda f: f"{f}-albedo-specular",
     )
-    def test_a_partial_specular_reflector_is_refused(self, face, spelling):
+    def test_a_partial_specular_reflector_is_refused(self, face):
         r"""A specular law of amplitude 0.7 permutes ordinates like the mirror,
         but its net current is :math:`(1 - \alpha) J^+`, which the mirror's
         low-order row (39), :math:`f_1 = 0`, does not state. It has no proven
         row and is refused, on a real :class:`SNProblem`, on either face.
 
         First red, ``[M]`` 2026-09-30 with the amplitude condition removed
-        (the defect, ERR-094): all four rows build a system. What that system
-        did, on a 1-group slab of 40 cells, Gauss-Legendre 8, with
-        ``ReflectiveBoundary("x", 0.7)`` on both faces and source iteration
-        with DSA: at :math:`c = 0.9`, :math:`\sigma_t h = 1` it converged to the
+        (the defect, ERR-094): all four rows then parametrised (two faces,
+        each under the two spellings of a partial specular wall the tree had
+        until the reflective cleanup made ``ReflectiveBoundary`` the bare
+        mirror) build a system. What that system did, on a 1-group slab of 40
+        cells, Gauss-Legendre 8, with the 0.7 specular wall on both faces and
+        source iteration with DSA: at :math:`c = 0.9`, :math:`\sigma_t h = 1` it converged to the
         right fixed point (rate 0.24); at :math:`c = 0.99`,
         :math:`\sigma_t h = 5` it diverged (residual ``inf`` after 4000
         iterations, flux 8e151 times the plain-SI answer); at
@@ -224,10 +220,7 @@ class TestAdmissionTeeth:
         partial reflector is the inconsistent low-order system of the
         diffusive regime.
         """
-        law = (
-            ReflectiveBoundary("x", 0.7) if spelling == "reflective"
-            else AlbedoBoundary(0.7, SpecularReturn("x"))
-        )
+        law = AlbedoBoundary(0.7, SpecularReturn("x"))
         laws = {"xmin": VacuumInflow(), "xmax": VacuumInflow(), face: law}
         problem = _four_cell_problem(laws["xmin"], laws["xmax"])
         with pytest.raises(
@@ -249,7 +242,8 @@ class TestAdmissionTeeth:
 
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 5.0), (0,),
-            left=ReflectiveBoundary("x", 0.7), right=ReflectiveBoundary("x", 0.7),
+            left=AlbedoBoundary(0.7, SpecularReturn("x")),
+            right=AlbedoBoundary(0.7, SpecularReturn("x")),
         )).partition(CellsByCount.uniform_width(5)).mesh
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
             solve_sn_fixed_source(
@@ -259,7 +253,6 @@ class TestAdmissionTeeth:
             )
 
     _EDGES = [
-        ("reflective-0", ReflectiveBoundary("x", 0.0), VacuumInflow()),
         ("albedo-specular-0", AlbedoBoundary(0.0, SpecularReturn("x")), VacuumInflow()),
         ("albedo-specular-1", AlbedoBoundary(1.0, SpecularReturn("x")),
          ReflectiveBoundary("x")),

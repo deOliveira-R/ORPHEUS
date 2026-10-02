@@ -145,8 +145,8 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     user's 2026-08-01 ruling put one in :math:`R` too — a polished wall's
     return is constitutive — so ``AlbedoBoundary(α, SpecularReturn(a))`` has
     ``G = SelfPairedDeck.identity()`` and would have been loud-deferred at the
-    corner while
-    ``ReflectiveBoundary(a, α)``, which it equals as a matrix, is ruled. That
+    corner while the mirror ``ReflectiveBoundary(a)``, which it equals as a
+    matrix at :math:`\alpha = 1`, is ruled. That
     breaks the equivalence B3.4b asserts, in the one consumer that reads the
     factors rather than the realized operator.
 
@@ -969,9 +969,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         pre-B2.0 shim carried.
 
         The specular swap is scaled by the response amplitude :math:`\alpha`,
-        so a partially reflecting law (``ReflectiveBoundary(axis, α)`` or
-        ``AlbedoBoundary(α, SpecularReturn(axis))``) returns the fraction
-        :math:`\alpha` of its corner outflow. Until 2026-09-30 the swap was
+        so a partially specular wall
+        (``AlbedoBoundary(α, SpecularReturn(axis))``) returns the fraction
+        :math:`\alpha` of its corner outflow, and the mirror
+        (``ReflectiveBoundary(axis)``, amplitude 1) all of it. Until 2026-09-30 the swap was
         unscaled, exact for :math:`\alpha = 1` and wrong for a typed partial
         reflector, which re-emitted its full outflow at the corner (ERR-094).
         """

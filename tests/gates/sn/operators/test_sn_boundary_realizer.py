@@ -275,7 +275,7 @@ class TestRealizeReflective:
         it).
         """
         quad = Quadrature.lebedev(17)
-        bc = ReflectiveBoundary(axis="x", albedo=1.0)
+        bc = ReflectiveBoundary(axis="x")
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
@@ -303,7 +303,7 @@ class TestRealizeReflective:
         full-``N`` permutation would keep every structural claim here green.
         """
         quad = Quadrature.level_symmetric(4)
-        bc = ReflectiveBoundary(axis="x", albedo=1.0)
+        bc = ReflectiveBoundary(axis="x")
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, TensorProductOperator)
@@ -322,10 +322,13 @@ class TestRealizeReflective:
 
         RE-POSED at B3.2 alongside its α=1 sibling — same reference shape,
         restricted to :math:`\Gamma_-`; the partner map comes from the
-        independent geometric reference (§7d.3).
+        independent geometric reference (§7d.3). The law is the specular wall
+        ``AlbedoBoundary(0.7, SpecularReturn)`` (spelled
+        ``ReflectiveBoundary(axis, 0.7)`` until the reflective cleanup made the
+        mirror amplitude-free).
         """
         quad = Quadrature.lebedev(17)
-        bc = ReflectiveBoundary(axis="x", albedo=0.7)
+        bc = AlbedoBoundary(0.7, SpecularReturn(axis="x"))
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
@@ -336,10 +339,11 @@ class TestRealizeReflective:
         )
 
     def test_specular_partial_albedo_returns_scaled_tensor_product(self):
-        """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
-        TP is the 2-factor :class:`TensorProductOperator` from D-B+1."""
+        """At α≠1 the specular wall's dispatch returns ``ScaledOperator(α,
+        TP)`` where TP is the 2-factor :class:`TensorProductOperator` from
+        D-B+1 (the mirror's own bare TP, scaled)."""
         quad = Quadrature.level_symmetric(4)
-        bc = ReflectiveBoundary(axis="x", albedo=0.5)
+        bc = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         assert isinstance(op, ScaledOperator)
@@ -395,7 +399,7 @@ class TestRealizeReflective:
         )
         with pytest.raises(BoundaryError, match=r"BIJECTION"):
             SNBoundaryRealizer().realize(
-                ReflectiveBoundary(axis="x", albedo=1.0), lopsided,
+                ReflectiveBoundary(axis="x"), lopsided,
             )
 
     def test_a_spaceless_method_space_cannot_pose_the_deck_pairing(self):
@@ -423,7 +427,7 @@ class TestRealizeReflective:
             BoundaryError, match="without the bound half-trace spaces"
         ):
             SNBoundaryRealizer().realize(
-                ReflectiveBoundary(axis="x", albedo=1.0), spaceless,
+                ReflectiveBoundary(axis="x"), spaceless,
             )
 
 
@@ -694,8 +698,9 @@ class TestRealizeAlbedo:
         an endomorphism of the whole face slot; now it emits ``|Γ₋|`` rows.
         Note this branch could not be reached AT ALL before B3.4b for the
         sibling laws — ``ScaledOperator`` refuses a zero scalar, so
-        ``ReflectiveBoundary(axis, 0.0)`` and ``WhiteBoundary(…, 0.0)`` were
-        legal laws that died in the numerics layer. The fold into
+        ``ReflectiveBoundary(axis, 0.0)`` (the attenuated mirror, retired in
+        the reflective cleanup) and ``WhiteBoundary(…, 0.0)`` were legal laws
+        that died in the numerics layer. The fold into
         ``_attenuated_kernel_operator`` fixed all four routes at once.
         """
         space = self._space()
@@ -949,7 +954,7 @@ class TestTheRealizedLawIsMETRICCorrect:
     _LAWS = {
         "specular": lambda: ReflectiveBoundary(axis="x"),
         "lambertian": lambda: WhiteBoundary(axis="x", outward_sign=+1),
-        "specular_scaled": lambda: ReflectiveBoundary(axis="x", albedo=0.3),
+        "specular_scaled": lambda: AlbedoBoundary(0.3, SpecularReturn(axis="x")),
         "lambertian_scaled": lambda: WhiteBoundary(
             axis="x", outward_sign=+1, albedo=0.4
         ),

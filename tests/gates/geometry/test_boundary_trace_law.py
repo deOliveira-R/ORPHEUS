@@ -13,8 +13,9 @@ This file pins the Issue-#186 (B3 + β2) descriptor-model contract:
   callers to a method-specific realizer.
 * The :class:`BoundaryTraceLaw` registry self-populates via
   ``__init_subclass__(key=...)``.
-* :attr:`geometry_map` and :attr:`response_kernel` default to
-  ``None``.
+* :attr:`geometry_map` and :attr:`response_kernel` are abstract: a law
+  that declares either factor's absence cannot be constructed (until
+  2026-10-01 both defaulted to ``None``).
 * Descriptor-tree algebra (``+``, ``-``, ``*``, ``/``, ``-``)
   returns :class:`LawSum` / :class:`LawScaled` nodes (Issue #186).
   Composition assertions are pinned in
@@ -44,6 +45,8 @@ from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     ConstantInflowSource,
     NoSource,
+    ScalarResponse,
+    SelfPairedDeck,
 )
 
 
@@ -58,8 +61,18 @@ class _StubLaw(BoundaryTraceLaw, key="_stub_for_test"):
     Used to exercise the registry, the default property surface
     (``geometry_map``, ``response_kernel``, ``source``), and the
     descriptor-tree algebra. The descriptor itself is not callable —
-    realisation happens through a method-specific realizer.
+    realisation happens through a method-specific realizer. It declares the
+    two factors (abstract on the base since 2026-10-01) as a vacuum would:
+    the identity deck element and the zero scalar response.
     """
+
+    @property
+    def geometry_map(self) -> SelfPairedDeck:
+        return SelfPairedDeck.identity()
+
+    @property
+    def response_kernel(self) -> ScalarResponse:
+        return ScalarResponse(0.0)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -135,14 +148,36 @@ def test_minimal_concrete_subclass_constructs() -> None:
 # ─────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.foundation
-def test_geometry_map_default_is_none() -> None:
-    assert _StubLaw().geometry_map is None
+class _DeclaresOnlyG(BoundaryTraceLaw):
+    @property
+    def geometry_map(self) -> SelfPairedDeck:
+        return SelfPairedDeck.identity()
+
+
+class _DeclaresOnlyR(BoundaryTraceLaw):
+    @property
+    def response_kernel(self) -> ScalarResponse:
+        return ScalarResponse(0.0)
 
 
 @pytest.mark.foundation
-def test_response_kernel_default_is_none() -> None:
-    assert _StubLaw().response_kernel is None
+@pytest.mark.parametrize(
+    "law_cls,missing",
+    [(_DeclaresOnlyR, "geometry_map"), (_DeclaresOnlyG, "response_kernel")],
+    ids=["no-G", "no-R"],
+)
+def test_a_law_that_omits_a_factor_cannot_be_constructed(law_cls, missing) -> None:
+    """Both factors are abstract (2026-10-01).
+
+    Until then the ABC defaulted each to ``None``, so a law declaring nothing
+    was constructible and failed wherever a consumer dereferenced the factor:
+    the diffusion realizer carried a named refusal for that state, and the
+    descriptor algebra's deck refusal (``geometry_map.is_identity``) would
+    have raised ``AttributeError``. First red: the two former
+    ``test_*_default_is_none`` rows' state, a ``None`` default on the base.
+    """
+    with pytest.raises(TypeError, match=missing):
+        law_cls()
 
 
 @dataclass(frozen=True)

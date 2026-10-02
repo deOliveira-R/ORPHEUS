@@ -144,8 +144,10 @@ from typing import TYPE_CHECKING, Callable
 import numpy as np
 
 from orpheus.geometry.boundary import (
+    AlbedoBoundary,
     PeriodicBoundary,
     ReflectiveBoundary,
+    SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
 )
@@ -588,12 +590,12 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="specular_x_lebedev17",
         description=(
-            "ReflectiveBoundary(axis='x', albedo=1.0) + LebedevSphere(17) at "
+            "ReflectiveBoundary(axis='x') + LebedevSphere(17) at "
             "xmax. Reference: the mirror gather Ω ↦ Ω − 2(Ω·n̂)n̂, α = 1."
         ),
         build_quadrature=lambda: Quadrature.lebedev(17),
         compose=lambda realize: realize(
-            ReflectiveBoundary(axis="x", albedo=1.0),
+            ReflectiveBoundary(axis="x"),
         ),
         face="xmax",
         faces=_FOUR_FACES,
@@ -602,13 +604,17 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="specular_y_partial_07_LS6",
         description=(
-            "ReflectiveBoundary(axis='y', albedo=0.7) + LevelSymmetricSN(6) at "
-            "ymax. Reference: the mirror gather about y, scaled by 0.7 — the "
-            "α-fold row, on a non-x axis and a non-max-x face."
+            "AlbedoBoundary(0.7, SpecularReturn(axis='y')) + "
+            "LevelSymmetricSN(6) at ymax. Reference: the mirror gather about "
+            "y, scaled by 0.7 — the α-fold row, on a non-x axis and a "
+            "non-max-x face. (The committed artefact's description string "
+            "predates the reflective cleanup and names the then-equal "
+            "ReflectiveBoundary(axis='y', albedo=0.7); the comparator reads "
+            "case_id only.)"
         ),
         build_quadrature=lambda: Quadrature.level_symmetric(sn_order=6),
         compose=lambda realize: realize(
-            ReflectiveBoundary(axis="y", albedo=0.7),
+            AlbedoBoundary(0.7, SpecularReturn(axis="y")),
         ),
         face="ymax",
         faces=_FOUR_FACES,
@@ -648,7 +654,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="mixed_30spec_70white_LS4",
         description=(
-            "0.3 · ReflectiveBoundary(axis='x', albedo=1.0) + 0.7 · "
+            "0.3 · ReflectiveBoundary(axis='x') + 0.7 · "
             "WhiteBoundary(axis='x', outward_sign=+1, albedo=1.0) + "
             "LevelSymmetricSN(4) at xmax. Reference: the pointwise convex "
             "combination of the two independent images."
@@ -658,7 +664,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
         # leaves (``MixedBoundaryOperator`` was removed in Wave 11), so the
         # case states it directly rather than describing it.
         compose=lambda realize: (
-            0.3 * realize(ReflectiveBoundary(axis="x", albedo=1.0))
+            0.3 * realize(ReflectiveBoundary(axis="x"))
             + 0.7 * realize(
                 WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
             )

@@ -104,9 +104,10 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     Equivalences, by construction
     -----------------------------
 
-    ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
-    ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as
-    *matrices* — they execute the same realizer body — while asserting
+    ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha` times
+    the matrix of the mirror ``ReflectiveBoundary(a)``, and
+    ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as a
+    *matrix* — they execute the same realizer body — while asserting
     different things: a surface's constitutive return versus a symmetry of the
     domain. See :class:`~orpheus.geometry.boundary.SpecularReemission` for why
     that distinction is load-bearing rather than pedantic.

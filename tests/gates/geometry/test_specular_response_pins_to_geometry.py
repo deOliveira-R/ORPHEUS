@@ -9,9 +9,13 @@ plane: a quotient of the domain, a theorem imposed, carrying zero physics. A
 theorem cannot absorb. So an attenuated "reflective" law is not a dimmer mirror
 — it is an :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
 :class:`~orpheus.geometry.boundary.SpecularReturn` closure, wearing the geometry
-costume. ``_factors.py`` already flags that row as a deliberate violation; this
-module supplies the *consequence* form of the argument: **if it can be
-attenuated, it was never a quotient.**
+costume: **if it can be attenuated, it was never a quotient.** Since the
+reflective cleanup (2026-10-01) the mirror takes no albedo, so the attenuated
+row cannot be constructed; the constructor's refusal and the mirror's unit
+response are pinned in ``tests/gates/geometry/test_reflective_is_a_mirror.py``,
+which replaced this module's consequence-form gate
+(``test_an_attenuated_reflective_law_is_NOT_a_deck_transformation``, deleted
+as its own docstring prescribed).
 
 ⭐ **And the unattenuated specular RESPONSE must equal the geometric deck
 transformation.** The two are different KINDS of object — one is a constitutive
@@ -61,7 +65,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.geometry.boundary._factors import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 
@@ -166,37 +169,3 @@ def test_the_geometric_permutation_is_an_involution(case):
     quad = _CASES[case][0]()
     induced, _ = _geometric_permutation(quad, _CASES[case][1])
     np.testing.assert_array_equal(induced[induced], np.arange(quad.N))
-
-
-def test_an_attenuated_reflective_law_is_NOT_a_deck_transformation():
-    r"""⭐ A deck transformation admits no attenuation — the consequence form.
-
-    ``ReflectiveBoundary`` still accepts an ``albedo``, which ``_factors.py``
-    flags as a deliberate, visible violation of "exactly one of ``G``, ``R`` is
-    non-trivial": at :math:`\alpha \neq 1` BOTH factors are non-trivial and the
-    object is an ``AlbedoBoundary(α, SpecularReturn(axis))`` in a geometry
-    costume.
-
-    This gate states the same thing as a **consequence** rather than a
-    taxonomy: a quotient of the domain is a theorem, and a theorem cannot
-    absorb — so attenuability is itself the discriminator. It is pinned rather
-    than left as prose because the parameter is still reachable in Python (it is
-    unreachable from a ``BC(...)`` tag, which hard-codes :math:`\alpha = 1`),
-    and its retirement is deferred to phase B5. When that lands, this gate
-    should red and be replaced by the constructor's refusal.
-    """
-    unattenuated = ReflectiveBoundary(axis="x", albedo=1.0)
-    attenuated = ReflectiveBoundary(axis="x", albedo=0.7)
-
-    # The geometry factor is the SAME mirror in both — attenuation is not a
-    # property of the deck element, which is exactly the problem.
-    assert unattenuated.geometry_map == attenuated.geometry_map
-
-    # Only the unattenuated one is a pure quotient: at α=1 the response is
-    # trivial, so the law's entire content is the deck transformation.
-    assert unattenuated.response_kernel.amplitude == 1.0
-    assert attenuated.response_kernel.amplitude == 0.7, (
-        "the attenuation surfaced somewhere other than the response kernel — "
-        "if it is not in R it has been smuggled into the geometry, which is "
-        "the conflation this gate exists to refuse"
-    )

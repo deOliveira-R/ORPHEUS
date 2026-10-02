@@ -36,7 +36,7 @@ case).
 That is the **classifying** typing; the **realized** response is
 :math:`\Gamma_+ \to \Gamma_-` for all three kernels, because a
 constitutive surface is not a quotient and so has no isometry to provide
-the crossing — the physics does it. Exactly one of :math:`G`, :math:`R`
+the crossing — the physics does it. At most one of :math:`G`, :math:`R`
 is non-trivial, and it is the one that crosses. See
 :class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel`.
 
@@ -49,8 +49,8 @@ sufficient**: a specular *kernel* is a permutation, hence multiplicative,
 and is still constitutive. The sufficient test is the quotient one —
 :math:`G` is the deck transformation of an **actual quotient of the
 physical domain**, and a wall standing in the domain is not one (**B3.4b**,
-user ruling 2026-08-01). Whence **exactly one of** :math:`G`, :math:`R`
-**is non-trivial**. See :ref:`bc-factor-roles` on the theory page and the
+user ruling 2026-08-01). Whence **at most one of** :math:`G`, :math:`R`
+**is non-trivial** (the closure-free ``AlbedoBoundary(1.0)`` has neither). See :ref:`bc-factor-roles` on the theory page and the
 ``_factors`` module docstring.
 
 Which methods can realize which laws — three tiers and three axes
@@ -221,14 +221,14 @@ sole bridge. The canonical SN-realised representation per law.
   zero of :math:`\Gamma_+`. It was an ``IncomingOrdinateMaskTensor`` (a
   full-face projector whose preserved rows the consumer discarded) until
   **B3.2** narrowed the domain and left nothing for a projector to do.
-* :class:`ReflectiveBoundary(axis, albedo)` (registry key
+* :class:`ReflectiveBoundary(axis)` (registry key
   ``"reflective"``) — :math:`G = G_{\text{refl}}`, the ordinate
   permutation the axis-mirror induces (derived via
   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`);
-  :math:`R = \alpha`. SN realises the composite to
-  :class:`~orpheus.numerics.operator.PermutationOperator` (α=1
-  fast path) or
-  ``ScaledOperator(α, PermutationOperator)`` (α ≠ 1).
+  :math:`R = I`, since a symmetry plane has no amplitude. SN realises it to
+  :class:`~orpheus.numerics.operator.PermutationOperator`. A partially
+  specular wall is a response,
+  ``AlbedoBoundary(alpha, SpecularReturn(axis))``.
 * :class:`WhiteBoundary(axis, outward_sign, albedo)` (registry key
   ``"white"``) — :math:`G = I` (a white face fixes NO geometry) and
   :math:`R = ` :class:`LambertianReemission(\alpha)`, the cosine-weighted
@@ -275,9 +275,10 @@ sole bridge. The canonical SN-realised representation per law.
 
   SN realises the two completions through the **same bodies** as the
   geometry-tier laws (the pairing, and the Lambertian average), so
-  ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)`` and
-  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as
-  matrices while asserting different physics. SN **REFUSES** the
+  ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha` times
+  the matrix of the mirror ``ReflectiveBoundary(a)`` and
+  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as a
+  matrix, while asserting different physics. SN **REFUSES** the
   closure-free spelling: :math:`\alpha\,I` is an endomorphism of
   :math:`\Gamma_+` and :math:`G` supplies no crossing, so on an angular
   trace nothing says which outgoing direction feeds which incoming one.
@@ -335,17 +336,19 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
 .. code-block:: python
 
     from orpheus.geometry.boundary import (
-        ReflectiveBoundary, WhiteBoundary, realize_recursively,
+        AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
     )
     from orpheus.sn.boundary.realizer import SNBoundaryRealizer
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
     # Build the descriptor tree (no realisation yet).
-    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    spec = AlbedoBoundary(1.0, SpecularReturn("x"))   # a polished wall
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     marshak_law = 0.3 * spec + 0.7 * white
-    # marshak_law is LawSum(LawScaled(0.3, ReflectiveBoundary(...)),
+    # marshak_law is LawSum(LawScaled(0.3, AlbedoBoundary(...)),
     #                       LawScaled(0.7, WhiteBoundary(...))).
+    # The leaves are responses: a deck law (ReflectiveBoundary,
+    # PeriodicBoundary) is a symmetry and is refused as an operand.
     # Not callable: marshak_law.apply does NOT exist.
 
     # Realise the tree at one face, with the method's own realizer.

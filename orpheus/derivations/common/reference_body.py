@@ -228,8 +228,9 @@ def specular_albedo(law: BC | BoundaryTraceLaw, *, owner: str) -> float:
     that say this are:
 
     * vacuum (``BC.vacuum``, :class:`~orpheus.geometry.boundary.VacuumInflow`): 0;
-    * mirror reflection (``BC.reflective``: 1;
-      :class:`~orpheus.geometry.boundary.ReflectiveBoundary`: its albedo);
+    * mirror reflection (``BC.reflective`` and
+      :class:`~orpheus.geometry.boundary.ReflectiveBoundary`, a symmetry with
+      no amplitude): 1;
     * partial specular reflection (``BC("partial", {"albedo": a})``: ``a``;
       :class:`~orpheus.geometry.boundary.AlbedoBoundary` whose re-emission is
       :class:`~orpheus.geometry.boundary.SpecularReturn`: its albedo).
@@ -248,12 +249,10 @@ def specular_albedo(law: BC | BoundaryTraceLaw, *, owner: str) -> float:
     match law:
         case BC(kind="vacuum") | VacuumInflow():
             return 0.0
-        case BC(kind="reflective"):
+        case BC(kind="reflective") | ReflectiveBoundary():
             return 1.0
         case BC(kind="partial"):
             return law.to_alpha()
-        case ReflectiveBoundary():
-            return float(law.albedo)
         case AlbedoBoundary(reemission=SpecularReturn()):
             return float(law.albedo)
     refuse_unserved(

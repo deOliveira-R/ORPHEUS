@@ -47,6 +47,8 @@ from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryTraceLaw,
     ReflectiveBoundary,
+    ScalarResponse,
+    SelfPairedDeck,
     VacuumInflow,
 )
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
@@ -153,40 +155,19 @@ def test_kind_tag_supports_legacy_string_equality():
     # through a law that never claimed a key — which is the honest
     # spelling of "this operator's law has no tag".
     class _Unregistered(BoundaryTraceLaw):  # no ``key=`` → not registered
-        pass
+        # The two factors are abstract on the base (2026-10-01).
+        @property
+        def geometry_map(self):
+            return SelfPairedDeck.identity()
+
+        @property
+        def response_kernel(self):
+            return ScalarResponse(0.0)
 
     untagged = _BoundBoundaryOperator(IdentityOperator(), _Unregistered())
     assert untagged.kind is None
     assert (untagged == "vacuum") is False
     assert (untagged == "anything") is False
-
-
-def test_kind_reads_the_registry_key_not_the_law_s_kind():
-    r"""The read-through targets ``law.key``, NOT ``law.kind`` — measured.
-
-    They agree for six of the seven laws and diverge for exactly one: a
-    partially-reflecting :class:`ReflectiveBoundary` reports
-    ``kind == "partial"`` (mirroring the ``BC("partial", albedo=…)``
-    declaration vocabulary — the B0.1 ruling) while its ``key`` stays
-    ``"reflective"`` for every albedo.
-
-    Pre-B2.0 the shim stored ``law.key``, so **the key is the
-    behaviour-preserving choice**; sourcing ``law.kind`` here would drop
-    partially-reflecting faces out of
-    ``sweep_schedule.reflective_faces``' ``== "reflective"`` set — a
-    semantic change wearing a refactor's clothes. This leg is what
-    reddens if someone "tidies" the property to the more obvious name.
-    """
-    partial = ReflectiveBoundary(albedo=0.7)
-    assert partial.kind == "partial"          # the LAW's own answer
-    assert type(partial).key == "reflective"  # the REGISTRY's answer
-
-    shim = _BoundBoundaryOperator(
-        PermutationOperator(np.array([1, 0]), axis=0), partial,
-    )
-    assert shim.kind == "reflective"
-    assert shim == "reflective"
-    assert shim != "partial"
 
 
 def test_shim_carries_the_law_it_was_realized_from():
@@ -197,14 +178,16 @@ def test_shim_carries_the_law_it_was_realized_from():
     not what its law *does*. The five production string-dispatch sites
     are that gap. The law's two affine factors are reachable here.
     """
-    law = ReflectiveBoundary(axis="y", albedo=0.7)
+    law = ReflectiveBoundary(axis="y")
     shim = _BoundBoundaryOperator(
         PermutationOperator(np.array([1, 0]), axis=0), law,
     )
     assert shim.law is law
-    # The structural questions the string sites are really asking.
+    # The structural questions the string sites are really asking. The
+    # mirror is a symmetry, so its response is the unit scalar (until the
+    # reflective cleanup this leg carried an attenuated mirror at 0.7).
     assert shim.law.geometry_map.permutes_ordinates is True
-    assert shim.law.response_kernel.amplitude == 0.7
+    assert shim.law.response_kernel.amplitude == 1.0
 
 
 def test_space_tags_forward_to_inner():

@@ -333,7 +333,7 @@ class TestSpecularAlbedo:
             (BC.vacuum, 0.0),
             (VacuumInflow(), 0.0),
             (BC.reflective, 1.0),
-            (ReflectiveBoundary(axis="x", albedo=0.4), 0.4),
+            (ReflectiveBoundary(axis="x"), 1.0),
             (BC("partial", {"albedo": 0.3}), 0.3),
             (AlbedoBoundary(0.7, SpecularReturn(axis="x")), 0.7),
         ],

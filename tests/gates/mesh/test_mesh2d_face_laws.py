@@ -74,7 +74,7 @@ _DISTINCT = {
     "xmin": BC.vacuum,
     "xmax": BC.reflective,
     "ymin": BC("albedo", {"albedo": 0.3}),
-    "ymax": ReflectiveBoundary(axis="y", albedo=1.0),
+    "ymax": ReflectiveBoundary(axis="y"),
 }
 
 
@@ -311,7 +311,7 @@ class TestTheOneElementParser:
         # the spy is installed where the constructors read it: the defining
         # module, the mesh module and the axis module at least
         assert rebound >= 1 and structured_geometry.parse_boundary_law is spy, rebound
-        low, high = BC("albedo", {"albedo": 0.25}), ReflectiveBoundary(axis="x", albedo=1.0)
+        low, high = BC("albedo", {"albedo": 0.25}), ReflectiveBoundary(axis="x")
         build(low, high)
         assert id(low) in seen, f"{owner}: its law never reached parse_boundary_law (rebound {rebound})"
         if owner != "RadialAxisMesh":

@@ -49,7 +49,6 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
-    ReflectiveBoundary,
     SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
@@ -526,14 +525,17 @@ _THE_CORNER_ACTION = (
     "test_partial_specular_corner_is_alpha_times_the_mirror"
 )
 
-#: The three spellings of a face returning the fraction ``alpha`` of its
-#: outflow. The first two realize to one matrix (a specular return); the
-#: third is the diffuse return, ``WhiteBoundary`` with an albedo, and was
-#: read as a closed face by the same predicate (``[M]`` 2026-09-30 below).
+#: The two laws of a face returning the fraction ``alpha`` of its outflow:
+#: the specular return (the specular wall ``AlbedoBoundary(alpha,
+#: SpecularReturn("x"))``) and the diffuse return (``WhiteBoundary`` with an
+#: albedo), which the same predicate read as a closed face (``[M]``
+#: 2026-09-30 below). The mirror ``ReflectiveBoundary`` has no amplitude and
+#: is not a row: it is the foundation the alpha = 1 edge rests on. Until the
+#: reflective cleanup a third spelling, ``ReflectiveBoundary("x", alpha)``,
+#: realized to the specular wall's matrix and was a row of every table here.
 #: ``outward_sign`` is the face's outward normal along x, which only the
 #: diffuse return reads.
 _RETURN_SPELLINGS = {
-    "reflective": lambda alpha, outward_sign: ReflectiveBoundary("x", alpha),
     "albedo-specular": lambda alpha, outward_sign: AlbedoBoundary(
         alpha, SpecularReturn("x"),
     ),
@@ -638,10 +640,9 @@ class TestPartialReturnLeakage:
     EDGE_RTOL = 10 * _KEFF_TOL
 
     _INTERIOR = [
-        *[("slab", s, a) for s in ("reflective", "albedo-specular", "white")
+        *[("slab", s, a) for s in ("albedo-specular", "white")
           for a in (0.3, 0.7)],
-        *[("sphere", s, a) for s in ("reflective", "albedo-specular")
-          for a in (0.3, 0.7)],
+        *[("sphere", "albedo-specular", a) for a in (0.3, 0.7)],
     ]
 
     @pytest.mark.rests_on(
@@ -666,7 +667,7 @@ class TestPartialReturnLeakage:
 
         First red, measured 2026-09-30 with the leakage predicate reverted to
         ``response_kernel.is_zero`` (the defect): reported k against the map
-        ratio, slab reflective/albedo-specular 1.51527 vs 0.79402 at
+        ratio, slab albedo-specular 1.51527 vs 0.79402 at
         :math:`\alpha = 0.3` (+91 %) and 1.51096 vs 1.06615 at 0.7 (+42 %),
         slab white 1.51501 vs 0.79254 (+91 %) and 1.50977 vs 1.06396 (+42 %),
         sphere 1.77787 vs 0.47292 (+276 %) and 1.82448 vs 0.88317 (+107 %).
@@ -689,26 +690,28 @@ class TestPartialReturnLeakage:
     @pytest.mark.verifies("sn-leakage-functional")
     @pytest.mark.catches("ERR-094")
     def test_two_faces_returning_different_fractions(self):
-        r"""The two faces carry different laws and different amplitudes
-        (``ReflectiveBoundary("x", 0.3)`` left, ``AlbedoBoundary(0.7,
-        SpecularReturn("x"))`` right) over different media, so the leakage
-        sum must read each face's own law. First red (``is_zero`` predicate,
+        r"""The two faces carry two walls of different amplitudes
+        (``AlbedoBoundary(0.3, SpecularReturn("x"))`` left,
+        ``AlbedoBoundary(0.7, SpecularReturn("x"))`` right) over different
+        media, so the leakage sum must read each face's own amplitude. Until
+        the reflective cleanup the left wall was spelled
+        ``ReflectiveBoundary("x", 0.3)``, the same matrix (``[M]`` 2026-10-01,
+        the carry fixture ``eigen_slab_0.3_0.7``: k bitwise equal). First red (``is_zero`` predicate,
         ``[M]`` 2026-09-30): 1.45591 vs 0.84509 (+72 %).
         """
         pair = _partial_return_eigenpair(
-            "slab", ReflectiveBoundary("x", 0.3),
+            "slab", AlbedoBoundary(0.3, SpecularReturn("x")),
             AlbedoBoundary(0.7, SpecularReturn("x")),
         )
         np.testing.assert_allclose(
             pair.reported_k, pair.map_ratio_k, rtol=self.RTOL,
-            err_msg="slab, reflective(0.3) | albedo-specular(0.7): the "
+            err_msg="slab, albedo-specular(0.3) | albedo-specular(0.7): the "
                     "reported k is not the posed eigenvalue (ERR-094).",
         )
 
     _ZERO_EDGE = [
-        ("slab", "reflective"), ("slab", "albedo-specular"), ("slab", "white"),
-        ("sphere", "reflective"), ("sphere", "albedo-specular"),
-        ("cylinder", "reflective"),
+        ("slab", "albedo-specular"), ("slab", "white"),
+        ("sphere", "albedo-specular"), ("cylinder", "albedo-specular"),
     ]
 
     @pytest.mark.rests_on(
@@ -723,7 +726,11 @@ class TestPartialReturnLeakage:
     def test_alpha_zero_is_the_vacuum_problem(self, shape, spelling):
         r"""Edge: a face returning nothing is a vacuum face, so the problem
         with :math:`\alpha = 0` is the vacuum problem and its k is the
-        vacuum k. ``[M]`` 2026-09-30: equal to the last bit on all 6 rows.
+        vacuum k. ``[M]`` 2026-09-30: equal to the last bit on all 6 rows of
+        the then three-spelling table; the cylinder row, spelled
+        ``ReflectiveBoundary("x", 0.0)`` until the reflective cleanup, moved
+        to the specular wall with its k bitwise unchanged (``[M]`` 2026-10-01,
+        the carry fixture ``eigen_cylinder_0.0``).
 
         What reddens it: on the sphere and the cylinder, the curvilinear
         corner (the off-quadrature :math:`\mu = \pm 1` ray at the outer
@@ -774,8 +781,8 @@ class TestPartialReturnLeakage:
         )
 
     _ORDERED = [
-        ("slab", "reflective"), ("slab", "albedo-specular"), ("slab", "white"),
-        ("sphere", "reflective"), ("sphere", "albedo-specular"),
+        ("slab", "albedo-specular"), ("slab", "white"),
+        ("sphere", "albedo-specular"),
     ]
 
     @pytest.mark.rests_on(

@@ -458,9 +458,9 @@ class TestSpecularXLebedev17Snapshot:
     ) -> None:
         r"""**B3.4b** — the ``≡`` theorem, pinned against the MATHEMATICS.
 
-        ``AlbedoBoundary(α, SpecularReturn("x")) ≡ ReflectiveBoundary("x", α)``
-        as realized operators, so the albedo route's image is the α = 1 mirror
-        gather scaled by α.
+        ``AlbedoBoundary(α, SpecularReturn("x")) = α · ReflectiveBoundary("x")``
+        as realized operators (the mirror is a symmetry and has no amplitude),
+        so the albedo route's image is the α = 1 mirror gather scaled by α.
 
         Before the re-anchoring this row's argument was provenance: the
         reference was an artefact frozen pre-B3.2 by a *different* law. The

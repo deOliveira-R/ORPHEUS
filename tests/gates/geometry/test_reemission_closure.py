@@ -8,7 +8,8 @@ kernel. This module carries the four claims that ruling creates and that have no
 older home:
 
 1. **The ≡ theorems** (:class:`TestEquivalenceTheorems`) —
-   ``albedo(α, SpecularReturn(a)) ≡ reflective(a, α)`` and
+   ``albedo(α, SpecularReturn(a)) = α · reflective(a)`` (the wall is α times
+   the mirror, which has no amplitude) and
    ``albedo(α, IsotropicReturn(a, s)) ≡ white(a, s, α)`` as realized operators.
 2. **The independent-expression anchors**
    (:class:`TestSpecularAgainstAnIndependentExpression`,
@@ -195,6 +196,9 @@ def _sorted_half_traces(space) -> tuple[np.ndarray, np.ndarray]:
 class TestEquivalenceTheorems:
     r"""``albedo(α, closure) ≡`` its geometry-tier sibling, as realized operators.
 
+    The specular sibling is the mirror scaled by α (the mirror is a symmetry
+    and has no amplitude); the isotropic sibling is ``WhiteBoundary`` at α.
+
     **Tolerance: ``np.array_equal``, and the choice is structural.** Both routes
     reach ONE construction body with identical arguments, so the two operators
     hold the same permutation / kernel data and their ``apply`` executes the
@@ -214,7 +218,20 @@ class TestEquivalenceTheorems:
     """
 
     def test_specular_closure_equals_reflective(self, fixture, alpha) -> None:
-        """T1 — forward action, bit-identical."""
+        """T1 — forward action, bit-identical: the specular wall at albedo α
+        is α times the mirror.
+
+        The mirror :class:`ReflectiveBoundary` is a symmetry and has no
+        amplitude, so the wall's sibling is the mirror scaled by α, applied
+        here to the mirror's OUTPUT (one multiplication per element, the
+        same one the wall's ``ScaledOperator`` performs, hence
+        ``array_equal``). At α = 1 the row compares the perfect wall with the
+        mirror (equal matrices, different laws); at α = 0 the wall is the
+        narrowed zero map; at 0.3 it is the attenuated kernel. Until the
+        reflective cleanup the right side was the attenuated mirror
+        ``ReflectiveBoundary(axis, α)``, which no longer exists; the node id
+        is kept because the deck-law gates rest on it.
+        """
         _id, _q, _face, axis, _sign, _faces = fixture
         quad, space = _space(fixture)
         x = _probe(space)
@@ -222,18 +239,19 @@ class TestEquivalenceTheorems:
         got = realizer.realize(
             AlbedoBoundary(alpha, SpecularReturn(axis=axis)), space,
         ).apply(x)
-        want = realizer.realize(
-            ReflectiveBoundary(axis=axis, albedo=alpha), space,
-        ).apply(x)
+        mirror = realizer.realize(ReflectiveBoundary(axis=axis), space).apply(x)
+        want = alpha * mirror
         np.testing.assert_array_equal(
             got, want,
             err_msg=(
-                f"{_id} α={alpha}: albedo(α, SpecularReturn) and "
-                f"reflective(axis, α) must realize to the SAME matrix — they "
-                f"reach one construction body, so any difference is an "
-                f"ARGUMENT drift (wrong axis / dropped α / wrong law_key)."
+                f"{_id} α={alpha}: albedo(α, SpecularReturn) must realize to "
+                f"α times the mirror reflective(axis) — they reach one deck "
+                f"kernel, so any difference is an ARGUMENT drift (wrong axis "
+                f"/ dropped or doubled α / wrong law_key)."
             ),
         )
+        if not np.count_nonzero(mirror):
+            pytest.fail(f"{_id}: the mirror's action is zero; the row is vacuous.")
         if alpha == 0.0:
             # α=0 is the zero map BY DESIGN; the non-vacuity leg below would
             # be false for the right reason, so assert the design instead.
@@ -296,14 +314,18 @@ class TestEquivalenceTheorems:
         _id, _q, _face, axis, sign, _faces = fixture
         quad, space = _space(fixture)
         realizer = SNBoundaryRealizer()
+        # The specular sibling is the mirror, which has no amplitude: its
+        # transpose is scaled by α below (the wall is α times the mirror).
         if closure_kind == "specular":
             a_law = AlbedoBoundary(alpha, SpecularReturn(axis=axis))
-            b_law = ReflectiveBoundary(axis=axis, albedo=alpha)
+            b_law = ReflectiveBoundary(axis=axis)
+            b_scale = alpha
         else:
             a_law = AlbedoBoundary(
                 alpha, IsotropicReturn(axis=axis, outward_sign=sign),
             )
             b_law = WhiteBoundary(axis=axis, outward_sign=sign, albedo=alpha)
+            b_scale = 1.0
         a_op = realizer.realize(a_law, space)
         b_op = realizer.realize(b_law, space)
         assert adjointable(a_op) == adjointable(b_op), (
@@ -316,7 +338,7 @@ class TestEquivalenceTheorems:
             return
         rng = np.random.default_rng(7)
         y = rng.normal(size=(int(space.inflow_indices.size), 4, 2))
-        got, want = a_op.apply_transpose(y), b_op.apply_transpose(y)
+        got, want = a_op.apply_transpose(y), b_scale * b_op.apply_transpose(y)
         assert got.shape == (int(space.outflow_indices.size), 4, 2), (
             f"{_id}: the transpose lands on Γ₊, so it must emit "
             f"{space.outflow_indices.size} rows; got {got.shape[0]}."
@@ -517,39 +539,27 @@ def _r_is_trivial(response_kernel) -> bool:
     )
 
 
-_B5_XFAIL = (
-    "B5 — ReflectiveBoundary(axis, α<1) carries TWO non-trivial factors "
-    "(G = a mirror AND R = α·I), which the §11.1 ruling forbids: a "
-    "symmetry plane is a quotient of the domain and cannot absorb. That object "
-    "IS AlbedoBoundary(α, SpecularReturn(axis)) wearing the geometry costume, "
-    "and B3.4b built the honest spelling. It is unreachable from a tag "
-    "(_law_from_tag hard-codes albedo=1.0), so nothing production-facing "
-    "depends on it. B5 retires ReflectiveBoundary's `albedo` parameter — "
-    "DELETE this marker there; the XPASS(strict) failure is the point."
-)
-
-#: ``(id, law, expect_xfail)`` — every registry law with representative
-#: amplitudes and both closures. ``AlbedoBoundary(1.0)`` bare is deliberately
+#: ``(id, law)`` — every registry law with representative amplitudes and
+#: both closures. ``AlbedoBoundary(1.0)`` bare is deliberately
 #: ABSENT and pinned by its own positive test below; the completeness leg proves
 #: the union is the whole registry.
 _INVARIANT_ROWS = [
-    ("vacuum", VacuumInflow(), False),
-    ("reflective_a1", ReflectiveBoundary(axis="x", albedo=1.0), False),
-    ("reflective_a07", ReflectiveBoundary(axis="x", albedo=0.7), True),
-    ("white_a1", WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0), False),
-    ("white_a03", WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3), False),
-    ("albedo_bare_a0", AlbedoBoundary(albedo=0.0), False),
-    ("albedo_bare_a05", AlbedoBoundary(albedo=0.5), False),
+    ("vacuum", VacuumInflow()),
+    ("reflective_a1", ReflectiveBoundary(axis="x")),
+    ("white_a1", WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)),
+    ("white_a03", WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)),
+    ("albedo_bare_a0", AlbedoBoundary(albedo=0.0)),
+    ("albedo_bare_a05", AlbedoBoundary(albedo=0.5)),
     ("albedo_specular_a1",
-     AlbedoBoundary(1.0, SpecularReturn(axis="x")), False),
+     AlbedoBoundary(1.0, SpecularReturn(axis="x"))),
     ("albedo_specular_a05",
-     AlbedoBoundary(0.5, SpecularReturn(axis="x")), False),
+     AlbedoBoundary(0.5, SpecularReturn(axis="x"))),
     ("albedo_isotropic_a05",
-     AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1)), False),
-    ("periodic", PeriodicBoundary(), False),
+     AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1))),
+    ("periodic", PeriodicBoundary()),
     ("prescribed",
-     PrescribedInflow(source=ConstantInflowSource(value=1.0)), False),
-    ("zero_flux", ZeroFluxBoundary(), False),
+     PrescribedInflow(source=ConstantInflowSource(value=1.0))),
+    ("zero_flux", ZeroFluxBoundary()),
 ]
 
 
@@ -567,9 +577,13 @@ class TestExactlyOneFactorIsNonTrivial:
     Why the registry and not "the tag-reachable laws"
     -------------------------------------------------
 
-    Scoping to tag-reachable laws would SILENTLY DROP the one row §12.4 wants
-    flagged: ``_law_from_tag`` hard-codes ``albedo=1.0`` for reflective, so
-    ``ReflectiveBoundary(α<1)`` is not tag-reachable. And "tag-reachable" is
+    Scoping to tag-reachable laws would have SILENTLY DROPPED the row §12.4
+    wanted flagged, the attenuated mirror ``ReflectiveBoundary(α<1)`` (G a
+    mirror AND R = α·I), which no tag could reach. It was a strict xfail here
+    until the reflective cleanup (2026-10-01) retired the mirror's amplitude,
+    so the counter-example can no longer be constructed (the gate is
+    ``tests/gates/geometry/test_reflective_is_a_mirror.py``). And
+    "tag-reachable" is
     method-dependent — ``AlbedoBoundary`` is absent from ``SNProblem``'s registry
     and present in the diffusion one — so the invariant's SCOPE would depend on
     which registry you consulted. The invariant is a property of the law
@@ -577,16 +591,12 @@ class TestExactlyOneFactorIsNonTrivial:
     """
 
     @pytest.mark.parametrize(
-        "law_id,law,expect_xfail", _INVARIANT_ROWS,
+        "law_id,law", _INVARIANT_ROWS,
         ids=[r[0] for r in _INVARIANT_ROWS],
     )
     def test_exactly_one_of_g_r_is_non_trivial(
-        self, law_id, law, expect_xfail, request,
+        self, law_id, law,
     ) -> None:
-        if expect_xfail:
-            request.node.add_marker(
-                pytest.mark.xfail(strict=True, reason=_B5_XFAIL)
-            )
         G, R = law.geometry_map, law.response_kernel
         n_non_trivial = int(not _g_is_trivial(G)) + int(not _r_is_trivial(R))
         assert n_non_trivial == 1, (
@@ -610,8 +620,9 @@ class TestExactlyOneFactorIsNonTrivial:
         positively rather than carried as a permanent xfail: an xfail with no
         landing phase is a red that never flips.
 
-        §12.4 of the design names ``ReflectiveBoundary(α<1)`` as the invariant's
-        counter-example and does not name this one. It is the second.
+        §12.4 of the design named ``ReflectiveBoundary(α<1)`` as the
+        invariant's counter-example (unconstructible since the reflective
+        cleanup) and did not name this one. It was the second.
         """
         law = AlbedoBoundary(albedo=1.0)
         assert _g_is_trivial(law.geometry_map)
@@ -624,7 +635,7 @@ class TestExactlyOneFactorIsNonTrivial:
         invariant silently — and the deliberate exclusion of
         ``AlbedoBoundary(1.0)`` would be indistinguishable from an oversight.
         """
-        covered = {type(law).__name__ for _id, law, _x in _INVARIANT_ROWS}
+        covered = {type(law).__name__ for _id, law in _INVARIANT_ROWS}
         registered = {
             type(BoundaryTraceLaw.create(key)).__name__
             for key in BoundaryTraceLaw.registry
@@ -978,7 +989,6 @@ class TestDiffusionIsUnmovedAndClosureBlind:
 @pytest.mark.parametrize(
     "law_id,build_law",
     [
-        ("reflective", lambda: ReflectiveBoundary(axis="x", albedo=0.0)),
         ("white", lambda: WhiteBoundary(axis="x", outward_sign=+1, albedo=0.0)),
         ("albedo_specular",
          lambda: AlbedoBoundary(0.0, SpecularReturn(axis="x"))),
@@ -995,7 +1005,10 @@ class TestZeroAmplitudeRealizesTheNarrowedZeroMap:
     laws (α=0 satisfies every invariant, sub-Markov included) that could not be
     realized at all: they died in the numerics layer on
     ``ScaledOperator``'s zero-scalar refusal. Folding four routes into one body
-    is what made that visible, and one answer fixed all four.
+    is what made that visible, and one answer fixed all four. The attenuated
+    mirror's row left with its amplitude in the reflective cleanup
+    (2026-10-01): a symmetry has no amplitude, and the specular wall at zero
+    is the ``albedo_specular`` row.
 
     A perfectly absorbing surface IS a vacuum, and now says so with the same
     object — with a working transpose, which the ``ScaledOperator`` path never
@@ -1107,10 +1120,15 @@ class TestEquivalenceHoldsAtTheFactorReadingConsumers:
 
     #: ``(id, albedo_route, geometry_tier_sibling)`` — the pairs whose
     #: realized matrices are equal (pinned by ``TestEquivalenceTheorems``).
+    #: The specular pair is the perfect wall against the mirror, at α = 1:
+    #: the mirror has no amplitude, so that is the only α at which the two
+    #: tiers realize to one matrix (until the reflective cleanup the pair
+    #: was at 0.7 against the attenuated mirror ``ReflectiveBoundary(x,
+    #: 0.7)``, which no longer exists).
     _PAIRS = [
         ("specular",
-         AlbedoBoundary(0.7, SpecularReturn(axis="x")),
-         ReflectiveBoundary(axis="x", albedo=0.7)),
+         AlbedoBoundary(1.0, SpecularReturn(axis="x")),
+         ReflectiveBoundary(axis="x")),
         ("isotropic",
          AlbedoBoundary(0.7, IsotropicReturn(axis="x", outward_sign=+1)),
          WhiteBoundary(axis="x", outward_sign=+1, albedo=0.7)),

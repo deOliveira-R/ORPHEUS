@@ -61,7 +61,7 @@ The realization table (law → 𝒜 → operator)
 Law                              𝒜        Realized operator
 ===============================  =======  =========================================
 ``VacuumInflow``                 ``0``    :class:`~orpheus.numerics.operator.ZeroOperator`
-``ReflectiveBoundary(α)``        ``α``    ``IdentityOperator`` (α=1) / ``α·I``
+``ReflectiveBoundary``           ``1``    ``IdentityOperator`` (a symmetry)
 ``WhiteBoundary(α)``             ``α``    ``IdentityOperator`` (α=1) / ``α·I``
 ``AlbedoBoundary(α)``            ``α``    ``Zero`` (α=0) / ``I`` (α=1) / ``α·I``
 ``ZeroFluxBoundary``             ``−1``   ``ScaledOperator(-1, IdentityOperator)``
@@ -126,7 +126,8 @@ the descriptor-tree walker with this realizer at the leaves::
 
     from orpheus.geometry.boundary import realize_recursively
     op = realize_recursively(
-        0.3 * ReflectiveBoundary(axis="x") + 0.7 * AlbedoBoundary(albedo=0.5),
+        0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
+        + 0.7 * AlbedoBoundary(albedo=0.5),
         DiffusionMethodSpace.minimal(),
         realizer=DiffusionBoundaryRealizer(),
     )
@@ -228,8 +229,8 @@ class DiffusionBoundaryRealizer:
         r"""The law's albedo-family response 𝒜 in :math:`J^- = \mathcal{A} J^+`.
 
         The physics table (module docstring) as code. Note the two
-        DISTINCT albedos in play for reflective/white: the law's own
-        ``albedo`` field α is the return AMPLITUDE (specular resp.
+        DISTINCT albedos in play for a wall (specular or white): the law's
+        own ``albedo`` field α is the return AMPLITUDE (specular resp.
         diffuse), and at P1 the partial-current response equals it,
         :math:`\mathcal{A} = \alpha` — because the angular structure
         distinguishing the two return patterns is integrated out of
@@ -254,28 +255,26 @@ class DiffusionBoundaryRealizer:
         faces and so cannot be integrated away) and an affine source
         (which is not a linear response at all).
         """
-        # The fallthrough guard the ``isinstance`` ladder used to provide as
-        # its last arm. Collapsing the ladder onto ``response_kernel`` moved
-        # the failure mode: an object that is not a law — or a
-        # ``BoundaryTraceLaw`` subclass that never populated its factors, which
-        # the ABC still permits (the default is ``None``) — used to fall
-        # through to a named ``BoundaryError`` and would otherwise now die on a
-        # bare ``AttributeError`` deep in the read. Restored here, first,
-        # because everything below dereferences a factor.
-        response = getattr(law, "response_kernel", None)
-        if response is None:
+        # The fallthrough the ``isinstance`` ladder used to provide as its
+        # last arm, kept as the mirror of the SN realizer's: an object that is
+        # not a law is refused by name rather than dying on a bare
+        # ``AttributeError`` in the factor read below. Until 2026-10-01 it
+        # also caught a ``BoundaryTraceLaw`` subclass that never populated its
+        # factors (the ABC defaulted them to ``None``); the factors are
+        # abstract now, so that law cannot be constructed.
+        if not isinstance(law, BoundaryTraceLaw):
             raise BoundaryError(
                 f"DiffusionBoundaryRealizer cannot realize "
-                f"{type(law).__name__} — it declares no `response_kernel`, so "
-                f"there is no 𝒜 to realize. Diffusion realizes a law THROUGH "
-                f"that factor: VacuumInflow (𝒜=0, Marshak), ReflectiveBoundary "
-                f"(𝒜=α), WhiteBoundary (𝒜=α, P1-coincident with reflective), "
-                f"AlbedoBoundary (𝒜=α), ZeroFluxBoundary (𝒜=−1). For rank-N "
-                f"compositions use "
+                f"{type(law).__name__}: it is not a boundary law. Diffusion "
+                f"realizes a law THROUGH its response factor: VacuumInflow "
+                f"(𝒜=0, Marshak), ReflectiveBoundary (𝒜=1), WhiteBoundary "
+                f"(𝒜=α, P1-coincident with a specular wall), AlbedoBoundary "
+                f"(𝒜=α), ZeroFluxBoundary (𝒜=−1). For rank-N compositions use "
                 f"orpheus.geometry.boundary.realize_recursively with "
                 f"realizer=DiffusionBoundaryRealizer().",
-                law=getattr(type(law), "key", None) or type(law).__name__,
+                law=type(law).__name__,
             )
+        response = law.response_kernel
 
         # The one surviving TYPE test, and it is essential rather than a tag
         # smell: what disqualifies the prescribed family is that its inflow is

@@ -141,19 +141,13 @@ class _BoundBoundaryOperator(LinearOperator):
     def kind(self) -> Optional[str]:
         r"""The realized law's REGISTRY KEY — a read-through, not a copy.
 
-        Reads ``type(self.law).key``, deliberately **not**
-        :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.kind`. The two
-        diverge for exactly one law: a partially-reflecting
-        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
-        (``albedo != 1``) reports ``kind == "partial"`` — mirroring the
-        ``BC("partial", albedo=…)`` *declaration* vocabulary that
-        ``BC.to_alpha`` accepts (B0.1 ruling) — while its ``key`` stays
-        ``"reflective"`` for every albedo.
-
-        The key is what the pre-B2.0 shim stored, so this property is
-        behaviour-identical to it; reading ``law.kind`` here would
-        silently drop partially-reflecting faces out of the sweep
-        schedule's reflective set. **Phase B2.2 retires this surface
+        Reads ``type(self.law).key``, which is what the pre-B2.0 shim
+        stored, so this property is behaviour-identical to it. Until
+        2026-10-01 it differed from
+        :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.kind` for one law,
+        the attenuated mirror ``ReflectiveBoundary(axis, albedo != 1)``,
+        which reported ``"partial"``; that law lost its amplitude and its
+        ``kind`` override, so every law's ``kind`` is now its key. **Phase B2.2 retires this surface
         entirely** — the five production sites that compare it against
         string literals are asking structural questions that
         :attr:`law`'s two factors answer directly.

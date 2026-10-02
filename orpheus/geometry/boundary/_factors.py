@@ -71,9 +71,14 @@ group to be an element of. A surface's specular pairing is therefore
 **constitutive** — it is :math:`R`. This is the quotient table below, promoted
 from an observation to a test.
 
-**⇒ EXACTLY ONE of** :math:`G`, :math:`R` **is non-trivial**, which is this
+**⇒ AT MOST ONE of** :math:`G`, :math:`R` **is non-trivial**, which is this
 module's own sentence *"*:math:`R = I` *exactly when the BC is a pure symmetry
-statement adding no physics"* read as a law rather than as a remark. Its
+statement adding no physics"* read as a law rather than as a remark. (Until
+2026-10-01 this read "exactly one". The closure-free
+``AlbedoBoundary(1.0)`` has both factors trivial, ``G = I`` and
+``R = ScalarResponse(1.0)``: :math:`J^- = J^+` on a scalar trace, which
+diffusion realizes, and nothing that crosses on an angular one, which is why
+SN refuses it.) Its
 contrapositive is the useful direction: a law that asserts any physics at all
 has :math:`G = \mathrm{id}`.
 
@@ -120,14 +125,17 @@ error this section corrects.
 
 .. note::
 
-   One row of the shipped code violates the law, deliberately and visibly:
-   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` still accepts an
-   ``albedo`` parameter, so ``ReflectiveBoundary(axis, 0.7)`` has BOTH factors
-   non-trivial. A symmetry plane cannot absorb — that object is
-   ``AlbedoBoundary(0.7, SpecularReturn(axis))`` wearing the geometry costume.
-   It is unreachable from a ``BC(...)`` tag (the tag parser hard-codes
-   :math:`\alpha = 1`), so nothing production-facing rides on it; retiring the
-   parameter is campaign phase **B5**.
+   Until 2026-10-01 one row of the shipped code violated the law:
+   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` accepted an
+   ``albedo``, so ``ReflectiveBoundary(axis, 0.7)`` had BOTH factors
+   non-trivial, the partial wall ``AlbedoBoundary(0.7, SpecularReturn(axis))``
+   wearing the geometry costume (the root of ERR-094). The parameter is gone,
+   and the law holds for every shipped row. The descriptor algebra could
+   still have rebuilt the costume as ``0.7 * ReflectiveBoundary(axis)``, so
+   :class:`~orpheus.geometry.boundary.LawScaled` and
+   :class:`~orpheus.geometry.boundary.LawSum` refuse a law whose :math:`G` is
+   not the identity (:attr:`SelfPairedDeck.is_identity`): a symmetry cannot be
+   scaled or mixed.
 
 The crossing :math:`\Gamma_+ \to \Gamma_-` is itself geometric
 --------------------------------------------------------------
@@ -152,7 +160,7 @@ an argument about the mirror to every law, but a wall is not a quotient, so at a
 white or albedo face there is no isometry to provide the crossing and the
 **response** performs it: `[M]` every realized response is
 :math:`\Gamma_+ \to \Gamma_-`, never an endomorphism of :math:`\Gamma_-`. Read
-the display as *"exactly one of the two is non-trivial, and it is the one that
+the display as *"at most one of the two is non-trivial, and it is the one that
 crosses"* — which for :math:`G` present-and-non-trivial reduces to exactly the
 sentence above. How each factor is EVALUATED is a separate question with a
 per-kind answer (:class:`BoundaryGeometryMap` atomic,
@@ -367,19 +375,33 @@ class BoundaryGeometryMap(Protocol):
     provides the crossing geometrically and the **response** does it (see
     :class:`BoundaryResponseKernel`). The honest general form: **whichever
     factor is non-trivial carries the crossing**, which is well defined because
-    exactly one of them ever is.
+    at most one of them ever is; a law with neither (the closure-free scalar
+    albedo) has no crossing on an angular trace, and SN refuses it.
 
     This map, being a genuine deck transformation, is always the non-trivial
     factor when it is present at all — so for :math:`G` specifically the
     crossing IS geometric, and :meth:`domain_face` below is that statement at
     the level of which face's :math:`\Gamma_+` is consumed.
 
-    The two predicates below are the structural questions production used to
-    ask with string comparisons — ``bc[face] == "reflective"`` for the first,
-    ``kind in _RULED_CORNER_KINDS`` for the second. Phase **B2** repointed
-    those sites here and retired both tag sets; the law-by-law equivalence is
-    pinned in ``tests/gates/geometry/test_boundary_factor_consumers.py``.
+    The first two predicates below are the structural questions production
+    used to ask with string comparisons — ``bc[face] == "reflective"`` for
+    :attr:`permutes_ordinates`, ``kind in _RULED_CORNER_KINDS`` for
+    :attr:`is_adjointable`. Phase **B2** repointed those sites here and retired
+    both tag sets; the law-by-law equivalence is pinned in
+    ``tests/gates/geometry/test_boundary_factor_consumers.py``. The third,
+    :attr:`is_identity`, is the one question the descriptor algebra asks of
+    every :math:`G` (2026-10-01): a law whose :math:`G` is not the identity is
+    a symmetry and cannot be scaled or mixed.
     """
+
+    @property
+    def is_identity(self) -> bool:
+        """Whether this is the trivial deck element, the :math:`G` of every
+        response law. ``False`` exactly for a deck law: a mirror, a wrap.
+        :class:`PairedDeck` answers ``False`` on every constructible element
+        (its construction refuses the identity), read off the motion like
+        :class:`SelfPairedDeck`'s answer, so the interface is uniform."""
+        ...
 
     @property
     def permutes_ordinates(self) -> bool:
@@ -470,8 +492,9 @@ class BoundaryResponseKernel(Protocol):
        :math:`\Gamma_+ \to \Gamma_-`; :class:`SpecularReemission` realizes as a
        narrowed permutation, likewise :math:`\Gamma_+ \to \Gamma_-`;
        :class:`ScalarResponse` realizes as a commuting scale. **Whichever
-       factor is non-trivial carries the crossing** — and since exactly one of
-       them ever is, that is well defined. For a *quotient* law the crossing is
+       factor is non-trivial carries the crossing** — and since at most one of
+       them ever is, that is well defined (a law with neither has no crossing
+       on an angular trace, and SN refuses it). For a *quotient* law the crossing is
        geometric; for a *constitutive* law the physics does the crossing, by
        integrating the outgoing flux and re-emitting an incoming one. There is
        no ambient isometry at a wall to provide it.
@@ -756,6 +779,20 @@ class SelfPairedDeck:
         return not self.motion.is_translation
 
     @property
+    def is_identity(self) -> bool:
+        r"""Whether this is the trivial deck element, the :math:`G` of every
+        response law.
+
+        A law whose :math:`G` is not the identity states a symmetry of the
+        domain (it is a quotient, and its response is the identity), so it
+        cannot be scaled or mixed:
+        :mod:`~orpheus.geometry.boundary._composition` refuses it as a child.
+        Read off the motion
+        (:attr:`~orpheus.geometry.transformation.RigidMotion.is_identity`).
+        """
+        return self.motion.is_identity
+
+    @property
     def is_adjointable(self) -> bool:
         r"""Whether the realized map exposes an honest transpose.
 
@@ -945,6 +982,14 @@ class PairedDeck:
         answers ``True``.
         """
         return not self.motion.is_translation
+
+    @property
+    def is_identity(self) -> bool:
+        r"""``False`` for every constructible paired element, read off the
+        motion like :attr:`SelfPairedDeck.is_identity`: the identity fixes
+        every face pointwise, which this type's construction refuses (it is
+        the self-paired case)."""
+        return self.motion.is_identity
 
     @property
     def is_adjointable(self) -> bool:
@@ -1188,13 +1233,13 @@ class SpecularReemission:
         statement about the wall — as constitutive as a Lambertian surface's
         diffuse return, and made in the same slot.
 
-    So ``AlbedoBoundary(α, SpecularReturn(axis))`` and
-    ``ReflectiveBoundary(axis, α)`` realize to the *same matrix* and assert
-    *different things*: the first says "a wall here reflects :math:`\alpha`",
-    the second says "the domain is symmetric about this plane, and (at
-    :math:`\alpha < 1`, incoherently) also absorbs". Only the first survives
-    the criterion at :math:`\alpha < 1`; the second's ``albedo`` parameter is
-    retired in phase **B5**.
+    So ``AlbedoBoundary(1.0, SpecularReturn(axis))`` and
+    ``ReflectiveBoundary(axis)`` realize to the *same matrix* and assert
+    *different things*: the first says "a wall here reflects everything
+    specularly", the second says "the domain is symmetric about this plane".
+    Below :math:`\alpha = 1` only the wall is spellable: the mirror carried an
+    ``albedo`` until 2026-10-01, which said "symmetric, and (incoherently)
+    also absorbing", and that parameter is retired.
 
     The distinction is not academic. :attr:`permutes_ordinates` on the geometry
     tier drives the SN sweep schedule — a *quotient* couples ordinates across

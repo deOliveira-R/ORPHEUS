@@ -156,8 +156,7 @@ def _boundary_method_space(n_ord: int = 4) -> SNMethodSpace:
 # must carry the role.
 _LINEAR_LAWS = {
     "vacuum": VacuumInflow(),
-    "reflective_albedo1": ReflectiveBoundary(axis="x", albedo=1.0),
-    "reflective_albedo07": ReflectiveBoundary(axis="x", albedo=0.7),
+    "reflective_albedo1": ReflectiveBoundary(axis="x"),
     # ⚠ The orientation MUST match _FACE. Until B3.4a nothing checked it, and
     # these two rows had shipped `outward_sign=+1` (i.e. "xmax") while being
     # installed on "xmin" — so the realized Lambertian averaged the
@@ -170,7 +169,7 @@ _LINEAR_LAWS = {
     "white_albedo05": WhiteBoundary(
         axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=0.5,
     ),
-    # ⚠ B3.4b — these three MIGRATED from the bare spelling
+    # ⚠ B3.4b — the 0, 1 and isotropic rows MIGRATED from the bare spelling
     # ``AlbedoBoundary(albedo=α)``, which SN now REFUSES: with ``G = id`` and
     # ``R = α·I`` nothing names a pairing between the two half-traces, so the
     # law is under-determined on an angular trace. The completed spellings
@@ -180,8 +179,12 @@ _LINEAR_LAWS = {
     # All three amplitudes are kept because they remain three DIFFERENT
     # production branches — and this file is where the realized TYPE claim
     # lives, so the α=0 row now pins ``ZeroOperator`` (the narrowed zero map
-    # B3.4b opened) rather than the retired full-face one.
+    # B3.4b opened) rather than the retired full-face one. The 0.7 row is the
+    # only specular row with α ∉ {0, 1} (the ``ScaledOperator`` branch); it
+    # was the attenuated mirror ``reflective_albedo07`` until the reflective
+    # cleanup made the mirror amplitude-free.
     "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis=_FACE_AXIS)),
+    "albedo_specular_07": AlbedoBoundary(0.7, SpecularReturn(axis=_FACE_AXIS)),
     "albedo_specular_1": AlbedoBoundary(1.0, SpecularReturn(axis=_FACE_AXIS)),
     # The diffuse closure carries its own orientation, and it MUST match
     # _FACE for the same reason white's must — see the note above; B3.4b

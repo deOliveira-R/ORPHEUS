@@ -416,47 +416,13 @@ class TestAlbedoSubmarkovInvariant:
             AlbedoBoundary(albedo=1.2).assert_submarkov()
 
 
-# ─────────────────────────────────────────────────────────────────────
-# ReflectiveBoundary's albedo bounds (ERR-043, ERR-046)
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.l1
-class TestReflectiveAlbedoBounds:
-    """``ReflectiveBoundary``'s specular albedo carries the bounds its two
-    siblings carry, and its realization certifies them.
-
-    Their first red: until 2026-09-30 the law had neither check, and SN
-    realized ``ReflectiveBoundary("x", 1.2)`` (``[M]`` k = 2.0878 on a slab
-    whose mirror k is 0.96) and ``ReflectiveBoundary("x", -0.1)``, while
-    ``AlbedoBoundary(1.2, SpecularReturn("x"))``, the same matrix, was refused
-    (qa review of ERR-094). The law still carries an albedo at all only until
-    the deck/response retirement (planned phase B5).
-    """
-
-    @pytest.mark.catches("ERR-043")
-    def test_a_negative_albedo_is_refused(self) -> None:
-        with pytest.raises(BoundaryResponseNotPositiveError):
-            ReflectiveBoundary(axis="x", albedo=-0.1).assert_response_positive_if_declared()
-
-    @pytest.mark.catches("ERR-046")
-    def test_an_over_unity_albedo_is_refused(self) -> None:
-        with pytest.raises(SubmarkovViolationError):
-            ReflectiveBoundary(axis="x", albedo=1.2).assert_submarkov()
-
-    @pytest.mark.catches("ERR-046")
-    def test_realization_certifies_the_bound(self) -> None:
-        """The check fires where SN certifies every law it realizes."""
-        quadrature = Quadrature.gauss_legendre(8)
-        with pytest.raises(SubmarkovViolationError):
-            ReflectiveBoundary(axis="x", albedo=1.2).assert_realizable(quadrature)
-
-    @pytest.mark.parametrize("albedo", [0.0, 0.5, 1.0])
-    def test_the_unit_interval_is_admitted(self, albedo: float) -> None:
-        law = ReflectiveBoundary(axis="x", albedo=albedo)
-        law.assert_response_positive_if_declared()
-        law.assert_submarkov()
-        law.assert_realizable(Quadrature.gauss_legendre(8))
+# ReflectiveBoundary's albedo bounds (ERR-043, ERR-046): the class
+# ``TestReflectiveAlbedoBounds`` stood here from 2026-09-30 until the
+# reflective cleanup (2026-10-01) removed the mirror's albedo, and with it
+# the two checks the class pinned. Its successor is
+# ``tests/gates/geometry/test_reflective_is_a_mirror.py`` (the albedo is not
+# a parameter); ERR-043 and ERR-046 keep their catchers above (white and
+# albedo).
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1039,7 +1005,7 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         from orpheus.geometry.boundary import SpecularReturn
 
         return [
-            ("reflective", ReflectiveBoundary(axis="x", albedo=1.0), "G"),
+            ("reflective", ReflectiveBoundary(axis="x"), "G"),
             ("albedo", AlbedoBoundary(0.5, SpecularReturn(axis="x")), "R"),
         ]
 
@@ -1198,8 +1164,7 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
 
         return [
             ("vacuum", VacuumInflow()),
-            ("reflective", ReflectiveBoundary(axis="x", albedo=1.0)),
-            ("reflective_partial", ReflectiveBoundary(axis="x", albedo=0.5)),
+            ("reflective", ReflectiveBoundary(axis="x")),
             ("white", WhiteBoundary(axis="x", outward_sign=-1, albedo=1.0)),
             ("albedo_specular",
              AlbedoBoundary(0.5, SpecularReturn(axis="x"))),
@@ -1278,7 +1243,7 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
         space = face_method_space(
             quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
         )
-        law = ReflectiveBoundary(axis="x", albedo=1.0)
+        law = ReflectiveBoundary(axis="x")
         realized = SNBoundaryRealizer().realize(law, space).is_adjointable
         assert realized is True, "fixture must realize to an adjointable op"
 

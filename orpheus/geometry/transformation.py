@@ -467,6 +467,19 @@ class RigidMotion:
         return bool(np.array_equal(self.linear, np.eye(self.dimension)))
 
     @property
+    def is_identity(self) -> bool:
+        r"""``True`` iff the element is the unit of :math:`E(d)`, :math:`(I, 0)`.
+
+        The conjunction of :attr:`is_linear` and :attr:`is_translation`, the
+        two kernels' intersection; exact for the same reason they are. The
+        boundary tier asks it of a law's geometry factor: a law whose deck
+        element is not the identity states a symmetry of the domain, and a
+        symmetry cannot be scaled or mixed
+        (:mod:`~orpheus.geometry.boundary._composition`).
+        """
+        return self.is_linear and self.is_translation
+
+    @property
     def fixed_subspace_dimension(self) -> int:
         r"""Dimension of :math:`\ker(Q - I)` — the linear part's fixed
         subspace.

@@ -24,7 +24,7 @@ import orpheus.cp.solver as cp_solver
 from orpheus.cp.solver import CPMesh, solve_cp
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.geometry.boundary import ReflectiveBoundary
+from orpheus.geometry.boundary import AlbedoBoundary, ReflectiveBoundary, SpecularReturn
 from orpheus.mc.solver import MCMesh
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.moc.geometry import MOCMesh
@@ -53,10 +53,10 @@ class TestCP:
         "left, right",
         [
             (BC.vacuum, BC.white), (BC.white, BC.vacuum), (BC.white, BC.white),
-            (ReflectiveBoundary("x", 0.7), BC.white),
+            (AlbedoBoundary(0.7, SpecularReturn("x")), BC.white),
             (ReflectiveBoundary("y"), BC.white),
         ],
-        ids=["vacuum-white", "white-vacuum", "white-white", "partial-mirror-white",
+        ids=["vacuum-white", "white-vacuum", "white-white", "partial-specular-white",
              "wrong-axis-mirror-white"],
     )
     def test_a_slab_whose_left_law_is_not_the_mirror_is_refused(self, left, right):
@@ -66,11 +66,16 @@ class TestCP:
         that equal laws are what CP computes (``[M]``: CP declared white|white
         1.212883, SN reflective|white 1.212884, SN white|white 1.212537).
 
-        The ``partial-mirror-white`` row is a ``ReflectiveBoundary`` of
-        amplitude 0.7: the right class, the wrong law. A guard asking the
-        law's type, or admitting the reflective family's ``"partial"`` kind
-        beside ``"reflective"``, admits it and CP computes a full mirror in its
-        place. The ``wrong-axis-mirror-white`` row is a perfect mirror about
+        The ``partial-specular-white`` row is the specular wall
+        ``AlbedoBoundary(0.7, SpecularReturn("x"))``: it permutes ordinates
+        like the mirror and returns 0.7 of the outflow, and CP would compute a
+        full mirror in its place. Until the reflective cleanup (2026-10-01)
+        the row was ``ReflectiveBoundary("x", 0.7)``, "the right class, the
+        wrong law", the discriminator against a guard asking the law's type;
+        the mirror now has no amplitude, so that law cannot be built (its
+        successor is ``tests/gates/geometry/test_reflective_is_a_mirror.py``),
+        and the row now discriminates a guard asking "does it permute
+        ordinates" from one asking for the mirror. The ``wrong-axis-mirror-white`` row is a perfect mirror about
         y on the slab's x-face: the right kind, the wrong motion. A guard
         asking ``kind == "reflective"`` admitted it and CP returned the
         x-mirror's k to the last bit (the elegance review, 2026-09-30; SN
@@ -111,7 +116,7 @@ class TestCP:
 
         honest = solve_cp(materials, heterogeneous_slab(BC.reflective)).keff
         monkeypatch.setattr(cp_solver, "_refuse_a_law_cp_drops", lambda mesh: None)
-        for left in (BC.vacuum, BC.white, ReflectiveBoundary("x", 0.3)):
+        for left in (BC.vacuum, BC.white, AlbedoBoundary(0.3, SpecularReturn("x"))):
             k = solve_cp(materials, heterogeneous_slab(left)).keff
             assert k == honest, (
                 f"CP's k with the left law {left!r} is {k!r}, the mirror's is "
