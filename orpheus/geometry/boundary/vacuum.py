@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from orpheus.numerics.content import ContentIdentity
+
 from ._base import BoundaryTraceLaw
 from ._factors import SelfPairedDeck, ScalarResponse
 
@@ -17,7 +19,7 @@ from ._factors import SelfPairedDeck, ScalarResponse
 __all__ = ["VacuumInflow"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     r"""Vacuum boundary: :math:`R = 0`, :math:`q = 0`.
 
@@ -96,14 +98,12 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
         return ScalarResponse(0.0)
 
     def __eq__(self, other: object) -> bool:
+        # The string arm (``law == "vacuum"``) is kept by ruling (2026-10-01;
+        # retiring string equality is its own cleanup, #553). Every other
+        # comparison is content identity: all instances are equal, since the
+        # law has no parts.
         if isinstance(other, str):
             return other == self.kind
-        if isinstance(other, VacuumInflow):
-            return True
-        return NotImplemented
+        return super().__eq__(other)
 
-    def __hash__(self) -> int:
-        # Hash on the canonical class name. All instances are
-        # value-equal (the descriptor is stateless), so they share
-        # one hash bucket.
-        return hash(("VacuumInflow",))
+    __hash__ = ContentIdentity.__hash__

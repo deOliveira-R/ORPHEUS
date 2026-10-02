@@ -331,6 +331,7 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
+from orpheus.geometry.scalars import parse_integer, parse_real
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
 
@@ -1117,6 +1118,10 @@ class ScalarResponse:
 
     alpha: float = 1.0
 
+    def __post_init__(self) -> None:
+        # Parsed at the boundary (#405 P1 step 5): a real number, NaN refused.
+        object.__setattr__(self, "alpha", parse_real(self.alpha, "ScalarResponse.alpha"))
+
     @property
     def amplitude(self) -> float:
         return float(self.alpha)
@@ -1164,6 +1169,14 @@ class LambertianReemission:
     alpha: float = 1.0
     axis: str = "x"
     outward_sign: int = +1
+
+    def __post_init__(self) -> None:
+        # Parsed at the boundary (#405 P1 step 5): NaN refused, an int sign.
+        object.__setattr__(self, "alpha", parse_real(self.alpha, "LambertianReemission.alpha"))
+        object.__setattr__(
+            self, "outward_sign",
+            parse_integer(self.outward_sign, "LambertianReemission.outward_sign", "a sign"),
+        )
 
     @property
     def amplitude(self) -> float:
@@ -1259,6 +1272,10 @@ class SpecularReemission:
 
     alpha: float = 1.0
     axis: str = "x"
+
+    def __post_init__(self) -> None:
+        # Parsed at the boundary (#405 P1 step 5): a real number, NaN refused.
+        object.__setattr__(self, "alpha", parse_real(self.alpha, "SpecularReemission.alpha"))
 
     @property
     def amplitude(self) -> float:
@@ -1385,6 +1402,13 @@ class IsotropicReturn:
 
     axis: str = "x"
     outward_sign: int = +1
+
+    def __post_init__(self) -> None:
+        # Parsed at the boundary (#405 P1 step 5): an int sign.
+        object.__setattr__(
+            self, "outward_sign",
+            parse_integer(self.outward_sign, "IsotropicReturn.outward_sign", "a sign"),
+        )
 
     def kernel(self, alpha: float) -> "LambertianReemission":
         return LambertianReemission(

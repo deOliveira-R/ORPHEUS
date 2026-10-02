@@ -853,7 +853,7 @@ _MAX_WIDTH_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]
     ("zero", lambda: CellsByMaxWidth(0.0, EqualWidth()), ValueError, "a width is positive and finite"),
     ("negative", lambda: CellsByMaxWidth(-1.0, EqualWidth()), ValueError, "a width is positive and finite"),
     ("inf", lambda: CellsByMaxWidth(math.inf, EqualWidth()), ValueError, "a width is positive and finite"),
-    ("nan", lambda: CellsByMaxWidth(math.nan, EqualWidth()), ValueError, "a width is positive and finite"),
+    ("nan", lambda: CellsByMaxWidth(math.nan, EqualWidth()), ValueError, "width is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     ("string", lambda: CellsByMaxWidth("0.1", EqualWidth()),  # type: ignore[arg-type]  # a refusal input
      TypeError, "must be a real number"),
     ("bool", lambda: CellsByMaxWidth(True, EqualWidth()), TypeError, "must be a real number"),
@@ -872,7 +872,7 @@ _EDGES_REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = 
      TypeError, "must be a real number"),
     ("string", lambda: CellEdges("01"),  # type: ignore[arg-type]  # a refusal input
      TypeError, "must be a sequence of"),
-    ("nan", lambda: CellEdges(np.array([0.0, math.nan, 1.0])), ValueError, "must be finite"),
+    ("nan", lambda: CellEdges(np.array([0.0, math.nan, 1.0])), ValueError, "edges[1] is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     ("one-edge", lambda: CellEdges(np.array([0.0])), ValueError, "at least two strictly increasing"),
     ("equal-edges", lambda: CellEdges(np.array([0.0, 0.5, 0.5, 1.0])), ValueError, "at least two strictly increasing"),
     ("wrong-ends", lambda: CellEdges(np.array([0.0, 0.5, float(np.nextafter(1.0, 0.0))])).cells(

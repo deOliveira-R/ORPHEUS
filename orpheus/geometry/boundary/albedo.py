@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from ..scalars import parse_real
 from ._base import BoundaryTraceLaw
 from ._factors import (
     BoundaryResponseKernel,
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 __all__ = ["AlbedoBoundary"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     r"""An absorbing **surface**: a fraction :math:`\alpha` of the arriving
     flux is returned, in an angular shape the caller chooses.
@@ -138,6 +139,12 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
 
     albedo: float = 0.0
     reemission: "Optional[ReemissionClosure]" = None
+
+    def __post_init__(self) -> None:
+        # A real number, NaN refused (parse at the boundary, #405 P1 step 5).
+        object.__setattr__(
+            self, "albedo", parse_real(self.albedo, "AlbedoBoundary.albedo"),
+        )
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property

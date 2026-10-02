@@ -106,6 +106,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.numerics.content import ContentIdentity
+
 from .coord import CoordSystem
 from .scalars import parse_entries, parse_integer, parse_positive_real, parse_real
 from .boundary import BC
@@ -114,8 +116,8 @@ if TYPE_CHECKING:
     from .boundary import BoundaryTraceLaw
 
 
-@dataclass(frozen=True, kw_only=True)
-class StructuredGeometry:
+@dataclass(frozen=True, kw_only=True, eq=False)
+class StructuredGeometry(ContentIdentity):
     r"""A 1-D geometry: a coordinate system, breakpoints, one material id
     per interval and one boundary law per boundary point.
 
@@ -155,6 +157,17 @@ class StructuredGeometry:
 
     **The geometry never interprets a law.** Each method's mesh resolves
     what a tag means through its own admission table.
+
+    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`,
+    #405 P1 step 5, 2026-10-02): two geometries with equal coordinate
+    systems, breakpoints, material ids and laws are equal and hash alike in
+    every process, so a reference cache can key on one. Until then a
+    geometry holding a ``BC`` tag could not be hashed. A tag and the law it
+    resolves to are different declarations (``BC.vacuum`` is not
+    ``VacuumInflow()``), so two geometries that mean the same face but
+    spell it differently are unequal: a cache miss, never a wrong hit. A
+    geometry holding a law with no content (a callable-bearing inflow) is
+    equal only to itself and cannot be hashed.
     """
 
     coord: CoordSystem

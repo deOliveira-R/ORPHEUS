@@ -173,7 +173,7 @@ class TestMOC:
         from orpheus.moc.solver import default_pin_cell_mesh
 
         mesh = default_pin_cell_mesh()
-        assert mesh.face_laws == {"xmax": BC.reflective}
+        assert dict(mesh.face_laws) == {"xmax": BC.reflective}
         MOCMesh(mesh, self._QUADRATURE)
 
 

@@ -33,6 +33,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
+from ..scalars import parse_real
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # Typed against the SHARED base, not SN's AngularFaceTraceSpace: diffusion's
     # Γ₋ is one number per face (a ScalarTraceSpace) and will fill this slot
@@ -151,6 +153,12 @@ class ConstantInflowSource:
     """
 
     value: float
+
+    def __post_init__(self) -> None:
+        # A real number, NaN refused (parse at the boundary, #405 P1 step 5).
+        object.__setattr__(
+            self, "value", parse_real(self.value, "ConstantInflowSource.value"),
+        )
 
     def evaluate(self, space: "FunctionSpace") -> np.ndarray:
         # Reads nothing but the shape — and that is the point: a CONSTANT is

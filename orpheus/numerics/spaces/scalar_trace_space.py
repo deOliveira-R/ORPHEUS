@@ -155,17 +155,14 @@ class ScalarTraceSpace(FunctionSpace):
         # + the per-slot area weights — so ``(name, shape)`` equality IS
         # content equality (same-boundary carriers mint EQUAL spaces
         # whatever their interiors; a moved boundary face or changed area
-        # mints an UNEQUAL one). Mirrors ``AngularTraceSpace.for_layout``.
-        import hashlib
+        # mints an UNEQUAL one). The one content encoder (#405 P1 step 5),
+        # as ``AngularTraceSpace.for_layout``.
+        from orpheus.numerics.content import name_digest
 
-        payload = b"".join((
-            repr([
-                (str(k), int(s.offset), int(s.flat_size))
-                for k, s in layout.faces.items()
-            ]).encode(),
-            weights.tobytes(),
+        digest = name_digest((
+            layout.structure,
+            weights,
         ))
-        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
             name=f"scalar_trace#{digest}",
             shape=(int(layout.total_size),),

@@ -96,12 +96,12 @@ References
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
 
 import numpy as np
 
+from orpheus.numerics.content import name_digest
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
@@ -249,10 +249,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         """
         n_interior = int(np.prod(interior_space.shape))
         n_trace = int(np.prod(trace_space.shape))
-        payload = "|".join(
-            f"{s.name}:{s.shape}" for s in (interior_space, trace_space)
-        ).encode()
-        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
+        # The blocks' identity is (name, shape), the FunctionSpace
+        # convention; folded through the one content encoder (#405 P1
+        # step 5) rather than a text join.
+        digest = name_digest(tuple(
+            (s.name, s.shape) for s in (interior_space, trace_space)
+        ))
         return cls(
             name=f"full_field#{digest}",
             shape=(n_interior + n_trace,),

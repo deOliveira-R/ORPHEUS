@@ -63,7 +63,7 @@ from ._source import InflowSourceSpec, NoSource
 __all__ = ["PrescribedInflow"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
     r"""Prescribed inflow source on :math:`\Gamma_-`.
 
@@ -166,6 +166,11 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
         if source is None:
             source = NoSource()
         object.__setattr__(self, "_source", source)
+
+    def __reduce__(self):
+        # Through the public constructor (the field is ``_source``, the
+        # argument ``source``), as every content value pickles.
+        return (type(self), (self._source,))
 
     @property
     def source(self) -> InflowSourceSpec:

@@ -54,6 +54,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Optional
 
 import numpy as np
 
+from orpheus.numerics.content import ContentIdentity
 from orpheus.numerics.registry import RegistryMixin
 
 from ._source import InflowSourceSpec, NoSource
@@ -141,7 +142,7 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class BoundaryTraceLaw(RegistryMixin, ABC):
+class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
     r"""Method-agnostic boundary law in the affine form
     :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`.
 

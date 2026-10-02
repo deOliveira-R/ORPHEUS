@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
+from ..scalars import parse_integer, parse_real
 from ._base import BoundaryTraceLaw
 from ._factors import SelfPairedDeck, LambertianReemission
 
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 __all__ = ["WhiteBoundary"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class WhiteBoundary(BoundaryTraceLaw, key="white"):
     r"""White (Lambertian) boundary with optional albedo.
 
@@ -109,6 +110,16 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     axis: str = "x"
     outward_sign: int = +1
     albedo: float = 1.0
+
+    def __post_init__(self) -> None:
+        # A real number, NaN refused (parse at the boundary, #405 P1 step 5).
+        object.__setattr__(
+            self, "albedo", parse_real(self.albedo, "WhiteBoundary.albedo"),
+        )
+        object.__setattr__(
+            self, "outward_sign",
+            parse_integer(self.outward_sign, "WhiteBoundary.outward_sign", "a sign"),
+        )
 
     # ── The affine form's two factors (B1) ──────────────────────────────
     @property

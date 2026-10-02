@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.emission_spectrum import enforce_emission_spectrum
+from orpheus.numerics.content import ContentIdentity
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
@@ -38,18 +38,6 @@ def _read_only_csr(block) -> csr_matrix:
     for arr in (out.data, out.indices, out.indptr):
         arr.setflags(write=False)
     return out
-
-
-def _dense_key(arr: np.ndarray) -> tuple:
-    a = np.ascontiguousarray(arr)
-    return (a.shape, a.dtype.str, a.tobytes())
-
-
-def _csr_key(block: csr_matrix) -> tuple:
-    return (
-        block.shape, block.data.dtype.str,
-        block.data.tobytes(), block.indices.tobytes(), block.indptr.tobytes(),
-    )
 
 
 def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix]) -> None:
@@ -77,24 +65,28 @@ def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix])
 
 
 @dataclass(frozen=True, eq=False)
-class Mixture:
+class Mixture(ContentIdentity):
     """Macroscopic cross sections for a homogeneous mixture — a VALUE.
 
     Frozen, with read-only data and CONTENT identity (consumers campaign
     step 1, ruling R-cc3 / O-4, 2026-09-12; GitHub #459): two mixtures
-    carrying equal arrays compare ``==`` and hash equal, whatever objects
+    carrying equal content compare ``==`` and hash equal, whatever objects
     they are, so a Problem generated from a saved-and-reloaded mixture is
-    the SAME problem. The identity key is the content of every field
-    (each dense array's bytes; each sparse Legendre block's canonical CSR
-    triple; the energy grid's bytes or ``None``), computed ONCE on first
-    use and cached — `[M]` building it costs ~1 ms on 421-group data and
-    the SN geometry cache reads a problem's hash 6–10× per solve, so a
-    live key would be a measurable regression that no 2-group gate sees.
-    A cached key is sound only because nothing can move the data: the
-    dataclass is frozen and ``__post_init__`` stores READ-ONLY copies of
-    every array (dense fields, and each sparse block's ``data`` /
-    ``indices`` / ``indptr``) — an in-place write raises. Derive a
-    variant with :func:`dataclasses.replace`, which re-runs the laws.
+    the SAME problem. Since #405 P1 step 5 (2026-10-02) the identity is
+    the one content encoder's (:class:`~orpheus.numerics.content.ContentIdentity`):
+    the digest of every field by value, so ``-0.0`` equals ``+0.0``, a
+    sparse block is the matrix and not its storage (an explicitly stored
+    zero equals its absence), and NaN is refused at construction, naming
+    the field. The digest is computed once per object and cached by
+    :class:`~orpheus.numerics.content.ContentIdentity` — `[M]` building the former key cost ~1 ms
+    on 421-group data and the SN geometry cache reads a problem's hash
+    6–10× per solve, so a live key would be a measurable regression that
+    no 2-group gate sees. A cached digest is sound only because nothing
+    can move the data: the dataclass is frozen and ``__post_init__`` stores
+    READ-ONLY copies of every array (dense fields, and each sparse Legendre
+    block's ``data`` / ``indices`` / ``indptr``) — an in-place write
+    raises. Derive a variant with :func:`dataclasses.replace`, which
+    re-runs the laws.
 
     ⚠ Until 2026-09-12 the dataclass default equality compared ndarray
     fields and RAISED at ng ≥ 2 (``Mixture(ng=1) == Mixture(ng=1)`` read
@@ -150,7 +142,7 @@ class Mixture:
     def __post_init__(self) -> None:
         # A VALUE: every array is stored as a read-only COPY (the caller's
         # arrays stay theirs; nothing can move this object's data after
-        # construction, which is what makes the cached identity key sound).
+        # construction, which is what makes the cached content digest sound).
         # The dataclass is frozen, so the laws write through the frozen
         # guard exactly once, here.
         for name in self._DENSE:
@@ -174,32 +166,20 @@ class Mixture:
         _assert_legendre_stacks(
             type(self).__name__, len(self.SigT), SigS=self.SigS, Sig2=self.Sig2,
         )
-
-    # ── identity: CONTENT (R-cc3; the precedent is Axis._identity_key) ──
-    @cached_property
-    def _identity_key(self) -> tuple:
-        """The content of every generating datum, as hashable bytes.
-
-        Dense fields by ``(shape, dtype, bytes)``; each sparse Legendre
-        block by its canonical CSR triple (duplicates summed, indices
-        sorted at construction) so two spellings of one matrix agree; the
-        energy grid by its bytes or ``None``. Computed once (the object is
-        immutable) — ``cached_property`` writes the instance ``__dict__``
-        directly, which the frozen guard permits.
-        """
-        dense = tuple(_dense_key(getattr(self, name)) for name in (*self._DENSE, "chi"))
-        stacks = tuple(
-            tuple(_csr_key(block) for block in getattr(self, name)) for name in self._STACKS
-        )
-        return (dense, stacks, None if self.eg is None else _dense_key(self.eg))
-
-    def __eq__(self, other: object) -> bool:
-        if type(other) is not type(self):
-            return NotImplemented
-        return self._identity_key == other._identity_key  # type: ignore[attr-defined]
-
-    def __hash__(self) -> int:
-        return hash((type(self), self._identity_key))
+        # NaN is not a cross section: refused at construction, naming the
+        # field, so equality and hash never meet a non-value (#405 P1 step 5).
+        # ``chi`` is not in the loop: the emission-spectrum law above already
+        # refuses a NaN spectrum, naming ``chi``.
+        for name, arrays in (
+            *((n, (getattr(self, n),)) for n in self._DENSE),
+            *((n, tuple(block.data for block in getattr(self, n))) for n in self._STACKS),
+            ("eg", () if self.eg is None else (self.eg,)),
+        ):
+            if any(np.isnan(arr).any() for arr in arrays):
+                raise ValueError(
+                    f"{type(self).__name__}.{name} holds NaN, which is not a "
+                    f"cross section (nor equal to itself)."
+                )
 
     @property
     def is_producing(self) -> bool:

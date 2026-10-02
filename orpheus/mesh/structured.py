@@ -37,6 +37,7 @@ from orpheus.geometry.coord import (
 )
 from orpheus.geometry.scalars import parse_entries, parse_integer, parse_positions
 from orpheus.mesh.face_laws import FaceLaws, face_inventory
+from orpheus.numerics.content import ContentIdentity
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh1D
@@ -64,7 +65,7 @@ def _volume_ulps(coord: CoordSystem) -> int:
 
 
 @dataclass(frozen=True, eq=False)
-class Mesh1D:
+class Mesh1D(ContentIdentity):
     r"""A 1-D mesh: cells in one coordinate system, a material in each, a law on each boundary face.
 
     The general constructor takes exactly what a 1-D discretisation is. A
@@ -94,6 +95,16 @@ class Mesh1D:
         sphere, whose centre carries no law. Stored as a
         :class:`~orpheus.mesh.face_laws.FaceLaws`, the value
         :class:`Mesh2D` stores too.
+
+    Notes
+    -----
+    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`,
+    #405 P1 step 5, 2026-10-02): the coordinate system, edges, volumes,
+    material ids and face laws, so two meshes with the same cells and laws
+    are equal and hash alike in every process; this is the discretisation
+    digest the reference cache keys on, and it never reads the materials.
+    Until then the mesh compared bitwise by a hand-written ``__eq__`` and
+    could not be hashed.
     """
 
     coord: CoordSystem
@@ -102,9 +113,10 @@ class Mesh1D:
     mat_ids: np.ndarray
     face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
 
-    widths: np.ndarray = field(init=False, repr=False)
-    centers: np.ndarray = field(init=False, repr=False)
-    areas: np.ndarray = field(init=False, repr=False)
+    # Derived from the content, so not content (``compare=False``).
+    widths: np.ndarray = field(init=False, repr=False, compare=False)
+    centers: np.ndarray = field(init=False, repr=False, compare=False)
+    areas: np.ndarray = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.coord, CoordSystem):
@@ -166,17 +178,6 @@ class Mesh1D:
         ):
             object.__setattr__(self, name, value)
 
-    def __eq__(self, other: object) -> bool:
-        # Content identity (a hash, a digest) is P1 step 5's.
-        if not isinstance(other, Mesh1D):
-            return NotImplemented
-        return (
-            self.coord is other.coord
-            and self.edges.tobytes() == other.edges.tobytes()
-            and self.volumes.tobytes() == other.volumes.tobytes()
-            and self.mat_ids.tobytes() == other.mat_ids.tobytes()
-            and self.face_laws == other.face_laws
-        )
 
     # ── Derived properties ────────────────────────────────────────────
 
@@ -281,8 +282,8 @@ class Mesh1D:
 # Mesh2D
 # ═══════════════════════════════════════════════════════════════════════
 
-@dataclass(frozen=True)
-class Mesh2D:
+@dataclass(frozen=True, eq=False)
+class Mesh2D(ContentIdentity):
     """Two-dimensional mesh: Cartesian (x, y) or cylindrical (r, z).
 
     The boundary faces follow the one topology rule of
@@ -311,6 +312,16 @@ class Mesh2D:
         order, the value :class:`Mesh1D` stores too.
     coord : CoordSystem
         ``CARTESIAN`` for (x, y) or ``CYLINDRICAL`` for (r, z).
+
+    Notes
+    -----
+    **A value with content identity**, as :class:`Mesh1D`
+    (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+    2026-10-02): the arrays are stored as read-only copies, ``-0.0``
+    canonicalised, and two meshes with equal edges, material map, laws and
+    coordinate system are equal and hash alike. Until then the constructor
+    aliased the caller's writeable arrays, and ``==`` raised on any pair of
+    distinct meshes (the dataclass default compared ndarrays).
     """
 
     edges_x: np.ndarray
@@ -321,12 +332,20 @@ class Mesh2D:
     coord: CoordSystem = CoordSystem.CARTESIAN
 
     def __post_init__(self) -> None:
-        edges_x = np.asarray(self.edges_x, dtype=float)
-        edges_y = np.asarray(self.edges_y, dtype=float)
-        mat_map = np.asarray(self.mat_map, dtype=int)
-
-        if edges_x.ndim != 1 or edges_y.ndim != 1:
+        # The shared parsers, as Mesh1D: read-only copies (the mesh is a
+        # value, and the caller's arrays stay theirs), ``-0.0`` canonicalised,
+        # NaN, infinities, booleans and non-integral material ids refused.
+        if np.ndim(self.edges_x) != 1 or np.ndim(self.edges_y) != 1:
             raise ValueError("edges_x and edges_y must be 1-D arrays")
+        edges_x = parse_positions(self.edges_x, "Mesh2D.edges_x")
+        edges_y = parse_positions(self.edges_y, "Mesh2D.edges_y")
+        rows = parse_entries(self.mat_map, "Mesh2D.mat_map", "rows of int")
+        mat_map = np.array(
+            [[parse_integer(m, f"Mesh2D.mat_map[{i}][{j}]", "a material id")
+              for j, m in enumerate(parse_entries(row, f"Mesh2D.mat_map[{i}]", "int"))]
+             for i, row in enumerate(rows)],
+            dtype=int,
+        )
         if len(edges_x) < 2 or len(edges_y) < 2:
             raise ValueError("edge arrays must have at least 2 elements")
         if not np.all(np.diff(edges_x) > 0):
@@ -350,6 +369,7 @@ class Mesh2D:
             "Mesh2D.face_laws", self.coord,
         )
 
+        mat_map.flags.writeable = False
         object.__setattr__(self, "face_laws", face_laws)
         object.__setattr__(self, "edges_x", edges_x)
         object.__setattr__(self, "edges_y", edges_y)

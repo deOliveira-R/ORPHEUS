@@ -462,18 +462,16 @@ class AngularTraceSpace(FunctionSpace):
         # boundary content differs (layout, quadrature, face geometry)
         # mints an UNEQUAL one. Boundary LAWS are deliberately absent —
         # a law changes neither DOFs nor Gram (laws are operator data).
-        import hashlib
+        # The one content encoder (#405 P1 step 5), shared by every space
+        # name; it type-tags and length-prefixes each part.
+        from orpheus.numerics.content import name_digest
 
-        payload = b"".join((
-            repr([
-                (str(k), int(s.offset), int(s.flat_size))
-                for k, s in layout.faces.items()
-            ]).encode(),
-            omega_dot_n.tobytes(),
-            np.asarray(quadrature.weights, dtype=float).tobytes(),
-            np.asarray(quadrature.nodes, dtype=float).tobytes(),
+        digest = name_digest((
+            layout.structure,
+            omega_dot_n,
+            np.asarray(quadrature.weights, dtype=float),
+            np.asarray(quadrature.nodes, dtype=float),
         ))
-        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
             name=f"angular_trace#{digest}",
             shape=(int(layout.total_size),),

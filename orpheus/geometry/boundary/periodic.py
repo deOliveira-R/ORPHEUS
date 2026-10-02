@@ -17,7 +17,7 @@ from ._factors import PairedDeck, ScalarResponse
 __all__ = ["PeriodicBoundary"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     r"""Periodic boundary: spatial pushforward to the partner face.
 

@@ -352,6 +352,20 @@ class FaceLayout(Generic[K]):
                 f"slots but total_size={self.total_size}"
             )
 
+    @property
+    def structure(self) -> tuple[tuple[K, int, int], ...]:
+        r"""``(key, offset, flat size)`` per slot, in buffer order.
+
+        The layout's structural content: what a trace space's name digest
+        reads through :func:`~orpheus.numerics.content.name_digest` (#405 P1
+        step 5). A tuple, because the slot ORDER is the buffer's order and so
+        is content, where a mapping's order would not be.
+        """
+        return tuple(
+            (key, int(slot.offset), int(slot.flat_size))
+            for key, slot in self.faces.items()
+        )
+
     def pack(self, face_arrays: Mapping[K, NDArray]) -> NDArray:
         r"""Pack per-face ndarrays into a fresh flat backing buffer.
 

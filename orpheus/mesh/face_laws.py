@@ -22,12 +22,13 @@ than per side, is the seed for a side whose faces carry different laws.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
+from orpheus.numerics.content import FrozenMapping
 from orpheus.geometry.structured_geometry import parse_boundary_law
 from orpheus.mesh.axis import FaceLabel
 
@@ -68,20 +69,20 @@ def _why(coord: CoordSystem, inventory: tuple[str, ...], given: tuple[str, ...])
     return ""
 
 
-class FaceLaws(Mapping[str, "BC | BoundaryTraceLaw"]):
+class FaceLaws(FrozenMapping[str, "BC | BoundaryTraceLaw"]):
     """One boundary law per face of a mesh: an ordered, frozen, picklable mapping.
 
     Built by :meth:`over`, which checks the declaration against the mesh's
-    :func:`face_inventory`. Equality is a mapping's (the same faces carrying
-    equal laws); iteration yields the face names in inventory order.
+    :func:`face_inventory`. Iteration yields the face names in inventory
+    order. A :class:`~orpheus.numerics.content.FrozenMapping`, so equality
+    and hash are content identity (#405 P1 step 5, 2026-10-02): the same
+    faces carrying equal laws, whatever the order. Until then equality was a
+    ``Mapping``'s, so a ``FaceLaws`` was equal to a plain ``dict`` of the
+    same items and could not be hashed; it is equal only to another
+    ``FaceLaws`` now.
     """
 
-    __slots__ = ("_items",)
-
-    _items: tuple[tuple[str, "BC | BoundaryTraceLaw"], ...]
-
-    def __init__(self, items: "tuple[tuple[str, BC | BoundaryTraceLaw], ...]") -> None:
-        object.__setattr__(self, "_items", tuple(items))
+    __slots__ = ()
 
     @classmethod
     def over(
@@ -108,28 +109,6 @@ class FaceLaws(Mapping[str, "BC | BoundaryTraceLaw"]):
             (face, parse_boundary_law(laws[face], f"{where}[{face!r}]"))
             for face in inventory
         ))
-
-    def __getitem__(self, face: str) -> "BC | BoundaryTraceLaw":
-        for name, law in self._items:
-            if name == face:
-                return law
-        raise KeyError(face)
-
-    def __iter__(self) -> Iterator[str]:
-        return (name for name, _ in self._items)
-
-    def __len__(self) -> int:
-        return len(self._items)
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise AttributeError("FaceLaws is immutable")
-
-    def __reduce__(self):
-        return (FaceLaws, (self._items,))
-
-    def __repr__(self) -> str:
-        body = ", ".join(f"{name!r}: {law!r}" for name, law in self._items)
-        return f"FaceLaws({{{body}}})"
 
 
 __all__ = ["FaceLaws", "face_inventory"]

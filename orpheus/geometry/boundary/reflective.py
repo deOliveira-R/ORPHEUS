@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
+from orpheus.numerics.content import ContentIdentity
+
 from ._base import BoundaryTraceLaw
 from ._factors import ScalarResponse, SelfPairedDeck
 from ._specular import (
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
 __all__ = ["ReflectiveBoundary"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     r"""A symmetry plane of the domain: the deck mirror about ``axis``.
 
@@ -114,15 +116,14 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
         return ScalarResponse(1.0)
 
     def __eq__(self, other: object) -> bool:
+        # The string arm (``law == "reflective"``) is kept by ruling
+        # (2026-10-01; retiring string equality is its own cleanup, #553). Every
+        # other comparison is content identity, on the axis alone.
         if isinstance(other, str):
             return other == self.kind
-        if isinstance(other, ReflectiveBoundary):
-            return self.axis == other.axis
-        return NotImplemented
+        return super().__eq__(other)
 
-    def __hash__(self) -> int:
-        # Hash on the canonical (post-rename) class name.
-        return hash(("ReflectiveBoundary", self.axis))
+    __hash__ = ContentIdentity.__hash__
 
     # ------------------------------------------------------------------
     # §16A.12 universal invariants — Wave 7 / C7.6 overrides.

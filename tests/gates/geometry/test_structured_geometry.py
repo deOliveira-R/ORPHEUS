@@ -63,7 +63,7 @@ _BREAKPOINT_REFUSALS = [
     ("decreasing-pair", dict(breakpoints=(0.0, 2.0, 1.0)),
      ValueError, "strictly increasing"),
     ("nan", dict(breakpoints=(0.0, math.nan, 2.0)),
-     ValueError, "must be finite"),
+     ValueError, r"breakpoints\[1\] is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     ("inf", dict(breakpoints=(0.0, 1.0, math.inf)),
      ValueError, "must be finite"),
     ("negative-radius-cylinder",
@@ -506,7 +506,7 @@ class TestMeshingAGeometry:
         # stored volume is the equal share m/n (ERR-020's invariant).
         assert np.all(mesh.volumes == mesh.volumes[0])
         # One face law, the outer one: the centre carries none.
-        assert mesh.face_laws == {"xmax": BC.vacuum}
+        assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
 
     def test_single_region_slab_uniform(self):
         g = StructuredGeometry(
@@ -520,7 +520,7 @@ class TestMeshingAGeometry:
         assert mesh.coord == CoordSystem.CARTESIAN
         np.testing.assert_allclose(mesh.edges, [0.0, 1.0, 2.0, 3.0, 4.0])
         # A slab has two faces, left then right.
-        assert mesh.face_laws == {"xmin": BC.vacuum, "xmax": BC.reflective}
+        assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.reflective}
 
     def test_multi_region_slab(self):
         g = StructuredGeometry.from_thicknesses(
@@ -568,7 +568,7 @@ class TestMeshingAGeometry:
         assert (mesh.mat_ids == 2).sum() == 10
         assert (mesh.mat_ids == 1).sum() == 3
         assert (mesh.mat_ids == 0).sum() == 7
-        assert mesh.face_laws == {"xmax": BC("white")}
+        assert dict(mesh.face_laws) == {"xmax": BC("white")}
         _assert_equal_volume_regions(
             mesh,
             mat_ids=(2, 1, 0),
@@ -613,7 +613,7 @@ class TestMeshingAGeometry:
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(4)).mesh
         assert mesh.edges[0] == 0.5
         assert mesh.edges[-1] == 2.0
-        assert mesh.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum}
+        assert dict(mesh.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum}
         assert mesh.boundary_points == (0.5, 2.0)
 
     @pytest.mark.catches("ERR-020")

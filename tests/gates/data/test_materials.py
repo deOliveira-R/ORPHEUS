@@ -69,13 +69,18 @@ class TestMappingSurface:
         _require(dict(mats.items())[3] is mats[3], ".items")
         _require(mats.ids == frozenset({0, 3}), ".ids")
 
-    def test_identity_semantics(self) -> None:
-        """eq=False: two content-equal declarations are DISTINCT
-        declarations (content identity joins the typed-axis identity
-        family later)."""
+    def test_content_semantics(self) -> None:
+        """Content identity (#405 P1 step 5, 2026-10-02): two declarations of
+        equal mixtures under equal ids are EQUAL and hash alike, whatever
+        objects they are and in whatever order the ids were written. Until
+        then the class was ``eq=False`` and this row asserted the twins
+        unequal (a declaration was an identity object)."""
         a, b = _two(), _two()
-        _require(a == a, "reflexive identity")
-        _require(a != b, "content-equal twins are distinct declarations")
+        _require(a == a, "reflexive")
+        _require(a == b and hash(a) == hash(b), "content-equal twins are one declaration")
+        reordered = Materials(dict(reversed(list(dict(a.items()).items()))))
+        _require(list(reordered) != list(a), "the fixture really reorders")
+        _require(reordered == a and hash(reordered) == hash(a), "id order is not content")
 
     def test_of_is_parse_at_boundary(self) -> None:
         mats = _two()

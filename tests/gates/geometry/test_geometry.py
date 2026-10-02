@@ -328,12 +328,12 @@ class TestBC:
     def test_bc_creation_kind_only(self):
         bc = BC("vacuum")
         assert bc.kind == "vacuum"
-        assert bc.params == {}
+        assert dict(bc.params) == {}  # a FrozenMapping since #405 P1 step 5
 
     def test_bc_creation_with_params(self):
         bc = BC("white", {"albedo": 0.7})
         assert bc.kind == "white"
-        assert bc.params == {"albedo": 0.7}
+        assert dict(bc.params) == {"albedo": 0.7}
 
     def test_bc_frozen(self):
         bc = BC("vacuum")
@@ -366,7 +366,7 @@ class TestBC:
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.vacuum,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        assert mesh.face_laws == {"xmin": BC("reflective"), "xmax": BC("vacuum")}
+        assert dict(mesh.face_laws) == {"xmin": BC("reflective"), "xmax": BC("vacuum")}
         assert mesh.outer_law == BC("vacuum")
         assert mesh.boundary_points == (0.0, 2.0)
 

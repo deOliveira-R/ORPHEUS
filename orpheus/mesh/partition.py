@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem, MeasureCoordinate
+from orpheus.numerics.content import ContentIdentity
 from orpheus.geometry.scalars import (
     parse_integer,
     parse_positions,
@@ -300,7 +301,7 @@ class Refined(CountedRule):
 
 
 @dataclass(frozen=True, eq=False)
-class CellEdges:
+class CellEdges(ContentIdentity):
     r"""One interval's cell edges, written out; the geometry gives their measures.
 
     For cells no rule places (a grid whose irregularity is the point). The
@@ -316,14 +317,6 @@ class CellEdges:
                 f"CellEdges.edges are at least two strictly increasing positions; got {edges}"
             )
         object.__setattr__(self, "edges", edges)
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, CellEdges):
-            return NotImplemented
-        return self.edges.tobytes() == other.edges.tobytes()
-
-    def __hash__(self) -> int:
-        return hash(self.edges.tobytes())
 
     def cells(self, geometry: "StructuredGeometry", interval: Interval) -> Cells:
         a, b = interval

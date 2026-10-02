@@ -40,6 +40,13 @@ jobs:
       # OpenBLAS runner as on the macOS / Accelerate host. ~15 s.
       - name: The Gauss rules are correctly rounded, with the same bytes on this platform, under -O
         run: .venv/bin/python -O -m pytest tests/gates/numerics/test_gauss_rule_fingerprint.py tests/gates/numerics/test_gauss_rules_correctly_rounded.py tests/gates/numerics/test_generating_measure.py -q
+      # The content digests (#405 P1 step 5, 2026-10-02): every persistent
+      # cache key is a digest of a specification's content, so the same
+      # value must digest to the same bytes on every platform. The suite's
+      # RECORD row pins three digests on the macOS host; the seed-stability
+      # row spawns two interpreters. ~5 s.
+      - name: The content digests are the same bytes on this platform, under -O
+        run: .venv/bin/python -O -m pytest tests/gates/numerics/test_content_identity.py tests/gates/numerics/test_content_identity_axis.py tests/gates/data/test_content_identity_data.py tests/gates/geometry/test_content_identity_geometry.py tests/gates/mesh/test_content_identity_mesh.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys

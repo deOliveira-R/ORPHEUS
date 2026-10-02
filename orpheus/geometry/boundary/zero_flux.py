@@ -21,7 +21,7 @@ from ._factors import SelfPairedDeck, ScalarResponse
 __all__ = ["ZeroFluxBoundary"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
     r"""Zero-flux Dirichlet boundary: :math:`\phi_\Gamma = 0`.
 

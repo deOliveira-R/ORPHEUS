@@ -187,7 +187,7 @@ def test_slab_mesh_builds_full_symmetric_domain() -> None:
     assert mesh.coord == CoordSystem.CARTESIAN
     expected_total = 2.0 * _critical_dimension_cm(case)
     assert mesh.total_width == pytest.approx(expected_total, abs=1e-12)
-    assert mesh.face_laws == {"xmin": BC.vacuum, "xmax": BC.vacuum}
+    assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.vacuum}
     assert mesh.N == 16
 
 
@@ -205,7 +205,7 @@ def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
     assert mesh.coord == CoordSystem.SPHERICAL
     assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
     assert mesh.boundary_points == (mesh.total_width,)  # the centre carries no law
-    assert mesh.face_laws == {"xmax": BC.vacuum}
+    assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
 
 
 @pytest.mark.foundation
@@ -216,7 +216,7 @@ def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
     assert mesh.coord == CoordSystem.CYLINDRICAL
     assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
     assert mesh.boundary_points == (mesh.total_width,)  # the axis carries no law
-    assert mesh.face_laws == {"xmax": BC.vacuum}
+    assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
 
 
 @pytest.mark.foundation

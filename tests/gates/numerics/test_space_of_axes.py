@@ -121,12 +121,14 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
 
     Until the identity flip (CS4c step 6) space identity was ``(name,
     shape)`` and the derived name WAS the identity; since the flip
-    ``__eq__`` reads ``_identity_key`` directly through ``Axis.__eq__``, so
+    ``__eq__`` reads the axis content directly through ``Axis.__eq__``, so
     provenance stays out of the identity at both tiers for one reason.
-    ``_structural_bytes`` iterates ``_identity_key``,
+    The name digest encodes ``Axis.content_parts`` through the one content
+    encoder (``orpheus.numerics.content``, #405 P1 step 5; a private
+    ``_structural_bytes`` over an ``_identity_key`` tuple until then),
     which excludes ``Axis.generator``; this gate is the observable
     statement of that, at the tier where an inclusion would do damage.
-    Mutation: append ``self.generator`` to ``_identity_key`` → the digest
+    Mutation (measured before step 5): append ``self.generator`` to the key → the digest
     moves ([M] ``angular(4,)#a1259d874905e50e`` → ``#a56a82a93fac074b``),
     and ``==``/``hash`` RAISE outright (the generator objects are
     un-comparable / unhashable — the exclusion is structurally mandatory,

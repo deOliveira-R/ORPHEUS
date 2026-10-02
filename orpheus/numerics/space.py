@@ -67,7 +67,6 @@ References
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
 
@@ -75,6 +74,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
+from .content import name_digest
 from .metric import (
     DenseMetric,
     DiagonalMetric,
@@ -412,11 +412,7 @@ class FunctionSpace(Generic[Carrier]):
         shape: tuple[int, ...] = ()
         for ax in axes:
             shape = shape + ax.shape
-        payload = b"".join(
-            len(chunk).to_bytes(8, "little") + chunk
-            for chunk in (ax._structural_bytes() for ax in axes)
-        )
-        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
+        digest = name_digest(tuple(axes))
         readable = "*".join(f"{ax.label}{ax.shape}" for ax in axes)
         return FunctionSpace(
             name=f"{readable}#{digest}",

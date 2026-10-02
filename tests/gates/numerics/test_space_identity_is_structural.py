@@ -30,6 +30,9 @@ arm                                          reds    what it models
 ``FunctionSpace.__hash__ -> 0``                   6   eq/hash consistency (see below)
 ===========================================  ======  ==================================
 
+(The table was measured before #405 P1 step 5, when ``Axis`` carried a
+hand-written ``_identity_key``; its parts are ``Axis.content_parts`` now.)
+
 ⚠ The ``__hash__ -> 0`` arm is the one to read carefully.  A constant hash is
 LEGAL Python (``a == b`` only implies ``hash(a) == hash(b)``, never the
 converse), so those 6 reds are tests asserting ``hash(a) != hash(b)`` as a
@@ -151,7 +154,8 @@ def test_g1_1c_a_different_measure_on_one_axis_makes_a_different_space():
     are identical, so the discrimination CANNOT come from ``shape`` and must
     come from the axis content (today: through the digest; after the carve:
     through the axes tuple).  This is the row the
-    ``Axis._identity_key`` drops-``weights`` arm reddens (20 reds tree-wide).
+    ``Axis._identity_key`` drops-``weights`` arm reddens (20 reds tree-wide;
+    the key is ``Axis.content_parts`` since #405 P1 step 5).
     """
     a = FunctionSpace.of_axes(_energy(), _spatial(_W))
     b = FunctionSpace.of_axes(_energy(), _spatial(_W_PERTURBED))
@@ -278,8 +282,10 @@ def test_g1_4_comparing_spaces_that_differ_only_in_dense_weights_does_not_raise(
 def test_g1_5_a_discrete_measure_cannot_be_compared_but_an_axis_can():
     r"""``DiscreteMeasure.__eq__`` RAISES; ``Axis.__eq__`` does not.
 
-    ``Axis._identity_key`` deliberately excludes ``generator`` and encodes the
-    weights as ``.tobytes()``, so a structural space identity spelled through
+    ``Axis.content_parts`` deliberately excludes ``generator`` and gives the
+    weights to the one content encoder as an array (a hand-written
+    ``_identity_key`` encoding them as ``.tobytes()`` until #405 P1 step 5),
+    so a structural space identity spelled through
     ``Axis`` never reaches measure equality.  This row pins that REASON — it
     is what makes "the carve does not need ``DiscreteMeasure.__eq__`` fixed"
     a checkable statement rather than an assumption (lesson L65b: check
@@ -384,7 +390,11 @@ _SPACE_FAMILY = (
 #: delegating ``__eq__`` RETIRED (the tail is the scheme's axis) — NINE sites
 #: over eight files, SEVEN subclass one-liners; the two head axes
 #: (``HarmonicAxis`` / ``LegendreAxis``) inherit ``Axis.__eq__`` and add none.
-_EXPECTED_EQ_SITES = 9
+#: Re-measured at #405 P1 step 5 (2026-10-02): ``Axis``'s hand-written
+#: ``__eq__``/``__hash__`` retired onto the one content encoder's
+#: ``ContentIdentity`` (``orpheus/numerics/content.py``, outside this census's
+#: files), so EIGHT sites over seven files, the same SEVEN one-liners.
+_EXPECTED_EQ_SITES = 8
 _EXPECTED_DELEGATIONS = 7       # the seven SUBCLASS one-liners (base + Axis excluded)
 
 

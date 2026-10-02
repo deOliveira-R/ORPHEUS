@@ -37,7 +37,7 @@ The five slots, precisely
   weights and drops the nodes); the accessor lets a consumer recover the
   un-forgotten data (direction cosines, level structure) THROUGH the
   space instead of being handed the generator separately. Deliberately
-  EXCLUDED from :meth:`_identity_key`: two axes with identical
+  EXCLUDED from the content (``field(compare=False)``): two axes with identical
   structural content are the same axis whatever instance produced them,
   so content-equal but distinct-instance generators (the #403 hazard)
   never reach axis equality — and never perturb the ``of_axes``
@@ -90,10 +90,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
+
+from .content import ContentIdentity
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -128,7 +130,7 @@ class BasisKind(Enum):
 
 
 @dataclass(frozen=True, eq=False)
-class Axis:
+class Axis(ContentIdentity):
     r"""One tensor factor of a function space — a frozen value object.
 
     Parameters
@@ -167,9 +169,10 @@ class Axis:
     Notes
     -----
     Frozen and hashable with **structural equality per subclass**:
-    ``__eq__``/``__hash__`` read ``(type, label, shape, kind, weights
-    bytes)``. Subclasses extend the key via :meth:`_identity_key`; the
-    class check keeps an ``EnergyAxis`` and a field-identical generic
+    ``__eq__``/``__hash__`` read the content digest of ``(type, label,
+    shape, weights, kind)``
+    (:class:`~orpheus.numerics.content.ContentIdentity`); subclasses extend
+    the content by declaring fields. The class check keeps an ``EnergyAxis`` and a field-identical generic
     ``Axis`` unequal (the identity is *what kind of generator produced
     this factor*, not a bag of fields).
     """
@@ -178,8 +181,10 @@ class Axis:
     shape: tuple[int, ...]
     weights: NDArray | None = field(default=None, repr=False)
     kind: BasisKind = field(kw_only=True)
+    # Provenance is not identity: ``compare=False`` is the content encoder's
+    # one spelling of "not content" (#405 P1 step 5).
     generator: DiscreteMeasure | Basis | Quadrature | FrameBase | None = field(
-        default=None, kw_only=True, repr=False
+        default=None, kw_only=True, repr=False, compare=False
     )
 
     def __post_init__(self) -> None:
@@ -245,58 +250,6 @@ class Axis:
                 f"axis forgot."
             )
         return g
-
-    def _identity_key(self) -> tuple[Any, ...]:
-        """The structural content equality/hash read (subclasses extend).
-
-        ``generator`` is deliberately ABSENT: provenance is not identity
-        (module docstring, slot table). Any future field added here also
-        enters :meth:`_structural_bytes` and therefore every derived
-        space NAME — the blast radius of an inclusion is space identity.
-        """
-        w = self.weights
-        return (
-            self.label,
-            self.shape,
-            self.kind,
-            None if w is None else w.tobytes(),
-        )
-
-    def __eq__(self, other: object) -> bool:
-        if other.__class__ is not self.__class__:
-            return NotImplemented
-        assert isinstance(other, Axis)  # type narrowing only
-        return self._identity_key() == other._identity_key()
-
-    def __hash__(self) -> int:
-        return hash((self.__class__, self._identity_key()))
-
-    def _structural_bytes(self) -> bytes:
-        """An INJECTIVE byte encoding of the structural identity.
-
-        Consumed by ``FunctionSpace.of_axes``'s derived-name digest.
-        Injectivity was load-bearing for space identity until the identity
-        flip (CS4c step 6, 2026-09-07 — space identity was ``(name,
-        shape)``, so a name collision between different axis tuples would
-        have collapsed two different spaces into one); it stays
-        load-bearing where a derived name is folded into an axes-less
-        composite's own digest (``FullFieldSpace.from_blocks``) and for the
-        label's diagnostic value, hence the belt-and-braces encoding: every chunk is TYPE-TAGGED
-        (``T``/``N``/``B``/``R``) and LENGTH-PREFIXED, so no
-        concatenation of different identity keys can share a byte
-        stream. Deterministic across processes by construction — no
-        ``hash()``, no dict order, only content bytes and ``repr`` of
-        primitives.
-        """
-        chunks = [b"T" + type(self).__qualname__.encode()]
-        for part in self._identity_key():
-            if part is None:
-                chunks.append(b"N")
-            elif isinstance(part, bytes):
-                chunks.append(b"B" + part)
-            else:
-                chunks.append(b"R" + repr(part).encode())
-        return b"".join(len(c).to_bytes(8, "little") + c for c in chunks)
 
 
 @dataclass(frozen=True, eq=False)
@@ -443,9 +396,6 @@ class EnergyAxis(Axis):
             return cls.from_grid(mats[0].energy_grid)
         return cls.synthetic(mats[0].ng)
 
-    def _identity_key(self) -> tuple[Any, ...]:
-        e = self.edges
-        return (*super()._identity_key(), None if e is None else e.tobytes())
 
 
 @dataclass(frozen=True, eq=False)
@@ -495,7 +445,7 @@ class LegendreAxis(Axis):
     and ``from_L(1, "z")`` carry ``array_equal`` weights and one shape, so
     a family-generic identity would COLLAPSE two physically different
     spaces (the tree carries two poles). The spent axis is therefore part
-    of :meth:`_identity_key`, exactly as an :class:`EnergyAxis` carries its
+    of the content (a field), exactly as an :class:`EnergyAxis` carries its
     group edges.
 
     Parameters
@@ -514,5 +464,3 @@ class LegendreAxis(Axis):
                 f"LegendreAxis: spent_axis must be x/y/z, got {self.spent_axis!r}."
             )
 
-    def _identity_key(self) -> tuple[Any, ...]:
-        return (*super()._identity_key(), self.spent_axis)

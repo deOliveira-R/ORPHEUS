@@ -2,10 +2,13 @@ r"""Parsers for the scalar and sequence inputs of the geometry and the mesh.
 
 One definition each of "a real number", "an integer" and "a positive
 quantity", shared by :mod:`orpheus.geometry` and :mod:`orpheus.mesh` so the
-two layers canonicalise the same values the same way (P1 step 5 digests
-these bits). ``bool`` is refused wherever a number is expected (``True``
-is an ``int``), and ``-0.0`` becomes ``+0.0``: the two compare equal, so
-they are one position, and a digest over the bits must see one value.
+two layers canonicalise the same values the same way. ``bool`` is
+refused wherever a number is expected (``True`` is an ``int``), NaN is
+refused (it is not a number), and ``-0.0`` becomes ``+0.0``: the two
+compare equal, so they are one position. The content encoder
+(:mod:`orpheus.numerics.content`, #405 P1 step 5) applies the same
+``-0.0`` rule to every value it digests, so the stored bits and the digest
+agree.
 """
 from __future__ import annotations
 
@@ -17,10 +20,18 @@ import numpy as np
 
 
 def parse_real(value: object, where: str) -> float:
-    """A real scalar as a ``float``, or a keyed refusal."""
+    """A real scalar as a ``float``, or a keyed refusal.
+
+    NaN is refused: it is not a number, and not equal to itself, so a value
+    holding one has no content identity (#405 P1 step 5). Infinities are
+    real and pass; a caller needing a finite value checks it.
+    """
     if not isinstance(value, Real) or isinstance(value, bool):
         raise TypeError(f"{where} must be a real number, got {type(value).__name__}")
-    return float(value) + 0.0
+    parsed = float(value)
+    if math.isnan(parsed):
+        raise ValueError(f"{where} is NaN, which is not a number")
+    return parsed + 0.0
 
 
 def parse_positive_real(value: object, where: str, noun: str) -> float:

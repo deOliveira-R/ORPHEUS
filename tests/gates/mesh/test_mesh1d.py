@@ -85,7 +85,7 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
     ("edge-bool", lambda: _mesh(edges=(False, True), volumes=[1.0], mat_ids=[0]),
      TypeError, "Mesh1D.edges[0] must be a real number"),
     ("edge-nan", lambda: _mesh(edges=(0.0, math.nan, 2.0), volumes=[1.0, 1.0]),
-     ValueError, "Mesh1D.edges must be finite"),
+     ValueError, "Mesh1D.edges[1] is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     # S3.11, re-posed: the non-monotone, equal-edge and too-few-edge rows
     ("edges-decreasing", lambda: _mesh(edges=(0.0, 2.0, 1.0), volumes=[2.0, 1.0]),
      ValueError, "are at least two strictly increasing positions"),
@@ -277,11 +277,20 @@ class TestTheValue:
         assert a != _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0))  # another coordinate system
         assert (a == (0.0, 0.5, 2.0)) is False
 
-    def test_unhashable_until_step_5(self):
-        """RECORD: content identity is P1 step 5's. When it lands this row
-        reds on purpose; re-pose it as the eq/hash contract."""
-        with pytest.raises(TypeError, match="unhashable"):
-            hash(_mesh())
+    def test_the_eq_hash_contract(self):
+        """Content identity (#405 P1 step 5, 2026-10-02): two meshes built
+        independently with equal cells and laws are equal and hash alike.
+        Until step 5 this row was ``test_unhashable_until_step_5``, the
+        RECORD that ``hash(mesh)`` raised, written to red when the step
+        landed."""
+        a, b = _mesh(), _mesh()
+        assert a is not b
+        assert a == b and hash(a) == hash(b)
+        assert len({a, b}) == 1
+        # The separating leg: an ``__eq__`` returning True everywhere would
+        # pass the three lines above.
+        other = _mesh(mat_ids=[0, 1])
+        assert other != a and len({a, other}) == 2
 
     def test_frozen_and_read_only(self):
         mesh = _mesh()

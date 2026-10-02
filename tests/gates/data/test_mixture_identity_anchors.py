@@ -247,4 +247,6 @@ class TestMutabilityIsTheHashHazard:
         _require(hash(mix) == before, "the key moved without the data moving")
         # the honest way to a variant: replace re-runs the laws and mints a NEW value
         twin = replace(mix, SigT=moved)
-        _require(twin != mix and hash(twin) != before, "replace must mint a different value")
+        # Separation through the container, not by comparing hashes (a hash
+        # collision is legal, so ``hash(twin) != before`` proves nothing).
+        _require(twin != mix and len({twin, mix}) == 2, "replace must mint a different value")

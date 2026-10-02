@@ -9,14 +9,19 @@ realizations) live beside it in this package.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import ClassVar
+
+from orpheus.numerics.content import ContentIdentity, FrozenMapping
+
+from ..scalars import parse_real
 
 __all__ = ["BC"]
 
 
-@dataclass(frozen=True)
-class BC:
+@dataclass(frozen=True, eq=False)
+class BC(ContentIdentity):
     """Solver-agnostic boundary condition declaration.
 
     A lightweight tag attached to geometry surfaces.  The geometry module
@@ -30,12 +35,32 @@ class BC:
         Boundary condition identifier (e.g. ``"vacuum"``,
         ``"reflective"``, ``"white"``).  Each solver defines which
         kinds it supports.
-    params : dict[str, float]
-        Optional numeric parameters (e.g. ``{"albedo": 0.7}``).
+    params : Mapping[str, float]
+        Optional numeric parameters (e.g. ``{"albedo": 0.7}``), real numbers
+        (NaN refused). Stored as a
+        :class:`~orpheus.numerics.content.FrozenMapping`: a tag is a VALUE with content identity
+        (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+        2026-10-02), equal and hashing alike whatever the parameters'
+        order, and ``{"albedo": 1}`` is ``{"albedo": 1.0}``. Until then the
+        dict stayed mutable after construction, even on the shared
+        constants (``BC.vacuum.params``), and a tag could not be hashed.
     """
 
     kind: str
-    params: dict[str, float] = field(default_factory=dict)
+    params: Mapping[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        params = {}
+        for key, value in self.params.items():
+            if not isinstance(key, str):
+                raise TypeError(
+                    f"BC({self.kind!r}): a parameter name is a str, got "
+                    f"{key!r} ({type(key).__name__})."
+                )
+            # A parameter is a real number (NaN refused): parsed at the
+            # boundary, so equality and hash never meet a non-value.
+            params[key] = parse_real(value, f"BC({self.kind!r}).params[{key!r}]")
+        object.__setattr__(self, "params", FrozenMapping(params))
 
     # ── the three parameter-free tags, as named constants ────────────────
     #
@@ -66,7 +91,7 @@ class BC:
 
     def __repr__(self) -> str:
         if self.params:
-            return f"BC({self.kind!r}, {self.params!r})"
+            return f"BC({self.kind!r}, {dict(self.params)!r})"
         return f"BC({self.kind!r})"
 
     def to_alpha(self) -> float:

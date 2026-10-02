@@ -364,7 +364,7 @@ _HOMOGENEOUS_REFUSALS = [
     ("inf", lambda: StructuredGeometry.from_homogeneous(math.inf, _LAW_B),
      ValueError, "the width is positive and finite"),
     ("nan", lambda: StructuredGeometry.from_homogeneous(math.nan, _LAW_B),
-     ValueError, "the width is positive and finite"),
+     ValueError, "is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     ("string", lambda: StructuredGeometry.from_homogeneous("1.0", _LAW_B),  # type: ignore[arg-type, call-arg]  # a refusal input
      TypeError, "must be a real number"),
     ("bool", lambda: StructuredGeometry.from_homogeneous(True, _LAW_B),

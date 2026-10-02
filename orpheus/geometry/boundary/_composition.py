@@ -92,6 +92,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Union
 
+from orpheus.numerics.content import ContentIdentity
+
+from ..scalars import parse_real
+
 if TYPE_CHECKING:
     from ._base import BoundaryTraceLaw
 
@@ -135,8 +139,8 @@ def _admit_as_operand(node: "LawNode") -> None:
         )
 
 
-@dataclass(frozen=True)
-class LawScaled:
+@dataclass(frozen=True, eq=False)
+class LawScaled(ContentIdentity):
     r"""Scalar coefficient times an inner law-descriptor node.
 
     Represents :math:`\alpha \cdot \mathrm{inner}` in the §15.2
@@ -165,6 +169,8 @@ class LawScaled:
     inner: "LawNode"
 
     def __post_init__(self) -> None:
+        # Parsed at the boundary (#405 P1 step 5): a real number, NaN refused.
+        object.__setattr__(self, "scalar", parse_real(self.scalar, "LawScaled.scalar"))
         _admit_as_operand(self.inner)
 
     def __add__(self, other: "LawNode") -> "LawSum":
@@ -195,8 +201,8 @@ class LawScaled:
         return LawScaled(-self.scalar, self.inner)
 
 
-@dataclass(frozen=True)
-class LawSum:
+@dataclass(frozen=True, eq=False)
+class LawSum(ContentIdentity):
     r"""Sum of two law-descriptor nodes.
 
     Represents :math:`a + b` in the §15.2 tensor-decomposition form.

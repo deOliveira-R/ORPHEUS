@@ -52,7 +52,6 @@ from collections.abc import Mapping
 import numpy as np
 
 from orpheus.data.materials import Materials
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
@@ -93,13 +92,13 @@ class InconsistentMaterialsError(ValueError):
 
 
 def _law_key(law) -> object:
-    """A boundary-law tag's content: a :class:`~orpheus.geometry.boundary.BC` by
-    kind + sorted params; a frozen trace law by itself (its own content
-    equality). A law with no content identity (a
-    callable-bearing inflow) keys by type and object — honest: a callable
-    has no content to compare."""
-    if isinstance(law, BC):
-        return ("BC", law.kind, tuple(sorted(law.params.items())))
+    """A boundary law's key: the law itself, whose equality and hash are its
+    content (:class:`~orpheus.numerics.content.ContentIdentity`, for a
+    :class:`~orpheus.geometry.boundary.BC` tag and every trace law since #405
+    P1 step 5; a tag keyed by ``("BC", kind, sorted params)`` until then,
+    since it could not be hashed). A law with no content identity (a
+    callable-bearing inflow, which is unhashable) keys by type and object —
+    honest: a callable has no content to compare."""
     try:
         hash(law)
     except TypeError:
@@ -303,7 +302,7 @@ class MaterialMesh:
     # ── identity (consumers campaign step 1 — R-cc3 / R-cc8 / O-6) ────────
     #
     # ONE definition, at the data tier, EXTENDED by the method meshes exactly
-    # as ``EnergyAxis``/``LegendreAxis`` extend ``Axis._identity_key``:
+    # as ``EnergyAxis``/``LegendreAxis`` extend ``Axis.content_parts``:
     #
     # * ``_contractibility_key`` — may two solutions' FIELDS be paired? The
     #   geometry (every axis: edges, boundary-law tags, labels, chart), the
@@ -399,7 +398,7 @@ class MaterialMesh:
         return (
             tuple(_axis_key(ax) for ax in self.axes),
             (self.mat_map.shape, np.ascontiguousarray(self.mat_map).tobytes()),
-            tuple((int(i), self.materials[i]._identity_key) for i in sorted(self.materials.ids)),
+            tuple((int(i), self.materials[i].content_digest) for i in sorted(self.materials.ids)),
         )
 
     @cached_property

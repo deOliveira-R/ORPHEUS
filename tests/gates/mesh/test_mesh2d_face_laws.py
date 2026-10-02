@@ -439,7 +439,11 @@ class TestFaceLaws:
         a = FaceLaws.over(_XY, _laws(_XY), "where")
         b = FaceLaws.over(_XY, {face: _DISTINCT[face] for face in reversed(_XY)}, "where")
         assert a == b and a is not b
-        assert a == dict(_laws(_XY))  # a mapping's equality
+        # Content identity (#405 P1 step 5): equal to another FaceLaws of the
+        # same items in any order, and no longer to a plain dict (until then
+        # a Mapping's equality made it so); its items are the dict.
+        assert a != dict(_laws(_XY)) and dict(a) == dict(_laws(_XY))
+        assert hash(a) == hash(b)
         other = _laws(_XY) | {"ymin": BC("albedo", {"albedo": 0.4})}
         assert a != FaceLaws.over(_XY, other, "where")
         assert a != FaceLaws.over(("xmin", "xmax"), _laws(("xmin", "xmax")), "where")

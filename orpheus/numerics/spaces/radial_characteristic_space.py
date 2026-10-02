@@ -415,18 +415,16 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
         # ``(name, shape)`` equality IS content equality (mirrors the
         # trace-space mints). Two carriers with the same ray structure mint
         # EQUAL spaces; a different level set, grid, or metric refuses.
-        import hashlib
+        # The one content encoder (#405 P1 step 5), shared by every space
+        # name.
+        from orpheus.numerics.content import name_digest
 
         metric = np.concatenate(metric_pieces)
-        payload = b"".join((
-            repr([
-                (str(k), int(s.offset), int(s.flat_size))
-                for k, s in layout.faces.items()
-            ]).encode(),
-            repr(tuple(int(lv) for lv in levels)).encode(),
-            metric.tobytes(),
+        digest = name_digest((
+            layout.structure,
+            tuple(int(lv) for lv in levels),
+            metric,
         ))
-        digest = hashlib.blake2b(payload, digest_size=8).hexdigest()
         return cls(
             name=f"{cls._SPACE_NAME}#{digest}",
             shape=(layout.total_size,),

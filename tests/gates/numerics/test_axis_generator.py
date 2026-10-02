@@ -65,7 +65,10 @@ _RULES = [
 
 
 class TestG1GeneratorIsProvenanceNotIdentity:
-    """G1 — the exclusion from ``_identity_key``: a RULING (provenance is not identity).
+    """G1 — the exclusion from ``Axis.content_parts``: a RULING (provenance is not identity).
+
+    (The parts were a hand-written ``_identity_key`` tuple until #405 P1 step 5,
+    2026-10-02, when ``Axis`` moved onto the one content encoder.)
 
     The negative legs (a DIFFERENT weights/kind is still unequal) already
     ship as ``test_axis.py::test_weights_are_part_of_identity`` and
@@ -79,9 +82,12 @@ class TestG1GeneratorIsProvenanceNotIdentity:
     ):
         """G1a — provenance is not identity, and #403 never reaches the axis.
 
-        Mutation: put ``generator`` in ``_identity_key`` → ``a1 == a2``
-        RAISES ``ValueError`` (ndarray truth ambiguity through
-        ``DiscreteMeasure.__eq__``) — measured, not merely a digest move.
+        Mutation (measured before step 5, on the then ``_identity_key``): put
+        ``generator`` in the key → ``a1 == a2`` RAISES ``ValueError`` (ndarray
+        truth ambiguity through ``DiscreteMeasure.__eq__``). Since step 5 the
+        same mutation of ``content_parts`` makes the generator a contentless
+        part, so ``a1 == a2`` falls back to identity (False) and ``hash``
+        raises: still red here.
         """
         q1, q2 = factory(), factory()
         _require(q1 is not q2, "the two rules must be distinct instances")

@@ -37,10 +37,12 @@ the mint consumes.
 
 from __future__ import annotations
 
+import operator
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import TYPE_CHECKING
+
+from orpheus.numerics.content import ContentIdentity, FrozenMapping
 
 if TYPE_CHECKING:
     from collections.abc import ItemsView, KeysView, ValuesView
@@ -51,14 +53,22 @@ __all__ = ["Materials"]
 
 
 @dataclass(frozen=True, eq=False)
-class Materials:
+class Materials(ContentIdentity):
     r"""The materials of THIS problem — ``{id → Mixture}``, a declaration.
 
-    A frozen identity object (``eq=False``: two content-equal
-    declarations are distinct declarations; content identity joins the
-    typed-axis identity family when that lands). The mapping is re-bound
-    to a read-only proxy at admission, so the declaration cannot be
-    mutated after the fact — later stages may safely hold it.
+    A frozen VALUE with content identity
+    (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+    2026-10-02): two declarations of equal mixtures under equal ids are
+    equal and hash alike, whatever objects they are and in whatever order
+    the ids were written, so a reference cache can key on a declaration.
+    Until then it compared by identity (``eq=False``) and could not be
+    pickled (it held a read-only proxy). The ids are coerced to ``int`` at
+    admission (an ``np.int64`` id is the same id; a ``bool`` is refused),
+    and the mapping is stored as a
+    :class:`~orpheus.numerics.content.FrozenMapping`, keeping the declared
+    order (iteration order is behaviour, :meth:`restrict` documents it; it
+    is not content), so the declaration cannot be mutated after the fact —
+    later stages may safely hold it, and it pickles.
 
     Parameters
     ----------
@@ -77,9 +87,14 @@ class Materials:
                 "Materials requires a non-empty materials declaration; "
                 "a problem with no declared mixtures has no stage 1."
             )
-        object.__setattr__(
-            self, "mixtures", MappingProxyType(dict(self.mixtures)),
-        )
+        declared = {}
+        for mid, mix in self.mixtures.items():
+            if isinstance(mid, bool):
+                raise TypeError(
+                    f"Materials: a material id is an int, got the bool {mid!r}"
+                )
+            declared[operator.index(mid)] = mix
+        object.__setattr__(self, "mixtures", FrozenMapping(declared))
 
     @classmethod
     def of(
