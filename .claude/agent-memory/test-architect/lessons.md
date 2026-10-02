@@ -203,6 +203,11 @@ only the ORPHEUS mechanisms they do not name.
 - **⛔ A rebinding arm cannot reach a row PARAMETRIZED OVER OBJECTS** — the parameter list is built at
   collection, before the per-test rebind, so the row reads the original class and stays green. Key a
   row a battery must reach by NAME, resolved on the module at run time. → `L100`
+- **⛔ An arm that rewrites a field of a content value AFTER construction is blind on every identity row** — the
+  constructor's eager `content_digest(self)` is cached by `id` (`content._DIGESTS`), so `==`/`hash`/digest keep
+  reading the honest content: drop the cache entry in the arm. And key arms that must survive the real module to a
+  public method, a helper the spec itself names, or a SUPPRESSION wrapper keyed on the gate's pinned fragment
+  (its red set proves one witness per rule). → `L101`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`

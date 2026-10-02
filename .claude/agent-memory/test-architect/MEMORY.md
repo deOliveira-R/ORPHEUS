@@ -26,6 +26,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **#405 P1 step 5 (content identity, W3, `refactor/content-identity`)** — gates re-specified 2026-10-02 (spec §1.5; 4 files `tests/gates/*/test_content_identity*.py` + `_content_identity_helpers.py`; battery `scratch/reference_architecture/p1step5/gates_ta/battery/`). On resume: the owed post-carve arms (per-type, S5.6 per-space, S5.9, S5.10) and the green run. → **`L99`**
 - **#405 P1 step 6 (phase-space functions, W3, `feature/phase-space-functions`)** — §1.6 re-specified 2026-10-02 (S6.1–S6.21, design (B): retraction `.H` = closed-form pullback π*); probes + plugins `scratch/reference_architecture/p1step6/ta/`. On resume: confirm landed; run S6.6 route arms post-carve.
 - **#405 P1 step 7 (question values, W1)** — §1.7 re-specified 2026-10-02 (S7.1–S7.13); drafts + prototype + battery `scratch/reference_architecture/p1step7/ta/`. On resume: confirm landed, re-run the 14 arms on the real module, pin S7.12. → **`L100`**
+- **#405 P1 step 8 (the specification, W1)** — §1.8 re-specified 2026-10-02 (S8.1–S8.11, `every` canonicalised at the specification); drafts + prototype `ORPHEUS-p1s8-ta` + 33-arm battery `scratch/reference_architecture/p1step8/ta/`. On resume: re-key † names to the real module, pin S8.5, re-run the battery. → **`L101`**
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
