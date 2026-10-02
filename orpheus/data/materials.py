@@ -49,7 +49,17 @@ if TYPE_CHECKING:
 
     from orpheus.data.macro_xs.mixture import Mixture
 
-__all__ = ["Materials"]
+__all__ = ["InconsistentMaterialsError", "Materials"]
+
+
+class InconsistentMaterialsError(ValueError):
+    """The materials of one problem disagree on the group count.
+
+    Every operator that consumes a problem's materials assumes one energy
+    discretisation, so a declaration whose mixtures carry different ``ng``
+    is refused by :meth:`Materials.uniform_group_count`; a homogenisation
+    or condensation step to a common group structure must come first.
+    """
 
 
 @dataclass(frozen=True, eq=False)
@@ -148,6 +158,28 @@ class Materials(ContentIdentity):
 
     def __repr__(self) -> str:
         return f"Materials(ids={sorted(self.mixtures)})"
+
+    def uniform_group_count(self) -> int:
+        """The one group count of the declared materials, or a refusal.
+
+        Reads every declared mixture. A caller that means only the
+        materials an assignment reaches restricts first (:meth:`restrict`);
+        the reference specification does, so a spectator never enters its
+        rule.
+
+        Raises
+        ------
+        InconsistentMaterialsError
+            If the declared mixtures disagree on ``ng``.
+        """
+        ngs = {mixture.ng for mixture in self.mixtures.values()}
+        if len(ngs) != 1:
+            raise InconsistentMaterialsError(
+                f"the materials require uniform ng; got ng values {sorted(ngs)} "
+                f"for the declared ids {sorted(self.mixtures)}. Homogenize / "
+                f"condense to a common group structure first."
+            )
+        return ngs.pop()
 
     # ── The chain's operation ─────────────────────────────────────────
 

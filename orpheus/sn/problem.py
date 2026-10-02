@@ -43,10 +43,7 @@ from orpheus.mesh import (
     legacy_mesh_from_axes,
     n_unknowns_flat as _axis_n_unknowns_flat,
 )
-from orpheus.transport.mesh.material_mesh import (
-    InconsistentMaterialsError,
-    MaterialMesh,
-)
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from .boundary.realizer import SNBoundaryRealizer
 from .mesh.method_space import SNMethodSpace
 from .mesh.reduced_operator import (
@@ -93,13 +90,6 @@ if TYPE_CHECKING:
     # reading this carrier's cached space mints).
     # The ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
     # cross-references (Sphinx resolves them by full path, no import needed).
-
-
-# ``InconsistentMaterialsError`` moved to
-# :mod:`orpheus.transport.mesh.material_mesh` (it is raised by
-# ``MaterialMesh.ng``, the method-agnostic group-consistency check) and is
-# re-exported here for the SN-side consumers / tests that import it from
-# ``orpheus.sn.problem``.
 
 
 # ═══════════════════════════════════════════════════════════════════════

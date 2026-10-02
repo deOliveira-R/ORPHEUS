@@ -18,7 +18,8 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByMaxWidth, EqualWidth, Mesh1D, Mesher
-from orpheus.sn.problem import InconsistentMaterialsError, SNProblem
+from orpheus.data.materials import InconsistentMaterialsError
+from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 
 pytestmark = pytest.mark.foundation

@@ -18,6 +18,7 @@ a :class:`~orpheus.mesh.mesher.Mesher` discretises a
 """
 
 from .boundary import BC
+from .extent import GeometryExtent
 from .coord import AngularChart, CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .structured_geometry import StructuredGeometry
 from .transformation import (
@@ -28,6 +29,7 @@ from .transformation import (
 )
 
 __all__ = [
+    "GeometryExtent",
     "AngularChart",
     "BC",
     "CoordSystem",

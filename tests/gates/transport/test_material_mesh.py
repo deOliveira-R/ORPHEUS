@@ -28,8 +28,8 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.data.materials import InconsistentMaterialsError
 from orpheus.transport.mesh import (
-    InconsistentMaterialsError,
     MaterialMesh,
     MaterialXSField,
 )

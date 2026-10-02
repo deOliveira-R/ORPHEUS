@@ -75,20 +75,7 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
-__all__ = ["InconsistentMaterialsError", "MaterialMesh"]
-
-
-class InconsistentMaterialsError(ValueError):
-    """Raised when a materials dict has inconsistent metadata.
-
-    Currently triggered when materials disagree on ``ng`` (number of
-    energy groups).  A :class:`MaterialMesh` requires a uniform group
-    structure across all materials in its ``mat_map`` because every
-    transport operator that consumes the mesh assumes one ``ng``.  A
-    homogenization / energy-condensation step must precede method-mesh
-    construction if the input materials carry different group
-    structures.
-    """
+__all__ = ["MaterialMesh"]
 
 
 def _law_key(law) -> object:
@@ -469,8 +456,9 @@ class MaterialMesh:
 
         Raises
         ------
-        InconsistentMaterialsError
-            If materials disagree on ``ng``.  A homogenization /
+        ~orpheus.data.materials.InconsistentMaterialsError
+            If materials disagree on ``ng`` (the rule's one home is
+            :meth:`~orpheus.data.materials.Materials.uniform_group_count`).  A homogenization /
             condensation step must precede method-mesh construction in
             that case.
         ValueError
@@ -478,16 +466,7 @@ class MaterialMesh:
             at the ``Materials`` admission inside ``_init_data``'s
             parse, so a constructed carrier always has ≥1 material.
         """
-        ngs = {m.ng for m in self.materials.values()}
-        if len(ngs) != 1:
-            raise InconsistentMaterialsError(
-                f"MaterialMesh requires uniform ng across all materials; "
-                f"got ng values {sorted(ngs)} in materials dict with keys "
-                f"{sorted(self.materials.keys())}.  Homogenize / condense "
-                f"to a common group structure before method-mesh "
-                f"construction."
-            )
-        return ngs.pop()
+        return self.materials.uniform_group_count()
 
     @property
     def volumes(self) -> np.ndarray:

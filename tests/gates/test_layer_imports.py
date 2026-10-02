@@ -42,6 +42,9 @@ L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
 L1_PACKAGES: frozenset[str] = frozenset({"numerics"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
 MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
+# #405 P1 step 8: the specification composes materials, geometry and a question;
+# above data, geometry and numerics, below mesh, transport, L3 and derivations.
+SPECIFICATION_PACKAGES: frozenset[str] = frozenset({"specification"})
 L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(
     {
@@ -59,10 +62,11 @@ L3_PACKAGES: frozenset[str] = frozenset(
 )
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
-    "numerics": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "geometry": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "data": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "mesh": L2_PACKAGES | L3_PACKAGES,
+    "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "mesh": SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "specification": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
     "transport": L3_PACKAGES,
     "sn": L3_PACKAGES - {"sn"},
     "pn": L3_PACKAGES - {"pn"},
@@ -216,7 +220,7 @@ def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
 # interpreter start-up, not a subtle wrong answer. These two gates make the
 # discipline explicit: one structural, one end-to-end.
 
-_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES | MESH_PACKAGES)
+_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES)
 
 
 @pytest.mark.foundation
@@ -304,6 +308,10 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.numerics.mesh_free_function",
         "orpheus.numerics.question",
         "orpheus.numerics.scalars",
+        # #405 P1 step 8 (S8.3): the specification and its keys.
+        "orpheus.specification",
+        "orpheus.data.cells",
+        "orpheus.geometry.extent",
     ],
 )
 def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
@@ -344,6 +352,15 @@ _FORBIDDEN_LEGS = [
     # A relative import climbing out of the package: `from ..transport`
     # in `orpheus/mesh/x.py` reads `orpheus.transport`.
     ("mesh/x.py", "from ..transport import fields\n", "mesh → transport"),
+    # #405 P1 step 8 (S8.3): the tempting spelling of the group-count rule.
+    ("specification/x.py", "from orpheus.transport.mesh import MaterialMesh\n", "specification → transport"),
+    ("specification/x.py", "from orpheus.mesh import Mesher\n", "specification → mesh"),
+    ("specification/x.py", "from orpheus.derivations import get\n", "specification → derivations"),
+    ("specification/x.py", "from orpheus.sn.problem import SNProblem\n", "specification → sn"),
+    ("data/x.py", "from orpheus.specification import Specification\n", "data → specification"),
+    ("geometry/x.py", "from orpheus.specification import Specification\n", "geometry → specification"),
+    ("numerics/x.py", "from orpheus.specification import Specification\n", "numerics → specification"),
+    ("mesh/x.py", "from orpheus.specification import Specification\n", "mesh → specification"),
 ]
 
 _ADMITTED_LEGS = [
@@ -352,6 +369,12 @@ _ADMITTED_LEGS = [
     ("mesh/x.py", "from .structured import Mesh1D\n"),
     ("transport/x.py", "from orpheus.mesh import Mesh1D\n"),
     ("derivations/x.py", "from orpheus.mesh import Mesh1D\n"),
+    ("specification/x.py", "from orpheus.data.cells import CellCoefficient\n"),
+    ("specification/x.py", "from orpheus.geometry.extent import GeometryExtent\n"),
+    ("specification/x.py", "from orpheus.numerics.question import Eigen\n"),
+    ("derivations/x.py", "from orpheus.specification import Specification\n"),
+    ("transport/x.py", "from orpheus.specification import Specification\n"),
+    ("sn/x.py", "from orpheus.specification import Specification\n"),
 ]
 
 

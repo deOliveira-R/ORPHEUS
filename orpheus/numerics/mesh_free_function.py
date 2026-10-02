@@ -207,28 +207,30 @@ class Symbolic(ContentIdentity):
         """The number of energy groups, one expression each."""
         return len(self.srepr)
 
-    @property
-    def is_isotropic(self) -> bool:
-        r"""Whether no group depends on the direction.
+    def depends_on(self, *coordinates: "sympy.Symbol") -> bool:
+        r"""Whether some group's value changes when the given coordinates do.
 
-        Isotropic iff, in every group, ``simplify`` reduces
-        :math:`q_g(r, \mu, \varphi) - q_g(r, \mu', \varphi')` to 0, with
-        :math:`\mu', \varphi'` fresh real symbols: the value does not change
-        when the direction does. A difference ``simplify`` cannot reduce
-        counts as a dependence: the undecided case falls on the anisotropic
-        side, which is the side a consumer refusing anisotropy refuses
-        (``sin(φ)**2 + cos(φ)**2`` is decided isotropic; a free-symbols test
-        would call it anisotropic). A derivative test is wrong here: a step
-        in the direction, ``Piecewise((1, μ > 0), (0, True))``, has zero
-        derivative wherever it is defined.
+        ``coordinates`` are the owned symbols (:attr:`r`, :attr:`mu`,
+        :attr:`phi`). The function does NOT depend on them iff, in every
+        group, ``simplify`` reduces :math:`q_g - q_g|_{c 	o c'}` to 0, with
+        every named coordinate :math:`c` replaced by a fresh real symbol
+        :math:`c'` at once. A difference ``simplify`` cannot reduce counts as
+        a dependence: the undecided case falls on the dependent side, which is
+        the side a consumer refusing the dependence refuses
+        (``sin(φ)**2 + cos(φ)**2`` is decided independent of φ; a free-symbols
+        test would call it dependent). A derivative test is wrong here: a
+        step, ``Piecewise((1, μ > 0), (0, True))``, has zero derivative
+        wherever it is defined.
         """
         import sympy
 
-        mu_other, phi_other = sympy.Symbol("mu_other", real=True), sympy.Symbol("phi_other", real=True)
-        return all(
-            sympy.simplify(q - q.subs({self.mu: mu_other, self.phi: phi_other}, simultaneous=True)) == 0
-            for q in self.expressions
-        )
+        fresh = [(c, sympy.Symbol(f"{c.name}_other", real=True)) for c in coordinates]
+        return not all(sympy.simplify(q - q.subs(fresh, simultaneous=True)) == 0 for q in self.expressions)
+
+    @property
+    def is_isotropic(self) -> bool:
+        """Whether no group depends on the direction (``μ`` and ``φ``, :meth:`depends_on`)."""
+        return not self.depends_on(self.mu, self.phi)
 
 
 @cache

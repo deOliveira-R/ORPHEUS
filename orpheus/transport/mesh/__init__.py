@@ -14,14 +14,10 @@ sibling ``transport`` modules); they do NOT import any L3 method package.
 
 from __future__ import annotations
 
-from orpheus.transport.mesh.material_mesh import (
-    InconsistentMaterialsError,
-    MaterialMesh,
-)
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
-    "InconsistentMaterialsError",
     "MaterialMesh",
     "MaterialXSField",
 ]
