@@ -15,6 +15,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.emission_spectrum import enforce_emission_spectrum
 from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.scalars import canonical_reals
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
@@ -23,18 +24,25 @@ if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
 
 
-def _read_only_dense(values) -> np.ndarray:
-    """A read-only float COPY of ``values`` — a Mixture field is a value, not a view."""
-    arr = np.array(values, dtype=float, copy=True)
+def _read_only_dense(values, where: str) -> np.ndarray:
+    """A read-only canonical float COPY of ``values`` — a Mixture field is a value, not a view.
+
+    The entries pass through :func:`~orpheus.numerics.scalars.canonical_reals`
+    (NaN refused naming ``where`` and the entry, ``-0.0`` made ``+0.0``): NaN
+    is not a cross section, nor equal to itself (#405 P1 step 5; one rule, #559).
+    """
+    arr = canonical_reals(np.asarray(values, dtype=float), where)
     arr.setflags(write=False)
     return arr
 
 
-def _read_only_csr(block) -> csr_matrix:
-    """A canonical (duplicates summed, indices sorted) read-only CSR COPY of ``block``."""
+def _read_only_csr(block, where: str) -> csr_matrix:
+    """A canonical (duplicates summed, indices sorted) read-only CSR COPY of ``block``,
+    its data parsed as :func:`_read_only_dense` parses a dense field."""
     out = csr_matrix(block, copy=True)
     out.sum_duplicates()
     out.sort_indices()
+    out.data = canonical_reals(np.asarray(out.data, dtype=float), f"{where}.data")
     for arr in (out.data, out.indices, out.indptr):
         arr.setflags(write=False)
     return out
@@ -146,13 +154,16 @@ class Mixture(ContentIdentity):
         # The dataclass is frozen, so the laws write through the frozen
         # guard exactly once, here.
         for name in self._DENSE:
-            object.__setattr__(self, name, _read_only_dense(getattr(self, name)))
+            object.__setattr__(self, name, _read_only_dense(getattr(self, name), f"{type(self).__name__}.{name}"))
         for name in self._STACKS:
             object.__setattr__(
-                self, name, tuple(_read_only_csr(block) for block in getattr(self, name)),
+                self, name, tuple(
+                    _read_only_csr(block, f"{type(self).__name__}.{name}[{order}]")
+                    for order, block in enumerate(getattr(self, name))
+                ),
             )
         object.__setattr__(
-            self, "eg", None if self.eg is None else _read_only_dense(self.eg),
+            self, "eg", None if self.eg is None else _read_only_dense(self.eg, f"{type(self).__name__}.eg"),
         )
         # Coerce chi to the validated value-object and enforce the simplex
         # / null law at the data source (mirrors Isotope.__post_init__). χ
@@ -166,20 +177,6 @@ class Mixture(ContentIdentity):
         _assert_legendre_stacks(
             type(self).__name__, len(self.SigT), SigS=self.SigS, Sig2=self.Sig2,
         )
-        # NaN is not a cross section: refused at construction, naming the
-        # field, so equality and hash never meet a non-value (#405 P1 step 5).
-        # ``chi`` is not in the loop: the emission-spectrum law above already
-        # refuses a NaN spectrum, naming ``chi``.
-        for name, arrays in (
-            *((n, (getattr(self, n),)) for n in self._DENSE),
-            *((n, tuple(block.data for block in getattr(self, n))) for n in self._STACKS),
-            ("eg", () if self.eg is None else (self.eg,)),
-        ):
-            if any(np.isnan(arr).any() for arr in arrays):
-                raise ValueError(
-                    f"{type(self).__name__}.{name} holds NaN, which is not a "
-                    f"cross section (nor equal to itself)."
-                )
 
     @property
     def is_producing(self) -> bool:

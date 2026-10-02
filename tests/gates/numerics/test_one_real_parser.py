@@ -49,6 +49,39 @@ def _sites_writing_the_fragment() -> list[str]:
     return sites
 
 
+def _mixture_with_nan():
+    from dataclasses import replace
+
+    from orpheus.derivations.common.xs_library import get_mixture
+
+    mixture = get_mixture("A", "2g")
+    sig_t = np.array(mixture.SigT)
+    sig_t[1] = math.nan
+    return replace(mixture, SigT=sig_t)
+
+
+def test_no_other_raise_names_nan() -> None:
+    """The second filter, in another vocabulary (X2 step 5): by AST, every
+    ``raise`` under ``orpheus/`` whose message text says ``NaN`` sits in
+    ``scalars.py``. First red (``[M]`` 2026-10-02, the archivist's finding):
+    ``Mixture`` kept its own loop, "holds NaN, which is not a cross section",
+    which the fragment census above could not see."""
+    sites = []
+    for path in sorted((_ROOT / "orpheus").rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(), filename=str(path))):
+            if isinstance(node, ast.Raise) and node.exc is not None:
+                text = " ".join(
+                    c.value for c in ast.walk(node.exc) if isinstance(c, ast.Constant) and isinstance(c.value, str)
+                )
+                if "NaN" in text:
+                    sites.append(f"{path.relative_to(_ROOT)}:{node.lineno}")
+    if not any(site.startswith("orpheus/numerics/scalars.py:") for site in sites):
+        pytest.fail(f"activation: the AST pass did not find scalars.py's raise; it found {sites}")
+    outside = [site for site in sites if not site.startswith("orpheus/numerics/scalars.py:")]
+    if outside:
+        pytest.fail(f"a NaN refusal outside the one parser: {outside}")
+
+
 def test_the_nan_refusal_is_written_once() -> None:
     sites = _sites_writing_the_fragment()
     if not any(site.startswith("orpheus/numerics/scalars.py:") for site in sites):
@@ -66,8 +99,9 @@ def test_the_nan_refusal_is_written_once() -> None:
         lambda: parse_finite_reals(np.array([1.0, math.nan]), "x"),
         lambda: encode(math.nan),
         lambda: RegionwiseConstant(np.array([[math.nan]])),
+        lambda: _mixture_with_nan(),
     ],
-    ids=["canonical_real", "parse_real", "parse_finite_real", "parse_finite_reals", "encode", "RegionwiseConstant"],
+    ids=["canonical_real", "parse_real", "parse_finite_real", "parse_finite_reals", "encode", "RegionwiseConstant", "Mixture"],
 )
 def test_every_site_refuses_nan_with_the_one_message(admit) -> None:
     with pytest.raises(ValueError, match=_FRAGMENT):
