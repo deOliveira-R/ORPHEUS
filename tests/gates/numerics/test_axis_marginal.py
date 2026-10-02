@@ -123,7 +123,13 @@ class TestAdjointPairing:
         """⟨Rψ, φ⟩_marginal = ⟨ψ, R.Hφ⟩_product — nulp-tier ([M]
         5.6e-16 on this fixture). Reddened by dropping V or w from
         either space (the negative leg below IS that mutation, kept
-        permanently per vv #19)."""
+        permanently per vv #19).
+
+        Promoted by #405 P1 step 6: ``R.H`` was the metric sandwich
+        ♯∘Rᵀ∘♭, whose reciprocity is its own definition, so this row
+        could not fail on any R; it is now the closed-form pullback π*,
+        which holds reciprocity only because the mint admits product
+        metrics, so this row now tests that law (scale π* by 2 → red)."""
         V = _product()
         R = V.retraction("angular")
         x, phi = _rand(V.shape, 3), _rand((2, 5), 4)
@@ -159,10 +165,11 @@ class TestAdjointPairing:
 
 class TestTwoArrows:
     def test_g64_hilbert_adjoint_is_sigma_w_times_the_section(self):
-        """R.H == Σw · E — nulp-tier (the metric sandwich (w·V·φ)/(w·V)
-        against Σw·(φ/Σw); [M] 1.1e-16 here, exact on the §9 production
-        fixture). THE anti-ERR-051 row: swapping R.H for E at a call
-        site is a Σw-sized error this gate names."""
+        """R.H == Σw · E — nulp-tier (the exact broadcast against
+        Σw·(φ/Σw), which rounds where Σw does not divide φ exactly; [M]
+        2026-10-02, 0 ULP on 5 of 6 spaces and 1 ULP on the cylinder).
+        THE anti-ERR-051 row: swapping R.H for E at a call site is a
+        Σw-sized error this gate names."""
         V = _product()
         R, E = V.retraction("angular"), V.section("angular")
         phi = _rand((2, 5), 5)
@@ -175,6 +182,7 @@ class TestTwoArrows:
         AxisSectionOperator and E is not an adjoint — a swapped call
         site cannot type-narrow its way through."""
         from orpheus.numerics.operator import (
+            AxisPullbackOperator,
             AxisSectionOperator,
             AxisRetractionOperator,
         )
@@ -187,6 +195,8 @@ class TestTwoArrows:
             pytest.fail("section() must mint the section type")
         if isinstance(R.H, AxisSectionOperator):
             pytest.fail("R.H must NOT be the section type (Σw apart)")
+        if not isinstance(R.H, AxisPullbackOperator):
+            pytest.fail("R.H must be the pullback type, the closed-form adjoint")
 
 
 # ── G6.5 / G6.6 — equivalence with the shipped kernels (LAW, real SN) ─

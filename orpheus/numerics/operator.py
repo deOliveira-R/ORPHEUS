@@ -3374,8 +3374,18 @@ class AxisRetractionOperator(_AxisMarginalBase):
     Content-wise :math:`R` is the pushforward :math:`\pi_*` (fiber
     integration) along the projection that forgets the axis, and its
     Hilbert adjoint is the pullback :math:`R^\dagger = \pi^*` — the
-    plain broadcast (`[M]` ``np.array_equal``): the
+    plain broadcast, :class:`AxisPullbackOperator`, which :meth:`adjoint`
+    returns as an object minted with the retraction: the
     :math:`(\pi_*, \pi^*)` adjunction realized on the discrete product.
+    The closed form is the Hilbert adjoint because the mint admits only
+    spaces whose metric is the product (the axis measure) ⊗ (the
+    marginal metric), and then :math:`\langle R\psi, \phi\rangle =
+    \sum_n w_n \langle\psi_n, \phi\rangle = \langle\psi, \pi^*\phi\rangle`
+    exactly. The generic metric sandwich :math:`\sharp\, R^{\mathsf T}
+    \flat` is the same operator in exact arithmetic, but it re-associates
+    :math:`(w\,G\,\phi)/(w\,G)` and so rounds 1-3 ULP away from the
+    broadcast. The closed form is the law, and the sandwich is its
+    independent witness.
 
     **Frame-induced** (S6.0b): this operator is the analysis-face
     content of the single-region indicator frame over the axis's index
@@ -3398,7 +3408,8 @@ class AxisRetractionOperator(_AxisMarginalBase):
     metric stays physical).
 
     The two arrows differ by exactly the total weight:
-    :math:`R^\dagger = \Sigma w \cdot E` (`[M]` ``np.array_equal``).
+    :math:`R^\dagger = \Sigma w \cdot E`, to 1 ULP (:math:`E` divides by
+    :math:`\Sigma w` before it broadcasts, so multiplying back rounds).
     Naming BOTH arrows canonically is the anti-ERR-051 move: a single
     undiscriminated verb would have had to choose a convention, and a
     re-pointed call site would have silently changed a source by
@@ -3407,8 +3418,33 @@ class AxisRetractionOperator(_AxisMarginalBase):
     Structurally rank-deficient (the marginal discards the axis) — no
     ``inverse()``; the transpose is the weighted scatter
     :math:`(R^{\mathsf T}\phi)(n, \cdot) = w_n\,\phi(\cdot)`, and the
-    HILBERT adjoint rides the bound spaces' metrics through ``.H``.
+    HILBERT adjoint is the pullback (above).
     """
+
+    def __init__(
+        self,
+        *,
+        full_space: "FunctionSpace",
+        marginal_space: "FunctionSpace",
+        axis_shape: tuple[int, ...],
+        dims: tuple[int, ...],
+        flat_weights: np.ndarray,
+    ) -> None:
+        super().__init__(
+            full_space=full_space,
+            marginal_space=marginal_space,
+            axis_shape=axis_shape,
+            dims=dims,
+            flat_weights=flat_weights,
+        )
+        # The adjoint is minted with the retraction from the same induced
+        # data (the two-inductions clause); the pair refer to each other,
+        # so ``R.H.H is R``.
+        self._pullback = AxisPullbackOperator(self)
+
+    def adjoint(self) -> "AxisPullbackOperator":
+        r"""The Hilbert adjoint :math:`R^\dagger = \pi^*`, the pullback."""
+        return self._pullback
 
     @property
     def domain(self) -> "FunctionSpace":
@@ -3498,7 +3534,8 @@ class AxisSectionOperator(_AxisMarginalBase):
     (``scratch/probe_s6_q5_dissolution.py`` carries the DENSE arm).
 
     NOT the adjoint of :class:`AxisRetractionOperator` — that is the
-    plain broadcast :math:`R^\dagger = \Sigma w \cdot E` (`[M]` exact).
+    pullback :class:`AxisPullbackOperator`, the plain broadcast
+    :math:`R^\dagger = \Sigma w \cdot E` (to 1 ULP).
     The two arrows carry different names and different types precisely
     so the :math:`\Sigma w` convention cannot be silently swapped at a
     call site (the ERR-051 class becomes unspellable).
@@ -3573,6 +3610,93 @@ class AxisSectionOperator(_AxisMarginalBase):
                 f"{self._full_space.shape}."
             )
         return np.add.reduce(x, axis=self._dims) / self._total_weight
+
+
+class AxisPullbackOperator(_AxisMarginalBase):
+    r"""The pullback :math:`\pi^*` along the projection that forgets one
+    axis, :math:`(\pi^*\phi)(n, \cdot) = \phi(\cdot)`, constant along the
+    axis: the Hilbert adjoint of :class:`AxisRetractionOperator`.
+
+    **Why it is the adjoint, and when.** For the retraction
+    :math:`R\psi = \sum_n w_n \psi_n` on a full space whose metric is the
+    product :math:`G_{\rm full} = \mathrm{diag}(w) \otimes G_{\rm marg}`,
+
+    .. math::
+
+       \langle R\psi, \phi\rangle_{\rm marg}
+       = \sum_n w_n \langle \psi_n, \phi\rangle_{\rm marg}
+       = \langle \psi, \pi^*\phi\rangle_{\rm full},
+
+    so :math:`R^\dagger = \pi^*`, with no metric in it. The mint
+    (:func:`orpheus.numerics.frame._collapse_pair`) admits only spaces on
+    which the product holds: the space is built from its axes, the
+    collapsed axis carries no positioned form, and the marginal keeps
+    every form of the axes that remain. The closed form is therefore the
+    adjoint of every retraction the mint can produce, and ``.H`` carries
+    no guard.
+
+    **The detector lift.** On the angular axis this is how a detector
+    response :math:`\Sigma_d(\vec r, g)` enters phase space. The
+    functional :math:`\psi \mapsto \langle \Sigma_d, R\psi\rangle` has the
+    Riesz representative :math:`R^\dagger \Sigma_d = \pi^*\Sigma_d`, with
+    no division by the measure's mass. A source rate enters through the
+    section :class:`AxisSectionOperator` instead, which divides by
+    :math:`\Sigma w` so that :math:`R \circ E = \mathrm{id}`. The two lifts
+    differ by :math:`R \circ R^\dagger = \Sigma w`, the mass of the measure
+    (4π on the sphere), and that mass is never typed.
+
+    Minted only by the retraction it is the adjoint of; the two refer to
+    each other, so ``R.H.H is R``. Domain = the marginal space; codomain
+    = the full space. The Euclidean transpose is the plain sum over the
+    axis.
+    """
+
+    def __init__(self, retraction: AxisRetractionOperator) -> None:
+        super().__init__(
+            full_space=retraction.domain,
+            marginal_space=retraction.codomain,
+            axis_shape=retraction._axis_shape,
+            dims=retraction._dims,
+            flat_weights=retraction._flat_weights,
+        )
+        self._retraction = retraction
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        r"""The marginal space the pullback lifts FROM (born bound)."""
+        return self._marginal_space
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        r"""The full space the pullback lifts INTO."""
+        return self._full_space
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        x = np.asarray(x)
+        if x.shape != self._marginal_space.shape:
+            raise ValueError(
+                f"AxisPullbackOperator.apply: input shape {x.shape} does "
+                f"not match the marginal space {self._marginal_space.shape} "
+                f"(the pullback lifts the marginal into the full product, "
+                f"not the reverse)."
+            )
+        expanded = np.expand_dims(x, self._dims)
+        return np.broadcast_to(expanded, self._full_space.shape).copy()
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        r"""The unweighted axis sum, the Euclidean transpose of the broadcast."""
+        x = np.asarray(x)
+        if x.shape != self._full_space.shape:
+            raise ValueError(
+                f"AxisPullbackOperator.apply_transpose: input shape "
+                f"{x.shape} does not match the full space "
+                f"{self._full_space.shape}."
+            )
+        return np.add.reduce(x, axis=self._dims)
+
+    def adjoint(self) -> AxisRetractionOperator:
+        r"""The involution as an object identity: ``R.H.H is R``."""
+        return self._retraction
 
 
 class TensorProductOperator(LinearOperator):
