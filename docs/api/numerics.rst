@@ -532,6 +532,27 @@ API Reference
    :undoc-members:
    :show-inheritance:
 
+Content identity — :mod:`orpheus.numerics.content`, the one encoder
+behind every persistent key and every content ``==`` and ``hash``. Its
+module docstring is the design record; the theory, with the canonical
+form of each kind of value and its reason, the schema tag, the two
+refusals and the gates, is :ref:`structured-geometry-content-identity`.
+
+.. py:module:: orpheus.numerics.content
+
+.. autofunction:: orpheus.numerics.content.encode
+
+.. autofunction:: orpheus.numerics.content.content_digest
+
+.. autofunction:: orpheus.numerics.content.name_digest
+
+.. autoexception:: orpheus.numerics.content.ContentlessError
+
+.. autoclass:: orpheus.numerics.content.ContentIdentity
+   :members: content_parts, content_digest
+
+.. autoclass:: orpheus.numerics.content.FrozenMapping
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **14265**
+Total tests collected: **14528**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 9.4%
-   L1, 2245, 15.7%
+   L0, 1348, 9.3%
+   L1, 2245, 15.5%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10574, 74.1%
+   foundation, 10837, 74.6%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 14159
+   explicit, 14422
    class-name, 46
    func-name, 0
    case, 33
@@ -144,6 +144,7 @@ Module × level grid
    data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_citation, 0, 0, 0, 0, 24, 0
+   data/test_content_identity_data, 0, 0, 0, 0, 38, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
    data/test_energy_grid, 0, 0, 0, 0, 28, 0
@@ -304,6 +305,7 @@ Module × level grid
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
+   geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
@@ -331,6 +333,7 @@ Module × level grid
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 17, 0
+   mesh/test_content_identity_mesh, 0, 0, 0, 0, 38, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 19, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
@@ -380,6 +383,8 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
+   numerics/test_content_identity, 0, 0, 0, 0, 45, 0
+   numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -589,7 +594,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 398, 0
+   test_layer_imports, 0, 0, 0, 0, 399, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

@@ -1099,12 +1099,13 @@ pairing predicate would have no witness at all
 The member list, once, so no second copy can drift:
 
 * **Contractibility key** — per spatial axis: the axis CLASS, the edge
-  array's bytes, both boundary laws' tags (a
-  :class:`~orpheus.geometry.boundary.BC` by kind and sorted parameters; a
-  frozen trace law by itself; a callable-bearing law by type and object,
-  because a callable has no content), both face labels, and a radial
-  axis's chart.  Then the ``mat_map``'s shape and bytes, and the
-  materials as ``(id, Mixture._identity_key)`` over sorted ids.  An
+  array's bytes, both boundary laws (a
+  :class:`~orpheus.geometry.boundary.BC` tag and a frozen trace law
+  alike by the law itself, whose equality and hash are its content; a
+  callable-bearing law, which has no content, by type and object), both
+  face labels, and a radial axis's chart.  Then the ``mat_map``'s shape
+  and bytes, and the materials as ``(id, mixture.content_digest)`` over
+  sorted ids (:ref:`structured-geometry-content-identity`).  An
   ``SNProblem`` appends the quadrature's own content key — nodes, weights,
   support, invariance group, exactness claim, level structure, folding —
   and ``type(scheme).__qualname__``.

@@ -171,7 +171,7 @@ the rules handed to the mesher.
    mesh = mesher.mesh
    finer = mesher.refine(2).mesh
    assert (mesh.N, finer.N) == (64, 128)
-   assert mesh.face_laws == {"xmax": BC.vacuum}
+   assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
 
 The general constructor
 ``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` is what the

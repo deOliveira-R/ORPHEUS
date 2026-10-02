@@ -39,6 +39,18 @@ Key facts
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.from_thicknesses`,
   the left fold :math:`r_{k+1} = r_k + t_k`
   (:ref:`structured-geometry-stored-breakpoints`).
+* **Equality and hash are content, through one encoder.** The geometry,
+  its boundary laws, the ``BC`` tags, the mesh, its ``FaceLaws``, the
+  mixtures and the ``Materials`` declaration all derive ``==`` and
+  ``hash`` from one content digest,
+  :func:`~orpheus.numerics.content.content_digest` (blake2b-256 of a
+  type-tagged, length-prefixed encoding), so two values that are the
+  same physics are equal and hash alike in every process and on every
+  platform, which is what a persistent cache key needs. A real scalar is
+  its value (``1 == 1.0``, ``-0.0`` is ``+0.0``), NaN is refused when a
+  value is constructed, and an object's digest covers its class's
+  schema, so an entry written under an older schema misses
+  (:ref:`structured-geometry-content-identity`).
 * **Hollow cylinders and spheres are declarable, and every method
   refuses a declared law it would drop.** S\ :sub:`N` and diffusion
   admit only a reflective inner law on a hollow body (#511), which is
@@ -507,7 +519,7 @@ A session reads like this:
    )).mesh
    assert mesh.N == 12
    assert mesh.mat_ids.tolist() == [1, 1] + [0] * 8 + [1, 1]
-   assert mesh.face_laws == {"xmin": BC.vacuum, "xmax": BC.reflective}
+   assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.reflective}
    assert mesh.boundary_points == (0.0, 3.0)
 
 
@@ -583,10 +595,14 @@ The derived quantities are ``widths``, ``centers``, ``areas``,
 in the order of ``face_laws``) and ``outer_law``, which reads
 ``face_laws["xmax"]`` (the law on :math:`r = r_R`, a slab's right face,
 the one law collision probability, characteristics and Monte Carlo
-read). Equality is bitwise over the five fields. A mesh has no hash
-yet: its content identity, and the discretisation digest that keys on
-it, land in step 5 of the reference-solution plan together with the
-shared encoder.
+read). Equality and hash are the content identity of the five fields
+(:ref:`structured-geometry-content-identity`): two meshes with the same
+coordinate system, edges, volumes, material ids and face laws are equal
+and hash alike in every process, whatever objects built them, and the
+derived ``widths``, ``centers`` and ``areas`` are not content
+(``compare=False``), because they are functions of the five. The
+mesh's digest is the content key of the discretisation, and it reads no
+material data, only the material ids.
 
 **Why the volumes are stored, and why they are checked.** An
 equal-volume cell's volume is stored as the equal share :math:`m/n` of
@@ -696,7 +712,8 @@ declaration to its realised operator. A consumer that asks whether a
 body has an inner face asks ``"xmin" in mesh.face_laws``.
 
 **The value.** :class:`~orpheus.mesh.face_laws.FaceLaws` is a frozen,
-ordered, picklable mapping from face name to law. A mesh is given its
+ordered, picklable mapping from face name to law, a subclass of
+:class:`~orpheus.numerics.content.FrozenMapping`. A mesh is given its
 laws as any mapping keyed by face name, and builds the value with
 ``FaceLaws.over(inventory, laws, where, coord)``, which refuses, each
 with a keyed message:
@@ -715,9 +732,13 @@ with a keyed message:
 
 The value iterates the face names in inventory order, whatever the
 order of the caller's mapping, so ``tuple(mesh.face_laws)`` is the
-inventory; its equality is a mapping's (the same faces carrying equal
-laws), so it compares equal to a plain ``dict``; assigning to it raises.
-It is picklable because the reference-solution cache (step 5 of #405)
+inventory; assigning to it raises. Its equality and hash are content
+identity (:ref:`structured-geometry-content-identity`): the same faces
+carrying equal laws, in any order, are one value. A ``FaceLaws`` is
+equal only to another ``FaceLaws``, never to a plain ``dict`` of its
+items; to compare its items with a dictionary, compare
+``dict(mesh.face_laws)``, as the examples below do.
+It is picklable because the reference-solution cache of #405
 pickles its entries, and a mesh is part of what it stores: `[M]` the
 read-only view the first 2-D spelling stored, a ``MappingProxyType``,
 raises ``TypeError: cannot pickle 'mappingproxy' object``.
@@ -748,8 +769,8 @@ reads ``face_laws["xmax"]``.
                   "xmax": BC.vacuum, "ymin": BC.reflective},
    )
    assert tuple(box.face_laws) == ("xmin", "xmax", "ymin", "ymax")
-   assert box.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum,
-                            "ymin": BC.reflective, "ymax": BC.vacuum}
+   assert dict(box.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum,
+                                  "ymin": BC.reflective, "ymax": BC.vacuum}
 
    # A solid (r, z) mesh: the axis r = 0 carries no law.
    rod = Mesh2D(
@@ -1073,7 +1094,10 @@ What the mesh layer does not carry
   mesh refuse any other inner law before it reaches the axis.
 * A ``Mesh2D`` has no geometry value to be built from, so no Mesher
   builds it.
-* The discretisation digest and the mesh's hash are step 5's.
+* A cache keyed on the mesh's digest. The digest exists
+  (:ref:`structured-geometry-content-identity`); no code in the tree
+  stores an entry under it, and the specification that composes it with
+  the materials, the question and the source is #405's.
 * Quality, preview, adaptation and external meshers are #539.
 
 
@@ -1094,7 +1118,9 @@ neither completes an undeclared face nor constructs a law).
 five classes calls ``parse_boundary_law``; ``TestTheOneInventoryRule``,
 that both meshes name the same first-axis faces and both constructors
 ask ``face_inventory``; ``TestFaceLaws`` for the value's order,
-immutability, mapping equality and pickle round trips of the value and
+immutability, content equality (equal to another ``FaceLaws`` of the
+same items in any order, and not to a plain ``dict``) and pickle round
+trips of the value and
 of both meshes; and ``TestTheNamedCells``, that the two named cells take
 no law keyword and carry their model's laws).
 ``tests/gates/mesh/test_axis_adapter_laws.py`` carries the axes
@@ -1787,6 +1813,673 @@ at.
 **What stays out of scope**: transcribing the 20 multi-media problems
 into the registry (#536); the F\ :sub:`N` cylinder (#170); a solver
 for problems 3, 30, 58 to 61 and 63 to 66, which no family has.
+
+
+.. _structured-geometry-content-identity:
+
+Content identity: one encoder for every value a key covers
+==========================================================
+
+Every value a reference question is posed from (the mixtures and the
+``Materials`` declaration, the geometry with its boundary laws, the
+mesh with its face laws) derives its equality and its hash from one
+content digest. The digest is computed by one encoder,
+:mod:`orpheus.numerics.content`, whose module docstring is the design
+record; this section states the problem it solves, the canonical form
+of each kind of value with its reason, the schema tag, the two
+refusals, what the encoder replaced and the gates that hold it. It
+landed as step 5 of the first phase of the reference-solution campaign
+(#405), on 2026-10-02.
+
+The axis of a function space uses the same encoder: an
+:class:`~orpheus.numerics.axis.Axis` is a content-identity value whose
+parts exclude its generator, and every derived space name is a digest
+of its content (:ref:`spaces-identity-bridge`,
+:ref:`spaces-generator-identity-exclusion`).
+
+.. _structured-geometry-content-identity-problem:
+
+Why one content identity, and why it is the digest
+--------------------------------------------------
+
+The reference-solution cache of #405 stores the answer to a question
+under a key computed from the question's content: the materials, the
+geometry with its laws, and the discretisation. The key must have two
+properties at once. Two values that are the same physics must give the
+same key in every process and on every platform, or a stored answer is
+never found again. Two values that differ in anything a consumer reads
+must give different keys, or the cache serves one problem's answer to
+another.
+
+Python's ``hash`` has neither property across processes. The hash of a
+``str`` or ``bytes`` is salted per interpreter (``PYTHONHASHSEED``), so
+a tuple key built from them changes from one run to the next. `[M]` at
+``1dc31163``, the hash of the 2-group mixture A of
+``orpheus.derivations.common.xs_library`` was 2365733758199073423 under
+``PYTHONHASHSEED=1`` and -2362898479209405550 under ``PYTHONHASHSEED=2``
+(the test-architect's probe, ``.claude/plans/reference_p1_spec.md``
+§1.5, correction 7).
+
+A per-type equality cannot provide the key either. Each type that
+defines its own ``__eq__`` defines its own "same value", and a key folded
+from several such types inherits every disagreement among them: one type
+separates ``-0.0`` from ``+0.0`` and another does not, one admits NaN,
+one compares by identity, one cannot be hashed. So there is one
+definition of "the same content", the encoder, and every type's ``==``
+and ``hash`` is derived from its digest (instrument doctrine X4, one
+definition per quantity): equality and the cache key cannot drift
+apart, because they are one computation.
+
+.. dropdown:: What each type's equality was before the encoder (`[M]` at ``1dc31163``)
+   :color: muted
+
+   The explorer's census measured each type on the tree the step
+   started from (``scratch/reference_architecture/p1step5/census.md``
+   §2 and §4):
+
+   * a ``Mixture`` compared its arrays by their bytes, so ``-0.0`` and
+     ``+0.0`` gave two unequal mixtures, and so did one sparse matrix with
+     and without an explicitly stored zero; a NaN cross section was
+     admitted;
+   * ``Materials`` compared by identity (``eq=False``: two declarations of
+     the same mixtures were two values) and could not be pickled, because
+     it held a read-only ``mappingproxy``, so no ``MaterialMesh`` could be
+     pickled either;
+   * a ``BC`` tag could not be hashed (its ``params`` was a ``dict``),
+     that dict stayed mutable after construction (the shared constants
+     ``BC.vacuum`` and the others included), its values were not checked
+     (a ``str`` was admitted), and a NaN parameter made two equal-looking
+     tags unequal;
+   * a geometry holding a ``BC`` tag could not be hashed;
+   * a ``FaceLaws`` compared equal to a plain ``dict`` of its items, and
+     could not be hashed (``Mapping`` defines ``__eq__``, which removes the
+     inherited hash);
+   * a ``Mesh1D`` compared bitwise through a hand-written ``__eq__`` and
+     could not be hashed;
+   * a ``Mesh2D`` raised ``ValueError`` on ``==`` between any two distinct
+     meshes (the generated ``__eq__`` compared arrays), aliased the
+     caller's writeable arrays, and stored ``-0.0``;
+   * ``VacuumInflow`` and ``ReflectiveBoundary`` hand-wrote ``__eq__`` and
+     ``__hash__``.
+
+.. _structured-geometry-content-identity-forms:
+
+The canonical forms, each with its reason
+-----------------------------------------
+
+:func:`~orpheus.numerics.content.encode` turns a value into bytes,
+recursively. Every chunk carries a one-byte type tag and an 8-byte
+length, so no two different values share a byte stream: the encoding is
+injective on the values it admits, and ``("a", "b")`` and ``("ab",)``
+cannot collide. :func:`~orpheus.numerics.content.content_digest` is the
+blake2b digest of those bytes, 32 bytes (256 bits), wide enough that a
+collision between two specifications is not a failure mode the cache
+considers. The canonical form of each kind of value follows Python's
+``==`` wherever ``==`` is defined on it, because that is the user's
+ruling of 2026-10-02: the digest follows ``==``.
+
+.. list-table:: The canonical forms
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Value
+     - Canonical form
+     - Reason
+   * - real scalar (``bool``, ``int``, ``float``, the numpy real
+       scalars)
+     - one IEEE-754 double, little-endian; ``-0.0`` becomes ``+0.0``;
+       NaN is refused (``ValueError``, naming the path to it); an
+       integer of magnitude above :math:`2^{53}` is refused
+     - ``True == 1 == 1.0`` in Python, so ``BC("albedo", {"albedo": 1})``
+       and ``{"albedo": 1.0}`` are one value; ``-0.0 == 0.0``; NaN is
+       not equal to itself, so a value holding it has no equality to
+       encode; an integer beyond :math:`2^{53}` has no exact double, and
+       ``==`` would separate it from the double it rounds to
+   * - boolean, integer or real array
+     - its shape, then its entries as canonical doubles (``-0.0``
+       becomes ``+0.0``, NaN and wide integers refused, the width
+       checked on the integers themselves so an unsigned 64-bit entry
+       cannot wrap); a complex array, and any other dtype, is refused
+     - ``np.array_equal`` already identifies an integer material map
+       with its float twin: the dtype is storage, not content. Rounding
+       a ``float64`` value to ``float32`` is a change of value, and
+       moves the digest
+   * - sparse matrix
+     - the matrix in compressed sparse row form, with duplicate entries
+       summed, explicitly stored zeros eliminated and indices sorted,
+       then its shape, row pointers, column indices and values
+     - a sparse matrix is the matrix, not its storage: an explicitly
+       stored zero equals its absence, and ``int64`` indices equal
+       ``int32`` ones. Its stored values are checked for NaN and width
+       before the cast to doubles; a complex matrix is refused
+   * - ``str``, ``bytes``, ``None``
+     - their bytes (UTF-8 for a string), each kind with its own tag
+     - ``"1"`` is not ``1`` and ``b"a"`` is not ``"a"``
+   * - ``tuple`` and ``list``
+     - their elements in order, under two different tags
+     - ``(1,) != [1]`` in Python
+   * - mapping
+     - its (key, value) pairs, ordered by the encoded key
+     - the order of insertion is not content, so two declarations in
+       different orders are one value; a ``str`` key and an ``int`` key
+       stay distinct
+   * - ``set``, ``frozenset``
+     - the encoded elements, sorted
+     - iteration order is not content
+   * - ``Enum`` member
+     - its class's ``module.qualname`` and its member name (checked
+       before the scalars, since an ``IntEnum`` member is an ``int``)
+     - two enumerations with a member of one name are different values;
+       ``CoordSystem.SPHERICAL`` is not the string ``"spherical"``
+   * - a :class:`~orpheus.numerics.content.ContentIdentity` value, or
+       a frozen dataclass whose own equality is by value (``eq=True``)
+     - the schema tag (next section), then its parts in schema order:
+       the dataclass fields with ``compare=True`` unless the class says
+       otherwise
+     - a value is its class's schema and its parts; a field declared
+       ``field(compare=False)`` is not content, the one spelling of
+       that (an axis's generator, a mesh's derived widths)
+   * - a mutable part inside an object: a ``list``, a ``dict``, a
+       ``set``, a writeable array, a sparse matrix with writeable arrays
+     - refused with
+       :class:`~orpheus.numerics.content.ContentlessError`
+     - the part could change after its owner was keyed, under a cached
+       digest; a ``tuple``, a ``frozenset``, a
+       :class:`~orpheus.numerics.content.FrozenMapping` and a read-only
+       array are admitted. A value handed to ``content_digest`` directly
+       is not a part and is not held to this
+   * - anything else
+     - refused with
+       :class:`~orpheus.numerics.content.ContentlessError`, naming the
+       path from the root value
+     - a function, a plain object, a dataclass compared by identity
+       (``eq=False``), a mutable dataclass or an object array has no
+       content a persistent key can carry
+
+**One limitation, by design.** The schema tag names a class by its module
+and qualified name, so two classes defined under one name (inside one
+function, on two calls) share a tag. A class defined inside a function is
+therefore not a persistent type; nothing in the package defines one.
+
+.. code-block:: python
+
+   import pickle
+
+   import numpy as np
+
+   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+   from orpheus.geometry.boundary import AlbedoBoundary, VacuumInflow
+   from orpheus.numerics.content import ContentlessError, content_digest, encode
+
+   # A real scalar is its value: the digest follows ==.
+   assert BC("albedo", {"albedo": 1}) == BC("albedo", {"albedo": 1.0})
+   assert hash(BC("albedo", {"albedo": 1})) == hash(BC("albedo", {"albedo": 1.0}))
+   assert encode(-0.0) == encode(0.0) and encode(True) == encode(1)
+
+   # Containers keep the distinctions == keeps; a mapping's order is not content.
+   assert encode((1,)) != encode([1])
+   assert encode({"a": 1, "b": 2}) == encode({"b": 2, "a": 1})
+   assert encode({"1": 0}) != encode({1: 0})
+
+   # An array is its values on its shape; the dtype is storage.
+   assert encode(np.array([1, 2])) == encode(np.array([1.0, 2.0]))
+   assert encode(np.zeros((2, 1))) != encode(np.zeros((1, 2)))
+
+   # NaN is refused where the value is made, naming the parameter.
+   try:
+       AlbedoBoundary(float("nan"))
+   except ValueError as err:
+       assert "AlbedoBoundary.albedo" in str(err)
+   else:
+       raise AssertionError("a NaN albedo was admitted")
+
+   # A tag and the typed law it resolves to are two declarations.
+   assert BC.vacuum != VacuumInflow()
+
+   # Two geometries built apart are one value, in every process.
+   def sphere():
+       return StructuredGeometry(
+           coord=CoordSystem.SPHERICAL, breakpoints=(0.25, 0.5, 1.0, 2.0),
+           mat_ids=(0, 1, 0), boundaries=(AlbedoBoundary(0.5), BC.vacuum),
+       )
+
+   a, b = sphere(), sphere()
+   assert a is not b and a == b and hash(a) == hash(b)
+   assert len(content_digest(a)) == 32
+   assert pickle.loads(pickle.dumps(a)) == a
+
+   # Anything else has no content.
+   try:
+       encode(lambda x: x)
+   except ContentlessError as err:
+       assert "has no content identity" in str(err)
+   else:
+       raise AssertionError("a function was encoded")
+
+.. _structured-geometry-content-identity-schema:
+
+The schema tag: a key covers the class's schema
+-----------------------------------------------
+
+An object encodes as its schema tag followed by its parts. The tag is
+the text ``<module>.<qualname>|v<version>|<part names>``: the class's
+module and qualified name, its ``__content_version__`` (a class
+attribute, 1 unless the class raises it) and the names of its parts in
+order. `[M]` the tag of a ``BC`` reads
+``orpheus.geometry.boundary._tag.BC|v1|kind,params``. Adding, removing,
+renaming or reordering a part, raising the version, and moving or
+renaming the class each change every digest of that class.
+
+This implements the user's ruling of 2026-10-01 on #405: the cache key
+covers the schema of every persisted class, so an entry written under an
+older schema MISSES. The lookup computes the key under the current schema
+and finds nothing, and the stale object is never read. A ``__setstate__``
+refusal on each class was declined, because it adds a guard per class and
+per carve, while a schema-covering key handles every class and every
+future carve once.
+
+**Pickling goes through the constructor.** A default unpickle restores an
+object's fields without running its ``__post_init__``: its arrays come
+back writeable and its admission laws never run, so a pickle written
+before a carve loads silently into the class as it is after the carve
+(the reflective cleanup's qa review measured a
+``ReflectiveBoundary('x', 0.7)`` pickled before the albedo was removed
+loading as a mirror that ignores its 0.7, and a pickled
+``0.7*R + 0.3*W`` loading as an admitted ``LawSum``;
+``scratch/boundary_ontology/reflective_qa_review.md``, G1). So
+``ContentIdentity.__reduce__`` pickles a dataclass value as its class and
+its ``init`` fields and rebuilds it by calling the constructor: every law
+re-runs on load, the arrays are read-only copies again, and a pickle
+written under an older schema (a removed field) fails to load with a
+``TypeError`` naming the field instead of loading as a value it is not.
+``FrozenMapping`` pickles as its items, and ``PrescribedInflow`` has its
+own ``__reduce__``. The key and the pickle therefore guard the schema
+twice, on the two routes a stored value can take.
+
+Three consequences follow, each a rule for whoever changes a class.
+
+* **A change in what a part means, with its name unchanged, raises
+  the class's content version.** Set ``__content_version__`` one higher:
+  the names and the order are in the tag already, but a new unit or a
+  new convention for an existing part is not, and only the version says
+  it.
+* **Moving or renaming a content class invalidates every cached entry
+  that holds it.** The tag carries the module path (``_tag`` in the
+  example above, a private module), so even a pure move such as P1
+  step 1's changes the digests. The result is a cache miss and a
+  recomputation, never a wrong answer.
+* **The tag separates classes with no parts.** ``VacuumInflow`` and
+  ``ZeroFluxBoundary`` have no fields, so their parts are the same empty
+  sequence and only the class name distinguishes them; `[M]` the
+  test-architect's battery arm that drops the tag reddens the
+  ``LawSum`` row whose operand changes from one to the other (spec
+  §1.5, correction 10). The tag is load-bearing for these types, not
+  only for schema evolution.
+
+.. _structured-geometry-content-identity-mixin:
+
+Equality and hash are the digest
+--------------------------------
+
+:class:`~orpheus.numerics.content.ContentIdentity` is the mixin that
+turns the digest into ``==`` and ``hash``. A class takes it in one of
+two ways: as a frozen dataclass declared ``eq=False`` (so the generated
+``__eq__`` and ``__hash__`` cannot shadow the mixin's), whose parts are
+by default its fields with ``compare=True``; or by overriding
+``content_parts()`` to return the named parts itself, which only
+``FrozenMapping`` does. The mixin declares ``__slots__ = ()``, so it adds
+no instance storage to a slotted class.
+
+* ``a == b`` holds when ``a is b``, or when ``type(a) is type(b)`` and
+  their digests agree. A subclass value is never equal to a value of
+  its base class: an ``EnergyAxis`` and a generic ``Axis`` with the
+  same fields are two values.
+* ``hash(a)`` is the first 8 bytes of the digest read as a signed
+  integer, so it is the same in every process.
+* The digest is computed once per object and cached in a module-level
+  table keyed by the object's ``id``, with an entry that is removed
+  when the object dies. It is not stored on the instance: a digest in
+  the instance's ``__dict__`` would be pickled with it and read back
+  under a later schema, which is the stale key the schema tag exists to
+  prevent. The cache is sound only because the values are frozen and
+  their arrays are read-only copies.
+
+`[M]` 22 concrete classes carry the mixin on this tree (23 with the
+abstract ``BoundaryTraceLaw``), walked through ``__subclasses__`` at
+runtime:
+
+.. list-table:: The content classes, and their parts
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Class
+     - Parts
+   * - ``Mixture``
+     - every cross-section field, ``chi`` and the energy grid ``eg``
+       (``None`` when the mixture has no grid); each sparse Legendre
+       block as a matrix
+   * - ``Materials``
+     - one part, ``mixtures``: a ``FrozenMapping`` from material id to
+       ``Mixture``. The ids are coerced to ``int`` at admission (an
+       ``np.int64`` id is the same id); the declared order is kept for
+       iteration and is not content
+   * - ``BC``
+     - ``kind`` and ``params``, a ``FrozenMapping`` from parameter name
+       to real number; ``bc.params`` is never equal to a plain ``dict``,
+       so compare ``dict(bc.params)``
+   * - the seven registered boundary laws (``VacuumInflow``,
+       ``ReflectiveBoundary``, ``WhiteBoundary``, ``AlbedoBoundary``,
+       ``PeriodicBoundary``, ``PrescribedInflow``,
+       ``ZeroFluxBoundary``), and the law algebra's ``LawSum`` and
+       ``LawScaled``
+     - their dataclass fields; the parts of a law (``SpecularReturn``,
+       ``IsotropicReturn``, ``NoSource``, ``ConstantInflowSource``) are
+       frozen dataclasses, encoded by the same rule without carrying
+       the mixin
+   * - ``StructuredGeometry``
+     - ``coord``, ``breakpoints``, ``mat_ids``, ``boundaries``
+   * - ``Mesh1D``
+     - ``coord``, ``edges``, ``volumes``, ``mat_ids``, ``face_laws``; the
+       derived ``widths``, ``centers`` and ``areas`` are
+       ``compare=False``
+   * - ``Mesh2D``
+     - ``edges_x``, ``edges_y``, ``mat_map``, ``face_laws``, ``coord``,
+       stored as read-only copies with ``-0.0`` canonicalised
+   * - ``FaceLaws``
+     - a ``FrozenMapping`` subclass: one part, ``items``, the mapping
+       from face name to law, so the order of the faces is not content
+   * - ``CellEdges``
+     - ``edges``
+   * - ``Axis``, ``EnergyAxis``, ``HarmonicAxis``, ``LegendreAxis``
+     - their dataclass fields: ``label``, ``shape``, ``weights``,
+       ``kind``; ``EnergyAxis`` adds ``edges`` and ``LegendreAxis`` adds
+       ``spent_axis``. The ``generator`` is declared
+       ``field(compare=False)``: provenance, not content
+       (:ref:`spaces-generator-identity-exclusion`)
+   * - ``FrozenMapping``
+     - one part, ``items``: its (key, value) pairs, order-free. It keeps
+       the declared order for iteration, is frozen and picklable, and is
+       equal only to a mapping of its own type, never to a plain
+       ``dict``. It is the one spelling of a frozen mapping in the
+       content types
+
+**Two exceptions, both kept by ruling.** ``VacuumInflow`` and
+``ReflectiveBoundary`` keep a string arm in ``__eq__``:
+``VacuumInflow() == "vacuum"`` and ``ReflectiveBoundary("x") ==
+"reflective"`` are ``True``, and every other comparison is the mixin's.
+Retiring string equality is its own cleanup (the user, 2026-10-01).
+The cost is stated here so nobody relies on the opposite: `[M]`
+``hash(VacuumInflow()) != hash("vacuum")``, so the rule "equal values
+hash alike" does not hold across the string arm, and a law and its
+kind string must not be mixed as keys of one ``dict`` or members of one
+``set``.
+
+**A tag is not its typed law.** ``BC.vacuum`` and ``VacuumInflow()``
+are different declarations and unequal (`[M]`), so two geometries that
+mean the same face but spell it differently have different digests. The
+failure this produces is a cache miss, never a wrong hit.
+
+**Where the in-process keys read it.**
+``MaterialMesh._contractibility_key`` folds each mixture's
+``content_digest``, and ``MaterialMesh``'s boundary-law
+key is now the law itself for a ``BC`` tag as for a typed law, since
+both hash by content; only a law with no content keeps the key
+``(qualified class name, id(law))``, which is honest in process because
+a callable has no content to compare. These keys are hashed by Python
+and live inside one process; the persistent key is the digest.
+
+.. _structured-geometry-content-identity-refusals:
+
+The two refusals: no content, and NaN
+-------------------------------------
+
+**A value with no content is refused, never guessed.** The encoder
+raises :class:`~orpheus.numerics.content.ContentlessError` (a
+``TypeError``) on a part it cannot encode, and the message names the
+path from the root value, for example
+``_WithGeneratorInKey.generator: Quadrature is a mutable dataclass,
+whose content can change after it is keyed`` (`[M]`, the recipe of
+:ref:`spaces-generator-identity-third-answer`). A content-identity value
+holding such a part has no digest. It is then equal only to itself
+(identity is the honest equality of a value with no content) and it is
+unhashable, because an identity hash would let it into a persistent
+key. The case in the tree is a ``PrescribedInflow`` whose source is a
+plain object or a function, such as the manufactured inflow of
+``tests/gates/sn/verification/analytical/test_mms_declared_inflow.py``:
+two laws over one such source object are two values, and a geometry
+holding one inherits the refusal, with the path through
+``boundaries``.
+
+⚠ The directional ``Quadrature`` is such a part today: it is a mutable
+dataclass (``frozen=False``) with a hand-written ``_identity_key``, so
+it compares and hashes by content in process but has no content
+encoding (`[M]` ``encode(Quadrature.gauss_legendre(4))`` raises
+``ContentlessError``). Nothing at this step keys on a quadrature; a
+persistent key that must cover an S\ :sub:`N` angular discretisation
+needs the quadrature moved onto the encoder first.
+
+**NaN is refused at construction, by parsing at the boundary.** A value
+holding NaN would have no equality to encode, so the refusal is placed
+where the value is made, and ``==`` and ``hash`` never meet a NaN on a
+value that could be constructed. The parsers, each a ``ValueError``
+naming the field or parameter:
+
+* ``parse_real`` (``orpheus/geometry/scalars.py``), the one definition
+  of "a real number" for the geometry and the mesh: it refuses ``bool``
+  and every non-real type (``TypeError``) and NaN (``ValueError``, its
+  message fragment ``is NaN, which is not a number``),
+  passes infinities (a caller needing a finite value checks it), and
+  returns ``+0.0`` for ``-0.0``;
+* ``BC`` parameters: each name must be a ``str`` and each value goes
+  through ``parse_real``, so a ``str`` or ``bool`` value is a
+  ``TypeError`` and NaN a ``ValueError``; the parsed parameters are
+  stored as a ``FrozenMapping``;
+* ``AlbedoBoundary.albedo``, ``WhiteBoundary.albedo``,
+  ``ConstantInflowSource.value``, ``LawScaled.scalar``, and the
+  ``alpha`` of ``ScalarResponse``, ``LambertianReemission`` and
+  ``SpecularReemission``, through ``parse_real``; the ``outward_sign`` of
+  ``WhiteBoundary``, ``LambertianReemission`` and ``IsotropicReturn`` is
+  an ``int``;
+* ``Mesh2D``'s edges through ``parse_positions`` (an infinite or a
+  ``bool`` edge is refused) and its material map through
+  ``parse_integer``: a material id is an ``int``, so a float map, even
+  ``[[1.0]]``, is refused, as in ``Mesh1D``;
+* every array of a ``Mixture``: the dense fields, ``chi``, the stored
+  values of every sparse Legendre block and the energy grid, the
+  message naming the field.
+
+The encoder's own NaN refusal stays as the backstop for a bare value
+handed to ``encode``. Signed zero is canonicalised twice for the same
+reason: ``parse_real`` and ``parse_positions`` store
+``+0.0`` where ``-0.0`` was given, and the encoder maps ``-0.0`` to
+``+0.0`` whatever it receives.
+
+.. _structured-geometry-content-identity-replaced:
+
+What goes through the encoder, and what it replaced
+---------------------------------------------------
+
+Every space-name digest goes through the encoder: ``FunctionSpace.of_axes``, the
+angular and scalar trace spaces, the two radial characteristic spaces
+and ``FullFieldSpace.from_blocks`` each pass a tuple of their parts to
+:func:`~orpheus.numerics.content.name_digest`, the one 8-byte space-name
+digest (the first 8 bytes of ``content_digest``, in hexadecimal), and the
+three trace spaces read their face layout's content through
+``FaceLayout.structure``, the layout's ``(key, offset, size)`` triples; the
+route gate S5.6 (below) reds any of them that hashes its own bytes.
+
+**What is outside the encoder, and why.** The Sood registry's result cache
+(``orpheus/derivations/continuous/sood_registry/cache.py``) keys its
+entries on a SHA-256 of sorted JSON; `[M]` in the census that encoding
+separates ``1`` from ``1.0`` and ``-0.0`` from ``0.0``, admits NaN,
+identifies ``{1: x}`` with ``{"1": x}`` and a tuple with a list, and has
+no production consumer (one test file reads it), so it is outside the
+encoder. The in-process keys that compare by content within
+one process and are never persisted are outside it too:
+``MaterialMesh._identity_key`` and ``_contractibility_key``, the
+``SNProblem`` extension of them, ``Quadrature._identity_key`` and
+``RigidMotion._exact_key``.
+
+.. dropdown:: The encoders and keys the encoder replaced, and who read equality (`[M]` at ``1dc31163``)
+   :color: muted
+
+   The explorer's census of the existing identity machinery
+   (``scratch/reference_architecture/p1step5/census.md`` §1) used the
+   predicate ``git grep -nE
+   "_structural_bytes|_identity_key|blake2b|hashlib|sha256|digest|_law_key|_contractibility_key|_canonicalize"``
+   over ``orpheus``, ``tests``, ``derivations`` and ``tools``: 415 lines,
+   308 of them one JSON ledger, with ``Axis._structural_bytes`` as the
+   positive control. It found five byte encoders that produced a
+   cross-process digest. All five moved onto the encoder:
+
+   .. list-table:: The five byte encoders, `[M]` at ``1dc31163``
+      :header-rows: 1
+      :widths: 26 28 46
+
+      * - Encoder
+        - What it encoded
+        - What it lacked
+      * - ``Axis._structural_bytes``, read by ``FunctionSpace.of_axes``
+          for the space name
+        - the class's ``__qualname__``, then label, shape, kind and the
+          weights' bytes (``EnergyAxis`` added the edges,
+          ``LegendreAxis`` the spent axis)
+        - it was type-tagged and length-prefixed, but encoded a scalar by
+          its ``repr``, so ``1`` and ``1.0`` gave different bytes, and its
+          class tag had no module and no version
+      * - ``AngularTraceSpace.for_layout``
+        - the ``repr`` of the face layout, then the raw bytes of
+          :math:`\Omega\cdot\hat n`, the quadrature weights and the nodes
+        - no type tag, no length prefix, no shape or dtype, ``-0.0`` not
+          canonicalised, NaN not refused
+      * - ``ScalarTraceSpace``'s name mint
+        - the ``repr`` of the layout, then the raw weight bytes
+        - the same; its comment said it mirrored the angular mint
+      * - ``RadialCharacteristicSpace``'s name mint
+        - the ``repr`` of the layout and of the levels, then the raw metric
+          bytes
+        - the same; the three trace mints were one encoder written three
+          times
+      * - ``FullFieldSpace.from_blocks``
+        - the text ``"<name>:<shape>|<name>:<shape>"`` of its two blocks
+        - a text join with no tags
+
+   The in-process keys that duplicated a type's equality retired with them:
+   ``Axis._identity_key`` and ``Axis``'s hand-written ``__eq__`` and
+   ``__hash__`` (the dataclass fields replace them, with the generator
+   declared ``compare=False``),
+   ``Mixture._identity_key`` with its ``__eq__`` and ``__hash__``,
+   ``CellEdges``' bytes hash, ``Mesh1D``'s hand-written ``__eq__``, and the
+   ``BC`` branch of ``MaterialMesh``'s law key, which keyed a tag by
+   ``("BC", kind, sorted params)`` because a tag could not be hashed.
+
+   **Who reads equality and hash in production**, from the census's
+   runtime spy (§3a: every ``__eq__`` and ``__hash__`` of the affected
+   classes wrapped, 44 wrappers on 23 classes, over ``tests/gates`` with
+   ``-m "not slow"``, 23 of 24 shards; ``tests/gates/derivations`` was
+   excluded because it had not finished): the S\ :sub:`N` geometry intern
+   (keyed on the problem and its contractibility key; 1984 hash and 1538
+   equality calls, of which 44 reached a law), ``MaterialMesh``'s law key
+   (44), collision probability's law refusal (109 tuple-membership
+   comparisons), ``Mesh1D`` equality through ``FaceLaws`` (3) and
+   ``HomogeneousProblem`` equality over its mixture (13). No production
+   code used a ``Mixture``, ``Materials``, ``BC``, ``StructuredGeometry``,
+   ``Mesh1D`` or ``Mesh2D`` as a dictionary key. Two production keys
+   changed meaning with the move: ``MaterialMesh``'s contractibility key
+   folds each mixture's canonical digest, so ``-0.0`` and an explicitly
+   stored zero no longer separate two mixtures there, and its law key
+   keys a ``BC`` tag by the tag itself.
+
+
+.. _structured-geometry-content-identity-gates:
+
+The gates and the fingerprint
+-----------------------------
+
+The specification of the gates is
+``.claude/plans/reference_p1_spec.md`` §1.5 (re-specified 2026-10-02 by
+the test-architect, with its mutation battery). Every gate is a
+``foundation`` test (a software invariant of the encoder and the types,
+with no theory-page label), and each carries ``rests_on``. `[M]`
+2026-10-02, before the step's review fixes, ``.venv/bin/python -O -m
+pytest`` over the five files: 253 collected, 253 passed; the review
+fixes added rows, and their run of record is the full suite.
+
+.. list-table:: The content-identity gates
+   :header-rows: 1
+   :widths: 40 10 50
+
+   * - File
+     - Rows at the first pass
+     - What it holds
+   * - ``tests/gates/numerics/test_content_identity.py``
+     - 45
+     - the encoder and the type population: seed stability (S5.1:
+       digests, hashes and a space name printed by two interpreters
+       under ``PYTHONHASHSEED`` 1 and 2 agree, with a ``str`` hash as
+       the control that the harness sees salting); the canonical forms
+       (S5.4); the route gate (S5.6: a decoy rebound over the
+       encoder's one recursive entry must move the digest and the hash
+       of every roster type and every derived space name, so a type or
+       a space still hashing its own bytes reds as a second encoder);
+       the fingerprint (S5.7); the schema tag (S5.8: a field added,
+       renamed or reordered, a version raised, a class moved or
+       renamed each move the digest); conformance (S5.9: every
+       content class takes ``__hash__`` from the mixin and ``__eq__``
+       from it or a declared override, a dataclass is ``eq=False`` and
+       frozen, and every concrete content class has a roster entry)
+   * - ``tests/gates/numerics/test_content_identity_axis.py``
+     - 32
+     - the ``Axis`` family: equal content is one value, a moved part
+       moves the digest, pickle round trips
+   * - ``tests/gates/data/test_content_identity_data.py``
+     - 38
+     - ``Mixture`` and ``Materials``: equal content (S5.2), each part
+       perturbed (S5.3, the population read off the production
+       instance), ``-0.0`` and NaN (S5.4), ``Materials`` key coercion
+       and order, a pickled ``MaterialMesh``
+   * - ``tests/gates/geometry/test_content_identity_geometry.py``
+     - 101
+     - ``BC``, the seven registered laws and their parts, ``LawSum``,
+       ``LawScaled`` and ``StructuredGeometry``: S5.2 to S5.4, the
+       read-only ``BC.params``, the tag that is not its law, the kept
+       string arm, the NaN and non-real refusals at construction, and
+       the contentless law (S5.5)
+   * - ``tests/gates/mesh/test_content_identity_mesh.py``
+     - 37
+     - ``FaceLaws``, ``CellEdges``, ``Mesh1D`` and ``Mesh2D``: S5.2,
+       S5.3, ``FaceLaws`` is not a ``dict``, and ``Mesh2D``'s read-only
+       copies, canonical signed zero and equality (S5.10)
+
+The population is quantified, not listed: each file declares a roster
+of its types with the expected part names, a perturbation per part and
+pairs of equal content. The population row of S5.3 reads the part names
+off the production instance and requires the roster to perturb exactly
+those, so a part added later reddens until it is perturbed; S5.9 closes
+the population from the other side, so a new content class reddens
+until it joins a roster. The battery of the specification ran 41
+textual arms against the encoder with a positive control (every chunk
+emptied: 48 new reds), and read each arm's red set against its target
+row.
+
+**The fingerprint.** S5.7 is a RECORD: it pins the hexadecimal digests
+of three values built from literals, so any edit to the encoder or to
+the schema of these classes reddens it on purpose. It was re-pinned once
+within the step: ``FrozenMapping`` changed the schema of the geometry's
+``BC`` parameters and of ``Materials``, so those two digests moved, while
+mixture A's did not. The three values are
+the 2-group mixture A of ``xs_library``, a hollow sphere of three
+intervals with an albedo specular inner law and a vacuum outer law, and
+a ``Materials`` of the 2-group mixtures A and B. Every cache key of the
+cache to come is a digest of this kind, so a moved digest invalidates
+every stored entry; the message says so, and a re-pin carries its
+reason in the commit message. The inputs are literals and IEEE-exact
+arithmetic, with no output of libm or LAPACK, so the pinned bytes are
+the same on every platform (V&V anti-pattern 38, never pin a platform
+library's float output). The ``gates`` CI workflow runs the five files
+under ``-O`` on its Linux runner, a step named "The content digests are
+the same bytes on this platform", so a platform difference in the
+encoding reddens there against the pins measured on the macOS host.
 
 
 End-state spot checks
@@ -3014,6 +3707,36 @@ trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-02
+     - **Equality and hash are content, through one encoder.**
+       :mod:`orpheus.numerics.content` landed: ``encode``,
+       ``content_digest`` (blake2b-256), ``ContentlessError`` and the
+       ``ContentIdentity`` mixin, with a schema tag per class (the
+       user's ruling of 2026-10-01: a key covers the schema, so an
+       entry written under an older schema misses) and canonical forms
+       that follow ``==`` (the user's ruling of 2026-10-02). ``Mixture``,
+       ``Materials`` (no longer compared by identity; ids coerced to
+       ``int``; picklable), ``BC`` (hashable, read-only real-valued
+       ``params``), every boundary law with ``LawSum`` and
+       ``LawScaled``, ``StructuredGeometry``, ``FaceLaws`` (no longer
+       equal to a plain ``dict``), ``CellEdges``, ``Mesh1D`` (hashable)
+       and ``Mesh2D`` (read-only copied arrays, ``==`` works) moved onto
+       it, with the ``Axis`` family and the five space-name digests.
+       NaN is refused when a value is constructed. ``FrozenMapping``
+       became the one frozen mapping (``Materials.mixtures``,
+       ``BC.params``, and the base of ``FaceLaws``), ``name_digest`` the
+       one space-name digest, and pickling goes through the constructor.
+       The encoder refuses a mutable part, an identity-compared
+       dataclass and a complex array. Retired:
+       ``Axis._identity_key``, ``Axis._structural_bytes``, the axis's
+       ``content_parts`` overrides, ``Mixture._identity_key``,
+       ``Mesh1D``'s hand-written ``__eq__``, the ``MappingProxyType``
+       stores and ``__reduce__`` methods of ``Materials`` and ``BC``,
+       and the ``BC`` branch of ``MaterialMesh``'s law key. Gates:
+       spec §1.5 of ``.claude/plans/reference_p1_spec.md``; record:
+       :ref:`structured-geometry-content-identity`.
+     - #405
+     - *(in development)* branch ``refactor/content-identity``
    * - 2026-09-30
      - **CP's slab left face is the mirror its kernel computes.** The
        guard ``_refuse_a_law_cp_drops`` admitted a slab whose left law

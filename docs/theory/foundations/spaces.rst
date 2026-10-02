@@ -159,19 +159,21 @@ the same space" is a claim this corpus has **overturned**.
      being handed the quadrature separately
      (:ref:`spaces-axis-generator`).
    - ⛔ **The generator is provenance and stays out of identity — a
-     RULING since 2026-09-12, a structural necessity before it.** A
-     :class:`~orpheus.numerics.measure.DiscreteMeasure` is still
-     un-``==``-able and unhashable, so an identity key holding one makes
-     ``Axis.__eq__`` and ``hash(Axis)`` **RAISE** — measured, not
-     conjectured. The QUADRATURE leg **inverted**: the consumers
-     campaign's S1b gave
-     :class:`~orpheus.numerics.quadrature.directional.Quadrature`
-     CONTENT identity (it is a generating datum of every SN problem), so
-     `[M]` a key holding one now compares and hashes fine and does not
-     split the ``of_axes`` name digest either. What keeps the exclusion
-     is the doctrine, not the traceback: *two axes with identical
-     structural content are the same axis whatever instance produced
-     them* (:ref:`spaces-generator-identity-exclusion`).
+     RULING.** What keeps the exclusion is the doctrine: *two axes with
+     identical structural content are the same axis whatever instance
+     produced them*. An axis's equality, hash and name digest are its
+     dataclass fields' digest through the one content encoder, and the
+     generator is declared ``field(compare=False)``, the one spelling of
+     "not content" (:ref:`structured-geometry-content-identity`). Neither
+     generator type has a content encoding: a
+     :class:`~orpheus.numerics.measure.DiscreteMeasure` holds writeable
+     arrays, and a
+     :class:`~orpheus.numerics.quadrature.directional.Quadrature` is a
+     mutable dataclass. So a part holding either makes ``Axis.__eq__``
+     fall back to identity, makes ``hash(Axis)`` raise ``TypeError`` and
+     makes the ``of_axes`` name mint raise ``ContentlessError`` (`[M]`
+     2026-10-02; the full account, with the two earlier answers to the
+     same question, is :ref:`spaces-generator-identity-exclusion`).
    - **The two one-line discriminators of the collapse doctrine.**
      *(i)* **Can the admissible fields be integrated over the collapsed
      domain?** — symmetry-forced constancy on infinite-measure orbits
@@ -531,7 +533,10 @@ what that derivation is FOR.
 :meth:`of_axes <orpheus.numerics.space.FunctionSpace.of_axes>` computes
 the name deterministically and injectively from the axes' structural
 content — a length-prefixed, type-tagged content digest, never Python's
-``hash()``, so it is stable across processes.
+``hash()``, so it is stable across processes. The digest is
+:func:`~orpheus.numerics.content.name_digest` over the tuple of axes,
+the first 8 bytes of the one content encoder's digest in hexadecimal
+(:ref:`structured-geometry-content-identity`).
 
 **Until the flip that injectivity WAS the identity.** Space identity was
 ``(name, shape)`` for every space, so the only way an axis-built space
@@ -1188,9 +1193,16 @@ Provenance is never identity — a ruling, and one leg that still raises
    because a reader who meets only the new statement re-derives the old
    one within a week.
 
-``generator`` is absent from :meth:`Axis._identity_key
-<orpheus.numerics.axis.Axis>`, so equality, hash and the ``of_axes``
-name digest all ignore it.  The reason is the doctrine, in one sentence:
+   **And answered a third time on 2026-10-02**, when the axis moved
+   onto the one content encoder (#405 P1 step 5): an inclusion now
+   fails again for BOTH generator types, by a third mechanism, which
+   the subsection :ref:`spaces-generator-identity-third-answer` below
+   measures. The ruling and its doctrinal reason are unchanged.
+
+``generator`` is declared ``field(compare=False)`` on
+:class:`~orpheus.numerics.axis.Axis`, the one spelling of "not content",
+so it is not among the axis's content parts, and equality, hash and the
+``of_axes`` name digest all ignore it.  The reason is the doctrine, in one sentence:
 **two axes with identical structural content are the same axis whatever
 instance produced them**, exactly as two identical measures are the same
 measure.  A generator records *where this axis came from*; identity
@@ -1253,34 +1265,46 @@ identity of every carrier that builds its own rule instance"* is
 **false for a quadrature generator** and survives only for a measure
 one.
 
-Reproduce it by subclassing rather than by editing the shipped key —
-the simulation is four lines and needs no mutation of production code:
+Reproduce it by subclassing rather than by editing the shipped parts —
+the simulation needs no mutation of production code. The recipe below is
+the current one: the 2026-09-12 recipe overrode the retired
+``_identity_key`` and compared the retired ``_structural_bytes``, and its
+readings are the table above. Run today it prints the third answer
+(:ref:`spaces-generator-identity-third-answer`):
 
 .. code-block:: python
 
    from orpheus.numerics.axis import Axis, BasisKind
+   from orpheus.numerics.content import ContentlessError, content_digest
    from orpheus.numerics.quadrature.directional import Quadrature
 
    class _WithGeneratorInKey(Axis):
-       def _identity_key(self):
-           return (*Axis._identity_key(self), self.generator)
+       def content_parts(self):
+           return (*Axis.content_parts(self), ("generator", self.generator))
 
-   q1, q2 = Quadrature.gauss_legendre(4), Quadrature.gauss_legendre(4)
-   a1 = _WithGeneratorInKey("angular", (q1.N,), weights=q1.weights,
-                            kind=BasisKind.NODAL, generator=q1)
-   a2 = _WithGeneratorInKey("angular", (q2.N,), weights=q2.weights,
-                            kind=BasisKind.NODAL, generator=q2)
-   a1 == a2                                   # True   (was: ValueError)
-   hash(a1) == hash(a2)                       # True   (was: TypeError)
-   a1._structural_bytes() == a2._structural_bytes()   # True
+   def readings(generator_of):
+       q1, q2 = Quadrature.gauss_legendre(4), Quadrature.gauss_legendre(4)
+       a1, a2 = (
+           _WithGeneratorInKey("angular", (q.N,), weights=q.weights,
+                               kind=BasisKind.NODAL, generator=generator_of(q))
+           for q in (q1, q2)
+       )
+       out = {"a1 == a2": a1 == a2}
+       for name, read in (("hash", lambda: hash(a1)),
+                          ("digest", lambda: content_digest(a1))):
+           try:
+               read()
+               out[name] = "computed"
+           except (TypeError, ContentlessError) as err:
+               out[name] = type(err).__name__
+       return out
 
-   # the surviving leg — the same subclass over the bare measure
-   b1 = _WithGeneratorInKey("angular", (q1.N,), weights=q1.weights,
-                            kind=BasisKind.NODAL, generator=q1.measure)
-   b2 = _WithGeneratorInKey("angular", (q2.N,), weights=q2.weights,
-                            kind=BasisKind.NODAL, generator=q2.measure)
-   b1 == b2      # ValueError: truth value of an array ... is ambiguous
-   hash(b1)      # TypeError: unhashable type: 'numpy.ndarray'
+   # A Quadrature generator: 2026-09-12 read True / equal hashes / equal bytes.
+   assert readings(lambda q: q) == {
+       "a1 == a2": False, "hash": "TypeError", "digest": "ContentlessError"}
+   # The bare measure: 2026-09-12 read ValueError on == and TypeError on hash.
+   assert readings(lambda q: q.measure) == {
+       "a1 == a2": False, "hash": "TypeError", "digest": "ContentlessError"}
 
 The gate that carries this is
 ``tests/gates/numerics/test_axis_generator.py``
@@ -1306,30 +1330,38 @@ Three consequences follow, and each is separately load-bearing:
    ``False``. That is the same row the field algebra's fiber table
    reports (:doc:`/theory/foundations/field_algebra`), and it is
    unmoved by CS5 **because** of the exclusion.
-   ⛔ **The "because" is over-determined since 2026-09-12** and the row
-   is not: `[M]` with a ``Quadrature`` generator ADMITTED to the key the
-   twin row still reads ``True``, because the two rules are now
-   content-equal.  The exclusion is still what makes the row true *for a
-   measure-generated axis*, and still what makes it true **by the
-   doctrine** rather than by a coincidence of which provenance type the
-   mint happened to record.  Read the row as a claim about content, not
-   as evidence for the exclusion.
+   ⛔ **The "because" was over-determined from 2026-09-12 to
+   2026-10-02**: `[M]` 2026-09-12, with a ``Quadrature`` generator
+   ADMITTED to the key, the twin row still read ``True``, because the
+   two rules were content-equal under the quadrature's own
+   ``_identity_key``.  Since the axis moved onto the content encoder
+   (2026-10-02) an admitted generator of either type has no content
+   encoding, so the two axes fall back to identity and the space mint
+   that digests them raises ``ContentlessError``: the twin row could
+   not be built at all
+   (:ref:`spaces-generator-identity-third-answer`). The exclusion is
+   again what makes the row true, and **by the doctrine** rather than
+   by a coincidence of which provenance type the mint recorded.
 #. **The derived space NAME cannot drift — and since the identity flip
    the exclusion carries space identity directly.**
-   ``_structural_bytes`` iterates ``_identity_key``, so any field
-   admitted to the key enters every derived space name
+   The name digest encodes the axis's content parts, so any part
+   admitted to them enters every derived space name
    (:ref:`spaces-identity-bridge`). Until the identity flip (structural
    ``__eq__``, CS4c step 6, 2026-09-07) that name WAS the identity, so an
    inclusion would not merely perturb a digest — it would split one space
    into as many spaces as there are rule instances in the process. ⛔ That
    "would split" was asserted, never measured, and `[M]` 2026-09-12 it is
-   **false on this tree**: ``_structural_bytes`` encodes a non-``bytes``
-   key part as ``repr(part)``, so two content-equal quadratures encode
-   byte-EQUAL and an inclusion splits nothing. Read the sentence as what
-   the pre-flip risk *was believed* to be; the ruling does not rest on it.
+   **false on that tree**: the retired ``_structural_bytes`` encoded a
+   non-``bytes`` key part as ``repr(part)``, so two content-equal
+   quadratures encoded byte-EQUAL and an inclusion split nothing. Since
+   2026-10-02 an inclusion makes the name mint raise
+   ``ContentlessError`` instead
+   (:ref:`spaces-generator-identity-third-answer`). Read the sentence as
+   what the pre-flip risk *was believed* to be; the ruling does not rest
+   on it.
    Since
    the flip an axis-built space compares its ``axes`` tuple directly, and
-   ``Axis`` equality IS ``_identity_key``: the exclusion of ``generator``
+   ``Axis`` equality IS the digest of its content parts: the exclusion of ``generator``
    is now what keeps provenance out of SPACE identity, with no digest in
    between. The conclusion is unchanged, and the argument for it got
    one link shorter — which is why consequence 1 above is still measured
@@ -1342,6 +1374,71 @@ Three consequences follow, and each is separately load-bearing:
    ``Axis("angular", (quad.N,), weights=quad.weights, kind=NODAL)`` it
    replaced, and mints the same digest — so no snapshot, no cached
    space, and no equality-keyed consumer could observe the change.
+
+.. _spaces-generator-identity-third-answer:
+
+The third answer: no generator has a content encoding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since 2026-10-02 an axis's ``==``, ``hash`` and name digest are the
+digest of its content parts through the one content encoder,
+:mod:`orpheus.numerics.content`
+(:ref:`structured-geometry-content-identity`). The encoder admits a
+value only when it can encode every part of it: a real scalar, a
+read-only array of numbers, a string, an immutable container of such
+values, a frozen dataclass whose equality is by value, or a
+``ContentIdentity`` value; a mutable part is refused. A part with no content
+encoding raises :class:`~orpheus.numerics.content.ContentlessError`,
+and a ``ContentIdentity`` value holding one is equal only to itself and
+unhashable. Neither generator type has a content encoding, each for its
+own reason:
+
+.. list-table:: An admitted generator, re-measured (`[M]` 2026-10-02, the recipe above)
+   :header-rows: 1
+   :widths: 28 22 22 28
+
+   * - Reading
+     - Generator = ``Quadrature``
+     - Generator = ``DiscreteMeasure``
+     - Mechanism
+   * - ``g1 == g2`` on the generator itself
+     - ``True``
+     - **RAISES** ``ValueError``
+     - unchanged from 2026-09-12: the quadrature's own
+       ``_identity_key`` compares content; the measure's generated
+       ``__eq__`` compares arrays
+   * - ``encode(g)``
+     - **RAISES** ``ContentlessError``
+     - **RAISES** ``ContentlessError``
+     - the ``Quadrature`` is a mutable dataclass (``frozen=False``),
+       whose content could change after it is keyed; the
+       ``DiscreteMeasure`` holds writeable arrays (the first refused is
+       ``nodes``), which could change after its owner is keyed
+   * - the simulated inclusion, then ``a1 == a2``
+     - ``False``
+     - ``False``
+     - the digest is refused, so equality falls back to identity
+   * - ``hash(a1)``
+     - **RAISES** ``TypeError``
+     - **RAISES** ``TypeError``
+     - an identity hash would let a contentless value into a persistent
+       key, so the mixin refuses it
+   * - ``FunctionSpace.of_axes(a1).name``
+     - **RAISES** ``ContentlessError``
+     - **RAISES** ``ContentlessError``
+     - the name mint digests the axes
+
+So the 2026-09-12 inversion is itself inverted: an inclusion is again
+not merely a change of answer, it breaks equality, hashing and the
+name for every generator the tree mints. The ruling does not rest on
+that, as it did not on the 2026-08-29 traceback: a future generator
+with a content encoding would make the inclusion compute, and the
+doctrine would still exclude it. The gates that hold the exclusion are
+unchanged: ``G1a`` and ``G1b`` of
+``tests/gates/numerics/test_axis_generator.py`` pin the ruling (their
+docstrings record the step-5 mechanism), and
+``tests/gates/numerics/test_space_of_axes.py``
+``::test_of_axes_name_is_BLIND_to_the_generator`` pins the name.
 
 .. _spaces-generator-not-a-reverse-accessor:
 
@@ -1758,10 +1855,11 @@ why the gate module is part of the same change.
        ``DiscreteMeasure`` still raises on ``==`` — and, since
        2026-09-12, its inverse: two content-equal
        :class:`~orpheus.numerics.quadrature.directional.Quadrature`
-       instances are ONE quadrature, so the *"an inclusion makes ``==``
-       and ``hash`` RAISE"* argument no longer covers the quadrature
-       case and a future "tidy the field into the key" is refuted by
-       ``G1a``/``G1b``, not by a traceback.
+       instances are ONE quadrature. A future "tidy the field into the
+       key" is refuted by ``G1a``/``G1b``, by the ruling, not by a
+       traceback; since 2026-10-02 the content encoder happens to refuse
+       an inclusion of either generator type as well
+       (:ref:`spaces-generator-identity-third-answer`).
    * - the digest is blind to provenance
      - ``tests/gates/numerics/test_space_of_axes.py``
        ``::test_of_axes_name_is_BLIND_to_the_generator``
@@ -3370,9 +3468,10 @@ why finding that out cost nothing** (hazard H-10, `[M]` 2026-09-08). The
 tree carries two poles, so ``LegendreSpace.from_L(1, "x")`` and
 ``from_L(1, "z")`` are two physically different spaces — and before the
 axis existed they were separated only by their NAMES, which encode the
-orbit space. :meth:`Axis._identity_key
-<orpheus.numerics.axis.Axis>` is ``(type, label, shape, kind, weights
-bytes)``, and `[M]` those two heads' weights are ``array_equal``: a
+orbit space. The content of an :class:`~orpheus.numerics.axis.Axis` is its
+dataclass fields ``(label, shape, weights, kind)`` under the class's
+schema tag, and `[M]` those two heads'
+weights are ``array_equal``: a
 family-generic axis labelled ``"harmonic"`` makes them **compare
 EQUAL** — a silent collapse of two poles into one. Two repairs were
 available (label by the spent axis, or subclass and extend the key);
@@ -5095,6 +5194,28 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-02
+     - **The axis and every space-name digest move onto the one content
+       encoder** (#405 P1 step 5). :class:`~orpheus.numerics.axis.Axis`
+       takes its ``==`` and ``hash`` from
+       :class:`~orpheus.numerics.content.ContentIdentity` over its
+       dataclass fields (``label``, ``shape``, ``weights``, ``kind``, the
+       generator declared ``compare=False``), which replace
+       the hand-written ``_identity_key`` tuple and the private
+       ``_structural_bytes`` encoder (which encoded a scalar by its
+       ``repr``, so ``1`` and ``1.0`` differed, and tagged the class
+       without its module). ``FunctionSpace.of_axes``, the three trace
+       spaces' name mints and ``FullFieldSpace.from_blocks``, four
+       encoders with no type tags or length prefixes, call
+       :func:`~orpheus.numerics.content.name_digest`, the one 8-byte
+       space-name digest, and the trace spaces read their layout's
+       content through ``FaceLayout.structure``. The
+       generator exclusion is answered a third time: an inclusion now
+       fails for both generator types
+       (:ref:`spaces-generator-identity-third-answer`). Record of the
+       encoder: :ref:`structured-geometry-content-identity`.
+     - #405
+     - *(in development)* branch ``refactor/content-identity``
    * - 2026-09-12
      - **A** ``Quadrature`` **is a VALUE, so the generator exclusion
        becomes a RULING** (the consumers campaign, step 1 / S1b; ruling

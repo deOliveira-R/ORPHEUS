@@ -148,7 +148,7 @@ defined in :mod:`orpheus.geometry.boundary` and exported from
    # carries the laws onto the mesh's named faces.
    geom = StructuredGeometry.slab((0.0, 10.0), (0,), left=BC.reflective, right=BC.vacuum)
    mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
-   assert mesh.face_laws == {"xmin": BC.reflective, "xmax": BC.vacuum}
+   assert dict(mesh.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum}
    assert mesh.outer_law == BC.vacuum
 
 Three convenience class-level instances are pre-defined:

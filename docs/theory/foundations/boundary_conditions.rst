@@ -5294,10 +5294,14 @@ mesher carries it onto the mesh's first face:
        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("reflective"),
    )
    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(10)).mesh
-   assert mesh.face_laws == {"xmin": BC("vacuum"), "xmax": BC("reflective")}
+   assert dict(mesh.face_laws) == {"xmin": BC("vacuum"), "xmax": BC("reflective")}
 
 The :class:`~orpheus.geometry.boundary.BC` dataclass is a thin wrapper
-``BC(kind: str, params: dict)`` with no SN-specific knowledge. The
+``BC(kind: str, params: Mapping[str, float])`` with no SN-specific
+knowledge; its parameters are stored as a
+:class:`~orpheus.numerics.content.FrozenMapping` of real numbers, and its
+equality and hash are its content
+(:ref:`structured-geometry-content-identity`). The
 mesh is method-agnostic.
 
 Step 2 — law resolution (in ``SNProblem.__init__``)

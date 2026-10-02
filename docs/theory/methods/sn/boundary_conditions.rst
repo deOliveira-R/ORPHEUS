@@ -31,8 +31,17 @@ an already-typed boundary law, and ``None`` is refused everywhere.
 
 - ``kind: str`` --- an identifier such as ``"vacuum"``, ``"reflective"``,
   or ``"white"``.
-- ``params: dict[str, float]`` --- optional numeric parameters
-  (e.g. ``{"albedo": 0.7}``).
+- ``params`` --- optional parameters, given as any mapping from name
+  (a ``str``) to real number (e.g. ``{"albedo": 0.7}``) and stored as a
+  :class:`~orpheus.numerics.content.FrozenMapping`; a value that is not
+  a real number, or is NaN, is refused at construction. The stored
+  mapping is never equal to a plain ``dict``: compare
+  ``dict(bc.params)``.
+
+A tag is a value with content identity: two tags with the same kind and
+parameters, in any order, are equal and hash alike, and
+``{"albedo": 1}`` is ``{"albedo": 1.0}``
+(:ref:`structured-geometry-content-identity`).
 
 Convenience instances are available for the common cases:
 :attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`,

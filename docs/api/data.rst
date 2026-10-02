@@ -20,8 +20,13 @@ Mixture
      read-only``.  Build a variant with :func:`dataclasses.replace`,
      which re-runs the construction laws rather than bypassing them.
    * ``==`` and ``hash`` are by **content**, not identity: two mixtures
-     built from equal data compare equal and hash equal.  Before this
-     change ``==`` raised ``ValueError`` at :math:`n_g \ge 2` (a
+     built from equal data compare equal and hash equal, in every
+     process.  The content is the one encoder's digest
+     (:ref:`structured-geometry-content-identity`): ``-0.0`` is
+     ``+0.0``, a sparse block is the matrix and not its storage (an
+     explicitly stored zero equals its absence), and a NaN in any array
+     is refused at construction, naming the field.  Before 2026-09-12
+     ``==`` raised ``ValueError`` at :math:`n_g \ge 2` (a
      dataclass-generated comparison over ndarray fields) and returned a
      **false** ``True`` at :math:`n_g = 1`, and the class was
      unhashable.
