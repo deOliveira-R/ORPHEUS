@@ -9,9 +9,10 @@ SpecularReturn("x"))``, the fossil ERR-094 was paid for. A SUM containing a
 deck is either a scaled deck in disguise (``0.5 R + 0.5 R``) or not sub-Markov
 (``R + W`` returns twice the outflow), so ``LawSum`` refuses one too. Both
 constructors refuse a leaf whose geometry factor is not the identity, in
-``__post_init__``, so every route reaches the refusal: the eight dunders on
-``BoundaryTraceLaw``, the composers' own dunders, the direct constructors and
-``dataclasses.replace``.
+``__post_init__``, so every construction route reaches the refusal: the eight
+dunders on ``BoundaryTraceLaw``, the composers' own dunders, the direct
+constructors and ``dataclasses.replace``. A route that skips construction
+(``object.__new__``, unpickling) skips it too.
 
 **A deck nested in a sum that is then scaled** (``0.5 * (R + W)``) refuses at
 the INNER node's construction, ``R + W``, before the scaling is evaluated, and

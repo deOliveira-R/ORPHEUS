@@ -65,8 +65,12 @@ No subtree walk is needed. Each constructor admits only children that are
 themselves admitted trees, so by induction no admitted tree holds a deck law
 at any depth; ``0.5 * (R + W)`` refuses at the inner sum, before the scaling
 is evaluated. The induction holds because the check sits in the constructor,
-which every route reaches (the dunders, the direct constructors and
-``dataclasses.replace``), and not in the dunders.
+which every construction route reaches (the dunders, the direct constructors,
+``dataclasses.replace``, ``sum`` and ``functools.reduce``), and not in the
+dunders. A child that is not a law at all is admitted here and refused later,
+by :func:`~orpheus.geometry.boundary.realize_recursively`; a route that skips
+construction (``object.__new__``, a pickle written before this check) skips
+the check.
 
 Mixing :class:`LawNode` instances with already-realized
 :class:`~orpheus.numerics.operator.LinearOperator` instances is

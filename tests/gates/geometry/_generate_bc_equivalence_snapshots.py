@@ -654,7 +654,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="mixed_30spec_70white_LS4",
         description=(
-            "0.3 · ReflectiveBoundary(axis='x') + 0.7 · "
+            "0.3 · AlbedoBoundary(1.0, SpecularReturn(axis='x')) + 0.7 · "
             "WhiteBoundary(axis='x', outward_sign=+1, albedo=1.0) + "
             "LevelSymmetricSN(4) at xmax. Reference: the pointwise convex "
             "combination of the two independent images."
@@ -664,7 +664,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
         # leaves (``MixedBoundaryOperator`` was removed in Wave 11), so the
         # case states it directly rather than describing it.
         compose=lambda realize: (
-            0.3 * realize(ReflectiveBoundary(axis="x"))
+            0.3 * realize(AlbedoBoundary(1.0, SpecularReturn(axis="x")))
             + 0.7 * realize(
                 WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
             )

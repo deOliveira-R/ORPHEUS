@@ -15,7 +15,7 @@ older home:
    (:class:`TestSpecularAgainstAnIndependentExpression`,
    :class:`TestDiffuseAgainstAnIndependentExpression`) — the gates that actually
    catch a bug, because (1) cannot.
-3. **The exactly-one-of-G-R invariant** (:class:`TestExactlyOneFactorIsNonTrivial`).
+3. **The at-most-one-of-G-R invariant** (:class:`TestAtMostOneFactorIsNonTrivial`).
 4. **The refusal, both directions** (:class:`TestBareAlbedoIsRefusedBySN`,
    :class:`TestDiffusionIsUnmovedAndClosureBlind`), plus the α=0 zero map the
    carve opened (:class:`TestZeroAmplitudeRealizesTheNarrowedZeroMap`).
@@ -563,10 +563,15 @@ _INVARIANT_ROWS = [
 ]
 
 
-class TestExactlyOneFactorIsNonTrivial:
+class TestAtMostOneFactorIsNonTrivial:
     r"""§11.1's illegal-states-unrepresentable law, over the WHOLE registry.
 
-    > **EXACTLY ONE of** :math:`G`, :math:`R` **is non-trivial.**
+    > **AT MOST ONE of** :math:`G`, :math:`R` **is non-trivial.**
+
+    (It read "exactly one" until 2026-10-01.) Every parametrized row below has
+    EXACTLY one non-trivial factor; the one law with neither, the bare
+    ``AlbedoBoundary(1.0)``, is its own test,
+    :meth:`test_bare_albedo_at_unit_amplitude_carries_NEITHER_factor`.
 
     Its contrapositive is the useful direction: a law that asserts any physics
     at all has :math:`G = \mathrm{id}`. Reflective and periodic put everything
@@ -602,9 +607,10 @@ class TestExactlyOneFactorIsNonTrivial:
         assert n_non_trivial == 1, (
             f"{law_id}: {n_non_trivial} non-trivial factors "
             f"(G={G!r} trivial={_g_is_trivial(G)}, "
-            f"R={R!r} trivial={_r_is_trivial(R)}). §11.1: exactly one of G, R "
-            f"is non-trivial — a quotient of the domain asserts no physics "
-            f"(R = I), a surface fixes no geometry (G = id)."
+            f"R={R!r} trivial={_r_is_trivial(R)}). §11.1: at most one of G, R "
+            f"is non-trivial, and every row here has exactly one — a quotient "
+            f"of the domain asserts no physics (R = I), a surface fixes no "
+            f"geometry (G = id)."
         )
 
     def test_bare_albedo_at_unit_amplitude_carries_NEITHER_factor(self) -> None:
