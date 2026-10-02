@@ -556,6 +556,21 @@ The closed sum type `Eigen(k)`, `Eigen(c)`, `FixedSource(σ)`, `CriticalParamete
 
 `CriticalParameter`'s parameter (which degree of freedom of the geometry varies: an outer breakpoint, a scale of all breakpoints, and for what target) is not ruled; its gates wait for NEEDS 3.
 
+#### The step-7 rulings (2026-10-02; supersede the table above, which the test-architect re-specifies)
+
+The census (`scratch/reference_architecture/p1step7/census.md`, `[M]` at `b0266115`) found that the posing campaign has landed no code: units 0 to 6 (#523-#529) are scheduled and not opened, and none of `CellCoefficient`, `GeometryExtent`, `NuclideDensity`, `CriticalParameter`, `EigenProblem`, `FixedSourceProblem` exists in `orpheus/`, `tests/` or `tools/` (0 occurrences; positive control `class SpectralMap` found). The table above is stale on every case: it predates the posing sequence's rulings of 2026-09-27 to 2026-09-29. Step 7 builds the question values as the posing sequence spells them, and nothing of the machinery behind them (no pencil, mode law, system or spectral map; those are #529).
+
+**The user's rulings (2026-10-02):**
+1. **A parameter's direction is a set of reaction-grid cells scaled together.** One `CellCoefficient` names a set of cells: k is the fission-emission cells, the classical c-eigenvalue (secondaries per collision, Sood-type benchmarks) is every emission cell, scatter and fission, and a boron search is one absorption cell. This reconciles the two meanings of c (C3 of the census): the posing plan's "one cell's coefficient" is the one-element case.
+2. **The point is a frozen mapping from parameter key to an offset from the physical value.** The empty mapping is the physical point and the default. The old `FixedSource(σ = 0)` (fission switched off) is the point that moves the fission-emission direction to its chart zero.
+3. **The adjoint fixed-source question is its own question, `Response(detector, point)`**: the importance of a detector, `E(point)^{-†} R`. `FixedSource(source, point)` holds a source and `Response` a detector; neither has an exclusive-or of fields, and no value carries a forward/adjoint flag (the eigen adjoint ψ† belongs to the eigen answer, posing ruling 2026-09-28). The question's type is the role, as step 6's ruling made the specification's field the role.
+
+**The orchestrator's rulings on the census's other NEEDS (2026-10-02):**
+4. **α is not in step 7.** The posing sequence spells α as `Eigen(time)`, along the Laplace direction, which is not one of the three declared coordinate kinds (C4). No reference in P1 asks for α; the time direction is minted with its trigger, the transient question (posing sequence, "Generator" item 5). The closed set of step 7 is closed over what is minted, and adding `time` later is an extension, not an edit of a case.
+5. **The parameter is an opaque key in `numerics`; the coordinate kinds live with whoever resolves the key.** `Eigen(parameter, point, mode)`'s `parameter` and the point's keys are opaque, digestable keys (C5, C7). `CellCoefficient` (a set of cells), `GeometryExtent` and `NuclideDensity` are coordinate DECLARATIONS mapping a key to a direction; in P1 they are declared on the reference specification (step 8), which resolves and validates the keys against its materials and geometry; #529 later declares them on the system, reusing that declaration (one definition). So step 7 mints none of the three kinds.
+6. **The mode values in step 7 are `Fundamental` and `Nearest(τ)`.** `Enclosed(region)` is minted with the pseudospectrum and spectrum work of #529 and #531, which owns its refusal beyond the continuum edge; no P1 reference asks for more than one mode.
+7. **The plan text was amended in place:** `reference_cache.md` at the "Next: P1 step 7" line (C3) and in the step-6 compaction point ("struck", not "dissolves", C2); the rulings ledger of `posing_sequence.md` marks its 2026-09-26 "input layer" line superseded (C8); `posing_u6_systems_and_problems.md` scope item 4 binds step 7's values instead of re-minting them (census item 5).
+
 ### 1.8 Step 8: the specification
 
 `Specification(materials, geometry | None, question, source | None)`, with its digest. The role fields name the pairing: `source` enters the right-hand side; the adjoint question's detector is paired with the flux.
