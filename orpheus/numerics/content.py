@@ -79,8 +79,9 @@ and qualified name, so two classes defined under one name (in one function,
 on two calls) share a tag. A class defined inside a function is therefore
 not a persistent type, and nothing in the package defines one.
 
-This module imports nothing from ``orpheus``, so the data, geometry, mesh and
-numerics layers all use it with no new layer edge.
+This module imports only :mod:`orpheus.numerics.scalars` (the one definition
+of a real number, itself a leaf), so the data, geometry, mesh and numerics
+layers all use it with no new layer edge.
 """
 
 from __future__ import annotations
@@ -88,7 +89,6 @@ from __future__ import annotations
 import dataclasses
 import enum
 import hashlib
-import math
 import struct
 import weakref
 from collections.abc import Iterable, Iterator, Mapping
@@ -96,6 +96,8 @@ from types import MappingProxyType
 from typing import Any, ClassVar, Generic, TypeVar
 
 import numpy as np
+
+from orpheus.numerics.scalars import canonical_real
 
 __all__ = [
     "ContentIdentity",
@@ -142,13 +144,7 @@ def _real(value: Any, path: str) -> float:
                 f"double cannot carry it exactly, so its content would not "
                 f"follow ==."
             )
-    x = float(value)
-    if math.isnan(x):
-        raise ValueError(
-            f"{path}: NaN is not a value (it is not equal to itself), so it "
-            f"has no content to encode."
-        )
-    return x + 0.0  # -0.0 + 0.0 is +0.0
+    return canonical_real(float(value), path)
 
 
 def _immutable(value: np.ndarray, path: str, frozen: bool) -> None:

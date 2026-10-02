@@ -109,7 +109,7 @@ import numpy as np
 from orpheus.numerics.content import ContentIdentity
 
 from .coord import CoordSystem
-from .scalars import parse_entries, parse_integer, parse_positive_real, parse_real
+from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positive_real, parse_real
 from .boundary import BC
 
 if TYPE_CHECKING:

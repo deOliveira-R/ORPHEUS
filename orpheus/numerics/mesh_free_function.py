@@ -59,6 +59,7 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.scalars import parse_finite_reals
 
 if TYPE_CHECKING:
     import sympy
@@ -82,27 +83,14 @@ class RegionwiseConstant(ContentIdentity):
     values: np.ndarray
 
     def __post_init__(self) -> None:
-        raw = np.asarray(self.values)
-        if raw.dtype.kind not in "biuf" or raw.dtype.kind == "b":
-            raise TypeError(
-                f"RegionwiseConstant: values must be real numbers, got an array of dtype {raw.dtype}"
-            )
-        if raw.ndim != 2:
+        table = parse_finite_reals(self.values, "RegionwiseConstant: values")
+        if table.ndim != 2:
             raise ValueError(
-                f"RegionwiseConstant: values is a (regions, groups) table of rank 2, got rank {raw.ndim}"
+                f"RegionwiseConstant: values is a (regions, groups) table of rank 2, got rank {table.ndim}"
             )
         for axis, noun in enumerate(("regions", "groups")):
-            if raw.shape[axis] == 0:
-                raise ValueError(f"RegionwiseConstant: the table has no {noun} (shape {raw.shape})")
-        table = np.array(raw, dtype=float) + 0.0
-        for index in zip(*np.nonzero(np.isnan(table))):
-            raise ValueError(f"RegionwiseConstant: the entry {tuple(int(i) for i in index)} is NaN, which is not a number")
-        for index in zip(*np.nonzero(np.isinf(table))):
-            raise ValueError(
-                f"RegionwiseConstant: the entry {tuple(int(i) for i in index)} is infinite; "
-                f"a rate or a response is a finite function value"
-            )
-        table.flags.writeable = False
+            if table.shape[axis] == 0:
+                raise ValueError(f"RegionwiseConstant: the table has no {noun} (shape {table.shape})")
         object.__setattr__(self, "values", table)
 
     @property

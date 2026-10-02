@@ -54,7 +54,7 @@ import numpy as np
 
 from orpheus.geometry.coord import CoordSystem, MeasureCoordinate
 from orpheus.numerics.content import ContentIdentity
-from orpheus.geometry.scalars import (
+from orpheus.numerics.scalars import (
     parse_integer,
     parse_positions,
     parse_positive_integer,

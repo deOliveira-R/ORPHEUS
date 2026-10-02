@@ -35,7 +35,7 @@ from orpheus.geometry.coord import (
     compute_areas_1d,
     compute_volumes_2d,
 )
-from orpheus.geometry.scalars import parse_entries, parse_integer, parse_positions
+from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positions
 from orpheus.mesh.face_laws import FaceLaws, face_inventory
 from orpheus.numerics.content import ContentIdentity
 

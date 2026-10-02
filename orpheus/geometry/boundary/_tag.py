@@ -15,7 +15,7 @@ from typing import ClassVar
 
 from orpheus.numerics.content import ContentIdentity, FrozenMapping
 
-from ..scalars import parse_real
+from orpheus.numerics.scalars import parse_real
 
 __all__ = ["BC"]
 

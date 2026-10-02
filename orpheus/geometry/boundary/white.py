@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
-from ..scalars import parse_integer, parse_real
+from orpheus.numerics.scalars import parse_integer, parse_real
 from ._base import BoundaryTraceLaw
 from ._factors import SelfPairedDeck, LambertianReemission
 

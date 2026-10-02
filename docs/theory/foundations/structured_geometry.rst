@@ -2277,7 +2277,7 @@ where the value is made, and ``==`` and ``hash`` never meet a NaN on a
 value that could be constructed. The parsers, each a ``ValueError``
 naming the field or parameter:
 
-* ``parse_real`` (``orpheus/geometry/scalars.py``), the one definition
+* ``parse_real`` (``orpheus/numerics/scalars.py``), the one definition
   of "a real number" for the geometry and the mesh: it refuses ``bool``
   and every non-real type (``TypeError``) and NaN (``ValueError``, its
   message fragment ``is NaN, which is not a number``),

@@ -331,7 +331,7 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.geometry.scalars import parse_integer, parse_real
+from orpheus.numerics.scalars import parse_integer, parse_real
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
 

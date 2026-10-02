@@ -94,7 +94,7 @@ from typing import TYPE_CHECKING, Union
 
 from orpheus.numerics.content import ContentIdentity
 
-from ..scalars import parse_real
+from orpheus.numerics.scalars import parse_real
 
 if TYPE_CHECKING:
     from ._base import BoundaryTraceLaw
