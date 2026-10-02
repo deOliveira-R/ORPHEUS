@@ -119,7 +119,8 @@ took two passes at the closure:
   reflective, white, periodic, albedo, and mixed BCs are now
   plumbed uniformly through the FD operator; bit-identity to the
   pre-Round 3 hard-coded reflective fill is preserved for
-  :class:`ReflectiveBoundary(axis=…, albedo=1.0)` (the standard
+  ``ReflectiveBoundary(axis=…, albedo=1.0)``, as the mirror was then
+  spelled (it has had no albedo since 2026-10-01) (the standard
   ``BC.reflective`` case), which is the load-bearing condition for
   the 11 frozen regression snapshots to stay green. (Note:
   post Issue #186 / B3 + β2 the law itself is a pure descriptor;

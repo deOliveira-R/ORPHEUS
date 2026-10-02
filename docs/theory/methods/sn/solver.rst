@@ -579,9 +579,12 @@ cancel).  A face with :math:`\alpha_f < 1` is summed.
    (``response_kernel.is_zero``) agrees with it on every law a ``BC``
    tag can declare, and drops the leakage of a partially reflecting
    typed law: the reported :math:`k` of a one-group homogeneous slab
-   under ``ReflectiveBoundary('x', 0.7)`` then comes out
+   whose faces return 70 % of their outflow specularly
+   (``AlbedoBoundary(0.7, SpecularReturn('x'))``) then comes out
    :math:`k_\infty = 0.96`, where the posed problem's is 0.830.  That
-   was this predicate until 2026-09-30 (ERR-094).
+   was this predicate until 2026-09-30 (ERR-094, which measured it on
+   the same partial wall then spelled ``ReflectiveBoundary('x', 0.7)``;
+   the two spellings realized to one matrix).
 
 This is a deliberate design choice with a bit-level payoff.  On an
 all-reflective (lattice) problem :math:`L` is a structural ``0.0``, and
@@ -749,11 +752,12 @@ on reflective; a leakage sign-flip crash-reds through the scale-bridge
 guard; and the old :math:`(n,2n)`-in-numerator convention reds the
 :math:`\Sigma_2\neq 0` leg.  The class ``TestPartialReturnLeakage`` in
 the same file extends the identity to faces that return a fraction
-:math:`0 < \alpha < 1` of their outflow (``ReflectiveBoundary``,
-``AlbedoBoundary`` with a specular return, ``WhiteBoundary`` with an
-albedo; a slab and a sphere), with the edges :math:`\alpha = 0` (the
-vacuum problem, exactly) and :math:`\alpha = 1` (bitwise the lattice
-functional): the face set of :eq:`sn-leakage-functional` is what those
+:math:`0 < \alpha < 1` of their outflow (``AlbedoBoundary`` with a
+specular return, ``WhiteBoundary`` with an albedo; a slab and a
+sphere), with the edges :math:`\alpha = 0` (the vacuum problem,
+exactly; a cylinder row too) and :math:`\alpha = 1` (bitwise the
+lattice functional, whose mirror ``ReflectiveBoundary`` carries no
+amplitude and is the foundation that edge rests on, not a row): the face set of :eq:`sn-leakage-functional` is what those
 rows pin (ERR-094).
 
 This is a **consistency** gate: the map ratio is the structurally-

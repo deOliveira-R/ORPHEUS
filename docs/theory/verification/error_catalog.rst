@@ -8825,6 +8825,19 @@ older entries classify against.
    boundary-law ontology discussion
    (``.claude/plans/boundary_law_ontology.md``, "Census A's findings").
 
+   **Root retired 2026-10-01** (branch ``refactor/reflective-is-a-mirror``).
+   The first spelling of a partial reflector below,
+   ``ReflectiveBoundary(axis, α)``, no longer exists: the mirror is the
+   parameter-free deck law (``axis`` its only field, :math:`R` the
+   identity), a second positional argument is a ``TypeError``, and the
+   composition nodes refuse ``α * ReflectiveBoundary(axis)``, the same
+   costume rebuilt through the descriptor algebra
+   (:ref:`bc-deck-law-not-an-operand`). A partially specular face has one
+   spelling, ``AlbedoBoundary(α, SpecularReturn(axis))``, and the catchers
+   below were re-spelled onto it with their frozen values bit-identical.
+   The tables in this entry record the measurement as it was made, under
+   the retired spelling.
+
    **Module:** ``orpheus/sn/solver.py`` (``SNSolver._boundary_leakage_rate``,
    the eigenvalue's leakage term), ``orpheus/sn/operators/boundary.py``
    (``RadialCharacteristicBoundaryOperator._reflect_corner``, the
@@ -9082,13 +9095,14 @@ older entries classify against.
 
    * The leakage term:
      ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_reported_k_is_the_posed_eigenvalue``
-     (10 rows: a two-group fuel | moderator slab under the three
-     spellings and a two-group sphere under the two specular ones, at
-     :math:`\alpha = 0.3` and 0.7; the reported :math:`k` against the
+     (6 rows: a two-group fuel | moderator slab under the specular and
+     the diffuse return and a two-group sphere under the specular one, at
+     :math:`\alpha = 0.3` and 0.7; 10 rows when the measurement was made,
+     before the attenuated-mirror spelling retired; the reported :math:`k` against the
      map-ratio eigenvalue, which never reads the leakage term; first red
      with the old predicate +42 % to +276 %),
      ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_two_faces_returning_different_fractions``
-     (two laws and two amplitudes on one slab, +72 %), and
+     (two walls of different amplitudes on one slab, +72 %), and
      ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_k_rises_with_the_returned_fraction``
      (the ordering :math:`k(0) < k(0.3) < k(0.7) < k(1)`; its slab rows
      red under the defect, its sphere rows are measured blind to it).
@@ -9102,10 +9116,11 @@ older entries classify against.
      refinement ladders; the defect reads +118 % and +107 %).
    * The corner:
      ``tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::test_partial_specular_corner_is_alpha_times_the_mirror``
-     (12 rows: the corner block of amplitude :math:`\alpha` equals
-     :math:`\alpha` times the mirror's, forward and transpose, bit for
-     bit, on a sphere and a folded cylinder, :math:`\alpha \in \{1, 0.7,
-     0\}`; the :math:`\alpha = 0.7` and 0 rows red under the unscaled
+     (6 rows, the specular wall's: the corner block of amplitude
+     :math:`\alpha` equals :math:`\alpha` times the mirror's, forward and
+     transpose, bit for bit, on a sphere and a folded cylinder,
+     :math:`\alpha \in \{1, 0.7, 0\}`; 12 rows, two spellings, when
+     the measurement was made; the :math:`\alpha = 0.7` and 0 rows red under the unscaled
      swap), and end to end
      ``tests/gates/sn/eigenvalue/test_keff_estimator_gate.py::TestPartialReturnLeakage::test_alpha_zero_is_the_vacuum_problem``
      (:math:`\alpha = 0` poses the vacuum problem exactly; its sphere and
@@ -9114,8 +9129,9 @@ older entries classify against.
      no corner, are the control).
    * DSA:
      ``tests/gates/sn/acceleration/test_dsa_low_order.py::TestAdmissionTeeth::test_a_partial_specular_reflector_is_refused``
-     (both specular spellings on either face of a real ``SNProblem``; with
-     the amplitude condition removed all four rows build a system) and
+     (the specular wall of amplitude 0.7 on either face of a real
+     ``SNProblem``, 2 rows; with the amplitude condition removed, all
+     four rows of the then two-spelling table built a system) and
      ``tests/gates/sn/acceleration/test_dsa_low_order.py::TestAdmissionTeeth::test_the_dsa_entry_refuses_a_partial_reflector``
      (the public route, ``solve_sn_fixed_source(..., acceleration="dsa")``).
      The divergence depends on the regime, as the first catcher's

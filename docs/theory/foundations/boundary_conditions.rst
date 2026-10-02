@@ -30,12 +30,24 @@ Key Facts
   and :ref:`bc-factor-roles`; campaign phase B3.0 corrected the
   assignment (the Lambertian average had shipped in the geometry
   slot).
+- **No shipped law has both** :math:`G` **and** :math:`R` **different
+  from the identity.** A **deck law** (``ReflectiveBoundary``,
+  ``PeriodicBoundary``) is a symmetry of the domain: :math:`G` a deck
+  element, :math:`R = I`, no amplitude; a **response** (vacuum, white,
+  albedo, zero-flux, prescribed inflow) has :math:`G = I`. A partially
+  specular wall is therefore ``AlbedoBoundary(α, SpecularReturn(axis))``,
+  never a scaled mirror, and the descriptor algebra's
+  :class:`~orpheus.geometry.boundary.LawSum` and
+  :class:`~orpheus.geometry.boundary.LawScaled` refuse a deck law as an
+  operand with a ``TypeError`` (:ref:`bc-deck-law-not-an-operand`).
 - **The** :math:`R\,G` **product is a TAXONOMY, not a computational
   factorization** (:ref:`bc-taxonomy-vs-factorization`). It answers
   *"is this law's content geometry or physics?"*; it does NOT say how
   the law is evaluated. **Whichever factor is non-trivial carries the
   crossing** :math:`\Gamma_+ \to \Gamma_-`, which is well defined
-  because exactly one of them ever is: for a **quotient** law the
+  because at most one of them ever is (a law with neither crosses
+  nothing on an angular trace: the closure-free scalar albedo, which SN
+  refuses; see :ref:`bc-factor-roles`): for a **quotient** law the
   crossing is geometric (:math:`G`), for a **constitutive** law the
   response does it by integrating the outgoing flux and re-emitting an
   incoming one — there is no ambient isometry at a wall to provide it.
@@ -406,8 +418,9 @@ therefore **constitutive** — it is :math:`R`.
    It is the contrapositive of *"*:math:`R = I` *exactly when the BC is
    a pure symmetry statement adding no physics"* — a law that asserts
    any physics at all has :math:`G = \mathrm{id}`. See
-   :ref:`bc-factor-quotients` for the table, and for the one shipped
-   row that violates it deliberately.
+   :ref:`bc-factor-quotients` for the table, which every shipped law
+   satisfies, and :ref:`bc-deck-law-not-an-operand` for why the
+   descriptor algebra may not rebuild a violation by scaling a deck law.
 
 Physically: a change of direction caused by the **geometry** is
 :math:`G`; a change of direction caused by the **constitutive
@@ -444,9 +457,11 @@ specular kernel behind
 narrowed :math:`\Gamma_+ \to \Gamma_-` permutation. `[M]` **no realized
 response is an endomorphism of** :math:`\Gamma_-`.
 
-Since exactly one of :math:`G`, :math:`R` is non-trivial, "the
-non-trivial factor crosses" is well defined. Two boundary cases sharpen
-it rather than break it:
+Since at most one of :math:`G`, :math:`R` is non-trivial, "the
+non-trivial factor crosses" is well defined. (This read "exactly one"
+until 2026-10-01: ``AlbedoBoundary(1.0)``, closure-free, has
+:math:`G = I` and :math:`R = I`, the second case below at
+:math:`\alpha = 1`.) Two boundary cases sharpen it rather than break it:
 
 * **Rank-0 laws** (vacuum, prescribed inflow). :math:`R = 0`, so the
   composite is the zero map on :math:`\Gamma_+` landing in
@@ -604,32 +619,149 @@ implemented law:
      - :math:`0`
      - a surface returning nothing
 
-Two entries realize to the *same matrix* as a geometry-tier law and are
-nonetheless different objects:
-``AlbedoBoundary(α, SpecularReturn(a))`` is
-``ReflectiveBoundary(a, α)``'s matrix, and
-``AlbedoBoundary(α, IsotropicReturn(a, s))`` is
-``WhiteBoundary(a, s, α)``'s. Keeping the *types* distinct is what
-makes "put a wall's response in the geometry slot" unspellable — the
-exact error this section's earlier form permitted. In the code the two
-routes share one realization body, so the equivalences hold by
-construction rather than by two transcriptions agreeing.
+Two pairs of entries realize through one body each and are nonetheless
+different objects. ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to
+:math:`\alpha` times the matrix of the mirror ``ReflectiveBoundary(a)``,
+and ``AlbedoBoundary(α, IsotropicReturn(a, s))`` realizes to the matrix
+of ``WhiteBoundary(a, s, α)``. At :math:`\alpha = 1` the polished wall
+and the mirror realize to one permutation matrix and are still two
+values: the wall states how a surface returns the neutrons that reach
+it, the mirror states that the solution beyond the plane is the mirror
+image of the solution inside it. Keeping the *types* distinct is what
+makes "put a wall's response in the geometry slot" unspellable, the
+exact error this section's earlier form permitted. In the code each
+pair shares one realization body (the specular pair the deck kernel
+``_deck_kernel``, the Lambertian pair ``_checked_angular_average``), so
+the equivalences hold by construction rather than by two transcriptions
+agreeing. The gate
+``tests/gates/geometry/test_reemission_closure.py::TestEquivalenceTheorems::test_specular_closure_equals_reflective``
+asserts the specular one with ``np.array_equal`` (`[M]` 2026-10-01, a
+probe outside the suite: 20 of 20 realized actions bitwise equal, five
+quadratures from ``gauss_legendre(4)`` to ``lebedev(17)`` on an x or y
+face, times :math:`\alpha \in \{0, 0.3, 0.7, 1\}`, on a random
+:math:`\Gamma_+` probe of shape ``(|Γ₊|, 4, 2)``).
 
-.. warning::
+Every shipped law satisfies the criterion: no law has both factors
+different from the identity. The two deck laws (``ReflectiveBoundary``,
+``PeriodicBoundary``) have :math:`R = I`, and the five responses
+(``AlbedoBoundary``, ``PrescribedInflow``, ``VacuumInflow``,
+``WhiteBoundary``, ``ZeroFluxBoundary``) have :math:`G = I`, 7 of 7
+registered law classes (`[M]` 2026-10-01, by reading both factors of one
+instance of each, with ``AlbedoBoundary`` under each closure). The one
+value on which both factors are the identity is the closure-free
+``AlbedoBoundary(1.0)``, which states no crossing at all and which the
+S\ :sub:`N` realizer refuses (:ref:`bc-method-realizability`). In particular ``ReflectiveBoundary`` has the
+single field ``axis``, and its :math:`R` is ``ScalarResponse(1.0)``, the
+same identity factor ``PeriodicBoundary`` declares; an albedo argument is
+a ``TypeError`` from the dataclass constructor. A mirror with an
+amplitude would have both factors non-trivial: it would be the partial
+wall ``AlbedoBoundary(α, SpecularReturn(axis))`` spelled a second time in
+the geometry slot, and a consumer that recognises a mirror by its type
+would read that second spelling as a perfect mirror. That is the defect
+class ERR-094 records (three such readers in S\ :sub:`N`); the history
+of the retired parameter is in :ref:`bc-history`.
 
-   **One shipped row violates the law, deliberately.**
-   :class:`~orpheus.geometry.boundary.ReflectiveBoundary` still accepts
-   an ``albedo`` parameter, so ``ReflectiveBoundary(axis, 0.7)`` has
-   BOTH factors non-trivial. A symmetry plane cannot absorb — that
-   object is ``AlbedoBoundary(0.7, SpecularReturn(axis))`` wearing the
-   geometry costume. It is unreachable from a ``BC(...)`` tag (the tag
-   parser hard-codes :math:`\alpha = 1`), but a geometry or a mesh
-   declares it as a typed law, and S\ :sub:`N` solves it: its
-   eigenvalue counts the face's leakage :math:`(1-\alpha)J^+`, its
-   curvilinear corner returns :math:`\alpha` times the outflow, and DSA
-   refuses it (ERR-094, which records the three places it was read as a
-   perfect mirror until 2026-09-30); retiring the parameter is campaign
-   phase **B5**.
+.. _bc-deck-law-not-an-operand:
+
+A deck law is not an operand
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Retiring the parameter does not by itself retire the attenuated mirror,
+because the descriptor algebra of :ref:`bc-rank-n-algebra` could rebuild
+it: ``0.7 * ReflectiveBoundary("x")`` is a
+:class:`~orpheus.geometry.boundary.LawScaled` whose realization is
+:math:`0.7` times the mirror's permutation, the same matrix as the
+partial wall and the same type confusion. So the two composition nodes,
+:class:`~orpheus.geometry.boundary.LawScaled` and
+:class:`~orpheus.geometry.boundary.LawSum`, refuse a **deck law**, a law
+whose geometry factor :math:`G` is not the identity deck element
+(``ReflectiveBoundary`` and ``PeriodicBoundary`` among the shipped laws),
+with a ``TypeError`` naming the law and the spelling to use instead.
+
+**Why a symmetry cannot be scaled.** A deck law asserts that the domain
+is a fundamental domain of a symmetry group: the solution on the far
+side of the face is the image of the solution on this side under the
+group element. That assertion has no amplitude. Neutrons are not
+returned by anything; the face is not a surface at all. Scaling it by
+:math:`c` has two readings, and both are something else. Read as
+physics, :math:`c\,G` with :math:`c < 1` is a surface that loses a
+fraction :math:`1 - c` of its outflow and returns the rest along the
+mirrored direction, which is
+``AlbedoBoundary(c, SpecularReturn(axis))``, a response with
+:math:`G = I`. Read as a symmetry, it is nothing: the image of a
+solution under a rigid motion is the solution itself, not a fraction of
+it.
+
+**Why a symmetry cannot be mixed.** A sum containing a deck law is one
+of two things. If the other terms are also deck laws on the same face,
+the sum is a scaled deck in disguise (``0.5 * R + 0.5 * R`` with
+``R = ReflectiveBoundary("x")`` realizes to ``R``'s matrix and its type
+is a sum, the costume again). If any other term is a response, the sum
+is not sub-Markov in general: with ``W`` a white wall of albedo 1,
+``R + W`` returns the outflow twice, once specularly and once
+diffusely, so the incoming partial current is twice the outgoing one.
+A legitimate mix of specular and diffuse return (the Marshak boundary
+below) is a mix of two responses, each with its own amplitude, and the
+specular leaf is ``AlbedoBoundary(c, SpecularReturn(axis))``.
+
+**The predicate is the geometry factor, never the realized matrix.**
+``AlbedoBoundary(1.0, SpecularReturn("x"))`` permutes ordinates exactly
+as the mirror does and composes freely, because its :math:`G` is
+``SelfPairedDeck.identity()``. The test is
+``law.geometry_map.is_identity``, a property of
+:class:`~orpheus.geometry.boundary.SelfPairedDeck` and
+:class:`~orpheus.geometry.boundary.PairedDeck` read off the rigid motion
+(``RigidMotion.is_identity``, the
+conjunction of a linear part equal to :math:`I` and a zero translation).
+``PairedDeck.is_identity`` is ``False`` for every constructible value,
+since a paired deck that fixed every face pointwise would be the
+self-paired case its constructor refuses.
+
+**Why the check on direct children is enough.** Each node checks only
+its direct children, in ``__post_init__``. The claim "no admitted tree
+holds a deck law at any depth" follows by induction on the tree's
+height. A leaf law is a tree of height 0 and is not itself an
+operand, so the claim is vacuous for it. A node of height
+:math:`h + 1` is admitted only if each direct child is either a law
+that passed the check or a node of height at most :math:`h`, which by
+the induction hypothesis holds no deck law; so the node holds none.
+``0.5 * (R + W)`` therefore refuses at the inner sum, before the scaling
+is evaluated. The induction needs the check in the constructor, which
+every construction route to a node reaches (the arithmetic dunders, a
+direct ``LawSum(a, b)`` or ``LawScaled(c, x)``, ``dataclasses.replace``,
+``sum`` and ``functools.reduce``), and not in the dunders, which a
+direct construction bypasses. Two limits, both measured by the review
+(2026-10-01): the nodes do not type their children, so a child that is
+not a law at all (``sum()``'s starting ``0``) is admitted here and
+refused later, by ``realize_recursively``; and a route that bypasses
+construction (``object.__new__``, or loading a pickle written before
+this check existed) bypasses the check too.
+
+**The refusal is a guard, and a guard owes a retirement.** It is tagged
+``ELEGANCE-DEBT[guard] #551`` in
+``orpheus.geometry.boundary._composition``: the deck laws are to
+leave the law family for the geometry (the boundary-law ontology's
+architecture E), after which the composition nodes take responses only
+and scaling a symmetry is unspellable rather than refused.
+
+Gates: ``tests/gates/geometry/test_reflective_is_a_mirror.py`` (36 rows:
+an albedo refused as a positional argument, as a keyword and through
+``dataclasses.replace``; ``axis`` the only field; ``kind`` the registry
+key on every axis; the two amplitude checks retired while the
+certification still runs; :math:`G` the mirror and :math:`R` the
+identity; value semantics, including that a mirror and a perfect
+specular wall are different values) and
+``tests/gates/geometry/test_deck_laws_do_not_compose.py`` (217 rows: three
+deck laws, ``ReflectiveBoundary``, ``PeriodicBoundary`` and a synthetic
+mirror, against 21 composition routes covering the arithmetic dunders of
+the laws and of both node types, the direct constructors and the nested
+spellings; ``dataclasses.replace``; the nested refusal located at the
+inner node; and the positive legs, seven responses including the
+polished wall composing on every route and a response mix realizing
+through S\ :sub:`N` and through diffusion as before).
+`[M]` 2026-10-01: before the carve 12 of 36 and 67 of 217 failed; after
+it, 253 of 253 pass.
+
 .. note::
 
    **SN apply matvec honours the affine BC contract (Issue #168
@@ -1855,7 +1987,8 @@ instead; it is realizable only on a scalar trace):
      - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
        bound
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - :math:`P` — a permutation (scaled by :math:`\alpha < 1`)
+     - :math:`P` — a permutation, unscaled (a symmetry has no
+       amplitude)
      - :math:`0`
      - ``PermutationOperator & IdentityOperator``
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary` /
@@ -4345,7 +4478,7 @@ The ABC ships:
         - ``ScalarResponse(alpha=0.0)``
       * - ``ReflectiveBoundary``
         - ``SelfPairedDeck.mirror(axis)``
-        - ``ScalarResponse(alpha=albedo)``
+        - ``ScalarResponse(alpha=1.0)``
       * - ``WhiteBoundary``
         - ``SelfPairedDeck.identity()``
         - ``LambertianReemission(alpha, axis, outward_sign)``
@@ -4805,7 +4938,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        (:math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture — a
        coincidence, not a contract).
      - n/a (vacuum has no α parameter)
-   * - :class:`ReflectiveBoundary(axis, α)` — **narrowed** (B3.4a),
+   * - :class:`ReflectiveBoundary(axis)` — **narrowed** (B3.4a),
        **bound** (G6.3 step 5)
      - ``PermutationOperator(local_perm, axis=0,
        domain=Γ₊(f), codomain=Γ₋(f)) & IdentityOperator()``
@@ -4835,7 +4968,8 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        (:ref:`tensor-product-spaces`). It happens to be bit-identical
        *for the mirror*, whose metric cancels, and is **87 %** away for
        the Lambertian row below.
-     - ``ScaledOperator(α, <that TP>)``
+     - n/a (a symmetry has no amplitude; the bare TP is the
+       representation at every axis)
    * - :class:`WhiteBoundary(axis, outward_sign, α)` — **narrowed**
        (B3.4a), **factored** (G6.3 step 3b)
      - ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))
@@ -4855,8 +4989,10 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    * - :class:`AlbedoBoundary(α, SpecularReturn(a))` — **narrowed**
        (B3.4b)
      - the reflective row's body (``_deck_kernel``, shared with
-       reflective and periodic), so the law is ``ReflectiveBoundary(a,
-       α)`` as a matrix; α = 0 gives the narrowed zero map
+       reflective and periodic), so the law realizes to α times the
+       mirror ``ReflectiveBoundary(a)``'s matrix (bitwise; the gate is
+       ``TestEquivalenceTheorems::test_specular_closure_equals_reflective``);
+       α = 1 gives the bare TP, α = 0 the narrowed zero map
      - ``ScaledOperator(α, <that TP>)``
    * - :class:`AlbedoBoundary(α, IsotropicReturn(a, s))` — **narrowed**
        (B3.4b)
@@ -4934,14 +5070,18 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    retired (``tests/gates/sn/operators/test_b3_domain_narrowing.py``). `[M]`
    2026-09-22: on a face method space the two closure rows realize
    ``array_equal`` to the reflective and white rows at α ∈ {0, 0.5, 1}
-   (``scratch/_definitions/round2/minimal_probe.py``). A shape assertion
+   (``scratch/_definitions/round2/minimal_probe.py``; the reflective row
+   then carried an albedo, and since its retirement on 2026-10-01 the
+   specular row equals α times the mirror, `[M]` 20 of 20 bitwise, see
+   :ref:`bc-factor-quotients`). A shape assertion
    still cannot tell the two typings apart, since
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
    tree, so read the *declared spaces*, not the output shape.
 
-The α = 1.0 fast paths return the **bare** primitive (no
+The mirror, which has no amplitude, and the α = 1.0 fast paths of the
+white and albedo laws return the **bare** primitive (no
 ``ScaledOperator`` wrap). This is load-bearing for bit-identity:
-without it, the "perfect reflection" case
+without it, the mirror
 :class:`~orpheus.geometry.boundary.ReflectiveBoundary` (pre-refactor
 ``SpecularBoundaryOperator(axis="x", albedo=1.0)``) would shift by
 one ULP under the realizer relative to its pre-refactor
@@ -5416,21 +5556,20 @@ strict 1-arg.
 law it realizes is precisely the state phase B2 exists to delete, so it
 is not constructible.
 
-.. warning::
+.. note::
 
-   ``kind`` reads ``type(law).key``, deliberately **not** ``law.kind``.
-   The two agree for six of the seven laws and diverge for exactly one:
-   a partially-reflecting
-   :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
-   reports ``kind == "partial"`` — mirroring the ``BC("partial",
-   albedo=…)`` *declaration* vocabulary that ``BC.to_alpha`` accepts —
-   while its ``key`` stays ``"reflective"`` for every albedo. The key
-   is what the pre-B2.0 shim stored, so it is the behaviour-preserving
-   choice; sourcing the more obvious ``law.kind`` here would silently
-   drop partially-reflecting faces out of
-   ``sweep_schedule.reflective_faces``' ``== "reflective"`` set. That
-   is a semantic change wearing a refactor's clothes, and
-   ``tests/gates/geometry/test_bound_compat.py`` reddens on it.
+   ``kind`` reads ``type(law).key``, the registry key, which is what the
+   pre-B2.0 shim stored, so the property is behaviour-identical to it.
+   No law overrides
+   ``BoundaryTraceLaw.kind``, so the key
+   and the law's own ``kind`` agree for 7 of 7 registered laws (`[M]`
+   2026-10-01, by walking ``BoundaryTraceLaw.__subclasses__`` and reading
+   each class dictionary). The sweep schedule's
+   ``sweep_schedule.reflective_faces``
+   no longer reads this string at all: it asks the law whether it permutes
+   ordinates, which the specular ``AlbedoBoundary`` also answers yes. The
+   one override that made the two differ, and why it was dangerous, is in
+   :ref:`bc-history`.
 
 The shim is **internal** to the package (not in :attr:`__all__`)
 — a test pins its private status.
@@ -5755,25 +5894,30 @@ the sum is a :class:`LawSum` node.
 
 The standard Marshak boundary (Bell & Glasstone 1970 §1.5) — a
 mix of specular reflection (weight :math:`c_1`) and diffuse
-white reflection (weight :math:`c_2`) — is:
+white reflection (weight :math:`c_2`) — is a sum of two responses. The
+specular leaf is the polished wall ``AlbedoBoundary(1.0,
+SpecularReturn("x"))``, never the mirror ``ReflectiveBoundary("x")``: a
+mirror is a symmetry of the domain and is refused as an operand
+(:ref:`bc-deck-law-not-an-operand`).
 
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
-       LawScaled, LawSum,
-       ReflectiveBoundary, WhiteBoundary,
+       AlbedoBoundary, LawScaled, LawSum,
+       SpecularReturn, WhiteBoundary,
        realize_recursively,
    )
    from orpheus.sn.boundary.realizer import SNBoundaryRealizer
    from orpheus.sn.mesh.method_space import SNMethodSpace
 
    # Build the descriptor tree — no realization yet.
-   spec = ReflectiveBoundary(axis="x", albedo=1.0)
+   spec = AlbedoBoundary(1.0, SpecularReturn("x"))   # a polished wall
    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
    marshak_law = 0.3 * spec + 0.7 * white
    # marshak_law is:
    #   LawSum(
-   #       LawScaled(0.3, ReflectiveBoundary(axis="x", albedo=1.0)),
+   #       LawScaled(0.3, AlbedoBoundary(albedo=1.0,
+   #                                     reemission=SpecularReturn(axis="x"))),
    #       LawScaled(0.7, WhiteBoundary(axis="x", outward_sign=+1,
    #                                    albedo=1.0)),
    #   )
@@ -5938,13 +6082,14 @@ Usage on the descriptor tree:
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
-       ReflectiveBoundary, WhiteBoundary, realize_recursively,
+       AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
    )
    from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
-   # Build the descriptor tree.
+   # Build the descriptor tree (the specular leaf is a response; the
+   # mirror ReflectiveBoundary is refused as an operand).
    law = (
-       0.3 * ReflectiveBoundary(axis="x")
+       0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
        + 0.7 * WhiteBoundary(axis="x", outward_sign=+1)
    )
    # law is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...)).
@@ -6338,10 +6483,9 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
   properties are overridden on every concrete law since campaign
   phase B1 — see the measured table under :ref:`bc-law-layer`; at the
   time of Issue #186 only :attr:`source` was (by prescribed-inflow).
-  :attr:`kind` is derived once on the ABC from the registry key,
-  with :class:`~orpheus.geometry.boundary.ReflectiveBoundary` the
-  single legitimate override (it reports ``"partial"`` at
-  :math:`\alpha \neq 1`, matching the declaration vocabulary).
+  :attr:`kind` is derived once on the ABC from the registry key, and
+  no concrete law overrides it (7 of 7 registered laws, `[M]`
+  2026-10-01).
 * The base class :class:`BoundaryTraceLaw` carries a **minimal
   algebra** that returns :class:`LawSum` / :class:`LawScaled`
   nodes — the descriptor-tree composition algebra documented at
@@ -6498,7 +6642,7 @@ There is **one** way to call a boundary law's ``apply``:
        SNBoundaryRealizer, SNMethodSpace,
    )
 
-   law = ReflectiveBoundary(axis="x", albedo=0.5)
+   law = ReflectiveBoundary(axis="x")   # the mirror: its only datum is the plane
    # A NARROWED law needs a FACE: since B3.2 its domain is that face's
    # Γ₊, which a quadrature alone cannot name. ``SNMethodSpace.minimal``
    # raises here, and since every law is narrowed it realizes none.
@@ -6510,9 +6654,12 @@ For descriptor-tree composition:
 
 .. code-block:: python
 
-   from orpheus.geometry.boundary import realize_recursively
+   from orpheus.geometry.boundary import (
+       AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
+   )
 
-   tree = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(
+   # The leaves are responses: a mirror cannot be scaled or mixed.
+   tree = 0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * WhiteBoundary(
        axis="x", outward_sign=+1,
    )
    op_tree = realize_recursively(tree, ms, SNBoundaryRealizer())
@@ -6595,15 +6742,20 @@ changed is where they come from.
        :math:`\Gamma_-` shape, identically zero.
        ``assert_array_equal`` — no arithmetic is performed.
    * - ``specular_x_lebedev17``
-     - ``ReflectiveBoundary(axis="x", albedo=1.0)``
+     - ``ReflectiveBoundary(axis="x")``
      - Lebedev 17, ``xmax``
      - the mirror gather :math:`\psi^-(\Omega) = \psi^+(\Omega')`.
        ``assert_array_equal`` — reduction depth 0.
    * - ``specular_y_partial_07_LS6``
-     - ``ReflectiveBoundary(axis="y", albedo=0.7)``
+     - ``AlbedoBoundary(0.7, SpecularReturn(axis="y"))``
      - LevelSymmetricSN(6), ``ymax``
      - the same gather scaled by α — the α-fold row, and the only
-       one on a non-``x`` axis. ``assert_array_equal``.
+       one on a non-``x`` axis. ``assert_array_equal``. The partially
+       specular wall is a response, so this row exercises the albedo
+       law's specular closure through the shared deck kernel; its
+       frozen image is the one recorded when the row was spelled as
+       the then-attenuated mirror, bit-identical across the respelling
+       (:ref:`bc-history`).
    * - ``white_xmax_LS4``
      - ``WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)``
      - LevelSymmetricSN(4), ``xmax``
@@ -6617,7 +6769,8 @@ changed is where they come from.
        is 2, not :math:`4\pi` — the canary against a hard-coded
        normalisation. ``rtol = |Γ₊|·ε``.
    * - ``mixed_30spec_70white_LS4``
-     - ``0.3 * spec + 0.7 * white`` (Wave-0 algebra)
+     - ``0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * white``
+       (Wave-0 algebra over the realized leaves)
      - LevelSymmetricSN(4), ``xmax``
      - the pointwise convex combination of the two images above.
        ``rtol = (|Γ₊| + 2)·ε``.
@@ -6736,9 +6889,11 @@ is the shape the inversion removed.
    endomorphism and its :math:`G` supplies no crossing (see
    :ref:`bc-method-realizability`). Its successor is the second method
    on the ``specular_x_lebedev17`` case, which pins the same α-fold on
-   the same quadrature through the ``≡`` theorem
-   ``AlbedoBoundary(α, SpecularReturn(a)) ≡ ReflectiveBoundary(a, α)``
-   — and, since the re-anchoring, against the mirror isometry rather
+   the same quadrature through the theorem that
+   ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha`
+   times the matrix of the mirror ``ReflectiveBoundary(a)`` (it asserts
+   ``array_equal`` against :math:`0.5` times the frozen mirror image) —
+   and, since the re-anchoring, against the mirror isometry rather
    than against a sibling implementation's recorded output.
 
 
@@ -7387,7 +7542,7 @@ C4 derives the axis from the label's own
 ``AXIS_NAMES[label.axis_index]``, so the reflection partner is
 correct at **any** dimension by construction::
 
-    law = ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index], albedo=1.0)
+    law = ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index])
 
 This is the boundary-resolution sibling of the C3.6 finding that a
 z-face never sheds in the in-plane projection — both are latent
@@ -8290,3 +8445,68 @@ References
 * The V&V error catalog in the ``vv-principles`` skill
   (``docs/theory/verification/error_catalog.rst``) carries
   the ERR-040..ERR-047 entries in canonical form.
+
+
+.. _bc-history:
+
+Development history
+===================
+
+Reverse-chronological changelog of the boundary-law architecture's
+milestones recorded since this table was opened (the earlier campaign
+phases, B1 to B3.4c and the Wave refactors, are recorded at the sections
+they concern). Entries marked *(in development)* live on an unmerged
+branch; trust ``git`` over this table for merge status.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 58 8 24
+
+   * - When
+     - Milestone
+     - Issue
+     - Where
+   * - 2026-10-01
+     - **The mirror carries no amplitude, and a deck law is not an
+       operand.** ``ReflectiveBoundary`` lost its ``albedo`` parameter,
+       its ``kind`` override and its two amplitude checks; it is now
+       the parameter-free deck mirror, :math:`G` the mirror about
+       ``axis`` and :math:`R` = ``ScalarResponse(1.0)``. Before this,
+       ``ReflectiveBoundary(axis, α)`` with :math:`\alpha \ne 1` had
+       both factors non-trivial (the one shipped row that violated the
+       criterion of :ref:`bc-factor-quotients`): it was the partial
+       wall ``AlbedoBoundary(α, SpecularReturn(axis))`` spelled a second
+       time in the geometry slot, the fossil of the 2026-05
+       tensor-decomposition framing, whose amplitude slot it filled.
+       Its ``kind`` reported ``"partial"`` at :math:`\alpha \ne 1` while
+       its registry key stayed ``"reflective"``, which is why the
+       realized shim read the key and not ``kind``: reading ``kind``
+       would have dropped such faces from the sweep schedule's
+       reflective set. S\ :sub:`N` read the attenuated mirror as a
+       perfect one in three places (ERR-094, whose review on
+       2026-09-30 added the two amplitude checks ``assert_submarkov``
+       and ``assert_response_positive_if_declared`` to the class; they
+       retired with the field). The tag parser always built it at
+       :math:`\alpha = 1`, so only a typed declaration reached it.
+       :class:`~orpheus.geometry.boundary.LawSum` and
+       :class:`~orpheus.geometry.boundary.LawScaled` now refuse a deck
+       law as a direct child (:ref:`bc-deck-law-not-an-operand`), on
+       the new ``SelfPairedDeck.is_identity`` / ``PairedDeck.is_identity``
+       read off ``RigidMotion.is_identity``; the refusal is tagged
+       ``ELEGANCE-DEBT[guard] #551``. Every documented composition
+       example and the rank-N Marshak example now take
+       ``AlbedoBoundary(1.0, SpecularReturn("x"))`` as the specular leaf.
+       Gates: ``tests/gates/geometry/test_reflective_is_a_mirror.py``
+       (36 rows) and ``tests/gates/geometry/test_deck_laws_do_not_compose.py``
+       (217 rows). `[M]` 2026-10-01, ``.venv/bin/python -O -m pytest``
+       on the two files: before the carve 12 of 36 and 67 of 217
+       failed, after it 253 of 253 pass. A carve-time carry gate (kept
+       in ``scratch/``, not in the suite) showed the frozen arrays of
+       the partial wall (75) and of the mirror (22) bit-identical
+       across the respelling, because ``AlbedoBoundary(α,
+       SpecularReturn)`` and the old ``ReflectiveBoundary(axis, α)``
+       already shared one realization body. Ruling and plan of record:
+       ``.claude/plans/boundary_law_ontology.md``, the fourth exchange
+       (why the albedo existed) and the tenth (this cleanup).
+     - #551
+     - *(in development)* branch ``refactor/reflective-is-a-mirror``

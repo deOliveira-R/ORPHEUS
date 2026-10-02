@@ -1513,10 +1513,8 @@ for every boundary point of a geometry, inner first):
      - Its specular albedo
    * - ``BC.vacuum``, :class:`~orpheus.geometry.boundary.VacuumInflow`
      - 0
-   * - ``BC.reflective``
-     - 1
-   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - its ``albedo``
+   * - ``BC.reflective``, :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
+     - 1 (a mirror is a symmetry and has no amplitude)
    * - ``BC("partial", {"albedo": a})``
      - ``a``
    * - :class:`~orpheus.geometry.boundary.AlbedoBoundary` whose
@@ -1530,11 +1528,14 @@ for every boundary point of a geometry, inner first):
 
 A refused law returns neutrons in an angular shape a specular albedo
 cannot express, so no value of :math:`\alpha` would be an honest
-reading of it. `[M]` 2026-09-29, by calling the reader on each law:
-``ReflectiveBoundary(albedo=0.7)`` reads 0.7,
-``AlbedoBoundary(0.3, SpecularReturn())`` reads 0.3, and ``BC("white")``,
-``BC("periodic")`` and ``AlbedoBoundary(0.3, IsotropicReturn())`` are
-refused.
+reading of it. `[M]`, by calling the reader on each law:
+``ReflectiveBoundary`` reads 1 on each of the axes ``x``, ``y`` and ``z``
+and ``AlbedoBoundary(0.3, SpecularReturn())`` reads 0.3 (2026-10-01);
+``BC("white")``, ``BC("periodic")`` and
+``AlbedoBoundary(0.3, IsotropicReturn())`` are refused (2026-09-29). A
+partially specular face is declared as
+``AlbedoBoundary(α, SpecularReturn(axis))``; the mirror has no albedo to
+read (:ref:`bc-deck-law-not-an-operand`).
 
 **Why the laws are part of what a generator serves.** Before the laws
 were read, two generators answered a question they had not been asked,

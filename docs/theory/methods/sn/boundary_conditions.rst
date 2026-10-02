@@ -286,8 +286,9 @@ primitives are, with each law's affine factors alongside:
      - 0 / yes
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - permutation under reflection axis
-     - albedo (1 = perfect)
-     - ``SelfPairedDeck.mirror(axis)``, ``ScalarResponse(α)``
+     - 1 (a symmetry plane has no amplitude; a partially specular wall
+       is the specular ``AlbedoBoundary``)
+     - ``SelfPairedDeck.mirror(axis)``, ``ScalarResponse(1.0)``
      - 1 / yes
    * - :class:`~orpheus.geometry.boundary.WhiteBoundary`
      - cosine-weighted hemispheric average — a **response**, not a
@@ -405,11 +406,15 @@ for another** — the first bite of the
 
 That is a refusal of an *incomplete spelling*, not of the law: both
 completions are fully built, and each routes through the same
-realization body as its geometry-tier twin —
+realization body as its twin —
 ``AlbedoBoundary(α, SpecularReturn(a))`` through
-:class:`~orpheus.geometry.boundary.ReflectiveBoundary`'s, and
+:class:`~orpheus.geometry.boundary.ReflectiveBoundary`'s, so it realizes
+to :math:`\alpha` times the mirror's matrix, and
 ``AlbedoBoundary(α, IsotropicReturn(a, s))`` through
-:class:`~orpheus.geometry.boundary.WhiteBoundary`'s.
+:class:`~orpheus.geometry.boundary.WhiteBoundary`'s, so it realizes to
+``WhiteBoundary(a, s, α)``'s matrix. The specular closure is the only
+spelling of a partially specular wall: the mirror carries no amplitude
+and cannot be scaled (:ref:`bc-deck-law-not-an-operand`).
 
 .. note::
 
@@ -445,6 +450,8 @@ laws:
 
 .. code-block:: python
 
+   spec = AlbedoBoundary(1.0, SpecularReturn("x"))   # a polished wall, a response
+   white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
    tree = 0.3 * spec + 0.7 * white            # LawSum of LawScaled
    # The walker is method-blind: pass the method's own realizer.
    op = realize_recursively(tree, method_space, SNBoundaryRealizer())
@@ -475,13 +482,17 @@ term still *classifies* as :math:`R \circ G` internally (a taxonomy of
 the term's content, not a recipe for evaluating it —
 :ref:`bc-taxonomy-vs-factorization`), and what
 distinguishes the two terms of a Marshak mix is their **response**: a
-:class:`~orpheus.geometry.boundary.ScalarResponse` behind a mirror deck
-element (:meth:`~orpheus.geometry.boundary.SelfPairedDeck.mirror`) for
-the specular term, a
-:class:`~orpheus.geometry.boundary.LambertianReemission` for
-the diffuse one — whose rank-one structure makes its own :math:`G`
-unobservable, which is why the diffuse term declares the identity deck
-element rather than a second mirror. New BCs are one
+``SpecularReemission`` (the specular
+``AlbedoBoundary``) for the specular term, a
+:class:`~orpheus.geometry.boundary.LambertianReemission` for the
+diffuse one. Both terms declare the identity deck element as
+:math:`G`, because both are surfaces: the mirror
+:class:`~orpheus.geometry.boundary.ReflectiveBoundary`, whose :math:`G` is
+the mirror deck element, is a symmetry of the domain with no amplitude,
+and the composition nodes refuse it as an operand
+(:ref:`bc-deck-law-not-an-operand`). For the diffuse term the identity
+is also forced by structure: the Lambertian's rank-one form makes any
+:math:`G` unobservable. New BCs are one
 :class:`BoundaryTraceLaw` subclass + one
 ``BOUNDARY_OPERATOR_REGISTRY`` entry away — no sweep edits per BC.
 

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **14042**
+Total tests collected: **14265**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1349, 9.6%
-   L1, 2252, 16.0%
+   L0, 1348, 9.4%
+   L1, 2245, 15.7%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10343, 73.7%
+   foundation, 10574, 74.1%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 13936
+   explicit, 14159
    class-name, 46
    func-name, 0
    case, 33
@@ -48,7 +48,7 @@ Module × level grid
    :widths: 40, 6, 6, 6, 6, 6, 6
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
-   acceleration/test_dsa_low_order, 0, 0, 0, 0, 23, 0
+   acceleration/test_dsa_low_order, 0, 0, 0, 0, 20, 0
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
@@ -279,7 +279,7 @@ Module × level grid
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 22, 13, 0, 0, 0
-   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 36, 0
+   eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 28, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 28, 0
@@ -298,20 +298,22 @@ Module × level grid
    frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
-   geometry/test_bc_universal_invariants, 0, 56, 0, 0, 5, 0
-   geometry/test_bound_compat, 13, 0, 0, 0, 0, 0
+   geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
+   geometry/test_bound_compat, 12, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 26, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
+   geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
-   geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
+   geometry/test_reemission_closure, 0, 0, 0, 0, 184, 0
+   geometry/test_reflective_is_a_mirror, 0, 0, 0, 0, 36, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
-   geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
+   geometry/test_specular_response_pins_to_geometry, 0, 14, 0, 0, 0, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 74, 0
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -454,7 +456,7 @@ Module × level grid
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 10, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
-   operators/test_b3_domain_narrowing, 0, 0, 0, 0, 31, 0
+   operators/test_b3_domain_narrowing, 0, 0, 0, 0, 30, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_carrier_admission, 0, 0, 0, 0, 18, 0
@@ -490,7 +492,7 @@ Module × level grid
    operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
    operators/test_operator_feeds_the_walk, 0, 0, 0, 0, 6, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
-   operators/test_psi_half_coupling, 0, 2, 0, 0, 95, 0
+   operators/test_psi_half_coupling, 0, 2, 0, 0, 89, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_radial_characteristic_cylinder_arm, 5, 0, 0, 0, 0, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
@@ -731,7 +733,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``roulette-prob``, 17
    ``coupled-block-system-restriction-laws``, 16
    ``discrete-measure-integrate``, 16
-   ``sn-leakage-functional``, 16
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
@@ -751,6 +752,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``reciprocity``, 12
    ``reciprocity-lower-triangle``, 12
    ``sn-homogenization-adjoint-weighted``, 12
+   ``sn-leakage-functional``, 12
    ``ws-pitch``, 12
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11

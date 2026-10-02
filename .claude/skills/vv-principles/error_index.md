@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**95 entries · 346 catching tests · 0 uncaught · 5 dormant.**
+**95 entries · 343 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -88,10 +88,10 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-040 | 1 |  | Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partiti… |
 | ERR-041 | 5 |  | Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-) |
 | ERR-042 | 8 |  | Reflection-index table inconsistent with quadrature weights (measure-non-preserving G) |
-| ERR-043 | 9 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
+| ERR-043 | 8 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
 | ERR-044 | 9 |  | Reflection permutation is not an involution (perm ∘ perm ≠ id) |
 | ERR-045 | 9 |  | Reflection maps an inflow ordinate to itself rather than to its outflow partner |
-| ERR-046 | 10 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
+| ERR-046 | 8 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
 | ERR-047 | 9 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
