@@ -5,7 +5,7 @@
   boundary point), a pure shape and boundary description with no cell
   counts. Reference solvers consume it directly.
 * :class:`CoordSystem` and the volume and area formulas of each coordinate
-  system.
+  system, and the :class:`AngularChart` each declares for a direction.
 * :mod:`~orpheus.geometry.boundary`: the boundary-condition tag
   :class:`BC` and the typed boundary laws. Boundaries are defined at the
   geometry.
@@ -18,7 +18,7 @@ a :class:`~orpheus.mesh.mesher.Mesher` discretises a
 """
 
 from .boundary import BC
-from .coord import CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
+from .coord import AngularChart, CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .structured_geometry import StructuredGeometry
 from .transformation import (
     NotAFinitePointGroupError,
@@ -28,6 +28,7 @@ from .transformation import (
 )
 
 __all__ = [
+    "AngularChart",
     "BC",
     "CoordSystem",
     "MeasureCoordinate",

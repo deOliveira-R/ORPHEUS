@@ -68,6 +68,54 @@ class MeasureCoordinate:
                 return np.cbrt(t)
 
 
+@dataclass(frozen=True)
+class AngularChart:
+    r"""The chart :math:`(\mu, \varphi)` on the direction sphere a coordinate system declares.
+
+    A direction :math:`\Omega` is written in the local orthonormal frame at the
+    position :math:`r` (column 0, 1, 2; the same columns a quadrature's
+    ordinates carry, ``Quadrature.axis_cosines(k)``):
+
+    .. math::
+
+        \Omega = \mu\,\hat e_{\rm polar}
+               + \sqrt{1 - \mu^2}\,\bigl(\sin\varphi\,\hat e_\perp
+               + \cos\varphi\,\hat e_{\rm ref}\bigr),
+
+    so :math:`\mu = \Omega\cdot\hat e_{\rm polar}` and :math:`\varphi` is the
+    azimuth about the polar axis, measured from :math:`\hat e_{\rm ref}`
+    towards the remaining column :math:`\hat e_\perp`.
+
+    ``polar_axis`` is the column of :math:`\hat e_{\rm polar}`;
+    ``azimuth_reference`` is the column of :math:`\hat e_{\rm ref}`, or
+    ``None`` where no reference exists (the sphere: a reference perpendicular
+    to :math:`\hat e_r` at every position would be a continuous, nowhere-zero
+    tangent field on the sphere, which the hairy-ball theorem forbids). A
+    function on phase space that depends on :math:`\varphi` therefore has no
+    well-defined value beside a spherical geometry.
+
+    ``azimuth_observable`` says whether the 1-D problem can see the azimuth
+    at all: it cannot when the problem is invariant under every rotation
+    about the polar axis (the slab and the sphere), and then a quadrature
+    for it carries no azimuthal information.
+    """
+
+    polar_axis: int
+    azimuth_reference: int | None
+    azimuth_observable: bool
+
+    def __post_init__(self) -> None:
+        if self.polar_axis not in (0, 1, 2):
+            raise ValueError(f"the polar axis is a frame column 0, 1 or 2; got {self.polar_axis!r}")
+        if self.azimuth_reference is not None and (
+            self.azimuth_reference not in (0, 1, 2) or self.azimuth_reference == self.polar_axis
+        ):
+            raise ValueError(
+                f"the azimuth reference is a frame column other than the polar axis "
+                f"{self.polar_axis}; got {self.azimuth_reference!r}"
+            )
+
+
 class CoordSystem(Enum):
     r"""Coordinate system identifier, and the measure of its position axis.
 
@@ -111,6 +159,27 @@ class CoordSystem(Enum):
                 return np.pi
             case CoordSystem.SPHERICAL:
                 return (4.0 / 3.0) * np.pi
+
+    @property
+    def angular_chart(self) -> AngularChart:
+        r"""The chart in which a function on phase space reads its direction.
+
+        The polar axis is the one direction a 1-D position distinguishes: the
+        slab's normal :math:`\hat e_x`, the radial :math:`\hat e_r` of a
+        cylinder or a sphere (column 0 in every case). The azimuth is measured
+        from :math:`\hat e_z` on the slab and on the cylinder (column 2, the
+        cylinder's axis); the sphere declares none (:class:`AngularChart`).
+        On the slab and the sphere the azimuth is unobservable, because the
+        1-D problem is invariant under every rotation about the polar axis; on
+        the cylinder it is observable.
+        """
+        match self:
+            case CoordSystem.CARTESIAN:
+                return AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=False)
+            case CoordSystem.CYLINDRICAL:
+                return AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=True)
+            case CoordSystem.SPHERICAL:
+                return AngularChart(polar_axis=0, azimuth_reference=None, azimuth_observable=False)
 
     def boundary_points(self, r_0: float, r_R: float) -> tuple[float, ...]:
         r"""The boundary points of the interval :math:`[r_0, r_R]` in this system, inner first.
