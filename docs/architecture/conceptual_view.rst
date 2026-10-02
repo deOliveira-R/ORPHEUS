@@ -112,6 +112,20 @@ third type. The affine form itself is the boundary law's,
 :eq:`affine-bc-form`, and there is no affine operator by ruling: every
 affine law is a linear operator plus a typed source.
 
+The posings are the question *bound* to a pencil. What is asked exists
+before any pencil, as a physics-free value
+(:ref:`structured-geometry-question-values`):
+:class:`~orpheus.numerics.question.Eigen` names one direction of the
+system's parameter space by an opaque key, a base point by its offsets
+from the physical point, and a mode (the pole wanted);
+:class:`~orpheus.numerics.question.FixedSource` holds a source and
+:class:`~orpheus.numerics.question.Response` a detector, so the role is
+the type and no value carries an adjoint flag. The k-eigenvalue, the
+classical c-eigenvalue, a boron search and a critical size are four keys
+of one ``Eigen``. Nothing binds a question to a system yet: deriving the
+pencil and the spectral map from a parameter, and the mode law, are the
+posing sequence's unit 6 (#529).
+
 
 The objects on an axis — measure, basis, frame, cone
 ----------------------------------------------------
@@ -433,6 +447,9 @@ The concept table
    * - Pencil; posings
      - :class:`~orpheus.numerics.pencil.OperatorPencil`, :class:`~orpheus.numerics.posing.EigenPosing`, :class:`~orpheus.numerics.posing.SourcePosing`
      - :ref:`the-operator-pencil`, :eq:`pencil-family`, :ref:`eigenvalue-posing`, :ref:`sn-the-problem-poses-its-pencil`
+   * - Question; mode; point
+     - :class:`~orpheus.numerics.question.Eigen`, :class:`~orpheus.numerics.question.FixedSource`, :class:`~orpheus.numerics.question.Response`; :class:`~orpheus.numerics.question.Fundamental`, :class:`~orpheus.numerics.question.Nearest`; the point a :class:`~orpheus.numerics.content.FrozenMapping`
+     - :ref:`structured-geometry-question-values`, :ref:`structured-geometry-question-values-point`, :ref:`structured-geometry-question-values-role`
    * - Strategy; splitting; schedule
      - :class:`~orpheus.sn.splitting.Splitting`, :func:`~orpheus.sn.splitting.resolve_schedule`
      - :ref:`sn-splitting-is-a-strategy-value`

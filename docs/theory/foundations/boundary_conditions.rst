@@ -8513,4 +8513,4 @@ branch; trust ``git`` over this table for merge status.
        ``.claude/plans/boundary_law_ontology.md``, the fourth exchange
        (why the albedo existed) and the tenth (this cleanup).
      - #551
-     - *(in development)* branch ``refactor/reflective-is-a-mirror``
+     - ``65f1dc7a`` (code) and ``99b9847d`` (documentation) on ``main``

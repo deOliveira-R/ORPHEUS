@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **14640**
+Total tests collected: **14782**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 9.2%
-   L1, 2247, 15.3%
+   L0, 1348, 9.1%
+   L1, 2247, 15.2%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10947, 74.8%
+   foundation, 11089, 75.0%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 14534
+   explicit, 14676
    class-name, 46
    func-name, 0
    case, 33
@@ -385,9 +385,10 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
-   numerics/test_content_identity, 0, 0, 0, 0, 45, 0
+   numerics/test_content_identity, 0, 0, 0, 0, 46, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
+   numerics/test_content_identity_question, 0, 0, 0, 0, 50, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -426,8 +427,9 @@ Module × level grid
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
-   numerics/test_mesh_free_function, 0, 0, 0, 0, 53, 0
+   numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
+   numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
@@ -438,6 +440,7 @@ Module × level grid
    numerics/test_posing, 0, 0, 0, 0, 8, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
+   numerics/test_question, 0, 0, 0, 0, 66, 0
    numerics/test_registry, 0, 0, 0, 0, 107, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 28, 0
@@ -601,7 +604,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 401, 0
+   test_layer_imports, 0, 0, 0, 0, 405, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

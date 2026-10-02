@@ -570,6 +570,39 @@ chart the direction is read in is
 .. autoclass:: orpheus.numerics.mesh_free_function.Symbolic
    :members: of, from_srepr, expressions, n_groups, is_isotropic
 
+Question values — :mod:`orpheus.numerics.question`, what is asked of a
+system with no physics in it: ``Eigen(parameter, point, mode)``,
+``FixedSource(source, point)``, ``Response(detector, point)`` and the
+modes ``Fundamental`` and ``Nearest``. The parameter and the point's keys
+are opaque keys a specification resolves; the question's type is its
+role, and no value carries an adjoint flag. The theory, with the three
+questions on one family of operators, the point, the modes and what is
+deferred, the rulings and the retired 2026-09-25 cases, and the gates, is
+:ref:`structured-geometry-question-values`.
+
+.. automodule:: orpheus.numerics.question
+
+.. autoclass:: orpheus.numerics.question.Eigen
+
+.. autoclass:: orpheus.numerics.question.FixedSource
+
+.. autoclass:: orpheus.numerics.question.Response
+
+.. autoclass:: orpheus.numerics.question.Fundamental
+
+.. autoclass:: orpheus.numerics.question.Nearest
+
+Scalars — :mod:`orpheus.numerics.scalars`, the one definition of "a real
+number" that the content encoder, the data layer, the geometry, the mesh
+and the numerics values all parse through: NaN refused, ``-0.0`` made
+``+0.0``, an integer beyond :math:`2^{53}` and an overflow refused with
+their key. It was ``orpheus.geometry.scalars`` until #559. The theory,
+with what each function adds and why the encoder admits ``bool`` while
+the parsers refuse it, is :ref:`structured-geometry-one-real-parser`.
+
+.. automodule:: orpheus.numerics.scalars
+   :members:
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

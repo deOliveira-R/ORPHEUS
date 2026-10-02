@@ -5621,7 +5621,7 @@ status.
        by :math:`R^{\dagger}`, bit-exact. Record:
        :ref:`spaces-collapse-pair-pullback`.
      - #405
-     - *(in development)* branch ``feature/phase-space-functions``
+     - ``61f82a18`` on ``main``
    * - 2026-10-02
      - **The axis and every space-name digest move onto the one content
        encoder** (#405 P1 step 5). :class:`~orpheus.numerics.axis.Axis`

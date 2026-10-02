@@ -64,6 +64,20 @@ Key facts
   coordinate system declares the angular chart :math:`(\mu,\varphi)` is
   read in, and the sphere declares no azimuth reference
   (:ref:`structured-geometry-mesh-free-functions`).
+* **What is asked is a value with no physics in it.**
+  :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode)``
+  asks where, along one direction of the system's parameter space, the
+  system is singular; :class:`~orpheus.numerics.question.FixedSource`
+  ``(source, point)`` asks for the flux a source drives and
+  :class:`~orpheus.numerics.question.Response` ``(detector, point)`` for a
+  detector's importance. The parameter and the point's keys are opaque
+  keys a specification (later a system) resolves; the point is a frozen
+  mapping of offsets from the physical value, empty by default; the mode
+  is ``Fundamental()`` or ``Nearest(tau)``. No value carries an adjoint
+  flag: the question's type is its role, and the eigen adjoint belongs to
+  the answer. Nothing behind the values (the pencil a parameter derives,
+  the mode law, the system) exists yet: #529
+  (:ref:`structured-geometry-question-values`).
 * **Hollow cylinders and spheres are declarable, and every method
   refuses a declared law it would drop.** S\ :sub:`N` and diffusion
   admit only a reflective inner law on a hollow body (#511), which is
@@ -2277,12 +2291,14 @@ where the value is made, and ``==`` and ``hash`` never meet a NaN on a
 value that could be constructed. The parsers, each a ``ValueError``
 naming the field or parameter:
 
-* ``parse_real`` (``orpheus/numerics/scalars.py``), the one definition
-  of "a real number" for the geometry and the mesh: it refuses ``bool``
-  and every non-real type (``TypeError``) and NaN (``ValueError``, its
-  message fragment ``is NaN, which is not a number``),
-  passes infinities (a caller needing a finite value checks it), and
-  returns ``+0.0`` for ``-0.0``;
+* :func:`~orpheus.numerics.scalars.parse_real`, the one definition of
+  "a real number" at L1 for every layer that admits numbers
+  (:ref:`structured-geometry-one-real-parser`): it refuses ``bool`` and
+  every non-real type (``TypeError``), NaN (``ValueError``, its message
+  fragment ``is NaN, which is not a number``) and an integer a double
+  cannot carry, passes infinities (a caller needing a finite value asks
+  :func:`~orpheus.numerics.scalars.parse_finite_real`), and returns
+  ``+0.0`` for ``-0.0``;
 * ``BC`` parameters: each name must be a ``str`` and each value goes
   through ``parse_real``, so a ``str`` or ``bool`` value is a
   ``TypeError`` and NaN a ``ValueError``; the parsed parameters are
@@ -2297,15 +2313,176 @@ naming the field or parameter:
   ``bool`` edge is refused) and its material map through
   ``parse_integer``: a material id is an ``int``, so a float map, even
   ``[[1.0]]``, is refused, as in ``Mesh1D``;
-* every array of a ``Mixture``: the dense fields, ``chi``, the stored
-  values of every sparse Legendre block and the energy grid, the
-  message naming the field.
+* every array of a ``Mixture``: the dense fields, the stored values of
+  every sparse Legendre block and the energy grid through
+  :func:`~orpheus.numerics.scalars.canonical_reals`, the message naming
+  the field and the entry (since ``1fde7b59``; a loop of its own before),
+  and ``chi`` through the emission-spectrum law.
 
-The encoder's own NaN refusal stays as the backstop for a bare value
-handed to ``encode``. Signed zero is canonicalised twice for the same
-reason: ``parse_real`` and ``parse_positions`` store
-``+0.0`` where ``-0.0`` was given, and the encoder maps ``-0.0`` to
-``+0.0`` whatever it receives.
+The encoder refuses NaN too, as the backstop for a bare value handed to
+``encode``, and it does so through the same function, so the message is
+the parsers' message. Signed zero is canonicalised at both places for the
+same reason: the parsers store ``+0.0`` where ``-0.0`` was given, and the
+encoder maps ``-0.0`` to ``+0.0`` whatever it receives; both spell the
+fold once, in :func:`~orpheus.numerics.scalars.canonical_real`.
+
+.. _structured-geometry-one-real-parser:
+
+One definition of a real number, at L1
+--------------------------------------
+
+Every value a key covers admits numbers: a boundary law's albedo, a
+geometry's breakpoints, a mesh's edges, a mixture's cross sections, a
+table's entries, a question's offsets, and the encoder itself. Each
+admission must agree with the encoder on what a number *is*, or a value
+that constructs could carry bits the digest does not describe. That
+agreement is one module, :mod:`orpheus.numerics.scalars`, which imports
+nothing from ``orpheus`` and sits below the encoder that uses it (#559).
+It moved from ``orpheus/geometry/scalars.py`` to ``numerics``, the
+lowest layer whose vocabulary suffices, because the encoder (L1) needed
+it and may not import the input layer; the geometry and the mesh import
+L1, which the layer rule allows (:ref:`architecture-layering`).
+
+**The rule** is written once, in
+:func:`~orpheus.numerics.scalars.canonical_real`: NaN is refused (it is
+not a number, and not equal to itself, so a value holding one has no
+content equality), and ``-0.0`` becomes ``+0.0`` (they compare equal, so
+they are one value). **The conversion** every admitting site makes is
+:func:`~orpheus.numerics.scalars.exact_double`: the double that carries
+a real scalar exactly as ``==`` sees it, which is the rule plus two
+refusals,
+
+- **an integer beyond** :math:`2^{53}` is refused. A double carries every
+  integer up to :math:`2^{53}` exactly and no further: `[M]`
+  ``float(2**53 + 1) == float(2**53)`` is ``True``, so admitting the
+  integer would make two unequal integers one value, and ``==`` would
+  separate the integer from the double stored for it. Before
+  ``8122abc6`` the parsers and the encoder disagreed here (qa, `[M]`):
+  ``parse_real(2**53 + 1)`` stored :math:`2^{53}` silently while the
+  encoder refused the same integer;
+- **a magnitude beyond the range of a double** is refused with its key.
+  ``float()`` raises an unkeyed ``OverflowError`` on such a value; it is
+  caught and re-raised as a ``ValueError`` naming the field. `[M]`
+  ``parse_real(Fraction(10**400, 3), "x")`` reads ``x: Fraction(...) lies
+  beyond the range of a double``. An integer that large is caught one
+  check earlier, by the :math:`2^{53}` refusal.
+
+Infinities are real and pass both functions; a caller that needs a
+finite value asks for it (below). The functions, each adding one thing to
+the one beneath it:
+
+.. list-table:: The parsers of :mod:`orpheus.numerics.scalars`
+   :header-rows: 1
+   :widths: 26 74
+
+   * - Function
+     - What it adds
+   * - ``canonical_real(value, where)``
+     - the rule: NaN refused with the fragment ``which is not a number``,
+       ``-0.0`` made ``+0.0``
+   * - ``exact_double(value, where)``
+     - the :math:`2^{53}` and overflow refusals, then ``canonical_real``;
+       admits ``bool``
+   * - ``canonical_reals(values, where)``
+     - ``exact_double`` entrywise on an array (the integer extremes
+       checked on the integers themselves, a refused entry named by its
+       index): the encoder's array and sparse paths and ``Mixture``'s
+       fields
+   * - ``parse_real(value, where)``
+     - refuses ``bool`` and every non-``Real`` type (``TypeError``), then
+       ``exact_double``
+   * - ``parse_finite_real(value, where)``
+     - ``parse_real``, then refuses an infinity: the one spelling of
+       "finite", used by the question's offsets and :math:`\tau`, the
+       geometry's breakpoints and ``parse_positions``
+   * - ``parse_finite_reals(value, where)``
+     - ``parse_finite_real`` for every entry of an array of any rank, so a
+       ``bool`` hidden in a list is refused as the scalar is; a read-only
+       ``float`` copy; ``RegionwiseConstant``'s table
+   * - ``parse_positive_real``, ``parse_integer``,
+       ``parse_positive_integer``, ``parse_entries``, ``parse_positions``
+     - the geometry's and the mesh's other inputs, each over the parsers
+       above
+
+`[M]` this pass, 13 production modules import the module (a ``git
+grep`` of ``orpheus.numerics.scalars import`` under ``orpheus/``, its
+known member ``content.py`` found): six boundary-law modules and
+``structured_geometry.py`` in ``geometry``; ``partition.py`` and
+``structured.py`` in ``mesh``; ``mixture.py`` in ``data``; and
+``content.py``, ``mesh_free_function.py`` and ``question.py`` in
+``numerics``.
+
+**Why the encoder admits** ``bool`` **and the parsers refuse it.** The
+two answer different questions. The encoder digests a value that already
+exists, and its rule is that the digest follows ``==`` (the user's ruling
+of 2026-10-02, :ref:`structured-geometry-content-identity-forms`):
+``True == 1 == 1.0`` in Python, so the three encode alike, and
+``Eigen(True) == Eigen(1)``. A parser decides what an *input* means at
+the boundary where a value is made, and a ``bool`` given where a number
+is expected (an albedo of ``True``, an offset of ``True``) is a mistake in
+the call, not a number the caller meant; admitting it would turn the
+mistake into a value. So ``exact_double`` admits ``bool`` and
+``parse_real`` checks the type first.
+
+**What it replaced.** Before #559 the rule had three spellings: the
+encoder's private ``_real``, the geometry layer's ``parse_real``, and
+``RegionwiseConstant``'s inline NaN, infinity and dtype check. The first
+commit (``6b179059``) moved the module and routed the first and third
+through it, and its claim that the rule was then written once was
+premature: the encoder's array and sparse paths kept their own NaN
+refusal and ``-0.0`` fold (qa's finding), which ``8122abc6`` routed through
+``canonical_reals``. The elegance review found two more pairs in the
+module itself, fixed in the same commit: "a real entry" was decided by
+the coerced dtype in ``parse_finite_reals`` and by ``isinstance`` in
+``parse_real`` (`[M]` ``parse_finite_reals([1.0, True])`` returned
+``[1., 1.]`` while ``parse_positions`` refused the same list), and
+"finite" was spelled four times. The archivist's pass found a fourth
+NaN refusal, ``Mixture``'s own loop ("holds NaN, which is not a cross
+section"), outside the witness's vocabulary; ``1fde7b59`` passed every
+field of a mixture through ``canonical_reals`` and retired the loop.
+
+**The witness**, ``tests/gates/numerics/test_one_real_parser.py``,
+keeps the copies from coming back (X4: the mechanism that keeps several
+admitting sites equal needs a test that fails when one diverges). `[M]`
+this pass, 20 rows, 20 passed under ``-O``:
+
+- by AST over every production file, the NaN fragment ``which is not a
+  number`` is written at exactly 1 site, with the activation leg that the
+  site found is ``scalars.py``; first red, on the tree before #559, 2
+  sites wrote it and the encoder refused NaN with a message of its own;
+- a second filter in another vocabulary: by AST, every ``raise`` under
+  ``orpheus/`` whose message text says ``NaN`` sits in ``scalars.py``
+  (k = 1 of 1), its first red the old ``Mixture`` raise;
+- every admitting site (``canonical_real``, ``parse_real``,
+  ``parse_finite_real``, ``parse_finite_reals``, ``encode``,
+  ``RegionwiseConstant``, ``Mixture``) refuses NaN with the one message;
+- the sites agree on ``-0.0``; a finite parse refuses an infinity; a
+  ``bool`` entry is refused by every parse, the list spelling included;
+- the parsers and the encoder agree on what a double carries
+  (:math:`2^{53} + 1` refused by ``parse_real``, by ``encode`` and by an
+  encoded array; ``10**400`` and an overflowing ``Fraction`` refused with
+  their key); a rank-0 array parses.
+
+.. warning::
+
+   **Open: the frozen encoder admits a read-only view of a writeable
+   array (#561).** The encoder refuses a writeable array as a part,
+   because it could change after its owner was keyed, but it checks only
+   the array's own ``writeable`` flag, and a read-only VIEW over a
+   writeable base passes. `[M]` this pass: a frozen content value holding
+   ``base.view()`` with the view's flag cleared is admitted; after
+   ``base[0] = 1.0`` the value keeps its cached digest, and a fresh value
+   over the same view no longer equals it. A content type that copies its
+   arrays at construction (``Mixture``, ``Mesh2D``,
+   ``RegionwiseConstant``) is safe by that copy; the hole is for a type
+   that stores an array uncopied. The mapping analogue was closed in
+   ``8122abc6``: a ``MappingProxyType`` part is refused, since it is a
+   view over a ``dict`` its caller may still hold, and
+   :class:`~orpheus.numerics.content.FrozenMapping` encodes its own items
+   through a private view over storage only it holds, byte for byte as
+   before (the RECORD pins did not move). The strict array check (a view
+   refused unless it owns its data) reddens at least 19 owners, measured
+   by the orchestrator, which is why it is an issue and not an edit.
 
 .. _structured-geometry-content-identity-replaced:
 
@@ -2508,8 +2685,8 @@ functions stated *intensionally*, by a rule a later projection evaluates
 on whatever unknowns a method chooses. The module
 :mod:`orpheus.numerics.mesh_free_function` holds the two forms such a
 function takes, and it landed as step 6 of the campaign's first phase,
-on 2026-10-02 (branch ``feature/phase-space-functions``, not yet merged
-at the time of writing):
+on 2026-10-02 (merged to ``main`` with the step's close-out,
+``61f82a18``):
 
 - :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, one
   real value per (region, energy group): a function on the
@@ -2622,7 +2799,8 @@ shape.
 
 The finite-real check is :func:`~orpheus.numerics.scalars.parse_finite_reals`,
 the one definition of "a finite, canonical real" at L1 (#559), which the
-geometry's ``parse_real`` and the content encoder share.
+geometry, the mesh, the data layer and the content encoder share
+(:ref:`structured-geometry-one-real-parser`).
 
 .. _structured-geometry-symbolic:
 
@@ -3072,7 +3250,646 @@ The MoC solver's isotropic source lift is a hand-written
 :math:`1/(4\pi)`, not the angular section (#556). The derivations' typed
 measure masses are #557. A composite holding a retraction daggers to the
 generic sandwich instead of the leaf pullback (#558). The three
-finite-real parsers are #559.
+finite-real parsers were #559, made one at L1 by step 7
+(:ref:`structured-geometry-one-real-parser`).
+
+
+.. _structured-geometry-question-values:
+
+The question values: what is asked of a system, with no physics in it
+=====================================================================
+
+A reference question (#405) is the materials, the geometry with its
+laws, and *what is asked*: a criticality eigenvalue, the flux a source
+drives, or the importance of a detector. The first two fields are the
+chapters above; this chapter is the third. The module
+:mod:`orpheus.numerics.question` holds three question values and two
+mode values, and it landed as step 7 of the campaign's first phase on
+2026-10-02, with its prerequisite, one definition of a real number at L1
+(#559, :ref:`structured-geometry-one-real-parser`):
+
+- :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode)``,
+  where the system is singular along one direction;
+- :class:`~orpheus.numerics.question.FixedSource` ``(source, point)``,
+  the flux a given source drives;
+- :class:`~orpheus.numerics.question.Response` ``(detector, point)``,
+  the importance of a given detector;
+- the modes :class:`~orpheus.numerics.question.Fundamental` ``()`` and
+  :class:`~orpheus.numerics.question.Nearest` ``(tau)``, which say which
+  pole an ``Eigen`` asks for.
+
+The union aliases ``Question = Eigen | FixedSource | Response`` and
+``Mode = Fundamental | Nearest`` are the closed sets, and every value is
+a content-identity value (:ref:`structured-geometry-content-identity`),
+so a cache key built from a question is stable across processes.
+
+**Why this page is the home.** The values are mathematics and live in
+``numerics`` (L1), but what they are *for* is the reference question
+whose other fields this page defines: the source and the detector a
+question holds are the mesh-free functions of the chapter above, and
+the question is keyed by the encoder of the chapter before it. The
+ontology the values follow is the posing sequence's layer 2,
+"the problem (a question bound to a system)"
+(``.claude/plans/posing_sequence.md``); the posings the solvers consume
+today, :class:`~orpheus.numerics.posing.EigenPosing` and
+:class:`~orpheus.numerics.posing.SourcePosing` on the operator pencil,
+are documented at :ref:`eigenvalue-posing`. The specification of the
+step, with its rulings, its gates and its mutation battery, is
+``.claude/plans/reference_p1_spec.md`` §1.7; the census that preceded
+it is ``scratch/reference_architecture/p1step7/census.md``, and the two
+reviews are ``qa_report.md`` and ``elegance_report.md`` beside it.
+
+.. _structured-geometry-question-values-three:
+
+Three questions over one family of operators
+--------------------------------------------
+
+The posing sequence states every question on one object, a family of
+operators :math:`E(p)` over a **parameter space** :math:`P`. A point
+:math:`p \in P` fixes every coefficient the system declares as variable
+(a set of reaction cells scaled together, a geometric extent, a nuclide
+density), and :math:`E(p)` is the balance operator of the system at
+that point, loss minus production. The **physical point**
+:math:`p_\star` is the system as specified. A question is posed at a
+**base point** :math:`p_0 = p_\star + \sum_j \delta_j\,e_j`, where each
+:math:`e_j` is a declared direction and :math:`\delta_j` its offset; the
+offsets are the question's ``point`` field.
+
+**The eigen question** asks where, on the line through :math:`p_0` along
+one direction :math:`e_d` (the ``parameter``), the family is singular:
+
+.. math::
+
+   \text{find } \sigma \text{ and } \psi \ne 0 \text{ with }
+   E(p_0 + \sigma e_d)\,\psi = 0 .
+
+The solutions :math:`\sigma` are the **poles** of the resolvent
+:math:`E(p_0 + \sigma e_d)^{-1}` along that line, and the ``mode`` says
+which pole is wanted. When the direction is affine in :math:`\sigma`,
+:math:`E(p_0 + \sigma e_d) = A - \sigma T_d` is the operator pencil of
+:ref:`the-operator-pencil` restricted to the line. The k-eigenvalue is
+the case :math:`e_d` = the fission-emission cells, :math:`T_d = F`:
+:math:`A\psi = \sigma F\psi`, and :math:`k = 1/\sigma` is the spectral map
+:data:`~orpheus.numerics.posing.K_MAP` reads. The classical
+c-eigenvalue (secondaries per collision, the Sood benchmarks) is the
+direction that scales every emission cell, scattering and fission
+together; a boron search scales one absorption cell; a critical size is
+a geometric-extent direction. These are four values of one ``Eigen``,
+differing only in the key.
+
+**The fixed-source question** asks for :math:`\psi = E(p_0)^{-1} q`, the
+response to a source :math:`q` that does not depend on the unknown. A
+subcritical multiplying system driven by :math:`q` is ``FixedSource(q)``
+at the physical point; the same source with fission switched off is
+``FixedSource(q, point)`` whose point moves the fission-emission
+direction to its chart zero (where on the key's chart that zero lies is
+the coordinate's declaration, step 8's).
+
+**The response question** asks for :math:`\psi^\dagger_R =
+E(p_0)^{-\dagger} R`, the importance of a detector :math:`R`: the
+adjoint fixed-source question. Its answer serves every source at once,
+because the detector's reading of the flux a source drives is
+
+.. math::
+
+   \langle R,\, E(p_0)^{-1} q \rangle
+   \;=\; \langle E(p_0)^{-\dagger} R,\, q \rangle
+   \;=\; \langle \psi^\dagger_R,\, q \rangle .
+
+.. list-table:: The three questions
+   :header-rows: 1
+   :widths: 18 30 22 30
+
+   * - Value
+     - Asks for
+     - Datum
+     - Answer
+   * - ``Eigen(parameter, point, mode)``
+     - the pole :math:`\sigma` of :math:`E(p_0 + \sigma e_d)^{-1}` that
+       ``mode`` selects
+     - none: the direction is a key
+     - the pole and its mode :math:`\psi`; the adjoint mode
+       :math:`\psi^\dagger` belongs to this answer, not to the question
+   * - ``FixedSource(source, point)``
+     - :math:`E(p_0)^{-1} q`
+     - the source :math:`q`, a mesh-free function
+     - the flux
+   * - ``Response(detector, point)``
+     - :math:`E(p_0)^{-\dagger} R`
+     - the detector :math:`R`, a mesh-free function
+     - the importance :math:`\psi^\dagger_R`
+
+Nothing behind the questions exists yet: no system declares a parameter
+space, no pencil or spectral map is derived from a parameter, and no mode
+law finds a pole. Those are the posing sequence's unit 6 (#529), which
+binds a question to a system. Step 7 mints the values, so that the
+reference specification (step 8) can hold one and a cache can key on it.
+
+.. _structured-geometry-question-values-physics-free:
+
+Physics-free: the parameter is an opaque key, resolved elsewhere
+----------------------------------------------------------------
+
+``Eigen.parameter`` and every key of a point are **opaque keys**:
+``numerics`` never reads what a key names. That is the posing sequence's
+ruling of 2026-09-27 ("questions are physics-free"), and it is why the
+values live in ``numerics``. A question that named a reaction, a
+material or an extent would need the vocabulary of the input layer or of
+the transport layer, and a module's home is the lowest-knowledge layer
+whose vocabulary suffices (:ref:`architecture-layering`). Gate S7.13
+holds the layer twice: by AST, every ``orpheus`` import of the module is
+under ``orpheus.numerics`` (with the activation leg that its known
+import of ``content`` is seen); and in a fresh interpreter, importing the
+module and building one value of each kind with a table datum loads only
+the ``orpheus`` sub-packages ``numerics`` and ``geometry`` and no SymPy.
+``geometry`` is admitted there because a cold ``import orpheus.numerics``
+already loads it (``numerics.invariance`` imports
+``geometry.transformation``, an exception the layer gate lists); the
+positive control is that a cold ``orpheus.sn.problem`` loads
+``transport``.
+
+**What a key means is declared by whoever resolves it** (the orchestrator's
+ruling 5 of 2026-10-02). A key resolves to a **coordinate declaration**,
+one of three kinds:
+
+- ``CellCoefficient``, a *set* of reaction-grid cells scaled together
+  (the user's ruling 1 of 2026-10-02). k is the set of fission-emission
+  cells; the classical c is every emission cell, scattering and fission;
+  a boron search is one absorption cell. The posing plan's "one cell's
+  coefficient" is the one-element set, which is how the ruling reconciled
+  the two meanings c had carried (all collision emission in the
+  specification, one cell's coefficient in the posing plan);
+- ``GeometryExtent``, a geometric degree of freedom (a critical size);
+- ``NuclideDensity(nuclide, regions)``, a number density.
+
+In phase P1 the coordinates are declared on the reference specification
+(step 8), which resolves every key against its materials and geometry and
+refuses one it does not declare; #529 later declares them on the system,
+reusing that declaration. Step 7 mints none of the three kinds: `[M]`
+2026-10-02, the census found 0 occurrences of ``CellCoefficient``,
+``GeometryExtent`` and ``NuclideDensity`` in ``orpheus/``, ``tests/`` and
+``tools/``, and that is still the tree. Numerics therefore names no
+default parameter: ``Eigen()`` does not construct (S7.3), because "k" is
+the system's name for its fission-emission direction, not a word
+numerics knows. A specification that is given no question derives
+``Eigen(<the fission-emission key it declares>)``, and that derivation
+is step 8's.
+
+**A key must be hashable and have content.** The parameter is parsed by
+``_admit_key``: it must be hashable, and the question's digest is then
+taken at construction, which refuses a key with no content (a function,
+a dataclass compared by identity) with
+:class:`~orpheus.numerics.content.ContentlessError` naming
+``Eigen.parameter``. A string, an integer, a tuple and a
+:class:`~orpheus.numerics.content.FrozenMapping` are admitted (S7.6). The
+hashability check was added by the review: on ``31a2dc46`` the parameter
+was checked only by taking the digest, and the encoder admitted a
+``MappingProxyType`` and a read-only view of a writeable array, so
+``Eigen(MappingProxyType(d))`` constructed and, after the caller wrote
+``d["cells"] = 2.0``, still equalled the question built from the old
+content and kept its cached digest: a wrong cache hit, measured by both
+reviews. Both are unhashable, so ``hash(key)`` enforces the ``Hashable``
+the annotation already declared; `[M]` this pass, both are refused with
+the message "an unhashable mappingproxy is not a key (it is mutable, so
+its content is not fixed)" (and "ndarray" for the view). A point key
+needs no separate check: the ``dict`` a point is built from refuses an
+unhashable key before the question sees it.
+
+``Eigen(None)`` constructs (`[M]`): ``None`` is a hashable,
+digestable key. It names no coordinate, and the specification's key
+resolution (S8.1 (h1)) is what refuses it; the gap is owed to step 8.
+
+.. _structured-geometry-question-values-point:
+
+The point: offsets by key, and why a zero offset is kept
+--------------------------------------------------------
+
+``point`` is a :class:`~orpheus.numerics.content.FrozenMapping` from a
+parameter key to its **offset from the physical value** (the user's
+ruling 2 of 2026-10-02). The empty mapping is the physical point and the
+default of all three kinds, and a caller's ``dict`` is frozen at the
+boundary: writing the ``dict`` afterwards moves neither the stored point
+nor the digest, and the stored point refuses item assignment (S7.8). The
+point is the existing frozen mapping, not a ``Point`` class: the name is
+a type alias in ``orpheus/derivations/discrete/sn/face_transmission.py``,
+and one frozen mapping is the content types' rule. The elegance review
+recorded when a point type is owed (a qualified name such as
+``ParameterPoint``): when a fourth question holds a point (the evolution
+question), or when the point gains a verb. The verb in view is
+``moved(key, offset)``: the answer of ``Eigen(p, x, mode)`` is a pole
+:math:`\sigma`, the critical point is :math:`x` moved by :math:`\sigma`
+along :math:`p`, and the derived question "the source problem at the
+critical point" is ``FixedSource(q, x.moved(p, σ))``.
+
+Every offset is parsed by
+:func:`~orpheus.numerics.scalars.parse_finite_real`, so the point obeys
+the one real-number rule: a NaN or an infinite offset is a
+``ValueError`` and a string, a complex or a ``bool`` offset a
+``TypeError``, each message naming the key (``the offset of 'boron' is
+NaN, which is not a number``); ``-0.0`` is stored as ``+0.0``, and an
+offset of ``1`` and one of ``1.0`` are one question. The order in which
+keys were given is not content.
+
+**A zero offset is kept, not canonicalised away.** ``Eigen("b", {"b":
+0.0})`` and ``Eigen("b")`` are different questions with different digests
+(`[M]`, and gate S7.8). A zero offset names a key that step 8 must still
+see and resolve: a key the specification does not declare is refused
+there, and dropping it here would hide the refusal. The cost is two cache
+keys for one physical question, which is a miss and never a wrong hit,
+the only direction a key may err in.
+
+**The base point is not the line's origin.** :math:`\sigma = 0` on the
+eigen line is the base point, and the coordinate's *chart zero* (where
+its coefficient vanishes) is a different point, declared with the
+coordinate. The posing sequence measured the difference: re-posing from
+the k pole along c with the parameter's own component removed finds the
+c pole, not offset 0.
+
+**The parameter's own key may carry an offset.**
+``Eigen("b", point={"b": 0.3})`` is admitted, and step 8 does not refuse
+it (the orchestrator's ruling 3 on the step-7 NEEDS). The posing
+ontology rules the answer *invariant* under the point's own component
+along the question's direction: moving the base point along the line
+re-labels the poles, it does not move them. The question is therefore
+well posed, a refusal would contradict that law, and its cost is again
+a second cache key for one answer. The invariance gate is #529's.
+
+.. _structured-geometry-question-values-modes:
+
+The modes, and what is deferred until its trigger
+-------------------------------------------------
+
+``mode`` is a value, ``Fundamental()`` by default (S7.8):
+
+- ``Fundamental()`` asks for the first pole met from the
+  removal-dominated end of the direction, on the bulk cone; that end is
+  the boundary of the coordinate's declared admissible range. A
+  direction whose sign is indefinite (fuel plus moderator) refuses it.
+  ``Fundamental`` has no field, so any two are equal.
+- ``Nearest(tau)`` asks for the pole nearest :math:`\tau`, read in the
+  parameter's chart. ``tau`` is parsed by ``parse_finite_real``: a NaN,
+  an infinite or a complex :math:`\tau` is refused, naming ``tau``
+  (S7.7).
+
+A string (``"fundamental"``), a bare float and ``None`` are refused as a
+mode with a ``TypeError`` (S7.7): a stringly-typed selector is the
+missing type the closed set exists to replace. What each mode
+*selects* is the mode law of #529, not a property of the value, and no
+step-7 gate can see it. An ordinal ``Index(n)`` was refused by the
+posing sequence's review: ordering by real part, by modulus and by the
+shifted spectrum gives three orders, so "the n-th pole" depends on the
+Strategy that found it, and a question may not.
+
+Three members of the ontology are deliberately absent, each with the
+event that mints it (rulings 4 and 6). Gate S7.2 asserts the module has
+no attribute ``Enclosed``, ``Evolution``, ``Alpha``, ``Time``, ``Index``
+or ``Pseudospectrum``, so adding one is an edit of the gate on purpose.
+
+.. list-table:: Deferred, and the trigger that mints each
+   :header-rows: 1
+   :widths: 24 42 34
+
+   * - Member
+     - Why it is not in step 7
+     - Trigger
+   * - ``Enclosed(region)``, the poles inside a region of the plane
+     - no P1 reference asks for more than one mode; beyond the
+       direction's continuum edge the request is refused, and the
+       information a flagged answer would carry is a question of its own,
+       the pseudospectrum over the region
+     - the pseudospectrum and spectrum work of #529 and #531
+   * - the time direction (the α-eigenvalue, ``Eigen`` along the
+       Laplace direction)
+     - time is not one of the three declared coordinate kinds; no P1
+       reference asks for α. Adding it extends the closed set, it does
+       not edit a case
+     - the transient question
+   * - ``Evolution(initial, source, f, point)``, the initial-value
+       question
+     - its answer is a function of the generator applied to an initial
+       state; nothing in P1 asks it
+     - the transient question
+
+.. _structured-geometry-question-values-role:
+
+The role is the type: no adjoint flag
+-------------------------------------
+
+No question value carries a forward/adjoint flag, and none has an ``H``,
+``adjoint``, ``transpose``, ``dagger`` or ``is_adjoint`` attribute (S7.3).
+The role is the question's TYPE (the user's ruling 3 of 2026-10-02):
+``FixedSource`` holds a source and ``Response`` a detector, so neither
+value has an exclusive-or of fields, and the states a flag would make
+spellable cannot be written. `[M]` ``FixedSource(detector=t)`` and
+``Response(source=t)`` raise ``TypeError`` (an unexpected keyword
+argument), and a datum that is not a mesh-free function is refused with a
+message naming the role and the received type (``the source is a
+mesh-free function (RegionwiseConstant or Symbolic), got a
+numpy.ndarray``; S7.4, eight refusal rows and four positive rows, either
+type in either role). The member list in that message is read from the
+alias
+``MeshFreeFunction = RegionwiseConstant | Symbolic``, which the review
+moved into :mod:`orpheus.numerics.mesh_free_function` so that a third
+function type is added in one place.
+
+**This is step 6's ruling one level up.** Step 6 ruled that a mesh-free
+function carries no role and no density, and that the field holding it is
+the role, because the role picks the arrow into phase space: a source
+rate enters through the section :math:`E`, a detector through the
+retraction's adjoint :math:`R^{\dagger}`, and the two differ by the
+measure's mass (:ref:`structured-geometry-mesh-free-two-types`). The
+field that picks the arrow is now ``FixedSource.source`` or
+``Response.detector``, and the question's type is the role.
+
+**The eigen adjoint belongs to the answer.** ``Eigen`` has no adjoint
+either. The adjoint mode :math:`\psi^\dagger` of an eigen answer is the
+null vector of :math:`E(\text{pole})^{\dagger}`, the same pole, so
+"the adjoint eigen question" asks nothing the eigen question does not;
+it is a second component of one answer (posing ruling of 2026-09-28).
+The response question is different: its datum is a detector, which the
+forward question does not have, so it is a question of its own.
+
+**A source and a detector of one function are two questions.**
+``FixedSource(q, p)`` and ``Response(q, p)``, the same function at the
+same point, are unequal both ways, have two digests, are two members of
+a set, and neither equals its datum (S7.10, over a table and a
+``Symbolic``, at the physical point and at an offset point). A cache
+therefore never serves a flux for an importance. The schema tag carries
+both the class name and the part names (``source`` against
+``detector``), so either alone separates the two digests.
+
+.. warning::
+
+   **What no step-7 gate can see: the right function in the wrong
+   type.** ``FixedSource(R)`` written where ``Response(R)`` was meant
+   constructs, by ruling, because the source and the detector are one
+   function type with no units. The digest separates the two (S7.10), so
+   the confusion is never a wrong cache hit, but the answer is the wrong
+   one. Its catcher is a solver-level value gate owed by phase P4: the
+   response :math:`\langle R, A^{-1}q\rangle` against an independent
+   reference computed with the roles as intended, on a fixture where
+   :math:`A` is not self-adjoint (streaming with vacuum faces,
+   anisotropic scattering or upscatter) and :math:`q \ne R` with
+   different supports. The adjoint identity
+   :math:`\langle R, A^{-1}q\rangle = \langle A^{-\dagger}R, q\rangle`
+   cannot see the swap: it holds for either assignment of the two
+   functions, so the swap lies inside its invariance group (V&V failure
+   mode 12), and on a self-adjoint fixture the swapped response is even
+   equal.
+
+The elegance review raised, and did not grade, the name ``Response``:
+what the question asks for is the importance :math:`\psi^\dagger_R`,
+and the response :math:`\langle R, \psi\rangle` is a scalar derived from
+it. The name was ruled (ruling 3) and is kept.
+
+.. _structured-geometry-question-values-identity:
+
+Content identity, admitted eagerly
+----------------------------------
+
+Every value is a frozen dataclass declared ``eq=False`` that takes
+``==`` and ``hash`` from :class:`~orpheus.numerics.content.ContentIdentity`
+(:ref:`structured-geometry-content-identity-mixin`). The parts are the
+fields: ``Eigen`` (``parameter``, ``point``, ``mode``), ``FixedSource``
+(``source``, ``point``), ``Response`` (``detector``, ``point``),
+``Nearest`` (``tau``) and ``Fundamental`` (none).
+
+**Admission is eager.** Each ``__post_init__`` parses its fields and then
+takes the value's digest, so a question that cannot be keyed raises at
+construction (``ContentlessError``, ``ValueError`` or ``TypeError``,
+naming the field), never first when a cache calls ``hash``. A value that
+exists can always be keyed. Gate S7.5 builds a point whose key has no
+content (a function; a dataclass compared by identity) for each kind and
+requires the refusal at construction; the battery's arm that made
+admission lazy reddened those rows.
+
+The content rows are the encoder's pattern of step 5, applied to five
+new types, which join the content roster that gate S5.9 closes (S5.9
+walks ``orpheus.numerics`` with ``pkgutil``, and `[M]` on the
+specification's prototype it reddened with "content types with no
+roster entry: ['Eigen', 'FixedSource', 'Fundamental', 'Nearest',
+'Response']" until the union was amended). Per type, the population of
+parts is read off ``content_parts`` and matched to the roster; each part
+moved by one leg (one ULP of one offset, a key added or relabelled, the
+mode and :math:`\tau`, one coefficient of the datum) moves the digest,
+``==`` and set membership while no other part moves (S7.9, 22 legs);
+equal content is one value (the point's insertion order, a ``dict``
+against the ``FrozenMapping``, ``-0.0`` against ``0.0``, ``1`` against
+``1.0``); pickle round trips. S7.11 prints six values' digests and
+hashes in two interpreters under ``PYTHONHASHSEED`` 1 and 2, with a
+``str`` hash as the control that must differ. S7.12 is the RECORD: the
+hexadecimal digests of four canonical questions (``Eigen("fission-emission")``;
+an ``Eigen`` with a tuple key, a two-key point and ``Nearest(0.5)``;
+``FixedSource(t, {"fission-emission": -1.0})``; ``Response(t)``, with
+``t`` a 2 × 2 table) pinned as literals. A moved digest invalidates every
+cache key that holds a question, the message says so, and a re-pin
+carries its reason; qa's arm that bumped ``Eigen.__content_version__``
+reddened it alone.
+
+.. _structured-geometry-question-values-refuted:
+
+The rulings, and the specification they replaced
+------------------------------------------------
+
+The first specification of the step (2026-09-25; in git at
+``403f357d``, ``.claude/plans/reference_p1_spec.md`` §1.7) was a closed
+sum of four cases, ``Eigen(k)``, ``Eigen(c)``, ``FixedSource(σ)`` and
+``CriticalParameter``, each with a forward and an adjoint, and no
+``Eigen(α)``. The step's census found it stale on every case: it
+predated the posing sequence's rulings of 2026-09-27 to 2026-09-29.
+`[REFUTED 2026-10-02]` for the question *"what are the values a question
+is spelled with?"*; each part was retired for a structural reason.
+
+.. list-table:: The 2026-09-25 cases, and why each was retired
+   :header-rows: 1
+   :widths: 24 46 30
+
+   * - Retired
+     - Structural reason
+     - Replaced by
+   * - ``Eigen(k)`` and ``Eigen(c)`` as two cases
+     - a case per eigenvalue name enumerates directions inside the type,
+       so a boron search or a critical size is a new case and an edit of
+       every match; the direction is data. Its spectral map was to be a
+       field (``Eigen(k)``'s map *is* ``K_MAP``), but a
+       ``SpectralMap`` holds three lambdas, which have no content, so the
+       old gate could only digest the map's ``repr``. And "c" meant two
+       things in two plans
+     - one ``Eigen(parameter, point, mode)``; the spectral map is derived
+       from the parameter by #529, not stored; c is a set of cells
+       (ruling 1)
+   * - ``FixedSource(σ)``, σ = 1 multiplying and σ = 0 fission off
+     - σ is a coordinate of the base point along one direction, so a
+       field for it welds one direction into the fixed-source type and
+       leaves boron or an extent unspellable
+     - the point (ruling 2): the multiplying question is the physical
+       point, fission off is the point that moves the fission-emission
+       key to its chart zero
+   * - ``CriticalParameter``
+     - a critical size is a pole along a geometric direction, which is an
+       ``Eigen`` whose key is a ``GeometryExtent``; a separate type is
+       ``Eigen`` with the direction welded in. The posing ontology says
+       it "does not exist in the tree, and nothing is dissolved"
+     - ``Eigen`` over a ``GeometryExtent`` key, resolved by step 8
+       (S8.1 (h3) refuses the extent without a geometry). S7.2's AST
+       census of class definitions under ``orpheus/`` (more than 100
+       files, positive control ``SpectralMap`` found) reds the day the
+       name is re-minted
+   * - a forward and an adjoint per case (a boolean flag, or an ``.H``)
+     - a flag makes the detector-less adjoint and the forward question
+       given a detector spellable, and both must then be refused; for an
+       eigen question the adjoint is part of the answer, and for a fixed
+       source the adjoint has a different datum
+     - ``Response(detector, point)``, its own type (ruling 3); no flag on
+       any value
+   * - "no ``Eigen(α)``", with ``ALPHA_MAP`` refused
+     - α is the time direction, which is absent until its trigger, not
+       forbidden; refusing a spectral map at the question would have
+       placed the map in the question again
+     - deferred to the transient question (ruling 4)
+   * - the specification's ``source`` field beside the question
+     - the question now holds its datum, so a source on the
+       specification as well would be a second definition of one datum,
+       and every refusal that kept the two consistent would guard a state
+       the design should make unspellable
+     - ``Specification(materials, geometry | None, question)``; the old
+       refusals S8.1 (d) to (f) are structural legs (the orchestrator's
+       ruling 1 on the step-7 NEEDS)
+
+**The rulings of record**, all of 2026-10-02:
+
+1. The user: a parameter's direction is a set of reaction-grid cells
+   scaled together.
+2. The user: the point is a frozen mapping from parameter key to an
+   offset from the physical value; the empty mapping is the physical
+   point and the default.
+3. The user: the adjoint fixed-source question is its own question,
+   ``Response(detector, point)``; no value carries a forward/adjoint
+   flag, and the eigen adjoint belongs to the eigen answer.
+4. The orchestrator: α is not in step 7.
+5. The orchestrator: the parameter is an opaque key in ``numerics``; the
+   coordinate kinds live with whoever resolves the key.
+6. The orchestrator: the modes are ``Fundamental`` and ``Nearest(τ)``.
+
+And on the specification's NEEDS: the specification's ``source`` field
+retires; the coordinate declaration's shape is step 8's first design
+item; ``Eigen("b", point={"b": 0.3})`` is admitted.
+
+**Found by the reviews, and fixed in** ``8122abc6``: the parameter's
+missing hashability check (above); the frozen encoder's admission of a
+``MappingProxyType`` part, now refused
+(:ref:`structured-geometry-one-real-parser` has the array analogue,
+#561); the four spellings of "finite" and the two of "a real entry"
+(the next section); ``MeshFreeFunction`` defined in its consumer, moved
+to its module. Withdrawn by the elegance review on its second pass, each
+with its reason: a shared base for ``FixedSource`` and ``Response`` (the
+field name IS the role, and a base would read the field by a string); a
+generic admit-by-annotation hook on the mixin (three instances whose
+parses differ); ``Eigen(True) == Eigen(1)`` as a defect (it follows
+Python's ``==`` in the ``dict`` and in the digest alike).
+
+.. _structured-geometry-question-values-gates:
+
+The gates, and the battery
+--------------------------
+
+Every gate is a ``foundation`` test declaring ``rests_on``. `[M]`
+2026-10-02, this pass, ``.venv/bin/python -O -m pytest`` over the two
+files: 116 rows, 116 passed.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 9 55 36
+
+   * - Id
+     - What it asserts
+     - Mutation witness (the battery's arm)
+   * - S7.1
+     - the closed set: ``get_args(Question)`` and ``get_args(Mode)`` are
+       exactly the three and the two; the module's content classes are
+       exactly those five; a ``match`` with ``assert_never`` names each
+       once, and a foreign object reaches ``case _``
+     - an ``Enclosed`` class minted in the module
+   * - S7.2
+     - the struck and deferred names are absent; no class
+       ``CriticalParameter`` anywhere under ``orpheus/`` (AST census, input
+       count printed, positive control)
+     - the same arm
+   * - S7.3
+     - the fields are exactly the roles, by name; no field is a
+       ``bool``; no adjoint attribute; the wrong-role spellings and
+       ``Eigen()`` do not construct; the signatures' defaults; two
+       detectors refused
+     - a boolean ``adjoint`` field on ``FixedSource``; a default
+       ``parameter``
+   * - S7.4
+     - a datum that is not a mesh-free function is refused, naming the
+       role; both types admitted in both roles
+     - the datum check removed (8 of 8 refusal rows red)
+   * - S7.5
+     - a non-finite or non-real offset refused, naming the key; a
+       contentless point key refused at construction
+     - the finiteness check removed; admission made lazy
+   * - S7.6
+     - a contentless or unhashable parameter refused (a function, an
+       identity-compared dataclass, a ``list``, a ``MappingProxyType``, a
+       read-only view); a ``str``, ``int``, ``tuple`` and
+       ``FrozenMapping`` admitted
+     - admission made lazy
+   * - S7.7
+     - :math:`\tau` finite and real; a string, a float and ``None``
+       refused as a mode
+     - the finiteness check removed; the mode check removed
+   * - S7.8
+     - the default point is an empty ``FrozenMapping`` and the default
+       mode ``Fundamental()``; ``point={}`` and ``point=FrozenMapping()``
+       are one value; a caller's ``dict`` is frozen at the boundary; a
+       zero offset is not the empty point
+     - a non-empty default point; the point stored as a read-only view of
+       the caller's ``dict``
+   * - S7.9
+     - every part is content (population, 22 perturbation legs, equal
+       pairs, pickle)
+     - the positive control (below)
+   * - S7.10
+     - a source and a detector of one function are two questions
+     - the schema tag reduced to a constant (the digest leg; the ``==``
+       leg is a second, independent tooth)
+   * - S7.11
+     - the same digests and hashes in two processes
+     - a ``str`` part encoded through the salted ``hash()``
+   * - S7.12
+     - RECORD: four digests pinned
+     - qa's ``__content_version__`` bump
+   * - S7.13
+     - the layer, by subprocess and by AST
+     - the subprocess also importing ``orpheus.transport``; the module
+       importing ``orpheus.mesh``
+
+The specification's battery (``scratch/reference_architecture/p1step7/ta/battery/``,
+a ``-p`` plugin that rebinds in every ``sys.modules`` binding at each
+test's setup and refuses an arm that rebinds nothing) ran 14 arms and a
+positive control, first against a prototype and then against the real
+module at ``31a2dc46`` (114 rows then; logs ``real/arm_*.log``). `[M]`
+the unmutated run 0 red; the positive control, every content part
+emptied, 33 red; each arm reddened its target rows (red counts 1 to 17),
+and the red SETS, read against the target rows, are the record, since
+the counts moved between the prototype and the module (A3 9 rows, not 12:
+the encoder's NaN refusal now goes through the one parser and names the
+key). The last leg of the specification's S7.13 puts
+``"orpheus.numerics.question"`` (with ``mesh_free_function``, owed by
+S6.21, and ``scalars``) on the entry-point list of
+``tests/gates/test_layer_imports.py``, so each imports cleanly from a cold
+interpreter.
+
+**Not built, and where it lands.** The coordinate declarations and the
+key resolution, with the refusal of ``Eigen(None)`` and of a key the
+specification does not declare: step 8 (S8.1 (h1) to (h4)). The pencil
+and spectral map a resolved parameter derives, the mode law, the
+binding to a system, and the invariance gate under the point's own
+component: #529. ``Enclosed`` and the pseudospectrum question: #529 and
+#531. The time direction and the evolution question: the transient
+question. The role-confusion value gate: P4.
 
 
 End-state spot checks
@@ -4301,6 +5118,26 @@ trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-10-02
+     - **What is asked is a physics-free value, and a real number has one
+       definition.** :mod:`orpheus.numerics.question` landed with
+       ``Eigen(parameter, point, mode)``, ``FixedSource(source, point)``,
+       ``Response(detector, point)`` and the modes ``Fundamental`` and
+       ``Nearest``, content-identity values admitted at construction.
+       Ruled the same day (the user): a parameter's direction is a set of
+       reaction-grid cells scaled together, the point is a frozen mapping
+       of offsets from the physical value, and the adjoint fixed-source
+       question is its own type, with no adjoint flag on any value. The
+       2026-09-25 cases ``Eigen(k)``, ``Eigen(c)``, ``FixedSource(σ)`` and
+       ``CriticalParameter``, each with a forward and an adjoint, were
+       retired before any was built. ``orpheus/geometry/scalars.py``
+       moved to :mod:`orpheus.numerics.scalars` (no shim) and became the
+       one conversion the parsers, the encoder and ``Mixture`` make; the
+       frozen encoder refuses a ``MappingProxyType`` part. Records:
+       :ref:`structured-geometry-question-values`,
+       :ref:`structured-geometry-one-real-parser`.
+     - #405, #559, #561
+     - *(in development)* branch ``feature/question-values``
+   * - 2026-10-02
      - **The source and the detector a specification states are
        mesh-free functions.** :mod:`orpheus.numerics.mesh_free_function`
        landed with ``RegionwiseConstant`` (a per-(region, group) table on
@@ -4319,7 +5156,7 @@ trust ``git`` over this table for merge status.
        became a core dependency. Record:
        :ref:`structured-geometry-mesh-free-functions`.
      - #405
-     - *(in development)* branch ``feature/phase-space-functions``
+     - ``61f82a18`` on ``main``
    * - 2026-10-02
      - **Equality and hash are content, through one encoder.**
        :mod:`orpheus.numerics.content` landed: ``encode``,
@@ -4361,7 +5198,7 @@ trust ``git`` over this table for merge status.
        ``cp_body``). Ruling: the user, 2026-09-30,
        ``.claude/plans/boundary_law_ontology.md``, "Third exchange".
      - #513
-     - *(in development)* branch ``fix/boundary-law-wrong-answers``
+     - ``8f9300b2`` on ``main``
    * - 2026-09-30
      - **No boundary law is undeclared.** ``None`` retired as a boundary
        declaration everywhere: ``Mesh2D``'s four ``bc_*`` fields gave

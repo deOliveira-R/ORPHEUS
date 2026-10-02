@@ -299,6 +299,11 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # importing only the operator algebra (plan §6.3: no new package edge).
         "orpheus.numerics.pencil",
         "orpheus.numerics.posing",
+        # #405 P1 steps 6 and 7 (2026-10-02): the mesh-free functions (S6.21),
+        # the question values (S7.13) and the one real-number parser (#559).
+        "orpheus.numerics.mesh_free_function",
+        "orpheus.numerics.question",
+        "orpheus.numerics.scalars",
     ],
 )
 def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:

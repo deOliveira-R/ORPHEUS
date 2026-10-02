@@ -8769,8 +8769,7 @@ older entries classify against.
    :title: solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links reflective only: solve_moc(materials) with no mesh raised before tracing a ray
 
    **Status:** ✅ **FIXED 2026-09-30, P1 step 3c** of the reference-solution
-   campaign (``.claude/plans/reference_cache.md``); uncommitted at the
-   time of writing, the hash is added at merge.
+   campaign (``.claude/plans/reference_cache.md``), at ``4318adc5``.
 
    **Module:** ``orpheus/moc/solver.py`` (``solve_moc``, its ``mesh=None``
    default).
@@ -8819,13 +8818,13 @@ older entries classify against.
 .. error-entry:: ERR-094
    :title: A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror in three places: the eigenvalue omitted its leakage (k came out k∞ whatever α), the curvilinear μ = ±1 corner returned the full outflow, and DSA built the mirror's low-order row and diverged
 
-   **Status:** ✅ **FIXED 2026-09-30** on branch
-   ``fix/boundary-law-wrong-answers``; uncommitted at the time of
-   writing, the hash is added at merge. Found by Census A of the
+   **Status:** ✅ **FIXED 2026-09-30** at ``8f9300b2`` (branch
+   ``fix/boundary-law-wrong-answers``). Found by Census A of the
    boundary-law ontology discussion
    (``.claude/plans/boundary_law_ontology.md``, "Census A's findings").
 
-   **Root retired 2026-10-01** (branch ``refactor/reflective-is-a-mirror``).
+   **Root retired 2026-10-01** at ``65f1dc7a`` (branch
+   ``refactor/reflective-is-a-mirror``).
    The first spelling of a partial reflector below,
    ``ReflectiveBoundary(axis, α)``, no longer exists: the mirror is the
    parameter-free deck law (``axis`` its only field, :math:`R` the
@@ -9153,7 +9152,7 @@ older entries classify against.
    :title: The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a prescribed inflow, dropping the declared source in silence
 
    **Status:** ✅ **FIXED 2026-09-30** on branch
-   ``fix/boundary-law-wrong-answers`` (the hash is added at merge). Found
+   ``fix/boundary-law-wrong-answers``, at ``8f9300b2``. Found
    by the qa review of ERR-094.
 
    **Module:** ``orpheus/sn/solver.py`` (``solve_sn``,

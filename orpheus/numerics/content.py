@@ -63,8 +63,11 @@ declared ``field(compare=False)``, the one spelling of "not content".
 **A part of an object is immutable.** A list, a dict, a set, a writeable
 array or a sparse matrix whose arrays are writeable is refused as a part (it
 could change after the object was keyed, under a cached digest), with
-:class:`ContentlessError`; a ``tuple``, a ``frozenset``, a read-only mapping
-view, a :class:`FrozenMapping` and a read-only array are admitted. A value
+:class:`ContentlessError`, and so is a ``MappingProxyType``, a read-only view
+over a ``dict`` its caller may still hold and write; a ``tuple``, a
+``frozenset``, a :class:`FrozenMapping` and a read-only array are admitted.
+The array check reads the array's own flag, so a read-only VIEW of a
+writeable array passes it (#561). A value
 handed to :func:`content_digest` directly is not a part and is not held to
 this.
 

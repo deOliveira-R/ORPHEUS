@@ -9740,7 +9740,7 @@ for merge status.**
        10** clean shipped against **3 of 10** with the old axis home — and
        ``import orpheus`` alone stays green under the broken variant.
      - `#434 <https://github.com/deOliveira-R/ORPHEUS/issues/434>`_
-     - *(in development)* ``fix/angular-phantom-support``; carve R2 of
+     - ``27703297`` on ``main`` (branch ``fix/angular-phantom-support``); carve R2 of
        #434
    * - 2026-09-03
      - ⭐⭐ **The lift is a derivation OUTPUT, and an orbit space's
@@ -9816,9 +9816,8 @@ for merge status.**
        axis) rows unchanged, and both folded call sites in the tree pass
        ``axis="x"``.
      - `#434 <https://github.com/deOliveira-R/ORPHEUS/issues/434>`_
-     - *(in development)* ``fix/angular-phantom-support``; carve R4 of
-       the symmetry-machine review. ⚠ Uncommitted in the working tree
-       when this row was written — trust ``git`` over this cell.
+     - ``13423a59`` on ``main`` (branch ``fix/angular-phantom-support``); carve R4 of
+       the symmetry-machine review.
        ``numerics/manifold.py``, ``numerics/symmetry.py``,
        ``numerics/basis/descent.py``,
        ``numerics/quadrature/directional.py``
@@ -9869,9 +9868,8 @@ for merge status.**
        dataclass — before, ``g._tag = …`` succeeded and moved
        ``hash(quotient)`` under three memos keyed on it.
      - `#434 <https://github.com/deOliveira-R/ORPHEUS/issues/434>`_
-     - *(in development)* ``fix/angular-phantom-support``; carve R1 of
-       the symmetry-machine review. ⚠ Uncommitted in the working tree
-       when this row was written — trust ``git`` over this cell.
+     - ``f9d3b15b`` on ``main`` (branch ``fix/angular-phantom-support``); carve R1 of
+       the symmetry-machine review.
        ``numerics/symmetry.py``, ``numerics/quadrature/registry.py``
    * - 2026-09-02
      - ⭐⭐ **A symmetry is asked ON the orbit space, and a geometry
@@ -9956,10 +9954,8 @@ for merge status.**
        third unnamed arm and is reported rather than repaired
        (:ref:`manifold-orbit-certificate-orbit-space`).
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``; tracker 2.2b,
-       user-ruled 2026-09-02 (three rulings). ⚠ Uncommitted in the
-       working tree when this row was written — trust ``git`` over this
-       cell.
+     - ``a7c8de6d`` on ``main`` (branch ``fix/angular-phantom-support``); tracker 2.2b,
+       user-ruled 2026-09-02 (three rulings).
    * - 2026-09-02
      - ⭐⭐ **An orbit space is named by its STABILISER, so it has ONE
        spelling — and the naming law is an accessor plus a construction
@@ -10090,9 +10086,7 @@ for merge status.**
        not ship (a section is a choice, not a derivation output); and
        ERR-080 keeps its three ``xfail(strict=True)`` rows.
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``; tracker 3.1.
-       ⚠ The code was **uncommitted in the working tree** when this row
-       was written — trust ``git log`` over this cell for its hash.
+     - ``67e38605`` on ``main`` (branch ``fix/angular-phantom-support``); tracker 3.1.
    * - 2026-09-02
      - **The category gets its ARROWS, and a codomain stops being
        something a caller can assert.** Every construction that moved
@@ -10141,7 +10135,7 @@ for merge status.**
        until tracker 3.4, and the gate still declares three
        ``xfail(strict=True)`` rows (:ref:`manifold-arrows`).
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``
+     - merged to ``main`` (branch ``fix/angular-phantom-support``)
        (``5ec3a00a``); tracker 2.3. (⛔ This cell read *"the code was
        **uncommitted in the working tree** when this row was written"*
        until the hash landed the same day — the hedge was honest and is
@@ -10179,7 +10173,7 @@ for merge status.**
        that verdict**: the frame's pairing gate is tracker 2.2, and
        ERR-080 stays open, held by its ``xfail(strict=True)`` gate.
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``
+     - merged to ``main`` (branch ``fix/angular-phantom-support``)
        (``c461fe8d`` for 2.1, ``9b4a4d9c`` for 2.1b). (⛔ This cell read
        *"2.1b was **uncommitted in the working tree**"* until its hash
        landed.)
@@ -10217,7 +10211,7 @@ for merge status.**
        not the section
        (:ref:`manifold-the-axis-convention-for-a-section`).
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``
+     - merged to ``main`` (branch ``fix/angular-phantom-support``)
        (``17501245``); tracker 2.4. (⛔ This cell read *"the code was
        **uncommitted in the working tree**"* until the hash landed.)
    * - 2026-08-31
@@ -10249,7 +10243,7 @@ for merge status.**
        (:ref:`manifold-err-080-is-a-section`). Three mirror keys ship,
        one procedure.
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``
+     - merged to ``main`` (branch ``fix/angular-phantom-support``)
        (``b55bba56``); tracker 1.1 for the entry, user ruling of
        2026-08-31 for the two slots
    * - 2026-08-31
@@ -10279,7 +10273,7 @@ for merge status.**
        consumers, and ERR-080 remains open**
        (:ref:`manifold-seams`).
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
-     - *(in development)* ``fix/angular-phantom-support``
+     - merged to ``main`` (branch ``fix/angular-phantom-support``)
        (``b8c05d16``); tracker 2.0a, user ruling D0.7 for the mint and
        2.0a-R for the shape
 

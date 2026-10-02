@@ -55,7 +55,7 @@ them.  Trust ``git``, not this column.
        longer divides the per-ordinate external source by :math:`W` a
        second time (:ref:`sn-adjoint-dual-lift`).
      - #405
-     - *(in development)* branch ``feature/phase-space-functions``
+     - ``61f82a18`` on ``main``
    * - 2026-09-30
      - **The S**\ :sub:`N` **entries take the declared boundary laws
        verbatim** — ``solve_sn_fixed_source``,
