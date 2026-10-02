@@ -53,6 +53,7 @@ def test_s6_8_the_table_is_a_read_only_copy() -> None:
 @pytest.mark.parametrize(
     "values,fragment",
     [
+        (np.array(1.0), "of rank 2, got rank 0"),  # qa 2026-10-02: the #559 parse first raised numpy's unkeyed 0-d error
         (np.array([1.0, 2.0]), "of rank 2, got rank 1"),
         (np.ones((2, 2, 2)), "of rank 2, got rank 3"),
         (np.ones((0, 2)), "has no regions"),
@@ -60,7 +61,7 @@ def test_s6_8_the_table_is_a_read_only_copy() -> None:
         (np.array([[1.0, np.nan]]), r"entry \(0, 1\) is NaN"),
         (np.array([[1.0], [-np.inf]]), r"entry \(1, 0\) is infinite"),
     ],
-    ids=["rank 1", "rank 3", "no regions", "no groups", "NaN", "inf"],
+    ids=["rank 0", "rank 1", "rank 3", "no regions", "no groups", "NaN", "inf"],
 )
 def test_s6_8_the_refusals(values: np.ndarray, fragment: str) -> None:
     with pytest.raises(ValueError, match=fragment):

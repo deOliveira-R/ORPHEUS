@@ -102,7 +102,7 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
     ("volume-wrong-coordinate", lambda: _mesh(coord=_SPHERE, volumes=_CYLINDER.measure(np.array([0.0, 0.5, 2.0]))),
      ValueError, "is not the spherical measure of the cell"),
     ("volume-non-finite", lambda: _mesh(volumes=[0.5, math.inf]),
-     ValueError, "Mesh1D.volumes must be finite"),
+     ValueError, "Mesh1D.volumes[1] is infinite"),  # the shared finite parse since #559
     # qa F4: on a cell one ulp wide, a zero or negative volume is within the
     # absolute band of its measure, so positivity is its own law
     ("volume-zero-on-a-thin-cell", lambda: _mesh(edges=(1.0, _ONE_ULP_ABOVE_ONE), volumes=[0.0], mat_ids=[0]),

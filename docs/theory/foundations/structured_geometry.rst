@@ -2620,9 +2620,9 @@ an integer table equals its float twin, and a ``(2, 3)`` and a
 shape is part of the content. ``n_regions`` and ``n_groups`` read the
 shape.
 
-The finite-real check is one of three spellings of "a finite, canonical
-real" in the tree (with the content encoder's private ``_array`` and the
-geometry's ``parse_real``); one parser at L1 for all three is #559.
+The finite-real check is :func:`~orpheus.numerics.scalars.parse_finite_reals`,
+the one definition of "a finite, canonical real" at L1 (#559), which the
+geometry's ``parse_real`` and the content encoder share.
 
 .. _structured-geometry-symbolic:
 

@@ -99,7 +99,6 @@ A PWR pin cell through the Wigner–Seitz factory::
 from __future__ import annotations
 
 import itertools
-import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -109,7 +108,7 @@ import numpy as np
 from orpheus.numerics.content import ContentIdentity
 
 from .coord import CoordSystem
-from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positive_real, parse_real
+from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positions, parse_positive_real, parse_real
 from .boundary import BC
 
 if TYPE_CHECKING:
@@ -477,19 +476,11 @@ def _parse_breakpoints(
     coord: CoordSystem, breakpoints: object,
 ) -> tuple[float, ...]:
     """The breakpoints as a tuple of ``float``, or a keyed refusal."""
-    entries = parse_entries(breakpoints, "StructuredGeometry.breakpoints", "real numbers")
-    parsed = tuple(
-        parse_real(value, f"StructuredGeometry.breakpoints[{k}]")
-        for k, value in enumerate(entries)
-    )
+    parsed = tuple(float(b) for b in parse_positions(breakpoints, "StructuredGeometry.breakpoints"))
     if len(parsed) < 2:
         raise ValueError(
             f"StructuredGeometry needs at least 2 breakpoints (one interval); "
             f"got {len(parsed)}"
-        )
-    if not all(math.isfinite(value) for value in parsed):
-        raise ValueError(
-            f"StructuredGeometry.breakpoints must be finite; got {parsed}"
         )
     if any(b <= a for a, b in itertools.pairwise(parsed)):
         raise ValueError(

@@ -257,6 +257,26 @@ class TestS54EncoderCanonicalForms:
         with pytest.raises(ContentlessError, match=fragment):
             encode(value)
 
+    def test_a_mapping_view_is_not_an_immutable_part(self) -> None:
+        """A ``MappingProxyType`` is a read-only VIEW of a dict its caller may
+        still hold, so a frozen owner cannot carry one: writing through the
+        dict after keying would move the content under a cached digest. First
+        red (``[M]`` 2026-10-02, the step-7 elegance review): the frozen
+        encoder admitted every mappingproxy, because ``FrozenMapping`` handed
+        it one over its own storage; that part is now a private items view
+        that encodes byte-identically (the RECORD pins did not move)."""
+        from types import MappingProxyType
+
+        from orpheus.numerics.content import FrozenMapping
+
+        @dataclasses.dataclass(frozen=True, eq=False)
+        class _HoldsAView(ContentIdentity):
+            items: Any
+
+        with pytest.raises(ContentlessError, match="mappingproxy mapping"):
+            content_digest(_HoldsAView(MappingProxyType({"k": 1.0})))
+        require(encode(FrozenMapping({"k": 1.0})) == encode(FrozenMapping({"k": 1})), "activation: a frozen mapping encodes")
+
     def test_the_digest_is_blake2b_256_of_the_encoding(self) -> None:
         import hashlib
 

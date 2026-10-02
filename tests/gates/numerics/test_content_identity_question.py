@@ -1,10 +1,9 @@
 r"""Content identity of the question values (#405 P1 step 7, S7.9-S7.12).
 
-DRAFT (test-architect, 2026-10-02). Lands as
-``tests/gates/numerics/test_content_identity_question.py``; its ``ROSTER`` joins
-the union in ``tests/gates/numerics/test_content_identity.py`` (S5.6's route gate reads
-it; S5.9 walks ``orpheus.numerics`` and reds while the five classes have no
-roster entry, ``[M]`` 2026-10-02 on the prototype).
+Specified by the test-architect (2026-10-02). Its ``ROSTER`` joins the union
+in ``tests/gates/numerics/test_content_identity.py`` (S5.6's route gate reads
+it; S5.9 walks ``orpheus.numerics`` and reds while a class has no roster
+entry, ``[M]`` 2026-10-02 on the prototype).
 
 Every part of every value moves the digest (the population is the type's
 ``content_parts``, never a hand list); the role is the TYPE, so a fixed
@@ -74,9 +73,9 @@ def _point_ulp() -> dict[str, float]:
 
 
 def _point_legs(build):
-    """The point legs every kind shares: one offset by one ULP, a key added, a
-    key relabelled (the same offsets under another key), and the str key
-    against its int twin (``"1" != 1``, the encoder's rule)."""
+    """The point legs every kind shares: one offset by one ULP, a key added,
+    a key relabelled (the same offsets under another key), and the empty
+    point."""
     return (
         leg("one offset by one ULP", lambda: build(point=_point_ulp())),
         leg("a key added", lambda: build(point=_point(xenon=0.5))),

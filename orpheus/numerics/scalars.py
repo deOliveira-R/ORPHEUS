@@ -4,12 +4,18 @@ One definition each of "a real number", "a finite real number", "an
 integer" and "a positive quantity", shared by every layer that admits
 numbers: the content encoder (:mod:`orpheus.numerics.content`), the
 mesh-free functions and question values of :mod:`orpheus.numerics`, the
-geometry and the mesh. ``bool`` is refused wherever a number is expected
-(``True`` is an ``int``), NaN is refused (it is not a number, and not equal
-to itself), and ``-0.0`` becomes ``+0.0``: the two compare equal, so they
-are one value. :func:`canonical_real` is that rule on a ``float``; every
-parser here and the encoder call it, so the stored bits and the digest
-agree (#405 P1 step 5; the three earlier copies were unified by #559).
+geometry and the mesh.
+
+The conversion every one of them makes is :func:`exact_double` (and
+:func:`canonical_reals`, the same rule entrywise): an integer beyond
+2**53 is refused (a double would round it, so two unequal integers would
+become one value), a magnitude beyond the range of a double is refused,
+NaN is refused (it is not a number, and not equal to itself), and ``-0.0``
+becomes ``+0.0`` (:func:`canonical_real`; the two compare equal, so they
+are one value). The stored bits and the digest therefore agree (#405 P1
+step 5; the earlier copies were unified by #559). The parsers also refuse
+``bool`` wherever a number is expected; the encoder admits it, because
+``True == 1`` and its content follows ``==``.
 
 The module imports nothing from ``orpheus``: it is a leaf, below the
 content encoder that uses it.
@@ -23,6 +29,10 @@ from numbers import Real
 import numpy as np
 
 
+EXACT_INTEGER_LIMIT = 2**53
+"""The largest integer magnitude a double carries exactly (every integer up to it)."""
+
+
 def canonical_real(value: float, where: str) -> float:
     """The canonical ``float`` of one real value: NaN refused, ``-0.0`` made ``+0.0``.
 
@@ -34,6 +44,42 @@ def canonical_real(value: float, where: str) -> float:
     return value + 0.0  # -0.0 + 0.0 is +0.0
 
 
+def exact_double(value: object, where: str) -> float:
+    """The double that carries a real scalar exactly as ``==`` sees it, or a keyed refusal.
+
+    An integer beyond :data:`EXACT_INTEGER_LIMIT` is refused (a double would
+    round it, so two unequal integers would become one value), a magnitude
+    beyond the range of a double is refused, and the result passes through
+    :func:`canonical_real`. ``bool`` is admitted here, as ``True == 1``; the
+    parsers that refuse it check the type first.
+    """
+    if isinstance(value, (int, np.integer)) and abs(int(value)) > EXACT_INTEGER_LIMIT:
+        raise ValueError(
+            f"{where}: the integer {int(value)} lies beyond 2**53, where a double cannot carry it exactly"
+        )
+    try:
+        double = float(value)  # type: ignore[arg-type]
+    except OverflowError:
+        raise ValueError(f"{where}: {value!r} lies beyond the range of a double") from None
+    return canonical_real(double, where)
+
+
+def canonical_reals(values: np.ndarray, where: str) -> np.ndarray:
+    """:func:`exact_double` entrywise: a ``float64`` copy of a boolean, integer or real array.
+
+    A refused entry is named by its index; the ``-0.0`` fold is
+    :func:`canonical_real`'s, applied to the whole array at once.
+    """
+    if values.dtype.kind in "iu" and values.size:
+        for position in (int(np.argmin(values)), int(np.argmax(values))):
+            index = np.unravel_index(position, values.shape)
+            exact_double(int(values[index]), f"{where}, the entry {tuple(int(i) for i in index)}")
+    doubles = np.array(values, dtype=np.float64)
+    for index in zip(*np.nonzero(np.isnan(doubles))):
+        canonical_real(math.nan, f"{where}, the entry {tuple(int(i) for i in index)}")
+    return doubles + 0.0  # -0.0 + 0.0 is +0.0
+
+
 def parse_real(value: object, where: str) -> float:
     """A real scalar as a ``float``, or a keyed refusal.
 
@@ -43,7 +89,7 @@ def parse_real(value: object, where: str) -> float:
     """
     if not isinstance(value, Real) or isinstance(value, bool):
         raise TypeError(f"{where} must be a real number, got {type(value).__name__}")
-    return canonical_real(float(value), where)
+    return exact_double(value, where)
 
 
 def parse_finite_real(value: object, where: str) -> float:
@@ -57,17 +103,20 @@ def parse_finite_real(value: object, where: str) -> float:
 def parse_finite_reals(value: object, where: str) -> np.ndarray:
     """A real array of any rank as a read-only ``float`` copy, every entry finite.
 
-    The rule of :func:`parse_finite_real`, applied entrywise: a non-real
-    dtype (``bool`` included) is refused, and a NaN or infinite entry is
-    refused naming its index. The copy is taken, so the caller's array can
-    change afterwards without moving the parsed one.
+    Every entry is parsed by :func:`parse_finite_real`, so an array obeys the
+    scalar rule exactly: a ``bool`` or a non-real entry is refused, a NaN or
+    infinite entry is refused naming its index, and ``-0.0`` becomes ``+0.0``.
+    An ``ndarray`` whose dtype is not real (``bool`` included) is refused as a
+    whole; an object array and a nested sequence are parsed entry by entry.
+    The copy is taken, so the caller's array can change afterwards
+    without moving the parsed one.
     """
-    raw = np.asarray(value)
-    if raw.dtype.kind not in "iuf":
-        raise TypeError(f"{where} must be real numbers, got an array of dtype {raw.dtype}")
-    array = np.array(raw, dtype=float) + 0.0  # -0.0 + 0.0 is +0.0
-    for index in zip(*np.nonzero(~np.isfinite(array))):
-        parse_finite_real(array[index], f"{where}, the entry {tuple(int(i) for i in index)}")
+    if isinstance(value, np.ndarray) and value.dtype.kind != "O" and value.dtype.kind not in "iuf":
+        raise TypeError(f"{where} must be real numbers, got an array of dtype {value.dtype}")
+    entries = np.asarray(value, dtype=object)
+    array = np.empty(entries.shape, dtype=float)
+    for index, entry in np.ndenumerate(entries):
+        array[index] = parse_finite_real(entry, f"{where}, the entry {index}")
     array.flags.writeable = False
     return array
 
@@ -106,16 +155,17 @@ def parse_positions(value: object, where: str) -> np.ndarray:
     """A 1-D sequence of real, finite positions as a read-only float array."""
     entries = parse_entries(value, where, "real numbers")
     array = np.array(
-        [parse_real(v, f"{where}[{k}]") for k, v in enumerate(entries)], dtype=float,
+        [parse_finite_real(v, f"{where}[{k}]") for k, v in enumerate(entries)], dtype=float,
     )
-    if not np.all(np.isfinite(array)):
-        raise ValueError(f"{where} must be finite; got {array}")
     array.flags.writeable = False
     return array
 
 
 __all__ = [
+    "EXACT_INTEGER_LIMIT",
     "canonical_real",
+    "canonical_reals",
+    "exact_double",
     "parse_entries",
     "parse_finite_real",
     "parse_finite_reals",

@@ -92,12 +92,11 @@ import hashlib
 import struct
 import weakref
 from collections.abc import Iterable, Iterator, Mapping
-from types import MappingProxyType
 from typing import Any, ClassVar, Generic, TypeVar
 
 import numpy as np
 
-from orpheus.numerics.scalars import canonical_real
+from orpheus.numerics.scalars import canonical_reals, exact_double
 
 __all__ = [
     "ContentIdentity",
@@ -117,10 +116,6 @@ _DIGEST_SIZE = 32
 #: structural since CS4c step 6), so eight bytes suffice.
 _NAME_DIGEST_SIZE = 8
 
-#: The largest integer whose value a double carries exactly.
-_EXACT_INTEGER_LIMIT = 2**53
-
-
 class ContentlessError(TypeError):
     r"""A value with no content identity reached the encoder.
 
@@ -137,14 +132,7 @@ def _chunk(tag: bytes, payload: bytes) -> bytes:
 
 def _real(value: Any, path: str) -> float:
     """The canonical double of a real scalar, or a refusal naming ``path``."""
-    if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
-        if abs(int(value)) > _EXACT_INTEGER_LIMIT:
-            raise ValueError(
-                f"{path}: the integer {int(value)} lies beyond 2**53, where a "
-                f"double cannot carry it exactly, so its content would not "
-                f"follow ==."
-            )
-    return canonical_real(float(value), path)
+    return exact_double(value, path)
 
 
 def _immutable(value: np.ndarray, path: str, frozen: bool) -> None:
@@ -163,18 +151,7 @@ def _array(value: np.ndarray, path: str, frozen: bool) -> bytes:
             f"encoding (only boolean, integer and real arrays do)."
         )
     _immutable(value, path, frozen)
-    if value.dtype.kind in "iu" and value.size:
-        # Python ints: no wrap-around for an unsigned or 64-bit extreme.
-        extreme = max(abs(int(value.min())), abs(int(value.max())))
-        if extreme > _EXACT_INTEGER_LIMIT:
-            raise ValueError(
-                f"{path}: an integer entry lies beyond 2**53, where a double "
-                f"cannot carry it exactly."
-            )
-    doubles = np.asarray(value, dtype=np.float64)
-    if np.isnan(doubles).any():
-        raise ValueError(f"{path}: the array holds NaN, which is not a value.")
-    canonical = np.ascontiguousarray(doubles + 0.0, dtype="<f8")
+    canonical = np.ascontiguousarray(canonical_reals(value, path), dtype="<f8")
     shape = b"".join(int(n).to_bytes(8, "little") for n in value.shape)
     return _chunk(b"A", _chunk(b"s", shape) + _chunk(b"d", canonical.tobytes()))
 
@@ -189,7 +166,7 @@ def _sparse(value: Any, path: str, frozen: bool) -> bytes:
     m = value.tocsr(copy=True)
     # The data's own checks (dtype, the 2**53 bound, NaN) before any cast.
     _array(np.asarray(m.data), f"{path}.data", frozen=False)
-    m.data = np.asarray(m.data, dtype=np.float64) + 0.0
+    m.data = canonical_reals(np.asarray(m.data), f"{path}.data")
     m.sum_duplicates()
     m.eliminate_zeros()
     m.sort_indices()
@@ -268,7 +245,7 @@ def _encode(value: Any, path: str, frozen: bool) -> bytes:
             b"".join(_encode(v, f"{path}[{i}]", frozen) for i, v in enumerate(value)),
         )
     if isinstance(value, Mapping):
-        if frozen and not isinstance(value, MappingProxyType):
+        if frozen and not isinstance(value, _OwnedItems):
             raise _mutable(f"{type(value).__qualname__} mapping", path)
         items = sorted(
             (_encode(k, f"{path}<key>", frozen), _encode(v, f"{path}[{k!r}]", frozen))
@@ -485,4 +462,28 @@ class FrozenMapping(ContentIdentity, Mapping[_K, _V], Generic[_K, _V]):
         return f"{type(self).__name__}({{{body}}})"
 
     def content_parts(self) -> tuple[tuple[str, Any], ...]:
-        return (("items", MappingProxyType(self._index)),)
+        return (("items", _OwnedItems(self._index)),)
+
+
+class _OwnedItems(Mapping[_K, _V]):
+    """The items of a :class:`FrozenMapping`, as its content part.
+
+    A read-only view over storage only the frozen mapping holds, so the
+    frozen encoder admits it. A ``MappingProxyType`` is refused instead: it is
+    a view over a ``dict`` its caller may still hold and write after the
+    owner was keyed, so its content is not fixed.
+    """
+
+    __slots__ = ("_index",)
+
+    def __init__(self, index: dict[_K, _V]) -> None:
+        self._index = index
+
+    def __getitem__(self, key: _K) -> _V:
+        return self._index[key]
+
+    def __iter__(self) -> Iterator[_K]:
+        return iter(self._index)
+
+    def __len__(self) -> int:
+        return len(self._index)

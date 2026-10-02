@@ -1,7 +1,7 @@
 r"""The laws of the question values (#405 P1 step 7, S7.1-S7.8 and S7.13).
 
-DRAFT (test-architect, 2026-10-02). Lands as ``tests/gates/numerics/test_question.py``
-with the module ``orpheus/numerics/question.py``.
+Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md``
+§1.7); the module is ``orpheus/numerics/question.py``.
 
 A question is physics-free: ``Eigen(parameter, point, mode)`` asks where, on
 the line through ``point`` along the direction an opaque ``parameter`` key
@@ -29,6 +29,7 @@ import sys
 import textwrap
 import typing
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, assert_never
 
 import numpy as np
@@ -268,6 +269,14 @@ def test_s7_5_an_offset_that_is_not_a_finite_real_is_refused(cls, build, offset,
         build({"boron": offset})
 
 
+def _read_only_view() -> np.ndarray:
+    """A read-only view of an array the caller can still write."""
+    base = np.array([1.0, 2.0])
+    view = base[:]
+    view.flags.writeable = False
+    return view
+
+
 @dataclasses.dataclass(frozen=True, eq=False)
 class _ByIdentity:
     """Hashable and contentless: a dataclass compared by identity."""
@@ -289,7 +298,13 @@ def test_s7_5_an_undigestable_point_key_is_refused_at_construction(key, error, f
 
 
 @pytest.mark.parametrize("key,error,fragment", [pytest.param(k, e, f, id=i.replace(" ", "_")) for i, k, e, f in
-                                               _BAD_KEYS + (("a list", lambda: [1, 2], ContentlessError, "list"),)])
+                                               _BAD_KEYS + (
+    ("a list", lambda: [1, 2], ContentlessError, "list"),
+    # a read-only VIEW over a dict the caller still holds: the elegance review's
+    # probe (2026-10-02) wrote through it after keying and kept the old digest
+    ("a mappingproxy", lambda: MappingProxyType({"cells": 1.0}), ContentlessError, "mappingproxy"),
+    ("a read-only array view", _read_only_view, ContentlessError, "ndarray"),
+)])
 def test_s7_6_an_undigestable_parameter_is_refused_at_construction(key, error, fragment: str) -> None:
     """The parameter is an opaque, DIGESTABLE key (ruling 5): a function has
     no content; a list is a mutable part. The message carries the path

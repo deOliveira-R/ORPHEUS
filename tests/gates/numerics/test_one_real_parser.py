@@ -1,7 +1,10 @@
 r"""One definition of "a real number" at L1 (#559).
 
 The rule, NaN refused and ``-0.0`` made ``+0.0``, is
-:func:`orpheus.numerics.scalars.canonical_real`. Before #559 it was spelled
+:func:`orpheus.numerics.scalars.canonical_real`, and the conversion every
+admitting site makes, the rule plus the 2**53 and overflow refusals, is
+:func:`~orpheus.numerics.scalars.exact_double` (``canonical_reals``
+entrywise, which the encoder's array and sparse paths call). Before #559 it was spelled
 three times: the content encoder's private ``_real``, the geometry layer's
 ``parse_real``, and ``RegionwiseConstant``'s inline parse. This file is the
 witness that keeps the copies from coming back (X4):
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import ast
 import math
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -88,3 +92,48 @@ def test_a_finite_parse_refuses_infinity() -> None:
         parse_finite_reals(np.array([0.0, -math.inf]), "x")
     with pytest.raises(TypeError, match="must be real numbers"):
         parse_finite_reals(np.array([True]), "x")
+
+
+@pytest.mark.parametrize(
+    "admit",
+    [
+        lambda: parse_real(True, "x"),
+        lambda: parse_finite_reals([1.0, True], "x"),
+        lambda: RegionwiseConstant([[1.0, True]]),  # type: ignore[arg-type]
+    ],
+    ids=["parse_real", "parse_finite_reals_list", "RegionwiseConstant_list"],
+)
+def test_a_bool_entry_is_refused_by_every_parse(admit) -> None:
+    """One definition of a real ENTRY: a ``bool`` hidden in a list is refused
+    as the scalar parse refuses it. First red (``[M]`` 2026-10-02, the step-7
+    elegance review): ``np.asarray([1.0, True])`` cast the bool to 1.0, so the
+    list spelling admitted what the scalar spelling refused."""
+    with pytest.raises(TypeError, match="must be a real number, got bool"):
+        admit()
+
+
+@pytest.mark.parametrize(
+    "admit,error,fragment",
+    [
+        (lambda: parse_real(2**53 + 1, "x"), ValueError, "lies beyond 2\\*\\*53"),
+        (lambda: encode(2**53 + 1), ValueError, "lies beyond 2\\*\\*53"),
+        (lambda: encode(np.array([2**53 + 1])), ValueError, r"the entry \(0,\): .*lies beyond 2\*\*53"),
+        (lambda: parse_real(10**400, "x"), ValueError, "lies beyond 2\\*\\*53"),
+        (lambda: parse_real(Fraction(10**400, 3), "x"), ValueError, "beyond the range of a double"),
+    ],
+    ids=["parse_real_2**53+1", "encode_2**53+1", "encode_array_2**53+1", "parse_real_10**400", "parse_real_overflow"],
+)
+def test_the_parsers_and_the_encoder_agree_on_what_a_double_carries(admit, error, fragment: str) -> None:
+    """One conversion, :func:`~orpheus.numerics.scalars.exact_double`: an
+    integer a double would round is refused by the parsers as by the encoder,
+    and an overflow is a keyed refusal. First red (``[M]`` 2026-10-02, qa of
+    step 7): ``parse_real(2**53 + 1)`` stored ``2**53`` silently while the
+    encoder refused it, and ``10**400`` raised an unkeyed ``OverflowError``."""
+    with pytest.raises(error, match=fragment):
+        admit()
+
+
+def test_a_rank_zero_array_parses() -> None:
+    parsed = parse_finite_reals(np.array(-0.0), "x")
+    if parsed.shape != () or math.copysign(1.0, float(parsed)) != 1.0:
+        pytest.fail(f"rank 0: got {parsed!r}")

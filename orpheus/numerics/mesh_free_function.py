@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
 
@@ -328,4 +328,7 @@ def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol
             )
 
 
-__all__ = ["RegionwiseConstant", "Symbolic"]
+MeshFreeFunction: TypeAlias = RegionwiseConstant | Symbolic
+"""A function on phase space stored without a mesh: the closed set of the two spellings."""
+
+__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic"]

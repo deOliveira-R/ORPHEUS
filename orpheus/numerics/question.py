@@ -50,13 +50,12 @@ from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, get_args
 
-from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
-from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from orpheus.numerics.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest
+from orpheus.numerics.mesh_free_function import MeshFreeFunction
 from orpheus.numerics.scalars import parse_finite_real
 
-MeshFreeFunction: TypeAlias = RegionwiseConstant | Symbolic
 
 
 def _admit_point(point: Mapping[Any, float]) -> FrozenMapping[Any, float]:
@@ -66,10 +65,26 @@ def _admit_point(point: Mapping[Any, float]) -> FrozenMapping[Any, float]:
     return FrozenMapping((key, parse_finite_real(offset, f"the offset of {key!r}")) for key, offset in point.items())
 
 
+def _admit_key(key: Any, where: str) -> None:
+    """A parameter key is hashable, so it cannot change after the question is keyed.
+
+    A point key is hashed by the mapping that holds it; the parameter is
+    checked here. An unhashable key (a list, an array, a view over a
+    caller's ``dict``) is mutable, and its content would not be fixed.
+    """
+    try:
+        hash(key)
+    except TypeError:
+        raise ContentlessError(
+            f"{where}: an unhashable {type(key).__name__} is not a key (it is mutable, so its content is not fixed)"
+        ) from None
+
+
 def _admit_function(value: Any, role: str) -> None:
     if not isinstance(value, MeshFreeFunction):
+        kinds = " or ".join(kind.__name__ for kind in get_args(MeshFreeFunction))
         raise TypeError(
-            f"the {role} is a mesh-free function (RegionwiseConstant or Symbolic), "
+            f"the {role} is a mesh-free function ({kinds}), "
             f"got a {type(value).__module__}.{type(value).__qualname__}"
         )
 
@@ -101,6 +116,7 @@ class Eigen(ContentIdentity):
     mode: Mode = field(default_factory=Fundamental)
 
     def __post_init__(self) -> None:
+        _admit_key(self.parameter, "Eigen.parameter")
         object.__setattr__(self, "point", _admit_point(self.point))
         if not isinstance(self.mode, Mode):
             raise TypeError(f"Eigen: the mode is Fundamental() or Nearest(tau), got a {type(self.mode).__name__}")
@@ -135,4 +151,4 @@ class Response(ContentIdentity):
 
 Question: TypeAlias = Eigen | FixedSource | Response
 
-__all__ = ["Eigen", "FixedSource", "Fundamental", "MeshFreeFunction", "Mode", "Nearest", "Question", "Response"]
+__all__ = ["Eigen", "FixedSource", "Fundamental", "Mode", "Nearest", "Question", "Response"]

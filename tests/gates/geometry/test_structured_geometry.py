@@ -65,7 +65,7 @@ _BREAKPOINT_REFUSALS = [
     ("nan", dict(breakpoints=(0.0, math.nan, 2.0)),
      ValueError, r"breakpoints\[1\] is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
     ("inf", dict(breakpoints=(0.0, 1.0, math.inf)),
-     ValueError, "must be finite"),
+     ValueError, r"breakpoints\[2\] is infinite"),  # the shared finite parse since #559
     ("negative-radius-cylinder",
      dict(coord=_CYLINDER, breakpoints=(-0.5, 1.0), mat_ids=(0,)),
      ValueError, "starts at r_0 >= 0"),
