@@ -1110,3 +1110,28 @@ Read, in order:
 - **The process:** W3, so the main agent writes the code and the test-architect writes the gates first, then qa and the elegance-enforcer review in parallel and the archivist writes the docs. The full suite runs before each merge, in a detached worktree (`.venv` linked; the 4 `test_write_guards` rows fail only there). Baseline: 13 974 passed at `ee9e8943`.
 
 **Open issues from this stretch:** #551 (boundary architecture E), #552 (one base amplitude check), #553 (the string-equality arm), #554 (a stale SN docs block), #555 (Quadrature content identity). Architecture E (the boundary ontology) executes after #405, by the user's 2026-10-01 ruling.
+
+## P1 step 6 opened — 2026-10-02: the census and the user's rulings
+
+The census (explorer, `scratch/reference_architecture/p1step6/census.md`, against `main` `6a96cc3f`) measured the step-6 premises. What it established:
+- No existing type duplicates the new ones. Every bulk source in the tree is an array bound to one discretised space; the one intensional source, `InflowSourceSpec` (`geometry/boundary/_source.py:56`), lives on the boundary trace and is the precedent.
+- All 10 consumers read a volumetric source value Q as the angle-integrated rate. SN routes it through `space.section("angular")` (`angular_source_sink.py:193`); MoC divides by 4π by hand (`moc/core.py:187`); the 12 SN MMS cases divide by `sum_w` by hand; diffusion, CP and Peierls need no lift.
+- SymPy is imported by 0 of the input-layer, transport and method packages; `numerics/manifold.py` imports it function-locally (3 sites). `pyproject.toml` lists SymPy only in the test and docs extras, although `Quadrature.gauss_legendre` needs it at runtime: a packaging defect, fixed in step 6 (SymPy becomes a core dependency, which `Symbolic` needs anyway).
+- A region is the positional interval index of `StructuredGeometry` (`0 … len(mat_ids) − 1`); region is not material.
+- `srepr` is seed-stable on SymPy 1.14.0 (seeds 0–3); stability across SymPy versions was not measured.
+- Content identity of a `Symbolic` is by spelling: `(r+1)**2` and `r**2 + 2r + 1` digest differently, which only ever costs a cache miss.
+- Two content types are never equal across types, so the spec's S8.2 leg "a `RegionwiseConstant` equals the `Symbolic` it lowers to" cannot hold as written; it is re-posed as "both lift to the same function".
+- The docstring of `solve_sn_fixed_source` divides the source by W at `sn/solver.py:3253` and then says the source is already a per-ordinate density (`:3270`, `:3276`); the code is right and the docstring is fixed in step 6.
+
+**Ruling 1 (the user, 2026-10-02): the 4π is the measure, not a convention.** The user asked whether "integrated over all directions" and "divided by 4π" were not both the measure, and whether production's hand-spelled lift was a defective operator. They are, and the operators already exist in `numerics` (`orpheus/numerics/operator.py`, `AxisRetractionOperator` and `AxisSectionOperator`):
+- the retraction `R = space.retraction("angular")`, the fibre integral ∫ · dΩ;
+- its section `E = space.section("angular")`, defined by `R ∘ E = id` (divides by the measure's mass, read from the frame's induced Gram);
+- the retraction's Hilbert adjoint `R† = π*`, the plain broadcast; `R† = (Σw)·E`, measured in its docstring.
+
+A per-region table is therefore a function on the angle-integrated space (r, g), not on phase space, and `RegionwiseConstant` is NOT "the isotropic special case of `Symbolic`". It enters phase space by one of two arrows, and the role picks the arrow: a source of rate Q enters the right-hand side through the section, `q = E(Q)`, so that `R(q) = Q`; a detector Σ_d is the functional `ψ ↦ ⟨Σ_d, Rψ⟩`, whose Riesz representative is `R†(Σ_d)`. The mass `R ∘ R†` (4π on the continuous sphere) is never typed. Source and detector stay one value type; the specification's field chooses the lift. On the Branch-1 side the lifts are realised with the continuous S² measure (SymPy), never by calling production's `E`.
+
+**Ruling 2 (the user, 2026-10-02): the angular chart is the coordinate system's local frame.** The geometry is 1-D in P1. μ is Ω·ê_x on a slab and Ω·ê_r on a cylinder or sphere; φ is the azimuth about that axis, measured from a reference direction each coordinate system declares once (ê_z on the cylinder). `Symbolic` owns the symbols r, μ, φ with fixed assumptions and refuses any other free symbol, naming it. 2-D is out of scope until a 2-D geometry exists.
+
+**Ruling 3 (the user, 2026-10-02): step 6's scope.** Step 6 defines the types and gates the two lifts (`R ∘ E = id` gives back Q; `⟨R†Σ_d, ψ⟩ = ⟨Σ_d, Rψ⟩`). The same branch re-spells the SN adjoint detector lift, today a hand-written `np.broadcast_to(sigma_d[None], …)` at `sn/solver.py:2927`, as the retraction's adjoint. Filed, not fixed: the MoC hand-written 4π (#556), and the derivations' hand-written measure masses (#557; Branch 1 should derive the mass from its own continuous measure).
+
+Next: the test-architect re-specifies §1.6 of `reference_p1_spec.md` under these rulings and measures each first red in a detached worktree.
