@@ -1136,7 +1136,7 @@ A per-region table is therefore a function on the angle-integrated space (r, g),
 
 Next: the test-architect re-specifies §1.6 of `reference_p1_spec.md` under these rulings and measures each first red in a detached worktree.
 
-### P1 step 6 built — 2026-10-02 (branch `feature/phase-space-functions`, not yet merged)
+### P1 step 6 built — 2026-10-02, merged at `61f82a18` (code `4b084883`..`43067473`, docs `2d0f9539`)
 
 Commits: `4b084883` (the pullback; the mint keeps the marginal's forms and refuses a form on the collapsed axis), `3d1dc28c` (the SN adjoint detector lift is `retraction("angular").H`, bit-exact), `c9b28def` (`CoordSystem.angular_chart`), `f7309da3` (`RegionwiseConstant`, `Symbolic`, the Branch-1 `angular_measure`, SymPy a core dependency), `43067473` (the qa and elegance review fixes; the module is renamed `orpheus/numerics/mesh_free_function.py`). The spec's build-time corrections are in `reference_p1_spec.md` §1.6, "Corrections found while building".
 
@@ -1146,3 +1146,7 @@ Commits: `4b084883` (the pullback; the mint keeps the marginal's forms and refus
 - **One Branch-1 coordinate vocabulary (#557):** `derivations/.../transport_equation.py` declares `r` non-negative, which `Symbolic` refuses (it owns `r`, `mu`, `phi` as `real=True`). The MMS builder at `mms/sn.py:2601` declares `r` and `mu` positive.
 
 **Issues filed by the step-6 review:** #556 (MoC's typed 4π), #557 (the derivations' typed measure masses; `angular_measure.py` is its seed), #558 (a composite's adjoint does not reach the leaf pullback), #559 (one real-number parser at L1), #560 (the iso + aniso source combine spells the section by hand, with W defined twice: `weights.sum()` against the frame's Gram entry; [M] its one production caller ran 387 455 times in the transport/SN/numerics gates).
+
+**Step 6 close-out (2026-10-02).** Merged `--ff-only` at `61f82a18`. Full suite `tests/gates -m "not slow"` in a detached worktree of `2d0f9539`: 14 086 passed, 264 skipped, 55 xfailed, 4 failed (the `test_write_guards` worktree artefacts, 22 of 22 green in the main tree); baseline 13 974 at `ee9e8943`, so +112 rows, all accounted for by the new gates. The merge push's tip carried `[skip ci]`, which skipped the push's CI run; this close-out commit is pushed without it so `gates` runs on the merged tree. Process lesson: a plan-only `[skip ci]` commit must never be the tip of a push that carries code.
+
+Next: P1 step 7, the question (spec §1.7; S7.3 amended for the two step-6 types). Its open ruling: what `Eigen(c)` names and what `CriticalParameter` varies (waiting on the posing-sequence review).
