@@ -16,3 +16,9 @@ Measured 2026-09-25 at `99ac3e66` (#405 P1). Full report: `scratch/reference_arc
 
 **Why:** the reference-spec `Source` design (Discussion 4, reopened by the user 2026-09-25) hinges on these.
 **How to apply:** re-verify the line anchors before citing them; see [[question-and-source-vocabulary]].
+
+**Added 2026-10-02 (P1 step 6 census, `scratch/reference_architecture/p1step6/census.md`, main `6a96cc3f`):**
+- Every consumer agrees on one convention: Q is the angle-integrated rate, and the per-angle value is Q divided by the mass of the angular measure (GL W = 2, so per unit μ; the sphere rules W = 4π, so per sr; MoC uses /4π). The `/W` applied twice is in the `solve_sn_fixed_source` docstring equation only.
+- A detector is the dual: the SN adjoint broadcasts Σ_d flat, with no /W. So a single lowering Q → Q/4π cannot serve both the source role and the detector role.
+- SymPy is an undeclared runtime dependency: `Quadrature.gauss_legendre` imports it through `manifold._sphere_mod_o2`, while pyproject lists sympy only in the test and docs extras.
+- `ContentIdentity` equality across two types is always False, because the schema tag carries the qualname. So a `RegionwiseConstant` can never equal its lowered `Symbolic` unless something canonicalises it.

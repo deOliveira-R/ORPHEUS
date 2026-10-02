@@ -24,6 +24,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Reflective cleanup (W3, `refactor/reflective-is-a-mirror`)** — gates delivered 2026-10-01: spec `scratch/boundary_ontology/reflective_cleanup_gates.md`; carry fixture + batteries `scratch/boundary_ontology/reflective_gates/`. On resume: re-run the carry gate post-carve.
 - **Platform drift W2 (`fix/platform-independent-quadrature`)** — gates (a) CR Gauss rules, (b) GL fingerprint, (c) exact k∞ + bound, spec `scratch/platform_drift/gates_spec.md` (2026-10-01). On resume: confirm landed, re-run `cr_sim`/`r1_sim` arms. → **`L98`**
 - **#405 P1 step 5 (content identity, W3, `refactor/content-identity`)** — gates re-specified 2026-10-02 (spec §1.5; 4 files `tests/gates/*/test_content_identity*.py` + `_content_identity_helpers.py`; battery `scratch/reference_architecture/p1step5/gates_ta/battery/`). On resume: the owed post-carve arms (per-type, S5.6 per-space, S5.9, S5.10) and the green run. → **`L99`**
+- **#405 P1 step 6 (phase-space functions, W3, `feature/phase-space-functions`)** — §1.6 re-specified 2026-10-02 (S6.1–S6.21, design (B): retraction `.H` = closed-form pullback π*); probes + plugins `scratch/reference_architecture/p1step6/ta/`. On resume: confirm landed; run S6.6 route arms post-carve.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

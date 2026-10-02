@@ -542,6 +542,8 @@ match it VERBATIM, never paraphrase. → L-010
 - **Self-check the V&V scan directly, not via the full audit** — `_scan_theory_equations` runs in
   <1 s, avoids pytest collection, and does not trip on a sibling batch's in-progress sentinels.
   → L-035, L-063, L-069
+- **Name every probe file `archivist_*.py`** — a script named after a stdlib module (`numbers.py`) is
+  `sys.path[0]` and shadows it, so `import numpy` dies with a circular-import error. → L-118
 - **Widening someone else's issue: re-run THEIR instrument, not yours** — their number plus your
   wider denominator plus the exclusions retitles the issue; a fresh regex forks the count. → L-068
 
