@@ -23,10 +23,19 @@ of two arrows, and the ROLE the specification gives it picks the arrow:
   representative is the adjoint :math:`R^\dagger \Sigma_d`, the pullback.
 
 The two differ by :math:`R \circ R^\dagger`, the mass of the angular measure
-(:math:`4\pi` on the sphere), which is therefore never written: neither type
-carries a role or a density, and the field of the specification that holds
-the value is the role. A :class:`Symbolic` is already a function on phase
-space and takes no lift. The discrete arrows are
+the space carries, which is therefore never written: :math:`4\pi` for
+:math:`\mathrm d\Omega` on the sphere, 2 on the orbit space of :math:`\mu`
+alone, where a 1-D rule's ordinates live. Neither type carries a role or a
+density, and the field of the specification that holds the value is the
+role.
+
+A :class:`Symbolic` is a density with respect to :math:`\mathrm d\Omega`,
+so it needs no lift onto the sphere; onto a rule whose ordinates are points
+of an orbit space (a 1-D rule) it is pushed forward, integrated over each
+orbit (:math:`\int_0^{2\pi} q\,\mathrm d\varphi`, which is
+:math:`2\pi q` when q does not depend on :math:`\varphi`). That
+pushforward is part of projecting a specification onto a method's unknowns
+(#405 phase P4), not of this module. The discrete arrows are
 :class:`~orpheus.numerics.operator.AxisSectionOperator` and
 :class:`~orpheus.numerics.operator.AxisPullbackOperator`; the continuous
 ones are Branch 1's, :mod:`orpheus.derivations.common.angular_measure`.
@@ -45,7 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -108,9 +117,10 @@ class RegionwiseConstant(ContentIdentity):
 
 
 class _OwnedSymbol:
-    """A coordinate symbol of :class:`Symbolic`, built on first access (no import-time SymPy)."""
+    """A coordinate symbol of :class:`Symbolic`, named by its attribute and
+    built on first access (no import-time SymPy)."""
 
-    def __init__(self, name: str) -> None:
+    def __set_name__(self, owner: type, name: str) -> None:
         self._name = name
 
     def __get__(self, instance: object, owner: type) -> "sympy.Symbol":
@@ -145,8 +155,15 @@ class Symbolic(ContentIdentity):
     text, and it is part of the content: a SymPy that parses the same text
     into a different expression would otherwise return a stored answer for
     a different function, so every SymPy upgrade invalidates every key
-    instead. An expression holding ``nan``, ``zoo`` or an infinity is
-    refused: it is not a function value.
+    instead. Stored text is parsed through a whitelist (calls to SymPy
+    classes, SymPy singletons, literals and keywords, nothing else), never
+    by a bare ``eval``.
+
+    **Only real scalar functions are admitted.** Refused, each keyed: an
+    object that is not a scalar expression (a relation, a matrix); a
+    ``nan``, ``zoo`` or infinity; the imaginary unit; an undefined function
+    (``f(r)``); a ``Piecewise`` with no otherwise branch, which has no value
+    outside its conditions.
 
     Build one from expressions with :meth:`of`, or from stored text with
     :meth:`from_srepr`.
@@ -155,9 +172,9 @@ class Symbolic(ContentIdentity):
     srepr: tuple[str, ...]
     sympy_version: str
 
-    r = _OwnedSymbol("r")
-    mu = _OwnedSymbol("mu")
-    phi = _OwnedSymbol("phi")
+    r = _OwnedSymbol()
+    mu = _OwnedSymbol()
+    phi = _OwnedSymbol()
 
     def __post_init__(self) -> None:
         import sympy
@@ -170,7 +187,7 @@ class Symbolic(ContentIdentity):
         for g, text in enumerate(texts):
             if not isinstance(text, str):
                 raise TypeError(f"Symbolic: group {g} is stored as srepr text, got {type(text).__name__}")
-            expression = sympy.sympify(text)
+            expression = _parse(text, g)
             _admit(expression, g, owned)
             canonical.append(sympy.srepr(expression))
         object.__setattr__(self, "srepr", tuple(canonical))
@@ -192,11 +209,10 @@ class Symbolic(ContentIdentity):
         return cls(srepr=tuple(srepr), sympy_version=sympy.__version__ if sympy_version is None else sympy_version)
 
     @property
-    def expressions(self) -> tuple["sympy.Basic", ...]:
-        """The expressions, one per group, parsed from the stored text."""
-        import sympy
-
-        return tuple(sympy.sympify(text) for text in self.srepr)
+    def expressions(self) -> tuple["sympy.Expr", ...]:
+        """The expressions, one per group, parsed from the stored text (each a
+        scalar ``Expr``: the constructor admitted nothing else)."""
+        return tuple(cast("sympy.Expr", _parse(text, g)) for g, text in enumerate(self.srepr))
 
     @property
     def n_groups(self) -> int:
@@ -207,25 +223,91 @@ class Symbolic(ContentIdentity):
     def is_isotropic(self) -> bool:
         r"""Whether no group depends on the direction.
 
-        Isotropic iff, in every group, ``simplify`` reduces both
-        :math:`\partial q_g/\partial\mu` and :math:`\partial q_g/\partial\varphi`
-        to 0. A derivative ``simplify`` cannot reduce counts as a dependence:
-        the undecided case falls on the anisotropic side, which is the side a
-        consumer refusing anisotropy refuses (``sin(φ)**2 + cos(φ)**2`` is
-        decided isotropic; a free-symbols test would call it anisotropic).
+        Isotropic iff, in every group, ``simplify`` reduces
+        :math:`q_g(r, \mu, \varphi) - q_g(r, \mu', \varphi')` to 0, with
+        :math:`\mu', \varphi'` fresh real symbols: the value does not change
+        when the direction does. A difference ``simplify`` cannot reduce
+        counts as a dependence: the undecided case falls on the anisotropic
+        side, which is the side a consumer refusing anisotropy refuses
+        (``sin(φ)**2 + cos(φ)**2`` is decided isotropic; a free-symbols test
+        would call it anisotropic). A derivative test is wrong here: a step
+        in the direction, ``Piecewise((1, μ > 0), (0, True))``, has zero
+        derivative wherever it is defined.
         """
         import sympy
 
+        mu_other, phi_other = sympy.Symbol("mu_other", real=True), sympy.Symbol("phi_other", real=True)
         return all(
-            sympy.simplify(sympy.diff(q, coordinate)) == 0
+            sympy.simplify(q - q.subs({self.mu: mu_other, self.phi: phi_other}, simultaneous=True)) == 0
             for q in self.expressions
-            for coordinate in (self.mu, self.phi)
         )
 
 
-def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol"]) -> None:
-    """Refuse a stray coordinate or a non-value in one group's expression."""
+@cache
+def _sympy_names() -> dict[str, Any]:
+    """The names ``srepr`` text may call: every subclass of ``sympy.Basic`` by
+    its class name (``ExprCondPair`` is not a top-level export), and SymPy's
+    top-level singletons (``pi``, ``true``, ``oo``); a top-level export wins
+    a name two classes share."""
     import sympy
+
+    names: dict[str, Any] = {}
+    stack = [sympy.Basic]
+    while stack:
+        cls = stack.pop()
+        names.setdefault(cls.__name__, cls)
+        stack.extend(cls.__subclasses__())
+    for name in dir(sympy):
+        value = getattr(sympy, name)
+        if (isinstance(value, type) and issubclass(value, sympy.Basic)) or isinstance(value, sympy.Basic):
+            names[name] = value
+    return names
+
+
+def _parse(text: str, group: int) -> "sympy.Basic":
+    """``srepr`` text as an expression, through a whitelist and never a bare ``eval``.
+
+    Admitted: calls whose callee is a name of a SymPy class or a SymPy
+    singleton (``pi``, ``true``, ``oo``), numeric and string literals, a
+    unary sign on a literal, keywords, tuples. Anything else (an attribute,
+    a subscript, a lambda, a name SymPy does not export as a class) is
+    refused before evaluation, which runs with no builtins.
+    """
+    import ast
+
+    import sympy
+
+    try:
+        tree = ast.parse(text, mode="eval")
+    except SyntaxError as err:
+        raise ValueError(f"Symbolic: group {group} is not srepr text ({err.msg})") from None
+    namespace: dict[str, Any] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Expression, ast.Call, ast.keyword, ast.Tuple, ast.Load, ast.USub, ast.UAdd)):
+            continue
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, str, bool)):
+            continue
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)) and isinstance(node.operand, ast.Constant):
+            continue
+        if isinstance(node, ast.Name):
+            target = _sympy_names().get(node.id)
+            if target is not None:
+                namespace[node.id] = target
+                continue
+            raise ValueError(f"Symbolic: group {group} names {node.id!r}, which is not a SymPy class or constant")
+        raise ValueError(f"Symbolic: group {group} holds a {type(node).__name__}, which srepr text never does")
+    return eval(compile(tree, "<srepr>", "eval"), {"__builtins__": {}}, namespace)
+
+
+def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol"]) -> None:
+    """Refuse anything in one group that is not a real scalar function of the owned coordinates."""
+    import sympy
+    from sympy.core.function import AppliedUndef
+
+    if not isinstance(expression, sympy.Expr):
+        raise ValueError(
+            f"Symbolic: group {group} is a {type(expression).__name__}, not a scalar expression"
+        )
 
     for symbol in sorted(expression.free_symbols, key=str):
         name = str(symbol)
@@ -244,6 +326,18 @@ def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol
     for non_value in (sympy.nan, sympy.zoo, sympy.oo, -sympy.oo):
         if expression.has(non_value):
             raise ValueError(f"Symbolic: group {group} contains {non_value}, which is not a function value")
+    if expression.has(sympy.I):
+        raise ValueError(f"Symbolic: group {group} contains the imaginary unit; a function value is real")
+    undefined = sorted(str(f.func) for f in expression.atoms(AppliedUndef))
+    if undefined:
+        raise ValueError(f"Symbolic: group {group} applies the undefined function(s) {undefined}")
+    for piecewise in expression.atoms(sympy.Piecewise):
+        # The last (expression, condition) pair's condition is the otherwise.
+        if piecewise.args[-1].args[1] != sympy.true:
+            raise ValueError(
+                f"Symbolic: group {group} has a Piecewise with no otherwise branch, "
+                f"so it has no value outside its conditions"
+            )
 
 
 __all__ = ["RegionwiseConstant", "Symbolic"]

@@ -94,15 +94,14 @@ class AngularChart:
     function on phase space that depends on :math:`\varphi` therefore has no
     well-defined value beside a spherical geometry.
 
-    ``azimuth_observable`` says whether the 1-D problem can see the azimuth
-    at all: it cannot when the problem is invariant under every rotation
-    about the polar axis (the slab and the sphere), and then a quadrature
-    for it carries no azimuthal information.
+    Whether a problem can SEE the azimuth is not the chart's to say: it
+    depends on the problem's symmetry (a 1-D slab cannot, a 2-D Cartesian
+    mesh in the same coordinate system can), and a quadrature states it as
+    the orbit space its ordinates live on.
     """
 
     polar_axis: int
     azimuth_reference: int | None
-    azimuth_observable: bool
 
     def __post_init__(self) -> None:
         if self.polar_axis not in (0, 1, 2):
@@ -169,17 +168,14 @@ class CoordSystem(Enum):
         cylinder or a sphere (column 0 in every case). The azimuth is measured
         from :math:`\hat e_z` on the slab and on the cylinder (column 2, the
         cylinder's axis); the sphere declares none (:class:`AngularChart`).
-        On the slab and the sphere the azimuth is unobservable, because the
-        1-D problem is invariant under every rotation about the polar axis; on
-        the cylinder it is observable.
         """
         match self:
             case CoordSystem.CARTESIAN:
-                return AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=False)
+                return AngularChart(polar_axis=0, azimuth_reference=2)
             case CoordSystem.CYLINDRICAL:
-                return AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=True)
+                return AngularChart(polar_axis=0, azimuth_reference=2)
             case CoordSystem.SPHERICAL:
-                return AngularChart(polar_axis=0, azimuth_reference=None, azimuth_observable=False)
+                return AngularChart(polar_axis=0, azimuth_reference=None)
 
     def boundary_points(self, r_0: float, r_R: float) -> tuple[float, ...]:
         r"""The boundary points of the interval :math:`[r_0, r_R]` in this system, inner first.

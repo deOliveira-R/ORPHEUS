@@ -1,12 +1,12 @@
 r"""The laws of the mesh-free functions (#405 P1 step 6, S6.8, S6.11-S6.17, S6.21).
 
-:class:`~orpheus.numerics.phase_space_function.RegionwiseConstant` is a
+:class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant` is a
 function on the angle-integrated space, one finite real per (region, group);
-:class:`~orpheus.numerics.phase_space_function.Symbolic` is a function on
+:class:`~orpheus.numerics.mesh_free_function.Symbolic` is a function on
 phase space, one SymPy expression per group in the class's own coordinates
 ``r, mu, phi``, stored as ``srepr`` text with the version of the SymPy that
 wrote it. Their content-identity rows are
-``test_content_identity_phase_space.py`` (S6.9); the Branch-1 lifts are
+``test_content_identity_mesh_free.py`` (S6.9); the Branch-1 lifts are
 ``tests/gates/derivations/test_angular_measure_symbolic.py`` (S6.10).
 
 The specification is ``.claude/plans/reference_p1_spec.md`` §1.6.
@@ -26,7 +26,7 @@ import numpy.testing as npt
 import pytest
 import sympy as sp
 
-from orpheus.numerics.phase_space_function import RegionwiseConstant, Symbolic
+from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 
 pytestmark = pytest.mark.foundation
 
@@ -153,7 +153,7 @@ def test_s6_14_the_digest_is_the_same_in_every_process() -> None:
     ``hash(expr)`` would differ (control: ``hash`` of a Symbol differs)."""
     script = textwrap.dedent('''
         import sympy as sp
-        from orpheus.numerics.phase_space_function import Symbolic
+        from orpheus.numerics.mesh_free_function import Symbolic
         r, mu, phi = Symbolic.r, Symbolic.mu, Symbolic.phi
         s = Symbolic.of(sp.sin(sp.pi * r) * sp.exp(-mu) + sp.cos(phi) * r, 1 + mu)
         print(s.content_digest.hex(), hash(sp.Symbol("q")))
@@ -183,8 +183,14 @@ def test_s6_14_the_digest_is_the_same_in_every_process() -> None:
         # The traps a free-symbols test calls anisotropic.
         (sp.sin(phi) ** 2 + sp.cos(phi) ** 2, True),
         (mu**2 + (1 - mu**2) * sp.cos(phi) ** 2 + (1 - mu**2) * sp.sin(phi) ** 2, True),
+        # Steps in the direction: zero derivative wherever defined, so a
+        # derivative test calls them isotropic (qa, 2026-10-02).
+        (sp.Piecewise((1, mu > 0), (0, True)), False),
+        (sp.Piecewise((1, phi < sp.pi), (0, True)), False),
+        # A step in position only is isotropic.
+        (sp.Piecewise((1, r < 1), (2, True)), True),
     ],
-    ids=["1+mu", "cos phi", "2", "r^2+1", "mu-mu", "sin^2+cos^2", "Omega.Omega"],
+    ids=["1+mu", "cos phi", "2", "r^2+1", "mu-mu", "sin^2+cos^2", "Omega.Omega", "step in mu", "step in phi", "step in r"],
 )
 def test_s6_15_the_anisotropy_predicate(expression: sp.Expr, isotropic: bool) -> None:
     if Symbolic.of(expression).is_isotropic is not isotropic:
@@ -219,6 +225,44 @@ def test_s6_16_identity_is_by_spelling() -> None:
 def test_s6_16_a_non_value_is_refused(non_value: sp.Expr) -> None:
     with pytest.raises(ValueError, match="is not a function value"):
         Symbolic.of(r + non_value * mu)
+
+
+@pytest.mark.parametrize(
+    "candidate,fragment",
+    [
+        (r > 1, "is a StrictGreaterThan, not a scalar expression"),
+        (sp.I * mu, "contains the imaginary unit"),
+        (sp.Function("f")(r), r"applies the undefined function\(s\) \['f'\]"),
+        (sp.Piecewise((1, r < 1)), "Piecewise with no otherwise branch"),
+    ],
+    ids=["relation", "imaginary", "undefined function", "piecewise without otherwise"],
+)
+def test_s6_16_only_real_scalar_functions_are_admitted(candidate, fragment: str) -> None:
+    """The cases qa found admitted (2026-10-02): none is a real function value
+    everywhere on phase space."""
+    with pytest.raises(ValueError, match=fragment):
+        Symbolic.of(candidate)
+
+
+@pytest.mark.parametrize(
+    "text,fragment",
+    [
+        ("__import__('os').getcwd()", "holds a Attribute"),
+        ("getattr(Integer(1), 'func')", "names 'getattr'"),
+        ("Integer(1)[0]", "holds a Subscript"),
+        ("(lambda: Integer(1))()", "holds a Lambda"),
+        ("Matrix([[Integer(1)]])", "names 'Matrix'"),
+        ("Integer(1", "is not srepr text"),
+    ],
+    ids=["import", "builtin", "subscript", "lambda", "a matrix", "syntax"],
+)
+def test_s6_16_stored_text_is_parsed_through_a_whitelist(text: str, fragment: str) -> None:
+    """``from_srepr`` evaluated stored text with ``sympify`` (``eval``), so a
+    stored string could run code (qa, 2026-10-02: one wrote a file). Now only
+    calls to SymPy classes and constants, literals and keywords are parsed,
+    with no builtins."""
+    with pytest.raises(ValueError, match=fragment):
+        Symbolic.from_srepr((text,))
 
 
 # ── S6.17: the SymPy version is content ─────────────────────────────────
@@ -280,7 +324,7 @@ def test_s6_21_importing_the_module_loads_no_sympy() -> None:
     script = textwrap.dedent('''
         import sys
         import numpy as np
-        from orpheus.numerics.phase_space_function import RegionwiseConstant, Symbolic
+        from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
         after_import = "sympy" in sys.modules
         RegionwiseConstant(np.ones((2, 2))).content_digest
         after_table = "sympy" in sys.modules
@@ -300,7 +344,7 @@ def test_s6_21_the_module_imports_no_geometry() -> None:
     ``geometry.transformation`` through other modules)."""
     import ast
 
-    import orpheus.numerics.phase_space_function as module
+    import orpheus.numerics.mesh_free_function as module
 
     tree = ast.parse(Path(module.__file__).read_text())
     imported = [

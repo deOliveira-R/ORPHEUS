@@ -965,18 +965,14 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
             f"instead."
         )
 
-    # The positioned overlay of forms (a dense Gram on a measure-less
-    # axis's block, the one form no axis measure can spell): one entry per
-    # axis, or no object at all.
-    forms = (
-        tuple(form for _, form in space.metric.entries)
-        if isinstance(space.metric, FactoredMetric)
-        else (None,) * len(axes)
-    )
-    if forms[k] is not None:
+    # A positioned form on the collapsed axis (a dense Gram on a
+    # measure-less axis's block, the one form no axis measure can spell)
+    # would put a second measure on the block the retraction integrates.
+    form = space._overlay_forms()[k]
+    if form is not None:
         raise ValueError(
             f"collapse pair: axis {axis_label!r} carries a positioned "
-            f"{type(forms[k]).__name__} on {space!r} — the retraction "
+            f"{type(form).__name__} on {space!r} — the retraction "
             f"integrates with the axis's own measure while the space's "
             f"metric on that block is the form, two measures on one block, "
             f"so fibre integration over the axis is not defined."
@@ -986,17 +982,10 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
     # cumulative rank (an axis's shape may span several dims).
     start = sum(len(ax.shape) for ax in axes[:k])
     dims = tuple(range(start, start + len(axis.shape)))
-    marginal_space = FunctionSpace.of_axes(
-        *(ax for i, ax in enumerate(axes) if i != k)
-    )
     # The marginal keeps the remaining axes' forms, so the full metric is
     # exactly (the axis measure) ⊗ (the marginal metric): the product
     # condition under which the retraction's adjoint is the pullback.
-    kept = tuple(
-        (ax.shape, form) for i, (ax, form) in enumerate(zip(axes, forms)) if i != k
-    )
-    if any(form is not None for _, form in kept):
-        marginal_space = replace(marginal_space, metric=FactoredMetric(kept))
+    marginal_space = space.without_axis(axis_label)
 
     # The generator, eagerly: the axis's measure on synthetic index
     # nodes, under the single-region indicator covering them all.

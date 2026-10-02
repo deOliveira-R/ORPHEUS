@@ -14,8 +14,14 @@ other place the same frame is written, the quadrature's direction columns,
 so the chart and the sweeps cannot disagree (X4, one definition): the
 column the sweeps read as μ is the declared polar axis; on the cylinder the
 column the chart leaves perpendicular to both the polar axis and the
-reference is the one the quadrature names ξ = Ω·ê_φ; where the azimuth is
-declared unobservable, the rule carries no azimuthal information.
+reference is the one the quadrature names ξ = Ω·ê_φ.
+
+Retired 2026-10-02 (qa): an ``azimuth_observable`` flag on the chart, with
+a row tying it to the rule's off-polar orbit means. Observability is a
+property of the problem's symmetry, not of the coordinate system: a 2-D
+Cartesian mesh uses ``CoordSystem.CARTESIAN`` and its rules
+(``level_symmetric(4)``, ``product(4, 8)``) carry azimuthal information, so
+the flag was false for it, and it had no consumer.
 """
 
 from __future__ import annotations
@@ -30,9 +36,9 @@ from orpheus.numerics.quadrature import Quadrature
 pytestmark = pytest.mark.foundation
 
 _DECLARED = {
-    CoordSystem.CARTESIAN: AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=False),
-    CoordSystem.CYLINDRICAL: AngularChart(polar_axis=0, azimuth_reference=2, azimuth_observable=True),
-    CoordSystem.SPHERICAL: AngularChart(polar_axis=0, azimuth_reference=None, azimuth_observable=False),
+    CoordSystem.CARTESIAN: AngularChart(polar_axis=0, azimuth_reference=2),
+    CoordSystem.CYLINDRICAL: AngularChart(polar_axis=0, azimuth_reference=2),
+    CoordSystem.SPHERICAL: AngularChart(polar_axis=0, azimuth_reference=None),
 }
 
 # One SN-admitted rule per coordinate system.
@@ -56,9 +62,9 @@ def test_s6_18_every_coordinate_system_declares_its_chart(coord: CoordSystem) ->
 
 def test_s6_18_the_chart_refuses_a_degenerate_frame() -> None:
     with pytest.raises(ValueError, match="polar axis is a frame column"):
-        AngularChart(polar_axis=3, azimuth_reference=None, azimuth_observable=False)
+        AngularChart(polar_axis=3, azimuth_reference=None)
     with pytest.raises(ValueError, match="other than the polar axis"):
-        AngularChart(polar_axis=0, azimuth_reference=0, azimuth_observable=True)
+        AngularChart(polar_axis=0, azimuth_reference=0)
 
 
 @pytest.mark.parametrize("coord", list(CoordSystem), ids=lambda c: c.name)
@@ -86,20 +92,3 @@ def test_s6_19_b_the_cylinder_rule_names_the_declared_perpendicular_column() -> 
     assert chart.azimuth_reference is not None  # narrowing only: the cylinder declares one
     (perp,) = {0, 1, 2} - {chart.polar_axis, chart.azimuth_reference}
     npt.assert_array_equal(quad.xi, quad.axis_cosines(perp))
-
-
-@pytest.mark.parametrize("coord", list(CoordSystem), ids=lambda c: c.name)
-def test_s6_19_c_an_unobservable_azimuth_leaves_no_trace_in_the_rule(coord: CoordSystem) -> None:
-    """Where the chart declares the azimuth unobservable, the rule's
-    orbit-mean cosines off the polar axis are identically 0 (ERR-080: they
-    are the orbit mean, not a coordinate); where it is observable, they are
-    not."""
-    chart = coord.angular_chart
-    quad = _RULES[coord]()
-    off_polar = [np.asarray(quad.mean_axis_cosine(k)) for k in (0, 1, 2) if k != chart.polar_axis]
-    carries_azimuth = any(np.any(col != 0.0) for col in off_polar)
-    if carries_azimuth != chart.azimuth_observable:
-        pytest.fail(
-            f"{coord.name}: the rule carries azimuthal information = {carries_azimuth}, "
-            f"the chart declares the azimuth observable = {chart.azimuth_observable}"
-        )

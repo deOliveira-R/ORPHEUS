@@ -1,7 +1,7 @@
 r"""Content identity of the mesh-free functions (#405 P1 step 6, S6.9 and S6.16).
 
-:class:`~orpheus.numerics.phase_space_function.RegionwiseConstant` and
-:class:`~orpheus.numerics.phase_space_function.Symbolic` join the content
+:class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant` and
+:class:`~orpheus.numerics.mesh_free_function.Symbolic` join the content
 rosters; S5.9's population row (``test_content_identity.py``) reads this
 one, so a new mesh-free type added without an entry reds there.
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.phase_space_function import RegionwiseConstant, Symbolic
+from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,

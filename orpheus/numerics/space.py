@@ -67,7 +67,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
 
 import numpy as np
@@ -489,6 +489,52 @@ class FunctionSpace(Generic[Carrier]):
         assert axes is not None  # narrowing only: _axis_index refused the None case
         return axes[k]
 
+    def _overlay_forms(self) -> tuple[DiagonalMetric | DenseMetric | None, ...]:
+        r"""The positioned overlay of forms, one entry per axis (``None`` where
+        the axis carries no form, and on every axis of a space with no overlay).
+
+        The one reader of the overlay: the product composition
+        (:func:`_positioned_forms`), the axis verbs :meth:`without_axis` and
+        :meth:`with_axis`, and the collapse-pair mint all read it here.
+        """
+        assert self.axes is not None  # narrowing only: callers are axis-built
+        if isinstance(self.metric, FactoredMetric):
+            return tuple(form for _, form in self.metric.entries)
+        return (None,) * len(self.axes)
+
+    def _with_overlay(
+        self, forms: tuple[DiagonalMetric | DenseMetric | None, ...],
+    ) -> "FunctionSpace":
+        """This axis-built space with ``forms`` positioned over its axes (none: no object)."""
+        assert self.axes is not None  # narrowing only: callers are axis-built
+        if all(form is None for form in forms):
+            return self
+        return replace(self, metric=FactoredMetric(tuple(
+            (ax.shape, form) for ax, form in zip(self.axes, forms)
+        )))
+
+    def without_axis(self, label: str) -> "FunctionSpace":
+        r"""The product of the OTHER axes, each keeping its positioned form.
+
+        The marginal space of a fibre integration over ``label``: its metric
+        is this space's metric with the axis's block removed, so the full
+        metric is exactly (the axis measure) ⊗ (this marginal's metric)
+        whenever the dropped axis carries no form itself.
+        """
+        k = self._axis_index(label)
+        assert self.axes is not None  # narrowing only: _axis_index refused the None case
+        forms = self._overlay_forms()
+        others = tuple(ax for i, ax in enumerate(self.axes) if i != k)
+        return FunctionSpace.of_axes(*others)._with_overlay(
+            tuple(form for i, form in enumerate(forms) if i != k)
+        )
+
+    def with_axis(self, axis: Axis) -> "FunctionSpace":
+        r"""This product with ``axis`` appended last, every positioned form kept."""
+        if self.axes is None:
+            raise TypeError(f"with_axis: {self!r} is not axis-built (axes is None)")
+        return FunctionSpace.of_axes(*self.axes, axis)._with_overlay(self._overlay_forms() + (None,))
+
     # ------------------------------------------------------------------
     # Axis collapse — the retraction / section pair (CS4b S6.0b)
     # ------------------------------------------------------------------
@@ -531,13 +577,16 @@ class FunctionSpace(Generic[Carrier]):
         generator's two-inductions clause; the frame itself is
         discarded, per the forgetful-map discipline). Born bound: domain
         is THIS space, codomain the same product with the axis dropped
-        (remaining measures intact), so ``.H`` is the Hilbert adjoint
-        out of the box — the pullback :math:`\pi^*`, the plain
-        broadcast.
+        (remaining measures and positioned forms intact, so the full
+        metric is (the axis measure) ⊗ (the marginal metric)), and ``.H``
+        is the Hilbert adjoint in closed form, the pullback :math:`\pi^*`
+        (:class:`~orpheus.numerics.operator.AxisPullbackOperator`), the
+        plain broadcast.
 
         The section satisfying :math:`R \circ E = \mathrm{id}` is
         :meth:`section` — a DIFFERENT arrow
-        (:math:`R^\dagger = \Sigma w \cdot E`, `[M]` exact); the
+        (:math:`R^\dagger = \Sigma w \cdot E` up to rounding, `[M]` at
+        most 2 ULP); the
         split epi/mono pair carries the canonical names (retraction /
         section, Mac Lane CWM §I.5) so the :math:`\Sigma w` convention
         is unspellable to swap (ERR-051).
@@ -554,7 +603,8 @@ class FunctionSpace(Generic[Carrier]):
         The measure-normalized right inverse — the constant-along-the-
         axis field whose retraction reproduces the input,
         :math:`(E\phi)(n, \cdot) = \phi(\cdot)/\Sigma w`; DEFINED
-        by :math:`R \circ E = \mathrm{id}` (`[M]` bit-exact; the
+        by :math:`R \circ E = \mathrm{id}` (up to rounding, `[M]` at most
+        4 ULP on Gauss-Legendre 16 and ``folded_product(4, 8)``; the
         canonical name for the right inverse of a retraction — split
         monomorphism). On the ``"angular"`` axis this is the
         isotropic-source projection :math:`Q/\Sigma w` broadcast across
@@ -999,10 +1049,7 @@ def _positioned_forms(
     ] = []
     for f in factors:
         assert f.axes is not None  # narrowing only: the caller's arm
-        if isinstance(f.metric, FactoredMetric):
-            entries.extend(f.metric.entries)
-        else:
-            entries.extend((ax.shape, None) for ax in f.axes)
+        entries.extend((ax.shape, form) for ax, form in zip(f.axes, f._overlay_forms()))
     if all(form is None for _, form in entries):
         return None
     return FactoredMetric(tuple(entries))

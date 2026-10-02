@@ -231,8 +231,9 @@ def test_s6_4_the_sandwich_witnesses_the_closed_form(name: str) -> None:
     (w·G·φ)/(w·G): ``nulp=4``, measured worst 3 ULP on the LD trial space and
     2 on the others. On a dense form the sandwich's ♯ applies the form's
     pseudo-inverse, whose rounding is κ(G)·ε relative to the result (κ the
-    form's condition number); the bound there is 8·κ·ε, derived from κ,
-    which the row computes from the form itself. Designed green: π* := Σw·E
+    form's condition number, computed by the row from the form itself); the
+    bound there is 8·κ·ε, where the factor 8 is chosen headroom over the
+    measured worst, 2.35·κ·ε on D1 (2026-10-02). Designed green: π* := Σw·E
     is the same operator and agrees to 0-1 ULP, so this row cannot tell them
     apart (S6.1 can)."""
     V = _population()[name]
@@ -245,3 +246,29 @@ def test_s6_4_the_sandwich_witnesses_the_closed_form(name: str) -> None:
             npt.assert_array_almost_equal_nulp(closed, generic, nulp=4)
         else:
             npt.assert_allclose(closed, generic, rtol=0, atol=8 * kappa * np.finfo(float).eps * np.max(np.abs(closed)))
+
+
+def test_s6_1_a_second_pullback_cannot_be_minted() -> None:
+    """The pullback is minted by its retraction, once, so ``R.H.H is R``
+    holds for every pullback that exists."""
+    R = _population()["synthetic"].retraction("angular")
+    with pytest.raises(TypeError, match="minted by its retraction, once"):
+        AxisPullbackOperator(R)
+
+
+def test_the_axis_verbs_keep_the_positioned_forms() -> None:
+    """``without_axis`` and ``with_axis`` are the one route by which a
+    product loses or gains an axis; both keep every other axis's positioned
+    form (the mint and the moment-tail composer use them). ``of_axes`` over
+    the same axes drops the form, which is the defect they replace."""
+    D1 = _d1()
+    without = D1.without_axis("angular")
+    if not isinstance(without.metric, FactoredMetric) or not isinstance(without.metric.entries[1][1], DenseMetric):
+        pytest.fail("without_axis dropped the kept axis's dense form")
+    tail = Axis("tail", (2,), kind=BasisKind.NODAL)
+    widened = without.with_axis(tail)
+    forms = [form for _, form in widened.metric.entries] if isinstance(widened.metric, FactoredMetric) else []
+    if not (len(forms) == 3 and isinstance(forms[1], DenseMetric) and forms[2] is None):
+        pytest.fail(f"with_axis lost a form: {forms}")
+    if FunctionSpace.of_axes(*without.axes, tail).metric is not None:
+        pytest.fail("control: of_axes over the same axes now keeps the form, so this row tests nothing")

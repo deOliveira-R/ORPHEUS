@@ -429,7 +429,7 @@ class BulkField(RolePair, Field):
                     f"masses {axis.shape[0]} — the moment tail is the "
                     "scheme's basis, so only its own width is mintable."
                 )
-            return FunctionSpace.of_axes(*space.axes, axis)
+            return space.with_axis(axis)
         # Every bulk space that carries a tail is axis-built — the angular
         # and scalar mints since CS4b, the harmonic-moment product since
         # CS4c step 6 item 6.2c-ii; the carrier's ``SNProblem.moment_space``

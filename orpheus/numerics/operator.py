@@ -3265,9 +3265,10 @@ class TraceRestrictionOperator(LinearOperator):
 class _AxisMarginalBase(LinearOperator):
     r"""Shared retained state of the axis collapse pair (CS4b S6.0b).
 
-    The two arrows of one axis collapse — the retraction
-    :math:`R = \pi_*` (:class:`AxisRetractionOperator`) and its section
-    :math:`E` (:class:`AxisSectionOperator`) — are the **forgetful
+    The three arrows of one axis collapse — the retraction
+    :math:`R = \pi_*` (:class:`AxisRetractionOperator`), its section
+    :math:`E` (:class:`AxisSectionOperator`) and its adjoint, the pullback
+    :math:`\pi^*` (:class:`AxisPullbackOperator`) — are the **forgetful
     retention** of a stage-2 generator's output: the single-region
     indicator frame over the axis's index set
     (``GalerkinFrame(IndicatorBasis, axis measure)``), built eagerly at
@@ -3352,6 +3353,16 @@ class _AxisMarginalBase(LinearOperator):
         nd = len(self._dims)
         return np.moveaxis(out, range(nd), self._dims)
 
+    def _broadcast(self, x: np.ndarray) -> np.ndarray:
+        r"""``1_axis ⊗ x`` — ``x`` constant along the axis dims (a fresh array)."""
+        expanded = np.expand_dims(np.asarray(x), self._dims)
+        return np.broadcast_to(expanded, self._full_space.shape).copy()
+
+    def _axis_sum(self, x: np.ndarray) -> np.ndarray:
+        r"""``Σ_axis x`` — the unweighted sum over the axis dims, the
+        Euclidean transpose of :meth:`_broadcast`."""
+        return np.add.reduce(np.asarray(x), axis=self._dims)
+
     # ── the bound carriers ────────────────────────────────────────────
 
     @property
@@ -3382,10 +3393,13 @@ class AxisRetractionOperator(_AxisMarginalBase):
     marginal metric), and then :math:`\langle R\psi, \phi\rangle =
     \sum_n w_n \langle\psi_n, \phi\rangle = \langle\psi, \pi^*\phi\rangle`
     exactly. The generic metric sandwich :math:`\sharp\, R^{\mathsf T}
-    \flat` is the same operator in exact arithmetic, but it re-associates
-    :math:`(w\,G\,\phi)/(w\,G)` and so rounds 1-3 ULP away from the
-    broadcast. The closed form is the law, and the sandwich is its
-    independent witness.
+    \flat` is the same operator in exact arithmetic when every weight is
+    positive, but it re-associates :math:`(w\,G\,\phi)/(w\,G)` and so
+    rounds 1-3 ULP away from the broadcast on a diagonal metric (more on a
+    dense form, whose pseudo-inverse it applies). Where a weight is zero
+    the full metric is degenerate, the adjoint is not unique, and the two
+    differ while both satisfy reciprocity. The closed form is the law, and
+    the sandwich is its independent witness.
 
     **Frame-induced** (S6.0b): this operator is the analysis-face
     content of the single-region indicator frame over the axis's index
@@ -3408,8 +3422,9 @@ class AxisRetractionOperator(_AxisMarginalBase):
     metric stays physical).
 
     The two arrows differ by exactly the total weight:
-    :math:`R^\dagger = \Sigma w \cdot E`, to 1 ULP (:math:`E` divides by
-    :math:`\Sigma w` before it broadcasts, so multiplying back rounds).
+    :math:`R^\dagger = \Sigma w \cdot E` up to rounding (:math:`E` divides
+    by :math:`\Sigma w` before it broadcasts, so multiplying back rounds;
+    `[M]` at most 2 ULP, on Gauss-Legendre 16).
     Naming BOTH arrows canonically is the anti-ERR-051 move: a single
     undiscriminated verb would have had to choose a convention, and a
     re-pointed call site would have silently changed a source by
@@ -3488,8 +3503,9 @@ class AxisSectionOperator(_AxisMarginalBase):
     :math:`(E\,\phi)(n, \cdot) = \phi(\cdot) / \Sigma w`.
 
     **Canonical name.** :math:`E` is DEFINED by
-    :math:`R \circ E = \mathrm{id}` (to one ULP, not bit-exact in
-    general: `[M]` the re-association of :math:`\Sigma w_n/\Sigma w`,
+    :math:`R \circ E = \mathrm{id}` (up to rounding, not bit-exact in
+    general: `[M]` at most 4 ULP on Gauss-Legendre 16 and
+    ``folded_product(4, 8)``, the re-association of :math:`\Sigma w_n/\Sigma w`,
     recorded in ``test_g61_retraction_of_section_is_the_identity``) — the right
     inverse of the retraction, i.e. the *section* of the split pair
     (split monomorphism; Mac Lane CWM §I.5). "Embedding" was rejected
@@ -3535,7 +3551,8 @@ class AxisSectionOperator(_AxisMarginalBase):
 
     NOT the adjoint of :class:`AxisRetractionOperator` — that is the
     pullback :class:`AxisPullbackOperator`, the plain broadcast
-    :math:`R^\dagger = \Sigma w \cdot E` (to 1 ULP).
+    :math:`R^\dagger = \Sigma w \cdot E` (up to rounding, `[M]` at most
+    2 ULP).
     The two arrows carry different names and different types precisely
     so the :math:`\Sigma w` convention cannot be silently swapped at a
     call site (the ERR-051 class becomes unspellable).
@@ -3595,9 +3612,7 @@ class AxisSectionOperator(_AxisMarginalBase):
         # from_isotropic kernel (÷Σw first, then the axis broadcast), so
         # the equivalence gate can pin np.array_equal rather than a ULP
         # bound. The leading-1-dim case is literally its spelling.
-        scaled = x / self._total_weight
-        expanded = np.expand_dims(scaled, self._dims)
-        return np.broadcast_to(expanded, self._full_space.shape).copy()
+        return self._broadcast(x / self._total_weight)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The unweighted axis sum over :math:`\Sigma w` — the Euclidean
@@ -3609,7 +3624,7 @@ class AxisSectionOperator(_AxisMarginalBase):
                 f"{x.shape} does not match the full space "
                 f"{self._full_space.shape}."
             )
-        return np.add.reduce(x, axis=self._dims) / self._total_weight
+        return self._axis_sum(x) / self._total_weight
 
 
 class AxisPullbackOperator(_AxisMarginalBase):
@@ -3642,8 +3657,12 @@ class AxisPullbackOperator(_AxisMarginalBase):
     no division by the measure's mass. A source rate enters through the
     section :class:`AxisSectionOperator` instead, which divides by
     :math:`\Sigma w` so that :math:`R \circ E = \mathrm{id}`. The two lifts
-    differ by :math:`R \circ R^\dagger = \Sigma w`, the mass of the measure
-    (4π on the sphere), and that mass is never typed.
+    differ by :math:`R \circ R^\dagger = \Sigma w`, the mass of the
+    measure the axis carries, and that mass is never typed: 4π for a rule
+    on the whole sphere (``folded_product``, Lebedev), 2 for a 1-D rule,
+    whose ordinates are points of the orbit space of :math:`\mu` alone (the
+    sphere quotiented by the rotations and reflections about the polar
+    axis).
 
     Minted only by the retraction it is the adjoint of; the two refer to
     each other, so ``R.H.H is R``. Domain = the marginal space; codomain
@@ -3652,6 +3671,11 @@ class AxisPullbackOperator(_AxisMarginalBase):
     """
 
     def __init__(self, retraction: AxisRetractionOperator) -> None:
+        if hasattr(retraction, "_pullback"):
+            raise TypeError(
+                "AxisPullbackOperator is minted by its retraction, once; read "
+                "it as retraction.H (a second pullback would break R.H.H is R)"
+            )
         super().__init__(
             full_space=retraction.domain,
             marginal_space=retraction.codomain,
@@ -3680,8 +3704,7 @@ class AxisPullbackOperator(_AxisMarginalBase):
                 f"(the pullback lifts the marginal into the full product, "
                 f"not the reverse)."
             )
-        expanded = np.expand_dims(x, self._dims)
-        return np.broadcast_to(expanded, self._full_space.shape).copy()
+        return self._broadcast(x)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The unweighted axis sum, the Euclidean transpose of the broadcast."""
@@ -3692,7 +3715,7 @@ class AxisPullbackOperator(_AxisMarginalBase):
                 f"{x.shape} does not match the full space "
                 f"{self._full_space.shape}."
             )
-        return np.add.reduce(x, axis=self._dims)
+        return self._axis_sum(x)
 
     def adjoint(self) -> AxisRetractionOperator:
         r"""The involution as an object identity: ``R.H.H is R``."""
