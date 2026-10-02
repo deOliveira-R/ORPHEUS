@@ -54,12 +54,13 @@ from tests.gates.geometry.test_content_identity_geometry import ROSTER as GEOMET
 from tests.gates.mesh.test_content_identity_mesh import ROSTER as MESH_ROSTER
 from tests.gates.numerics.test_content_identity_axis import ROSTER as AXIS_ROSTER
 from tests.gates.numerics.test_content_identity_mesh_free import ROSTER as MESH_FREE_ROSTER
+from tests.gates.numerics.test_content_identity_question import ROSTER as QUESTION_ROSTER
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
