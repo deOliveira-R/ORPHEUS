@@ -198,7 +198,15 @@ angular axis, the volume integral on the spatial one) and the **section**
 (:ref:`spaces-collapse-pair-naming`; "embedding" is not an operator name
 in this corpus, by that ruling);
 :class:`~orpheus.numerics.operator.AxisRetractionOperator`,
-:class:`~orpheus.numerics.operator.AxisSectionOperator`. Along an index
+:class:`~orpheus.numerics.operator.AxisSectionOperator`. The retraction's
+Hilbert adjoint is a third arrow and a third type, the **pullback**
+:math:`R^{\dagger} = \pi^{*}`, the plain broadcast, minted with the pair
+and returned by ``R.H``
+(:class:`~orpheus.numerics.operator.AxisPullbackOperator`;
+:ref:`spaces-collapse-pair-pullback`); it differs from the section by the
+axis's mass :math:`\Sigma w`, which is why an angle-integrated source
+enters phase space through :math:`E` and a detector through
+:math:`R^{\dagger}` (:ref:`spaces-collapse-pair-two-lifts`). Along an index
 subset, the **trace restriction** :math:`\gamma_S` gathers and its
 transpose :math:`\iota_S` scatters (:eq:`bc-trace-restriction-pair`,
 :ref:`bc-domain-narrowing`;
@@ -383,9 +391,9 @@ The concept table
    * - Scheme
      - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`
      - :ref:`discretization-closures`
-   * - Retraction; section
-     - :class:`~orpheus.numerics.operator.AxisRetractionOperator`, :class:`~orpheus.numerics.operator.AxisSectionOperator`
-     - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`
+   * - Retraction; section; pullback (the retraction's adjoint)
+     - :class:`~orpheus.numerics.operator.AxisRetractionOperator`, :class:`~orpheus.numerics.operator.AxisSectionOperator`, :class:`~orpheus.numerics.operator.AxisPullbackOperator`
+     - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`, :ref:`spaces-collapse-pair-pullback`, :ref:`spaces-collapse-pair-two-lifts`
    * - Trace restriction; trace space; half-trace
      - :class:`~orpheus.numerics.operator.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
      - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`, :ref:`half-trace <bc-half-trace>`
@@ -416,6 +424,9 @@ The concept table
    * - Orbit space; quotient; descent
      - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
+   * - Mesh-free function; angular chart
+     - :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, :class:`~orpheus.numerics.mesh_free_function.Symbolic`; :class:`~orpheus.geometry.coord.AngularChart` (:attr:`CoordSystem.angular_chart <orpheus.geometry.coord.CoordSystem.angular_chart>`)
+     - :ref:`structured-geometry-mesh-free-functions`, :ref:`structured-geometry-angular-chart`, :ref:`structured-geometry-two-lifts-branch-1`
    * - Material mesh; method hubs
      - :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, :class:`~orpheus.sn.problem.SNProblem`, :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
      - :ref:`architecture-layering`; hub: :ref:`the-problem-hub`
@@ -489,6 +500,17 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   :class:`~orpheus.numerics.operator.LinearOperator` subclasses with no
   ``apply_transpose`` (48 own one, 8 inherit one); there is no diffusion
   adjoint entry.
+- **The angular measure's mass is still typed by hand in three places,
+  and the retraction's adjoint has a second spelling** (`[M]` 2026-10-02,
+  #405 P1 step 6's census and review): MoC lifts an isotropic source by
+  a hand-written :math:`1/(4\pi)` instead of the angular section (#556);
+  the manufactured-solution builders divide by a hand-read weight sum
+  (12 of 12 S\ :sub:`N` cases) and the Green's-function sphere by a typed
+  :math:`4\pi`, where one Branch-1 measure object should derive it
+  (#557); a composite holding a retraction daggers through the generic
+  sandwich rather than the leaf pullback (#558), and
+  ``ScalarSourceSink.__add__`` adds a hand-written broadcast,
+  :math:`\pi^{*}` outside its type.
 - **Certificate members still listed as not yet built** (the outcome
   module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen

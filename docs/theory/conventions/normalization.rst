@@ -38,6 +38,16 @@ The measure is the *only* normalization carrier, which fixes where
   division by :math:`W` happens **once**, at the reconstruction site
   of the scattering application — not inside the moments, not inside
   the basis.
+- **A detector response enters with no** :math:`1/W`. A per-region
+  response :math:`\Sigma_d` is the functional
+  :math:`\psi \mapsto \langle\Sigma_d, R\psi\rangle` of the scalar flux,
+  so it enters phase space through the retraction's adjoint, the plain
+  broadcast :math:`R^{\dagger}\Sigma_d`, while a source rate enters
+  through the section :math:`Q/W`. The two lifts differ by
+  :math:`R\circ R^{\dagger} = W`, which is why the role of an
+  angle-integrated quantity, not its value, picks the arrow. Neither
+  lift types :math:`W`: the section reads it off the measure, and the
+  adjoint has none (:ref:`spaces-collapse-pair-two-lifts`).
 - **Restriction needs no re-normalization**: the ``half_range_clean``
   trait (:doc:`/theory/foundations/discrete_measures`) means
   ``measure.restrict`` yields a valid sub-quadrature whose weights

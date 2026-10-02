@@ -42,6 +42,20 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-02
+     - **The adjoint fixed-source entry lifts its detector by the
+       retraction's adjoint** —
+       ``solve_sn_adjoint_fixed_source`` reads
+       ``angular_bulk_space.retraction("angular").H`` (the pullback
+       :math:`R^{\dagger}`) where it wrote ``np.broadcast_to`` by hand,
+       bit-exact (36 of 36 arrays), with a route gate (a counting spy and
+       a ×2 decoy). The forward source enters through the section
+       :math:`E`; the two differ by the angular measure's mass, which is
+       never typed. ``solve_sn_fixed_source``'s docstring equation no
+       longer divides the per-ordinate external source by :math:`W` a
+       second time (:ref:`sn-adjoint-dual-lift`).
+     - #405
+     - *(in development)* branch ``feature/phase-space-functions``
    * - 2026-09-30
      - **The S**\ :sub:`N` **entries take the declared boundary laws
        verbatim** — ``solve_sn_fixed_source``,

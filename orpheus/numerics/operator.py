@@ -3378,8 +3378,9 @@ class AxisRetractionOperator(_AxisMarginalBase):
     r"""The retraction :math:`R = \pi_*` — fiber integration over one
     named axis: :math:`(R\,\psi)(\cdot) = \sum_n w_n\, \psi(n, \cdot)`.
 
-    **Canonical names.** :math:`R \circ E = \mathrm{id}` (`[M]`
-    bit-exact) makes the pair a split epi/mono pair: :math:`R` is the
+    **Canonical names.** :math:`R \circ E = \mathrm{id}` (up to
+    rounding, `[M]` at most 4 ULP, :class:`AxisSectionOperator`) makes the
+    pair a split epi/mono pair: :math:`R` is the
     *retraction* (split epimorphism) and :math:`E` its *section* (Mac
     Lane, CWM §I.5) — the collapse doctrine's own "retract rule".
     Content-wise :math:`R` is the pushforward :math:`\pi_*` (fiber

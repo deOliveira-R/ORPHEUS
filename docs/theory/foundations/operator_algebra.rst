@@ -2453,8 +2453,10 @@ partition with its type-system table is set out in
    **Where the axis collapse pair sits.** Campaign 1 CS4b added a third
    kind of nonlocal map: the **axis marginal** —
    :class:`~orpheus.numerics.operator.AxisRetractionOperator` (fiber
-   integration over one named axis) and its
-   :class:`~orpheus.numerics.operator.AxisSectionOperator`. By the
+   integration over one named axis), its
+   :class:`~orpheus.numerics.operator.AxisSectionOperator` and, since #405
+   P1 step 6, its closed-form adjoint, the pullback
+   :class:`~orpheus.numerics.operator.AxisPullbackOperator`. By the
    locality discriminator these are **nonlocal**: the retraction's
    output at a point reads the input at every index of the collapsed
    axis. `[M]` they do NOT conform to the

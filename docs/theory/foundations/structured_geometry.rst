@@ -51,6 +51,19 @@ Key facts
   value is constructed, and an object's digest covers its class's
   schema, so an entry written under an older schema misses
   (:ref:`structured-geometry-content-identity`).
+* **A source and a detector are stated before any mesh.**
+  :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant` is one
+  real value per (region, group), a function on the angle-integrated
+  space whose regions are the geometry's interval indices;
+  :class:`~orpheus.numerics.mesh_free_function.Symbolic` is one SymPy
+  expression :math:`q_g(r,\mu,\varphi)` per group, a function on phase
+  space stored as ``srepr`` text with the SymPy version as content.
+  Neither carries a role or a density: a table enters phase space through
+  the angular section as a source and through the retraction's adjoint as
+  a detector, and the measure's mass between them is never typed. Each
+  coordinate system declares the angular chart :math:`(\mu,\varphi)` is
+  read in, and the sphere declares no azimuth reference
+  (:ref:`structured-geometry-mesh-free-functions`).
 * **Hollow cylinders and spheres are declarable, and every method
   refuses a declared law it would drop.** S\ :sub:`N` and diffusion
   admit only a reflective inner law on a hollow body (#511), which is
@@ -2482,6 +2495,586 @@ the same bytes on this platform", so a platform difference in the
 encoding reddens there against the pins measured on the macOS host.
 
 
+.. _structured-geometry-mesh-free-functions:
+
+Mesh-free functions: the source and the detector a specification states
+=======================================================================
+
+A reference question (the reference-solution cache of #405) is stated
+before any mesh exists: the materials, the geometry with its laws, and
+the source and the detector of a fixed-source problem. The source and
+the detector therefore cannot be arrays on a discretised space; they are
+functions stated *intensionally*, by a rule a later projection evaluates
+on whatever unknowns a method chooses. The module
+:mod:`orpheus.numerics.mesh_free_function` holds the two forms such a
+function takes, and it landed as step 6 of the campaign's first phase,
+on 2026-10-02 (branch ``feature/phase-space-functions``, not yet merged
+at the time of writing):
+
+- :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, one
+  real value per (region, energy group): a function on the
+  **angle-integrated** space;
+- :class:`~orpheus.numerics.mesh_free_function.Symbolic`, one SymPy
+  expression :math:`q_g(r,\mu,\varphi)` per energy group: a function on
+  **phase space**, stored as text.
+
+Both are content-identity values
+(:ref:`structured-geometry-content-identity`), so a cache key built
+from a question that holds one is stable across processes. Neither
+carries a role (source or detector) nor a density convention; the field
+of the specification that holds the value is the role, and the role
+picks how the value enters phase space.
+
+**Why this page is the home.** The two types are mathematics and live
+in ``numerics`` (L1; a region is an index into a partition, a group an
+index into an axis, and the measure on the direction sphere is
+mathematics), but what they *mean* is defined here: a
+``RegionwiseConstant``'s regions are this page's interval indices
+(:ref:`structured-geometry-value`), a ``Symbolic`` reads its direction
+in the chart each :class:`~orpheus.geometry.coord.CoordSystem` declares
+(below), and both enter the question whose content identity is the
+chapter above. The arrows that carry them into phase space are the
+space layer's, and are derived there
+(:ref:`spaces-collapse-pair-two-lifts`); this chapter points at them and
+does not re-derive them. The specification of the step, with its gates
+and its measured first reds, is ``.claude/plans/reference_p1_spec.md``
+§1.6; the census that preceded it is
+``scratch/reference_architecture/p1step6/census.md``.
+
+.. _structured-geometry-mesh-free-two-types:
+
+Two types, because a per-region table is not on phase space
+-----------------------------------------------------------
+
+The first specification (2026-09-25) made ``RegionwiseConstant`` *the
+isotropic, piecewise-constant special case of* ``Symbolic``: a table
+value :math:`Q` would lower to the phase-space function
+:math:`Q/4\pi`, a density per steradian fixed on the type. That design
+is refuted (`[REFUTED 2026-10-02]` for the question *"what is a
+per-region table, as a function?"*), for two reasons that are one
+reason.
+
+**The** :math:`4\pi` **is the measure, not a convention.** The user's
+ruling of 2026-10-02 (``.claude/plans/reference_cache.md``, "P1 step 6
+opened", ruling 1): "integrated over all directions" and "divided by
+:math:`4\pi`" are both statements about the angular measure, and the
+operators that perform them already exist. A per-region table is a
+function on the space the angular retraction :math:`R` maps *to*, the
+angle-integrated space (region, group). It enters phase space by one of
+two arrows: a source rate through the section :math:`E`, so that
+:math:`R(EQ) = Q`; a detector through the adjoint :math:`R^{\dagger}`,
+the Riesz representative of :math:`\psi \mapsto \langle\Sigma_d,
+R\psi\rangle`. The two differ by the mass of the measure,
+:math:`R\circ R^{\dagger}`, which is :math:`4\pi` on the sphere and 2 on
+the orbit space of a one-dimensional rule, and which is therefore never
+written into a type.
+
+**One lowering would be wrong for one of the two roles.** `[M]` the
+census and the test-architect's SymPy probe
+(``scratch/reference_architecture/p1step6/ta/symbolic_probe.out``, S4):
+a detector lowered by the source's rule, :math:`\Sigma_d/4\pi`, gives
+:math:`1/(4\pi)` of the true response on the continuous sphere, and the
+same rule applied with the slab's weight sum 2 gives
+:math:`R(Q/2) = 2\pi Q` for a source. A type fixing one density would
+have made every ``RegionwiseConstant`` used as a detector wrong by a
+factor, and a hand-written :math:`1/4\pi` wrong on the slab and the
+sphere, where the discrete measure's mass is 2.
+
+Three consequences are structural:
+
+- **No role and no density is a field** of either type (gate S6.11:
+  ``dataclasses.fields(RegionwiseConstant)`` is exactly ``values``).
+  The alternative the census offered, "the value type declares which
+  density it carries", is the spelling this rules out.
+- **The two types are never equal to each other.** Two content types
+  are never equal across types (:ref:`structured-geometry-content-identity`),
+  so the step-8 leg "a ``RegionwiseConstant`` equals the ``Symbolic`` it
+  lowers to" cannot hold as written; it is re-posed as "both lift to the
+  same function" (spec §1.8).
+- **A** ``Symbolic`` **needs no lift onto the sphere**, because it is
+  already a density with respect to :math:`\mathrm d\Omega`; onto a rule
+  whose ordinates are orbits it needs a pushforward (below).
+
+.. _structured-geometry-regionwise-constant:
+
+``RegionwiseConstant``: one value per region and group
+------------------------------------------------------
+
+``values`` is a real table of shape ``(regions, groups)``, at least one
+of each, stored as a **read-only float copy**: the caller's array can
+change afterwards without moving the value or its digest (gate S6.8).
+Region :math:`k` is the geometry's interval :math:`[r_k, r_{k+1}]`, a
+positional index, ``0 … len(mat_ids) − 1``; a region is not a material
+(two regions holding one material are two rows). The specification
+(step 8) checks the row count against the geometry and the column count
+against the materials (S6.12).
+
+The constructor refuses, each with its own message: a table of rank
+other than 2 (naming the rank), an empty region or group axis (naming
+which), a NaN entry (naming its index, the encoder's rule), an infinite
+entry (naming its index: a rate or a response of infinite size is not a
+function value), and a non-real or boolean dtype. Content identity
+follows the encoder's canonical forms (gate S6.9): ``-0.0`` is ``0.0``,
+an integer table equals its float twin, and a ``(2, 3)`` and a
+``(3, 2)`` table with the same bytes are different values, because the
+shape is part of the content. ``n_regions`` and ``n_groups`` read the
+shape.
+
+The finite-real check is one of three spellings of "a finite, canonical
+real" in the tree (with the content encoder's private ``_array`` and the
+geometry's ``parse_real``); one parser at L1 for all three is #559.
+
+.. _structured-geometry-symbolic:
+
+``Symbolic``: a function on phase space, stored as text
+--------------------------------------------------------
+
+**The coordinates are owned.** ``Symbolic.r``, ``Symbolic.mu`` and
+``Symbolic.phi`` are class-level ``Symbol(name, real=True)``: the
+position, the cosine to the chart's polar axis and the azimuth about it
+(the chart is the next section). The position coordinate is :math:`r`
+on every chart, the slab's :math:`x` included. ``real=True`` and not
+``nonnegative`` for :math:`r`, because a slab admits any :math:`r_0`.
+The symbols are built on first access through a descriptor,
+``_OwnedSymbol``, which takes its name from ``__set_name__``, so
+importing the module builds no SymPy object.
+
+An expression with any other free symbol is refused, and the message
+names the symbol **and its assumptions** (gate S6.13). A symbol whose
+name is an owned name but whose assumptions differ is a different symbol
+to SymPy (``Symbol('mu', positive=True, real=True) == Symbol('mu',
+real=True)`` is ``False``), and it gets its own message, *"same name,
+different assumptions: use Symbolic.mu (real=True)"*. That case is not
+hypothetical: the tree's own manufactured-solution builder declares
+:math:`r` and :math:`\mu` with ``positive=True``
+(``orpheus/derivations/continuous/mms/sn.py``), and the transport
+equation's derivation module declares :math:`r` ``nonnegative``. A check
+by name would have admitted them and produced a function in coordinates
+the type does not own; one Branch-1 coordinate vocabulary is part of
+#557.
+
+**Storage is text, and identity is by spelling.** ``srepr`` holds one
+canonical ``sympy.srepr`` string per group, and the content is that
+text (gate S6.16: a live SymPy expression as a content part is refused
+by the encoder). Two spellings of one function are two values: `[M]`
+``Symbolic.of((r + 1)**2)`` and ``Symbolic.of(expand((r + 1)**2))`` are
+unequal, while ``simplify`` reduces their difference to 0. That costs
+a cache miss and never a wrong hit, which is the only direction a cache
+key may err in; deciding equality of two expressions in general is not
+something a key can afford. `[M]` the round trip
+``Symbolic.from_srepr(s.srepr) == s`` holds, with assumptions kept, on
+the gate's four-member population (a polynomial; :math:`\sin(\pi r)
+e^{-\mu} + \cos\varphi\,\sqrt{1-\mu^2}\,r`; a ``Piecewise`` with a
+30-digit ``Float`` and a ``Rational``; a 12-term sum), and the digest is
+the same in two interpreters under ``PYTHONHASHSEED`` 0 and 1 (S6.14).
+
+**The SymPy version is content** (gate S6.17), because the two ways a
+new SymPy can disagree with a stored string differ in kind. A SymPy
+that *writes* a different ``srepr`` for the same expression gives a
+different key: a miss, which costs a recomputation. A SymPy that
+*parses* a stored string into a different expression gives the same key
+for a different function: a wrong hit, which returns a wrong answer. A
+pinned record of the text detects both, but only when the suite runs
+under the new version; a user who upgraded SymPy and ran nothing would
+be unprotected against the wrong hit. With ``sympy_version`` a content
+part, every read compares versions, so the wrong hit is impossible, at
+the price of a miss on every SymPy upgrade. The full version string is
+used, not major.minor, because nothing measured bounds a patch
+release's effect on ``srepr``. The RECORD pin stays beside it as the
+early notice that the format moved (its message: *"SymPy changed its
+srepr format: every Symbolic cache key is invalidated (the version part
+already forces the miss); re-pin with the version"*).
+
+**Stored text is parsed through a whitelist, never by** ``eval``
+**alone.** The first ``from_srepr`` evaluated stored text with
+``sympify``, which calls ``eval``; the qa review (2026-10-02) wrote a
+file with a stored string. A cache is a store of text a later process
+reads back, so the parse is an input boundary. The text is parsed to a
+Python AST first, and only these nodes are admitted: a call whose callee
+is the name of a SymPy class (every subclass of ``sympy.Basic`` by class
+name, since ``ExprCondPair`` is not a top-level export) or a SymPy
+singleton (``pi``, ``true``, ``oo``); numeric, string and boolean
+literals; a unary sign on a literal; keywords and tuples. Anything else
+is refused before evaluation, naming the node or the name (an attribute,
+a subscript, a lambda, ``getattr``, ``Matrix``, a syntax error; gate
+S6.16's six rows), and the admitted tree is evaluated with no builtins.
+`[M]` ``Symbolic.from_srepr(("__import__('os')",))`` is refused:
+the message names ``'__import__'`` as "not a SymPy class or
+constant".
+
+**Only real scalar functions are admitted** (the qa review found each
+of these admitted by the first build). Refused, each with its own
+message: an object that is not a scalar expression (a relation
+``r > 1``; a matrix); ``nan``, ``zoo``, ``oo`` or ``-oo`` anywhere in the
+expression; the imaginary unit; an undefined function such as
+:math:`f(r)`; a ``Piecewise`` with no otherwise branch, which has no
+value outside its conditions. None of these is a real function value
+everywhere on phase space.
+
+**Isotropy is decided by substitution.** ``is_isotropic`` asks whether,
+in every group,
+
+.. math::
+
+   q_g(r,\mu,\varphi) - q_g(r,\mu',\varphi') \;\overset{\text{simplify}}{=}\; 0
+
+with :math:`\mu',\varphi'` fresh real symbols: the value does not change
+when the direction does. A difference that ``simplify`` cannot reduce
+counts as a dependence, so the undecided case falls on the anisotropic
+side, which is the side a consumer refusing anisotropy refuses. Two
+earlier predicates failed, each on a row the gate now carries (S6.15,
+ten rows):
+
+- *by free symbols* (anisotropic iff :math:`\mu` or :math:`\varphi`
+  appears): wrong on :math:`\sin^2\varphi + \cos^2\varphi` and on
+  :math:`\mu^2 + (1-\mu^2)\cos^2\varphi + (1-\mu^2)\sin^2\varphi`
+  (:math:`\Omega\cdot\Omega`), which are constant;
+- *by derivatives* (isotropic iff :math:`\partial_\mu q` and
+  :math:`\partial_\varphi q` simplify to 0): wrong on a **step** in the
+  direction, ``Piecewise((1, mu > 0), (0, True))``, whose derivative is
+  0 wherever it is defined (the qa review). Substitution sees the step,
+  because :math:`q(\mu=0.5) - q(\mu'=-0.5) = 1`.
+
+`[M]` this pass: :math:`1+\mu`, :math:`\cos\varphi` and the two steps in
+:math:`\mu` and :math:`\varphi` are anisotropic; :math:`2`,
+:math:`r^2+1`, :math:`\mu-\mu`, the two trigonometric traps and a step in
+:math:`r` are isotropic.
+
+.. code-block:: python
+
+   import sympy as sp
+   from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+
+   r, mu, phi = Symbolic.r, Symbolic.mu, Symbolic.phi
+   q = Symbolic.of(sp.exp(-r) * (1 + mu), sp.Integer(2))   # two groups
+   assert q.n_groups == 2 and not q.is_isotropic
+   assert Symbolic.from_srepr(q.srepr, q.sympy_version) == q
+   assert Symbolic.of(sp.sin(phi)**2 + sp.cos(phi)**2).is_isotropic
+
+   table = RegionwiseConstant([[1.0, 0.5], [0.0, 2.0], [1.0, 0.5]])  # 3 regions, 2 groups
+   assert (table.n_regions, table.n_groups) == (3, 2)
+
+**From a density on the sphere to a rule's ordinates: the pushforward
+(not built; phase P4).** A ``Symbolic`` is a density with respect to
+:math:`\mathrm d\Omega = \mathrm d\mu\,\mathrm d\varphi`. On a rule
+whose ordinates are points of the whole sphere (``folded_product``,
+Lebedev) its value at an ordinate is :math:`q` itself. A one-dimensional
+rule is different: its ordinates are points of the **orbit space** of
+:math:`\mu`, the sphere quotiented by the rotations and reflections
+about the polar axis (:ref:`manifold-orbit-space`), and the measure on
+that space has mass 2. The per-ordinate value there is the integral of
+:math:`q` over each orbit, the pushforward along the quotient map,
+
+.. math::
+
+   q^{\flat}(r, \mu) \;=\; \int_0^{2\pi} q(r, \mu, \varphi)\,\mathrm d\varphi ,
+
+which is :math:`2\pi q` when :math:`q` does not depend on
+:math:`\varphi`. That factor is the ratio of the two measures' masses,
+:math:`4\pi/2`, and it is derived from the two measures when the arrow
+is built, never typed. The arrow belongs to the projection of a
+specification onto a method's unknowns, phase P4
+(``.claude/plans/reference_cache.md``, "P1 step 6 built", the P4
+obligations). The elegance review of 2026-10-02 named the hazard in the
+first draft of the module docstring, which said a ``Symbolic`` "takes no
+lift" and called the mass "4π on the sphere" beside a spherical S\
+:sub:`N` problem whose :math:`\Sigma w` is 2: the ERR-004 / ERR-051
+class, one step ahead of its first consumer.
+
+**SymPy is imported inside the functions that need it.** `[M]` in a
+fresh interpreter, importing the module and building a
+``RegionwiseConstant`` leaves ``sympy`` out of ``sys.modules`` (gate
+S6.21, with the positive control that building a ``Symbolic`` loads
+it). SymPy moved from the ``test`` and ``docs`` extras into
+``[project].dependencies`` in the same step: `[M]` (the test-architect's
+census, ``scratch/reference_architecture/p1step6/ta/deps_census.out``) of the 8 third-party
+top-level modules imported anywhere under ``orpheus/`` (366 files, by
+AST), 7 were declared and SymPy was not, although
+``Quadrature.gauss_legendre`` imports it at run time (gate S6.20, which
+prints its input count and controls on ``numpy``).
+
+.. _structured-geometry-angular-chart:
+
+The angular chart each coordinate system declares
+-------------------------------------------------
+
+A function :math:`q(r,\mu,\varphi)` reads its direction in a chart, and
+the chart is the coordinate system's local frame, declared once by the
+coordinate system (the user's ruling of 2026-10-02, ruling 2). The
+declaration is :attr:`CoordSystem.angular_chart
+<orpheus.geometry.coord.CoordSystem.angular_chart>`, an
+:class:`~orpheus.geometry.coord.AngularChart` over the three columns of
+the local orthonormal frame at the position :math:`r`, the same columns
+a quadrature's ordinates carry (``Quadrature.axis_cosines(k)``):
+
+.. math::
+
+   \Omega \;=\; \mu\,\hat e_{\rm polar}
+   + \sqrt{1-\mu^2}\,\bigl(\sin\varphi\,\hat e_\perp
+   + \cos\varphi\,\hat e_{\rm ref}\bigr),
+
+so :math:`\mu = \Omega\cdot\hat e_{\rm polar}` and :math:`\varphi` is
+the azimuth about the polar axis, measured from :math:`\hat e_{\rm ref}`
+towards the remaining column :math:`\hat e_\perp`. The polar axis is the
+one direction a one-dimensional position distinguishes.
+
+.. list-table:: The declared charts (3 of 3 members; gate S6.18)
+   :header-rows: 1
+   :widths: 16 26 26 32
+
+   * - Coordinate system
+     - Polar axis (column)
+     - Azimuth reference (column)
+     - The column left perpendicular
+   * - ``CARTESIAN`` (slab)
+     - :math:`\hat e_x` (0)
+     - :math:`\hat e_z` (2)
+     - :math:`\hat e_y` (1); a 1-D rule has no such column
+   * - ``CYLINDRICAL``
+     - :math:`\hat e_r` (0)
+     - :math:`\hat e_z` (2), the cylinder's axis
+     - :math:`\hat e_\varphi` (1), the column the quadrature names
+       :math:`\xi = \Omega\cdot\hat e_\varphi`
+   * - ``SPHERICAL``
+     - :math:`\hat e_r` (0)
+     - none
+     - —
+
+**The sphere declares no reference, and cannot.** A reference
+direction perpendicular to :math:`\hat e_r`, chosen at every position
+of the sphere, would be a continuous tangent vector field on the
+sphere that vanishes nowhere, and the hairy-ball theorem says no such
+field exists: every choice is singular somewhere. So
+``azimuth_reference`` is ``None`` on the sphere, and a function that
+depends on :math:`\varphi` has no well-defined value beside a spherical
+geometry. The orchestrator's ruling on the specification's third open
+question: such a ``Symbolic`` is refused when a specification pairs it
+with a spherical geometry, keyed on the isotropy predicate restricted to
+:math:`\varphi`. That refusal belongs to the specification and lands at
+step 8; it is not built yet. On the slab and the cylinder a
+:math:`\varphi`-dependent function is admitted.
+
+**Whether a problem can see the azimuth is not the chart's to say.**
+The first build gave the chart a third field, ``azimuth_observable``,
+true on the cylinder only. The qa review retired it the same day, for
+two reasons: it was false for a two-dimensional Cartesian mesh, which
+uses ``CoordSystem.CARTESIAN`` and whose rules (``level_symmetric(4)``,
+``product(4, 8)``) carry azimuthal information; and nothing read it.
+Observability is a property of the problem's symmetry, and a quadrature
+already states it as the orbit space its ordinates live on (a slab's
+:math:`\mu` rule is declared on the sphere quotiented by
+:math:`O(2)` about the polar axis). The projection (P4) reads it from
+there.
+
+**The declaration and the quadrature are one definition** (X4, gate
+S6.19): the columns the sweeps read as :math:`\mu` (``mu_x`` on the slab
+and the sphere, ``eta`` on the cylinder) are ``array_equal`` to
+``axis_cosines(chart.polar_axis)`` on one S\ :sub:`N`-admitted rule per
+coordinate system (Gauss–Legendre 8; Gauss–Legendre 8;
+``folded_product(4, 8)``), and on the cylinder the column the chart
+leaves perpendicular is the one the rule names :math:`\xi`. `[M]` this
+pass, the cylinder's ``folded_product(4, 8)`` has :math:`\xi > 0` on 16
+of 16 ordinates and :math:`\varphi = \operatorname{atan2}(\xi, \Omega
+\cdot\hat e_z) \in (0.222, 2.919)`: the rule is folded about the plane
+of :math:`\hat e_r` and :math:`\hat e_z`, so on the cylinder the azimuth
+is observable modulo the reflection :math:`\varphi\mapsto-\varphi`.
+
+.. note::
+
+   **A gate that was designed green, and its re-posing.** The
+   specification's S6.19(b) re-synthesised the cylinder's two off-polar
+   columns from :math:`(\mu, \varphi)`, with :math:`\varphi` measured
+   from the declared reference, and asserted they matched to 2 ULP.
+   `[REFUTED 2026-10-02]` for the question *"does this pin the declared
+   reference?"*: :math:`\varphi = \operatorname{atan2}(\Omega\cdot\hat
+   e_\perp, \Omega\cdot\hat e_{\rm ref})` rebuilds the two columns it
+   was computed from for *any* choice of reference, so the mutation
+   "reference = column 1" left the row green (the step's mutation
+   battery, ``scratch/reference_architecture/p1step6/impl/mut_6c.py``).
+   The row now asserts the quadrature's own naming, that the
+   perpendicular column is ``Quadrature.xi``, and the same mutation
+   reddens it.
+
+.. _structured-geometry-two-lifts-branch-1:
+
+Branch 1: the continuous measure and its two lifts
+--------------------------------------------------
+
+The discrete arrows are the space layer's
+(:class:`~orpheus.numerics.operator.AxisSectionOperator`,
+:class:`~orpheus.numerics.operator.AxisPullbackOperator`). Their
+continuous counterpart, written so that the measure's mass is derived
+and never typed, is the algebra of record
+:mod:`orpheus.derivations.common.angular_measure` (Branch 1, closed-form
+SymPy). It reads no quadrature and no production operator, so it is
+structurally independent of the discrete arrows (X4).
+
+The direction sphere :math:`S^2` carries
+:math:`\mathrm d\Omega = \mathrm d\mu\,\mathrm d\varphi` over
+:math:`\mu\in[-1,1]`, :math:`\varphi\in[0,2\pi)`. The integration
+domain is written once, as the constant ``SPHERE``, which is the only
+place the module spells :math:`\pi`. On it the module defines
+
+.. math::
+
+   R\,q = \int_{S^2} q\,\mathrm d\Omega,
+   \qquad
+   m = R\,1,
+   \qquad
+   E\,Q = \frac{Q}{m},
+   \qquad
+   R^{\dagger}\Sigma = \Sigma ,
+
+the retraction, the mass of the measure, the section and the pullback.
+SymPy computes :math:`m = \int_{-1}^{1}\int_0^{2\pi}\mathrm d\varphi\,
+\mathrm d\mu = 4\pi`. Two verification functions prove the two lifts,
+each pinned by a ``foundation`` test in
+``tests/gates/derivations/test_angular_measure_symbolic.py``:
+
+- **V_E, the section keeps the rate**
+  (``derive_section_identity``): :math:`R(E\,Q) - Q` simplifies to 0 for
+  every entry of a three-region, two-group table of ``Rational`` values,
+  :math:`R(Q/m) = (Q/m)\,R\,1 = Q`.
+- **V_R†, the pullback is the adjoint of the retraction**
+  (``derive_adjoint_identity``), with :math:`\Sigma(r) = 1 + r` and a
+  :math:`\psi` anisotropic in both angles,
+  :math:`\psi = (1 + \mu + \mu^2\cos\varphi)\,e^{-r}`, on
+  :math:`r\in[0,1]`:
+
+  .. math::
+
+     R\psi = e^{-r}\!\int_{-1}^{1}\!\!\int_0^{2\pi}
+             (1 + \mu + \mu^2\cos\varphi)\,\mathrm d\varphi\,\mathrm d\mu
+           = e^{-r}\,(4\pi + 0 + 0) = 4\pi e^{-r},
+
+  because :math:`\int\mu\,\mathrm d\mu` and
+  :math:`\int\cos\varphi\,\mathrm d\varphi` vanish over the domain; then
+
+  .. math::
+
+     \int_0^1\!\Sigma\,R\psi\,\mathrm dr
+     = 4\pi\!\int_0^1\!(1+r)\,e^{-r}\,\mathrm dr
+     = 4\pi\Bigl[-(2+r)\,e^{-r}\Bigr]_0^1
+     = 8\pi - \frac{12\pi}{e},
+
+  and the left side, :math:`\int_0^1\!\int_{S^2}(R^{\dagger}\Sigma)\,
+  \psi\,\mathrm d\Omega\,\mathrm dr`, evaluates to the same value
+  (`[M]` this pass, SymPy 1.14.0: both sides
+  :math:`8\pi - 12\pi e^{-1}`). The function also returns the ratio a
+  detector lifted by the **wrong** arrow would read,
+  :math:`\int\!\!\int (E\Sigma)\,\psi / \int\Sigma\,R\psi = 1/m =
+  1/(4\pi)`, and the test asserts it: the wrong arrow is measured, not
+  assumed.
+
+Two further rows: the mass is :math:`4\pi` (the comparison constant is
+written in the test, as the independent value), and an AST pass over the
+module finds ``pi`` only inside ``SPHERE`` (a typed ``4*pi`` or
+``1/(4*pi)`` would add a site, and the step's mutation battery reddened
+the row with one). Branch 1 here is State 1A of the
+algebra-of-record discipline: the identities close in elementary
+functions, so no ``mpmath`` stage is needed.
+
+**The seed of #557.** The manufactured-solution builders divide by a
+hand-read ``quadrature.weights.sum()`` (12 of 12 S\ :sub:`N` cases) and
+the Green's-function multi-region sphere divides by a typed
+:math:`4\pi`; #557 asks them to lift through one Branch-1 measure object
+instead, and this module is that object's first instance. The elegance
+review's direction for it: a measure *value* parameterised by its
+domain, with the sphere and the orbit space of :math:`\mu` (mass 2) as
+its two instances, rather than free functions over the one ``SPHERE``
+constant; and one coordinate vocabulary shared with ``Symbolic``.
+
+.. _structured-geometry-mesh-free-gates:
+
+The gates, and what was refuted on the way
+-------------------------------------------
+
+`[M]` 2026-10-02, ``pytest --collect-only`` over the step's files: 110
+rows.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 44 8 48
+
+   * - File
+     - Rows
+     - What it holds (spec §1.6 row ids)
+   * - ``tests/gates/numerics/test_mesh_free_function.py``
+     - 53
+     - S6.8 construction and refusals; S6.11 no role or density; S6.12
+       the group count; S6.13 the owned symbols and the stray-symbol
+       refusals; S6.14 the round trip and process stability; S6.15 the
+       isotropy predicate; S6.16 storage as text, identity by spelling,
+       the non-values, real scalar admission, the parse whitelist; S6.17
+       the version as content and the RECORD pin; S6.21 the lazy import
+       and no geometry import (by AST, with a positive control on the
+       module's own ``orpheus.numerics.content`` import)
+   * - ``tests/gates/numerics/test_content_identity_mesh_free.py``
+     - 14
+     - S6.9 and S6.16: both types join the content rosters (equal content
+       is one value, a moved part moves the digest, pickle round trips),
+       so the encoder's conformance gate (S5.9) sees them
+   * - ``tests/gates/geometry/test_angular_chart.py``
+     - 8
+     - S6.18 the declaration on 3 of 3 members and the chart's two
+       refusals; S6.19 the tie to the quadrature's columns
+   * - ``tests/gates/derivations/test_angular_measure_symbolic.py``
+     - 4
+     - S6.10 the two lifts in Branch 1, the derived mass, ``pi`` only in
+       the domain
+   * - ``tests/gates/test_dependencies_declared.py``
+     - 1
+     - S6.20 every third-party import under ``orpheus/`` is declared
+   * - ``tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py``
+     - 28
+     - S6.1 to S6.4 and the axis verbs
+       (:ref:`spaces-collapse-pair-pullback`)
+   * - ``tests/gates/sn/solve/test_detector_lift_is_the_retraction_adjoint.py``
+     - 2
+     - S6.6 the S\ :sub:`N` detector lift's route (:ref:`sn-adjoint-dual-lift`)
+
+The mutation batteries ran in process, one arm per "mutation witness"
+of the specification, each read against its target row
+(``scratch/reference_architecture/p1step6/impl/mut_6*.py``): SymPy
+undeclared; the detector lifted by the section; a typed ``4*pi``; stray
+symbols checked by name; isotropy by free symbols; the version dropped
+from the content (step ``f7309da3``); then, after the review, the
+derivative predicate (the two step rows red), a bare ``sympify`` (the
+six whitelist rows red), the real-scalar checks removed (11 rows red).
+
+**Refuted on the way, each with its structural reason** (the
+specification's "Corrections found while building" and the review
+reports carry the measurements):
+
+- ``RegionwiseConstant`` as ``Symbolic``'s isotropic case, lowered by
+  :math:`Q/4\pi`: a detector would read :math:`1/(4\pi)` of its response,
+  and a typed :math:`4\pi` is wrong where the discrete mass is 2
+  (above).
+- A density convention on the type: the role, not the value, picks the
+  arrow (S6.11).
+- Isotropy by free symbols, then by derivatives: the trigonometric
+  traps, then the steps (above).
+- ``from_srepr`` through ``sympify``: stored text ran code.
+- The stray-symbol check by name: the tree's own ``positive=True``
+  coordinates passed it.
+- ``azimuth_observable`` on the chart: false for a 2-D Cartesian mesh,
+  and unread.
+- S6.19(b), re-synthesising the cylinder's columns: designed green.
+- The module name ``phase_space_function``: a per-region table is not a
+  function on phase space, so the module is named after what both types
+  share, that they are stated before a mesh (renamed before any page
+  referred to it).
+
+**Not built, and where it lands.** The pushforward onto an orbit space
+and the specification's fields, with the refusal of a
+:math:`\varphi`-dependent ``Symbolic`` beside a sphere, are P4 and step 8.
+The MoC solver's isotropic source lift is a hand-written
+:math:`1/(4\pi)`, not the angular section (#556). The derivations' typed
+measure masses are #557. A composite holding a retraction daggers to the
+generic sandwich instead of the leaf pullback (#558). The three
+finite-real parsers are #559.
+
+
 End-state spot checks
 =====================
 
@@ -3708,6 +4301,26 @@ trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-10-02
+     - **The source and the detector a specification states are
+       mesh-free functions.** :mod:`orpheus.numerics.mesh_free_function`
+       landed with ``RegionwiseConstant`` (a per-(region, group) table on
+       the angle-integrated space) and ``Symbolic`` (one SymPy expression
+       per group on phase space, stored as ``srepr`` text, the SymPy
+       version a content part, the text parsed through an AST whitelist,
+       only real scalar functions admitted, isotropy decided by
+       substitution). Ruled the same day (the user): the :math:`4\pi` is
+       the measure, so a table's role picks its arrow into phase space,
+       the section for a source and the retraction's adjoint for a
+       detector, and neither type carries a density.
+       :attr:`CoordSystem.angular_chart
+       <orpheus.geometry.coord.CoordSystem.angular_chart>` declares the
+       chart per coordinate system (no azimuth reference on the sphere).
+       Branch 1: :mod:`orpheus.derivations.common.angular_measure`. SymPy
+       became a core dependency. Record:
+       :ref:`structured-geometry-mesh-free-functions`.
+     - #405
+     - *(in development)* branch ``feature/phase-space-functions``
+   * - 2026-10-02
      - **Equality and hash are content, through one encoder.**
        :mod:`orpheus.numerics.content` landed: ``encode``,
        ``content_digest`` (blake2b-256), ``ContentlessError`` and the
@@ -3736,7 +4349,7 @@ trust ``git`` over this table for merge status.
        spec §1.5 of ``.claude/plans/reference_p1_spec.md``; record:
        :ref:`structured-geometry-content-identity`.
      - #405
-     - *(in development)* branch ``refactor/content-identity``
+     - ``a5113ac0`` on ``main``
    * - 2026-09-30
      - **CP's slab left face is the mirror its kernel computes.** The
        guard ``_refuse_a_law_cp_drops`` admitted a slab whose left law

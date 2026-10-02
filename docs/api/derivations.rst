@@ -109,6 +109,16 @@ Submodules
        the solver it lacks (the table of which generator serves which
        shape under which laws: :ref:`structured-geometry-reference-body`).
 
+The angular measure and its two lifts (Branch 1)
+------------------------------------------------
+
+The continuous measure on the direction sphere, its retraction, section
+and pullback, with the mass :math:`4\pi` derived by integration and never
+typed; the theory is :ref:`structured-geometry-two-lifts-branch-1`.
+
+.. automodule:: orpheus.derivations.common.angular_measure
+   :members:
+
 Reference-value registry
 ------------------------
 

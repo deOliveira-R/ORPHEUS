@@ -287,7 +287,8 @@ class TestSolveSnAdjointFixedSource:
         Both pairings are evaluated with the INDEPENDENT ``g_inner``
         (the reciprocity file's hand-built G — anti-R1).  The detector
         side is ALSO cross-checked against the hand volume sum
-        ``Σ V·Σ_d·φ`` — pinning the entry's angle-flat dual lift.
+        ``Σ V·Σ_d·φ`` — pinning the entry's detector lift, the angular
+        retraction's adjoint R† (the pullback, a plain broadcast).
         """
         from orpheus.sn.problem import SNProblem
         from orpheus.transport.source_sinks import (
@@ -352,8 +353,8 @@ class TestSolveSnAdjointFixedSource:
         hand_response = float(np.sum(V[None, :] * sigma_d * phi_fwd))
         np.testing.assert_allclose(
             rhs, hand_response, rtol=1e-10,
-            err_msg="⟨q*, ψ⟩_G != Σ V·Σd·φ — the angle-flat dual lift is "
-            "NOT the adjoint of the scalar-flux extraction (a stray w_n "
+            err_msg="⟨q*, ψ⟩_G != Σ V·Σd·φ — the detector lift is NOT "
+            "R†, the adjoint of the scalar-flux extraction (a stray w_n "
             "or 1/W in the detector lift).",
         )
 

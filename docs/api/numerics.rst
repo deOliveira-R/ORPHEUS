@@ -553,6 +553,23 @@ refusals and the gates, is :ref:`structured-geometry-content-identity`.
 
 .. autoclass:: orpheus.numerics.content.FrozenMapping
 
+Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
+source and the detector a specification states before any mesh exists:
+a per-(region, group) table on the angle-integrated space and a SymPy
+function on phase space stored as text. The theory, with the two arrows
+into phase space, the storage and parse rules, the isotropy predicate
+and the gates, is :ref:`structured-geometry-mesh-free-functions`; the
+chart the direction is read in is
+:ref:`structured-geometry-angular-chart`.
+
+.. automodule:: orpheus.numerics.mesh_free_function
+
+.. autoclass:: orpheus.numerics.mesh_free_function.RegionwiseConstant
+   :members: n_regions, n_groups
+
+.. autoclass:: orpheus.numerics.mesh_free_function.Symbolic
+   :members: of, from_srepr, expressions, n_groups, is_isotropic
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

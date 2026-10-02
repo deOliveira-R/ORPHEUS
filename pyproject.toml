@@ -20,7 +20,7 @@ dependencies = [
     # on every platform. Arrived only through sympy before 2026-10-01.
     "mpmath>=1.3",
     "scipy>=1.14",
-    # Symbolic phase-space functions (numerics.phase_space_function) and the
+    # Symbolic phase-space functions (numerics.mesh_free_function) and the
     # Gauss-Legendre nodes (numerics.manifold) import it at run time. Listed
     # only in the test and docs extras before 2026-10-02.
     "sympy>=1.13",

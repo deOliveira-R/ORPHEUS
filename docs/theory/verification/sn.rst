@@ -23,6 +23,32 @@ that gap by constructing a fixed-source problem whose exact angular
 flux is known in closed form, so the error against the prescribed
 flux is pure spatial-discretisation error.
 
+.. note::
+
+   **What** :math:`Q^{\text{ext}}_n` **means in the MMS derivations on
+   this page, and what the solver receives.** Every manufactured-source
+   derivation below writes the transport equation as
+   :math:`\ldots = \tfrac1W(\Sigma_s\phi + Q^{\text{ext}}_n)`, so the
+   :math:`Q^{\text{ext}}_n` it solves for is :math:`W` times a
+   per-ordinate density. That is the continuous derivation's
+   bookkeeping, not the solver's convention. The solver entry
+   :func:`~orpheus.sn.solver.solve_sn_fixed_source` takes the external
+   source as a **per-ordinate density** :math:`q_n` and applies no
+   :math:`1/W` to it (only the scattering and fission emission carry the
+   one :math:`1/W`, :ref:`normalization-weight-sum`), so its equation is
+   :math:`\mu_n\partial_x\psi_n + \Sigma_t\psi_n = \tfrac1W\Sigma_s\phi
+   + q_n` with :math:`q_n = Q^{\text{ext}}_n/W`. Every S\ :sub:`N` case
+   builder in :mod:`orpheus.derivations.continuous.mms.sn` performs that
+   division at the producer boundary (`[M]` 2026-10-02, 12 of 12 cases
+   divide by ``quadrature.weights.sum()``; the step-6 census,
+   ``scratch/reference_architecture/p1step6/census.md`` Q2). Until
+   2026-10-02 the entry's own docstring carried the derivations' form,
+   :math:`\tfrac1W(\Sigma_s\phi + Q^{\text{ext}}_n)`, while saying two
+   lines later that the source is already a per-ordinate density: the
+   :math:`1/W` was applied twice in prose, never in code (corrected in
+   ``3d1dc28c``). The hand-written :math:`W` in the builders is the
+   measure's mass typed at each case, tracked by #557.
+
 **Ansatz.**  For a vacuum-BC slab of length :math:`L` in one energy
 group, pick an isotropic :term:`angular flux`
 
@@ -60,8 +86,9 @@ and solving algebraically for :math:`Q^{\text{ext}}_n` gives
      + \bigl(\Sigma_t - \Sigma_s\bigr)\sin\!\left(\frac{\pi x}{L}\right).
 
 The :math:`W` factor cancels cleanly because the ansatz was already
-divided by :math:`W`, so what we hand the solver is the full residual
-without any additional rescaling.  The expression is per-ordinate and
+divided by :math:`W`, so the residual has no :math:`W` in it; the case
+builder then divides it by :math:`W` once, to hand the solver the
+per-ordinate density it takes (the note at the head of this page).  The expression is per-ordinate and
 linear in :math:`\mu_n`: a constant isotropic external source *cannot*
 drive a non-trivial manufactured flux because the streaming term
 :math:`\mu_n\,\psi'_n` is odd in :math:`\mu`.  That is the fundamental
@@ -156,9 +183,10 @@ round-off at the finest mesh.
   manufactured solution no longer satisfies the discrete problem.
   Symptom: :math:`\mathcal O(1)` error at the coarsest mesh; no
   convergence regardless of refinement.
-- *Wrong normalisation for* :math:`Q_{\rm ext}`.  The solver's
-  :math:`Q_{\rm aniso}` slot is divided by :math:`W` internally;
-  the ansatz has a :math:`1/W` prefactor; the two must cancel.
+- *Wrong normalisation for* :math:`Q_{\rm ext}`.  The solver takes
+  the external source as a per-ordinate density and divides it by
+  nothing; the ansatz has a :math:`1/W` prefactor, so the builder
+  must divide the derived residual by :math:`W` exactly once.
   If the derivation forgets the :math:`W` cancellation, the
   measured flux is a factor of :math:`W` off but still converges at
   order 2 --- sneaky.  Guard: the second test in ``test_mms.py``
@@ -265,10 +293,10 @@ and solving algebraically for :math:`Q^{\text{ext}}`:
      \;-\; \sum_{g'}\Sigma_{s,g'\to g}(x)\,c_{g'}\,A(x).
 
 The :math:`W` factor cancels between the ansatz's :math:`1/W`
-prefactor and the solver's own :math:`1/W` convention on the
-isotropic and anisotropic source slots, so :eq:`sn-mms-hetero-qext`
-is the residual hand-delivered to the sweep without any
-additional rescaling.
+prefactor and the :math:`1/W` of the equation as written, so
+:eq:`sn-mms-hetero-qext` carries no :math:`W`; the builder divides it
+by :math:`W` once to hand the solver its per-ordinate density (the note
+at the head of this page).
 
 **Structure of the source.**  The streaming term
 :math:`\mu_n\,c_g\,A'(x)` is odd in :math:`\mu` and carries the
@@ -5205,7 +5233,8 @@ or a dense FORWARD-probe (never the ``.H`` reverse-scan under test).
        (thermal, right) in DIFFERENT groups AND regions; the detector
        side additionally hand-checked against
        :math:`\sum V\Sigma_d\varphi` at :math:`10^{-10}` (pins the
-       angle-flat dual lift — no :math:`w_n`, no :math:`1/W`)
+       detector lift :math:`R^{\dagger}`, the pullback — no :math:`w_n`,
+       no :math:`1/W`; :ref:`sn-adjoint-dual-lift`)
    * - **P1.3** :math:`k^{\dagger}=k`
        (``TestP13KEquality``)
      - L1

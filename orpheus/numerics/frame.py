@@ -888,8 +888,10 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
       no canonical dual, so no section exists: that arm is ``None`` and
       :meth:`FunctionSpace.section` refuses at access.
 
-    Both operators are constructed together at this one site (the
-    two-inductions clause); the tightness gate
+    The operators are constructed together at this one site (the
+    two-inductions clause; the retraction's adjoint, the pullback, is
+    minted inside the retraction's constructor, so all three arrows come
+    from this mint); the tightness gate
     (``tests/gates/numerics/test_axis_marginal.py``) pins the minted kernels
     against the literal frame's face contents, and the gram-derivation
     gate pins the divisor against :attr:`FrameBase.discrete_gram`.

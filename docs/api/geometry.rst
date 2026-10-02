@@ -204,6 +204,14 @@ per unit height) at each edge — these drive the :math:`\Delta A /
 w_m` redistribution factor in the curvilinear SN sweeps (see
 :ref:`theory-discrete-ordinates`).
 
+Each coordinate system also declares the angular chart
+:math:`(\mu, \varphi)` a function on phase space reads its direction in,
+:attr:`CoordSystem.angular_chart
+<orpheus.geometry.coord.CoordSystem.angular_chart>`, an
+:class:`~orpheus.geometry.coord.AngularChart` over the columns of the local
+direction frame (the theory, with why the sphere declares no azimuth
+reference: :ref:`structured-geometry-angular-chart`).
+
 .. automodule:: orpheus.geometry.coord
    :members:
    :undoc-members:

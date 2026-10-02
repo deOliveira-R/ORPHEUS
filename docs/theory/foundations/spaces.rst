@@ -4067,12 +4067,16 @@ sentence made precise and made executable:
 - :math:`\iota` is :class:`~orpheus.numerics.operator.AxisSectionOperator`,
   minted by :meth:`FunctionSpace.section
   <orpheus.numerics.space.FunctionSpace.section>`;
+- :math:`\pi^{H}`, the Hilbert adjoint of the retraction, is
+  :class:`~orpheus.numerics.operator.AxisPullbackOperator`, the plain
+  broadcast, returned by ``R.H`` and minted with :math:`R` (since #405 P1
+  step 6, 2026-10-02; :ref:`spaces-collapse-pair-pullback`);
 - **the scalar is** :math:`\Sigma w`, the axis's total mass, and it is
   not a convention: it is the :math:`1\times 1` Gram of the rank-one
   frame that mints the pair (:ref:`spaces-collapse-pair-frame`);
-- the two are **different types** precisely so that the "up to a
-  scalar" cannot be silently dropped at a call site — which is the
-  ERR-051 failure class made unspellable.
+- the section and the adjoint are **different types** precisely so
+  that the "up to a scalar" cannot be silently dropped at a call site —
+  which is the ERR-051 failure class made unspellable.
 
 .. code-block:: python
 
@@ -4088,7 +4092,7 @@ sentence made precise and made executable:
    E = V.section("angular")      # energy (x) spatial -> V   (the section)
 
    R.apply(E.apply(phi))         # == phi
-   R.H.apply(phi)                # the plain broadcast — NOT E
+   R.H.apply(phi)                # the plain broadcast (an AxisPullbackOperator) — NOT E
 
 Both verbs are **memoized on the space**, one mint per space per axis
 label, so a carrier that caches its spaces (every solver carrier does)
@@ -4152,32 +4156,43 @@ the product metric the axis weights **cancel exactly**:
          \bigl(\operatorname{diag}(w)\otimes G_{V'}\bigr)\,\pi^{*}
    \;=\; \pi^{*},
 
-.. (vv-status rationale) Structural identity of the metric sandwich: the
-   Euclidean transpose of a weighted contraction is the WEIGHTED
-   scatter, and the product metric's own axis block is exactly what
-   removes those weights again — so the Hilbert adjoint of fiber
-   integration is the UNWEIGHTED broadcast. Representational, not a
-   solver claim (no physics enters; it is true for every axis measure).
-   The verifiable content is the CS4b S6 foundation battery's G6.3 row
-   in ``tests/gates/numerics/test_axis_marginal.py``, which pins the
-   adjunction on the physical metrics and carries the vv #19 NEGATIVE
+.. (vv-status rationale) Structural identity: the Euclidean transpose of a
+   weighted contraction is the WEIGHTED scatter, and the product metric's
+   own axis block removes those weights again, so the Hilbert adjoint of
+   fiber integration is the UNWEIGHTED broadcast. Representational, not a
+   solver claim (no physics enters; it is true for every axis measure on
+   which the product condition holds and no weight is zero). Since #405 P1
+   step 6 (2026-10-02) the closed form IS the shipped adjoint: ``R.H``
+   returns an AxisPullbackOperator minted with R. The verifiable content
+   is the foundation battery
+   ``tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py``
+   (S6.1: the type, the involution, array_equal with the broadcast; S6.2:
+   the product condition and reciprocity, the weights read from the raw
+   axes; S6.4: the generic sandwich as the X4 witness) and the G6.3 row of
+   ``tests/gates/numerics/test_axis_marginal.py`` with its vv #19 NEGATIVE
    leg (the same pairing under a deliberately stripped spatial measure
    must break at O(1)).
 .. vv-status: spaces-collapse-adjoint-is-pullback documented
 
-.. no-implementation:: spaces-collapse-adjoint-is-pullback
-   :kind: identity
+.. implements:: spaces-collapse-adjoint-is-pullback
+   :by: py:method:orpheus.numerics.operator.AxisPullbackOperator.apply
 
-   **Nothing implements this.** It is an identity between two things
-   that are each computed elsewhere and never equated in production:
-   the left side is produced by the generic metric-aware adjoint
-   wrapper (``R.H``, which knows nothing about axes), the right side by
-   :meth:`AxisSectionOperator.apply
-   <orpheus.numerics.operator.AxisSectionOperator.apply>` scaled by
-   :math:`\Sigma w`. No line forms the comparison — that is the point:
-   the cancellation is what lets the adjoint be free rather than
-   bespoke. It is *measured* by the G6.4 row of
-   ``tests/gates/numerics/test_axis_marginal.py``.
+   **Implemented by** 3 sites. The pullback's ``apply`` is the right-hand
+   side, the broadcast; the retraction's ``adjoint`` is the equality
+   itself, returning that operator as :math:`R^{\dagger}` (so ``R.H`` is
+   the closed form, not the generic wrapper). The third site is a
+   hand-written twin: ``ScalarSourceSink.__add__`` with an angular
+   partner adds ``self.values[None]``, the same broadcast spelled outside
+   its type (:ref:`spaces-collapse-pair-pullback`, the warning). Until
+   step 6 this block was a ``no-implementation`` of kind *identity*:
+   ``R.H`` was the generic sandwich and no line computed the broadcast as
+   the adjoint.
+
+.. implements:: spaces-collapse-adjoint-is-pullback
+   :by: py:method:orpheus.numerics.operator.AxisRetractionOperator.adjoint
+
+.. implements:: spaces-collapse-adjoint-is-pullback
+   :by: py:method:orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink.__add__
 
 where :math:`\pi^{*}` is the **pullback** — the plain, unweighted
 broadcast of :math:`\varphi` across the axis. So
@@ -4320,7 +4335,384 @@ That is the precise sense in which "the isotropic part of
    ``R.H`` where it wanted ``E`` does not silently rescale a source by
    :math:`4\pi`; it holds an object of the wrong class. `[M]` the gate
    asserts precisely that ``R.H`` is *not* an
-   :class:`~orpheus.numerics.operator.AxisSectionOperator`.
+   :class:`~orpheus.numerics.operator.AxisSectionOperator`, and since
+   step 6 that it *is* an
+   :class:`~orpheus.numerics.operator.AxisPullbackOperator`.
+
+
+.. _spaces-collapse-pair-pullback:
+
+The third arrow: the adjoint is minted as the pullback
+------------------------------------------------------
+
+Until step 6 of the first phase of the reference-solution campaign
+(#405, 2026-10-02) the collapse pair was two operators, and the adjoint
+:math:`R^{\dagger}` was whatever the generic metric-aware wrapper
+computed: ``R.H`` returned
+:class:`~orpheus.numerics.operator.AdjointOperator` wrapped around
+:math:`R`, the **sandwich** :math:`\sharp_V \circ R^{\mathsf T} \circ
+\flat_{V'}` (lower :math:`\varphi` by the marginal metric, apply the
+Euclidean transpose, the weighted scatter :math:`(R^{\mathsf
+T}\varphi)(n,\cdot) = w_n\,\varphi(\cdot)`, raise by the full metric).
+The identity :eq:`spaces-collapse-adjoint-is-pullback` said that the
+sandwich *is* the plain broadcast; nothing in the tree computed the
+broadcast as the adjoint. Step 6 made the identity the implementation.
+The mint builds a third operator,
+:class:`~orpheus.numerics.operator.AxisPullbackOperator`, from the same
+induced data as :math:`R` and :math:`E` (the bound spaces, the ndarray
+dims of the axis, the axis weights), and ``R.H`` returns it. Its
+``apply`` is the broadcast and its ``apply_transpose`` the unweighted
+axis sum; ``R.H.H is R``.
+
+**The derivation, with the step each hypothesis enters.** Write the full
+space as :math:`V = V_{\rm ax}\otimes V'`, a field as its slices
+:math:`\psi = (\psi_n)_n` with :math:`\psi_n \in V'`, and let the full
+metric be the **product**
+
+.. math::
+
+   G_V \;=\; \operatorname{diag}(w)\otimes G_{V'} ,
+
+the *product condition*. For every :math:`\psi\in V` and
+:math:`\varphi\in V'`,
+
+.. math::
+
+   \langle R\psi,\varphi\rangle_{V'}
+   &= \Bigl(\sum_n w_n\,\psi_n\Bigr)^{\!\mathsf T} G_{V'}\,\varphi
+      \qquad \text{(the definition of } R\text{)} \\
+   &= \sum_n \psi_n^{\mathsf T}\,\bigl(w_n\,G_{V'}\bigr)\,\varphi
+      \qquad \text{(linearity; } w_n \text{ is a scalar)} \\
+   &= \psi^{\mathsf T}\,\bigl(\operatorname{diag}(w)\otimes G_{V'}\bigr)
+      \,(\mathbf 1\otimes\varphi)
+      \qquad \text{(the sum over } n \text{ in block form)} \\
+   &= \langle \psi,\ \pi^{*}\varphi\rangle_V
+      \qquad \text{(the product condition; } \pi^{*}\varphi = \mathbf 1\otimes\varphi\text{)} .
+
+The Hilbert adjoint is *defined* by
+:math:`\langle R\psi,\varphi\rangle_{V'} = \langle\psi,
+R^{\dagger}\varphi\rangle_V` for every :math:`\psi`, and it is unique
+when :math:`G_V` is invertible, which under the product condition means
+every weight :math:`w_n \neq 0` and :math:`G_{V'}` invertible. Then
+:math:`R^{\dagger} = \pi^{*}` exactly, with no metric in the result. The
+same computation in matrix form is the cancellation the identity
+displays: :math:`R^{\mathsf T} G_{V'}\varphi = w \otimes G_{V'}\varphi`,
+and :math:`G_V^{-1} = \operatorname{diag}(1/w)\otimes G_{V'}^{-1}` takes
+both factors back off.
+
+Each hypothesis has a failure, and each failure is a different object:
+
+- **The axis block carries a second measure.** If the full metric on
+  the collapsed axis's block is a form :math:`G_{\rm ax} \neq
+  \operatorname{diag}(w)`, the third step fails:
+  :math:`R^{\dagger}\varphi = (G_{\rm ax}^{-1}w)\otimes\varphi`, which is
+  not constant along the axis. The retraction integrates with the axis
+  measure :math:`w` while the space's metric says the block's inner
+  product is :math:`G_{\rm ax}`: two measures on one block, so fibre
+  integration over the axis is not defined. The space layer can spell
+  this state (a dense form positioned on a measure-less axis, the one
+  form an axis measure cannot carry; :ref:`spaces-metric-object`), and
+  the mint **refuses** it, typed and keyed on the phrase *"two measures
+  on one block"*.
+- **The marginal metric is not the full metric with the block
+  removed.** Before step 6 the mint built the marginal as
+  ``FunctionSpace.of_axes(*other_axes)``, which rebuilds a space from its
+  axes and **drops** every positioned form the full space carried on a
+  kept axis. On such a space :math:`G_{V'}` is wrong whatever the adjoint
+  is. Step 6 gave the space two verbs that keep every other axis's form,
+  :meth:`FunctionSpace.without_axis
+  <orpheus.numerics.space.FunctionSpace.without_axis>` (the marginal of a
+  fibre integration over one label) and :meth:`FunctionSpace.with_axis
+  <orpheus.numerics.space.FunctionSpace.with_axis>` (a product widened by
+  one axis, which the moment-tail composer
+  :meth:`BulkField.compose_spatial_moments
+  <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>` now
+  uses), both reading the overlay through one private reader,
+  ``FunctionSpace._overlay_forms``. The mint takes its marginal from
+  ``without_axis``.
+- **A weight is zero.** Then :math:`G_V` is singular, the adjoint is not
+  unique, and the sandwich (which applies a pseudo-inverse) and the
+  pullback are two different adjoints that both satisfy reciprocity. The
+  mint admits signed and zero weights deliberately (a section is
+  refused only when the total weight is zero,
+  :ref:`spaces-collapse-pair-two-arrows`), so on such an axis
+  ``R.H`` is *an* adjoint, the closed form, and the identity's
+  uniqueness clause does not hold.
+
+After the fix the mint admits exactly the spaces on which the product
+condition holds, so the closed form is the Hilbert adjoint of every
+retraction it produces and ``.H`` carries no guard. The test-architect's
+specification had placed the refusal on ``.H``; the orchestrator's ruling
+on its first open question moved it to the mint, because once the
+marginal keeps its forms the guarded case is no longer spellable at
+``.H`` (``.claude/plans/reference_p1_spec.md`` §1.6, "Orchestrator's
+rulings on the step-6 NEEDS", ruling 1).
+
+**How far the defect reached.** `[M]` 2026-10-02, the test-architect's
+mint census (a pytest plugin wrapping
+:func:`orpheus.numerics.frame._collapse_pair` while
+``tests/gates/numerics``, ``transport``, ``sn``, ``diffusion`` and
+``homogeneous`` ran: 9 113 passed, 4 skipped, 45 xfailed, 1 h 20 min,
+serial; artefacts under
+``scratch/reference_architecture/p1step6/ta/``, ``mint_census.*``):
+
+- 1 891 mints, 214 distinct (axis, shape) pairs: 1 889 on an angular
+  axis, 1 on an untyped energy-labelled axis, 1 on a spatial axis;
+- the product condition held on **1 891 of 1 891** (worst relative
+  difference between :math:`G_V x` and :math:`w\otimes G_{V'}x`,
+  :math:`2.4\times10^{-16}`);
+- **0 of 1 891** full spaces carried a positioned form, so the dropped
+  form was reached by no space the suite builds. The only production
+  overlay site dresses single-axis coefficient spaces, which the mint
+  refuses, and the linear-discontinuous moment axis is diagonal. No
+  shipped result was wrong through it; the defect was reachable only by
+  a hand-built space.
+
+The hand-built witnesses, measured on the pre-step-6 tree: a dense form
+on a kept, measure-less axis (``D1``) and the production composition
+route ``(angular ⊗ spatial) * dense head`` (``D3``) failed the product
+condition by 0.80 and 0.79 (relative), and the broadcast violated
+reciprocity on them by 4.05 and 3.67, while the sandwich still satisfied
+reciprocity against the wrong marginal metric to :math:`4\times10^{-16}`.
+A dense form on the collapsed axis itself (``D2``) failed by 0.93, and
+the broadcast violated reciprocity by 0.19. After the fix ``D1`` and
+``D3`` are admitted and satisfy the product (they are members of the
+gate population below); ``D2`` is refused at the mint.
+
+**Why the closed form, and not the sandwich.** The two are one operator
+in exact arithmetic wherever every weight is non-zero, so the choice is
+a ruling about which spelling is the law, and three measurements decide
+it.
+
+#. *Re-association.* On a diagonal metric the sandwich computes
+   :math:`(w\,G\,\varphi)/(w\,G)` element by element, which rounds away
+   from :math:`\varphi`: `[M]` 2026-10-02 on the pre-step-6 tree,
+   ``np.array_equal`` with the broadcast failed on **1 178 of 1 200**
+   draws over six spaces (worst 3 ULP, on the linear-discontinuous trial
+   space), and on 297 of 300 random S\ :sub:`N` detectors (two slab
+   fixtures × Gauss–Legendre 5, 8, 16 × 50 draws; worst relative
+   difference :math:`2.6\times10^{-16}`). Over the census the two agreed
+   bit for bit on 46 of 1 891 mints.
+#. *A dense form.* The sandwich's :math:`\sharp` applies a dense form's
+   pseudo-inverse, whose rounding is :math:`\kappa(G)\,\varepsilon`
+   relative to the result (:math:`\kappa` the form's condition number):
+   `[M]` this pass, worst :math:`2.3\,\kappa\varepsilon` on ``D1``
+   (:math:`\kappa = 2.18`) and :math:`0.8\,\kappa\varepsilon` on ``D3``
+   (:math:`\kappa = 5.27`) over 200 draws each; the gate reads
+   :math:`2.35\,\kappa\varepsilon` on its own draws and bounds it at
+   :math:`8\,\kappa\varepsilon`. The broadcast reads no metric and has no
+   such term.
+#. *A degenerate measure.* `[M]` this pass, on a three-node axis with
+   weights :math:`(0.5, 0, 1)` beside a weighted spatial axis, the
+   pullback and the sandwich differ by 0.64 (maximum absolute, one draw)
+   while both satisfy reciprocity (residuals 0.0 and
+   :math:`1.1\times10^{-16}`): the adjoint is not unique there, and the
+   closed form is the one the adjunction names. No shipped carrier
+   reaches this: the cylinder's ``folded_product(4, 8)`` and the
+   sphere's Gauss–Legendre 8 bulk spaces carry 0 zero weights of 16 and
+   of 8.
+
+The ruling (the orchestrator, 2026-10-02, design (B) of the
+specification): the retraction gets its closed-form adjoint, because
+:math:`\pi^{*}` is the operator algebra's own law for the adjoint of
+fibre integration under a product measure, the :math:`(\pi_*, \pi^*)`
+adjunction, and a sandwich that rounds differently from that law is the
+rounding of a re-association, not a principled choice. Rejected, design
+(A): re-spell the S\ :sub:`N` detector lift (below) as the sandwich and
+accept the ULP change. The sandwich keeps a job, as the independent
+witness of the closed form (gate S6.4).
+
+.. note::
+
+   **A docstring was false for six weeks, and the probe that found it
+   was the re-spelling.** The retraction's docstring had read
+   ``R† = π*, the plain broadcast, [M] np.array_equal`` since the
+   pair was frame-induced (2026-08-24). It was false: ``R.H`` was the
+   sandwich, and the "measurement" was of a different expression. The
+   test-architect found it while asking whether the S\ :sub:`N` adjoint's
+   hand-written broadcast was already ``R.H``; it was not, by up to
+   3 ULP. The sentence is true since step 6, and gate S6.1 is its
+   witness.
+
+**One object, minted once.** The pullback is constructed inside the
+retraction's own constructor, so the two refer to each other and
+``R.H.H is R``. That still satisfies the two-inductions clause
+(:ref:`spaces-collapse-pair-frame`): :math:`R` is constructed only at
+the mint, so all three arrows come from one mint. A second
+``AxisPullbackOperator(R)`` is refused with a ``TypeError`` (*"minted by
+its retraction, once"*), so the involution holds for every pullback
+that can exist, not only for the one ``R.H`` returns.
+
+.. list-table:: The three arrows of one axis collapse, three types
+   :header-rows: 1
+   :widths: 18 30 22 30
+
+   * - Arrow
+     - Type
+     - What ``apply`` does
+     - Law, with its measured rounding (`[M]` this pass, 8 spaces × 200 draws)
+   * - :math:`R = \pi_*`
+     - :class:`~orpheus.numerics.operator.AxisRetractionOperator`
+     - the weighted sum over the axis
+     - :math:`R\,R^{\dagger} = \Sigma w\,\mathrm{id}`
+   * - :math:`E`
+     - :class:`~orpheus.numerics.operator.AxisSectionOperator`
+     - divide by :math:`\Sigma w`, then broadcast
+     - :math:`R\circ E = \mathrm{id}` to at most 4 ULP (Gauss–Legendre 16
+       and ``folded_product(4, 8)``; 1 to 2 ULP elsewhere)
+   * - :math:`R^{\dagger} = \pi^{*}`
+     - :class:`~orpheus.numerics.operator.AxisPullbackOperator`
+     - broadcast
+     - ``np.array_equal`` to the broadcast on 1 600 of 1 600 draws;
+       :math:`R^{\dagger} = \Sigma w\,E` to at most 1 ULP (the cylinder;
+       0 ULP on the 7 spaces whose :math:`\Sigma w = 2`)
+
+The population of the last column is the gate's own: the synthetic
+three-axis product, the S\ :sub:`N` bulk spaces of a three-interval
+non-uniform slab at Gauss–Legendre 5, 8 and 16, that slab's
+linear-discontinuous trial space, a two-interval cylinder's bulk space
+at ``folded_product(4, 8)``, and ``D1`` and ``D3``; draws
+``standard_normal`` scaled by :math:`10^{k}`, :math:`k\in[-6, 6]`, seed
+11. The docstrings quote the looser bounds of the review measurement
+("at most 2 ULP" for :math:`R^{\dagger}` against :math:`\Sigma w\,E`),
+which this population does not reach.
+
+**Three arrows, three types, and ERR-051.** The section and the adjoint
+differ by exactly :math:`\Sigma w`, so a single undiscriminated verb
+("lift", "embed", "broadcast") would have had to choose one convention,
+and a call site re-pointed from one use to the other would have
+rescaled a quantity by :math:`\Sigma w` in silence. That is the failure
+class of ERR-051, where an idempotency check asserted the wrong one of
+two identities a factor :math:`4\pi` apart. Each arrow is its own type,
+so a call site holds the object its use needs or an object of the wrong
+class; gate ``test_the_two_arrows_are_different_types`` asserts that
+``R.H`` is an ``AxisPullbackOperator`` and not an
+``AxisSectionOperator``.
+
+.. _spaces-collapse-pair-two-lifts:
+
+The two lifts of an angle-integrated quantity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On the angular axis the two arrows into the full space are the two
+ways an angle-integrated quantity enters phase space, and the quantity's
+**role** picks the arrow (the user's ruling of 2026-10-02, recorded in
+``.claude/plans/reference_cache.md``, "P1 step 6 opened"):
+
+- **A source rate** :math:`Q(\vec r, g)` enters the right-hand side
+  through the section, :math:`q = E\,Q`, so that the rate is kept:
+  :math:`R\,q = Q`. Every bulk isotropic source in S\ :sub:`N` already
+  does this
+  (:meth:`AngularSourceSink.from_isotropic
+  <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+  is :math:`E`'s ``apply``).
+- **A detector response** :math:`\Sigma_d(\vec r, g)` is the functional
+  :math:`\psi \mapsto \langle\Sigma_d, R\psi\rangle_{V'}`, the reaction
+  rate the detector reads from the scalar flux. Its Riesz representative
+  in :math:`V` is :math:`R^{\dagger}\Sigma_d = \pi^{*}\Sigma_d`, by the
+  derivation above: the detector enters phase space through the
+  adjoint, with no division by anything.
+
+The two lifts differ by :math:`R\circ R^{\dagger} = \Sigma w`, the mass
+of the measure the angular axis carries, and that mass is **never
+typed**: it is :math:`4\pi` for a rule on the whole sphere
+(``folded_product``, ``product``, ``level_symmetric``, ``lebedev``) and
+2 for a one-dimensional Gauss–Legendre rule, whose ordinates are points
+of the orbit space of :math:`\mu` alone, the sphere quotiented by the
+rotations and reflections about the polar axis
+(:ref:`manifold-orbit-space`). A hand-written :math:`1/4\pi` is
+therefore wrong on the slab and the sphere, where :math:`\Sigma w = 2`,
+and a detector lifted by the source's arrow reads :math:`1/\Sigma w`
+of its true response. The user's question that settled it (2026-10-02):
+*"integrated over all directions is measure related, and divided by 4π
+is also measure related … a defective operator"*. Both are the measure,
+the operators already existed, and the convention became two typed
+arrows.
+
+The continuous counterpart, on :math:`S^2` with
+:math:`\mathrm d\Omega = \mathrm d\mu\,\mathrm d\varphi`, is Branch 1's
+:mod:`orpheus.derivations.common.angular_measure`, which derives the
+mass :math:`4\pi` by integration and proves both lifts in SymPy
+(:ref:`structured-geometry-two-lifts-branch-1`).
+
+**The first consumer: the S**\ :sub:`N` **adjoint entry.**
+:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` lifted its
+detector with a hand-written ``np.broadcast_to(sigma_d[None], …)``:
+:math:`R^{\dagger}`'s content, but not :math:`R^{\dagger}`. Since step 6
+it reads ``problem.angular_bulk_space.retraction("angular").H.apply(sigma_d)``
+(:ref:`sn-adjoint-dual-lift`). The change is bit-exact: `[M]` the qa
+review's capture before and after, 36 of 36 arrays ``np.array_equal``
+(12 scalar adjoint fluxes and 24 angular-flux leaves; the
+three-interval vacuum | reflective slab, 2 and 4 groups, diamond and
+linear-discontinuous, Gauss–Legendre 6, 3 random sparse detectors
+each; ``scratch/reference_architecture/p1step6/qa/p4_sn_bitexact.py``).
+Bit-exactness is a consequence of the closed form: the sandwich
+re-spelling would have moved 297 of 300 detectors by up to 3 ULP.
+
+.. warning::
+
+   **The adjoint has a second spelling still, and a hand broadcast
+   survives.** A composite operator that holds a retraction (a sum or
+   a product with :math:`R` as a leaf) daggers through the generic
+   sandwich, not through the leaf's pullback, so :math:`R^{\dagger}`
+   has two spellings in the tree (#558). And
+   ``ScalarSourceSink.__add__`` with an ``AngularSourceSink`` partner
+   adds ``self.values[None]``, a hand-written :math:`\pi^{*}`
+   (the dunder note in :doc:`/theory/foundations/operator_algebra`
+   records that it is the pullback and not the section). Neither is
+   wrong in value; both are the concept spelled outside its type.
+
+**The gates.** ``tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py``
+(``foundation``; the specification is
+``.claude/plans/reference_p1_spec.md`` §1.6, rows S6.1 to S6.4):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Row
+     - What it pins, and the mutation that reddens it
+   * - S6.1
+     - ``R.H`` is an ``AxisPullbackOperator``, ``R.H.H is R``, the two
+       spaces swap, and ``R.H.apply`` is ``np.array_equal`` to the
+       broadcast, over the eight spaces above × 200 draws. Red when
+       ``.adjoint()`` returns the sandwich (8 of 8), and the involution
+       leg red when the pullback's adjoint is a fresh retraction. A
+       companion row asserts that a second pullback cannot be minted.
+   * - S6.2
+     - the product condition, with the weights read from the raw
+       ``Axis`` objects and never from :math:`R`, and reciprocity at
+       ``rtol=1e-13``. Red when the pullback is scaled by 2, and on
+       ``D1`` and ``D3`` when the marginal drops the kept forms.
+   * - S6.3
+     - the mint refuses ``D2``; the positive leg: the marginal of
+       ``D1`` carries ``D1``'s dense form. Red when the refusal is
+       removed or the marginal drops the forms.
+   * - S6.4
+     - the X4 witness: the closed form against an explicitly built
+       sandwich, ``nulp=4`` on a diagonal metric and
+       :math:`8\,\kappa\varepsilon` on a dense form. Red when
+       :math:`\pi^{*}` is replaced by :math:`E` or by
+       :math:`R^{\mathsf T}`. Designed green, and said so in its
+       docstring: :math:`\pi^{*} := \Sigma w\,E` is the same operator to
+       0 or 1 ULP, so this row cannot tell them apart (S6.1 can).
+   * - verbs
+     - ``without_axis`` and ``with_axis`` keep every other axis's form,
+       with ``of_axes`` over the same axes as the control that drops it.
+
+Two rows of ``tests/gates/numerics/test_axis_marginal.py`` changed
+meaning (``retirement-audit`` D.14 and D.15). The G6.3 pairing row is
+**promoted**: it compared the sandwich, whose reciprocity is its own
+definition, so it could not fail on any :math:`R`; it now compares the
+closed form, which reciprocates only because the mint admits product
+metrics. The G6.4 row's rounding sentence now describes the broadcast
+against :math:`\Sigma w\,(\varphi/\Sigma w)`. The mutation battery
+(``scratch/reference_architecture/p1step6/impl/mut_6a.py``, in process):
+the sandwich as the adjoint reddened S6.1 on 8 of 8 spaces and the
+two-arrows row; the pullback × 2 reddened S6.1, S6.2 and S6.4 on 8 of 8
+each and the G6.3 and G6.4 rows; the refusal removed reddened S6.3; the
+marginal dropping kept forms reddened S6.2 and S6.4 on ``D1`` and ``D3``
+and S6.3's positive leg.
 
 
 .. _spaces-collapse-pair-naming:
@@ -4756,6 +5148,19 @@ cancellation, not by the operators. Their gate row is written at
 ``rtol=1e-13`` for exactly this reason, and a *tighter* tolerance there
 would be a latent false red (``vv-principles`` #16).
 
+.. note::
+
+   **Read the two** :math:`R^{\dagger}` **rows with their date.** They
+   were measured on 2026-08-24, when ``R.H`` was the generic metric
+   sandwich, so they record the sandwich's rounding. Since #405 P1 step 6
+   (2026-10-02) ``R.H`` is the closed form
+   :class:`~orpheus.numerics.operator.AxisPullbackOperator`: the row
+   :math:`R^{\dagger} = \pi^{*}` is ``np.array_equal`` by construction
+   (`[M]` 1 600 of 1 600 draws over eight spaces, gate S6.1), and
+   :math:`R^{\dagger} = (\Sigma w)\,E` is at most 1 ULP
+   (:ref:`spaces-collapse-pair-pullback`). The other rows are
+   unchanged by that step, which touched neither :math:`R` nor :math:`E`.
+
 .. warning::
 
    **Do not read "bit-exact" as a law — it is a property of the draw.**
@@ -4909,10 +5314,16 @@ it.
        negative leg — the same pairing under a deliberately stripped
        spatial measure must break at O(1), because a positive reading
        alone cannot discriminate metric-loaded from metric-blind.
+       Promoted by #405 P1 step 6: until then it compared the generic
+       sandwich, whose reciprocity is its own definition.
    * - ``TestTwoArrows``
      - :math:`R^{\dagger} = (\Sigma w)E` (the anti-ERR-051 row) and the
        *type* discrimination — ``R.H`` must not be an
-       :class:`~orpheus.numerics.operator.AxisSectionOperator`.
+       :class:`~orpheus.numerics.operator.AxisSectionOperator`, and must
+       be an :class:`~orpheus.numerics.operator.AxisPullbackOperator`.
+   * - ``test_retraction_adjoint_is_the_pullback.py`` (a separate file)
+     - the closed-form adjoint, S6.1 to S6.4, and the two axis verbs
+       (:ref:`spaces-collapse-pair-pullback`, its gate table).
    * - ``TestShippedKernelEquivalence``
      - bit-identity with the canonical angular reduction and the
        isotropic-source kernel on the real :math:`S_N` carrier, and
@@ -5195,6 +5606,23 @@ status.
      - Issue
      - Where
    * - 2026-10-02
+     - **The retraction's adjoint is minted as the pullback** (#405 P1
+       step 6). :class:`~orpheus.numerics.operator.AxisPullbackOperator`,
+       the plain broadcast :math:`\pi^{*}`, is minted by the retraction
+       from the same induced data, ``R.H`` returns it (it was the generic
+       metric sandwich, 1 to 3 ULP away), ``R.H.H is R``, and a second
+       one cannot be minted. The mint admits only product metrics: the
+       marginal keeps every positioned form of the axes that remain
+       (it dropped them, a defect reached by 0 of 1 891 suite mints), and
+       a collapsed axis carrying a form is refused. Two space verbs,
+       :meth:`~orpheus.numerics.space.FunctionSpace.without_axis` and
+       :meth:`~orpheus.numerics.space.FunctionSpace.with_axis`, over one
+       overlay reader. The S\ :sub:`N` adjoint entry lifts its detector
+       by :math:`R^{\dagger}`, bit-exact. Record:
+       :ref:`spaces-collapse-pair-pullback`.
+     - #405
+     - *(in development)* branch ``feature/phase-space-functions``
+   * - 2026-10-02
      - **The axis and every space-name digest move onto the one content
        encoder** (#405 P1 step 5). :class:`~orpheus.numerics.axis.Axis`
        takes its ``==`` and ``hash`` from
@@ -5215,7 +5643,7 @@ status.
        (:ref:`spaces-generator-identity-third-answer`). Record of the
        encoder: :ref:`structured-geometry-content-identity`.
      - #405
-     - *(in development)* branch ``refactor/content-identity``
+     - ``a5113ac0`` on ``main``
    * - 2026-09-12
      - **A** ``Quadrature`` **is a VALUE, so the generator exclusion
        becomes a RULING** (the consumers campaign, step 1 / S1b; ruling

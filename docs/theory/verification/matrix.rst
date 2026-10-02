@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **14528**
+Total tests collected: **14640**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 9.3%
-   L1, 2245, 15.5%
+   L0, 1348, 9.2%
+   L1, 2247, 15.3%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 10837, 74.6%
+   foundation, 10947, 74.8%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 14422
+   explicit, 14534
    class-name, 46
    func-name, 0
    case, 33
@@ -161,6 +161,7 @@ Module × level grid
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    data/test_n2n_yield_convention, 7, 0, 0, 0, 23, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
+   derivations/test_angular_measure_symbolic, 0, 0, 0, 0, 4, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
    derivations/test_capability_matrices, 0, 0, 0, 0, 10, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
@@ -297,6 +298,7 @@ Module × level grid
    frames/test_harmonic_frame, 0, 0, 0, 0, 29, 0
    frames/test_moment_metric_fork_premise, 0, 0, 0, 0, 101, 0
    frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
+   geometry/test_angular_chart, 0, 0, 0, 0, 8, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -385,6 +387,7 @@ Module × level grid
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_content_identity, 0, 0, 0, 0, 45, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
+   numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -423,6 +426,7 @@ Module × level grid
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
+   numerics/test_mesh_free_function, 0, 0, 0, 0, 53, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
@@ -436,6 +440,7 @@ Module × level grid
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_registry, 0, 0, 0, 0, 107, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
+   numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 28, 0
    numerics/test_riesz_legs, 3, 0, 0, 0, 0, 8
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
@@ -555,6 +560,7 @@ Module × level grid
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_declared_inflow_reaches_the_rhs, 0, 14, 0, 0, 0, 0
    solve/test_declared_law_survives_the_public_entry, 0, 6, 0, 0, 0, 0
+   solve/test_detector_lift_is_the_retraction_adjoint, 0, 2, 0, 0, 0, 0
    solve/test_eigen_entries_refuse_a_boundary_source, 4, 0, 0, 0, 0, 0
    solve/test_eigenvalue_finalize_reconstruction, 0, 93, 2, 0, 0, 0
    solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
@@ -590,11 +596,12 @@ Module × level grid
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
+   test_dependencies_declared, 0, 0, 0, 0, 1, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 399, 0
+   test_layer_imports, 0, 0, 0, 0, 401, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

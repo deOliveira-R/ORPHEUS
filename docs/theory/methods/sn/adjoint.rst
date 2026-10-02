@@ -2176,35 +2176,78 @@ dual of a source under the G-pairing is the adjoint flux), the exact
 sibling of the within-group ``StreamingCollisionOperator.solve_transpose``
 fix.
 
+.. _sn-adjoint-dual-lift:
+
 The dual lift asymmetry
 -----------------------
 
 The fixed-source entry
 (:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source`) exposes the
 sharpest test of "adjoint ≠ forward-with-a-sign-flipped-source": the
-source lift.  The forward isotropic-source lift divides by the
-quadrature weight sum, :math:`q \mapsto \tfrac1W\,\mathbf 1_\Omega\,q`;
-the **adjoint** detector-response lift does **not** —
-:math:`\Sigma_d \mapsto \mathbf 1_\Omega\,\Sigma_d`, a plain angle-flat
-broadcast with **no** :math:`w_n`, **no** :math:`1/W`.  The two lifts
-are duals of *different* maps.  Under the bulk metric :math:`G = V\,w_n`
-the plain broadcast is exactly the dual of the scalar-flux extraction,
+source lift.  Both lifts are arrows of one axis collapse
+(:ref:`spaces-collapse-pair-two-lifts`), the retraction
+:math:`R\psi = \sum_n w_n\,\psi_n = \varphi` over the angular axis, its
+section :math:`E` and its adjoint :math:`R^{\dagger}`:
+
+- the forward isotropic-source lift is the **section**,
+  :math:`q \mapsto E\,q = \tfrac1W\,\mathbf 1_\Omega\,q`, which divides by
+  the quadrature weight sum :math:`W` so that :math:`R\circ E =
+  \mathrm{id}` (the rate is kept);
+- the **adjoint** detector-response lift is the retraction's Hilbert
+  adjoint, :math:`\Sigma_d \mapsto R^{\dagger}\Sigma_d =
+  \mathbf 1_\Omega\,\Sigma_d`, the pullback
+  (:class:`~orpheus.numerics.operator.AxisPullbackOperator`): a plain
+  broadcast with **no** :math:`w_n` and **no** :math:`1/W`.
+
+The two lifts are duals of *different* maps, and they differ by
+:math:`R\circ R^{\dagger} = W`, the mass of the angular measure.  Under
+the bulk metric :math:`G = V\,w_n` the broadcast is exactly the Riesz
+representative of the scalar-flux extraction,
 
 .. math::
 
-   \langle \mathbf 1_\Omega\,\Sigma_d,\,\psi\rangle_G
+   \langle R^{\dagger}\Sigma_d,\,\psi\rangle_G
+   \;=\; \langle \mathbf 1_\Omega\,\Sigma_d,\,\psi\rangle_G
    \;=\; \sum_{\rm cells} V\,\Sigma_d\,\varphi
-   \;=\; \langle \Sigma_d,\,\varphi\rangle_V ,
+   \;=\; \langle \Sigma_d,\,R\psi\rangle_V ,
 
 the detector-response functional — whereas the forward :math:`1/W` lift
 is the dual of *source injection*.  This asymmetry IS the content of the
 P1.2 reciprocity gate: the entries duality row cross-checks the
 detector side against the hand volume sum :math:`\sum V\,\Sigma_d\,
-\varphi`, pinning the angle-flat lift as exactly the adjoint of the
-extraction.  (The daggered **coupled** fixed-source arm — a carrying
-Problem with System B — is a typed, loud refusal at #276 A4: it has no
-consumer or gate yet and lands with its first consumer rather than
-shipping unexercised.  The eigenvalue entry covers carrying Problems.)
+\varphi`, pinning the detector lift as exactly the adjoint of the
+extraction.  `[M]` 2026-10-02 (the test-architect's probe,
+``scratch/reference_architecture/p1step6/ta/respell_*.out``): lifting the
+detector by :math:`E` or by the weighted scatter :math:`R^{\mathsf T}`
+reddens exactly 1 of the 96 tests of the five adjoint-family files, this
+duality row (:math:`\varphi^*` moves by 0.50 and 0.70 relative); the
+other 95 are blind to the lift.  (The daggered **coupled** fixed-source
+arm — a carrying Problem with System B — is a typed, loud refusal at
+#276 A4: it has no consumer or gate yet and lands with its first
+consumer rather than shipping unexercised.  The eigenvalue entry covers
+carrying Problems.)
+
+**How the entry spells it.** Since #405 P1 step 6 (2026-10-02) the
+entry reads the lift from the problem's own space,
+``problem.angular_bulk_space.retraction("angular").H.apply(sigma_d)``,
+and then moment-lifts it through the one external-source policy.  Until
+then it wrote ``np.broadcast_to(sigma_d[None], …)`` by hand: the
+content of :math:`R^{\dagger}`, but not the operator, so nothing tied the
+hand broadcast to the measure the space carries.  The re-spelling is
+bit-exact (`[M]` the qa review, 36 of 36 arrays ``np.array_equal``
+before and after, on 2 and 4 groups, diamond and linear-discontinuous,
+3 random detectors each), which is possible only because ``R.H`` is the
+closed-form pullback and not the generic metric sandwich, which rounds
+up to 3 ULP away (:ref:`spaces-collapse-pair-pullback`).  The route is
+gated by
+``tests/gates/sn/solve/test_detector_lift_is_the_retraction_adjoint.py``:
+a counting spy on the pullback's ``apply`` reads 1 call per solve with
+an array detector and 0 with a composite
+:class:`~orpheus.transport.full_field.FullField` detector, and a decoy
+pullback scaled by 2 moves :math:`\varphi^*` to exactly
+:math:`2\varphi^*` (the solve is linear in its right-hand side); with the
+hand broadcast restored, both rows are red.  The independent value
+anchor stays the P1.2 duality row, unchanged.
 
 .. _sn-adjoint-carrier:
 
@@ -2369,7 +2412,8 @@ The gate map
      - :math:`\langle\Sigma_d,\psi\rangle = \langle\psi^*,q\rangle` on a
        2G asymmetric-SigS vacuum slab, source and detector in
        DIFFERENT groups AND regions; detector side hand-checked against
-       :math:`\sum V\Sigma_d\varphi` (pins the angle-flat lift)
+       :math:`\sum V\Sigma_d\varphi` (pins the detector lift
+       :math:`R^{\dagger}`)
    * - **P1.3** :math:`k^{\dagger}=k`
      - eigenvalue / closed-form
      - ``kinf_homogeneous`` (triple equality, terminates in
