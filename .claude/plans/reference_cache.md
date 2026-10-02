@@ -1078,3 +1078,35 @@ Issues: #553 (retire the string-equality arm), #554 (stale SN docs block), #555 
 
 **Next: P1 step 6** (the phase-space functions, spec §1.6) per the carve order above, then the question (§1.7) and the specification (§1.8).
 
+
+## ⏸ COMPACTION POINT — 2026-10-02, P1 after step 5 (supersedes the point after step 3c)
+
+State: `main` `5abb3db8`, clean apart from `scratch/`, and CI `gates` is green. Merged since the point after step 3c, in order:
+- the boundary-law detour: ERR-094 and ERR-095 at `8f9300b2`;
+- the platform-independent quadrature remedy, at `a34f8c2c`;
+- the reflective cleanup, at `99b9847d` (plan `boundary_law_ontology.md`);
+- **P1 step 5, content identity**, at `ee9e8943` (code) and `a5113ac0` (docs), with its close-out at `5abb3db8`.
+
+**Next: P1 step 6, the phase-space functions.** These are `Symbolic` (q(r, μ, φ) per group, stored through `srepr`) and `RegionwiseConstant` (one value per region and group, the isotropic piecewise-constant special case), with the anisotropy predicate. There is no projection; that is P4. Note the numbering: the spec swapped steps 6 and 7, so the spec's §1.6 is this step and the carve-order list above still calls it item 7.
+
+Read, in order:
+1. The two 2026-10-02 notes above: step 5 as merged, and "After review". The second carries what steps 6 to 8 need from the encoder:
+   - a `srepr` string encodes, but a live SymPy expression is refused;
+   - a `SpectralMap` holds lambdas, so its part is its name;
+   - the `Quadrature` is not content (#555).
+2. §1.6 of `.claude/plans/reference_p1_spec.md` (gates S6.1 to S6.6), and its §0 rulings 2 and 4 (the regions are the geometry's own indices; evaluating exactly at a breakpoint is refused).
+3. `.claude/plans/posing_sequence.md`, "The ontology as it stands", and this file's "The posing sequence's seeds for P1". The 2026-09-29 ruling: the question values live in `numerics`, physics-free. Decide where the phase-space functions live by the same criterion; the W5 review placed the `Source` field protocol in `numerics`.
+4. The content-identity section of `docs/theory/foundations/structured_geometry.rst` (`structured-geometry-content-identity`).
+
+**First action: reconcile §1.6 against today's tree before any gate or code.** The spec was written 2026-09-25. Step 5's census refuted three of that spec's premises (`Partition` retired, the `Axis` encoder's `repr`, `_ManufacturedFaceInflow` hashing by id). Dispatch an explorer census for step 6, then the test-architect re-specifies §1.6 and measures each first red in a detached worktree. The questions the census owes:
+- What source types exist today? Measure the boundary source `InflowSourceSpec`/`ConstantInflowSource`, the MMS sources in `derivations/`, and how `solve_sn_fixed_source` takes a source.
+- Is the density convention (S6.5: a value Q gives `∫∫ q dφ dμ = Q`, per steradian) consistent with today's consumers? The spec cites a docstring applying `/W` twice.
+- Does `sympy` import cost or layer placement constrain the home?
+
+**Rulings that bind P1 from here on:**
+- **Content identity (2026-10-02):** every new value type is a `ContentIdentity` frozen dataclass (`eq=False`), with "not content" spelled `field(compare=False)`, mappings held as a `FrozenMapping`, and NaN refused at construction. Its gates join the content-identity rosters (`tests/gates/<tree>/test_content_identity_*.py`; S5.9 reds on a new content class without a roster entry).
+- **The schema-tag ruling (2026-10-01):** no per-class `__setstate__`.
+- **Steps 1–3 rulings:** breakpoints rather than thicknesses; `None` is not a law; the regions are the geometry's indices.
+- **The process:** W3, so the main agent writes the code and the test-architect writes the gates first, then qa and the elegance-enforcer review in parallel and the archivist writes the docs. The full suite runs before each merge, in a detached worktree (`.venv` linked; the 4 `test_write_guards` rows fail only there). Baseline: 13 974 passed at `ee9e8943`.
+
+**Open issues from this stretch:** #551 (boundary architecture E), #552 (one base amplitude check), #553 (the string-equality arm), #554 (a stale SN docs block), #555 (Quadrature content identity). Architecture E (the boundary ontology) executes after #405, by the user's 2026-10-01 ruling.
