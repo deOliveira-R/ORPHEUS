@@ -1025,3 +1025,17 @@ Open at the close of step 3:
 The question put at step 3c's close ("should `StructuredGeometry` store a `FaceLaws`, so the Mesher's lift is the identity and step 5 digests one type?") opened the boundary-law ontology discussion (`.claude/plans/boundary_law_ontology.md`). **Answered (the user, 2026-10-01): no.** The geometry keeps its positional `boundaries` tuple for step 5; the ontology's architecture E will later replace it with deck transformations and integer boundary tags (the boundary conditions bound per method by `SNDiscretization(material_mesh, boundary_conditions)`), and that change re-keys the geometry's digest (a cache miss, never a stale hit). E executes after this campaign. The detour landed `8f9300b2` (ERR-094, ERR-095, CP's slab guard: 85 CP test declarations now reflective|white) and, next, a small reflective cleanup (`ReflectiveBoundary` without albedo), before step 5.
 
 **Next after the cleanup: P1 step 5, content identity** ("P1, the carve order").
+
+### 2026-10-01: the reflective cleanup landed, and one requirement for step 5
+
+The reflective cleanup made `ReflectiveBoundary(axis)` parameter-free and made `LawSum`/`LawScaled` refuse a deck law as an operand, with the refusal in `__post_init__`. Merge record: branch `refactor/reflective-is-a-mirror`, commits `65f1dc7a`, `f7a9b79a` and `99b9847d`.
+
+Its qa review measured a gap that belongs to this campaign. Loading a pickle never runs `__post_init__`, so a pickle written before the carve loads silently:
+- `ReflectiveBoundary('x', 0.7)` loads as a mirror that ignores its 0.7 (ERR-094's mechanism, with no message);
+- `0.7*R + 0.3*W` loads as an admitted `LawSum`.
+
+`[M]` 2026-10-01 by qa, `scratch/boundary_ontology/reflective_qa_review.md` G1. No pickle is tracked today; the cache would be the first persisted store.
+
+**Ruled (the user, 2026-10-01): a requirement on step 5, not a runtime guard.** The content key covers the schema of every persisted class (its fields, and a version), so an entry written before a carve misses instead of loading. The alternative, a `__setstate__` refusal on each class, was declined: it adds a guard per carve, where a schema-covering key fixes every future carve once.
+
+The witness owed with step 5: a law or a composed tree pickled under an older schema must miss the cache, never load. Its fixture is a schema-changing carve such as this one.

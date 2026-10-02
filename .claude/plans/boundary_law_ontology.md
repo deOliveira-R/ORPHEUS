@@ -249,3 +249,28 @@ What is already done (all untracked, in `scratch/boundary_ontology/`):
 ⚠ **Re-capture the carry fixture before the carve.** `reflective_gates/head_fixture.npz` (97 arrays: 75 partial-wall, 22 mirror-path) was captured at `0a5a23fa`, BEFORE the correctly rounded Gauss rules landed, so its numbers are stale on today's `main`. Re-run `reflective_gates/capture_head.py` on `main` `478f3ff8` first, then `reflective_gates/test_partial_specular_carry.py` must pass on the new spelling before the carve and again after it. Likewise re-measure the two pending gate files' first reds on today's `main` (they were measured at `0a5a23fa`).
 
 Read before acting: this point; the tenth and fourth exchanges above; `reflective_cleanup_gates.md` §(d) and "Findings and rulings"; `reflective_cleanup_census.md` "Decisions"; `docs/theory/foundations/boundary_conditions.rst` section `bc-factor-quotients` (the "One shipped row violates the law, deliberately" warning, which the cleanup retires). After the cleanup: #405 P1 step 5 (`.claude/plans/reference_cache.md`, latest ⏸ point and the 2026-10-01 note).
+
+## ⏹ The reflective cleanup — merged at `99b9847d` (2026-10-01, night)
+
+Item 1 of the tenth exchange is LANDED: `main` `88d30487..99b9847d`, three commits (`65f1dc7a` the carve and the re-baseline, `f7a9b79a` qa's nits, `99b9847d` the docs).
+
+What landed:
+- **`ReflectiveBoundary(axis)` is the parameter-free mirror.** Its albedo, its `"partial"` kind override and its two amplitude checks are gone; `R = ScalarResponse(1.0)`.
+- **A deck law is not an operand.** `LawSum`/`LawScaled` refuse, in `__post_init__`, a direct child law whose `geometry_map.is_identity` is False, by `TypeError` (`ELEGANCE-DEBT[guard] #551`, retired by architecture E).
+- **Also landed:**
+  - `RigidMotion.is_identity`, read by both deck types and declared on the `BoundaryGeometryMap` Protocol;
+  - the base law's two factor properties made abstract (a law declaring no factor is a `TypeError` at construction);
+  - "exactly one of G, R is non-trivial" weakened to "at most one" (the bare `AlbedoBoundary(1.0)` has neither).
+- **Gates:** `test_reflective_is_a_mirror.py` (36 rows) and `test_deck_laws_do_not_compose.py` (217 rows), with first reds 12 + 67 at `88d30487`.
+- **The carry check** (scratch, carve-time) held 106 of 106 before and after the carve.
+- **The re-baseline:** 22 test sites, D.14 twins named, each re-pose with its own first red.
+- **Full suite** `tests/gates -m "not slow"` at `65f1dc7a`: 13 711 passed and 4 failed, the 4 being the `test_write_guards` rows that fail only from a worktree path (22 of 22 pass in the main tree). Sphinx `-W` is clean. `dead_references` reads 0 of 66.
+
+Review:
+- **Elegance:** no blocker. S1, S2 and N1–N3 were applied, N4 is on #551, and N5 is filed as #552.
+- **qa:** no defect; the four nits were fixed.
+- **G1** (a pickle written before the carve loads silently) was ruled a requirement on #405 step 5: the content key covers each persisted class's schema. It is recorded in `reference_cache.md` and on #405.
+
+Issues: #551 (architecture E, which retires the guard), #552 (one base amplitude check).
+
+**Next:** #405 P1 step 5, content identity (`.claude/plans/reference_cache.md`, its 2026-10-01 notes). Architecture E follows #405.

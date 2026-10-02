@@ -6016,3 +6016,20 @@ Same review, a second observation already covered (Pattern 2, X4): the
 partial mirror has two spellings that realize one matrix, and only one of them
 is certified against the sub-Markov bound (`ReflectiveBoundary("x", 1.2)` is
 certified, `AlbedoBoundary(1.2, SpecularReturn("x"))` refused).
+
+## L-094 — a constructor-level guard and a retired field are both invisible to UNPICKLING, so a persisted value from before the carve loads silently as the new type (2026-10-01, W3 reflective-cleanup QA, `refactor/reflective-is-a-mirror` @ `65f1dc7a`)
+
+The carve retired `ReflectiveBoundary.albedo` and put the deck refusal in
+`LawSum`/`LawScaled.__post_init__`, arguing "every route reaches the
+constructor (dunders, direct, `dataclasses.replace`)". Measured: a pickle of
+`ReflectiveBoundary('x', 0.7)` and of `0.7*R + 0.3*W`, dumped from the
+pre-carve tree (`git archive 88d30487` into tmp, run from there) and loaded in
+the carved tree, both load with no error: the mirror carries `__dict__ ==
+{'axis': 'x', 'albedo': 0.7}`, reads `ScalarResponse(1.0)` (ERR-094's perfect
+mirror, now silently), and the composed deck is an admitted `LawSum`. Pickle
+restores state by `__dict__.update` (no `__init__`, no `__post_init__`);
+`copy.deepcopy` and `object.__new__` likewise. Population today: 0 tracked
+pickle files and no `.cache/`, so latent; the #405 reference cache is the
+consumer that would make it live. Not covered by `retirement-audit` (no
+persisted-state clause) nor by `coding-elegance` Pattern 4's `replace`
+corollary, which names only the route that DOES re-run `__post_init__`.

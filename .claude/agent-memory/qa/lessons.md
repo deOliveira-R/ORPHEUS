@@ -642,3 +642,11 @@ clause. Open the archive only for the ORPHEUS war story.
 | ⚠ Sig-10's sibling-pass discriminator is VOID for a single-geometry carve — bisect instead | `bug-signatures` Sig-10 | L-069 |
 | a branch credited without a measured activation count (B8) | `instrument-doctrine` X1, activation count | L-016, L-059 |
 | a green gate is nothing until RED; the SN `.apply`/`.solve` role contract | `qa/AGENT.md` #11/#10 + the role memo | §A |
+
+**F27. A guard in `__post_init__` and a retired dataclass field are both
+blind to unpickling: a value persisted before the carve loads as the new type
+with the old field in `__dict__`.** check: pickle the retired spelling in the
+pre-carve tree (`git archive <base>` into tmp, run from there) and load it in
+the carved tree; a silent load is the finding, a `__setstate__` that refuses
+is the fix. Extends `retirement-audit` (no persisted-state clause) and
+`coding-elegance` Pattern 4's `replace` corollary. → L-094

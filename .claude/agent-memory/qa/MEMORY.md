@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W3 reflective cleanup (2026-10-01) | L-094 → F27 |
 | W2 ERR-094 partial-reflector fixes (2026-09-30) | L-093 → F26 |
 | W3 P1 step 2b reference-body routing (2026-09-29) | L-092 → F25 |
 | W2 ERR-090 trajectory-resolvent regionwise source (2026-09-26) | L-091 → F24 |
