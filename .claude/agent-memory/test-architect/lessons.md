@@ -200,6 +200,9 @@ only the ORPHEUS mechanisms they do not name.
   in the session and cannot see a subprocess** — key the install by (module, name) and re-install per
   test, attribute subprocess workers by reading, and prefer a CALL-time lock inside the target for
   anything permanent. → `L94`
+- **⛔ A rebinding arm cannot reach a row PARAMETRIZED OVER OBJECTS** — the parameter list is built at
+  collection, before the per-test rebind, so the row reads the original class and stays green. Key a
+  row a battery must reach by NAME, resolved on the module at run time. → `L100`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`

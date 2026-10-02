@@ -11612,3 +11612,7 @@ Spec `scratch/platform_drift/gates_spec.md`.
    STABILITY read (two honest builds equal) beside the activation count, or an identity hash reads
    "moved" for the wrong reason; two field-less classes collide without the schema tag, so the tag is
    load-bearing beyond schema evolution.
+
+## L100 — #405 P1 step 7 question values (W1 spec, gates before code): a class captured at collection is immune to a rebinding arm (2026-10-02)
+
+The step-7 battery's arm A1 rebound `FixedSource` (in every `sys.modules` binding) to a subclass with a boolean `adjoint` field. The row `test_s7_3_the_fields_are_exactly_the_roles[FixedSource]`, parametrized over the CLASS OBJECTS, stayed green: pytest built the parameter list at collection, before the per-test rebind, so the row read the original class. Re-keyed by NAME (`getattr(question_module, name)` at run time), the row reddened. Rule: a structural row a rebinding battery must reach is parametrized by name and resolved at run time; a row parametrized over objects is reachable only by an in-place mutation of the object. Also measured: S5.9's population walk uses `pkgutil.walk_packages`, so an unrostered new content module reds it wherever it runs (a suspected "blind when not imported" was refuted before it reached the spec). And a gate-harness prototype in a scratch path, copied into a disposable detached worktree, let 14 arms run before the module existed; label it as not-a-design in its first line.
