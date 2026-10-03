@@ -1321,3 +1321,21 @@ The prototype's report: `scratch/reference_architecture/p2/reading_bounds/report
 5. **P4 issues:** #566 (the trajectory resolvent's analytic emission density and derived solver bound); the two-answers gap is #516's.
 
 The P2 step order after these rulings: step 4 withdrawn (its specification and reds kept in `scratch/reference_architecture/p2/ta/step4/` as P4's starting material); step 5 (`PublishedSolution`, `ReferenceCertificate` with `Exact` | `DerivedBound`); step 6 (`ReferenceSolution.read` on demand through the derivation, first instance the exact infinite medium); step 7a/7b (`VerificationCertificate`, the migration — 7b's sphere and cylinder stay uncertified, so their rows re-pose as uncertified comparisons with their current tolerances); step 8 with #526.
+
+### P2 progress (2026-10-03)
+
+Landed on `main`, each with its spec section (`reference_p2_spec.md`), the test-architect's gates and battery, and a qa + elegance review round:
+
+| step | content | merged at | CI |
+|---|---|---|---|
+| 1 | readings by role (`Enclosure`, `Printed`, `ReferenceReading`, `ProductionReading`) | `55870ddc` | green |
+| 2 | `ExitCertificate` → `ExitReport`, `Certified` → `Asserted`, the convergence-claim check | `55870ddc` | green |
+| 3 | the observables (`FluxIntegral`, `Ratio` of linear observables, `Eigenvalue`, `PointValue`) | `8f6549e3` | green |
+| 4 | the stored panel field | WITHDRAWN to P4 (ruling of 2026-10-03) | — |
+| 5 | `PublishedSolution`, `ReferenceCertificate` (`Exact` / `DerivedBound`; one family agreement law, `common_part`), `Withdrawal` moved into `orpheus/reference/` | `a3ff64d0` | green |
+| 6 | `ReferenceSolution` read on demand through a `Derivation`; the exact infinite medium | `e06eb95c` | green |
+| 7a | `VerificationCertificate` / `verify_agreement` and `OrderVerification` / `verify_order` (order intervals); `HomogeneousResult.read`, the first production reading: the homogeneous solver verifies against the exact infinite medium (worst 2.56e-16 relative over 5 fissile mixtures, qa) | `17782c7e` | green (run 37157022977) |
+
+Full-suite baseline at `17782c7e` (`tests/gates -m "not slow"`, detached worktree, `.venv` linked): 14 856 passed, 264 skipped, 55 xfailed; the only failures are the 4 `test_write_guards` worktree artefacts.
+
+Open: **7b** (the migration of the 4 `certify_agreement` files) waits for the user's ruling on what an uncertified reference reads (R6.5 is marked to be re-posed with it); **8** (`Rate`) waits for removal cells (#526). New issues from P2: #563 (the governing equation in the specification), #564 (the algebraic-error estimator), #565 (the admissibility weld), #566 (the trajectory resolvent's analytic emission density and derived bound). The answer-to-specification pairing (verification cannot yet check that a production answer answers the reference's specification) is P4's projection. Still owed at P2's close: the theory chapter (the archivist), with the G6 error ontology.
