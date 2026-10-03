@@ -203,9 +203,13 @@ _BAD_WEIGHTS = (
 
 @pytest.mark.parametrize("make", [m for _, m in _BAD_WEIGHTS], ids=[n for n, _ in _BAD_WEIGHTS])
 def test_r3_3_the_weight_is_a_mesh_free_function(make: Any) -> None:
-    """``TypeError`` naming the weight: an extensional array is mesh-bound, a
-    number has no position or group, and an observable is not a function."""
-    with pytest.raises(TypeError, match="weight"):
+    """``TypeError`` naming the weight and what it must be: an extensional
+    array is mesh-bound, a number has no position or group, and an observable
+    is not a function. The fragment is ``the weight is a mesh-free function``,
+    not the bare field name: the encoder's own refusal of a writeable array
+    names its path ``FluxIntegral.weight`` too, so a bare ``weight`` keeps the
+    array rows green with the type check removed (``[M]`` battery arm A1)."""
+    with pytest.raises(TypeError, match="the weight is a mesh-free function"):
         _cls("FluxIntegral")(make())
 
 
