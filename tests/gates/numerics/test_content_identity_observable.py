@@ -93,9 +93,9 @@ ROSTER: tuple[Entry, ...] = (
         parts=("numerator", "denominator"),
         perturb={
             "numerator": (leg("another weight", lambda: _ratio(numerator=_flux(_ulp_table()))),
-                          leg("the eigenvalue", lambda: _ratio(numerator=_c("Eigenvalue")()))),
+                          leg("a point value", lambda: _ratio(numerator=_point(0.25, 0)))),
             "denominator": (leg("another group", lambda: _ratio(denominator=_point(group=0))),
-                            leg("a nested ratio", lambda: _ratio(denominator=_ratio()))),
+                            leg("a flux integral", lambda: _ratio(denominator=_flux()))),
         },
         pairs=(("two builds", _ratio, _ratio),),
     ),
@@ -168,7 +168,7 @@ t = RegionwiseConstant(np.array([[1.5, 0.25], [0.0, 3.0]]))
 f = m.FluxIntegral(t)
 print(m.__file__)
 for v in (f, m.FluxIntegral(Symbolic.of(1 + Symbolic.r, Symbolic.r**2)), m.Eigenvalue(),
-          m.PointValue(0.75, 1), m.Ratio(f, m.PointValue(0.75, 1)), m.Ratio(m.Ratio(f, m.Eigenvalue()), f)):
+          m.PointValue(0.75, 1), m.Ratio(f, m.PointValue(0.75, 1)), m.Ratio(m.PointValue(0.25, 0), f)):
     print(content_digest(v).hex(), hash(v))
 print('control', hash('salted'))
 """
@@ -185,7 +185,7 @@ def _seed_run(seed: str) -> list[str]:
 def test_r3_5_digests_and_hashes_are_seed_stable() -> None:
     """``PYTHONHASHSEED`` 1 and 2 print the same six digests and hashes (a
     regionwise and a symbolic weight, the eigenvalue, a point value, a ratio,
-    a nested ratio); the control line must differ."""
+    a ratio of a point value to a flux integral); the control line must differ."""
     one, two = _seed_run("1"), _seed_run("2")
     require(one[0].startswith(str(_ROOT)), f"the subprocess imported {one[0]} (L22)")
     require(len(one) == 8, f"activation: {len(one)} lines printed")

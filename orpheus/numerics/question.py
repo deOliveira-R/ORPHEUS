@@ -50,11 +50,11 @@ from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, get_args
 
 from orpheus.numerics.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, parse_mesh_free_function
-from orpheus.numerics.scalars import parse_finite_real
+from orpheus.numerics.scalars import parse_finite_real, parse_member
 
 
 
@@ -109,8 +109,7 @@ class Eigen(ContentIdentity):
     def __post_init__(self) -> None:
         _admit_key(self.parameter, "Eigen.parameter")
         object.__setattr__(self, "point", _admit_point(self.point))
-        if not isinstance(self.mode, Mode):
-            raise TypeError(f"Eigen: the mode is Fundamental() or Nearest(tau), got a {type(self.mode).__name__}")
+        parse_member(self.mode, get_args(Mode), "Eigen", "the mode", "a mode")
         content_digest(self)
 
 
@@ -122,7 +121,7 @@ class FixedSource(ContentIdentity):
     point: Mapping[Any, float] = field(default_factory=FrozenMapping)
 
     def __post_init__(self) -> None:
-        parse_mesh_free_function(self.source, "source")
+        parse_mesh_free_function(self.source, "FixedSource", "the source")
         object.__setattr__(self, "point", _admit_point(self.point))
         content_digest(self)
 
@@ -135,7 +134,7 @@ class Response(ContentIdentity):
     point: Mapping[Any, float] = field(default_factory=FrozenMapping)
 
     def __post_init__(self) -> None:
-        parse_mesh_free_function(self.detector, "detector")
+        parse_mesh_free_function(self.detector, "Response", "the detector")
         object.__setattr__(self, "point", _admit_point(self.point))
         content_digest(self)
 

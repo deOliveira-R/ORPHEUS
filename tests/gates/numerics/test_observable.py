@@ -240,14 +240,34 @@ def test_r3_3_a_ratio_is_of_observables(make: Any, side: str) -> None:
         _cls("Ratio")(**operands)
 
 
-def test_r3_3_ratios_nest_and_any_two_observables_divide() -> None:
-    """Positive legs: a ratio of a ratio, a ratio with the eigenvalue, and the
-    degenerate ``Ratio(x, x)`` (a value; whether an answer can read it is the
-    answer's question) all construct."""
-    R, E = _cls("Ratio"), _cls("Eigenvalue")
-    R(R(_flux(), _point()), E())
-    R(E(), _flux())
+def test_r3_3_a_ratio_divides_two_linear_observables() -> None:
+    """Positive legs: every pair of linear observables (a flux integral, a
+    point value) divides, the degenerate ``Ratio(x, x)`` included (a value;
+    whether an answer can read it is the answer's question)."""
+    R = _cls("Ratio")
+    R(_flux(), _point())
+    R(_point(), _flux())
     R(_flux(), _flux())
+    R(_point(), _point())
+
+
+_NONLINEAR_OPERANDS = (
+    ("eigenvalue-numerator", lambda: (_cls("Eigenvalue")(), _flux()), "numerator"),
+    ("eigenvalue-denominator", lambda: (_flux(), _cls("Eigenvalue")()), "denominator"),
+    ("nested-numerator", lambda: (_cls("Ratio")(_flux(), _point()), _flux()), "numerator"),
+    ("nested-denominator", lambda: (_flux(), _cls("Ratio")(_flux(), _point())), "denominator"),
+)
+
+
+@pytest.mark.parametrize("operands, role", [r[1:] for r in _NONLINEAR_OPERANDS], ids=[r[0] for r in _NONLINEAR_OPERANDS])
+def test_r3_3_a_ratio_refuses_a_nonlinear_operand(operands: Any, role: str) -> None:
+    """A ratio's operands are linear in the flux: only then is the quotient
+    independent of the scale an eigen answer's representative was picked at
+    (the elegance review of step 3, 2026-10-03). The eigenvalue and a ratio
+    are refused as operands, naming the role."""
+    numerator, denominator = operands()
+    with pytest.raises(TypeError, match=rf"Ratio: the {role} is a linear observable"):
+        _cls("Ratio")(numerator, denominator)
 
 
 _BAD_POINTS = (

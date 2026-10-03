@@ -59,7 +59,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias, cast, get_args
 import numpy as np
 
 from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import parse_finite_reals
+from orpheus.numerics.scalars import parse_member, parse_finite_reals
 
 if TYPE_CHECKING:
     import sympy
@@ -341,15 +341,9 @@ MeshFreeFunction: TypeAlias = RegionwiseConstant | Symbolic
 
 
 
-def parse_mesh_free_function(value: Any, role: str) -> MeshFreeFunction:
-    """A mesh-free function in the named role (a source, a detector, a weight), or a refusal naming the role."""
-    if not isinstance(value, MeshFreeFunction):
-        kinds = " or ".join(kind.__name__ for kind in get_args(MeshFreeFunction))
-        raise TypeError(
-            f"the {role} is a mesh-free function ({kinds}), "
-            f"got a {type(value).__module__}.{type(value).__qualname__}"
-        )
-    return value
+def parse_mesh_free_function(value: Any, where: str, noun: str) -> MeshFreeFunction:
+    """A mesh-free function in the named role (a source, a detector, a weight), or a refusal naming its owner."""
+    return cast(MeshFreeFunction, parse_member(value, get_args(MeshFreeFunction), where, noun, "a mesh-free function"))
 
 
 __all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function"]

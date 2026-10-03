@@ -136,6 +136,29 @@ def parse_integer(value: object, where: str, noun: str) -> int:
     return int(value)
 
 
+def parse_index(value: object, where: str, noun: str) -> int:
+    """A non-negative integer scalar (an index) as an ``int``, or a keyed refusal."""
+    parsed = parse_integer(value, where, noun)
+    if parsed < 0:
+        raise ValueError(f"{where}: {noun} is a non-negative index, got {parsed}")
+    return parsed
+
+
+def parse_member(value: object, kinds: tuple[type, ...], where: str, noun: str, what: str) -> object:
+    """A value that is an instance of one of ``kinds`` (the members of a closed sum), or a keyed refusal.
+
+    The refusal names the owner, the role and the sum, and lists its members:
+    ``"FixedSource: the source is a mesh-free function (RegionwiseConstant or
+    Symbolic), got a numpy.ndarray"``.
+    """
+    if not isinstance(value, kinds):
+        names = " or ".join(kind.__name__ for kind in kinds)
+        raise TypeError(
+            f"{where}: {noun} is {what} ({names}), got a {type(value).__module__}.{type(value).__qualname__}"
+        )
+    return value
+
+
 def parse_positive_integer(value: object, where: str, noun: str) -> int:
     """An integer scalar of at least 1 as an ``int``, or a keyed refusal."""
     parsed = parse_integer(value, where, noun)
@@ -168,6 +191,8 @@ __all__ = [
     "exact_double",
     "parse_entries",
     "parse_finite_real",
+    "parse_index",
+    "parse_member",
     "parse_finite_reals",
     "parse_integer",
     "parse_positions",
