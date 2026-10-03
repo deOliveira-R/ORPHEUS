@@ -1339,3 +1339,27 @@ Landed on `main`, each with its spec section (`reference_p2_spec.md`), the test-
 Full-suite baseline at `17782c7e` (`tests/gates -m "not slow"`, detached worktree, `.venv` linked): 14 856 passed, 264 skipped, 55 xfailed; the only failures are the 4 `test_write_guards` worktree artefacts.
 
 Open: **7b** (the migration of the 4 `certify_agreement` files) waits for the user's ruling on what an uncertified reference reads (R6.5 is marked to be re-posed with it); **8** (`Rate`) waits for removal cells (#526). New issues from P2: #563 (the governing equation in the specification), #564 (the algebraic-error estimator), #565 (the admissibility weld), #566 (the trajectory resolvent's analytic emission density and derived bound). The answer-to-specification pairing (verification cannot yet check that a production answer answers the reference's specification) is P4's projection. Still owed at P2's close: the theory chapter (the archivist), with the G6 error ontology.
+
+### Step 7b ruled: the uncertified reading (2026-10-03, the user)
+
+The user accepted the lean: "I think it's a good decision until we face something that might contradict it (if we face it)." A reference whose family cannot derive a bound reads an **`Uncertified(value)`**, a third member of `ReferenceReading` (`Enclosure | Printed | Uncertified`). The `VerificationCertificate` refuses it (it cannot anchor a verification); a test compares against it through an explicit uncertified comparison at its current tolerance, so the weaker claim is visible in the code. R6.5 (today: `NotCertified`) is re-posed with it. Revisit if a case contradicts it.
+
+## ⏸ COMPACTION POINT — 2026-10-03, P2 through step 7a (supersedes the point after P1)
+
+State: `main` `698f367b` (plan-only tip; the last code tip `17782c7e`, CI `gates` run 37157022977 green), clean apart from `scratch/`. Full-suite baseline at `17782c7e`: 14 856 passed, 264 skipped, 55 xfailed; the 4 `test_write_guards` failures are worktree artefacts.
+
+Read in order: "P2, the design as ruled (2026-10-02)"; the rulings sections after it (G1–G6, "Step 5 ruled: no ladder certifies", "The reading-bound prototype and the user's rulings", "Step 7b ruled"); "P2 progress (2026-10-03)" (the landing table); the spec `.claude/plans/reference_p2_spec.md` (§0, §1.6, §1.7a/b, and the notes at its end).
+
+**Next, in order:**
+1. **Step 7b**, the migration of `certify_agreement` (4 files: `test_certified_agreement.py`, `test_l1_standoff_slab_cylinder.py`, `test_phase_c_crosscheck.py`, `curvilinear/test_unified_matvec_cylinder.py`; `tests/gates/sn/verification/analytical/_certified_agreement.py` retires): first build `Uncertified(value)` (re-pose R6.5: a `Derivation` without a derived bound yields it; `ReferenceSolution.read` returns it; `VerificationCertificate` refuses it; an explicit uncertified comparison verb for tests); then the test-architect re-specifies §1.7b against the landed tree (the trajectory-resolvent sphere and cylinder as uncertified references with their current tolerances; the SN production answers need a `read` — the answer-to-specification projection is P4's, so 7b's production readings stay test-side adapters unless the spec finds a principled home). W3 as before: test-architect gates first, the main agent writes, qa + elegance review, the full suite before the merge.
+2. **P2's close:** the archivist's theory chapter (the reading/claim/certificate ontology, readings by role, the derived-bound rule and why no ladder certifies, the G6 chain-of-problems error ontology with its literature, the verification floors), the plan's P2 close-out, and the compaction point after P2. Step 8 (`Rate`) stays with #526.
+3. **P3**, the traced memo (the phase line at the top of this file).
+
+**Process lessons from P2:**
+- The test-architect's gates against a declared API, then the main agent's modules, then the battery on the real code worked step after step; every step's battery found something (a blind arm or an unspellable-gap row), and every qa + elegance round found a real defect (the 60-digit `evalf` margin, the order verdict's point estimates, a certificate constructible against an invalid reference, two copies of the weight reading).
+- `sed -E` on macOS has no `\b`: a word-boundary rename silently did nothing (`Certified`); use `perl -pi -e 's/\bX\b/Y/g'`.
+- A prose substitution over a test file must exclude `def` lines (it put spaces inside three test names).
+- A Sphinx build regenerates `matrix.rst` and checks it against HEAD: commit first, then build, then commit the matrix (a mid-build commit fails the check).
+- Never sed renames into `.claude/agent-memory/` or archived plans (history and the agents' own memory).
+
+**Open issues from this stretch:** #563, #564, #565, #566; from before: #551–#558, #560, #561, #562.

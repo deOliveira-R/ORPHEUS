@@ -106,7 +106,8 @@ decides whether to open it.
 - [Frame → kernel hierarchy sources](frame_kernel_hierarchy_sources.md) — 2026-09-28 two passes: all frame/Markov/coupling defs READ (AAG, Kaiser, BAG w-frame≠controlled, L-M, Giry, F-M, Cho-Jacobs); page offsets.
 
 ### V&V benchmark anatomy / reference caching
-- [Verification-case anatomy sources](verification_case_anatomy_sources.md) — #405: Oberkampf-Trucano 2007, ICSBEP (Briggs 2003), Ganapol 2008, ANL-7416 3-level IDs, build-system traces; OSTI unreachable from host.
+- [Verification error-ontology sources](verification_error_ontology_sources.md) — #405 P2: OT2002 Eq.2, Arioli Eq.12, Atkinson Thm 3.1.1/4.1.2, Trefethen 2008 Thm 4.2-4.3, A&L false conv.; paywalled list.
+- [Verification-case anatomy sources](verification_case_anatomy_sources.md) — #405: Oberkampf-Trucano 2007, ICSBEP (Briggs 2003), Ganapol 2008, ANL-7416 3-level IDs, build-system traces; OSTI flaky (retry).
 
 ### Tooling
 - [⭐ Tier 0 is BIGGER — the full NSE run on disk](user_nse_volume_archive.md) — `/Users/rodrigo/Downloads/NSE/Vol_NNN(I)_*.zip`, per-article PDFs. **Grep the `unzip -l` listings before EVER calling an NSE paper not-local**; filenames truncate at ~95 chars so grep an EARLY fragment. Copy→rename→`ocr_literature.py`. Also: ⛔ OpenAlex free-text is blind to `S_N` (supernova collision) — use ISSN-scoped CrossRef + Semantic Scholar `get_citations`.

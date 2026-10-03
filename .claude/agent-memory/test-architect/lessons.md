@@ -61,7 +61,9 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   DISJOINT fragments, asserting the disjointness once. When the fix is "raise
   the project's TYPED error instead of the builtin", `pytest.raises(<builtin>)`
   is green BEFORE and after (`BoundaryError(ValueError)`) — name the SUBCLASS
-  and require the pre-fix state to be RED. → `L31`, `L35f`, `L36f`, `L75e`
+  and require the pre-fix state to be RED. → `L31`, `L35f`, `L36f`, `L75e`, `L103`
+  Rider: a fragment equal to the FIELD NAME is blind to a removed type check on a content type, because
+  the encoder's `ContentlessError` path names the field too (`FluxIntegral.weight`); pin the check's own phrase.
 - **⛔ A new guard wired AFTER an existing one: the earlier guard's inputs are a
   DISCRIMINATION row, not a negative row** — assert, on that same input, old
   fragment PRESENT + new fragment ABSENT, which pins the WIRING ORDER. When a
@@ -208,6 +210,11 @@ only the ORPHEUS mechanisms they do not name.
   reading the honest content: drop the cache entry in the arm. And key arms that must survive the real module to a
   public method, a helper the spec itself names, or a SUPPRESSION wrapper keyed on the gate's pinned fragment
   (its red set proves one witness per rule). → `L101`
+- **⛔ A NEW top-level package is invisible to two tree-wide gates until it is registered** — the layer linter
+  (`_check_source` returns `[]` for a package missing from `FORBIDDEN_EDGES`) and S5.9's roster walk (`_PACKAGES`),
+  so its zero violations and its unrostered content types read clean. The two registrations are the package's
+  first reds: gate them in the package's own step (`EXCLUSION-IS-A-PREDICATE` names the class; these are the
+  two hand lists). → `L102`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`

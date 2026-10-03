@@ -13,4 +13,4 @@ Extracted 2026-09-24 for #405 step 2 (reference generation/cache redesign). Memo
 - ANL-7416 Supp.2 excerpt BSS-15 LOCAL (scanned, corephysics mirror): 3-level Source Situation -> Problem (ID 15-A1) -> Solution (ID 15-A1-1), each with its own submit/accept dates. §III Guidelines & Format UNREAD.
 - Mokhov-Mitchell-Peyton Jones 2020 JFP (LOCAL): verifying / constructive / deep constructive traces; deep = determinism required, no early cutoff; §8.8 self-tracking pessimism for full-language tasks.
 - Dolstra 2006 thesis (LOCAL): input-addressed (extensional) vs content-addressed (intensional) store.
-- NOT obtainable: Oberkampf-Roy 2010, Knupp-Salari 2003, Roache books (paywalled); SAND2000-1444 free but OSTI resets connections from this host (curl AND WebFetch) — ask user to fetch.
+- NOT obtainable: Oberkampf-Roy 2010, Knupp-Salari 2003, Roache books (paywalled); SAND2000-1444 free but OSTI reset connections from this host on 2026-09-24 but answered on 2026-10-02 — retry first.

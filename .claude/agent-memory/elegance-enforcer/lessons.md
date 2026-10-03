@@ -433,3 +433,12 @@ classes entered neither the digest nor the tag, and the S5.3 "a part added later
 (1) list `dataclasses.fields` against `content_parts()` names for every subclass (walk `__subclasses__`); (2) any exclusion
 spelled by omission rather than at the field declaration is a VIOLATION, remedied with `compare=False`; (3) ask which
 ladder-order dependence the override was hiding (here: ContentIdentity-before-dataclass).
+
+### L-036 — A verdict built from several PAIRWISE consistency checks over enclosures of ONE exact quantity is graded by Helly (1-D): build the state where the UNCHECKED pair is disjoint; and an "exact" value evaluated by `evalf` is probed with a cancellation-to-zero expression
+Not covered by Pattern 2 as stated (the twin here is a missing LAW, not a duplicated body) nor by L-030 (graph absorption).
+`[M]` 2026-10-03, #405 P2 step 5: `ReferenceCertificate.state` checked claim∩anchor, refinement members together, and
+claim∩common part; anchor∩refinement was never asked, so a 0.50 anchor and refinement members at [9.2, 10] read `Valid`.
+A family of intervals shares a point iff every pair meets, so the law is ONE intersection over all enclosures per
+observable. Same review: `Exact` of `cos(π/7)−cos(2π/7)+cos(3π/7)−1/2` (exactly 0, not auto-simplified) enclosed
+−1.4e−191 ± 1.4e−250, excluding 0; `evalf(n, strict=True)` raises `PrecisionExhausted` instead. So: list the pairs a
+consistency verdict checks against all pairs of its inputs; feed an "exact" evaluator an identity that cancels to zero.
