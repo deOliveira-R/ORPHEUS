@@ -5,7 +5,7 @@ Reference solutions (``reference``)
 
 The :mod:`orpheus.reference` package holds what a reference solution says
 about the exact answer of its own equation, and how that saying is held to
-account. It has four modules:
+account. It has five modules:
 
 * :mod:`orpheus.reference.reading`: a reference's reading of one
   observable, :data:`~orpheus.reference.reading.ReferenceReading`, is an
@@ -43,7 +43,18 @@ account. It has four modules:
   derived on every read, never stored:
   :class:`~orpheus.reference.certificate.Valid`,
   :class:`~orpheus.reference.certificate.Invalid` with every failed check's
-  reason, or the ``Withdrawal`` itself.
+  reason, or the ``Withdrawal`` itself;
+* :mod:`orpheus.reference.solution`: the
+  :class:`~orpheus.reference.solution.ReferenceSolution`, a reference
+  method's answer to a specification: its
+  :class:`~orpheus.reference.solution.Derivation` establishes any
+  admissible observable on demand, the reference's natural extension with a
+  derived bound, and its certificate, when the family has one, claims and
+  corroborates the observables it declares (a claim that disagrees with the
+  derivation cannot be built). A family that cannot derive a bound raises
+  :class:`~orpheus.reference.solution.NotCertified`. Every value but the
+  reference solution itself is a content value; the reference solution is
+  keyed by its derivation's execution trace in phase P3.
 
 The observables a reading is keyed on are
 :mod:`orpheus.numerics.observable`; whether an observable fits a problem is
@@ -56,7 +67,7 @@ and nothing above them, and :mod:`orpheus.derivations` imports it, never
 the converse (:ref:`architecture-layering`). Every value in it is a
 :class:`~orpheus.numerics.content.ContentIdentity`, admitted at
 construction, so two spellings of one value are one value and can key a
-cache. The design and its rulings are the plan of record
+cache (the reference solution excepted, until phase P3 keys it). The design and its rulings are the plan of record
 ``.claude/plans/reference_cache.md`` (issue #405, phase P2), with the
 specification ``.claude/plans/reference_p2_spec.md``; the gates are under
 ``tests/gates/reference/``.
@@ -83,4 +94,10 @@ The reference certificate
 -------------------------
 
 .. automodule:: orpheus.reference.certificate
+   :members:
+
+The reference solution
+----------------------
+
+.. automodule:: orpheus.reference.solution
    :members:
