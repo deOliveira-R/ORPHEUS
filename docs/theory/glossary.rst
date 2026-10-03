@@ -104,6 +104,30 @@ embedding anchors, so each stands alone in query vocabulary.
       direction-independent distribution whose magnitude conserves the incident
       current. Used for approximate reflective symmetry on curved surfaces.
 
+   infinite medium
+      In ORPHEUS, the infinite homogeneous medium posed on energy alone: the
+      point in position and in direction of the neutron's phase space. Position
+      collapses because the medium and its data are invariant under
+      translations; direction collapses because they are invariant under
+      rotations. It holds one material and no geometry, since a geometry
+      admits spatial dimension, more than one material and a direction chart.
+      A problem uniform in space whose source prefers a direction is not an
+      infinite medium in this sense: it is the spatial marginal of a body
+      problem (:ref:`infinite-medium-point-in-phase-space`).
+
+   transport mean free path
+      :math:`\lambda_{\rm tr} = 1/\Sigma_{\rm tr}`, with the transport
+      cross section :math:`\Sigma_{\rm tr} = \Sigma_t - \Sigma_{s,1} =
+      \Sigma_t - \bar\mu_0\Sigma_s`: the path length over which the net
+      current of a neutron population (the first Legendre moment of its
+      direction distribution) falls by a factor :math:`e`, and the mean
+      displacement along its initial direction that a neutron accumulates
+      before it is absorbed. Neutrons forget their direction within a few
+      :math:`\lambda_{\rm tr}`; the diffusion coefficient is
+      :math:`D = \lambda_{\rm tr}/3`. With isotropic scattering
+      :math:`\lambda_{\rm tr} = 1/\Sigma_t`
+      (:ref:`diffusion-transport-xs-relaxation`).
+
    weld
       A term of the project's architecture vocabulary, used across the theory
       pages for code in which several concepts are fused. Its one definition is

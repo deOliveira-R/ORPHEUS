@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **14782**
+Total tests collected: **15008**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 9.1%
-   L1, 2247, 15.2%
+   L0, 1348, 9.0%
+   L1, 2250, 15.0%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11089, 75.0%
+   foundation, 11312, 75.4%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 14676
+   explicit, 14902
    class-name, 46
    func-name, 0
    case, 33
@@ -141,6 +141,7 @@ Module × level grid
    curvilinear/test_unified_matvec_cylinder, 29, 3, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
+   data/test_cells, 0, 0, 0, 0, 40, 0
    data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_citation, 0, 0, 0, 0, 24, 0
@@ -310,6 +311,7 @@ Module × level grid
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
+   geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
@@ -427,6 +429,7 @@ Module × level grid
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
+   numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
    numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
@@ -594,6 +597,10 @@ Module × level grid
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
+   specification/test_content_identity_specification, 0, 0, 0, 0, 47, 0
+   specification/test_specification, 0, 0, 0, 0, 90, 0
+   specification/test_specification_assembly, 0, 3, 0, 0, 0, 0
+   specification/test_specification_layer, 0, 0, 0, 0, 2, 0
    sweep/test_angular_cell_partition, 0, 0, 0, 0, 56, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
@@ -604,7 +611,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 405, 0
+   test_layer_imports, 0, 0, 0, 0, 427, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1005,7 +1012,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **608** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **614** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1093,10 +1100,12 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``diffusion-boundary-closure``
 - ``diffusion-expm-state-matrix``
 - ``diffusion-interior-conductance``
+- ``diffusion-moment-relaxation``
 - ``diffusion-operator-family``
 - ``diffusion-partial-current-dictionary``
 - ``diffusion-removal-xs``
 - ``diffusion-scalar-composite``
+- ``diffusion-transport-mean-free-path``
 - ``discrete-measure-definition``
 - ``discrete-measure-g-invariance``
 - ``discrete-measure-partition``
@@ -1227,6 +1236,10 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``hebert-3-433``
 - ``hilbert-adjoint-equals-metric-times-S0``
 - ``in-scatter-full-contraction``
+- ``inf-med-anisotropic-source``
+- ``inf-med-direction-energy``
+- ``inf-med-moment-decoupling``
+- ``inf-med-spatial-marginal``
 - ``integral-kernel-category``
 - ``inverse-driver-si-update``
 - ``iterate-contraction-ratio``

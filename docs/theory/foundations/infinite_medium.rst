@@ -14,6 +14,17 @@ Key Facts
 
 **Read this before modifying the homogeneous solver.**
 
+- **The infinite medium is the point in phase space.** ORPHEUS poses it
+  on energy alone, the point in position and in direction: it holds one
+  material and no geometry, since a geometry admits spatial dimension,
+  more than one material and a direction chart. Position drops out by the
+  translation symmetry of the medium and its data, direction by their
+  rotation symmetry, and the reduction is exact for everything the
+  definition admits (every
+  :class:`~orpheus.data.macro_xs.mixture.Mixture` is isotropic, and every
+  admitted question prefers no direction). A uniform problem whose source
+  prefers a direction is not this object: it is the spatial marginal of a
+  body problem (:ref:`infinite-medium-point-in-phase-space`)
 - Balance: :math:`\mathbf{A}\phi = \frac{1}{k}\mathbf{F}\phi` where the loss
   matrix is :math:`\mathbf{A} = \text{diag}(\Sigma_t) - \Sigma_{s0}^T - 2\Sigma_2^T`
   and the production dyad is :math:`\mathbf{F} = \chi \otimes (\nu\Sigma_f)`
@@ -110,9 +121,11 @@ Overview
 ========
 
 The infinite homogeneous medium is the simplest model in reactor physics.
-All spatial dependence vanishes (infinite geometry), all angular
-dependence integrates out (isotropic medium), and the neutron transport
-equation reduces to a pure **energy balance**.  The only unknowns are the
+Position drops out because the medium and its data are the same at every
+point (translation symmetry), direction drops out because they prefer no
+direction (rotation symmetry), and the neutron transport equation reduces
+to a pure **energy balance** (:ref:`infinite-medium-point-in-phase-space`).
+The only unknowns are the
 **neutron energy spectrum** :math:`\phi(E)` and the **infinite
 multiplication factor** :math:`\kinf`.
 
@@ -173,25 +186,232 @@ flux, :math:`\chi(E)` is the fission spectrum, and :math:`k` is the
 multiplication factor eigenvalue.
 
 
+.. _infinite-medium-point-in-phase-space:
+
 Simplification for the Infinite Homogeneous Medium
 ----------------------------------------------------
 
-Three physical conditions dramatically simplify Eq. :eq:`boltzmann`:
+Eq. :eq:`boltzmann` is posed on the neutron's **phase space**, the
+product of three factors: a position :math:`\mathbf{r} \in
+\mathbb{R}^3` (a point of space), a direction of motion
+:math:`\hat{\Omega} \in S^2` (a point of the unit sphere of directions)
+and an energy :math:`E \in (0, \infty)`. The infinite homogeneous medium
+removes the first two factors and keeps the third. Each removal has its
+own condition, and neither condition is "the medium has no boundary":
+both are **symmetries of the data**. The subsections below state which
+symmetry removes which factor, and the result is the definition this
+chapter rests on (:ref:`infinite-medium-definition`): in ORPHEUS the
+infinite medium is the point in position **and** in direction, posed on
+energy alone.
 
-1. **Infinite geometry** — no boundaries, so the flux is spatially
-   uniform: :math:`\nabla \psi = 0`.  The streaming term vanishes
-   entirely, and with it all leakage.
 
-2. **Homogeneous medium** — all cross sections are independent of
-   position: :math:`\Sigma_x(\mathbf{r}, E) = \Sigma_x(E)`.
+Two spaces, and the group that acts on them
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-3. **Isotropy** — in an infinite homogeneous medium with isotropic
-   sources, the angular flux is isotropic:
-   :math:`\psi(\hat{\Omega}, E) = \phi(E) / 4\pi`.  The scattering
-   kernel reduces to its :math:`P_0` (isotropic) component.
+Position and direction are two different spaces. A position is a point
+of :math:`\mathbb{R}^3`. A direction is a unit vector, a point of
+:math:`S^2`, and it carries no position. A set of directions is
+described on :math:`S^2` alone: the hemisphere
+:math:`\{\hat{\Omega} : \hat{\Omega}\cdot\hat{n} > 0\}` is defined by a
+reference **vector** :math:`\hat{n}`, not by a surface that splits
+space, so describing it needs no boundary and no geometry.
 
-After integrating over all directions, the transport equation collapses
-to a **one-dimensional energy balance**:
+The rigid motions of space, the Euclidean group
+:math:`E(3) = \mathbb{R}^3 \rtimes O(3)`, act on phase space. An element
+:math:`g = (\mathbf{a}, R)`, a translation by :math:`\mathbf{a}` and a
+rotation or reflection :math:`R`, moves a neutron at
+:math:`(\mathbf{r}, \hat{\Omega}, E)` to
+:math:`(R\mathbf{r} + \mathbf{a},\, R\hat{\Omega},\, E)`, and acts on a
+function of phase space by
+
+.. math::
+
+   (g\psi)(\mathbf{r}, \hat{\Omega}, E)
+   = \psi\bigl(R^{\mathsf T}(\mathbf{r} - \mathbf{a}),\,
+               R^{\mathsf T}\hat{\Omega},\, E\bigr).
+
+A translation moves the position and leaves the direction alone; a
+rotation moves both together. Write :math:`T` for the operator of
+Eq. :eq:`boltzmann` (streaming, collision, scattering, and the fission
+term), so that a source problem reads :math:`T\psi = q`. Each term
+commutes with part of the group, under a condition on the medium:
+
+- **Streaming** :math:`\hat{\Omega}\cdot\nabla` commutes with every
+  element of :math:`E(3)`, unconditionally:
+  :math:`\hat{\Omega}\cdot\nabla(g\psi) = g\,(\hat{\Omega}\cdot\nabla\psi)`,
+  because rotating the direction and the gradient together leaves their
+  dot product unchanged. It does **not** commute with a rotation of the
+  direction alone; acting on direction it couples spherical-harmonic
+  degree :math:`\ell` to :math:`\ell \pm 1`
+  (:ref:`spherical-harmonics-eigenbasis`).
+- **Collision, scattering and fission** commute with every translation
+  if and only if the cross sections do not depend on position: the
+  **homogeneous** medium. A homogeneous medium must fill all of space,
+  because no translation maps a bounded body onto itself. This is the
+  only role infiniteness plays.
+- **Collision and scattering** commute with every rotation if and only
+  if :math:`\Sigma_t` does not depend on direction and the scattering
+  kernel depends on the two directions only through the cosine
+  :math:`\mu_0 = \hat{\Omega}'\cdot\hat{\Omega}`: the **isotropic**
+  medium. Bell and Glasstone name the exceptions, a moving medium and a
+  single crystal (:cite:`BellGlasstone1970` §2.6a, p. 102). The fission
+  term commutes with every rotation because its emission
+  :math:`\chi/4\pi` is isotropic.
+
+The consequence is one lemma. *If* :math:`T` *commutes with every
+element of a group* :math:`G`, *and the source problem has one solution
+(a subcritical medium), then the solution has exactly the symmetry of
+the source:* :math:`\mathrm{Stab}(\psi) = \mathrm{Stab}(q)`, where
+:math:`\mathrm{Stab}(f) = \{g \in G : gf = f\}`. The proof is three
+lines. From :math:`Tg = gT` follows :math:`gT^{-1} = T^{-1}g`. If
+:math:`gq = q`, then :math:`g\psi = gT^{-1}q = T^{-1}gq = T^{-1}q = \psi`.
+Conversely, if :math:`g\psi = \psi`, then
+:math:`gq = gT\psi = Tg\psi = T\psi = q`. A symmetric source therefore
+forces a symmetric solution, an asymmetric source forces an asymmetric
+one, and the solution never gains or loses a symmetry that the data do
+not have.
+
+
+The first collapse: position, by the translations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In a homogeneous medium with a source that does not depend on position,
+every translation leaves the data unchanged. By the lemma the solution
+does not depend on position either: :math:`\nabla\psi = 0`, and the
+streaming term vanishes identically. This is exact; it is not an
+approximation that neglects a small leakage.
+
+Infiniteness alone does not give it. An isotropic point source in an
+infinite homogeneous medium produces a flux that falls with the distance
+from the source (:cite:`BellGlasstone1970` §2.2f), because the
+translations map the medium onto itself but move the source.
+Uniformity is the translation symmetry of the **data**.
+
+Every position is then equivalent to every other, and the position
+factor collapses to a point: the quotient of :math:`\mathbb{R}^3` by its
+translations. What remains is posed on direction and energy:
+
+.. math::
+   :label: inf-med-direction-energy
+
+   \Sigma_t(E)\,\psi(\hat{\Omega}, E)
+   = \int_0^\infty \!\! \int_{4\pi}
+       \Sigma_s(E' \!\to\! E,\, \hat{\Omega}'\cdot\hat{\Omega})\,
+       \psi(\hat{\Omega}', E')\, d\Omega'\, dE'
+     + \frac{\chi(E)}{4\pi\,k} \int_0^\infty
+       \nu\Sigma_f(E')\,\phi(E')\,dE'
+     + q(\hat{\Omega}, E) .
+
+.. (vv-status rationale) Literature-transcribed reduction: Eq. boltzmann with
+   the streaming term removed by translation invariance (the position quotient),
+   with an external source added. A statement of what the infinite medium's
+   transport equation is before the direction collapse, not a solver claim; no
+   ORPHEUS module poses this direction-and-energy equation.
+.. vv-status: inf-med-direction-energy documented
+
+The eigenvalue question takes :math:`q = 0`; a source question in a
+non-multiplying medium drops the fission term. The direction sphere
+**survives** this collapse.
+
+For the eigenvalue question the data are the cross sections alone, and
+the fission emission is built from them, so the translations act on it
+as they act on the medium. The question asks for the
+translation-invariant mode. In the plane-geometry Fourier family
+:math:`e^{-iBx}\,\psi(B, \mu, E)` of the :math:`B_N` method that mode is
+the member :math:`B = 0` (:cite:`BellGlasstone1970` §4.5c,
+Eqs. (4.65)–(4.66)). The spaces chapter records the same family from the
+side of the spaces: the spatial axis is quotiented to a one-point axis
+whose unit weight is the per-unit-volume convention, and the buckling
+:math:`B` parameterises the intermediate members
+(:ref:`spaces-quotient-family`; clause 1 of
+:ref:`spaces-collapse-doctrine-standing`).
+
+
+The second collapse: direction, by the rotations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On a function that no longer depends on position, a rotation acts on
+the direction alone, and the scattering operator of an isotropic medium
+commutes with it. Its kernel is **zonal**, a function of
+:math:`\hat{\Omega}'\cdot\hat{\Omega}` only, so it expands in Legendre
+polynomials (:cite:`BellGlasstone1970` §2.6a, Eqs. (2.77)–(2.78)):
+
+.. math::
+
+   \Sigma_s(E' \!\to\! E, \mu_0)
+   = \sum_{\ell=0}^{\infty} \frac{2\ell + 1}{4\pi}\,
+     \Sigma_{s,\ell}(E' \!\to\! E)\, P_\ell(\mu_0),
+   \qquad
+   \Sigma_{s,\ell}(E' \!\to\! E) = 2\pi \int_{-1}^{1}
+     \Sigma_s(E' \!\to\! E, \mu_0)\, P_\ell(\mu_0)\, d\mu_0 .
+
+By the Funk–Hecke theorem every spherical harmonic of degree
+:math:`\ell` is an eigenfunction of the scattering operator, with
+eigenvalue :math:`\Sigma_{s,\ell}` (:eq:`sh-funk-hecke-eigenvalue`; the
+eigenvalue does not depend on the order :math:`m` by Schur's lemma,
+:ref:`spherical-harmonics-eigenbasis`). Expand the angular flux and the
+source in the real harmonics of the project's convention
+(:ref:`spherical-harmonics`),
+
+.. math::
+
+   \psi(\hat{\Omega}, E) = \sum_{\ell=0}^{\infty} \frac{2\ell + 1}{4\pi}
+     \sum_{m=-\ell}^{\ell} \psi_\ell^m(E)\, Y_\ell^m(\hat{\Omega}),
+   \qquad
+   \psi_\ell^m(E) = \int_{4\pi} \psi(\hat{\Omega}, E)\,
+     Y_\ell^m(\hat{\Omega})\, d\Omega ,
+
+so that :math:`\psi_0^0 = \phi` and :math:`(\psi_1^{-1}, \psi_1^0,
+\psi_1^1)` are the components of the current :math:`\mathbf{J}`, and
+project Eq. :eq:`inf-med-direction-energy` onto each
+:math:`Y_\ell^m`. The equation splits into one equation per degree and
+order, with no coupling between them:
+
+.. math::
+   :label: inf-med-moment-decoupling
+
+   \Sigma_t(E)\,\psi_\ell^m(E)
+   - \int_0^\infty \Sigma_{s,\ell}(E' \!\to\! E)\,\psi_\ell^m(E')\,dE'
+   = q_\ell^m(E)
+     + \delta_{\ell 0}\,\frac{\chi(E)}{k} \int_0^\infty
+       \nu\Sigma_f(E')\,\phi(E')\,dE' .
+
+.. (vv-status rationale) Literature-transcribed decoupling: the projection of
+   inf-med-direction-energy onto the real spherical harmonics, using the
+   Legendre expansion of a zonal kernel (Bell & Glasstone 1970 Eqs. 2.77-2.78)
+   and the Funk-Hecke eigenvalue (sh-funk-hecke-eigenvalue). A derivation step,
+   not a solver claim; the homogeneous solver poses only its l = 0 member.
+.. vv-status: inf-med-moment-decoupling documented
+
+The fission emission appears only at :math:`\ell = 0` because it is
+isotropic. (An :math:`(n,2n)` emission is a second zonal kernel and
+enters every degree in the same way, :math:`\Sigma_{s,\ell} \to
+\Sigma_{s,\ell} + 2\,\Sigma_{2,\ell}`.)
+
+**When the source prefers no direction**, :math:`q_\ell^m = 0` for every
+:math:`\ell \ge 1`. The eigenvalue question qualifies, since its only
+emission is fission. Then every equation with :math:`\ell \ge 1` is
+homogeneous, and its operator :math:`\Sigma_t - \Sigma_{s,\ell}` is
+invertible whenever the :math:`\ell = 0` removal operator
+:math:`\Sigma_t - \Sigma_{s,0}` is, and that one is the loss operator
+whose inverse this chapter's solve applies
+(:ref:`homogeneous-rank-one-route`). The reason is a bound: the differential cross section is non-negative and
+:math:`|P_\ell| \le 1`, so :math:`|\Sigma_{s,\ell}| \le \Sigma_{s,0}`
+entry by entry. In one group this is plain arithmetic,
+:math:`\Sigma_t - \Sigma_{s,\ell} \ge \Sigma_t - \Sigma_s = \Sigma_a > 0`.
+In the multigroup form, with :math:`D = \mathrm{diag}(\Sigma_t)`, the
+comparison theorem for non-negative matrices gives
+:math:`\rho\bigl(D^{-1}|\boldsymbol{\Sigma}_{s,\ell}^{\mathsf T}|\bigr)
+\le \rho\bigl(D^{-1}\boldsymbol{\Sigma}_{s,0}^{\mathsf T}\bigr) < 1`, and
+the right-hand inequality is the statement that the :math:`\ell = 0`
+removal matrix is a non-singular M-matrix. The left-hand side bounds
+:math:`\rho\bigl(D^{-1}\boldsymbol{\Sigma}_{s,\ell}^{\mathsf T}\bigr)`,
+so :math:`D - \boldsymbol{\Sigma}_{s,\ell}^{\mathsf T}
+= D\,\bigl(I - D^{-1}\boldsymbol{\Sigma}_{s,\ell}^{\mathsf T}\bigr)` is
+invertible by its Neumann series. So :math:`\psi_\ell^m = 0` for
+every :math:`\ell \ge 1`, the angular flux is isotropic,
+:math:`\psi = \phi/4\pi`, and the :math:`\ell = 0` equation is the
+**energy balance** on which the rest of this chapter is built:
 
 .. math::
    :label: inf-hom-balance
@@ -239,6 +459,350 @@ where :math:`\Sigma_{\mathrm{s},0}` is the isotropic scattering kernel.
    cross sections.  Scattering does, however, determine the **shape** of
    the neutron spectrum :math:`\phi(E)` — specifically the 1/E
    slowing-down region and the thermal Maxwellian peak.
+
+The anisotropic moments :math:`\Sigma_{s,\ell \ge 1}` are present in a
+material's data and inert here: they act only on modes the data do not
+excite. The isotropy of the flux is therefore the **data's**, not the
+medium's alone. The same isotropic medium driven by a source that prefers
+a direction keeps that direction
+(:ref:`infinite-medium-anisotropic-counterexample`).
+
+
+.. _infinite-medium-definition:
+
+ORPHEUS's infinite medium: the point in position and in direction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"A point" has two meanings in this reduction. The quotient by the
+translations collapses **position** to a point, and the direction sphere
+at that point survives (Eq. :eq:`inf-med-direction-energy`). The
+direction sphere collapses as well only when the whole problem, data
+included, is invariant under rotations (Eq. :eq:`inf-med-moment-decoupling`
+with a source that prefers no direction).
+
+**Definition.** In ORPHEUS the :term:`infinite medium` is the point in
+both. It is posed on **energy alone**, and Eq. :eq:`inf-hom-balance` is
+its whole transport equation. It holds a material and nothing else. It
+has **no geometry**, because a geometry admits spatial dimension, and
+with spatial dimension come more than one material (a map from regions to
+materials) and a direction chart (a frame in which directions are
+written as coordinates). The infinite medium has none of the three.
+
+The definition is exact for everything it admits, for two reasons:
+
+- **Every material is isotropic.** A
+  :class:`~orpheus.data.macro_xs.mixture.Mixture` stores its scattering as
+  the Legendre moments :math:`\Sigma_{s,\ell}` of a kernel in
+  :math:`\mu_0` alone (``SigS[l]``, one transfer matrix per order;
+  :ref:`scattering-matrix-convention`), so the rotation condition on the
+  medium holds by construction. A medium with a preferred axis, such as a
+  single crystal, cannot be represented.
+- **Every question it admits is invariant under rotations**: an
+  eigenvalue of the medium, such as :math:`\kinf`, or a source that
+  depends on no coordinate. With no direction chart there is no way to
+  state a source that prefers a direction.
+
+The shipped solver poses exactly this object.
+:class:`~orpheus.homogeneous.solver.HomogeneousProblem` holds one
+:class:`~orpheus.data.macro_xs.mixture.Mixture` and poses its operators
+on the energy axis tensored with the quotient point,
+:math:`V_E \otimes V_{\rm pt}` (:ref:`the-problem-hub`). It has no
+angular axis, and its spatial slot is the one-point axis of the
+translation quotient.
+
+.. dropdown:: First got wrong: the infinite medium as the point in position only
+   :color: muted
+
+   **What was tried.** Two readings preceded the definition above.
+
+   #. This section's earlier text listed three conditions. The first read,
+      verbatim, "Infinite geometry — no boundaries, so the flux is
+      spatially uniform". The third derived an isotropic angular flux from
+      "isotropic sources" without saying where the isotropy comes from.
+   #. In the design of the reference specification, part of the
+      reference-solution architecture that is step 2 of
+      `#405 <https://github.com/deOliveira-R/ORPHEUS/issues/405>`_, the
+      infinite medium was spelled as a geometry value with no extent (a
+      review finding of 2026-09-25).
+      The discussion that refuted it took eight exchanges, and it turned
+      on a second reading: the infinite medium as the point in
+      **position** only, with the direction sphere surviving at that
+      point, so that it would admit data with a preferred direction (a
+      hemisphere of directions, a source that prefers an axis, a beam).
+
+   **Why each failed.**
+
+   - *No boundary does not mean uniform.* Uniformity is the translation
+     symmetry of the data, not a consequence of infiniteness; an
+     isotropic point source in an infinite medium is the counterexample
+     (the first collapse above).
+   - *An isotropic flux needs an isotropic medium and isotropic data.* The
+     direction sphere collapses only when the scattering kernel and the
+     source are both invariant under rotations (the second collapse
+     above).
+   - *A hemisphere needs no geometry.* It is defined by a reference vector
+     on :math:`S^2`, not by a surface in space.
+   - *A geometry with no placement and no finiteness is not a geometry.*
+     It defines nothing a geometry defines, so it carries no mathematical
+     information, and it misdirects: it admits spatial dimension, and
+     with it more than one material and a direction chart.
+   - *A beam is not a direction-dependent source.* A beam is localised in
+     space, so it needs spatial dimension (:ref:`infinite-medium-beam`).
+   - *The direction-dependent problem that does exist is another object.*
+     It is the spatial marginal of a body problem, the retraction of a
+     body solution along the spatial axis
+     (:ref:`infinite-medium-spatial-marginal`), so it needs no
+     infinite-medium type of its own.
+
+   **What replaced it.** The definition above, the user's ruling of
+   2026-10-02 (the History table at the end of this page).
+
+
+.. _infinite-medium-anisotropic-counterexample:
+
+What the definition excludes: a uniform source that prefers a direction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Take one speed, an unbounded homogeneous medium, and a volumetric source
+that is the same at every position but emits preferentially along a unit
+vector :math:`\hat{n}`:
+
+.. math::
+
+   q(\hat{\Omega}) = \frac{Q}{4\pi}\,
+     \bigl(1 + 3a\,\hat{\Omega}\cdot\hat{n}\bigr),
+   \qquad |a| \le \tfrac{1}{3} .
+
+Its total emission is :math:`Q = \int_{4\pi} q\,d\Omega`, its first moment
+is :math:`\mathbf{q}_1 = \int_{4\pi} \hat{\Omega}\,q\,d\Omega = Q a\,\hat{n}`,
+and the bound on :math:`a` keeps :math:`q \ge 0`. Every translation leaves
+this source unchanged, so the first collapse applies and the problem is
+Eq. :eq:`inf-med-direction-energy`. The rotations do not: only the
+rotations about :math:`\hat{n}` fix the source, so by the lemma the
+solution has exactly that axial symmetry, and the direction sphere
+survives.
+
+*A pure absorber.* With no scattering, Eq. :eq:`inf-med-direction-energy`
+is algebraic:
+
+.. math::
+
+   \psi(\hat{\Omega}) = \frac{q(\hat{\Omega})}{\Sigma_t},
+   \qquad
+   \mathbf{J} = \int_{4\pi} \hat{\Omega}\,\psi\,d\Omega
+              = \frac{Q a}{\Sigma_t}\,\hat{n} .
+
+The same result is the integral of the source along the backward
+characteristic, :math:`\int_0^\infty e^{-\Sigma_t s}\, q(\hat{\Omega})\,ds`.
+A uniform current flows everywhere, in the direction the source prefers,
+with no gradient of anything to drive it.
+
+*Isotropic scattering.* With :math:`\Sigma_s(\mu_0) = \Sigma_s/4\pi`,
+
+.. math::
+   :label: inf-med-anisotropic-source
+
+   \psi(\hat{\Omega})
+   = \frac{1}{\Sigma_t}\left[\frac{\Sigma_s\,\phi}{4\pi}
+     + q(\hat{\Omega})\right],
+   \qquad
+   \phi = \frac{Q}{\Sigma_a} .
+
+.. (vv-status rationale) Closed-form worked example (one speed, isotropic
+   scattering, a uniform source with a dipole term): a teaching counterexample
+   to the definition of the infinite medium, solved from
+   inf-med-direction-energy. No ORPHEUS solver poses it, since the definition
+   excludes it; not a solver claim.
+.. vv-status: inf-med-anisotropic-source documented
+
+Integrating over directions gives :math:`\Sigma_t\phi = \Sigma_s\phi + Q`,
+hence :math:`\phi = Q/\Sigma_a`. The **collided** part
+:math:`\Sigma_s\phi/(4\pi\Sigma_t)` is isotropic: one isotropic scatter
+erases the direction. The **uncollided** part
+:math:`q(\hat{\Omega})/\Sigma_t` keeps it, so the current is still
+:math:`\mathbf{J} = Q a\,\hat{n}/\Sigma_t`.
+
+*Any isotropic medium.* Eq. :eq:`inf-med-moment-decoupling` solves the
+general case degree by degree,
+:math:`\psi_\ell^m = q_\ell^m/(\Sigma_t - \Sigma_{s,\ell})`. At
+:math:`\ell = 1` it gives, exactly and with no diffusion approximation,
+
+.. math::
+
+   \mathbf{J} = \frac{\mathbf{q}_1}{\Sigma_t - \Sigma_{s,1}}
+              = \frac{\mathbf{q}_1}{\Sigma_{\rm tr}} .
+
+The current that a direction-preferring source sustains is its first
+moment times the :term:`transport mean free path`
+:math:`1/\Sigma_{\rm tr}`, the relaxation length of the :math:`\ell = 1`
+mode (:ref:`diffusion-transport-xs-relaxation`). Isotropic scattering is
+the case :math:`\Sigma_{s,1} = 0`, where the length is :math:`1/\Sigma_t`.
+
+The problem is well posed and its answer is exact, but it is not an
+infinite medium in ORPHEUS's sense. It is posed on direction and energy,
+not on energy alone. Its data name a vector :math:`\hat{n}`, so stating
+them needs a direction chart. Its answer carries a vector field,
+:math:`\mathbf{J}`, which an energy-only problem cannot hold.
+
+
+.. _infinite-medium-spatial-marginal:
+
+The resolution: a spatial marginal, not a specification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The direction-dependent problem has a home, and it is not the infinite
+medium. Eq. :eq:`boltzmann` is **Eulerian**: it balances the neutrons at
+a fixed point of space. The direction-dependent problem is
+**Lagrangian**: follow each neutron and forget where it is. Its unknown
+is the **spatial marginal** of a body problem,
+
+.. math::
+
+   \bar{\psi}(\hat{\Omega}, E, t)
+   = \int_{\mathbb{R}^3} \psi(\mathbf{r}, \hat{\Omega}, E, t)\, dV ,
+
+which a Monte Carlo code computes as a tally over all positions.
+
+To find its equation, integrate the time-dependent transport equation
+over all space. The streaming term is a divergence,
+:math:`\hat{\Omega}\cdot\nabla\psi = \nabla\cdot(\hat{\Omega}\,\psi)`
+(:cite:`BellGlasstone1970` §1.1e, Eq. (1.16)), so by the divergence
+theorem its integral over a region is the angular outflow through the
+region's surface, :math:`\oint (\hat{\Omega}\cdot\hat{\mathbf{n}}_A)\,
+\psi\, dA`. This is the step that turns streaming into leakage in the
+conservation relation, Bell and Glasstone's Eq. (1.19). For a pulse of
+neutrons released at :math:`t = 0` from a bounded region into an
+unbounded medium, every neutron is within :math:`vt` of that region, so a
+surface enclosing the whole population carries no neutrons and the
+leakage is zero. (For a steady source in a subcritical unbounded medium
+the flux decays exponentially with distance and the leakage through a
+receding surface vanishes in the limit.) What remains is closed in
+direction and energy. In one speed, with the path length :math:`s = vt`
+travelled since the release, it reads
+
+.. math::
+   :label: inf-med-spatial-marginal
+
+   \frac{\partial \bar{\psi}}{\partial s}(\hat{\Omega}, s)
+   + \Sigma_t\,\bar{\psi}(\hat{\Omega}, s)
+   = \int_{4\pi} \Sigma_s(\hat{\Omega}'\cdot\hat{\Omega})\,
+     \bar{\psi}(\hat{\Omega}', s)\, d\Omega'
+   + \bar{q}(\hat{\Omega}, s) .
+
+.. (vv-status rationale) Literature-transcribed: the spatial integral of the
+   time-dependent one-speed transport equation (Bell & Glasstone 1970
+   Eq. (1.16) and the divergence-theorem step of Eq. (1.19)); the
+   space-independent equation of their Ch. 1, Exercise 16. No ORPHEUS module
+   evolves it; not a solver claim.
+.. vv-status: inf-med-spatial-marginal documented
+
+This is the **spatially homogeneous** transport equation. Bell and
+Glasstone pose it, for a source-free infinite medium with direction and
+energy retained, as the "space-independent neutron transport equation"
+(:cite:`BellGlasstone1970` Ch. 1, Exercise 16, p. 61). It is the
+zero-wavenumber member of the Fourier family of the first collapse,
+because :math:`\int \psi\, dV` is the spatial Fourier transform at
+:math:`B = 0`. Its steady form is Eq. :eq:`inf-med-direction-energy`,
+and the uniform direction-preferring problem above is the same equation
+read per unit volume.
+
+In ORPHEUS's vocabulary the marginal is the **retraction of a body
+solution along the spatial axis**, the arrow
+:class:`~orpheus.numerics.operator.AxisRetractionOperator` that
+integrates a field over one axis with that axis's measure
+(:ref:`spaces-collapse-pair`). Two different collapses of the spatial
+axis therefore meet at the same equation, and they are different
+operations:
+
+- the **quotient** by the translations, which acts on a
+  translation-invariant field and normalises it, per unit volume, since a
+  non-zero constant on :math:`\mathbb{R}^3` cannot be integrated (clause
+  1 of :ref:`spaces-collapse-doctrine-standing`); this is the infinite
+  medium's position collapse;
+- the **retraction**, which acts on a body solution and integrates it,
+  which is possible because the body, or the pulse, is bounded.
+
+The direction-dependent problem is the second. It needs no specification
+type of its own: it is posed as a body problem, solved, and retracted
+along the spatial axis.
+
+
+.. _infinite-medium-beam:
+
+A beam is not a direction-dependent source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A beam is collimated: its source is concentrated near a line in space,
+for example
+:math:`q(\mathbf{r}, \hat{\Omega}) = \delta^2(\mathbf{r}_\perp)\,
+\delta(\hat{\Omega} - \hat{\Omega}_0)` per unit length along the line,
+with :math:`\mathbf{r}_\perp` the position transverse to it. It is
+localised in space, so it needs spatial dimension and cannot be posed on
+a point. The uniform direction-preferring source of the counterexample
+has no spatial structure at all: its anisotropy lives entirely on
+:math:`S^2`.
+
+How far from its source a beam's direction is remembered is set by the
+:term:`transport mean free path`
+:math:`\lambda_{\rm tr} = 1/\Sigma_{\rm tr}`, the relaxation length of
+the :math:`\ell = 1` mode of Eq. :eq:`inf-med-spatial-marginal`
+(:ref:`diffusion-transport-xs-relaxation`). A detector a few transport
+mean free paths from the beam axis sees no trace of the beam's
+direction. The angular distribution there is the asymptotic one of
+diffusion theory, whose remaining anisotropy is the current that the
+local flux gradient drives (Fick's law), not the beam's;
+Duderstadt and Hamilton state the validity condition of diffusion theory
+as being "over several mean free paths from any sources or boundaries in
+a weakly absorbing medium" (:cite:`Duderstadt1976` §4-IV, p. 138). With
+isotropic scattering only the uncollided neutrons remember the
+direction, and the length is :math:`1/\Sigma_t`.
+
+
+.. _infinite-medium-reflective-images:
+
+The reflective slab is the infinite medium for mirror-symmetric data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A slab :math:`0 \le x \le a` with both faces reflective represents an
+infinite medium by images. Write :math:`\mu = \hat{\Omega}\cdot\hat{e}_x`.
+Reflection across the face :math:`x = 0` maps a neutron at
+:math:`(x, \mu)` to :math:`(-x, -\mu)`, and a reflective face is exactly
+the statement that the solution is unchanged by that map. Unfold the
+slab across its faces again and again: each image of the slab is a copy
+of the same medium, and the image of a uniform source :math:`q(\mu)` is
+:math:`q(-\mu)`. The unfolded problem is the infinite medium whose source
+alternates between :math:`q(\mu)` and :math:`q(-\mu)` from one slab
+width to the next.
+
+- **If the data are mirror-symmetric**, :math:`q(\mu) = q(-\mu)`, the
+  unfolded source is uniform, the unfolded problem is the infinite
+  homogeneous medium, and the reflective slab reproduces it exactly: the
+  flux is flat in :math:`x` and equals the infinite-medium flux. A flux
+  that is not flat in a reflective slab with uniform, mirror-symmetric
+  data is therefore numerical error (an unconverged iteration or a
+  defect), never physics.
+- **If they are not**, the unfolded source alternates with period
+  :math:`2a` and the solution is not uniform. The reflective slab is then
+  a different problem from the uniform direction-preferring medium of
+  the counterexample: a mirror forces zero net current through its plane,
+  while that medium carries the uniform current
+  :math:`\mathbf{J} = \mathbf{q}_1/\Sigma_{\rm tr}`.
+
+The same argument holds in a box with every face reflective, with the
+group generated by the face mirrors in place of the single reflection.
+Data invariant under every rotation and reflection are invariant under
+that group, so every question ORPHEUS's infinite medium admits is
+reproduced exactly by an all-reflective slab or box. Two gates assert it
+for the eigenvalue question:
+``tests/gates/sn/solve/test_d3_admission.py::test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective``
+(S\ :sub:`N` at :math:`d = 1, 2, 3`, two and four groups,
+:math:`|k - \kinf| < 10^{-8}` against the registry's infinite-medium
+eigenvalue) and
+``tests/gates/diffusion/test_solver.py::TestInfiniteMedium::test_reflective_slab_reproduces_k_infinity``
+(diffusion on a non-uniform mesh, two and three groups,
+:math:`|k - \kinf| < 10^{-11}` against
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`, and a flux
+flat in space to :math:`10^{-10}` of its maximum).
 
 
 Multi-Group Energy Discretisation
@@ -2760,6 +3324,24 @@ hash, and ``git`` outranks this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-02
+     - **The infinite medium is defined as the point in phase space.**
+       The user's ruling after the review of the reference
+       specification's step 8: the infinite medium is posed on energy
+       alone, the point in position and in direction, and holds a
+       material and no geometry.  The reduction from Eq.
+       :eq:`boltzmann` was rewritten to say which symmetry removes which
+       factor of phase space (:ref:`infinite-medium-point-in-phase-space`);
+       its earlier three conditions, the first of which read "Infinite
+       geometry — no boundaries, so the flux is spatially uniform", are
+       recorded in the "first got wrong" box there.  The
+       direction-dependent problem is documented as the spatial marginal
+       of a body problem, and the transport mean free path as the
+       relaxation length of anisotropy
+       (:ref:`diffusion-transport-xs-relaxation`).  No code changed.
+     - `#405 <https://github.com/deOliveira-R/ORPHEUS/issues/405>`_
+     - the ruling: ``a076f2c7``; this text: branch
+       ``feature/specification``, the hash is filled at merge
    * - 2026-10-01
      - **The eigenpair is read off the rank-one fission; no eigen-solver
        remains on the path, and the byte pin retires for an exact
@@ -2808,8 +3390,7 @@ hash, and ``git`` outranks this column.
        drift is recorded on :ref:`gauss-rules-correctly-rounded`.
      - `#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_
        (the rank one is the model's)
-     - branch ``fix/platform-independent-quadrature``; the hash is
-       filled at merge
+     - ``473a68de``, merged at ``a34f8c2c``
    * - 2026-09-08
      - **The infinite-medium problem gets its HUB, and the fabricated
        carrier retires** (campaign 1 residue, CS4c *coda*; rulings R-c1

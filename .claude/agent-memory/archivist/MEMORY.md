@@ -48,6 +48,8 @@ catchers. There is no owed Sphinx pass and no owed marker.
 One-line pointers; the recipe lives in the linked file. A reusable recipe earns a line; a campaign
 pass does not.
 
+- [local literature](reference_local_literature.md) — where B&G, D&H, Stamm'ler sit on disk, page
+  offsets; what is absent.
 - **Ontology-overturn rewrite** — archive **L-063**: argument-unit, the 4-way eq-label fate rubric,
   the unlabelled-history-equation trick, the two-sided illegal-states rule.
 - [canonical-convention page](feedback_canonical_convention_page.md) — 13-section anatomy + the

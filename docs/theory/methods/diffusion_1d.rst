@@ -120,7 +120,9 @@ Key Facts
   The transport correction is the *outflow* P1 approximation; when the
   mixture carries no P1 moment, :math:`\Sigma_{\text{tr}} = \Sigma_t`
   **exactly** — the correct isotropic-scattering limit, not a fallback.
-  See :ref:`diffusion-data-seam`.
+  See :ref:`diffusion-data-seam`. Why the transport cross section, the
+  relaxation rate of the current, and not the total is the coefficient:
+  :ref:`diffusion-transport-xs-relaxation`.
 
 - **Discretisation.** Cell-centred finite difference with harmonic-mean
   face conductance (equivalent to lowest-order Raviart–Thomas with mass
@@ -424,6 +426,267 @@ basis dimension for free.
    the same ``MatrixInverseOperator(loss) @ F`` precedent, the 0-D
    homogeneous solver makes (:doc:`/theory/foundations/infinite_medium`).
 
+.. _diffusion-transport-xs-relaxation:
+
+The transport cross section is the relaxation rate of anisotropy
+----------------------------------------------------------------
+
+:eq:`diffusion-coefficient` divides by the transport cross section
+:math:`\Sigma_{\text{tr}}`, not by :math:`\Sigma_t`. This section derives
+what :math:`\Sigma_{\text{tr}}` is: the rate, per unit path length, at
+which a population of neutrons forgets its direction of motion. Its
+reciprocal is the :term:`transport mean free path`. The derivation is
+one-speed, in a homogeneous unbounded medium; the multigroup form, and
+the outflow collapse ORPHEUS uses for it, close the section. The
+infinite-medium chapter uses the result for the current that a
+direction-preferring source sustains
+(:ref:`infinite-medium-anisotropic-counterexample`) and for the distance
+over which a beam's direction is remembered
+(:ref:`infinite-medium-beam`).
+
+**The scattering moments.** In an isotropic medium the differential
+scattering cross section depends only on the cosine
+:math:`\mu_0 = \hat\Omega'\cdot\hat\Omega` of the scattering angle, and
+its Legendre moments are
+
+.. math::
+
+   \Sigma_{s,\ell} = 2\pi \int_{-1}^{1} \Sigma_s(\mu_0)\,P_\ell(\mu_0)\,d\mu_0 ,
+   \qquad
+   \Sigma_{s,0} = \Sigma_s ,
+   \qquad
+   \Sigma_{s,1} = \bar\mu_0\,\Sigma_s ,
+
+with :math:`\bar\mu_0` the mean cosine of the scattering angle
+(:cite:`BellGlasstone1970` §2.6a, Eq. (2.78), whose :math:`c f_\ell`, in
+units of the collision mean free path, is :math:`\Sigma_{s,\ell}/\Sigma_t`;
+:cite:`Duderstadt1976` Eqs. (4-125)–(4-126)). These are the moments a
+:class:`~orpheus.data.macro_xs.mixture.Mixture` stores, one transfer
+matrix per order in ``SigS``.
+
+**Step 1: forget the position.** Release a pulse of neutrons into the
+medium and follow them. Their spatial marginal
+:math:`\bar\psi(\hat\Omega, s)`, the angular distribution of the whole
+population after a path length :math:`s`, obeys
+:eq:`inf-med-spatial-marginal`, derived on the infinite-medium page
+(:ref:`infinite-medium-spatial-marginal`): integrating the transport
+equation over all space turns the streaming term into the leakage through
+a surface that encloses the population, and that leakage is zero. With
+no source,
+
+.. math::
+
+   \frac{\partial\bar\psi}{\partial s}(\hat\Omega, s)
+   + \Sigma_t\,\bar\psi(\hat\Omega, s)
+   = \int_{4\pi} \Sigma_s(\hat\Omega'\cdot\hat\Omega)\,
+     \bar\psi(\hat\Omega', s)\,d\Omega' .
+
+**Step 2: scattering is diagonal in** :math:`\ell`. Expand in the real
+harmonics of the project's convention (:ref:`spherical-harmonics`),
+:math:`\bar\psi = \sum_{\ell,m} \frac{2\ell+1}{4\pi}\,
+\bar\psi_\ell^m\,Y_\ell^m` with
+:math:`\bar\psi_\ell^m = \int_{4\pi} \bar\psi\,Y_\ell^m\,d\Omega`. The
+scattering integral maps :math:`Y_\ell^m` to
+:math:`\Sigma_{s,\ell}\,Y_\ell^m` (the Funk–Hecke theorem,
+:eq:`sh-funk-hecke-eigenvalue`). Projecting onto :math:`Y_\ell^m` gives
+one ordinary differential equation per degree and order:
+
+.. math::
+   :label: diffusion-moment-relaxation
+
+   \frac{d\bar\psi_\ell^m}{ds}
+   = -\bigl(\Sigma_t - \Sigma_{s,\ell}\bigr)\,\bar\psi_\ell^m ,
+   \qquad
+   \bar\psi_\ell^m(s) = \bar\psi_\ell^m(0)\,
+     e^{-(\Sigma_t - \Sigma_{s,\ell})\,s} .
+
+.. (vv-status rationale) Literature-transcribed: the Legendre-moment form of
+   the spatially integrated one-speed transport equation (Bell & Glasstone 1970
+   Eq. (2.82) with its streaming terms integrated away; Duderstadt & Hamilton
+   1976 Eq. (4-122) at l = 1). No ORPHEUS module evolves these moments; the
+   code consumes only their l = 1 rate, through D. Not a solver claim.
+.. vv-status: diffusion-moment-relaxation documented
+
+Each moment relaxes on its own. In the local, unintegrated equation the
+streaming term couples degree :math:`\ell` to :math:`\ell \pm 1`: those
+are the derivative terms of :cite:`BellGlasstone1970` Eq. (2.82), whose
+diagonal coefficient :math:`(2n+1)(1 - c f_n)` is
+:math:`(2n+1)(\Sigma_t - \Sigma_{s,n})/\Sigma_t` in the notation here.
+The spatial integral is what removes the coupling, and the steady state
+of :eq:`diffusion-moment-relaxation` with a source is the infinite-medium
+decoupling :eq:`inf-med-moment-decoupling`.
+
+**Step 3: read the rates.**
+
+- :math:`\ell = 0`: :math:`\Sigma_t - \Sigma_s = \Sigma_a`. The population
+  decays by absorption only; scattering conserves it.
+- :math:`\ell = 1`: :math:`\Sigma_t - \Sigma_{s,1} = \Sigma_t -
+  \bar\mu_0\Sigma_s = \Sigma_{\text{tr}}`. The first moment is the
+  population's net current, and it decays at the transport cross section
+  (:cite:`Duderstadt1976` Eq. (4-142)).
+- :math:`\ell \ge 2`: :math:`\Sigma_t - \Sigma_{s,\ell}`.
+
+Every rate is at least :math:`\Sigma_a`, because the differential cross
+section is non-negative and :math:`|P_\ell| \le 1`, so
+:math:`|\Sigma_{s,\ell}| \le \Sigma_s`. The :math:`\ell = 1` mode is the
+slowest anisotropic one when :math:`\Sigma_{s,1} \ge \Sigma_{s,\ell}` for
+every :math:`\ell \ge 2`. That holds for the forward-peaked scattering of
+reactor materials: elastic scattering on hydrogen that is isotropic in
+the centre-of-mass frame has the laboratory ratios
+:math:`\Sigma_{s,\ell}/\Sigma_s = 2/3,\ 1/4,\ 0` for
+:math:`\ell = 1, 2, 3` (the first is :math:`2/(3A)` with :math:`A = 1`,
+:cite:`Duderstadt1976` Eq. (4-129)). It is a property of the kernel and
+not a theorem. Pure back-scattering, :math:`\mu_0 = -1`, gives
+:math:`\Sigma_{s,\ell} = (-1)^\ell\,\Sigma_s`: it reverses the current at
+every collision and keeps the even modes, the axis without its sense, at
+the slowest rate :math:`\Sigma_a`.
+
+The absolute moments include the loss of neutrons. The mean cosine of
+the *surviving* neutrons with the initial direction,
+:math:`\bar\psi_1/\bar\psi_0` for a population released along one
+direction, relaxes at the difference of the two rates,
+:math:`(\Sigma_t - \Sigma_{s,1}) - (\Sigma_t - \Sigma_s) =
+\Sigma_s(1 - \bar\mu_0) = \Sigma_{\text{tr}} - \Sigma_a`, because
+absorption removes neutrons without changing the directions of the rest.
+In a weakly absorbing medium the two lengths coincide.
+
+**Step 4: the transport mean free path.** Its reciprocal
+:math:`\lambda_{\text{tr}} = 1/\Sigma_{\text{tr}}` is the transport mean
+free path (:cite:`Duderstadt1976` Eq. (4-150);
+:cite:`BellGlasstone1970` §2.6b, p. 104, where :math:`1/(1 - c f_1)` is
+"the transport mean free path, with distances in units of the collision
+mean free path"). It has two readings, and they agree:
+
+#. It is the path length over which the net current of a population
+   falls by a factor :math:`e`, by :eq:`diffusion-moment-relaxation` at
+   :math:`\ell = 1`. After :math:`3\lambda_{\text{tr}}` a fraction
+   :math:`e^{-3} \approx 5\,\%` of it remains, which is why the distance
+   over which a direction is scrambled is "a few transport mean free
+   paths".
+#. It is the mean displacement along the initial direction that a
+   neutron accumulates over its whole life. Each flight has mean length
+   :math:`1/\Sigma_t`; a neutron survives a collision with probability
+   :math:`c = \Sigma_s/\Sigma_t`; and a collision multiplies the mean
+   cosine with the initial direction by :math:`\bar\mu_0` (the addition
+   theorem averaged over the azimuth of the scattering). Summing over
+   flights,
+
+   .. math::
+      :label: diffusion-transport-mean-free-path
+
+      \langle x_\parallel \rangle
+      = \sum_{n=0}^{\infty} \frac{1}{\Sigma_t}\,(c\,\bar\mu_0)^n
+      = \frac{1}{\Sigma_t - \bar\mu_0\,\Sigma_s}
+      = \lambda_{\text{tr}} ,
+
+   .. (vv-status rationale) Closed-form collision-series reading of the
+      transport mean free path (the geometric series of mean projected flights);
+      Duderstadt & Hamilton 1976 p. 138 state its qualitative content. No
+      ORPHEUS module computes it; not a solver claim.
+   .. vv-status: diffusion-transport-mean-free-path documented
+
+   which is also :math:`\int_0^\infty \bar\psi_1(s)\,ds\,/\,\bar\psi_0(0)`
+   by :eq:`diffusion-moment-relaxation`. Duderstadt and Hamilton give the
+   qualitative form: forward scattering makes :math:`\lambda_{\text{tr}}`
+   longer than the mean free path :math:`1/\Sigma_t`, because neutrons
+   that scatter forward are carried further (:cite:`Duderstadt1976`
+   p. 138).
+
+With **isotropic scattering**, :math:`\Sigma_{s,\ell} = 0` for every
+:math:`\ell \ge 1`. Every anisotropic moment then decays at
+:math:`\Sigma_t`, only the uncollided neutrons remember their direction,
+and :math:`\lambda_{\text{tr}} = 1/\Sigma_t`. This is the limit the data
+seam reproduces exactly: a mixture with no P1 moment has
+:math:`\Sigma_{\text{tr}} = \Sigma_t` (:ref:`diffusion-data-seam`).
+
+**Step 5: why** :math:`\Sigma_{\text{tr}}` **is Fick's coefficient.** The
+first angular moment of the local one-speed equation is exact
+(:cite:`Duderstadt1976` Eq. (4-122)):
+
+.. math::
+
+   \frac{1}{v}\frac{\partial\mathbf{J}}{\partial t}
+   + \nabla\cdot\boldsymbol{\Pi}
+   + \Sigma_t\,\mathbf{J}
+   = \bar\mu_0\,\Sigma_s\,\mathbf{J} + \mathbf{S}_1 ,
+   \qquad
+   \boldsymbol{\Pi} = \int_{4\pi} \hat\Omega\,\hat\Omega\,\psi\,d\Omega ,
+
+that is,
+:math:`v^{-1}\partial_t\mathbf{J} + \nabla\cdot\boldsymbol{\Pi}
++ \Sigma_{\text{tr}}\,\mathbf{J} = \mathbf{S}_1`. Integrated over all
+space, :math:`\nabla\cdot\boldsymbol{\Pi}` leaves only a surface term,
+zero for the pulse, and the equation is
+:eq:`diffusion-moment-relaxation` at :math:`\ell = 1` with no closure at
+all. Locally, three approximations make it Fick's law: the P1 closure
+:math:`\boldsymbol{\Pi} \approx (\phi/3)\,I` (:cite:`Duderstadt1976`
+Eqs. (4-134) and (4-138)), an isotropic source
+(:math:`\mathbf{S}_1 = 0`), and a current that varies slowly against the
+collision rate (Eq. (4-144)). They give
+:math:`\mathbf{J} = -\nabla\phi/(3\Sigma_{\text{tr}})`
+(:cite:`Duderstadt1976` Eqs. (4-145)–(4-147);
+:cite:`BellGlasstone1970` Eq. (2.84)). So
+:math:`D = \lambda_{\text{tr}}/3`: the :math:`1/3` is the closure's
+:math:`\int_{4\pi}\Omega_i\Omega_j\,d\Omega/4\pi = \delta_{ij}/3`, and
+:math:`\lambda_{\text{tr}}` is the relaxation length of the current. In
+the uniform medium driven by a direction-preferring source the same
+coefficient fixes the current exactly,
+:math:`\mathbf{J} = \mathbf{q}_1/\Sigma_{\text{tr}}`
+(:ref:`infinite-medium-anisotropic-counterexample`), because there
+:math:`\nabla\cdot\boldsymbol{\Pi} = 0` and no closure is needed.
+
+**Step 6: the multigroup rate is a matrix, collapsed by outflow.** With
+energy transfer, the steady first-moment equation couples the groups
+(:cite:`Duderstadt1976` Eqs. (4-154)–(4-155)). In ORPHEUS's notation, with
+``SigS[1][g_from, g_to]`` the P1 transfer matrix,
+
+.. math::
+
+   \Sigma_{t,g}\,\mathbf{J}_g
+   - \sum_{g'} \Sigma_{s1,\,g' \to g}\,\mathbf{J}_{g'}
+   = -\tfrac{1}{3}\,\nabla\phi_g + \mathbf{S}_{1,g} .
+
+The relaxation operator is the matrix
+:math:`\mathrm{diag}(\Sigma_t) - \boldsymbol{\Sigma}_{s1}^{\mathsf T}`, not
+one number per group, and a per-group Fick's law needs a diagonal.
+Duderstadt and Hamilton write the exact diagonal with the ratio
+:math:`J_{g'}/J_g` (Eq. (4-157)), which needs the solved current
+spectrum. ORPHEUS uses the **outflow** collapse,
+:math:`\Sigma_{\text{tr},g} = \Sigma_{t,g} - \sum_{g'}\Sigma_{s1,\,g\to g'}`,
+the transport correction of Stamm'ler and Abbate, which subtracts from
+each group its own P1 scattering moment :math:`\Sigma_{s1,g} =
+\bar\mu_{0,g}\Sigma_{s,g}` (:cite:`Stamm1983` Ch. IV §3, Eq. (3), p. 107).
+The code is :attr:`Mixture.transport_xs
+<orpheus.data.macro_xs.mixture.Mixture.transport_xs>`, which subtracts
+:attr:`Mixture.p1_outflow
+<orpheus.data.macro_xs.mixture.Mixture.p1_outflow>`. The collapse charges
+each group with the current it scatters **out** instead of the current
+scattered **in**. The collapse is exact in one group. In any number of
+groups it keeps the group-summed balance of the current exactly, since
+
+.. math::
+
+   \sum_g \sum_{g'} \Sigma_{s1,\,g' \to g}\,J_{g'}
+   = \sum_{g'} J_{g'} \sum_g \Sigma_{s1,\,g' \to g} ,
+
+which is the sum of the outflow terms; what it changes is how that
+balance is shared among the groups. Bell and Glasstone note the
+consequence for the equivalence of the two models: "in multigroup theory,
+however, scattering from higher groups constitutes an anisotropic source
+and then diffusion theory and the :math:`P_1` approximation are not
+equivalent" (:cite:`BellGlasstone1970` §2.6b, p. 105).
+
+.. note::
+
+   **What is and is not verified here.** The identities of this section
+   are transcribed from the literature cited beside each and carry
+   ``vv-status documented``: no ORPHEUS module evolves the angular
+   moments of a population, so no gate exercises
+   :eq:`diffusion-moment-relaxation`. The code consumes
+   :math:`\Sigma_{\text{tr}}` only through :math:`D`, and that formula is
+   pinned by ``tests/gates/data/test_mixture_transport_xs.py``, which
+   carries the ``verifies("diffusion-coefficient")`` marker.
+
 .. _diffusion-data-seam:
 
 The data seam — D from the transport cross section
@@ -436,6 +699,10 @@ transport cross section
 (:eq:`diffusion-coefficient`). When a mixture carries no P1 moment the
 out-scatter row sum is identically zero and :math:`\Sigma_{\text{tr}} =
 \Sigma_t` **exactly** — the correct isotropic limit.
+What :math:`\Sigma_{\text{tr}}` is physically, the rate at which a
+neutron population's current relaxes, and why it rather than
+:math:`\Sigma_t` is Fick's coefficient, is derived in
+:ref:`diffusion-transport-xs-relaxation`.
 
 ⚠ **Where each half of that difference comes from changed on
 2026-09-14** (the consumers campaign's step 2, C3b-2), and the
