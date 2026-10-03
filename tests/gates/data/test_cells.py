@@ -239,8 +239,11 @@ def test_s8_9_the_rule_reads_every_declared_material() -> None:
 
 def test_s8_9_material_mesh_and_the_specification_call_the_one_rule(monkeypatch: pytest.MonkeyPatch) -> None:
     """The ROUTE gate (Pattern 2): replace the data rule with a decoy that raises
-    a sentinel, and require both consumers to raise the sentinel. A consumer that
-    keeps its own copy of the check stays green under the decoy and reds here.
+    a sentinel, and require both consumers of several materials to raise the
+    sentinel. A consumer that keeps its own copy of the check stays green under
+    the decoy and reds here. The infinite medium holds ONE material, on which
+    the rule cannot refuse, so it reads the mixture's group count and never
+    consults the rule (the step-8 elegance re-review, G2, 2026-10-02).
     Names the helper it targets: ``Materials.uniform_group_count``."""
     from orpheus.data.cells import CellCoefficient
     from orpheus.mesh import CellsByCount, Mesher
@@ -262,7 +265,8 @@ def test_s8_9_material_mesh_and_the_specification_call_the_one_rule(monkeypatch:
     with pytest.raises(Sentinel):
         MaterialMesh(mesh, {0: fuel()}).ng
     with pytest.raises(Sentinel):
-        InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F)))
-    with pytest.raises(Sentinel):
         GeometrySpecification(Materials({0: fuel()}), slab2((0, 0)), Eigen(CellCoefficient.every(F)))
-    require(len(calls) >= 3, f"activation: the decoy ran {len(calls)} times")
+    require(len(calls) >= 2, f"activation: the decoy ran {len(calls)} times")
+    before = len(calls)
+    InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F)))
+    require(len(calls) == before, "the infinite medium consulted the multi-material rule")

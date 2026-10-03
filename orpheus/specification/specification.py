@@ -59,7 +59,8 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, get_args
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, assert_never, get_args
 
 from orpheus.data.cells import CellCoefficient
 from orpheus.data.macro_xs.mixture import Mixture
@@ -107,6 +108,11 @@ class InfiniteMediumSpecification(ContentIdentity):
         return Materials({self.material_id: self.mixture})
 
     @property
+    def n_groups(self) -> int:
+        """The one material's group count."""
+        return self.mixture.ng
+
+    @property
     def unreadable(self) -> tuple["sympy.Symbol", ...]:
         """Every coordinate: the infinite medium has no position and no direction chart."""
         return (Symbolic.r, Symbolic.mu, Symbolic.phi)
@@ -128,13 +134,19 @@ class GeometrySpecification(ContentIdentity):
             raise TypeError(f"GeometrySpecification: the materials are a Materials, got a {type(self.materials).__name__}")
         if not isinstance(self.geometry, StructuredGeometry):
             raise TypeError(f"GeometrySpecification: the geometry is a StructuredGeometry, got a {type(self.geometry).__name__}")
-        object.__setattr__(self, "materials", self.materials.restrict(sorted(set(self.geometry.mat_ids))))
+        object.__setattr__(self, "materials", self.materials.restrict(set(self.geometry.mat_ids)))
+        self.n_groups  # the group-count rule, read once over the materials kept, before the keys resolve
         _admit(self)
+
+    @cached_property
+    def n_groups(self) -> int:
+        """The group count of the materials the geometry assigns (refused if they disagree)."""
+        return self.materials.uniform_group_count()
 
     @property
     def n_regions(self) -> int:
         """One region per interval of the geometry."""
-        return len(self.geometry.mat_ids)
+        return len(self.geometry.intervals)
 
     @property
     def unreadable(self) -> tuple["sympy.Symbol", ...]:
@@ -162,17 +174,19 @@ def _resolve(key: Any, where: str, spec: Specification) -> Coordinate:
 
 def _admit_datum(datum: MeshFreeFunction, role: str, spec: Specification) -> None:
     """The mesh-free datum fits the materials' groups, the problem's regions and its coordinates."""
-    n_groups = spec.materials.uniform_group_count()
-    if datum.n_groups != n_groups:
-        raise ValueError(f"{type(spec).__name__}: the {role} has {datum.n_groups} groups; the materials have {n_groups}")
+    if datum.n_groups != spec.n_groups:
+        raise ValueError(f"{type(spec).__name__}: the {role} has {datum.n_groups} groups; the materials have {spec.n_groups}")
     match datum:
         case RegionwiseConstant():
             if datum.n_regions != spec.n_regions:
                 raise ValueError(f"{type(spec).__name__}: the {role} has {datum.n_regions} regions; the problem has {spec.n_regions}")
         case Symbolic():
-            if spec.unreadable and datum.depends_on(*spec.unreadable):
-                names = ", ".join(c.name for c in spec.unreadable if datum.depends_on(c))
+            dependent = tuple(c for c in spec.unreadable if datum.depends_on(c))
+            if dependent:
+                names = ", ".join(c.name for c in dependent)
                 raise ValueError(f"{type(spec).__name__}: the {role} depends on {names}, which this problem has no coordinate to read")
+        case _:
+            assert_never(datum)
 
 
 def _canonical_point(point: Any, spec: Specification) -> FrozenMapping[Coordinate, float]:
@@ -187,8 +201,7 @@ def _canonical_point(point: Any, spec: Specification) -> FrozenMapping[Coordinat
 
 
 def _canonical_question(question: Any, spec: Specification) -> Question:
-    """The question with its datum admitted and every key resolved (the group count read first)."""
-    spec.materials.uniform_group_count()
+    """The question with its datum admitted and every key resolved."""
     match question:
         case Eigen():
             parameter = _resolve(question.parameter, f"{type(spec).__name__}: the parameter", spec)
