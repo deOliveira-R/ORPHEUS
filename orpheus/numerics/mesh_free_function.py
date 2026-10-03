@@ -212,7 +212,7 @@ class Symbolic(ContentIdentity):
 
         ``coordinates`` are the owned symbols (:attr:`r`, :attr:`mu`,
         :attr:`phi`). The function does NOT depend on them iff, in every
-        group, ``simplify`` reduces :math:`q_g - q_g|_{c 	o c'}` to 0, with
+        group, ``simplify`` reduces :math:`q_g - q_g|_{c \to c'}` to 0, with
         every named coordinate :math:`c` replaced by a fresh real symbol
         :math:`c'` at once. A difference ``simplify`` cannot reduce counts as
         a dependence: the undecided case falls on the dependent side, which is
@@ -224,6 +224,12 @@ class Symbolic(ContentIdentity):
         """
         import sympy
 
+        owned = (self.r, self.mu, self.phi)
+        if not coordinates or any(c not in owned for c in coordinates):
+            raise ValueError(
+                f"Symbolic.depends_on: name at least one owned coordinate (Symbolic.r, Symbolic.mu, "
+                f"Symbolic.phi), got {coordinates!r}; a symbol the function does not own is not a coordinate of it"
+            )
         fresh = [(c, sympy.Symbol(f"{c.name}_other", real=True)) for c in coordinates]
         return not all(sympy.simplify(q - q.subs(fresh, simultaneous=True)) == 0 for q in self.expressions)
 

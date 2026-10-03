@@ -75,3 +75,9 @@ def body(coord: CoordSystem, mat_ids: tuple[int, ...] = (0, 1)) -> StructuredGeo
     if coord is CoordSystem.CYLINDRICAL:
         return StructuredGeometry.cylinder(breakpoints, mat_ids, outer=BC.vacuum)
     return StructuredGeometry.sphere(breakpoints, mat_ids, outer=BC.vacuum)
+
+
+def slab3_repeated() -> StructuredGeometry:
+    """Three intervals over two distinct materials, ``mat_ids (1, 0, 1)`` (qa F1): a
+    row that counts ``len(set(mat_ids))`` instead of the intervals reads 2, not 3."""
+    return StructuredGeometry.slab((0.0, 1.0, 2.5, 3.0), (1, 0, 1), left=BC.vacuum, right=BC.vacuum)

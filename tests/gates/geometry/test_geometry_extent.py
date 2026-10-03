@@ -20,7 +20,7 @@ import pytest
 from orpheus.geometry import GeometryExtent
 from orpheus.numerics.content import ContentIdentity
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import slab2
+from tests.gates.specification._fixtures import slab2, slab3_repeated
 
 pytestmark = pytest.mark.foundation
 
@@ -56,3 +56,12 @@ def test_s8_8_resolution_against_a_geometry() -> None:
         require(GeometryExtent(i).resolve(geometry) == GeometryExtent(i), f"interval {i} did not resolve to itself")
     with pytest.raises(ValueError, match=r"interval 2 does not exist; the geometry has 2 interval"):
         GeometryExtent(2).resolve(geometry)
+
+
+def test_s8_8_the_range_is_the_intervals_not_the_materials() -> None:
+    """qa F1: ``mat_ids (1, 0, 1)`` is three intervals over two materials; index 2
+    resolves and index 3 is refused naming 3 (a ``len(set(mat_ids))`` reads 2)."""
+    geometry = slab3_repeated()
+    require(GeometryExtent(2).resolve(geometry) == GeometryExtent(2), "the last interval did not resolve")
+    with pytest.raises(ValueError, match=r"interval 3 does not exist; the geometry has 3 interval"):
+        GeometryExtent(3).resolve(geometry)

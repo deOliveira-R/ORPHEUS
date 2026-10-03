@@ -46,3 +46,16 @@ def test_s8_11_the_azimuth_predicate(expression, on_r: bool, on_mu: bool, on_phi
 
 def test_s8_11_one_dependent_group_makes_the_function_dependent() -> None:
     require(Symbolic.of(1, sp.cos(phi)).depends_on(phi), "a phi-dependent second group was missed")
+
+
+@pytest.mark.parametrize(
+    "coordinates",
+    [pytest.param((), id="none"), pytest.param((sp.Symbol("r"),), id="r-without-real"),
+     pytest.param((sp.Symbol("x", real=True),), id="a-stray-symbol"), pytest.param((r, sp.Symbol("t")), id="owned-and-stray")],
+)
+def test_s8_11_only_owned_coordinates_are_asked(coordinates) -> None:
+    """An empty call would read "depends on nothing" (always False), and a symbol the
+    function does not own is not one of its coordinates (``Symbol("r")`` without
+    ``real=True`` is another symbol to SymPy): both are refused, keyed."""
+    with pytest.raises(ValueError, match="name at least one owned coordinate"):
+        Symbolic.of(r * mu).depends_on(*coordinates)

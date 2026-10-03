@@ -1,21 +1,25 @@
 r"""The specification's composition laws (#405 P1 step 8: S8.1, S8.10).
 
 Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md``
-§1.8, under the step-8 rulings). The module is ``orpheus/specification``.
+§1.8, under the step-8 rulings and the user's ruling "The infinite medium is
+the point in phase space"). The module is ``orpheus/specification``.
 
-``Specification(materials, geometry | None, question)`` composes a materials
-declaration, a geometry (``None`` is the infinite medium) and a question.
-At construction it checks the composition, the question's functions and the
-question's keys, and it stores the CANONICAL question: every key (the
-``Eigen`` parameter and each point key) is replaced by its resolved explicit
-form, so ``spec.question`` may differ from, and be unequal to, the question
-the caller passed (S8.10). A key is a ``CellCoefficient`` (a set of
-``(material id, Channel)`` cells) or a ``GeometryExtent(interval)``; the
-quantifier ``CellCoefficient.every(...)`` never reaches a stored key.
+The layer a specification is posed at is its TYPE, ``Specification =
+InfiniteMediumSpecification | GeometrySpecification``.
+``InfiniteMediumSpecification(material_id, mixture, question)`` is posed on
+energy alone: it holds one material and has no field a geometry could be given
+in. ``GeometrySpecification(materials, geometry, question)`` keeps the
+materials its geometry assigns (a spectator is dropped). At construction each
+checks the question's datum and keys and stores the CANONICAL question: every
+key (the ``Eigen`` parameter and each point key) is replaced by its resolved
+explicit form, so ``spec.question`` may differ from, and be unequal to, the
+question the caller passed (S8.10). A key is a ``CellCoefficient`` or a
+``GeometryExtent``; a resolved ``CellCoefficient`` names no channel "in every
+material".
 
 Every refusal is keyed (``match=`` on a fragment the triggering argument
-determines), and the fragments are disjoint, asserted once
-(``test_s8_1_the_refusal_fragments_are_disjoint``). Where two refusals can
+determines, the class name included), and the fragments are disjoint, asserted
+once (``test_s8_1_the_refusal_fragments_are_disjoint``). Where two refusals can
 fire on one input, a discrimination row pins the wiring order.
 """
 
@@ -24,6 +28,7 @@ from __future__ import annotations
 import dataclasses
 import pickle
 import re
+import typing
 from collections.abc import Callable
 from typing import Any
 
@@ -39,7 +44,12 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.content import ContentlessError
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
-from orpheus.specification import Specification
+from orpheus.specification import (
+    Coordinate,
+    GeometrySpecification,
+    InfiniteMediumSpecification,
+    Specification,
+)
 from tests.gates._content_identity_helpers import require
 from tests.gates.specification._fixtures import (
     body,
@@ -48,6 +58,7 @@ from tests.gates.specification._fixtures import (
     moderator,
     n2n_only,
     slab2,
+    slab3_repeated,
 )
 
 pytestmark = pytest.mark.foundation
@@ -74,6 +85,17 @@ def _two_materials() -> Materials:
     return Materials({0: fuel(), 1: moderator()})
 
 
+def _im(question: Any, mixture: Any = None, material_id: Any = 0) -> InfiniteMediumSpecification:
+    """The infinite medium of one material (fuel unless given)."""
+    return InfiniteMediumSpecification(material_id, fuel() if mixture is None else mixture, question)
+
+
+def _gs(question: Any, materials: Any = None, geometry: Any = None) -> GeometrySpecification:
+    """A geometry problem (the two-material slab unless given)."""
+    return GeometrySpecification(_two_materials() if materials is None else materials,
+                                 slab2() if geometry is None else geometry, question)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # S8.1 — the refusals, keyed
 # ═════════════════════════════════════════════════════════════════════════════
@@ -83,96 +105,115 @@ def _two_materials() -> Materials:
 # mutation making production raise at collection kills the module).
 
 _REFUSALS: list[tuple[str, Callable[[], Any], type[BaseException], str]] = [
-    # (a) the infinite medium has one material
-    ("a_no_geometry_two_materials",
-     lambda: Specification(materials=_two_materials(), geometry=None, question=Eigen(_k())),
-     ValueError, r"the infinite medium has one material; 2 are declared"),
-    # (b) a geometry id missing from the materials (the pinned fragment of Materials.restrict)
+    # (a) "the infinite medium has one material" is unspellable: its type holds one
+    # mixture (the fields row below). (b) a geometry id missing from the materials
+    # (the pinned fragment of Materials.restrict)
     ("b_geometry_id_not_declared",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=slab2(), question=Eigen(_k())),
+     lambda: _gs(Eigen(_k()), materials=Materials({0: fuel()})),
      ValueError, r"references material ids \[1\]"),
-    # (c) group counts differ across the materials the geometry assigns (the
-    # orchestrator's ruling 3 on the step-8 NEEDS: a spectator is dropped first)
+    # (c) group counts differ across the materials the geometry assigns
     ("c_group_count",
-     lambda: Specification(materials=Materials({0: fuel(), 1: fuel(ng=3)}), geometry=slab2(), question=Eigen(_k())),
+     lambda: _gs(Eigen(_k()), materials=Materials({0: fuel(), 1: fuel(ng=3)})),
      InconsistentMaterialsError, r"uniform ng"),
-    # (g) the functions against the geometry and the materials
+    # (g) the datum against the problem's regions, groups and coordinates
     ("g_source_regions",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=FixedSource(_table(regions=3))),
-     ValueError, r"the source has 3 regions; the geometry has 2 intervals"),
+     lambda: _gs(FixedSource(_table(regions=3))),
+     ValueError, r"GeometrySpecification: the source has 3 regions; the problem has 2$"),
     ("g_detector_regions",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Response(_table(regions=1))),
-     ValueError, r"the detector has 1 regions; the geometry has 2 intervals"),
+     lambda: _gs(Response(_table(regions=1))),
+     ValueError, r"GeometrySpecification: the detector has 1 regions; the problem has 2$"),
+    # qa F1: three intervals over two distinct materials; the count is the intervals'
+    ("g_regions_are_intervals_not_materials",
+     lambda: _gs(FixedSource(_table(regions=2)), geometry=slab3_repeated()),
+     ValueError, r"GeometrySpecification: the source has 2 regions; the problem has 3$"),
     ("g_source_groups_table",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=FixedSource(_table(groups=3))),
-     ValueError, r"the source has 3 groups; the materials have 2"),
+     lambda: _gs(FixedSource(_table(groups=3))),
+     ValueError, r"GeometrySpecification: the source has 3 groups; the materials have 2"),
     ("g_detector_groups_symbolic",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Response(Symbolic.of(r))),
-     ValueError, r"the detector has 1 groups; the materials have 2"),
+     lambda: _gs(Response(Symbolic.of(r))),
+     ValueError, r"GeometrySpecification: the detector has 1 groups; the materials have 2"),
     ("g_infinite_medium_regions",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=FixedSource(_table(regions=2))),
-     ValueError, r"the source has 2 regions; the infinite medium has 1 region"),
-    ("g_infinite_medium_symbolic_position",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=FixedSource(Symbolic.of(r, 1))),
-     ValueError, r"no coordinate system"),
+     lambda: _im(FixedSource(_table(regions=2))),
+     ValueError, r"InfiniteMediumSpecification: the source has 2 regions; the problem has 1$"),
+    ("g_infinite_medium_position",
+     lambda: _im(FixedSource(Symbolic.of(r, 1))),
+     ValueError, r"InfiniteMediumSpecification: the source depends on r, which this problem has no coordinate to read"),
+    ("g_infinite_medium_direction",
+     lambda: _im(Response(Symbolic.of(1, sp.cos(phi) * mu))),
+     ValueError, r"InfiniteMediumSpecification: the detector depends on mu, phi, which this problem has no coordinate to read"),
     ("g_sphere_azimuth",
-     lambda: Specification(materials=_two_materials(), geometry=body(CoordSystem.SPHERICAL),
-                           question=FixedSource(Symbolic.of(1 + sp.cos(phi), 1))),
-     ValueError, r"azimuth"),
+     lambda: _gs(FixedSource(Symbolic.of(1 + sp.cos(phi), 1)), geometry=body(CoordSystem.SPHERICAL)),
+     ValueError, r"GeometrySpecification: the source depends on phi, which this problem has no coordinate to read"),
     # (h1) a parameter that is not a coordinate
     ("h1_parameter_str",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen("fission-emission")),
-     TypeError, r"parameter: 'fission-emission' \(a str\) is not a coordinate"),
+     lambda: _im(Eigen("fission-emission")),
+     TypeError, r"InfiniteMediumSpecification: the parameter: 'fission-emission' \(a str\) is not a coordinate"),
     ("h1_parameter_none",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(None)),
-     TypeError, r"parameter: None \(a NoneType\) is not a coordinate"),
+     lambda: _gs(Eigen(None)),
+     TypeError, r"GeometrySpecification: the parameter: None \(a NoneType\) is not a coordinate"),
     # (h2) a point key that is not a coordinate, for every kind of question
     ("h2_point_key_eigen",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(_k(), {"boron": 0.1})),
-     TypeError, r"point key: 'boron' \(a str\) is not a coordinate"),
+     lambda: _im(Eigen(_k(), {"boron": 0.1})),
+     TypeError, r"the point key: 'boron' \(a str\) is not a coordinate"),
     ("h2_point_key_fixed_source",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=FixedSource(_table(1), {"boron": 0.1})),
-     TypeError, r"point key: 'boron' \(a str\) is not a coordinate"),
+     lambda: _im(FixedSource(_table(1), {"boron": 0.1})),
+     TypeError, r"the point key: 'boron' \(a str\) is not a coordinate"),
     ("h2_point_key_response",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Response(_table(1), {("cell", 0): 0.1})),
-     TypeError, r"point key: \('cell', 0\) \(a tuple\) is not a coordinate"),
-    # (h3) an extent with no geometry, or out of range, as parameter and as point key
-    ("h3_extent_no_geometry_parameter",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(GeometryExtent(0))),
-     ValueError, r"parameter: a GeometryExtent names an extent, and the infinite medium \(no geometry\) has none"),
-    ("h3_extent_no_geometry_point",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=FixedSource(_table(1), {GeometryExtent(0): 0.5})),
-     ValueError, r"point key: a GeometryExtent names an extent, and the infinite medium \(no geometry\) has none"),
+     lambda: _gs(Response(_table(), {("cell", 0): 0.1})),
+     TypeError, r"the point key: \('cell', 0\) \(a tuple\) is not a coordinate"),
+    # (h3) an extent on the infinite medium (as parameter and as point key), or out of range
+    ("h3_extent_infinite_medium_parameter",
+     lambda: _im(Eigen(GeometryExtent(0))),
+     ValueError, r"InfiniteMediumSpecification: GeometryExtent\(interval=0\) names an extent, and the infinite medium has no geometry"),
+    ("h3_extent_infinite_medium_point",
+     lambda: _im(FixedSource(_table(1), {GeometryExtent(1): 0.5})),
+     ValueError, r"InfiniteMediumSpecification: GeometryExtent\(interval=1\) names an extent, and the infinite medium has no geometry"),
     ("h3_extent_out_of_range",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Eigen(GeometryExtent(2))),
+     lambda: _gs(Eigen(GeometryExtent(2))),
      ValueError, r"interval 2 does not exist; the geometry has 2 interval"),
-    # (h4) a cell coefficient naming an undeclared material, or a zero direction
-    ("h4_undeclared_material",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Eigen(CellCoefficient({(7, F)}))),
-     ValueError, r"material 7 is not declared"),
+    # qa F1: the range is the intervals', not the distinct materials'
+    ("h3_extent_out_of_range_repeated_ids",
+     lambda: _gs(Eigen(GeometryExtent(3)), geometry=slab3_repeated()),
+     ValueError, r"interval 3 does not exist; the geometry has 3 interval"),
+    # (h4) a cell outside the problem's materials (a spectator included, qa F3), or a zero direction
+    ("h4_material_not_in_the_problem",
+     lambda: _gs(Eigen(CellCoefficient({(7, F)}))),
+     ValueError, r"material 7 is not among the problem's materials \(ids: \[0, 1\]\)"),
+    ("h4_spectator_cell",
+     lambda: _gs(Eigen(CellCoefficient({(9, F)})), materials=Materials({0: fuel(), 1: moderator(), 9: fuel()})),
+     ValueError, r"material 9 is not among the problem's materials \(ids: \[0, 1\]\)"),
     ("h4_k_on_a_non_producing_specification",
-     lambda: Specification(materials=Materials({0: moderator()}), geometry=None, question=Eigen(_k())),
+     lambda: _im(Eigen(_k()), mixture=moderator()),
      ValueError, r"zero direction"),
     # (h5) two point keys naming one coordinate
     ("h5_one_coordinate_twice",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None,
-                           question=FixedSource(_table(1), {_k(): 0.1, CellCoefficient({(0, F)}): 0.2})),
+     lambda: _im(FixedSource(_table(1), {_k(): 0.1, CellCoefficient({(0, F)}): 0.2})),
      ValueError, r"name the same coordinate"),
     # a specification exists to be keyed: a geometry with no content is refused eagerly
     ("contentless_geometry",
-     lambda: Specification(
-         materials=Materials({0: fuel()}),
-         geometry=StructuredGeometry.slab((0.0, 1.0), (0,), left=PrescribedInflow(lambda space: np.zeros(space.shape)),  # pyright: ignore[reportArgumentType]  # a contentless source is the subject
-                                          right=BC.vacuum),
-         question=Eigen(_k())),
-     ContentlessError, r"Specification\.geometry"),
-    # the three fields are typed
+     lambda: _gs(Eigen(_k()), materials=Materials({0: fuel()}),
+                 geometry=StructuredGeometry.slab((0.0, 1.0), (0,), left=PrescribedInflow(lambda space: np.zeros(space.shape)),  # pyright: ignore[reportArgumentType]  # a contentless source is the subject
+                                                  right=BC.vacuum)),
+     ContentlessError, r"GeometrySpecification\.geometry"),
+    # the fields are typed
     ("question_not_a_question",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=_table(1)),  # pyright: ignore[reportArgumentType]
-     TypeError, r"the question is an Eigen, a FixedSource or a Response"),
-    ("geometry_not_a_geometry",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=(0.0, 1.0), question=Eigen(_k())),  # pyright: ignore[reportArgumentType]
-     TypeError, r"the geometry is a StructuredGeometry or None"),
+     lambda: _im(_table(1)),
+     TypeError, r"InfiniteMediumSpecification: the question is an Eigen or FixedSource or Response, got a RegionwiseConstant"),
+    ("geometry_none",
+     lambda: GeometrySpecification(_two_materials(), None, Eigen(_k())),  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+     TypeError, r"GeometrySpecification: the geometry is a StructuredGeometry, got a NoneType"),
+    ("geometry_tuple",
+     lambda: GeometrySpecification(_two_materials(), (0.0, 1.0), Eigen(_k())),  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+     TypeError, r"GeometrySpecification: the geometry is a StructuredGeometry, got a tuple"),
+    ("materials_dict",
+     lambda: GeometrySpecification({0: fuel(), 1: moderator()}, slab2(), Eigen(_k())),  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+     TypeError, r"GeometrySpecification: the materials are a Materials, got a dict"),
+    ("mixture_not_a_mixture",
+     lambda: InfiniteMediumSpecification(0, Materials({0: fuel()}), Eigen(_k())),  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+     TypeError, r"InfiniteMediumSpecification: the mixture is a Mixture, got a Materials"),
+    ("material_id_bool",
+     lambda: InfiniteMediumSpecification(True, fuel(), Eigen(_k())),
+     TypeError, r"InfiniteMediumSpecification: the material id is an int, got bool"),
 ]
 
 
@@ -209,19 +250,18 @@ def test_s8_1_the_refusal_fragments_are_disjoint() -> None:
 # ── the wiring order: inputs that violate two rules ──────────────────────────
 
 
-def test_s8_1_the_infinite_medium_rule_is_read_before_the_group_count() -> None:
-    """No geometry, two materials of different group counts: (a) fires, (c) does
-    not. The group count is read over the materials the specification KEEPS,
-    and with no geometry that set is defined only once (a) has held."""
-    with pytest.raises(ValueError, match="one material") as err:
-        Specification(materials=Materials({0: fuel(), 1: fuel(ng=3)}), geometry=None, question=Eigen(_k()))
-    require(not isinstance(err.value, InconsistentMaterialsError), f"(c) fired with (a): {err.value}")
+def test_s8_1_the_group_count_is_read_before_the_keys() -> None:
+    """Two kept materials of different group counts AND a key naming a material
+    outside the problem: (c) fires, (h4) does not."""
+    with pytest.raises(InconsistentMaterialsError, match="uniform ng") as err:
+        _gs(Eigen(CellCoefficient({(7, F)})), materials=Materials({0: fuel(), 1: fuel(ng=3)}))
+    require("material 7" not in str(err.value), f"(h4) fired with (c): {err.value}")
 
 
 def test_s8_1_a_spectator_of_another_group_count_is_dropped() -> None:
     """A declared material the geometry does not assign is dropped before the
     group count is read (the leak principle: a spectator changes no answer)."""
-    spec = Specification(materials=Materials({0: fuel(), 5: fuel(ng=3)}), geometry=slab2((0, 0)), question=Eigen(_k()))
+    spec = _gs(Eigen(_k()), materials=Materials({0: fuel(), 5: fuel(ng=3)}), geometry=slab2((0, 0)))
     require(sorted(spec.materials.ids) == [0], f"the spectator was kept: {sorted(spec.materials.ids)}")
 
 
@@ -229,7 +269,7 @@ def test_s8_1_the_composition_is_read_before_the_keys() -> None:
     """The geometry names an undeclared id AND the key names an undeclared
     material: (b) fires, (h4) does not (keys resolve against a valid declaration)."""
     with pytest.raises(ValueError, match=r"references material ids \[1\]") as err:
-        Specification(materials=Materials({0: fuel()}), geometry=slab2(), question=Eigen(CellCoefficient({(7, F)})))
+        _gs(Eigen(CellCoefficient({(7, F)})), materials=Materials({0: fuel()}))
     require("material 7" not in str(err.value), f"(h4) fired with (b): {err.value}")
 
 
@@ -237,13 +277,38 @@ def test_s8_1_the_composition_is_read_before_the_keys() -> None:
 
 
 @pytest.mark.rests_on(f"{_Q}::test_s7_3_the_fields_are_exactly_the_roles")
-def test_s8_1_the_fields_are_exactly_materials_geometry_question() -> None:
-    """(d)-(f) are structural: the datum lives in the question (``FixedSource.source``,
-    ``Response.detector``), so the specification has no ``source`` field to hold a
-    second copy (ruling of 2026-10-02 on the step-7 NEEDS). Witness: a ``source``
-    field re-added reds this row."""
-    names = tuple(f.name for f in dataclasses.fields(Specification))
-    require(names == ("materials", "geometry", "question"), f"the fields are {names}")
+def test_s8_1_the_layer_is_the_type() -> None:
+    """The structural legs. The old (d)-(f): the datum lives in the question, so
+    neither type has a ``source`` field. The old (a), "the infinite medium has
+    one material", and "the infinite medium has no geometry": the infinite-medium
+    type holds one mixture and no geometry field (the user's ruling, "The infinite
+    medium is the point in phase space"). ``Specification`` is exactly the two
+    types, and both expose the problem's ``materials``. Witness: a field
+    re-added to either type reds this row."""
+    infinite = tuple(f.name for f in dataclasses.fields(InfiniteMediumSpecification))
+    geometric = tuple(f.name for f in dataclasses.fields(GeometrySpecification))
+    require(infinite == ("material_id", "mixture", "question"), f"InfiniteMediumSpecification fields {infinite}")
+    require(geometric == ("materials", "geometry", "question"), f"GeometrySpecification fields {geometric}")
+    require(set(typing.get_args(Specification)) == {InfiniteMediumSpecification, GeometrySpecification},
+            f"Specification is {typing.get_args(Specification)}")
+    require(set(typing.get_args(Coordinate)) == {CellCoefficient, GeometryExtent}, f"Coordinate is {typing.get_args(Coordinate)}")
+    medium = _im(Eigen(_k()), material_id=4)
+    require(medium.materials == Materials({4: fuel()}), f"the infinite medium's materials are {medium.materials!r}")
+    require(medium.n_regions == 1 and InfiniteMediumSpecification.n_regions == 1, "the infinite medium is one region")
+    require(medium.unreadable == (r, mu, phi), f"unreadable {medium.unreadable}")
+
+
+@pytest.mark.parametrize(
+    "coord,unreadable",
+    [(CoordSystem.CARTESIAN, ()), (CoordSystem.CYLINDRICAL, ()), (CoordSystem.SPHERICAL, (phi,))],
+    ids=["slab", "cylinder", "sphere"],
+)
+def test_s8_1_a_geometry_problem_reads_what_its_chart_can(coord, unreadable) -> None:
+    """``unreadable`` is read off the chart (``azimuth_reference is None`` on the sphere
+    only), and ``n_regions`` is the interval count, not the distinct-material count (qa F1)."""
+    spec = _gs(Eigen(_k()), geometry=body(coord))
+    require(spec.unreadable == unreadable, f"{coord}: unreadable {spec.unreadable}")
+    require(_gs(Eigen(_k()), geometry=slab3_repeated()).n_regions == 3, "n_regions counts the distinct materials")
 
 
 # ── the fixtures are consistent (vv-testing: a hand-built mixture is gated) ──
@@ -261,27 +326,23 @@ def test_s8_1_each_fixture_mixture_balances(build) -> None:
 # ── the admissions: one positive leg per rule ────────────────────────────────
 
 _ADMISSIONS: list[tuple[str, Callable[[], Specification]]] = [
-    ("k on a fissile slab", lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Eigen(_k()))),
-    ("k in the infinite medium", lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(_k()))),
-    ("c, every emission cell", lambda: Specification(materials=_two_materials(), geometry=slab2(),
-                                                      question=Eigen(CellCoefficient.every(F, S, N2)))),
-    ("a critical extent", lambda: Specification(materials=_two_materials(), geometry=slab2(),
-                                                question=Eigen(GeometryExtent(1), mode=Nearest(1.0)))),
-    ("a spectator material", lambda: Specification(materials=Materials({**_two_materials(), 9: moderator()}), geometry=slab2(),
-                                                   question=Eigen(_k()))),
+    ("k on a fissile slab", lambda: _gs(Eigen(_k()))),
+    ("k in the infinite medium", lambda: _im(Eigen(_k()))),
+    ("c, every emission cell", lambda: _gs(Eigen(CellCoefficient.every(F, S, N2)))),
+    ("a critical extent", lambda: _gs(Eigen(GeometryExtent(1), mode=Nearest(1.0)))),
+    ("the last interval of a repeated-id geometry (qa F1)",
+     lambda: _gs(Eigen(GeometryExtent(2)), geometry=slab3_repeated())),
+    ("three regions on a repeated-id geometry (qa F1)",
+     lambda: _gs(FixedSource(_table(regions=3)), geometry=slab3_repeated())),
+    ("a spectator material", lambda: _gs(Eigen(_k()), materials=Materials({**_two_materials(), 9: moderator()}))),
     ("a fixed source on a non-producing slab, offset along scattering",
-     lambda: Specification(materials=Materials({0: moderator(), 1: moderator()}), geometry=slab2(),
-                           question=FixedSource(_table(), {CellCoefficient.every(S): 0.1}))),
-    ("a response offset along an extent",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Response(_table(), {GeometryExtent(0): -0.2}))),
-    ("the parameter's own offset (step-7 ruling 3)",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(_k(), {_k(): 0.3}))),
-    ("an explicit zero cell beside a non-zero one (ruling 5)",
-     lambda: Specification(materials=_two_materials(), geometry=slab2(), question=Eigen(CellCoefficient({(0, F), (1, F)})))),
-    ("a constant Symbolic in the infinite medium",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=FixedSource(Symbolic.of(2, 1)))),
-    ("one region in the infinite medium",
-     lambda: Specification(materials=Materials({0: fuel()}), geometry=None, question=Response(_table(1)))),
+     lambda: _gs(FixedSource(_table(), {CellCoefficient.every(S): 0.1}), materials=Materials({0: moderator(), 1: moderator()}))),
+    ("a response offset along an extent", lambda: _gs(Response(_table(), {GeometryExtent(0): -0.2}))),
+    ("the parameter's own offset (step-7 ruling 3)", lambda: _im(Eigen(_k(), {_k(): 0.3}))),
+    ("an explicit zero cell beside a non-zero one (ruling 5)", lambda: _gs(Eigen(CellCoefficient({(0, F), (1, F)})))),
+    ("a constant Symbolic in the infinite medium", lambda: _im(FixedSource(Symbolic.of(2, 1)))),
+    ("one region in the infinite medium", lambda: _im(Response(_table(1)))),
+    ("any material id in the infinite medium", lambda: _im(Eigen(_k()), material_id=np.int64(7))),
 ]
 
 
@@ -313,11 +374,11 @@ _AZIMUTH = [
 @pytest.mark.parametrize("role", ["source", "detector"])
 def test_s8_1_a_phi_dependent_function_is_refused_beside_a_sphere(coord, expression, admitted: bool, role: str) -> None:
     question = (FixedSource if role == "source" else Response)(Symbolic.of(expression, expression))
-    build = lambda: Specification(materials=_two_materials(), geometry=body(coord), question=question)  # noqa: E731
+    build = lambda: _gs(question, geometry=body(coord))  # noqa: E731
     if admitted:
         build()
     else:
-        with pytest.raises(ValueError, match=rf"the {role} depends on the azimuth phi"):
+        with pytest.raises(ValueError, match=rf"the {role} depends on phi, which this problem has no coordinate to read"):
             build()
 
 
@@ -333,8 +394,7 @@ def test_s8_1_a_direction_resolves_iff_some_material_carries_it(asked: Channel, 
     """Each mixture carries exactly one emission channel, so the 3 x 3 matrix
     separates the three carriage predicates: a predicate read from the wrong
     stack reds an off-diagonal or a diagonal cell."""
-    build = lambda: Specification(materials=Materials({0: _CARRIERS[carried]()}), geometry=None,  # noqa: E731
-                                  question=Eigen(CellCoefficient.every(asked)))
+    build = lambda: _im(Eigen(CellCoefficient.every(asked)), mixture=_CARRIERS[carried]())  # noqa: E731
     if asked is carried:
         spec = build()
         require(_parameter(spec) == CellCoefficient({(0, asked)}), f"resolved to {_parameter(spec)}")
@@ -354,20 +414,16 @@ def _parameter(spec: Specification) -> Any:
     return getattr(spec.question, "parameter")
 
 
-def _cells_of(key: Any) -> frozenset:
-    return frozenset(key.cells) if isinstance(key, CellCoefficient) else frozenset()
-
-
 @pytest.mark.rests_on(f"{_CELLS}::test_s8_7_resolution_by_channel")
 def test_s8_10_every_resolves_to_the_explicit_non_zero_cells() -> None:
     """``every(F)`` on {0: fuel, 1: moderator} is stored as {(0, F)}: the
     quantifier is gone and the moderator's zero cell is not a cell of the key."""
     q = Eigen(_k(), {CellCoefficient.every(S): 0.25})
-    spec = Specification(materials=_two_materials(), geometry=slab2(), question=q)
+    spec = _gs(q)
     require(_parameter(spec) == CellCoefficient({(0, F)}), f"parameter {_parameter(spec)}")
     require(dict(spec.question.point) == {CellCoefficient({(0, S), (1, S)}): 0.25}, f"point {spec.question.point}")
-    stored = _cells_of(_parameter(spec)) | frozenset().union(*(_cells_of(k) for k in spec.question.point))
-    require(all(isinstance(m, int) for m, _ in stored), f"a quantifier survived in {stored}")
+    keys = [_parameter(spec), *spec.question.point]
+    require(all(k.channels_in_every_material == frozenset() for k in keys), f"a channel in every material survived in {keys}")
     require(spec.question != q, "activation: the stored question equals the written one")
     require(getattr(spec.question, "mode") == q.mode, "the mode moved")
 
@@ -383,26 +439,51 @@ def test_s8_10_every_resolves_to_the_explicit_non_zero_cells() -> None:
 )
 def test_s8_10_two_spellings_of_one_direction_are_one_specification(written) -> None:
     """Equal, one digest, one set member, and the stored key is the explicit cell set."""
-    a = Specification(materials=_two_materials(), geometry=slab2(), question=Eigen(_k()))
-    b = Specification(materials=_two_materials(), geometry=slab2(), question=written())
+    a = _gs(Eigen(_k()))
+    b = _gs(written())
     require(a == b and a.content_digest == b.content_digest and len({a, b}) == 1, "two specifications")
     require(_parameter(b) == CellCoefficient({(0, F)}), f"stored {_parameter(b)}")
 
 
-def test_s8_10_canonicalisation_is_idempotent_and_survives_pickle() -> None:
-    spec = Specification(materials=_two_materials(), geometry=slab2(),
-                         question=FixedSource(_table(), {CellCoefficient.every(S, N2): -0.5, GeometryExtent(1): 0.125}))
-    again = Specification(materials=spec.materials, geometry=spec.geometry, question=spec.question)
+def test_s8_10_a_zero_cell_in_a_point_key_is_dropped() -> None:
+    """qa F4: the canonical form drops a zero cell in a POINT key as in the parameter."""
+    spec = _gs(FixedSource(_table(), {CellCoefficient({(0, F), (1, F)}): 0.1}))
+    require(dict(spec.question.point) == {CellCoefficient({(0, F)}): 0.1}, f"point {dict(spec.question.point)}")
+
+
+@pytest.mark.parametrize("kind", ["infinite medium", "geometry"])
+def test_s8_10_canonicalisation_is_idempotent_and_survives_pickle(kind: str) -> None:
+    """Re-posing from the STORED question returns an equal specification (resolution
+    is idempotent). Re-posing with other materials must start from the caller's
+    question (qa F2, documented in the module, not guarded)."""
+    if kind == "geometry":
+        spec = _gs(FixedSource(_table(), {CellCoefficient.every(S, N2): -0.5, GeometryExtent(1): 0.125}))
+        again = dataclasses.replace(spec, question=spec.question)
+        offsets = [-0.5, 0.125]
+    else:
+        spec = _im(Response(_table(1), {CellCoefficient.every(S, N2): -0.5}))
+        again = dataclasses.replace(spec, question=spec.question)
+        offsets = [-0.5]
     require(again == spec and again.question == spec.question, "re-posing the stored question moved it")
     back = pickle.loads(pickle.dumps(spec))
     require(back == spec and back.content_digest == spec.content_digest, "pickle moved the specification")
-    require([v for v in spec.question.point.values()] == [-0.5, 0.125], "the offsets moved")
+    require(list(spec.question.point.values()) == offsets, "the offsets moved")
+
+
+def test_s8_10_the_two_layers_are_two_keys() -> None:
+    """The infinite medium of a material and a reflective slab of it ask the same k
+    and are two specifications (two types, two digests): the layer is content."""
+    medium = _im(Eigen(_k()))
+    slab = _gs(Eigen(_k()), materials=Materials({0: fuel()}),
+               geometry=StructuredGeometry.from_homogeneous(1.0, BC.reflective))
+    require(medium != slab and medium.content_digest != slab.content_digest and len({medium, slab}) == 2, "one key")
+    require(medium.question == slab.question, "activation: the two do not ask one question")
 
 
 def test_s8_10_the_materials_are_the_declaration_value() -> None:
     """One spelling: the materials are a ``Materials`` value, and a bare mapping
     is refused (the orchestrator's ruling 2 on the step-8 NEEDS, 2026-10-02)."""
     with pytest.raises(TypeError, match="the materials are a Materials, got a dict"):
-        Specification(materials={0: fuel(), 1: moderator()}, geometry=slab2(), question=Eigen(_k()))  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+        GeometrySpecification({0: fuel(), 1: moderator()}, slab2(), Eigen(_k()))  # pyright: ignore[reportArgumentType]  # the refusal is the subject
 
 

@@ -7,8 +7,9 @@ the group-count rule and ``InconsistentMaterialsError`` live in
 
 A CELL is ``(material id, Channel)``; ``Channel`` is the closed set of the three
 emission channels (ruling 2). A ``CellCoefficient`` is the direction that
-scales a set of cells together; ``CellCoefficient.every(*channels)`` stores
-the quantifier "every material that carries the channel" as content, and
+scales a set of cells together. It holds explicit ``cells`` and, as a second
+field, ``channels_in_every_material`` (spelled ``CellCoefficient.every(*channels)``:
+"every material of the problem that carries the channel"), both content, and
 ``resolve(materials)`` returns the explicit non-zero cells (ruling 5: a
 material carries a cell when the cell is non-zero).
 """
@@ -99,7 +100,7 @@ def test_s8_7_a_cell_coefficient_is_a_content_value() -> None:
     [
         pytest.param(set(), ValueError, r"at least one cell", id="empty"),
         pytest.param({(0,)}, TypeError, r"a \(material id, Channel\) pair", id="not-a-pair"),
-        pytest.param({(0, "fission")}, TypeError, r"is a Channel, got a str", id="channel-str"),
+        pytest.param({(0, "fission")}, TypeError, r"a channel is a Channel, got a str", id="channel-str"),
         pytest.param({(True, F)}, TypeError, r"a material id is an int, got bool", id="bool-id"),  # the shared parse_integer's wording (#559)
         pytest.param({(0.0, F)}, TypeError, r"a material id is an int, got float", id="float-id"),
     ],
@@ -107,6 +108,23 @@ def test_s8_7_a_cell_coefficient_is_a_content_value() -> None:
 def test_s8_7_construction_refusals(cells, error, fragment: str) -> None:
     with pytest.raises(error, match=fragment):
         CellCoefficient(cells)
+
+
+def test_s8_7_a_channel_in_every_material_is_a_channel() -> None:
+    with pytest.raises(TypeError, match=r"a channel is a Channel, got a str"):
+        CellCoefficient(channels_in_every_material=["fission emission"])  # pyright: ignore[reportArgumentType]  # the refusal is the subject
+
+
+def test_s8_7_the_two_fields() -> None:
+    """``every`` sets ``channels_in_every_material`` and no cell; explicit cells set
+    no channel; both are frozen sets, and either alone is a direction."""
+    every = CellCoefficient.every(F, S)
+    require(every.cells == frozenset() and every.channels_in_every_material == frozenset({F, S}), f"every is {every!r}")
+    explicit = CellCoefficient({(0, F)})
+    require(explicit.channels_in_every_material == frozenset(), f"explicit is {explicit!r}")
+    mixed = CellCoefficient({(0, F)}, {S})
+    require(isinstance(mixed.cells, frozenset) and isinstance(mixed.channels_in_every_material, frozenset), "not frozen")
+    require(mixed != explicit and mixed != CellCoefficient.every(S), "a field is not content")
 
 
 def test_s8_7_every_is_content_with_one_meaning() -> None:
@@ -137,7 +155,8 @@ def test_s8_7_resolution_by_channel(key: CellCoefficient, resolved: set) -> None
     """``resolve`` returns the explicit NON-ZERO cells, a ``CellCoefficient`` with int ids only."""
     got = key.resolve(_TWO)
     require(got == CellCoefficient(resolved), f"{key} resolved to {got.cells}")
-    require(all(isinstance(m, int) and not isinstance(m, bool) for m, _ in got.cells), f"a quantifier survived {got.cells}")
+    require(all(isinstance(m, int) and not isinstance(m, bool) for m, _ in got.cells), f"a non-int id survived {got.cells}")
+    require(got.channels_in_every_material == frozenset(), f"a channel in every material survived {got!r}")
 
 
 def test_s8_7_resolution_is_idempotent() -> None:
@@ -149,8 +168,10 @@ def test_s8_7_resolution_is_idempotent() -> None:
 @pytest.mark.parametrize(
     "key,fragment",
     [
-        pytest.param(CellCoefficient({(7, F)}), r"material 7 is not declared", id="undeclared"),
-        pytest.param(CellCoefficient({(0, F), (7, S)}), r"material 7 is not declared", id="undeclared-beside-a-cell"),
+        pytest.param(CellCoefficient({(7, F)}), r"material 7 is not among the problem's materials \(ids: \[0, 1, 2\]\)", id="undeclared"),
+        pytest.param(CellCoefficient({(0, F), (7, S)}), r"material 7 is not among the problem's materials", id="undeclared-beside-a-cell"),
+        pytest.param(CellCoefficient({(9, F)}, {F}),
+                     r"material 9 is not among the problem's materials", id="undeclared-beside-every"),
         pytest.param(CellCoefficient({(1, F)}), r"zero direction", id="one-zero-cell"),
         pytest.param(CellCoefficient({(1, F), (2, S)}), r"zero direction", id="all-cells-zero"),
     ],
@@ -224,7 +245,7 @@ def test_s8_9_material_mesh_and_the_specification_call_the_one_rule(monkeypatch:
     from orpheus.data.cells import CellCoefficient
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.question import Eigen
-    from orpheus.specification import Specification
+    from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
     from orpheus.transport.mesh import MaterialMesh
 
     class Sentinel(Exception):
@@ -241,5 +262,7 @@ def test_s8_9_material_mesh_and_the_specification_call_the_one_rule(monkeypatch:
     with pytest.raises(Sentinel):
         MaterialMesh(mesh, {0: fuel()}).ng
     with pytest.raises(Sentinel):
-        Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(CellCoefficient.every(F)))
-    require(len(calls) >= 2, f"activation: the decoy ran {len(calls)} times")
+        InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F)))
+    with pytest.raises(Sentinel):
+        GeometrySpecification(Materials({0: fuel()}), slab2((0, 0)), Eigen(CellCoefficient.every(F)))
+    require(len(calls) >= 3, f"activation: the decoy ran {len(calls)} times")

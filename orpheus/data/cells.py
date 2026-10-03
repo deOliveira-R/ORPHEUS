@@ -20,10 +20,12 @@ total where it is used.
 **A key, not a number.** A :class:`CellCoefficient` is the opaque, hashable
 parameter key the question values of :mod:`orpheus.numerics.question` hold
 (``Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))`` is the k
-question). The reference specification RESOLVES it against its materials
-(:meth:`CellCoefficient.resolve`): the written key may say "every material"
-(:data:`EVERY_MATERIAL`), and the resolved key lists the explicit non-zero
-cells, so a cache key never holds a quantifier.
+question). It holds explicit cells and, separately, the channels it names in
+EVERY material (:meth:`CellCoefficient.every`). The reference specification
+RESOLVES it against the materials of its problem
+(:meth:`CellCoefficient.resolve`): the resolved key lists only explicit
+non-zero cells and names no channel in every material, so a cache key never
+holds a quantifier.
 """
 
 from __future__ import annotations
@@ -40,7 +42,7 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.data.materials import Materials
 
-__all__ = ["EVERY_MATERIAL", "CellCoefficient", "Channel", "MaterialQuantifier"]
+__all__ = ["CellCoefficient", "Channel"]
 
 
 class Channel(enum.Enum):
@@ -58,87 +60,89 @@ class Channel(enum.Enum):
         refuse nothing (the orchestrator's ruling 5 of step 8). Fission
         emission is carried by a producing mixture (:math:`\nu\Sigma_f > 0`,
         :attr:`~orpheus.data.macro_xs.mixture.Mixture.is_producing`, the
-        predicate the emission-spectrum law keys on); scattering and (n,2n)
-        emission by a mixture with a non-zero entry in any Legendre block of
-        the stack.
+        predicate the emission-spectrum law keys on: a producing mixture's
+        spectrum is a probability simplex, so its emission is non-zero);
+        scattering and (n,2n) emission by a mixture with a non-zero entry in
+        any Legendre block of the stack.
         """
-        if self is Channel.FISSION_EMISSION:
-            return mixture.is_producing
-        stack = mixture.SigS if self is Channel.SCATTERING_EMISSION else mixture.Sig2
-        return any(block.count_nonzero() > 0 for block in stack)
+        match self:
+            case Channel.FISSION_EMISSION:
+                return mixture.is_producing
+            case Channel.SCATTERING_EMISSION:
+                return _any_nonzero(mixture.SigS)
+            case Channel.N2N_EMISSION:
+                return _any_nonzero(mixture.Sig2)
 
 
-class MaterialQuantifier(enum.Enum):
-    """The one quantifier a cell's material may be: every material of the resolving declaration."""
-
-    EVERY = "every material"
+def _any_nonzero(stack: Iterable[Any]) -> bool:
+    return any(block.count_nonzero() > 0 for block in stack)
 
 
-EVERY_MATERIAL = MaterialQuantifier.EVERY
-"""Stands for every material of the declaration that resolves the key, and carries the channel."""
-
-
-def _admit_cell(cell: Any) -> tuple[int | MaterialQuantifier, Channel]:
+def _admit_cell(cell: Any) -> tuple[int, Channel]:
     if not isinstance(cell, tuple) or len(cell) != 2:
         raise TypeError(f"CellCoefficient: a cell is a (material id, Channel) pair, got {cell!r}")
     material, channel = cell
+    return parse_integer(material, f"CellCoefficient: the cell {cell!r}", "a material id"), _admit_channel(channel)
+
+
+def _admit_channel(channel: Any) -> Channel:
     if not isinstance(channel, Channel):
-        raise TypeError(f"CellCoefficient: the channel of {cell!r} is a Channel, got a {type(channel).__name__}")
-    if material is EVERY_MATERIAL:
-        return material, channel
-    return parse_integer(material, f"CellCoefficient: the cell {cell!r}", "a material id"), channel
+        raise TypeError(f"CellCoefficient: a channel is a Channel, got a {type(channel).__name__} ({channel!r})")
+    return channel
 
 
 @dataclass(frozen=True, eq=False)
 class CellCoefficient(ContentIdentity):
     """The direction that scales a set of ``(material id, Channel)`` cells together.
 
-    ``cells`` is any iterable of pairs, frozen at construction; a material id
-    is an ``int`` or :data:`EVERY_MATERIAL`. The set is the content: the order
-    and repetition of the pairs given are not.
+    ``cells`` is an iterable of explicit pairs and
+    ``channels_in_every_material`` an iterable of channels named in every
+    material that carries them (spelled :meth:`CellCoefficient.every`); both are frozen at construction, and
+    their order and repetition are not content. A direction names at least
+    one cell or channel.
     """
 
-    cells: Iterable[tuple[int | MaterialQuantifier, Channel]]
+    cells: Iterable[tuple[int, Channel]] = ()
+    channels_in_every_material: Iterable[Channel] = ()
 
     def __post_init__(self) -> None:
         cells = frozenset(_admit_cell(cell) for cell in self.cells)
-        if not cells:
+        channels = frozenset(_admit_channel(channel) for channel in self.channels_in_every_material)
+        if not cells and not channels:
             raise ValueError("CellCoefficient: a direction names at least one cell")
         object.__setattr__(self, "cells", cells)
+        object.__setattr__(self, "channels_in_every_material", channels)
 
     @classmethod
     def every(cls, *channels: Channel) -> "CellCoefficient":
         """The direction of the given channels in every material that carries them."""
         if not channels:
             raise ValueError("CellCoefficient.every: name at least one channel")
-        return cls((EVERY_MATERIAL, channel) for channel in channels)
+        return cls(channels_in_every_material=channels)
 
     def resolve(self, materials: "Materials") -> "CellCoefficient":
         """The explicit non-zero cells this direction scales in ``materials``.
 
-        :data:`EVERY_MATERIAL` becomes every material that carries the
-        channel; an explicit cell the material does not carry is dropped
-        (it scales a zero). A material id ``materials`` does not declare is
-        refused, and so is a direction with no non-zero cell left (a zero
-        direction has no pole to find). Resolving a resolved key returns it.
+        ``materials`` are the materials of the problem (a specification's,
+        restricted to those its geometry assigns). A channel named in every
+        material becomes the cells of every material that carries it; an
+        explicit cell the material does not carry is dropped (it scales a
+        zero). A cell on a material outside ``materials`` is refused, and so
+        is a direction with no non-zero cell left (a zero direction has no
+        pole to find). Resolving a resolved key returns it.
         """
-        explicit: set[tuple[int, Channel]] = set()
-        for material, channel in self.cells:
-            if material is EVERY_MATERIAL:
-                explicit |= {(i, channel) for i, mixture in materials.items() if channel.is_carried_by(mixture)}
-                continue
-            assert isinstance(material, int)  # type narrowing: the quantifier was handled above
+        for material, _ in self.cells:
             if material not in materials:
                 raise ValueError(
-                    f"CellCoefficient: material {material} is not declared "
-                    f"(declared ids: {sorted(materials.ids)})"
+                    f"CellCoefficient: material {material} is not among the problem's materials "
+                    f"(ids: {sorted(materials.ids)})"
                 )
-            if channel.is_carried_by(materials[material]):
-                explicit.add((material, channel))
+        explicit = {(i, channel) for i, channel in self.cells if channel.is_carried_by(materials[i])}
+        explicit |= {(i, channel) for channel in self.channels_in_every_material for i, mixture in materials.items() if channel.is_carried_by(mixture)}
         if not explicit:
-            named = sorted((str(m), c.value) for m, c in self.cells)
+            named = sorted([f"({m}, {c.value})" for m, c in self.cells] + [f"(every material, {c.value})" for c in self.channels_in_every_material])
             raise ValueError(
-                f"CellCoefficient: every cell {named} is zero in the declaration, "
+                f"CellCoefficient: every cell {named} is zero in the problem's materials, "
                 f"so the key is a zero direction"
             )
         return CellCoefficient(explicit)

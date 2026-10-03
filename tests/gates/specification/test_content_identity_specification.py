@@ -22,7 +22,9 @@ import subprocess
 import sys
 import textwrap
 from dataclasses import replace
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -34,7 +36,7 @@ from orpheus.geometry import BC, GeometryExtent, StructuredGeometry
 from orpheus.numerics.content import FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
-from orpheus.specification import Specification
+from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -97,16 +99,44 @@ def _point(offset: float = 0.25, key=None):
     return {key if key is not None else CellCoefficient.every(S): offset}
 
 
-def _spec(materials=None, geometry=None, question=None) -> Specification:
-    return Specification(
+def _spec(materials=None, geometry=None, question=None) -> GeometrySpecification:
+    return GeometrySpecification(
         materials=_materials() if materials is None else materials,
         geometry=slab2() if geometry is None else geometry,
         question=FixedSource(_table(), _point()) if question is None else question,
     )
 
 
+def _medium(material_id: Any = 0, mixture: Any = None, question: Any = None) -> InfiniteMediumSpecification:
+    return InfiniteMediumSpecification(
+        material_id, fuel() if mixture is None else mixture,
+        Response(_table(_TABLE[:1]), _point()) if question is None else question,
+    )
+
+
+_INFINITE_MEDIUM = Entry(
+    cls=InfiniteMediumSpecification, base=_medium, parts=("material_id", "mixture", "question"),
+    perturb={
+        # The material id moves the resolved point key too (its cells name the id).
+        "material_id": (leg("another id", lambda: _medium(material_id=3), "question"),),
+        "mixture": (leg("one coefficient by one ULP", lambda: _medium(mixture=_fuel_ulp())),),
+        "question": (
+            leg("the detector's second coefficient by one ULP", lambda: _medium(question=Response(_table(np.array([[_TABLE[0, 0], _ulp(_TABLE[0, 1])]])), _point()))),
+            leg("the point's offset by one ULP", lambda: _medium(question=Response(_table(_TABLE[:1]), _point(_ulp(0.25))))),
+            leg("the role", lambda: _medium(question=FixedSource(_table(_TABLE[:1]), _point()))),
+            leg("k", lambda: _medium(question=Eigen(CellCoefficient.every(F)))),
+        ),
+    },
+    pairs=(
+        ("two builds", _medium, _medium),
+        ("an int id vs a numpy id", _medium, lambda: _medium(material_id=np.int64(0))),
+        ("every(S) vs its explicit cell", _medium,
+         lambda: _medium(question=Response(_table(_TABLE[:1]), _point(key=CellCoefficient({(0, S)}))))),
+    ),
+)
+
 _SPECIFICATION = Entry(
-    cls=Specification, base=_spec, parts=("materials", "geometry", "question"),
+    cls=GeometrySpecification, base=_spec, parts=("materials", "geometry", "question"),
     perturb={
         "materials": (
             leg("one coefficient by one ULP", lambda: _spec(materials=Materials({0: _fuel_ulp(), 1: moderator()}))),
@@ -144,16 +174,29 @@ _SPECIFICATION = Entry(
     ),
 )
 
+def _cc(cells: Iterable[tuple[int, Channel]] = frozenset({(0, F), (1, S)}),
+        every: Iterable[Channel] = frozenset({N2})) -> CellCoefficient:
+    return CellCoefficient(cells, every)
+
+
 _CELL_COEFFICIENT = Entry(
-    cls=CellCoefficient, base=lambda: CellCoefficient({(0, F), (1, S)}), parts=("cells",),
-    perturb={"cells": (
-        leg("a cell's channel", lambda: CellCoefficient({(0, F), (1, N2)})),
-        leg("a cell's material", lambda: CellCoefficient({(0, F), (2, S)})),
-        leg("a cell added", lambda: CellCoefficient({(0, F), (1, S), (1, N2)})),
-        leg("the quantifier for an id", lambda: CellCoefficient.every(F, S)),
-    )},
-    pairs=(("two builds", lambda: CellCoefficient({(0, F), (1, S)}), lambda: CellCoefficient([(1, S), (0, F)])),  # pyright: ignore[reportArgumentType]  # the coercion is the subject
-           ("every in any channel order", lambda: CellCoefficient.every(F, S), lambda: CellCoefficient.every(S, F))),
+    cls=CellCoefficient, base=_cc, parts=("cells", "channels_in_every_material"),
+    perturb={
+        "cells": (
+            leg("a cell's channel", lambda: _cc(cells={(0, F), (1, N2)})),
+            leg("a cell's material", lambda: _cc(cells={(0, F), (2, S)})),
+            leg("a cell added", lambda: _cc(cells={(0, F), (1, S), (1, N2)})),
+            leg("no cell", lambda: _cc(cells=frozenset())),
+        ),
+        "channels_in_every_material": (
+            leg("another channel", lambda: _cc(every={S})),
+            leg("a channel added", lambda: _cc(every={N2, F})),
+            leg("none", lambda: _cc(every=frozenset())),
+        ),
+    },
+    pairs=(("two builds", _cc, lambda: CellCoefficient([(1, S), (0, F), (0, F)], [N2, N2])),  # pyright: ignore[reportArgumentType]  # the coercion is the subject
+           ("every in any channel order", lambda: CellCoefficient.every(F, S), lambda: CellCoefficient.every(S, F)),
+           ("every(...) is the field", lambda: CellCoefficient.every(F, S), lambda: CellCoefficient(channels_in_every_material={F, S}))),
 )
 
 _GEOMETRY_EXTENT = Entry(
@@ -162,7 +205,7 @@ _GEOMETRY_EXTENT = Entry(
     pairs=(("an int vs a numpy int", lambda: GeometryExtent(1), lambda: GeometryExtent(np.int64(1))),),  # pyright: ignore[reportArgumentType]  # the coercion is the subject
 )
 
-ROSTER: tuple[Entry, ...] = (_SPECIFICATION, _CELL_COEFFICIENT, _GEOMETRY_EXTENT)
+ROSTER: tuple[Entry, ...] = (_SPECIFICATION, _INFINITE_MEDIUM, _CELL_COEFFICIENT, _GEOMETRY_EXTENT)
 
 
 # ── S8.2: every part is content; equal content is one value ──────────────────
@@ -232,17 +275,17 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.geometry import GeometryExtent
     from orpheus.numerics.mesh_free_function import RegionwiseConstant
     from orpheus.numerics.question import Eigen, FixedSource
-    from orpheus.specification import Specification
+    from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
     from tests.gates.specification._fixtures import fuel, moderator, slab2
 
     print("FILE", orpheus.__file__)
     t = RegionwiseConstant(np.array([[1.5, 0.25], [0.0, 3.0]]))
     F, S = Channel.FISSION_EMISSION, Channel.SCATTERING_EMISSION
     values = {
-        "k infinite medium": Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(CellCoefficient.every(F))),
-        "fixed source slab": Specification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
+        "k infinite medium": InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F))),
+        "fixed source slab": GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
                                            question=FixedSource(t, {CellCoefficient.every(S): 0.25})),
-        "critical extent": Specification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
+        "critical extent": GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
                                          question=Eigen(GeometryExtent(1))),
         "a cell coefficient": CellCoefficient.every(F, S),
     }
@@ -281,16 +324,20 @@ def test_s8_2_digests_and_hashes_are_seed_stable() -> None:
 # ── S8.5: RECORD, the bytes ──────────────────────────────────────────────────
 
 _PIN_AFTER_LANDING = "pin after landing"
+# Re-pinned 2026-10-02 (the test-architect): the layer became the type
+# (``InfiniteMediumSpecification`` / ``GeometrySpecification``, user ruling "The
+# infinite medium is the point in phase space") and ``CellCoefficient`` gained
+# ``channels_in_every_material``; both schema tags moved, so both pins moved.
 _PINNED: dict[str, str] = {
-    "k infinite medium": "7156ca6fa36a516a72b85f1f317c4090e8d1196c781ec612e780731753e0618c",
-    "fixed source slab": "14d1d3c19c282226279c959ff0b8578776a14d84227473dc02a04612b63fa078",
+    "k infinite medium": "29a1f541857fccfd5189e2cd4d504605821eb71c6628431bc7a59a66601c4e77",
+    "fixed source slab": "737d57afd4df1d4f9a63d0bcf963acbe7404bb8102fbbf70fab6f00d3bdd6366",
 }
 
 
 def _fingerprint_values() -> dict[str, object]:
     t = RegionwiseConstant(_TABLE.copy())
     return {
-        "k infinite medium": Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(CellCoefficient.every(F))),
+        "k infinite medium": InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F))),
         "fixed source slab": _spec(question=FixedSource(t, _point())),
     }
 

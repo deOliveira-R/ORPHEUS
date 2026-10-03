@@ -3,9 +3,11 @@ r"""The geometric coordinate of the reference questions (#405 P1 step 8).
 :class:`GeometryExtent` is a DIRECTION in the system's parameter space: the
 width of one interval of a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`,
 in cm, with every interval outside it translated outward (the user's ruling
-of 2026-10-02). On a bare body (one interval) it is the outer size, the
-critical radius or slab width of the Sood benchmarks; on a reflected body it
-is the core grown under a reflector of fixed thickness. It is the opaque,
+of 2026-10-02). On a one-interval body it is the width of that interval,
+the critical radius of a solid sphere or the full width of a bare slab in the
+Sood benchmarks; on a reflected body it is the core grown under a reflector
+of fixed thickness. An infinite medium has no geometry and so
+no extent. It is the opaque,
 hashable parameter key an :class:`~orpheus.numerics.question.Eigen` holds for
 a critical-extent question, resolved by the reference specification against
 its geometry.

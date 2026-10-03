@@ -18,7 +18,7 @@ from orpheus.data.materials import Materials
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.question import Eigen
-from orpheus.specification import Specification
+from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import require
 from tests.gates.specification._fixtures import fuel, moderator, slab2
 
@@ -51,15 +51,14 @@ def _dense_k_inf(mixture) -> float:
 def test_s8_4_a_two_interval_specification_assembles_a_material_mesh() -> None:
     from orpheus.transport.mesh import MaterialMesh
 
-    spec = Specification(materials=Materials({**_two_materials(), 9: moderator()}), geometry=slab2(), question=Eigen(_k()))
-    require(spec.geometry is not None, "the rung needs a geometry")
-    assert spec.geometry is not None  # pyright narrowing; the require above is the -O-safe check
+    spec = GeometrySpecification(Materials({**_two_materials(), 9: moderator()}), slab2(), Eigen(_k()))
+    require(sorted(spec.materials.ids) == [0, 1], f"the spectator 9 was kept: {sorted(spec.materials.ids)}")
     mesh = Mesher(spec.geometry).partition(CellsByCount.uniform_width(3)).mesh
     mm = MaterialMesh(mesh, spec.materials)
     require(mm.ng == spec.materials.uniform_group_count() == 2, f"ng {mm.ng}")
     require(mm.materials == spec.materials, "the mesh holds another declaration")
     occupied = sorted(m for m, idx in mm.cells_by_material.items() if idx[0].size)
-    require(occupied == [0, 1], f"occupied materials {occupied}")  # the spectator 9 holds no cell
+    require(occupied == [0, 1], f"occupied materials {occupied}")
 
 
 @pytest.mark.rests_on(
@@ -68,7 +67,7 @@ def test_s8_4_a_two_interval_specification_assembles_a_material_mesh() -> None:
 )
 @pytest.mark.parametrize("lift", ["homogeneous", "sn-reflective-slab"])
 def test_s8_4_the_infinite_medium_k_is_the_dense_pencil_k(lift: str) -> None:
-    """``Eigen(every(F))`` with no geometry asks k-infinity of the one material.
+    """``InfiniteMediumSpecification(0, fuel, Eigen(every(F)))`` asks k-infinity of its one material.
 
     The fixture activates what a 2-group infinite medium can: upscatter and a
     non-zero (n,2n) emission (asserted, with the reference's sensitivity to the
@@ -79,10 +78,9 @@ def test_s8_4_the_infinite_medium_k_is_the_dense_pencil_k(lift: str) -> None:
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 
-    spec = Specification(materials=Materials({0: fuel()}), geometry=None, question=Eigen(_k()))
+    spec = InfiniteMediumSpecification(0, fuel(), Eigen(_k()))
     require(isinstance(spec.question, Eigen) and spec.question.parameter == CellCoefficient({(0, F)}), "the rung does not ask k")
-    (mid,) = spec.materials.ids
-    mixture = spec.materials[mid]
+    mixture = spec.mixture
     require(mixture.Sig2[0].count_nonzero() > 0 and mixture.SigS[0].toarray()[1, 0] > 0, "activation: (n,2n), upscatter")
     k_ref = _dense_k_inf(mixture)
     a1 = np.diag(mixture.SigT) - mixture.SigS[0].toarray().T - mixture.Sig2[0].toarray().T
