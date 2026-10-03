@@ -1297,3 +1297,10 @@ The user, closing the rulings: "the shape is generally good. It does not have to
 **Out of P2:** the governing equation in the specification (#563); `Estimated`; discrete-exact nodes; the registry and the families (P4); the traced memo (P3); a typed `Citation` locator (no consumer compares locators yet).
 
 **Process:** as P1: the test-architect writes `.claude/plans/reference_p2_spec.md` and the first reds in a detached worktree; the main agent writes the code; qa and the elegance-enforcer review; the archivist writes the theory section (the error ontology from G6 included). Steps and their order are the spec's first output, for the user's approval.
+
+### Step 5 ruled: no ladder certifies (2026-10-03, the user)
+
+The user: Richardson extrapolation "is a good indicator for some things, but a bad indicator of correctness. A systematic bias for example will be invisible to it IF richardson is the standard and not part of a battery of checks." So:
+- **No `ConvergedLadder` establishment method and no `Extrapolated` reading kind.** The establishment methods are `Exact` (a symbolic self-check) and `DerivedBound` (an a posteriori bound with computable constants: the Nyström residual bound ‖x − xₙ‖ ≤ ‖(I − Kₙ)⁻¹‖·‖(K − Kₙ)x‖ (Atkinson 1997, Thm 4.1.2), a series tail, interval arithmetic, an integrator's own error control); both yield an `Enclosure`. A `Printed` anchor is required where one exists.
+- **A refinement sequence is falsifying evidence only**, one check in the certificate's battery: the observed order must match the theory and the values must settle inside the derived bound; a ladder can REFUTE a reference, never certify one (ERR-006: the right rate to the wrong limit is invisible to a self-referential gate).
+- **A family that cannot yet derive its bound has no `Valid` certificate** and cannot anchor a `VerificationCertificate`; deriving each family's bound is P4's work. The spec's R5c.5 is re-posed accordingly (the band and the safety factor disappear as inputs).
