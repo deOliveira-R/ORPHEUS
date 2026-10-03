@@ -26,9 +26,9 @@ from orpheus.derivations.common.withdrawal import (
     RUN_WITHDRAWN_VARIABLE,
     AllWithdrawals,
     GeneratorWithdrawn,
-    Withdrawal,
     lifted_withdrawals,
 )
+from orpheus.reference.withdrawal import Withdrawal
 from orpheus.derivations.reference_values import get as get_reference
 from tests._harness import registry
 from tests._harness.registry import TestMetadata
@@ -337,7 +337,7 @@ def pytest_collection_modifyitems(
 
     A test carrying ``@pytest.mark.withdrawn(reason, issue=N)`` is skipped
     unless ``ORPHEUS_RUN_WITHDRAWN`` names ``N`` (:func:`_apply_withdrawal`),
-    and its :class:`~orpheus.derivations.common.withdrawal.Withdrawal` is
+    and its :class:`~orpheus.reference.withdrawal.Withdrawal` is
     recorded on its registry entry either way.
     """
     registry.clear()

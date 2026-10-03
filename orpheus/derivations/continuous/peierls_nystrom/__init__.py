@@ -50,7 +50,7 @@ their angular-assembly drivers, :mod:`.reference` and :mod:`.ps1982_reference`
 stay in service.
 """
 
-from orpheus.derivations.common.withdrawal import Withdrawal
+from orpheus.reference.withdrawal import Withdrawal
 
 #: The ruling that withdraws the Nyström solver half of this package; the
 #: one value every lock in the package is keyed on, and the value the one

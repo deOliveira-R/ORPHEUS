@@ -69,13 +69,14 @@ from orpheus.geometry.extent import GeometryExtent
 from orpheus.geometry.structured_geometry import StructuredGeometry
 from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
+from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Question, Response
 from orpheus.numerics.scalars import parse_integer
 
 if TYPE_CHECKING:
     import sympy
 
-__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification"]
+__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification", "admit_observable"]
 
 Coordinate: TypeAlias = CellCoefficient | GeometryExtent
 """The coordinates a specification resolves a question's keys to."""
@@ -187,6 +188,53 @@ def _admit_datum(datum: MeshFreeFunction, role: str, spec: Specification) -> Non
                 raise ValueError(f"{type(spec).__name__}: the {role} depends on {names}, which this problem has no coordinate to read")
         case _:
             assert_never(datum)
+
+
+def admit_observable(observable: Observable, specification: Specification) -> None:
+    """Refuse an observable this specification cannot pose; the one admission every reader reuses.
+
+    A flux integral's weight must fit the problem as a question's datum must
+    (its groups, its regions, the coordinates a ``Symbolic`` weight may depend
+    on); a ratio's two operands must each fit; a point value's group must be
+    one of the problem's and its position must lie on the geometry, so the
+    infinite medium, which has no position, refuses it; an eigenvalue exists
+    only for an eigen question. Every answer's ``read`` calls this before it
+    reads, so the refusal is decided once (#405 P2, the elegance review of
+    step 3).
+    """
+    where = type(specification).__name__
+    match observable:
+        case FluxIntegral():
+            _admit_datum(observable.weight, "weight", specification)
+        case Ratio():
+            admit_observable(observable.numerator, specification)
+            admit_observable(observable.denominator, specification)
+        case PointValue():
+            if observable.group >= specification.n_groups:
+                raise ValueError(
+                    f"{where}: the point value's group {observable.group} is not among the problem's "
+                    f"{specification.n_groups} groups"
+                )
+            match specification:
+                case InfiniteMediumSpecification():
+                    raise ValueError(f"{where}: a point value names a position, and the infinite medium has none")
+                case GeometrySpecification():
+                    low, high = specification.geometry.breakpoints[0], specification.geometry.breakpoints[-1]
+                    if not low <= observable.position <= high:
+                        raise ValueError(
+                            f"{where}: the point value's position {observable.position!r} is off the geometry "
+                            f"[{low!r}, {high!r}]"
+                        )
+                case _:
+                    assert_never(specification)
+        case Eigenvalue():
+            if not isinstance(specification.question, Eigen):
+                raise ValueError(
+                    f"{where}: an eigenvalue is read off an eigen question's answer, and this question is a "
+                    f"{type(specification.question).__name__}"
+                )
+        case _:
+            assert_never(observable)
 
 
 def _canonical_point(point: Any, spec: Specification) -> FrozenMapping[Coordinate, float]:

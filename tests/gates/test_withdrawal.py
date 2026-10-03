@@ -6,7 +6,7 @@ declarations must agree:
 
 * statically, by ``@pytest.mark.withdrawn(reason, issue=N)`` on every test
   that consumes it, which ``tests/conftest.py`` parses with
-  :meth:`~orpheus.derivations.common.withdrawal.Withdrawal.from_mark`, turns
+  :meth:`~orpheus.reference.withdrawal.Withdrawal.from_mark`, turns
   into a skip unless ``ORPHEUS_RUN_WITHDRAWN`` names ``N``, and records on
   the registry (so the V&V matrix and the error catalogue count the test as
   neither verifying nor catching);
@@ -67,11 +67,11 @@ from orpheus.derivations.common.withdrawal import (
     ALL_WITHDRAWALS,
     RUN_WITHDRAWN_VARIABLE,
     GeneratorWithdrawn,
-    Withdrawal,
     lifted_withdrawals,
     withdrawal_of,
     withdrawn_generator,
 )
+from orpheus.reference.withdrawal import Withdrawal
 from orpheus.derivations.continuous.peierls_nystrom import PEIERLS_NYSTROM_WITHDRAWAL
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
@@ -406,7 +406,8 @@ def test_m5_no_kept_test_reaches_a_locked_generator(tmp_path):
 
 _XFAIL_CHILD = """
 import pytest
-from orpheus.derivations.common.withdrawal import Withdrawal, withdrawn_generator
+from orpheus.derivations.common.withdrawal import withdrawn_generator
+from orpheus.reference.withdrawal import Withdrawal
 
 @withdrawn_generator(Withdrawal("stub", issue=506))
 def locked():
@@ -572,7 +573,8 @@ def test_m6_a_child_interpreter_is_locked_through_the_environment(lift, expected
 
 
 _CHILD_STUB = """
-from orpheus.derivations.common.withdrawal import Withdrawal, withdrawn_generator
+from orpheus.derivations.common.withdrawal import withdrawn_generator
+from orpheus.reference.withdrawal import Withdrawal
 @withdrawn_generator(Withdrawal("stub", issue=506))
 def g():
     return "RAN"

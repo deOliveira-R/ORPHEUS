@@ -559,7 +559,7 @@ One value, read in two places
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A withdrawal is one value,
-:class:`~orpheus.derivations.common.withdrawal.Withdrawal`, a frozen
+:class:`~orpheus.reference.withdrawal.Withdrawal`, a frozen
 pair ``(reason, issue)``. Its constructor refuses an empty reason and
 an issue that is not a positive ``int`` (a ``bool`` or a numeric
 string is refused too), and each refusal names the field. The value
@@ -568,7 +568,7 @@ is read in two places that must agree:
 - **statically, by the test harness**, from the marker
   ``@pytest.mark.withdrawn(reason, issue=N)`` on every test that
   consumes the generator. ``tests/conftest.py`` parses the marker
-  with :meth:`~orpheus.derivations.common.withdrawal.Withdrawal.from_mark`
+  with :meth:`~orpheus.reference.withdrawal.Withdrawal.from_mark`
   at collection time, skips the test, and records the
   ``Withdrawal`` on the test's registry entry
   (``TestMetadata.withdrawn``), where the audit reads it;

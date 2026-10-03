@@ -67,7 +67,7 @@ Submodules
        ``by_geometry``, ``by_groups``, ``by_method``).
    * - :mod:`~orpheus.derivations.common.withdrawal`
      - The withdrawal of a reference generator:
-       :class:`~orpheus.derivations.common.withdrawal.Withdrawal`
+       :class:`~orpheus.reference.withdrawal.Withdrawal`
        ``(reason, issue)``, the lock
        :func:`~orpheus.derivations.common.withdrawal.withdrawn_generator`
        and its refusal

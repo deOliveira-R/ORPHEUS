@@ -175,7 +175,7 @@ class Symbolic(ContentIdentity):
         for g, text in enumerate(texts):
             if not isinstance(text, str):
                 raise TypeError(f"Symbolic: group {g} is stored as srepr text, got {type(text).__name__}")
-            expression = _parse(text, g)
+            expression = parse_srepr(text, f"Symbolic: group {g}")
             _admit(expression, g, owned)
             canonical.append(sympy.srepr(expression))
         object.__setattr__(self, "srepr", tuple(canonical))
@@ -200,7 +200,7 @@ class Symbolic(ContentIdentity):
     def expressions(self) -> tuple["sympy.Expr", ...]:
         """The expressions, one per group, parsed from the stored text (each a
         scalar ``Expr``: the constructor admitted nothing else)."""
-        return tuple(cast("sympy.Expr", _parse(text, g)) for g, text in enumerate(self.srepr))
+        return tuple(cast("sympy.Expr", parse_srepr(text, f"Symbolic: group {g}")) for g, text in enumerate(self.srepr))
 
     @property
     def n_groups(self) -> int:
@@ -260,8 +260,8 @@ def _sympy_names() -> dict[str, Any]:
     return names
 
 
-def _parse(text: str, group: int) -> "sympy.Basic":
-    """``srepr`` text as an expression, through a whitelist and never a bare ``eval``.
+def parse_srepr(text: str, where: str) -> "sympy.Basic":
+    """``srepr`` text as an expression, through a whitelist and never a bare ``eval``; refusals begin with ``where``.
 
     Admitted: calls whose callee is a name of a SymPy class or a SymPy
     singleton (``pi``, ``true``, ``oo``), numeric and string literals, a
@@ -276,7 +276,7 @@ def _parse(text: str, group: int) -> "sympy.Basic":
     try:
         tree = ast.parse(text, mode="eval")
     except SyntaxError as err:
-        raise ValueError(f"Symbolic: group {group} is not srepr text ({err.msg})") from None
+        raise ValueError(f"{where} is not srepr text ({err.msg})") from None
     namespace: dict[str, Any] = {}
     for node in ast.walk(tree):
         if isinstance(node, (ast.Expression, ast.Call, ast.keyword, ast.Tuple, ast.Load, ast.USub, ast.UAdd)):
@@ -290,8 +290,8 @@ def _parse(text: str, group: int) -> "sympy.Basic":
             if target is not None:
                 namespace[node.id] = target
                 continue
-            raise ValueError(f"Symbolic: group {group} names {node.id!r}, which is not a SymPy class or constant")
-        raise ValueError(f"Symbolic: group {group} holds a {type(node).__name__}, which srepr text never does")
+            raise ValueError(f"{where} names {node.id!r}, which is not a SymPy class or constant")
+        raise ValueError(f"{where} holds a {type(node).__name__}, which srepr text never does")
     return eval(compile(tree, "<srepr>", "eval"), {"__builtins__": {}}, namespace)
 
 
@@ -346,4 +346,4 @@ def parse_mesh_free_function(value: Any, where: str, noun: str) -> MeshFreeFunct
     return cast(MeshFreeFunction, parse_member(value, get_args(MeshFreeFunction), where, noun, "a mesh-free function"))
 
 
-__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function"]
+__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function", "parse_srepr"]

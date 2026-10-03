@@ -11,6 +11,7 @@ from orpheus.specification.specification import (
     GeometrySpecification,
     InfiniteMediumSpecification,
     Specification,
+    admit_observable,
 )
 
-__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification"]
+__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification", "admit_observable"]

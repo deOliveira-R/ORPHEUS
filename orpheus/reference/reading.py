@@ -31,6 +31,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from typing import TypeAlias
 
 from orpheus.data.citation import Citation
@@ -81,6 +82,23 @@ class Printed(ContentIdentity):
         """Half a unit in the last printed digit, exactly."""
         last_digit = int(Decimal(self.text).as_tuple().exponent)  # finite: admitted at construction
         return Decimal((0, (5,), last_digit - 1))  # built from its digits, so no decimal context rounds it
+
+    def enclosure(self) -> Enclosure:
+        """The printed claim as an enclosure: the double nearest the text, and a bound rounded outward.
+
+        The author claims the exact value lies within half a unit of the last
+        printed digit of the TEXT; the double :attr:`value` differs from the
+        text by its rounding. The bound is the half unit plus that rounding,
+        computed exactly in rationals and rounded up to a double, so the
+        enclosure contains every number the printed claim admits.
+        """
+        exact = Fraction(Decimal(self.text))
+        centre = self.value
+        bound = Fraction(self.half_unit) + abs(Fraction(centre) - exact)
+        rounded = float(bound)
+        if Fraction(rounded) < bound:
+            rounded = math.nextafter(rounded, math.inf)
+        return Enclosure(centre, rounded)
 
 
 ReferenceReading: TypeAlias = Enclosure | Printed

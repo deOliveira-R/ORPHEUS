@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from orpheus.derivations.common.withdrawal import Withdrawal
+from orpheus.reference.withdrawal import Withdrawal
 
 # V&V level values.
 #

@@ -66,20 +66,20 @@ class Enclosure(ContentIdentity):
         object.__setattr__(self, "bound", bound)
         content_digest(self)
 
-    def _ends(self) -> tuple[float, float]:
-        """The interval's ends as doubles, each rounded outward."""
+    def ends(self) -> tuple[float, float]:
+        """The interval's ends as doubles, each rounded outward: a superset of the claimed interval."""
         return _down(self.value - self.bound), _up(self.value + self.bound)
 
     def __truediv__(self, other: Enclosure) -> Enclosure:
         if not isinstance(other, Enclosure):
             return NotImplemented
-        low_b, high_b = other._ends()
+        low_b, high_b = other.ends()
         if low_b <= 0.0 <= high_b:
             raise ZeroDivisionError(
                 f"Enclosure: the denominator's enclosure, rounded outward to [{low_b!r}, {high_b!r}], contains zero, "
                 f"so the quotient has no enclosure"
             )
-        low_a, high_a = self._ends()
+        low_a, high_a = self.ends()
         corners = [x / y for x in (low_a, high_a) for y in (low_b, high_b)]
         low, high = _down(min(corners)), _up(max(corners))
         centre = self.value / other.value

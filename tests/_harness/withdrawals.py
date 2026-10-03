@@ -1,6 +1,6 @@
 """The test-side marks of the withdrawals in force — one per withdrawal.
 
-A withdrawal (:class:`orpheus.derivations.common.withdrawal.Withdrawal`) is
+A withdrawal (:class:`orpheus.reference.withdrawal.Withdrawal`) is
 declared once, next to the generators it locks. Its test-side marker is
 minted HERE from that same value, so every test that consumes a withdrawn
 generator carries ``@PEIERLS_NYSTROM_WITHDRAWN`` (or

@@ -3,8 +3,10 @@
 A *withdrawal* is a maintainer ruling that a reference generator is not
 fit to be believed — not research grade — and so must neither be cited
 as evidence nor run by default, until the issue that records the ruling
-closes. It is one value, :class:`Withdrawal` ``(reason, issue)``, read in
-two places that must agree:
+closes. It is one value, :class:`~orpheus.reference.withdrawal.Withdrawal`
+``(reason, issue)`` (defined in the reference package since #405 P2 step 5,
+so that a published solution and a reference certificate carry the same
+class as their standing), read in two places that must agree:
 
 * **statically**, by the test harness: a test that consumes a withdrawn
   generator carries ``@pytest.mark.withdrawn(reason, issue=N)``;
@@ -44,16 +46,16 @@ from __future__ import annotations
 
 import functools
 import os
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from typing import Any, Final, ParamSpec, Protocol, TypeVar, final
+from collections.abc import Callable
+from typing import Any, Final, ParamSpec, TypeVar, final
+
+from orpheus.reference.withdrawal import Withdrawal
 
 __all__ = [
     "ALL_WITHDRAWALS",
     "AllWithdrawals",
     "GeneratorWithdrawn",
     "RUN_WITHDRAWN_VARIABLE",
-    "Withdrawal",
     "lifted_withdrawals",
     "withdrawal_of",
     "withdrawn_generator",
@@ -62,91 +64,6 @@ __all__ = [
 #: The environment variable that lifts a withdrawal: comma-separated issue
 #: numbers (``506`` or ``506,512``), or ``all``.
 RUN_WITHDRAWN_VARIABLE: Final = "ORPHEUS_RUN_WITHDRAWN"
-
-
-class _MarkLike(Protocol):
-    """The two fields of a ``pytest`` ``Mark`` that :meth:`Withdrawal.from_mark` reads."""
-
-    @property
-    def args(self) -> tuple[Any, ...]: ...
-
-    @property
-    def kwargs(self) -> Mapping[str, Any]: ...
-
-
-@dataclass(frozen=True)
-class Withdrawal:
-    """A ruling that a reference generator is withdrawn, and the issue that records it.
-
-    Parameters
-    ----------
-    reason
-        Why the generator is withdrawn, in one sentence. Non-empty.
-    issue
-        The GitHub issue that records the ruling and its return criterion.
-        A positive ``int`` (a ``bool`` or a numeric string is refused).
-
-    Raises
-    ------
-    ValueError
-        On an empty reason or an issue that is not a positive ``int``;
-        the message names the offending field.
-    """
-
-    reason: str
-    issue: int
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.reason, str) or not self.reason.strip():
-            raise ValueError(
-                f"Withdrawal.reason must be a non-empty string, got {self.reason!r}"
-            )
-        if type(self.issue) is not int:
-            raise ValueError(
-                "Withdrawal.issue must be an int (the GitHub issue number), got "
-                f"{type(self.issue).__name__} {self.issue!r}"
-            )
-        if self.issue <= 0:
-            raise ValueError(
-                f"Withdrawal.issue must be a positive issue number, got {self.issue}"
-            )
-
-    @classmethod
-    def from_mark(cls, mark: _MarkLike, *, where: str) -> Withdrawal:
-        """Parse ``@pytest.mark.withdrawn(reason, issue=N)`` into a :class:`Withdrawal`.
-
-        ``where`` is the node id of the test carrying the marker; every
-        refusal names it, so a malformed marker is a collection error that
-        says which test to fix.
-
-        Raises
-        ------
-        ValueError
-            When the marker does not carry exactly one positional reason and
-            an ``issue=`` keyword (and nothing else), or when the values fail
-            the constructor's law.
-        """
-        spelling = "@pytest.mark.withdrawn(reason, issue=N)"
-        if len(mark.args) != 1:
-            raise ValueError(
-                f"{where}: a withdrawn marker takes exactly one positional "
-                f"argument, the reason; got {len(mark.args)} ({spelling})"
-            )
-        if "issue" not in mark.kwargs:
-            raise ValueError(
-                f"{where}: a withdrawn marker must name its issue ({spelling})"
-            )
-        unexpected = sorted(set(mark.kwargs) - {"issue"})
-        if unexpected:
-            raise ValueError(
-                f"{where}: a withdrawn marker takes only issue=; got {unexpected} "
-                f"({spelling})"
-            )
-        try:
-            return cls(reason=mark.args[0], issue=mark.kwargs["issue"])
-        except ValueError as exc:
-            raise ValueError(f"{where}: {exc}") from exc
-
 
 
 @final
