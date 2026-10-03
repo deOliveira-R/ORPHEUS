@@ -344,6 +344,21 @@ def test_r6_6_the_factory_refuses_a_question_it_does_not_answer() -> None:
         s6.exact_medium_reference(source)
 
 
+def test_r6_6_the_factory_refuses_another_eigen_direction() -> None:
+    """An eigen question along another direction (every SCATTERING emission,
+    the classical c-eigenvalue) is an Eigen question, so the claimed
+    eigenvalue's admission does not refuse it: only the factory's own
+    k-question check does, naming the k-eigenvalue (the fixed-source row above
+    is refused by the claim's admission first, ``[M]`` battery arm E3)."""
+    from orpheus.data.cells import CellCoefficient, Channel
+    from orpheus.numerics.question import Eigen
+    from orpheus.specification import InfiniteMediumSpecification
+
+    c_question = InfiniteMediumSpecification(0, sf.fuel(), Eigen(CellCoefficient.every(Channel.SCATTERING_EMISSION)))
+    with pytest.raises(ValueError, match="k-eigenvalue"):
+        s6.exact_medium_reference(c_question)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # R6.7 — the layer
 # ═════════════════════════════════════════════════════════════════════════════
