@@ -160,7 +160,7 @@ def verify_agreement(
     """Compare production's reading of ``observable`` with a valid reference's enclosure."""
     _require_valid(reference)
     algebraic = _algebraic(algebraic_error)
-    bound = parse_positive_real(tolerance, "verification", "the tolerance")
+    bound = parse_positive_real(tolerance, "verification: the tolerance", "the tolerance")
     reference_reading = reference.read(observable)
     reading = _production_reading(answer, observable)
     return VerificationCertificate(observable, reading, reference_reading, bound, algebraic)
@@ -202,9 +202,9 @@ def verify_order(
 ) -> OrderVerification:
     """Production's observed order over a refinement, every floor established."""
     _require_valid(reference)
-    bound = parse_positive_real(tolerance, "verification", "the tolerance")
+    bound = parse_positive_real(tolerance, "verification: the tolerance", "the tolerance")
     declared = parse_finite_real(order, "verification: the declared order")
-    width = parse_positive_real(band, "verification", "the band")
+    width = parse_positive_real(band, "verification: the band", "the band")
     pairs = tuple(answers)
     evidence = tuple(_algebraic(e) for e in algebraic_errors)
     if len(pairs) < 2 or len(evidence) != len(pairs):
