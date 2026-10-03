@@ -319,6 +319,8 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.geometry.extent",
         # #405 P2 step 1: the enclosure and the reference package.
         "orpheus.numerics.enclosure",
+        # #405 P2 step 3: the observables.
+        "orpheus.numerics.observable",
         "orpheus.reference",
     ],
 )
