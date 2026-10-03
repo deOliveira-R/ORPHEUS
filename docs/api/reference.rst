@@ -5,7 +5,7 @@ Reference solutions (``reference``)
 
 The :mod:`orpheus.reference` package holds what a reference solution says
 about the exact answer of its own equation, and how that saying is held to
-account. It has five modules:
+account. It has six modules:
 
 * :mod:`orpheus.reference.reading`: a reference's reading of one
   observable, :data:`~orpheus.reference.reading.ReferenceReading`, is an
@@ -54,7 +54,17 @@ account. It has five modules:
   derivation cannot be built). A family that cannot derive a bound raises
   :class:`~orpheus.reference.solution.NotCertified`. Every value but the
   reference solution itself is a content value; the reference solution is
-  keyed by its derivation's execution trace in phase P3.
+  keyed by its derivation's execution trace in phase P3;
+* :mod:`orpheus.reference.verification`: a production answer's reading put
+  on trial against a ``Valid`` reference. A
+  :class:`~orpheus.reference.verification.VerificationCertificate` reads both
+  sides itself and decides, exactly, the agreement
+  :math:`|m - v_{\rm ref}| + b_{\rm ref} \le \tau` with the floor
+  :math:`b_{\rm ref} \le \tau/10`; an
+  :class:`~orpheus.reference.verification.OrderVerification` holds
+  production's observed order over a refinement as intervals (each error known
+  within the reference bound plus the answer's established algebraic error)
+  against a declared order and band. Both are returned, never stored.
 
 The observables a reading is keyed on are
 :mod:`orpheus.numerics.observable`; whether an observable fits a problem is
@@ -100,4 +110,10 @@ The reference solution
 ----------------------
 
 .. automodule:: orpheus.reference.solution
+   :members:
+
+Verification
+------------
+
+.. automodule:: orpheus.reference.verification
    :members:
