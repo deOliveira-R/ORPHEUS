@@ -1,4 +1,4 @@
-r"""The reference solution and its reading (#405 P2 step 6, R6.1-R6.9).
+r"""The reference solution and its reading (#405 P2 step 6, R6.1-R6.7).
 
 Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.md``
 §1.6), on the user's rulings of 2026-10-03 (a reference's reading is its
@@ -79,7 +79,7 @@ def test_r6_1_the_fields_and_their_types() -> None:
 
 _BAD = (
     ("specification-a-string", lambda d, c: s6.reference("medium", d, c), TypeError, "specification"),
-    ("derivation-without-evaluate", lambda d, c: s6.reference(s5.eigen_medium(), object(), c), TypeError, "derivation"),
+    ("derivation-without-establish", lambda d, c: s6.reference(s5.eigen_medium(), object(), c), TypeError, "derivation"),
     ("certificate-a-mapping", lambda d, c: s6.reference(s5.eigen_medium(), d, {}), TypeError, "certificate"),
 )
 
@@ -215,14 +215,15 @@ def test_r6_3_an_unclaimed_observable_reads_its_established_enclosure() -> None:
 
 def test_r6_3_a_derivation_that_disagrees_with_its_claim_is_refused() -> None:
     """A derivation establishing k = 7/5 + 1/10^9 exactly, against an exact claim
-    7/5: the two enclosures share no point (the step-5 family law), so the read
-    is refused, naming the disagreement: the certificate is about another
-    answer than the one the reference computes."""
+    7/5: the two enclosures share no point (the step-5 family law), so the
+    reference cannot be BUILT, naming the disagreement. The claim and the
+    establishment are one quantity in two places (X4), so they are checked once,
+    at construction, and ``read`` is a pure evaluation (the elegance review of
+    step 6, finding 4)."""
     spec, derivation, cert = s6.medium_table()
     derivation.table[s5.eigenvalue()] = Fraction(7, 5) + Fraction(1, 10**9)
-    ref = s6.reference(spec, derivation, cert)
     with pytest.raises(ValueError, match="disagree"):
-        ref.read(s5.eigenvalue())
+        s6.reference(spec, derivation, cert)
 
 
 @pytest.mark.parametrize("standing", ["invalid", "withdrawn"])
@@ -385,3 +386,74 @@ def test_r6_7_the_reader_imports_no_derivation() -> None:
     require("reference" in loaded, f"activation: {loaded}")
     allowed = {"reference", "specification", "numerics", "data", "geometry"}
     require(loaded <= allowed, f"loads {sorted(loaded - allowed)}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The step-6 review round (qa and the elegance review, 2026-10-03)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("variant", ["nearest-mode", "offset-point"])
+def test_r6_6_the_factory_answers_only_the_fundamental_at_the_physical_point(variant: str) -> None:
+    """The exact family answers ONE question, the fundamental k at the physical
+    point; another mode or an offset point is another question, refused (it
+    read the unperturbed k, certified Valid, before the review: qa F2,
+    elegance 1)."""
+    from orpheus.data.cells import CellCoefficient, Channel
+    from orpheus.numerics.question import Eigen, Nearest
+    from orpheus.specification import InfiniteMediumSpecification
+
+    k = CellCoefficient.every(Channel.FISSION_EMISSION)
+    question = (Eigen(k, mode=Nearest(0.3)) if variant == "nearest-mode"
+                else Eigen(k, point={CellCoefficient.every(Channel.SCATTERING_EMISSION): 0.5}))
+    with pytest.raises(ValueError, match="k-eigenvalue"):
+        s6.exact_medium_reference(InfiniteMediumSpecification(0, sf.fuel(), question))
+
+
+def test_r6_6_a_non_dyadic_weight_reads_exactly() -> None:
+    """Every R6.6 weight above is dyadic, so a float32 rounding of the weight
+    left them green (qa F4); 0.1 is not dyadic: the reading must contain the
+    exact sum of the DOUBLE 0.1 times the exact flux."""
+    mixture = sf.fuel()
+    exact = s6.exact_medium_of(mixture)
+    ref = s6.exact_medium_reference(_medium(mixture))
+    weights = (0.1, 0.3)
+    reading = ref.read(s5.flux((weights,)))
+    truth = sum((Fraction(w) * f for w, f in zip(weights, exact.flux)), Fraction(0))
+    require(_contains(reading, truth), f"{reading!r} against {float(truth)!r}")
+
+
+@pytest.mark.parametrize("digits", [15, 3])
+def test_r6_6_a_symbolic_float_weight_reads_its_exact_binary_value(digits: int) -> None:
+    """A SymPy Float multiplies at its own precision, so the product was rounded
+    before Exact certified it: ``Float('0.1', 3)`` read 2.1e-5 relative off with
+    a bound of 1e-59 (qa F1). The weight's Float is replaced by the exact binary
+    value it holds; the reading must contain that exact product."""
+    import sympy
+
+    from orpheus.numerics.mesh_free_function import Symbolic
+
+    mixture = sf.fuel()
+    exact = s6.exact_medium_of(mixture)
+    ref = s6.exact_medium_reference(_medium(mixture))
+    weight = sympy.Float("0.1", digits)
+    held_rational = sympy.Rational(weight)
+    held = Fraction(int(held_rational.p), int(held_rational.q))
+    reading = ref.read(s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(weight, 0)))
+    require(_contains(reading, held * exact.flux[0]), f"{reading!r} against {float(held * exact.flux[0])!r}")
+
+
+def test_r6_6_admission_and_evaluation_share_one_definition_of_constant() -> None:
+    """``sin(φ)² + cos(φ)²`` is admitted on the infinite medium (it does not
+    depend on φ, :meth:`Symbolic.depends_on`), so it must READ: as the weight 1
+    (the elegance review, finding 2: the raw expression was refused by Exact)."""
+    import sympy
+
+    from orpheus.numerics.mesh_free_function import Symbolic
+
+    mixture = sf.fuel()
+    exact = s6.exact_medium_of(mixture)
+    ref = s6.exact_medium_reference(_medium(mixture))
+    one = sympy.sin(Symbolic.phi) ** 2 + sympy.cos(Symbolic.phi) ** 2
+    reading = ref.read(s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(one, one)))
+    require(_contains(reading, sum(exact.flux, Fraction(0))), f"{reading!r}")

@@ -233,6 +233,25 @@ class Symbolic(ContentIdentity):
         fresh = [(c, sympy.Symbol(f"{c.name}_other", real=True)) for c in coordinates]
         return not all(sympy.simplify(q - q.subs(fresh, simultaneous=True)) == 0 for q in self.expressions)
 
+    def without(self, *coordinates: "sympy.Symbol") -> "Symbolic":
+        """The same function with the named coordinates eliminated, refused if it depends on one.
+
+        The one definition of "independent of a coordinate" is
+        :meth:`depends_on`; this is its constructive face: each expression is
+        simplified and any named coordinate left in it (a dependence that
+        cancels, ``sin(φ)**2 + cos(φ)**2``) is set to 0, which changes no value
+        because the function does not depend on it. A reader that needs the
+        function on a space without those coordinates (the infinite medium has
+        none) reads this instead of re-deciding constancy.
+        """
+        import sympy
+
+        if self.depends_on(*coordinates):
+            names = ", ".join(c.name for c in coordinates)
+            raise ValueError(f"Symbolic.without: the function depends on {names}, so it cannot be read without them")
+        eliminated = (sympy.simplify(q).subs({c: 0 for c in coordinates}, simultaneous=True) for q in self.expressions)
+        return Symbolic.of(*eliminated)
+
     @property
     def is_isotropic(self) -> bool:
         """Whether no group depends on the direction (``μ`` and ``φ``, :meth:`depends_on`)."""

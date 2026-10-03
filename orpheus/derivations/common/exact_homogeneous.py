@@ -68,7 +68,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, assert_never
+
+from orpheus.data.cells import CellCoefficient, Channel
+from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
+from orpheus.numerics.question import Eigen
+from orpheus.reference.certificate import Claim, Exact, ReferenceCertificate
+from orpheus.reference.published import Current
+from orpheus.reference.solution import NotCertified, ReferenceSolution
+from orpheus.specification.specification import InfiniteMediumSpecification
 
 if TYPE_CHECKING:
     import sympy
@@ -255,6 +264,12 @@ __all__ = [
 # ── the reference solution (#405 P2 step 6) ────────────────────────────────
 
 
+def _rational(value: Fraction) -> sympy.Rational:
+    import sympy
+
+    return sympy.Rational(value.numerator, value.denominator)
+
+
 @dataclass(frozen=True, eq=False)
 class ExactInfiniteMediumDerivation:
     r"""The exact infinite medium as a reference derivation: every reading exact.
@@ -263,71 +278,68 @@ class ExactInfiniteMediumDerivation:
     against their defining equations at construction. The eigenvalue reads
     :math:`k_\infty` in the k chart (the chart of the question's parameter,
     the fission emission; other charts are #529's). A flux integral
-    :math:`\langle w, \varphi\rangle = \sum_g w_g \varphi_g` is read PER UNIT
-    VOLUME of the medium (the medium is infinite, so its total is not
-    finite), under the production gauge
+    :math:`\langle w, \varphi\rangle = \sum_g w_g \varphi_g` is read under the
+    infinite medium's measure, per unit volume (stated once, on
+    :mod:`orpheus.numerics.observable`), in the production gauge
     :math:`\langle\nu\Sigma_f,\varphi\rangle = 100`. Its weight is the one
     region's group values: a regionwise-constant table read exactly (every
-    double is a dyadic rational), or a constant symbolic weight (admission
-    has refused any dependence on a coordinate). The sum is exact, so every
-    reading is :class:`~orpheus.reference.certificate.Exact`.
+    double is a dyadic rational), or a symbolic weight read on the medium,
+    which has no coordinate (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`,
+    the same independence admission decided). Every reading is exact.
     """
 
     medium: ExactInfiniteMedium
 
-    def establish(self, observable: Any) -> Any:
+    def establish(self, observable: Eigenvalue | Linear) -> Exact:
         import sympy
 
-        from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
-        from orpheus.numerics.observable import Eigenvalue, FluxIntegral
-        from orpheus.reference.certificate import Exact
-        from orpheus.reference.solution import NotCertified
-
-        def exact(value: "sympy.Expr") -> Exact:
-            return Exact(sympy.srepr(value), "ExactInfiniteMedium.certify")
-
-        flux = [sympy.Rational(f.numerator, f.denominator) for f in self.medium.flux]
+        flux = [_rational(f) for f in self.medium.flux]
         match observable:
             case Eigenvalue():
-                return exact(sympy.Rational(self.medium.k_inf.numerator, self.medium.k_inf.denominator))
+                value = _rational(self.medium.k_inf)
             case FluxIntegral(weight=RegionwiseConstant() as weight):
-                # every double is a dyadic rational: the table is read exactly
-                weights = [sympy.Rational(*Fraction(float(w)).as_integer_ratio()) for w in weight.values[0]]
-                return exact(sum((w * f for w, f in zip(weights, flux)), sympy.Integer(0)))
+                value = sum((sympy.Rational(float(w)) * f for w, f in zip(weight.values[0], flux)), sympy.Integer(0))
             case FluxIntegral(weight=Symbolic() as weight):
-                return exact(sum((e * f for e, f in zip(weight.expressions, flux)), sympy.Integer(0)))
+                constants = weight.without(Symbolic.r, Symbolic.mu, Symbolic.phi).expressions
+                # a SymPy Float multiplies at its own precision: replace each by the exact binary value it holds
+                exact_constants = [c.xreplace({f: sympy.Rational(f) for f in c.atoms(sympy.Float)}) for c in constants]
+                value = sum((c * f for c, f in zip(exact_constants, flux)), sympy.Integer(0))
+            case FluxIntegral():
+                assert_never(observable.weight)
+            case PointValue():
+                raise NotCertified("the infinite medium has no position, so a point value has no reading")
             case _:
-                raise NotCertified(f"the exact infinite medium establishes an eigenvalue or a flux integral, not {observable!r}")
+                assert_never(observable)
+        try:
+            return Exact(sympy.srepr(value), "ExactInfiniteMedium.certify")
+        except ValueError as refusal:
+            raise NotCertified(f"the exact infinite medium cannot certify {observable!r}: {refusal}") from None
 
 
-def exact_infinite_medium_reference(specification: Any) -> Any:
+def exact_infinite_medium_reference(specification: InfiniteMediumSpecification) -> ReferenceSolution:
     r"""The exact infinite medium's :class:`~orpheus.reference.solution.ReferenceSolution`.
 
-    Posed on an :class:`~orpheus.specification.specification.InfiniteMediumSpecification`
-    whose question is the k-eigenvalue, :math:`\mathrm{Eigen}` along every
-    fission emission. Its certificate claims the eigenvalue and each group's
+    It answers exactly one question: the fundamental k-eigenvalue at the
+    physical point, :math:`\mathrm{Eigen}` along every fission emission with
+    the default mode and no offset (any other mode or point is a different
+    question, refused). Its certificate claims the eigenvalue and each group's
     flux (the indicator weight of that group), each
     :class:`~orpheus.reference.certificate.Exact`, with a target of
     :math:`10^{-12}` relative (the exact rationals' only error is their
     rounding to a double).
     """
-    from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.numerics.mesh_free_function import RegionwiseConstant
-    from orpheus.numerics.observable import Eigenvalue, FluxIntegral
-    from orpheus.numerics.question import Eigen
-    from orpheus.reference.certificate import Claim, ReferenceCertificate
-    from orpheus.reference.published import Current
-    from orpheus.reference.solution import ReferenceSolution
-    from orpheus.specification.specification import InfiniteMediumSpecification
-
     if not isinstance(specification, InfiniteMediumSpecification):
         raise TypeError(f"the exact infinite medium answers an InfiniteMediumSpecification, got a {type(specification).__name__}")
-    k_question = CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials)
-    if not (isinstance(specification.question, Eigen) and specification.question.parameter == k_question):
-        raise ValueError(f"the exact infinite medium answers the k-eigenvalue question, got {specification.question!r}")
+    k_question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials))
+    if specification.question != k_question:
+        raise ValueError(
+            f"the exact infinite medium answers the fundamental k-eigenvalue question at the physical point, "
+            f"got {specification.question!r}"
+        )
     derivation = ExactInfiniteMediumDerivation(exact_infinite_medium_of(specification.mixture))
     groups = specification.n_groups
-    observables = [Eigenvalue()] + [FluxIntegral(RegionwiseConstant(np.eye(groups)[g][None, :])) for g in range(groups)]
+    observables: list[Eigenvalue | Linear] = [Eigenvalue()]
+    observables += [FluxIntegral(RegionwiseConstant(np.eye(groups)[g][None, :])) for g in range(groups)]
     claims = {}
     for observable in observables:
         established = derivation.establish(observable)

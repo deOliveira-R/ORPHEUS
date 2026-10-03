@@ -21,9 +21,11 @@ never established, and never claimed, on its own: one definition.
 
 **The certificate's role.** A derived enclosure is a guarantee on its own
 (G3). The certificate adds, for the observables it claims, a target and the
-evidence that can refute the claim: when the certificate claims the
-observable read, the claimed and the established enclosures must share a
-point, or the read refuses ("disagrees"). A family whose derivation cannot
+evidence that can refute the claim. A claim and the derivation's
+establishment of the same observable are one quantity in two places (X4), so
+they are checked once, at construction: a reference whose derivation
+disagrees with its own claim cannot be built ("disagrees"), and ``read`` is a
+pure evaluation. A family whose derivation cannot
 derive a bound raises :class:`NotCertified`; what such a reference returns
 instead waits for the user's ruling on the uncertified reading.
 
@@ -88,6 +90,13 @@ class ReferenceSolution:
                     f"operands' readings, never on its own"
                 )
             admit_observable(observable, self.specification)
+            established = self.derivation.establish(observable).enclosure()
+            claimed = self.certificate.claims[observable].enclosure()
+            if common_part([claimed, established]) is None:
+                raise ValueError(
+                    f"ReferenceSolution: the derivation establishes {established!r}, which disagrees with the "
+                    f"claimed {claimed!r} for {observable!r}"
+                )
         for corroboration in self.certificate.corroborations:
             if corroboration.anchor.specification != self.specification:
                 raise ValueError(
@@ -95,15 +104,11 @@ class ReferenceSolution:
                 )
 
     def read(self, observable: Observable) -> Enclosure:
-        """The reference's enclosure of ``observable``, established on demand."""
+        """The reference's enclosure of ``observable``, established on demand (admitted once)."""
         admit_observable(observable, self.specification)
+        return self._establish(observable)
+
+    def _establish(self, observable: Observable) -> Enclosure:
         if isinstance(observable, Ratio):
-            return self.read(observable.numerator) / self.read(observable.denominator)
-        established = self.derivation.establish(observable).enclosure()
-        claim = None if self.certificate is None else self.certificate.claims.get(observable)
-        if claim is not None and common_part([claim.enclosure(), established]) is None:
-            raise ValueError(
-                f"ReferenceSolution: the established {established!r} disagrees with the claimed "
-                f"{claim.enclosure()!r} for {observable!r}"
-            )
-        return established
+            return self._establish(observable.numerator) / self._establish(observable.denominator)
+        return self.derivation.establish(observable).enclosure()

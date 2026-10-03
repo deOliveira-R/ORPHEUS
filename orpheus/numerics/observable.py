@@ -25,7 +25,9 @@ The closed set (the user's ruling of 2026-10-03):
   cells of #526); it is not a member here, so one functional has one
   canonical spelling. A region-averaged group flux is the
   flux integral of a weight that is the indicator of the region and the group
-  divided by the region's volume;
+  divided by the region's volume. On the infinite medium, which has no
+  extent, the measure is per unit volume: the flux integral reads
+  :math:`\sum_g w_g \varphi_g` (its total over the medium is not finite);
 * :class:`Ratio` ``(numerator, denominator)``: the quotient of two LINEAR
   observables (a flux integral or a point value), such as a spectral index or
   a normalised shape. Only a quotient of two linear functionals of the flux is
