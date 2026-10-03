@@ -20,7 +20,7 @@ source, and :meth:`SNBoundaryOperator._face_laws` collects every face's law with
 2.5``; the inflow was delivered TWICE through SI (``γ₋ψ = 5.0``, ratio exactly
 ``2.000000``); and on Krylov an affine ``A(x) = A_lin(x) − c`` breaks GMRES's
 Arnoldi relation ``A V_k = V_{k+1} H_k``, so the solve RAISED
-``ConvergenceCertificateError``. These rows are the operator-tier statement of
+``ConvergenceClaimError``. These rows are the operator-tier statement of
 that fix (ERR-075).
 
 ⭐ What "linear" MEANS on this carrier
@@ -513,7 +513,7 @@ def test_the_full_matvec_vanishes_at_zero() -> None:
     — that is the mechanism by which the P3 defect took down Krylov
     (``A V_k = V_{k+1} H_k`` is an identity about a LINEAR ``A``; scipy's
     tracked residual is meaningless without it, and
-    ``_certify_within_group_exit`` caught the divergence at
+    ``_check_convergence_claim`` caught the divergence at
     ``‖Aψ − q‖/‖q‖ = 1.718``). This row is the algebraic precondition for
     GMRES being applicable at all on a mesh with a declared inflow.
     """

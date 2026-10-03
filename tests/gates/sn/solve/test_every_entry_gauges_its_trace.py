@@ -211,8 +211,8 @@ def test_every_exercisable_entry_reports_a_gauge_correction():
             inner_solver="source_iteration", inner_schedule="gauss_seidel",
             inner_tol=1e-13,
         )
-    assert isinstance(eigen.certificate.gauge, Measured), "solve_sn did not gauge"
-    assert eigen.certificate.gauge.value > 1e-3
+    assert isinstance(eigen.exit_report.gauge, Measured), "solve_sn did not gauge"
+    assert eigen.exit_report.gauge.value > 1e-3
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", GaugeFreedomWarning)
@@ -222,10 +222,10 @@ def test_every_exercisable_entry_reports_a_gauge_correction():
             inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    assert isinstance(fixed.certificate.gauge, Measured), (
+    assert isinstance(fixed.exit_report.gauge, Measured), (
         "solve_sn_fixed_source did not gauge"
     )
-    assert fixed.certificate.gauge.value > 1e-3
+    assert fixed.exit_report.gauge.value > 1e-3
 
 
 @pytest.mark.foundation
@@ -250,7 +250,7 @@ def test_BOTH_fixed_source_arms_gauge_not_just_one(schedule):
             inner_schedule="gauss_seidel",
             inner_tol=1e-12, max_inner=40_000,
         )
-    assert isinstance(solution.certificate.gauge, Measured), (
+    assert isinstance(solution.exit_report.gauge, Measured), (
         f"the {schedule} arm returned without gauging"
     )
 
@@ -299,10 +299,10 @@ def test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone():
         f"correct and must stay so: {normal}"
     )
     # …and the fixture still exhibits the defect it is here to catch.
-    assert isinstance(solution.certificate.gauge, Measured)
-    assert solution.certificate.gauge.value > 1e-3, (
+    assert isinstance(solution.exit_report.gauge, Measured)
+    assert solution.exit_report.gauge.value > 1e-3, (
         f"fixture no longer excites the kernel "
-        f"({solution.certificate.gauge.value:.3e}) — check n_x is still ODD; "
+        f"({solution.exit_report.gauge.value:.3e}) — check n_x is still ODD; "
         f"an even first axis makes this gate inert while leaving it green"
     )
 
@@ -445,7 +445,7 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
             inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    skewed_gauge, symmetric_gauge = skewed.certificate.gauge, symmetric.certificate.gauge
+    skewed_gauge, symmetric_gauge = skewed.exit_report.gauge, symmetric.exit_report.gauge
     assert isinstance(skewed_gauge, Measured) and isinstance(symmetric_gauge, Measured)
 
     assert skewed_gauge.value > 1e-3, (
@@ -516,11 +516,11 @@ def test_it_is_SILENT_when_the_answer_was_already_canonical():
         )
     assert not [
         w for w in caught if issubclass(w.category, GaugeFreedomWarning)]
-    assert isinstance(solution.certificate.gauge, Measured), (
+    assert isinstance(solution.exit_report.gauge, Measured), (
         "silence must come from the gauge having done nothing, NOT from it "
         "never having run — those are different states and only one is fine"
     )
-    assert solution.certificate.gauge.value < 1e-10
+    assert solution.exit_report.gauge.value < 1e-10
 
 
 @pytest.mark.foundation

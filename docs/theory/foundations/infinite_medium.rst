@@ -2901,10 +2901,10 @@ ulp of :math:`k`: :math:`4.4\times 10^{-16}` (2 ulp) against
 a convergence residual to hide in, so the gap is the rounding of the
 quotient's two matrix-vector products and one solve.
 This gap is the quantity
-:class:`~orpheus.numerics.outcome.ExitCertificate`'s ``rayleigh_gap``
+:class:`~orpheus.numerics.outcome.ExitReport`'s ``rayleigh_gap``
 member exists to record — a diagnostic, deliberately never asserted at
 construction (:ref:`the-solution-outcome` gives the two independent
-reasons).  ``[M]`` no homogeneous result carries a certificate at U1: the
+reasons).  ``[M]`` no homogeneous result carries an exit report at U1: the
 TYPE ships, the evaluator that mints one lands with the S\ :sub:`N`
 entries at U2, so the number above is obtained by asking the outcome
 directly (``result.outcome.rayleigh()``).

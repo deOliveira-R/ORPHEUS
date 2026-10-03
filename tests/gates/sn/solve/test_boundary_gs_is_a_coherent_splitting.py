@@ -418,8 +418,8 @@ def _balance(flat, template, problem) -> float:
 
 
 @pytest.mark.verifies("sn-loss-kernel-gauge-projection")
-def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
-    r"""⭐ The reason the defect went unseen: the certificates cannot show it.
+def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_exit_report():
+    r"""⭐ The reason the defect went unseen: the exit reports cannot show it.
 
     Run the production driver twice, from cold starts differing **only inside**
     :math:`\ker A`. Every convergence quantity a caller can read agrees, and the
@@ -448,7 +448,7 @@ def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
     *blind* from *loaded*) is the same experiment on a kernel-FREE box, where
     :math:`G` has no fixed direction and a perturbation of the same size is
     damped: ``[M]`` the two traces agree to ``2.6e-15``. Without it, "the
-    certificates agree and the traces differ" is also what a broken comparison
+    exit reports agree and the traces differ" is also what a broken comparison
     produces.
 
     Jacobi is used deliberately: from a zero start it lands ON the canonical
@@ -483,7 +483,7 @@ def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
         criterion = record.binding_criterion
         assert criterion is not None and criterion.trajectory, (
             "the driver reported no stopping trajectory — there is then no "
-            "certificate to compare and this gate has no measurand"
+            "exit report to compare and this gate has no measurand"
         )
         return float(criterion.trajectory[-1])
 
@@ -676,13 +676,13 @@ def test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules():
                 inner_solver="source_iteration",
                 inner_schedule=schedule, inner_tol=1e-13, max_inner=400_000,
             )
-        assert isinstance(solution.certificate.gauge, Measured), (
+        assert isinstance(solution.exit_report.gauge, Measured), (
             "an entry returned without gauging — the comparison below would then "
             "be about the driver, not about what a user receives"
         )
         returned[schedule] = (
             np.asarray(solution.boundary_flux.values, dtype=float),
-            solution.certificate.gauge.value,
+            solution.exit_report.gauge.value,
         )
 
     gs_trace, gs_correction = returned["gauss_seidel"]

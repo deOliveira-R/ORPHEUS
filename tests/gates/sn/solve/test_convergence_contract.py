@@ -1235,7 +1235,7 @@ class TestExitBalanceDefect:
         with pytest.warns(ConvergenceWarning) as caught:
             sol = _starved_inner_converged_outer()
 
-        balance = sol.certificate.balance
+        balance = sol.exit_report.balance
         assert isinstance(balance, Measured), (
             "a truncated eigenvalue exit must carry the balance defect"
         )
@@ -1265,7 +1265,7 @@ class TestExitBalanceDefect:
         """
         with pytest.warns(ConvergenceWarning) as caught:
             sol = _starved_inner_converged_outer()
-        balance = sol.certificate.balance
+        balance = sol.exit_report.balance
         assert isinstance(balance, Measured)
         msg = str(caught[0].message)
         defect_text = f"{balance.value:.3e}"
@@ -1293,7 +1293,7 @@ class TestExitBalanceDefect:
         not by review: `[M]` 2026-08-10 the first wiring took the slice
         from 9 to **25** reds, all 16 new ones curvilinear solves raising
         out of ``evaluate_residual``.  Nothing in review caught it because
-        ``_certify_within_group_exit`` calls the same function on the same
+        ``_check_convergence_claim`` calls the same function on the same
         meshes and never hits it — it is guarded on ``record.converged``
         and returns early on precisely the truncated solves this runs on.
         The complement of a guard reaches states its partner never visits.
@@ -1320,7 +1320,7 @@ class TestExitBalanceDefect:
             "silently re-testing the Cartesian path"
         )
         assert sol.record.fully_converged is False
-        # step 3 (2026-09-17) DISSOLVED #354: the certificate reads the
+        # step 3 (2026-09-17) DISSOLVED #354: the exit report reads the
         # outcome's OWN residual through the hub's coupled pencil, whose
         # ``production`` on the coupled space IS the rhs that could not be
         # assembled here before — so the carrying arm reports a MEASURED
@@ -1329,12 +1329,12 @@ class TestExitBalanceDefect:
         # ABSENCE (``balance_defect is None``, "no number rather than a
         # partial one"); the absence was the gap, not the doctrine.
         from orpheus.numerics.outcome import Measured
-        assert isinstance(sol.certificate.balance, Measured), (
+        assert isinstance(sol.exit_report.balance, Measured), (
             "the carrying eigen exit's balance is measurable through the "
             "coupled posing (#354 dissolved at step 3); got "
-            f"{sol.certificate.balance!r}"
+            f"{sol.exit_report.balance!r}"
         )
-        assert sol.certificate.balance.value > 0.0
+        assert sol.exit_report.balance.value > 0.0
         assert "balance defect" in str(caught[0].message), (
             "a measured number owes its clause in the warning"
         )
@@ -1346,7 +1346,7 @@ class TestExitBalanceDefect:
         ``Certified`` (then: ``None``) on a fully-converged tree BEFORE
         evaluating anything, so the happy path keeps exactly the
         cost it had before N6b.  That guard is the complement of
-        ``_certify_within_group_exit``'s: the certificate fires when the
+        ``_check_convergence_claim``'s: the claim check fires when the
         solve claimed convergence and asserts, this fires when it did not
         and reports, and no solve pays for both forward applies.
 
@@ -1359,7 +1359,7 @@ class TestExitBalanceDefect:
             warnings.simplefilter("error", ConvergenceWarning)
             sol = _fixed_source(max_inner=2000)
         assert sol.record.fully_converged is True
-        assert isinstance(sol.certificate.balance, Certified), (
+        assert isinstance(sol.exit_report.balance, Certified), (
             "a converged exit is CERTIFIED, not diagnosed — reporting a "
             "defect here means the guard was dropped and every converged "
             "solve is now paying for a residual it does not need"

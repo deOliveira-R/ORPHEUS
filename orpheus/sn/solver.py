@@ -62,7 +62,7 @@ from orpheus.numerics.outcome import (
     Certified,
     EigenOutcome,
     Evidence,
-    ExitCertificate,
+    ExitReport,
     Measured,
     NotApplicable,
     NotYet,
@@ -439,7 +439,7 @@ def boundary_vs_interior_split(
     return boundary, interior
 
 
-class ConvergenceCertificateError(RuntimeError):
+class ConvergenceClaimError(RuntimeError):
     r"""A within-group solve CLAIMED convergence but the honest equation
     residual disagrees — the production lag-death classifier (step 5,
     R-5.2).
@@ -451,7 +451,7 @@ class ConvergenceCertificateError(RuntimeError):
     #282 class: a lagged seed, a stale block, a walk whose fixed point
     does not solve the equation — leaves the identity (and any
     ``‖Δψ‖``-family test) reporting "converged" while the equation is
-    violated O(1). The certificate is the ONE honest
+    violated O(1). The convergence-claim check is the ONE honest
     :func:`evaluate_residual` per solve that closes exactly that hole
     (the row-6 oracle is tautology-blind to it — an in-``M`` lag rides
     both sides of an assembled self-compare; TA step-5 memo refutation
@@ -459,11 +459,11 @@ class ConvergenceCertificateError(RuntimeError):
     """
 
 
-#: The certificate's false-alarm guard: the free identity and the honest
+#: The convergence-claim check's false-alarm guard: the free identity and the honest
 #: residual agree to FP-reassociation grain when M is exact, so a genuine
 #: lag-death (O(1) defect — #282 measured 5e5) clears this by orders of
 #: magnitude while exact-M exits never trip it.
-_CERTIFICATE_SAFETY = 10.0
+_CLAIM_CHECK_SAFETY = 10.0
 
 
 def _residual_is_expressible(problem: "SNProblem") -> bool:
@@ -478,7 +478,7 @@ def _residual_is_expressible(problem: "SNProblem") -> bool:
     carve (#310's deferred-out list).
 
     Named because TWO consumers need the same precondition and must not
-    drift apart: :func:`_certify_within_group_exit` (which skips its
+    drift apart: :func:`_check_convergence_claim` (which skips its
     correctness assertion) and :func:`_balance_evidence` (which reports
     no number).  Spelled inline in the first until 2026-08-10; the second
     would have been a second copy of the same `> 1` test, one rename away
@@ -568,7 +568,7 @@ def _balance_projection(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# The exit CERTIFICATE — what the exit measured about the RETURNED state
+# The EXIT REPORT — what the exit measured about the RETURNED state
 # (consumers campaign step 3, 2026-09-17: typed evidence, never a None with
 # five meanings; the SN evaluators live here because they need the balance
 # projection and the expressibility guard, and ``solution.py`` is imported
@@ -603,8 +603,8 @@ def _balance_evidence(
     equation).
 
     Four outcomes, each a VALUE (the Evidence sum): :class:`Certified` when
-    the tree fully converged — the within-group exit certificate ASSERTED
-    ``‖Aψ − q‖/‖q‖ ≤ _CERTIFICATE_SAFETY × tol`` (raising otherwise), so no
+    the tree fully converged — the within-group convergence-claim check ASSERTED
+    ``‖Aψ − q‖/‖q‖ ≤ _CLAIM_CHECK_SAFETY × tol`` (raising otherwise), so no
     number is owed; :class:`NotYet` (#310) when the scheme's iterate has no
     typed residual (a moment-tailed LD interior); :class:`NotApplicable` when
     the source integrates to zero per group (the ratio is undefined);
@@ -616,8 +616,8 @@ def _balance_evidence(
         criterion = record.binding_criterion
         tol = float(criterion.tolerance) if criterion is not None else float("nan")
         return Certified(
-            _CERTIFICATE_SAFETY * tol,
-            "the within-group exit certificate (‖Aψ − q‖/‖q‖ asserted at the exit)",
+            _CLAIM_CHECK_SAFETY * tol,
+            "the within-group convergence-claim check (‖Aψ − q‖/‖q‖ asserted at the exit)",
         )
     if not _residual_is_expressible(problem):
         return NotYet(
@@ -657,7 +657,7 @@ def _rayleigh_gap_evidence(outcome: "EigenOutcome | SourceOutcome") -> Evidence:
     return NotApplicable("a source outcome carries no eigenvalue")
 
 
-def _exit_certificate(
+def _exit_report(
     outcome: "EigenOutcome | SourceOutcome",
     *,
     problem: "SNProblem",
@@ -665,8 +665,8 @@ def _exit_certificate(
     gauge_correction: float | None,
     admissibility: Evidence,
     balance: Evidence | None = None,
-) -> ExitCertificate:
-    r"""Assemble the returned state's certificate from the outcome.
+) -> ExitReport:
+    r"""Assemble the returned state's exit report from the outcome.
 
     ``balance`` defaults to :func:`_balance_evidence` on the outcome's own
     residual and rhs; an entry that CANNOT measure it passes its reason (the
@@ -681,7 +681,7 @@ def _exit_certificate(
             balance = _balance_evidence(outcome.residual(), rhs, problem=problem, record=record)
         else:
             balance = _balance_evidence(outcome.residual(), outcome.posing.source, problem=problem, record=record)
-    return ExitCertificate(
+    return ExitReport(
         balance=balance,
         gauge=_gauge_evidence(gauge_correction, problem=problem),
         rayleigh_gap=_rayleigh_gap_evidence(outcome),
@@ -766,7 +766,7 @@ def _exit_gauge_trace(
 
     Returns the gauged composite and
     :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` for
-    the certificate's ``gauge`` member (:func:`_gauge_evidence`) — ``None``
+    the exit report's ``gauge`` member (:func:`_gauge_evidence`) — ``None``
     when there was no freedom to measure, never *"measured and zero"*.
 
     ⭐ **The sibling of** :func:`_balance_evidence` **with one sharpening:
@@ -784,7 +784,7 @@ def _exit_gauge_trace(
     (``psi_full.boundary.values.base is psi_full.interior.values.base`` →
     ``True``), which ``psi_typed`` also references and which is still read
     after this point; on the un-windowed SI arm ``angular_out IS psi_typed``,
-    the very object the certificate already measured.  An in-place
+    the very object the exit report already measured.  An in-place
     write would reach backwards through both.  ``dataclasses.replace`` also
     re-runs ``__post_init__``, so the leaf's block invariants re-fire — where
     ``Composite._recombine`` would silently drop ``_history``.
@@ -816,7 +816,7 @@ def _exit_gauge_trace(
     return replace(psi, boundary=replace(boundary, values=gauged)), correction
 
 
-def _certify_within_group_exit(
+def _check_convergence_claim(
     system: "WithinGroupSystem",
     psi: "TimedFullField | CoupledField",
     q_ext: "FullField | CoupledField",
@@ -825,15 +825,15 @@ def _certify_within_group_exit(
     record: IterationRecord,
     where: str,
 ) -> None:
-    r"""The end-of-solve convergence CERTIFICATE — one honest residual.
+    r"""The end-of-solve CONVERGENCE-CLAIM CHECK — one honest residual.
 
     No-op when the exit made NO claim (``max_iter`` hit without reaching
     ``tol`` — best-effort returns stay legal); when the driver's stop
     CLAIMED convergence, evaluates the true ``r = A·ψ − q`` through
     :func:`evaluate_residual` (a real forward apply — the only
     measurement an in-``M`` lag cannot fool) and raises
-    :class:`ConvergenceCertificateError` on a defect beyond
-    ``_CERTIFICATE_SAFETY × tol``.
+    :class:`ConvergenceClaimError` on a defect beyond
+    ``_CLAIM_CHECK_SAFETY × tol``.
 
     Wired on every FULL-ANGULAR arm (the coupled sphere, the seedless
     un-windowed SI, both Krylov paths). Two structural exemptions —
@@ -870,8 +870,8 @@ def _certify_within_group_exit(
     r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
     q_norm = max(float(np.linalg.norm(np.asarray(q_ext.to_flat()))), 1e-30)
     defect = r_norm / q_norm
-    if defect > _CERTIFICATE_SAFETY * tol:
-        raise ConvergenceCertificateError(
+    if defect > _CLAIM_CHECK_SAFETY * tol:
+        raise ConvergenceClaimError(
             f"{where}: the within-group solve claimed convergence "
             f"(running residual {criterion.last:.3e} < tol {tol:.1e}) "
             f"but the honest equation residual is ‖Aψ − q‖/‖q‖ = "
@@ -890,7 +890,7 @@ def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
     The seedless system's equation, unwrapped from the arity-guarded grid
     (whose ``apply`` demands a ``CoupledField`` even at arity 1, while the
     seedless drivers carry bare composites). Consumed by the arm-level
-    ``_exit_balance_defect`` call sites (retired at step 3 — the certificate
+    ``_exit_balance_defect`` call sites (retired at step 3 — the exit report
     reads the posing's own residual now) that deliberately evaluated the
     System-A equation alone (the eigenvalue exit's fission-defect
     projection)."""
@@ -2047,11 +2047,11 @@ class SNSolver:
         psi_typed, record = si.solve(
             q_driver, initial_guess=initial_guess,
         )
-        # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms
+        # The end-of-solve CONVERGENCE-CLAIM CHECK (step 5, R-5.2) — full-angular arms
         # only (the windowed moment arm is structurally exempt: seedless ⟹
-        # no in-M lag surface; see _certify_within_group_exit).
+        # no in-M lag surface; see _check_convergence_claim).
         if not windowed:
-            _certify_within_group_exit(
+            _check_convergence_claim(
                 system, psi_typed, q_driver,
                 problem=self.problem, record=record,
                 where="SNSolver._solve_source_iteration",
@@ -2207,12 +2207,12 @@ class SNSolver:
         psi_typed, record = krylov.solve(
             q_driver, initial_guess=initial_guess,
         )
-        # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
+        # The end-of-solve CONVERGENCE-CLAIM CHECK (step 5, R-5.2) — the Krylov path is
         # always full-angular (windowing is SI-only), so it certifies
         # unconditionally: GMRES's own stop is residual-based, but the
-        # certificate is the honest cross-check on the ASSEMBLED equation
+        # check is the honest cross-check on the ASSEMBLED equation
         # (the ERR-053 truncation family's independent catcher).
-        _certify_within_group_exit(
+        _check_convergence_claim(
             system, psi_typed, q_driver,
             problem=self.problem, record=record,
             where="SNSolver._solve_krylov",
@@ -2491,14 +2491,14 @@ def solve_sn(
     # tracked as #354 rather than assembled here from plausibility.
     #
     # ⭐ Worth naming, because it is why no existing gate caught it in
-    # review: `_certify_within_group_exit` calls the same function on the
+    # review: `_check_convergence_claim` calls the same function on the
     # same meshes and has never hit this, because it is guarded on
     # `record.converged` and returns early on exactly the truncated solves
     # this runs on.  The complement of a guard reaches the states its
     # partner never visits.
     # #344 — the gauge projects the kernel component out of the returned TRACE
     # (residual-neutral by construction: Πψ ∈ ker A); the outcome and its
-    # certificate are built AFTER it, so every number describes the object the
+    # exit report are built AFTER it, so every number describes the object the
     # caller receives.
     final_psi_a, gauge_correction = _exit_gauge_trace(
         final_psi_a, problem=problem,
@@ -2525,24 +2525,24 @@ def solve_sn(
         trajectory=tuple(float(k) for k in keff_history),
         gauge=gauge,
     )
-    # The certificate reads the outcome's OWN residual Aψ − Fψ/k and rhs — no
+    # The exit report reads the outcome's OWN residual Aψ − Fψ/k and rhs — no
     # hand-rebuilt fission source — and the carrying arm is measurable now that
     # the posing is the coupled pencil (#354's gap was the un-assembled coupled
     # rhs; ``production`` on the coupled space IS it).
-    certificate = _exit_certificate(
+    exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("an eigen question has no admissibility to certify"),
     )
     warn_if_unconverged(
         outcome.record, where="solve_sn",
-        balance_defect=certificate.balance,
+        balance_defect=exit_report.balance,
     )
-    warn_if_gauge_freedom(problem, certificate.gauge, where="solve_sn")
+    warn_if_gauge_freedom(problem, exit_report.gauge, where="solve_sn")
     return _package_solution(
         Solution, problem,
         outcome=answer, strategy=inner.splitting,
-        certificate=certificate, record=outcome.record,
+        exit_report=exit_report, record=outcome.record,
     )
 
 
@@ -2560,7 +2560,7 @@ def _package_solution(
     *,
     outcome: "EigenOutcome | SourceOutcome",
     strategy: "Splitting",
-    certificate: ExitCertificate,
+    exit_report: ExitReport,
     record: IterationRecord,
 ) -> SolutionT:
     r"""The ONE :class:`SolutionBase` construction site — every entry, both roles.
@@ -2569,7 +2569,7 @@ def _package_solution(
     and the records (R-cc2; consumers campaign step 3, 2026-09-17): the hub,
     the kind-typed OUTCOME (the question, the returned state WHOLE, the answer
     and the gauge that picked the representative), the Strategy VALUE the solve
-    drove, the exit CERTIFICATE and the iteration RECORD.  The role is the
+    drove, the EXIT REPORT and the iteration RECORD.  The role is the
     ``cls`` leaf (:class:`Solution` forward, :class:`AdjointSolution` adjoint —
     the A5 ruling made the role a TYPE); the kind is the outcome's type.
 
@@ -2585,7 +2585,7 @@ def _package_solution(
         problem=problem,
         outcome=outcome,
         strategy=strategy,
-        certificate=certificate,
+        exit_report=exit_report,
         record=record,
     )
 
@@ -2783,7 +2783,7 @@ def solve_sn_adjoint(
     # recorded as such).  The DRIVER iterates this same question on the
     # coupled carrier — ``_adjoint_posing_parts`` lifts the seedless Strategy
     # pair to the 1×1 grid (#467, U2d) — so the recorded posing IS the solved
-    # one and the certificate's ``rayleigh_gap`` is exactly zero.
+    # one and the exit report's ``rayleigh_gap`` is exactly zero.
     gauge = ScaleGauge(ke.compute_production_rate, 1.0)
     answer = EigenOutcome(
         posing=problem.eigen_posing.H(),
@@ -2792,7 +2792,7 @@ def solve_sn_adjoint(
         trajectory=tuple(float(k) for k in keff_history),
         gauge=gauge,
     )
-    certificate = _exit_certificate(
+    exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("an eigen question has no admissibility to certify"),
@@ -2803,13 +2803,13 @@ def solve_sn_adjoint(
     )
     warn_if_unconverged(
         outcome.record, where="solve_sn_adjoint",
-        balance_defect=certificate.balance,
+        balance_defect=exit_report.balance,
     )
-    warn_if_gauge_freedom(problem, certificate.gauge, where="solve_sn_adjoint")
+    warn_if_gauge_freedom(problem, exit_report.gauge, where="solve_sn_adjoint")
     return _package_solution(
         AdjointSolution, problem,
         outcome=answer, strategy=splitting,
-        certificate=certificate, record=outcome.record,
+        exit_report=exit_report, record=outcome.record,
     )
 
 
@@ -2958,30 +2958,30 @@ def solve_sn_adjoint_fixed_source(
     psi_star, gauge_correction = _exit_gauge_trace(psi_star, problem=problem)
     # The ANSWER: the daggered affine question A†ψ* = q* over the hub's daggered
     # loss (UNARY — the detector is the datum), the returned state lifted to the
-    # coupled carrier, and the hub's kernel gauge; the certificate reads the
+    # coupled carrier, and the hub's kernel gauge; the exit report reads the
     # outcome's own residual A†ψ* − q*.
     answer = SourceOutcome(
         posing=SourcePosing(problem.pencil.H.lhs, _as_coupled(q_star)),
         state=_returned_state(psi_star, adjoint_ray),
         gauge=problem.loss_kernel_gauge,
     )
-    certificate = _exit_certificate(
+    exit_report = _exit_report(
         answer, problem=problem, record=record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to certify"),
     )
     warn_if_unconverged(
         record, where="solve_sn_adjoint_fixed_source",
-        balance_defect=certificate.balance,
+        balance_defect=exit_report.balance,
     )
     warn_if_gauge_freedom(
-        problem, certificate.gauge,
+        problem, exit_report.gauge,
         where="solve_sn_adjoint_fixed_source",
     )
     return _package_solution(
         AdjointSolution, problem,
         outcome=answer, strategy=splitting,
-        certificate=certificate, record=record,
+        exit_report=exit_report, record=record,
     )
 
 
@@ -3492,14 +3492,14 @@ def solve_sn_fixed_source(
     # object describe the same solve" a theorem rather than a convention, and
     # collapses two mirror emission points into one (Cardinal Rule 2).
     #
-    # The certificate rides the Solution about to be RETURNED, so "the warning
+    # The exit report rides the Solution about to be RETURNED, so "the warning
     # and the returned object describe the same solve" stays a theorem.
     warn_if_unconverged(
         solution.record, where="solve_sn_fixed_source",
-        balance_defect=solution.certificate.balance,
+        balance_defect=solution.exit_report.balance,
     )
     warn_if_gauge_freedom(
-        problem, solution.certificate.gauge,
+        problem, solution.exit_report.gauge,
         where="solve_sn_fixed_source",
     )
     return solution
@@ -3584,7 +3584,7 @@ def solve_sn_multiplying_source(
         solver, problem, q_ext_composite,
         t_start, max_inner, inner_tol,
         posing=posing,
-        # the admissibility CERTIFICATE: the hub's own k-solve at keff_tol
+        # the admissibility CHECK: the hub's own k-solve at keff_tol
         # (RULED 2026-09-13, fork 3 (a)) — recorded WITH its configuration
         admissibility=Certified(
             k, f"the hub's k-solve at keff_tol={keff_tol:g}: k_eff = {k:.9f} < 1 (subcritical)",
@@ -3601,10 +3601,10 @@ def solve_sn_multiplying_source(
     # warned (``[M]`` the step-3 anchors).
     warn_if_unconverged(
         solution.record, where="solve_sn_multiplying_source",
-        balance_defect=solution.certificate.balance,
+        balance_defect=solution.exit_report.balance,
     )
     warn_if_gauge_freedom(
-        problem, solution.certificate.gauge,
+        problem, solution.exit_report.gauge,
         where="solve_sn_multiplying_source",
     )
     return solution
@@ -3733,18 +3733,18 @@ def _solve_fixed_source_si(
     psi_typed, record = si.solve(
         q_ext_composite, initial_guess=initial_guess,
     )
-    # The end-of-solve CERTIFICATE (step 5, R-5.2) — full-angular arms only
+    # The end-of-solve CONVERGENCE-CLAIM CHECK (step 5, R-5.2) — full-angular arms only
     # (the windowed moment arm is structurally exempt; see
-    # _certify_within_group_exit).
+    # _check_convergence_claim).
     if not windowed:
-        # The certificate is posed on the equation the Strategy SOLVED: a
+        # The check is posed on the equation the Strategy SOLVED: a
         # lagged gain (the multiplying source's production, C3b-2) is part of
         # the operator, so it re-enters the certified rhs at the converged
         # iterate — ``r = A·ψ − (q + Σ Gψ)`` is exactly ``(A − ΣG)ψ − q``.
         q_certified = q_ext_composite
         for gain in extra_gains:
             q_certified = q_certified + gain.apply(psi_typed)
-        _certify_within_group_exit(
+        _check_convergence_claim(
             system, psi_typed, q_certified,
             problem=problem, record=record,
             where="solve_sn_fixed_source[source_iteration]",
@@ -3810,7 +3810,7 @@ def _solve_fixed_source_si(
     # #344 — the PROJECTION fires here, because this is where the trace is; the
     # WARNINGS must NOT: this is a private arm two frames below the public
     # entry, so `stacklevel=3` would blame `orpheus/sn/solver.py` (#340 N4.7).
-    # They are emitted by the entries off the returned certificate.
+    # They are emitted by the entries off the returned exit report.
     #
     # ⛔ `_exit_gauge_trace` REBUILDS rather than writing in place: on the
     # un-windowed path `angular_out` IS `psi_typed`'s System A member, which
@@ -3821,20 +3821,20 @@ def _solve_fixed_source_si(
     # The ANSWER: the question the ENTRY posed (pure transport at σ = 0, or the
     # hub's multiplying member at σ = 1), the returned state WHOLE (the arm's
     # own convention — a multi-moment closure's tail rides), and the hub's
-    # kernel gauge; the certificate reads the outcome's own residual Aψ − q.
+    # kernel gauge; the exit report reads the outcome's own residual Aψ − q.
     answer = SourceOutcome(
         posing=posing,
         state=_returned_state(angular_out, _system_b_member(psi_typed)),
         gauge=problem.loss_kernel_gauge,
     )
-    certificate = _exit_certificate(
+    exit_report = _exit_report(
         answer, problem=problem, record=record,
         gauge_correction=gauge_correction, admissibility=admissibility,
     )
     return _package_solution(
         Solution, problem,
         outcome=answer, strategy=splitting,
-        certificate=certificate, record=record,
+        exit_report=exit_report, record=record,
     )
 
 def _solve_fixed_source_krylov(
@@ -3956,18 +3956,18 @@ def _solve_fixed_source_krylov(
     psi_typed, record = krylov.solve(
         q_ext_composite, initial_guess=krylov_cold_start,
     )
-    # The end-of-solve CERTIFICATE (step 5, R-5.2) — the Krylov path is
+    # The end-of-solve CONVERGENCE-CLAIM CHECK (step 5, R-5.2) — the Krylov path is
     # always full-angular; the honest cross-check on the assembled
     # equation (the ERR-053 truncation family's independent catcher).
-    _certify_within_group_exit(
+    _check_convergence_claim(
         system, psi_typed, q_ext_composite,
         problem=problem, record=record,
         where="solve_sn_fixed_source[krylov]",
     )
     # The same triple, one line later, answering the OTHER question (#340
-    # N6b).  The certificate asserts when the solve CLAIMED convergence and
+    # N6b).  The check asserts when the solve CLAIMED convergence and
     # is a no-op otherwise; this measures when it did not, and reports.
-    # They are not folded together because the certificate raises and this
+    # They are not folded together because the check raises and this
     # returns a number — one guard, two verbs.
     psi_full = _system_a_member(psi_typed)
     # #344 — projection here, warning at the public entry (see the SI arm).
@@ -3980,12 +3980,12 @@ def _solve_fixed_source_krylov(
         state=_returned_state(psi_full, _system_b_member(psi_typed)),
         gauge=problem.loss_kernel_gauge,
     )
-    certificate = _exit_certificate(
+    exit_report = _exit_report(
         answer, problem=problem, record=record,
         gauge_correction=gauge_correction, admissibility=admissibility,
     )
     return _package_solution(
         Solution, problem,
         outcome=answer, strategy=splitting,
-        certificate=certificate, record=record,
+        exit_report=exit_report, record=record,
     )

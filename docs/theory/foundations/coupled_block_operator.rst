@@ -59,7 +59,7 @@ inside the model-generic scattering gain — with an explicit block system
 in which every coupling is a named operator and a wrong pairing is
 **unconstructable**. This section documents the posing, the four blocks,
 the N-general machinery, the one production spelling, the block solve,
-the convergence certificate, and the swap law. The starting-direction
+the convergence-claim check, and the swap law. The starting-direction
 physics (the pole as a straight characteristic, the M1/M2/M3 metric
 distinction, R12a presence) lives in
 :ref:`sn-direct-seed-solve` in
@@ -1011,8 +1011,8 @@ block-**triangular** (direct); the coupling that genuinely iterates rides
 four posed operators would let :math:`A_{BA}` sit folded, explicit, or in
 a DSA preconditioner — a composition choice the machinery supports.
 
-The ρ-honest stop and the lag-death certificate
------------------------------------------------
+The ρ-honest stop and the convergence-claim check
+-------------------------------------------------
 
 Splitting the emission into a lagged gain creates a verification hazard:
 an iteration whose fixed point does **not** solve the equation (a stale or
@@ -1045,24 +1045,24 @@ contraction-rate-independent.
 
 .. vv-status: coupled-free-identity-residual documented
 
-**The certificate closes the exact-**:math:`M` **assumption.** The
+**The convergence-claim check closes the exact-**:math:`M` **assumption.** The
 free identity itself *assumes* exact :math:`M` — the hole the driver-level
-**convergence certificate**
-:class:`~orpheus.sn.solver.ConvergenceCertificateError` closes. Once, at a
+**convergence-claim check**
+:class:`~orpheus.sn.solver.ConvergenceClaimError` closes. Once, at a
 *claimed* exit, :func:`~orpheus.sn.solver.evaluate_residual` measures the
 true :math:`r = A\psi - q` through a real forward apply — the only
 measurement an in-:math:`M` lag cannot fool — and raises if the defect
 exceeds :math:`10\times\text{tol}`. It is wired on every full-angular arm
 (the coupled sphere, the seedless un-windowed SI, both Krylov paths). The
 headline gate is a stale-zero-:math:`\psi_B` in-:math:`M` lag mutation: the
-running stop reports convergent while the certificate raises
+running stop reports convergent while the check raises
 ``match="lag-death"`` — with control legs on both sides, the classifier's
 asymmetry proof (#282 measured the cold-residual defect at ~5e5). The
 typed residual carries System B as its **own** member
 (:class:`~orpheus.transport.residuals.radial_characteristic_interior_residual.RadialCharacteristicInteriorResidual`
 ⊕ its boundary sibling), so a System-A-only residual cannot silently drop
 a wrong seed row — the Mode-12 (b) closure. This is an additive diagnostic
-+ certificate, NOT in the convergence path (see :ref:`affine-typed-residual`).
++ check, NOT in the convergence path (see :ref:`affine-typed-residual`).
 
 The swap law on the grid
 ------------------------

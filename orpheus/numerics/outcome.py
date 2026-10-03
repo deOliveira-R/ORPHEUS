@@ -1,5 +1,5 @@
 r"""The OUTCOMES — what a solve ANSWERED, fused with the question it answered
-and the gauge that picked the representative; and the exit CERTIFICATE.
+and the gauge that picked the representative; and the EXIT REPORT.
 
 Step 3 of the consumers campaign (``.claude/plans/consumers_step3_design.md``,
 RULED 2026-09-14): a Solution is the pair (Problem, posing) plus the Strategy
@@ -31,15 +31,15 @@ kind-specific verbs (``keff``, ``rayleigh``, ``adjoint_posing``) exist only on
 the kind that has them — a ``SourceOutcome.keff`` is a type error, not
 ``None``.
 
-**The certificate.** What was MEASURED about the returned state, and — when
+**The exit report.** What was MEASURED about the returned state, and — when
 nothing was — WHY NOT, as a typed sum instead of a ``None`` with five
 documented meanings (``[M]`` ``IterationHistory.balance_defect`` until this
 step): :class:`Measured` (a number), :class:`Certified` (a bound the exit
-certificate asserted, so no number was needed), :class:`NotApplicable` (the
+report asserted, so no number was needed), :class:`NotApplicable` (the
 question does not arise — a zero source, no kernel freedom, a pure-transport
 posing has no admissibility to check), :class:`NotYet` (open work, by issue —
 the carrying eigen exit's balance #354, the daggered eigen exit's #353, the
-LD residual mint #310).  A :class:`ExitCertificate` carries four members —
+LD residual mint #310).  A :class:`ExitReport` carries four members —
 ``balance`` (the per-group balance defect ratio, a DIAGNOSTIC never a gate:
 #340 N5), ``gauge`` (the kernel-gauge displacement :math:`\lVert\Pi\psi\rVert
 / \lVert\psi\rVert`), ``rayleigh_gap`` (:math:`|\lambda - \lambda_{\rm
@@ -47,12 +47,12 @@ Rayleigh}(\psi)|` — the reference-class agreement between the method-tier
 estimator and the posing's own quotient, RECORDED, never asserted at
 construction: a bare ``assert`` is inert under ``-O`` and a ``raise`` on a
 magnitude is the refuted N5), and ``admissibility`` (the multiplying source
-problem's certificate: the hub's own :math:`k_{\rm eff} < 1`, with the
+problem's check: the hub's own :math:`k_{\rm eff} < 1`, with the
 tolerance it was measured at).  There is deliberately no ``value_or_none``
 accessor — it would re-import the leak the sum retires.
 
 The chain, in one line: ``Problem.pencil → posing → (Strategy) → outcome +
-certificate + record → Solution``.  The outcome types live at the numerics
+exit report + record → Solution``.  The outcome types live at the numerics
 tier because they know nothing of SN: a ``HomogeneousResult`` carries an
 :class:`EigenOutcome` too (the 0-D pencil under the k map, the ``=100``
 production-rate gauge — the one shipped deliberately-named target).
@@ -86,7 +86,7 @@ class Measured:
 
 @dataclass(frozen=True)
 class Certified:
-    """No number was needed: the exit certificate ASSERTED the bound (raising on a defect beyond it)."""
+    """No number was needed: the convergence-claim check ASSERTED the bound (raising on a defect beyond it)."""
 
     bound: float
     by: str
@@ -118,7 +118,7 @@ ProductionReading = Measured
 
 
 @dataclass(frozen=True)
-class ExitCertificate:
+class ExitReport:
     r"""What the exit measured about the RETURNED state, member by member (see the module docstring)."""
 
     balance: Evidence
@@ -146,7 +146,7 @@ class EigenOutcome(Generic[Carrier]):
         ``ALPHA_MAP``) — the method-tier estimator's value, bit-for-bit what
         the driver converged.  ``[M]`` the posing's own Rayleigh quotient
         agrees with it to the convergence residual (a REFERENCE-class pair);
-        the gap is the certificate's ``rayleigh_gap``, not this field's law.
+        the gap is the exit report's ``rayleigh_gap``, not this field's law.
     trajectory : tuple of float
         λ at every outer step, the last one ``lam`` (co-indexing enforced at
         construction; ``(lam,)`` for a direct solve).

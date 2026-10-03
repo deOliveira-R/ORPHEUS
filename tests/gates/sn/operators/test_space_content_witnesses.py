@@ -147,7 +147,7 @@ class TestO8SolutionRayMember:
         # sphere makes the state's space a different coupled space, refused.
         from orpheus.numerics.convergence import IterationRecord
         from orpheus.numerics.coupled_system import CoupledField
-        from orpheus.numerics.outcome import ExitCertificate, NotApplicable, SourceOutcome
+        from orpheus.numerics.outcome import ExitReport, NotApplicable, SourceOutcome
         from orpheus.numerics.posing import SourcePosing
         from orpheus.sn.splitting import Splitting, resolve_schedule
         foreign_state = CoupledField(systems=(psi, member))  # type: ignore[arg-type]
@@ -159,7 +159,7 @@ class TestO8SolutionRayMember:
                     foreign_state, sn.loss_kernel_gauge,
                 ),
                 strategy=Splitting.from_schedule(sn.system, resolve_schedule(sn, "jacobi")),
-                certificate=ExitCertificate(*(NotApplicable("a witness"),) * 4),
+                exit_report=ExitReport(*(NotApplicable("a witness"),) * 4),
                 record=IterationRecord(label="witness"),
             )
 

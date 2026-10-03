@@ -6569,14 +6569,14 @@ operation the solver performs at every exit that returns a trace is
    gated by the foundation suite tests/gates/sn/operators/test_loss_kernel_gauge.py —
    idempotence and G-self-adjointness
    (test_it_is_an_idempotent_G_self_adjoint_projector) and the
-   no-certificate-may-move contract on all six fixtures
-   (test_gauging_cannot_move_any_convergence_certificate) — and end to end by
+   no-convergence-check-may-move contract on all six fixtures
+   (test_gauging_cannot_move_any_convergence_check) — and end to end by
    tests/gates/sn/solve/test_every_entry_gauges_its_trace.py.
 .. vv-status: sn-loss-kernel-gauge-projection documented
 
 The right-hand identity is the whole safety argument: the projection is
 **residual-neutral by construction**, so firing it at a converged exit
-**cannot move any convergence certificate**.  ``[M]`` on a deliberately
+**cannot move the residual any convergence check reads**.  ``[M]`` on a deliberately
 truncated SI solve the exit balance defect reads ``0.3111434602740818``
 on the raw and on the gauged iterate alike, while the gauge correction
 goes :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
@@ -6628,7 +6628,7 @@ What ships
        not be classified.  Deliberately **not** a
        :class:`~orpheus.numerics.convergence.ConvergenceWarning`: the
        solve converged perfectly and the ambiguity is in the *equation*
-   * - :attr:`ExitCertificate.gauge <orpheus.numerics.outcome.ExitCertificate.gauge>`
+   * - :attr:`ExitReport.gauge <orpheus.numerics.outcome.ExitReport.gauge>`
      - the measured :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert` as typed
        :class:`~orpheus.numerics.outcome.Evidence`.  A
        :class:`~orpheus.numerics.outcome.Measured` zero-ish value and
@@ -6738,7 +6738,7 @@ sentence with no edit anywhere.
      - **Gauge it** — what ships
      - Exact by construction, not by fixture; recovers
        :math:`\psi_{\rm exact}`'s member; bulk bit-untouched; no
-       certificate moves; ``[M]`` well under 0.2 % of one solve.
+       convergence check moves; ``[M]`` well under 0.2 % of one solve.
    * - 4
      - ⛔ **Switch the default schedule to Jacobi** — REJECTED
      - ``jacobi`` does land on the canonical member (``[M]``

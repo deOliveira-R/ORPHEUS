@@ -5614,7 +5614,7 @@ older entries classify against.
    **Date:** latent since the composite-carrier sweep (the #208/W-C era);
    caught and fixed 2026-07-26 (#2 Phase 3c — the P1-DSA d₁ Krylov
    posture excited the kernel deterministically; the end-of-solve
-   ConvergenceCertificateError made the catch).
+   ConvergenceClaimError made the catch).
    **Module:** ``sn`` (``operators/streaming.py::StreamingCollisionOperator.
    _solve_timed_full_field``).
    **Class:** Mode 9 in its purest structural form — the operator was
@@ -5639,7 +5639,7 @@ older entries classify against.
    ``‖M q‖/‖q‖ = 1.07e-15`` on that vector — M singular — so full-restart
    GMRES stalled at an O(1) TRUE residual while its preconditioned
    residual sat at 1e-31, scipy reported not-converged, and the
-   **end-of-solve certificate** (``_certify_within_group_exit``) refused
+   **end-of-solve certificate** (``_check_convergence_claim``) refused
    the claimed convergence: "the honest equation residual is 1.49" — the
    #290-era certificate machinery catching a genuinely new class. The
    same singular M existed under the 3b P0 posture and the #200 identity
@@ -5698,8 +5698,8 @@ older entries classify against.
    FP-dust ``M.apply`` images): the honest-scope witness is the W2
    off-domain characterization pin (``test_gauss_seidel_reification.py``,
    the tripwire that REDS when the completion lands), and the production
-   catcher for a future off-domain consumer is the same end-of-solve
-   certificate that caught ERR-071. The W2 fixture itself was a hidden
+   catcher for a future off-domain consumer is the same
+   convergence-claim check that caught ERR-071. The W2 fixture itself was a hidden
    consumer of the old clobber (``LC.solve(random-full-trace)`` was only
    "trace-consistent" because the drop erased the rhs's outflow rows) —
    fixed to build from an inflow-only rhs.
@@ -5723,7 +5723,7 @@ older entries classify against.
    the round-trip gate ``A∘A⁻¹ ≡ I`` on a random full-space vector is
    cheap, total, and catches every partial-inverse class at once. Wire
    it the day the inverse is born, not the day a Krylov method wanders
-   into the kernel. (And: an exit certificate that re-checks the honest
+   into the kernel. (And: a convergence-claim check that re-measures the honest
    equation residual converts a silent wrong-answer stall into a loud
    refusal — it is the reason this entry exists.) The root-fix corollary:
    the drop survived because callers CONFLATED roles — an iterate trace
@@ -6116,7 +6116,7 @@ older entries classify against.
    sibling "a certification claimed and never computed" in the same module).
 
 .. error-entry:: ERR-075
-   :title: the SN realizer returned an AFFINE operator for prescribed inflow and withheld the BlockRole.BOUNDARY stamp on the reasoning that the stamp's absence fenced it out of the B block: SNBoundaryOperator._face_laws never filtered on the stamp, so the source was delivered through −B as well as through q_∂ — a 2× inflow on source iteration and a hard ConvergenceCertificateError on Krylov, both invisible because the law is not a registered BC kind and no test ran a full solve with a DECLARED law
+   :title: the SN realizer returned an AFFINE operator for prescribed inflow and withheld the BlockRole.BOUNDARY stamp on the reasoning that the stamp's absence fenced it out of the B block: SNBoundaryOperator._face_laws never filtered on the stamp, so the source was delivered through −B as well as through q_∂ — a 2× inflow on source iteration and a hard ConvergenceClaimError on Krylov, both invisible because the law is not a registered BC kind and no test ran a full solve with a DECLARED law
 
 
    **Date:** filed 2026-08-05 (affine-boundary-source campaign, P3 — found by
@@ -6189,7 +6189,7 @@ older entries classify against.
    ``|φ_double − φ_vac| / |φ_single − φ_vac| = 2.000000`` exactly. On Krylov it is
    worse and older: an affine ``A(x) = A_lin(x) − c`` breaks the Arnoldi relation
    ``A V_k = V_{k+1} H_k``, so GMRES's tracked residual is meaningless and
-   ``_certify_within_group_exit`` raises ``‖Aψ − q‖/‖q‖ = 1.718``. That path had been
+   ``_check_convergence_claim`` raises ``‖Aψ − q‖/‖q‖ = 1.718``. That path had been
    UNUSABLE with a declared prescribed inflow since long before the source channel
    existed.
 
@@ -6251,7 +6251,7 @@ older entries classify against.
      a leaf's affineness only becomes the solver's problem through ``OperatorSum``,
      and this is the algebraic precondition for GMRES being applicable at all
      (an affine ``A`` breaks Arnoldi's ``A V_k = V_{k+1} H_k``, which is why the bug
-     raised ``ConvergenceCertificateError`` at ``‖Aψ − q‖/‖q‖ = 1.718`` rather than
+     raised ``ConvergenceClaimError`` at ``‖Aψ − q‖/‖q‖ = 1.718`` rather than
      returning a wrong answer).
    * ``test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched`` — the
      campaign theorem at the assembled tier: prescribed and vacuum give
@@ -7736,8 +7736,8 @@ older entries classify against.
       matter.** The exit balance defect — the one quantity in the tree
       that evaluates the object the caller RECEIVES — reported nothing on
       any converged solve by design (it is the complement of the
-      within-group certificate, :ref:`sn-exit-balance-projection`), and
-      its partner, the certificate, fires on the converged ITERATE inside
+      convergence-claim check, :ref:`sn-exit-balance-projection`), and
+      its partner, the check, fires on the converged ITERATE inside
       the inner solves.  ``[M]`` on the 2-group slab below, at
       ``keff_tol = flux_tol = 1e-12``: no defect reported and **zero**
       warnings at :math:`L = 0` and :math:`L = 1` alike, on the defective
@@ -7749,10 +7749,10 @@ older entries classify against.
       ``None`` on ``IterationHistory.balance_defect`` when this entry was
       written.  Since 2026-09-17 it is a typed
       :class:`~orpheus.numerics.outcome.Evidence` on
-      :attr:`ExitCertificate.balance
-      <orpheus.numerics.outcome.ExitCertificate.balance>`, and the
+      :attr:`ExitReport.balance
+      <orpheus.numerics.outcome.ExitReport.balance>`, and the
       converged case is :class:`~orpheus.numerics.outcome.Certified` —
-      which *says* that the within-group certificate asserted the bound,
+      which *says* that the convergence-claim check asserted the bound,
       rather than leaving a reader to infer it from an absence.  The
       structural point above is unchanged: a ``Certified`` on the
       converged exit is still a statement about the ITERATE, not about
@@ -8295,10 +8295,10 @@ older entries classify against.
    **Module:** ``orpheus/sn/solver.py``
    (:func:`~orpheus.sn.solver.solve_sn_multiplying_source` — the two
    hoisted calls, reading
-   :attr:`ExitCertificate.balance
-   <orpheus.numerics.outcome.ExitCertificate.balance>` and
-   :attr:`ExitCertificate.gauge
-   <orpheus.numerics.outcome.ExitCertificate.gauge>` off the Solution
+   :attr:`ExitReport.balance
+   <orpheus.numerics.outcome.ExitReport.balance>` and
+   :attr:`ExitReport.gauge
+   <orpheus.numerics.outcome.ExitReport.gauge>` off the Solution
    about to be returned, so "the warning and the returned object describe
    the same solve" stays a theorem).
 

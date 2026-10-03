@@ -1048,10 +1048,10 @@ questions are different, and that only one of them is what the three
    the consumers campaign, 2026-09-17).  A
    :class:`~orpheus.sn.solution.Solution` is the pair (Problem, posing)
    plus the Strategy that produced it and the records — five members:
-   the ``mesh`` (this hub, by reference), the kind-typed ``outcome`` (the
+   the ``problem`` (this hub, by reference), the kind-typed ``outcome`` (the
    QUESTION fused with the returned state, the answer and the gauge that
    picked the representative), the ``strategy``
-   (:class:`~orpheus.sn.splitting.Splitting`), the exit ``certificate``
+   (:class:`~orpheus.sn.splitting.Splitting`), the ``exit_report``
    and the ``record`` tree.
 
    So the Problem's identity above is one of **two** provenance facts a

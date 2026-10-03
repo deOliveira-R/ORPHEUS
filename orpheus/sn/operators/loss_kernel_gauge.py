@@ -477,7 +477,7 @@ def warn_if_gauge_freedom(
       trace was ALREADY the canonical member (``jacobi`` lands there;
       ``[M]`` ``~1e-15``). Nothing was done, so there is nothing to report — and
       the configuration's degeneracy is still legible in
-      the Solution's certificate (``certificate.gauge`` — step 3 of the
+      the Solution's exit report (``exit_report.gauge`` — step 3 of the
       consumers campaign: :class:`~orpheus.numerics.outcome.Measured` with the
       number, or the typed reason nothing was measured), which carries it
       either way.

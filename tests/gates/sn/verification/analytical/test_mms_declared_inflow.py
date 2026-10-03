@@ -468,7 +468,7 @@ def test_the_krylov_path_reproduces_the_manufactured_solution() -> None:
     installed says the whole matvec is right, not merely that it is linear at
     the origin. It is also the row that could not have existed before P3: an
     affine ``A(x) = A_lin(x) − c`` breaks the Arnoldi relation
-    ``A V_k = V_{k+1} H_k``, so this path RAISED ``ConvergenceCertificateError``
+    ``A V_k = V_{k+1} H_k``, so this path RAISED ``ConvergenceClaimError``
     (``‖Aψ − q‖/‖q‖ = 1.718``) rather than returning a wrong answer.
 
     One mesh, not a ladder: the convergence ORDER is a property of the spatial

@@ -476,13 +476,13 @@ def test_no_inverse_and_it_is_spelled_by_ABSENCE():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 5. residual-neutrality — no convergence certificate may move
+# 5. residual-neutrality — no convergence check may move
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.foundation
 @pytest.mark.verifies("sn-loss-kernel-gauge-projection")
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR,
                          ids=[row[0] for row in _SINGULAR])
-def test_gauging_cannot_move_any_convergence_certificate(
+def test_gauging_cannot_move_any_convergence_check(
         label, cells, bcs, kwargs):
     r""":math:`A(\psi - \Pi\psi) = A\psi`, because :math:`\Pi\psi \in \ker A`.
 

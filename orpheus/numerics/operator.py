@@ -469,7 +469,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     collects every face's law with no ``block_role`` filter, so the
     pre-P3 AFFINE operator reached the block regardless — measured
     ``|B(0)| = q`` and ``|B(2x) − 2B(x)| = q``, and on the Krylov path a
-    raised ``ConvergenceCertificateError``, because an affine map breaks
+    raised ``ConvergenceClaimError``, because an affine map breaks
     the Arnoldi relation GMRES's residual depends on. The stamp is
     honest metadata about a leaf's role; it is not, and never was, the
     fence.

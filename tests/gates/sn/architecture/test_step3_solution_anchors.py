@@ -267,7 +267,7 @@ class _PlantedSection:
 
 
 @dataclasses.dataclass(frozen=True)
-class _PlantedCertificate:
+class _PlantedExitReport:
     bound: float
     by: str
 
@@ -283,7 +283,7 @@ class _PlantedOutcome:
 class _PlantedSolution:
     problem: object
     outcome: _PlantedOutcome
-    certificate: _PlantedCertificate
+    exit_report: _PlantedExitReport
 
 
 class TestFilterTheScannersFindAPlantedMember:
@@ -301,7 +301,7 @@ class TestFilterTheScannersFindAPlantedMember:
         return _PlantedSolution(
             problem=object(),
             outcome=_PlantedOutcome(state=np.ones(3), picked_by=section),
-            certificate=_PlantedCertificate(bound=0.907457573, by="k-solve"),
+            exit_report=_PlantedExitReport(bound=0.907457573, by="k-solve"),
         )
 
     def test_the_section_scanner_finds_a_planted_section(self) -> None:
@@ -316,10 +316,10 @@ class TestFilterTheScannersFindAPlantedMember:
     def test_the_section_scanner_finds_NOTHING_on_todays_carrier(self) -> None:
         """The negative control: a member-less object must read empty, or the
         scanner is matching on something incidental."""
-        found = _section_shaped_members(_PlantedCertificate(1.0, "x"))
+        found = _section_shaped_members(_PlantedExitReport(1.0, "x"))
         _require(
             found == [],
-            f"the section scanner matched {found!r} on a certificate-shaped "
+            f"the section scanner matched {found!r} on a exit-report-shaped "
             f"object with no section — it is over-matching.",
         )
 
@@ -380,7 +380,7 @@ def _hub_k() -> float:
 def _multiplying_solution_truncated() -> Solution:
     """A deliberately TRUNCATED multiplying-source solve.
 
-    Truncated because every ``None`` the certificate retired was reachable only
+    Truncated because every ``None`` the exit report retired was reachable only
     off the converged path: ``_exit_balance_defect`` returned ``None`` when
     ``record.fully_converged`` (today ``_balance_evidence`` reads ``Certified``
     there), so a converged fixture cannot see the balance number at all.
@@ -736,7 +736,7 @@ class TestRuledTheEigenSolutionRecordsItsGauge:
 class TestRuledTheMultiplyingSolutionRecordsItsAdmissibility:
     """§3.1 / §3.3 — asserted by SEARCHING the answer for the number
     (:func:`_declared_numeric_data`, validated against a planted scalar), so
-    the carve is free to name the certificate member."""
+    the carve is free to name the exit report member."""
 
     def test_ruled_the_k_is_recoverable_from_the_answer(self) -> None:
         """One statement: some non-array datum on the Solution reproduces the

@@ -15,7 +15,7 @@ were blind — but a GMRES preconditioner ``M = (I + 𝒞)∘(L+C)⁻¹``
 exercises the full composite space, where the dropped term made M
 SINGULAR on the outflow-trace subspace (measured ‖M q‖/‖q‖ = 1e-15 on
 a pure outflow-row Krylov residual; GMRES stalled at an O(1) true
-residual and the end-of-solve certificate refused the claim — the
+residual and the end-of-solve claim check refused the claim — the
 catch that exposed the class). The P1-DSA (d₁) Krylov posture (#2)
 excited it deterministically.
 

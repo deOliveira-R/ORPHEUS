@@ -1166,8 +1166,8 @@ the Krylov residual acquired a pure outflow-row component (measured
 :math:`\|Mq\|/\|q\| = 1.07\times10^{-15}` on that vector — :math:`M`
 singular), so full-restart GMRES stalled at an :math:`O(1)` **true**
 residual while its *preconditioned* residual sat at
-:math:`10^{-31}`.  The **end-of-solve certificate**
-(``_certify_within_group_exit``, the #290-era machinery) refused the
+:math:`10^{-31}`.  The **convergence-claim check**
+(``_check_convergence_claim``, the #290-era machinery) refused the
 claimed convergence: "the honest equation residual is 1.49" — a
 loud refusal of a silent wrong-answer stall.
 

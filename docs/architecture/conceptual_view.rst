@@ -370,12 +370,12 @@ beyond its tolerance. The answer is fused with its question and its gauge
 into an **outcome** (:class:`~orpheus.numerics.outcome.EigenOutcome`,
 :class:`~orpheus.numerics.outcome.SourceOutcome`; the gauge is the
 section that picked the representative,
-:class:`~orpheus.numerics.gauge.ScaleGauge`), certified
-(:class:`~orpheus.numerics.outcome.ExitCertificate`), and packaged once.
+:class:`~orpheus.numerics.gauge.ScaleGauge`), reported on
+(:class:`~orpheus.numerics.outcome.ExitReport`), and packaged once.
 
 The **Solution** (:ref:`the-solution-outcome`;
 :ref:`sn-solution-carries-its-posing`) is the frozen five-tuple
-*problem, outcome, strategy, certificate, record*
+*problem, outcome, strategy, exit report, record*
 (:class:`~orpheus.sn.solution.SolutionBase`). Its kind, eigen or source,
 is the outcome's type parameter; its role is the class:
 :class:`~orpheus.sn.solution.Solution` carries the forward verbs
@@ -476,8 +476,8 @@ The concept table
    * - Iteration; outer loop
      - :class:`~orpheus.numerics.iteration.SourceIteration`, :class:`~orpheus.numerics.iteration.KrylovAcceleration`, :func:`~orpheus.numerics.eigenvalue.power_iteration`
      - :ref:`eigenvalue-posing`
-   * - Record; certificate; gauge
-     - :class:`~orpheus.numerics.convergence.IterationRecord`, :class:`~orpheus.numerics.outcome.ExitCertificate`, :class:`~orpheus.numerics.gauge.ScaleGauge`
+   * - Record; exit report; gauge
+     - :class:`~orpheus.numerics.convergence.IterationRecord`, :class:`~orpheus.numerics.outcome.ExitReport`, :class:`~orpheus.numerics.gauge.ScaleGauge`
      - :ref:`the-solution-outcome`
    * - Outcome; Solution
      - :class:`~orpheus.numerics.outcome.EigenOutcome`, :class:`~orpheus.numerics.outcome.SourceOutcome`, :class:`~orpheus.sn.solution.SolutionBase`, :class:`~orpheus.sn.solution.Solution`, :class:`~orpheus.sn.solution.AdjointSolution`
@@ -522,7 +522,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   forward posing, so the σ = 0 member is spelled twice; every source
   entry builds its iteration from the Splitting with the σ = 1 production
   bolted on as an extra gain while the posing is only recorded, and the
-  convergence certificate reads the Splitting's residual, so a
+  convergence-claim check reads the Splitting's residual, so a
   posing-versus-iteration mismatch is a diagnostic, never a refusal; the
   adjoint Strategy is a separate Jacobi mint daggered piecewise. That is
   why a multiplying-source adjoint, ``source_posing(q).H(q*)`` with
@@ -545,7 +545,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   sandwich rather than the leaf pullback (#558), and
   ``ScalarSourceSink.__add__`` adds a hand-written broadcast,
   :math:`\pi^{*}` outside its type.
-- **Certificate members still listed as not yet built** (the outcome
+- **Exit-report members still listed as not yet built** (the outcome
   module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen
   exit (#353, open); the list also names the linear-discontinuous residual

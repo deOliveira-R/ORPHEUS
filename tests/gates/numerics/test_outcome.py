@@ -8,7 +8,7 @@ question beside a λ, a state beside a question of the other kind.
 
 The ``Evidence`` sum is asserted CLOSED (pyright's ``assert_never`` on an exhaustive
 match); its members' reachability through the real entries is U2's row, not this
-file's (the certificate EVALUATOR lands with the SN mint).
+file's (the exit report's EVALUATOR lands with the SN mint).
 
 ``CoupledField.space`` (row 1.14) closes an inert ends check: ``[M]`` until this
 step every SN source was lifted to a one-system coupled state that had NO
@@ -34,7 +34,7 @@ from orpheus.numerics.outcome import (
     Certified,
     EigenOutcome,
     Evidence,
-    ExitCertificate,
+    ExitReport,
     Measured,
     NotApplicable,
     NotYet,
@@ -160,10 +160,10 @@ def _describe(evidence: Evidence) -> str:
 
 class TestLawTheEvidenceSum:
     def test_law_every_member_constructs_and_the_sum_is_closed(self) -> None:
-        members = (Measured(0.31), Certified(1e-7, "within-group certificate"), NotApplicable("zero source"), NotYet(354, "the carrying eigen exit's coupled rhs"))
+        members = (Measured(0.31), Certified(1e-7, "within-group claim check"), NotApplicable("zero source"), NotYet(354, "the carrying eigen exit's coupled rhs"))
         for m in members:
             _require(_describe(m), f"{m!r} is described by the exhaustive match")
-        cert = ExitCertificate(balance=members[0], gauge=members[2], rayleigh_gap=members[0], admissibility=members[3])
+        cert = ExitReport(balance=members[0], gauge=members[2], rayleigh_gap=members[0], admissibility=members[3])
         _require(cert.balance == Measured(0.31), "members are values")
         _require(not hasattr(cert, "value_or_none"), "no accessor re-imports the None leak")
 

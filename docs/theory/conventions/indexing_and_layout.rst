@@ -1066,7 +1066,7 @@ field, "populated for eigenvalue problems"** (Issue #197 PR-TYPED-5,
 which had itself replaced the legacy bare-dataclass ``SNResult`` /
 ``SNFixedSourceResult`` data bags).  That type survived the consumers
 campaign's step 3 unit U2 as a **one-cycle VIEW** — a property assembled
-from the record, the outcome's trajectory and the certificate, so the
+from the record, the outcome's trajectory and the exit report, so the
 established readers could migrate by concept rather than on a flag day —
 and was **deleted at unit U6 on the same day**, together with
 ``SolutionBase.history``.  There is no flat surface: each reading is asked
@@ -1118,10 +1118,10 @@ it, and the records:
   :class:`~orpheus.sn.splitting.Splitting` VALUE the solve drove (the
   labelled piece set and the schedule); budgets and tolerances ride the
   record, per level;
-- :attr:`~orpheus.sn.solution.SolutionBase.certificate` — what the exit
+- :attr:`~orpheus.sn.solution.SolutionBase.exit_report` — what the exit
   MEASURED about the returned state, member by member, as typed
   :class:`~orpheus.numerics.outcome.Evidence`
-  (:class:`~orpheus.numerics.outcome.ExitCertificate`);
+  (:class:`~orpheus.numerics.outcome.ExitReport`);
 - :attr:`~orpheus.sn.solution.SolutionBase.record` — the Strategy's path,
   the :class:`~orpheus.numerics.convergence.IterationRecord` tree.
 

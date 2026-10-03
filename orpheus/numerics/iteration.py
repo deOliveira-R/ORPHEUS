@@ -530,7 +530,7 @@ class SourceIteration(Generic[V]):
     lag-death class); the residual claim is contraction-rate-independent.
     The identity itself assumes exact-``M`` — the hole the driver-level
     end-of-solve CERTIFICATE closes (one honest ``evaluate_residual``
-    per solve, ``orpheus.sn.solver._certify_within_group_exit``).
+    per solve, ``orpheus.sn.solver._check_convergence_claim``).
     Normalization is EQUATION-relative (``‖q_ext‖``, a source is the
     residual's natural scale); ``q_ext ≈ 0`` degrades to absolute via
     the guard (a zero source has the zero solution — a zero cold start

@@ -199,7 +199,7 @@ and :attr:`~IterationRecord.status` spells each one aloud.
 Related, and deliberately NOT merged with this
 ==============================================
 
-* :class:`~orpheus.sn.solver.ConvergenceCertificateError` asserts a
+* :class:`~orpheus.sn.solver.ConvergenceClaimError` asserts a
   *different* proposition — *"a convergence claim was made and it was
   FALSE"* (the in-M lag-death class).  It stays a hard error: a false claim
   is a bug, whereas an honest best-effort answer is a legitimate result.
@@ -1491,7 +1491,7 @@ def warn_if_unconverged(
     balance_defect : Evidence, optional
         ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, as typed evidence
         (:class:`~orpheus.numerics.outcome.Measured` when the family computed
-        one — SN's exit certificate; :class:`~orpheus.numerics.outcome.NotApplicable`
+        one — SN's exit report; :class:`~orpheus.numerics.outcome.NotApplicable`
         / :class:`~orpheus.numerics.outcome.NotYet` / :class:`~orpheus.numerics.outcome.Certified`
         otherwise — CP, MoC and diffusion pass the default).  Only a MEASURED
         value renders; every other case is an ABSENT clause rather than the

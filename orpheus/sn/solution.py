@@ -18,7 +18,7 @@ role leaves) covers both problem kinds.  Since step 3 of the consumers
 campaign (2026-09-17) the carrier is the pair (Problem, posing) plus the
 Strategy that produced it and the records — ``problem``, a kind-typed
 ``outcome`` (the question, the returned STATE, the answer and the gauge that
-picked the representative), ``strategy``, ``certificate`` and ``record`` —
+picked the representative), ``strategy``, ``exit_report`` and ``record`` —
 and the KIND is the outcome's TYPE.  ⛔ Until step 3 the kind was read off
 an optional ``keff`` through ``is_eigenvalue()`` / ``is_fixed_source()``, and
 the flux members were stored fields; they are DERIVED readers of the state
@@ -26,7 +26,7 @@ now, and the convergence diagnostics read the :class:`IterationRecord`
 directly (``IterationHistory``, the pre-step-3 view over it, survived as a
 one-cycle reading through U2 and retired at U6 — its tree readings are the
 record's own ``leaf_iterations`` / ``trajectory``, its magnitudes the
-certificate's typed evidence).
+exit report's typed evidence).
 
 Reads as the math (``coding-elegance`` Pattern 1 — match the algebra of
 the domain)::
@@ -106,7 +106,7 @@ import numpy as np
 from orpheus.numerics.outcome import (
     EigenOutcome,
     Evidence,
-    ExitCertificate,
+    ExitReport,
     Measured,
     NotApplicable,
     SourceOutcome,
@@ -166,9 +166,9 @@ class SolutionBase(Generic[O]):
     * :attr:`strategy` — the Strategy VALUE the solve drove: the
       :class:`~orpheus.sn.splitting.Splitting` (the labelled piece set, the
       schedule); the budgets and tolerances ride the record, per level;
-    * :attr:`certificate` — what the exit MEASURED about the returned state,
+    * :attr:`exit_report` — what the exit MEASURED about the returned state,
       member by member, as typed evidence
-      (:class:`~orpheus.numerics.outcome.ExitCertificate`);
+      (:class:`~orpheus.numerics.outcome.ExitReport`);
     * :attr:`record` — the Strategy's path: the
       :class:`~orpheus.numerics.convergence.IterationRecord` tree.
 
@@ -204,7 +204,7 @@ class SolutionBase(Generic[O]):
     problem: "SNProblem"
     outcome: O
     strategy: "Splitting"
-    certificate: ExitCertificate
+    exit_report: ExitReport
     record: "IterationRecord"
 
     def __post_init__(self) -> None:

@@ -48,7 +48,7 @@ from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.outcome import (
     Certified,
     EigenOutcome,
-    ExitCertificate,
+    ExitReport,
     Measured,
     NotApplicable,
     SourceOutcome,
@@ -96,7 +96,7 @@ def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
 #
 # A Solution is (Problem, posing) + Strategy + records: ``mesh``, a kind-typed
 # ``outcome`` (question + returned STATE + answer + gauge), ``strategy``,
-# ``certificate``, ``record``.  The flux members are READ off the state.  The
+# ``exit_report``, ``record``.  The flux members are READ off the state.  The
 # rows below build Solutions the way the mints do — on a real hub with a real
 # posing — never a bag of hand-made fields.
 
@@ -142,8 +142,8 @@ def _record(converged: bool = True) -> IterationRecord:
     )
 
 
-def _certificate() -> ExitCertificate:
-    return ExitCertificate(
+def _exit_report() -> ExitReport:
+    return ExitReport(
         balance=NotApplicable("a fixture"), gauge=NotApplicable("a fixture"),
         rayleigh_gap=NotApplicable("a fixture"), admissibility=NotApplicable("a fixture"),
     )
@@ -170,7 +170,7 @@ def _source(problem: SNProblem, state: CoupledField | None = None) -> SourceOutc
 def _solution(problem: SNProblem, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
     return cls(
         problem=problem, outcome=outcome, strategy=_strategy(problem),
-        certificate=_certificate(), record=_record() if record is None else record,
+        exit_report=_exit_report(), record=_record() if record is None else record,
     )
 
 
@@ -247,7 +247,7 @@ class TestSolutionKind:
         import dataclasses, typing
         for f in dataclasses.fields(SolutionBase):
             assert "None" not in str(f.type) and typing.get_origin(f.type) is not typing.Union, f.name
-        assert [f.name for f in dataclasses.fields(SolutionBase)] == ["problem", "outcome", "strategy", "certificate", "record"]
+        assert [f.name for f in dataclasses.fields(SolutionBase)] == ["problem", "outcome", "strategy", "exit_report", "record"]
 
     def test_an_eigen_outcome_refuses_a_source_question_at_the_sn_tier(self) -> None:
         m = _slab_mesh()
@@ -436,7 +436,7 @@ class TestSolutionRoleAxis:
     def test_base_not_instantiable(self) -> None:
         m = _slab_mesh()
         with pytest.raises(TypeError, match="not instantiable"):
-            SolutionBase(problem=m, outcome=_source(m), strategy=_strategy(m), certificate=_certificate(), record=_record())
+            SolutionBase(problem=m, outcome=_source(m), strategy=_strategy(m), exit_report=_exit_report(), record=_record())
 
     def test_adjoint_construction_shares_the_carrier(self) -> None:
         m = _slab_mesh()

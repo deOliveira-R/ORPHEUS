@@ -48,7 +48,7 @@ def _uniform_source(quad, ng, nx):
 
 @pytest.mark.parametrize("L,k_ref,budget", [(2.0, 0.435195214, None), (4.0, 0.907457573, 6000)],
                          ids=["slab_sub", "slab_near_critical"])
-def test_the_multiplying_solve_converges_and_its_certificate_holds(L: float, k_ref: float, budget) -> None:
+def test_the_multiplying_solve_converges_and_its_claim_check_holds(L: float, k_ref: float, budget) -> None:
     """The lagged-fission iteration converges at a rate governed by k: ``[M]`` the
     near-critical slab needs 4300 inner iterations at ``inner_tol = 1e-12``
     (the default budget derived from the tolerance alone is 1961 — a starved
@@ -60,7 +60,7 @@ def test_the_multiplying_solve_converges_and_its_certificate_holds(L: float, k_r
     sol = solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8), inner_tol=1e-12, max_inner=budget)
     _require(sol.converged(), "the multiplying source solve must converge (k < 1)")
     # The balance ⟨1, (A − F)ψ − q⟩ is enforced by the driver's convergence
-    # CERTIFICATE (`_certify_within_group_exit`, posed on the SOLVED equation:
+    # CLAIM CHECK (`_check_convergence_claim`, posed on the SOLVED equation:
     # the lagged production re-enters the certified rhs) — it RAISES on a
     # defect, so reaching this line IS the closure.  `[M]` the fixed-source
     # path records no `balance_defect` (eigenvalue-only), so an assertion on
@@ -212,6 +212,6 @@ def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> Non
         )
     _require(any(issubclass(w.category, GaugeFreedomWarning) for w in caught), "the multiplying entry must say the trace was gauge-fixed")
     _require(any(issubclass(w.category, GaugeFreedomWarning) for w in sibling_caught), "…as its sibling does on the same hub (the pairing)")
-    mg, pg = mult.certificate.gauge, pure.certificate.gauge
-    _require(isinstance(mg, Measured) and isinstance(pg, Measured), f"both certificates record the displacement; got {mg!r} / {pg!r}")
+    mg, pg = mult.exit_report.gauge, pure.exit_report.gauge
+    _require(isinstance(mg, Measured) and isinstance(pg, Measured), f"both exit reports record the displacement; got {mg!r} / {pg!r}")
     _require(mg.value > 1e-3 and abs(mg.value - pg.value) <= 1e-9, f"the same kernel component on both entries: {mg.value:.6e} vs {pg.value:.6e}")

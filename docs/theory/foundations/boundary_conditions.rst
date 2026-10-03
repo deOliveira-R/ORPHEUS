@@ -179,7 +179,7 @@ Key Facts
   (``SNBoundaryOperator._face_laws`` has no role filter — measured
   :math:`\lVert B(0) \rVert_\infty = q`, a doubled delivery on source
   iteration, and a raised
-  :class:`~orpheus.sn.solver.ConvergenceCertificateError` on Krylov).
+  :class:`~orpheus.sn.solver.ConvergenceClaimError` on Krylov).
   Full derivation, measurements and gotchas:
   :ref:`bc-affine-source-channel`.
 - **The face ordinate partition is THREE-way**, not two:
@@ -2499,11 +2499,11 @@ residual bookkeeping rests on the Arnoldi relation
 affine :math:`A(x) = A_{\rm lin}(x) + c` breaks it, so the residual
 SciPy tracks internally becomes meaningless: it reports convergence
 while the iterate does not solve the equation.
-:func:`~orpheus.sn.solver._certify_within_group_exit` catches exactly
+:func:`~orpheus.sn.solver._check_convergence_claim` catches exactly
 that — it recomputes the honest equation residual
 :math:`\lVert A\psi - q \rVert / \lVert q \rVert` after any convergence
 claim and raises
-:class:`~orpheus.sn.solver.ConvergenceCertificateError`:
+:class:`~orpheus.sn.solver.ConvergenceClaimError`:
 
 .. code-block:: text
 
@@ -2522,7 +2522,7 @@ not). So **a declared prescribed inflow combined with the Krylov inner
 solver was simply UNUSABLE**, at the pre-carve commit *and* before the
 source channel existed. P3 is a bug **fix**, not prophylaxis; ``[M]``
 post-P3 the same configuration converges on both inner solvers and the
-certificate is silent.
+convergence-claim check is silent.
 
 .. warning::
 

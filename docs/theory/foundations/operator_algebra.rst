@@ -494,7 +494,7 @@ Key Facts
   **structural** (R12a — System B exists iff the Problem carries a ray; a
   mismatched composite is unconstructable). The stop is the ρ-honest
   free-identity residual with a driver-level lag-death
-  :class:`~orpheus.sn.solver.ConvergenceCertificateError`. See
+  :class:`~orpheus.sn.solver.ConvergenceClaimError`. See
   :ref:`coupled-block-operator`.
 
 
@@ -6042,7 +6042,7 @@ realized in commits ``650032e`` / ``7603c8e`` (2026-06-05).
      form).
    - **What the answer carries** (2026-09-17, not a fifth layer): a
      kind-typed **outcome** fusing the posing with the state, the
-     eigenvalue and the **gauge**; plus an exit **certificate** whose
+     eigenvalue and the **gauge**; plus an **exit report** whose
      members are typed EVIDENCE rather than nullable floats. A ray's
      representative is a *choice*, and the gauge is the record of which
      choice was made — ``[M]`` the tree applied FOUR different
@@ -6236,7 +6236,7 @@ The four layers
 
        What this layer RETURNS is itself three objects since 2026-09-17 —
        the kind-typed **outcome**, the **gauge** that picked the
-       representative, and the exit **certificate**
+       representative, and the **exit report**
        (:ref:`the-solution-outcome`).  They are **not a fifth tier**:
        this table decomposes the *computation*, and those are what the
        computation hands back.  A layer-4 algorithm still sees only a
@@ -6712,7 +6712,7 @@ argument, checked rather than asserted:
 That second property is why the cell is a composition and not a wider
 type: what makes it well posed is a fact about :math:`(A, M)`, which the
 layer-1 object already owns.  The full S\ :sub:`N` account —
-the lowering, the exit certificate's re-posing, and the witness's six
+the lowering, the convergence-claim check's re-posing, and the witness's six
 rows — is :ref:`sn-subcritical-multiplying-source`.
 
 Which cells the generating data occupies is the **Problem's** to decide;
@@ -7137,7 +7137,7 @@ factor-order family inside the shared spectrum's stabiliser
 
 .. _the-solution-outcome:
 
-What a solve RETURNS — the outcome, the gauge, the certificate
+What a solve RETURNS — the outcome, the gauge, the exit report
 ----------------------------------------------------------------
 
 Everything above is about the **question**.  This section is about the
@@ -7152,11 +7152,11 @@ they form is
    \text{Problem} \;\longrightarrow\; \text{pencil}
    \;\longrightarrow\; \text{posing}
    \;\xrightarrow{\ \text{Strategy}\ }\;
-   \text{outcome} \;+\; \text{certificate} \;+\; \text{record}
+   \text{outcome} \;+\; \text{exit report} \;+\; \text{record}
    \;\longrightarrow\; \text{Solution} .
 
 ⚠ **These are not a fifth architectural layer.**  The four-tier table
-decomposes the *computation*; the outcome, the gauge and the certificate
+decomposes the *computation*; the outcome, the gauge and the exit report
 are what the Layer-4 algorithm hands **back**.  The distinction is not
 pedantry — it is what keeps "Layer 3" and "Layer 4" meaning in this
 corpus exactly what they meant before, the same discipline the 2a/2b/2c
@@ -7168,7 +7168,7 @@ types and their first consumer: :mod:`orpheus.numerics.gauge`,
 :class:`~orpheus.homogeneous.solver.HomogeneousResult` carrying an
 :class:`~orpheus.numerics.outcome.EigenOutcome`.  U2 landed the
 S\ :sub:`N` :class:`~orpheus.sn.solution.Solution`'s own reshape — the
-five members, the one mint for all five entries, the certificate
+five members, the one mint for all five entries, the exit-report
 evaluators, and the state stored whole — and its S\ :sub:`N`-side account
 is :ref:`sn-solution-carries-its-posing`.  The realization subsection
 below records what the S\ :sub:`N` tier actually produces for each member
@@ -7271,9 +7271,9 @@ specific leak:
 ⚠ **A returned null that is a VALUE, not a leak.**
 :meth:`~orpheus.numerics.outcome.EigenOutcome.dominance_ratio` returns
 ``None`` for a single-point trajectory.  That is not the nullable-float
-discipline the certificate below retires: the ratio
+discipline the exit report below retires: the ratio
 :math:`|\lambda_n - \lambda_{n-1}|/|\lambda_{n-1}|` is **undefined** with
-one point (and with a zero predecessor), where the certificate's ``None``
+one point (and with a zero predecessor), where the exit's ``None``
 used to mean five different *unmeasured* things.  Undefined-by-arity has
 exactly one meaning, which is the test a nullable return has to pass.
 
@@ -7297,7 +7297,7 @@ conventions**, and the rule a reader had to carry was "never subtract or
 compare a source residual against an eigen residual without normalising
 the sign first".  The flip retires that rule rather than documenting it
 (``coding-elegance`` Pattern 7 — one convention, at the source), and it
-is what lets the certificate below read the posing's residual directly:
+is what lets the exit report below read the posing's residual directly:
 the evaluator and the typed full-system residual now agree with no sign
 to remember.  The **scalar** :math:`\beta` of
 :eq:`posing-balance-functional` was always one functional across both
@@ -7541,7 +7541,7 @@ mode is a mirror-odd face sawtooth (the #344 result, derived at
 
 * **residual neutrality.**  :math:`A\sigma(\psi) = A\psi - A\Pi\psi =
   A\psi`, since :math:`\Pi\psi \in \ker A` — so applying the gauge
-  **cannot move any convergence certificate**.  The gauge mutates the
+  **cannot move the residual any convergence check reads**.  The gauge mutates the
   answer and is still safe to apply at the exit, which is what makes it
   an exit step rather than a reported diagnostic.
 * **the group element must be drawn from** :math:`\Pi`'s **own range, on
@@ -7566,9 +7566,9 @@ forbidden edge as above) and because a projector is what the concept IS,
 whichever tier builds it.  ``dimension == 0`` is the honest answer for a
 configuration with no freedom — the zero-block projector makes ``gauge``
 the identity, so **no caller needs a null branch**, which is the same
-"a value, not an absence" move the certificate makes below.
+"a value, not an absence" move the exit report makes below.
 
-The certificate — evidence, not a nullable number
+The exit report — evidence, not a nullable number
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The exit measures things about the returned state, and sometimes it
@@ -7579,22 +7579,22 @@ meanings is stringly-typed dispatch wearing an absence — the consumer has
 to re-derive which one applies, from context the type does not carry.
 
 ⚠ That flat type survived ONE cycle as a **view** over the Solution's
-record, outcome and certificate — its two magnitudes still coming back as
+record, outcome and exit report — its two magnitudes still coming back as
 ``float | None`` there, which is exactly the leak the sum retires,
 confined to the one property that existed to let the established readers
 migrate by concept rather than on a flag day.  It was **retired at step 3's
 unit U6 on 2026-09-17**, the leak with it: ``[M]`` **19**
 ``gauge_correction`` and **10** ``balance_defect`` reads across five files
-were re-keyed onto ``certificate.gauge`` / ``certificate.balance`` — or
+were re-keyed onto ``exit_report.gauge`` / ``exit_report.balance`` — or
 retired with the view's own test rows — and now match on the
 :class:`~orpheus.numerics.outcome.Evidence` member instead of on ``is
 None``.  The largest block is the SN entry-ledger gate
 (``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``: five gate
 functions, 11 reads), and each of them now says *which* of the
-``Measured``-versus-absent states it is asserting.  The certificate is the
+``Measured``-versus-absent states it is asserting.  The exit report is the
 only surface.
 
-:class:`~orpheus.numerics.outcome.ExitCertificate` replaces it with a
+:class:`~orpheus.numerics.outcome.ExitReport` replaces it with a
 closed sum, one member per reason:
 
 .. list-table:: ``Evidence = Measured | Certified | NotApplicable | NotYet``
@@ -7608,7 +7608,7 @@ closed sum, one member per reason:
      - a number was measured on the returned state
      - ``value``
    * - :class:`~orpheus.numerics.outcome.Certified`
-     - no number was needed — the exit certificate **asserted** the
+     - no number was needed — the convergence-claim check **asserted** the
        bound, raising on a defect beyond it
      - ``bound``, ``by``
    * - :class:`~orpheus.numerics.outcome.NotApplicable`
@@ -7625,7 +7625,7 @@ nothing exercises — and the right-hand column below is what the
 S\ :sub:`N` evaluators shipped at U2, read off the code rather than the
 design:
 
-.. list-table:: ``ExitCertificate`` members
+.. list-table:: ``ExitReport`` members
    :header-rows: 1
    :widths: 22 46 32
 
@@ -7636,7 +7636,7 @@ design:
      - the per-group balance-defect ratio :math:`\lVert R_g(A\psi -
        q)\rVert / \lVert R_g(q)\rVert` (:ref:`sn-exit-balance-projection`)
      - ``Measured`` (truncated exit); ``Certified`` (fully converged —
-       the within-group exit certificate already ASSERTED the bound, so
+       the convergence-claim check already ASSERTED the bound, so
        no forward apply is spent); ``NotApplicable`` (the source
        integrates to zero per group — the ratio is undefined);
        ``NotYet(310)`` (a moment-tailed LD interior the residual mint
@@ -7656,7 +7656,7 @@ design:
      - ``Measured`` on the eigen kind; ``NotApplicable`` on a source
        outcome (which carries no eigenvalue)
    * - ``admissibility``
-     - the multiplying-source problem's certificate — the hub's own
+     - the multiplying-source problem's admissibility — the hub's own
        :math:`k_{\rm eff} < 1`, **with the tolerance it was measured at**
      - ``Certified(k, "the hub's k-solve at keff_tol=…")``;
        ``NotApplicable`` for a pure-transport or eigen posing
@@ -7883,7 +7883,7 @@ is the ``vv-principles`` #24(e) REGIME check at the gauge tier: the deck
 that makes a claim look settled is the one whose physics puts the
 discriminating mechanism out of play.
 
-**The certificate's evaluators read the OUTCOME, and that fixed two
+**The exit report's evaluators read the OUTCOME, and that fixed two
 things.**  The S\ :sub:`N` balance evaluator takes the posing's own
 residual and the equation's own right-hand side rather than a
 hand-rebuilt source, which changes two entries' answers:

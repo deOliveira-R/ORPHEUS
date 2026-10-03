@@ -994,7 +994,7 @@ class StreamingCollisionOperator(
         # term made the preconditioner ``M = (I + 𝒞)∘(L+C)⁻¹`` SINGULAR
         # on the outflow-trace subspace (measured ‖M q‖/‖q‖ = 1e-15 on
         # a pure outflow-row vector — GMRES stalled at an O(1) true
-        # residual and the exit certificate refused the claim).
+        # residual and the convergence-claim check refused the claim).
         # Tangential rows (excluded from both selectors) keep their
         # seeded copy untouched — the identity-row inverse.
         trace_space = problem.angular_trace

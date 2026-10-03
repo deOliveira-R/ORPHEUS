@@ -292,7 +292,7 @@ DECLARED BLIND — what this file CANNOT see
   `[M]` the ``N1`` arm scaled the returned trace by 72 % of its own magnitude
   and reddened 0 of 45 — which is why the trace needed a class of its own
   rather than a leg on an existing row.
-* ``certificate.balance`` on a CONVERGED solve.  `[M]` it is ``Certified`` by
+* ``exit_report.balance`` on a CONVERGED solve.  `[M]` it is ``Certified`` by
   construction (``_balance_evidence`` — until step 3 ``_exit_balance_defect``
   — certifies rather than measures on ``record.fully_converged``), which is
   exactly why the shipped diagnostic
@@ -1416,7 +1416,7 @@ class TestAgainstAnIndependentRoute:
 
 
 class TestTheShippedDiagnostic:
-    """``certificate.balance`` — the instrument that SHOULD have caught
+    """``exit_report.balance`` — the instrument that SHOULD have caught
     this, and the guard that keeps it asleep."""
 
     @pytest.mark.l1
@@ -1425,9 +1425,9 @@ class TestTheShippedDiagnostic:
         """`[M]` ``Certified`` (until step 3: ``None``) on every converged solve — by construction.
 
         ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) returns early on ``record.fully_converged``
-        (it is the complement of ``_certify_within_group_exit``, which
+        (it is the complement of ``_check_convergence_claim``, which
         asserts on the converged side).  But the eigenvalue entry never runs
-        the certificate on its RETURNED ψ — the certificate fires inside the
+        the claim check on its RETURNED ψ — the claim check fires inside the
         inner solves, on the ITERATE.  So between the two of them nothing
         ever evaluates the object the caller receives, which is precisely the
         hole #448 lived in for the whole of its life.
@@ -1436,9 +1436,9 @@ class TestTheShippedDiagnostic:
         does not spend a cycle wondering why an existing diagnostic did not
         fire, and it is the premise the budget row below depends on.
         """
-        certificate = _solve("slab_vac", order).certificate
-        assert isinstance(certificate.balance, Certified), (
-            f"balance = {certificate.balance!r} on a fully-converged "
+        exit_report = _solve("slab_vac", order).exit_report
+        assert isinstance(exit_report.balance, Certified), (
+            f"balance = {exit_report.balance!r} on a fully-converged "
             f"solve.  The early return on record.fully_converged has moved; "
             f"the budget row below assumes the defect is only live on a "
             f"TRUNCATED exit and must be re-derived."
@@ -1491,7 +1491,7 @@ class TestTheShippedDiagnostic:
                     f"needs did not happen, so balance_defect is None and the "
                     f"row measures nothing.  Lower the budget."
                 )
-            balance = sol.certificate.balance
+            balance = sol.exit_report.balance
             if not isinstance(balance, Measured):
                 pytest.fail(
                     f"balance is {balance!r} on a truncated exit "

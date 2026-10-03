@@ -2384,8 +2384,8 @@ them.  Trust ``git``, not this column.
        future scheme answers for itself with no edit.  The gauge fires at
        **all four public entries**, records its magnitude on the
        Solution (the flat ``IterationHistory`` view on this row's date;
-       :attr:`ExitCertificate.gauge
-       <orpheus.numerics.outcome.ExitCertificate.gauge>` as typed
+       :attr:`ExitReport.gauge
+       <orpheus.numerics.outcome.ExitReport.gauge>` as typed
        :class:`~orpheus.numerics.outcome.Evidence` since step 3 U6,
        2026-09-17), and emits a
        ``GaugeFreedomWarning`` that names the **root** fix (switch to a damping
@@ -2646,7 +2646,7 @@ them.  Trust ``git``, not this column.
        stops on the free-identity equation residual
        :math:`r_n = \mathrm{rhs}_{n-1} - \mathrm{rhs}_n = A\psi_n - q`, and
        every full-angular arm carries the driver-level
-       :class:`~orpheus.sn.solver.ConvergenceCertificateError` — one honest
+       :class:`~orpheus.sn.solver.ConvergenceClaimError` — one honest
        :func:`~orpheus.sn.solver.evaluate_residual` per claimed exit closes
        the exact-:math:`M` hole the free identity assumes (the #282
        lag-death class, measured cold-residual defect ~5e5); **(5d,

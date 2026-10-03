@@ -1,4 +1,4 @@
-r"""Step 5 (R-5.2) — the end-of-solve convergence CERTIFICATE (C2/C3).
+r"""Step 5 (R-5.2) — the end-of-solve convergence CLAIM CHECK (C2/C3).
 
 The SI stop is the FREE-IDENTITY residual (``r = rhs_{n−1} − rhs_n``,
 :class:`~orpheus.numerics.iteration.SourceIteration`) — exact when the
@@ -6,21 +6,21 @@ step operator honestly inverts the splitting's ``M``, and STRUCTURALLY
 BLIND to an in-``M`` inconsistency (the #282 lag-death class: a
 stale/lagged block leaves the iteration's fixed point off the equation
 while every increment-family test reports "converged"). The driver-level
-certificate (:func:`orpheus.sn.solver._certify_within_group_exit`) is
+claim check (:func:`orpheus.sn.solver._check_convergence_claim`) is
 the ONE honest :func:`~orpheus.sn.solver.evaluate_residual` per solve
 that closes exactly that hole.
 
 * **C2** — the exact-M bridge, positive control: a REAL carrying-sphere
-  production solve passes the LIVE certificate silently, both drivers
-  (the raise-free return IS the pass — the certificate sits inside the
+  production solve passes the LIVE claim check silently, both drivers
+  (the raise-free return IS the pass — the claim check sits inside the
   driver's exit path, pinned by C3's mutated leg reddening through the
   SAME call).
 * **C3 (THE HEADLINE)** — the lag-death classifier's teeth: an injected
   in-``M`` lag (the ray march returns a STALE ZERO ψ_B — the #282
   surrogate) leaves the running stop convergent (the identity sees only
-  ``N·Δψ``, which contracts) while the certificate raises
-  :class:`~orpheus.sn.solver.ConvergenceCertificateError` LOUDLY. The
-  asymmetry (stop green / certificate red) IS the classifier's proof —
+  ``N·Δψ``, which contracts) while the claim check raises
+  :class:`~orpheus.sn.solver.ConvergenceClaimError` LOUDLY. The
+  asymmetry (stop green / claim check red) IS the classifier's proof —
   without it the ρ-honest stop is a Mode-11 vacuous claim (TA step-5
   memo C3; the in-M defect is off the free identity's call graph).
 * Plus the no-claim no-op law (best-effort ``max_iter`` exits stay
@@ -45,7 +45,7 @@ from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
 )
-from orpheus.sn.solver import ConvergenceCertificateError, SNSolver
+from orpheus.sn.solver import ConvergenceClaimError, SNSolver
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
@@ -69,8 +69,8 @@ def _sphere() -> SNProblem:
 
 
 @pytest.mark.parametrize("inner", ["source_iteration", "krylov"])
-def test_c2_production_carrying_solve_passes_the_certificate(inner):
-    """C2 — positive control on the LIVE certificate: the carrying-sphere
+def test_c2_production_carrying_solve_passes_the_claim_check(inner):
+    """C2 — positive control on the LIVE claim check: the carrying-sphere
     production solve exits raise-free through the certified path (C3's
     mutated leg proves the same call site raises when the equation is
     violated), and the converged iterate is finite and typed."""
@@ -87,16 +87,16 @@ def test_c2_production_carrying_solve_passes_the_certificate(inner):
         pytest.fail(f"[{inner}] non-finite converged iterate")
 
 
-def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
+def test_c3_in_m_lag_trips_the_claim_check_while_the_stop_stays_green(
         monkeypatch):
     """C3 — THE lag-death classifier proof, both legs (L18 discipline):
-    the CONTROL solve converges with the certificate silent; the MUTATED
+    the CONTROL solve converges with the claim check silent; the MUTATED
     solve (a stale zero ψ_B inside M) still satisfies its own running
-    stop but the certificate raises the loud lag-death error."""
+    stop but the claim check raises the loud lag-death error."""
     sn = _sphere()
     q = np.ones((sn.quad.N, sn.ng, sn.nx))  # per-ordinate (the module entry's contract)
 
-    # ── CONTROL: unmutated — the certificate stays silent.
+    # ── CONTROL: unmutated — the claim check stays silent.
     solution = solve_sn_fixed_source(
         dict(_MATERIALS), _mesh1d(), sn.quad, q,
         inner_solver="source_iteration",
@@ -106,14 +106,14 @@ def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
 
     # ── MUTATED: the march returns a stale ZERO ψ_B (the #282 surrogate:
     # the TRUE q½ is ignored, the bulk consumes a wrong seed, the SI
-    # increment still contracts — only the certificate can see it).
+    # increment still contracts — only the claim check can see it).
     def _stale_ray(self, source):
         del source
         return RadialCharacteristicField.flux_zeros(self._field_space)
 
     with monkeypatch.context() as m:
         m.setattr(RadialCharacteristicOperator, "solve", _stale_ray)
-        with pytest.raises(ConvergenceCertificateError, match="lag-death"):
+        with pytest.raises(ConvergenceClaimError, match="lag-death"):
             solve_sn_fixed_source(
                 dict(_MATERIALS), _mesh1d(), sn.quad, q,
                 inner_solver="source_iteration",
@@ -128,31 +128,31 @@ def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
         pytest.fail("post-revert leg did not converge — the mutation leaked")
 
 
-def test_certificate_is_a_noop_without_a_convergence_claim():
+def test_claim_check_is_a_noop_without_a_convergence_claim():
     """A ``max_iter``-hit best-effort exit makes NO claim — the
-    certificate must not raise (legal non-converged returns stay legal).
+    claim check must not raise (legal non-converged returns stay legal).
     The ψ/q sentinels are ``None``: a no-op that touched them would
     explode, so the silent pass proves the claim-gate short-circuits.
 
     ⚠ Read this as HALF the contract, not the project's whole position
-    on truncation.  The certificate audits a *claim*, so no claim means
+    on truncation.  The claim check audits a *claim*, so no claim means
     nothing to audit — but since #340 a best-effort exit is legal **and
     audible**: the public entry emits
     :class:`~orpheus.numerics.convergence.ConvergenceWarning`, and the
     caller can read ``solution.history.converged``.  The silence proven
-    here belongs to the certificate alone; the entry point is loud.
+    here belongs to the claim check alone; the entry point is loud.
     That other half is gated in
     ``tests/gates/sn/solve/test_convergence_contract.py`` (deliberately NOT
     duplicated here — one contract, one home).
     """
-    from orpheus.sn.solver import _certify_within_group_exit
+    from orpheus.sn.solver import _check_convergence_claim
 
     sn = _sphere()
     solver = SNSolver(sn)
     system = build_within_group_system(
         sn, solver.problem.mat_xs,
     )
-    # Both no-op arms, now stated as RECORDS (#340 N2a — the certificate
+    # Both no-op arms, now stated as RECORDS (#340 N2a — the claim check
     # reads the driver's own record rather than re-deriving the claim from
     # a bare list, so `_claims_convergence` could retire).
     def _record(trajectory: tuple[float, ...], **kw) -> IterationRecord:
@@ -172,12 +172,12 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     #     wrong for a driver that returned on its initial guess.  It is a
     #     no-op either way here, but for opposite reasons — worth stating,
     #     because the two readings differ wherever a claim IS made.
-    _certify_within_group_exit(
+    _check_convergence_claim(
         system.loss, None, None,  # type: ignore[arg-type]
         problem=sn, record=_record(()), where="noop-test",
     )
     # (b) a genuine truncation: measured 1.0 against tol 1e-8, no claim.
-    _certify_within_group_exit(
+    _check_convergence_claim(
         system.loss, None, None,  # type: ignore[arg-type]
         problem=sn, record=_record((1.0,), iterations_run=1), where="noop-test",
     )

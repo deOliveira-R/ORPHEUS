@@ -129,7 +129,7 @@ from orpheus.sn.coupled_system import (
     build_within_group_system,
 )
 from orpheus.sn.solver import (
-    ConvergenceCertificateError,
+    ConvergenceClaimError,
     SNSolver,
     _build_fixed_source_rhs,
     _coupled_flux_state,
@@ -2392,7 +2392,7 @@ class TestCoupledLift:
         (the (B,A) slot None — the un-wired shape) leaves the A_BA.apply counter
         at 0 — AND, since step 5, is caught IN PRODUCTION: the crippled
         splitting's fixed point solves the WRONG equation (A' = M − N_crippled),
-        so the end-of-solve CERTIFICATE raises the lag-death error before the
+        so the end-of-solve CLAIM CHECK raises the lag-death error before the
         solve can return (the runtime half of the Mode-11 net; the counter is
         the structural half). Proves the unwired-driver shape cannot ship
         silently."""
@@ -2423,21 +2423,21 @@ class TestCoupledLift:
 
         monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
         # Leg 1 — the STRUCTURAL half (the original Mode-11 claim): with
-        # the certificate silenced, the crippled DRIVER itself never
+        # the claim check silenced, the crippled DRIVER itself never
         # applies A_BA (counter 0) and the solve returns the wrong iterate
         # silently — exactly the shape the sentinel family exists to catch.
         monkeypatch.setattr(
-            _solver_mod, "_certify_within_group_exit",
+            _solver_mod, "_check_convergence_claim",
             lambda *a, **k: None,
         )
         SNSolver(sn).solve_fixed_source(
             np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
-        print(f"  [L4-S tooth] Emission-less gain grid (certificate "
+        print(f"  [L4-S tooth] Emission-less gain grid (claim check "
               f"silenced): A_BA.apply calls = {counter['n']}")
         if counter["n"] != 0:
             pytest.fail(f"the un-widened driver STILL applied A_BA {counter['n']}× — "
                         f"the L4-S sentinel would not catch a missing rewire.")
-        # Leg 2 — the RUNTIME half (step 5): the LIVE certificate catches
+        # Leg 2 — the RUNTIME half (step 5): the LIVE claim check catches
         # the same crippled driver loudly (its one honest loss-grid apply
         # IS the counter's sole increment — the diagnostic consumer, not
         # the driver).
@@ -2446,11 +2446,11 @@ class TestCoupledLift:
             Splitting, "from_schedule", classmethod(_no_emission))
         monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
         counter["n"] = 0
-        with pytest.raises(ConvergenceCertificateError, match="lag-death"):
+        with pytest.raises(ConvergenceClaimError, match="lag-death"):
             SNSolver(sn).solve_fixed_source(
                 np.ones((sn.ng, sn.nx)), np.ones((sn.ng, sn.nx)))
         if counter["n"] != 1:
-            pytest.fail(f"expected EXACTLY the certificate's one honest "
+            pytest.fail(f"expected EXACTLY the claim check's one honest "
                         f"loss-grid apply; counted {counter['n']}")
 
     # ── L1-F: the eigenvalue F seed IS the direct moments-fold (commit 2) ───

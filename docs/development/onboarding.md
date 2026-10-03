@@ -48,7 +48,7 @@ pencil directly. Every level mints an
 exit is legal and made audible, and a claimed convergence is re-measured
 before it is believed. The answer is fused with its question and its gauge
 into an outcome, and the `Solution` is the frozen five-tuple problem,
-outcome, strategy, certificate, record, on which the domain operations
+outcome, strategy, exit report, record, on which the domain operations
 (reaction rates, homogenisation, condensation, importance) are posed. The
 adjoint entries dagger the same objects: `.H` is `♯ ∘ dual ∘ ♭`, built from
 the bound spaces and propagated through sums, products, tensor products and

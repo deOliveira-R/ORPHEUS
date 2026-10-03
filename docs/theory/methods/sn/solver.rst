@@ -2784,7 +2784,7 @@ and composing it with the fission lag is a later step.
 
 Because the entry *is* that lowering, it inherits the fixed-source path's
 exits wholesale — the same :ref:`exit gauge <sn-loss-kernel-gauge>`, the
-same convergence certificate, the same
+same convergence-claim check, the same
 :class:`~orpheus.sn.solution.Solution` contract.
 ``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``'s entry ledger
 records it as *not separately exercised* for exactly that reason, naming
@@ -2807,7 +2807,7 @@ inheritance**, not a coverage gap.
    pinned the old inventory reads **8** rather than 7.
 
    ⭐ And the entry now records what it measured to admit itself: the
-   admissibility :math:`k` rides the Solution's certificate as
+   admissibility :math:`k` rides the Solution's exit report as
    ``Certified(k, "the hub's k-solve at keff_tol=…")`` — **with the
    tolerance it was measured at**, because a bare number would be a
    measurement without its configuration.  Until step 3 the driver
@@ -2815,8 +2815,8 @@ inheritance**, not a coverage gap.
    holding the Solution could not tell a certified-subcritical answer
    from an unchecked one.
 
-**The exit certificate is posed on the equation that was SOLVED.**  This
-is the subtlety the lag creates.  The driver's certificate evaluates
+**The convergence-claim check is posed on the equation that was SOLVED.**
+This is the subtlety the lag creates.  The driver's check evaluates
 :math:`r = A\psi - q_{\rm certified}`, and a lagged gain is part of the
 operator, so the gain must re-enter the certified right-hand side at the
 converged iterate:
@@ -2831,7 +2831,7 @@ converged iterate:
 which is :eq:`sn-multiplying-source`'s residual.  Certifying against the
 bare :math:`q` would have measured the *pure transport* residual of a
 multiplying solution and raised
-:class:`~orpheus.sn.solver.ConvergenceCertificateError` on
+:class:`~orpheus.sn.solver.ConvergenceClaimError` on
 every converged run.
 
 **Convergence rate, and a budget that is not a refusal.**  The lagged
@@ -2865,8 +2865,8 @@ tolerance alone is **1961**.
      - what it pins
    * - convergence ×2
      - :math:`L = 2` (:math:`k = 0.435195214`) and :math:`L = 4`
-       (:math:`k = 0.907457573`) both converge; the production exit
-       CERTIFICATE (above) is what asserts the balance closes, and it
+       (:math:`k = 0.907457573`) both converge; the production
+       convergence-claim CHECK (above) is what asserts the balance closes, and it
        **raises** rather than reporting
    * - cone monotonicity
      - :math:`\psi_{\rm mult} > \psi_{\rm pure}` cell-wise against
@@ -3207,7 +3207,7 @@ reads its
 :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
 fold.  Nothing sits between the two.  Every diagnostic is asked of the
 object that owns it — the **record** for the path, the **outcome** for the
-answer, the **certificate** for what the exit measured about the returned
+answer, the **exit report** for what the exit measured about the returned
 state — and the next section says which reading moved where, and which
 one deliberately did not move at all.
 
@@ -3390,10 +3390,10 @@ that instruction carried out.
        it.  On a ``Solution[SourceOutcome]`` neither **exists**, which is
        the type saying what a ``None`` used to say badly
    * - ``balance_defect`` / ``gauge_correction``
-     - :attr:`certificate.balance
-       <orpheus.numerics.outcome.ExitCertificate.balance>` /
-       :attr:`certificate.gauge
-       <orpheus.numerics.outcome.ExitCertificate.gauge>`, as typed
+     - :attr:`exit_report.balance
+       <orpheus.numerics.outcome.ExitReport.balance>` /
+       :attr:`exit_report.gauge
+       <orpheus.numerics.outcome.ExitReport.gauge>`, as typed
        :class:`~orpheus.numerics.outcome.Evidence`.  These were the two
        ``float | None`` members carrying five and three documented
        meanings; the sum names the reason instead of erasing it
@@ -3563,9 +3563,9 @@ The balance projection
 
 The refutation left a real question standing — *how much did this truncation
 cost?* — and the answer the warning carries is the **per-group neutron-balance
-defect of the returned iterate**, reported on the Solution's exit certificate
-as :attr:`ExitCertificate.balance
-<orpheus.numerics.outcome.ExitCertificate.balance>`:
+defect of the returned iterate**, reported on the Solution's exit report
+as :attr:`ExitReport.balance
+<orpheus.numerics.outcome.ExitReport.balance>`:
 
 .. math::
    :label: sn-exit-balance-defect
@@ -3601,7 +3601,7 @@ functional :math:`\keff` itself reads.  `[M]` the overlap falls **634× →
    (`#350 <https://github.com/deOliveira-R/ORPHEUS/issues/350>`_).
 
 It is computed **only on the exit that warns** — the exact complement of the
-within-group certificate, which fires when the solve *claimed* convergence and
+convergence-claim check, which fires when the solve *claimed* convergence and
 raises.  One equation, two verbs, complementary guards, so no solve pays for
 both forward applies and the converged path costs what it always did.  `[M]`
 one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
@@ -3612,9 +3612,9 @@ one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
    ⛔ **The complement of a guard is not the same as coverage, and this
    pair left the exit uncovered until 2026-09-06** (#448 /
    :doc:`ERR-083 </theory/verification/error_catalog>`).  The two verbs
-   above are complementary *in when they fire* — certificate on the
+   above are complementary *in when they fire* — the check on the
    converged exit, defect on the truncated one — and they are NOT
-   complementary in *what they read*.  The certificate reads the within-group
+   complementary in *what they read*.  The check reads the within-group
    **iterate**, inside the inner solves; this projection reads the returned
    flux, but only when the solve did not converge.  So the object a caller
    receives from a **converged** eigenvalue solve was evaluated by neither,
@@ -3645,7 +3645,7 @@ one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
    renormalisation).  What is comparable, and what the diagnostic
    advertises, is the RATIO down the budget.
 
-**When no number is reported, the certificate says WHY** — and that is
+**When no number is reported, the exit report says WHY** — and that is
 the second thing step 3 changed here.  Until 2026-09-17 the answer was a
 ``None`` carrying five documented meanings, which is stringly-typed
 dispatch wearing an absence: the consumer had to re-derive which one
@@ -3664,7 +3664,7 @@ of it:
      - the exit that warns — a truncated solve, the case this whole
        section is about
    * - :class:`~orpheus.numerics.outcome.Certified`
-     - the tree **fully converged**: the within-group exit certificate
+     - the tree **fully converged**: the convergence-claim check
        already ASSERTED :math:`\lVert A\psi - q\rVert/\lVert q\rVert`
        within its safety factor (raising otherwise), so no forward apply
        is spent and the *bound* is reported instead of a number
@@ -3675,7 +3675,7 @@ of it:
      - **moment-tailed (LD) schemes** on both fixed-source arms: the
        residual mint does not admit the trailing :math:`2^d`
        spatial-moment axis, so no residual exists to project.  The same
-       un-built widening the within-group certificate exempts, reached
+       un-built widening the convergence-claim check exempts, reached
        through one shared predicate rather than two copies of the test
    * - ``NotYet(353)``
      - **the daggered eigenvalue entry** ``solve_sn_adjoint``: N5's
@@ -3691,7 +3691,7 @@ reason was a real refusal rather than an oversight: what
 System-A residual against a System-A fission rhs, which on a carrying
 mesh silently omits :math:`r_B` — the ``vv-principles`` Mode-12 blindness
 the split-residual mint exists to prevent — so "no number" was more
-honest than a residual missing a block.  Since the certificate reads the
+honest than a residual missing a block.  Since the exit report's evaluator reads the
 **outcome's own** residual and rhs, and the outcome's question is the
 coupled pencil, the missing piece assembles itself: the rhs is
 :math:`\mu(\lambda)\,M\psi` on the coupled space, and
@@ -3776,7 +3776,7 @@ The exit gauge — a converged solve can still be one of many
 
 The convergence contract answers *"did the iteration finish?"*.  There
 is a second, structurally different way for a returned field to be
-unsatisfying, and no convergence certificate can see it: the **equation**
+unsatisfying, and no convergence check can see it: the **equation**
 may not have a unique answer.  On a closed reflective Cartesian box under
 diamond differencing :math:`A = L+C-S-N_{2n}-B` is **exactly
 singular**, so
@@ -3788,8 +3788,8 @@ here is the exit behaviour.
 Every entry that returns a trace applies the :math:`G`-orthogonal
 projection :math:`\psi \mapsto \psi - \Pi\psi`
 (:eq:`sn-loss-kernel-gauge-projection`) and records the magnitude it
-removed on :attr:`ExitCertificate.gauge
-<orpheus.numerics.outcome.ExitCertificate.gauge>`.  The
+removed on :attr:`ExitReport.gauge
+<orpheus.numerics.outcome.ExitReport.gauge>`.  The
 gauge is the **sibling** of the balance projection with one sharpening
 that changes what verification it owes: :eq:`sn-exit-balance-defect`
 *reports*, and this one *mutates*.  A forgotten balance-defect site
@@ -3801,8 +3801,8 @@ non-physical answer.  Coverage is therefore gated by an enumeration
 Three properties make firing it at a converged exit safe, and each is
 asserted rather than assumed:
 
-* **Residual-neutral.**  :math:`A(\psi - \Pi\psi) = A\psi`, so **no
-  convergence certificate can move**.  ``[M]`` on a deliberately
+* **Residual-neutral.**  :math:`A(\psi - \Pi\psi) = A\psi`, so **the residual
+  every convergence check reads cannot move**.  ``[M]`` on a deliberately
   truncated SI solve the balance defect reads ``0.3111434602740818``
   before and after, while the correction goes
   :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
@@ -3841,7 +3841,7 @@ repaired**, not that there was nothing to repair.
    exhausted its budget; the answer is best-effort"*.  This is the
    opposite situation: ``[M]`` the configuration where it fires hardest
    reports ``fully_converged = True`` and a ``Certified`` balance member
-   (the within-group exit certificate asserted the bound, so no number
+   (the convergence-claim check asserted the bound, so no number
    was owed).  The solve is fine; the **equation** is degenerate.  Reusing the
    category would also make every caller who escalates
    :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` start failing
@@ -3873,7 +3873,7 @@ was structural rather than numerical: until 2026-09-17 a
 their data while having solved different equations.
 
 The tier-agnostic theory — why the outcome is FUSED, what a gauge *is*
-(a section of a torsor quotient), and why the certificate is a sum rather
+(a section of a torsor quotient), and why each exit-report member is a sum rather
 than a nullable float — is
 :ref:`the-solution-outcome`, and the S\ :sub:`N`-specific realization
 table is :ref:`the-outcome-sn-realization`.  What belongs here is the
@@ -3893,7 +3893,7 @@ Five members, and the KIND is one of their types
 
    * - member
      - what it is
-   * - ``mesh``
+   * - ``problem``
      - the **Problem** (the hub), the base point everything else is
        relative to
    * - ``outcome``
@@ -3904,7 +3904,7 @@ Five members, and the KIND is one of their types
      - the :class:`~orpheus.sn.splitting.Splitting` VALUE the solve drove
        — the labelled piece set and the schedule.  Budgets and tolerances
        ride the record, per level, because they are per level
-   * - ``certificate``
+   * - ``exit_report``
      - what the exit MEASURED about the returned state, member by member,
        as typed :class:`~orpheus.numerics.outcome.Evidence`
    * - ``record``

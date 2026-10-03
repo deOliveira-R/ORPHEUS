@@ -361,8 +361,8 @@ def test_the_declared_boundary_law_holds_on_the_answer(inner: str) -> None:
     ⭐ **The ``krylov`` parameter is load-bearing.** Pre-P3 it did not merely
     give a wrong number, it RAISED: an affine ``A(x) = A_lin(x) − c`` breaks
     GMRES's Arnoldi relation ``A V_k = V_{k+1} H_k``, so the residual scipy
-    tracks is meaningless and ``_certify_within_group_exit`` catches the
-    divergence (``ConvergenceCertificateError``, ``‖Aψ − q‖/‖q‖ = 1.718``).
+    tracks is meaningless and ``_check_convergence_claim`` catches the
+    divergence (``ConvergenceClaimError``, ``‖Aψ − q‖/‖q‖ = 1.718``).
     Declared prescribed inflow × Krylov was UNUSABLE — before P2′ as well as
     after it — and only #189 (the law is not a registered ``BC`` kind) kept that
     out of every production driver.
