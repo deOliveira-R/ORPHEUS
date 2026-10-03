@@ -116,6 +116,9 @@ Evidence = Measured | Asserted | NotApplicable | NotYet
 #: a disjoint sum.
 ProductionReading: TypeAlias = Measured
 
+#: The members of :data:`ProductionReading` (``get_args`` of a one-member alias is empty).
+PRODUCTION_READINGS: tuple[type, ...] = (Measured,)
+
 
 @dataclass(frozen=True)
 class ExitReport:

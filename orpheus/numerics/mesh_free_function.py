@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeAlias, cast, get_args
+from typing import TYPE_CHECKING, Any, TypeAlias, assert_never, cast, get_args
 
 import numpy as np
 
@@ -365,4 +365,29 @@ def parse_mesh_free_function(value: Any, where: str, noun: str) -> MeshFreeFunct
     return cast(MeshFreeFunction, parse_member(value, get_args(MeshFreeFunction), where, noun, "a mesh-free function"))
 
 
-__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function", "parse_srepr"]
+def values_without_position(function: MeshFreeFunction, n_groups: int) -> tuple["sympy.Expr", ...]:
+    """The function's value per group on a medium with no position (the infinite medium, a 0-D answer).
+
+    The one reading of a mesh-free function where there is no coordinate to
+    read it at: a regionwise-constant table must have exactly one region and
+    is read EXACTLY (every double is a dyadic rational); a symbolic function is
+    read :meth:`Symbolic.without` every owned coordinate, the same
+    independence its admission decided. The group count must be ``n_groups``.
+    Production reads these values as floats, a reference keeps them exact.
+    """
+    import sympy
+
+    if function.n_groups != n_groups:
+        raise ValueError(f"the function has {function.n_groups} groups; the medium has {n_groups}")
+    match function:
+        case RegionwiseConstant():
+            if function.n_regions != 1:
+                raise ValueError(f"the function has {function.n_regions} regions; a medium with no position has one")
+            return tuple(sympy.Rational(float(value)) for value in function.values[0])
+        case Symbolic():
+            return function.without(Symbolic.r, Symbolic.mu, Symbolic.phi).expressions
+        case _:
+            assert_never(function)
+
+
+__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function", "parse_srepr", "values_without_position"]

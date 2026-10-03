@@ -36,6 +36,8 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 import pytest
 
 from tests.gates._content_identity_helpers import require
@@ -457,3 +459,17 @@ def test_r6_6_admission_and_evaluation_share_one_definition_of_constant() -> Non
     one = sympy.sin(Symbolic.phi) ** 2 + sympy.cos(Symbolic.phi) ** 2
     reading = ref.read(s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(one, one)))
     require(_contains(reading, sum(exact.flux, Fraction(0))), f"{reading!r}")
+
+
+@pytest.mark.parametrize("table", [np.ones((2, 2)), np.ones((1, 3))], ids=["two-regions", "one-group-too-many"])
+def test_r6_review_the_derivation_refuses_a_weight_that_does_not_fit(table: Any) -> None:
+    """The exact derivation read ``values[0]`` and ``zip`` truncated, so a
+    2-region weight or one group too many returned an Exact value while
+    production refused it (the elegance review of step 7a, finding 1). Both
+    readers now share ``values_without_position``, which refuses it."""
+    from orpheus.numerics.mesh_free_function import RegionwiseConstant
+
+    mixture = sf.fuel()
+    ref = s6.exact_medium_reference(_medium(mixture))
+    with pytest.raises(ValueError):
+        ref.derivation.establish(s5.c(s5.OBSERVABLE, "FluxIntegral")(RegionwiseConstant(table)))

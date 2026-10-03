@@ -61,7 +61,7 @@ from orpheus.transport.operators.isotropic_transfer import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.gauge import ScaleGauge
-from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
+from orpheus.numerics.mesh_free_function import values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.outcome import EigenOutcome, Measured
 
@@ -128,8 +128,8 @@ class HomogeneousResult:
         (the infinite medium's, :mod:`orpheus.numerics.observable`), in the
         production gauge νΣf·φ = 100: the eigenvalue reads k∞; a flux
         integral of one region's weight reads :math:`\sum_g w_g\varphi_g`
-        (a symbolic weight read without the coordinates the answer does not
-        have, :meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`);
+        (the weight read on a medium with no position,
+        :func:`~orpheus.numerics.mesh_free_function.values_without_position`);
         a ratio reads the quotient of its operands' readings; a point value
         is refused. A reading is :class:`~orpheus.numerics.outcome.Measured`:
         a self-report that verification puts on trial, never a guarantee.
@@ -138,28 +138,14 @@ class HomogeneousResult:
             case Eigenvalue():
                 return Measured(self.k_inf)
             case FluxIntegral(weight=weight):
-                return Measured(float(np.dot(self._group_weights(weight), self.flux)))
+                weights = np.array([float(w) for w in values_without_position(weight, self.flux.shape[0])])
+                return Measured(float(np.dot(weights, self.flux)))
             case Ratio(numerator=numerator, denominator=denominator):
                 return Measured(self.read(numerator).value / self.read(denominator).value)
             case PointValue():
                 raise ValueError("HomogeneousResult: a point value names a position, and a 0-D answer has none")
             case _:
                 assert_never(observable)
-
-    def _group_weights(self, weight: MeshFreeFunction) -> np.ndarray:
-        """The weight's value per group on the one region, refusing a weight that does not fit."""
-        if weight.n_groups != self.flux.shape[0]:
-            raise ValueError(f"HomogeneousResult: the weight has {weight.n_groups} groups; the answer has {self.flux.shape[0]}")
-        match weight:
-            case RegionwiseConstant():
-                if weight.n_regions != 1:
-                    raise ValueError(f"HomogeneousResult: the weight has {weight.n_regions} regions; the answer has one")
-                return weight.values[0]
-            case Symbolic():
-                constants = weight.without(Symbolic.r, Symbolic.mu, Symbolic.phi).expressions
-                return np.array([float(c) for c in constants])
-            case _:
-                assert_never(weight)
 
     @property
     def flux_per_energy(self) -> np.ndarray:

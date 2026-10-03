@@ -259,19 +259,43 @@ This section was re-specified on the user's two rulings of 2026-10-03, "Step 5 r
 
 **The battery** (`[M]` 2026-10-03, production at `5af745a8`, byte-identical to `4b724f04`; `scratch/reference_architecture/p2/ta/step6/battery/`). Arms were built from the source of `solution.py` and `exact_homogeneous.py` and exec'd into the live modules; one arm edits a file on disk (restored). Scope: 27 rows, baseline 0 red. 16 arms; 15 turn their target rows red. One was blind and is now repaired: E3 (the factory's question check removed) left the fixed-source refusal green, because the claimed Eigenvalue's admission refuses that specification first (a twin guard). The new row, an eigen question along scattering emission, reddens under E3 alone (`test_reference_solution_with_e3_row.py`). Declared blindness: E2 (groups reversed) leaves the 4-group row green, because `fuel(4)` is group-symmetric (equal fluxes); the 2-group rows catch it.
 
-### 1.7a Step 7a: `VerificationCertificate` and the comparison verb
+### 1.7a Step 7a: `VerificationCertificate` and the comparison verbs (re-specified 2026-10-03; gates landed `9db19fd8`)
 
-`orpheus/reference/verification.py`: the certificate holds the observable, production's `ProductionReading`, the reference's `Enclosure`, the tolerance, the algebraic-error `Evidence` (an explicit argument, no default), the verdict kind (`Agreement` or `Order`) and the verdict; returned, never stored.
+**The values** (`orpheus/reference/verification.py`, the orchestrator's API ruling of 2026-10-03):
+- `ProductionAnswer`, a Protocol with `read(observable) -> ProductionReading`.
+- `verify_agreement(answer, observable, reference, tolerance, algebraic_error) -> VerificationCertificate` and `verify_order(answers, observable, reference, tolerance, algebraic_errors, order, band) -> OrderVerification` (G4: two certificates only, so not "OrderCertificate"). Neither verb has a default.
+- Both verbs hold the reference `Valid` BEFORE reading anything: `ReferenceNotValid` names a missing certificate, an `Invalid` state (its first reason) or a withdrawal (its issue).
+- Both call `answer.read(observable)` themselves (review note S4); a reading that is not `Measured` is refused.
+- `VerificationCertificate` is a frozen dataclass, not `ContentIdentity`. `floor_holds` (b_ref ≤ tol/10) and `agrees` (|m − v_ref| + b_ref ≤ tol) are decided exactly. `require()` raises for the floor first. The algebraic error is recorded under agreement, never required.
+- `verify_order` requires every algebraic error to be `Measured` or `Asserted` ≤ tol/10 (`Unestablished` otherwise; `NotYet` and `NotApplicable` refused), the reference bound ≤ tol/10, and every error ≥ tol ("unresolved"). It returns the observed orders, and `holds` against the caller's declared order and band.
+- **The production reading.** `HomogeneousResult.read` (`orpheus/homogeneous/solver.py`), returning `Measured`:
+  - Eigenvalue reads k∞.
+  - A one-region `FluxIntegral` reads per unit volume in the gauge νΣf·φ = 100; a `Symbolic` weight is read through `without`.
+  - A `Ratio` reads as the quotient of its operands' readings.
+  - `PointValue` is refused.
+- **DECLARED LIMIT.** Nothing pairs the answer with `reference.specification`: production results hold no specification until P4's projection, so the caller pairs them.
 
-| id | gate | kind | first red | tooth |
-|---|---|---|---|---|
-| R7.1 | **A non-`Valid` reference is refused** (`Invalid`, `Withdrawn`: a typed error naming the state and its issue), BEFORE any reading is compared | THEOREM (defining refusal) | defining | the state check removed → red |
-| R7.2 | **Role types.** A reference reading that is `Printed` is refused (agreement is against an enclosure); a production reading that is an `Enclosure` or a `Printed` is refused (`TypeError`); a static leg: pyright on a two-line snippet passing a `Measured` as the reference reading reports an error, and its well-typed twin reports 0 (an annotation has no runtime witness, lessons §1, `L59d`) | THEOREM (structure) | defining | the runtime check removed → the runtime row red; the annotation widened → the pyright row red |
-| R7.3 | **The reference floor**: `b_ref ≤ tol / 10`, else the certificate reports the floor as the reason, and `require()` raises for the floor FIRST (the order `AgreementCertificate` established, kept as the migration's contract); the boundary row `b_ref == tol/10` holds | THEOREM | defining | the floor dropped → the floor rows read "agrees" → red |
-| R7.4 | **The agreement verdict** is `|m − v_ref| + b_ref ≤ tol`, decided EXACTLY (`Fraction`), so a row at the boundary is decidable: one row exactly at `tol` agrees, one ULP above disagrees; one row with `|m − v_ref| ≤ tol < |m − v_ref| + b_ref` disagrees | THEOREM | defining | `+ b_ref` dropped → the third row agrees → red |
-| R7.5 | **The algebraic error is recorded under agreement**: `NotYet(564, …)` and `NotApplicable` give a verdict and are carried on the certificate unchanged | THEOREM | defining | refusing `NotYet` under agreement → red |
-| R7.6 | **The order verdict requires the algebraic floor**: each rung's `Measured` or `Certified` algebraic error at or below `tol / 10`, else refused as unestablished (`NotYet(564, …)` refused here); the observed orders are RETURNED, one per pair of rungs (a structure, not a bool), and the verdict compares them with the declared order and band | THEOREM | defining | the floor dropped → the `NotYet` order row gives a verdict → red |
-| R7.7 | **Branch coverage** of the certificate as `test_certificate_reaches_every_branch` does today (no reference bound, a loose bound, disagreement, agreement), re-posed on the new type, so the migrated row keeps its branches | THEOREM | defining | — |
+**Gates** (`tests/gates/reference/_step7.py`, `test_verification.py`, R7.1–R7.10, 44 rows):
+- R7.1: the Valid refusals, before any read.
+- R7.2: the roles, the arguments, and no defaults.
+- R7.3: the floor, inclusive, raised first.
+- R7.4: agreement exactly at dyadic boundaries.
+- R7.5: any `Evidence` is recorded.
+- R7.6: the order verdict and its three floors.
+- R7.7: returned, never stored.
+- R7.8: `HomogeneousResult.read` and its refusals.
+- R7.9: production homogeneous against the exact medium, three mixtures, at 1e-13 relative (`[M]` production within 1.65e-16 relative), and the X1 negative: νΣf scaled by 1 + 1e-11 disagrees.
+- R7.10: the layer.
+
+**Battery** (`[M]` 2026-10-03 at `9db19fd8`, also run at `b445b68a`; `scratch/reference_architecture/p2/ta/step7a/battery/`). 23 arms, baseline 0 red, every target red, 0 blind:
+- Validity unchecked: 4 rows. Invalid accepted: 1. Withdrawn accepted: 1. Reading before the validity check: 4.
+- The reading-type check dropped: 4. The algebraic-error check dropped: 2.
+- The floor made strict: 1. The floor dropped: 1. The reference bound dropped from agreement: 2. Agreement made strict: 2. Agreement checked before the floor: 1.
+- `NotYet` establishing: 2. The algebraic floor dropped: 2. Unresolved errors admitted: 1. The band ignored: 1. The order verb's reference floor dropped: 1.
+- The reading ignored: 3, including the R7.9 negative.
+- Ratio reversed: 3. Groups reversed: 3. A point read as 0: 1. The region check dropped: 1. 1/k returned: 4.
+- `verification.py` importing homogeneous: 1.
+- Declared: the 4-group R7.9 row is blind to a group reversal (`fuel(4)` has equal group fluxes).
 
 ### 1.7b Step 7b: the migration of `certify_agreement` (adjusted 2026-10-03 to the user's ruling 3)
 

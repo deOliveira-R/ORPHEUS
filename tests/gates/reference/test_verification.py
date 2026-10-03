@@ -247,11 +247,12 @@ def _order(answers: Any, *, errors: Any = None, order: float = 2.0, band: float 
 
 def test_r7_6_the_observed_orders_are_returned_and_held_against_the_declared_order() -> None:
     """A second-order ladder holds against order 2 (band 0.1): the observed
-    orders are returned, one per consecutive pair, each 2 to rounding; a
-    first-order ladder does not hold against order 2."""
+    orders are returned, one INTERVAL per consecutive pair (the errors are
+    known within the reference bound plus the algebraic error, qa of step
+    7a), each containing 2; a first-order ladder does not hold against order 2."""
     second = _order(_ladder(2.0))
     orders = tuple(second.observed_orders)
-    require(len(orders) == 2 and all(abs(o - 2.0) < 1e-9 for o in orders), f"observed orders {orders}")
+    require(len(orders) == 2 and all(low <= 2.0 + 1e-9 and 2.0 - 1e-9 <= high for low, high in orders), f"observed orders {orders}")
     require(second.holds, f"{second!r}")
     first = _order(_ladder(1.0))
     require(not first.holds, f"a first-order ladder held against order 2: {tuple(first.observed_orders)}")
@@ -333,6 +334,10 @@ def _flux(weights: Any) -> Any:
 
 
 def test_r7_8_the_homogeneous_result_reads_its_own_answer() -> None:
+    # The ONLY guard of production's weight reading against a hand computation:
+    # production and the reference read a weight through one shared function,
+    # values_without_position, so R7.9's agreement cannot see that function
+    # reverse the groups (qa of step 7a, finding 4).
     """``read`` returns ``Measured``: the eigenvalue is ``k_inf``; a group's
     indicator flux integral is that group's flux; a weighted flux integral is
     the weighted sum (per unit volume, the result's gauge); a ratio is the
@@ -374,7 +379,16 @@ def test_r7_8_what_a_zero_dimensional_answer_cannot_read_is_refused(make: Any, f
 # R7.9 — the first verification: production homogeneous against the exact medium
 # ═════════════════════════════════════════════════════════════════════════════
 
-_MIXTURES = (("fuel-2g", sf.fuel), ("fission-only-2g", sf.fission_only), ("fuel-4g", lambda: sf.fuel(4)))
+def _library_a_4g() -> Any:
+    from orpheus.derivations.common.xs_library import get_mixture
+
+    return get_mixture("A", "4g")
+
+
+# fuel(4) has four identical groups, so it cannot see a group reversal; library
+# mixture A in 4 groups has distinct group fluxes (qa of step 7a, finding 3)
+_MIXTURES = (("fuel-2g", sf.fuel), ("fission-only-2g", sf.fission_only), ("fuel-4g", lambda: sf.fuel(4)),
+             ("library-A-4g", _library_a_4g))
 #: The tolerance, relative: ``[M]`` 2026-10-03 the production k and group fluxes
 #: sit within 1.65e-16 relative of the exact ones over these three mixtures
 #: (600x margin), and the exact reference's bound (half an ulp, ~1.1e-16
@@ -446,3 +460,81 @@ def test_r7_10_the_verbs_import_no_method() -> None:
     require("reference" in loaded, f"activation: {loaded}")
     allowed = {"reference", "specification", "numerics", "data", "geometry"}
     require(loaded <= allowed, f"loads {sorted(loaded - allowed)}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The step-7a review round (the elegance review, 2026-10-03)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def test_r7_review_a_certificate_cannot_be_built_against_an_invalid_reference() -> None:
+    """The certificate holds the answer and the reference and reads both at
+    construction, so building one directly against an Invalid reference is
+    refused, not read as "agrees" (built directly, it read agrees=True)."""
+    certificate_class = s5.c(s7.VERIFICATION, "VerificationCertificate")
+    answer = s7.FixedAnswer({s5.eigenvalue(): 1.4})
+    with pytest.raises(s7.not_valid(), match="invalid"):
+        certificate_class(answer, s5.eigenvalue(), s7.reference_of(Fraction(7, 5), "invalid"), 1e-6, s7.Measured(0.0))
+
+
+def test_r7_review_the_failures_are_typed() -> None:
+    """require() raises ReferenceTooLoose for the floor and Disagreement for
+    the comparison, both AssertionErrors."""
+    loose = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.4}), s5.eigenvalue(),
+                                s7.reference_with_bound(1.4, 1e-3), 1e-3, s7.Measured(0.0))
+    with pytest.raises(s5.c(s7.VERIFICATION, "ReferenceTooLoose")):
+        loose.require()
+    off = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.5}), s5.eigenvalue(),
+                              s7.reference_of(Fraction(7, 5)), 1e-6, s7.Measured(0.0))
+    with pytest.raises(s5.c(s7.VERIFICATION, "Disagreement")):
+        off.require()
+
+
+@pytest.mark.parametrize("resolutions, errors", [((0.1, 0.1), (Fraction(1), Fraction(1, 4))),
+                                                 ((0.2, 0.0), (Fraction(1), Fraction(1, 4))),
+                                                 ((0.4, 0.2, 0.1), (Fraction(1),))],
+                         ids=["equal-resolutions", "zero-resolution", "lengths-differ"])
+def test_r7_review_an_order_verification_admits_its_refinement(resolutions: Any, errors: Any) -> None:
+    """An OrderVerification admits its resolutions as the reference's
+    Refinement does (one admission: at least two, positive, decreasing
+    strictly) and one error per resolution; equal resolutions crashed in log,
+    and 3 resolutions with 1 error held vacuously, before the review."""
+    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    with pytest.raises(ValueError):
+        order_class(s5.eigenvalue(), resolutions, errors, tuple(Fraction(0) for _ in errors), 2.0, 0.1)
+
+
+def test_r7_review_the_order_interval_refuses_a_wrong_order_hidden_by_the_floors() -> None:
+    """True order 1.7 at h = 0.2, 0.1 with the finest error 1.2 tol and both
+    floors near their limit read 1.963 as a point estimate, inside 2 ± 0.1 (qa
+    of step 7a, finding 1). With the errors known only within the floors the
+    order interval is wide, and the verdict does not hold."""
+    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    tol = Fraction(1, 10**6)
+    fine = Fraction(12, 10) * tol  # the true errors of an order-1.7 method: coarse / fine = 2**1.7
+    coarse = fine * Fraction(32490, 10000)
+    u = Fraction(999, 1000) * tol / 10 * 2  # the reference bound and the algebraic error, each at its floor
+    measured = (coarse + u, fine - u)  # the floors shift each error by up to u, in the worst direction
+    point = math.log(float(measured[0] / measured[1])) / math.log(2.0)
+    require(1.9 <= point <= 2.1, f"activation: the point estimate {point} should sit inside 2 ± 0.1")
+    verdict = order_class(s5.eigenvalue(), (0.2, 0.1), measured, (u, u), 2.0, 0.1)
+    require(not verdict.holds, f"a true order 1.7 held against 2 ± 0.1: {verdict.observed_orders}")
+
+
+def test_r7_review_a_sign_change_is_not_convergence() -> None:
+    """Errors +0.04 then -0.01 read as a clean order 2, but the answers cross
+    the reference: not monotone convergence, so the verdict does not hold."""
+    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    verdict = order_class(s5.eigenvalue(), (0.2, 0.1), (Fraction(4, 100), Fraction(-1, 100)), (Fraction(0), Fraction(0)), 2.0, 0.1)
+    require(not verdict.monotone and not verdict.holds, f"{verdict!r}")
+    with pytest.raises(s5.c(s7.VERIFICATION, "OrderNotObserved")):
+        verdict.require()
+
+
+def test_r7_review_the_agreement_verdict_is_exact() -> None:
+    """v = 1, b = 2^-60, m = 2, tol = 1: the exact total error 1 + 2^-60 exceeds
+    the tolerance, so it disagrees; in floats 1 + 2^-60 rounds to 1 and agreed
+    (qa of step 7a, finding 2: every R7.4 row was dyadic)."""
+    cert = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 2.0}), s5.eigenvalue(),
+                               s7.reference_with_bound(1.0, 2.0**-60), 1.0, s7.Measured(0.0))
+    require(cert.floor_holds and not cert.agrees, f"{cert!r}")

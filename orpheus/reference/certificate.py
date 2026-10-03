@@ -47,7 +47,7 @@ from caching).
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from fractions import Fraction
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeAlias, cast, final, get_args
@@ -72,6 +72,7 @@ __all__ = [
     "Invalid",
     "ReferenceCertificate",
     "Refinement",
+    "parse_resolutions",
     "State",
     "Valid",
 ]
@@ -186,6 +187,20 @@ class Corroboration(ContentIdentity):
         content_digest(self)
 
 
+def parse_resolutions(values: Iterable[object], where: str) -> tuple[float, ...]:
+    """A refinement's resolution parameters: at least two, positive and finite, decreasing strictly.
+
+    The one admission of a resolution sequence, shared by a reference's
+    falsifying :class:`Refinement` and production's order verification.
+    """
+    resolutions = tuple(parse_positive_real(value, where, "a resolution parameter") for value in values)
+    if len(resolutions) < 2:
+        raise ValueError(f"{where}: a refinement has at least two resolutions, got {len(resolutions)}")
+    if any(later >= earlier for earlier, later in zip(resolutions, resolutions[1:])):
+        raise ValueError(f"{where}: the resolution parameters must decrease strictly (a refinement), got {list(resolutions)}")
+    return resolutions
+
+
 @final
 @dataclass(frozen=True, eq=False)
 class Refinement(ContentIdentity):
@@ -197,20 +212,12 @@ class Refinement(ContentIdentity):
     def __post_init__(self) -> None:
         parse_member(self.observable, get_args(Observable), "Refinement", "the observable", "an observable")
         members = tuple(self.members)
-        if len(members) < 2:
-            raise ValueError("Refinement: a refinement sequence has at least two members")
-        admitted = []
-        for parameter, enclosure in members:
-            admitted.append(
-                (
-                    parse_finite_real(parameter, "Refinement: a resolution parameter"),
-                    parse_member(enclosure, (Enclosure,), "Refinement", "a member's reading", "an enclosure"),
-                )
-            )
-        parameters = [parameter for parameter, _ in admitted]
-        if any(later >= earlier for earlier, later in zip(parameters, parameters[1:])):
-            raise ValueError(f"Refinement: the resolution parameters must decrease strictly (a refinement), got {parameters}")
-        object.__setattr__(self, "members", tuple(admitted))
+        resolutions = parse_resolutions((parameter for parameter, _ in members), "Refinement")
+        admitted = tuple(
+            (resolution, parse_member(enclosure, (Enclosure,), "Refinement", "a member's reading", "an enclosure"))
+            for resolution, (_, enclosure) in zip(resolutions, members)
+        )
+        object.__setattr__(self, "members", admitted)
         content_digest(self)
 
     def common_part(self) -> tuple[float, float] | None:

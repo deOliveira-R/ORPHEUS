@@ -71,7 +71,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, assert_never
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from orpheus.numerics.mesh_free_function import RegionwiseConstant, values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen
 from orpheus.reference.certificate import Claim, Exact, ReferenceCertificate
@@ -297,15 +297,11 @@ class ExactInfiniteMediumDerivation:
         match observable:
             case Eigenvalue():
                 value = _rational(self.medium.k_inf)
-            case FluxIntegral(weight=RegionwiseConstant() as weight):
-                value = sum((sympy.Rational(float(w)) * f for w, f in zip(weight.values[0], flux)), sympy.Integer(0))
-            case FluxIntegral(weight=Symbolic() as weight):
-                constants = weight.without(Symbolic.r, Symbolic.mu, Symbolic.phi).expressions
+            case FluxIntegral(weight=weight):
+                constants = values_without_position(weight, len(flux))
                 # a SymPy Float multiplies at its own precision: replace each by the exact binary value it holds
                 exact_constants = [c.xreplace({f: sympy.Rational(f) for f in c.atoms(sympy.Float)}) for c in constants]
-                value = sum((c * f for c, f in zip(exact_constants, flux)), sympy.Integer(0))
-            case FluxIntegral():
-                assert_never(observable.weight)
+                value = sum((c * f for c, f in zip(exact_constants, flux, strict=True)), sympy.Integer(0))
             case PointValue():
                 raise NotCertified("the infinite medium has no position, so a point value has no reading")
             case _:
