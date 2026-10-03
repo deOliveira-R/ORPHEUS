@@ -438,7 +438,7 @@ def test_r6_6_a_symbolic_float_weight_reads_its_exact_binary_value(digits: int) 
     ref = s6.exact_medium_reference(_medium(mixture))
     weight = sympy.Float("0.1", digits)
     held_rational = sympy.Rational(weight)
-    held = Fraction(int(held_rational.p), int(held_rational.q))
+    held = Fraction(str(held_rational))
     reading = ref.read(s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(weight, 0)))
     require(_contains(reading, held * exact.flux[0]), f"{reading!r} against {float(held * exact.flux[0])!r}")
 
