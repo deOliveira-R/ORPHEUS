@@ -86,6 +86,10 @@ the layers below it):
      - the discretisation overlay on the geometry: cells, subdivision,
        per-axis primitives
      - :mod:`orpheus.mesh`
+   * - **(input)** specification
+     - a question written with the materials and geometry it is asked of:
+       the reference specification, the key a reference cache stores under
+     - :mod:`orpheus.specification`
    * - **(input)** geometry + data
      - shapes, coordinate systems and boundary laws; nuclear data
      - :mod:`orpheus.geometry`, :mod:`orpheus.data`
@@ -120,6 +124,25 @@ A few notes the table is too compact to capture:
   :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` stays at
   L2 in :mod:`orpheus.transport.mesh`. The package and its reason are
   on :doc:`/api/mesh`.
+
+* The input layer has a second package above :mod:`orpheus.geometry`:
+  :mod:`orpheus.specification` composes materials (:mod:`orpheus.data`), a
+  geometry (:mod:`orpheus.geometry`) and a question
+  (:mod:`orpheus.numerics.question`), and is neither data nor geometry, so
+  it has a package of its own (#405 P1 step 8). It imports
+  :mod:`orpheus.data`, :mod:`orpheus.geometry` and :mod:`orpheus.numerics`
+  and never :mod:`orpheus.mesh`, :mod:`orpheus.transport`, a method
+  package or :mod:`orpheus.derivations`; :mod:`orpheus.data`,
+  :mod:`orpheus.geometry`, :mod:`orpheus.numerics` and :mod:`orpheus.mesh`
+  never import it. The mesh and the specification are therefore siblings:
+  neither imports the other. :mod:`orpheus.derivations` may import it,
+  because the reference registry will hold specifications. Its two
+  coordinates live one level down, each in the package whose vocabulary
+  defines it: :class:`~orpheus.data.cells.CellCoefficient` names a
+  ``Mixture``'s channels and lives in :mod:`orpheus.data`;
+  :class:`~orpheus.geometry.extent.GeometryExtent` names an interval and
+  lives in :mod:`orpheus.geometry`
+  (:ref:`structured-geometry-specification-coordinates`).
 
 * **L0** sits below **L2**, beside **L1** and the input layer, not below
   **L1**. The linter forbids :mod:`orpheus.derivations` exactly
@@ -288,14 +311,19 @@ The forbidden-edge dictionary is:
 
    FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
        # L1 imports nothing above itself.
-       "numerics": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
-       # Geometry and data never import the mesh overlay above them.
-       "geometry": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-       "data":     MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       # Geometry and data never import the mesh overlay or the
+       # specification above them.
+       "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
-       # The mesh imports geometry, data and L1, never L2 or L3.
-       "mesh": L2_PACKAGES | L3_PACKAGES,
+       # The mesh imports geometry, data and L1, never the specification,
+       # L2 or L3.
+       "mesh": SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+
+       # The specification imports data, geometry and L1 only.
+       "specification": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
 
        # L2 imports L1 + inputs only.
        "transport": L3_PACKAGES,

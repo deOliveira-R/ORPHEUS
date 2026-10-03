@@ -3340,8 +3340,7 @@ hash, and ``git`` outranks this column.
        relaxation length of anisotropy
        (:ref:`diffusion-transport-xs-relaxation`).  No code changed.
      - `#405 <https://github.com/deOliveira-R/ORPHEUS/issues/405>`_
-     - the ruling: ``a076f2c7``; this text: branch
-       ``feature/specification``, the hash is filled at merge
+     - the ruling: ``a076f2c7``; this text: ``65b533fe``
    * - 2026-10-01
      - **The eigenpair is read off the rank-one fission; no eigen-solver
        remains on the path, and the byte pin retires for an exact

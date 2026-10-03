@@ -49,6 +49,51 @@ Cell Cross Sections
    :undoc-members:
    :show-inheritance:
 
+The declaration: ``Materials``
+------------------------------
+
+:class:`~orpheus.data.materials.Materials` is the first stage of the
+posing filtration: the materials of THIS problem, ``{id: Mixture}``, a
+frozen content value. :meth:`~orpheus.data.materials.Materials.restrict`
+is the reachable-subset constructor where an assignment meets the
+declaration, and
+:meth:`~orpheus.data.materials.Materials.uniform_group_count` is the one
+home of the group-count rule: it returns the one ``ng`` of the declared
+mixtures or raises
+:exc:`~orpheus.data.materials.InconsistentMaterialsError`.
+``MaterialMesh.ng`` calls it over its whole declaration; the reference
+specification calls it over the materials its geometry assigns
+(:ref:`structured-geometry-specification-group-count`). The exception
+lived in ``orpheus.transport.mesh.material_mesh`` until #405 P1 step 8.
+
+.. py:module:: orpheus.data.materials
+
+.. autoclass:: orpheus.data.materials.Materials
+   :members: of, ids, uniform_group_count, restrict
+
+.. autoexception:: orpheus.data.materials.InconsistentMaterialsError
+
+Cells and channels
+------------------
+
+The coordinate a question's key names in the materials: a cell is the
+pair ``(material id, Channel)``, :class:`~orpheus.data.cells.Channel` is
+the closed set of the three emission channels, and a
+:class:`~orpheus.data.cells.CellCoefficient` is a direction, the set of
+cells scaled together (k is every fission-emission cell). The reference
+specification resolves a key to its explicit non-zero cells with
+:meth:`~orpheus.data.cells.CellCoefficient.resolve`. The theory, with why
+only the emission channels are cells today and what carrying a cell
+means, is :ref:`structured-geometry-specification-coordinates`.
+
+.. automodule:: orpheus.data.cells
+
+.. autoclass:: orpheus.data.cells.Channel
+   :members: is_carried_by
+
+.. autoclass:: orpheus.data.cells.CellCoefficient
+   :members: every, resolve
+
 Citation
 --------
 

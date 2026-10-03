@@ -2782,9 +2782,10 @@ of each, stored as a **read-only float copy**: the caller's array can
 change afterwards without moving the value or its digest (gate S6.8).
 Region :math:`k` is the geometry's interval :math:`[r_k, r_{k+1}]`, a
 positional index, ``0 … len(mat_ids) − 1``; a region is not a material
-(two regions holding one material are two rows). The specification
-(step 8) checks the row count against the geometry and the column count
-against the materials (S6.12).
+(two regions holding one material are two rows). The reference
+specification checks the row count against the geometry's intervals and
+the column count against the materials' group count (S6.12;
+:ref:`structured-geometry-specification-datum`).
 
 The constructor refuses, each with its own message: a table of rank
 other than 2 (naming the rank), an empty region or group axis (naming
@@ -3027,10 +3028,11 @@ field exists: every choice is singular somewhere. So
 depends on :math:`\varphi` has no well-defined value beside a spherical
 geometry. The orchestrator's ruling on the specification's third open
 question: such a ``Symbolic`` is refused when a specification pairs it
-with a spherical geometry, keyed on the isotropy predicate restricted to
-:math:`\varphi`. That refusal belongs to the specification and lands at
-step 8; it is not built yet. On the slab and the cylinder a
-:math:`\varphi`-dependent function is admitted.
+with a spherical geometry, keyed on the dependence predicate restricted to
+:math:`\varphi`, ``Symbolic.depends_on(phi)``. That refusal belongs to the
+specification, which reads the chart's ``azimuth_reference`` for it
+(:ref:`structured-geometry-specification-datum`). On the slab and the
+cylinder a :math:`\varphi`-dependent function is admitted.
 
 **Whether a problem can see the azimuth is not the chart's to say.**
 The first build gave the chart a third field, ``azimuth_observable``,
@@ -3243,9 +3245,10 @@ reports carry the measurements):
   share, that they are stated before a mesh (renamed before any page
   referred to it).
 
-**Not built, and where it lands.** The pushforward onto an orbit space
-and the specification's fields, with the refusal of a
-:math:`\varphi`-dependent ``Symbolic`` beside a sphere, are P4 and step 8.
+**Not built, and where it lands.** The pushforward onto an orbit space is
+P4. The specification's fields, with the refusal of a
+:math:`\varphi`-dependent ``Symbolic`` beside a sphere, landed with step 8
+(:ref:`structured-geometry-specification`).
 The MoC solver's isotropic source lift is a hand-written
 :math:`1/(4\pi)`, not the angular section (#556). The derivations' typed
 measure masses are #557. A composite holding a retraction daggers to the
@@ -3343,7 +3346,8 @@ subcritical multiplying system driven by :math:`q` is ``FixedSource(q)``
 at the physical point; the same source with fission switched off is
 ``FixedSource(q, point)`` whose point moves the fission-emission
 direction to its chart zero (where on the key's chart that zero lies is
-the coordinate's declaration, step 8's).
+the coordinate's chart, which the mode law of #529 reads; the
+specification resolves the key and leaves its chart there, by ruling).
 
 **The response question** asks for :math:`\psi^\dagger_R =
 E(p_0)^{-\dagger} R`, the importance of a detector :math:`R`: the
@@ -3415,25 +3419,28 @@ one of three kinds:
 - ``CellCoefficient``, a *set* of reaction-grid cells scaled together
   (the user's ruling 1 of 2026-10-02). k is the set of fission-emission
   cells; the classical c is every emission cell, scattering and fission;
-  a boron search is one absorption cell. The posing plan's "one cell's
+  a boron search is one absorption cell (the absorption cells arrive with
+  #526; today a cell's channel is one of the three emissions,
+  :ref:`structured-geometry-specification-coordinates`). The posing
+  plan's "one cell's
   coefficient" is the one-element set, which is how the ruling reconciled
   the two meanings c had carried (all collision emission in the
   specification, one cell's coefficient in the posing plan);
 - ``GeometryExtent``, a geometric degree of freedom (a critical size);
-- ``NuclideDensity(nuclide, regions)``, a number density.
+- ``NuclideDensity(nuclide, regions)``, a number density (deferred until
+  the materials keep number densities).
 
-In phase P1 the coordinates are declared on the reference specification
-(step 8), which resolves every key against its materials and geometry and
-refuses one it does not declare; #529 later declares them on the system,
-reusing that declaration. Step 7 mints none of the three kinds: `[M]`
-2026-10-02, the census found 0 occurrences of ``CellCoefficient``,
-``GeometryExtent`` and ``NuclideDensity`` in ``orpheus/``, ``tests/`` and
-``tools/``, and that is still the tree. Numerics therefore names no
-default parameter: ``Eigen()`` does not construct (S7.3), because "k" is
-the system's name for its fission-emission direction, not a word
-numerics knows. A specification that is given no question derives
-``Eigen(<the fission-emission key it declares>)``, and that derivation
-is step 8's.
+In phase P1 the reference specification resolves every key against its
+materials and geometry and refuses one that is not a coordinate of its
+problem (:ref:`structured-geometry-specification-canonical`); #529 later
+declares the coordinates on the system. Two of the three kinds exist, and
+neither lives in ``numerics``: :class:`~orpheus.data.cells.CellCoefficient`
+in ``orpheus/data`` and :class:`~orpheus.geometry.extent.GeometryExtent` in
+``orpheus/geometry`` (:ref:`structured-geometry-specification-coordinates`).
+Numerics therefore names no default parameter: ``Eigen()`` does not
+construct (S7.3), because "k" is the system's name for its
+fission-emission direction, not a word numerics knows. The specification
+derives no default either: its question is required.
 
 **A key must be hashable and have content.** The parameter is parsed by
 ``_admit_key``: it must be hashable, and the question's digest is then
@@ -3457,7 +3464,8 @@ unhashable key before the question sees it.
 
 ``Eigen(None)`` constructs (`[M]`): ``None`` is a hashable,
 digestable key. It names no coordinate, and the specification's key
-resolution (S8.1 (h1)) is what refuses it; the gap is owed to step 8.
+resolution refuses it (S8.1 (h1): "the parameter: None (a NoneType) is
+not a coordinate").
 
 .. _structured-geometry-question-values-point:
 
@@ -3492,9 +3500,9 @@ keys were given is not content.
 
 **A zero offset is kept, not canonicalised away.** ``Eigen("b", {"b":
 0.0})`` and ``Eigen("b")`` are different questions with different digests
-(`[M]`, and gate S7.8). A zero offset names a key that step 8 must still
-see and resolve: a key the specification does not declare is refused
-there, and dropping it here would hide the refusal. The cost is two cache
+(`[M]`, and gate S7.8). A zero offset names a key that the specification
+still sees and resolves: a key that is not a coordinate of its problem is
+refused there, and dropping it here would hide the refusal. The cost is two cache
 keys for one physical question, which is a miss and never a wrong hit,
 the only direction a key may err in.
 
@@ -3506,8 +3514,9 @@ the k pole along c with the parameter's own component removed finds the
 c pole, not offset 0.
 
 **The parameter's own key may carry an offset.**
-``Eigen("b", point={"b": 0.3})`` is admitted, and step 8 does not refuse
-it (the orchestrator's ruling 3 on the step-7 NEEDS). The posing
+``Eigen("b", point={"b": 0.3})`` is admitted, and the specification does
+not refuse a coordinate that is both the parameter and a point key (the
+orchestrator's ruling 3 on the step-7 NEEDS). The posing
 ontology rules the answer *invariant* under the point's own component
 along the question's direction: moving the base point along the line
 re-labels the poles, it does not move them. The question is therefore
@@ -3752,7 +3761,9 @@ is spelled with?"*; each part was retired for a structural reason.
        specification as well would be a second definition of one datum,
        and every refusal that kept the two consistent would guard a state
        the design should make unspellable
-     - ``Specification(materials, geometry | None, question)``; the old
+     - no ``source`` field: the specification's fields are a material and
+       a question, or the materials, a geometry and a question
+       (:ref:`structured-geometry-specification-layer`), and the old
        refusals S8.1 (d) to (f) are structural legs (the orchestrator's
        ruling 1 on the step-7 NEEDS)
 
@@ -3882,14 +3893,617 @@ S6.21, and ``scalars``) on the entry-point list of
 ``tests/gates/test_layer_imports.py``, so each imports cleanly from a cold
 interpreter.
 
-**Not built, and where it lands.** The coordinate declarations and the
-key resolution, with the refusal of ``Eigen(None)`` and of a key the
-specification does not declare: step 8 (S8.1 (h1) to (h4)). The pencil
+**Landed since, and not built.** The coordinates and the key resolution,
+with the refusal of ``Eigen(None)`` and of a key that is not a coordinate
+of the problem, landed with step 8 (S8.1 (h1) to (h4);
+:ref:`structured-geometry-specification`). Not built: the pencil
 and spectral map a resolved parameter derives, the mode law, the
 binding to a system, and the invariance gate under the point's own
 component: #529. ``Enclosed`` and the pseudospectrum question: #529 and
 #531. The time direction and the evolution question: the transient
 question. The role-confusion value gate: P4.
+
+
+.. _structured-geometry-specification:
+
+The reference specification: a question with its materials, keyed
+=================================================================
+
+A reference (#405) answers one question about one system, and the
+**reference specification** is that question written down: the materials,
+the geometry with its boundary laws when the problem has one, and what is
+asked (:ref:`structured-geometry-question-values`). It is never an answer.
+It is the key a reference cache stores an answer under, so it is a
+content value (:ref:`structured-geometry-content-identity`), admitted in a
+canonical form at construction: two specifications that ask the same
+question of the same system are one value with one digest. It landed as
+step 8 of the campaign's first phase on 2026-10-02, in a new package,
+:mod:`orpheus.specification`, with the two coordinates its questions are
+keyed by, :class:`~orpheus.data.cells.CellCoefficient` and
+:class:`~orpheus.geometry.extent.GeometryExtent`.
+
+.. code-block:: python
+
+   from orpheus.data.cells import CellCoefficient, Channel
+   from orpheus.data.materials import Materials
+   from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
+   from orpheus.geometry import GeometryExtent
+   from orpheus.numerics.question import Eigen
+   from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
+
+   k = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
+
+   # k-infinity: one material, posed on energy alone (there is no geometry field)
+   infinite = SOOD2003_CASES["PUa-1-0-IN"]
+   (material_id, mixture), = infinite.materials.items()
+   k_inf = InfiniteMediumSpecification(material_id, mixture, k)
+
+   # a critical size: the width of interval 0 of a bare sphere
+   sphere = SOOD2003_CASES["Ua-1-0-SP"]
+   critical_radius = GeometrySpecification(
+       Materials(sphere.materials), sphere.to_geometry(), Eigen(GeometryExtent(0)),
+   )
+
+   k_inf.question.parameter   # resolved: the one cell (0, FISSION_EMISSION), no quantifier
+   k_inf.question == k        # False: the stored question is the canonical one
+   critical_radius.unreadable # (Symbolic.phi,): a sphere has no azimuth reference
+
+**Why this page is the home.** A specification composes the three values
+the chapters above define: the geometry with its laws, the content
+encoder, the mesh-free functions and the question values. It is the
+consumer for which each of them was built. The specification of the step,
+with its rulings, its gates and its mutation battery, is
+``.claude/plans/reference_p1_spec.md`` §1.8 (the blocks "The two types"
+and "After the elegance re-review" record the final shape) and the
+sections "The step-8 rulings", "Step 8 built" and "The infinite medium is
+the point in phase space" of the same file; the census that preceded it
+is ``scratch/reference_architecture/p1step8/census.md``, and the four
+reviews are ``qa_report.md``, ``qa_report_2.md``, ``elegance_report.md``
+and ``elegance_report_2.md`` beside it.
+
+.. _structured-geometry-specification-layer:
+
+The layer a question is posed at is the type
+--------------------------------------------
+
+The posing filtration commits phase space in stages: the materials, then
+the geometry with its laws, then the mesh, then the method
+(:doc:`/architecture/conceptual_view`). A reference question is posed at
+one of two of those stages, and each stage is a type:
+
+.. list-table:: The two specification types
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * -
+     - :class:`~orpheus.specification.specification.InfiniteMediumSpecification`
+     - :class:`~orpheus.specification.specification.GeometrySpecification`
+   * - Fields
+     - ``material_id``, ``mixture``, ``question``
+     - ``materials``, ``geometry``, ``question``
+   * - Posed on
+     - energy alone: the infinite medium, the point in position and in
+       direction
+     - a finite :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+       with its boundary laws
+   * - ``materials``
+     - ``Materials({material_id: mixture})``, built on read
+     - the given ``Materials``, restricted to the ids the geometry assigns
+   * - ``n_groups``
+     - the mixture's ``ng``
+     - :meth:`Materials.uniform_group_count
+       <orpheus.data.materials.Materials.uniform_group_count>` over the
+       materials kept, read once at construction
+   * - ``n_regions``
+     - 1 (a class constant)
+     - ``len(geometry.intervals)``, one region per interval
+   * - ``unreadable``
+     - ``(r, mu, phi)``: no position and no direction chart
+     - ``(phi,)`` when the chart has no azimuth reference (the sphere),
+       otherwise ``()``
+   * - ``resolve_extent(e)``
+     - refuses: "names an extent, and the infinite medium has no geometry"
+     - :meth:`GeometryExtent.resolve
+       <orpheus.geometry.extent.GeometryExtent.resolve>` against the
+       geometry
+
+``Specification = InfiniteMediumSpecification | GeometrySpecification``
+is the closed union, exported with ``Coordinate = CellCoefficient |
+GeometryExtent``. Each type answers the five members of that surface for
+itself, and the admission (the canonical question, the datum's fit, the
+digest) is written once, as free functions over the union that read only
+the surface. No code path asks which layer it is on: `[M]` this pass, ``git
+grep`` finds 0 ``isinstance`` tests on either type in ``orpheus/`` and
+``tests/`` (the pattern's control, ``isinstance(`` followed by
+``StructuredGeometry``, finds the one known site in the module). Gate
+S8.1's structural row ``test_s8_1_the_layer_is_the_type`` asserts the two
+field tuples, the union and the infinite medium's ``materials``,
+``n_regions`` and ``unreadable``.
+
+**Why the infinite medium has no geometry field.** The infinite medium is
+posed on energy alone, and it holds a material and nothing else: admitting
+a geometry would admit spatial dimension, and with it more than one
+material and a direction chart, none of which it has. The physics, and
+why the definition is exact for every question it admits, is
+:ref:`infinite-medium-definition` (the user's ruling of 2026-10-02). In
+the type this is two rules made unspellable rather than checked: "the
+infinite medium has one material" is a type with one ``mixture`` field,
+and "the infinite medium has no geometry" is a type with no ``geometry``
+field. ``GeometrySpecification`` refuses ``geometry=None`` with a
+``TypeError`` ("the geometry is a StructuredGeometry, got a NoneType").
+
+.. dropdown:: First got wrong: the infinite medium as ``geometry=None``, and then as a geometry value
+   :color: muted
+
+   **What was tried.** The first build of the step (``29fe4266``) was one
+   type, ``Specification(materials, geometry | None, question)``, with
+   ``None`` standing for the infinite medium. Its elegance review measured
+   the cost: ``geometry is None`` was tested 5 times in 3 functions (the
+   materials rule, the extent resolution, the region count and the chart
+   read). Its finding F5 named the pattern, a repeated conditional is a
+   missing type, and proposed the destination an earlier review had
+   proposed too (finding J of the W5 review of 2026-09-25, "the infinite
+   medium is a geometry value, not ``None``"): a geometry value standing
+   for the infinite medium, with one region, no extent and no chart, from
+   which the 5 branches would fall out. That value was written in the
+   working tree and never committed.
+
+   **Why it failed.** A geometry with no placement and no finiteness is
+   not a geometry: it defines nothing a geometry defines, so it carries no
+   mathematical information, and it misdirects, because whatever accepts
+   a geometry admits spatial dimension (the user, 2026-10-02). The
+   finding's FACT stands, and it is what the design rests on: repeated
+   ``is None`` discrimination is a missing type. The missing type is the
+   layer, not a degenerate geometry.
+
+   **What replaced it.** Two types, one per layer (``eaa74163``). `[M]`
+   the second elegance review found 0 ``geometry is None`` tests left; the
+   only ``is None`` in the module reads the chart's azimuth reference.
+
+.. _structured-geometry-specification-canonical:
+
+The canonical form: one question, one key
+-----------------------------------------
+
+Every specification is stored in a canonical form, computed at
+construction, so that the digest, ``==`` and ``hash`` see the question and
+not its spelling.
+
+- **A spectator is not part of the key** (the orchestrator's ruling 3 on
+  the step-8 NEEDS, the leak principle). ``GeometrySpecification`` keeps
+  only the materials its geometry assigns,
+  ``materials.restrict(set(geometry.mat_ids))``: a declared material that
+  no interval uses changes no answer, so carrying a channel or not, of the
+  same group count or not, it changes neither the specification nor its
+  digest. ``restrict`` also refuses an assigned id the declaration lacks,
+  with the pinned fragment ``references material ids [1]``.
+- **Every key is resolved.** The ``Eigen`` parameter and every key of the
+  question's point must be a coordinate of this problem, and each is
+  replaced by its resolved form: a
+  :class:`~orpheus.data.cells.CellCoefficient` by the explicit non-zero
+  cells it scales in the kept materials, a
+  :class:`~orpheus.geometry.extent.GeometryExtent` by itself once the
+  geometry is shown to have its interval. A key that is not a coordinate
+  is a ``TypeError`` naming where it sits ("the parameter: 'fission-emission'
+  (a str) is not a coordinate"; the same for "the point key"), so
+  ``Eigen(None)``, which numerics admits as a hashable key, is refused
+  here (S8.1 (h1)).
+- **Two spellings of one direction are one specification.**
+  ``every(FISSION_EMISSION)`` and the explicit set of the fissile
+  materials' fission cells resolve to one ``CellCoefficient``; an explicit
+  zero cell beside a non-zero one is dropped, in the parameter and in a
+  point key alike (qa's finding F4 found the point-key case unpinned; the
+  row ``test_s8_10_a_zero_cell_in_a_point_key_is_dropped`` now pins it).
+  Two point keys that resolve to one coordinate are refused, naming both
+  (S8.1 (h5)).
+- **The question is required.** A specification derives no default
+  question: a physics default ("k") would be an optimistic default, and
+  on a problem with no fissile material it would be refused anyway.
+
+``spec.question`` is therefore the CANONICAL question, which may be
+unequal to the value the caller passed (`[M]` ``k_inf.question == k`` is
+``False`` in the example above). It follows that a specification is
+re-posed from the caller's question, never from ``spec.question``. qa's
+finding F2 measured why: ``dataclasses.replace(spec, materials=other)``
+re-runs the admission on the stored, already-resolved question, so a
+question written ``every(FISSION_EMISSION)`` would then name only the
+materials that were fissile before, a different question posed silently
+(a cache miss, never a wrong hit, since the digests differ). Storing the
+caller's question beside the canonical one was considered and refuted by
+the second elegance review: two specifications whose canonical forms are
+equal would then compare equal and behave differently under ``replace``,
+so equality would stop being a congruence. With the canonical form stored
+alone, equal values behave alike, and the module docstring states the
+re-posing rule.
+
+**The order of admission.** ``GeometrySpecification.__post_init__`` checks
+the field types, restricts the materials, reads the group count, then
+admits the question (its type, its datum, its keys) and takes the digest;
+``InfiniteMediumSpecification`` parses its id and its mixture first. Two
+wiring rows of S8.1 pin the order where it decides a message: the group
+count is read before the keys, and the composition before the keys.
+
+.. _structured-geometry-specification-coordinates:
+
+The coordinates: a set of cells, and the width of an interval
+-------------------------------------------------------------
+
+The question values hold opaque keys
+(:ref:`structured-geometry-question-values-physics-free`); a specification
+resolves them, and a key IS the coordinate value: there is no table from
+names to coordinates, so nothing is defined twice and nothing is declared
+implicitly (the user's ruling 1 of 2026-10-02). Two kinds of coordinate
+exist, each in the lowest layer whose vocabulary defines it.
+
+**The channels and the cell coefficient** (:mod:`orpheus.data.cells`). A
+material's cross sections form a grid of cells; a cell is the pair
+``(material id, Channel)``, and :class:`~orpheus.data.cells.Channel` is a
+closed enum of the three **emission** channels (the user's ruling 2):
+
+.. list-table:: The channels, and what carrying one means
+   :header-rows: 1
+   :widths: 26 30 44
+
+   * - ``Channel``
+     - The operator it scales
+     - A mixture carries the cell when
+   * - ``FISSION_EMISSION``
+     - the fission emission :math:`\chi \otimes \nu\Sigma_f`
+     - it is producing (:attr:`Mixture.is_producing
+       <orpheus.data.macro_xs.mixture.Mixture.is_producing>`,
+       :math:`\nu\Sigma_f > 0`); a producing mixture's :math:`\chi` is a
+       probability simplex, which ``Mixture`` enforces, so the emission is
+       non-zero
+   * - ``SCATTERING_EMISSION``
+     - the scattering transfer :math:`\Sigma_s`
+     - some block of its Legendre stack ``SigS`` has a non-zero entry (a
+       stack whose only non-zero block is :math:`P_1` is carried)
+   * - ``N2N_EMISSION``
+     - the :math:`(n,2n)` transfer :math:`\Sigma_{2n}`
+     - some block of ``Sig2`` has a non-zero entry
+
+"Carries" means **the cell is non-zero** (the orchestrator's ruling 5):
+every channel field exists on every ``Mixture``, so a predicate on the
+field's existence would refuse nothing. The predicate is
+:meth:`Channel.is_carried_by <orpheus.data.cells.Channel.is_carried_by>`,
+one exhaustive ``match`` with an arm per member, so a fourth member
+without an arm reddens pyright through the declared ``-> bool`` (`[M]` the
+second elegance review's mutant ``m2``).
+
+**Why only the emission channels.** Every method's fission operator is the
+fission emission alone, and the scattering and :math:`(n,2n)` emissions
+are the other gains, so scaling an emission cell moves exactly the
+operator it names. A removal channel (a capture cell, an absorber search)
+is not a cell yet, because :math:`\Sigma_t` is stored on the ``Mixture``
+beside its parts: scaling a capture cell would not move the collision
+operator, which reads the stored total (the census, §1; `[M]` at
+``11a3f058``). The removal cells arrive with the reaction grid of posing
+unit 3 (#526), which derives every total where it is used.
+
+A :class:`~orpheus.data.cells.CellCoefficient` is a DIRECTION in the
+system's parameter space, the set of cells scaled together. It has **two
+fields**: ``cells``, the explicit pairs, and
+``channels_in_every_material``, the channels named in every material that
+carries them, spelled :meth:`CellCoefficient.every
+<orpheus.data.cells.CellCoefficient.every>`. Both are frozen sets, so the
+order and repetition of the input are not content, and a direction names
+at least one cell or channel. k is ``every(FISSION_EMISSION)``; the
+classical c (secondaries per collision) is every emission cell; a single
+cell is a one-element set.
+:meth:`CellCoefficient.resolve <orpheus.data.cells.CellCoefficient.resolve>`
+turns a direction into the explicit non-zero cells it scales in a given
+``Materials``: a channel named in every material becomes the cells of
+every material that carries it, an explicit cell the material does not
+carry is dropped (it scales a zero), a cell on a material outside the
+problem is refused ("material 9 is not among the problem's materials
+(ids: [0, 1])"), and a direction with no non-zero cell left is refused as
+a "zero direction" (a zero direction has no pole to find). The resolved
+key has an empty second field, so "a cache key holds no quantifier" is a
+property of the stored value that a gate asserts, not a promise of the
+resolving code (the first elegance review's finding F7 replaced a
+quantifier token stored inside the cell set, ``EVERY_MATERIAL``, with the
+second field). Resolving a resolved key returns it.
+
+**The geometric extent** (:mod:`orpheus.geometry.extent`).
+:class:`~orpheus.geometry.extent.GeometryExtent` ``(interval)`` is the
+width of one interval of a ``StructuredGeometry``, in cm, with every
+interval outside it translated outward (the user's ruling 3). On a
+one-interval body it is the width of that interval: the critical radius
+of a solid sphere, or the full width of a bare slab in the Sood
+benchmarks. On a reflected body it is the core grown under a reflector of
+fixed thickness, which is the coordinate the Neshat–Maiorino reflected
+slab varies. It covers the 31 critical-extent references of the Sood and
+Atalay registries (`[M]` the census at ``11a3f058``, of 53 cases: 12
+one-group slabs, 6 Sood and 6 Atalay, 5 two-group slabs, 11 spheres and 3
+cylinders; the other 22 ask :math:`k_\infty` with no geometry). The index counts from the innermost
+interval and is non-negative: ``-1`` is refused rather than read as "the
+last interval", which would be a second spelling of one coordinate whose
+meaning moves with the interval count. :meth:`GeometryExtent.resolve
+<orpheus.geometry.extent.GeometryExtent.resolve>` refuses an index the
+geometry does not have.
+
+**The homes.** ``Channel`` and ``CellCoefficient`` live in
+``orpheus/data``, because they name a ``Mixture``'s channels;
+``GeometryExtent`` lives in ``orpheus/geometry``. A single protocol
+``resolve(spec)`` for both was rejected by the first elegance review for
+the layering: one signature would have to take both the materials and the
+geometry, or a specification, so ``data`` would read geometry or both
+packages would import the layer above them. The one ``match`` over
+``Coordinate`` sits in the specification, the one place that knows both,
+and is the boundary dispatch over a closed set.
+
+.. _structured-geometry-specification-datum:
+
+The datum fits the problem
+--------------------------
+
+A ``FixedSource`` holds a source and a ``Response`` a detector, each a
+mesh-free function (:ref:`structured-geometry-mesh-free-functions`). The
+specification admits the datum against its problem, with one ``match``
+over the two function types that ends in ``assert_never`` (the second
+elegance review's finding G1: a third function type would otherwise be
+admitted unchecked):
+
+- **groups**: the datum's group count is ``spec.n_groups``;
+- **regions**: a ``RegionwiseConstant`` has ``spec.n_regions`` regions,
+  one per interval of the geometry. The count is the intervals', not the
+  distinct materials': on a slab whose intervals hold the materials
+  ``(1, 0, 1)`` there are 3 regions. qa's finding F1 found every region
+  and extent fixture assigning one material per interval, where the two
+  counts agree, so a mutant counting distinct materials was green on 165
+  of 165 rows; the fixture ``slab3_repeated()`` now separates them;
+- **coordinates**: a ``Symbolic`` depends on no coordinate in
+  ``spec.unreadable``. The infinite medium reads none of :math:`r`,
+  :math:`\mu`, :math:`\varphi`; a geometry reads all three, except the
+  azimuth :math:`\varphi` on a chart with no azimuth reference. That is
+  the sphere, where a reference perpendicular to :math:`\hat e_r` at every
+  position would be a continuous nowhere-zero tangent field on the
+  sphere, which the hairy-ball theorem forbids
+  (:ref:`structured-geometry-angular-chart`). The rule reads the chart's
+  ``azimuth_reference``, not the coordinate-system tag (the first
+  elegance review's finding F2: the chart is where the fact is declared,
+  and this was its first consumer).
+
+The dependence test is :meth:`Symbolic.depends_on
+<orpheus.numerics.mesh_free_function.Symbolic.depends_on>`, the one
+predicate the isotropy test also reads (``is_isotropic`` is ``not
+depends_on(mu, phi)``). A function does NOT depend on the named
+coordinates iff, in every group, ``simplify`` reduces
+:math:`q_g - q_g|_{c \to c'}` to 0, every named :math:`c` replaced by a
+fresh real symbol at once. An undecided difference counts as a
+dependence, the side a consumer refusing the dependence refuses; so
+``sin(φ)**2 + cos(φ)**2`` is independent of :math:`\varphi` and admitted
+beside a sphere, which a free-symbols test would get wrong. The query
+refuses an empty argument list and a symbol the function does not own
+(the first elegance review's finding F4: a caller's ``Symbol("phi")``
+without ``real=True`` answered "independent", the optimistic answer).
+
+.. _structured-geometry-specification-eager:
+
+Admission is eager, and what a key cannot hold
+----------------------------------------------
+
+Each type takes its digest at the end of ``__post_init__``, so a
+specification that cannot be keyed is refused at construction, never
+first when a cache calls ``hash``. The encoder is the one definition of
+"keyable", so a separate parse would be its twin (the first elegance
+review withdrew its own objection to digest-as-admission on that ground,
+and the digest is memoised, so the eager call costs nothing extra). What
+the earlier parses leave for the digest to refuse is the boundary-law
+payload: a geometry whose law holds a function, such as
+:class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`
+built from a callable, is refused with
+:class:`~orpheus.numerics.content.ContentlessError` naming
+``GeometrySpecification.geometry`` (S8.1 ``contentless_geometry``).
+
+.. warning::
+
+   **An obligation for phase P4, not met in P1.** The non-vacuum
+   manufactured-solution reference
+   (``orpheus/derivations/continuous/mms/sn.py``, its prescribed-inflow
+   branch) declares a callable-bearing inflow law, so a specification of
+   it cannot be built today. The census counts 13 manufactured-solution
+   case types among the fixed-source producers; before P4 stores their
+   references, the inflow needs a content-bearing law, a ``Symbolic``
+   boundary inflow on the trace. How many of the 13 carry a non-vacuum
+   face is not counted (`[R]`).
+
+.. _structured-geometry-specification-group-count:
+
+The group-count rule has one home
+---------------------------------
+
+A problem is one energy discretisation, so its materials must agree on the
+group count. The rule lives once, in the input layer:
+:meth:`Materials.uniform_group_count
+<orpheus.data.materials.Materials.uniform_group_count>` returns the one
+count of the declared mixtures or raises
+:exc:`~orpheus.data.materials.InconsistentMaterialsError` (a
+``ValueError``, message fragment "uniform ng"). The exception moved from
+``orpheus/transport/mesh/material_mesh.py`` to
+:mod:`orpheus.data.materials` with every importer re-pointed and no shim;
+``MaterialMesh.ng`` is the call.
+
+The two callers read two different sets, by ruling. ``MaterialMesh``
+reads every declared material, its rule since before step 8, now stated:
+a material mesh is built from a declaration and refuses a declaration of
+mixed group counts. The specification reads the materials its geometry
+assigns, because it restricts first (ruling 3), so a spectator of another
+group count is dropped, not refused (the row
+``test_s8_1_a_spectator_of_another_group_count_is_dropped``). The
+infinite medium reads its one mixture's ``ng`` and never consults the
+rule. Gate S8.9 holds the home: the class is defined in
+``orpheus.data.materials`` and stays a ``ValueError``; an AST census of
+``orpheus/`` and ``tests/`` finds every importer reading that home; and a
+route row installs a decoy rule raising a sentinel and requires both
+``MaterialMesh`` and the specification to raise it.
+
+.. _structured-geometry-specification-deferred:
+
+What is not here, and the event that brings each
+------------------------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 40 30
+
+   * - Absent
+     - Why
+     - Trigger
+   * - ``NuclideDensity(nuclide, regions)``, the third coordinate kind
+     - ``Materials`` holds macroscopic cross sections only: number
+       densities are summed away in ``compute_macro_xs``, so no fixture
+       can declare a nuclide, and no P1 or P4 reference asks a
+       composition search (the census: 0 boron references)
+     - ``Materials`` keeping number densities (the user's ruling 4)
+   * - the removal cells (capture, absorption)
+     - :math:`\Sigma_t` is stored beside its parts, so scaling a part
+       would not move the collision operator
+     - posing unit 3 (#526), which un-stores the totals
+   * - a coordinate's chart: its zero, its physical value, its admissible
+       range
+     - read only by the mode law, which finds a pole
+     - #529 (the orchestrator's ruling 6)
+   * - binding a specification to a method's problem
+     - P1 mints the key; the test of S8.4 lifts a specification by hand
+       (``MaterialMesh(Mesher(spec.geometry)...mesh, spec.materials)``)
+     - phase P4
+   * - the direction-dependent problem uniform in space
+     - it is the spatial marginal of a body problem, the retraction of a
+       geometry problem's solution along space
+       (:ref:`infinite-medium-spatial-marginal`)
+     - none: it needs no specification type
+
+Two consequences are accepted, each a cache miss and never a wrong hit:
+the infinite medium of one mixture under two material ids is two keys,
+because the id is inside the resolved cells and ``CellCoefficient`` names
+ids by ruling; and an infinite medium and a reflective slab of the same
+mixture ask one physical question and are two keys (the row
+``test_s8_10_the_two_layers_are_two_keys``). The two extent refusals of
+the infinite medium, as the parameter and as a point key, print one text,
+accepted by the orchestrator: it is the coordinate's resolution refusal,
+worded like ``CellCoefficient.resolve``'s and ``GeometryExtent.resolve``'s,
+neither of which names where the key sits.
+
+.. _structured-geometry-specification-gates:
+
+The gates, and the battery
+--------------------------
+
+Every gate is a ``foundation`` test except the assembly rung (``l1``).
+`[M]` 2026-10-02, this pass, at ``65b533fe``,
+``.venv/bin/python -O -m pytest`` over the seven files: 204 rows, 204
+passed (``tests/gates/specification/`` 142, ``tests/gates/data/test_cells.py``
+40, ``tests/gates/geometry/test_geometry_extent.py`` 8,
+``tests/gates/numerics/test_mesh_free_depends_on.py`` 14).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 56 36
+
+   * - Id
+     - What it asserts
+     - Mutation witness (the battery's arm)
+   * - S8.1
+     - the refusals, each keyed on a message fragment the triggering
+       argument determines, and the fragments pairwise disjoint; the
+       admission of each rule's legal inputs; the wiring order; the layer
+       is the type; the azimuth rule per coordinate system; the 3 × 3
+       channel-carriage matrix through the specification; the fixture
+       mixtures' balance
+     - one swallowing arm per refusal (``Xg_regions``, ``Xg_groups``,
+       ``Xg_coordinates``, ``Xh12``, ``Xh3``, ``Xh5``, ``Xcontent``);
+       ``B1``, ``C1``; ``N1`` (regions by distinct materials); ``U1`` to
+       ``U3`` (the readable coordinates); ``R1``; ``F2`` (a ``geometry``
+       field on the infinite medium); ``SPECTATOR`` (spectators kept)
+   * - S8.2
+     - digest: a roster of the four content classes through the content
+       helpers (population, a moved part moves the digest, equal content
+       is one value, pickle); a table and the ``Symbolic`` it lowers to
+       are one right-hand side and two keys; seed-stable under
+       ``PYTHONHASHSEED`` 1 and 2 with a ``str`` control
+     - ``CI0`` (content collapsed to the type tag); ``D1`` (the written
+       question stored); ``D2`` (the question dropped from the parts)
+   * - S8.3
+     - the layer: building two specifications in a fresh interpreter loads
+       nothing above the input tier; an AST census admits only ``data``,
+       ``geometry``, ``numerics`` and the package; the layer table's
+       rows in ``tests/gates/test_layer_imports.py``
+     - ``L1``, a file edit importing ``orpheus.transport.mesh.material_mesh``
+   * - S8.4
+     - the assembly rung (``l1``): a two-interval specification with a
+       spectator builds a ``MaterialMesh``; the infinite medium's k from
+       the 0-D solve and from an S\ :sub:`N` reflective slab equals the
+       dense pencil :math:`\rho(A^{-1}F)` assembled in the test from the
+       raw arrays, :math:`A = \mathrm{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf
+       T} - 2\Sigma_2^{\mathsf T}`, on a fixture with upscatter and
+       :math:`(n,2n)`
+     - ``M1`` (``N2N_MULTIPLICITY`` = 1) reds both k rows; the mesh row is
+       reddened by no arm, declared: a break there is the material mesh's
+   * - S8.5
+     - RECORD: the digests of two canonical specifications (k on the
+       infinite medium; a fixed source on the slab) pinned as literals; a
+       moved digest invalidates every cache key holding a specification
+     - any encoder or schema edit
+   * - S8.6
+     - the channels: exactly three members of a plain ``Enum``; the
+       carriage predicate over 4 fixtures × 3 channels; a block above
+       :math:`P_0` alone is carried
+     - ``K1`` (two channels swapped), ``K2`` (always carried), ``K5``
+       (never carried); the member list by a file edit
+   * - S8.7
+     - the cell coefficient: a content value (order, repetition and numpy
+       ids are not content); 5 construction refusals; the two fields and
+       ``every`` equal to the field spelling; resolution per channel;
+       idempotence; 4 resolution refusals; ``every(F)`` on materials
+       carrying none is a zero direction
+     - ``V1`` (no parse), ``V3`` (``every`` ignores its channels), ``K3``
+       (``resolve`` the identity), ``K4`` (zero cells kept); idempotence by
+       no arm, declared
+   * - S8.8
+     - the extent: a content value keyed by its index; 5 construction
+       refusals (``-1``, a ``bool``, a ``float``, a ``str``, ``None``);
+       resolution; the range is the intervals', not the distinct
+       materials'
+     - ``V2`` (no parse), ``E1`` (no range check), ``N2``
+   * - S8.9
+     - the group-count rule's one home (above)
+     - ``C1`` (the rule reads nothing) reds the existing ``MaterialMesh``
+       rows too, which proves the mesh routes through it; ``C2`` (the mesh
+       reads the reachable materials only) reds the spectator row; the
+       home and census rows were red on the pre-carve tree
+   * - S8.10
+     - canonicalisation: ``every`` resolves to the explicit non-zero cells
+       in the parameter and in a point key; the stored question is unequal
+       to the written one; four spellings of one direction are one
+       specification; idempotent under re-posing and pickle; the materials
+       are a ``Materials`` value; the two layers are two keys
+     - ``D1``, ``K3``, ``V3``; ``K6`` (a point key keeps its zero cells)
+       reds exactly the point-key row
+   * - S8.11
+     - ``Symbolic.depends_on``: 9 expressions × :math:`(r, \mu, \varphi)`,
+       the joint predicate, agreement with ``is_isotropic``, one dependent
+       group, and the refusal of an empty or non-owned query
+     - ``Z1`` (free symbols), ``Z2`` (arguments ignored), ``Z3`` and
+       ``Z4`` (constant answers), ``Z5`` (no owned-symbol refusal)
+
+**The battery** (``scratch/reference_architecture/p1step8/ta/battery/final/``:
+``step8_battery.py``, a ``-p`` plugin that installs one arm per test and
+restores it at teardown, ``run_battery.sh``, ``logs/``, ``redsets.txt``)
+ran on the real modules over 330 rows: the 204 step-8 rows and the
+neighbouring files the arms reach (``test_mesh_free_function.py``,
+``test_content_identity.py``, ``test_materials.py``,
+``test_material_mesh.py``, ``test_snmesh_materials_pr_typed_0.py``).
+`[M]` (``logs/none.log``, ``logs/P0.log``): the unmutated run 330 passed;
+the positive control ``P0``, neither type checking anything, 65 failed.
+Each of 39 in-process arms first proved it bites on a probe (0
+uninstallable) and reddened its target rows, the red sets read against
+the targets; ``L1``, the file-edit arm, reddened the two S8.3 rows and the
+layer-table row for the package. The rows reddened by no arm are
+declared, 15 of the 204: the ``CellCoefficient`` and ``GeometryExtent``
+equal pairs and pickles, the seed row (whose teeth are its own ``str``
+control, since a subprocess sees no plugin), the four fixture-balance
+rows, the ``Enum`` member list, and the S8.9 home and census rows.
 
 
 End-state spot checks
@@ -5118,6 +5732,33 @@ trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-10-02
+     - **The reference specification: a question with its materials,
+       keyed, and the layer it is posed at is its type.**
+       :mod:`orpheus.specification` landed with
+       ``InfiniteMediumSpecification(material_id, mixture, question)``,
+       posed on energy alone, and ``GeometrySpecification(materials,
+       geometry, question)``, admitted in a canonical form (spectators
+       dropped, every key resolved to explicit non-zero cells, the datum
+       fitted to the problem's groups, regions and readable coordinates),
+       with the coordinates :class:`~orpheus.data.cells.Channel` and
+       :class:`~orpheus.data.cells.CellCoefficient` in ``data`` and
+       :class:`~orpheus.geometry.extent.GeometryExtent` in ``geometry``,
+       :meth:`Symbolic.depends_on
+       <orpheus.numerics.mesh_free_function.Symbolic.depends_on>`, and the
+       group-count rule's one home, :meth:`Materials.uniform_group_count
+       <orpheus.data.materials.Materials.uniform_group_count>`, with
+       ``InconsistentMaterialsError`` moved from ``transport`` to
+       ``data`` (no shim). Ruled the same day (the user): the cells are the
+       three emission channels, an extent is one interval's width, the
+       nuclide density is deferred, and the infinite medium is the point
+       in phase space, so the first build's ``geometry | None`` and the
+       proposed geometry value for the infinite medium were both retired
+       for a second type. Record:
+       :ref:`structured-geometry-specification`.
+     - #405
+     - ``29fe4266`` (the specification), ``eaa74163`` (the two types),
+       ``2bc2e8c2`` (the re-review fixes), ``65b533fe`` (the physics docs)
+   * - 2026-10-02
      - **What is asked is a physics-free value, and a real number has one
        definition.** :mod:`orpheus.numerics.question` landed with
        ``Eigen(parameter, point, mode)``, ``FixedSource(source, point)``,
@@ -5136,7 +5777,7 @@ trust ``git`` over this table for merge status.
        :ref:`structured-geometry-question-values`,
        :ref:`structured-geometry-one-real-parser`.
      - #405, #559, #561
-     - *(in development)* branch ``feature/question-values``
+     - ``6b179059``, ``31a2dc46``, ``8122abc6``, ``1fde7b59`` on ``main``
    * - 2026-10-02
      - **The source and the detector a specification states are
        mesh-free functions.** :mod:`orpheus.numerics.mesh_free_function`

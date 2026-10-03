@@ -280,3 +280,20 @@ L0 / L1 verification suites.
    :undoc-members:
    :show-inheritance:
    :noindex:
+
+The geometric extent
+--------------------
+
+:class:`~orpheus.geometry.extent.GeometryExtent` ``(interval)`` is the
+coordinate of a critical-size question: the width of one interval of a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, in cm,
+every interval outside it translated outward. It is an opaque key an
+:class:`~orpheus.numerics.question.Eigen` holds, resolved against its
+geometry by the reference specification; its chart (zero, physical value,
+admissible range) is read by the mode law of #529. The theory is
+:ref:`structured-geometry-specification-coordinates`.
+
+.. automodule:: orpheus.geometry.extent
+
+.. autoclass:: orpheus.geometry.extent.GeometryExtent
+   :members: resolve

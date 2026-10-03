@@ -122,8 +122,22 @@ from the physical point, and a mode (the pole wanted);
 :class:`~orpheus.numerics.question.Response` a detector, so the role is
 the type and no value carries an adjoint flag. The k-eigenvalue, the
 classical c-eigenvalue, a boron search and a critical size are four keys
-of one ``Eigen``. Nothing binds a question to a system yet: deriving the
-pencil and the spectral map from a parameter, and the mode law, are the
+of one ``Eigen``; the keys that exist are a set of cells,
+:class:`~orpheus.data.cells.CellCoefficient` (k is every fission-emission
+cell), and the width of one interval,
+:class:`~orpheus.geometry.extent.GeometryExtent`. A question is written
+down with the system it is asked of as a **reference specification**
+(:ref:`structured-geometry-specification`), the key a reference cache
+stores an answer under. The layer of the filtration it is posed at is its
+type: :class:`~orpheus.specification.specification.InfiniteMediumSpecification`
+holds one material and is posed on energy alone, the infinite medium being
+the point in position and in direction (:ref:`infinite-medium-definition`),
+and :class:`~orpheus.specification.specification.GeometrySpecification`
+holds the materials and a geometry with its laws. Either is admitted in a
+canonical form: spectators dropped, every key resolved to a coordinate of
+the problem, the datum fitted to its groups, regions and readable
+coordinates. Nothing binds a question to a system's operators yet: deriving
+the pencil and the spectral map from a parameter, and the mode law, are the
 posing sequence's unit 6 (#529).
 
 
@@ -450,6 +464,9 @@ The concept table
    * - Question; mode; point
      - :class:`~orpheus.numerics.question.Eigen`, :class:`~orpheus.numerics.question.FixedSource`, :class:`~orpheus.numerics.question.Response`; :class:`~orpheus.numerics.question.Fundamental`, :class:`~orpheus.numerics.question.Nearest`; the point a :class:`~orpheus.numerics.content.FrozenMapping`
      - :ref:`structured-geometry-question-values`, :ref:`structured-geometry-question-values-point`, :ref:`structured-geometry-question-values-role`
+   * - Reference specification; coordinate; channel
+     - :class:`~orpheus.specification.specification.InfiniteMediumSpecification`, :class:`~orpheus.specification.specification.GeometrySpecification`; :class:`~orpheus.data.cells.CellCoefficient`, :class:`~orpheus.geometry.extent.GeometryExtent`; :class:`~orpheus.data.cells.Channel`
+     - :ref:`structured-geometry-specification`, :ref:`structured-geometry-specification-layer`, :ref:`structured-geometry-specification-canonical`, :ref:`structured-geometry-specification-coordinates`
    * - Strategy; splitting; schedule
      - :class:`~orpheus.sn.splitting.Splitting`, :func:`~orpheus.sn.splitting.resolve_schedule`
      - :ref:`sn-splitting-is-a-strategy-value`

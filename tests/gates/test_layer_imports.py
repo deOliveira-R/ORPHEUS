@@ -43,7 +43,7 @@ L1_PACKAGES: frozenset[str] = frozenset({"numerics"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
 MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
 # #405 P1 step 8: the specification composes materials, geometry and a question;
-# above data, geometry and numerics, below mesh, transport, L3 and derivations.
+# above data, geometry and numerics; a sibling of mesh (neither imports the other); below transport, L3 and derivations.
 SPECIFICATION_PACKAGES: frozenset[str] = frozenset({"specification"})
 L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(

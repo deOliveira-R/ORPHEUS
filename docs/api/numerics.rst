@@ -568,7 +568,7 @@ chart the direction is read in is
    :members: n_regions, n_groups
 
 .. autoclass:: orpheus.numerics.mesh_free_function.Symbolic
-   :members: of, from_srepr, expressions, n_groups, is_isotropic
+   :members: of, from_srepr, expressions, n_groups, depends_on, is_isotropic
 
 Question values — :mod:`orpheus.numerics.question`, what is asked of a
 system with no physics in it: ``Eigen(parameter, point, mode)``,

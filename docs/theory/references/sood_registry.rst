@@ -1187,8 +1187,7 @@ merge status.
        ``.claude/plans/reference_cache.md``, "Discussion 3, second
        exchange".
      - #405
-     - *(in development)* branch ``refactor/sood2003-rename``:
-       ``61b20383``, ``2644bd47``, ``228d6f20``
+     - ``61b20383``, ``2644bd47``, ``228d6f20`` on ``main``
    * - 2026-09-29
      - **The registry cites the 2003 edition** (P1 step 2b). The six
        cases whose values differ between the editions took the 2003
