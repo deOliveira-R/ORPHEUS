@@ -265,6 +265,24 @@ def test_r5c_6_a_disjoint_pair_makes_the_certificate_invalid() -> None:
     require(s5.state_kind(cert) == "Invalid", f"state {cert.state!r}")
 
 
+def test_r5c_6_a_claim_outside_the_refinements_common_part_is_invalid() -> None:
+    """The members agree with each other ([0.96, 1.12] and [0.99, 1.03] share
+    [0.99, 1.03]) while the claim [1.09, 1.11] meets its target and misses that
+    common part: the exact answer lies in the common part if the members'
+    bounds are correct, so the claim's bound is wrong, and the certificate is
+    ``Invalid``, naming the observable and the missed common part. Control: the
+    same refinement with a claim [1.00, 1.04] inside it is ``Valid`` (the
+    members' agreement alone does not make the row red)."""
+    r = s5.refinement(s5.eigenvalue(), _members((0.2, 1.04, 0.08), (0.1, 1.01, 0.02)))
+    require(r.common_part() is not None, "activation: the members share no point, so the row tests the other law")
+    missed = s5.certificate({s5.eigenvalue(): s5.claim(0.05, s5.derived(1.10, 0.01))}, refinements=[r])
+    require(s5.state_kind(missed) == "Invalid", f"state {missed.state!r}")
+    require(any("Eigenvalue" in reason and "misses the refinement's common part" in reason for reason in missed.state.reasons),
+            f"the reasons {missed.state.reasons} do not name the missed common part")
+    inside = s5.certificate({s5.eigenvalue(): s5.claim(0.05, s5.derived(1.02, 0.02))}, refinements=[r])
+    require(s5.state_kind(inside) == "Valid", f"control: state {inside.state!r}")
+
+
 def test_r5c_6_a_perfect_order_never_certifies_and_a_wild_one_never_refutes() -> None:
     """The ruling's two sides. (i) A sequence with the theoretical order 2
     exactly cannot make ``Valid`` a claim whose bound exceeds its target.
