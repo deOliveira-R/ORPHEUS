@@ -50,10 +50,10 @@ from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias, get_args
+from typing import Any, TypeAlias
 
 from orpheus.numerics.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest
-from orpheus.numerics.mesh_free_function import MeshFreeFunction
+from orpheus.numerics.mesh_free_function import MeshFreeFunction, parse_mesh_free_function
 from orpheus.numerics.scalars import parse_finite_real
 
 
@@ -78,15 +78,6 @@ def _admit_key(key: Any, where: str) -> None:
         raise ContentlessError(
             f"{where}: an unhashable {type(key).__name__} is not a key (it is mutable, so its content is not fixed)"
         ) from None
-
-
-def _admit_function(value: Any, role: str) -> None:
-    if not isinstance(value, MeshFreeFunction):
-        kinds = " or ".join(kind.__name__ for kind in get_args(MeshFreeFunction))
-        raise TypeError(
-            f"the {role} is a mesh-free function ({kinds}), "
-            f"got a {type(value).__module__}.{type(value).__qualname__}"
-        )
 
 
 @dataclass(frozen=True, eq=False)
@@ -131,7 +122,7 @@ class FixedSource(ContentIdentity):
     point: Mapping[Any, float] = field(default_factory=FrozenMapping)
 
     def __post_init__(self) -> None:
-        _admit_function(self.source, "source")
+        parse_mesh_free_function(self.source, "source")
         object.__setattr__(self, "point", _admit_point(self.point))
         content_digest(self)
 
@@ -144,7 +135,7 @@ class Response(ContentIdentity):
     point: Mapping[Any, float] = field(default_factory=FrozenMapping)
 
     def __post_init__(self) -> None:
-        _admit_function(self.detector, "detector")
+        parse_mesh_free_function(self.detector, "detector")
         object.__setattr__(self, "point", _admit_point(self.point))
         content_digest(self)
 

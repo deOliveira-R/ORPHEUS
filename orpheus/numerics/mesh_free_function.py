@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast, get_args
 
 import numpy as np
 
@@ -339,4 +339,17 @@ def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol
 MeshFreeFunction: TypeAlias = RegionwiseConstant | Symbolic
 """A function on phase space stored without a mesh: the closed set of the two spellings."""
 
-__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic"]
+
+
+def parse_mesh_free_function(value: Any, role: str) -> MeshFreeFunction:
+    """A mesh-free function in the named role (a source, a detector, a weight), or a refusal naming the role."""
+    if not isinstance(value, MeshFreeFunction):
+        kinds = " or ".join(kind.__name__ for kind in get_args(MeshFreeFunction))
+        raise TypeError(
+            f"the {role} is a mesh-free function ({kinds}), "
+            f"got a {type(value).__module__}.{type(value).__qualname__}"
+        )
+    return value
+
+
+__all__ = ["MeshFreeFunction", "RegionwiseConstant", "Symbolic", "parse_mesh_free_function"]
