@@ -109,6 +109,13 @@ class NotYet:
 
 Evidence = Measured | Certified | NotApplicable | NotYet
 
+#: A production method's reading of an observable: a self-report that
+#: verification puts on trial (#405 P2, the user's ruling "G3" of 2026-10-02).
+#: Its statistical member, ``Estimated``, joins when a Monte Carlo consumer
+#: exists; a reference's reading is :data:`orpheus.reference.ReferenceReading`,
+#: a disjoint sum.
+ProductionReading = Measured
+
 
 @dataclass(frozen=True)
 class ExitCertificate:

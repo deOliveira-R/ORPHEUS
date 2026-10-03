@@ -55,13 +55,15 @@ from tests.gates.mesh.test_content_identity_mesh import ROSTER as MESH_ROSTER
 from tests.gates.numerics.test_content_identity_axis import ROSTER as AXIS_ROSTER
 from tests.gates.numerics.test_content_identity_mesh_free import ROSTER as MESH_FREE_ROSTER
 from tests.gates.numerics.test_content_identity_question import ROSTER as QUESTION_ROSTER
+from tests.gates.numerics.test_enclosure import ROSTER as ENCLOSURE_ROSTER
+from tests.gates.reference.test_readings import ROSTER as READING_ROSTER
 from tests.gates.specification.test_content_identity_specification import ROSTER as SPECIFICATION_ROSTER
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -368,7 +370,7 @@ class TestS58Schema:
 _DECLARED_EQ_OVERRIDES = frozenset({"VacuumInflow", "ReflectiveBoundary"})
 
 #: The packages whose classes S5.9 walks.
-_PACKAGES = ("orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.transport")
+_PACKAGES = ("orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport")
 
 
 def _content_classes() -> list[type]:

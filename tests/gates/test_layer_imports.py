@@ -45,6 +45,10 @@ MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
 # #405 P1 step 8: the specification composes materials, geometry and a question;
 # above data, geometry and numerics; a sibling of mesh (neither imports the other); below transport, L3 and derivations.
 SPECIFICATION_PACKAGES: frozenset[str] = frozenset({"specification"})
+# #405 P2 step 1: the reference package (readings, published and reference solutions,
+# the certificates); above the specification, below transport, L3 and derivations,
+# which writes reference solutions and so may import it.
+REFERENCE_PACKAGES: frozenset[str] = frozenset({"reference"})
 L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(
     {
@@ -62,11 +66,12 @@ L3_PACKAGES: frozenset[str] = frozenset(
 )
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
-    "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "mesh": SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "specification": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+    "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+    "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
     "transport": L3_PACKAGES,
     "sn": L3_PACKAGES - {"sn"},
     "pn": L3_PACKAGES - {"pn"},
@@ -312,6 +317,9 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.specification",
         "orpheus.data.cells",
         "orpheus.geometry.extent",
+        # #405 P2 step 1: the enclosure and the reference package.
+        "orpheus.numerics.enclosure",
+        "orpheus.reference",
     ],
 )
 def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
