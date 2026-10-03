@@ -59,7 +59,7 @@ from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom, warn_if_gauge_
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.posing import SourcePosing
 from orpheus.numerics.outcome import (
-    Certified,
+    Asserted,
     EigenOutcome,
     Evidence,
     ExitReport,
@@ -463,7 +463,7 @@ class ConvergenceClaimError(RuntimeError):
 #: residual agree to FP-reassociation grain when M is exact, so a genuine
 #: lag-death (O(1) defect — #282 measured 5e5) clears this by orders of
 #: magnitude while exact-M exits never trip it.
-_CLAIM_CHECK_SAFETY = 10.0
+_CONVERGENCE_CLAIM_SAFETY = 10.0
 
 
 def _residual_is_expressible(problem: "SNProblem") -> bool:
@@ -602,9 +602,9 @@ def _balance_evidence(
     subcritical slab — a repair, the old number was the residual of the wrong
     equation).
 
-    Four outcomes, each a VALUE (the Evidence sum): :class:`Certified` when
+    Four outcomes, each a VALUE (the Evidence sum): :class:`Asserted` when
     the tree fully converged — the within-group convergence-claim check ASSERTED
-    ``‖Aψ − q‖/‖q‖ ≤ _CLAIM_CHECK_SAFETY × tol`` (raising otherwise), so no
+    ``‖Aψ − q‖/‖q‖ ≤ _CONVERGENCE_CLAIM_SAFETY × tol`` (raising otherwise), so no
     number is owed; :class:`NotYet` (#310) when the scheme's iterate has no
     typed residual (a moment-tailed LD interior); :class:`NotApplicable` when
     the source integrates to zero per group (the ratio is undefined);
@@ -615,8 +615,8 @@ def _balance_evidence(
     if record.fully_converged:
         criterion = record.binding_criterion
         tol = float(criterion.tolerance) if criterion is not None else float("nan")
-        return Certified(
-            _CLAIM_CHECK_SAFETY * tol,
+        return Asserted(
+            _CONVERGENCE_CLAIM_SAFETY * tol,
             "the within-group convergence-claim check (‖Aψ − q‖/‖q‖ asserted at the exit)",
         )
     if not _residual_is_expressible(problem):
@@ -833,7 +833,7 @@ def _check_convergence_claim(
     :func:`evaluate_residual` (a real forward apply — the only
     measurement an in-``M`` lag cannot fool) and raises
     :class:`ConvergenceClaimError` on a defect beyond
-    ``_CLAIM_CHECK_SAFETY × tol``.
+    ``_CONVERGENCE_CLAIM_SAFETY × tol``.
 
     Wired on every FULL-ANGULAR arm (the coupled sphere, the seedless
     un-windowed SI, both Krylov paths). Two structural exemptions —
@@ -870,7 +870,7 @@ def _check_convergence_claim(
     r_norm = float(np.linalg.norm(np.asarray(residual.to_flat())))
     q_norm = max(float(np.linalg.norm(np.asarray(q_ext.to_flat()))), 1e-30)
     defect = r_norm / q_norm
-    if defect > _CLAIM_CHECK_SAFETY * tol:
+    if defect > _CONVERGENCE_CLAIM_SAFETY * tol:
         raise ConvergenceClaimError(
             f"{where}: the within-group solve claimed convergence "
             f"(running residual {criterion.last:.3e} < tol {tol:.1e}) "
@@ -2532,7 +2532,7 @@ def solve_sn(
     exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("an eigen question has no admissibility to certify"),
+        admissibility=NotApplicable("an eigen question has no admissibility to check"),
     )
     warn_if_unconverged(
         outcome.record, where="solve_sn",
@@ -2795,7 +2795,7 @@ def solve_sn_adjoint(
     exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("an eigen question has no admissibility to certify"),
+        admissibility=NotApplicable("an eigen question has no admissibility to check"),
         # #340 N6b / #353: this entry carries NO balance defect — N5 never
         # measured the adjoint population, so there is no reference to check a
         # number against; assembling one from plausibility is the ERR-032 class.
@@ -2968,7 +2968,7 @@ def solve_sn_adjoint_fixed_source(
     exit_report = _exit_report(
         answer, problem=problem, record=record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to certify"),
+        admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to check"),
     )
     warn_if_unconverged(
         record, where="solve_sn_adjoint_fixed_source",
@@ -3586,7 +3586,7 @@ def solve_sn_multiplying_source(
         posing=posing,
         # the admissibility CHECK: the hub's own k-solve at keff_tol
         # (RULED 2026-09-13, fork 3 (a)) — recorded WITH its configuration
-        admissibility=Certified(
+        admissibility=Asserted(
             k, f"the hub's k-solve at keff_tol={keff_tol:g}: k_eff = {k:.9f} < 1 (subcritical)",
         ),
         inner_schedule=inner_schedule,

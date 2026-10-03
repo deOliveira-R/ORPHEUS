@@ -256,7 +256,7 @@ class ScheduledInvertibleOperator(
         honest-scope witness is the W2 off-domain characterization pin
         (``tests/gates/sn/solve/test_gauss_seidel_reification.py``), and the
         production catcher for a future off-domain consumer is the
-        end-of-solve certificate that caught ERR-071 itself.  The bare
+        end-of-solve convergence-claim check that caught ERR-071 itself.  The bare
         :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` sweep
         (no schedule, no mid-march reader) IS exact on the whole space.
         """

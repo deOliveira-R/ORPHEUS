@@ -19,7 +19,11 @@ bound is therefore valid, and loose by at most a few ulp (the gate R1.4 of
 ``.claude/plans/reference_p2_spec.md`` derives 10.5). The centre is the
 quotient of the centres, so a ratio observable reads the ratio of its
 readings. A denominator whose enclosure holds zero has no quotient, and an
-overflow is refused rather than returned as an infinite bound.
+overflow is refused rather than returned as an infinite bound. Both refusals
+read the ends after the outward step, so they are conservative by one
+rounding step: a denominator one subnormal from zero, or a quotient within
+one step of the largest double, is refused although its exact quotient
+exists.
 
 Only an enclosure divides an enclosure: an exact number is written
 ``Enclosure(v, 0)`` once, at the place it enters, so that no bare float can
@@ -72,11 +76,16 @@ class Enclosure(ContentIdentity):
         low_b, high_b = other._ends()
         if low_b <= 0.0 <= high_b:
             raise ZeroDivisionError(
-                f"Enclosure: the denominator's enclosure [{low_b!r}, {high_b!r}] contains zero, "
+                f"Enclosure: the denominator's enclosure, rounded outward to [{low_b!r}, {high_b!r}], contains zero, "
                 f"so the quotient has no enclosure"
             )
         low_a, high_a = self._ends()
         corners = [x / y for x in (low_a, high_a) for y in (low_b, high_b)]
         low, high = _down(min(corners)), _up(max(corners))
         centre = self.value / other.value
-        return Enclosure(centre, max(_up(high - centre), _up(centre - low)))
+        half_width = max(_up(high - centre), _up(centre - low))
+        if not math.isfinite(half_width):
+            raise ValueError(
+                f"Enclosure: the quotient {self!r} / {other!r} overflows a double once rounded outward: its bound would be infinite"
+            )
+        return Enclosure(centre, half_width)

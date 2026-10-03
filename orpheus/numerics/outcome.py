@@ -34,7 +34,7 @@ the kind that has them — a ``SourceOutcome.keff`` is a type error, not
 **The exit report.** What was MEASURED about the returned state, and — when
 nothing was — WHY NOT, as a typed sum instead of a ``None`` with five
 documented meanings (``[M]`` ``IterationHistory.balance_defect`` until this
-step): :class:`Measured` (a number), :class:`Certified` (a bound the exit
+step): :class:`Measured` (a number), :class:`Asserted` (a bound the exit
 report asserted, so no number was needed), :class:`NotApplicable` (the
 question does not arise — a zero source, no kernel freedom, a pure-transport
 posing has no admissibility to check), :class:`NotYet` (open work, by issue —
@@ -61,7 +61,7 @@ production-rate gauge — the one shipped deliberately-named target).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic
+from typing import Any, Generic, TypeAlias
 
 from orpheus.numerics.gauge import KernelGauge, ScaleGauge
 from orpheus.numerics.posing import EigenPosing, SourcePosing
@@ -85,7 +85,7 @@ class Measured:
 
 
 @dataclass(frozen=True)
-class Certified:
+class Asserted:
     """No number was needed: the convergence-claim check ASSERTED the bound (raising on a defect beyond it)."""
 
     bound: float
@@ -107,14 +107,14 @@ class NotYet:
     reason: str
 
 
-Evidence = Measured | Certified | NotApplicable | NotYet
+Evidence = Measured | Asserted | NotApplicable | NotYet
 
 #: A production method's reading of an observable: a self-report that
 #: verification puts on trial (#405 P2, the user's ruling "G3" of 2026-10-02).
 #: Its statistical member, ``Estimated``, joins when a Monte Carlo consumer
 #: exists; a reference's reading is :data:`orpheus.reference.ReferenceReading`,
 #: a disjoint sum.
-ProductionReading = Measured
+ProductionReading: TypeAlias = Measured
 
 
 @dataclass(frozen=True)

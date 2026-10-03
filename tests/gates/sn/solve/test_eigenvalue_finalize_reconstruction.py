@@ -292,7 +292,7 @@ DECLARED BLIND — what this file CANNOT see
   `[M]` the ``N1`` arm scaled the returned trace by 72 % of its own magnitude
   and reddened 0 of 45 — which is why the trace needed a class of its own
   rather than a leg on an existing row.
-* ``exit_report.balance`` on a CONVERGED solve.  `[M]` it is ``Certified`` by
+* ``exit_report.balance`` on a CONVERGED solve.  `[M]` it is ``Asserted`` by
   construction (``_balance_evidence`` — until step 3 ``_exit_balance_defect``
   — certifies rather than measures on ``record.fully_converged``), which is
   exactly why the shipped diagnostic
@@ -329,7 +329,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from orpheus.numerics.outcome import Certified, Measured
+from orpheus.numerics.outcome import Asserted, Measured
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
@@ -1422,7 +1422,7 @@ class TestTheShippedDiagnostic:
     @pytest.mark.l1
     @pytest.mark.parametrize("order", [0, _L_ANISO], ids=["L0", "L1"])
     def test_the_balance_defect_is_silent_on_a_converged_solve(self, order: int):
-        """`[M]` ``Certified`` (until step 3: ``None``) on every converged solve — by construction.
+        """`[M]` ``Asserted`` (until step 3: ``None``) on every converged solve — by construction.
 
         ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) returns early on ``record.fully_converged``
         (it is the complement of ``_check_convergence_claim``, which
@@ -1437,7 +1437,7 @@ class TestTheShippedDiagnostic:
         fire, and it is the premise the budget row below depends on.
         """
         exit_report = _solve("slab_vac", order).exit_report
-        assert isinstance(exit_report.balance, Certified), (
+        assert isinstance(exit_report.balance, Asserted), (
             f"balance = {exit_report.balance!r} on a fully-converged "
             f"solve.  The early return on record.fully_converged has moved; "
             f"the budget row below assumes the defect is only live on a "

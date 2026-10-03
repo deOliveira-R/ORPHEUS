@@ -46,7 +46,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.outcome import (
-    Certified,
+    Asserted,
     EigenOutcome,
     ExitReport,
     Measured,

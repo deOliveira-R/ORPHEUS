@@ -300,7 +300,7 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.sn.splitting",
         # step 3 U1 (2026-09-17): the Solution-tier types — the gauges (the
         # section that picked the representative) and the kind-typed outcomes
-        # + the exit certificate; numerics-tier, importing posing/pencil/
+        # + the exit report; numerics-tier, importing posing/pencil/
         # operator only (plan-authoring §6d; consumers_step3_design.md §6.3).
         "orpheus.numerics.gauge",
         "orpheus.numerics.outcome",

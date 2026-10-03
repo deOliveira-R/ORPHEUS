@@ -382,7 +382,7 @@ def _multiplying_solution_truncated() -> Solution:
 
     Truncated because every ``None`` the exit report retired was reachable only
     off the converged path: ``_exit_balance_defect`` returned ``None`` when
-    ``record.fully_converged`` (today ``_balance_evidence`` reads ``Certified``
+    ``record.fully_converged`` (today ``_balance_evidence`` reads ``Asserted``
     there), so a converged fixture cannot see the balance number at all.
     """
     materials, mesh, quadrature = _slab()

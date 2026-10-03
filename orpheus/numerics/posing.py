@@ -141,7 +141,7 @@ class SourcePosing(Generic[V]):
         twin of :func:`~orpheus.sn.solver.evaluate_residual` (``[M]`` bit-exactly
         its negative on both arms) while :meth:`balance` already reported
         :math:`\langle w, A\psi - q\rangle`; one convention now (Pattern 7),
-        so the certificate that reads this residual and the typed full-system
+        so the exit report's balance member, which reads this residual, and the typed full-system
         residual agree without a sign to remember.
         """
         return self.operator.apply(psi) - self.source

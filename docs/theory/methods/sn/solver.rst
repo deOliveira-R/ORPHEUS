@@ -2808,7 +2808,7 @@ inheritance**, not a coverage gap.
 
    ⭐ And the entry now records what it measured to admit itself: the
    admissibility :math:`k` rides the Solution's exit report as
-   ``Certified(k, "the hub's k-solve at keff_tol=…")`` — **with the
+   ``Asserted(k, "the hub's k-solve at keff_tol=…")`` — **with the
    tolerance it was measured at**, because a bare number would be a
    measurement without its configuration.  Until step 3 the driver
    measured that :math:`k`, used it, and threw it away, so a consumer
@@ -3663,7 +3663,7 @@ of it:
    * - :class:`~orpheus.numerics.outcome.Measured`
      - the exit that warns — a truncated solve, the case this whole
        section is about
-   * - :class:`~orpheus.numerics.outcome.Certified`
+   * - :class:`~orpheus.numerics.outcome.Asserted`
      - the tree **fully converged**: the convergence-claim check
        already ASSERTED :math:`\lVert A\psi - q\rVert/\lVert q\rVert`
        within its safety factor (raising otherwise), so no forward apply
@@ -3840,7 +3840,7 @@ repaired**, not that there was nothing to repair.
    distinction is not cosmetic.  That family means *"an iterative solve
    exhausted its budget; the answer is best-effort"*.  This is the
    opposite situation: ``[M]`` the configuration where it fires hardest
-   reports ``fully_converged = True`` and a ``Certified`` balance member
+   reports ``fully_converged = True`` and a ``Asserted`` balance member
    (the convergence-claim check asserted the bound, so no number
    was owed).  The solve is fine; the **equation** is degenerate.  Reusing the
    category would also make every caller who escalates

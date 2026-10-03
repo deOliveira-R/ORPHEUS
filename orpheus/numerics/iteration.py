@@ -529,7 +529,7 @@ class SourceIteration(Generic[V]):
     an iteration whose fixed point does not solve the EQUATION (the #282
     lag-death class); the residual claim is contraction-rate-independent.
     The identity itself assumes exact-``M`` — the hole the driver-level
-    end-of-solve CERTIFICATE closes (one honest ``evaluate_residual``
+    end-of-solve CONVERGENCE-CLAIM CHECK closes (one honest ``evaluate_residual``
     per solve, ``orpheus.sn.solver._check_convergence_claim``).
     Normalization is EQUATION-relative (``‖q_ext‖``, a source is the
     residual's natural scale); ``q_ext ≈ 0`` degrades to absolute via
@@ -596,7 +596,7 @@ class SourceIteration(Generic[V]):
         ``ψ_n`` only up to :math:`A\,c_n` (the correction's image under
         the loss) — near convergence the correction itself → 0, so the
         stop remains ρ-honest in the accelerated metric, and the
-        end-of-solve CERTIFICATE (one honest ``evaluate_residual``)
+        end-of-solve CONVERGENCE-CLAIM CHECK (one honest ``evaluate_residual``)
         closes the gap exactly as it does for the exact-``M`` arm.
 
     Raises

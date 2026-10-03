@@ -165,6 +165,8 @@ _BAD_TEXT = (
     ("inf", "inf", ValueError, "not a finite printed number"),
     ("Infinity", "-Infinity", ValueError, "not a finite printed number"),
     ("overflow", "1e400", ValueError, "beyond the range of a double"),
+    ("underflow", "1e-400", ValueError, "beyond the range of a double"),
+    ("grouping-underscore", "1_0.0", ValueError, "not a printed decimal number"),
     ("a-float", 1.0, TypeError, "a printed value is its decimal text"),
     ("a-decimal", Decimal("1.0"), TypeError, "a printed value is its decimal text"),
     ("none", None, TypeError, "a printed value is its decimal text"),
@@ -402,3 +404,17 @@ def test_r1_19_digests_and_hashes_are_seed_stable() -> None:
     require(one[0].startswith(str(_ROOT)), f"the subprocess imported {one[0]} (L22)")
     require(one[1:-1] == two[1:-1], f"digests or hashes moved with the seed:\n{one}\n{two}")
     require(one[-1] != two[-1], "control: the str hash did not move, so the seeds did not take effect")
+
+
+def test_r1_12_the_half_unit_ignores_the_callers_decimal_context() -> None:
+    """The half unit is exact under ANY decimal context: a caller's narrowed
+    context (here ``Emin=-99``, ``Emax=99``) must neither flush ``1.00E-200``'s
+    half unit to zero nor overflow on ``1.00E+150`` (qa, 2026-10-03: the
+    context-dependent ``Decimal(5).scaleb`` returned ``0E-126`` and raised)."""
+    import decimal
+
+    with decimal.localcontext() as context:
+        context.Emin, context.Emax = -99, 99
+        small, large = _P("1.00E-200").half_unit, _P("1.00E+150").half_unit
+    require(small == Decimal("5E-203"), f"half unit of 1.00E-200 under a narrowed context: {small}")
+    require(large == Decimal("5E+147"), f"half unit of 1.00E+150 under a narrowed context: {large}")

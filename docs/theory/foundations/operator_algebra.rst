@@ -7597,7 +7597,7 @@ only surface.
 :class:`~orpheus.numerics.outcome.ExitReport` replaces it with a
 closed sum, one member per reason:
 
-.. list-table:: ``Evidence = Measured | Certified | NotApplicable | NotYet``
+.. list-table:: ``Evidence = Measured | Asserted | NotApplicable | NotYet``
    :header-rows: 1
    :widths: 22 42 36
 
@@ -7607,7 +7607,7 @@ closed sum, one member per reason:
    * - :class:`~orpheus.numerics.outcome.Measured`
      - a number was measured on the returned state
      - ``value``
-   * - :class:`~orpheus.numerics.outcome.Certified`
+   * - :class:`~orpheus.numerics.outcome.Asserted`
      - no number was needed — the convergence-claim check **asserted** the
        bound, raising on a defect beyond it
      - ``bound``, ``by``
@@ -7635,7 +7635,7 @@ design:
    * - ``balance``
      - the per-group balance-defect ratio :math:`\lVert R_g(A\psi -
        q)\rVert / \lVert R_g(q)\rVert` (:ref:`sn-exit-balance-projection`)
-     - ``Measured`` (truncated exit); ``Certified`` (fully converged —
+     - ``Measured`` (truncated exit); ``Asserted`` (fully converged —
        the convergence-claim check already ASSERTED the bound, so
        no forward apply is spent); ``NotApplicable`` (the source
        integrates to zero per group — the ratio is undefined);
@@ -7658,7 +7658,7 @@ design:
    * - ``admissibility``
      - the multiplying-source problem's admissibility — the hub's own
        :math:`k_{\rm eff} < 1`, **with the tolerance it was measured at**
-     - ``Certified(k, "the hub's k-solve at keff_tol=…")``;
+     - ``Asserted(k, "the hub's k-solve at keff_tol=…")``;
        ``NotApplicable`` for a pure-transport or eigen posing
 
 Two deliberate absences are worth stating, because both are the kind of

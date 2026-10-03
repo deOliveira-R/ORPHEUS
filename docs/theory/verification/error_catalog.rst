@@ -7751,10 +7751,10 @@ older entries classify against.
       :class:`~orpheus.numerics.outcome.Evidence` on
       :attr:`ExitReport.balance
       <orpheus.numerics.outcome.ExitReport.balance>`, and the
-      converged case is :class:`~orpheus.numerics.outcome.Certified` —
+      converged case is :class:`~orpheus.numerics.outcome.Asserted` —
       which *says* that the convergence-claim check asserted the bound,
       rather than leaving a reader to infer it from an absence.  The
-      structural point above is unchanged: a ``Certified`` on the
+      structural point above is unchanged: a ``Asserted`` on the
       converged exit is still a statement about the ITERATE, not about
       the returned flux.
    4. **At** :math:`L = 0` **the reconstruction is correct, and** :math:`L = 0`

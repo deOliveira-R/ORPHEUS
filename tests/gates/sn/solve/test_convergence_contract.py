@@ -40,7 +40,7 @@ import warnings
 
 import numpy as np
 import pytest
-from orpheus.numerics.outcome import Certified, Measured
+from orpheus.numerics.outcome import Asserted, Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
@@ -1343,7 +1343,7 @@ class TestExitBalanceDefect:
         """No warning, no number — and the second half is the cost claim.
 
         ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) returns
-        ``Certified`` (then: ``None``) on a fully-converged tree BEFORE
+        ``Asserted`` (then: ``None``) on a fully-converged tree BEFORE
         evaluating anything, so the happy path keeps exactly the
         cost it had before N6b.  That guard is the complement of
         ``_check_convergence_claim``'s: the claim check fires when the
@@ -1359,7 +1359,7 @@ class TestExitBalanceDefect:
             warnings.simplefilter("error", ConvergenceWarning)
             sol = _fixed_source(max_inner=2000)
         assert sol.record.fully_converged is True
-        assert isinstance(sol.exit_report.balance, Certified), (
+        assert isinstance(sol.exit_report.balance, Asserted), (
             "a converged exit is CERTIFIED, not diagnosed — reporting a "
             "defect here means the guard was dropped and every converged "
             "solve is now paying for a residual it does not need"

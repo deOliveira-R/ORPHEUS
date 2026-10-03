@@ -51,12 +51,16 @@ class Printed(ContentIdentity):
         if not isinstance(self.text, str):
             raise TypeError(f"Printed: a printed value is its decimal text, got a {type(self.text).__name__}")
         try:
-            number = Decimal(self.text.strip())
+            # Python's numeric grouping underscore is not printed notation, though Decimal reads it.
+            number = Decimal(self.text.strip()) if "_" not in self.text else None
         except InvalidOperation:
-            raise ValueError(f"Printed: {self.text!r} is not a printed decimal number") from None
+            number = None
+        if number is None:
+            raise ValueError(f"Printed: {self.text!r} is not a printed decimal number")
         if not number.is_finite():
             raise ValueError(f"Printed: {self.text!r} is not a finite printed number")
-        if not math.isfinite(float(number)):
+        value = float(number)
+        if not math.isfinite(value) or (value == 0.0 and not number.is_zero()):
             raise ValueError(f"Printed: {self.text!r} lies beyond the range of a double")
         object.__setattr__(self, "text", str(number.copy_abs() if number.is_zero() else number))
         if not isinstance(self.citation, Citation):
@@ -76,7 +80,7 @@ class Printed(ContentIdentity):
     def half_unit(self) -> Decimal:
         """Half a unit in the last printed digit, exactly."""
         last_digit = int(Decimal(self.text).as_tuple().exponent)  # finite: admitted at construction
-        return Decimal(5).scaleb(last_digit - 1)
+        return Decimal((0, (5,), last_digit - 1))  # built from its digits, so no decimal context rounds it
 
 
 ReferenceReading: TypeAlias = Enclosure | Printed

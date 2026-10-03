@@ -1492,7 +1492,7 @@ def warn_if_unconverged(
         ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, as typed evidence
         (:class:`~orpheus.numerics.outcome.Measured` when the family computed
         one — SN's exit report; :class:`~orpheus.numerics.outcome.NotApplicable`
-        / :class:`~orpheus.numerics.outcome.NotYet` / :class:`~orpheus.numerics.outcome.Certified`
+        / :class:`~orpheus.numerics.outcome.NotYet` / :class:`~orpheus.numerics.outcome.Asserted`
         otherwise — CP, MoC and diffusion pass the default).  Only a MEASURED
         value renders; every other case is an ABSENT clause rather than the
         words "unavailable", because an empty

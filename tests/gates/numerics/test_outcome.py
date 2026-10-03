@@ -31,7 +31,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.outcome import (
-    Certified,
+    Asserted,
     EigenOutcome,
     Evidence,
     ExitReport,
@@ -148,7 +148,7 @@ def _describe(evidence: Evidence) -> str:
     match evidence:
         case Measured(value=v):
             return f"measured {v}"
-        case Certified(bound=b, by=by):
+        case Asserted(bound=b, by=by):
             return f"certified ≤ {b} by {by}"
         case NotApplicable(reason=r):
             return f"n/a: {r}"
@@ -160,7 +160,7 @@ def _describe(evidence: Evidence) -> str:
 
 class TestLawTheEvidenceSum:
     def test_law_every_member_constructs_and_the_sum_is_closed(self) -> None:
-        members = (Measured(0.31), Certified(1e-7, "within-group claim check"), NotApplicable("zero source"), NotYet(354, "the carrying eigen exit's coupled rhs"))
+        members = (Measured(0.31), Asserted(1e-7, "within-group claim check"), NotApplicable("zero source"), NotYet(354, "the carrying eigen exit's coupled rhs"))
         for m in members:
             _require(_describe(m), f"{m!r} is described by the exhaustive match")
         cert = ExitReport(balance=members[0], gauge=members[2], rayleigh_gap=members[0], admissibility=members[3])

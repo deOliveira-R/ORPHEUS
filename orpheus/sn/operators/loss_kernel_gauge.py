@@ -517,7 +517,7 @@ def warn_if_gauge_freedom(
         f"a solution manifold rather than to a point. {verdict.because}. The "
         f"trace returned is now the canonical minimum-norm member (the one the "
         f"exact solution sits at); the bulk, k and every reaction rate are "
-        f"unchanged, and no convergence certificate moved. "
+        f"unchanged, and no convergence check moved. "
         f"⚠ Nothing you could have checked would have shown this: every summed "
         f"functional of the trace is blind to the kernel by symmetry, so the "
         f"error surfaces only in a current TANGENTIAL to a reflective face. "
@@ -1143,7 +1143,7 @@ class LossKernelGauge(LinearOperator):
 
         The operation the solver actually performs.  Residual-neutral by
         construction: :math:`A(\psi - \Pi\psi) = A\psi` because
-        :math:`\Pi\psi \in \ker A`, so **no convergence certificate can move**.
+        :math:`\Pi\psi \in \ker A`, so **no convergence check can move**.
         """
         values = np.asarray(trace, dtype=float)
         return values - self.apply(values)
