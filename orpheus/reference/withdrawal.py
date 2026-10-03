@@ -1,7 +1,7 @@
 r"""A withdrawal: a maintainer ruling that a reference must not be believed (#405 P0; moved here at P2 step 5).
 
 A :class:`Withdrawal` ``(reason, issue)`` records that a reference (a
-derivation, or a published solution in erratum) is not fit to be cited as
+derivation, or a published solution found unfit as a whole) is not fit to be cited as
 evidence until the issue that records the ruling closes. It is one value
 read in three places that must agree (X4):
 
@@ -13,7 +13,10 @@ read in three places that must agree (X4):
 * a :class:`~orpheus.reference.published.PublishedSolution` and a
   :class:`~orpheus.reference.certificate.ReferenceCertificate` carry it as
   their standing, so a withdrawn reference reads as withdrawn wherever it is
-  held.
+  held. The standing is part of their content: a ruling changes their
+  identity, and a cache entry keyed on the old one misses. The environment
+  lift ``ORPHEUS_RUN_WITHDRAWN`` only lets a withdrawn generator RUN, for
+  investigation; it never makes a withdrawn reference a valid anchor.
 
 It lives in the input-tier reference package so that all three share the
 one class: the derivations import this package, never the converse. It

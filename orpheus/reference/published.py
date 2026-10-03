@@ -7,8 +7,12 @@ their values in different places, so citations are per value, never pooled.
 It reads what it prints and refuses anything else; it is never a source of
 a computed value.
 
-**Standing.** A publication is :class:`Current` or withdrawn by an erratum,
-:class:`~orpheus.reference.withdrawal.Withdrawal` ``(reason, issue)``. The
+**Standing.** A publication is :class:`Current`, or withdrawn by a maintainer
+ruling recorded in an issue, :class:`~orpheus.reference.withdrawal.Withdrawal`
+``(reason, issue)`` (a publication found unfit as a whole). An ERRATUM is not a
+withdrawal: it is a cited correction to one value, so it is data, a
+:class:`~orpheus.reference.reading.Printed` citing the erratum in place of
+the value it corrects. The
 same sum, :data:`Standing`, is the standing of a reference certificate, so a
 withdrawn reference reads as withdrawn wherever it is held. A withdrawn
 publication refuses every read, naming its issue.

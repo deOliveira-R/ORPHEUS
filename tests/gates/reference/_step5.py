@@ -61,7 +61,7 @@ def printed(text: str, locator: str = "Table 10", bibkey: str = "SoodForsterPars
     return c(READING, "Printed")(text, Citation(bibkey, locator))
 
 
-def withdrawal(reason: str = "an erratum moved the printed value", issue: int = 999) -> Any:
+def withdrawal(reason: str = "the publication was found unfit as a whole", issue: int = 999) -> Any:
     return c(WITHDRAWAL, "Withdrawal")(reason, issue)
 
 

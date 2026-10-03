@@ -253,7 +253,7 @@ def test_r5p_5_the_admission_is_the_specifications_one_function(monkeypatch: pyt
 ROSTER: tuple[Entry, ...] = (
     Entry(cls=s5.c("orpheus.reference.withdrawal", "Withdrawal"), base=s5.withdrawal, parts=("reason", "issue"),
           perturb={"reason": (leg("another reason", lambda: s5.c("orpheus.reference.withdrawal", "Withdrawal")("another reason", 999)),),
-                   "issue": (leg("another issue", lambda: s5.c("orpheus.reference.withdrawal", "Withdrawal")("an erratum moved the printed value", 1000)),)},
+                   "issue": (leg("another issue", lambda: s5.c("orpheus.reference.withdrawal", "Withdrawal")("the publication was found unfit as a whole", 1000)),)},
           pairs=(("two builds", s5.withdrawal, s5.withdrawal),)),
     Entry(cls=s5.c(s5.PUBLISHED, "Current"), base=s5.current, parts=(), perturb={},
           pairs=(("two builds", s5.current, s5.current),)),

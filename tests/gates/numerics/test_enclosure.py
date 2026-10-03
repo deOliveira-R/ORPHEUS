@@ -394,3 +394,34 @@ def test_r1_8_the_module_is_numerics() -> None:
     require("orpheus.numerics.content" in ours, f"activation: the content import is not seen in {ours}")
     outside = [m for m in ours if not m.startswith("orpheus.numerics")]
     require(not outside, f"imports outside numerics: {outside}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The step-5 review round: Enclosure.about and common_part
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("exact, radius", [(Fraction(1, 3), Fraction(0)), (Fraction(1, 10), Fraction(1, 10**7)),
+                                           (Fraction(-7, 3), Fraction(5, 10**20)), (Fraction(3, 4), Fraction(0))],
+                         ids=["third", "tenth-with-radius", "negative", "exact-double"])
+def test_about_contains_the_whole_ball(exact: Fraction, radius: Fraction) -> None:
+    """``Enclosure.about(x, r)`` contains every number within ``r`` of ``x``,
+    decided exactly; an exactly representable ``x`` with ``r = 0`` has bound 0."""
+    from orpheus.numerics.enclosure import Enclosure
+
+    e = Enclosure.about(exact, radius)
+    require(Fraction(e.value) - Fraction(e.bound) <= exact - radius, f"{e!r} misses the ball's lower end")
+    require(exact + radius <= Fraction(e.value) + Fraction(e.bound), f"{e!r} misses the ball's upper end")
+    if exact == Fraction(3, 4) and radius == 0:
+        require(e.bound == 0.0, f"an exact double has bound {e.bound}")
+
+
+def test_common_part_is_every_pair_meeting() -> None:
+    """On a line a family shares a point iff every pair meets: three pairwise
+    meeting enclosures share one; two disjoint ones share none."""
+    from orpheus.numerics.enclosure import Enclosure, common_part
+
+    family = [Enclosure(1.0, 0.5), Enclosure(1.4, 0.5), Enclosure(0.8, 0.5)]
+    part = common_part(family)
+    require(part is not None and part[0] <= 1.3 and 0.9 <= part[1], f"{part!r}")
+    require(common_part([Enclosure(0.0, 0.1), Enclosure(1.0, 0.1)]) is None, "disjoint pair shares a point")

@@ -436,3 +436,55 @@ def test_r5c_10_equal_content_is_one_value(entry: Entry, pair: Any) -> None:
 @pytest.mark.parametrize("entry", ROSTER, ids=[e.id for e in ROSTER])
 def test_r5c_10_pickle(entry: Entry) -> None:
     check_pickle(entry)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The step-5 review round (qa and the elegance review, 2026-10-03)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def test_r5c_1_an_exact_expression_whose_value_cannot_be_certified_is_refused() -> None:
+    """``cos(π/7) − cos(2π/7) + cos(3π/7) − 1/2`` is exactly 0 and SymPy does
+    not simplify it to 0, so a plain ``evalf`` returns a value of order 1e-191
+    whose stated accuracy is false: the old enclosure, −1.40e−191 ± 1.40e−250,
+    excluded 0 (the elegance review's blocker). Strict evaluation refuses it at
+    construction instead of enclosing the wrong number."""
+    import sympy
+
+    pi = sympy.pi
+    expression = sympy.cos(pi / 7) - sympy.cos(2 * pi / 7) + sympy.cos(3 * pi / 7) - sympy.Rational(1, 2)
+    with pytest.raises(ValueError, match="cannot be evaluated"):
+        s5.exact(expression)
+
+
+def test_r5c_1_a_near_integer_is_still_certified() -> None:
+    """The positive leg: ``e^(π√163)`` is within 1e-12 of an integer, and strict
+    evaluation still certifies it; its enclosure contains the 120-digit value."""
+    import mpmath
+    import sympy
+
+    e = s5.exact(sympy.exp(sympy.pi * sympy.sqrt(163))).enclosure()
+    with mpmath.workdps(120):
+        truth = mpmath.exp(mpmath.pi * mpmath.sqrt(163))
+        low, high = e.ends()
+        require(mpmath.mpf(low) <= truth <= mpmath.mpf(high), f"{e!r} misses {truth}")
+
+
+def test_r5c_7_anchors_and_refinements_must_agree_with_each_other() -> None:
+    """Every enclosure of one observable encloses its one exact value, so the
+    family shares a point (Helly in one dimension). A wide claim meeting an
+    anchor at 0.50 and a refinement whose common part is [9.2, 10] is Invalid,
+    although each pairs with the claim (the elegance review's finding 2)."""
+    anchor = s5.published(spec=s5.eigen_medium(), printed_map={s5.eigenvalue(): s5.printed("0.50")}, standing=None)
+    r = s5.refinement(s5.eigenvalue(), _members((0.2, 9.6, 0.4), (0.1, 9.6, 0.4)))
+    cert = s5.certificate({s5.eigenvalue(): s5.claim(10.0, s5.derived(5.0, 5.0))},
+                          corroborations=[s5.corroboration(anchor)], refinements=[r])
+    state = cert.state
+    require(type(state).__name__ == "Invalid", f"state {state!r}")
+    require(any("share no point with each other" in reason for reason in state.reasons), f"{state.reasons}")
+
+
+@pytest.mark.parametrize("reasons", [(), ("",), (1,)], ids=["empty", "blank", "not-text"])
+def test_r5c_8_an_invalid_state_names_a_reason(reasons: Any) -> None:
+    with pytest.raises(ValueError):
+        s5.c(s5.CERTIFICATE, "Invalid")(reasons)

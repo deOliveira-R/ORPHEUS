@@ -144,6 +144,13 @@ def parse_index(value: object, where: str, noun: str) -> int:
     return parsed
 
 
+def parse_text(value: object, where: str, noun: str) -> str:
+    """A non-empty text (a reason, a method, a note) as a ``str``, or a keyed refusal."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{where}: {noun} is a non-empty text, got {value!r}")
+    return value
+
+
 def parse_member(value: object, kinds: tuple[type, ...], where: str, noun: str, what: str) -> object:
     """A value that is an instance of one of ``kinds`` (the members of a closed sum), or a keyed refusal.
 
@@ -193,6 +200,7 @@ __all__ = [
     "parse_finite_real",
     "parse_index",
     "parse_member",
+    "parse_text",
     "parse_finite_reals",
     "parse_integer",
     "parse_positions",

@@ -200,8 +200,9 @@ def withdrawn_generator(
     **ELEGANCE-DEBT[guard] #506** — a run-time refusal stands where the
     reference machinery cannot yet say "this reference is withdrawn" as a
     value; it retires at phase P4 of ``.claude/plans/reference_cache.md``,
-    when the ``ReferenceCertificate`` carries the ``Withdrawn(reason,
-    issue)`` state and a withdrawn generator is never called.
+    when the ``ReferenceCertificate`` carries the
+    :class:`~orpheus.reference.withdrawal.Withdrawal` as its standing (built
+    at #405 P2 step 5) and a withdrawn generator is never called.
     """
 
     def lock(generator: Callable[_P, _R]) -> Callable[_P, _R]:

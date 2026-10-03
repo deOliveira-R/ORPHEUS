@@ -24,9 +24,14 @@ and the claim's enclosure must meet that common part. Its observed orders
 are reported and never decide anything.
 
 **Corroboration.** A :class:`PublishedSolution` of the same problem is an
-anchor (:class:`Corroboration`): wherever it prints an observable the
-certificate claims, the printed interval and the claimed enclosure must
-intersect, decided on the outward-rounded ends. Monte Carlo and a fine-mesh
+anchor (:class:`Corroboration`). The certificate holds no specification, so
+"the same problem" is enforced by the reference solution that holds the
+certificate (P2 step 6: the anchor's specification equals the holder's, and
+every claim passes :func:`~orpheus.specification.admit_observable`).
+Every enclosure the certificate holds for one observable (the claim, each
+anchor's printed interval, each refinement member) encloses its one exact
+value, so the family must share a point, decided on the outward-rounded
+ends (never calling intersecting intervals disjoint). Monte Carlo and a fine-mesh
 production run are never anchors (#505), and cannot be spelled as one.
 
 **The state is derived, never stored** (:attr:`ReferenceCertificate.state`):
@@ -44,14 +49,14 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from fractions import Fraction
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeAlias, cast, final, get_args
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, TypeAlias, cast, final, get_args
 
 from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
-from orpheus.numerics.enclosure import Enclosure
+from orpheus.numerics.enclosure import Enclosure, common_part
 from orpheus.numerics.mesh_free_function import parse_srepr
 from orpheus.numerics.observable import Observable
-from orpheus.numerics.scalars import parse_finite_real, parse_member, parse_positive_real
+from orpheus.numerics.scalars import parse_finite_real, parse_member, parse_positive_real, parse_text
 from orpheus.reference.published import Current, PublishedSolution, Standing
 from orpheus.reference.withdrawal import Withdrawal
 
@@ -75,12 +80,6 @@ __all__ = [
 _EXACT_DIGITS = 60
 
 
-def _named(text: object, where: str, noun: str) -> str:
-    if not isinstance(text, str) or not text.strip():
-        raise ValueError(f"{where}: {noun} is a non-empty text, got {text!r}")
-    return text
-
-
 @final
 @dataclass(frozen=True, eq=False)
 class Exact(ContentIdentity):
@@ -98,33 +97,35 @@ class Exact(ContentIdentity):
         if parsed.free_symbols or not parsed.is_real or not parsed.is_finite:
             raise ValueError(f"Exact: the expression must be a finite real constant, got {parsed}")
         object.__setattr__(self, "expression", sympy.srepr(parsed))
-        object.__setattr__(self, "by", _named(self.by, "Exact", "the self-check"))
+        object.__setattr__(self, "by", parse_text(self.by, "Exact", "the self-check"))
+        self.enclosure()  # an expression whose value cannot be certified to the working precision is refused here
         content_digest(self)
 
     def enclosure(self) -> Enclosure:
-        """The double nearest the exact value, and the rounding between them, bounded from above."""
-        import mpmath
+        """The double nearest the exact value, and the rounding between them, bounded from above.
+
+        A rational is exact. Any other expression is evaluated by SymPy's
+        ``evalf`` in STRICT mode, which raises rather than return a value it
+        cannot certify to the requested digits (cancellation: an expression
+        that is exactly zero without SymPy proving it), so the stated
+        accuracy is a guarantee and not a hope; the error is then bounded by
+        one unit in the last working digit.
+        """
         import sympy
+        from sympy.core.evalf import PrecisionExhausted
 
         value = cast("sympy.Expr", sympy.sympify(parse_srepr(self.expression, "Exact: the expression")))
         if isinstance(value, sympy.Rational):
-            exact_rational = Fraction(int(value.p), int(value.q))
-            centre = float(exact_rational)
-            gap_rational = abs(Fraction(centre) - exact_rational)
-            bound = float(gap_rational)
-            if Fraction(bound) < gap_rational:
-                bound = math.nextafter(bound, math.inf)
-            return Enclosure(centre, bound)
-        with mpmath.workdps(_EXACT_DIGITS):
-            exact = mpmath.mpf(value.evalf(_EXACT_DIGITS))
-            centre = float(exact)
-            # the evaluation's own error is below one unit in the working precision's last digit
-            evaluation = abs(exact) * mpmath.mpf(10) ** (1 - _EXACT_DIGITS)
-            gap = abs(mpmath.mpf(centre) - exact) + evaluation
-            bound = float(gap)
-            if mpmath.mpf(bound) < gap:
-                bound = math.nextafter(bound, math.inf)
-        return Enclosure(centre, bound)
+            return Enclosure.about(Fraction(int(value.p), int(value.q)))
+        try:
+            approximation = value.evalf(_EXACT_DIGITS, strict=True)
+        except PrecisionExhausted:
+            raise ValueError(
+                f"Exact: {value} cannot be evaluated to {_EXACT_DIGITS} certified digits (cancellation, or a value "
+                f"that is exactly zero without SymPy proving it); simplify it to a form whose value is certified"
+            ) from None
+        rational = Fraction(str(sympy.Rational(approximation)))
+        return Enclosure.about(rational, abs(rational) * Fraction(10) ** (1 - _EXACT_DIGITS))
 
 
 @final
@@ -137,7 +138,7 @@ class DerivedBound(ContentIdentity):
 
     def __post_init__(self) -> None:
         parse_member(self.derived, (Enclosure,), "DerivedBound", "the enclosure", "an enclosure")
-        object.__setattr__(self, "method", _named(self.method, "DerivedBound", "the method"))
+        object.__setattr__(self, "method", parse_text(self.method, "DerivedBound", "the method"))
         content_digest(self)
 
     def enclosure(self) -> Enclosure:
@@ -181,7 +182,7 @@ class Corroboration(ContentIdentity):
             raise ValueError(
                 f"Corroboration: the anchor is withdrawn (#{self.anchor.standing.issue}: {self.anchor.standing.reason})"
             )
-        object.__setattr__(self, "independence", _named(self.independence, "Corroboration", "the independence note"))
+        object.__setattr__(self, "independence", parse_text(self.independence, "Corroboration", "the independence note"))
         content_digest(self)
 
 
@@ -214,9 +215,7 @@ class Refinement(ContentIdentity):
 
     def common_part(self) -> tuple[float, float] | None:
         """The interval every member's enclosure contains, or ``None`` if they share no point."""
-        low = max(enclosure.ends()[0] for _, enclosure in self.members)
-        high = min(enclosure.ends()[1] for _, enclosure in self.members)
-        return (low, high) if low <= high else None
+        return common_part(enclosure for _, enclosure in self.members)
 
     def observed_orders(self) -> tuple[float, ...]:
         """The order each three consecutive members suggest; reported, never decisive."""
@@ -243,15 +242,16 @@ class Invalid(ContentIdentity):
 
     reasons: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        reasons = tuple(self.reasons)
+        if not reasons:
+            raise ValueError("Invalid: an invalid certificate names at least one reason")
+        object.__setattr__(self, "reasons", tuple(parse_text(reason, "Invalid", "a reason") for reason in reasons))
+        content_digest(self)
+
 
 State: TypeAlias = Valid | Invalid | Withdrawal
 """A reference certificate's state, derived from its claims, its evidence and its standing."""
-
-
-def _meets(a: Enclosure, b: Enclosure) -> bool:
-    low_a, high_a = a.ends()
-    low_b, high_b = b.ends()
-    return max(low_a, low_b) <= min(high_a, high_b)
 
 
 @final
@@ -260,9 +260,9 @@ class ReferenceCertificate(ContentIdentity):
     """A reference's claims per observable, the evidence that can refute them, and its standing."""
 
     claims: Mapping[Observable, Claim]
-    corroborations: tuple[Corroboration, ...] = ()
-    refinements: tuple[Refinement, ...] = ()
-    standing: Standing = field(default_factory=Current)
+    corroborations: tuple[Corroboration, ...]
+    refinements: tuple[Refinement, ...]
+    standing: Standing
 
     def __post_init__(self) -> None:
         if not isinstance(self.claims, Mapping) or not self.claims:
@@ -288,7 +288,18 @@ class ReferenceCertificate(ContentIdentity):
 
     @property
     def state(self) -> State:
-        """Derived: the withdrawal, or every failed check, or valid."""
+        """Derived: the withdrawal, or every failed check, or valid.
+
+        Every enclosure the certificate holds for one observable (the claim,
+        each anchor's printed value, each refinement member) encloses the one
+        exact value, so together they must share a point; on a line that is
+        every pair meeting, decided once by
+        :func:`~orpheus.numerics.enclosure.common_part`. When the family
+        shares no point, the reason names the first failing witnesses: a
+        refinement disagreeing with itself, the claim against the refinement,
+        the claim against an anchor, or the anchors and refinements among
+        themselves.
+        """
         match self.standing:
             case Withdrawal():
                 return self.standing
@@ -296,23 +307,28 @@ class ReferenceCertificate(ContentIdentity):
                 pass
         reasons: list[str] = []
         for observable, claim in self.claims.items():
-            enclosure: Any = claim.enclosure()
-            if enclosure.bound > claim.target:
-                reasons.append(f"{observable!r}: the bound {enclosure.bound!r} exceeds the target {claim.target!r}")
-        for corroboration in self.corroborations:
-            for observable, printed in corroboration.anchor.printed.items():
-                claim = self.claims.get(observable)
-                if claim is not None and not _meets(claim.enclosure(), printed.enclosure()):
+            failed_before = len(reasons)
+            claimed: Enclosure = claim.enclosure()
+            if claimed.bound > claim.target:
+                reasons.append(f"{observable!r}: the bound {claimed.bound!r} exceeds the target {claim.target!r}")
+            refinements = [refinement for refinement in self.refinements if refinement.observable == observable]
+            anchors = [
+                (corroboration, corroboration.anchor.read(observable))
+                for corroboration in self.corroborations
+                if observable in corroboration.anchor.printed
+            ]
+            members = [enclosure for refinement in refinements for _, enclosure in refinement.members]
+            for refinement in refinements:
+                if refinement.common_part() is None:
+                    reasons.append(f"{observable!r}: the refinement's enclosures share no point")
+            if members and common_part(members) is not None and common_part([claimed, *members]) is None:
+                reasons.append(f"{observable!r}: the claim misses the refinement's common part {common_part(members)!r}")
+            for _, printed in anchors:
+                if common_part([claimed, printed.enclosure()]) is None:
                     reasons.append(
-                        f"{observable!r}: the claim {claim.enclosure()!r} and the anchor's printed "
+                        f"{observable!r}: the claim {claimed!r} and the anchor's printed "
                         f"{printed.text} ({printed.citation.bibkey}, {printed.citation.locator}) are disjoint"
                     )
-        for refinement in self.refinements:
-            common = refinement.common_part()
-            if common is None:
-                reasons.append(f"{refinement.observable!r}: the refinement's enclosures share no point")
-                continue
-            low, high = self.claims[refinement.observable].enclosure().ends()
-            if max(low, common[0]) > min(high, common[1]):
-                reasons.append(f"{refinement.observable!r}: the claim misses the refinement's common part {common!r}")
+            if len(reasons) == failed_before and common_part([claimed, *members, *(printed.enclosure() for _, printed in anchors)]) is None:
+                reasons.append(f"{observable!r}: the anchors and the refinements share no point with each other")
         return Invalid(tuple(reasons)) if reasons else Valid()

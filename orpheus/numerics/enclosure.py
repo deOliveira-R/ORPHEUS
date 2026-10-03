@@ -33,12 +33,14 @@ pass for a claim.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
+from fractions import Fraction
 
 from orpheus.numerics.content import ContentIdentity, content_digest
 from orpheus.numerics.scalars import parse_finite_real
 
-__all__ = ["Enclosure"]
+__all__ = ["Enclosure", "common_part"]
 
 
 def _down(x: float) -> float:
@@ -66,6 +68,22 @@ class Enclosure(ContentIdentity):
         object.__setattr__(self, "bound", bound)
         content_digest(self)
 
+    @classmethod
+    def about(cls, exact: Fraction, radius: Fraction = Fraction(0)) -> Enclosure:
+        """The enclosure of every number within ``radius`` of the rational ``exact``.
+
+        The centre is the double nearest ``exact``; the bound is the radius
+        plus that rounding, computed exactly and rounded UP to a double, so
+        the enclosure contains the whole closed ball. The one place an
+        exact claim becomes a pair of doubles.
+        """
+        centre = float(exact)
+        gap = Fraction(radius) + abs(Fraction(centre) - exact)
+        bound = float(gap)
+        if Fraction(bound) < gap:
+            bound = _up(bound)
+        return cls(centre, bound)
+
     def ends(self) -> tuple[float, float]:
         """The interval's ends as doubles, each rounded outward: a superset of the claimed interval."""
         return _down(self.value - self.bound), _up(self.value + self.bound)
@@ -89,3 +107,20 @@ class Enclosure(ContentIdentity):
                 f"Enclosure: the quotient {self!r} / {other!r} overflows a double once rounded outward: its bound would be infinite"
             )
         return Enclosure(centre, half_width)
+
+
+def common_part(enclosures: Iterable[Enclosure]) -> tuple[float, float] | None:
+    """The interval every enclosure contains (on the outward-rounded ends), or ``None`` if they share no point.
+
+    Enclosures of ONE exact value all contain it, so they share a point; on a
+    line a family of intervals shares a point exactly when every pair meets
+    (Helly's theorem in one dimension), so one test over the whole family
+    decides every pairwise agreement at once. The ends are the outward-rounded
+    ones, so two enclosures whose exact intervals meet are never called
+    disjoint.
+    """
+    ends = [enclosure.ends() for enclosure in enclosures]
+    if not ends:
+        raise ValueError("common_part: no enclosure was given")
+    low, high = max(low for low, _ in ends), min(high for _, high in ends)
+    return (low, high) if low <= high else None

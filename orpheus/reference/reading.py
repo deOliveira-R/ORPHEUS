@@ -37,6 +37,7 @@ from typing import TypeAlias
 from orpheus.data.citation import Citation
 from orpheus.numerics.content import ContentIdentity, content_digest
 from orpheus.numerics.enclosure import Enclosure
+from orpheus.numerics.scalars import parse_member
 
 __all__ = ["Printed", "ReferenceReading"]
 
@@ -64,8 +65,7 @@ class Printed(ContentIdentity):
         if not math.isfinite(value) or (value == 0.0 and not number.is_zero()):
             raise ValueError(f"Printed: {self.text!r} lies beyond the range of a double")
         object.__setattr__(self, "text", str(number.copy_abs() if number.is_zero() else number))
-        if not isinstance(self.citation, Citation):
-            raise TypeError(f"Printed: the citation is a Citation, got a {type(self.citation).__name__}")
+        parse_member(self.citation, (Citation,), "Printed", "the citation", "a citation")
         if self.citation.locator is None:
             raise ValueError(
                 f"Printed: the citation {self.citation.bibkey!r} has no locator; a printed value is printed at a place"
@@ -84,21 +84,8 @@ class Printed(ContentIdentity):
         return Decimal((0, (5,), last_digit - 1))  # built from its digits, so no decimal context rounds it
 
     def enclosure(self) -> Enclosure:
-        """The printed claim as an enclosure: the double nearest the text, and a bound rounded outward.
-
-        The author claims the exact value lies within half a unit of the last
-        printed digit of the TEXT; the double :attr:`value` differs from the
-        text by its rounding. The bound is the half unit plus that rounding,
-        computed exactly in rationals and rounded up to a double, so the
-        enclosure contains every number the printed claim admits.
-        """
-        exact = Fraction(Decimal(self.text))
-        centre = self.value
-        bound = Fraction(self.half_unit) + abs(Fraction(centre) - exact)
-        rounded = float(bound)
-        if Fraction(rounded) < bound:
-            rounded = math.nextafter(rounded, math.inf)
-        return Enclosure(centre, rounded)
+        """The printed claim as an enclosure: every number within half a unit of the printed text."""
+        return Enclosure.about(Fraction(Decimal(self.text)), Fraction(self.half_unit))
 
 
 ReferenceReading: TypeAlias = Enclosure | Printed
