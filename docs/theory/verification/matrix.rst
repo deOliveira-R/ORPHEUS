@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15106**
+Total tests collected: **15173**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1348, 8.9%
-   L1, 2250, 14.9%
+   L1, 2250, 14.8%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11410, 75.5%
+   foundation, 11477, 75.6%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15000
+   explicit, 15067
    class-name, 46
    func-name, 0
    case, 33
@@ -390,6 +390,7 @@ Module × level grid
    numerics/test_content_identity, 0, 0, 0, 0, 46, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
+   numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 50, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
@@ -433,6 +434,7 @@ Module × level grid
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
+   numerics/test_observable, 0, 0, 0, 0, 39, 0
    numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
@@ -613,7 +615,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 432, 0
+   test_layer_imports, 0, 0, 0, 0, 434, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
