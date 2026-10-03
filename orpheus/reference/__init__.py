@@ -1,4 +1,4 @@
-"""The reference solutions: their readings, and later the solutions and certificates (#405 P2).
+"""The reference solutions: their readings, withdrawals, published solutions and certificates (#405 P2).
 
 An input-tier package above :mod:`orpheus.specification`: it may import the
 specification, :mod:`orpheus.numerics`, :mod:`orpheus.data` and

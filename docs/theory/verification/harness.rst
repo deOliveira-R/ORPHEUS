@@ -555,15 +555,15 @@ the analytical identities of its ``reference`` module and the PS-1982
 reference stay in service; :ref:`theory-peierls-nystrom` states which
 half a symbol belongs to.
 
-One value, read in two places
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+One value, read in three places
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A withdrawal is one value,
 :class:`~orpheus.reference.withdrawal.Withdrawal`, a frozen
 pair ``(reason, issue)``. Its constructor refuses an empty reason and
 an issue that is not a positive ``int`` (a ``bool`` or a numeric
 string is refused too), and each refusal names the field. The value
-is read in two places that must agree:
+is read in three places that must agree:
 
 - **statically, by the test harness**, from the marker
   ``@pytest.mark.withdrawn(reason, issue=N)`` on every test that
@@ -574,14 +574,32 @@ is read in two places that must agree:
   (``TestMetadata.withdrawn``), where the audit reads it;
 - **at run time, by the generator**, which is decorated with
   :func:`~orpheus.derivations.common.withdrawal.withdrawn_generator`
-  and refuses the call (the lock, below).
+  and refuses the call (the lock, below);
+- **as the standing of a reference value**: a
+  :class:`~orpheus.reference.published.PublishedSolution` and a
+  :class:`~orpheus.reference.certificate.ReferenceCertificate` carry a
+  :data:`~orpheus.reference.published.Standing`, which is
+  :class:`~orpheus.reference.published.Current` or a ``Withdrawal``, and
+  a withdrawn certificate's derived
+  :attr:`~orpheus.reference.certificate.ReferenceCertificate.state` is the
+  ``Withdrawal`` itself (:doc:`/api/reference`).
 
-The type lives in :mod:`orpheus.derivations.common.withdrawal`, in
-production, because the lock is production code, and the conftest
-imports the same type, so the marker's parser and the lock share one
-definition. The module imports nothing outside the standard library
-and nothing from ``pytest``: ``from_mark`` reads a marker only through
-its ``args`` and ``kwargs`` fields.
+The type lives in :mod:`orpheus.reference.withdrawal`, the input-tier
+reference package, so that all three readers share one class. It moved
+there from the derivations at #405 P2 step 5, when the published solution
+and the reference certificate began to carry it as their standing: the
+derivations import the reference package and never the converse, so the
+lowest home every reader can import is the reference package. The lock
+stays in :mod:`orpheus.derivations.common.withdrawal`, in production,
+because the lock is production code; it imports the type from the
+reference package, and the conftest imports the same type, so the
+marker's parser, the lock and the standing share one definition. The
+value's module imports nothing from ``pytest``: ``from_mark`` reads a
+marker only through its ``args`` and ``kwargs`` fields. It does import
+the content encoder, :mod:`orpheus.numerics.content`, because a
+``Withdrawal`` is a content value: the standing is part of the content
+of the values that carry it, so a ruling changes their identity, and a
+cache entry keyed on the old identity misses.
 
 For #506 the value is the package constant
 ``PEIERLS_NYSTROM_WITHDRAWAL`` (in
@@ -907,15 +925,19 @@ The lock is tagged ``ELEGANCE-DEBT[guard] #506`` in its docstring. It
 is a run-time refusal standing where the reference machinery cannot
 yet state "this reference is withdrawn" as a value. The
 reference-solution architecture (#405, plan
-``.claude/plans/reference_cache.md``) gives every reference solution a
-certificate whose state is ``Valid``, ``Invalid`` (tripped
-automatically by a failed check) or ``Withdrawn`` (a committed
-declaration with a reason and an open issue; the generator never
-runs). At its phase P4, when each family's generator returns a
-certified reference, the ``withdrawn`` markers become ``Withdrawn``
-certificate states and the decorator, the conftest hook and the
-audit's split retire with them. Until then this section describes the
-mechanism of record.
+``.claude/plans/reference_cache.md``) gives a reference solution a
+certificate, :class:`~orpheus.reference.certificate.ReferenceCertificate`,
+whose state is derived on every read and never stored:
+:class:`~orpheus.reference.certificate.Valid`,
+:class:`~orpheus.reference.certificate.Invalid` (with the reason of every
+check that failed), or, when the certificate's standing is a
+``Withdrawal``, that ``Withdrawal`` (a committed declaration with a
+reason and an open issue). The type exists since #405 P2 step 5, and no
+reference generator returns a certificate yet. At the plan's phase P4,
+when each family's generator returns a certified reference, the
+``withdrawn`` markers become withdrawn certificate standings and the
+decorator, the conftest hook and the audit's split retire with them.
+Until then this section describes the mechanism of record.
 
 Nothing checks today that the issue a marker names is still open: a
 withdrawal whose issue has closed keeps skipping its tests until

@@ -592,6 +592,53 @@ deferred, the rulings and the retired 2026-09-25 cases, and the gates, is
 
 .. autoclass:: orpheus.numerics.question.Nearest
 
+Enclosures — :mod:`orpheus.numerics.enclosure`, a real number's
+enclosure: ``Enclosure(value, bound)`` claims that the exact number lies in
+the closed interval :math:`[v - b, v + b]`, a guarantee and never an
+estimate; an exact value is the enclosure with bound 0, written once by
+:meth:`~orpheus.numerics.enclosure.Enclosure.about` at the place it enters.
+The quotient of two enclosures encloses every quotient of their members,
+each floating-point step rounded outward, and a denominator whose enclosure
+holds zero is refused. :func:`~orpheus.numerics.enclosure.common_part`
+decides whether a family of enclosures of one exact value shares a point,
+on the outward-rounded ends. It is the form of a reference's reading
+(:mod:`orpheus.reference`).
+
+.. automodule:: orpheus.numerics.enclosure
+
+.. autoclass:: orpheus.numerics.enclosure.Enclosure
+   :members: about, ends
+   :special-members: __truediv__
+   :undoc-members:
+
+.. autofunction:: orpheus.numerics.enclosure.common_part
+
+Observables — :mod:`orpheus.numerics.observable`, what is read off an
+answer, with no mesh and no physics in it: the closed sum
+:data:`~orpheus.numerics.observable.Observable` of
+:class:`~orpheus.numerics.observable.FluxIntegral` ``(weight)``,
+:class:`~orpheus.numerics.observable.Ratio` ``(numerator, denominator)``,
+:class:`~orpheus.numerics.observable.Eigenvalue` ``()`` and
+:class:`~orpheus.numerics.observable.PointValue` ``(position, group)``;
+:data:`~orpheus.numerics.observable.Linear` is the two members linear in
+the flux, the only operands a ratio takes. Whether an observable fits a
+problem is decided by the specification,
+:func:`~orpheus.specification.specification.admit_observable`.
+
+.. automodule:: orpheus.numerics.observable
+
+.. autoclass:: orpheus.numerics.observable.FluxIntegral
+
+.. autoclass:: orpheus.numerics.observable.Ratio
+
+.. autoclass:: orpheus.numerics.observable.Eigenvalue
+
+.. autoclass:: orpheus.numerics.observable.PointValue
+
+.. autodata:: orpheus.numerics.observable.Linear
+
+.. autodata:: orpheus.numerics.observable.Observable
+
 Scalars — :mod:`orpheus.numerics.scalars`, the one definition of "a real
 number" that the content encoder, the data layer, the geometry, the mesh
 and the numerics values all parse through: NaN refused, ``-0.0`` made

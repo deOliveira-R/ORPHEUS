@@ -5,9 +5,10 @@ same number whichever answer is asked: a production solution on a mesh, a
 reference solution in its own representation, or a published table. Every
 answer will read it its own way, ``answer.read(observable)`` (the user's
 ruling "G1" of 2026-10-02: the answers grow, the observables do not, so the
-answer is the receiver; the first ``read`` lands at #405 P2 step 6), and
+answer is the receiver; the first ``read``, the published solution's,
+landed at #405 P2 step 5), and
 return a reading typed by whose claim it is
-(:data:`orpheus.reference.ReferenceReading` or
+(:data:`orpheus.reference.reading.ReferenceReading` or
 :data:`orpheus.numerics.outcome.ProductionReading`).
 
 The closed set (the user's ruling of 2026-10-03):
@@ -44,8 +45,9 @@ The closed set (the user's ruling of 2026-10-03):
 Whether an observable FITS a problem (a weight's group count, region count
 and the coordinates a ``Symbolic`` weight may depend on; a point's group and
 position; an eigenvalue asked of an eigen question) is decided where the
-problem is known, once, by the specification (P2 step 6), never here and never
-again inside each answer's ``read``.
+problem is known, once, by the specification
+(:func:`~orpheus.specification.specification.admit_observable`), never here and
+never again inside each answer's ``read``.
 
 **Closed.** Each member is ``@final``: a subclass would pass every
 ``isinstance`` door while a ``match`` over the sum sends it to its parent's
@@ -115,7 +117,7 @@ class PointValue(ContentIdentity):
 
 
 Linear: TypeAlias = FluxIntegral | PointValue
-"""The observables linear in the flux: the operands of a :class:`Ratio`."""
+"""The observables linear in the flux, the operands of a :class:`Ratio`."""
 
 Observable: TypeAlias = FluxIntegral | Ratio | Eigenvalue | PointValue
-"""What is read off an answer: a closed set (#405 P2, the user's ruling of 2026-10-03)."""
+"""What is read off an answer, a closed set (#405 P2, the user's ruling of 2026-10-03)."""

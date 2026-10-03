@@ -18,9 +18,9 @@ withdrawn reference reads as withdrawn wherever it is held. A withdrawn
 publication refuses every read, naming its issue.
 
 **Admission.** The specification is a
-:data:`~orpheus.specification.Specification`; every printed observable must
+:data:`~orpheus.specification.specification.Specification`; every printed observable must
 be one the specification can pose
-(:func:`~orpheus.specification.admit_observable`, the one admission every
+(:func:`~orpheus.specification.specification.admit_observable`, the one admission every
 reader reuses), so a publication cannot print an eigenvalue for a source
 question or a point value on the infinite medium.
 

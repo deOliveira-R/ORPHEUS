@@ -555,11 +555,18 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   generator-less (a gated contract); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
-- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs twice under
-  ``orpheus/``: the full-field carrier (#457), and the lock on withdrawn
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs four times
+  under ``orpheus/``: the full-field carrier (#457); the lock on withdrawn
   reference generators in ``orpheus/derivations/common/withdrawal.py``
-  (#506, retired when reference certificates carry a ``Withdrawn``
-  state; :ref:`vv-withdrawn-generators`); ``# TODO`` once;
-  ``raise NotImplementedError`` 66 times in 24 files under ``orpheus/``
-  excluding ``derivations/`` (112 in 35 with it), the population a
-  retirement audit walks.
+  (#506, retired when each reference family's generator returns a
+  :class:`~orpheus.reference.certificate.ReferenceCertificate` whose
+  standing carries the
+  :class:`~orpheus.reference.withdrawal.Withdrawal`;
+  :ref:`vv-withdrawn-generators`); the Sood registry's refusal of a case
+  with no citation (#405, retired when a published solution replaces the
+  registry's case class); and the boundary composition's check on its
+  direct children (#551, retired when the composition's operands are typed
+  as responses). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
+  times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
+  39 with it), the population a retirement audit walks (``[M]``
+  2026-10-03, a line count over ``orpheus/**/*.py``).

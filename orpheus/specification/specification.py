@@ -198,9 +198,12 @@ def admit_observable(observable: Observable, specification: Specification) -> No
     on); a ratio's two operands must each fit; a point value's group must be
     one of the problem's and its position must lie on the geometry, so the
     infinite medium, which has no position, refuses it; an eigenvalue exists
-    only for an eigen question. Every answer's ``read`` calls this before it
-    reads, so the refusal is decided once (#405 P2, the elegance review of
-    step 3).
+    only for an eigen question. A reader admits an observable once, at the
+    point it accepts it (a
+    :class:`~orpheus.reference.published.PublishedSolution` at construction,
+    for every observable it prints; a reference solution's ``read`` at #405
+    P2 step 6), so the refusal is decided once (#405 P2, the elegance review
+    of step 3).
     """
     where = type(specification).__name__
     match observable:

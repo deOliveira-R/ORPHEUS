@@ -66,14 +66,14 @@ Submodules
      - Lazy registry and lookup helpers (``get``, ``all_names``,
        ``by_geometry``, ``by_groups``, ``by_method``).
    * - :mod:`~orpheus.derivations.common.withdrawal`
-     - The withdrawal of a reference generator:
-       :class:`~orpheus.reference.withdrawal.Withdrawal`
-       ``(reason, issue)``, the lock
+     - The lock on a withdrawn reference generator:
        :func:`~orpheus.derivations.common.withdrawal.withdrawn_generator`
        and its refusal
        :class:`~orpheus.derivations.common.withdrawal.GeneratorWithdrawn`,
-       lifted by ``ORPHEUS_RUN_WITHDRAWN`` (see
-       :ref:`vv-withdrawn-generators`).
+       lifted by ``ORPHEUS_RUN_WITHDRAWN``, keyed on the value
+       :class:`~orpheus.reference.withdrawal.Withdrawal`
+       ``(reason, issue)``, which lives in the reference package
+       (see :ref:`vv-withdrawn-generators`).
    * - :mod:`~orpheus.derivations.common.reference_body`
      - The one reading of a
        :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`

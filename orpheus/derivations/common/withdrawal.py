@@ -6,7 +6,8 @@ as evidence nor run by default, until the issue that records the ruling
 closes. It is one value, :class:`~orpheus.reference.withdrawal.Withdrawal`
 ``(reason, issue)`` (defined in the reference package since #405 P2 step 5,
 so that a published solution and a reference certificate carry the same
-class as their standing), read in two places that must agree:
+class as their standing), read in three places that must agree: as that
+standing, and in the two places this module serves:
 
 * **statically**, by the test harness: a test that consumes a withdrawn
   generator carries ``@pytest.mark.withdrawn(reason, issue=N)``;
@@ -30,16 +31,17 @@ it. Naming the issue keeps a lift scoped: lifting #506 lifts nothing
 filed under another issue. The variable permits a run; it never changes
 a value, so it is not part of any reference's cache key.
 
-This module imports nothing outside the standard library and nothing
-from ``pytest``: :meth:`Withdrawal.from_mark` reads a marker through its
-two public fields (``args``, ``kwargs``), so the production lock and the
-test hook share ONE definition of the value (X4) without production
-depending on the test runner.
+This module imports nothing from ``pytest``, and nothing outside the
+standard library but the value's own module,
+:mod:`orpheus.reference.withdrawal`: :meth:`Withdrawal.from_mark` reads a
+marker through its two public fields (``args``, ``kwargs``), so the
+production lock and the test hook share ONE definition of the value (X4)
+without production depending on the test runner.
 
 The plan of record is ``.claude/plans/reference_cache.md`` (phase P0,
-the lock; phase P4, the ``Withdrawn`` state of the reference certificate
-that retires it) and its specification ``.claude/plans/reference_p0_spec.md``
-§2.
+the lock; phase P4, which retires it: a reference certificate whose
+standing is the :class:`~orpheus.reference.withdrawal.Withdrawal`) and its
+specification ``.claude/plans/reference_p0_spec.md`` §2.
 """
 
 from __future__ import annotations

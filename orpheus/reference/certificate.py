@@ -23,11 +23,11 @@ every resolution all contain the exact answer, so they must share a point,
 and the claim's enclosure must meet that common part. Its observed orders
 are reported and never decide anything.
 
-**Corroboration.** A :class:`PublishedSolution` of the same problem is an
+**Corroboration.** A :class:`~orpheus.reference.published.PublishedSolution` of the same problem is an
 anchor (:class:`Corroboration`). The certificate holds no specification, so
 "the same problem" is enforced by the reference solution that holds the
 certificate (P2 step 6: the anchor's specification equals the holder's, and
-every claim passes :func:`~orpheus.specification.admit_observable`).
+every claim passes :func:`~orpheus.specification.specification.admit_observable`).
 Every enclosure the certificate holds for one observable (the claim, each
 anchor's printed interval, each refinement member) encloses its one exact
 value, so the family must share a point, decided on the outward-rounded
@@ -147,7 +147,7 @@ class DerivedBound(ContentIdentity):
 
 
 Establishment: TypeAlias = Exact | DerivedBound
-"""How a claim's enclosure is established: exactly, or by a derived bound (never by extrapolation)."""
+"""How a claim's enclosure is established, exactly or by a derived bound (never by extrapolation)."""
 
 
 @final
@@ -288,7 +288,7 @@ class ReferenceCertificate(ContentIdentity):
 
     @property
     def state(self) -> State:
-        """Derived: the withdrawal, or every failed check, or valid.
+        """The state, derived and never stored; the withdrawal, or every failed check, or valid.
 
         Every enclosure the certificate holds for one observable (the claim,
         each anchor's printed value, each refinement member) encloses the one
