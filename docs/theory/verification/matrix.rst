@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15173**
+Total tests collected: **15319**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 8.9%
-   L1, 2250, 14.8%
+   L0, 1348, 8.8%
+   L1, 2250, 14.7%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11477, 75.6%
+   foundation, 11623, 75.9%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15067
+   explicit, 15213
    class-name, 46
    func-name, 0
    case, 33
@@ -398,7 +398,7 @@ Module × level grid
    numerics/test_descent, 0, 0, 0, 0, 20, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
-   numerics/test_enclosure, 0, 0, 0, 0, 33, 0
+   numerics/test_enclosure, 0, 0, 0, 0, 38, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_exactness, 0, 0, 0, 0, 21, 0
    numerics/test_face_layout, 0, 0, 0, 0, 30, 0
@@ -550,7 +550,9 @@ Module × level grid
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 32, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
+   reference/test_published, 0, 0, 0, 0, 47, 0
    reference/test_readings, 0, 0, 0, 0, 60, 0
+   reference/test_reference_certificate, 0, 0, 0, 0, 91, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
@@ -615,7 +617,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 434, 0
+   test_layer_imports, 0, 0, 0, 0, 437, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
