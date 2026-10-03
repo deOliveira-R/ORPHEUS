@@ -1202,3 +1202,25 @@ Merged to `main` from `feature/specification` by fast-forward (the hashes are fi
 - **P4 obligations recorded here:** a content-bearing inflow law for the 13 MMS case types (a contentless boundary law is refused by the specification); the role-swap value gate (`FixedSource(R)` written for `Response(R)`, no P1 gate can see it).
 
 **Next: P2, the solutions and certificates** (the phase line above; it predates P1's realization, so its first action is the same reconciliation step 7 and step 8 opened with: a short census of what the phase line presumes against the landed P1 types, then the test-architect's specification).
+
+## ⏸ COMPACTION POINT — 2026-10-02, after P1 (supersedes the point after step 6)
+
+State: `main` `de3a7748`, clean apart from `scratch/`; CI `gates` run 37090994652 green on it. **P1 is complete**: steps 7 (the question values) and 8 (the specification) merged this session; their landing records are the notes "P1 step 7 built and closed" and "P1 step 8 built and closed; P1 complete" above, and `reference_p1_spec.md` §1.7–§1.8. Full-suite baseline (`tests/gates -m "not slow"`, detached worktree of `eaa74163`, `.venv` linked): 14 457 passed, 261 skipped, 55 xfailed; the only failures are the 4 `test_write_guards` worktree artefacts.
+
+What P1 left in the tree for P2 to build on:
+- `orpheus/numerics/question.py`: `Eigen(parameter, point, mode)`, `FixedSource(source, point)`, `Response(detector, point)`, modes `Fundamental` / `Nearest(tau)`; physics-free, no adjoint flag, content identity.
+- `orpheus/specification/`: `InfiniteMediumSpecification(material_id, mixture, question)` (energy alone, no geometry field) and `GeometrySpecification(materials, geometry, question)`; `Specification` their union; canonical at construction (spectators dropped, keys resolved to explicit non-zero cells, eager digest).
+- The coordinates `orpheus/data/cells.py` (`Channel`, `CellCoefficient` with `every`/`resolve`) and `orpheus/geometry/extent.py` (`GeometryExtent`); `orpheus/numerics/scalars.py`, the one real-number parser (#559 closed); `Materials.uniform_group_count`.
+
+**Rulings that bind from here** (beyond those of the earlier points):
+- The layer a question is posed at is the specification's TYPE; the infinite medium is the point in position and direction, posed on energy alone, refusing a geometry by having no field for one. The direction-dependent "infinite medium" is the spatial marginal of a body problem (the Lagrangian view), not posed by ORPHEUS yet. The theory: `docs/theory/foundations/infinite_medium.rst`, section "Simplification for the Infinite Homogeneous Medium"; the transport mean free path as the relaxation length of anisotropy: `docs/theory/methods/diffusion_1d.rst`, `diffusion-transport-xs-relaxation`.
+- Keys are self-describing coordinates; a cell is (material id, emission channel); removal cells wait for posing unit 3 (#526); `NuclideDensity` waits for number densities in `Materials`; charts and the mode law are #529's.
+
+**Next: P2, the solutions and certificates.** Its phase line (top of this file) was written 2026-09-25, before P1's realization. First action, as steps 7 and 8 opened: a short explorer census of what the P2 line presumes (`PublishedSolution`, `ReferenceSolution` declaring `(specification, approximations)`, the Chebyshev field representation, `ReferenceCertificate`, `Citation`, the comparison verb, `evaluate(functional)`, `Evidence`'s `NotYet`/`Certified`) against the landed P1 types and the posing ontology (`posing_sequence.md`: answers are fused with the question into outcomes; `Solution` is the five-tuple), then the user's rulings on any ontological gap, then the test-architect's specification and its first reds in a detached worktree.
+
+**Process lessons from steps 7 and 8, for every later step:**
+- Draft gates and batteries written against a throwaway prototype name its private helpers and its input spellings; re-target both (the arms AND the probe) on the real module before reading any verdict (step 7: 4 of 14 arms uninstallable; step 8: 16 arms read "does not bite" because the probe passed dicts the type now refuses).
+- A design that rests on an earlier accepted review finding is re-posed to the user as the ontological question, not as "restore what you accepted" (finding J, refuted after eight exchanges).
+- The git-guard refuses a commit on `main` even inside a compound command; create the branch in its own command.
+
+**Open issues from this stretch:** #561 (a read-only view of a writeable array passes the frozen encoder), #562 (Branch-1 pins for the moment-relaxation and J = q₁/Σ_tr identities); still open from before: #551–#558, #560.
