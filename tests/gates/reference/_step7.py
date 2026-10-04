@@ -1,4 +1,4 @@
-"""The step-7a gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.7a).
+"""The step-7a gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.7a and §1.7b.1).
 
 Every production name the step-7a gates reach is spelled ONCE here, resolved on
 its module at call time (a rebinding battery arm reaches every row, lessons
@@ -27,6 +27,22 @@ def verify_agreement(answer: Any, observable: Any, reference: Any, tolerance: An
 
 def verify_order(answers: Any, observable: Any, reference: Any, tolerance: Any, algebraic_errors: Any, order: Any, band: Any) -> Any:
     return s5.c(VERIFICATION, "verify_order")(answers, observable, reference, tolerance, algebraic_errors, order, band)
+
+
+def compare_uncertified(answer: Any, observable: Any, reference: Any, tolerance: Any) -> Any:
+    return s5.c(VERIFICATION, "compare_uncertified")(answer, observable, reference, tolerance)
+
+
+def reading_uncertified() -> type[BaseException]:
+    return s5.c(VERIFICATION, "ReadingUncertified")
+
+
+def reading_certified() -> type[BaseException]:
+    return s5.c(VERIFICATION, "ReadingCertified")
+
+
+def disagreement() -> type[BaseException]:
+    return s5.c(VERIFICATION, "Disagreement")
 
 
 def not_valid() -> type[BaseException]:
@@ -79,6 +95,33 @@ def reference_with_bound(value: float, bound: float) -> Any:
     derived = s5.derived(value, bound, "a test bound")
     derivation = s6.TableDerivation({s5.eigenvalue(): derived})
     cert = s5.certificate({s5.eigenvalue(): s5.claim(1.0, derived)})
+    return s6.reference(spec, derivation, cert)
+
+
+#: The exact group-0 flux of the uncertified fixtures (not a double, so its exact enclosure has a positive bound).
+F0 = Fraction(30, 7)
+
+
+def uncertified_reference(value: float, certificate: str = "none") -> Any:
+    """The infinite medium whose derivation evaluates k and the group-1 flux ``Uncertified(value)``, the group-0 flux exactly.
+
+    ``certificate``: ``"none"`` (the uncertified family's normal state);
+    ``"valid"``, ``"invalid"`` or ``"withdrawn"``, each claiming the group-0
+    flux only (an uncertified observable cannot be claimed, R6.5), so the
+    standing is the certificate's and the readings of k and of the group-1
+    flux are uncertified in all four.
+    """
+    spec = s5.eigen_medium()
+    derivation = s6.TableDerivation({s5.eigenvalue(): float(value), s6.group_flux(0): F0, s6.group_flux(1): float(value)})
+    claim = {s6.group_flux(0): s6.exact_claim(F0)}
+    if certificate == "valid":
+        cert = s5.certificate(claim)
+    elif certificate == "invalid":
+        cert = s5.certificate({s6.group_flux(0): s5.claim(1e-300, s6.exact_of(F0))})
+    elif certificate == "withdrawn":
+        cert = s5.certificate(claim, standing=s5.withdrawal(issue=4321))
+    else:
+        cert = None
     return s6.reference(spec, derivation, cert)
 
 

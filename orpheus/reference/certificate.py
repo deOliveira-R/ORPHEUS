@@ -74,11 +74,30 @@ __all__ = [
     "Refinement",
     "parse_resolutions",
     "State",
+    "Uncertifiable",
     "Valid",
 ]
 
 #: The working precision (decimal digits) an exact expression is evaluated at.
 _EXACT_DIGITS = 60
+
+
+class Uncertifiable(ValueError):
+    """A finite real constant whose value SymPy cannot certify to the working precision (cancellation).
+
+    The one refusal of :class:`Exact` that means "no bound can be derived":
+    a derivation may read such a value as
+    :class:`~orpheus.reference.reading.Uncertified`; every other refusal (not
+    a constant, not real, not provably finite) is a defect of the expression.
+    It carries the expression's best value at the working precision, evaluated
+    without strict mode (``approximation``): the uncertified reading's value,
+    defined once with the precision it is evaluated at (at SymPy's default 15
+    digits a cancelling sum reads its rounding noise, sign included).
+    """
+
+    def __init__(self, message: str, approximation: float) -> None:
+        super().__init__(message)
+        self.approximation = approximation
 
 
 @final
@@ -121,9 +140,10 @@ class Exact(ContentIdentity):
         try:
             approximation = value.evalf(_EXACT_DIGITS, strict=True)
         except PrecisionExhausted:
-            raise ValueError(
+            raise Uncertifiable(
                 f"Exact: {value} cannot be evaluated to {_EXACT_DIGITS} certified digits (cancellation, or a value "
-                f"that is exactly zero without SymPy proving it); simplify it to a form whose value is certified"
+                f"that is exactly zero without SymPy proving it); simplify it to a form whose value is certified",
+                float(value.evalf(_EXACT_DIGITS)),
             ) from None
         rational = Fraction(str(sympy.Rational(approximation)))
         return Enclosure.about(rational, abs(rational) * Fraction(10) ** (1 - _EXACT_DIGITS))

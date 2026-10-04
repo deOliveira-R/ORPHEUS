@@ -10,9 +10,11 @@ account. It has six modules:
 * :mod:`orpheus.reference.reading`: a reference's reading of one
   observable, :data:`~orpheus.reference.reading.ReferenceReading`, is an
   :class:`~orpheus.numerics.enclosure.Enclosure` (a value and a guaranteed
-  distance to the exact one, which the reference derives) or a
+  distance to the exact one, which the reference derives), a
   :class:`~orpheus.reference.reading.Printed` value (a cited author's
-  decimal text and the place it is printed, never recomputed). A
+  decimal text and the place it is printed, never recomputed), or an
+  :class:`~orpheus.reference.reading.Uncertified` value (the reference's
+  value where its family cannot yet derive a bound: no guarantee). A
   production method's reading is a different sum, so the two cannot be
   passed for each other;
 * :mod:`orpheus.reference.withdrawal`: the
@@ -47,12 +49,13 @@ account. It has six modules:
 * :mod:`orpheus.reference.solution`: the
   :class:`~orpheus.reference.solution.ReferenceSolution`, a reference
   method's answer to a specification: its
-  :class:`~orpheus.reference.solution.Derivation` establishes any
-  admissible observable on demand, the reference's natural extension with a
-  derived bound, and its certificate, when the family has one, claims and
-  corroborates the observables it declares (a claim that disagrees with the
-  derivation cannot be built). A family that cannot derive a bound raises
-  :class:`~orpheus.reference.solution.NotCertified`. Every value but the
+  :class:`~orpheus.reference.solution.Derivation` evaluates any
+  admissible observable on demand, the reference's natural extension with its
+  derived bound where the family has one, and its certificate, when the
+  family has one, claims and corroborates the observables it declares (a
+  claim that disagrees with the derivation cannot be built, nor one the
+  derivation leaves uncertified). Where a family cannot derive a bound the
+  reading is :class:`~orpheus.reference.reading.Uncertified`. Every value but the
   reference solution itself is a content value; the reference solution is
   keyed by its derivation's execution trace in phase P3;
 * :mod:`orpheus.reference.verification`: a production answer's reading put
@@ -64,7 +67,12 @@ account. It has six modules:
   :class:`~orpheus.reference.verification.OrderVerification` holds
   production's observed order over a refinement as intervals (each error known
   within the reference bound plus the answer's established algebraic error)
-  against a declared order and band. Both are returned, never stored.
+  against a declared order and band. Both refuse an uncertified reading;
+  :class:`~orpheus.reference.verification.UncertifiedComparison` is the
+  explicit, weaker claim a test makes against one (production within the
+  tolerance of the reference's value; no verification) on exactly the
+  readings the verbs cannot anchor on, and it refuses a reading a ``Valid``
+  reference encloses. All three are returned, never stored.
 
 The observables a reading is keyed on are
 :mod:`orpheus.numerics.observable`; whether an observable fits a problem is

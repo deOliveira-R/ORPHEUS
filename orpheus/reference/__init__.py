@@ -7,6 +7,6 @@ method package, no derivations). The derivations write reference solutions,
 so they import this package; production reads them through it.
 """
 
-from orpheus.reference.reading import Printed, ReferenceReading
+from orpheus.reference.reading import Printed, ReferenceReading, Uncertified
 
-__all__ = ["Printed", "ReferenceReading"]
+__all__ = ["Printed", "ReferenceReading", "Uncertified"]

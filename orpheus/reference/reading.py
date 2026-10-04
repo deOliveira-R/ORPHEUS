@@ -1,4 +1,4 @@
-r"""A reference's reading of an observable: an enclosure, or a printed value (#405 P2 step 1).
+r"""A reference's reading of an observable: an enclosure, a printed value, or an uncertified value (#405 P2).
 
 A reading is a claim about one observable, and whose claim it is decides its
 type (the user's ruling of 2026-10-02, "G3"):
@@ -6,8 +6,10 @@ type (the user's ruling of 2026-10-02, "G3"):
 * a **reference's** claim is about the exact answer of its own equation.
   :data:`ReferenceReading` is an :class:`~orpheus.numerics.enclosure.Enclosure`
   (a guarantee the reference derives: the value and a bound on its distance
-  to the exact one; an exact value has bound 0) or a :class:`Printed` value
-  (a cited author's claim, never recomputed);
+  to the exact one; an exact value has bound 0), a :class:`Printed` value
+  (a cited author's claim, never recomputed), or an :class:`Uncertified`
+  value (the reference's own value where its family cannot yet derive a
+  bound: no guarantee at all, the user's ruling of 2026-10-03, step 7b);
 * a **production** method's claim is a self-report that verification puts on
   trial: :data:`~orpheus.numerics.outcome.ProductionReading`.
 
@@ -32,14 +34,14 @@ import math
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
-from typing import TypeAlias
+from typing import TypeAlias, final
 
 from orpheus.data.citation import Citation
 from orpheus.numerics.content import ContentIdentity, content_digest
 from orpheus.numerics.enclosure import Enclosure
-from orpheus.numerics.scalars import parse_member
+from orpheus.numerics.scalars import parse_finite_real, parse_member
 
-__all__ = ["Printed", "ReferenceReading"]
+__all__ = ["Printed", "ReferenceReading", "Uncertified"]
 
 
 @dataclass(frozen=True, eq=False)
@@ -88,5 +90,33 @@ class Printed(ContentIdentity):
         return Enclosure.about(Fraction(Decimal(self.text)), Fraction(self.half_unit))
 
 
-ReferenceReading: TypeAlias = Enclosure | Printed
+@final
+@dataclass(frozen=True, eq=False)
+class Uncertified(ContentIdentity):
+    """A reference's value with no derived bound: its family cannot yet bound its distance to the exact answer.
+
+    It carries no ``enclosure()``: an uncertified value guarantees nothing, so
+    it cannot anchor a verification, and a test compares against it only
+    through the explicit uncertified comparison (P4 derives each family's
+    bound, #566). A quotient with an uncertified operand is uncertified.
+    """
+
+    value: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "value", parse_finite_real(self.value, "Uncertified: the value"))
+        content_digest(self)
+
+    def __truediv__(self, other: Enclosure | Uncertified) -> Uncertified:
+        if not isinstance(other, (Enclosure, Uncertified)):
+            return NotImplemented
+        return Uncertified(self.value / other.value)
+
+    def __rtruediv__(self, other: Enclosure) -> Uncertified:
+        if not isinstance(other, Enclosure):
+            return NotImplemented
+        return Uncertified(other.value / self.value)
+
+
+ReferenceReading: TypeAlias = Enclosure | Printed | Uncertified
 """A reference's claim about one observable of the exact answer of its equation."""

@@ -1,4 +1,4 @@
-r"""The verification certificate and the comparison verbs (#405 P2 step 7a, R7.1-R7.10).
+r"""The verification certificate and the comparison verbs (#405 P2 step 7a, R7.1-R7.10; step 7b.1, R7.11-R7.18).
 
 Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.md``
 §1.7a), on the design "P2, the design as ruled" item 7, the rulings of §0 item 3
@@ -18,6 +18,14 @@ the reading verb is the only producer of a production reading):
   tolerance, the observed orders returned and held against the caller's order
   and band;
 * the first production reading: ``HomogeneousResult.read``.
+
+* step 7b.1 (the user's ruling of 2026-10-03): a reference reading an
+  observable ``Uncertified`` (its family derives no bound) is refused by both
+  verbs ("uncertified", before production is read); the explicit, weaker
+  claim is ``compare_uncertified(answer, observable, reference, tolerance)``,
+  an ``UncertifiedComparison`` (``|m - v| <= tol``, decided exactly; not a
+  certificate), which refuses a non-``Valid`` certificate before any read
+  and a CERTIFIED reading (``ReadingCertified``, naming ``verify_agreement``).
 
 DECLARED LIMIT: nothing pairs the answer with the reference's specification
 (production results hold none until P4's projection); the caller pairs them.
@@ -538,3 +546,325 @@ def test_r7_review_the_agreement_verdict_is_exact() -> None:
     cert = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 2.0}), s5.eigenvalue(),
                                s7.reference_with_bound(1.0, 2.0**-60), 1.0, s7.Measured(0.0))
     require(cert.floor_holds and not cert.agrees, f"{cert!r}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Step 7b.1 — the uncertified reading (the user's ruling of 2026-10-03)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# R7.11: both verbs refuse an uncertified reading of a Valid reference, before
+# production is read. R7.12-R7.18: the explicit uncertified comparison.
+
+_U_K = 1.40625  # dyadic: the uncertified value of k in the fixtures below
+
+
+def _u_ratio() -> Any:
+    """The ratio group-0 flux (exact 30/7) over group-1 flux (uncertified): uncertified through its denominator."""
+    return s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))
+
+
+def test_r7_11_verify_agreement_refuses_an_uncertified_reading_of_a_valid_reference() -> None:
+    """The reference is ``Valid`` (its certificate claims the group-0 flux) and
+    reads k ``Uncertified``: an uncertified value cannot anchor a
+    verification, so ``ReadingUncertified`` names it ("uncertified"), through
+    the verb and through the certificate built directly, and production is
+    NEVER read (a counting double). Activation: the standing is ``Valid`` and
+    the reference was read for k (the refusal is the reading's, not the
+    standing's). Positive leg: the same reference verifies its certified
+    observable, the group-0 flux. Since the review round the refusal is its
+    own type, ``ReadingUncertified`` (a ``ValueError``), unrelated to
+    ``ReferenceNotValid``, which names the standing only."""
+    error = s7.reading_uncertified()
+    require(issubclass(error, ValueError), "ReadingUncertified is not a ValueError")
+    require(not issubclass(error, s7.not_valid()) and not issubclass(s7.not_valid(), error),
+            "ReadingUncertified and ReferenceNotValid are related by subclassing")
+    reference = s7.uncertified_reference(_U_K, "valid")
+    require(s5.state_kind(reference.certificate) == "Valid", f"activation: {reference.certificate.state!r}")
+    for build in (lambda a: s7.verify_agreement(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET),
+                  lambda a: s5.c(s7.VERIFICATION, "VerificationCertificate")(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET)):
+        answer = s7.FixedAnswer({s5.eigenvalue(): _U_K})
+        reference.derivation.calls.clear()
+        with pytest.raises(s7.reading_uncertified(), match="uncertified"):
+            build(answer)
+        require(not answer.reads, f"production was read before the refusal: {answer.reads}")
+        require(s5.eigenvalue() in reference.derivation.calls, f"activation: the reference was not read ({reference.derivation.calls})")
+    certified = s7.verify_agreement(s7.FixedAnswer({s6.group_flux(0): float(s7.F0)}), s6.group_flux(0), reference, 1e-12, s7.NOT_YET)
+    require(certified.agrees, f"{certified!r}")
+
+
+def test_r7_11_a_ratio_with_an_uncertified_operand_is_refused_too() -> None:
+    """A ratio reads as the quotient of its operands' readings (R6.4/R6.5), so
+    a ratio over an uncertified group-1 flux is uncertified and cannot be verified:
+    refused "uncertified", production unread."""
+    reference = s7.uncertified_reference(_U_K, "valid")
+    answer = s7.FixedAnswer({_u_ratio(): 3.0})
+    with pytest.raises(s7.reading_uncertified(), match="uncertified"):
+        s7.verify_agreement(answer, _u_ratio(), reference, 1e-3, s7.NOT_YET)
+    require(not answer.reads, f"production was read: {answer.reads}")
+
+
+def test_r7_11_verify_order_refuses_an_uncertified_reading_of_a_valid_reference() -> None:
+    """The order verb refuses the uncertified reading as the agreement verb
+    does ("uncertified"), with every algebraic error established (so no other
+    refusal fires first), and reads no answer of the refinement."""
+    reference = s7.uncertified_reference(_U_K, "valid")
+    answers = [(0.2, s7.FixedAnswer({s5.eigenvalue(): 1.44})), (0.1, s7.FixedAnswer({s5.eigenvalue(): 1.41}))]
+    with pytest.raises(s7.reading_uncertified(), match="uncertified"):
+        s7.verify_order(answers, s5.eigenvalue(), reference, 1e-3, [Measured(0.0), Measured(0.0)], 2.0, 0.2)
+    require(all(not a.reads for _, a in answers), f"production was read: {[a.reads for _, a in answers]}")
+    require(s5.eigenvalue() in reference.derivation.calls, "activation: the reference was not read")
+
+
+# ── R7.12: the standing refusals, before anything is read ───────────────────
+
+_STANDING = (
+    ("invalid", "invalid", "invalid"),
+    ("withdrawn", "withdrawn", "4321"),
+)
+
+
+@pytest.mark.parametrize("certificate, fragment", [r[1:] for r in _STANDING], ids=[r[0] for r in _STANDING])
+def test_r7_12_a_reference_whose_certificate_is_not_valid_is_refused_before_any_reading(certificate: str, fragment: str) -> None:
+    """``compare_uncertified`` against a reference whose certificate exists and
+    is not ``Valid`` (``Invalid``: its reason; ``Withdrawn``: its issue) raises
+    ``ReferenceNotValid`` BEFORE anything is read: neither the reference's
+    derivation nor the production answer is called."""
+    reference = s7.uncertified_reference(_U_K, certificate)
+    if certificate == "invalid":
+        require(s5.state_kind(reference.certificate) == "Invalid", f"activation: {reference.certificate.state!r}")
+    reference.derivation.calls.clear()
+    answer = s7.FixedAnswer({s5.eigenvalue(): _U_K})
+    with pytest.raises(s7.not_valid(), match=fragment):
+        s7.compare_uncertified(answer, s5.eigenvalue(), reference, 1e-3)
+    require(not answer.reads and not reference.derivation.calls,
+            f"read before refusing: {answer.reads}, {reference.derivation.calls}")
+
+
+@pytest.mark.parametrize("certificate", ["none", "valid"])
+def test_r7_12_no_certificate_or_a_valid_one_is_compared(certificate: str) -> None:
+    """The positive legs: an uncertified family has no certificate (its normal
+    state, not a refusal: the verb differs from ``verify_agreement`` here,
+    R7.1), and a ``Valid`` certificate that does not claim the observable is
+    compared too. The comparison holds what the reference read (equal to the
+    derivation's ``Uncertified``) and what the answer read (identity), each
+    read once."""
+    reference = s7.uncertified_reference(_U_K, certificate)
+    reading = Measured(_U_K)
+    answer = s7.FixedAnswer({s5.eigenvalue(): reading})
+    reference.derivation.calls.clear()
+    comparison = s7.compare_uncertified(answer, s5.eigenvalue(), reference, 1e-3)
+    require(answer.reads == [s5.eigenvalue()], f"reads {answer.reads}")
+    require(reference.derivation.calls == [s5.eigenvalue()], f"the reference was read {reference.derivation.calls}")
+    require(comparison.reading is reading, f"the comparison holds {comparison.reading!r}, not the answer's reading")
+    require(comparison.reference_reading == s6.uncertified(_U_K), f"{comparison.reference_reading!r}")
+    require(type(comparison.reference_reading) is s6.uncertified_class(), "activation: the reference reading's type")
+    require(comparison.agrees, f"{comparison!r}")
+
+
+# ── R7.13: a certified reading is refused: a test is forced up ──────────────
+
+_CERTIFIED = (
+    ("valid-certificate-exact-k", lambda: s7.reference_of(_K, "valid"), s5.eigenvalue),
+    ("derived-bound", lambda: s7.reference_with_bound(1.0, 1e-9), s5.eigenvalue),
+    ("enclosed-flux-of-a-certified-uncertified-family", lambda: s7.uncertified_reference(_U_K, "valid"), lambda: s6.group_flux(0)),
+)
+
+
+@pytest.mark.parametrize("make, observable", [r[1:] for r in _CERTIFIED], ids=[r[0] for r in _CERTIFIED])
+def test_r7_13_a_reading_the_reference_certifies_is_refused(make: Any, observable: Any) -> None:
+    """An ENCLOSED reading of a reference whose certificate is present (so
+    ``Valid``, by the standing check): an ``Exact`` k, a derived bound, the
+    exact flux of a family whose other readings are uncertified. It is refused, ``ReadingCertified`` (a ``ValueError``) naming
+    ``verify_agreement``: the day a family derives a bound, every
+    uncertified comparison against it reds and must be re-posed as a
+    verification (the weaker claim cannot outlive its reason). Production is
+    not read. ``ReadingCertified`` is not ``ReferenceNotValid`` either way,
+    so the two refusals are told apart."""
+    error = s7.reading_certified()
+    require(issubclass(error, ValueError), "ReadingCertified is not a ValueError")
+    require(not issubclass(error, s7.not_valid()) and not issubclass(s7.not_valid(), error),
+            "ReadingCertified and ReferenceNotValid are related by subclassing")
+    answer = s7.FixedAnswer({observable(): 1.0})
+    with pytest.raises(error, match="verify_agreement"):
+        s7.compare_uncertified(answer, observable(), make(), 1e-3)
+    require(not answer.reads, f"production was read: {answer.reads}")
+
+
+_NO_CERTIFICATE_ENCLOSED = (
+    ("exact-k", lambda: s7.reference_of(_K, "none"), s5.eigenvalue, float(_K)),
+    ("exact-flux-of-an-uncertified-family", lambda: s7.uncertified_reference(_U_K, "none"), lambda: s6.group_flux(0), float(s7.F0)),
+    ("derived-bound-wider-than-the-tolerance", lambda: s6.reference(s5.eigen_medium(), s6.TableDerivation(
+        {s5.eigenvalue(): s5.derived(1.0, 0.25, "a test bound")}), None), s5.eigenvalue, 1.0),
+)
+
+
+@pytest.mark.parametrize("make, observable, value", [r[1:] for r in _NO_CERTIFICATE_ENCLOSED], ids=[r[0] for r in _NO_CERTIFICATE_ENCLOSED])
+def test_r7_13_an_enclosed_reading_of_a_reference_without_a_certificate_is_compared(make: Any, observable: Any, value: float) -> None:
+    """The review round (2026-10-03): ``verify_agreement`` refuses a
+    reference with no certificate (R7.1), so the comparison takes ANY reading
+    of one, an ``Enclosure`` included: the two verbs together cover every
+    state of a reference in good standing. The comparison holds the
+    reference's enclosure (equal to ``read``) and uses only its value: a
+    derived bound of 0.25 does not stop a reading within 2^-16 of the value
+    from agreeing, and twice the tolerance disagrees."""
+    reference = make()
+    require(reference.certificate is None, "activation: the reference has a certificate")
+    enclosure = reference.read(observable())
+    require(type(enclosure) is s5.c(s5.ENCLOSURE, "Enclosure"), f"activation: the reading is {enclosure!r}")
+    require(enclosure.value == value, f"activation: the enclosure's value {enclosure.value!r} is not {value!r}")
+    tolerance = _UT * value
+    near = s7.compare_uncertified(s7.FixedAnswer({observable(): value + tolerance / 2}), observable(), reference, tolerance)
+    require(near.reference_reading == enclosure, f"{near.reference_reading!r}")
+    require(near.agrees, f"{near!r}")
+    beyond = s7.compare_uncertified(s7.FixedAnswer({observable(): value + 2 * tolerance}), observable(), reference, tolerance)
+    require(not beyond.agrees, f"{beyond!r}")
+
+
+def test_r7_13_an_uncertified_ratio_is_compared() -> None:
+    """The positive leg of the forcing: a ratio over an uncertified group-1 flux
+    reads ``Uncertified(F0 / v)`` (the enclosed numerator contributes its double),
+    so it is COMPARED, and the comparison holds that reading."""
+    reference = s7.uncertified_reference(_U_K, "valid")
+    value = float(s7.F0) / _U_K
+    comparison = s7.compare_uncertified(s7.FixedAnswer({_u_ratio(): value}), _u_ratio(), reference, 1e-12)
+    require(comparison.reference_reading == s6.uncertified(value), f"{comparison.reference_reading!r}")
+    require(comparison.agrees, f"{comparison!r}")
+
+
+# ── R7.14: the verdict, inclusive and exact; R7.15: Disagreement ───────────
+
+_UT = 2.0**-16
+_U_VERDICTS = (
+    ("exactly-at-the-tolerance-above", 1.0 + _UT, True),
+    ("one-ulp-beyond-above", math.nextafter(1.0 + _UT, 2.0), False),
+    ("exactly-at-the-tolerance-below", 1.0 - _UT, True),
+    ("one-ulp-beyond-below", math.nextafter(1.0 - _UT, 0.0), False),
+    ("equal", 1.0, True),
+)
+
+
+def _compare(reading: float, value: float = 1.0, tolerance: float = _UT) -> Any:
+    return s7.compare_uncertified(s7.FixedAnswer({s5.eigenvalue(): reading}), s5.eigenvalue(),
+                                  s7.uncertified_reference(value, "none"), tolerance)
+
+
+@pytest.mark.parametrize("reading, agrees", [v[1:] for v in _U_VERDICTS], ids=[v[0] for v in _U_VERDICTS])
+def test_r7_14_the_comparison_agrees_within_the_tolerance_inclusive(reading: float, agrees: bool) -> None:
+    """``agrees`` iff ``|m - v| <= tol``, inclusive at the boundary (dyadic
+    rows, exactly representable), one ULP beyond on either side refused. No
+    reference bound enters (there is none): the row that disagreed under
+    ``verify_agreement`` for the bound alone (R7.4, "inside but for the
+    reference bound") agrees here, so the weaker claim is a different
+    verdict, not a looser tolerance."""
+    comparison = _compare(reading)
+    require(comparison.agrees is agrees, f"agrees = {comparison.agrees}, expected {agrees}")
+
+
+def test_r7_14_the_verdict_is_decided_exactly() -> None:
+    """v = -0.1 (the double), m = 1e17, tol = 1e17: the exact distance
+    1e17 + 0.1000000000000000055... exceeds the tolerance, but its float
+    rounds to 1e17 == tol, so a float verdict agrees. The exact verdict does
+    not; one ULP more tolerance (1e17 + 16) agrees."""
+    require(1e17 - (-0.1) == 1e17, "activation: the float distance rounds onto the tolerance")
+    require(not _compare(1e17, -0.1, 1e17).agrees, "the verdict was decided in floats")
+    require(_compare(1e17, -0.1, math.nextafter(1e17, math.inf)).agrees, "the control leg disagrees")
+
+
+def test_r7_15_require_raises_disagreement_exactly_when_it_does_not_agree() -> None:
+    """``require()`` raises the step-7a ``Disagreement`` (an
+    ``AssertionError``) naming the unverified reference value when the comparison does
+    not agree, and returns when it does; there is no floor to raise first
+    (the reference has no bound), so ``ReferenceTooLoose`` never fires, even
+    with a tolerance far below the value's own rounding."""
+    error = s7.disagreement()
+    require(issubclass(error, AssertionError), "Disagreement is not an AssertionError")
+    with pytest.raises(error, match="unverified reference value"):
+        _compare(math.nextafter(1.0 + _UT, 2.0)).require()
+    _compare(1.0 + _UT).require()
+    _compare(1.0, 1.0, 2.0**-1000).require()
+
+
+# ── R7.16: the production reading; R7.17: the arguments; R7.18: returned ────
+
+_U_BAD_READINGS = (
+    ("an-enclosure", lambda: s5.enclosure(_U_K, 0.0)),
+    ("a-printed-value", lambda: s5.printed("1.40625")),
+    ("an-uncertified-value", lambda: s6.uncertified(_U_K)),
+    ("a-bare-float", lambda: _U_K),
+    ("asserted-evidence", lambda: Asserted(1e-9, "a convergence claim")),
+)
+
+
+@pytest.mark.parametrize("make", [m for _, m in _U_BAD_READINGS], ids=[n for n, _ in _U_BAD_READINGS])
+def test_r7_16_the_production_reading_is_measured_only(make: Any) -> None:
+    """An answer whose ``read`` returns a reference's reading (an
+    ``Enclosure``, a ``Printed``, an ``Uncertified``: a reference compared
+    with itself through the production slot), a bare number, or another
+    ``Evidence`` member is refused, ``TypeError`` naming the production
+    reading; an object without ``read`` is not an answer."""
+    class Returns:
+        def read(self, observable: Any) -> Any:
+            return make()
+
+    with pytest.raises(TypeError, match="production reading"):
+        s7.compare_uncertified(Returns(), s5.eigenvalue(), s7.uncertified_reference(_U_K), 1e-3)
+
+
+def test_r7_16_a_reading_is_not_an_answer() -> None:
+    with pytest.raises(TypeError):
+        s7.compare_uncertified(Measured(_U_K), s5.eigenvalue(), s7.uncertified_reference(_U_K), 1e-3)
+
+
+_U_BAD_ARGUMENTS = (
+    ("tolerance-zero", dict(tolerance=0.0), ValueError, "tolerance"),
+    ("tolerance-negative", dict(tolerance=-1e-3), ValueError, "tolerance"),
+    ("tolerance-infinite", dict(tolerance=math.inf), ValueError, "tolerance"),
+    ("tolerance-a-string", dict(tolerance="1e-3"), TypeError, "tolerance"),
+    ("reference-a-table", dict(reference={}), TypeError, "reference"),
+)
+
+
+@pytest.mark.parametrize("change, error, fragment", [r[1:] for r in _U_BAD_ARGUMENTS], ids=[r[0] for r in _U_BAD_ARGUMENTS])
+def test_r7_17_the_arguments(change: dict[str, Any], error: type[BaseException], fragment: str) -> None:
+    args = dict(answer=s7.FixedAnswer({s5.eigenvalue(): _U_K}), observable=s5.eigenvalue(),
+                reference=s7.uncertified_reference(_U_K), tolerance=1e-3)
+    args.update(change)
+    with pytest.raises(error, match=fragment):
+        s7.compare_uncertified(**args)
+
+
+def test_r7_17_no_argument_has_a_default() -> None:
+    """The verb and the comparison's constructor default nothing: the
+    tolerance a migrated test keeps is stated at its call."""
+    import inspect
+
+    for target in (s5.c(s7.VERIFICATION, "compare_uncertified"), s5.c(s7.VERIFICATION, "UncertifiedComparison")):
+        params = list(inspect.signature(target).parameters.values())
+        names = [p.name for p in params]
+        require(names == ["answer", "observable", "reference", "tolerance"], f"{target.__name__} takes {names}")
+        defaulted = [p.name for p in params if p.default is not inspect.Parameter.empty]
+        require(not defaulted, f"{target.__name__} defaults {defaulted}")
+
+
+def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() -> None:
+    """``UncertifiedComparison`` is a frozen, ``@final`` dataclass, NOT a
+    ``ContentIdentity`` and not a ``VerificationCertificate`` (it certifies
+    nothing); its fields are the four arguments and the two readings (the
+    readings ``init=False``, read at construction); ``agrees`` is a derived
+    property, not a field, and it has no floor; two calls return two
+    objects."""
+    from orpheus.numerics.content import ContentIdentity
+
+    cls: type = s5.c(s7.VERIFICATION, "UncertifiedComparison")
+    params = getattr(cls, "__dataclass_params__", None)
+    require(params is not None and params.frozen, "UncertifiedComparison is not a frozen dataclass")
+    require(getattr(cls, "__final__", False) is True, "UncertifiedComparison is not @final")
+    require(not issubclass(cls, ContentIdentity), "UncertifiedComparison is a content value")
+    require(not issubclass(cls, s5.c(s7.VERIFICATION, "VerificationCertificate")), "an uncertified comparison is a certificate")
+    fields = {f.name: f.init for f in dataclasses.fields(cls)}
+    require(fields == {"answer": True, "observable": True, "reference": True, "tolerance": True,
+                       "reading": False, "reference_reading": False}, f"fields {fields}")
+    require(isinstance(getattr(cls, "agrees", None), property), "agrees is not a property")
+    require(not hasattr(cls, "floor_holds"), "an uncertified comparison has a floor")
+    a, b = _compare(1.0), _compare(1.0)
+    require(a is not b, "the verb returned a stored object")

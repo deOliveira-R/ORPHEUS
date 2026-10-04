@@ -32,6 +32,18 @@ diagnostic that happens to be a ``Measured`` cannot be passed in its place
   of accuracy against a reference, not a reference certifying itself, so
   the user's ruling that no ladder certifies a reference does not reach it.
 
+**An uncertified reference is compared, never verified** (the user's ruling
+of 2026-10-03, step 7b). A reference whose family cannot yet derive a bound
+reads an :class:`~orpheus.reference.reading.Uncertified` value, which both
+verbs refuse (:class:`ReadingUncertified`). :func:`compare_uncertified` is
+the explicit, weaker claim: the production reading within the tolerance of
+the reference's value, with no bound on the reference's own error used, so
+the comparison verifies nothing and says so in the code that calls it. It
+takes exactly what the verbs cannot anchor on (an uncertified reading, or
+any reading of a reference with no certificate) and refuses a reading a
+``Valid`` reference encloses (:class:`ReadingCertified`), so a test is forced
+up to :func:`verify_agreement` the day its family is certified (P4).
+
 A certificate holds the answer and the reference and reads both itself at
 construction, so a certificate against a reference that is not ``Valid``, or
 over a reading the answer did not produce, cannot be built (the elegance
@@ -54,6 +66,7 @@ from orpheus.numerics.observable import Observable
 from orpheus.numerics.outcome import PRODUCTION_READINGS, Asserted, Evidence, Measured, NotApplicable, NotYet, ProductionReading
 from orpheus.numerics.scalars import parse_member, parse_positive_real
 from orpheus.reference.certificate import Invalid, Valid, parse_resolutions
+from orpheus.reference.reading import Uncertified
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.reference.withdrawal import Withdrawal
 
@@ -62,10 +75,14 @@ __all__ = [
     "OrderNotObserved",
     "OrderVerification",
     "ProductionAnswer",
+    "ReadingCertified",
+    "ReadingUncertified",
     "ReferenceNotValid",
     "ReferenceTooLoose",
     "Unestablished",
+    "UncertifiedComparison",
     "VerificationCertificate",
+    "compare_uncertified",
     "observed_order",
     "verify_agreement",
     "verify_order",
@@ -73,7 +90,15 @@ __all__ = [
 
 
 class ReferenceNotValid(ValueError):
-    """The reference has no certificate, or its certificate is not ``Valid``."""
+    """The reference cannot stand as one: it has no certificate, or its certificate is not ``Valid``."""
+
+
+class ReadingUncertified(ValueError):
+    """A valid reference reads the observable uncertified (no derived bound), so the reading cannot anchor a verification."""
+
+
+class ReadingCertified(ValueError):
+    """An uncertified comparison was asked of a reading a valid reference certifies: verify it instead."""
 
 
 class Unestablished(ValueError):
@@ -106,6 +131,13 @@ def _require_valid(reference: ReferenceSolution) -> None:
     parse_member(reference, (ReferenceSolution,), "verification", "the reference", "a reference solution")
     if reference.certificate is None:
         raise ReferenceNotValid("verification: the reference has no certificate, so it cannot stand as a reference")
+    _require_standing(reference)
+
+
+def _require_standing(reference: ReferenceSolution) -> None:
+    """Refuse a reference whose certificate, if it has one, is not ``Valid`` (no certificate is the uncertified family)."""
+    if reference.certificate is None:
+        return
     match reference.certificate.state:
         case Valid():
             return
@@ -113,6 +145,17 @@ def _require_valid(reference: ReferenceSolution) -> None:
             raise ReferenceNotValid(f"verification: the reference's certificate is invalid ({reasons[0]})")
         case Withdrawal(reason=reason, issue=issue):
             raise ReferenceNotValid(f"verification: the reference is withdrawn (#{issue}: {reason})")
+
+
+def _reference_enclosure(reference: ReferenceSolution, observable: Observable) -> Enclosure:
+    """The valid reference's enclosure of ``observable``; an uncertified reading cannot anchor a verification."""
+    reading = reference.read(observable)
+    if isinstance(reading, Uncertified):
+        raise ReadingUncertified(
+            f"verification: the reference reads {observable!r} uncertified (no derived bound), so it cannot anchor "
+            f"a verification; compare_uncertified states the weaker claim"
+        )
+    return reading
 
 
 def _production_reading(answer: ProductionAnswer, observable: Observable) -> ProductionReading:
@@ -128,7 +171,7 @@ def _algebraic(evidence: Evidence) -> Evidence:
     return evidence
 
 
-def _error(reading: ProductionReading, reference: Enclosure) -> Fraction:
+def _error(reading: ProductionReading, reference: Enclosure | Uncertified) -> Fraction:
     """The production reading's distance to the reference's centre, exactly."""
     return abs(Fraction(reading.value) - Fraction(reference.value))
 
@@ -171,7 +214,7 @@ class VerificationCertificate:
         _require_valid(self.reference)
         _algebraic(self.algebraic_error)
         object.__setattr__(self, "tolerance", parse_positive_real(self.tolerance, "verification: the tolerance", "the tolerance"))
-        object.__setattr__(self, "reference_reading", self.reference.read(self.observable))
+        object.__setattr__(self, "reference_reading", _reference_enclosure(self.reference, self.observable))
         object.__setattr__(self, "reading", _production_reading(self.answer, self.observable))
 
     @property
@@ -306,7 +349,7 @@ def verify_order(
                 raise Unestablished(f"verification: answer {index}'s algebraic error {item!r} is above tolerance/10")
             case NotYet() | NotApplicable():
                 raise Unestablished(f"verification: answer {index}'s algebraic error is unestablished ({item!r})")
-    reference_reading = reference.read(observable)
+    reference_reading = _reference_enclosure(reference, observable)
     if Fraction(reference_reading.bound) > floor:
         raise Unestablished(f"verification: the reference's bound {reference_reading.bound!r} is above tolerance/10")
     resolutions = parse_resolutions((h for h, _ in pairs), "verification")
@@ -321,3 +364,62 @@ def verify_order(
                 f"not separated from the floors"
             )
     return OrderVerification(observable, resolutions, errors, uncertainties, order, band)
+
+
+@final
+@dataclass(frozen=True)
+class UncertifiedComparison:
+    """A production answer's reading compared with an unverifiable reference value: a weaker claim, not a verification.
+
+    Built from the answer and the reference, it reads both at construction. A
+    reference whose certificate is not ``Valid`` is refused before anything is
+    read (no certificate is the uncertified family's normal state). It
+    compares exactly the readings :func:`verify_agreement` cannot anchor on: an
+    :class:`~orpheus.reference.reading.Uncertified` reading, or any reading of
+    a reference with no certificate. A reading a ``Valid`` reference encloses
+    is refused, so it is verified instead; the two verbs together cover every
+    state a reference in good standing can be in.
+    """
+
+    answer: ProductionAnswer
+    observable: Observable
+    reference: ReferenceSolution
+    tolerance: float
+    reading: ProductionReading = field(init=False)
+    reference_reading: Enclosure | Uncertified = field(init=False)
+
+    def __post_init__(self) -> None:
+        parse_member(self.reference, (ReferenceSolution,), "comparison", "the reference", "a reference solution")
+        _require_standing(self.reference)
+        object.__setattr__(self, "tolerance", parse_positive_real(self.tolerance, "comparison: the tolerance", "the tolerance"))
+        reference_reading = self.reference.read(self.observable)
+        if isinstance(reference_reading, Enclosure) and self.reference.certificate is not None:
+            raise ReadingCertified(
+                f"comparison: the reference certifies {self.observable!r} as {reference_reading!r}; "
+                f"verify it with verify_agreement"
+            )
+        object.__setattr__(self, "reference_reading", reference_reading)
+        object.__setattr__(self, "reading", _production_reading(self.answer, self.observable))
+
+    @property
+    def agrees(self) -> bool:
+        """Production's reading is within the tolerance of the reference's value (its bound, if any, unused)."""
+        return _error(self.reading, self.reference_reading) <= Fraction(self.tolerance)
+
+    def require(self) -> None:
+        """Raise :class:`Disagreement` unless the reading is within the tolerance of the uncertified value."""
+        if not self.agrees:
+            raise Disagreement(
+                f"{self.observable!r}: production reads {self.reading.value!r}, which differs from the unverified "
+                f"reference value {self.reference_reading.value!r} by more than {self.tolerance!r}"
+            )
+
+
+def compare_uncertified(
+    answer: ProductionAnswer,
+    observable: Observable,
+    reference: ReferenceSolution,
+    tolerance: float,
+) -> UncertifiedComparison:
+    """Compare production's reading of ``observable`` with a reference value no verification can anchor on."""
+    return UncertifiedComparison(answer, observable, reference, tolerance)

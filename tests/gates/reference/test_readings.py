@@ -1,13 +1,17 @@
-r"""The readings, by role (#405 P2 step 1, R1.10-R1.19).
+r"""The readings, by role (#405 P2 step 1, R1.10-R1.19; step 7b.1, R1.20-R1.22).
 
 Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.md``
 §1.1), on the user's G3 ruling and the orchestrator's Q1/Q4 rulings of
 2026-10-03:
 
-* a REFERENCE's reading is a guarantee about the exact answer of its own
-  equation, ``ReferenceReading = Enclosure | Printed``: an
-  :class:`~orpheus.numerics.enclosure.Enclosure`, or a :class:`Printed` value,
-  the cited author's claim, never recomputed;
+* a REFERENCE's reading is a claim about the exact answer of its own
+  equation, ``ReferenceReading = Enclosure | Printed | Uncertified``: an
+  :class:`~orpheus.numerics.enclosure.Enclosure` (a guarantee), a
+  :class:`Printed` value (the cited author's claim, never recomputed), or,
+  since step 7b.1 (the user's ruling of 2026-10-03), an ``Uncertified`` value
+  (the reference's own value where its family cannot yet derive a bound: no
+  guarantee, so no ``enclosure()``, and a quotient with an uncertified
+  operand is uncertified);
 * a PRODUCTION reading is a self-report verification puts on trial,
   ``ProductionReading = Measured`` (``Estimated`` joins it when a Monte Carlo
   consumer exists); the two sums are disjoint, so an ``Estimated`` (or any
@@ -69,6 +73,10 @@ def _reading() -> Any:
 
 def _P(text: Any, citation: Any = _CITE) -> Any:
     return _reading().Printed(text, citation)
+
+
+def _U(value: Any) -> Any:
+    return _reading().Uncertified(value)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -227,6 +235,22 @@ ROSTER: tuple[Entry, ...] = (
         },
         pairs=(("plus-sign", lambda: _printed("+0.99996"), lambda: _printed("0.99996")),),
     ),
+    Entry(
+        cls=importlib.import_module(_READING).Uncertified,
+        base=lambda: _U(1.25),
+        parts=("value",),
+        perturb={
+            "value": (
+                leg("another value", lambda: _U(1.5)),
+                leg("one ulp", lambda: _U(math.nextafter(1.25, 2.0))),
+                leg("the sign", lambda: _U(-1.25)),
+            ),
+        },
+        pairs=(
+            ("negative-zero", lambda: _U(-0.0), lambda: _U(0.0)),
+            ("an-int-and-its-double", lambda: _U(2), lambda: _U(2.0)),
+        ),
+    ),
 )
 
 
@@ -267,25 +291,28 @@ def _members(alias: Any) -> set[type]:
 
 @pytest.mark.rests_on(f"{_ENC}::test_r1_6_the_fields_are_the_value_and_the_bound")
 def test_r1_16_the_reading_sums_are_disjoint_by_role() -> None:
-    """``ReferenceReading`` names exactly ``{Enclosure, Printed}``;
+    """``ReferenceReading`` names exactly ``{Enclosure, Printed, Uncertified}``
+    (the third member since step 7b.1);
     ``ProductionReading`` names exactly ``{Measured}``, and that ``Measured``
     IS ``orpheus.numerics.outcome.Measured`` (one definition of a measured
     number); the two sets share no class, and no member of either is a
     subclass of a member of the other, so a production reading cannot be
-    passed where a reference reading is required. Instance legs: an
-    ``Enclosure`` and a ``Printed`` are not production readings, a
-    ``Measured`` is not a reference reading."""
+    passed where a reference reading is required (nor an uncertified
+    reference value where a production reading is). Instance legs: an
+    ``Enclosure``, a ``Printed`` and an ``Uncertified`` are not production
+    readings, a ``Measured`` is not a reference reading."""
     from orpheus.numerics import outcome
     from orpheus.numerics.enclosure import Enclosure
 
     reading = _reading()
     ref, prod = _members(reading.ReferenceReading), _members(outcome.ProductionReading)
-    require(ref == {Enclosure, reading.Printed}, f"ReferenceReading names {sorted(c.__qualname__ for c in ref)}")
+    require(ref == {Enclosure, reading.Printed, reading.Uncertified}, f"ReferenceReading names {sorted(c.__qualname__ for c in ref)}")
     require(prod == {outcome.Measured}, f"ProductionReading names {sorted(c.__qualname__ for c in prod)}")
     crossed = [(r.__qualname__, p.__qualname__) for r in ref for p in prod if issubclass(r, p) or issubclass(p, r)]
     require(not crossed, f"a reference reading and a production reading are related by subclassing: {crossed}")
     require(not isinstance(Enclosure(1.0, 0.0), outcome.ProductionReading), "an Enclosure is a production reading")
     require(not isinstance(_P("1.0"), outcome.ProductionReading), "a Printed is a production reading")
+    require(not isinstance(reading.Uncertified(1.0), outcome.ProductionReading), "an Uncertified is a production reading")
     require(not isinstance(outcome.Measured(1.0), reading.ReferenceReading), "a Measured is a reference reading")
 
 
@@ -376,13 +403,13 @@ def test_r1_18_a_cold_import_loads_only_the_layers_below() -> None:
 
 _SEED_SCRIPT = """
 from orpheus.numerics.enclosure import Enclosure
-from orpheus.reference.reading import Printed
+from orpheus.reference.reading import Printed, Uncertified
 from orpheus.data.citation import Citation
 from orpheus.numerics.content import content_digest
 import orpheus.reference.reading as m
 print(m.__file__)
 for v in (Enclosure(1.25, 0.5), Enclosure(1.0, 0.0) / Enclosure(3.0, 0.0),
-          Printed('0.99996', Citation('SoodForsterParsons2003', 'Table 10'))):
+          Printed('0.99996', Citation('SoodForsterParsons2003', 'Table 10')), Uncertified(0.6123)):
     print(content_digest(v).hex(), hash(v))
 print('control', hash('salted'))
 """
@@ -397,7 +424,7 @@ def _seed_run(seed: str) -> list[str]:
 
 @pytest.mark.rests_on("tests/gates/numerics/test_content_identity.py::test_s5_1_digests_and_hashes_are_seed_stable")
 def test_r1_19_digests_and_hashes_are_seed_stable() -> None:
-    """``PYTHONHASHSEED`` 1 and 2 print the same three digests and hashes (a
+    """``PYTHONHASHSEED`` 1 and 2 print the same four digests and hashes (a
     ``str`` part, the printed text, is where a salted hash would leak); the
     control line, a ``str`` hash, must differ (the seeds took effect)."""
     one, two = _seed_run("1"), _seed_run("2")
@@ -418,3 +445,191 @@ def test_r1_12_the_half_unit_ignores_the_callers_decimal_context() -> None:
         small, large = _P("1.00E-200").half_unit, _P("1.00E+150").half_unit
     require(small == Decimal("5E-203"), f"half unit of 1.00E-200 under a narrowed context: {small}")
     require(large == Decimal("5E+147"), f"half unit of 1.00E+150 under a narrowed context: {large}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# R1.20 — Uncertified: a reference's value with no bound (step 7b.1)
+# ═════════════════════════════════════════════════════════════════════════════
+
+_U_ADMITTED = (
+    ("a-double", 1.25, 1.25),
+    ("an-int", 2, 2.0),
+    ("negative-zero", -0.0, 0.0),
+    ("a-numpy-double", "np.float64(0.5)", 0.5),
+)
+
+_U_REFUSED = (
+    ("nan", math.nan, ValueError, "NaN"),
+    ("inf", math.inf, ValueError, "infinite"),
+    ("minus-inf", -math.inf, ValueError, "infinite"),
+    ("an-int-beyond-2-53", 2**60, ValueError, "2\\*\\*53"),
+    ("a-bool", True, TypeError, "real number"),
+    ("a-string", "1.25", TypeError, "real number"),
+    ("none", None, TypeError, "real number"),
+    ("a-complex", 1.0 + 0.0j, TypeError, "real number"),
+)
+
+
+@pytest.mark.parametrize("value, stored", [r[1:] for r in _U_ADMITTED], ids=[r[0] for r in _U_ADMITTED])
+def test_r1_20_an_uncertified_value_is_a_finite_real(value: Any, stored: float) -> None:
+    """``Uncertified(value)`` admits a finite real through ``parse_finite_real``
+    (the scalar rule every value type shares): the stored value is a ``float``
+    equal to the double, ``-0.0`` folded to ``+0.0``."""
+    import numpy as np
+
+    value = np.float64(0.5) if value == "np.float64(0.5)" else value
+    u = _U(value)
+    require(type(u.value) is float and u.value == stored, f"{value!r} stored as {u.value!r}")
+    require(math.copysign(1.0, u.value) == math.copysign(1.0, stored), f"{value!r}: the sign of zero {u.value!r}")
+
+
+@pytest.mark.parametrize("value, error, fragment", [r[1:] for r in _U_REFUSED], ids=[r[0] for r in _U_REFUSED])
+def test_r1_20_a_value_that_is_not_a_finite_real_is_refused(value: Any, error: type[BaseException], fragment: str) -> None:
+    """NaN (not a number, no content identity), an infinity (no comparison is
+    defined against it), an integer a double cannot carry, and every non-real
+    (a ``bool``, a string, ``None``, a complex) are refused, each with the
+    shared parser's keyed message, owned by ``Uncertified``."""
+    with pytest.raises(error, match=fragment) as refusal:
+        _U(value)
+    require("Uncertified" in str(refusal.value), f"the refusal does not name its owner: {refusal.value}")
+
+
+def test_r1_20_the_type_is_a_frozen_final_content_value_without_an_enclosure() -> None:
+    """The fields are exactly ``(value,)``; the class is ``@final`` (its
+    ``__final__`` flag: typing does not enforce it at run time), frozen
+    (assignment raises), a ``ContentIdentity``; and it has NO ``enclosure``
+    (an uncertified value guarantees nothing, so no consumer can read it as an
+    enclosure: the ruling's "the weaker claim is visible in code")."""
+    from orpheus.numerics.content import ContentIdentity
+
+    cls = _reading().Uncertified
+    names = tuple(f.name for f in dataclasses.fields(cls))
+    require(names == ("value",), f"fields {names}")
+    require(getattr(cls, "__final__", False) is True, "Uncertified is not @final")
+    require(issubclass(cls, ContentIdentity), "Uncertified is not a content value")
+    require(not hasattr(cls, "enclosure"), "Uncertified offers an enclosure")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        _U(1.0).value = 2.0  # type: ignore[misc]
+
+
+def test_r1_20_an_uncertified_value_is_not_an_enclosure_or_a_printed_value_of_the_same_number() -> None:
+    """Content identity is by TYPE and content: ``Uncertified(1.25)`` is not
+    ``Enclosure(1.25, 0)`` (a guarantee of exactness), nor ``Printed("1.25")``
+    (a cited claim), nor ``Measured(1.25)`` (a production self-report); a set
+    holds all four apart (lessons ``L72b``: separation through the container,
+    never through unequal hashes)."""
+    from orpheus.numerics.enclosure import Enclosure
+    from orpheus.numerics.outcome import Measured
+
+    u = _U(1.25)
+    others = (Enclosure(1.25, 0.0), _P("1.25"), Measured(1.25))
+    for other in others:
+        require(u != other and other != u, f"{u!r} equals {other!r}")
+    require(len({u, *others}) == 4, "a set merges an uncertified value with a reading of another kind")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# R1.21 — the quotient: a quotient with an uncertified operand is uncertified
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _E(value: float, bound: float = 0.0) -> Any:
+    from orpheus.numerics.enclosure import Enclosure
+
+    return Enclosure(value, bound)
+
+
+_QUOTIENTS = (
+    ("uncertified-over-uncertified", lambda: _U(3.0) / _U(2.0), 1.5),
+    ("uncertified-over-an-enclosure", lambda: _U(3.0) / _E(2.0, 1e-3), 1.5),
+    ("an-enclosure-over-uncertified", lambda: _E(3.0, 1e-3) / _U(2.0), 1.5),
+    ("non-dyadic", lambda: _U(1.0) / _U(3.0), 1.0 / 3.0),
+    ("an-enclosure-non-dyadic", lambda: _E(1.0, 0.25) / _U(3.0), 1.0 / 3.0),
+    ("negative", lambda: _U(-3.0) / _E(2.0), -1.5),
+)
+
+
+@pytest.mark.parametrize("quotient, value", [r[1:] for r in _QUOTIENTS], ids=[r[0] for r in _QUOTIENTS])
+def test_r1_21_a_quotient_with_an_uncertified_operand_is_the_uncertified_quotient_of_values(quotient: Any, value: float) -> None:
+    """``Uncertified / (Enclosure | Uncertified)`` and ``Enclosure /
+    Uncertified`` are ``Uncertified(a.value / b.value)``: the float quotient
+    of the two values (correctly rounded, ``1/3`` included), an enclosure
+    contributing its value and its bound DROPPED (no guarantee survives an
+    uncertified operand, and none is invented)."""
+    q = quotient()
+    require(type(q) is _reading().Uncertified, f"the quotient is a {type(q).__name__}: {q!r}")
+    require(q.value == value, f"the quotient's value {q.value!r} != {value!r}")
+
+
+_ZERO_DIVISIONS = (
+    ("over-an-uncertified-zero", lambda: _U(1.0) / _U(0.0)),
+    ("over-an-uncertified-negative-zero", lambda: _U(1.0) / _U(-0.0)),
+    ("an-enclosure-over-an-uncertified-zero", lambda: _E(1.0, 0.5) / _U(0.0)),
+    ("over-an-enclosure-of-value-zero", lambda: _U(1.0) / _E(0.0, 0.5)),
+)
+
+
+@pytest.mark.parametrize("quotient", [r[1] for r in _ZERO_DIVISIONS], ids=[r[0] for r in _ZERO_DIVISIONS])
+def test_r1_21_division_by_a_zero_value_raises(quotient: Any) -> None:
+    """The quotient of values divides by the denominator's VALUE, so a zero
+    value raises ``ZeroDivisionError`` (never an infinite or NaN reading)."""
+    with pytest.raises(ZeroDivisionError):
+        quotient()
+
+
+_NOT_OPERANDS = (
+    ("over-a-printed-value", lambda: _U(1.0) / _P("2.0")),
+    ("a-printed-value-over", lambda: _P("2.0") / _U(1.0)),
+    ("over-a-bare-float", lambda: _U(1.0) / 2.0),
+    ("a-bare-float-over", lambda: 2.0 / _U(1.0)),
+    ("over-a-measured", lambda: _U(1.0) / _measured(2.0)),
+)
+
+
+def _measured(value: float) -> Any:
+    from orpheus.numerics.outcome import Measured
+
+    return Measured(value)
+
+
+@pytest.mark.parametrize("quotient", [r[1] for r in _NOT_OPERANDS], ids=[r[0] for r in _NOT_OPERANDS])
+def test_r1_21_an_operand_outside_the_reference_quotient_is_refused(quotient: Any) -> None:
+    """The declared operand set is ``Enclosure | Uncertified``: a ``Printed``
+    value (whose quotient would need its ``enclosure()``, a separate verb), a
+    bare number and a production ``Measured`` are refused, ``TypeError``
+    (both dunders return ``NotImplemented``)."""
+    with pytest.raises(TypeError):
+        quotient()
+
+
+def test_r1_21_a_quotient_beyond_the_range_of_a_double_is_refused() -> None:
+    """The quotient is an ``Uncertified``, so it obeys the admission: a
+    quotient that overflows to an infinity is refused (``ValueError``,
+    "infinite"), never returned as an infinite reading."""
+    with pytest.raises(ValueError, match="infinite"):
+        overflow = _U(1e300) / _U(1e-300)
+        require(False, f"the overflow was returned: {overflow!r}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# R1.22 — the sum is closed: every reference-reading member, every consumer arm
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def test_r1_22_the_reading_sum_has_three_members_and_the_quotient_is_closed_in_it() -> None:
+    """The quotient of any two members of ``ReferenceReading`` that the
+    quotient admits (``Enclosure`` or ``Uncertified`` on either side) is
+    again a member: the closure law the ratio reading relies on (R6.4,
+    R6.5). Four operand pairs, each result's type checked against the sum."""
+    import typing
+
+    reading = _reading()
+    members = set(typing.get_args(reading.ReferenceReading))
+    require(len(members) == 3, f"ReferenceReading names {len(members)} members")
+    operands = (_E(3.0, 1e-3), _U(3.0))
+    results = [a / b for a in operands for b in operands]
+    require(len(results) == 4, "activation")
+    outside = [type(r).__name__ for r in results if type(r) not in members]
+    require(not outside, f"quotients outside the sum: {outside}")
+    kinds = [type(r).__name__ for r in results]
+    require(kinds == ["Enclosure", "Uncertified", "Uncertified", "Uncertified"], f"kinds {kinds}")

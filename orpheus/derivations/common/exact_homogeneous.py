@@ -74,9 +74,10 @@ from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen
-from orpheus.reference.certificate import Claim, Exact, ReferenceCertificate
+from orpheus.reference.certificate import Claim, Exact, ReferenceCertificate, Uncertifiable
 from orpheus.reference.published import Current
-from orpheus.reference.solution import NotCertified, ReferenceSolution
+from orpheus.reference.reading import Uncertified
+from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import InfiniteMediumSpecification
 
 if TYPE_CHECKING:
@@ -285,12 +286,26 @@ class ExactInfiniteMediumDerivation:
     region's group values: a regionwise-constant table read exactly (every
     double is a dyadic rational), or a symbolic weight read on the medium,
     which has no coordinate (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`,
-    the same independence admission decided). Every reading is exact.
+    the same independence admission decided). Every rational reading (the
+    eigenvalue, a flux integral of a tabulated weight) is
+    :class:`~orpheus.reference.certificate.Exact`; a symbolic weight whose
+    value SymPy cannot certify to the working precision (cancellation) reads
+    :class:`~orpheus.reference.reading.Uncertified`.
     """
 
     medium: ExactInfiniteMedium
 
-    def establish(self, observable: Eigenvalue | Linear) -> Exact:
+    def evaluate(self, observable: Eigenvalue | Linear) -> Exact | Uncertified:
+        """The observable's exact value, or its float value uncertified where the exact one cannot be certified."""
+        import sympy
+
+        value = self._exact_value(observable)
+        try:
+            return Exact(sympy.srepr(value), "ExactInfiniteMedium.certify")
+        except Uncertifiable as refusal:
+            return Uncertified(refusal.approximation)
+
+    def _exact_value(self, observable: Eigenvalue | Linear) -> sympy.Expr:
         import sympy
 
         flux = [_rational(f) for f in self.medium.flux]
@@ -303,13 +318,10 @@ class ExactInfiniteMediumDerivation:
                 exact_constants = [c.xreplace({f: sympy.Rational(f) for f in c.atoms(sympy.Float)}) for c in constants]
                 value = sum((c * f for c, f in zip(exact_constants, flux, strict=True)), sympy.Integer(0))
             case PointValue():
-                raise NotCertified("the infinite medium has no position, so a point value has no reading")
+                raise ValueError("the infinite medium has no position, so a point value has no reading")
             case _:
                 assert_never(observable)
-        try:
-            return Exact(sympy.srepr(value), "ExactInfiniteMedium.certify")
-        except ValueError as refusal:
-            raise NotCertified(f"the exact infinite medium cannot certify {observable!r}: {refusal}") from None
+        return value
 
 
 def exact_infinite_medium_reference(specification: InfiniteMediumSpecification) -> ReferenceSolution:
@@ -338,6 +350,9 @@ def exact_infinite_medium_reference(specification: InfiniteMediumSpecification) 
     observables += [FluxIntegral(RegionwiseConstant(np.eye(groups)[g][None, :])) for g in range(groups)]
     claims = {}
     for observable in observables:
-        established = derivation.establish(observable)
-        claims[observable] = Claim(max(1e-12 * abs(established.enclosure().value), 1e-300), established)
+        match derivation.evaluate(observable):
+            case Exact() as established:
+                claims[observable] = Claim(max(1e-12 * abs(established.enclosure().value), 1e-300), established)
+            case Uncertified():
+                raise ValueError(f"the exact infinite medium reads {observable!r} uncertified, though its k and fluxes are rational")
     return ReferenceSolution(specification, derivation, ReferenceCertificate(claims, (), (), Current()))

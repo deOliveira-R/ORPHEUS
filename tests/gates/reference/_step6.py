@@ -1,4 +1,4 @@
-"""The step-6 gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.6).
+"""The step-6 gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.6 and §1.7b.1).
 
 Every production name the step-6 gates reach is spelled ONCE here, resolved on
 its module at call time (a rebinding battery arm reaches every row, lessons
@@ -24,8 +24,18 @@ def reference(specification: Any, derivation: Any, certificate: Any) -> Any:
     return s5.c(SOLUTION, "ReferenceSolution")(specification, derivation, certificate)
 
 
-def not_certified() -> type[BaseException]:
-    return s5.c(SOLUTION, "NotCertified")
+def uncertified(value: Any) -> Any:
+    """``Uncertified(value)``: a reference's value with no derived bound (step 7b.1)."""
+    return s5.c(s5.READING, "Uncertified")(value)
+
+
+def uncertified_class() -> type:
+    return s5.c(s5.READING, "Uncertified")
+
+
+def evaluation() -> Any:
+    """The ``Evaluation`` sum a derivation returns: ``Exact | DerivedBound | Uncertified``."""
+    return s5.c(SOLUTION, "Evaluation")
 
 
 def derivation_protocol() -> Any:
@@ -46,21 +56,26 @@ def exact_medium_of(mixture: Any) -> Any:
 class TableDerivation:
     """A derivation whose natural extension is a table keyed by observable, counting its calls.
 
-    An entry is an exact ``Fraction`` (established as ``Exact``) or an
-    establishment itself; an observable with no entry has no derivable bound,
-    so ``establish`` raises ``NotCertified`` (the family-without-a-bound case).
+    An entry is an exact ``Fraction`` (evaluated as ``Exact``), a ``float``
+    (evaluated as ``Uncertified``: the family-without-a-bound case, step
+    7b.1), or an evaluation itself (an ``Exact``, a ``DerivedBound``, an
+    ``Uncertified``, or a deliberately wrong object for an admission row). An
+    observable with no entry is a fixture error (``KeyError``), never a
+    production case.
     """
 
     def __init__(self, table: dict[Any, Any]) -> None:
         self.table = dict(table)
         self.calls: list[Any] = []
 
-    def establish(self, observable: Any) -> Any:
+    def evaluate(self, observable: Any) -> Any:
         self.calls.append(observable)
-        if observable not in self.table:
-            raise not_certified()(f"TableDerivation: no derived bound for {observable!r}, so it cannot be certified")
         entry = self.table[observable]
-        return exact_of(entry) if isinstance(entry, Fraction) else entry
+        if isinstance(entry, Fraction):
+            return exact_of(entry)
+        if isinstance(entry, float):
+            return uncertified(entry)
+        return entry
 
 
 def exact_of(value: Fraction) -> Any:

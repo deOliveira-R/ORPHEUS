@@ -8,26 +8,30 @@ targets and corroborates them, when the family has one.
 
 **Read on demand.** ``read(observable)`` admits the observable once
 (:func:`~orpheus.specification.specification.admit_observable`), then asks the
-derivation to ESTABLISH it: to evaluate the reference's natural extension (for
-an integral-equation reference, the transport integral of its emission
-density) together with a derived bound, as an
-:data:`~orpheus.reference.certificate.Establishment`. Nothing about the answer
+derivation to EVALUATE it: the reference's natural extension (for an
+integral-equation reference, the transport integral of its emission density),
+as an :data:`Evaluation`. Where the family derives a bound the evaluation is
+an :data:`~orpheus.reference.certificate.Establishment` and reads as its
+enclosure; where it cannot, it is an
+:class:`~orpheus.reference.reading.Uncertified` value and reads as itself
+(the user's ruling of 2026-10-03, step 7b: no float without a bound passes
+for a guarantee, and none is withheld either). Nothing about the answer
 is stored here: an observable a test poses later, the cell averages of its own
 mesh, is read the same way as one the certificate declared (the user's rulings
 of 2026-10-03: the reading is the natural extension; no stored field in P2;
 P3's traced cache will make repeated readings cheap). A ratio reads as the
-quotient of its operands' readings, its bound carried outward, so a ratio is
-never established, and never claimed, on its own: one definition.
+quotient of its operands' readings, its bound carried outward (uncertified
+when either operand is), so a ratio is never evaluated, and never claimed, on
+its own: one definition.
 
 **The certificate's role.** A derived enclosure is a guarantee on its own
 (G3). The certificate adds, for the observables it claims, a target and the
 evidence that can refute the claim. A claim and the derivation's
 establishment of the same observable are one quantity in two places (X4), so
 they are checked once, at construction: a reference whose derivation
-disagrees with its own claim cannot be built ("disagrees"), and ``read`` is a
-pure evaluation. A family whose derivation cannot
-derive a bound raises :class:`NotCertified`; what such a reference returns
-instead waits for the user's ruling on the uncertified reading.
+disagrees with its own claim cannot be built ("disagrees"), nor one that
+claims an observable its derivation leaves uncertified, and ``read`` is a
+pure evaluation.
 
 **The same problem.** Construction refuses a claim the specification cannot
 pose, and an anchor whose specification is not this one (qa of step 5, F2).
@@ -40,27 +44,27 @@ solutions are equal only if they are the same object.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, final, get_args, runtime_checkable
+from typing import Protocol, TypeAlias, assert_never, final, get_args, runtime_checkable
 
 from orpheus.numerics.enclosure import Enclosure, common_part
 from orpheus.numerics.observable import Eigenvalue, Linear, Observable, Ratio
 from orpheus.numerics.scalars import parse_member
-from orpheus.reference.certificate import Establishment, ReferenceCertificate
+from orpheus.reference.certificate import DerivedBound, Establishment, Exact, ReferenceCertificate
+from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import Specification, admit_observable
 
-__all__ = ["Derivation", "NotCertified", "ReferenceSolution"]
+__all__ = ["Derivation", "Evaluation", "ReferenceSolution"]
 
-
-class NotCertified(LookupError):
-    """The reference cannot establish a derived bound for the observable asked for."""
+Evaluation: TypeAlias = Establishment | Uncertified
+"""A derivation's value of one observable: established (exactly or by a derived bound), or uncertified."""
 
 
 @runtime_checkable
 class Derivation(Protocol):
-    """A reference method's natural extension, evaluated with a derived bound."""
+    """A reference method's natural extension, evaluated with its derived bound where the family has one."""
 
-    def establish(self, observable: Eigenvalue | Linear) -> Establishment:
-        """The observable's value and its derived bound; raises :class:`NotCertified` if none can be derived."""
+    def evaluate(self, observable: Eigenvalue | Linear) -> Evaluation:
+        """The observable's value: established with its bound, or :class:`~orpheus.reference.reading.Uncertified`."""
         ...
 
 
@@ -77,7 +81,7 @@ class ReferenceSolution:
         parse_member(self.specification, get_args(Specification), "ReferenceSolution", "the specification", "a specification")
         if not isinstance(self.derivation, Derivation):
             raise TypeError(
-                f"ReferenceSolution: the derivation establishes an observable (a Derivation), "
+                f"ReferenceSolution: the derivation evaluates an observable (a Derivation), "
                 f"got a {type(self.derivation).__name__}"
             )
         if self.certificate is None:
@@ -90,7 +94,12 @@ class ReferenceSolution:
                     f"operands' readings, never on its own"
                 )
             admit_observable(observable, self.specification)
-            established = self.derivation.establish(observable).enclosure()
+            established = self._read(observable)
+            if isinstance(established, Uncertified):
+                raise ValueError(
+                    f"ReferenceSolution: {observable!r} is claimed, and the derivation leaves it uncertified "
+                    f"(no derived bound), so it cannot be claimed"
+                )
             claimed = self.certificate.claims[observable].enclosure()
             if common_part([claimed, established]) is None:
                 raise ValueError(
@@ -103,12 +112,24 @@ class ReferenceSolution:
                     "ReferenceSolution: an anchor answers another specification, so it cannot corroborate this one"
                 )
 
-    def read(self, observable: Observable) -> Enclosure:
-        """The reference's enclosure of ``observable``, established on demand (admitted once)."""
+    def read(self, observable: Observable) -> Enclosure | Uncertified:
+        """The reference's reading of ``observable``, evaluated on demand (admitted once): enclosed, or uncertified."""
         admit_observable(observable, self.specification)
-        return self._establish(observable)
+        return self._read(observable)
 
-    def _establish(self, observable: Observable) -> Enclosure:
+    def _read(self, observable: Observable) -> Enclosure | Uncertified:
         if isinstance(observable, Ratio):
-            return self._establish(observable.numerator) / self._establish(observable.denominator)
-        return self.derivation.establish(observable).enclosure()
+            return self._read(observable.numerator) / self._read(observable.denominator)
+        match self._evaluate(observable):
+            case Exact() | DerivedBound() as established:
+                return established.enclosure()
+            case Uncertified() as uncertified:
+                return uncertified
+            case unreachable:
+                assert_never(unreachable)
+
+    def _evaluate(self, observable: Eigenvalue | Linear) -> Evaluation:
+        """The derivation's evaluation, admitted as an :data:`Evaluation` (a Derivation is an open protocol)."""
+        evaluation = self.derivation.evaluate(observable)
+        parse_member(evaluation, get_args(Evaluation), "ReferenceSolution", "the derivation's evaluation", "an evaluation")
+        return evaluation
