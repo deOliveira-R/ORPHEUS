@@ -25,10 +25,15 @@ ORPHEUS = REPO / "orpheus"
 #: The one environment read allowed: the withdrawal switch decides whether a WITHDRAWN generator may run at
 #: all (it refuses otherwise); it selects no value. A traced memo must therefore never wrap a withdrawn
 #: generator (spec §1.5, rider R5.1).
-ENVIRONMENT_READERS_ALLOWED = {"orpheus/derivations/common/withdrawal.py", "orpheus/numerics/traced_memo.py"}
+ENVIRONMENT_READERS_ALLOWED = {
+    "orpheus/derivations/common/withdrawal.py",
+    "orpheus/numerics/traced_memo.py",
+    # The recorder snapshots the environment a run RECEIVED, to pin its declared variables (#405 P3).
+    "orpheus/numerics/_traced_memo_boot.py",
+}
 #: The census's positive control: a reader that exists on today's tree. (The traced memo reads the environment
-#: only to hand it to a generating process without its ``ORPHEUS_*`` variables, M3.16; it selects no value. It
-#: is allowed, not required: on a tree before step 3 it does not exist.)
+#: only to hand a generating process its declared variables, and its recorder to pin them, M3.16; neither
+#: selects a value.)
 ENVIRONMENT_READER_KNOWN = "orpheus/derivations/common/withdrawal.py"
 
 _ENV_ATTRIBUTES = {"environ", "environb", "getenv", "getenvb", "putenv", "unsetenv"}
