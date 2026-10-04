@@ -1350,6 +1350,103 @@ through its child pin; an edit to the cylinder's rays, which a sphere
 reading never ran, leaves both valid; a constant in the reading module's
 skeleton makes the reading stale.
 
+**The cadence: the specification's timing protocol** (`[M]` 2026-10-04,
+``main`` at ``2bae331a``, a detached worktree on the host ``.venv``,
+``python -O -m pytest --durations=0`` per file, serially; the scripts and
+logs are in ``scratch/reference_architecture/p3/timing/``). Each file ran
+four times, in this order over the whole list: with the memo bypassed (a
+pytest plugin entering :func:`~orpheus.numerics.traced_memo.bypass` for
+the session: today's arithmetic), cold (an empty store), and warm twice.
+"Cold" is cold for the first file only: a later file of the cold pass
+meets the entries the earlier ones wrote. The warm column is the minimum
+of the two warm runs, which agreed within 2 % for every file. The machine
+was not otherwise idle (a desktop session, load average about 8), so
+every figure is an upper bound.
+
+.. list-table:: Wall time per file, seconds
+   :header-rows: 1
+   :widths: 46 13 13 13 15
+
+   * - File
+     - Bypassed
+     - Cold
+     - Warm
+     - Bypassed / warm
+   * - ``test_peierls_greens_function_cylinder_mr.py``
+     - 546.2
+     - 567.2
+     - 2.6
+     - 210
+   * - ``test_peierls_greens_function_mr.py``
+     - 161.8
+     - 168.9
+     - 2.4
+     - 67
+   * - ``test_phase_c_crosscheck.py``
+     - 1112.3
+     - 1464.3
+     - 43.2
+     - 26
+   * - ``test_unified_matvec_cylinder.py``
+     - 848.3
+     - 57.1
+     - 54.1
+     - 16
+   * - ``test_peierls_greens_function_cylinder_mr_xverif.py``
+     - 23.0
+     - 26.7
+     - 2.4
+     - 9.6
+   * - ``test_reference_body.py``
+     - 19.1
+     - 17.3
+     - 2.8
+     - 6.8
+   * - ``test_trajectory_resolvent_reference.py``
+     - 410.8
+     - 570.8
+     - 161.5
+     - 2.5
+   * - ``test_l1_standoff_slab_cylinder.py``
+     - 1845.7
+     - 1080.6
+     - 1049.0
+     - 1.8
+   * - ``test_aba_specification.py``, ``test_crosscheck_harness.py``,
+       ``test_peierls_greens_function_garcia2021.py``
+     - 11.1
+     - 10.5
+     - 10.3
+     - 1.1
+   * - **The eleven files**
+     - **4978.3**
+     - **3963.4**
+     - **1328.3**
+     - **3.7**
+
+The files that read a multi-region solve or a trajectory reading drop to
+seconds once warm. What remains warm is not reference work, and it is
+not meant to be memoised:
+
+* ``test_l1_standoff_slab_cylinder.py`` spends its time in the PRODUCTION
+  solves it verifies (the slab Krylov solve at 160 cells, 310 s; the
+  cylinder refinement at 80 cells, 188 s). A fine-mesh production run is
+  never a reference (the plan's reference ban), so these run every time;
+  the memo removed the A|B|A cylinder reference those rows compare with,
+  which is why the file is faster cold than bypassed.
+* ``test_trajectory_resolvent_reference.py`` keeps 91 s in the two rows
+  that count solves under ``bypass()`` (a spy counts only in-process) and
+  47 s in the row that recomputes the cylinder reading against a fine
+  angular rule, its own independent check.
+* A cold run pays one interpreter start per generation and a validation
+  per hit, so a file whose references are not yet in the store
+  (``test_phase_c_crosscheck.py`` first, or the cylinder solver tests) is
+  slower cold than bypassed, by up to a third.
+
+The store after the cold pass: 9 528 kB under ``.cache/references`` (``du
+-sk``), 165 entries: 134 readings, 21 cylinder solves and 10 sphere solves.
+The largest entry is a cylinder solve, 229 126 bytes.
+
 
 Declared limits
 ===============

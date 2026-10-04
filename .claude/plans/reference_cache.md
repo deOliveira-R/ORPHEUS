@@ -1693,3 +1693,49 @@ None of these touches the three real clients. The question put to the user: hard
   - the environment pin is the declared variables (PATH excluded) as the run RECEIVED them, so a generator that sets one still validates.
 - **Gates:** 3 more rows (K, E, U).
 - `[M]` The full non-slow suite at `994ba740`, in a quiet worktree: 15 223 passed, 0 failed. All of the earlier run's 5 failures at `39ee20f2` were the reaper's.
+
+## P3 close-out (2026-10-04)
+
+**Merged:** `main` `2bae331a`, a fast-forward of `refactor/p3-ambient-state` (16 commits from `a0f1b6ef` to `2bae331a`). CI `gates` run 37231159287 is green.
+- `[M]` The full non-slow suite at `bacf0787` (detached worktree): 15 226 passed and 1 failed. The failure was the M5.1b census, which was missing the recorder as a declared environment reader; it is fixed at `33592bb6`.
+- The theory record is `docs/theory/verification/reference_cache.rst` (label `verification-reference-cache`), which includes the generator contract.
+
+**The cadence, the purpose of P3** (`[M]` the specification's §3 protocol at `2bae331a`; the table is in the chapter, "The numbers"; logs in `scratch/reference_architecture/p3/timing/`):
+- Across the 11 files: bypassed 4978 s, cold 3963 s, warm 1328 s, so warm is **3.7×** faster than bypassed.
+- The multi-region solver tests drop to 2 to 3 s warm, 67× to 210× faster.
+- `phase_c` is 26× faster and `unified_matvec_cylinder` 16× faster.
+- What stays slow when warm is production SN solves under verification (the `l1_standoff` file, 1049 s) and rows that bypass the memo by design.
+- The store holds 9.5 MB in 165 entries.
+
+**P3's rulings, each recorded in its section above:**
+- architecture B, one fresh process per miss;
+- the reading as the entry, with the solve as a shared child;
+- the clients: the two multi-region solvers and the trajectory reading;
+- the exact medium excluded (Q5: "It can execute if it's fast");
+- the key's type distinctions (Q2), realised as the exact encoding;
+- data files recorded (Q4);
+- the step order 5, 1, 2, 3, 4;
+- the generator contract, closing the recorder's open scope ("Contract + cold-rebuild control").
+
+**Process lessons:**
+- Every qa round found real defects, three rounds in all, and the archivist found one more while measuring for the chapter. Review rounds on a dependency recorder converge slowly: the attack surface is all of Python. The contract was the right way to bound the work.
+- A reaper that kills by process name owns every concurrent process of that name. It made 5 of 6 failures in one full-suite run. Kill by process tree.
+- When an audit hook or a wrapped `os.stat` runs, every helper it calls runs inside it. A `realpath` in the stat probe recursed.
+- The git guard refuses a whole compound command that contains a commit on `main`, so nothing in it runs. Create the branch in its own command first.
+
+**Next:**
+1. Step 8 (`Rate`), with #526.
+2. **P4, the families, hottest first.** The cylinder multi-region Green's function is already a memo client. The rest of the trajectory resolvent, MMS, the homogeneous and CP `_CASES`, Sood, and then F_N, Case, Galerkin and the critical-size generators follow. A family's certification run becomes a memo client.
+3. **P5, CI.** The `references` job and the scheduled cold rebuild, which is now the generator contract's witness.
+4. The open issues #563–#574.
+
+## ⏸ COMPACTION POINT — 2026-10-04, after P3 (supersedes the point after P2)
+
+**State:** `main` `2bae331a` (plus this plan commit), CI green, clean apart from `scratch/`.
+
+**Read in order:**
+1. this file's P3 sections, from "P3 opened (2026-10-04)" to "P3 close-out";
+2. the chapter `docs/theory/verification/reference_cache.rst`;
+3. the phase line for P4 at the top of this file.
+
+**Then open P4 with a living plan section,** as at P2's and P3's openings.
