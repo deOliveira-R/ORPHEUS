@@ -1,6 +1,6 @@
 r"""The bare 1-D mesh: its construction laws, its equality, its retirements (P1 step 3b).
 
-``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` is what a 1-D
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` is what a 1-D
 discretisation IS (the user's ruling of 2026-09-29, option A: the mesh holds
 no geometry; it knows its cells, each cell's material, and each boundary
 face's law). The mesher (:mod:`orpheus.mesh.mesher`) is the one call site that
@@ -46,18 +46,21 @@ _SPHERE = CoordSystem.SPHERICAL
 _EXPONENT = {_SLAB: 1, _CYLINDER: 2, _SPHERE: 3}
 
 
-def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, mat_ids=None, face_laws=None) -> Mesh1D:
+def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, region_ids=None, region_materials=None, face_laws=None) -> Mesh1D:
     """A valid mesh, with the named fields replaced; volumes default to the
     coordinate system's measure of the cells."""
     e = np.asarray(edges, dtype=float)
     if volumes is None:
         volumes = coord.measure(e) if isinstance(coord, CoordSystem) else np.diff(e)
-    if mat_ids is None:
-        mat_ids = np.zeros(len(e) - 1, dtype=int)
+    if region_ids is None:
+        region_ids = np.zeros(len(e) - 1, dtype=int)
+    if region_materials is None:
+        region_materials = tuple(range(int(np.max(region_ids)) + 1)) if len(region_ids) else (0,)
     if face_laws is None:
         solid = isinstance(coord, CoordSystem) and coord is not _SLAB and e[0] == 0.0
         face_laws = {"xmax": BC.vacuum} if solid else {"xmin": BC.reflective, "xmax": BC.vacuum}
-    return Mesh1D(coord=coord, edges=edges, volumes=volumes, mat_ids=mat_ids, face_laws=face_laws)
+    return Mesh1D(coord=coord, edges=edges, volumes=volumes, region_ids=region_ids, region_materials=region_materials,
+                  face_laws=face_laws)
 
 
 _ONE_ULP_ABOVE_ONE = float(np.nextafter(1.0, 2.0))
@@ -80,9 +83,9 @@ def _off_by(coord: CoordSystem, edges, j: int, k: float) -> np.ndarray:
 _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
     ("coord-string", lambda: _mesh(coord="SLB"), TypeError,  # type: ignore[arg-type]  # a refusal input
      "Mesh1D.coord is a CoordSystem member"),
-    ("edge-string", lambda: _mesh(edges=("0", 1.0), volumes=[1.0], mat_ids=[0]),
+    ("edge-string", lambda: _mesh(edges=("0", 1.0), volumes=[1.0], region_ids=[0]),
      TypeError, "Mesh1D.edges[0] must be a real number"),
-    ("edge-bool", lambda: _mesh(edges=(False, True), volumes=[1.0], mat_ids=[0]),
+    ("edge-bool", lambda: _mesh(edges=(False, True), volumes=[1.0], region_ids=[0]),
      TypeError, "Mesh1D.edges[0] must be a real number"),
     ("edge-nan", lambda: _mesh(edges=(0.0, math.nan, 2.0), volumes=[1.0, 1.0]),
      ValueError, "Mesh1D.edges[1] is NaN, which is not a number"),  # NaN: parse_real's own refusal since #405 P1 step 5
@@ -91,7 +94,7 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
      ValueError, "are at least two strictly increasing positions"),
     ("edges-equal", lambda: _mesh(edges=(0.0, 1.0, 1.0), volumes=[1.0, 1.0]),
      ValueError, "are at least two strictly increasing positions"),
-    ("one-edge", lambda: _mesh(edges=(0.0,), volumes=[], mat_ids=[]),
+    ("one-edge", lambda: _mesh(edges=(0.0,), volumes=[], region_ids=[]),
      ValueError, "are at least two strictly increasing positions"),
     ("negative-radius", lambda: _mesh(coord=_SPHERE, edges=(-0.5, 1.0), volumes=[1.0]),
      ValueError, "a radial coordinate starts at r_0 >= 0"),
@@ -105,15 +108,12 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
      ValueError, "Mesh1D.volumes[1] is infinite"),  # the shared finite parse since #559
     # qa F4: on a cell one ulp wide, a zero or negative volume is within the
     # absolute band of its measure, so positivity is its own law
-    ("volume-zero-on-a-thin-cell", lambda: _mesh(edges=(1.0, _ONE_ULP_ABOVE_ONE), volumes=[0.0], mat_ids=[0]),
+    ("volume-zero-on-a-thin-cell", lambda: _mesh(edges=(1.0, _ONE_ULP_ABOVE_ONE), volumes=[0.0], region_ids=[0]),
      ValueError, "a cell volume is positive"),
-    ("volume-negative-on-a-thin-cell", lambda: _mesh(edges=(1.0, _ONE_ULP_ABOVE_ONE), volumes=[-1e-300], mat_ids=[0]),
+    ("volume-negative-on-a-thin-cell", lambda: _mesh(edges=(1.0, _ONE_ULP_ABOVE_ONE), volumes=[-1e-300], region_ids=[0]),
      ValueError, "a cell volume is positive"),
-    # S3.11, re-posed: the wrong material-id count is a law of the bare
-    # constructor again (option A: the mesh knows its cells' materials)
-    ("mat-id-count", lambda: _mesh(mat_ids=[0, 1, 2]),
-     ValueError, "Mesh1D.mat_ids: 2 cell(s) need 2 material id(s)"),
-    ("mat-id-float", lambda: _mesh(mat_ids=[0, 1.0]), TypeError, "a material id is an int"),
+    # S3.11's material-id count and type rows moved to R7b2.0.2 (#405 P2 step 7b.2.0): the
+    # mesh's labels and its region -> material map carry them (test_mesh1d_regions.py)
     # the face laws are a mapping over the face inventory (step 3c's FaceLaws)
     ("slab-one-law", lambda: _mesh(face_laws={"xmax": BC.vacuum}),
      ValueError, "Mesh1D.face_laws: this cartesian mesh has the boundary faces ('xmin', 'xmax')"),
@@ -272,7 +272,7 @@ class TestTheValue:
         b = _mesh(coord=_SPHERE, edges=[0.0, 0.5, 2.0])
         assert a == b
         assert a != _mesh(coord=_SPHERE, volumes=_off_by(_SPHERE, (0.0, 0.5, 2.0), 1, 1.0))
-        assert a != _mesh(coord=_SPHERE, mat_ids=[0, 1])
+        assert a != _mesh(coord=_SPHERE, region_ids=[0, 1])
         assert a != _mesh(coord=_SPHERE, face_laws={"xmax": BC.reflective})
         assert a != _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0))  # another coordinate system
         assert (a == (0.0, 0.5, 2.0)) is False
@@ -289,14 +289,14 @@ class TestTheValue:
         assert len({a, b}) == 1
         # The separating leg: an ``__eq__`` returning True everywhere would
         # pass the three lines above.
-        other = _mesh(mat_ids=[0, 1])
+        other = _mesh(region_ids=[0, 1])
         assert other != a and len({a, other}) == 2
 
     def test_frozen_and_read_only(self):
         mesh = _mesh()
         with pytest.raises(AttributeError):
             mesh.edges = np.array([0.0, 1.0])  # type: ignore[misc]  # the frozen field is the subject
-        for array in (mesh.edges, mesh.volumes, mesh.mat_ids):
+        for array in (mesh.edges, mesh.volumes, mesh.region_ids, mesh.mat_ids):
             assert not array.flags.writeable
 
     def test_the_inputs_are_copied(self):
@@ -318,7 +318,7 @@ class TestTheValue:
 
     def test_with_distinct_cell_ids(self):
         law = BC("albedo", {"albedo": 0.3})
-        mesh = _mesh(coord=_SPHERE, edges=(0.5, 0.9, 2.0), mat_ids=[4, 4], face_laws={"xmin": BC.reflective, "xmax": law})
+        mesh = _mesh(coord=_SPHERE, edges=(0.5, 0.9, 2.0), region_ids=[0, 0], region_materials=(4,), face_laws={"xmin": BC.reflective, "xmax": law})
         relabelled = mesh.with_distinct_cell_ids()
         np.testing.assert_array_equal(relabelled.mat_ids, [0, 1])
         np.testing.assert_array_equal(relabelled.edges, mesh.edges)
@@ -359,7 +359,9 @@ class TestTheRetirements:
         import dataclasses
 
         init_fields = [f.name for f in dataclasses.fields(Mesh1D) if f.init]
-        assert init_fields == ["coord", "edges", "volumes", "mat_ids", "face_laws"]
+        # #405 P2 step 7b.2.0: the region labels and the region -> material map replace ``mat_ids``,
+        # which is derived (R7b2.0.1 in ``test_mesh1d_regions.py``).
+        assert init_fields == ["coord", "edges", "volumes", "region_ids", "region_materials", "face_laws"]
 
 
 # ─────────────────────────────────────────────────────────────────────

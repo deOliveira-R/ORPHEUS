@@ -10,8 +10,9 @@ it previews: :meth:`Mesher.partition` builds it, :meth:`Mesher.refine`
 replaces it, and :attr:`Mesher.mesh` returns it. Quality measures, a preview,
 adaptive refinement on a field and a protocol for external meshers are #539.
 
-The mesher lifts the geometry onto the cells: each cell takes the material of
-the interval it lies in, and each boundary face the geometry's law at that
+The mesher lifts the geometry onto the cells: each cell is labelled with the
+interval it lies in (its region; the geometry's region → material map comes
+with the labels), and each boundary face takes the geometry's law at that
 boundary point. Every breakpoint is a cell edge, so every cell lies in exactly
 one interval: the mesh refines the geometry's regions.
 """
@@ -78,14 +79,14 @@ class Mesher:
                 )
         edges = np.concatenate([cells[0][0], *(e[1:] for e, _ in cells[1:])])
         volumes = np.concatenate([v for _, v in cells])
-        mat_ids = np.repeat(
-            np.asarray(self._geometry.mat_ids, dtype=int), [len(v) for _, v in cells],
-        )
+        # Each cell's region is the interval it partitions: the label the mesh keeps.
+        region_ids = np.repeat(np.arange(len(cells)), [len(v) for _, v in cells])
         self._mesh = Mesh1D(
             coord=self._geometry.coord,
             edges=edges,
             volumes=volumes,
-            mat_ids=mat_ids,
+            region_ids=region_ids,
+            region_materials=tuple(self._geometry.mat_ids),
             face_laws=dict(zip(
                 face_inventory(self._geometry.coord, edges, 1),
                 self._geometry.boundaries, strict=True,

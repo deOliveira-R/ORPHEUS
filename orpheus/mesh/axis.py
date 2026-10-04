@@ -692,11 +692,16 @@ def legacy_mesh_from_axes(
         (ax,) = axes
         coord = coord_system(axes)
         edges = np.asarray(ax.edges, dtype=float)
+        # No geometry: each maximal run of one material is a region (labelling by
+        # material id would fuse disjoint pieces of one material into one region).
+        materials = mat_map.ravel()
+        run_starts = np.r_[True, materials[1:] != materials[:-1]]
         return Mesh1D(
             coord=coord,
             edges=edges,
             volumes=coord.measure(edges),
-            mat_ids=mat_map.ravel(),
+            region_ids=np.cumsum(run_starts) - 1,
+            region_materials=tuple(materials[run_starts].tolist()),
             face_laws=_face_laws_of_axis(ax, coord, edges),
         )
 

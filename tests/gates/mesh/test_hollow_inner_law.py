@@ -67,7 +67,7 @@ def _direct_hollow_mesh(coord: CoordSystem, inner_law) -> Mesh1D:
     edges = np.linspace(0.5, 2.0, 9)
     return Mesh1D(
         coord=coord, edges=edges, volumes=coord.measure(edges),
-        mat_ids=np.zeros(8, int), face_laws={"xmin": inner_law, "xmax": BC.vacuum},
+        region_ids=np.zeros(8, int), region_materials=(0,), face_laws={"xmin": inner_law, "xmax": BC.vacuum},
     )
 
 

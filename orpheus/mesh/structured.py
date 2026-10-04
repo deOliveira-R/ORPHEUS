@@ -35,7 +35,7 @@ from orpheus.geometry.coord import (
     compute_areas_1d,
     compute_volumes_2d,
 )
-from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positions
+from orpheus.numerics.scalars import parse_entries, parse_index, parse_integer, parse_positions
 from orpheus.mesh.face_laws import FaceLaws, face_inventory
 from orpheus.numerics.content import ContentIdentity
 
@@ -66,7 +66,7 @@ def _volume_ulps(coord: CoordSystem) -> int:
 
 @dataclass(frozen=True, eq=False)
 class Mesh1D(ContentIdentity):
-    r"""A 1-D mesh: cells in one coordinate system, a material in each, a law on each boundary face.
+    r"""A 1-D mesh: cells in one coordinate system, a region label on each, a law on each boundary face.
 
     The general constructor takes exactly what a 1-D discretisation is. A
     mesh is normally built by a :class:`~orpheus.mesh.mesher.Mesher` from a
@@ -86,8 +86,20 @@ class Mesh1D(ContentIdentity):
         interval is exact, and the shell between realised edges is not
         (ERR-020). Each must be the coordinate system's measure of its cell
         within :func:`_volume_ulps` ulp.
-    mat_ids : array_like of int, shape (N,)
-        The material id of each cell.
+    region_ids : array_like of int, shape (N,)
+        The region label of each cell, ``0 .. R-1``: the partition the mesh
+        refines, which an external mesh carries as its cell labels (Gmsh's
+        physical volume groups) and the :class:`~orpheus.mesh.mesher.Mesher`
+        writes as each cell's interval. Required; an unlabelled mesh is one
+        region. Labels are positions, the convention of a
+        :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`'s
+        rows, so a region table reads out to the cells as :meth:`per_cell`.
+    region_materials : tuple of int, length R
+        The material id of each region, indexed by label; every entry labels
+        some cell. The cells' material ids are derived from it
+        (:attr:`mat_ids`, through :meth:`per_cell`), never given beside it. It moves to the system
+        with the posing work (#522); the mesh does not hold its geometry,
+        because an external mesh has none (the user's ruling of 2026-10-03).
     face_laws : mapping of face name to BC or BoundaryTraceLaw
         The law on each boundary face, over exactly the mesh's
         :func:`~orpheus.mesh.face_laws.face_inventory`: ``xmin`` and ``xmax``
@@ -100,7 +112,8 @@ class Mesh1D(ContentIdentity):
     -----
     **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`,
     #405 P1 step 5, 2026-10-02): the coordinate system, edges, volumes,
-    material ids and face laws, so two meshes with the same cells and laws
+    region labels, the region → material map and the face laws (the
+    material ASSIGNMENT, never the materials' data), so two meshes with the same cells, labels, map and laws
     are equal and hash alike in every process; this is the discretisation
     digest the reference cache keys on, and it never reads the materials.
     Until then the mesh compared bitwise by a hand-written ``__eq__`` and
@@ -110,10 +123,12 @@ class Mesh1D(ContentIdentity):
     coord: CoordSystem
     edges: np.ndarray
     volumes: np.ndarray
-    mat_ids: np.ndarray
+    region_ids: np.ndarray
+    region_materials: tuple[int, ...]
     face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
 
     # Derived from the content, so not content (``compare=False``).
+    mat_ids: np.ndarray = field(init=False, repr=False, compare=False)
     widths: np.ndarray = field(init=False, repr=False, compare=False)
     centers: np.ndarray = field(init=False, repr=False, compare=False)
     areas: np.ndarray = field(init=False, repr=False, compare=False)
@@ -154,29 +169,50 @@ class Mesh1D(ContentIdentity):
                 f"measure of the cell [{edges[j]!r}, {edges[j + 1]!r}], {shells[j]!r} "
                 f"({off[j]:.3g} ulp off; at most {band})"
             )
-        mat_ids = np.array(
-            [parse_integer(m, f"Mesh1D.mat_ids[{k}]", "a material id")
-             for k, m in enumerate(parse_entries(self.mat_ids, "Mesh1D.mat_ids", "int"))],
+        region_ids = np.array(
+            [parse_index(r, f"Mesh1D.region_ids[{k}]", "a region label")
+             for k, r in enumerate(parse_entries(self.region_ids, "Mesh1D.region_ids", "int"))],
             dtype=int,
         )
-        if mat_ids.shape != (n,):
+        if region_ids.shape != (n,):
             raise ValueError(
-                f"Mesh1D.mat_ids: {n} cell(s) need {n} material id(s), got {len(mat_ids)}"
+                f"Mesh1D.region_ids: {n} cell(s) need {n} region label(s), got {len(region_ids)}"
+            )
+        region_materials = tuple(
+            parse_integer(m, f"Mesh1D.region_materials[{k}]", "a material id")
+            for k, m in enumerate(parse_entries(
+                self.region_materials, "Mesh1D.region_materials",
+                "material ids indexed by region label (a tuple of material ids)",
+            ))
+        )
+        cells_per_region = np.bincount(region_ids, minlength=len(region_materials))
+        if len(cells_per_region) > len(region_materials):
+            raise ValueError(
+                f"Mesh1D.region_ids: the label {len(cells_per_region) - 1} has no material "
+                f"({len(region_materials)} region(s) in region_materials)"
+            )
+        if not np.all(cells_per_region):
+            raise ValueError(
+                f"Mesh1D.region_materials: the region {int(np.argmin(cells_per_region))} labels no cell; "
+                f"every region is some cells' label"
             )
         face_laws = FaceLaws.over(
             face_inventory(self.coord, edges, 1), self.face_laws,
             "Mesh1D.face_laws", self.coord,
         )
-        mat_ids.flags.writeable = False
+        region_ids.flags.writeable = False
         widths = np.diff(edges)
         centers = 0.5 * (edges[:-1] + edges[1:])
         areas = compute_areas_1d(self.coord, edges)
         for name, value in (
-            ("edges", edges), ("volumes", volumes), ("mat_ids", mat_ids),
-            ("face_laws", face_laws), ("widths", widths), ("centers", centers),
+            ("edges", edges), ("volumes", volumes), ("region_ids", region_ids),
+            ("region_materials", region_materials), ("face_laws", face_laws), ("widths", widths), ("centers", centers),
             ("areas", areas),
         ):
             object.__setattr__(self, name, value)
+        mat_ids = self.per_cell(np.asarray(region_materials, dtype=int))
+        mat_ids.flags.writeable = False
+        object.__setattr__(self, "mat_ids", mat_ids)
 
 
     # ── Derived properties ────────────────────────────────────────────
@@ -185,6 +221,10 @@ class Mesh1D(ContentIdentity):
     def N(self) -> int:
         """Number of cells."""
         return len(self.edges) - 1
+
+    def per_cell(self, region_values: "np.typing.ArrayLike") -> np.ndarray:
+        """A per-region table read out to the cells: row ``r`` of ``region_values`` for every cell labelled ``r``."""
+        return np.asarray(region_values)[self.region_ids]
 
     @property
     def total_width(self) -> float:
@@ -265,7 +305,7 @@ class Mesh1D(ContentIdentity):
         )
 
     def with_distinct_cell_ids(self) -> "Mesh1D":
-        r"""This mesh with every cell its **own** material id, ``0 .. N-1`` in cell order.
+        r"""This mesh with every cell its **own** region and material id, ``0 .. N-1`` in cell order.
 
         The geometry the **homogenisation** result needs: a coarse
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` carries one
@@ -275,7 +315,7 @@ class Mesh1D(ContentIdentity):
         ``Solution.homogenize`` stays dimension-agnostic. Edges, volumes and face
         laws carry through unchanged.
         """
-        return replace(self, mat_ids=np.arange(self.N, dtype=int))
+        return replace(self, region_ids=np.arange(self.N, dtype=int), region_materials=tuple(range(self.N)))
 
 
 # ═══════════════════════════════════════════════════════════════════════

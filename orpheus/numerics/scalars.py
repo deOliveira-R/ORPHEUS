@@ -23,7 +23,7 @@ content encoder that uses it.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
+from collections.abc import Mapping, Sequence
 from numbers import Real
 
 import numpy as np
@@ -175,8 +175,17 @@ def parse_positive_integer(value: object, where: str, noun: str) -> int:
 
 
 def parse_entries(value: object, where: str, expected: str) -> tuple[object, ...]:
-    """The entries of a sequence as a tuple, or a keyed refusal."""
-    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+    """The entries of a sequence as a tuple, or a keyed refusal.
+
+    A sequence is ordered and positional: a ``Sequence`` (a tuple, a list, a
+    range) or an array of rank at least 1. A mapping is refused (iterating
+    it would read its keys), and so are a set (no order), an iterator (one
+    pass, no length), text, and a 0-d array (#405 P2 step 7b.2.0, the
+    elegance review: a dict given as region labels was read as its keys).
+    """
+    if isinstance(value, np.ndarray) and value.ndim >= 1:
+        return tuple(value)
+    if isinstance(value, (str, bytes, Mapping)) or not isinstance(value, Sequence):
         raise TypeError(f"{where} must be a sequence of {expected}, got {type(value).__name__}")
     return tuple(value)
 

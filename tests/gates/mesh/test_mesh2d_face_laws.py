@@ -255,7 +255,7 @@ _SPH_EDGES = np.array([0.0, 0.5, 2.0])
 
 def _build_mesh1d(low, high):
     return Mesh1D(coord=_CART, edges=_SLAB_EDGES, volumes=_CART.measure(_SLAB_EDGES),
-                  mat_ids=np.zeros(2, dtype=int), face_laws={"xmin": low, "xmax": high})
+                  region_ids=np.zeros(2, dtype=int), region_materials=(0,), face_laws={"xmin": low, "xmax": high})
 
 
 def _build_mesh2d(low, high):
@@ -348,7 +348,7 @@ _FIRST_AXIS = {
 
 def _mesh1d(coord, edges, laws):
     e = np.asarray(edges, dtype=float)
-    return Mesh1D(coord=coord, edges=e, volumes=coord.measure(e), mat_ids=np.zeros(len(e) - 1, dtype=int),
+    return Mesh1D(coord=coord, edges=e, volumes=coord.measure(e), region_ids=np.zeros(len(e) - 1, dtype=int), region_materials=(0,),
                   face_laws=laws)
 
 

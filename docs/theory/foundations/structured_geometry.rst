@@ -97,8 +97,8 @@ Key facts
   returns a :class:`~orpheus.mesh.structured.Mesh1D`,
   ``Mesher(geom).partition(rule).mesh``, whose first edge is
   :math:`r_0` and whose last is :math:`r_R`. The mesh holds the
-  coordinate system, the cells, a material per cell and a law per
-  boundary face, and no geometry; the geometry owns the measure, which
+  coordinate system, the cells, a region label per cell with the region →
+  material map, and a law per boundary face, and no geometry; the geometry owns the measure, which
   has one definition (:ref:`structured-geometry-mesh`).
 * Reference solvers (``Billiard``, ``MomentSpace``, ``Spectrum``,
   ``BasisSpace``) take ``(geometry: StructuredGeometry, materials,
@@ -591,13 +591,27 @@ step stored measures in a free-standing value and was refuted on exactly
 that point (:ref:`structured-geometry-mesh-refuted`).
 
 
-The mesh: cells, a material per cell, a law per boundary face
--------------------------------------------------------------
+The mesh: cells, a region label per cell, a law per boundary face
+------------------------------------------------------------------
 
 :class:`~orpheus.mesh.structured.Mesh1D` is constructed from exactly
 what a 1-D discretisation is:
-``Mesh1D(coord, edges, volumes, mat_ids, face_laws)``. It holds no
-geometry. Its construction laws, each a refusal with a keyed message:
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)``.
+It holds no geometry, and this is deliberate (the user's ruling of
+2026-10-03, #405 P2 step 7b.2): a mesh imported from an external mesher
+(Gmsh, Ansys) carries no originating geometry and usually no coordinate
+system, but it does carry its cell labels (Gmsh's physical volume groups)
+and its boundary face tags. So the mesh keeps the partition it refines as
+a region label on each cell, and a region → material map beside it; the
+material of each cell, ``mat_ids``, is derived from the two
+(``region_materials[region_ids]``, read out through ``Mesh1D.per_cell``), never given. Before this the mesher
+composed its cell → interval map with the interval → material map and
+kept only the composite, so the two outer regions of an A|B|A body (one
+material) were one, and a weight given per region could not be read. The
+region → material map moves to the system with the posing work (#522);
+the geometry, when a mesh has one, is optional provenance (the future home
+of hints such as the symmetry group), never a required field. Its
+construction laws, each a refusal with a keyed message:
 
 * ``edges`` are at least two finite, strictly increasing positions, and
   :math:`r_0 \ge 0` on a cylinder or a sphere;
@@ -605,7 +619,16 @@ geometry. Its construction laws, each a refusal with a keyed message:
   system's measure of its cell (the formula above)
   within a band of :math:`2p + 5` units in the last place (ulp) of
   :math:`c\,T(r_{j+1})`, :math:`p` the exponent of :math:`T`;
-* ``mat_ids`` are one integer per cell;
+* ``region_ids`` are one non-negative integer label per cell, and
+  ``region_materials`` is a tuple of integer material ids indexed by label:
+  every label has a material and every entry labels some cell (a spectator
+  region would enter the digest and change no reading). The mesher writes
+  each cell's interval as its label; the legacy axis adapter, which has no
+  geometry, labels each maximal run of one material as a region. That is
+  the adapter's declared loss: two adjacent intervals of one material
+  become one region, so the mesher and the adapter build unequal meshes
+  for such a body (``slab((0, 1, 2), (0, 0))``: labels ``[0, 1]`` against
+  ``[0, 0]``), where both once stored only ``mat_ids`` ``[0, 0]``;
 * ``face_laws`` are any mapping from face name to law over exactly the
   mesh's face inventory: ``xmin`` and ``xmax`` on a slab or a hollow
   cylinder or sphere, ``xmax`` alone on a solid one. Each law is a
@@ -770,7 +793,7 @@ pickles its entries, and a mesh is part of what it stores: `[M]` the
 read-only view the first 2-D spelling stored, a ``MappingProxyType``,
 raises ``TypeError: cannot pickle 'mappingproxy' object``.
 
-``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` passes
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` passes
 ``dimension=1`` to the rule, and
 ``Mesh2D(edges_x, edges_y, mat_map, *, face_laws, coord=CARTESIAN)``,
 whose ``face_laws`` is keyword-only with no default, passes
@@ -2206,9 +2229,10 @@ runtime:
    * - ``StructuredGeometry``
      - ``coord``, ``breakpoints``, ``mat_ids``, ``boundaries``
    * - ``Mesh1D``
-     - ``coord``, ``edges``, ``volumes``, ``mat_ids``, ``face_laws``; the
-       derived ``widths``, ``centers`` and ``areas`` are
-       ``compare=False``
+     - ``coord``, ``edges``, ``volumes``, ``region_ids``,
+       ``region_materials``, ``face_laws``; the derived ``widths``,
+       ``centers`` and ``areas`` are ``compare=False``, and ``mat_ids`` is a
+       property derived from the labels and the map
    * - ``Mesh2D``
      - ``edges_x``, ``edges_y``, ``mat_map``, ``face_laws``, ``coord``,
        stored as read-only copies with ``-0.0`` canonicalised

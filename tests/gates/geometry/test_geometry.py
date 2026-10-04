@@ -213,12 +213,14 @@ class TestMesh1D:
             mesh.edges = np.array([0.0, 2.0])  # type: ignore[misc]  # the frozen field is the subject
 
     def test_coerces_to_float_and_int(self):
-        """The bare constructor accepts lists; edges become float, mat_ids int."""
+        """The bare constructor accepts lists; edges become float, region labels and mat_ids int."""
         mesh = Mesh1D(
             coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
-            mat_ids=[0, 1], face_laws={"xmin": BC.reflective, "xmax": BC.reflective},
+            region_ids=[0, 1], region_materials=(0, 1),  # type: ignore[arg-type]  # the coercion is the subject
+            face_laws={"xmin": BC.reflective, "xmax": BC.reflective},
         )
         assert mesh.edges.dtype == float
+        assert mesh.region_ids.dtype == int
         assert mesh.mat_ids.dtype == int
 
 
@@ -381,7 +383,7 @@ class TestBC:
         with pytest.raises(TypeError, match="must be a BC tag or a BoundaryTraceLaw"):
             Mesh1D(
                 coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
-                volumes=np.array([1.0]), mat_ids=np.array([0]),
+                volumes=np.array([1.0]), region_ids=np.array([0]), region_materials=(0,),
                 face_laws={"xmin": "vacuum", "xmax": BC.vacuum},  # type: ignore[dict-item]  # a refusal input
             )
 

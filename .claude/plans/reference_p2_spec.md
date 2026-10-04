@@ -346,9 +346,124 @@ Review round (`[M]` 2026-10-03, uncommitted working tree after the review round;
 
 **Declared limits.** The table double, not a real family, carries every nonzero uncertified value: P2 ships no family without a bound, and the trajectory-resolvent sphere and cylinder are §1.7b's. Nothing pairs the answer with the reference's specification (P4).
 
+
+#### 7b.2 prerequisites (gates written, run and mutated, `[M]` 2026-10-03 on the uncommitted working tree)
+
+Two fixes the 7b.2 test-architect's probes required (the user's ruling 3, "Step 7b.1 landed; step 7b.2 ruled" in `.claude/plans/reference_cache.md`). (a) `FluxIntegral` refuses at construction a `Symbolic` weight that depends on μ or φ (`ValueError`, "depends on the direction"): a flux integral pairs with the scalar flux, which has no direction. (b) The ratio rule is spelled once, `Ratio.quotient(read) = read(numerator) / read(denominator)`, which `HomogeneousResult.read` and `ReferenceSolution._read` call; `Measured / Measured` is `Measured(a.value / b.value)`, and any other operand is `NotImplemented`.
+
+Gates. R3.7 (`tests/gates/numerics/test_observable.py`, 11 rows): μ, φ, a `Piecewise` step in μ and a mixed r·μ are refused on either group (8 rows), with no specification built; an r-only weight, `sin(φ)² + cos(φ)²` (it spells φ, asserted, and `depends_on` decides it independent) and a `RegionwiseConstant` construct. R7.19 (`test_verification.py`, 1 row, ROUTE, the one-definition witness): rebinding `Ratio.quotient` to a reversed decoy moves the ratio readings of BOTH the homogeneous answer and the exact reference, called once by each. R7.20 (7 rows): three `Measured` quotients; `Measured / Enclosure`, the reverse, `Measured / Uncertified` and `Measured / float` are `TypeError`; division by a zero measurement raises `ZeroDivisionError`. Scope `tests/gates/numerics/test_observable.py` + `tests/gates/reference`: 435 passed and 1 strict xfail; pyright clean.
+
+Battery (`battery/logs/p_*.log`; class arms patched onto the live class, `L104`): 5 arms, 5 red, sources sha-identical. Refusal dropped: 8 (R3.7). Quotient reversed inside `Ratio.quotient`: 9 (R6.4, R6.5, R6.6, R7.8, R7.13, R7.19); R7.9's production-against-reference ratio stays green under it, because both sides now share the rule (X4): the ratio's value rests on R7.8's hand computation and R6.6's exact containment, and the 4-group R6.6 row is blind (`fuel(4)` has equal group fluxes). A private ratio rule restored in the homogeneous reader: 1 (R7.19 only); in the reference reader: 1 (R7.19 only). `Measured` dividing by anything: 3 (R7.20).
 ### 1.7b.2 Step 7b part 2: the migration of `certify_agreement` (re-specified 2026-10-03 against the working tree of `feature/reference-uncertified-reading`)
 
 Written against the landed tree (`main` `7d0258d1`) plus part 1's API as it stands uncommitted in the working tree (`Uncertified`, `Derivation.evaluate`, `ReferenceSolution.read -> Enclosure | Uncertified`, `compare_uncertified`, `ReadingCertified`; part 1's gates are §1.7b.1's, none are re-gated here). Probes, logs and the census are in `scratch/reference_architecture/p2/ta/step7b2/` (`census_ast.py`/`.txt`, `probe1`–`probe6`). Gate ids are `R7b2.<n>`, test functions `test_r7b2_<n>_…`.
+
+#### 7b.2.0 The mesh carries region labels (the first carve of 7b.2; gates written 2026-10-03)
+
+The user's ruling of 2026-10-03 (`reference_cache.md`, "Step 7b.1 landed; step 7b.2 ruled", ruling 2). A mesh does not hold its geometry: an external mesh (Gmsh, Ansys) has no originating geometry and usually no coordinate system, but it carries cell labels (physical volume groups) and boundary face tags. Until this carve the `Mesher` composed its cell → interval map with interval → material and kept only the composite `mat_ids`. So the A|B|A regions 0 and 2 (both material 0) were one, and a per-region weight could not be read.
+
+**The API.**
+- `Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`.
+- `region_ids`: one int label per cell, required, stored as a read-only int array. An unlabelled mesh is one region (`region_ids = 0` everywhere, `region_materials = (m,)`).
+- `region_materials`: a tuple of material ids indexed by label.
+- `mat_ids` becomes a property, `np.asarray(region_materials)[region_ids]`, read-only and not content. That is one definition.
+- The `Mesher` writes each cell's interval index as its label, and `tuple(geometry.mat_ids)` as the map. `refine` re-partitions, so the labels follow.
+- `with_distinct_cell_ids` gives `regions = arange(N)` and `region_materials = tuple(range(N))`.
+- The region → material map moves to the system with #522; it does not move in this carve.
+- Refusal messages (the fragments R7b2.0.2 pins, mutually disjoint):
+
+  | refused | error | fragment |
+  |---|---|---|
+  | wrong label count | `ValueError` | `"Mesh1D.region_ids: N cell(s) need N region label(s)"` |
+  | a float or bool label | `TypeError` | `"a region label is an int"` (via `parse_integer`) |
+  | a negative label | `ValueError` | `"is a non-negative index"` (`parse_index`) |
+  | a label beyond the map | `ValueError` | `"has no material"` |
+  | a map entry with no cell | `ValueError` | `"labels no cell"` |
+  | a float material id | `TypeError` | `"a material id is an int"` (the existing fragment) |
+  | a mapping given as the map | `TypeError` | `"a tuple of material ids"` |
+
+**The representation, recommended: dense labels and a tuple, not a mapping.**
+- A label is the region's POSITION. That is the convention of a `RegionwiseConstant`'s rows and of the geometry's intervals, so the SN `read` of a region table is `values[region_ids]` with no second label → row map.
+- Surjectivity (every entry labels a cell) keeps a spectator entry out of the digest: it would change no reading, the leak principle that `Materials.restrict` applies to specifications.
+- An importer of an external mesh renumbers its tags densely and keeps the tag map as metadata. That metadata is the home of the user's optional "mesh metadata" idea, beside the symmetry hints.
+- `Materials` is keyed by arbitrary material ids, and that stays true: the map's VALUES are material ids. Only the labels are positional.
+
+**The digest** (asked of the test-architect).
+- `[M]` Today `mat_ids` is a content part: the roster lists `("coord", "edges", "volumes", "mat_ids", "face_laws")`, green on `78bbe024`. So the material ASSIGNMENT is in the digest; the material DATA is not (`Mesh1D` never reads a `Mixture`).
+- After the carve the parts are `("coord", "edges", "volumes", "region_ids", "region_materials", "face_laws")`. While the map lives on the mesh it must be content: two meshes differing only in it read different `mat_ids`, so an equal-but-not-substitutable pair would be a content-identity defect.
+- I read standing ruling 6 ("keys on the cells and laws, never on materials") as material DATA. When #522 moves the map to the system, it leaves the digest with the field.
+- Labels are content even when `mat_ids` agree: two labels swapped, the map with them (R7b2.0.5).
+- **Flagged to the orchestrator for confirmation, not blocking.**
+
+**The legacy adapter** (`legacy_mesh_from_axes`, `orpheus/mesh/axis.py:695`): ONE REGION PER MAXIMAL RUN of one material. It has no geometry, only a material per cell, and runs are the finest partition the material map determines without merging disjoint pieces. Labelling by material id would fuse A|B|A's regions 0 and 2, the defect this carve removes. Its residual loss, declared: two adjacent intervals of one material become one region. With no `mat_map` the mesh is one region.
+
+**The census** (`[M]` 2026-10-03 on `78bbe024`, AST over `orpheus/` and `tests/`, 1071 files; `scratch/reference_architecture/p2/ta/step7b2/regions/census.py`/`.txt`).
+
+`Mesh1D(` constructions: 9 sites.
+- 2 production: `mesher.py:84`, `axis.py:695`.
+- 7 tests: `test_hollow_inner_law.py:68`, `test_mesh1d.py:60` (the `_mesh` helper), `test_content_identity_mesh.py:63`, `test_mesh2d_face_laws.py:257` and `:351`, `test_geometry.py:217` and `:382`.
+- Plus 1 polymorphic mint, `structured.py:278` (`replace(self, mat_ids=…)` in `with_distinct_cell_ids`).
+- 9 `replace(mesh, face_laws=…)` test sites pass through and need no edit (R7b2.0.7).
+
+`.mat_ids` attribute reads: 26 in `orpheus/`, 30 in `tests/`, over every receiver type.
+- Production reads whose receiver is a `Mesh1D`: 8, all kept by the derived property (triaged by receiver).
+  - `sn/problem.py:237`, `diffusion/augmented_mesh.py:180`, `transport/mesh/material_mesh.py:166`, each `mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map`.
+  - `mc/solver.py:210`.
+  - `cp/solver.py:991`, `:1006`, `:1024`.
+  - `moc/geometry.py:304`.
+- The other production reads are `StructuredGeometry`'s, `CPSolver`'s own attribute, the MC pin cells' and `reference_body`'s.
+- Tests: about 19 reads have a `Mesh1D` receiver, by receiver-name triage; every one survives.
+- The string `"mat_ids"`: 30 hits, none a `getattr`/`hasattr` on a mesh. They are `structured.py:175` (the `setattr` loop), the two field-set pins, and geometry or reference-case dictionaries.
+
+Gates pinning the field set or the digest:
+- `test_mesh1d.py::TestTheRetirements::test_the_constructor_takes_exactly_the_discretisation`: RE-POSED to the new init fields.
+- `test_content_identity_mesh.py`'s `_MESH1D` roster: RE-POSED. The parts are the new ones; the `mat_ids` leg became a `region_ids` leg (two labels swapped, the map with them) and a `region_materials` leg. The `_m1` helper and the coord-only row now take labels.
+- `test_mesh1d.py`'s refusal rows `mat-id-count` and `mat-id-float`: owed a re-spelling by the main agent. Their laws are R7b2.0.2's `label-count` and `material-float`.
+- `test_mesh1d.py::test_with_distinct_cell_ids`: owed a re-spelling; R7b2.0.7 is its successor.
+- No mesh digest literal is pinned in `tests/` (`[M]` the 40-hex grep's 7 files pin other types), so no RECORD fingerprint moves. `MaterialMesh` digests through the mesh and moves with it, unpinned.
+
+**The gates** (`tests/gates/mesh/test_mesh1d_regions.py`, written; plus the two re-posed pins above). `[M]` 2026-10-03, `python -O -m pytest` on `78bbe024`: 41 red, 89 green over the 3 files, plus 1 consumer of the re-posed roster, `tests/gates/numerics/test_content_identity.py::test_s5_6_one_encoder_is_the_only_route`, red on the same keyword (its RECORD fingerprint S5.7 pins a `StructuredGeometry`, a mixture and `Materials`, no mesh: unmoved). Every red is the absent API: `unexpected keyword argument 'regions'` (17), `no attribute 'regions'` (9), the re-posed roster and field-set pins, and the refusal rows red on the same `TypeError`. `npx pyright` reports 33 errors, all of them the absent `region_ids`/`region_materials`. The refusal leg `region_materials={…}` will need a `# type: ignore[arg-type]` once the field is typed.
+
+| id | gate | first red |
+|---|---|---|
+| R7b2.0.1 | init fields exactly `coord, edges, volumes, regions, region_materials, face_laws`; `mat_ids` is a `property`, not a field; the retired `mat_ids=` keyword refused | `mat_ids` is a field |
+| R7b2.0.2 | the 8 keyed refusals above, disjoint fragments; positive legs: one region; labels out of cell order; numpy ints canonicalised to `int` (equal to the plain build) | unknown keyword |
+| R7b2.0.3 | `mat_ids == region_materials[region_ids]` on a labelling where they differ; read-only; the caller's label array copied | no `region_ids` |
+| R7b2.0.4 | the `Mesher`: labels = the interval containing each cell, decided by containment, on 3 coordinate systems; the map is `geometry.mat_ids`; A\|B\|A regions 0 and 2 distinct with one material, read through a per-region table with different rows 0 and 2 (the X1 witness); `refine` keeps the labels | no `region_ids` |
+| R7b2.0.5 | labels are content with `mat_ids` held fixed; the map is content; the mesher and the constructor agree | unknown keyword |
+| R7b2.0.6 | the legacy adapter: material runs `(0,0,1,1,0,0)` give regions `(0,0,1,1,2,2)` and map `(0,1,0)`; no map gives one region | no `region_ids` |
+| R7b2.0.7 | `with_distinct_cell_ids` and `dataclasses.replace` carry the labels | no `region_ids` |
+
+**Battery owed after the code lands:**
+- `mat_ids` read from a stored copy instead of the property;
+- the mesher writes material ids as labels;
+- the adapter labels by material id;
+- the spectator check dropped;
+- the labels dropped from the content;
+- `with_distinct_cell_ids` keeps the old labels.
+
+The positive control: the labels reversed in the mesher, which must redden R7b2.0.4.
+
+**Out of this carve, noted:** `Mesh2D` keeps `mat_map`, the same composite in 2-D. The three `isinstance(mesh, Mesh1D) else mesh.mat_map` sites are its tell. The ruling names `Mesh1D` only, so `Mesh2D` is a candidate issue for the orchestrator.
+
+**Refuted candidates.**
+- **The mesh holds its geometry** (the posing plan's 2026-09-26 `Mesh1D(geometry, partition)`). Refuted FOR external meshes: they carry no originating geometry. FACT kept: the mesh refines a region partition.
+- **The geometry as REQUIRED optional metadata.** The user's own objection. KEPT as the future home of hints (the symmetry group for the quadrature pick), never a required field.
+- **`region_materials` as a mapping keyed by arbitrary tags.** It would need a second label → row map at every `RegionwiseConstant` read, a second convention. The importer renumbers instead.
+- **`mat_ids` kept as a stored field beside the labels.** Two spellings of one assignment that can disagree (X4).
+- **The map left out of the digest now.** Equal values that read different `mat_ids` would not be substitutable.
+- **The legacy adapter labelling by material id.** It fuses disjoint regions, the defect being removed.
+
+**The review round** (2026-10-03; `scratch/reference_architecture/p2/review/step7b2_0_{qa,elegance}.md`). qa: 8 of 8 A|B|A readings (SN S8 and diffusion, slab and sphere, 2 groups) were bit-identical with HEAD, and all 8 production readers of `mat_ids` assign cross sections, so they keep reading it. Applied:
+- **B1 (blocker):** `parse_entries` admits only an ordered sequence (a `Sequence` or an array of rank at least 1) and refuses a mapping, a set, an iterator, text and a 0-d array. `[M]` a dict given as labels was read as its keys. New R7b2.0.2 rows: labels as a mapping, a set or an iterator; the map as a 0-d array; positive leg, `range`.
+- **S1:** `mat_ids` is a derived `init=False, compare=False` field, like `widths`. R7b2.0.1 is re-posed to pin that law.
+- **S3:** one readout, `Mesh1D.per_cell(region_values)`. `mat_ids` derives through it, and 7b.2.1's per-region weight reads through it.
+- **S2:** the adapter's runs come from one mask.
+- **N1:** the field is renamed `region_ids`, after `mat_ids`; a bare `regions` reads as the set (`n_regions`).
+- **N3, N4:** one `bincount` decides both label checks.
+- **Docs:** the API page's "material ID of each cell" is now derived from the labels; the adapter's declared loss is written on the theory page.
+
+Filed: #569 (`Mesh2D` stores the same composite, and three readers branch on the mesh's type). qa finding 1 (a read-only flag that can be set writeable again, under a cached digest; pre-existing, and the new field inherits it) is appended to #561.
 
 **What part 2 is.** Under the user's ruling 3 (2026-10-03) no trajectory-resolvent reference has a derived bound (#566; the cylinder also #516), so none can anchor a `VerificationCertificate`, and under the step-5 ruling the sphere's ladder "bound" is no bound either: the sphere is uncertified too. Every row of the migration set either becomes an explicit `compare_uncertified` at its current tolerance, or stays a strict xfail whose expected failure is now the verbs' own refusal, or stays a RECORD. Nothing in part 2 is a verification claim.
 
@@ -408,7 +523,7 @@ The rows that change (11 collected cases in 9 functions, plus the 5 harness rows
 | the same: 16 → 32 per μ piece | 1.2e-8 | — |
 | cost | 44 s for 320 points, 2 groups (E2) | 37 s (E1); E2 `[R]` 30 to 60 min (azimuthal splits at every tangency × axial nodes) |
 
-The sphere's shape row passes at 2e-2 under both readings. The cylinder RECORD's shape keys move by 4.3e-4, twenty times the band, so they are re-baselined. The re-baseline is declared in the commit, with its cause (the reading changed from the nodal answer to the extension), never absorbed. **Declared cost:** the cylinder E2 reading enters the slow suite through its RECORD row. If it is above about 10 minutes, the RECORD drops its shape keys and keeps only the k keys; this is a sizing decision for the main agent, not a reason to read the nodal answer.
+The sphere's shape row passes at 2e-2 under both readings. The cylinder RECORD's shape keys move by 4.3e-4, twenty times the band, so they are re-baselined. The re-baseline is declared in the commit, with its cause (the reading changed from the nodal answer to the extension), never absorbed. **Declared cost:** the cylinder E2 reading enters the slow suite through its RECORD row. **RULED (the user, 2026-10-03):** measure it when it lands; if it costs more than about 10 minutes, the RECORD keeps only its k keys. It is never a reason to read the nodal answer.
 
 The per-cell ratio form reproduces today's metric exactly: `[M]` probe5, `max_{g,i} |m − v| / M` = 4.325303743809688e-3, equal as floats to `_shape_gap` on the same readings.
 
@@ -422,10 +537,10 @@ The per-cell ratio form reproduces today's metric exactly: `[M]` probe5, `max_{g
 
 **What the tree lacks:**
 1. **The weight's cell co-vector**, ∫_{cell} w_g dV: a mesh fact (the cells and the coordinate measure), so its home is the mesh tier (`orpheus/mesh`, which may import `numerics`). For a `Symbolic` weight it is exact by SymPy integration of each group's expression in r times the measure, after `without(mu, phi)`. That reuses the one definition of "independent of the direction" and refuses a direction-dependent weight.
-2. **A region map for a `RegionwiseConstant` weight.** `Mesh1D` holds `coord`, `edges`, `volumes`, `mat_ids` and the face laws, and no region index. Region is not material (the A|B|A regions 0 and 2 share material 0), so reading a region table through `mat_ids` silently merges regions. The `Mesher` partitions interval by interval and DROPS the region index, a lossy return (`coding-elegance` Pattern 4, the lossy-return corollary). Until the region index is kept or P4 projects the specification's geometry, the SN `read` refuses a `RegionwiseConstant` weight as a scope boundary naming that machinery. Part 2 needs only `Symbolic` weights: the cell indicators, and the gauge νΣ_f(r) piecewise in r. The gauge is the hand-resolved form of step 8's `Rate(fission production)`, declared as such.
+2. **A region map for a `RegionwiseConstant` weight.** `Mesh1D` holds `coord`, `edges`, `volumes`, `mat_ids` and the face laws, and no region index. Region is not material (the A|B|A regions 0 and 2 share material 0), so reading a region table through `mat_ids` silently merges regions. The `Mesher` partitions interval by interval and DROPS the region index, a lossy return (`coding-elegance` Pattern 4, the lossy-return corollary). **Superseded by 7b.2.0 (ruled 2026-10-03):** the mesh keeps the region labels, so the SN `read` reads a `RegionwiseConstant` weight THROUGH them (`values[regions]`), with no refusal and no scope boundary. The shape rows' gauge may therefore be the region table νΣ_f (one row per region), not a hand-written piecewise `Symbolic`.
 3. **The answer–specification pairing**: P4's, the same declared limit as `HomogeneousResult.read`.
 
-7b's needs fall short of P4: only item 1 is built. **Not a test-side adapter**: an adapter would be a second definition of the reading that every future SN verification re-spells (X4); the reading is the answer's verb.
+7b's needs fall short of P4: items 1 and 2 are built (item 2 by 7b.2.0). **Not a test-side adapter**: an adapter would be a second definition of the reading that every future SN verification re-spells (X4); the reading is the answer's verb.
 
 **Review note (one definition).** "A ratio reads as the quotient of its operands' readings" would then be spelled three times: in `HomogeneousResult.read`, in `Solution.read` and in `ReferenceSolution._read`. Hoist it to one place at this step.
 
@@ -453,7 +568,7 @@ Kinds: T = THEOREM, F = REFERENCE (structurally independent), R = RECORD; "route
 | R7b2.6 | Quadrature splits at the weight's breakpoints: a cell indicator on (0.6, 0.7), inside region 1 and off every node, reads within 1e-9 relative of the same functional summed over explicit sub-intervals; a `Piecewise` whose breakpoints cannot be extracted is refused | T | `ImportError` | the breakpoints ignored (`[R]` an O(h) error, much larger than 1e-9) |
 | R7b2.7 | Admission refuses a flux-integral weight that depends on μ, or on the azimuth on the cylinder; a point value and a ratio are unaffected | T | `[M]` admitted today (probe4) | the refusal dropped |
 | R7b2.8 | The cell co-vector (mesh tier): Σ_i ∫ 1 dV equals Σ `volumes` (nulp at depth N) and equals the geometry's volume; the indicator of cell i gives V_i there and 0 elsewhere, exactly; a step inside a cell gives its partial volume in closed form; sphere and cylinder measures differ (r², r) | T | missing | the measures swapped; the edges shifted by one cell |
-| R7b2.9 | `Solution.read`: k bit-identical to `outcome.keff`; refused on a source outcome; Σ_i of the per-cell indicator readings equals the whole-domain reading (nulp); the X1 negative, φ scaled by 1 + 1e-11 moves the reading; a ratio is one quotient; a point value and a `RegionwiseConstant` weight refused, the latter naming the region map | T, route | `AttributeError` | ratio reversed; groups reversed (2-group fixture); 1/k returned; the RegionwiseConstant read through `mat_ids` |
+| R7b2.9 | `Solution.read`: k bit-identical to `outcome.keff`; refused on a source outcome; Σ_i of the per-cell indicator readings equals the whole-domain reading (nulp); the X1 negative, φ scaled by 1 + 1e-11 moves the reading; a ratio is one quotient; a point value refused; a `RegionwiseConstant` weight ACCEPTED and read through the labels: on the A\|B\|A mesh a table with rows 0 and 2 different reads regions 0 and 2 separately (the X1 witness; the material-keyed reading gives one value) | T, route | `AttributeError` | ratio reversed; groups reversed (2-group fixture); 1/k returned; the region table read through `mat_ids` |
 | R7b2.10 | The sphere rows, re-posed (table above), 1 + 80 comparisons, slow | F (uncertified) | the helper does not exist | today's documented arms re-run on the new rows: the reflective face realised as vacuum (k 2.6e1), a 1 % perturbation of the reference's moderator density (shape 7.2e-2), the one-spline reference (ERR-090) |
 | R7b2.11 | The cylinder rows (5 functions, 7 cases): strict xfail on `ReferenceNotValid`; the shared-mark census of the harness row asserts `raises is ReferenceNotValid` and the 5 carriers | T (census), xfail | `raises is AssertionError` today | the mark made non-strict; `raises` widened to `Exception` |
 | R7b2.12 | The RECORD rows read through `read` (one quantity in the record and the comparison); the k keys unchanged, the shape keys re-baselined to the extension | R | the shape keys move by 4.3e-4 (band 2e-5) | the documented arms of each RECORD (`tau := 0.7`, the vacuum-for-reflective law, the one-spline reference, a 1 % reference perturbation) |
@@ -501,7 +616,8 @@ The three searches, `[M]` 2026-10-03:
 - **`compare_uncertified` for the cylinder phase-C k.** Red at 8e-5 (`[M]` 7.35e-4 absolute); any passing tolerance widens it.
 - **`compare_uncertified` for the cylinder 4×8 rows.** Green only by two errors of about 6e-4 cancelling. No live comparison exists there today.
 - **A test-side SN adapter.** Refuted: the reading is the answer's verb (G1), and an adapter is a second definition (X4).
-- **Reading a `RegionwiseConstant` weight through `mat_ids`.** Refuted: region is not material (regions 0 and 2 of A|B|A share material 0).
+- **Reading a `RegionwiseConstant` weight through `mat_ids`.** Refuted: region is not material (regions 0 and 2 of A|B|A share material 0). Resolved by 7b.2.0: the reading goes through the labels.
+- **Refusing a `RegionwiseConstant` weight on the SN read (a scope boundary).** Superseded by 7b.2.0: the user ruled the labels onto the mesh.
 - **Gate 4.1 and the unified homogeneous row as `verify_agreement` against the exact infinite medium.** Refuted for 7b: the SN answer answers a `GeometrySpecification` and the exact reference an `InfiniteMediumSpecification`. Equating them is a reduction theorem (a closed homogeneous reflective body's k is k∞), a cross-specification pairing that nothing can check until P4's projection. FACT: those rows are exact-reference comparisons in all but the pairing, the first candidates when P4 lands.
 - **The shape row kept as a `max` over cells.** Not a linear observable (§4). FACT: the per-cell ratios reproduce the max exactly (probe5).
 - **A relative tolerance obtained by dividing by production's reading in the test.** Refuted: it re-spells the comparison verb test-side. The absolute τ_rel × K, with K truncated, is exact and only tightens.

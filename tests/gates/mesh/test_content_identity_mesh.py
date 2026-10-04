@@ -56,13 +56,13 @@ def _face_laws(laws=None, inventory=("xmin", "xmax")) -> FaceLaws:
     return FaceLaws.over(inventory, dict(_LAWS_1D if laws is None else laws), "test")
 
 
-def _m1(coord=_SLAB, edges=(0.5, 1.0, 2.0), volumes=None, mat_ids=(0, 1), laws=None) -> Mesh1D:
-    """A hollow two-cell mesh (both faces carry a law on every coordinate system)."""
+def _m1(coord=_SLAB, edges=(0.5, 1.0, 2.0), volumes=None, region_ids=(0, 1), region_materials=(0, 1), laws=None) -> Mesh1D:
+    """A hollow two-cell mesh (both faces carry a law on every coordinate system), one region per cell."""
     e = np.asarray(edges, dtype=float)
     v = coord.measure(e) if volumes is None else np.asarray(volumes, dtype=float)
     return Mesh1D(
-        coord=coord, edges=edges, volumes=v, mat_ids=np.asarray(mat_ids),
-        face_laws=dict(_LAWS_1D if laws is None else laws),
+        coord=coord, edges=edges, volumes=v, region_ids=np.asarray(region_ids),
+        region_materials=tuple(region_materials), face_laws=dict(_LAWS_1D if laws is None else laws),
     )
 
 
@@ -115,13 +115,19 @@ _CELL_EDGES = Entry(
 )
 
 _MESH1D = Entry(
-    cls=Mesh1D, base=_m1, parts=("coord", "edges", "volumes", "mat_ids", "face_laws"),
+    # #405 P2 step 7b.2.0 (R7b2.0.6): the region labels and the region -> material map replace the stored
+    # material ids; ``mat_ids`` is derived from them (``region_materials[region_ids]``) and is not content.
+    cls=Mesh1D, base=_m1, parts=("coord", "edges", "volumes", "region_ids", "region_materials", "face_laws"),
     fields_are_parts=False,  # widths, centers, areas are derived: not content
     perturb={
         "coord": (leg("cylinder", lambda: _m1(coord=_CYL), "volumes"),),
         "edges": (leg("an interior edge one ulp", lambda: _m1(edges=(0.5, _UP, 2.0), volumes=(0.5, 1.0))),),
         "volumes": (leg("one volume one ulp", lambda: _m1(volumes=_volume_one_ulp_up())),),
-        "mat_ids": (leg("a material id", lambda: _m1(mat_ids=(0, 2))),),
+        # Two labels swapped, the map swapped with them (a declared co-moving part), so ``mat_ids``
+        # reads (0, 1) on both. The pure witness that labels are content with the map held fixed is
+        # R7b2.0.5 in test_mesh1d_regions.py (two regions of one material relabelled).
+        "region_ids": (leg("two labels swapped, the map with them", lambda: _m1(region_ids=(1, 0), region_materials=(1, 0)), "region_materials"),),
+        "region_materials": (leg("a region's material", lambda: _m1(region_materials=(0, 2))),),
         "face_laws": (leg("the outer law", lambda: _m1(laws={"xmin": BC.reflective, "xmax": AlbedoBoundary(0.3)})),),
     },
     pairs=(
@@ -186,9 +192,9 @@ def test_s5_3_mesh1d_coord_alone_moves_the_digest() -> None:
     a = 0.05
     edges = np.array([a, 1.0 / np.pi - a])
     volumes = _SLAB.measure(edges)
-    slab = _m1(coord=_SLAB, edges=edges, volumes=volumes, mat_ids=(0,))
-    cylinder = _m1(coord=_CYL, edges=edges, volumes=volumes, mat_ids=(0,))
-    for name in ("edges", "volumes", "mat_ids"):
+    slab = _m1(coord=_SLAB, edges=edges, volumes=volumes, region_ids=(0,), region_materials=(0,))
+    cylinder = _m1(coord=_CYL, edges=edges, volumes=volumes, region_ids=(0,), region_materials=(0,))
+    for name in ("edges", "volumes", "region_ids", "mat_ids"):
         require(np.array_equal(getattr(slab, name), getattr(cylinder, name)), f"activation: {name} differs")
     require(dict(slab.face_laws) == dict(cylinder.face_laws), "activation: the laws differ")
     require(content_digest(slab) != content_digest(cylinder), "the digest does not read coord")

@@ -5,8 +5,9 @@ The :mod:`orpheus.mesh` package is the mesh: the discretisation overlay
 on a geometry. A geometry (:doc:`/api/geometry`) gives the shape of a
 problem, its regions and its boundary declarations; a mesh divides the
 geometry's intervals into cells and carries the quantities derived from
-that division: cell edges, the material ID of each cell, cell volumes and
-face areas, and the boundary declaration on each face. Solvers receive a
+that division: cell edges, a region label on each cell (with the region →
+material map, from which the material ID of each cell is derived), cell
+volumes and face areas, and the boundary declaration on each face. Solvers receive a
 mesh and build mutable, method-specific state on top of it.
 
 The package holds six modules:
@@ -174,7 +175,7 @@ the rules handed to the mesher.
    assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
 
 The general constructor
-``Mesh1D(coord, edges, volumes, mat_ids, face_laws)`` is what the
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` is what the
 mesher calls, and what a relabelling
 (:meth:`~orpheus.mesh.structured.Mesh1D.with_distinct_cell_ids`) or the
 axis adapter calls; a test or a script builds its mesh through the
