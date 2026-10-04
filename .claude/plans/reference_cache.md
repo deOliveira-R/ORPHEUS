@@ -1411,3 +1411,53 @@ Read in order: "P2, the design as ruled (2026-10-02)"; the rulings sections afte
 - Never sed renames into `.claude/agent-memory/` or archived plans (history and the agents' own memory).
 
 **Open issues from this stretch:** #563, #564, #565, #566; from before: #551–#558, #560, #561, #562.
+
+## P2 close-out (2026-10-04)
+
+**Merged:** `main` `2f25ee99`, fast-forward from `feature/reference-uncertified-reading`. Step 7b's commits:
+- `380c0109` 7b.1: the uncertified reading;
+- `78bbe024` the pyright exclusions;
+- `0cb78c84` the 7b.2 prerequisites;
+- `fa38de31` 7b.2.0: region labels;
+- `c861970c` the `Symbolic.without` fix, ERR-096;
+- `65b0de93` 7b.2.1: the SN reading;
+- `311c6148` 7b.2.2: the trajectory-resolvent reference;
+- `a21b6f8e` 7b.2.3: the migration;
+- `55d05cb4` the P2 chapter and corrections;
+- the matrix regenerations.
+
+`[M]` full suite at `a21b6f8e` (detached worktree, `-m "not slow"`): 15 085 passed, 264 skipped, 56 xfailed. The only failures are the 4 `test_write_guards` worktree artefacts.
+
+**P2 is complete except step 8**, `Rate`, which waits for #526's removal cells (the spec's recommendation, §1.8). Every other P2 item from "P2, the design as ruled" has landed. The theory record is `docs/theory/verification/readings_and_certificates.rst`, label `verification-reference-architecture`.
+
+**Rulings made during step 7b** (each recorded in its section above):
+- the uncertified reading;
+- the cylinder cost cap;
+- the mesh carries region labels, never its geometry: an external mesh has none, and the geometry is optional provenance for hints later;
+- a method is verified for what it gives: `Billiard` refuses anisotropic scattering and (n,2n) as a SCOPE-BOUNDARY, and the decomposition into isotropic + anisotropic is #573.
+
+**Process lessons from step 7b:**
+- The method-implementer (W1) suited the reference-derivation build: the spec was its contract, the test-architect wrote gates in parallel against one-spelling adapters, and the build landed green against them.
+- Every qa round found a real defect that no gate saw. Examples:
+  - a pre-existing `simplify` in `Symbolic.without` that dropped periods (ERR-096);
+  - SymPy mis-integrating a transcendental step;
+  - the angular measure of the reading, untested on a heterogeneous body;
+  - a constructor that bypassed the door;
+  - `truncated` rounding up by one ulp.
+  Keep a qa round on every step.
+- A guard moved between modules must keep its ledger tag (elegance, 7b.2.3): the ledger gate cannot notice a MISSING token.
+- A bare `npx pyright` analyses `scratch/` and `docs/_build/`. Both are now excluded (`78bbe024`).
+
+**Next:**
+1. Step 8 (`Rate`) with #526.
+2. **P3, the traced memo** (the phase line at the top of this file): it caches every reference reading, certified or not (ruling 3: certification is decoupled from caching), which is what raises the development cadence.
+3. The open issues from P2: #563–#573 and #566. #569 (`Mesh2D` labels) and #571 (LD slopes) bound the SN reading; #572 (`Billiard`'s kind-tag dispatch) is debt.
+
+## ⏸ COMPACTION POINT — 2026-10-04, after P2 (supersedes the point of 2026-10-03)
+
+State: `main` `2f25ee99`, CI `gates` run 37181868166 green, clean apart from `scratch/`. Read in order:
+1. "P2, the design as ruled" and its rulings sections;
+2. "P2 close-out (2026-10-04)";
+3. the chapter `docs/theory/verification/readings_and_certificates.rst` (the ontology as built);
+4. the phase line at the top of this file, for P3.
+Then open P3 with a living plan section, which the user steers, as at P2's opening.
