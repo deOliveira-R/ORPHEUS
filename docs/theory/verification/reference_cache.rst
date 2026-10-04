@@ -26,7 +26,8 @@ The reference cache: a traced memo keyed on what ran
    (2026-10-04)" to its end, and discussion 2; specification of the
    gates: .claude/plans/reference_p3_spec.md. Written at P3's close,
    2026-10-04, against branch refactor/p3-ambient-state at 39ee20f2;
-   updated for the second review round at 994ba740.
+   updated for the second review round at 994ba740 and for the generator
+   contract and the third review at bacf0787.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -116,10 +117,18 @@ Key facts
 * **A generation may start only a declared machine query** (``uname``)
   and sees only a declared environment; every other started process is
   refused.
-* **What no manifest can see is stated, not gated**: a probe the recorder
-  does not wrap (``os.access``, the entries ``os.scandir`` yields), native
-  state, and a file a C library opens itself. Every rule here errs toward
-  a spurious miss, never toward a stale hit, except at those named limits.
+* **A memoised function obeys the generator contract** (the user's ruling
+  of 2026-10-04, "Contract + cold-rebuild control"): it reads data only by
+  opening real files, depends on a file's presence and bytes only, reads
+  no environment variable, starts no process, branches on no other memo's
+  ``lookup``, and takes arguments with a constructor form. A recorder
+  written in Python cannot be airtight against arbitrary Python; the
+  contract states what it does not try to catch, and phase P5's cold
+  rebuild is its witness.
+* **What no manifest can see is stated, not gated**: what the contract
+  excludes, native state, and a file a C library opens itself. Every rule
+  here errs toward a spurious miss, never toward a stale hit, except at
+  those named limits.
 
 
 What the memo is for
@@ -419,14 +428,31 @@ decides more than the leaves:
 * **a sparse matrix is its format and its stored arrays**, explicit zeros
   included;
 * **a subclass of** ``str``, ``bytes`` **or** ``ndarray`` **is its type and
-  its own instance state beside its bytes**. ``EmissionSpectrum``, the
-  stateless ``ndarray`` subclass ``Mixture.chi`` holds, is its type and its
-  bytes; a masked array keeps a type in its state, which has no content
-  identity, and is refused with its path.
+  its own instance state beside its bytes**, the state including
+  ``__slots__``. ``EmissionSpectrum``, the stateless ``ndarray`` subclass
+  ``Mixture.chi`` holds, is its type and its bytes; a masked array keeps a
+  type in its state, which has no content identity, and is refused with
+  its path;
+* **a subclass of** ``int`` **or** ``float`` **is its type and its state
+  beside its value**, the value taken through ``int(value)`` or the float's
+  bits, never through ``__str__``, which a subclass can override;
+* **a set keeps its iteration order**: two equal sets can iterate
+  differently, and a function that iterates one can tell them apart;
+* **a sparse matrix is keyed by its class as well as its format** (a
+  ``csr_matrix`` is not a ``csr_array``), and one that stores no arrays (a
+  ``dok_matrix``) is refused;
+* **a mapping other than** ``dict`` **and**
+  :class:`~orpheus.numerics.content.FrozenMapping` **is refused**: a
+  ``defaultdict`` holds a factory beside its items;
+* **a dataclass with an** ``InitVar`` **is refused**: its constructor
+  takes a value it does not keep, so it has no constructor form.
+  :func:`~orpheus.numerics.content.constructor_arguments` refuses it, which
+  also refuses it at the process boundary and in the payload.
 
 The content policy is unchanged by all of this: every content digest is
-bit-identical (`[M]` 2026-10-04, the S5.7 RECORD fingerprint and 244
-content-identity gates green). The price is a spurious miss for a caller
+bit-identical (`[M]` 2026-10-04, the S5.7 RECORD fingerprint and the
+content-identity gates green: 244 at ``994ba740``, 224 named in
+``bacf0787``'s message). The price is a spurious miss for a caller
 passing ``8`` where another passed ``8.0``, or one dictionary order where
 another passed the other, which is the safe direction.
 
@@ -511,9 +537,9 @@ kind and is parsed once, in ``Manifest.from_json``.
      - A file added to or removed from a directory a generator scanned.
      - qa finding 5.
    * - :class:`~orpheus.numerics.traced_memo.EnvironmentPin`
-     - The declared environment the generating process received, by its
-       digest.
-     - A thread count, a locale or a ``PATH`` that changed what ran.
+     - The declared variables the generating process received, ``PATH``
+       excluded, by their digest.
+     - A thread count or a locale that changed what ran.
      - The second review (an undeclared variable read by a generator).
    * - :class:`~orpheus.numerics.traced_memo.WorkingDirectoryPin`
      - The directory the run started in, recorded only when the run read a
@@ -662,16 +688,19 @@ own validation, never as a data pin of the parent.
 **Programs a run starts.** ``platform.processor()`` runs ``uname`` during
 the clients' imports (`[M]` 2026-10-04), so a started program is a real
 dependency. A generation may start only a declared machine query, a
-program whose answer the machine fixes: ``_ADMITTED_PROGRAMS`` is
-``{"uname"}``, pinned by its executable's bytes (an operating-system
-update can replace it). Every other start is refused as
+program whose answer the machine fixes: ``_ADMITTED_PROGRAMS`` holds
+``uname`` by its system path (``/usr/bin/uname`` or ``/bin/uname``,
+resolved), never by its name, so a script named ``uname`` earlier on
+``PATH`` is refused (third review); it is pinned by its executable's bytes
+(an operating-system update can replace it). Every other start is refused as
 :class:`~orpheus.numerics.traced_memo.Unpinnable`, because a started
 program's own reads and children are unrecorded: a pinned ``cat`` of an
 unpinned file served ``1.0`` where ``50.0`` was computed, and
 ``shell=True`` and ``/usr/bin/env python3`` slipped past a refusal keyed on
 the program being Python (findings r2, r3). A spawn-context process pool,
 which raises the audit event ``_posixsubprocess.fork_exec`` rather than
-``subprocess.Popen``, a ``fork`` and an ``os.system`` line are refused the
+``subprocess.Popen`` and is named by its executable candidates, a ``fork``
+and an ``os.system`` line are refused the
 same way. The table is a declared scope boundary (``SCOPE-BOUNDARY`` in
 the code): the machinery that would admit more is a recorder for a
 started program's own reads and children. The memo's own start of a
@@ -922,9 +951,15 @@ nested generations is also bounded, at 16
 process receives only ``_CHILD_ENVIRONMENT`` (``PATH``, ``HOME``,
 ``TMPDIR``, the locale variables and the BLAS and OpenMP thread counts,
 each when the parent has it) and ``PYTHONHASHSEED=0``, fixed so that
-iteration over a set of strings has one order in every generation; the
-environment it received is pinned by an
-:class:`~orpheus.numerics.traced_memo.EnvironmentPin`. Two reasons: no
+iteration over a set of strings has one order in every generation. The
+pin, an :class:`~orpheus.numerics.traced_memo.EnvironmentPin`, holds the
+declared variables as the run RECEIVED them, ``PATH`` excluded: ``PATH``
+is passed (``uname`` is found through it) but the one program a
+generation may start is admitted by its system path and pinned by its
+bytes, and a pinned ``PATH`` made every entry stale when a virtual
+environment was activated; and a pin taken after the run would never
+validate for a generator that sets a declared variable (third review,
+``test_e_…``). Two reasons: no
 variable may select an answer that no key or pin holds (a generator
 reading an undeclared variable ``QA_SCALE`` served ``2.0`` where ``3.0``
 was computed; ``test_m3_16_…``), and the withdrawal switch
@@ -1096,15 +1131,65 @@ reading of it is a refusal, and a refusal is an exception, which writes no
 entry (M4.8).
 
 
+.. _verification-reference-cache-contract:
+
+The generator contract
+======================
+
+**The user's ruling** (2026-10-04, after qa's third review), verbatim:
+*"Contract + cold-rebuild control"*. The memo records what a generation
+does from inside Python, and a recorder written in Python cannot be
+airtight against arbitrary Python: each of three qa rounds found new ways
+a deliberately adversarial generator could hide a dependency from it, and
+none of those ways touched the three real clients. Hardening without end
+against generators nobody writes was refused; instead the memo states the
+contract a memoised function obeys, and what the contract excludes the
+recorder does not try to see. The contract, as it stands in
+:mod:`orpheus.numerics.traced_memo`'s module docstring:
+
+* reads data only by opening real files (``open``, ``Path.read_*``,
+  ``np.load``), never through a loader (``pkgutil.get_data``) or a
+  module's absence (``try: import accel``, ``find_spec(...) is None``);
+* depends on a file's presence and its bytes, never on its other metadata
+  (its size or time from ``stat``, whether it is a link);
+* reads no environment variable (the M5.1 census holds this for
+  ``orpheus/``), starts no process, and branches on no other memo's
+  ``lookup``;
+* takes arguments with a constructor form: no ``InitVar``, no mapping
+  beside ``dict`` and ``FrozenMapping``, no sparse matrix without stored
+  arrays (each refused when keyed).
+
+The fourth clause is enforced: each excluded argument is refused when the
+key is taken. The first three are a contract, not a gate. The contract is
+a declared scope boundary (``SCOPE-BOUNDARY`` in the module docstring):
+the machinery that would replace it is a recorder below Python, such as a
+system-call tracer. Its witness is phase P5's cold rebuild, which
+regenerates every entry without the cache and compares it with the cached
+one: a generator that breaks the contract and was served a stale entry
+shows up there as a mismatch. A generator that needs what the contract
+excludes, or a cold rebuild that finds a stale entry, reopens the ruling.
+
+**What the contract covers** (each a way qa's third review hid a
+dependency, none in a real client):
+
+* **File metadata.** A presence pin keeps a file's kind (file, directory,
+  other, absent), not its size, its times or whether it is a link, so a
+  generator that branches on ``os.stat(path).st_size`` is outside the
+  contract. ``os.access`` is not wrapped at all, and the entries
+  ``os.scandir`` yields are not probed (the listing itself is pinned).
+* **Loader reads.** A data read through ``pkgutil.get_data`` runs behind
+  import-system frames, which the recorder exempts.
+* **An optional import's absence.** A generator whose answer depends on
+  whether an optional module can be imported depends on something the
+  import system decided, and the import system's probes are exempt.
+
+
 What no manifest can see
 ========================
 
-Stated where the memo is built (its module docstring), and here:
+Stated where the memo is built (its module docstring), and here, beside
+what the generator contract excludes (the section above):
 
-* **A probe the recorder does not wrap.** ``os.stat`` and ``os.lstat``
-  are wrapped, so ``exists()`` is a dependency; ``os.access`` is not
-  wrapped, and the entries ``os.scandir`` yields are not probed (the
-  listing itself is pinned).
 * **Native state.** A C extension's global state (a BLAS thread pool, a C
   library's precision mode) is neither code the trace records nor an
   argument. M4.5 compares a served reading with a fresh in-process one on
@@ -1249,12 +1334,12 @@ exact medium left the clients; the specification's section 3 states the
 measurement protocol the shipped memo owes (cold, warm and bypassed, three
 runs each, serially). The cache after both passes held 8 724 KB.
 
-**The gates** are 125 rows `[M]` (``--collect-only`` at ``6bfde984``): the manifest (22,
+**The gates** are 128 rows `[M]` (``--collect-only`` at ``bacf0787``): the manifest (22,
 ``test_traced_memo_manifest.py``), validation and the payload (18,
 ``test_traced_memo_validation.py``), the process and the store (27,
 ``test_traced_memo_process.py``), data files (1,
 ``test_traced_memo_data.py``), the clients (13,
-``test_traced_memo_clients.py``), the two reviews' findings (30,
+``test_traced_memo_clients.py``), the three reviews' findings (33,
 ``test_traced_memo_findings.py``) and the ambient state (14,
 ``tests/gates/test_ambient_state.py``), all under ``tests/gates/``. The
 real-tree witnesses (M4.4) copy every ``*.py`` under ``orpheus/`` into a
@@ -1590,9 +1675,59 @@ passed, 0 failed.
 **An instrument lesson.** qa's own reaper for orphaned generating
 processes, ``pkill -f _traced_memo_boot``, matched by process NAME, so it
 also killed the generating processes of a full-suite run going on at the
-same time: 5 of the 6 failures of that run at ``39ee20f2`` were that, and
-none was the memo's. A battery's orphans are killed by process tree,
-never by name.
+same time: all 5 failures of that run at ``39ee20f2`` were the reaper's,
+and none was the memo's. A battery's orphans are killed by process tree,
+never by name. `[M]` 2026-10-04, the full non-slow suite at ``994ba740`` in
+a quiet worktree: 15 223 passed, 0 failed.
+
+
+The third review, and the contract
+----------------------------------
+
+qa reviewed ``994ba740`` and ``6bfde984`` a third time and found further
+ways an ADVERSARIAL generator can hide a dependency: a file's size or
+link-ness read through ``os.stat``, where the presence pin keeps only the
+file's kind; a data read through ``pkgutil.get_data``, behind
+import-system frames; an optional import's absence; nine exotic argument
+types that shared a key (K1 to K9); ``uname`` admitted by its basename;
+and ``PATH`` in the environment pin. None of them touches the three real
+clients. The user ruled the close (the section on the generator contract
+above): the cheap, real fixes land in ``bacf0787``, and the rest is
+declared.
+
+.. list-table:: The third review's findings and what was done
+   :header-rows: 1
+   :widths: 30 50 20
+
+   * - Finding
+     - Fixed, or declared
+     - Gate
+   * - The exact key (K1 to K9): set iteration order; a sparse matrix's
+       class beside its format; a sparse matrix with no stored arrays; a
+       ``defaultdict``'s factory; an ``int`` subclass whose ``__str__``
+       lies; ``__slots__`` state; an ``InitVar``
+     - Fixed: set order kept; sparse class keyed and a ``dok_matrix``
+       refused; mappings other than ``dict`` and ``FrozenMapping``
+       refused; ``int`` and ``float`` subclasses keyed by type and state,
+       the value never through ``__str__``; ``__slots__`` in subclass
+       state; ``constructor_arguments`` refuses an ``InitVar`` class,
+       which also refuses it at the process boundary and in the payload.
+     - ``test_k_…``
+   * - ``uname`` admitted by its basename: a script named ``uname``
+       earlier on ``PATH`` was admitted
+     - Fixed: admitted by its system path; ``fork_exec`` names the program
+       by its executable candidates.
+     - ``test_u_…``
+   * - ``PATH`` pinned: activating a virtual environment made every entry
+       stale; and a generator that set a declared variable never validated
+     - Fixed: the pin holds the declared variables, ``PATH`` excluded, as
+       the run received them.
+     - ``test_e_…``
+   * - File size or link-ness through ``os.stat``; a read through
+       ``pkgutil.get_data``; an optional import's absence
+     - Declared: outside the generator contract; P5's cold rebuild is the
+       witness.
+     - —
 
 Development history
 ===================
@@ -1611,6 +1746,21 @@ Reverse-chronological changelog of phase P3 of #405, the plan
      - Milestone
      - Issue
      - Where
+   * - 2026-10-04
+     - **P3 closed by the generator contract** (the user: "Contract +
+       cold-rebuild control"), a scope boundary whose witness is P5's cold
+       rebuild; the third review's cheap fixes (the exact key's set order,
+       sparse class, mapping, ``int``/``float`` subclass, ``__slots__``
+       and ``InitVar`` cases; ``uname`` by its system path; the
+       environment pin without ``PATH``, as received). Three gates (K, E,
+       U).
+     - #405
+     - ``bacf0787``
+   * - 2026-10-04
+     - **This chapter after the second review**, and the regenerated
+       matrix.
+     - #405
+     - ``ab2dcd66``, ``889cae2f``
    * - 2026-10-04
      - **The memo's own store reads are not a generation's dependencies**:
        a parent no longer pins its child's sources as data (found by this
