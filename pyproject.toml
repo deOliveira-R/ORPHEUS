@@ -124,6 +124,11 @@ venv = ".venv"
 # pin pyright infers 3.13 from requires-python's lower bound, but pinning
 # makes the two-param-split (#65) target explicit and stable.
 pythonVersion = "3.13"
+# The untracked working trees are never analysed: ``scratch/`` (thousands of
+# probe scripts) and ``docs/_build/`` (gigabytes of build output) exhausted the
+# node heap of a bare ``pyright`` at 8 GB (``[M]`` 2026-10-03). Naming
+# ``exclude`` replaces pyright's default list, so the defaults are restated.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "scratch", "docs/_build"]
 # #226 burn-down, Level 1 (2026-07-02): the MINIMAL PRODUCTION ARCHITECTURE —
 # data, geometry, numerics, transport, sn, homogeneous — emits diagnostics and
 # is ratcheted toward zero. Every other subpackage is silenced: analysis still
