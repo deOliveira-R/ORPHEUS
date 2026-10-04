@@ -61,8 +61,10 @@ you where its theory lives.
    * - :ref:`theory-verification`
      - The **V&V machinery and evidence**: the L0..L3 ladder and evidence
        taxonomy, the test-harness tagging contract, the cross-method (L4)
-       protocol, the reference-solution contract, and the auto-generated
-       per-equation verification matrix.
+       protocol, the reference-solution contract, the readings, claims and
+       certificates a reference and a verification are made of
+       (:ref:`verification-reference-architecture`), and the
+       auto-generated per-equation verification matrix.
      - Designing or tagging a test, auditing coverage, or asking "what
        pins this equation?"
 

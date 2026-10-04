@@ -72,6 +72,15 @@ The chapters
        ``ContinuousReferenceSolution`` API, kernel primitives, and
        the reference-tier audit.
      - Writing or hardening a reference solution.
+   * - :doc:`readings_and_certificates`
+     - The reference-solution architecture (#405 P2): observables read off
+       any answer, readings typed by whose claim they are, a reference's
+       enclosure established exactly or by a derived bound (never by a
+       ladder), the reference certificate, verification and its two
+       floors, the uncertified comparison, and the chain-of-problems
+       error ontology.
+     - Comparing a solver with a reference; adding a reference family;
+       asking what a reference's number guarantees.
    * - :doc:`homogeneous`
      - The infinite-medium matrix eigenvalue — the shared analytical
        L1 anchor every solver family verifies against.
@@ -127,6 +136,7 @@ semi-analytical truth values are catalogued in the
    harness
    cross_method
    reference_solutions
+   readings_and_certificates
    homogeneous
    sn
    collision_probability

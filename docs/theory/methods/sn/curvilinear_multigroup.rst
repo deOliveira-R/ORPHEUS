@@ -80,9 +80,11 @@ cross-reference:
    * The verification chain: closed-form :math:`\kinf` recovery on
      {slab, sphere, cylinder} × {1, 2, 4 groups} × {SI, Krylov}; the
      heterogeneous-2G SI :math:`\equiv` Krylov equivalence gate
-     (:ref:`#196 <sn-issue-196-eigenvalue-equivalence>`); the MR↔MG
-     trajectory-resolvent flux-shape cross-checks
-     (:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`).
+     (:ref:`#196 <sn-issue-196-eigenvalue-equivalence>`); beside it, the
+     MR↔MG trajectory-resolvent flux-shape comparisons
+     (:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`), which
+     are uncertified comparisons and not verifications since #405 P2 step
+     7b.2.3 (the reference derives no bound, #566).
      The curvilinear MMS family is **1-group only** — an honest gap;
      the multigroup chain rides eigenvalue and analytical gates.
    * The group count *does* interact with iteration **behavior** (not
@@ -458,8 +460,13 @@ heterogeneous by design.
   carries the multigroup rows: the 2-group three-region sphere
   against the multiregion Green's-function reference (MR↔MG
   reduction ``rtol=1e-9``) and the 2-group three-region cylinder
-  (MR↔MG, :math:`K=3`).  This is the structurally-independent
-  flux-*shape* evidence the eigenvalue rows cannot supply.
+  (MR↔MG, :math:`K=3`).  It is structurally independent of the
+  S\ :sub:`N` sweep and reaches the flux *shape* the eigenvalue rows cannot,
+  but the reference derives no bound on its own error (#566; the cylinder
+  also #516), so since #405 P2 step 7b.2.3 the sphere rows are
+  uncertified comparisons and the cylinder rows strict xfails on the
+  verification verbs' refusal: consistency evidence, not yet verification
+  (:ref:`verification-reference-architecture`).
 * **Path equivalence, heterogeneous 2G.**  The #196 permanent gate
   (:ref:`sn-issue-196-eigenvalue-equivalence`,
   :file:`tests/gates/sn/eigenvalue/test_keff_curvilinear.py`) asserts

@@ -898,7 +898,10 @@ favour of structurally-independent pillars:
 
 The equation above is kept for the record and for its live use in
 measured-order assertions; no ORPHEUS reference value is
-Richardson-extrapolated today.
+Richardson-extrapolated today. The user's ruling of 2026-10-03 extends the same
+reasoning from a solver's ladder to a reference's own: no refinement
+ladder establishes a reference's enclosure, and a ladder is kept only as
+falsifying evidence against it (:ref:`verification-reference-architecture`).
 
 
 The verification-case contract

@@ -9,8 +9,9 @@ from 1 to 0), and no gate pinned value preservation (85 of 85 passed across
 the fix). Each row lifts the function before and after at sample points.
 
 First red: the ``simplify`` restored (battery arm ``without_simplifies``,
-``scratch/reference_architecture/p2/ta/step7b2/read/battery/``). The ERR entry
-is the archivist's; this row takes ``catches("ERR-0NN")`` once it exists.
+``scratch/reference_architecture/p2/ta/step7b2/read/battery/``). Row 1 is the
+catcher of ERR-096 (re-dropped in process under ``-O``: it reddens, row 2 stays
+green).
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ def _lift(expression: sympy.Expr, point: dict) -> float:
     return float(expression.subs(point, simultaneous=True))
 
 
+@pytest.mark.catches("ERR-096")
 def test_r7b2_10_without_preserves_a_periodic_step() -> None:
     """The sin step keeps its value at every sample (1 at r = 2.5, inside its SECOND period: the activation)."""
     step = sympy.Piecewise((1, sympy.sin(3 * _R) > 0), (0, True))

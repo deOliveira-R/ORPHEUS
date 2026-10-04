@@ -932,8 +932,9 @@ whose state is derived on every read and never stored:
 :class:`~orpheus.reference.certificate.Invalid` (with the reason of every
 check that failed), or, when the certificate's standing is a
 ``Withdrawal``, that ``Withdrawal`` (a committed declaration with a
-reason and an open issue). The type exists since #405 P2 step 5, and no
-reference generator returns a certificate yet. At the plan's phase P4,
+reason and an open issue). The type exists since #405 P2 step 5; one
+reference family returns a certificate since step 6 (the exact infinite
+medium), and no withdrawn family does (:ref:`verification-reference-architecture`). At the plan's phase P4,
 when each family's generator returns a certified reference, the
 ``withdrawn`` markers become withdrawn certificate standings and the
 decorator, the conftest hook and the audit's split retire with them.

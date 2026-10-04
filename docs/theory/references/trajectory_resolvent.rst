@@ -53,6 +53,13 @@ Key Facts
   with the Garcia 2021 multi-region sphere benchmark
   (``test_peierls_greens_function_garcia2021.py``). These are the
   load-bearing L1 evidence for the sphere family.
+- **As a reference solution** (#405 P2): the multi-region sphere and
+  cylinder are ``ReferenceSolution`` values with **no certificate**, read
+  as the transport integral of their emission density through the solver's
+  own chord oracle, and every reading is ``Uncertified``: the family
+  derives no bound on its own error (#566; the cylinder also #516), so a
+  test compares against it explicitly and never verifies against it
+  (:ref:`trajectory-resolvent-reference-reading`).
 
 
 .. _theory-trajectory-resolvent-name:
@@ -4185,11 +4192,31 @@ consumer, per the defer-until-two rule.
 The reference's reading: the natural extension of the emission density
 -----------------------------------------------------------------------
 
-The multi-region sphere and cylinder are reference solutions
-(``trajectory_resolvent_reference`` in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`, #405
-P2 step 7b.2.2): lazy, with no certificate, every reading uncertified. The
-state a reading starts from is the emission density at the radial nodes,
+The multi-region sphere and cylinder are reference solutions:
+``trajectory_resolvent_reference(specification, quadrature, *, max_iter,
+tol, initial_k)`` in
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`
+returns a :class:`~orpheus.reference.solution.ReferenceSolution` whose
+derivation is
+:class:`~orpheus.derivations.continuous.trajectory_resolvent.reference.TrajectoryResolventDerivation`
+and whose certificate is ``None``. It answers the fundamental
+k-eigenvalue question on a layered solid sphere or cylinder with a
+specular outer law, it is **lazy** (construction solves nothing; the
+power iteration runs once, on the first reading, and is held by the
+derivation), and **every reading is**
+:class:`~orpheus.reference.reading.Uncertified`, because the family
+derives no bound on its distance to the exact answer (#566; the cylinder
+also #516). The architecture it plugs into, and why an uncertified
+reading is compared and never verified against, is
+:ref:`verification-reference-architecture`.
+
+The state is the emission density
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The power iteration converges to an eigenpair on its radial nodes
+:math:`r_i`. What a reading starts from is the **source its final iterate
+was transported from**, the isotropic emission density per steradian at
+the nodes,
 
 .. math::
    :label: trajectory-resolvent-reading-emission-density
@@ -4197,40 +4224,242 @@ state a reading starts from is the emission density at the radial nodes,
    \frac{q_g(r_i)}{4\pi} = \frac{1}{4\pi}\Big[\sum_{g'} \Sigma_{s,g'\to g}(r_i)\,\phi_{g'}(r_i)
        + \chi_g(r_i)\,\frac{\sum_{g'} \nu\Sigma_{f,g'}(r_i)\,\phi_{g'}(r_i)}{k}\Big],
 
-and the scalar flux at any radius is its transport integral, angle-integrated,
+computed by one function both multi-region solvers call,
+:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.emission_density`,
+and kept on the solve's result as ``last_emission_density`` together with
+the total fission rate :math:`F` the iterate was divided by
+(``last_fission_rate``).
+
+**Why the density and not the flux.** The trajectory resolvent is an
+integral-equation method: its unknown is the angular flux, and the
+equation says the angular flux anywhere is the transport of the emission
+density along the backward ray. So the density at the nodes determines the
+flux everywhere, through the method's own operator; the nodal
+:math:`\phi` determines it nowhere off the nodes. Reading the flux from
+the density is Atkinson's Nyström interpolation formula
+:cite:`Atkinson1997` (eq. 4.1.6, pp. 101–102), the exact extension of a
+nodal solution to every point by the integral equation itself. Reading it
+by interpolating the nodal :math:`\phi` would be a second answer: the user's
+ruling of 2026-10-03 is "one reference, one answer", and the reading is
+the natural extension.
+
+The extension and its gauge
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The scalar flux at any radius is the angle-integrated transport of that
+density, in the solve's gauge:
 
 .. math::
    :label: trajectory-resolvent-reading-extension
 
-   \phi_g^{\rm ext}(r) = \int_{4\pi} \big(K_\alpha\,q_g/4\pi\big)(r, \Omega)\,d\Omega,
+   \phi_g^{\rm ext}(r) = \frac{1}{F}\int_{4\pi} \big(K_\alpha\,q_g/4\pi\big)(r, \Omega)\,d\Omega,
 
-with :math:`K_\alpha` the chord oracle's own body, evaluated at radii given
-apart from the density's knots (one transport). The angular integral is split
-at every tangency of a knot sphere or an interface; a flux integral is split
-radially at the interfaces, the knots, the region edges and the weight's
-steps.
+where :math:`K_\alpha` is the solver's own Variant α operator with
+reflectivity :math:`\alpha` (here 1, the specular closure) and :math:`F` the
+total fission rate above. The solve normalises each iterate as
+:math:`\psi \leftarrow K_\alpha(q/4\pi) / F`, so dividing by the same
+:math:`F` reads the extension in the gauge of the solve's final
+:math:`\psi`. A reading of an eigen answer is meaningful only as a ratio
+(its representative's scale is its gauge): a uniform rescaling of the
+density, a dropped :math:`1/(4\pi)` included, changes no comparison the
+suite makes, and no gate can see it, by design.
 
-.. todo:: Archivist expansion needed.
-   The derivation lives in
-   :mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`
-   (``TrajectoryResolventDerivation``, ``trajectory_resolvent_reference``);
-   the transport is ``MultiRegionSphereChordOracle.apply_operator`` /
-   ``MultiRegionCylinderChordOracle.apply_operator`` with their ``at=``
-   argument. Gates: ``tests/gates/derivations/test_trajectory_resolvent_reference.py``
-   (R7b2.2–R7b2.7); spec ``.claude/plans/reference_p2_spec.md`` §1.7b.2.
+One transport: the oracle's ``at=`` carve
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   Brief: why the reading is the natural extension and never the nodal
-   :math:`\phi` (the user's ruling 1 of 2026-10-03, one reference one
-   answer; E0, E1 and E2 of the step-7b.2 prototype and their measured
-   differences); why the emission density and not the flux is the state;
-   the split sets (a tangency is a square-root singularity in the angle; the
-   cylinder's axial cosine read as :math:`\cos\theta` because the 3-D lift
-   makes the integrand singular in :math:`\mu` at :math:`\pm 1`); the
-   quadrature orders and their measured errors; the cost (the sphere's 80
-   shape ratios, the cylinder's reading, and the RECORD consequence of the
-   user's 10-minute ruling); the refusals (anisotropic scattering, (n,2n),
-   every body outside the two multi-region arms, a scope boundary); and why
-   every reading is uncertified (#566, #516).
+:math:`K_\alpha` is the chord oracle's body,
+:meth:`MultiRegionSphereChordOracle.apply_operator
+<orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionSphereChordOracle.apply_operator>`
+and its cylinder twin. Before the carve the oracle took the radial nodes as
+two things at once: the knots of the density's interpolant (one cubic spline
+per region, ERR-090) and the radii the angular flux was evaluated at. The
+carve separates them: ``source_profile`` lives on the knots
+``r_nodes``, and ``at=`` names the evaluation radii, the knots when omitted
+(the solver's call). One transport now serves the power iteration at its
+nodes and the reference's reading anywhere; a second ray integrator written
+for the reading would be a twin path that could drift from the solver's
+(``instrument-doctrine`` X4). The gates (R7b2.5,
+``tests/gates/derivations/test_trajectory_resolvent_reference.py``):
+``at=None`` and ``at=r_nodes`` are one evaluation, bit for bit; a subset of
+evaluation points returns exactly those rows of the full evaluation, which
+catches a spline built on the evaluation points instead of the knots.
+
+**The knot identity.** At the knots, under the solve's own angular rule,
+the extension is the solve's final angular flux **bit for bit**: the
+oracle applied to ``last_emission_density`` with ``at=None`` and divided by
+``last_fission_rate`` is ``array_equal`` to the solve's ``psi_g`` in both
+groups (`[M]` 2026-10-03, the A|B|A sphere at :math:`(n_r, n_\mu,
+n_{\rm traj}) = (8, 8, 16)` and cylinder at :math:`(n_r, n_{\mu,\rm ax},
+n_\varphi, n_{\rm traj}) = (8, 4, 8, 16)`, tolerance :math:`10^{-10}`;
+largest difference 0.0 in all four group rows). It holds because the
+reading calls the same body with the same density the iteration last
+transported; the gate that pins it from a fresh solve, R7b2.2.2 (the
+fixed-point identity), allows one gauge scalar and a residual of
+:math:`10^{-12}` relative, and catches a density formed with a transposed
+:math:`\Sigma_s`, a wrong :math:`\chi`, a dropped :math:`1/k` or the groups
+swapped.
+
+The angular integral, split at every tangency
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A ray from radius :math:`r` that grazes a sphere of radius
+:math:`\rho < r` (an interface, or a knot where the density's spline
+changes piece) meets it at a tangency, where the chord length through the
+shell behaves like :math:`\sqrt{\cdot}` of the angular distance to the
+grazing direction: a square-root singularity of the integrand in the
+angle. Gauss–Legendre converges only algebraically across such a point,
+so the angular integral is split there and each piece carries its own
+rule (``ReadingQuadrature.angular_points_per_piece``, 16 by default).
+
+* **On the sphere** the direction fibre is :math:`\mu \in [-1, 1]` with
+  :math:`d\Omega = 2\pi\,d\mu`; the breaks are :math:`\mu = 0, \pm 1` and
+  :math:`\mu = \pm\sqrt{1 - (\rho/r)^2}` for every knot and interface
+  :math:`\rho < r`.
+* **On the cylinder** the breaks are in the azimuth: :math:`\varphi` with
+  :math:`r\,\lvert\sin\varphi\rvert = \rho`, and the multiples of
+  :math:`\pi/2`. The axial direction is integrated in the polar angle
+  :math:`\theta`, :math:`\mu = \cos\theta`, Gauss–Legendre in
+  :math:`\theta` with the weight :math:`\sin\theta`: the 3-D lift of a 2-D
+  chord, :math:`s_{\rm 3D} = s_{\rm 2D}/\sin\theta`, makes the integrand
+  smooth in :math:`\sin\theta`, hence singular at :math:`\mu = \pm 1` as a
+  square root in :math:`\mu`, which a rule in :math:`\theta` does not see.
+
+Each singularity sits at a piece end, where Gauss–Legendre still converges
+only algebraically: `[M]` (the qa review of step 7b.2.2) 16, 32 and 64
+points per piece move a sphere point value by 2.9e-7, 3.4e-8 and 9e-11,
+and a cylinder one by 1.25e-6, 6.1e-8 and 1.9e-9. The split set is a
+derived input that must be complete: the reading-bound prototype measured
+that a missing split no ray crosses gives a silently wrong value
+(:ref:`verification-reference-architecture`). The gates R7b2.2.1 read the
+A|B|A sphere at three off-node radii, both groups, against an unsplit
+2000-point :math:`\mu` rule through the same oracle, to :math:`10^{-5}`
+(`[M]` the unsplit rule's own error dominates, about 2.7e-6 at
+:math:`r = 1.73`), and the cylinder against an unsplit (96, 768) rule; an
+angular measure off by a direction-dependent factor (integrating
+:math:`\mu \in [0, 1]` and doubling, or dropping :math:`\sin\theta`)
+moves these readings by 8 to 9 %.
+
+The radial integral of a flux integral
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A :class:`~orpheus.numerics.observable.FluxIntegral` reads
+:math:`\sum_g\int w_g\,\phi_g^{\rm ext}\,dV` in the geometry's measure
+(:math:`4\pi r^2\,dr` on the sphere, :math:`2\pi r\,dr` per unit height on
+the cylinder), Gauss–Legendre per radial piece
+(``radial_points_per_piece``, 8 by default), split at the geometry's
+breakpoints, at the knots (the extension's own singular radii) and at the
+weight's steps, read once by
+:meth:`~orpheus.numerics.mesh_free_function.Symbolic.steps`, the
+definition production's exact cell integrals use too. A symbolic weight is
+read without its direction through
+:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`. The scalar
+flux is evaluated only where the weight is non-zero, and memoised per
+``(group, r)`` for the derivation's lifetime. `[M]` (the step-7b.2
+probes, sphere at :math:`(n_r, n_\mu) = (36, 96)`) 8 to 16 points per SN
+cell move the shape metric by 6.0e-7, and 16 to 32 points per angular
+piece by 1.2e-8.
+
+Three readings, and the one chosen
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The step-7b.2 probes (``scratch/reference_architecture/p2/ta/step7b2/``,
+``probe3``, ``probe5``) compared three readings of the A|B|A sphere and
+cylinder on the cross-check's shape metric (the largest per-cell
+difference of fission-gauged cell averages, relative to the largest):
+E0, today's nodal :math:`\phi` through a per-region cubic spline; E1, the
+extension under the solver's own angular rule; E2, the extension under the
+split rule above.
+
+.. list-table:: The three readings (`[M]` 2026-10-03; sphere at (36, 96), cylinder at (24, 16, 32), 8-point Gauss–Legendre per SN cell)
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Quantity
+     - Sphere
+     - Cylinder
+   * - E1 − E0
+     - 3.2e-4
+     - 6.4e-3
+   * - E2 − E0
+     - 3.4e-4
+     - not measured
+   * - the SN shape gap, E0 → the extension
+     - 4.361e-3 → 4.325e-3 (E2)
+     - 5.315e-3 → 4.881e-3 (E1)
+   * - cost of a reading set
+     - 44 s for 320 points, 2 groups (E2)
+     - 37 s (E1); E2 `[R]` 30 to 60 min
+
+E0 is the second, nodal answer the ruling excludes. E1 equals the nodal
+answer at the nodes and carries the cylinder's angular kink error (#516):
+it is the transport integral's discretisation, which is why R7b2.5 uses it
+to pin the threading and the reading does not. E2 is the reading.
+
+What it costs
+~~~~~~~~~~~~~
+
+The solve dominates a single reading; the flux integrals dominate a set.
+`[M]` (2026-10-03, ``--durations=0``) at the gates' resolutions the
+cylinder's solve takes about 19 s and a reading row 10 to 125 s, so its
+reading rows are ``slow`` except one cheap reading law at (4, 2, 4);
+the sphere's rows take seconds. In the migrated A|B|A rows (`[M]` the run
+of step 7b.2.3, 37 min 55 s for the five files) the sphere's 1 k and 80
+shape comparisons take 195 s and 94 s, and the cylinder RECORD takes 820 s,
+almost all of it the reference solve at (24, 16, 32). The cylinder's set
+of 80 shape ratios would cost about 38 minutes, above the user's cap of
+about 10 minutes (ruling of 2026-10-03), so its RECORD keeps only its k
+keys. P3's cache is the principled home of the cost.
+
+What it refuses
+~~~~~~~~~~~~~~~
+
+Construction is the one door, and refuses before any solve:
+
+* an infinite-medium specification (rays need a finite geometry);
+* any question but the fundamental k-eigenvalue along every fission
+  emission at the physical point;
+* a body material with a higher scattering moment or an (n,2n) reaction:
+  the solver reads :math:`\Sigma_{s,0}` alone and no (n,2n) matrix, so it
+  would answer another problem (the user's ruling: "Methods should be
+  verified for what they give"; an anisotropic reference built as an
+  isotropic one plus an anisotropic correction is #573). A spectator
+  material carrying either is admitted;
+* every body ``Billiard`` refuses, and every body it serves outside its two
+  multi-region arms (a homogeneous or hollow sphere or cylinder, an
+  annulus, a slab): a scope boundary, tagged in the derivation's
+  docstring, whose machinery is one rays class per further arm over its
+  oracle carved with ``at=``.
+
+A solve that exhausts its budget is held as its refusal, so it is not
+re-run.
+
+Why every reading is uncertified
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reading's quadrature error is small and measured (above); the solver's
+is not bounded. The density between knots is a cubic spline per region,
+and its error is the method's discretisation error. `[M]` (the
+reading-bound prototype, the Garcia 2021 Table 5 sphere
+:cite:`Garcia2021`) the solver's error is about :math:`2\times10^{-4}`
+against the published values, about :math:`10^{4}` times a rigorous
+reading's bound, and the derivable bound on it (at most 100 times the
+residual) is useless; every knot of the spline is a singular sphere, so no
+rigorous panel bound exists for the field as built. An analytic emission
+density per region with a derived solver bound is #566; the cylinder's
+convergence in :math:`n_r` is #516. Until then the A|B|A rows that read
+these references are ``compare_uncertified`` (sphere) and strict xfails on
+the verification verbs' refusal (cylinder): see the table in
+:ref:`verification-reference-architecture`.
+
+.. vv-status: trajectory-resolvent-reading-emission-density documented
+.. vv-status: trajectory-resolvent-reading-extension documented
+
+.. (vv-status rationale) the two equations define the reference's reading.
+   Their gates are foundation rows of
+   tests/gates/derivations/test_trajectory_resolvent_reference.py
+   (R7b2.2.1 the extension against an unsplit fine rule; R7b2.2.2 the
+   density as the solve's fixed point; R7b2.5 the one transport), which
+   carry no verifies marker by the harness contract.
 
 
 .. _peierls-greens-valpha2-strengthening:

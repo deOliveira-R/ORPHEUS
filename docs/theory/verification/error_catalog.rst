@@ -8658,6 +8658,27 @@ older entries classify against.
    reading.  The SN side of a comparison is read from the artefact that
    pins it, and the comparison is made on the SUT's own cells.
 
+   **Since #405 P2 step 7b.2.3** (2026-10-03, ``a21b6f8e``, branch
+   ``feature/reference-uncertified-reading``).  The rows this entry's
+   hiding mechanism names are re-posed on the reference architecture
+   (:ref:`verification-reference-architecture`): the multi-region sphere
+   and cylinder are reference solutions with no certificate, because the
+   family derives no bound on its own error (#566; the cylinder also
+   #516).  The phase C sphere k and shape rows are explicit
+   ``compare_uncertified`` comparisons at their 2026-09-26 tolerances, the
+   shape row reading the reference's natural extension
+   (:ref:`trajectory-resolvent-reference-reading`) instead of the nodal
+   spline; the cylinder rows are strict xfails on the verification verbs'
+   refusal (``ReferenceNotValid``).  None is a verification claim.  The
+   lesson's ladder is re-scoped by the user's ruling of 2026-10-03 that no
+   ladder certifies: a measured ladder is the documented provenance of a
+   tolerance and falsifying evidence against a reference, never a bound,
+   and the tenth-of-the-tolerance floor binds a derived bound only.
+   `[M]` (the step-7b.2.3 battery) re-installing the one-spline reference
+   still reddens the sphere k row (reference k 1.3702), while the shape
+   row stays green (2.38e-3 against its 4.98e-3), as recorded on
+   2026-09-26.
+
 
 .. error-entry:: ERR-091
    :title: Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the scalar flux, on every multi-group source
@@ -9189,3 +9210,65 @@ older entries classify against.
    **Lesson.**  ⭐ **A question type that cannot hold part of a
    declaration refuses the declaration; it never answers the part it
    can hold.**
+
+.. error-entry:: ERR-096
+   :title: Symbolic.without simplified each expression before substituting, and SymPy's simplify rewrote a periodic step as its first period alone, so every later period read 0
+
+   **Status:** ✅ **FIXED 2026-10-03** at ``c861970c``, on branch
+   ``feature/reference-uncertified-reading`` (#405 P2 step 7b.2). Found by
+   the qa review of step 7b.2.1, before the cell integrals that would
+   have consumed it landed.
+
+   **Module:** ``orpheus/numerics/mesh_free_function.py``
+   (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`).
+
+   **Failure mode:** none of the six AI modes: a library transformation
+   trusted to keep a contract it does not keep. ``without(*coordinates)``
+   is the constructive face of "independent of these coordinates"
+   (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.depends_on` is the
+   one definition): it may drop only a coordinate the function does not
+   depend on, and it must return the same function. It called
+   ``sympy.simplify`` on each group's expression and then set the dropped
+   coordinates to 0. Setting a coordinate the function does not depend on
+   is the identity on its values; ``simplify`` is not. `[M]` (SymPy
+   1.14.0, 2026-10-03) it rewrites ``Piecewise((1, sin(3r) > 0), (0, True))``
+   as ``Piecewise((1, (r > 0) & (r < pi/3)), (0, True))``: the first period
+   of the step and none of the later ones, so the value at
+   :math:`r = 2.5` (inside the second period) went from 1 to 0, while the
+   values at 0.3, 1.1 and 4.0 were unchanged.
+
+   **How it hid.** (a) The docstring stated the contract ("changes no
+   value") and nothing asserted it (``instrument-doctrine`` X3): `[M]` 85 of
+   85 gates passed on both sides of the fix (qa, recorded in the witness's
+   docstring). (b) ``simplify`` kept the values of every expression those
+   gates used; the activating shape is a condition whose sign changes
+   repeat (`[R]`), and a sample inside its first period reads the same
+   either way. (c) The readers that
+   eliminate the position as well (the infinite medium's,
+   :func:`~orpheus.numerics.mesh_free_function.values_without_position`)
+   refuse a step in :math:`r` before its value matters, because the weight
+   depends on :math:`r`; only a reader that keeps :math:`r` and drops the
+   direction could read the wrong value, and the first one, the cell
+   integrals of step 7b.2.1, was in review when qa found it.
+
+   **Fix.** The elimination is a substitution alone,
+   ``q.subs({c: 0 for c in coordinates}, simultaneous=True)``: no
+   simplification is needed, because the function does not depend on the
+   coordinates being set. A periodic step is now refused by the readers
+   that integrate it (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.steps`
+   locates a step only where its argument is polynomial in :math:`r`), so
+   the witness lives on ``without`` itself.
+
+   **Caught by:**
+   ``tests/gates/numerics/test_symbolic_without_values.py::test_r7b2_10_without_preserves_a_periodic_step``
+   (the step's value before and after ``without`` at five radii, one of
+   them inside the second period). `[M]` 2026-10-03, re-dropped in process
+   under ``python -O -m pytest`` (``simplify`` restored in ``without``):
+   that row is red (``0.0 == 1.0`` at :math:`r = 2.5`) and its sibling, the
+   cancelling direction dependence, stays green.
+
+   **Lesson.** ⭐ **A transformation that must preserve a function's values
+   is a substitution, never a simplification:** ``simplify`` is free to
+   return any expression it judges equal on the domain it assumes, and a
+   gate that samples only the first period of a periodic function cannot
+   tell the two apart.

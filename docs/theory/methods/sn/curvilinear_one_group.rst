@@ -5272,20 +5272,54 @@ Trajectory-resolvent cross-check
 Gate 4.2 is the **flux-shape cross-check** against the
 structurally-independent trajectory_resolvent Green's-function
 reference (the Peierls Variant α State 1B semi-analytical pillar
-in the ``algebra-of-record`` taxonomy).  The contractual claim is
+in the ``algebra-of-record`` taxonomy).  The cross-check's claim is
+that the S\ :sub:`N` answer and the reference's answer agree in the
+eigenvalue and in the flux shape on the S\ :sub:`N` solve's own cells:
 
 .. math::
    :label: sn-curvilinear-trajectory-resolvent-crosscheck
 
-   \bigl\|\phi^{\,\text{SN}}_h(r)
-        \;-\; \phi^{\,\text{traj.res.}}(r)\bigr\|_{\infty}
-        \;\le\; 5\times 10^{-4}
-        \quad
-        \text{on the 5 P0 curvilinear snapshots,}
+   \frac{\lvert k^{\,\text{SN}}_h - k^{\,\text{traj.res.}}\rvert}{k} \le \tau_k,
+   \qquad
+   \max_{g,\,i}\,\bigl\lvert \hat s^{\,\text{SN}}_{g,i}
+        - \hat s^{\,\text{traj.res.}}_{g,i}\bigr\rvert \le \tau_s\,M,
 
-with :math:`\phi^{\,\text{SN}}_h` the SN flux at the snapshot's
-:math:`n_x` and :math:`\phi^{\,\text{traj.res.}}` the
-trajectory-resolvent reference flux at the same radii.  The bare
+with :math:`\hat s_{g,i}` the cell average of group :math:`g` over the
+S\ :sub:`N` cell :math:`i`, gauged to unit total fission production (a
+ratio of two flux integrals, so neither side's normalisation enters),
+:math:`M` the largest such average, and the tolerances
+:math:`\tau_k = 4\times10^{-3}`, :math:`\tau_s = 2\times10^{-2}` on the
+heterogeneous A|B|A sphere, set from the two methods' measured refinement
+ladders.  On a homogeneous member both eigenvalues equal
+:math:`k_\infty` (the V_α1 and V_α1_cyl identities), so the claim
+reduces to :math:`k^{\,\text{SN}} = k^{\,\text{traj.res.}} = k_\infty`,
+asserted at :math:`10^{-9}` relative.
+
+.. note::
+
+   **What verifies this label today.**  Its verifying rows are the 3
+   homogeneous edge rows of
+   :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
+   (`[M]` 9 rows until #405 P2 step 7b.2.3, 3 after, in the regenerated
+   matrix of 2026-10-03), and they verify the **homogeneous reduction
+   only**: a uniform medium's flux is flat, which nulls every spatial and
+   angular redistribution term (the cylinder rows' flux moves 1.1e-10 under
+   the closure mutation ``tau := 0.7``, against 8.8e-2 on the three-region
+   cylinder, `[M]` the test module's docstring), and two of the three are
+   1-group (``vv-principles``
+   anti-pattern #3).  The heterogeneous rows carry no ``verifies`` marker:
+   the trajectory-resolvent family derives no bound on its own error, so
+   the sphere's k and shape rows are explicit uncertified comparisons
+   (``compare_uncertified``) at :math:`\tau_k` and :math:`\tau_s`, and
+   the cylinder's rows strict xfails on the verification verbs' refusal of
+   a reference with no certificate
+   (:ref:`verification-reference-architecture`).  The label's spatial and
+   angular content is **unverified** until phase P4 certifies the family
+   (#566; the cylinder also #516).  The equation that stood here until
+   2026-10-03, a :math:`5\times10^{-4}` sup-norm bound on the flux over the
+   five P0 snapshots, was asserted by no row.
+
+The bare
 function entry points cover the 5 P0 deleted curvilinear regression
 snapshots:
 
@@ -5328,11 +5362,9 @@ on :math:`k_\infty` agreement alone, which is degenerate
 (``vv-principles`` 1-group degeneracy rule applied to homogeneous
 multi-group: any discretisation that preserves balance gets
 :math:`k_\infty` right, so :math:`k_\infty` alone is not flux-shape
-evidence). The Phase D L1 acceptance criterion is rtol :math:`\le
-5 \times 10^{-4}` against the trajectory_resolvent reference on
-each of the 5 P0 snapshots — relaxed from rtol :math:`\le 10^{-9}`
-because SN nx-discretisation dominates the error budget at the
-practical mesh refinement levels.
+evidence). Since #405 P2 step 7b.2.3 that flux-shape evidence is an
+uncertified comparison (the note above), so it is consistency evidence
+against a structurally-independent method and not yet a verification.
 
 Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 **gains a tests edge transitively** through the Phase D fix: once

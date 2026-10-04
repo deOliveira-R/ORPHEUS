@@ -1311,9 +1311,14 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      :ref:`sn-issue-196-eigenvalue-equivalence`).  The Phase E
      flux-shape sentinel (then ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``)
      **no longer xfails**.  Since 2026-09-26 its sphere half is
-     :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
-     a plain L1 test, and its cylinder half is a strict ``xfail`` on #516
-     (ERR-090).
+     :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`.
+     Since #405 P2 step 7b.2.3 (``a21b6f8e``) that row is an
+     **uncertified comparison** (``compare_uncertified``), not a
+     verification: the trajectory-resolvent reference derives no bound on
+     its own error (#566), so it carries no certificate.  The cylinder half
+     is a strict ``xfail`` on the verification verbs' refusal of a
+     reference with no certificate (``ReferenceNotValid``; #566, #516,
+     ERR-090); see :ref:`verification-reference-architecture`.
 
 The twin-path bug Phase D left open
 ------------------------------------
@@ -1873,9 +1878,11 @@ Files touched by Phase F
   discrepancy with hypothesised pole issue"* to *"Phase F closed
   gross divergence; residual O(h) drift awaits further work"*, on
   the expectation a future tightening would self-enforce removal.
-  **The xfail was removed by ERR-058 (#195):** the canary now runs
-  as a plain L1 test (the structurally-independent Variant-α anchor;
-  see :ref:`sn-issue-196-eigenvalue-equivalence`).
+  **The xfail was removed by ERR-058 (#195)** (see
+  :ref:`sn-issue-196-eigenvalue-equivalence`).  Since #405 P2 step
+  7b.2.3 the sphere row is an uncertified comparison with the Variant-α
+  reference, which derives no bound (#566), and not a verification
+  (:ref:`verification-reference-architecture`).
 
 **Snapshot regeneration**
 
@@ -1963,9 +1970,12 @@ That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
 ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``) **no longer
 xfails**; its sphere half is now
 :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
-the structurally-independent Variant-α anchor (see
-:ref:`sn-issue-196-eigenvalue-equivalence`), and its cylinder half a strict
-``xfail`` on #516 (ERR-090).  The two viable
+an uncertified comparison with the structurally-independent Variant-α
+reference since #405 P2 step 7b.2.3 (the family derives no bound, #566;
+see :ref:`sn-issue-196-eigenvalue-equivalence` for the equivalence it
+accompanies), and its cylinder half a strict ``xfail`` on the
+verification verbs' refusal of a reference with no certificate (#566,
+#516, ERR-090).  The two viable
 closures that were tracked as Phase F-extensions are recorded here
 **only as bug-era history** — neither was taken, because both
 presupposed the shared fixed point was correct and only the
@@ -3160,27 +3170,36 @@ SI :math:`\equiv` Krylov is **twin-path agreement** — necessary but not
 sufficient (vv-principles L11: two implementations agreeing is
 cross-implementation evidence, not correctness evidence).  Both inner
 solvers could in principle converge to the same *wrong* fixed point.
-The independent ground that makes the closure a *correctness* claim, not
-merely a *consistency* claim, comes from two structurally-independent
-legs:
+Two structurally-independent legs stand beside it, and they carry
+different weights:
 
 * The **k_inf homogeneous legs** — on a uniform reflective infinite
   medium :math:`k_\infty=\nu\Sigma_f/\Sigma_a` is an analytical
-  (closed-form) eigenvalue the SN snapshots must reproduce.
-* The **Variant-α Green's-function cross-check**
+  (closed-form) eigenvalue the SN snapshots must reproduce.  This is a
+  correctness claim, and a flux-shape-blind one: a homogeneous
+  :math:`k_\infty` is independent of the spatial and angular operators.
+* The **Variant-α Green's-function comparison**
   (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
   and its eigenvalue sibling), which compares a live SN solve of the
   heterogeneous closed sphere with the trajectory-resolvent reference:
   fission-gauged cell averages over the SN's own cells within 2e-2, and
-  k within 4e-3, both bounds derived from the two methods' measured
-  ladders (the reference's own error at most a tenth of each).  This
-  reference is a semi-analytical pillar structurally independent of the
-  SN sweep, so agreement pins the *converged-to value*, not just
-  twin-path consistency.  The cylinder rows are strict ``xfail`` on #516:
-  the cylinder reference's azimuthal rule meets the tangency kinks of the
-  interior interfaces and cannot yet certify a bound that would verify
-  the SN solve (ERR-090 records how both rows read 2 % of reference error
-  as agreement until 2026-09-26).
+  k within 4e-3, both tolerances set from the two methods' measured
+  refinement ladders.  The reference is a semi-analytical method
+  structurally independent of the SN sweep, but it derives **no bound**
+  on its own error (#566), and a ladder estimate is not a bound (the
+  user's ruling of 2026-10-03, :ref:`verification-reference-architecture`).
+  So since #405 P2 step 7b.2.3 these rows are explicit
+  ``compare_uncertified`` comparisons: they would catch a gross defect
+  in the converged-to value (`[M]` a vacuum law realised for the
+  reflective one reddens both sphere rows, the step-7b.2.3 battery), and
+  they do not verify it.  They become
+  verifications, and the heterogeneous fixed point a verified correctness
+  claim, when phase P4 certifies the family.  The cylinder rows are strict
+  ``xfail`` on the verification verbs' refusal of a reference with no
+  certificate (``ReferenceNotValid``; #566, and #516: the cylinder
+  reference's azimuthal rule meets the tangency kinks of the interior
+  interfaces).  ERR-090 records how both rows read 2 % of reference error
+  as agreement until 2026-09-26.
 
 Production-decision record — curvilinear default reverted to SI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

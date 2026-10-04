@@ -85,7 +85,9 @@ and nothing above them, and :mod:`orpheus.derivations` imports it, never
 the converse (:ref:`architecture-layering`). Every value in it is a
 :class:`~orpheus.numerics.content.ContentIdentity`, admitted at
 construction, so two spellings of one value are one value and can key a
-cache (the reference solution excepted, until phase P3 keys it). The design and its rulings are the plan of record
+cache (the reference solution excepted, until phase P3 keys it). The
+theory, the design's reasons and the error ontology it rests on are
+:ref:`verification-reference-architecture`; the rulings are the plan of record
 ``.claude/plans/reference_cache.md`` (issue #405, phase P2), with the
 specification ``.claude/plans/reference_p2_spec.md``; the gates are under
 ``tests/gates/reference/``.

@@ -645,14 +645,47 @@ The derived quantities are ``widths``, ``centers``, ``areas``,
 in the order of ``face_laws``) and ``outer_law``, which reads
 ``face_laws["xmax"]`` (the law on :math:`r = r_R`, a slab's right face,
 the one law collision probability, characteristics and Monte Carlo
-read). Equality and hash are the content identity of the five fields
+read). Equality and hash are the content identity of the six fields
 (:ref:`structured-geometry-content-identity`): two meshes with the same
-coordinate system, edges, volumes, material ids and face laws are equal
-and hash alike in every process, whatever objects built them, and the
-derived ``widths``, ``centers`` and ``areas`` are not content
-(``compare=False``), because they are functions of the five. The
-mesh's digest is the content key of the discretisation, and it reads no
-material data, only the material ids.
+coordinate system, edges, volumes, region labels, region → material map
+and face laws are equal and hash alike in every process, whatever
+objects built them, and the derived ``mat_ids``, ``widths``,
+``centers`` and ``areas`` are not content (``init=False,
+compare=False``), because they are functions of the six. The labels are
+content even where two labellings give the same ``mat_ids`` (the two
+outer regions of A|B|A swapped with the map beside them read different
+per-region tables). The mesh's digest is the content key of the
+discretisation, and it reads no material data, only the material
+assignment.
+
+**Reading a field given per region or as a function.** Two methods turn
+a mesh-free weight into what a cell-average answer pairs with, and both
+are the mesh's because both are mesh facts (the cells and the
+coordinate system's measure):
+
+* :meth:`~orpheus.mesh.structured.Mesh1D.per_cell` reads a per-region
+  table out to the cells, row ``r`` for every cell labelled ``r``; it is
+  the one readout, and ``mat_ids`` is ``per_cell(region_materials)``.
+  Labels are positions, the convention of a
+  :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`'s
+  rows, so no second label → row map exists.
+* :meth:`~orpheus.mesh.structured.Mesh1D.cell_integrals` returns the
+  ``(G, N)`` co-vector :math:`\int_{V_i} w_g\,dV` of a weight, which a
+  flux integral pairs with the cell-average flux
+  (:ref:`verification-reference-architecture`). A
+  ``RegionwiseConstant`` is read through ``per_cell`` times the stored
+  cell volumes, refused unless its region count is the mesh's; a
+  :class:`~orpheus.numerics.mesh_free_function.Symbolic` weight is
+  integrated exactly in :math:`r` by SymPy (one antiderivative per
+  group, evaluated at the edges as the binary rationals they are,
+  rounded once and scaled by :math:`c`), split at its steps
+  (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.steps`), and
+  refused if it depends on the direction. It is the analysis of the
+  weight onto the indicator basis against the continuous measure
+  :math:`dV = c\,dT(r)`, not against the atoms of
+  ``volume_measure`` at the cell centres, which would be the midpoint
+  rule. ``Mesh2D.cell_integrals`` raises: a 2-D mesh carries no region
+  labels yet (#569).
 
 **Why the volumes are stored, and why they are checked.** An
 equal-volume cell's volume is stored as the equal share :math:`m/n` of
@@ -687,8 +720,8 @@ user asked what a ``Mesh1D`` needs the geometry for. The measured
 answer: the coordinate system and the breakpoints only; the materials
 and the laws rode along, with about 30 and about 29 production reads
 going through the mesh. So the mesh stores the coordinate system, the
-cells, the material of each cell and the law of each face, and the
-geometry stays one layer down. The laws are **per face**, keyed by the
+cells, the region label of each cell with the region → material map,
+and the law of each face, and the geometry stays one layer down. The laws are **per face**, keyed by the
 face's name (:ref:`structured-geometry-face-laws`): in 1-D each
 boundary point is one face, and the per-face form is the seed for 2-D,
 where one side of the boundary may be several faces carrying different
@@ -2231,8 +2264,9 @@ runtime:
    * - ``Mesh1D``
      - ``coord``, ``edges``, ``volumes``, ``region_ids``,
        ``region_materials``, ``face_laws``; the derived ``widths``,
-       ``centers`` and ``areas`` are ``compare=False``, and ``mat_ids`` is a
-       property derived from the labels and the map
+       ``centers`` and ``areas`` are ``compare=False``, and so is
+       ``mat_ids``, a derived ``init=False`` field read out from the labels
+       and the map through ``per_cell``
    * - ``Mesh2D``
      - ``edges_x``, ``edges_y``, ``mat_map``, ``face_laws``, ``coord``,
        stored as read-only copies with ``-0.0`` canonicalised
