@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15649**
+Total tests collected: **15764**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1348, 8.6%
-   L1, 2251, 14.4%
+   L1, 2251, 14.3%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11952, 76.4%
+   foundation, 12067, 76.5%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15543
+   explicit, 15658
    class-name, 46
    func-name, 0
    case, 33
@@ -476,6 +476,12 @@ Module × level grid
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
+   numerics/test_traced_memo_clients, 0, 0, 0, 0, 13, 0
+   numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
+   numerics/test_traced_memo_findings, 0, 0, 0, 0, 18, 0
+   numerics/test_traced_memo_manifest, 0, 0, 0, 0, 22, 0
+   numerics/test_traced_memo_process, 0, 0, 0, 0, 27, 0
+   numerics/test_traced_memo_validation, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 10, 0
@@ -620,12 +626,13 @@ Module × level grid
    sweep/test_march_start_structure, 0, 0, 0, 0, 21, 0
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
+   test_ambient_state, 0, 0, 0, 0, 14, 0
    test_dependencies_declared, 0, 0, 0, 0, 1, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 440, 0
+   test_layer_imports, 0, 0, 0, 0, 442, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
