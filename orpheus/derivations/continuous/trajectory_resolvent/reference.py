@@ -241,26 +241,6 @@ class _NotConverged:
         )
 
 
-def _refuse_higher_moments(specification: GeometrySpecification) -> None:
-    """Refuse a material the solver would read only in part: a scattering moment above P0, or an (n,2n) reaction.
-
-    ELEGANCE-DEBT[guard] #405 (P2 step 7b.2.3): ``Billiard``'s payload readers keep ``SigS[0]`` and drop ``Sig2``.
-    It retires when ``Billiard`` refuses a P1 or (n,2n) payload at the root, for every arm and every consumer.
-    """
-    for material_id, mixture in specification.materials.items():
-        if any(block.count_nonzero() for block in mixture.SigS[1:]):
-            raise ValueError(
-                f"trajectory_resolvent_reference: material {material_id} scatters anisotropically (a non-zero "
-                f"moment above P0), and the trajectory resolvent solves isotropic scattering only; truncating it "
-                f"would answer another problem"
-            )
-        if any(block.count_nonzero() for block in mixture.Sig2):
-            raise ValueError(
-                f"trajectory_resolvent_reference: material {material_id} carries an (n,2n) reaction, which the "
-                f"trajectory resolvent does not solve; dropping it would answer another problem"
-            )
-
-
 @dataclass(frozen=True, eq=False)
 class TrajectoryResolventDerivation:
     """The multi-region trajectory resolvent's natural extension, solved on the first evaluation and read uncertified.
@@ -306,7 +286,6 @@ class TrajectoryResolventDerivation:
                 f"trajectory_resolvent_reference answers the fundamental k-eigenvalue question at the physical "
                 f"point, got {specification.question!r}"
             )
-        _refuse_higher_moments(specification)
         object.__setattr__(self, "solver_quadrature", FrozenMapping(self.solver_quadrature.items()))
         billiard = Billiard(specification.geometry, dict(specification.materials.items()), dict(self.solver_quadrature))
         rays = _RAYS.get(billiard.geometry_kind)

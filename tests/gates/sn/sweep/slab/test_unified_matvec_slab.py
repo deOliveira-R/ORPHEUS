@@ -49,12 +49,12 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.problem import SNProblem
+from tests.gates.sn._test_helpers import mixture_from_transport_data
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
@@ -117,20 +117,6 @@ def test_unified_slab_constant_psi_gives_sigma_t() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
-    sigma_t = np.asarray(sigma_t, dtype=float)
-    sig_s = np.asarray(sig_s_matrix, dtype=float)
-    nu_sig_f = np.asarray(nu_sigma_f, dtype=float)
-    chi = np.asarray(chi, dtype=float)
-    sig_a = sigma_t - sig_s.sum(axis=1)
-    nu = np.ones_like(nu_sig_f)
-    sig_f = nu_sig_f.copy()
-    sig_c = sig_a - sig_f
-    return make_mixture(
-        sig_t=sigma_t, sig_c=sig_c, sig_f=sig_f, nu=nu, chi=chi, sig_s=sig_s,
-    )
-
-
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
 # ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
 # MultiplicationOperator``, i.e. :class:`StreamingCollisionOperator`) routes through
@@ -162,7 +148,7 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     sig_s = [[0.3, 0.05], [0.0, 0.7]]
     nu_sig_f = [0.4, 0.6]
     chi = [1.0, 0.0]
-    mat = _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi)
+    mat = mixture_from_transport_data(sigma_t, sig_s, nu_sig_f, chi)
     k_analytical = kinf_homogeneous(
         np.asarray(sigma_t), np.asarray(sig_s),
         np.asarray(nu_sig_f), np.asarray(chi),

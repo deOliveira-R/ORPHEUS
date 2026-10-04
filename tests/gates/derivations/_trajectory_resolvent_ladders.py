@@ -1,13 +1,17 @@
-r"""The measured ladders the trajectory-resolvent cross-check bounds are derived from, and the command that re-measures each.
+r"""The measured ladders the trajectory-resolvent cross-check's tolerances are derived from, and the command that re-measures each.
 
-Every bound and tolerance of the SN-against-trajectory-resolvent rows
+Every tolerance of the SN-against-trajectory-resolvent rows
 (``tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py``,
 ``tests/gates/sn/sweep/curvilinear/test_unified_matvec_cylinder.py``,
 ``tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py``)
 and of the Garcia 2021 rows
 (``tests/gates/derivations/test_peierls_greens_function_garcia2021.py``) is
 COMPUTED here from a table of measured rungs by the functions at the bottom;
-no bound is typed. Each table names the command that re-measures it::
+no tolerance is typed. A ladder ESTIMATES a reference's error: it can refute a
+reference, never certify one (the user's step-5 ruling of 2026-10-03, #405
+P2), so no number here is a bound, and the rows comparing against the
+uncertified trajectory resolvent are ``compare_uncertified`` comparisons or
+strict xfails (#566, #516). Each table names the command that re-measures it::
 
     python -O -m tests.gates.derivations._trajectory_resolvent_ladders <ladder>
 
@@ -39,9 +43,10 @@ SPHERE_3REG_REFERENCE_K: dict[tuple[int, int], float] = {
     (36, 192): 1.3810415940162106,
     (72, 96): 1.3809323414728516,
 }
-#: The shape metric of ``test_phase_c_crosscheck._shape_gap`` (fission-gauged
-#: cell averages on the SN mesh, fast group governing) between the fixture rung
-#: (36, 96) and each finer rung, also printed by ``sphere-reference``.
+#: The shape metric (fission-gauged cell averages on the SN mesh, fast group governing) between the fixture
+#: rung (36, 96) and each finer rung. ``[M]`` 2026-09-26 on the reference's NODAL φ read through a per-region
+#: spline, the reading retired at #405 P2 step 7b.2.3; ``sphere-reference`` now re-measures it through the
+#: reference's natural extension (``_aba_reference.shape_observables``), not re-run since.
 SPHERE_3REG_REFERENCE_SHAPE_STEP = {"n_r": 6.7e-4, "n_mu": 4.8e-4}
 #: The sphere's radial order: the per-region ladder at n_mu = 24 has increment
 #: ratio 0.34 on n_r = 24, 36, 48, the second-order value (0.35); the n_r
@@ -113,26 +118,31 @@ def ceil_one_significant_figure(x: float) -> float:
     return math.ceil(round(x / magnitude, 9)) * magnitude
 
 
-def tolerance_for(sut_residual: float, reference_bound: float | None) -> float:
+def tolerance_for(sut_residual: float, reference_error: float | None) -> float:
     r"""The tolerance a comparison is held to.
 
     The smallest one-significant-figure value :math:`T` with
     :math:`T \ge 10\,b` (the verification floor) and
     :math:`T \ge 2\,(e + b)` (room for both errors), for the SUT's residual
-    :math:`e` and the reference's bound :math:`b`. With no certified bound
-    the reference is assumed at the floor, :math:`b = T/10`, which gives
+    :math:`e` and the reference's error :math:`b`: a derived bound once the
+    family is certified, a ladder ESTIMATE until then (the sphere today, which
+    makes its rows uncertified comparisons, not verification). With no figure
+    for the reference it is assumed at the floor, :math:`b = T/10`, which gives
     :math:`T \ge 2.5\,e`: the tolerance the row will hold once a reference
     certifies a tenth of it.
     """
-    if reference_bound is None:
+    if reference_error is None:
         return ceil_one_significant_figure(2.5 * sut_residual)
     return ceil_one_significant_figure(
-        max(10.0 * reference_bound, 2.0 * (sut_residual + reference_bound))
+        max(10.0 * reference_error, 2.0 * (sut_residual + reference_error))
     )
 
 
-def sphere_3reg_reference_bound() -> dict[str, float]:
-    """The sphere reference's relative error bound at (36, 96): radial step extrapolated at second order, plus the alternating mu step."""
+def sphere_3reg_reference_ladder_estimate() -> dict[str, float]:
+    """The sphere reference's relative error ESTIMATE at (36, 96): radial step extrapolated at second order, plus the
+    alternating mu step. Not a bound: no ladder certifies a reference (the user's step-5 ruling of 2026-10-03), so
+    this is the documented provenance of the sphere rows' tolerances, never a certificate (#405 P2 step 7b.2.3;
+    named ``sphere_3reg_reference_bound`` until then)."""
     k = SPHERE_3REG_REFERENCE_K
     fixture = k[(36, 96)]
     radial = richardson_error(k[(72, 96)] - fixture, 2.0, SPHERE_3REG_RADIAL_ORDER)
@@ -154,34 +164,31 @@ def sn_residual(steps: dict[str, float]) -> float:
 
 
 def _sphere_reference() -> None:
-    import numpy as np
-    from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-        solve_greens_function_sphere_mr,
-    )
-    from tests.gates.sn.verification.analytical import _certified_agreement as ca
+    """Each rung's k, and the shape steps from the fixture, read through the trajectory-resolvent reference."""
+    from orpheus.geometry import CoordSystem
+    from orpheus.numerics.observable import Eigenvalue
+    from tests.gates.sn.verification.analytical import _aba_reference as aba
     from tests.gates.sn.verification.analytical import test_phase_c_crosscheck as pc
-    sigma_t, sigma_s, nu_sigma_f, chi = ca.aba_xs_2g()
-    mesh = pc._sphere_3reg_sn_gl32()[2]
-    cells = {}
+    observables = aba.shape_observables(pc._sphere_3reg_sn_gl32()[1])
+    shapes = {}
     for n_r, n_mu in SPHERE_3REG_REFERENCE_K:
-        res = solve_greens_function_sphere_mr(
-            radii=ca.ABA_RADII, sigma_t=sigma_t, sigma_s=sigma_s, nu_sigma_f=nu_sigma_f,
-            chi=chi, alpha=1.0, n_r=n_r, n_mu=n_mu, n_traj_quad=64,
-            max_iter=2000, tol=1e-9, initial_k=1.38,
-        )
-        cells[(n_r, n_mu)] = pc._fission_gauged(pc._reference_cell_averages(res, mesh), mesh)
-        print(f"({n_r}, {n_mu}): k = {res.k_eff!r}", flush=True)
-    fixture = cells[(36, 96)]
+        ref = aba.aba_reference_at(CoordSystem.SPHERICAL, {"n_r": n_r, "n_mu": n_mu, "n_traj_quad": 64})
+        print(f"({n_r}, {n_mu}): k = {ref.read(Eigenvalue()).value!r}", flush=True)
+        if (n_r, n_mu) in ((36, 96), (72, 96), (36, 192)):
+            shapes[(n_r, n_mu)] = {(i, g): ref.read(ratio).value for i, g, ratio in observables}
+    fixture = shapes[(36, 96)]
     for other in ((72, 96), (36, 192)):
-        step = np.max(np.abs(fixture - cells[other]), axis=1) / float(np.max(cells[other]))
-        print(f"shape step (36, 96) -> {other}: {step}")
+        scale = max(abs(v) for v in shapes[other].values())
+        step = max(abs(fixture[key] - shapes[other][key]) for key in fixture) / scale
+        print(f"shape step (36, 96) -> {other}: {step:.3e}")
 
 
 def _sn(geometry: str) -> None:
-    import numpy as np
+    """The SN rungs' k, and the shape steps from the fixture in the gauged cell-average metric."""
+    from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.quadrature import Quadrature
     from tests.gates.sn.regression import _generate_snapshots as generator
-    from tests.gates.sn.verification.analytical import test_phase_c_crosscheck as pc
+    from tests.gates.sn.verification.analytical import _aba_reference as aba
     if geometry == "sphere":
         rungs = {"fixture": (40, 32), "mesh": (160, 32), "angle": (160, 64)}
         build = lambda n, q: {**generator._sphere_3region("2g", n),
@@ -190,45 +197,40 @@ def _sn(geometry: str) -> None:
         rungs = {"fixture": (40, (16, 32)), "angle": (40, (32, 64)), "mesh": (160, (16, 32)), "4x8": (40, (4, 8))}
         build = lambda n, q: {**generator._cylinder_3region("2g", n, "folded_4x8"),
                               "quadrature": Quadrature.folded_product(n_mu=q[0], n_phi=q[1]), "max_inner": 2000}
+    observables = aba.shape_observables(build(40, rungs["fixture"][1])["mesh"])
     solved = {}
     for name, (n, q) in rungs.items():
-        config = build(n, q)
-        result = generator.run_case(config)
-        phi = np.asarray(result.scalar_flux.values, dtype=float)
-        solved[name] = (float(result.outcome.keff), phi.reshape(phi.shape[0], 40, -1).mean(axis=2))
-        print(f"{name} {n} {q}: k = {solved[name][0]!r}", flush=True)
-    mesh = build(40, rungs["fixture"][1])["mesh"]
-    k0, phi0 = solved["fixture"]
+        result = generator.run_case(build(n, q))
+        k = result.read(Eigenvalue()).value
+        solved[name] = (k, {(i, g): result.read(ratio).value for i, g, ratio in observables})
+        print(f"{name} {n} {q}: k = {k!r}", flush=True)
+    k0, shape0 = solved["fixture"]
     for name in ("mesh", "angle", "4x8"):
         if name in solved:
-            k, phi = solved[name]
-            a = pc._fission_gauged(phi0, mesh)
-            b = pc._fission_gauged(phi, mesh)
-            print(f"{name} step: k {abs(k - k0) / k:.3e}, shape {np.max(np.abs(a - b), axis=1) / float(np.max(b))}")
+            k, shape = solved[name]
+            scale = max(abs(v) for v in shape.values())
+            print(f"{name} step: k {abs(k - k0) / k:.3e}, shape {max(abs(shape0[key] - shape[key]) for key in shape0) / scale:.3e}")
 
 
 def _cylinder_reference() -> None:
-    from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
-        solve_greens_function_cylinder_mr,
-    )
-    from tests.gates.sn.verification.analytical import _certified_agreement as ca
-    sigma_t, sigma_s, nu_sigma_f, chi = ca.aba_xs_2g()
+    """Each rung's k through the trajectory-resolvent reference (the rows' factory, its one spelling of the solve)."""
+    from orpheus.geometry import CoordSystem
+    from orpheus.numerics.observable import Eigenvalue
+    from tests.gates.sn.verification.analytical import _aba_reference as aba
     for n_r, n_mu, n_phi in CYLINDER_3REG_REFERENCE_K:
-        res = solve_greens_function_cylinder_mr(
-            radii=ca.ABA_RADII, sigma_t=sigma_t, sigma_s=sigma_s, nu_sigma_f=nu_sigma_f,
-            chi=chi, alpha=1.0, n_r=n_r, n_mu_axial=n_mu, n_phi_az=n_phi, n_traj_quad=64,
-            max_iter=2000, tol=1e-9, initial_k=1.23,
-        )
-        print(f"({n_r}, {n_mu}, {n_phi}): k = {res.k_eff!r}", flush=True)
+        quadrature = {"n_r": n_r, "n_mu_axial": n_mu, "n_phi_az": n_phi, "n_traj_quad": 64}
+        k = aba.aba_reference_at(CoordSystem.CYLINDRICAL, quadrature).read(Eigenvalue()).value
+        print(f"({n_r}, {n_mu}, {n_phi}): k = {k!r}", flush=True)
 
 
 def _records() -> None:
+    from orpheus.numerics.observable import Eigenvalue
     from tests.gates.sn.sweep.curvilinear import test_unified_matvec_cylinder as unified
     from tests.gates.sn.verification.analytical import test_l1_standoff_slab_cylinder as standoff
     from tests.gates.sn.verification.analytical import test_phase_c_crosscheck as pc
     print("phase C:", pc._cylinder_readings(), flush=True)
-    print("unified k:", repr(unified._unified_cylinder_k()), flush=True)
-    print("standoff sweep k (nx=40):", repr(standoff._solve_cyl_via_sweep(nx=40)), flush=True)
+    print("unified k:", repr(unified._unified_cylinder_solution().read(Eigenvalue()).value), flush=True)
+    print("standoff sweep k (nx=40):", repr(standoff._solve_cyl_via_sweep(nx=40).read(Eigenvalue()).value), flush=True)
 
 
 def _garcia() -> None:

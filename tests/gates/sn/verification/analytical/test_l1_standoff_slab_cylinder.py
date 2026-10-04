@@ -37,11 +37,10 @@ Sweep route (``inner_solver="source_iteration"``) routes through the
 from __future__ import annotations
 
 import contextlib
+import functools
 
-import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.derivations.reference_values import continuous_get
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
@@ -51,17 +50,15 @@ from tests.gates.derivations._trajectory_resolvent_ladders import (
     CYLINDER_3REG_SN_4X8_K_STEP,
     tolerance_for,
 )
-from tests.gates.sn.verification.analytical._certified_agreement import (
-    ABA_RADII,
-    CYLINDER_3REG_RECORD,
-    CYLINDER_3REG_RECORD_BAND,
-    CYLINDER_3REG_RECORD_RELATIVE,
-    CYLINDER_3REG_REFERENCE_BOUND,
-    aba_xs_2g,
-    assert_record,
+from orpheus.geometry import CoordSystem
+from orpheus.numerics.observable import Eigenvalue
+from tests.gates.sn.verification.analytical._aba_reference import (
+    aba_materials,
+    aba_reference,
+    aba_uniform_width_mesh,
+    assert_cylinder_record,
     awaits_cylinder_bound,
-    certify_agreement,
-    cylinder_3reg_reference,
+    verify_cylinder_k,
 )
 
 
@@ -80,48 +77,19 @@ from tests.gates.sn.verification.analytical._certified_agreement import (
 # ═══════════════════════════════════════════════════════════════════════
 # Cylinder fixtures
 # ═══════════════════════════════════════════════════════════════════════
-def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
-    sigma_t = np.asarray(sigma_t, dtype=float)
-    sig_s = np.asarray(sig_s_matrix, dtype=float)
-    nu_sig_f = np.asarray(nu_sigma_f, dtype=float)
-    chi = np.asarray(chi, dtype=float)
-    sig_a = sigma_t - sig_s.sum(axis=1)
-    nu = np.ones_like(nu_sig_f)
-    sig_f = nu_sig_f.copy()
-    sig_c = sig_a - sig_f
-    return make_mixture(
-        sig_t=sigma_t, sig_c=sig_c, sig_f=sig_f, nu=nu, chi=chi, sig_s=sig_s,
-    )
-
-
-def _build_cyl_mesh(nx: int) -> tuple[Mesh1D, dict]:
-    """3-region cylindrical ABA mesh + 2G materials (same as cylinder L1 in
-    ``test_unified_matvec_cylinder.py``)."""
-    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
-    materials = {
-        i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
-        for i in range(3)
-    }
-    # The regions (A, B, A) end at ABA_RADII = (0.5, 1.5, 2.0): nx cells of
-    # equal width 2/nx over the whole radius put nx/4, nx/2, nx/4 in them.
-    geom = StructuredGeometry.cylinder(
-        (0.0, *ABA_RADII), (0, 1, 0), outer=BC("reflective"),
-    )
-    mesh = Mesher(geom).partition((
-        CellsByCount.uniform_width(nx // 4),
-        CellsByCount.uniform_width(nx // 2),
-        CellsByCount.uniform_width(nx // 4),
-    )).mesh
-    return mesh, materials
-
-
 def _cylinder_k_ref() -> float:
-    """The shared cylinder reference's eigenvalue (solved once per session; the problem is owned by ``_certified_agreement``)."""
-    return float(cylinder_3reg_reference().k_eff)
+    """The shared cylinder reference's eigenvalue, uncertified (solved once per session; the problem is ``_aba_reference``'s)."""
+    return aba_reference(CoordSystem.CYLINDRICAL).read(Eigenvalue()).value
 
 
-def _solve_cyl_via_krylov_unified(nx: int) -> float:
-    mesh, materials = _build_cyl_mesh(nx=nx)
+def _k(solution) -> float:
+    """Production's eigenvalue, through the reading verb."""
+    return solution.read(Eigenvalue()).value
+
+
+@functools.cache
+def _solve_cyl_via_krylov_unified(nx: int):
+    mesh, materials = aba_uniform_width_mesh(CoordSystem.CYLINDRICAL, nx), dict(aba_materials())
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sol = solve_sn(
             materials=materials, mesh=mesh, quadrature=quad,
@@ -129,11 +97,12 @@ def _solve_cyl_via_krylov_unified(nx: int) -> float:
             max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
             max_inner=200, inner_tol=1e-9,
         )
-    return float(sol.outcome.keff)
+    return sol
 
 
-def _solve_cyl_via_sweep(nx: int) -> float:
-    mesh, materials = _build_cyl_mesh(nx=nx)
+@functools.cache
+def _solve_cyl_via_sweep(nx: int):
+    mesh, materials = aba_uniform_width_mesh(CoordSystem.CYLINDRICAL, nx), dict(aba_materials())
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     sol = solve_sn(
         materials=materials, mesh=mesh, quadrature=quad,
@@ -141,7 +110,7 @@ def _solve_cyl_via_sweep(nx: int) -> float:
         max_outer=500, keff_tol=1e-7, flux_tol=1e-7,
         max_inner=500, inner_tol=1e-9,
     )
-    return float(sol.outcome.keff)
+    return sol
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -153,8 +122,8 @@ def _solve_cyl_via_sweep(nx: int) -> float:
 # e = 5.9e-4 ([M] 2026-09-26), giving 2e-3. It was 3e-2, justified as
 # "trajectory_resolvent's quadrature error budget at n_r=24"; that budget was
 # the reference's one-spline emission density (ERR-090), and the reference
-# still carries no certified bound (#516), so the reference legs are strict
-# xfails with a RECORD companion.
+# still carries no certificate (#566, #516), so the reference legs are strict
+# xfails on the verbs' refusal, with a RECORD companion.
 # Twin-path tolerance: 1e-5 rel (both algorithms converge to the same
 # discrete fixed point at the matched solver tolerances).
 _CYL_REF_RTOL = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
@@ -167,7 +136,6 @@ _CYL_SUPPORTS = (
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
 @pytest.mark.rests_on(*_CYL_SUPPORTS)
 @awaits_cylinder_bound
 def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
@@ -176,15 +144,11 @@ def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
     Production source-iteration path (the ``(L+C)`` strategy sweep /
     ``DiscretizationScheme.update``) on the 3-region 2G ABA cylinder. No shim:
     the sweep already uses the WDD-correct per-cell algebra that the
-    unified matvec also wraps. Strict ``xfail`` on #516 (the reference
-    carries no certified bound); ``test_cylinder_l1_reference_record``
-    keeps the reading live.
+    unified matvec also wraps. Strict ``xfail`` on the verbs' refusal: the
+    reference's family derives no bound (#566, #516), so it has no
+    certificate; ``test_cylinder_l1_reference_record`` keeps the reading live.
     """
-    k_ref = _cylinder_k_ref()
-    k_sweep = _solve_cyl_via_sweep(nx=40)
-    rel = abs(k_sweep - k_ref) / k_ref
-    print(f"cylinder sweep: k_sweep={k_sweep:.10f} k_ref={k_ref:.10f} rel={rel:.3e}")
-    certify_agreement("cylinder sweep k", rel, _CYL_REF_RTOL, CYLINDER_3REG_REFERENCE_BOUND["k"]).require()
+    verify_cylinder_k(_solve_cyl_via_sweep(nx=40), _CYL_REF_RTOL)
 
 
 @pytest.mark.l1
@@ -207,8 +171,8 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
     under ``-O`` — pytest rewrites test-module asserts) confirmed
     sweep ≡ Krylov ≡ trajectory reference at every leg.
     """
-    k_sweep = _solve_cyl_via_sweep(nx=40)
-    k_krylov = _solve_cyl_via_krylov_unified(nx=40)
+    k_sweep = _k(_solve_cyl_via_sweep(nx=40))
+    k_krylov = _k(_solve_cyl_via_krylov_unified(nx=40))
     rel = abs(k_sweep - k_krylov) / k_sweep
     assert rel < _CYL_TWIN_RTOL, (
         f"cylinder twin-path disagreement: "
@@ -235,8 +199,8 @@ def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
     removed the pre-D-K Carlson cell-centre-proxy divergence; validated
     by two independent XPASS(strict) executions at all three nx).
     """
-    k_sweep = _solve_cyl_via_sweep(nx=nx)
-    k_krylov = _solve_cyl_via_krylov_unified(nx=nx)
+    k_sweep = _k(_solve_cyl_via_sweep(nx=nx))
+    k_krylov = _k(_solve_cyl_via_krylov_unified(nx=nx))
     rel_twin = abs(k_sweep - k_krylov) / k_sweep
     assert rel_twin < _CYL_TWIN_RTOL, (
         f"cylinder nx={nx}: twin-path rel={rel_twin:.3e} ≥ {_CYL_TWIN_RTOL:.0e}"
@@ -253,13 +217,11 @@ def test_cylinder_l1_refinement_against_reference(nx: int) -> None:
 
     "Right rate to right limit": at nx ∈ {20, 40, 80} both algorithms must
     agree with the trajectory_resolvent reference to :data:`_CYL_REF_RTOL`.
-    Strict ``xfail`` on #516: the reference carries no certified bound, so
-    the floor assertion fails first.
+    Strict ``xfail`` on the verbs' refusal: the reference has no certificate
+    (#566, #516).
     """
-    k_ref = _cylinder_k_ref()
-    for path, k in (("sweep", _solve_cyl_via_sweep(nx=nx)), ("krylov", _solve_cyl_via_krylov_unified(nx=nx))):
-        rel = abs(k - k_ref) / k_ref
-        certify_agreement(f"cylinder nx={nx} {path} k", rel, _CYL_REF_RTOL, CYLINDER_3REG_REFERENCE_BOUND["k"]).require()
+    for solution in (_solve_cyl_via_sweep(nx=nx), _solve_cyl_via_krylov_unified(nx=nx)):
+        verify_cylinder_k(solution, _CYL_REF_RTOL)
 
 
 @pytest.mark.l1
@@ -270,14 +232,10 @@ def test_cylinder_l1_reference_record() -> None:
 
     Not verification: it keeps the cylinder reference legs live while they
     are strict xfails, and reddens when either side moves (an SN change, or
-    the reference's #516 repair, after which the bound is re-derived and the
-    xfails lifted).
+    the reference's #516/#566 repair, after which the family is certified and
+    the xfails lifted).
     """
-    readings = {"k_ref": _cylinder_k_ref(), "standoff_sweep_k_nx40": _solve_cyl_via_sweep(nx=40)}
-    assert_record(
-        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
-        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
-    )
+    assert_cylinder_record({"k_ref": _cylinder_k_ref(), "standoff_sweep_k_nx40": _k(_solve_cyl_via_sweep(nx=40))})
 
 
 # ═══════════════════════════════════════════════════════════════════════

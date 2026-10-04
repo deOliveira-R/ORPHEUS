@@ -470,3 +470,56 @@ def test_billiard_fixed_source_unsupported_geometry_raises():
     )
     with pytest.raises(NotImplementedError, match="sphere_mr"):
         b.solve_fixed_source(np.ones(3))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #405 P2 step 7b.2.3 — the billiard refuses a body material it would read only in part (gates R7b2.3.<n>)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _partial_read_mixtures():
+    """Isotropic fuel A, the library's moderator B (a P1 moment, mean cosine 0.6), and fuel A with an (n,2n) matrix."""
+    from orpheus.derivations.common.xs_library import get_mixture, get_xs, make_mixture
+
+    xs = get_xs("A", "2g")
+    common = dict(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"], sig_s=xs["sig_s"])
+    isotropic = make_mixture(**common)
+    n2n = make_mixture(**common, sig_2=np.array([[0.0, 0.01], [0.0, 0.0]]))
+    return isotropic, get_mixture("B", "2g"), n2n
+
+
+def _layered_sphere(outer=BC.reflective) -> StructuredGeometry:
+    return StructuredGeometry(coord=CoordSystem.SPHERICAL, breakpoints=(0.0, 0.5, 2.0), mat_ids=(0, 1), boundaries=(outer,))
+
+
+@pytest.mark.foundation
+def test_r7b2_3_1_a_body_material_read_in_part_is_refused() -> None:
+    """Every trajectory-resolvent solver reads ``SigS[0]`` alone and no ``Sig2``: a body material with a P1 moment
+    or an (n,2n) reaction would be solved as another problem, silently. Refused at the root, keyed; the
+    isotropic control is admitted (the activation)."""
+    isotropic, anisotropic, n2n = _partial_read_mixtures()
+    assert len(anisotropic.SigS) == 2 and anisotropic.SigS[1].count_nonzero() > 0  # the activation
+    assert n2n.Sig2[0].count_nonzero() > 0
+    Billiard(geometry=_layered_sphere(), materials={0: isotropic, 1: isotropic})
+    with pytest.raises(ValueError, match="material 1 scatters anisotropically"):
+        Billiard(geometry=_layered_sphere(), materials={0: isotropic, 1: anisotropic})
+    with pytest.raises(ValueError, match=r"material 1 carries an \(n,2n\) reaction"):
+        Billiard(geometry=_layered_sphere(), materials={0: isotropic, 1: n2n})
+
+
+@pytest.mark.foundation
+def test_r7b2_3_2_a_material_the_body_does_not_hold_is_never_read() -> None:
+    """A spectator material (id 7, not in the geometry) carrying a P1 moment and an (n,2n) matrix is admitted: the
+    refusal reads only the body's materials (the leak principle)."""
+    isotropic, anisotropic, n2n = _partial_read_mixtures()
+    billiard = Billiard(geometry=_layered_sphere(), materials={0: isotropic, 1: isotropic, 7: anisotropic, 8: n2n})
+    assert billiard.geometry_kind == "sphere_mr"
+
+
+@pytest.mark.foundation
+def test_r7b2_3_3_the_law_door_keeps_its_message() -> None:
+    """The refusal runs after the route: a white outer law on an anisotropic body is refused with the LAW's message,
+    so the doors' messages do not depend on which defect the input also has."""
+    _, anisotropic, _ = _partial_read_mixtures()
+    with pytest.raises(NotImplementedError, match="another angular shape"):
+        Billiard(geometry=_layered_sphere(BC("white")), materials={0: anisotropic, 1: anisotropic})

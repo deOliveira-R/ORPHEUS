@@ -608,6 +608,84 @@ The old density arms (σ_s transposed, 1/k dropped) are no longer applicable: th
 | R7b2.2.3 | steps at π/4 and √2/2 (qa F3); the mesh's cell integral of `r < π/4` on the A\|B\|A sphere mesh totals 4π/3·(π/4)³ to 64 ulp; the allow-list refuses `arg(r − 1)` and `atan2(r − 1, 0)` |
 | R7b2.2.4 | the public constructor derives its rays from the billiard: built directly on a sphere billiard it reads what the factory's reference reads, bit for bit. It refuses an anisotropic material and a homogeneous body, as the factory does (elegance B1) |
 
+#### 7b.2.3 The migration (written and run 2026-10-03 on the uncommitted working tree over `311c6148`)
+
+**The rows, as migrated.** No migrated row carries `verifies("sn-curvilinear-trajectory-resolvent-crosscheck")` any more: 7 of 7 dropped, so the label is verified by the 3 Gate 4.2 edge rows only.
+
+| row | now |
+|---|---|
+| phase C sphere k | `compare_uncertified(Solution, Eigenvalue(), aba_reference(sphere), 4e-3 × truncated(k_SN))`. `[M]` sn 1.381079639349644, ref 1.381169542313358, τ 5.52e-3 |
+| phase C sphere shape | 80 `compare_uncertified` on `shape_observables(mesh)` at 2e-2 × M, with M production's largest gauged cell average truncated (0.249). `[M]` worst \|m − v\| = 1.078e-3 against τ = 4.98e-3; that is 4.33e-3 relative to M |
+| phase C cylinder k, shape | `verify_agreement`, strict xfail `raises=ReferenceNotValid`. `[M]` both xfail |
+| phase C cylinder RECORD | k keys only (`k_ref`, `phase_c_k_sn`, `phase_c_k_gap`), read through `read`. `[M]` k_ref 1.231036749830859, bit-identical to the record |
+| standoff sweep, refinement[20, 40, 80] | `verify_agreement` on `Solution.read`, strict xfail; the solves are cached per nx, and the twin-path rows read k through `read` |
+| standoff and unified RECORDs | k through `read` |
+| unified k | `verify_agreement`, strict xfail |
+| harness (`test_crosscheck_harness.py`, renamed from `test_certified_agreement.py`) | the branch row is DEAD and deleted. The tolerance rule now asserts `T ≥ 10 b` exactly. The ladder-estimate and record rows are kept. The mark census expects `raises is ReferenceNotValid`. New: `truncated` only tightens; the retired module is not importable and the old ladder name is gone (the retirement's witness, D.18) |
+
+**Re-baselines.**
+- The sphere shape READING changed from the nodal spline (4.361e-3 relative) to the reference's natural extension (4.325e-3); its tolerance did not change.
+- No sphere RECORD exists, so no record value moved.
+- The cylinder RECORD dropped its two shape keys (the user's cost ruling). Its k keys are unchanged: k is a datum, read bit-identically through the new factory.
+
+**Tolerance scales.** Every absolute tolerance is τ_rel × a production scale truncated to three figures. A cylinder xfail must refuse before the reference is read, so the scale cannot come from the reference; for the sphere's shape rows this is a second-order change from today's "relative to the largest reference average" (production's largest gauged average is 0.249 against the reference's 0.24938).
+
+**What moved where.** `_aba_reference.py` now holds:
+- `aba_reference(coord)`, the factory call at the 2026-09-26 resolutions;
+- `aba_xs_2g()`, read off the isotropic specification materials;
+- `fission_production_weight()`, `shape_observables(mesh)` and `truncated`;
+- `assert_record`, the mark, and the RECORD table with its band.
+
+`_trajectory_resolvent_ladders.py`:
+- `sphere_3reg_reference_bound` is renamed `sphere_3reg_reference_ladder_estimate`, its docstring re-scoped;
+- the `sphere-reference` and `sn` re-measurement commands read shapes through `read` (the nodal-spline reading is gone);
+- `records` reads through the solutions.
+
+**The Billiard root refusal (the orchestrator's carve), rows R7b2.3.1–R7b2.3.3** in `test_trajectory_resolvent_billiard.py`:
+- a body material with a P1 moment ("anisotropically") or an (n,2n) matrix is refused, and the isotropic control is admitted;
+- an anisotropic or (n,2n) SPECTATOR material is admitted;
+- a white law on an anisotropic body keeps the law's message.
+
+**The battery** (`scratch/reference_architecture/p2/ta/step7b2/migration/`, in-process, no file written):
+
+| arm | rows red |
+|---|---|
+| `_refuse_partial_reads` dropped | 3: R7b2.3.1, R7b2.2 `refusals[anisotropic]`, R7b2.2.4 `[anisotropic]` (scope `not slow`, 110 rows) |
+| the check reads every material | 1: R7b2.3.2 |
+| the check runs before the route | 1: R7b2.3.3 |
+| the mark made non-strict | 1: the census |
+| the mark's `raises` widened to `Exception` | 1: the census |
+| R7b2.10, vacuum for the reflective law (SN side) | 2 of 2 sphere rows |
+| R7b2.10, the solver's moderator emission density × 1.01 (the 2026-09-26 arm, `scratch/w2_crosscheck/fix/mutplug.py`) | 2 of 2 (reference k 1.5429) |
+| R7b2.10, the one-spline reference (ERR-090) | 1: k (1.3702). The shape row stays green (2.38e-3 against 4.98e-3), as recorded on 2026-09-26 |
+| R7b2.10, the moderator density × 1.01 at READING time only | 0: the shape moves 1.08e-3 → 1.92e-3 against 4.98e-3. DECLARED below this row's resolution; the k row never reads the density |
+| R7b2.10, the moderator's DATA × 1.01 (another problem, a physical change) | 0 sphere rows (inside both tolerances) |
+| R7b2.12, the moderator's DATA × 1.01 | the cylinder RECORD reddens (k_ref moves) |
+| `--runxfail` on the unified cylinder row | raises `ReferenceNotValid("verification: the reference has no certificate ...")` |
+
+**The run** (`[M]` 2026-10-03, the 5 migrated files, all rows, `python -O -m pytest`): 33 passed, 34 xfailed (7 the cylinder rows' expected refusal, 27 the pre-existing #206 rows), 0 failed, in 37 min 55 s. The cylinder RECORD takes 820 s (the reference solve) and the sphere rows 195 s and 94 s. Every migrated physics row keeps its `slow` mark.
+
+**The three searches** (`[M]` after the migration):
+- Text (`grep -rw` over `orpheus/`, `tests/`, `docs/`, `.claude/` and `tools/`; build output and `_generated` excluded):
+  - `certify_agreement`: 1 test hit, the harness docstring, past tense.
+  - `AgreementCertificate`: 2 test hits, both past tense.
+  - `CYLINDER_3REG_REFERENCE_BOUND`: 0 in code.
+  - `_certified_agreement`: 3 hits, all past tense: 2 in the `_aba_reference.py` docstring, and the harness, whose retirement witness names it.
+  - `sphere_3reg_reference_bound`: 2 hits, the renamed function's history and the witness.
+  - Plans and agent memory: 4 files, history.
+  - `docs/theory/verification/matrix.rst:55` names the old harness file; it is generated and rewrites on the next build.
+- Direct constructors: `AgreementCertificate(` has 0 sites.
+- Graph: STALE. It still holds the pre-migration nodes (9 callers of `certify_agreement`, all of them migrated by hand); `dead_references` and a re-query are owed after the build that is running.
+
+
+**The review round of 7b.2.3** (`[M]` 2026-10-03; `scratch/reference_architecture/p2/review/step7b2_3_{qa,elegance}.md`):
+- **One A|B|A problem.** The standoff and unified rows read `aba_uniform_width_mesh(CYLINDRICAL, n)` and `dict(aba_materials())`. Two mesh builders are retired. The four α-equivalent `_make_2g_mixture` copies (standoff, unified, phase C, slab) are now one helper, `tests/gates/sn/_test_helpers.mixture_from_transport_data`, used by the three homogeneous rows; standoff's copy is deleted. R7b2.1's cylinder-builders row is re-posed onto `aba_uniform_width_mesh`.
+- **Records, re-read.** The standoff sweep k and the unified k each read 2 ulp above their 2026-09-26 records (4.4e-16 relative, inside the 2e-5 band). The old and the new materials give the same k bit for bit (1.2310184197485705), so this step moved no bit; the 2 ulp predate it.
+- **The harness, spelled once** in `_aba_reference`: `scaled_tolerance`, `NO_ESTIMATOR`, `verify_cylinder_k`, `assert_cylinder_record`, and `aba_reference_at(coord, quadrature)` (the one spelling of the solve's settings, used by both ladders). The cylinder ladder no longer calls the bare solver. `AbaCrossSections` names the data tuple, `shape_observables` reads the group count from the specification, and the mid-module imports are moved to the top.
+- **`truncated` is exact** (qa F4). The decimal truncation of the value's `repr` is stepped toward zero when it lands above the value. The harness row covers 1.4 and 200 000 seeded draws; the old spelling reddens it.
+- **Prose fixed:** `test_the_retired_harness_is_gone` is deleted (no D.18 witness, false docstring). `tolerance_for(…, reference_error)` and the ladder module's docstring are re-scoped (estimates, never bounds). `SPHERE_3REG_REFERENCE_SHAPE_STEP` is marked as the 2026-09-26 nodal measurement, not re-run. The standoff RECORD docstring is corrected. The sphere shape row names R7b2.2.2 as its reading-time catcher and rests on it.
+- **Run:** the 7 files' `not slow` rows, 55 passed and 27 xfailed (#206). The slow phase-C sphere rows were re-run because `shape_observables` changed: 3 passed, with readings identical to before. The standoff and unified RECORD rows were not re-run; their k values were read directly as above.
+
 **What part 2 is.** Under the user's ruling 3 (2026-10-03) no trajectory-resolvent reference has a derived bound (#566; the cylinder also #516), so none can anchor a `VerificationCertificate`, and under the step-5 ruling the sphere's ladder "bound" is no bound either: the sphere is uncertified too. Every row of the migration set either becomes an explicit `compare_uncertified` at its current tolerance, or stays a strict xfail whose expected failure is now the verbs' own refusal, or stays a RECORD. Nothing in part 2 is a verification claim.
 
 #### The census (question 1)

@@ -1368,6 +1368,30 @@ The user accepted the lean: "I think it's a good decision until we face somethin
    - `FluxIntegral` refuses a weight that depends on direction (μ, or the azimuth), at construction: the observable is a functional of the scalar flux.
    - "A ratio reads as the quotient of its operands' readings" is spelled once.
 
+### Step 7b.2 progress (2026-10-03)
+
+Landed on `feature/reference-uncertified-reading` (not merged yet):
+
+| part | content | commit |
+|---|---|---|
+| prerequisites | `FluxIntegral` refuses a direction-dependent weight; one ratio rule, `Ratio.quotient` | `0cb78c84` |
+| 7b.2.0 | `Mesh1D` carries `region_ids` and `region_materials`; `mat_ids` derived through `per_cell`; `parse_entries` refuses a mapping, a set, an iterator or a 0-d array | `fa38de31` |
+| fix | `Symbolic.without` substitutes, never simplifies (a periodic step lost its later periods; qa) | `c861970c` |
+| 7b.2.1 | `Mesh1D.cell_integrals`; the SN production reading `Solution.read`; `Mesh2D.cell_integrals` is ELEGANCE-DEBT #569 | `65b0de93` |
+| 7b.2.2 | the trajectory-resolvent sphere and cylinder as `ReferenceSolution`s, every reading `Uncertified`, read as the natural extension; the oracle's `at=` carve (one transport); one `emission_density`, and the solves carry their last source; `Symbolic.steps`, an allow-list | `311c6148` |
+
+`[M]` full suite at `fa38de31` (detached worktree, `-m "not slow"`): 14 995 passed, 264 skipped, 56 xfailed; only the 4 `test_write_guards` worktree artefacts failed.
+
+In review: **7b.2.3**, the migration. The sphere rows become `compare_uncertified` (k; 80 per-cell shape ratios), and the cylinder rows strict xfails on `ReferenceNotValid`. The cylinder RECORD keeps only its k keys (the user's cost cap: the 80-ratio set costs about 38 min). `certify_agreement` retires. `Billiard` refuses an anisotropic or (n,2n) body material in its payload readers: a SCOPE-BOUNDARY. **Ruled by the user (2026-10-03):** "Methods should be verified for what they give": the trajectory resolvent gives isotropic transport and is tested as such. The user's idea for later: an anisotropic reference can be broken down into isotropic + anisotropic, which isolates exactly the anisotropic component (#573). Recorded limit: a 1 % reading-time perturbation of the sphere reference moves its shape gap 1.08e-3 → 1.92e-3, under the row's absolute per-cell tolerance of 4.98e-3; its catcher is R7b2.2.2; tightening the row is P4's.
+
+Filed this stretch: #567 (Symbolic admits non-real or non-finite expressions), #568 (certify a cancelling constant by an absolute bound), #569 (`Mesh2D` region labels and 2-D coordinates), #570 (`InnerProductFunctional`'s broadcast contract), #571 (the slopes of an LD answer are not read), #572 (`Billiard`'s kind-tag dispatch and its untyped `raw_result`).
+
+Owed at P2's close, by the archivist:
+- the narrative of the stub `trajectory-resolvent-reference-reading`;
+- the error-catalogue entry for the `Symbolic.without` defect (its witness is R7b2.10 row 1, `test_r7b2_10_without_preserves_a_periodic_step`);
+- the doc sites that are now present-tense-false: `curvilinear_numerics.rst` 1312-1316, 1960-1966 and 3165-3183; the ERR-090 entry; the cross-check label's equation (`curvilinear_one_group.rst:5278`), with the note that its verifiers dropped 9 → 3 and the 3 left verify the homogeneous reduction only;
+- the P2 theory chapter.
+
 ## ⏸ COMPACTION POINT — 2026-10-03, P2 through step 7a (supersedes the point after P1)
 
 State: `main` `698f367b` (plan-only tip; the last code tip `17782c7e`, CI `gates` run 37157022977 green), clean apart from `scratch/`. Full-suite baseline at `17782c7e`: 14 856 passed, 264 skipped, 55 xfailed; the 4 `test_write_guards` failures are worktree artefacts.

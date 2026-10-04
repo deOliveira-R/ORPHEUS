@@ -27,8 +27,9 @@ correctness is a 4-way standoff):
   GMRES inner solve routes through :class:`StreamingCollisionOperator`
   (= ``L + C``) consuming the unified matvec; the resulting ``k_eff``
   is cross-checked against the trajectory_resolvent reference
-  (Variant α at α=1). The row is a strict ``xfail`` on #516 (the cylinder
-  reference carries no certified error bound) with a RECORD companion; the
+  (Variant α at α=1). The row is a strict ``xfail`` on the verbs' refusal
+  (the cylinder reference's family derives no bound, #566 and #516, so it has
+  no certificate) with a RECORD companion; the
   3 % it used to carry was "Variant α's quadrature error budget", which was
   the reference's one-spline emission density (ERR-090).
 
@@ -46,9 +47,8 @@ import functools
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh1D, Mesher
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
 from orpheus.sn.problem import SNProblem
@@ -62,17 +62,15 @@ from tests.gates.derivations._trajectory_resolvent_ladders import (
     CYLINDER_3REG_SN_4X8_K_STEP,
     tolerance_for,
 )
-from tests.gates.sn.verification.analytical._certified_agreement import (
-    ABA_RADII,
-    CYLINDER_3REG_RECORD,
-    CYLINDER_3REG_RECORD_BAND,
-    CYLINDER_3REG_RECORD_RELATIVE,
-    CYLINDER_3REG_REFERENCE_BOUND,
-    aba_xs_2g,
-    assert_record,
+from orpheus.numerics.observable import Eigenvalue
+from tests.gates.sn._test_helpers import mixture_from_transport_data
+from tests.gates.sn.verification.analytical._aba_reference import (
+    aba_materials,
+    aba_reference,
+    aba_uniform_width_mesh,
+    assert_cylinder_record,
     awaits_cylinder_bound,
-    certify_agreement,
-    cylinder_3reg_reference,
+    verify_cylinder_k,
 )
 
 
@@ -365,39 +363,6 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi):
-    """Build a 2-group Mixture from explicit XS arrays."""
-    sigma_t = np.asarray(sigma_t, dtype=float)
-    sig_s = np.asarray(sig_s, dtype=float)
-    nu_sig_f = np.asarray(nu_sig_f, dtype=float)
-    chi = np.asarray(chi, dtype=float)
-    sig_a = sigma_t - sig_s.sum(axis=1)
-    nu = np.ones_like(nu_sig_f)
-    sig_f = nu_sig_f.copy()
-    sig_c = sig_a - sig_f
-    return make_mixture(
-        sig_t=sigma_t, sig_c=sig_c, sig_f=sig_f, nu=nu, chi=chi, sig_s=sig_s,
-    )
-
-
-def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
-    """Build the 3-region cylindrical mesh + 2G materials for the MR case."""
-    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
-    materials = {
-        i: _make_2g_mixture(sigma_t[i], sigma_s[i], nu_sigma_f[i], chi[i])
-        for i in range(3)
-    }
-    # Regions A | B | A end at ABA_RADII; nx equal-width cells over the
-    # whole radius, so each region holds its width's share of them.
-    radii = (0.0, *map(float, ABA_RADII))
-    geom = StructuredGeometry.cylinder(radii, (0, 1, 0), outer=BC("reflective"))
-    mesh = Mesher(geom).partition(tuple(
-        CellsByCount.uniform_width(round(nx * (b - a) / radii[-1]))
-        for a, b in geom.intervals
-    )).mesh
-    return mesh, materials
-
-
 # Post-D-K (commit ``dadf4e8``), the within-group loss composite
 # ``L + C`` (:func:`build_streaming_collision` → ``StreamingOperator +
 # MultiplicationOperator``, i.e. :class:`StreamingCollisionOperator`) calls
@@ -411,15 +376,15 @@ def _build_mr_cylinder_mesh(nx: int = 40) -> tuple[Mesh1D, dict]:
 #: e = 5.9e-4 ([M] 2026-09-26: the 4x8 SN k against its 32x64 limit), giving
 #: 2e-3. It was 3e-2, justified as "the reference's quadrature budget"; that
 #: budget was the reference's one-spline emission density (ERR-090), and the
-#: reference still carries no certified bound (#516).
+#: reference still has no certificate (#566, #516).
 _UNIFIED_CYL_K_TOLERANCE = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
 
 
 @functools.cache
-def _unified_cylinder_k() -> float:
-    """The Krylov-on-(L + C) SN eigenvalue of the ABA cylinder (folded 4x8, 40 uniform cells), once per session."""
-    mesh, materials = _build_mr_cylinder_mesh(nx=40)
-    sol = solve_sn(
+def _unified_cylinder_solution():
+    """The Krylov-on-(L + C) SN solution of the ABA cylinder (folded 4x8, 40 uniform cells), once per session."""
+    mesh, materials = aba_uniform_width_mesh(CoordSystem.CYLINDRICAL, 40), dict(aba_materials())
+    return solve_sn(
         materials=materials,
         mesh=mesh,
         quadrature=Quadrature.folded_product(n_mu=4, n_phi=8),
@@ -427,12 +392,10 @@ def _unified_cylinder_k() -> float:
         max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
         max_inner=200, inner_tol=1e-9,
     )
-    return float(sol.outcome.keff)
 
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
 @pytest.mark.rests_on(
     "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
     "::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]",
@@ -444,13 +407,13 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
     matvec routes through :class:`StreamingCollisionOperator` (= ``L + C``)
     via :func:`_transport_operator_matvec_unified`. The converged
-    ``k_eff`` is compared against the structurally-independent
+    eigenvalue is to be verified against the structurally-independent
     trajectory-resolvent reference (Variant α at α=1) at
     :data:`_UNIFIED_CYL_K_TOLERANCE`.
 
-    Strict ``xfail`` on #516: the cylinder reference carries no certified
-    error bound, so the floor assertion fails first; the comparison stays
-    live through ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record``.
+    Strict ``xfail`` on the verbs' refusal: the reference's family derives no
+    bound (#566, #516), so it has no certificate; the comparison stays live
+    through ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record``.
 
     Per ``.claude/lessons.md`` L14 — solver correctness is a 4-way
     standoff. The L0 hand-reference battery in this file proves the
@@ -459,31 +422,24 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     discrete primitive in the SN code (no shared FP path, no shared
     redist closure, no shared boundary recurrence).
     """
-    k_unified = _unified_cylinder_k()
-    k_ref = float(cylinder_3reg_reference().k_eff)
-    rel = abs(k_unified - k_ref) / k_ref
-    print(f"unified cylinder: k_unified={k_unified:.10f} k_ref={k_ref:.10f} rel={rel:.3e}")
-    certify_agreement(
-        "unified cylinder k", rel, _UNIFIED_CYL_K_TOLERANCE, CYLINDER_3REG_REFERENCE_BOUND["k"],
-    ).require()
+    verify_cylinder_k(_unified_cylinder_solution(), _UNIFIED_CYL_K_TOLERANCE)
 
 
 @pytest.mark.l1
 @pytest.mark.slow
 def test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record() -> None:
-    r"""RECORD: the unified-matvec solve's k and the reference's, as they read today.
+    r"""RECORD: the unified-matvec solve's k and the reference's, as they read today, through ``read``.
 
     Not verification: it keeps the comparison live while the row above is a
     strict xfail, and reddens when either side moves (an SN change, or the
-    reference's #516 repair, after which the bound is re-derived and the
+    reference's #516/#566 repair, after which the family is certified and the
     xfail lifted). The recorded values and their band are
-    :data:`~tests.gates.sn.verification.analytical._certified_agreement.CYLINDER_3REG_RECORD`.
+    ``_aba_reference.CYLINDER_3REG_RECORD``.
     """
-    readings = {"unified_k": _unified_cylinder_k(), "k_ref": float(cylinder_3reg_reference().k_eff)}
-    assert_record(
-        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
-        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
-    )
+    assert_cylinder_record({
+        "unified_k": _unified_cylinder_solution().read(Eigenvalue()).value,
+        "k_ref": aba_reference(CoordSystem.CYLINDRICAL).read(Eigenvalue()).value,
+    })
 
 
 @pytest.mark.l1
@@ -503,7 +459,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
     sig_s = [[0.3, 0.05], [0.0, 0.7]]
     nu_sig_f = [0.4, 0.6]
     chi = [1.0, 0.0]
-    mat = _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi)
+    mat = mixture_from_transport_data(sigma_t, sig_s, nu_sig_f, chi)
     k_analytical = kinf_homogeneous(
         np.asarray(sigma_t), np.asarray(sig_s),
         np.asarray(nu_sig_f), np.asarray(chi),

@@ -86,6 +86,7 @@ from typing import Any
 
 import numpy as np
 
+from orpheus.data.cells import Channel
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.reference_body import (
     HollowBody,
@@ -373,6 +374,30 @@ class Billiard:
 # ─────────────────────────────────────────────────────────────────────
 # Internal dispatchers — bridge from Billiard to the per-geometry solvers
 # ─────────────────────────────────────────────────────────────────────
+
+
+def _read_isotropically(mixture: Mixture, material_id: int) -> Mixture:
+    """The mixture, admitted for a solver that reads its P0 scattering alone and no (n,2n) reaction.
+
+    SCOPE-BOUNDARY[guard] machinery: a trajectory-resolvent kernel for anisotropic (P_N) scattering and (n,2n).
+    ruling: the user, 2026-10-03 (#405 P2 step 7b.2.3): a method is verified for what it gives; this one gives isotropic.
+    revisit: an anisotropic reference as isotropic + anisotropic correction, isolating that component (#573).
+    Every payload builder below reads ``SigS[0]`` and no ``Sig2``, so a
+    material carrying either would be solved as another problem, silently
+    (#405 P2 step 7b.2.2's finding). The refusal stands in the readers, so a
+    material the body never reads is never refused.
+    """
+    if any(block.count_nonzero() for block in mixture.SigS[1:]):
+        raise ValueError(
+            f"Billiard: material {material_id} scatters anisotropically (a non-zero moment above P0), and "
+            f"the trajectory resolvent solves isotropic scattering only; truncating it would answer another problem"
+        )
+    if Channel.N2N_EMISSION.is_carried_by(mixture):
+        raise ValueError(
+            f"Billiard: material {material_id} carries an (n,2n) reaction, which the trajectory resolvent "
+            f"does not solve; dropping it would answer another problem"
+        )
+    return mixture
 
 
 def _filter_kwargs(d: dict[str, Any], allowed: tuple[str, ...]) -> dict[str, Any]:
@@ -1063,7 +1088,7 @@ def _layered_xs_payload(
             f"Billiard: materials must contain every run's material id; "
             f"missing {missing}. Got keys {sorted(materials.keys())}."
         )
-    mixtures = [materials[m] for m in mat_ids]
+    mixtures = [_read_isotropically(materials[m], m) for m in mat_ids]
     return {
         "sigma_t": np.stack([np.asarray(m.SigT, dtype=float) for m in mixtures]),
         "sigma_s": np.stack([m.SigS[0].toarray().astype(float) for m in mixtures]),
@@ -1088,7 +1113,7 @@ def _mixture_to_solver_xs_payload(
             f"Billiard: materials must contain the body's material id "
             f"{mat_id}. Got keys {sorted(materials.keys())}."
         )
-    mix = materials[mat_id]
+    mix = _read_isotropically(materials[mat_id], mat_id)
     sig_t = np.asarray(mix.SigT)
     sig_s_p0 = np.asarray(mix.SigS[0].todense())
     nu_sigma_f = np.asarray(mix.SigP)

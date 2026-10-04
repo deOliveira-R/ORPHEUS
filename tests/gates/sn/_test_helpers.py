@@ -1277,3 +1277,21 @@ def reflect_outflow_into_inflow(boundary_flux, problem: "SNProblem") -> None:
     for face in faces:
         boundary_flux.face_view(face)[trace.inflow_indices_for_face(face)] = 0.0
     full_inflow.reflect_rows_inplace(boundary_flux, faces)
+
+
+def mixture_from_transport_data(sigma_t, sigma_s, nu_sigma_f, chi):
+    """A Mixture from its transport data: σ_t, the P0 transfer matrix ``sigma_s[from, to]``, νΣ_f and χ.
+
+    The capture and fission split the data leave free is fixed as ν = 1 (so σ_f = νΣ_f) and
+    σ_c = σ_t − Σ_to σ_s − σ_f, which the transport equation never reads apart. One spelling for the
+    hand-built mixtures of the SN gates (it had four α-equivalent copies, `_make_2g_mixture`, until
+    #405 P2 step 7b.2.3).
+    """
+    from orpheus.derivations.common.xs_library import make_mixture
+
+    sigma_t = np.asarray(sigma_t, dtype=float)
+    sig_s = np.asarray(sigma_s, dtype=float)
+    nu_sig_f = np.asarray(nu_sigma_f, dtype=float)
+    sig_c = sigma_t - sig_s.sum(axis=1) - nu_sig_f
+    return make_mixture(sig_t=sigma_t, sig_c=sig_c, sig_f=nu_sig_f.copy(), nu=np.ones_like(nu_sig_f),
+                        chi=np.asarray(chi, dtype=float), sig_s=sig_s)

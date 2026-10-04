@@ -26,7 +26,7 @@ from orpheus.derivations.common.reference_body import (
     ReflectedSlab,
     reference_body,
 )
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.derivations.common.xs_library import get_mixture, get_xs, make_mixture
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.galerkin_spectral.basis_space import BasisSpace
 from orpheus.derivations.continuous.singular_eigenfunction.spectrum import Spectrum
@@ -143,6 +143,16 @@ class TestTheClassification:
 
 _ONE_GROUP = {0: get_mixture("A", "1g"), 1: get_mixture("B", "1g")}
 
+
+def _isotropic(key: str, groups: str = "1g"):
+    """The library mixture with its P0 scattering only: ``Billiard`` refuses a higher moment (#405 P2 step 7b.2.3)."""
+    xs = get_xs(key, groups)
+    return make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"], sig_s=xs["sig_s"])
+
+
+#: The 1-group materials for ``Billiard``, which solves isotropic scattering only.
+_ONE_GROUP_ISOTROPIC = {0: _isotropic("A"), 1: _isotropic("B")}
+
 _SHAPES = {
     "hollow-sphere": lambda: _geometry(_SPH, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum)),
     "layered-sphere": lambda: _geometry(_SPH, (0.0, 1.0, 2.0), (0, 1)),
@@ -165,7 +175,7 @@ _REFUSALS = [
      ["hollow-sphere", "layered-sphere", "layered-slab", "reflected-slab", "hollow-layered-sphere"]),
     ("MomentSpace", lambda g: MomentSpace(geometry=g, materials=_ONE_GROUP),
      ["hollow-sphere", "layered-sphere", "layered-slab", "hollow-layered-sphere"]),
-    ("Billiard", lambda g: Billiard(geometry=g, materials=_ONE_GROUP),
+    ("Billiard", lambda g: Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC),
      ["layered-slab", "reflected-slab", "hollow-layered-sphere"]),
 ]
 
@@ -293,7 +303,7 @@ def test_billiard_routes_a_layered_solid_body(coord, quadrature, solver_name):
 def test_billiard_routes_a_hollow_body(coord, kind):
     """#421: the hollow arms are reachable from the constructor."""
     g = _geometry(coord, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum))
-    b = Billiard(geometry=g, materials={0: get_mixture("A", "1g")})
+    b = Billiard(geometry=g, materials={0: _isotropic("A")})
     assert b.geometry_kind == kind
     assert b.geometry_payload == {"R_in": 0.5, "R_out": 2.0}
 
@@ -305,7 +315,7 @@ def test_billiard_reads_the_body_material():
     def sphere(mat_id: int) -> StructuredGeometry:
         return _geometry(_SPH, (0.0, 2.0), (mat_id,), (BC.reflective,))
 
-    decoy, body = get_mixture("A", "1g"), get_mixture("B", "1g")
+    decoy, body = _isotropic("A"), _isotropic("B")
     read = Billiard(geometry=sphere(3), materials={0: decoy, 3: body})
     reference = Billiard(geometry=sphere(0), materials={0: body})
     assert read.xs_payload == reference.xs_payload
@@ -389,7 +399,7 @@ class TestTheLawsAreServed:
 
     def test_billiard_reads_a_slab_with_different_faces_as_two_surface(self):
         g = _geometry(_SLAB, (0.0, 2.0), (0,), (BC("partial", {"albedo": 0.7}), BC.reflective))
-        b = Billiard(geometry=g, materials=_ONE_GROUP)
+        b = Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC)
         assert b.geometry_kind == "slab_asymmetric"
         assert b.alpha_payload == {"alpha_left": 0.7, "alpha_right": 1.0}
         assert b.closure_rank == 2
@@ -398,14 +408,14 @@ class TestTheLawsAreServed:
         """qa's 2026-09-29 row: a declared (reflective, vacuum) hollow sphere
         is solved with those albedos, never with a separate parameter."""
         g = _geometry(_SPH, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum))
-        assert Billiard(geometry=g, materials=_ONE_GROUP).alpha_payload == {
+        assert Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC).alpha_payload == {
             "alpha_in": 1.0, "alpha_out": 0.0,
         }
 
     @pytest.mark.parametrize(
         "build",
         [lambda g: Spectrum(geometry=g, materials=_ONE_GROUP),
-         lambda g: Billiard(geometry=g, materials=_ONE_GROUP)],
+         lambda g: Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC)],
         ids=["Spectrum", "Billiard"],
     )
     def test_a_white_law_is_refused(self, build):

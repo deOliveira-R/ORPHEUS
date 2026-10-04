@@ -1,10 +1,11 @@
 r"""The A|B|A cross-check problem is posed once, and the SN fixtures pose that problem (#405 P2 step 7b.2, gate R7b2.1).
 
 :mod:`._aba_reference` defines the A|B|A specification. The cross-check's SN
-fixtures spell the same body in three places (the snapshot generator's
-``_sphere_3region``/``_cylinder_3region``, the standoff and unified files'
-cylinder meshes) and its materials in three ways (``get_mixture``, the
-retiring helper's ``aba_xs_2g`` arrays, the ``_make_2g_mixture`` rebuilds).
+fixtures spell the same body in two places (the snapshot generator's
+``_sphere_3region``/``_cylinder_3region``, and since the review round of
+7b.2.3 the standoff and unified files read ``aba_uniform_width_mesh`` and
+``aba_materials`` here) and its materials in two ways (``get_mixture`` with a
+P1 moment dropped at ``scattering_order=0``, and the isotropic rebuilds).
 Nothing asserted that they pose one problem (X4); these rows do: the
 geometry's breakpoints, region materials and outer law, and the isotropic
 transport data (σ_t, the P0 transfer matrix, νΣ_f, χ, bit for bit).
@@ -24,8 +25,8 @@ from orpheus.geometry import BC, CoordSystem
 from tests.gates.sn.verification.analytical._aba_reference import (
     ABA_MATERIAL_IDS,
     ABA_RADII,
-    aba_materials,
     aba_specification,
+    aba_uniform_width_mesh,
 )
 
 pytestmark = pytest.mark.foundation
@@ -70,15 +71,14 @@ def test_r7b2_1_the_snapshot_fixtures_mesh_the_specifications_body(coord) -> Non
             np.testing.assert_array_equal(a, b)
 
 
-def test_r7b2_1_the_cylinder_rows_mesh_the_specifications_body() -> None:
-    """The standoff and unified files' cylinder meshes and their ``_make_2g_mixture`` rebuilds."""
-    from tests.gates.sn.sweep.curvilinear.test_unified_matvec_cylinder import _build_mr_cylinder_mesh
-    from tests.gates.sn.verification.analytical.test_l1_standoff_slab_cylinder import _build_cyl_mesh
-
-    spec = aba_specification(CoordSystem.CYLINDRICAL)
-    for mesh, materials in (_build_mr_cylinder_mesh(40), _build_cyl_mesh(40)):
-        assert set(spec.geometry.breakpoints) <= set(float(e) for e in mesh.edges)
-        np.testing.assert_array_equal(mesh.mat_ids[[0, mesh.N // 2, -1]], [0, 1, 0])
-        for mid in set(mesh.mat_ids.tolist()):
-            for a, b in zip(_transport_data(materials[mid]), _transport_data(aba_materials()[mid])):
-                np.testing.assert_array_equal(a, b)
+@pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
+def test_r7b2_1_the_uniform_width_mesh(coord) -> None:
+    """``aba_uniform_width_mesh``, the standoff and unified rows' body since the review round of 7b.2.3 (they had
+    two builders and two ``_make_2g_mixture`` rebuilds): 40 cells of one width put 10, 20, 10 in the three regions,
+    every breakpoint an edge, the labels the regions, the map the specification's."""
+    mesh, spec = aba_uniform_width_mesh(coord, 40), aba_specification(coord)
+    assert set(spec.geometry.breakpoints) <= set(float(e) for e in mesh.edges)
+    np.testing.assert_array_equal(np.bincount(mesh.region_ids), [10, 20, 10])
+    assert mesh.region_materials == tuple(spec.geometry.mat_ids)
+    widths = np.diff(np.asarray(mesh.edges))
+    assert float(np.max(np.abs(widths - 0.05))) <= 4 * np.spacing(2.0)

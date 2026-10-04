@@ -18,15 +18,16 @@ The rows, with the claim each makes:
   redistribution the closure feeds (``[M]`` the cylinder rows' flux moves
   1.1e-10 under a deliberate ``tau := 0.7`` mutation, against 8.8e-2 for the
   2-group 3-region cylinder; ``vv-principles`` anti-pattern #3).
-- ``sphere_2g_3reg``: the frozen SN snapshot (Gauss-Legendre 8, 40 cells,
-  pinned bit-exactly by ``tests/gates/sn/regression/test_dd_regression.py``)
+- ``sphere_2g_3reg``: a live SN solve at Gauss-Legendre 32, 40 cells,
   against the reference at :math:`(n_r, n_\mu) = (36, 96)`, eigenvalue and
-  flux shape, with bounds derived below from both methods' measured ladders.
+  flux shape, at tolerances derived from both methods' measured ladders.
+  Since #405 P2 step 7b.2.3 these are ``compare_uncertified`` comparisons,
+  not verification: the reference's family derives no bound (#566).
 - ``cyl_2g_3reg``: a LIVE SN solve at folded 16x32, 40 cells, against the
   reference at :math:`(n_r, n_{\mu,\rm axial}, n_\varphi) = (24, 16, 32)`. The
-  rows that carry the bound are strict ``xfail`` on #516: the reference's
-  azimuthal error is larger than a tenth of any bound that would verify the
-  SN solve. A RECORD row pins today's readings.
+  eigenvalue and shape rows are strict ``xfail`` on the verification verbs'
+  refusal of an uncertified reference (#566, #516). A RECORD row pins today's
+  k readings.
 
 What changed on 2026-09-26 (ERR-090, and two defects of this file):
 
@@ -75,56 +76,26 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
     solve_greens_function_cylinder,
 )
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh1D, Mesher
-from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
-    _regionwise_cubic_spline,
-)
+from orpheus.mesh import CellsByCount, Mesher
+from orpheus.numerics.observable import Eigenvalue
+from orpheus.reference.verification import compare_uncertified, verify_agreement
+from tests.gates.sn._test_helpers import mixture_from_transport_data
 from tests.gates.derivations._trajectory_resolvent_ladders import (
     CYLINDER_3REG_SN_STEPS,
     SPHERE_3REG_SN_STEPS,
     sn_residual,
-    sphere_3reg_reference_bound,
+    sphere_3reg_reference_ladder_estimate,
     tolerance_for,
 )
-from tests.gates.sn.verification.analytical._certified_agreement import (
-    ABA_RADII,
-    CYLINDER_3REG_RECORD,
-    CYLINDER_3REG_RECORD_BAND,
-    CYLINDER_3REG_RECORD_RELATIVE,
-    CYLINDER_3REG_REFERENCE_BOUND,
-    aba_xs_2g,
-    assert_record,
+from tests.gates.sn.verification.analytical._aba_reference import (
+    NO_ESTIMATOR,
+    aba_reference,
+    assert_cylinder_record,
     awaits_cylinder_bound,
-    certify_agreement,
-    cylinder_3reg_reference,
+    scaled_tolerance,
+    shape_observables,
+    verify_cylinder_k,
 )
-
-
-def _make_2g_mixture(
-    sigma_t,
-    sigma_s_matrix,
-    nu_sigma_f,
-    chi,
-):
-    """Build a 2-group Mixture from explicit XS arrays."""
-    from orpheus.derivations.common.xs_library import make_mixture
-    sigma_t = np.asarray(sigma_t, dtype=float)
-    sig_s = np.asarray(sigma_s_matrix, dtype=float)
-    nu_sig_f = np.asarray(nu_sigma_f, dtype=float)
-    chi = np.asarray(chi, dtype=float)
-    # Derive sig_c + nu + sig_f from sig_t + nu_sig_f + scatter.
-    sig_a = sigma_t - sig_s.sum(axis=1)
-    nu = np.ones_like(nu_sig_f)
-    sig_f = nu_sig_f.copy()
-    sig_c = sig_a - sig_f
-    return make_mixture(
-        sig_t=sigma_t,
-        sig_c=sig_c,
-        sig_f=sig_f,
-        nu=nu,
-        chi=chi,
-        sig_s=sig_s,
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -155,7 +126,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
     sig_s = [[0.3, 0.05], [0.0, 0.7]]  # (g_from, g_to)
     nu_sig_f = [0.4, 0.6]
     chi = [1.0, 0.0]
-    mat = _make_2g_mixture(sigma_t, sig_s, nu_sig_f, chi)
+    mat = mixture_from_transport_data(sigma_t, sig_s, nu_sig_f, chi)
 
     k_analytical = kinf_homogeneous(
         np.asarray(sigma_t),
@@ -307,72 +278,35 @@ def test_phase_d_trajectory_resolvent_crosscheck(
 
 
 # ════════════════════════════════════════════════════════════════════════
-# The heterogeneous rows — eigenvalue and flux shape
+# The heterogeneous rows — eigenvalue and flux shape, against an UNCERTIFIED reference (#405 P2 step 7b.2.3)
 # ════════════════════════════════════════════════════════════════════════
 #
-# The observable of the shape rows is the scalar flux as CELL AVERAGES over
-# the SN solve's own cells (the mesh object that produced the SN flux), with
-# both profiles scaled to unit total fission production. The reference is a
-# nodal field on composite per-region Gauss-Legendre nodes; its cell average
-# is the volume-weighted integral of a per-region cubic spline through those
-# nodes (the flux is continuous across an interface but its derivative is
-# not, so the interpolant is per region, as the reference's own emission
-
-
-def _reference_cell_averages(result, mesh: Mesh1D) -> np.ndarray:
-    r"""The reference's scalar flux averaged over each SN cell, ``(G, N)``.
-
-    :math:`\bar\phi_{g,i} = \int_{r_i}^{r_{i+1}} \phi_g(r)\, r^p\,dr \big/
-    \int_{r_i}^{r_{i+1}} r^p\,dr` with :math:`p = 2` (sphere) or 1 (cylinder),
-    by 16-point Gauss-Legendre per cell on the reference's regionwise cubic
-    spline (the one the reference reads its own emission density through).
-    Each SN cell lies in one region (the region meshes are built per region).
-    """
-    p = 2 if mesh.coord is CoordSystem.SPHERICAL else 1
-    x, w = np.polynomial.legendre.leggauss(16)
-    edges = np.asarray(mesh.edges, dtype=float)
-    region_of_cell = np.searchsorted(ABA_RADII, 0.5 * (edges[1:] + edges[:-1]))
-    phi = np.asarray(result.phi_g, dtype=float)
-    averages = np.empty((phi.shape[0], len(edges) - 1))
-    for g in range(phi.shape[0]):
-        pieces = _regionwise_cubic_spline(result.r_nodes, phi[g], result.region_at_node, len(ABA_RADII))
-        for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
-            r = 0.5 * (b - a) * (x + 1.0) + a
-            weight = 0.5 * (b - a) * w * r**p
-            averages[g, i] = np.sum(weight * pieces[region_of_cell[i]](r)) / np.sum(weight)
-    return averages
-
-
-def _fission_gauged(phi: np.ndarray, mesh: Mesh1D) -> np.ndarray:
-    r"""``phi`` ``(G, N)`` scaled so that :math:`\sum_{g,i} \nu\Sigma_{f,g,i}\,\phi_{g,i} V_i = 1`."""
-    centres = 0.5 * (np.asarray(mesh.edges)[1:] + np.asarray(mesh.edges)[:-1])
-    nu_sigma_f = aba_xs_2g()[2][np.searchsorted(ABA_RADII, centres)].T  # (G, N)
-    production = float(np.sum(nu_sigma_f * phi * np.asarray(mesh.volumes)))
-    return phi / production
-
-
-def _shape_gap(phi_sn: np.ndarray, reference_result, mesh: Mesh1D) -> np.ndarray:
-    r"""Per group: :math:`\max_i |\hat\phi^{\rm SN}_{g,i} - \hat\phi^{\rm ref}_{g,i}| / \max_{g,i} \hat\phi^{\rm ref}_{g,i}`, fission-gauged cell averages."""
-    sn = _fission_gauged(np.asarray(phi_sn, dtype=float), mesh)
-    ref = _fission_gauged(_reference_cell_averages(reference_result, mesh), mesh)
-    return np.max(np.abs(sn - ref), axis=1) / float(np.max(ref))
-
-
-@functools.cache
-def _sphere_3reg_reference():
-    """The sphere reference at (n_r, n_mu) = (36, 96), solved once per session."""
-    sigma_t, sigma_s, nu_sigma_f, chi = aba_xs_2g()
-    return solve_greens_function_sphere_mr(
-        radii=ABA_RADII, sigma_t=sigma_t, sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f, chi=chi, alpha=1.0,
-        n_r=36, n_mu=96, n_traj_quad=64,
-        max_iter=2000, tol=1e-9, initial_k=1.38,
-    )
+# Since step 7b.2.3 both sides are read through the reading verb: production's
+# ``Solution.read`` (cell averages paired with mesh-free weights) and the
+# trajectory-resolvent ``ReferenceSolution`` (its emission density's transport
+# integral, the user's ruling 1 of 2026-10-03). The reference's family derives
+# no bound (#566; the cylinder also #516), so it reads ``Uncertified``: the
+# sphere rows are explicit ``compare_uncertified`` comparisons at their
+# 2026-09-26 tolerances, a weaker claim than verification and spelled as such,
+# and carry no ``verifies`` marker; the cylinder rows are strict xfails on the
+# verbs' own refusal (``ReferenceNotValid``), XPASSing only when P4 gives the
+# family a certificate.
+#
+# The shape observable is, per SN cell and group, the cell average of φ gauged
+# to unit total fission production: :func:`._aba_reference.shape_observables`,
+# a ``Ratio`` of two flux integrals (the 2026-09-26 metric, the largest cell
+# difference relative to the largest reference cell average, is exactly the
+# largest per-cell difference against the absolute tolerance τ × M).
+#
+# Relative tolerances become absolute ones through a scale read off PRODUCTION
+# and truncated to three figures (``_aba_reference.scaled_tolerance``), which
+# only tightens: the verbs compare absolutely, and a cylinder xfail must refuse
+# before the reference is read, so the scale cannot come from the reference.
 
 
 @functools.cache
 def _cylinder_3reg_sn_16x32():
-    r"""A live SN solve of the snapshot's cylinder problem at folded 16x32: ``(k, phi (G, N), mesh)``.
+    r"""A live SN solve of the snapshot's cylinder problem at folded 16x32: the ``Solution`` (and its mesh).
 
     The problem is ``cyl_2g_3reg_folded_4x8_dd_n40``'s (same materials, same
     40-cell equal-area mesh) with the angular grid refined from 4x8 to 16x32
@@ -381,7 +315,7 @@ def _cylinder_3reg_sn_16x32():
     bit-exactly by ``test_dd_regression``, whose τ sensitivity (8.8e-2 in the
     flux under ``tau := 0.7``) makes it the cylinder angular-closure
     catcher; at 4x8 the SN solve's own angular error in this metric is about
-    0.13, larger than any bound this comparison can certify, so the
+    0.13, larger than any tolerance this comparison can hold, so the
     cross-check is posed where SN is angularly resolved.
     """
     from orpheus.numerics.quadrature import Quadrature
@@ -391,24 +325,18 @@ def _cylinder_3reg_sn_16x32():
         "quadrature": Quadrature.folded_product(n_mu=16, n_phi=32),
         "max_inner": 2000,
     }
-    result = generator.run_case(config)
-    return (
-        float(result.outcome.keff),
-        np.asarray(result.scalar_flux.values, dtype=float),
-        config["mesh"],
-    )
+    return generator.run_case(config), config["mesh"]
 
 
 @functools.cache
 def _sphere_3reg_sn_gl32():
-    r"""A live SN solve of the snapshot's sphere problem at Gauss-Legendre 32: ``(k, phi (G, N), mesh)``.
+    r"""A live SN solve of the snapshot's sphere problem at Gauss-Legendre 32: the ``Solution`` (and its mesh).
 
     ``sphere_2g_3reg_dd_n40``'s problem (same materials, same 40-cell
     equal-volume mesh) with 32 ordinates instead of 8 and an inner budget
     the inner iteration converges within. The 8-ordinate snapshot stays
     pinned bit-exactly by ``test_dd_regression``; its own angular error in
-    the shape metric (1.3e-2) would consume a bound this comparison can
-    otherwise certify ten times tighter.
+    the shape metric (1.3e-2) would consume most of this comparison's tolerance.
     """
     from orpheus.numerics.quadrature import Quadrature
     from tests.gates.sn.regression import _generate_snapshots as generator
@@ -417,29 +345,25 @@ def _sphere_3reg_sn_gl32():
         "quadrature": Quadrature.gauss_legendre(n_ordinates=32),
         "max_inner": 2000,
     }
-    result = generator.run_case(config)
-    return (
-        float(result.outcome.keff),
-        np.asarray(result.scalar_flux.values, dtype=float),
-        config["mesh"],
-    )
+    return generator.run_case(config), config["mesh"]
 
 
+def _largest_cell_average(solution, observables) -> float:
+    """M, the largest gauged cell average production reads: the scale of the shape rows' tolerance."""
+    return max(solution.read(ratio).value for _, _, ratio in observables)
 
 
-# ── the sphere: certified ─────────────────────────────────────────────────
+# ── the sphere: an uncertified comparison ────────────────────────────────
 #
-# Bounds and tolerances are COMPUTED from the ladders in
-# tests/gates/derivations/_trajectory_resolvent_ladders.py (which also holds
-# the command that re-measures each): the reference's bound at (36, 96) is its
-# radial step extrapolated at the measured second order plus its alternating
-# mu step; the SN residual is the sum of its mesh and angular steps; the
-# tolerance is tolerance_for(SN residual, reference bound). [M] 2026-09-26:
-# reference bound 3.2e-4 (k) and 1.4e-3 (shape); SN residual 1.5e-5 (k) and
-# 7.3e-3 (shape); tolerances 4e-3 and 2e-2.
-_SPHERE_REFERENCE_BOUND = sphere_3reg_reference_bound()
+# Tolerances are COMPUTED from the ladders in
+# tests/gates/derivations/_trajectory_resolvent_ladders.py: tolerance_for(SN
+# residual, the reference's ladder ESTIMATE). Since the step-5 ruling (no ladder
+# certifies) the estimate is the tolerance's documented provenance, not a bound.
+# [M] 2026-09-26: estimate 3.2e-4 (k) and 1.4e-3 (shape); SN residual 1.5e-5 (k)
+# and 7.3e-3 (shape); tolerances 4e-3 and 2e-2 (relative).
+_SPHERE_LADDER_ESTIMATE = sphere_3reg_reference_ladder_estimate()
 _SPHERE_TOLERANCE = {
-    observable: tolerance_for(sn_residual(SPHERE_3REG_SN_STEPS[observable]), _SPHERE_REFERENCE_BOUND[observable])
+    observable: tolerance_for(sn_residual(SPHERE_3REG_SN_STEPS[observable]), _SPHERE_LADDER_ESTIMATE[observable])
     for observable in ("k", "shape")
 }
 
@@ -448,23 +372,25 @@ _SPHERE_SUPPORTS = (
     "tests/gates/derivations/test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r",
     f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_homogeneous_dd_n20]",
     f"{_THIS}::test_sn_spherical_homogeneous_kinf_recovery_2g",
+    "tests/gates/derivations/test_trajectory_resolvent_reference.py::test_r7b2_2_1_the_sphere_reading_against_an_unsplit_fine_angular_rule",
+    "tests/gates/sn/test_solution_read.py::test_r7b2_9_2_the_cells_sum_to_the_whole_domain",
 )
 
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
 @pytest.mark.rests_on(*_SPHERE_SUPPORTS)
 def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
-    r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the reference at (36, 96).
+    r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the UNCERTIFIED reference at (36, 96).
 
     Fuel A | moderator B | fuel A at 0.5, 1.5, 2.0 cm, 2 groups, reflective
-    at r = R. The bound, derived above (:data:`_SPHERE_TOLERANCE`), is the
-    reference's: 4e-3 against the SN solve's own residual of 1.5e-5.
-    ``[M]`` reading 6.5e-5; the one-spline reference (ERR-090) reads 7.9e-3.
+    at r = R. Held to 4e-3 relative (derived above), as the absolute
+    4e-3 × truncated(k_SN). ``[M]`` reading 6.5e-5 relative; the one-spline
+    reference (ERR-090) read 7.9e-3. Not verification: the reference has no
+    bound (#566), so this is ``compare_uncertified``.
 
     Blind to the SN angular-closure defect class: ``tau := 0.7`` reads 8.7e-4
-    here, inside the reference-limited bound; that defect's catcher is
+    here, inside the tolerance; that defect's catcher is
     ``tests/gates/sn/regression/test_dd_regression.py``. The SN-defect
     witness of this row is a wrong boundary law (the reflective face realised
     as vacuum reads 2.6e1).
@@ -474,44 +400,65 @@ def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
     1.3816447) and read 2e-4 under a 2e-2 bound: the stale number and the
     one-spline reference had drifted to the same value.
     """
-    k_sn, _, _ = _sphere_3reg_sn_gl32()
-    k_ref = float(_sphere_3reg_reference().k_eff)
-    reading = abs(k_ref - k_sn) / k_sn
-    print(f"sphere 3-region: k_sn={k_sn:.8f} k_ref={k_ref:.8f} rel={reading:.3e}")
-    certify_agreement("sphere k", reading, _SPHERE_TOLERANCE["k"], _SPHERE_REFERENCE_BOUND["k"]).require()
+    solution, _ = _sphere_3reg_sn_gl32()
+    tolerance = scaled_tolerance(_SPHERE_TOLERANCE["k"], solution.read(Eigenvalue()).value)
+    comparison = compare_uncertified(solution, Eigenvalue(), aba_reference(CoordSystem.SPHERICAL), tolerance)
+    print(f"sphere 3-region k: sn={comparison.reading.value!r} ref={comparison.reference_reading.value!r} tol={tolerance:.3e}")
+    comparison.require()
 
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
-@pytest.mark.rests_on(*_SPHERE_SUPPORTS)
+@pytest.mark.rests_on(
+    *_SPHERE_SUPPORTS,
+    "tests/gates/derivations/test_trajectory_resolvent_reference.py"
+    "::test_r7b2_2_2_the_emission_density_is_the_solves_fixed_point[spherical]",
+)
 def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
-    r"""The heterogeneous closed sphere's flux shape, fission-gauged cell averages over the SN mesh.
+    r"""The heterogeneous closed sphere's flux shape: 80 fission-gauged cell averages over the SN cells.
 
     Activates the spatial and angular redistribution in both groups and the
     group ratio (one gauge for both groups); the material interfaces are
-    inside the comparison. Bound 2e-2 (derived above), set by the
-    reference's 1.4e-3 and the SN solve's own 7.3e-3. ``[M]`` reading
-    4.4e-3 (fast) / 1.7e-3 (thermal). Blind to ``tau := 0.7`` (1.0e-2) like
-    the eigenvalue row; red under the vacuum-for-reflective law (6.1) and a
-    1 % perturbation of the reference's moderator density (7.2e-2), green
-    under the one-spline reference (7.6e-3).
+    inside the comparison. Each of the 80 ratios against the uncertified
+    reference at the absolute 2e-2 × M, M the largest gauged cell average.
+
+    ``[M]`` 2026-10-03, the RE-BASELINE of the reading (not of the tolerance):
+    until step 7b.2.3 the reference was read as its NODAL φ through a
+    per-region cubic spline (4.361e-3 against M); since then it is read as
+    the transport integral of its emission density, its natural extension
+    (the user's ruling 1 of 2026-10-03: one reference, one answer), and the
+    row reads 4.325e-3. The two readings differ by 3.4e-4 in this metric.
+    Blind to ``tau := 0.7`` (1.0e-2, measured on the nodal reading) like the
+    eigenvalue row. ``[M]`` 2026-10-03, re-measured on this reading (the
+    step-7b.2.3 battery): red under the vacuum-for-reflective law and under a
+    1 % scaling of the solver's moderator emission density; green under the
+    one-spline reference (worst 2.38e-3 against 4.98e-3, which its
+    eigenvalue row catches) and under a 1 % scaling of the moderator density
+    applied after the solve, at reading time only (worst 1.92e-3: a
+    reading-only defect of that size is below this row's resolution). Its
+    catcher is the reference's fixed-point identity, R7b2.2.2 (the density
+    read reproduces the solve's angular flux to the rounding level), which
+    this row rests on.
     """
-    _, phi_sn, mesh = _sphere_3reg_sn_gl32()
-    gap = _shape_gap(phi_sn, _sphere_3reg_reference(), mesh)
-    print(f"sphere 3-region shape gap per group: {gap}")
-    certify_agreement(
-        "sphere flux shape", float(gap.max()), _SPHERE_TOLERANCE["shape"], _SPHERE_REFERENCE_BOUND["shape"],
-    ).require()
+    solution, mesh = _sphere_3reg_sn_gl32()
+    reference = aba_reference(CoordSystem.SPHERICAL)
+    observables = shape_observables(mesh)
+    tolerance = scaled_tolerance(_SPHERE_TOLERANCE["shape"], _largest_cell_average(solution, observables))
+    worst = 0.0
+    for i, g, ratio in observables:
+        comparison = compare_uncertified(solution, ratio, reference, tolerance)
+        worst = max(worst, abs(comparison.reading.value - comparison.reference_reading.value))
+        comparison.require()
+    print(f"sphere 3-region shape: worst |m - v| = {worst:.3e} against {tolerance:.3e}")
 
 
-# ── the cylinder: not yet certifiable (#516) ─────────────────────────────
+# ── the cylinder: not yet certifiable (#516, #566) ───────────────────────
 #
 # The tolerances the cylinder rows are held to once the reference is
 # certified: tolerance_for(SN residual, None), the reference assumed at the
 # floor. [M] SN residual at folded 16x32, 40 cells: 3.0e-5 (k), 5.0e-3
-# (shape); tolerances 8e-5 and 2e-2. The reference carries no bound
-# (_certified_agreement.CYLINDER_3REG_REFERENCE_BOUND), so the floor fails.
+# (shape); tolerances 8e-5 and 2e-2. The verbs refuse the uncertified
+# reference before reading it: the expected failure.
 _CYLINDER_TOLERANCE = {
     observable: tolerance_for(sn_residual(CYLINDER_3REG_SN_STEPS[observable]), None)
     for observable in ("k", "shape")
@@ -524,78 +471,64 @@ _CYLINDER_SUPPORTS = (
     "tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py::test_mr_single_region_vacuum_matches_wm72",
 )
 
-
-def _cylinder_readings() -> dict[str, float]:
-    """Today's cylinder readings, keyed as :data:`CYLINDER_3REG_RECORD` keys them."""
-    k_sn, phi_sn, mesh = _cylinder_3reg_sn_16x32()
-    reference = cylinder_3reg_reference()
-    gap = _shape_gap(phi_sn, reference, mesh)
-    return {
-        "k_ref": float(reference.k_eff),
-        "phase_c_k_sn": k_sn,
-        "phase_c_k_gap": abs(float(reference.k_eff) - k_sn) / k_sn,
-        "phase_c_shape_fast": float(gap[0]),
-        "phase_c_shape_thermal": float(gap[1]),
-    }
-
-
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 @awaits_cylinder_bound
 def test_cylinder_3reg_k_against_trajectory_resolvent() -> None:
     r"""The heterogeneous closed cylinder's eigenvalue: live SN at folded 16x32 against the reference at (24, 16, 32).
 
-    Held to 8e-5 (derived above), which needs a reference bound of at most
-    8e-6. The cylinder reference carries none (its ladder is not monotone in
-    the azimuthal order), so the floor fails first: the expected failure.
-    The row XPASSes when a bound derived from a converging ladder replaces
-    ``CYLINDER_3REG_REFERENCE_BOUND["k"]`` (after #516), not when a repair
-    alone lands; the RECORD row below keeps the reading live meanwhile.
+    Held to 8e-5 (derived above). The reference has no certificate (#566;
+    its azimuthal ladder is not monotone, #516), so ``verify_agreement``
+    refuses it before reading: the expected failure. The row XPASSes when
+    the family's factory returns a ``Valid`` certificate (P4); the RECORD
+    row below keeps the reading live meanwhile.
     """
-    readings = _cylinder_readings()
-    print(f"cylinder 3-region k: {readings}")
-    certify_agreement(
-        "cylinder k", readings["phase_c_k_gap"], _CYLINDER_TOLERANCE["k"], CYLINDER_3REG_REFERENCE_BOUND["k"],
-    ).require()
+    verify_cylinder_k(_cylinder_3reg_sn_16x32()[0], _CYLINDER_TOLERANCE["k"])
 
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 @awaits_cylinder_bound
 def test_cylinder_3reg_flux_shape_against_trajectory_resolvent() -> None:
-    r"""The heterogeneous closed cylinder's flux shape, fission-gauged cell averages over the SN mesh.
+    r"""The heterogeneous closed cylinder's flux shape: the 80 gauged cell averages, each verified once certified.
 
     Re-posed on 2026-09-26 from the 4x8 snapshot onto a live 16x32 solve: at
     4x8 SN's own angular error in this metric is 6.1e-2, which no comparison
     can separate from a defect; the snapshot keeps its job in
-    ``test_dd_regression``. Held to 2e-2 (derived above); the expected
-    failure is the eigenvalue row's.
+    ``test_dd_regression``. Held to 2e-2 × M (derived above); the expected
+    failure is the verbs' refusal, raised at the first ratio.
     """
-    readings = _cylinder_readings()
-    print(f"cylinder 3-region shape: {readings}")
-    certify_agreement(
-        "cylinder flux shape", max(readings["phase_c_shape_fast"], readings["phase_c_shape_thermal"]),
-        _CYLINDER_TOLERANCE["shape"], CYLINDER_3REG_REFERENCE_BOUND["shape"],
-    ).require()
+    solution, mesh = _cylinder_3reg_sn_16x32()
+    reference = aba_reference(CoordSystem.CYLINDRICAL)
+    observables = shape_observables(mesh)
+    tolerance = scaled_tolerance(_CYLINDER_TOLERANCE["shape"], _largest_cell_average(solution, observables))
+    for _, _, ratio in observables:
+        verify_agreement(solution, ratio, reference, tolerance, NO_ESTIMATOR).require()
+
+
+def _cylinder_readings() -> dict[str, float]:
+    """Today's cylinder k readings, keyed as ``_aba_reference.CYLINDER_3REG_RECORD`` keys them (no shape keys: the user's
+    cost ruling of 2026-10-03, the 80-ratio set through the reference's extension costs about 38 min)."""
+    solution, _ = _cylinder_3reg_sn_16x32()
+    k_sn = solution.read(Eigenvalue()).value
+    k_ref = aba_reference(CoordSystem.CYLINDRICAL).read(Eigenvalue()).value
+    return {"k_ref": k_ref, "phase_c_k_sn": k_sn, "phase_c_k_gap": abs(k_ref - k_sn) / k_sn}
 
 
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 def test_cylinder_3reg_crosscheck_record() -> None:
-    r"""RECORD: today's cylinder readings, green until either side moves.
+    r"""RECORD: today's cylinder k readings, green until either side moves.
 
     Not verification. Red under ``tau := 0.7`` (the SN k moves 7.8e-4), the
     vacuum-for-reflective law, the one-spline reference and a 1 % reference
-    perturbation.
+    perturbation (measured 2026-09-26 with the shape keys; the k keys alone
+    are re-measured by the step-7b.2.3 battery). The shape keys were dropped
+    at step 7b.2.3 (the user's cost ruling).
     """
     readings = _cylinder_readings()
     print(f"cylinder 3-region readings: {readings}")
-    assert_record(
-        readings, {name: CYLINDER_3REG_RECORD[name] for name in readings},
-        CYLINDER_3REG_RECORD_BAND, relative=CYLINDER_3REG_RECORD_RELATIVE,
-    )
+    assert_cylinder_record(readings)
