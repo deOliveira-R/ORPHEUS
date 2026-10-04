@@ -99,10 +99,11 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Self, TypeVar, assert_never, cast
 
 import numpy as np
 
+from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.outcome import (
     EigenOutcome,
     Evidence,
@@ -440,6 +441,55 @@ class Solution(SolutionBase[O]):
             per group.
         """
         return xs * self.scalar_flux.values
+
+    # ── The production reading of an observable (#405 P2 step 7b.2.1) ──
+
+    def read(self, observable: Observable) -> Measured:
+        r"""Read one observable off the answer, as production's self-report.
+
+        The twin of :meth:`~orpheus.homogeneous.solver.HomogeneousResult.read`
+        on a mesh: the eigenvalue reads :math:`k_{\rm eff}` (an eigen answer
+        only); a flux integral reads
+        :math:`\sum_{g,i}\phi_{g,i}\int_{V_i} w_g\,dV`, the cell-average flux
+        paired with the weight's cell integrals
+        (:meth:`~orpheus.mesh.structured.Mesh1D.cell_integrals`), exact for
+        the piecewise-constant answer and in the solution's own gauge; a
+        ratio reads the quotient of its operands' readings
+        (:meth:`~orpheus.numerics.observable.Ratio.quotient`); a point value
+        is refused, because a cell-average answer has no point evaluation;
+        so are a weight whose group count is not the answer's and, on a 2-D
+        mesh, every flux integral (#569). A reading is
+        :class:`~orpheus.numerics.outcome.Measured`: a self-report that
+        verification puts on trial, never a guarantee.
+
+        Declared limits. The answer is read as its cell averages under every
+        spatial scheme: a linear-discontinuous answer's slopes are not read,
+        so a weight varying inside a cell misses their contribution (the
+        group totals are exact; #571). Nothing pairs the answer with a
+        specification yet (#405 P4's projection), so the caller pairs them.
+        """
+        match observable:
+            case Eigenvalue():
+                if not isinstance(self.outcome, EigenOutcome):
+                    raise ValueError("Solution.read: an eigenvalue is read off an eigen answer, and this is a source answer")
+                return Measured(self.outcome.keff)
+            case FluxIntegral(weight=weight):
+                flux = np.asarray(self.scalar_flux.values)
+                if weight.n_groups != flux.shape[0]:
+                    raise ValueError(
+                        f"Solution.read: the weight has {weight.n_groups} groups; the answer has {flux.shape[0]}"
+                    )
+                mesh = self.problem.mesh
+                if mesh is None:
+                    raise ValueError("Solution.read: the problem holds no mesh, so a flux integral has no cells to read")
+                integrals = mesh.cell_integrals(weight)
+                return Measured(float(np.tensordot(integrals, flux, axes=integrals.ndim)))
+            case Ratio() as ratio:
+                return ratio.quotient(self.read)
+            case PointValue():
+                raise ValueError("Solution.read: a point value names a position, and a cell-average answer has no point evaluation")
+            case _:
+                assert_never(observable)
 
     # ── Spatial homogenization (a domain operation on the solution) ──
 

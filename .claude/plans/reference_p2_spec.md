@@ -465,6 +465,92 @@ The positive control: the labels reversed in the mesher, which must redden R7b2.
 
 Filed: #569 (`Mesh2D` stores the same composite, and three readers branch on the mesh's type). qa finding 1 (a read-only flag that can be set writeable again, under a cached digest; pre-existing, and the new field inherits it) is appended to #561.
 
+#### 7b.2.1 The SN production reading (gates written, run and mutated, `[M]` 2026-10-03 on the uncommitted working tree over `fa38de31`)
+
+**The API, as declared by the orchestrator and built in parallel.**
+- `Mesh1D.cell_integrals(weight) -> (G, N)`, the layout of `ScalarFlux.values` on a 1-D mesh. Entry `[g, i]` is ∫_{cell i} w_g dV in the coordinate system's measure (dV = c·dT(r), T = r^p).
+  - A `RegionwiseConstant` is read through the region labels: `per_cell(values).T * volumes`, refused unless its region count equals `len(region_materials)`.
+  - A `Symbolic` weight is integrated exactly: one SymPy antiderivative per group, evaluated at the edges as exact binary rationals, rounded once, then scaled by c. A weight that depends on the direction is refused through `Symbolic.without` (the one definition of independence).
+- `Solution.read(observable) -> Measured` on the forward SN solution:
+  - `Eigenvalue` reads `outcome.keff`, refused on a source answer;
+  - `FluxIntegral` reads Σ_{g,i} φ[g, i]·`cell_integrals(w)`[g, i] in the solution's own gauge;
+  - `Ratio` reads `ratio.quotient(self.read)`;
+  - `PointValue` is refused;
+  - a `Mesh2D` problem refuses a flux integral (#569);
+  - a weight whose group count is not the answer's is refused.
+- `AdjointSolution` has no `read` in this step.
+
+**The gates.** R7b2.8 is in `tests/gates/mesh/test_mesh1d_cell_integrals.py` (13 cases); R7b2.9 is in `tests/gates/sn/test_solution_read.py` (13 cases).
+
+Every reference value is written independently of the production formula: the closed form of the measure of [a, b] (b − a, π(b² − a²), 4π(b³ − a³)/3); the first moment ∫ r dV (π(b⁴ − a⁴) on the sphere); and each cell's region found by containment of its centre in the breakpoints, not by its label.
+
+| id | gate |
+|---|---|
+| R7b2.8.1 | `(G, N)` shape; the indicator of each cell reads its closed-form measure to 8 ulp; group 1 reads zeros |
+| R7b2.8.2 | the sum over cells is the body's volume (4πR³/3, πR², R) |
+| R7b2.8.3 | the weight r reads the first moment, which catches a wrong exponent; sphere and cylinder read differently |
+| R7b2.8.4 | a step at r = 0.6 inside the cell [0.5, 0.75] integrates exactly: partial measure in that cell, full below, 0 above |
+| R7b2.8.5 | a region table with rows 0 and 2 different reads the two fuel regions of A\|B\|A separately (the X1 witness 7b.2.0 enabled) |
+| R7b2.8.6 | refusals: a wrong region count; a weight that depends on μ or φ. Route: rebinding `Symbolic.depends_on` is consulted |
+| R7b2.9.1 | k is bit-identical to `outcome.keff`; a source answer refuses the eigenvalue and still reads a flux integral |
+| R7b2.9.2 | a group total is Σ φ V; the per-cell indicators sum to the whole-domain reading; regions 0 and 2 are read separately; the X1 negative: φ scaled by 1 + 1e-11 moves the reading by 1e-11 and leaves k |
+| R7b2.9.3 | route: `Ratio.quotient` reversed moves the SN reading, called from `Solution` (R7.19 extended to this answer); the fast/thermal ratio is Σφ₀V/Σφ₁V ≠ 1 |
+| R7b2.9.4 | refusals: a point value; a 1-group, 3-group or 1-group-region weight on the 2-group answer; a 2-D problem (#569). The adjoint solution has no `read` |
+| R7b2.9.5 | `l1`, THEOREM: a reflective homogeneous slab reads k∞, against the exact infinite medium's reading, at 10 × `keff_tol`. `[M]` |Δk| = 6.8e-14 at `keff_tol` 1e-12 |
+
+**R7b2.9.5 is a THEOREM row on raw readings, not `verify_agreement` and not a RECORD.**
+- The flat flux is the exact solution of any discretisation of a reflective homogeneous body, so k = k∞ is a theorem with an exact value. A RECORD row would be weaker than the ground available.
+- `verify_agreement` would pair a slab's `GeometrySpecification` with an `InfiniteMediumSpecification`, which nothing can check until P4. The row's docstring says so.
+- It is blind to every spatial and angular operator; it pins the eigenvalue reading's chart and threading only.
+
+**First reds.**
+- On `fa38de31` (a detached worktree with the two files copied in; `orpheus.__file__` checked to be the worktree's): 31 of 31 red. The 13 `Solution` rows fail with `AttributeError: 'Solution' object has no attribute 'read'`; the `cell_integrals` rows fail the same way on `Mesh1D`.
+- On the first working-tree code the gates found one defect, now fixed: **a 1-group weight broadcast SILENTLY over both groups** (`[M]` it read 12.87859622934138, the 2-group total), and a 3-group weight failed only through an accidental numpy broadcast error. The keyed group refusal is now in `read`.
+- The orchestrator's three gate corrections were accepted. One is the direction fragment, re-pinned from the observable's own message to "depends on", which the `without` refusal carries.
+
+**Cost.** `[M]` 80 symbolic cell integrals (40 cells, 2 groups, a `Piecewise`) take 0.63 s. No gate needs a cap: the fast rows use 8 cells. The cost lands on the migrated shape rows: 80 observables × 80 cell integrals each is about 50 s per row, `[R]` by scaling. Caching the cell integrals by weight is the main agent's choice (P3's cache is the principled home).
+
+**The battery** (`[M]` 2026-10-03, `scratch/reference_architecture/p2/ta/step7b2/read/battery/`). 14 in-process textual mutants; the sources were copied aside and `diff -q` shows them intact afterwards. Scope: the two files, 31 cases, baseline 31 green. Each arm's red set contains its target row (red sets read, not only counts):
+
+| arm | reds |
+|---|---|
+| control: the measure constant c dropped | 9 |
+| the measure density replaced by the slab's | 10 |
+| the midpoint rule | 9 |
+| the region table read through `mat_ids` | 4 |
+| the direction refusal dropped | 2 |
+| the region-count refusal dropped | 1 |
+| k read as 1/k | 2 |
+| groups reversed | 3 |
+| the flux ignored | 5 |
+| a private ratio rule | 1 |
+| the source refusal dropped | 1 |
+| the 2-D refusal dropped | 1 |
+| the group check dropped | 1 |
+| the point refusal dropped | 1 |
+
+0 blind. Declared stabiliser: on a slab c = 1 and the density is 1, so the c and density arms leave every slab row green, by design. The midpoint arm is exact on a constant slab weight and is caught there by the step row.
+
+**The review round's rows** (`[M]` 2026-10-03, 42 of 42 green on the working tree; pyright 0 errors on the 3 files):
+
+| id | gate |
+|---|---|
+| R7b2.10 (`tests/gates/numerics/test_symbolic_without_values.py`) | `Symbolic.without` preserves the function's values, checked at sample points before and after. Row 1: the sin step keeps 1 at r = 2.5. Row 2: `(sin²φ + cos²φ)(r + 1)` keeps its values. Row 1 is the ERR witness; it takes `catches("ERR-0NN")` once the archivist's entry exists |
+| R7b2.8.7 | the scope edge: the sin step is refused ("is integrated only where its argument is polynomial in r"); a step on `r² < 2` and `Abs(r − 11/10)` are exact against adaptive quadrature split at the kink, to 1e-12; `floor(2r)` gets "cannot be integrated over the cells" |
+| R7b2.8.8 | a hollow cylinder and sphere (r₀ = 0.5): each cell's measure and first moment, and the shell's measure |
+| R7b2.9.6 | route: with `Mesh2D.cell_integrals` rebound to a decoy, the 2-D read succeeds, so the refusal lives in the mesh alone; a 3-D problem posed from axes (`problem.mesh is None`, constructible, 1 s) reads its k and refuses a flux integral ("holds no mesh") |
+
+New arms, each reddening its target row:
+
+| arm | reds |
+|---|---|
+| `simplify` restored in `without` | 2: R7b2.10 row 1, and the scope-edge refusal (the simplified step looks polynomial) |
+| the scope check dropped | 1 |
+| the keyed refusal narrowed | 1 |
+| the antiderivative taken from 0 on the first cell | 2: the hollow rows. Solid bodies are blind by design: r₀ = 0 there |
+| `read` keeps its own 2-D branch | 1 |
+| the no-mesh refusal dropped | 1 |
+
 **What part 2 is.** Under the user's ruling 3 (2026-10-03) no trajectory-resolvent reference has a derived bound (#566; the cylinder also #516), so none can anchor a `VerificationCertificate`, and under the step-5 ruling the sphere's ladder "bound" is no bound either: the sphere is uncertified too. Every row of the migration set either becomes an explicit `compare_uncertified` at its current tolerance, or stays a strict xfail whose expected failure is now the verbs' own refusal, or stays a RECORD. Nothing in part 2 is a verification claim.
 
 #### The census (question 1)

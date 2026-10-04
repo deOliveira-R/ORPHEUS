@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import KW_ONLY, dataclass, field, replace
+from typing import TYPE_CHECKING, assert_never, cast
 
 import numpy as np
 
@@ -38,6 +39,10 @@ from orpheus.geometry.coord import (
 from orpheus.numerics.scalars import parse_entries, parse_index, parse_integer, parse_positions
 from orpheus.mesh.face_laws import FaceLaws, face_inventory
 from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
+
+if TYPE_CHECKING:
+    import sympy
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh1D
@@ -62,6 +67,27 @@ def _volume_ulps(coord: CoordSystem) -> int:
     """
     return 2 * coord.measure_coordinate.exponent + 5
 
+
+
+def _require_polynomial_steps(expression: "sympy.Expr", r: "sympy.Symbol", group: int) -> None:
+    """Refuse a non-smooth construct whose argument is not polynomial in ``r`` (see :meth:`Mesh1D.cell_integrals`)."""
+    import sympy
+
+    arguments: list[sympy.Basic] = []
+    for piecewise in expression.atoms(sympy.Piecewise):
+        for branch in piecewise.args:
+            condition = branch.args[1]
+            for relation in condition.atoms(sympy.core.relational.Relational):
+                arguments += [relation.lhs, relation.rhs]  # both sides polynomial: the step's boundary is a root set
+    for kind in (sympy.Heaviside, sympy.Abs, sympy.Max, sympy.Min, sympy.sign):
+        for atom in expression.atoms(kind):
+            arguments += list(atom.args)
+    for argument in arguments:
+        if not cast("sympy.Expr", argument).is_polynomial(r):
+            raise ValueError(
+                f"Mesh1D.cell_integrals: group {group}'s weight steps where {argument} changes sign; a step is "
+                f"integrated only where its argument is polynomial in r (a scope boundary of the exact integration)"
+            )
 
 
 @dataclass(frozen=True, eq=False)
@@ -225,6 +251,73 @@ class Mesh1D(ContentIdentity):
     def per_cell(self, region_values: "np.typing.ArrayLike") -> np.ndarray:
         """A per-region table read out to the cells: row ``r`` of ``region_values`` for every cell labelled ``r``."""
         return np.asarray(region_values)[self.region_ids]
+
+    def cell_integrals(self, weight: MeshFreeFunction) -> np.ndarray:
+        r"""The weight integrated over each cell: ``[g, i]`` is :math:`\int_{V_i} w_g\,dV`, shape ``(G, N)``.
+
+        The co-vector a flux integral :math:`\langle w, \phi\rangle` pairs with
+        a cell-average flux, :math:`\sum_{g,i} \phi_{g,i} \int_{V_i} w_g\,dV`,
+        which is exact for a piecewise-constant answer (#405 P2 step 7b.2.1).
+        In frame vocabulary it is the analysis of the weight onto the mesh's
+        indicator basis against the continuous measure
+        :math:`dV = c\,dT(r)`, :math:`T(r) = r^p`. It is not the analysis
+        against :attr:`volume_measure`, whose atoms sit at the cell centres:
+        that would be the midpoint rule.
+
+        * A :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`
+          is read through the region labels (:meth:`per_cell`; its rows are
+          the regions, so its region count must be the mesh's) times the
+          stored cell volumes. The stored volume is the cell's measure (it
+          can sit a few ulp from :math:`c(T(r_{i+1}) - T(r_i))`, and on a thin
+          cell far from the axis the two differ: `[M]` 1.9e-8 relative on a
+          hollow cylinder at r = 100, qa of 7b.2.1).
+        * A :class:`~orpheus.numerics.mesh_free_function.Symbolic` weight is
+          integrated in :math:`r` by SymPy: one antiderivative per group
+          (continuous for a ``Piecewise``, so a step inside a cell is
+          integrated exactly), evaluated at the cells' edges as the binary
+          rationals they are, then converted to a double and scaled by
+          :math:`c` (two roundings, at most 2.7e-16 relative, `[M]`
+          against mpmath). A weight that depends on the direction is refused
+          (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`).
+
+        SCOPE-BOUNDARY[guard] machinery: a quadrature split at the roots of any step condition.
+        ruling: the orchestrator, #405 P2 step 7b.2.1, spec §7b.2.1 (qa: `[M]` SymPy 1.14 integrates a sin step wrongly).
+        revisit: when a weight with a transcendental step is needed.
+        Qa's witness: ``Piecewise((1, sin(3r) > 0), (0, True))`` over [2, 3]
+        integrates to 0. A non-smooth construct (a ``Piecewise`` condition, ``Heaviside``,
+        ``Abs``, ``Max``, ``Min``, ``sign``) is admitted only with arguments
+        polynomial in :math:`r`, where SymPy's antiderivative is reliable;
+        any other failure of the integration is refused naming the weight.
+        """
+        match weight:
+            case RegionwiseConstant():
+                if weight.n_regions != len(self.region_materials):
+                    raise ValueError(
+                        f"Mesh1D.cell_integrals: the weight has {weight.n_regions} region(s); "
+                        f"the mesh has {len(self.region_materials)}"
+                    )
+                return self.per_cell(weight.values).T * self.volumes
+            case Symbolic():
+                import sympy
+
+                r = Symbolic.r
+                measure = sympy.diff(r ** self.coord.measure_coordinate.exponent, r)
+                edges = [sympy.Rational(float(e)) for e in self.edges]
+                integrals = np.empty((weight.n_groups, self.N))
+                for g, w in enumerate(weight.without(Symbolic.mu, Symbolic.phi).expressions):
+                    _require_polynomial_steps(w, r, g)
+                    try:
+                        antiderivative = sympy.integrate(w * measure, r)
+                        at_edges = [antiderivative.subs(r, e) for e in edges]
+                        integrals[g] = [float(b - a) for a, b in zip(at_edges, at_edges[1:])]
+                    except (TypeError, ValueError, NotImplementedError) as failure:
+                        raise ValueError(
+                            f"Mesh1D.cell_integrals: group {g}'s weight {w} cannot be integrated over the "
+                            f"cells ({type(failure).__name__}: {failure})"
+                        ) from None
+                return self.coord.measure_constant * integrals
+            case _:
+                assert_never(weight)
 
     @property
     def total_width(self) -> float:
@@ -519,3 +612,17 @@ class Mesh2D(ContentIdentity):
         """
         mat_map = np.arange(self.nx * self.ny, dtype=int).reshape(self.nx, self.ny)
         return replace(self, mat_map=mat_map)
+
+    def cell_integrals(self, weight: MeshFreeFunction) -> np.ndarray:
+        """The 2-D twin of :meth:`Mesh1D.cell_integrals`; not built.
+
+        ELEGANCE-DEBT[guard] #569: retires when ``Mesh2D`` carries region
+        labels and ``Symbolic`` owns the second axis's coordinate (z, or x
+        and y), so a weight can be read through the labels or integrated over
+        a 2-D cell. The one refusal stands here, where the missing code goes,
+        so no reader branches on the mesh's type.
+        """
+        raise NotImplementedError(
+            "Mesh2D.cell_integrals: a 2-D cell integral needs the mesh's region labels and the second "
+            "coordinate of a symbolic weight (#569)"
+        )

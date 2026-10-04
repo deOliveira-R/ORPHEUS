@@ -191,7 +191,7 @@ def _admit_datum(datum: MeshFreeFunction, role: str, spec: Specification) -> Non
 
 
 def admit_observable(observable: Observable, specification: Specification) -> None:
-    """Refuse an observable this specification cannot pose; the one admission every reader reuses.
+    """Refuse an observable this specification cannot pose; the one admission every reference reader reuses.
 
     A flux integral's weight must fit the problem as a question's datum must
     (its groups, its regions, the coordinates a ``Symbolic`` weight may depend
@@ -203,7 +203,11 @@ def admit_observable(observable: Observable, specification: Specification) -> No
     :class:`~orpheus.reference.published.PublishedSolution` at construction,
     for every observable it prints; a reference solution's ``read`` at #405
     P2 step 6), so the refusal is decided once (#405 P2, the elegance review
-    of step 3).
+    of step 3). A PRODUCTION answer holds no specification until #405 P4's
+    projection, so its ``read`` checks what it can see itself (the weight's
+    group count against its flux): the same rule, spelled again until P4
+    pairs the answer with its specification (the elegance review of step
+    7b.2.1).
     """
     where = type(specification).__name__
     match observable:
