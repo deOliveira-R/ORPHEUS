@@ -561,7 +561,7 @@ The traced memo — :mod:`orpheus.numerics.traced_memo`, a pure function of
 content-identified arguments memoised on disk under ``.cache/references/``
 and keyed on what ran: on a miss the call is generated in a fresh
 interpreter that records, from its first line, every function that starts,
-every file it reads and every directory it lists
+every file it reads or probes and every directory it lists
 (:mod:`orpheus.numerics._traced_memo_boot`); the entry keeps that
 :class:`~orpheus.numerics.traced_memo.Manifest` beside an exact payload,
 and a lookup validates the manifest against the checkout without importing
@@ -577,8 +577,9 @@ manifest can see and the review round's defects, is
 .. automodule:: orpheus.numerics.traced_memo
    :members: traced_memo, TracedMemo, bypass, cache_root, default_root,
       Hit, Absent, Stale, Corrupt, Manifest, DefPin, ModulePin,
-      DistributionPin, InterpreterPin, DataPin, ListingPin,
-      WorkingDirectoryPin, ChildPin, MemoPin, validate, trace_call,
+      DistributionPin, InterpreterPin, DataPin, PresencePin, ListingPin,
+      EnvironmentPin, WorkingDirectoryPin, ChildPin, MemoPin, validate,
+      trace_call,
       origin, function_digest, skeleton_digest, platform_tag,
       encode_payload, decode_payload, Unpinnable, Unencodable
 

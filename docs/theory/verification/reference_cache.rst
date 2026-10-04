@@ -9,7 +9,7 @@ The reference cache: a traced memo keyed on what ran
    exactly when something that produced it has changed; why the identity
    of a generator is its recorded execution and not a declared version or
    a static call graph; why a miss is generated in a fresh process; the
-   exact key; the manifest and its nine pin kinds; validation that runs
+   exact key; the manifest and its eleven pin kinds; validation that runs
    nothing; the exact payload; the process boundary; the bypass; how the
    memo relates to the reference certificate; the exact medium's
    exclusion; the clients; the limits no manifest can see; the review
@@ -25,7 +25,8 @@ The reference cache: a traced memo keyed on what ran
    Plan of record: .claude/plans/reference_cache.md, from "P3 opened
    (2026-10-04)" to its end, and discussion 2; specification of the
    gates: .claude/plans/reference_p3_spec.md. Written at P3's close,
-   2026-10-04, against branch refactor/p3-ambient-state at 39ee20f2.
+   2026-10-04, against branch refactor/p3-ambient-state at 39ee20f2;
+   updated for the second review round at 994ba740.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -43,7 +44,7 @@ a pure function of content-identified arguments, memoised on disk under
 as long as nothing the call depended on has changed. Its dependencies are
 not declared: they are **recorded**. On a miss the call runs in a fresh
 interpreter that records every function that starts, every file it opens
-and every directory it lists, and the entry keeps that record, the
+or probes and every directory it lists, and the entry keeps that record, the
 **manifest**, beside the answer. A later lookup compares the manifest with
 the checkout, without importing or running anything, and serves the answer
 only if every recorded dependency is unchanged.
@@ -66,10 +67,10 @@ Key facts
   normalised source of every first-party function that ran, the skeleton
   of every first-party module whose code ran, the version of every
   third-party distribution whose code ran or whose file was read, the
-  interpreter, every file read and every directory listed (outside the
-  import system), the working
-  directory when a relative path was read, every memo entry read (checked
-  recursively), and the memo's own source (the user's ruling of
+  interpreter, every file read or probed and every directory listed
+  (outside the import system), the declared environment, the starting
+  working directory when a relative path was read, every memo entry read
+  (checked recursively), and the memo's own source (the user's ruling of
   2026-09-24, discussion 2 of the plan). A declared version and a static
   call graph were refuted for this question (the section "Why a recorded
   execution" below).
@@ -84,7 +85,9 @@ Key facts
   identity, its signature-bound arguments (defaults applied, each declared
   canonical form put in) and the platform tag. ``8`` and ``8.0``, ``-0.0``
   and ``0.0``, an integer array and its float twin are different keys,
-  because a function can tell them apart even though ``==`` cannot.
+  because a function can tell them apart even though ``==`` cannot; and
+  the key is exact all the way up: an object is its constructor form, a
+  container carries its concrete type, a mapping its order.
 * **Validation runs nothing.** A lookup re-hashes the manifest's pins
   against the current files and returns one of four verdicts,
   :class:`~orpheus.numerics.traced_memo.Hit`,
@@ -110,10 +113,13 @@ Key facts
   costs 0.01 s, less than one interpreter start (the user's ruling, Q5).
 * **A test that monkeypatches anything a generation runs reads under**
   ``with bypass():``, because a patch never reaches a fresh process.
-* **What no manifest can see is stated, not gated**: an absence probed
-  without opening a file, native state, and a file a C library opens
-  itself. Every rule here errs toward a spurious miss, never toward a
-  stale hit, except at those three named limits.
+* **A generation may start only a declared machine query** (``uname``)
+  and sees only a declared environment; every other started process is
+  refused.
+* **What no manifest can see is stated, not gated**: a probe the recorder
+  does not wrap (``os.access``, the entries ``os.scandir`` yields), native
+  state, and a file a C library opens itself. Every rule here errs toward
+  a spurious miss, never toward a stale hit, except at those named limits.
 
 
 What the memo is for
@@ -141,8 +147,8 @@ wall time of the verification suite.
 Where the two conflict, the design takes the miss. Every declared
 spurious miss below (an unread module constant, a distribution upgrade
 that changed nothing the answer used, an operating-system update) is
-priced and accepted; the only stale hits are the three named limits of
-"What no manifest can see".
+priced and accepted; the only stale hits are the named limits of "What no
+manifest can see".
 
 
 .. _verification-reference-cache-identity:
@@ -341,8 +347,8 @@ value (an object is still its schema and its parts, a mapping is still
 ordered by its encoded keys) with an exact leaf policy: every scalar with
 its type and its bits, every array with its dtype and its bytes.
 
-.. list-table:: Content equality and the memo key on four pairs
-   (`[M]` 2026-10-04, ``encode`` and ``encode_exact`` on the live tree)
+.. list-table:: Content equality and the memo key on nine pairs
+   (`[M]` 2026-10-04, ``encode`` and ``encode_exact`` at ``994ba740``)
    :header-rows: 1
    :widths: 30 20 20 30
 
@@ -367,17 +373,62 @@ its type and its bits, every array with its dtype and its bytes.
      - yes
      - no
      - ``type(x)``, ``repr``
+   * - ``S(1.0, tag="a")`` and ``S(1.0, tag="b")``, ``tag`` a
+       ``compare=False`` field
+     - yes
+     - no
+     - ``s.tag``
+   * - a ``NamedTuple`` ``NT(1, 2)`` and ``(1, 2)``
+     - yes
+     - no
+     - ``t.a``, ``type(t)``
+   * - ``FrozenMapping`` of ``a, b`` and of ``b, a``
+     - yes
+     - no
+     - iteration order
+   * - a CSR matrix and its twin storing an explicit zero
+     - yes
+     - no
+     - ``m.data``, ``m.nnz``
+   * - a CSR matrix and its CSC copy
+     - yes
+     - no
+     - ``m.format``, ``m.indices``
 
-The exactness must hold at every depth, not only at the top level: a
-call on ``Spec(8.0)`` must not be served the entry of ``Spec(8)`` when
-``Spec`` is a frozen dataclass, and ``sign(-0.0)`` must not be served
-the entry of ``sign(0.0)``. So the exact policy rides the
-content encoder's own walk, one walk with two leaf policies (``_Exactly``
-beside ``_ByEquality`` in :mod:`orpheus.numerics.content`), rather than a
-second, shallower description of the arguments' types (review finding
-qa 4, at the end of the page).
-The price is a spurious miss for a caller passing ``8`` where another
-passed ``8.0``, which is the safe direction.
+**Exact all the way up.** The exactness must hold at every depth and in
+every structure, not only at the leaves: a call on ``Spec(8.0)`` must not
+be served the entry of ``Spec(8)`` when ``Spec`` is a frozen dataclass,
+and ``sign(-0.0)`` must not be served the entry of ``sign(0.0)``. So the
+exact policy rides the content encoder's own walk, one walk with two
+policies (``_Exactly`` beside ``_ByEquality`` in
+:mod:`orpheus.numerics.content`), rather than a second, shallower
+description of the arguments (review finding qa 4). The exact policy
+decides more than the leaves:
+
+* **an object is its constructor form**,
+  :func:`~orpheus.numerics.content.constructor_arguments` (or the
+  arguments of its ``__reduce__``), which is exactly what the generating
+  process receives, since every argument crosses through its
+  constructor. A field declared ``compare=False`` that the constructor
+  takes is therefore in the key, although content equality ignores it;
+* **a container carries its concrete type**: a ``NamedTuple`` is not the
+  plain tuple of its values;
+* **a mapping keeps its order**:
+  :class:`~orpheus.numerics.content.FrozenMapping` documents its iteration
+  order as behaviour, so a function can read it;
+* **a sparse matrix is its format and its stored arrays**, explicit zeros
+  included;
+* **a subclass of** ``str``, ``bytes`` **or** ``ndarray`` **is its type and
+  its own instance state beside its bytes**. ``EmissionSpectrum``, the
+  stateless ``ndarray`` subclass ``Mixture.chi`` holds, is its type and its
+  bytes; a masked array keeps a type in its state, which has no content
+  identity, and is refused with its path.
+
+The content policy is unchanged by all of this: every content digest is
+bit-identical (`[M]` 2026-10-04, the S5.7 RECORD fingerprint and 244
+content-identity gates green). The price is a spurious miss for a caller
+passing ``8`` where another passed ``8.0``, or one dictionary order where
+another passed the other, which is the safe direction.
 
 **The platform tag** (Q3) is
 :func:`~orpheus.numerics.traced_memo.platform_tag`: the interpreter's
@@ -400,8 +451,8 @@ identity. An argument with no content identity is refused with its path
 
 .. _verification-reference-cache-manifest:
 
-The manifest: nine kinds of pin
-===============================
+The manifest: eleven kinds of pin
+=================================
 
 A :class:`~orpheus.numerics.traced_memo.Manifest` is a frozen set of
 pins. Each pin is a small value that can say, by itself, whether the
@@ -440,22 +491,35 @@ kind and is parsed once, in ``Manifest.from_json``.
      - The design.
    * - :class:`~orpheus.numerics.traced_memo.DataPin`
      - A file the run opened for reading, by absolute path and bytes;
-       ``"absent"`` when it was missing. Also a program the run started,
-       by its executable's bytes.
+       ``"absent"`` when it was missing; a ``.py`` file read as data
+       included. Also an admitted program the run started (``uname``), by
+       its executable's bytes.
      - An edited data file; a file appearing where the run found none; a
        replaced program.
-     - Q4 (M3.17); absence from qa finding 5; programs from the fix
-       round.
+     - Q4 (M3.17); absence from qa finding 5; ``.py`` as data from the
+       second review's finding r5; programs from the fix rounds.
+   * - :class:`~orpheus.numerics.traced_memo.PresencePin`
+     - A path the run probed without opening it (``os.stat``,
+       ``os.lstat``, and through them ``os.path.exists``, ``isfile``,
+       ``isdir`` and ``pathlib``'s ``exists``), by what was there:
+       ``"file"``, ``"directory"``, ``"other"`` or ``"absent"``.
+     - An answer that branched on whether a file exists.
+     - qa finding 5, the half the first fix left open.
    * - :class:`~orpheus.numerics.traced_memo.ListingPin`
      - A directory the run listed, outside the import system, by the
        sorted names in it (or ``"absent"``).
      - A file added to or removed from a directory a generator scanned.
      - qa finding 5.
+   * - :class:`~orpheus.numerics.traced_memo.EnvironmentPin`
+     - The declared environment the generating process received, by its
+       digest.
+     - A thread count, a locale or a ``PATH`` that changed what ran.
+     - The second review (an undeclared variable read by a generator).
    * - :class:`~orpheus.numerics.traced_memo.WorkingDirectoryPin`
-     - The working directory, recorded only when the run read a relative
-       path.
+     - The directory the run started in, recorded only when the run read a
+       relative path.
      - The same relative path naming another file from another directory.
-     - qa finding 5.
+     - qa finding 5; the starting directory from finding r7.
    * - :class:`~orpheus.numerics.traced_memo.ChildPin`
      - A memo entry the run read, by its function id, its key and the
        digest of the payload it served.
@@ -463,10 +527,11 @@ kind and is parsed once, in ``Manifest.from_json``.
        answer.
      - The design (recursive validation).
    * - :class:`~orpheus.numerics.traced_memo.MemoPin`
-     - The memo's own two source files.
+     - The memo's own two source files and ``content.py``, whose
+       constructor form the write path runs.
      - An entry written by a memo whose writing code has since been
        fixed.
-     - qa finding 8.
+     - qa finding 8, both halves.
 
 **The normalised source of a def.** A def is hashed as the dump of its
 syntax tree with line and column attributes excluded and every docstring
@@ -556,68 +621,104 @@ the files a generation reads. An audit hook on ``open`` in the generating
 process records every path opened for reading, made absolute at the moment
 it is opened (a later change of directory cannot move it), a bytes path
 decoded, and a path that does not exist included: the run then depended on
-its absence. In P3, 0 of the 3 clients read a nuclear-data file (`[M]` the
+its absence. A ``.py`` file read as data (``inspect.getsource`` of code
+that never ran, a parsed configuration) is a data file like any other;
+only the import system's own reads are exempt (the next paragraph).
+
+**Presence probes.** While a recording is active, ``os.stat`` and
+``os.lstat`` are replaced by probes that record the path, so
+``os.path.exists`` and its relatives are dependencies: each probed path
+becomes a :class:`~orpheus.numerics.traced_memo.PresencePin` holding what
+was there. The probes are removed when the recording stops. In P3, 0 of the 3 clients read a nuclear-data file (`[M]` the
 AST census: 4 files under ``orpheus/`` read data, all in ``micro_xs`` and
 the Sood cache), so the hook is for P4's generators.
 
-**Directory listings** (``os.listdir``, ``os.scandir``) are recorded, with
-one exclusion: a listing made by the import system (its finder filling the
-cache of a ``sys.path`` directory). The module that listing found is pinned
-where its code runs; pinning the listing itself would let any new file in
-any ``sys.path`` directory invalidate every entry (`[M]` 2026-10-04: the
-M4.4 real-tree witnesses fail that way without the exclusion).
+**Directory listings** (``os.listdir``, ``os.scandir``) are recorded.
+
+**The import system is exempt, decided by the immediate caller.** The
+import system's own reads, probes and listings are how it finds a module,
+and the module it finds is pinned where its code runs; recording them
+would let any new file in any ``sys.path`` directory invalidate every entry
+(`[M]` 2026-10-04: the M4.4 real-tree witnesses fail that way without the
+exemption). The import system is the frozen bootstrap and the
+``importlib`` package (``importlib.metadata`` lists every ``sys.path``
+directory to find the installed distributions, which are pinned by
+version). The exemption is decided by the frame that made the call, never
+by an import being somewhere on the stack: a module body that lists a
+directory while it is being imported is the run's own dependency (finding
+r4). The check compares raw file names against prefixes computed once,
+because it runs inside the ``os.stat`` probe and must not call
+``os.stat`` itself.
+
+**The memo's own store reads are not dependencies.** A memoised call made
+inside a generation looks its entry up, and that lookup validates the
+entry's manifest by reading each of its source files. The lookup runs
+quiet (``_traced_memo_boot.unrecorded``, a thread-local flag the audit
+hook and the ``os.stat`` probe both honour), so a parent holds its child
+by its :class:`~orpheus.numerics.traced_memo.ChildPin` only, and an edit
+to one of the child's source files reaches the parent through the child's
+own validation, never as a data pin of the parent.
 
 **Programs a run starts.** ``platform.processor()`` runs ``uname`` during
 the clients' imports (`[M]` 2026-10-04), so a started program is a real
-dependency, and it is pinned by its executable's bytes (an
-operating-system update can replace it). A started Python interpreter, a
-``fork`` and a process whose program cannot be named (an ``os.system``
-command line) are refused as unpinnable: the code they run is code no
-recording saw. The memo's own start of a generating process is not a
-dependency of the run that asked, and is excluded by name
-(``_traced_memo_boot.spawning``).
+dependency. A generation may start only a declared machine query, a
+program whose answer the machine fixes: ``_ADMITTED_PROGRAMS`` is
+``{"uname"}``, pinned by its executable's bytes (an operating-system
+update can replace it). Every other start is refused as
+:class:`~orpheus.numerics.traced_memo.Unpinnable`, because a started
+program's own reads and children are unrecorded: a pinned ``cat`` of an
+unpinned file served ``1.0`` where ``50.0`` was computed, and
+``shell=True`` and ``/usr/bin/env python3`` slipped past a refusal keyed on
+the program being Python (findings r2, r3). A spawn-context process pool,
+which raises the audit event ``_posixsubprocess.fork_exec`` rather than
+``subprocess.Popen``, a ``fork`` and an ``os.system`` line are refused the
+same way. The table is a declared scope boundary (``SCOPE-BOUNDARY`` in
+the code): the machinery that would admit more is a recorder for a
+started program's own reads and children. The memo's own start of a
+generating process is not a dependency of the run that asked, and is
+excluded by name (``_traced_memo_boot.spawning``).
 
 **The memo pins itself.** The memo writes an entry after the recording
 stops, so its own writing code is never in the record. Without a pin on
 its own source, an entry written by a memo with a codec defect would stay
-a ``Hit`` after the defect was fixed (review finding qa 8). The memo's two source
-files are one pin, and an edit to either makes every entry stale.
+a ``Hit`` after the defect was fixed (review finding qa 8). The pin covers
+the memo's two source files and ``content.py``, whose
+:func:`~orpheus.numerics.content.constructor_arguments` the write path
+runs; an edit to any of them makes every entry stale.
 
-**What a real manifest holds** (`[M]` 2026-10-04, this chapter's probe,
-the A|B|A sphere at ``n_r=8, n_mu=8, n_traj_quad=16``, eigenvalue reading,
-fresh cache root):
+**What a real manifest holds** (`[M]` 2026-10-04 at ``6bfde984``, this
+chapter's probe, the A|B|A sphere at ``n_r=8, n_mu=8, n_traj_quad=16``,
+eigenvalue reading, fresh cache root; every entry also holds one
+interpreter pin, one memo pin and one environment pin):
 
 .. list-table::
    :header-rows: 1
-   :widths: 36 8 8 8 8 8 8 8 8
+   :widths: 36 9 9 9 9 9 9 10
 
    * - Entry
      - Def
      - Module
      - Distr.
-     - Interp.
      - Data
+     - Presence
      - Child
-     - Memo
      - bytes
    * - the reading (``TrajectoryResolventDerivation.evaluate``)
-     - 188
+     - 208
      - 124
      - 6
-     - 1
      - 4
+     - 55
      - 1
-     - 1
-     - 44 049
+     - 51 147
    * - the solve (``solve_greens_function_sphere_mr``)
-     - 58
+     - 62
      - 105
      - 6
-     - 1
      - 4
+     - 55
      - 0
-     - 1
-     - 26 446
+     - 31 335
 
 The four data pins of both entries are
 ``/System/Library/CoreServices/SystemVersion.plist`` (read by a platform
@@ -756,8 +857,8 @@ standard input of
 
    <the parent's interpreter> [-O…] -P orpheus/numerics/_traced_memo_boot.py
 
-with the parent's ``sys.path`` and working directory, and the parent's
-environment without any ``ORPHEUS_*`` variable.
+with the parent's ``sys.path`` and working directory, and a declared
+environment only (below).
 
 **The boot script imports only the standard library**, so it can start
 recording before any ``orpheus`` code runs: the first statement of its
@@ -773,14 +874,18 @@ serves both the generating process and
 instrument the manifest gates use, so the gates exercise the production
 recorder (elegance finding S2). A recording holds, across every thread of
 the process, every code object that started, every path opened for
-reading, every directory listed, every program started, and every memo
-entry read. The state is process-wide, not held in context variables: a
+reading or probed, every directory listed, every program started, the
+directory the run started in, and every memo entry read. The state is process-wide, not held in context variables: a
 new thread does not inherit context variables, so a memo called from a
 worker thread would be neither pinned as a child nor written to the right
 store (review finding qa 2). Audit hooks
 cannot be removed, so one hook is installed per process and serves the
-recordings active at each event. A process pool started by a generator is
-a started Python process and is refused.
+recordings active at each event; the ``os.stat`` probes are installed
+while a recording is active. A process pool started by a generator is a
+started program outside the admitted table and is refused. The builtin
+``exec()`` raises the audit event ``exec`` (a dataclass's generated
+methods are built that way), and it is not a process start, so it is not
+a spawn event.
 
 **The boot module is registered under its own name.** In the generating
 process the boot file runs as ``__main__``, and the memo imports it by its
@@ -808,14 +913,25 @@ finding qa 11a).
 answering, and a generating process that meets its own ``(function id,
 key)`` among them raises. Without it the cycle starts interpreters without
 end (review finding qa 13; `[M]` 2026-10-04, the fix battery's arm that
-removes the guard left 192 recursing processes).
+removes the guard left 192 recursing processes). A chain through DISTINCT
+keys (``f(n)`` calling ``f(n + 1)``) repeats no key, so the depth of
+nested generations is also bounded, at 16
+(``_MAX_GENERATION_DEPTH``); the 17th raises ``RecursionError``.
 
-**The environment is scrubbed** (Q7). The generating process sees no
-``ORPHEUS_*`` variable. Two reasons: no variable may select an answer that
-no key holds, and the withdrawal switch ``ORPHEUS_RUN_WITHDRAWN`` must not
-let a withdrawn generator write an entry that a later caller, without the
-switch, would be served (the specification's finding W). A withdrawn
-generator therefore always refuses inside a generating process, and the
+**The environment is declared** (Q7, then the second review). The generating
+process receives only ``_CHILD_ENVIRONMENT`` (``PATH``, ``HOME``,
+``TMPDIR``, the locale variables and the BLAS and OpenMP thread counts,
+each when the parent has it) and ``PYTHONHASHSEED=0``, fixed so that
+iteration over a set of strings has one order in every generation; the
+environment it received is pinned by an
+:class:`~orpheus.numerics.traced_memo.EnvironmentPin`. Two reasons: no
+variable may select an answer that no key or pin holds (a generator
+reading an undeclared variable ``QA_SCALE`` served ``2.0`` where ``3.0``
+was computed; ``test_m3_16_…``), and the withdrawal switch
+``ORPHEUS_RUN_WITHDRAWN`` must not let a withdrawn generator write an
+entry that a later caller, without the switch, would be served (the
+specification's finding W). No ``ORPHEUS_*`` variable is declared, so a
+withdrawn generator always refuses inside a generating process, and the
 rule P4 inherits is that a withdrawn generator is never memoised.
 
 
@@ -844,7 +960,10 @@ removed (below). It and
 :func:`~orpheus.numerics.traced_memo.cache_root` (read and write under
 another root) are entries on one process-wide stack of targets; a stack
 in context variables would not reach a worker thread (review finding qa 2,
-elegance finding C3).
+elegance finding C3). The other side of that choice is a declared limit:
+a ``bypass()`` entered in one thread holds for every thread of the
+process (found by the second review and declared, not fixed; low, since
+the tests that bypass are single-threaded).
 
 
 .. _verification-reference-cache-certificate:
@@ -982,11 +1101,10 @@ What no manifest can see
 
 Stated where the memo is built (its module docstring), and here:
 
-* **An absence probed without opening a file.** ``os.path.exists``,
-  ``os.stat`` and ``Path.is_file`` raise no audit event, so a generator
-  that branches on whether a file exists, without opening it, depends on
-  something no pin records. Opening a missing file is recorded (as
-  ``"absent"``).
+* **A probe the recorder does not wrap.** ``os.stat`` and ``os.lstat``
+  are wrapped, so ``exists()`` is a dependency; ``os.access`` is not
+  wrapped, and the entries ``os.scandir`` yields are not probed (the
+  listing itself is pinned).
 * **Native state.** A C extension's global state (a BLAS thread pool, a C
   library's precision mode) is neither code the trace records nor an
   argument. M4.5 compares a served reading with a fresh in-process one on
@@ -994,8 +1112,10 @@ Stated where the memo is built (its module docstring), and here:
 * **A file a C library opens itself** (HDF5 through ``h5py``) raises no
   Python audit event. A generator reading such a file takes the file's
   digest as an argument; P4 inherits that rule.
-* **A process the run starts** is pinned only by its executable; a
-  started Python, a ``fork`` or an unnamed program is refused, not pinned.
+* **A started program's own reads and children.** Only ``uname`` may be
+  started; every other start is refused, not pinned.
+* **A** ``bypass()`` **is process-wide**, across threads (the bypass
+  section).
 * **The atomic write has no gate that can fail on it.** M3.15 (two
   processes racing on one miss leave one valid entry) cannot see a
   non-atomic write, because both racers recover through the ``Corrupt``
@@ -1032,7 +1152,7 @@ such reads and writes in ``orpheus/``:
   mutation dropping the ``UNIFIED`` arm reddens both.
 * The withdrawal switch (``withdrawal.py``), which selects which tests run,
   not which answer is computed. It stays, and the generating process never
-  sees it (the environment scrub above).
+  sees it (its environment is declared, above).
 * **Two writes of the global mpmath precision**, ``mp.dps = 30``, in the
   cylinder Wronskian identity (``cylinder_derivations.py``) and the slab
   :math:`T_{00} = P_{ss}` identity (``greens_function_slab.py``). A global
@@ -1049,8 +1169,8 @@ negative ``with mpmath.workdps(30):``); a behavioural check that each of
 the two identities leaves a precision of 17 at 17 and still passes; and a
 check that two fresh interpreters, with and without the variable, see the
 same module-level values. The only modules that read the environment are
-the withdrawal switch and the memo, which reads it only to hand it on
-without ``ORPHEUS_*``.
+the withdrawal switch and the memo, which reads it only to hand the
+declared variables on.
 
 
 The numbers
@@ -1129,12 +1249,12 @@ exact medium left the clients; the specification's section 3 states the
 measurement protocol the shipped memo owes (cold, warm and bypassed, three
 runs each, serially). The cache after both passes held 8 724 KB.
 
-**The gates** are 113 rows `[M]` (``--collect-only``): the manifest (22,
+**The gates** are 125 rows `[M]` (``--collect-only`` at ``6bfde984``): the manifest (22,
 ``test_traced_memo_manifest.py``), validation and the payload (18,
 ``test_traced_memo_validation.py``), the process and the store (27,
 ``test_traced_memo_process.py``), data files (1,
 ``test_traced_memo_data.py``), the clients (13,
-``test_traced_memo_clients.py``), the review's findings (18,
+``test_traced_memo_clients.py``), the two reviews' findings (30,
 ``test_traced_memo_findings.py``) and the ambient state (14,
 ``tests/gates/test_ambient_state.py``), all under ``tests/gates/``. The
 real-tree witnesses (M4.4) copy every ``*.py`` under ``orpheus/`` into a
@@ -1155,8 +1275,8 @@ Each limit is a phase of #405 in the plan of record
 * **Three clients only.** No reference family besides the multi-region
   trajectory resolvent is memoised; the families migrate in phase P4, and
   a certification run becomes a client there. No gate yet refuses a
-  traced memo on a withdrawn generator (the generating process refuses it
-  through the environment scrub).
+  traced memo on a withdrawn generator (the generating process refuses it,
+  since its declared environment holds no ``ORPHEUS_*`` switch).
 * **No cache on continuous integration.** The cache lives under
   ``.cache/references/`` on one machine; the continuous-integration job,
   the read-only test shards and the scheduled cold rebuild that would
@@ -1336,6 +1456,144 @@ the parent and the child agree on the ``-O`` level; a pin relative to a
 ``sys.path`` entry validates the file Python would import.
 
 
+The second review
+-----------------
+
+qa reviewed the fixed memo (``39ee20f2``) again. 11 of the 13 first-round
+findings were closed; two were half open (finding 5: an absence probed by
+``exists()``; finding 8: ``content.py`` runs on the write path after the
+recording stops); 8 findings were new, 6 of them serving a wrong value. The
+spy rows of M4.6 had their teeth back (qa: "14 of 14 red under the
+fixture; 15 of 15 green without it"), and qa's battery
+reddened its target in 43 of 46 arms. Each finding was fixed at its root
+in ``994ba740``, read against two standing rulings: the key separates what
+the function can tell apart (Q2), and a stale value is never served. Ten
+rows joined ``test_traced_memo_findings.py``.
+
+.. list-table:: The second review's findings, their mechanisms and their fixes
+   :header-rows: 1
+   :widths: 8 40 34 18
+
+   * - Finding
+     - What failed, and how it hid
+     - The fix, at the root
+     - Gate
+   * - r1
+     - The key was exact at its leaves only: a masked array and its plain
+       twin, two dictionary orders, a sparse matrix's explicit zero and
+       its format, a ``NamedTuple`` and its tuple, and a ``compare=False``
+       constructor field each shared one key and served the other call's
+       answer.
+     - The key encodes what the generating process receives: each object
+       by its constructor form, each container by its concrete type, each
+       mapping in order, each sparse matrix by its storage, each subclass
+       of ``str``, ``bytes`` or ``ndarray`` by its type and state.
+     - ``test_r1_…``
+   * - r2, r3
+     - A spawn-context process pool ran Python no recording saw (its start
+       raises ``_posixsubprocess.fork_exec``, not ``subprocess.Popen``);
+       a started program was pinned by its launcher's bytes while the
+       files it read went unpinned: ``cat`` served ``1.0`` against
+       ``50.0``, and ``shell=True`` and ``env python3`` slipped past the
+       refusal of a started Python.
+     - Only a declared machine query (``uname``) may be started; every
+       other start is refused, ``fork_exec`` included.
+     - ``test_r2_r3_…``
+   * - r4
+     - A directory listed by a module body while it was being imported was
+       exempt as the import system's (an import was on the stack): ``11.0``
+       served against ``22.0``.
+     - The exemption is decided by the immediate caller.
+     - ``test_r4_…``
+   * - r5
+     - Every ``.py`` read was skipped as code, so a generator reading a
+       ``.py`` file as data served ``3.0`` against ``30.0``.
+     - The blanket skip retired; only the import system's own reads are
+       exempt.
+     - ``test_r5_…``
+   * - (environment)
+     - A generator reading a variable outside every key served ``2.0``
+       against ``3.0``.
+     - A declared environment, pinned; ``PYTHONHASHSEED`` fixed. The
+       ``ORPHEUS_*`` scrub retired, subsumed.
+     - ``test_m3_16_…``
+   * - r7
+     - The working-directory pin held the run's FINAL directory, so a
+       generator that changed directory and read a relative path was
+       stale on every call (its own fresh entry did not validate).
+     - The pin holds the directory the run started in.
+     - ``test_r7_…``
+   * - (after the round)
+     - A parent pinned its child's source files as DATA: the lookup of the
+       child inside the parent's generation validated the child's manifest
+       by reading its sources, and those reads were recorded. `[M]`
+       2026-10-04 at ``994ba740``: the reading entry's 105 ``.py`` data
+       pins were exactly the solve entry's 105 module pins (105 of 105 in
+       both directions), and 368 presence pins against 55 after the fix; a
+       comment edit to any of the solve's modules made every reading stale
+       (a spurious miss, never a stale hit). The M4.4 witnesses missed it:
+       the file their "other geometry" row edits is not among the solve's
+       modules.
+     - The memo's lookups run quiet (``unrecorded``); the parent holds its
+       child by its child pin only (``6bfde984``).
+     - ``test_a_parent_does_not_pin_its_childs_sources_as_data``
+   * - (threads)
+     - A ``bypass()`` in one thread redirects a concurrent memo call in
+       another.
+     - Declared, not fixed.
+     - —
+   * - q5 (half)
+     - An answer that depended on ``exists()`` finding no file was served
+       stale: ``1.0`` against ``99.0``.
+     - ``os.stat`` and ``os.lstat`` probed while recording;
+       ``PresencePin``.
+     - ``test_q5_absence_probed_by_exists_…``
+   * - q8 (half)
+     - ``content.constructor_arguments`` runs on the write path, after the
+       recording stops, and was not pinned.
+     - ``MemoPin`` covers ``content.py``.
+     - ``test_q8_the_memo_pin_covers_the_write_path``
+   * - q10 (reader)
+     - The writer-only gate was blind to an in-place write.
+     - A reader leg: while four threads rewrite one key, every lookup is
+       ``Hit`` or ``Absent``, never ``Corrupt``.
+     - ``test_q10_a_reader_…``
+   * - q13 (bound)
+     - With the cycle guard removed, a chain through distinct keys hung
+       instead of failing.
+     - Nested generations bounded at 16.
+     - ``test_q13_a_chain_…``
+
+**Found while fixing, not by the review:**
+
+* **The audit event** ``exec`` **is the builtin** ``exec()``, which builds a
+  dataclass's generated methods; it is not a process start, so it is not
+  among the spawn events.
+* **The exact key refused** ``EmissionSpectrum``, the stateless
+  ``ndarray`` subclass held by ``Mixture.chi``, once the key refused every
+  ``ndarray`` subclass: `[M]` 23 rows of the affected suites were red. A
+  subclass is now its type and its own instance state beside its bytes, so
+  ``EmissionSpectrum`` is its type and its bytes, and only a subclass whose
+  state has no content identity (a masked array) is refused.
+* ``importlib.metadata`` **lists every** ``sys.path`` **directory** to find
+  the installed distributions, and with the exemption limited to the frozen
+  bootstrap those listings pinned the working directory. The import system
+  is now the frozen bootstrap AND the ``importlib`` package.
+* **The import-system check recursed.** It ran ``realpath`` inside the
+  ``os.stat`` probe, and ``realpath`` calls ``os.stat``. The check now
+  compares raw file names against prefixes computed once, at import.
+
+`[M]` 2026-10-04 after the fixes: the affected suites (numerics, reference,
+data, mesh, geometry, the trajectory and multi-region solver tests), 7 487
+passed, 0 failed.
+
+**An instrument lesson.** qa's own reaper for orphaned generating
+processes, ``pkill -f _traced_memo_boot``, matched by process NAME, so it
+also killed the generating processes of a full-suite run going on at the
+same time: 5 of the 6 failures of that run at ``39ee20f2`` were that, and
+none was the memo's. A battery's orphans are killed by process tree,
+never by name.
+
 Development history
 ===================
 
@@ -1353,6 +1611,26 @@ Reverse-chronological changelog of phase P3 of #405, the plan
      - Milestone
      - Issue
      - Where
+   * - 2026-10-04
+     - **The memo's own store reads are not a generation's dependencies**:
+       a parent no longer pins its child's sources as data (found by this
+       chapter's manifest measurement).
+     - #405
+     - ``6bfde984``
+   * - 2026-10-04
+     - **The second review round.** The exact key exact all the way up;
+       only ``uname`` may be started; the import-system exemption by the
+       immediate caller, over the frozen bootstrap and ``importlib``;
+       presence probes (``PresencePin``); a declared, pinned environment
+       (``EnvironmentPin``); the starting working directory; ``MemoPin``
+       over ``content.py``; nested generations bounded at 16. 10 finding
+       gates; the affected suites 7 487 passed.
+     - #405
+     - ``994ba740``
+   * - 2026-10-04
+     - **This chapter**, and the regenerated verification matrix.
+     - #405
+     - ``51c8485b``, ``bfc926eb``
    * - 2026-10-04
      - **The review round: no stale or wrong value served.** qa's 13
        findings (7 serving a stale or wrong value) and the elegance
