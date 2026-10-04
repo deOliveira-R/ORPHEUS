@@ -93,19 +93,23 @@ def verdict_kind(verdict: Any) -> str:
 
 # ── the P3 clients (step 4): where each memo is bound ────────────────────────────
 
-#: (module, attribute) of each memoised client: the two multi-region solvers (the solve children) and the two
-#: readings (a module-level function of content that constructs its derivation and evaluates).
+#: (module, dotted attribute) of each memoised client: the two multi-region solvers (the solve children) and the
+#: trajectory reading (the derivation's ``evaluate``, a memoised method keyed on the derivation's content). The
+#: exact infinite medium is NOT a client: its reading costs less than an interpreter start (the user's ruling of
+#: 2026-10-04, ``reference_cache.md`` "P3 specification ruled", Q5).
 CLIENTS = {
     "solve_sphere": ("orpheus.derivations.continuous.trajectory_resolvent.greens_function", "solve_greens_function_sphere_mr"),
     "solve_cylinder": ("orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder", "solve_greens_function_cylinder_mr"),
-    "trajectory_reading": ("orpheus.derivations.continuous.trajectory_resolvent.reference", "trajectory_resolvent_reading"),
-    "exact_reading": ("orpheus.derivations.common.exact_homogeneous", "exact_infinite_medium_reading"),
+    "trajectory_reading": ("orpheus.derivations.continuous.trajectory_resolvent.reference", "TrajectoryResolventDerivation.evaluate"),
 }
 
 
 def client(name_: str) -> Any:
-    module_name, attribute = CLIENTS[name_]
-    return getattr(importlib.import_module(module_name), attribute)
+    module_name, dotted = CLIENTS[name_]
+    value: Any = importlib.import_module(module_name)
+    for part in dotted.split("."):
+        value = getattr(value, part)
+    return value
 
 
 def function_id(name_: str) -> str:

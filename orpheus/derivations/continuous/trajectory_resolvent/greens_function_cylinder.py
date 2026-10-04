@@ -123,6 +123,7 @@ from typing import Any
 import numpy as np
 
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
+    SOLVER_ARRAY_ARGUMENTS,
     _composite_per_region_gl,
     emission_density,
 )
@@ -134,6 +135,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
 )
+from orpheus.numerics.traced_memo import traced_memo
 
 
 @dataclass(frozen=True)
@@ -647,6 +649,7 @@ class CylinderGreensMRResult:
     last_fission_rate: float
 
 
+@traced_memo(canonical=SOLVER_ARRAY_ARGUMENTS)
 def solve_greens_function_cylinder_mr(
     radii: np.ndarray,              # (n_regions,) outer radii ascending
     sigma_t: np.ndarray,            # (n_regions, G) or (n_regions,) for 1G

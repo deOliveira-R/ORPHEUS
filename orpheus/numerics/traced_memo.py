@@ -863,6 +863,11 @@ class TracedMemo:
     def __reduce__(self) -> Any:
         return (_resolve, (self.function_id,))
 
+    def __get__(self, instance: object, owner: type | None = None) -> Any:
+        """A memoised method binds like a function: ``instance.method(x)`` is the memo called with
+        ``(instance, x)``, so the instance's content is part of the key (it must have content identity)."""
+        return self if instance is None else types.MethodType(self, instance)
+
     def _arguments(self, args: tuple[Any, ...], kwargs: dict[str, Any]) -> inspect.BoundArguments:
         """The call bound to the signature, defaults applied and every declared canonical form put in: the key
         and the generating process see the same arguments."""

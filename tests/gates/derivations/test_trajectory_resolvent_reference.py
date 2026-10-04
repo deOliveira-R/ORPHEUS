@@ -51,6 +51,7 @@ from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue, Ratio
 from orpheus.numerics.outcome import Measured, NotYet
 from orpheus.numerics.question import Eigen, FixedSource
+from orpheus.numerics.traced_memo import bypass
 from orpheus.reference.reading import Uncertified
 from orpheus.reference.verification import ReferenceNotValid, compare_uncertified, verify_agreement, verify_order
 from orpheus.specification.specification import GeometrySpecification, InfiniteMediumSpecification
@@ -99,7 +100,10 @@ def _group_total(group: int) -> FluxIntegral:
 
 
 class _SolveSpy:
-    """Counts calls to the two multi-region solvers, rebinding every module attribute that names them."""
+    """Counts calls to the two multi-region solvers, rebinding every module attribute that names them.
+
+    A test using it reads :func:`in_process`, so the solves it counts run where it counts them.
+    """
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.calls = 0
@@ -112,6 +116,15 @@ class _SolveSpy:
                 return _original(*args, **kwargs)
 
             monkeypatch.setattr(module, name, counting)
+
+
+@pytest.fixture
+def in_process():
+    """Every memoised call runs in this process for the test (:func:`~orpheus.numerics.traced_memo.bypass`):
+    a spy counts calls here, and a memoised reading would run its solve and its weight's steps in a generating
+    process no spy reaches, where it counts 0 whether or not they ran (#405 P3)."""
+    with bypass():
+        yield
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -131,6 +144,7 @@ def test_r7b2_2_the_factory_returns_an_uncertified_reference(coord) -> None:
 
 
 @pytest.mark.parametrize("coord", _COORDS_SOLVING, ids=_IDS)
+@pytest.mark.usefixtures("in_process")
 def test_r7b2_2_construction_solves_nothing_and_the_solve_is_cached(coord, monkeypatch: pytest.MonkeyPatch) -> None:
     """ROUTE: building the reference calls no solver; the first reading solves once; a second reading reuses it."""
     spy = _SolveSpy(monkeypatch)
@@ -175,6 +189,7 @@ _REFUSALS = [
 
 
 @pytest.mark.parametrize("build, fragment", [r[1:] for r in _REFUSALS], ids=[r[0] for r in _REFUSALS])
+@pytest.mark.usefixtures("in_process")
 def test_r7b2_2_refusals(build, fragment, monkeypatch: pytest.MonkeyPatch) -> None:
     """Refused at construction, before any solve. The anisotropic row: the trajectory resolvent solves isotropic
     scattering only, and ``get_mixture("B", "2g")`` carries a P1 moment (mean cosine 0.6); accepting it would
@@ -214,6 +229,7 @@ class _Answer:
 
 
 @pytest.mark.parametrize("coord", _COORDS_SOLVING, ids=_IDS)
+@pytest.mark.usefixtures("in_process")
 def test_r7b2_3_the_verbs_refuse_before_any_solve(coord, monkeypatch: pytest.MonkeyPatch) -> None:
     spy = _SolveSpy(monkeypatch)
     ref = api.reference(aba_specification(coord))
@@ -359,6 +375,7 @@ def test_r7b2_6_the_reading_is_additive_over_a_split(coord) -> None:
     assert abs(parts / whole - 1.0) <= 1e-9, (whole, parts)
 
 
+@pytest.mark.usefixtures("in_process")
 def test_r7b2_6_the_reading_consults_symbolic_steps(monkeypatch: pytest.MonkeyPatch) -> None:
     """ROUTE: the derivation finds a weight's steps through ``Symbolic.steps``, the one definition."""
     ref = _aba(CoordSystem.SPHERICAL)
@@ -575,6 +592,7 @@ def test_r7b2_2_4_the_public_constructor_derives_its_rays_from_the_billiard() ->
 
 
 @pytest.mark.parametrize("build, fragment", [r[1:] for r in _REFUSALS], ids=[r[0] for r in _REFUSALS])
+@pytest.mark.usefixtures("in_process")
 def test_r7b2_2_4_the_public_constructor_refuses_what_the_factory_refuses(build, fragment, monkeypatch) -> None:
     """The constructor is the one door: every refusal of R7b2.2 holds when the derivation is built directly."""
     spy = _SolveSpy(monkeypatch)

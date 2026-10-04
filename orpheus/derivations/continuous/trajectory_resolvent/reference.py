@@ -99,10 +99,11 @@ from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
     MultiRegionSphereChordOracle,
 )
 from orpheus.geometry.coord import compute_areas_1d
-from orpheus.numerics.content import FrozenMapping
+from orpheus.numerics.content import ContentIdentity, FrozenMapping
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen
+from orpheus.numerics.traced_memo import traced_memo
 from orpheus.reference.reading import Uncertified
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import GeometrySpecification
@@ -242,7 +243,7 @@ class _NotConverged:
 
 
 @dataclass(frozen=True, eq=False)
-class TrajectoryResolventDerivation:
+class TrajectoryResolventDerivation(ContentIdentity):
     """The multi-region trajectory resolvent's natural extension, solved on the first evaluation and read uncertified.
 
     Built from the specification it answers, the solve's ``Billiard``
@@ -262,6 +263,13 @@ class TrajectoryResolventDerivation:
     :meth:`evaluate`, and is held by a ``cached_property`` (a declared pure
     function of the fields, which writes the instance's ``__dict__``); a solve
     that did not converge is held too, as its refusal, so it is not re-run.
+
+    Its content is its six init fields (the ``Billiard`` and the rays class
+    are derived from them), so :meth:`evaluate` is a traced memo keyed on the
+    derivation and the observable (#405 P3): a reading is generated once, in
+    a fresh process that constructs the derivation from those fields, and the
+    solve it reads is the multi-region solver's own memo entry, shared by
+    every observable of one solve and by the solver's direct callers.
     """
 
     specification: GeometrySpecification
@@ -270,8 +278,8 @@ class TrajectoryResolventDerivation:
     tol: float | None
     initial_k: float | None
     quadrature: ReadingQuadrature = ReadingQuadrature()
-    billiard: Billiard = field(init=False, repr=False)
-    rays: type[_SphereRays] | type[_CylinderRays] = field(init=False, repr=False)
+    billiard: Billiard = field(init=False, repr=False, compare=False)
+    rays: type[_SphereRays] | type[_CylinderRays] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         specification = self.specification
@@ -332,6 +340,7 @@ class TrajectoryResolventDerivation:
 
         return extension
 
+    @traced_memo
     def evaluate(self, observable: Eigenvalue | Linear) -> Uncertified:
         """The observable's value, uncertified: the family derives no bound (#566)."""
         match observable:

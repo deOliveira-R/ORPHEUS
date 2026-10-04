@@ -94,6 +94,7 @@ References
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import Any
 
@@ -106,6 +107,7 @@ from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
 from orpheus.derivations.continuous.trajectory_resolvent.power_iteration import (
     power_iterate_variant_alpha,
 )
+from orpheus.numerics.traced_memo import traced_memo
 
 
 @dataclass(frozen=True)
@@ -881,6 +883,16 @@ def emission_density(
     return (1.0 / (4.0 * np.pi)) * ((scatter_source + fission_source).T)
 
 
+#: The multi-region solvers' array parameters, each in the form the solver's body first reads it
+#: (``np.asarray(·, dtype=float)``): the traced memo keys and generates on this form, so a list of radii and its
+#: array share one entry and the answer is unchanged (#405 P3).
+SOLVER_ARRAY_ARGUMENTS = {
+    name: functools.partial(np.asarray, dtype=float)
+    for name in ("radii", "sigma_t", "sigma_s", "nu_sigma_f", "chi", "initial_psi")
+}
+
+
+@traced_memo(canonical=SOLVER_ARRAY_ARGUMENTS)
 def solve_greens_function_sphere_mr(
     radii: np.ndarray,           # (n_regions,) outer radii ascending
     sigma_t: np.ndarray,         # (n_regions, G) or (n_regions,) for 1G
