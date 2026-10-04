@@ -1580,3 +1580,40 @@ The specification is `.claude/plans/reference_p3_spec.md`. It has 5 steps and 96
   - Q7: the child's environment drops every `ORPHEUS_*` variable, and a withdrawn generator is never memoised. The P4 gate inherits this.
   - Q8: `ExactInfiniteMediumDerivation` holds the mixture.
   - Q9: the bypass is spelled `with bypass():`.
+
+### P3 build, steps 5 and 1 to 4, and the review round (2026-10-04, branch `refactor/p3-ambient-state`)
+
+- **Commits:**
+  - `a0f1b6ef`, step 5: the slab route is an argument, and the two global `mp.dps` writes are now local contexts.
+  - `99897d10`, steps 1 to 3: the memo, written from the test-architect's prototype.
+  - `330ba98a`, step 4: the solvers are memoised, and `TrajectoryResolventDerivation.evaluate` is a memoised METHOD keyed on the derivation's content. That replaces the prototype's `evaluate_here` twin. The exact medium is not a client (Q5), and M4.9 pins that.
+  - `[M]` smoke test on the A|B|A sphere at `n_r=8`: cold 7.2 s, warm 0.02 s, in-process 3.3 s, all three bit-identical.
+- **The review found real defects,** recorded in `scratch/reference_architecture/p3/qa/findings.md` and `scratch/reference_architecture/p3/elegance/review.md`.
+  - qa found 13; 7 of them served a stale or a wrong value.
+  - The elegance-enforcer found 2 violations and 3 concerns, overlapping qa's on the def walk, the type tree and the data pins.
+  - All are fixed in P3, not filed: none has reached `main`. The battery qa re-targeted on `99897d10` reddened its target in 37 of 38 arms.
+- **The fixes, each at its root:**
+  - **One walk finds every def.** It descends every statement except a def's body, and the qualified name together with the def's rank among same-named defs is the pin (qa 1, 6). `_BLOCK` and the second walker are retired.
+  - **The manifest is one set of pins.** It has nine kinds:
+    - `DefPin`, `ModulePin`, `DistributionPin`, `InterpreterPin`;
+    - `DataPin`: by absolute path and bytes, with `"absent"` recorded for a missing file;
+    - `ListingPin`;
+    - `WorkingDirectoryPin`: added when the run read a relative path;
+    - `ChildPin`;
+    - `MemoPin`: the memo's own source (qa 8).
+    JSON rows are tagged by kind and parsed once, in `from_json`. The positional coercion is retired (elegance S1).
+  - **One recorder.** `_traced_memo_boot.Recording` serves both the generating process and `trace_call` (elegance S2). It records state across every thread (qa 2) and decodes bytes paths. It skips listings made by the import system: those are pinned where the imported code runs, and pinning them would let any new file in a `sys.path` directory invalidate every entry, `[M]` the M4.4 failure. A started program is pinned by its executable's bytes (`platform.processor()` runs `uname` during the clients' imports, `[M]`). A started Python, a `fork`, or a program that cannot be named is refused as `Unpinnable`.
+  - **The key is `content.encode_exact`.** It is the content walk with an exact leaf policy (`_Exactly`, beside `_ByEquality`). It retires `_type_tree` (qa 4, elegance S4). It is finer than the type tree ruled under Q2 and subsumes it.
+  - **The payload admits exact types only,** never a subclass (qa 3). A dataclass the return annotation does not name is refused at the write (qa 11b). The payload digest is over content, not over the zip container.
+  - **An entry is one `.npz` file,** its JSON stored in the member `__entry__`, and it is replaced atomically (qa 10). A `Hit` carries the arrays it verified (qa 7, elegance C2).
+  - **Smaller fixes:**
+    - the result returns on a dedicated descriptor, with stdout redirected to stderr in the child (qa 9);
+    - an exception that cannot be rebuilt crosses as a described `RuntimeError` (qa 11a);
+    - a memo calling itself with its own key raises `RecursionError` (qa 13);
+    - a source file on no `sys.path` entry is pinned by its absolute path (qa 12);
+    - `content.constructor_arguments` is the one constructor form (elegance C1);
+    - one process-wide target replaces two context variables (elegance C3);
+    - `TracedMemo[P, R]` is generic with a `ParamSpec`, and a misspelled `canonical` key is refused (elegance S5).
+  - **A defect found while fixing:** in the generating process the boot file runs as `__main__`, so the memo's import of it loaded a second copy whose list of active recordings was empty. It is aliased in `sys.modules`.
+- **Gates.** `tests/gates/numerics/test_traced_memo_findings.py` has one gate per finding, each the assertion form of qa's reproducer (18 rows). A fix battery of 8 arms reddened its gate in 8 of 8 (`scratch/reference_architecture/p3/fixbattery/run.log`). The cycle arm left 192 recursing processes, which were then killed: with the guard removed, the failure is unbounded, as predicted.
+- **Not a gate, by declaration:** an absence probed without opening the file (`exists`, `stat`) raises no audit event, and is stated in the module docstring.

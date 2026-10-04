@@ -105,8 +105,10 @@ __all__ = [
     "ContentIdentity",
     "ContentlessError",
     "FrozenMapping",
+    "constructor_arguments",
     "content_digest",
     "encode",
+    "encode_exact",
     "name_digest",
 ]
 
@@ -133,9 +135,40 @@ def _chunk(tag: bytes, payload: bytes) -> bytes:
     return tag + len(payload).to_bytes(8, "little") + payload
 
 
-def _real(value: Any, path: str) -> float:
-    """The canonical double of a real scalar, or a refusal naming ``path``."""
-    return exact_double(value, path)
+class _ByEquality:
+    """Leaves encoded by their value under ``==``: one canonical double per real (``True == 1 == 1.0``,
+    ``-0.0 == 0.0``), NaN and integers beyond :math:`2^{53}` refused; an array is its values on its shape, its
+    dtype storage. The content identity of the module docstring."""
+
+    def real(self, value: Any, path: str) -> bytes:
+        return _chunk(b"R", struct.pack("<d", exact_double(value, path)))
+
+    def entries(self, value: np.ndarray, path: str) -> bytes:
+        return np.ascontiguousarray(canonical_reals(value, path), dtype="<f8").tobytes()
+
+
+class _Exactly:
+    """Leaves encoded exactly, with their types: ``True``, ``1``, ``1.0`` and ``np.float32(1)`` are four
+    leaves, ``-0.0`` is not ``0.0``, a NaN is its bits; an array is its dtype and its bytes. A memo key's
+    encoding (:func:`encode_exact`): a function can tell apart what ``==`` identifies, so a key that followed
+    ``==`` could serve one call another's answer (#405 P3, the user's ruling of 2026-10-04, Q2)."""
+
+    def real(self, value: Any, path: str) -> bytes:
+        if isinstance(value, np.generic):
+            return _chunk(b"n", value.dtype.str.encode() + b"|" + value.tobytes())
+        if isinstance(value, bool):
+            return _chunk(b"b", b"\x01" if value else b"\x00")
+        if isinstance(value, int):
+            return _chunk(b"i", str(value).encode())
+        return _chunk(b"f", struct.pack("<d", value))
+
+    def entries(self, value: np.ndarray, path: str) -> bytes:
+        return value.dtype.str.encode() + b"|" + np.ascontiguousarray(value).tobytes()
+
+
+_BY_EQUALITY = _ByEquality()
+_EXACTLY = _Exactly()
+_Leaves = _ByEquality | _Exactly
 
 
 def _immutable(value: np.ndarray, path: str, frozen: bool) -> None:
@@ -146,20 +179,19 @@ def _immutable(value: np.ndarray, path: str, frozen: bool) -> None:
         )
 
 
-def _array(value: np.ndarray, path: str, frozen: bool) -> bytes:
-    """Shape plus canonical doubles; refuses non-real and NaN entries."""
+def _array(value: np.ndarray, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY) -> bytes:
+    """Shape plus the entries as ``leaves`` encodes them; refuses a non-real array."""
     if value.dtype.kind not in "biuf":
         raise ContentlessError(
             f"{path}: an array of dtype {value.dtype} has no content "
             f"encoding (only boolean, integer and real arrays do)."
         )
     _immutable(value, path, frozen)
-    canonical = np.ascontiguousarray(canonical_reals(value, path), dtype="<f8")
     shape = b"".join(int(n).to_bytes(8, "little") for n in value.shape)
-    return _chunk(b"A", _chunk(b"s", shape) + _chunk(b"d", canonical.tobytes()))
+    return _chunk(b"A", _chunk(b"s", shape) + _chunk(b"d", leaves.entries(value, path)))
 
 
-def _sparse(value: Any, path: str, frozen: bool) -> bytes:
+def _sparse(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY) -> bytes:
     """The matrix, not its storage: CSR, zeros eliminated, indices sorted."""
     if frozen:
         for name in ("data", "indices", "indptr"):
@@ -177,7 +209,7 @@ def _sparse(value: Any, path: str, frozen: bool) -> bytes:
         _array(np.asarray(m.shape), f"{path}.shape", False),
         _array(np.asarray(m.indptr, dtype=np.int64), f"{path}.indptr", False),
         _array(np.asarray(m.indices, dtype=np.int64), f"{path}.indices", False),
-        _array(m.data, f"{path}.data", False),
+        _array(m.data, f"{path}.data", False, leaves),
     )
     return _chunk(b"C", b"".join(parts))
 
@@ -189,10 +221,10 @@ def _schema_tag(cls: type, names: tuple[str, ...]) -> bytes:
     return _chunk(b"h", text.encode())
 
 
-def _object(value: Any, parts: tuple[tuple[str, Any], ...], path: str) -> bytes:
+def _object(value: Any, parts: tuple[tuple[str, Any], ...], path: str, leaves: _Leaves = _BY_EQUALITY) -> bytes:
     names = tuple(name for name, _ in parts)
     body = _schema_tag(type(value), names) + b"".join(
-        _encode(part, f"{path}.{name}", frozen=True) for name, part in parts
+        _encode(part, f"{path}.{name}", True, leaves) for name, part in parts
     )
     return _chunk(b"O", body)
 
@@ -212,12 +244,12 @@ def _mutable(kind: str, path: str) -> ContentlessError:
     )
 
 
-def _encode(value: Any, path: str, frozen: bool) -> bytes:
+def _encode(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY) -> bytes:
     # Order: the content objects first (a FrozenMapping is a Mapping, and a
     # ContentIdentity dataclass is a dataclass), then the Enum before the
     # scalars (an IntEnum member is an int).
     if isinstance(value, ContentIdentity):
-        return _object(value, value.content_parts(), path)
+        return _object(value, value.content_parts(), path, leaves)
     if value is None:
         return _chunk(b"N", b"")
     if isinstance(value, enum.Enum):
@@ -226,39 +258,39 @@ def _encode(value: Any, path: str, frozen: bool) -> bytes:
             b"E", f"{cls.__module__}.{cls.__qualname__}.{value.name}".encode()
         )
     if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)):
-        return _chunk(b"R", struct.pack("<d", _real(value, path)))
+        return leaves.real(value, path)
     if isinstance(value, str):
         return _chunk(b"S", value.encode())
     if isinstance(value, bytes):
         return _chunk(b"B", value)
     if isinstance(value, np.ndarray):
-        return _array(value, path, frozen)
+        return _array(value, path, frozen, leaves)
     if _is_sparse(value):
-        return _sparse(value, path, frozen)
+        return _sparse(value, path, frozen, leaves)
     if isinstance(value, tuple):
         return _chunk(
             b"T",
-            b"".join(_encode(v, f"{path}[{i}]", frozen) for i, v in enumerate(value)),
+            b"".join(_encode(v, f"{path}[{i}]", frozen, leaves) for i, v in enumerate(value)),
         )
     if isinstance(value, list):
         if frozen:
             raise _mutable("list", path)
         return _chunk(
             b"L",
-            b"".join(_encode(v, f"{path}[{i}]", frozen) for i, v in enumerate(value)),
+            b"".join(_encode(v, f"{path}[{i}]", frozen, leaves) for i, v in enumerate(value)),
         )
     if isinstance(value, Mapping):
         if frozen and not isinstance(value, _OwnedItems):
             raise _mutable(f"{type(value).__qualname__} mapping", path)
         items = sorted(
-            (_encode(k, f"{path}<key>", frozen), _encode(v, f"{path}[{k!r}]", frozen))
+            (_encode(k, f"{path}<key>", frozen, leaves), _encode(v, f"{path}[{k!r}]", frozen, leaves))
             for k, v in value.items()
         )
         return _chunk(b"M", b"".join(k + v for k, v in items))
     if isinstance(value, (frozenset, set)):
         if frozen and isinstance(value, set):
             raise _mutable("set", path)
-        elements = sorted(_encode(v, f"{path}{{}}", frozen) for v in value)
+        elements = sorted(_encode(v, f"{path}{{}}", frozen, leaves) for v in value)
         return _chunk(b"F", b"".join(elements))
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         params = type(value).__dataclass_params__  # type: ignore[attr-defined]
@@ -273,7 +305,7 @@ def _encode(value: Any, path: str, frozen: bool) -> bytes:
                 f"identity (eq=False), so two of them with equal fields are "
                 f"unequal values; its content is not its identity."
             )
-        return _object(value, _dataclass_parts(value), path)
+        return _object(value, _dataclass_parts(value), path, leaves)
     raise ContentlessError(
         f"{path}: a {type(value).__module__}.{type(value).__qualname__} has no "
         f"content identity (it is neither a value type the encoder knows, a "
@@ -304,7 +336,21 @@ def encode(value: Any) -> bytes:
     ValueError
         When it holds NaN, or an integer beyond :math:`2^{53}`.
     """
-    return _encode(value, type(value).__qualname__, frozen=False)
+    return _encode(value, type(value).__qualname__, False)
+
+
+def encode_exact(value: Any) -> bytes:
+    r"""The EXACT encoding of ``value``: the walk of :func:`encode`, each leaf with its type and its bits
+    (``1``, ``1.0`` and ``True`` are three values; ``-0.0`` is not ``0.0``; an array is its dtype and its bytes;
+    a NaN is admitted as its bits). An object is still its schema and its parts. It is finer than content
+    equality by design: the key of a call a function computes from its arguments (the traced memo's).
+
+    Raises
+    ------
+    ContentlessError
+        When ``value`` holds a part with no content identity, or a mutable part inside an object.
+    """
+    return _encode(value, type(value).__qualname__, False, _EXACTLY)
 
 
 def content_digest(value: Any) -> bytes:
@@ -366,7 +412,7 @@ class ContentIdentity:
         # Through ``_encode``, the one route, like every other value (a
         # field-less type would otherwise reach only the schema tag).
         digest = hashlib.blake2b(
-            _encode(self, type(self).__qualname__, frozen=False),
+            _encode(self, type(self).__qualname__, False),
             digest_size=_DIGEST_SIZE,
         ).digest()
         try:
@@ -388,8 +434,7 @@ class ContentIdentity:
         """
         if not dataclasses.is_dataclass(self):
             return super().__reduce__()
-        init = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
-        return (_rebuild, (type(self), init))
+        return (_rebuild, (type(self), constructor_arguments(self)))
 
     def __eq__(self, other: object) -> bool:
         if self is other:
@@ -410,6 +455,13 @@ class ContentIdentity:
                 f"identity ({err})"
             ) from err
         return int.from_bytes(digest[:8], "little", signed=True)
+
+
+def constructor_arguments(value: Any) -> dict[str, Any]:
+    """A dataclass value's constructor form, its ``init`` fields by name: what rebuilds it through its
+    constructor (:func:`_rebuild`), so its laws re-run. The one spelling for every route that carries a value
+    by its construction (a pickle, the traced memo's process boundary and its payload)."""
+    return {f.name: getattr(value, f.name) for f in dataclasses.fields(value) if f.init}
 
 
 def _rebuild(cls: type, init: dict[str, Any]) -> Any:

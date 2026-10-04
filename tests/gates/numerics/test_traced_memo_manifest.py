@@ -112,9 +112,9 @@ def test_m1_3b_nested_code_maps_to_its_outermost_def(package):
     ``nested_user``'s digest; a method by ``Box.method``; no ``<locals>`` qualname reaches the manifest."""
     alpha = package.module("alpha")
     _, manifest = api.trace_call(alpha.generate.__wrapped__, 1.5)
-    names = {q for rel, q, _ in manifest.functions if rel == package.relpath("alpha")}
+    names = {q for rel, q, *_ in manifest.functions if rel == package.relpath("alpha")}
     assert {"nested_user", "Box.method", "helper", "generate", "_count"} <= names, names
-    assert not any("<" in q for _, q, _ in manifest.functions), manifest.functions
+    assert not any("<" in q for _, q, *_ in manifest.functions), manifest.functions
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
@@ -129,7 +129,7 @@ def test_m1_3c_signature_scopes_are_pinned_by_the_skeleton_not_by_a_body(package
     delta = package.module("delta")
     value, manifest = api.trace_call(delta.reads_annotations, 2.0)
     rel = package.relpath("delta")
-    names = {q for r, q, _ in manifest.functions if r == rel}
+    names = {q for r, q, *_ in manifest.functions if r == rel}
     assert names == {"reads_annotations", "generic", "Holder.scaled"}, names
     assert rel in {r for r, _ in manifest.modules}
     assert value == 5.0  # 2.0 + three hints (x, y, return)
@@ -145,14 +145,14 @@ def test_m1_4_the_manifest_is_what_ran(package):
     _, manifest = api.trace_call(alpha.solve.__wrapped__, 4)
     _, manifest_g = api.trace_call(alpha.generate.__wrapped__, 1.5)
     rel = package.relpath("alpha")
-    ran = {q for r, q, _ in manifest_g.functions if r == rel}
+    ran = {q for r, q, *_ in manifest_g.functions if r == rel}
     assert "unused" not in ran and "Box.other" not in ran, ran
-    assert {"solve", "_count"} <= {q for r, q, _ in manifest.functions if r == rel}
+    assert {"solve", "_count"} <= {q for r, q, *_ in manifest.functions if r == rel}
     assert rel in {r for r, _ in manifest.modules}
     assert dict(manifest_g.distributions).get("numpy") == np.__version__, manifest_g.distributions
     stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
-    assert not any(r.startswith(stdlib) or r.startswith("json/") for r, _, _ in manifest.functions)
-    assert not any(r.startswith("<") for r, _, _ in manifest.functions)
+    assert not any(r.startswith(stdlib) or r.startswith("json/") for r, *_ in manifest.functions)
+    assert not any(r.startswith("<") for r, *_ in manifest.functions)
     assert len(manifest.functions) >= 2 and len(manifest.modules) >= 1  # the population is not empty
 
 
@@ -189,6 +189,7 @@ def test_m1_7_the_interpreter_is_in_the_manifest(package):
 
     alpha = package.module("alpha")
     _, manifest = api.trace_call(alpha.helper, 1.0)
-    assert sys.version in manifest.python and sys.implementation.cache_tag in manifest.python
+    identity = api.interpreter_identity(manifest)
+    assert sys.version in identity and sys.implementation.cache_tag in identity
     tag = api.platform_tag()
     assert sys.platform in tag and f"O{sys.flags.optimize}" in tag

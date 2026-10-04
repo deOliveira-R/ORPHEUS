@@ -14,7 +14,7 @@ file is the one edit. The declared API (spec §0.2):
   ``distributions`` ``(name, version)``, ``python``, ``children`` ``(function id, key, payload digest)``;
 * ``validate(manifest) -> tuple[str, ...]`` (empty: valid); ``function_digest``, ``skeleton_digest``;
 * ``classify(filename) -> (kind, detail)``, read off ``origin(filename)``; ``Unpinnable``; ``Unencodable``;
-* ``encode_payload(value) -> (tree, arrays)`` and ``decode_payload(tree, arrays, allowed)``;
+* ``encode_payload(value, allowed) -> (tree, arrays)`` and ``decode_payload(tree, arrays, allowed)``;
 * ``platform_tag()``.
 """
 from __future__ import annotations
@@ -63,8 +63,15 @@ def classify(filename: str) -> tuple[str, str]:
     return _ORIGIN_KIND[type(found).__name__], found[0]
 
 
-def encode_payload(value: Any) -> Any:
-    return name("encode_payload")(value)
+def encode_payload(value: Any, allowed: frozenset[str] = frozenset()) -> Any:
+    """The payload of ``value``; ``allowed`` names the dataclasses it may hold (a function's return annotation)."""
+    return name("encode_payload")(value, set(allowed))
+
+
+def interpreter_identity(manifest: Any) -> str:
+    """The interpreter a manifest pins (its one ``InterpreterPin``)."""
+    (pin,) = manifest.of(name("InterpreterPin"))
+    return pin.identity
 
 
 def decode_payload(tree: Any, arrays: Any, allowed: set[str]) -> Any:
@@ -81,6 +88,48 @@ def bypass() -> Any:
 
 def platform_tag() -> str:
     return name("platform_tag")()
+
+
+# ── an entry on disk: one ``.npz`` per entry, its JSON in the member ``__entry__`` ──────────────────────
+
+
+def entry_files(root: Any) -> list[Any]:
+    """Every entry under a store root (``<root>/<function id>/<key>.npz``), sorted."""
+    from pathlib import Path
+
+    return sorted(Path(root).rglob("*.npz"))
+
+
+def entry_function(path: Any) -> str:
+    """The function id an entry file belongs to."""
+    return path.parent.name
+
+
+def read_entry(path: Any) -> dict:
+    """An entry's JSON (the key, the manifest rows, the payload tree and its digest)."""
+    import json
+
+    import numpy as np
+
+    with np.load(path, allow_pickle=False) as npz:
+        return json.loads(npz["__entry__"].tobytes())
+
+
+def write_entry(path: Any, entry: dict) -> None:
+    """Rewrite an entry's JSON in place, keeping its arrays (a corruption the payload digest must see)."""
+    import json
+
+    import numpy as np
+
+    with np.load(path, allow_pickle=False) as npz:
+        arrays = {name: npz[name] for name in npz.files if name != "__entry__"}
+    with open(path, "wb") as handle:
+        np.savez(handle, **arrays, __entry__=np.frombuffer(json.dumps(entry).encode(), np.uint8))
+
+
+def manifest_rows(entry: dict, kind: str) -> list[list[Any]]:
+    """The fields of every pin of ``kind`` (``"DefPin"``, ``"ModulePin"``, ``"ChildPin"``, ...) in an entry."""
+    return [fields for tag, *fields in entry["manifest"] if tag == kind]
 
 
 def verdict_kind(verdict: Any) -> str:

@@ -89,7 +89,7 @@ def test_m4_1b_a_reference_reads_through_its_reading_memo(warm_root, monkeypatch
         _sphere_reference().read(Eigenvalue())
     assert cold >= 1, "the activation leg: the cold read generated nothing"
     assert spawns.count == cold, f"the warm read started {spawns.count - cold} interpreters"
-    names = {p.parent.parent.name for p in warm_root.rglob("entry.json")}
+    names = {api.entry_function(f) for f in api.entry_files(warm_root)}
     assert api.function_id("trajectory_reading") in names and api.function_id("solve_sphere") in names, names
 
 
@@ -111,9 +111,9 @@ def test_m4_2_one_solve_entry_serves_billiard_and_a_direct_caller(warm_root, mon
 
 
 def _reading_manifest(root: Path) -> dict:
-    entries = [p for p in root.rglob("entry.json") if p.parent.parent.name == api.function_id("trajectory_reading")]
+    entries = [f for f in api.entry_files(root) if api.entry_function(f) == api.function_id("trajectory_reading")]
     assert entries, "no reading entry"
-    return json.loads(entries[0].read_text())["manifest"]
+    return api.read_entry(entries[0])
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_9_arguments_cross_through_their_constructor', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
@@ -128,13 +128,13 @@ def test_m4_3_the_reading_manifest_holds_the_construction_and_pins_the_solve_by_
 
     with api.cache_root(warm_root):
         _sphere_reference().read(Eigenvalue())
-    manifest = _reading_manifest(warm_root)
-    functions = {q for _, q, _ in manifest["functions"]}
+    entry = _reading_manifest(warm_root)
+    functions = {q for _, q, *_ in api.manifest_rows(entry, "DefPin")}
     construction = {"TrajectoryResolventDerivation.__post_init__", "Billiard.__post_init__", "_route",
                     "_layered_xs_payload", "_read_isotropically", "reference_body", "_SphereRays.per_group"}
     assert construction <= functions, sorted(construction - functions)
     assert "solve_greens_function_sphere_mr" not in functions
-    assert [c[0] for c in manifest["children"]] == [api.function_id("solve_sphere")]
+    assert [c[0] for c in api.manifest_rows(entry, "ChildPin")] == [api.function_id("solve_sphere")]
 
 
 # ── M4.4: the real-tree witnesses, on a copy ─────────────────────────────────────
@@ -288,7 +288,7 @@ def test_m4_8_an_unconverged_solve_is_a_cached_value_and_its_reading_a_refusal_n
         with pytest.raises(RuntimeError, match="did not converge"):
             trajectory_resolvent_reference(spec, SPHERE_Q, max_iter=2, tol=1e-10, initial_k=1.0).read(Eigenvalue())
     assert spawns.count == 1
-    names = [p.parent.parent.name for p in tmp_path.rglob("entry.json")]
+    names = [api.entry_function(f) for f in api.entry_files(tmp_path)]
     assert names == [api.function_id("solve_sphere")], names
 
 
@@ -309,7 +309,7 @@ def test_m4_9_the_exact_medium_is_read_in_the_asking_process(tmp_path, monkeypat
         with pytest.raises(ValueError, match="no position"):
             reference.derivation.evaluate(PointValue(position=0.5, group=0))
     assert spawns.count == 0
-    assert not list(tmp_path.rglob("entry.json"))
+    assert not api.entry_files(tmp_path)
 
 
 def test_m4_10_the_default_store_is_gitignored():
@@ -317,6 +317,6 @@ def test_m4_10_the_default_store_is_gitignored():
     ``git add`` of the tree can never commit an entry). The control: a tracked path is not ignored."""
     root = api.name("default_root")()
     assert root == REPO / ".cache" / "references", root
-    probe = subprocess.run(["git", "check-ignore", "-q", str(root / "x" / "entry.json")], cwd=REPO)
+    probe = subprocess.run(["git", "check-ignore", "-q", str(root / "x" / "key.npz")], cwd=REPO)
     control = subprocess.run(["git", "check-ignore", "-q", str(REPO / "orpheus" / "__init__.py")], cwd=REPO)
     assert probe.returncode == 0 and control.returncode == 1

@@ -29,8 +29,8 @@ def package(tmp_path):
     pkg.close()
 
 
-def _entry_dirs(tmp_path):
-    return sorted(p.parent for p in (tmp_path / "cache").rglob("entry.json"))
+def _entry_files(tmp_path):
+    return api.entry_files(tmp_path / "cache")
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed', 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit', 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only')
@@ -40,7 +40,7 @@ def test_m3_1_a_miss_generates_once_and_a_hit_never(package, tmp_path):
     alpha = package.module("alpha")
     assert api.verdict_kind(alpha.generate.lookup(1.5)) == "Absent"
     first = alpha.generate(1.5)
-    assert package.generations("generate") == 1 and len(_entry_dirs(tmp_path)) == 1
+    assert package.generations("generate") == 1 and len(_entry_files(tmp_path)) == 1
     assert api.verdict_kind(alpha.generate.lookup(1.5)) == "Hit"
     second = alpha.generate(1.5)
     assert package.generations("generate") == 1, "a hit ran the generator"
@@ -148,9 +148,8 @@ def test_m3_8_the_child_is_born_clean_and_imports_from_the_parents_path(package,
     assert str(package.root) not in os.environ.get("PYTHONPATH", "") and os.getcwd() != str(package.root)
     alpha = package.module("alpha")
     alpha.generate(1.5)
-    (entry_dir,) = _entry_dirs(tmp_path)
-    manifest = json.loads((entry_dir / "entry.json").read_text())["manifest"]
-    modules = {rel for rel, _ in manifest["modules"]}
+    (entry,) = _entry_files(tmp_path)
+    modules = {rel for rel, _ in api.manifest_rows(api.read_entry(entry), "ModulePin")}
     assert package.relpath("alpha") in modules, modules
     assert "orpheus/numerics/content.py" in modules, sorted(modules)[:10]
 
@@ -162,8 +161,8 @@ def test_m3_9_arguments_cross_through_their_constructor(package, tmp_path):
     restores the fields without running ``__post_init__``: ``[M]`` census F1, 2 of 2 workloads.)"""
     alpha = package.module("alpha")
     alpha.read_spec(alpha.Spec(3))
-    (entry_dir,) = _entry_dirs(tmp_path)
-    functions = {q for _, q, _ in json.loads((entry_dir / "entry.json").read_text())["manifest"]["functions"]}
+    (entry,) = _entry_files(tmp_path)
+    functions = {q for _, q, *_ in api.manifest_rows(api.read_entry(entry), "DefPin")}
     assert "Spec.__post_init__" in functions, sorted(functions)
     package.edit("alpha", 'raise ValueError("Spec: n is a count")', 'raise ValueError("Spec: n counts")')
     assert api.verdict_kind(alpha.read_spec.lookup(alpha.Spec(3))) == "Stale"
@@ -181,11 +180,11 @@ def test_m3_10_a_patch_in_the_parent_never_reaches_an_entry_and_bypass_reads_and
     decoy = alpha.generate.__wrapped__(1.5)
     assert decoy != honest
     assert alpha.generate(1.5) == honest  # (a)
-    entries = _entry_dirs(tmp_path)
+    entries = _entry_files(tmp_path)
     with api.bypass():
         assert alpha.generate(1.5) == decoy  # (b): the warm entry was not read
         assert alpha.generate(2.5) == alpha.generate.__wrapped__(2.5)
-    assert _entry_dirs(tmp_path) == entries, "the bypass wrote an entry"
+    assert _entry_files(tmp_path) == entries, "the bypass wrote an entry"
     assert api.verdict_kind(alpha.generate.lookup(2.5)) == "Absent"
     assert alpha.generate(1.5) == honest  # (c)
 
@@ -199,7 +198,7 @@ def test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error(packa
         with pytest.raises(ValueError, match="boom at 2.0"):
             alpha.boom(2.0)
         assert package.generations("boom") == attempt
-    assert _entry_dirs(tmp_path) == []
+    assert _entry_files(tmp_path) == []
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3c_signature_scopes_are_pinned_by_the_skeleton_not_by_a_body', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
@@ -210,10 +209,9 @@ def test_m3_12a_a_parent_entry_pins_its_child_by_reference(package, tmp_path):
     beta = package.module("beta")
     beta.outer(2.0)
     assert package.generations("outer") == 1 and package.generations("inner") == 1
-    outer_dir = next(d for d in _entry_dirs(tmp_path) if ":outer" in d.parent.name)
-    manifest = json.loads((outer_dir / "entry.json").read_text())["manifest"]
-    assert [c[0].endswith(":inner") for c in manifest["children"]] == [True]
-    assert "inner" not in {q for _, q, _ in manifest["functions"]}
+    outer = api.read_entry(next(f for f in _entry_files(tmp_path) if api.entry_function(f).endswith(":outer")))
+    assert [c[0].endswith(":inner") for c in api.manifest_rows(outer, "ChildPin")] == [True]
+    assert "inner" not in {q for _, q, *_ in api.manifest_rows(outer, "DefPin")}
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
@@ -252,17 +250,16 @@ def test_m3_12d_two_calls_of_one_child_in_one_generation_are_one_entry(package, 
     beta = package.module("beta")
     beta.outer_twice(2.0)
     assert package.generations("inner") == 1
-    outer_dir = next(d for d in _entry_dirs(tmp_path) if ":outer_twice" in d.parent.name)
-    assert len(json.loads((outer_dir / "entry.json").read_text())["manifest"]["children"]) == 1
+    outer = api.read_entry(next(f for f in _entry_files(tmp_path) if api.entry_function(f).endswith(":outer_twice")))
+    assert len(api.manifest_rows(outer, "ChildPin")) == 1
 
 
 #: (row, the corruption)
 CORRUPTIONS = [
-    ("payload-byte-flipped", lambda d: _flip(d / "payload.npz", -40)),
-    ("payload-truncated", lambda d: (d / "payload.npz").write_bytes((d / "payload.npz").read_bytes()[:30])),
-    ("payload-deleted", lambda d: (d / "payload.npz").unlink()),
-    ("entry-truncated", lambda d: (d / "entry.json").write_text((d / "entry.json").read_text()[:50])),
-    ("payload-value-edited", lambda d: _edit_json(d, lambda e: e["payload"]["fields"]["k"].update(f=float.hex(9.0)))),
+    ("byte-flipped", lambda f: _flip(f, f.read_bytes().index(b'"payload_digest"') + 3)),
+    ("truncated", lambda f: f.write_bytes(f.read_bytes()[:30])),
+    ("entry-json-truncated", lambda f: _edit_json(f, None)),
+    ("payload-value-edited", lambda f: _edit_json(f, lambda e: e["payload"]["fields"]["k"].update(f=float.hex(9.0)))),
 ]
 
 
@@ -272,22 +269,31 @@ def _flip(path, offset):
     path.write_bytes(bytes(data))
 
 
-def _edit_json(directory, change):
-    entry = json.loads((directory / "entry.json").read_text())
+def _edit_json(path, change):
+    """Rewrite the entry's JSON member: ``change`` edits it in place; ``None`` truncates it."""
+    entry = api.read_entry(path)
+    if change is None:
+        import numpy as np
+
+        with np.load(path, allow_pickle=False) as npz:
+            arrays = {name: npz[name] for name in npz.files if name != "__entry__"}
+        with open(path, "wb") as handle:
+            np.savez(handle, **arrays, __entry__=np.frombuffer(json.dumps(entry).encode()[:50], np.uint8))
+        return
     change(entry)
-    (directory / "entry.json").write_text(json.dumps(entry))
+    api.write_entry(path, entry)
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 @pytest.mark.parametrize("row,corrupt", CORRUPTIONS, ids=[c[0] for c in CORRUPTIONS])
 def test_m3_13_a_corrupted_entry_is_refused_and_regenerated_never_served(package, tmp_path, row, corrupt):
-    """M3.13: a flipped byte, a truncated or deleted payload, a truncated entry, and a payload value edited in
-    place (the JSON parses; only the digest can see it) are each ``Corrupt``; the next call generates again
-    and returns the honest answer."""
+    """M3.13: a flipped byte, a truncated file, a truncated entry JSON, and a payload value edited in place
+    (the JSON parses; only the digest can see it) are each ``Corrupt``; the next call generates again and
+    returns the honest answer. (A deleted entry is ``Absent``: one file per entry has no half to lose.)"""
     alpha = package.module("alpha")
     honest = alpha.solve(5)
-    (entry_dir,) = _entry_dirs(tmp_path)
-    corrupt(entry_dir)
+    (entry,) = _entry_files(tmp_path)
+    corrupt(entry)
     assert api.verdict_kind(alpha.solve.lookup(5)) == "Corrupt", row
     again = alpha.solve(5)
     assert package.generations("solve") == 2
@@ -299,8 +305,8 @@ def test_m3_13b_an_edited_manifest_is_stale(package, tmp_path):
     """M3.13 (b): a manifest edited on disk (a function digest replaced) is ``Stale``, never served."""
     alpha = package.module("alpha")
     alpha.solve(5)
-    (entry_dir,) = _entry_dirs(tmp_path)
-    _edit_json(entry_dir, lambda e: e["manifest"]["functions"][0].__setitem__(2, "0" * 64))
+    (entry,) = _entry_files(tmp_path)
+    _edit_json(entry, lambda e: next(row for row in e["manifest"] if row[0] == "DefPin").__setitem__(4, "0" * 64))
     assert api.verdict_kind(alpha.solve.lookup(5)) == "Stale"
 
 

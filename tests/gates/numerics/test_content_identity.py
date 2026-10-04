@@ -515,9 +515,9 @@ def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> 
     calls: Counter[str] = Counter()
     current = [""]
 
-    def decoy(value: Any, path: str, frozen: bool = False) -> bytes:
+    def decoy(value: Any, path: str, *rest: Any) -> bytes:
         calls[current[0]] += 1
-        return b"\x00decoy" + original(value, path, frozen)
+        return b"\x00decoy" + original(value, path, *rest)
 
     rebound = 0
     for module in list(sys.modules.values()):

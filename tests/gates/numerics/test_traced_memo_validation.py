@@ -86,11 +86,12 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
     """M2.3: a manifest recording another numpy version, or another interpreter, is stale. The rows edit the
     MANIFEST (the installed environment is not mutable from a gate); the reason names the distribution."""
     manifest = _generate_manifest(package)
-    distributions = tuple((n, "0.0.0-not-installed" if n == "numpy" else v) for n, v in manifest.distributions)
-    assert any("numpy" in r for r in api.validate(dataclasses.replace(manifest, distributions=distributions)))
-    assert any("python" in r for r in api.validate(dataclasses.replace(manifest, python="CPython 2.7")))
-    gone = manifest.distributions + (("no-such-distribution-xyz", "1.0"),)
-    assert any("no-such-distribution-xyz" in r for r in api.validate(dataclasses.replace(manifest, distributions=gone)))
+    pin, interpreter = api.name("DistributionPin"), api.name("InterpreterPin")
+    distributions = [pin(n, "0.0.0-not-installed" if n == "numpy" else v) for n, v in manifest.distributions]
+    assert any("numpy" in r for r in api.validate(manifest.replacing(pin, distributions)))
+    assert any("python" in r for r in api.validate(manifest.replacing(interpreter, [interpreter("CPython 2.7")])))
+    gone = [*manifest.distributions, pin("no-such-distribution-xyz", "1.0")]
+    assert any("no-such-distribution-xyz" in r for r in api.validate(manifest.replacing(pin, gone)))
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
@@ -192,13 +193,15 @@ def test_m2_8_a_dataclass_is_rebuilt_through_its_constructor_and_only_if_declare
     violates ``Spec``'s law is refused with ``Spec``'s own message), and only a type the function DECLARES it
     returns may be named by a payload (another class in the payload is refused, never imported)."""
     alpha = package.module("alpha")
-    tree, arrays = api.encode_payload(alpha.Result(1.5, np.ones(3), 3, True))
     allowed = {f"{alpha.__name__}:Result"}
+    with pytest.raises(api.name("Unencodable")):  # an undeclared dataclass is never written (qa finding 11)
+        api.encode_payload(alpha.Result(1.5, np.ones(3), 3, True))
+    tree, arrays = api.encode_payload(alpha.Result(1.5, np.ones(3), 3, True), frozenset(allowed))
     rebuilt = api.decode_payload(tree, arrays, allowed)
     assert type(rebuilt) is alpha.Result and rebuilt.k == 1.5 and not rebuilt.field.flags.writeable
     with pytest.raises(ValueError, match="does not return"):
         api.decode_payload(tree, arrays, set())
-    tree_spec, arrays_spec = api.encode_payload(alpha.Spec(2))
+    tree_spec, arrays_spec = api.encode_payload(alpha.Spec(2), frozenset({f"{alpha.__name__}:Spec"}))
     tree_spec["fields"]["n"] = {"i": "-1"}
     with pytest.raises(ValueError, match="n is a count"):
         api.decode_payload(tree_spec, arrays_spec, {f"{alpha.__name__}:Spec"})
