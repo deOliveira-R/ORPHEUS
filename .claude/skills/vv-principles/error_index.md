@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**95 entries · 343 catching tests · 0 uncaught · 5 dormant.**
+**96 entries · 344 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-096` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-096")`.
+Append a `.. error-entry:: ERR-097` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-097")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -141,3 +141,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |
 | ERR-094 | 9 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |
 | ERR-095 | 1 |  | The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a pres… |
+| ERR-096 | 1 |  | Symbolic.without simplified each expression before substituting, and SymPy's simplify rewrote a… |

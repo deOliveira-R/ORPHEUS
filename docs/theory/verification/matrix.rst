@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15645**
+Total tests collected: **15649**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2251, 14.4%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11948, 76.4%
+   foundation, 11952, 76.4%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15539
+   explicit, 15543
    class-name, 46
    func-name, 0
    case, 33
@@ -50,11 +50,11 @@ Module × level grid
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 20, 0
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
-   analytical/test_aba_specification, 0, 0, 0, 0, 6, 0
+   analytical/test_aba_specification, 0, 0, 0, 0, 7, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
-   analytical/test_certified_agreement, 0, 0, 0, 0, 5, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
+   analytical/test_crosscheck_harness, 0, 0, 0, 0, 5, 0
    analytical/test_kinf_homogeneous, 0, 43, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 14, 0, 0, 0, 0
@@ -266,7 +266,7 @@ Module × level grid
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
-   derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
+   derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 14, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 18, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    derivations/test_trajectory_resolvent_reference, 0, 0, 0, 0, 46, 0
@@ -805,7 +805,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``p-transpose-flux-balance``, 9
    ``peierls-greens-slab-architecture``, 9
    ``pole-mm-recurrence``, 9
-   ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
    ``cp-inner-integral-antiderivative``, 8
@@ -892,6 +891,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-mr-regionwise-source``, 3
    ``peierls-greens-slab-V-alpha-2``, 3
    ``sigma-zero``, 3
+   ``sn-curvilinear-trajectory-resolvent-crosscheck``, 3
    ``sn-dsa-consistent-low-order``, 3
    ``sn-dsa-s2-exactness``, 3
    ``sn-homogenization-rate-preservation``, 3
@@ -1018,17 +1018,15 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **4** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **2** of the testable equations found on theory pages are orphan.
 
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
-- ``trajectory-resolvent-reading-emission-density``
-- ``trajectory-resolvent-reading-extension``
 
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **614** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **622** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1477,6 +1475,12 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``real-sh-l0``
 - ``real-sh-l1``
 - ``real-sh-l2plus``
+- ``reference-enclosure-quotient``
+- ``reference-error-chain``
+- ``reference-flux-integral``
+- ``reference-order-interval``
+- ``reference-verification-agreement``
+- ``reference-verification-floor``
 - ``resolvent-similarity``
 - ``richardson-diffusion``
 - ``richardson-extrapolation-formula``
@@ -1622,6 +1626,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``tensor-product-inverse``
 - ``tensor-product-space-agreement``
 - ``trace-half-decomposition``
+- ``trajectory-resolvent-reading-emission-density``
+- ``trajectory-resolvent-reading-extension``
 - ``transport-equation``
 - ``two-moment-angular``
 - ``two-moment-carrier-space``
