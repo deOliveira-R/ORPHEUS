@@ -69,7 +69,7 @@ from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, overload
 
 import numpy as np
 
-from orpheus.numerics._traced_memo_boot import Recording, note_child, spawning
+from orpheus.numerics._traced_memo_boot import Recording, note_child, spawning, unrecorded
 from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
@@ -825,6 +825,10 @@ class Store:
         return self.root / function_id / f"{key}.npz"
 
     def lookup(self, function_id: str, key: str) -> Verdict:
+        with unrecorded():
+            return self._lookup(function_id, key)
+
+    def _lookup(self, function_id: str, key: str) -> Verdict:
         try:
             data = self.path(function_id, key).read_bytes()
         except FileNotFoundError:

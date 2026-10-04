@@ -39,6 +39,11 @@ _LOCK = threading.Lock()
 _HOOKED = False
 #: Set while the memo itself starts a generating process, so that spawn is not the run's own.
 _SPAWNING = threading.local()
+#: Set while the memo itself validates or loads an entry: its reads of the files a CHILD entry pinned are not
+#: the run's dependencies (the child pin covers them), and recording them would pin every source file of the
+#: child by its bytes, so a comment edit would make the parent stale (the archivist, 2026-10-04: 105 of 105
+#: of a solve's modules pinned as data on the reading that read it).
+_QUIET = threading.local()
 #: ``os.stat`` and ``os.lstat`` as they were before the first recording replaced them.
 _STAT = {"stat": os.stat, "lstat": os.lstat}
 
@@ -105,7 +110,7 @@ def _program(event: str, args: tuple[object, ...]) -> str:
 
 
 def _audit(event: str, args: tuple[object, ...]) -> None:
-    if not _ACTIVE:
+    if not _ACTIVE or getattr(_QUIET, "on", False):
         return
     if event in _READ_EVENTS:
         mode = args[1] if len(args) > 1 and isinstance(args[1], str) else "r"
@@ -123,7 +128,7 @@ def _probing(name: str):
     original = _STAT[name]
 
     def probe(path, *args, **kwargs):
-        if _ACTIVE and not _by_importer(2):
+        if _ACTIVE and not getattr(_QUIET, "on", False) and not _by_importer(2):
             _offer("probed", path)
         return original(path, *args, **kwargs)
 
@@ -189,6 +194,17 @@ def note_child(child: tuple[str, str, str]) -> None:
     """A memo entry a run read: every active recording pins it."""
     for recording in list(_ACTIVE):
         recording.children.add(child)
+
+
+class unrecorded:
+    """The memo's own reading of the store (a lookup and its validation), which no run depends on."""
+
+    def __enter__(self) -> None:
+        self._outer = getattr(_QUIET, "on", False)
+        _QUIET.on = True
+
+    def __exit__(self, *_exc: object) -> None:
+        _QUIET.on = self._outer
 
 
 class spawning:

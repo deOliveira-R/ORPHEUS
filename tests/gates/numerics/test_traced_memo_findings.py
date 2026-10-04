@@ -498,7 +498,7 @@ def test_r1_the_key_is_exact_all_the_way_up(make):
     m = package.module()
     key = m.anything.key
     with pytest.raises(ContentlessError):  # its state holds a type, which has no content
-        key(np.ma.masked_array(np.array([1.0, 2.0]), mask=[0, 1]))
+        key(np.ma.masked_array(np.array([1.0, 2.0]), mask=np.array([False, True])))
     from orpheus.data.emission_spectrum import EmissionSpectrum
 
     assert key(EmissionSpectrum(np.array([0.6, 0.4]))) != key(np.array([0.6, 0.4]))  # a stateless subclass: its type
@@ -675,3 +675,32 @@ def test_q13_a_chain_of_generations_through_distinct_keys_is_bounded(make):
     ''')
     with pytest.raises(RecursionError, match="deep"):
         package.module().f(0)
+
+
+def test_a_parent_does_not_pin_its_childs_sources_as_data(make, tmp_path):
+    """The archivist's finding at ``994ba740``: validating a child entry inside a parent's generation read
+    every source file the child pinned, and the recorder took those reads as the parent's data (105 of 105 of
+    a solve's modules pinned by bytes on the reading). A comment in the child's module then made the parent
+    stale. The memo's own reading of the store is unrecorded: the parent holds the child by reference only."""
+    package = make(m='''
+        from orpheus.numerics.traced_memo import traced_memo
+        from .n import inner
+
+        @traced_memo
+        def outer(x: float) -> float:
+            return inner(x) + 1.0
+    ''', n='''
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def inner(x: float) -> float:
+            return x * 5.0
+    ''')
+    m = package.module()
+    m.inner(2.0)  # warm: the parent's generation validates the child
+    assert m.outer(2.0) == 11.0
+    parent = next(f for f in api.entry_files(tmp_path / "cache") if api.entry_function(f).endswith(":outer"))
+    data = [path for path, _ in api.manifest_rows(api.read_entry(parent), "DataPin")]
+    assert not [path for path in data if path.endswith(".py")], data
+    package.edit("return x * 5.0", "return x * 5.0  # a comment", module="n")
+    assert _kind(m.outer.lookup(2.0)) == "Hit"
