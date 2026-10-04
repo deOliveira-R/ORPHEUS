@@ -38,6 +38,7 @@ import importlib
 import math
 import pathlib
 from fractions import Fraction
+from typing import Any
 
 import numpy as np
 import pytest
@@ -55,6 +56,16 @@ from orpheus.numerics.traced_memo import bypass
 from orpheus.reference.reading import Uncertified
 from orpheus.reference.verification import ReferenceNotValid, compare_uncertified, verify_agreement, verify_order
 from orpheus.specification.specification import GeometrySpecification, InfiniteMediumSpecification
+from tests.gates._content_identity_helpers import (
+    Entry,
+    check_equal_pair,
+    check_perturbation,
+    check_population,
+    leg,
+    pair_ids,
+    param_id,
+    perturbation_ids,
+)
 from tests.gates.derivations import _trajectory_resolvent_api as api
 from tests.gates.sn.verification.analytical._aba_reference import aba_specification, isotropic_mixture
 
@@ -599,3 +610,69 @@ def test_r7b2_2_4_the_public_constructor_refuses_what_the_factory_refuses(build,
     with pytest.raises((TypeError, ValueError, NotImplementedError), match=f"(?i){fragment}"):
         api.derivation(build(), CoordSystem.SPHERICAL)
     assert spy.calls == 0
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Content identity: the derivation is the key of its memoised readings (#405 P3)
+# ─────────────────────────────────────────────────────────────────────
+
+
+_ROSTER_QUADRATURE = {"n_r": 8, "n_mu": 8, "n_traj_quad": 16}
+
+
+def _aba_sphere(thicknesses: tuple[float, ...] = (0.5, 1.0, 0.5)) -> GeometrySpecification:
+    """The A|B|A sphere's specification, built FRESH on every call (S5.6 rebuilds each subject under a decoy
+    encoder; the cached ``aba_specification`` would carry digests from the honest one)."""
+    from tests.gates.sn.verification.analytical._aba_reference import ABA_MATERIAL_IDS
+
+    materials = Materials({0: isotropic_mixture("A"), 1: isotropic_mixture("B")})
+    geometry = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.SPHERICAL, thicknesses=thicknesses, mat_ids=ABA_MATERIAL_IDS, boundaries=(BC.reflective,),
+    )
+    return GeometrySpecification(materials, geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+
+
+def _roster_derivation(**changes: Any) -> Any:
+    """The sphere A|B|A derivation at the gates' resolution, with ``changes`` to its init fields."""
+    fields = {"specification": _aba_sphere(), "solver_quadrature": _ROSTER_QUADRATURE,
+              "max_iter": 500, "tol": 1e-10, "initial_k": 1.0} | changes
+    return api.derivation_class()(**fields)
+
+
+def _reading_quadrature(**changes: int) -> Any:
+    return api.module().ReadingQuadrature(**changes)
+
+
+ROSTER: tuple[Entry, ...] = (
+    Entry(
+        cls=api.derivation_class(),
+        base=_roster_derivation,
+        parts=("specification", "solver_quadrature", "max_iter", "tol", "initial_k", "quadrature"),
+        perturb={
+            "specification": (leg("another body", lambda: _roster_derivation(specification=_aba_sphere((0.5, 1.0, 0.55)))),),
+            "solver_quadrature": (leg("finer radial nodes", lambda: _roster_derivation(solver_quadrature={**_ROSTER_QUADRATURE, "n_r": 10})),),
+            "max_iter": (leg("another budget", lambda: _roster_derivation(max_iter=400)),),
+            "tol": (leg("another tolerance", lambda: _roster_derivation(tol=1e-9)),),
+            "initial_k": (leg("another guess", lambda: _roster_derivation(initial_k=1.2)),),
+            "quadrature": (leg("more ray points", lambda: _roster_derivation(quadrature=_reading_quadrature(ray_points_per_segment=32))),),
+        },
+        pairs=(("a-mapping-and-its-frozen-twin", _roster_derivation, lambda: _roster_derivation(solver_quadrature=dict(_ROSTER_QUADRATURE))),),
+    ),
+)
+
+
+@pytest.mark.parametrize("entry", ROSTER, ids=[e.id for e in ROSTER])
+def test_p3_the_derivation_population_is_its_parts(entry: Entry) -> None:
+    """The derivation's content is its six init fields; the ``Billiard`` and the rays class are derived."""
+    check_population(entry)
+
+
+@pytest.mark.parametrize("entry, part, the_leg", perturbation_ids(ROSTER),
+                         ids=[param_id(e.id, p, lg[0]) for e, p, lg in perturbation_ids(ROSTER)])
+def test_p3_each_init_field_moves_the_derivation_digest(entry: Entry, part: str, the_leg: Any) -> None:
+    check_perturbation(entry, part, the_leg)
+
+
+@pytest.mark.parametrize("entry, pair", pair_ids(ROSTER), ids=[param_id(e.id, p[0]) for e, p in pair_ids(ROSTER)])
+def test_p3_equal_fields_are_one_derivation(entry: Entry, pair: Any) -> None:
+    check_equal_pair(entry, pair)
