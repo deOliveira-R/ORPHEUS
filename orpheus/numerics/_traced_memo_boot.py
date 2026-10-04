@@ -100,8 +100,11 @@ def _program(event: str, args: tuple[object, ...]) -> str:
     if event == "subprocess.Popen":
         executable, argv = (args + (None, None))[:2]
         name = executable if executable is not None else (argv[0] if isinstance(argv, (list, tuple)) and argv else argv)
-    elif event == "_posixsubprocess.fork_exec" and len(args) > 1 and isinstance(args[1], (list, tuple)) and args[1]:
-        name = args[1][0]  # (the executable candidates, the argument list, ...): the program is argv[0]
+    elif event == "_posixsubprocess.fork_exec" and args and isinstance(args[0], (list, tuple)):
+        # (the executable candidates, the argument list, ...): argv[0] is only a label; the program is the
+        # first candidate that exists.
+        found = next((os.fsdecode(c) for c in args[0] if os.path.isfile(os.fsdecode(c))), None)
+        return os.path.realpath(found) if found is not None else event
     if isinstance(name, (str, bytes, os.PathLike)):
         found = shutil.which(os.fsdecode(name))
         if found is not None:
@@ -146,6 +149,7 @@ class Recording:
         self.spawned: set[str] = set()
         self.relative = False
         self.directory = os.getcwd()
+        self.environment: dict[str, str] = dict(os.environ)
         self.children: set[tuple[str, str, str]] = set()
         self._tool: int | None = None
 
@@ -172,6 +176,7 @@ class Recording:
             if not _ACTIVE:
                 os.stat, os.lstat = _probing("stat"), _probing("lstat")
             self.directory = os.getcwd()
+            self.environment = dict(os.environ)  # what the run RECEIVED; a run may set a variable later
             _ACTIVE.append(self)
         return self
 

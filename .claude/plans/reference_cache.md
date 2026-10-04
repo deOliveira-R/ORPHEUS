@@ -1664,3 +1664,32 @@ Every finding was fixed at its root, in the light of standing rulings (Q2: the k
   - The exact key refused `EmissionSpectrum`, the stateless `ndarray` subclass held by `Mixture.chi`. A subclass is now its type and its own instance state beside its bytes.
   - `importlib.metadata` lists every `sys.path` directory, and that listing pinned the working directory. The import system is now the frozen bootstrap AND the `importlib` package. The check compares raw filenames against prefixes computed once, because a `realpath` inside the `os.stat` probe recursed.
 - `[M]` The affected suites (numerics, reference, data, mesh, geometry, the trajectory and multi-region solver tests): 7487 passed, 0 failed.
+
+### P3 closed by contract (2026-10-04, the user)
+
+qa's third review of `994ba740` and `6bfde984` (`scratch/reference_architecture/p3/qa3/`) found further ways an ADVERSARIAL generator can hide a dependency:
+- a file's size or link-ness read through `os.stat`, where the presence pin keeps only the file's kind;
+- a data read through `pkgutil.get_data`, behind import-system frames;
+- an optional import's absence;
+- nine exotic argument types that shared a key;
+- `uname` admitted by its basename;
+- PATH in the environment pin.
+
+None of these touches the three real clients. The question put to the user: harden further, or close by contract. **Ruled:** "Contract + cold-rebuild control". The cheap, real fixes land, and a GENERATOR CONTRACT is written into the module docstring as a `SCOPE-BOUNDARY`. Its machinery is a recorder below Python, such as a system-call tracer. P5's cold rebuild is its witness.
+- **What the contract says.** A memoised function:
+  - reads data only by opening real files, never through a loader or a module's absence;
+  - depends on a file's presence and its bytes, never on its other metadata;
+  - reads no environment variable, starts no process, and branches on no other memo's `lookup`;
+  - takes arguments that have a constructor form.
+- **The fixes:**
+  - the exact key keeps a set's iteration order;
+  - a sparse matrix is keyed by its class, and one with no stored arrays is refused;
+  - a mapping other than `dict` or `FrozenMapping` is refused;
+  - an `int` or `float` subclass carries its type and state, and the value is taken through `int(value)`, never `__str__`;
+  - subclass state includes `__slots__`;
+  - `constructor_arguments` refuses an `InitVar` class, which affects the pickler and the payload as well;
+  - `uname` is admitted by its system path;
+  - `fork_exec` names the program by its executable candidates;
+  - the environment pin is the declared variables (PATH excluded) as the run RECEIVED them, so a generator that sets one still validates.
+- **Gates:** 3 more rows (K, E, U).
+- `[M]` The full non-slow suite at `994ba740`, in a quiet worktree: 15 223 passed, 0 failed. All of the earlier run's 5 failures at `39ee20f2` were the reaper's.

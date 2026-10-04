@@ -704,3 +704,98 @@ def test_a_parent_does_not_pin_its_childs_sources_as_data(make, tmp_path):
     assert not [path for path in data if path.endswith(".py")], data
     package.edit("return x * 5.0", "return x * 5.0  # a comment", module="n")
     assert _kind(m.outer.lookup(2.0)) == "Hit"
+
+
+# ── qa's third review (2026-10-04, ``scratch/reference_architecture/p3/qa3/``) and the generator contract ──
+
+
+def test_k_the_exact_key_cases_of_the_third_review():
+    """Third review, finding 3 (K1-K9): set iteration order, a sparse matrix's class beside its format, a
+    sparse matrix with no stored arrays, a ``defaultdict``'s factory, an ``int`` subclass, and an ``InitVar``
+    each shared a key or rebuilt wrongly. Each is now keyed apart or refused."""
+    import collections
+    import dataclasses
+
+    import scipy.sparse as sp
+
+    from orpheus.numerics.content import ContentlessError, encode_exact
+
+    def key(value):
+        return encode_exact(value)
+
+    one, two = frozenset({1, 9}), frozenset({9, 1})
+    if list(one) != list(two):  # equal sets that iterate differently (CPython's hash layout)
+        assert key(one) != key(two)
+    matrix = sp.csr_matrix(np.array([[1.0, 2.0], [3.0, 4.0]]))
+    assert key(matrix) != key(sp.csr_array(matrix))
+    with pytest.raises(ContentlessError, match="stores no arrays"):
+        key(sp.dok_matrix((2, 2)))
+    with pytest.raises(ContentlessError, match="beside its items"):
+        key(collections.defaultdict(int))
+
+    class Weird(int):
+        def __str__(self) -> str:
+            return "same"
+
+    assert key(Weird(1)) != key(Weird(2)) and key(Weird(1)) != key(1)
+
+    # Defined without this module's postponed annotations: an InitVar written as a string inside a function
+    # is not recognised by ``dataclasses``.
+    namespace: dict = {"dataclasses": dataclasses}
+    source = (
+        "@dataclasses.dataclass(frozen=True)\n"
+        "class Halved:\n"
+        "    value: float = dataclasses.field(init=False)\n"
+        "    raw: dataclasses.InitVar[float] = 1.0\n"
+        "    def __post_init__(self, raw):\n"
+        "        object.__setattr__(self, 'value', raw / 2)\n"
+    )
+    exec(compile(source, "<halved>", "exec", dont_inherit=True), namespace)
+    with pytest.raises(ContentlessError, match="init-only"):
+        key(namespace["Halved"](1.0))
+
+
+def test_e_the_environment_pin_follows_what_the_run_received(make, monkeypatch):
+    """Third review, finding 5: PATH was pinned, so activating a virtual environment made every entry stale;
+    and a generator that set a declared variable could never validate. The pin holds the declared variables
+    as the run RECEIVED them, PATH excluded."""
+    package = make(m='''
+        import os
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def plain(a: float) -> float:
+            return a
+
+        @traced_memo
+        def setter(a: float) -> float:
+            os.environ["OMP_NUM_THREADS"] = "7"
+            return a
+    ''')
+    m = package.module()
+    assert m.plain(1.0) == 1.0 and m.setter(1.0) == 1.0
+    monkeypatch.setenv("PATH", "/nonexistent-directory" + os.pathsep + os.environ.get("PATH", ""))
+    assert _kind(m.plain.lookup(1.0)) == "Hit" and _kind(m.setter.lookup(1.0)) == "Hit"
+    monkeypatch.setenv("OMP_NUM_THREADS", "5")
+    assert _kind(m.plain.lookup(1.0)) == "Stale"
+
+
+def test_u_a_program_named_uname_is_not_admitted_by_its_name(make, tmp_path, monkeypatch):
+    """Third review, finding 4: the program table admitted by basename, so a script named ``uname`` earlier on
+    ``PATH`` (which read a file nothing pinned) was admitted. ``uname`` is admitted by its system path."""
+    fake = tmp_path / "bin" / "uname"
+    fake.parent.mkdir()
+    fake.write_text("#!/bin/sh\necho fake\n")
+    fake.chmod(0o755)
+    package = make(m='''
+        import subprocess
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def gen(a: float) -> float:
+            subprocess.run(["uname"], capture_output=True, check=True)
+            return a
+    ''')
+    monkeypatch.setenv("PATH", str(fake.parent) + os.pathsep + os.environ.get("PATH", ""))
+    with pytest.raises(api.name("Unpinnable"), match="may start only"):
+        package.module().gen(1.0)

@@ -31,6 +31,24 @@ a recording sees only code that RUNS, so anything served from memory (a ``functo
 born for one call has nothing in memory, so the recording is complete without any discipline on how the
 rest of the package memoises. The cost is one interpreter start per miss, about 0.65 s ``[M]`` 2026-10-04.
 
+**The generator contract** (the user's ruling of 2026-10-04, after qa's third review: a recorder written in
+Python cannot be airtight against arbitrary Python, and each review found another way a deliberately
+adversarial generator could hide a dependency). A memoised function:
+
+* reads data only by opening real files (``open``, ``Path.read_*``, ``np.load``), never through a loader
+  (``pkgutil.get_data``) or a module's absence (``try: import accel``, ``find_spec(...) is None``);
+* depends on a file's presence and its bytes, never on its other metadata (its size or time from ``stat``,
+  whether it is a link);
+* reads no environment variable (the M5.1 census holds this for ``orpheus/``), starts no process, and
+  branches on no other memo's ``lookup``;
+* takes arguments with a constructor form: no ``InitVar``, no mapping beside ``dict`` and ``FrozenMapping``,
+  no sparse matrix without stored arrays (each refused when keyed).
+
+SCOPE-BOUNDARY[guard] machinery: a recorder below Python (a system-call tracer) for what the contract
+excludes. ruling: the user, 2026-10-04 (``.claude/plans/reference_cache.md``, "P3 closed by contract").
+revisit: a generator that needs what the contract excludes, or a cold rebuild (P5: every entry regenerated
+without the cache and compared) that finds a stale entry. That cold rebuild is the contract's witness.
+
 What no manifest can see, and how each is held: a probe the recorder does not wrap (``os.access``,
 ``os.scandir``'s entries); native state (a C library's own globals) and a file a
 C library opens itself (HDF5 through ``h5py``) are invisible, so a generator reading such a file takes the
@@ -345,12 +363,13 @@ def platform_tag() -> str:
 _MEMO_SOURCES = tuple(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py", "content.py"))
 
 #: The programs a run may start, each pinned by its executable's bytes: queries whose answer the machine fixes.
-#: ``uname`` is run by ``platform.processor()`` during the imports of the P3 clients (``[M]`` 2026-10-04).
+#: ``uname`` is run by ``platform.processor()`` during the imports of the P3 clients (``[M]`` 2026-10-04); it is
+#: admitted by its system path, never by its name (a script named ``uname`` earlier on ``PATH`` is refused).
 #: SCOPE-BOUNDARY[guard] machinery: a recorder for a started program's own reads and children (a traced
 #: sub-process). ruling: the orchestrator, #405 P3, from qa's second review (a ``cat`` of an unpinned file, a
 #: ``shell=True`` and a ``/usr/bin/env python3`` each served a stale value when every program was admitted
 #: by its bytes). revisit: when a generator must start a program outside this table.
-_ADMITTED_PROGRAMS = frozenset({"uname"})
+_ADMITTED_PROGRAMS = frozenset(os.path.realpath(p) for p in ("/usr/bin/uname", "/bin/uname") if os.path.isfile(p))
 
 #: The environment a generating process receives, and nothing else: its values are pinned
 #: (:class:`EnvironmentPin`), and ``PYTHONHASHSEED`` is fixed so that iteration over a set of strings is one
@@ -359,14 +378,22 @@ _ADMITTED_PROGRAMS = frozenset({"uname"})
 _CHILD_ENVIRONMENT = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "OMP_NUM_THREADS",
                       "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS")
 _FIXED_ENVIRONMENT = {"PYTHONHASHSEED": "0"}
+#: The declared variables a generation's answer can follow, and so the ones its pin holds. ``PATH`` is passed
+#: (``uname`` is found through it) but not pinned: the one program a generation may start is admitted by its
+#: system path and pinned by its bytes, and pinning ``PATH`` made every entry stale when a virtual environment
+#: was activated (qa's third review, 2026-10-04).
+_PINNED_ENVIRONMENT = tuple(k for k in _CHILD_ENVIRONMENT if k != "PATH") + tuple(_FIXED_ENVIRONMENT)
 
 #: The deepest chain of generations one call may start: a cycle through distinct keys (``f(n)`` calling
 #: ``f(n + 1)``) has no repeated key for the ancestry to catch.
 _MAX_GENERATION_DEPTH = 16
 
 
-def _child_environment() -> dict[str, str]:
-    return {k: os.environ[k] for k in _CHILD_ENVIRONMENT if k in os.environ} | _FIXED_ENVIRONMENT
+def _child_environment(environment: Mapping[str, str] | None = None) -> dict[str, str]:
+    """What a generation receives from ``environment`` (default: this process's): the declared variables and
+    the fixed ones. A generating process projects to itself; ``trace_call`` projects its caller's."""
+    source = os.environ if environment is None else environment
+    return {k: source[k] for k in _CHILD_ENVIRONMENT if k in source} | _FIXED_ENVIRONMENT
 
 
 class _Checkout:
@@ -536,8 +563,11 @@ Pin = (DefPin | ModulePin | DistributionPin | InterpreterPin | DataPin | Presenc
        | WorkingDirectoryPin | ChildPin | MemoPin)
 
 
-def _environment_digest() -> str:
-    return _digest(json.dumps(sorted(_child_environment().items())).encode())
+def _environment_digest(environment: Mapping[str, str] | None = None) -> str:
+    """The digest of the pinned variables of ``environment`` (default: what this process would hand a
+    generation now)."""
+    received = _child_environment(environment)
+    return _digest(json.dumps(sorted((k, received[k]) for k in _PINNED_ENVIRONMENT if k in received)).encode())
 _PIN_KINDS: Mapping[str, Callable[..., Pin]] = {kind.__name__: kind for kind in typing.get_args(Pin)}
 
 
@@ -607,7 +637,7 @@ def _def_pin(text: _SourceText, path: str, code: types.CodeType) -> DefPin | Non
 def _manifest(recording: Recording, store: Store) -> Manifest:
     """The manifest of a recorded run: every code object it started, file it read, directory it listed and
     memo entry it read, each pinned by its origin."""
-    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest())}
+    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {_program_pin(program) for program in recording.spawned}
     pins |= {ChildPin(*child) for child in recording.children}
     by_file: dict[str, list[types.CodeType]] = {}
@@ -648,7 +678,7 @@ def _program_pin(program: str) -> DataPin:
     Python process (a process pool, ``env python3``) ran code no recording saw, a shell or another program
     read files and started processes no recording saw, and a ``fork`` or an ``os.system`` line names no
     program at all."""
-    if os.path.isabs(program) and os.path.basename(program) in _ADMITTED_PROGRAMS:
+    if program in _ADMITTED_PROGRAMS:
         return DataPin(program, _file_digest(program))
     raise Unpinnable(
         f"the run started a process ({program}) whose own reads and children no recording sees; a generation may "

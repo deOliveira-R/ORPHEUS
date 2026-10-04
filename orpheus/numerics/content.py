@@ -158,6 +158,10 @@ class _ByEquality:
         """A mapping's items, ordered by their encoded keys: insertion order is never content."""
         return sorted(encoded)
 
+    def elements(self, encoded: list[bytes]) -> list[bytes]:
+        """A set's elements, ordered by their encodings: iteration order is never content."""
+        return sorted(encoded)
+
     def subclass(self, value: Any, kind: type, path: str) -> bytes:
         """Nothing: a subclass of an admitted kind is that kind's value, as under ``==``."""
         return b""
@@ -202,8 +206,8 @@ class _Exactly:
         if isinstance(value, bool):
             return _chunk(b"b", b"\x01" if value else b"\x00")
         if isinstance(value, int):
-            return _chunk(b"i", str(value).encode())
-        return _chunk(b"f", struct.pack("<d", value))
+            return _chunk(b"i", self.subclass(value, int, path) + int.__repr__(int(value)).encode())
+        return _chunk(b"f", self.subclass(value, float, path) + struct.pack("<d", float(value)))
 
     def entries(self, value: np.ndarray, path: str) -> bytes:
         return value.dtype.str.encode() + b"|" + np.ascontiguousarray(value).tobytes()
@@ -216,7 +220,18 @@ class _Exactly:
 
     def container(self, tag: bytes, value: Any, body: bytes) -> bytes:
         kind = type(value)
-        return _chunk(tag, _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}".encode()) + body)
+        if isinstance(value, Mapping) and kind is not dict and not isinstance(value, ContentIdentity):
+            raise ContentlessError(
+                f"a {kind.__module__}.{kind.__qualname__} mapping carries behaviour beside its items (a defaultdict's "
+                f"factory); an exact key admits a dict or a FrozenMapping"
+            )
+        base = next(b for b in (tuple, list, dict, frozenset, set) if isinstance(value, b)) if not isinstance(value, Mapping) else dict
+        state = self.subclass(value, base, "") if kind is not base and not isinstance(value, Mapping) else b""
+        return _chunk(tag, _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}".encode()) + state + body)
+
+    def elements(self, encoded: list[bytes]) -> list[bytes]:
+        """A set's elements in ITERATION order: two equal sets can iterate differently, and a function sees it."""
+        return encoded
 
     def items(self, encoded: list[bytes]) -> list[bytes]:
         return encoded
@@ -228,12 +243,19 @@ class _Exactly:
         if cls is kind:
             return b""
         state = dict(vars(value)) if hasattr(value, "__dict__") else {}
+        for klass in cls.__mro__:
+            for slot in getattr(klass, "__slots__", ()):
+                if slot not in ("__dict__", "__weakref__") and hasattr(value, slot):
+                    state[slot] = getattr(value, slot)
         return _chunk(b"y", f"{cls.__module__}.{cls.__qualname__}".encode()) + _encode(state, f"{path}<state>", False, self)
 
     def sparse(self, value: Any, path: str) -> bytes:
         stored = {name: getattr(value, name) for name in ("data", "indices", "indptr", "row", "col", "offsets")
                   if isinstance(getattr(value, name, None), np.ndarray)}
-        body = _chunk(b"y", f"{value.format}|{value.shape}".encode()) + b"".join(
+        if "data" not in stored:
+            raise ContentlessError(f"{path}: a {value.format} sparse matrix stores no arrays an exact key can read")
+        kind = type(value)
+        body = _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}|{value.format}|{value.shape}".encode()) + b"".join(
             _chunk(b"k", name.encode()) + _array(array, f"{path}.{name}", False, self) for name, array in stored.items()
         )
         return _chunk(b"C", body)
@@ -347,7 +369,7 @@ def _encode(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY)
     if isinstance(value, (frozenset, set)):
         if frozen and isinstance(value, set):
             raise _mutable("set", path)
-        elements = sorted(_encode(v, f"{path}{{}}", frozen, leaves) for v in value)
+        elements = leaves.elements([_encode(v, f"{path}{{}}", frozen, leaves) for v in value])
         return leaves.container(b"F", value, b"".join(elements))
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         params = type(value).__dataclass_params__  # type: ignore[attr-defined]
@@ -518,6 +540,13 @@ def constructor_arguments(value: Any) -> dict[str, Any]:
     """A dataclass value's constructor form, its ``init`` fields by name: what rebuilds it through its
     constructor (:func:`_rebuild`), so its laws re-run. The one spelling for every route that carries a value
     by its construction (a pickle, the traced memo's process boundary and its payload)."""
+    init_only = [name for name, f in type(value).__dataclass_fields__.items()
+                 if f._field_type is dataclasses._FIELD_INITVAR]  # type: ignore[attr-defined]
+    if init_only:
+        raise ContentlessError(
+            f"{type(value).__qualname__} takes the init-only argument(s) {init_only}, which it does not keep, so its "
+            f"fields do not rebuild it: it has no constructor form"
+        )
     return {f.name: getattr(value, f.name) for f in dataclasses.fields(value) if f.init}
 
 
