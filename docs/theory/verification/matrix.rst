@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15410**
+Total tests collected: **15645**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 8.7%
-   L1, 2250, 14.6%
+   L0, 1348, 8.6%
+   L1, 2251, 14.4%
    L2, 71, 0.5%
    L3, 0, 0.0%
-   foundation, 11714, 76.0%
+   foundation, 11948, 76.4%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15304
+   explicit, 15539
    class-name, 46
    func-name, 0
    case, 33
@@ -50,6 +50,7 @@ Module × level grid
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 20, 0
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
+   analytical/test_aba_specification, 0, 0, 0, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
    analytical/test_certified_agreement, 0, 0, 0, 0, 5, 0
@@ -268,6 +269,7 @@ Module × level grid
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 18, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
+   derivations/test_trajectory_resolvent_reference, 0, 0, 0, 0, 46, 0
    derivations/test_trajectory_resolvent_regionwise_source, 2, 0, 0, 0, 1, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_augmented_mesh, 0, 0, 0, 0, 10, 0
@@ -337,13 +339,15 @@ Module × level grid
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 17, 0
-   mesh/test_content_identity_mesh, 0, 0, 0, 0, 38, 0
+   mesh/test_content_identity_mesh, 0, 0, 0, 0, 39, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 19, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 11, 0
-   mesh/test_mesh1d, 0, 0, 0, 0, 64, 0
+   mesh/test_mesh1d, 0, 0, 0, 0, 62, 0
+   mesh/test_mesh1d_cell_integrals, 0, 0, 0, 0, 25, 0
+   mesh/test_mesh1d_regions, 0, 0, 0, 0, 31, 0
    mesh/test_mesh2d_face_laws, 0, 0, 0, 0, 57, 0
    mesh/test_mesher, 0, 0, 0, 0, 101, 0
    mesh/test_module_layout, 0, 0, 0, 0, 7, 0
@@ -434,7 +438,7 @@ Module × level grid
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
-   numerics/test_observable, 0, 0, 0, 0, 39, 0
+   numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
@@ -466,6 +470,7 @@ Module × level grid
    numerics/test_spatial_moment_tail_is_the_schemes_axis, 0, 0, 0, 0, 12, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
+   numerics/test_symbolic_without_values, 0, 0, 0, 0, 2, 0
    numerics/test_symmetry, 0, 0, 0, 0, 215, 2
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
@@ -551,10 +556,10 @@ Module × level grid
    primitives/test_solution, 0, 0, 0, 0, 32, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
    reference/test_published, 0, 0, 0, 0, 47, 0
-   reference/test_readings, 0, 0, 0, 0, 60, 0
+   reference/test_readings, 0, 0, 0, 0, 98, 0
    reference/test_reference_certificate, 0, 0, 0, 0, 91, 0
-   reference/test_reference_solution, 0, 0, 0, 0, 36, 0
-   reference/test_verification, 0, 0, 0, 0, 53, 0
+   reference/test_reference_solution, 0, 0, 0, 0, 55, 0
+   reference/test_verification, 0, 0, 0, 0, 95, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
@@ -564,6 +569,7 @@ Module × level grid
    sn/test_homogenization, 21, 0, 0, 0, 0, 0
    sn/test_homogenization_order, 0, 0, 1, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
+   sn/test_solution_read, 0, 1, 0, 0, 14, 0
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
@@ -619,7 +625,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 439, 0
+   test_layer_imports, 0, 0, 0, 0, 440, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1012,10 +1018,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **2** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **4** of the testable equations found on theory pages are orphan.
 
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
+- ``trajectory-resolvent-reading-emission-density``
+- ``trajectory-resolvent-reading-extension``
 
 Documented-only equations
 -------------------------
