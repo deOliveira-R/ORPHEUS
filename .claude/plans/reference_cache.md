@@ -1560,3 +1560,23 @@ My recommendation is **B**. It removes hazards 1 and 2 by construction rather th
 - **Module bodies run in the child:** 103 to 121 of them, from tracing at the first line. `[R]` The recommendation for the specification is that the skeleton of every module whose body ran enters the manifest. This is sound. Its cost is a spurious miss when a constant changes in a module that was imported but is irrelevant to the answer.
 - **The payload is handed out fresh on every load and read-only,** because a consumer that mutates a returned array would otherwise corrupt a shared hit. Whether any consumer mutates one is unmeasured, so the read-only flag is also its detector.
 - **The monkeypatch sites that reach generation:** 2. They are `_SolveSpy`, which patches both multi-region solvers (4 tests), and the `Symbolic.steps` counting spy. Both need the cache bypass.
+
+### P3 specification ruled (2026-10-04, the user, on `reference_p3_spec.md` §4)
+
+The specification is `.claude/plans/reference_p3_spec.md`. It has 5 steps and 96 gate rows. The gates ran against a prototype and a 42-arm mutation battery; 41 of the 42 arms reddened their row, and the one blind arm (a non-atomic write) is declared.
+- **Q5, the exact client, overturns ruling 3's inclusion.** The user, verbatim: *"It can execute if it's fast, but how is the certificate handled?"*
+  - **The cost** `[M]`: 0.01 s computed, against 0.11 s warm and 6.3 s cold through a child process.
+  - **The reading:** the exact infinite medium is computed in the process that asks, and is not memoised. Its theory page says why, and M4.9 is the gate that it is not memoised.
+  - **The answer to the certificate question**, from `orpheus/reference/solution.py`:
+    - The memo sits BELOW the certificate. It caches what `derivation.evaluate` returns: an `Establishment` (`Exact` or `DerivedBound`, with its enclosure) or `Uncertified`. It never caches the certificate or a verdict.
+    - The factory builds the certificate in the process that asks. `ReferenceSolution.__post_init__` re-checks every claimed observable against the evaluation, cached or computed, so a cached establishment that disagrees with the claim is refused at construction.
+    - A `ConvergedLadder` certificate's run, which is expensive, becomes a memo client in P4 (W5 H: the certificate is a traced memo of its certification run).
+- **Q2:** the key adds the type tree of the top-level arguments. The solvers' six array parameters are declared canonical.
+- **Q4:** the data-file record (an audit hook on `open`) lands in P3 with M3.17. Its blind spot is stated where it is built: a C library that opens a file itself raises no audit event, so such a generator takes the file's digest as an argument.
+- **The rest, accepted as recommended:**
+  - Q1: the home is `orpheus/numerics/traced_memo.py`.
+  - Q3: the platform tag is the cache tag, the platform, the machine, the `-O` level and the BLAS name.
+  - Q6: the step order is **5, 1, 2, 3, 4**.
+  - Q7: the child's environment drops every `ORPHEUS_*` variable, and a withdrawn generator is never memoised. The P4 gate inherits this.
+  - Q8: `ExactInfiniteMediumDerivation` holds the mixture.
+  - Q9: the bypass is spelled `with bypass():`.
