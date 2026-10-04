@@ -1461,3 +1461,89 @@ State: `main` `2f25ee99`, CI `gates` run 37181868166 green, clean apart from `sc
 3. the chapter `docs/theory/verification/readings_and_certificates.rst` (the ontology as built);
 4. the phase line at the top of this file, for P3.
 Then open P3 with a living plan section, which the user steers, as at P2's opening.
+
+## P3 opened (2026-10-04): the traced memo — living section, the user steers
+
+P3's job, from the phase line and ruling 3 of 2026-10-03: cache every reference reading, certified or not, under a key that misses exactly when something that ran to produce it has changed. This is what raises the development cadence. Nothing below is built; each item is a measurement, a candidate or a question.
+
+### What was measured at the opening `[M]` 2026-10-04, `main` `588646f0`
+
+- **Tracing costs nothing measurable.** Probe `scratch/reference_architecture/p3/probe_monitoring.py`: `sys.monitoring` with a `PY_START` callback that returns `DISABLE` (each code object reports once), around one `Eigenvalue` read of the A|B|A sphere at `n_r=8, n_mu=8, n_traj_quad=16`. Untraced 3.97 s, traced 3.52 s (one run each, so the difference is noise). Hashing every recorded code object took 0.01 s.
+- **What the trace holds.** 1053 code objects: 192 first-party (`derivations` 92, `numerics` 45, `data` 26, `geometry` 16, `specification` 8, `reference` 5), 672 third-party or stdlib, and 189 named `<string>` or frozen (dataclass-generated `__init__`/`__eq__`, frozen importlib). The run imported modules lazily, so module bodies (`<module>`) are among them.
+- **A fresh process costs about 0.65 s.** Importing the trajectory-resolvent reference, `orpheus.reference.verification` and the specification module in a new interpreter: 0.92, 0.65, 0.62 s (three runs, `-O`).
+- **In-process memoisation under `orpheus/`, by AST** (decorators only; hand-rolled dict memos not yet counted): 26 function caches (`functools.cache` 16, `lru_cache` 10), 11 of them in `numerics` (the correctly rounded Gauss rules, the symmetry catalogues, `Symbolic`'s helpers), 7 in `derivations`, 1 in `sn`, 1 in `transport`; and 101 `cached_property`. The 2026-09-24 count was 19 function caches; the new ones include `trajectory_resolvent/reference.py:329`.
+- **State the trace does not see:** 2 environment reads (`ORPHEUS_SLAB_VIA_E1` at import, `peierls_nystrom/cases.py:88`; the withdrawal switch, `withdrawal.py:99`, which selects tests, not answers), and 2 writes of the global `mp.dps` (`cylinder_derivations.py:404`, `greens_function_slab.py:456`).
+- **Monkeypatching in the reference gates:** 10 `monkeypatch.setattr` in `tests/gates/{derivations,reference,sn/verification}`, among them the lazy-solve spy that replaces the two multi-region solvers.
+- **Producers of the new `ReferenceSolution` today:** two, `exact_homogeneous` and `trajectory_resolvent_reference`. Every other generator (Peierls, the `_CASES`, MMS, Sood) is a legacy producer until P4 migrates it, and the slow tests are mostly those.
+
+### The hazard that shapes the design `[R]`, from the measurements
+
+The trace records what RAN. Anything served from memory without running is invisible to it:
+1. A function cache hit (`lru_cache`) inside a generation: the cached function's code does not run, so the entry's trace omits it, and a later edit to it serves a stale hit.
+2. A `cached_property` computed in an earlier generation, on an object that outlives it (an object returned by a function cache or held at module level): the same omission.
+3. A monkeypatch: the trace records the spy's code, and the spy's entry validates against the checkout as long as the test file is unchanged. A later unpatched run with the same lookup key can then be served the spy's answer.
+
+### Two candidate architectures `[HYPOTHESIS]`
+
+**A. In-process traced memo, traced from session start** (the phase line as written). One `traced_memo` primitive replaces every in-process cache. On a hit, it replays the recorded trace of the cached computation into every active trace. A gate bans `functools.cache`, `lru_cache` and (question 2) `cached_property` in `orpheus/`, and 26 to 127 sites migrate. Monkeypatching needs its own guard: refuse to write an entry while any traced function is not the one bound in its module.
+
+**B. One fresh process per miss.** A reading is looked up in-process. Validation re-hashes the traced functions from the current source files and runs nothing. On a miss, the entry is generated in a new interpreter traced from its first line, which writes the entry and exits. A born-clean process has no memory to serve from, so hazards 1 and 2 do not arise, and in-process memoisation stays as it is. A monkeypatch does not reach the child process (hazard 3 is safe), but a test that patches a generator must bypass the cache explicitly. A child entry, such as the solve that many readings share, is an on-disk entry: the reading's process loads it and replays its recorded trace. Cost: about 0.65 s per miss, against generation times of seconds to minutes.
+
+My recommendation is **B**. It removes hazards 1 and 2 by construction rather than by a gate over 127 sites, makes hazard 3 safe by default, and keeps the trace's soundness independent of how production code memoises. A's main advantage, no process boundary, matters only for misses, which are rare once the cache is warm.
+
+### The function hash, either architecture `[HYPOTHESIS]`
+
+- **Hash each traced function's normalised source AST, not its bytecode.** Validation can then parse the current files without importing them, and comments and formatting never cause a miss. One question for the user is whether docstrings are stripped (strip them: a docstring edit cannot change an answer).
+- **Module state: the module's skeleton.** Each module with at least one traced function contributes its top-level AST with every function body removed: its imports, constants, decorators, class-level attributes and dataclass fields. A function reads `_EXACT_DIGITS = 60` by name, so its bytecode does not change when the constant does, and the skeleton does.
+- **`<string>` and frozen code objects are dropped.** They are generated from the class definitions in the skeleton, under the Python version in the key.
+- **Third-party code enters the key by distribution version, derived from the trace:** every recorded file outside the repository is mapped to its installed distribution (numpy, scipy, mpmath, sympy, and so on). This is derived, never declared.
+- **The two environment reads and the two global `mp.dps` writes** are made explicit settings (W5 D) before P3's gate lands: `ORPHEUS_SLAB_VIA_E1` becomes an argument, and the mpmath writes become local contexts (`mp.workdps`).
+
+### The entry and its storage `[HYPOTHESIS]`
+
+- **The lookup key:** the specification's content digest, the reading's entry point, the derivation's settings (the quadrature, the tolerances), the observable's content digest, and the platform tag (#504).
+- **The entry:** the lookup key, the trace manifest (each function's file, qualified name and AST hash; each module skeleton's hash; the distribution versions; the Python version) and the payload.
+- **The payload:**
+  - a reading is JSON, with floats written exactly (`float.hex`) and the reading's kind (`Enclosure`, `Printed` or `Uncertified`);
+  - an array child is `.npz`;
+  - never pickle.
+- **The location:** `.cache/references/`, gitignored. The CI side is P5.
+
+### Questions for the user
+
+1. **Architecture A or B** (recommended: B)?
+2. Under A only: does the ban cover `cached_property` (hazard 2)?
+3. **The unit of caching.** I propose that a reading is an entry and that the solve it reads is a child entry shared by every observable of that solve. The alternative caches only the solve.
+4. **Docstrings** are stripped from the function hash (recommended)?
+5. **P3's first clients.** The primitive lands with the two `ReferenceSolution` producers (`exact_homogeneous` and the trajectory resolvent). Should one legacy hot generator also become a client in P3, to raise the cadence before P4? The candidate is the cylinder multi-region Green's function, which is the first family in P4's order.
+
+### P3 rulings (2026-10-04, the user, on the four questions above)
+
+1. **Architecture B: one fresh process per miss.** A miss is generated in a new interpreter traced from its first line. In-process memoisation in `orpheus/` stays, and there is no ban on `functools` caches or `cached_property`. `[REFUTED 2026-10-04]` for P3: the phase line's "the gate banning raw `functools` memoisation in `orpheus/` and the migration of its 19 sites". The FACT it established remains true: an in-process cache hit hides its dependency from a trace. Architecture B makes that fact harmless, because the generating process starts with nothing in memory.
+2. **The unit:** a reading is an entry, and the solve it reads is a child entry shared by every observable of that solve.
+3. **The clients:** the two `ReferenceSolution` producers (`exact_homogeneous` and the trajectory resolvent), plus one legacy hot generator, the cylinder multi-region Green's function (P4's first family).
+4. **Docstrings are stripped** from the function hash, which is computed over the normalised source AST.
+
+### Consequences of the rulings, to be settled in the specification `[R]`
+
+- **What crosses the process boundary.**
+  - **Into the child:** the derivation and the observable, by pickle over the pipe. This is safe, because the parent wrote both and the child is our own process. `Materials` has been picklable since P1 step 5. The pickle ban applies to payloads read from the cache directory, which CI may restore from elsewhere.
+  - **Out of the child:** the entry as JSON and `.npz`, written to disk.
+- **The lookup key needs content identity on each derivation.** That means its specification, its quadrature and its iteration settings. The lazily solved state is excluded: today `_solve`, `answer` and `scalar_flux` are `cached_property`s on `TrajectoryResolventDerivation`.
+- **A child entry holds data only.**
+  - The trajectory resolvent's solve child holds `k`, the last emission density per group, the fission rate, or the iteration count of a solve that did not converge.
+  - The rays (chord oracles) are objects, not data, so they are rebuilt in the reading's process, where their construction is traced.
+- **The legacy client.** `solve_greens_function_cylinder_mr` is the same solver that the trajectory resolvent's cylinder arm calls (`_trajectory_resolvent_api.SOLVERS`). Two questions follow:
+  - whether one memo at that function serves both its legacy consumers and the new reference;
+  - which data its result reduces to. Its legacy return carries `metadata["raw_result"]`.
+  The census measures both.
+- **A bypass for tests that monkeypatch a generator.** Example: the lazy-solve spy. Such a test reads with the cache off. The spelling is the specification's.
+- **The witnesses (X1)**, carried over from discussion 2 and adapted to B:
+  - a mutation inside a traced function turns a hit into a miss;
+  - a mutation in an untraced function of the same module leaves a hit;
+  - a change to a module constant that a traced function reads turns a hit into a miss (the skeleton);
+  - a mutation in a function that a child entry traced turns the parent's hit into a miss (recursive validation);
+  - a corrupted payload is refused, never served;
+  - a monkeypatched generator never writes an entry.
+
+**Next:** the test-architect writes `.claude/plans/reference_p3_spec.md` with the step order and the first reds. An explorer census runs before it: the client generators' entry points and return types, the derivations' content identity, and the hand-rolled memos.
