@@ -453,42 +453,42 @@ def derive_T00_equals_P_ss_slab() -> dict:
     test_taus = [0.1, 0.5, 1.0, 2.5, 5.0, 10.0]
     pass_numerical = True
     numerical_diffs = []
-    mpmath.mp.dps = 30
-    for tau_val in test_taus:
-        # Path A: mpmath direct evaluation of µ-integrand 2µ·exp(-τ/µ).
-        # Open quadrature near µ→0+ avoids the integrand singularity
-        # (exp(-τ/µ) → 0 super-exponentially as µ→0+, so the integrand
-        # extends to 0 there; mpmath handles this cleanly).
-        def integrand_A(m, tau=tau_val):
-            return 2.0 * m * mpmath.exp(-tau / m)
-        T_00_num = float(mpmath.quad(integrand_A, [1e-30, 1]))
+    with mpmath.workdps(30):
+        for tau_val in test_taus:
+            # Path A: mpmath direct evaluation of µ-integrand 2µ·exp(-τ/µ).
+            # Open quadrature near µ→0+ avoids the integrand singularity
+            # (exp(-τ/µ) → 0 super-exponentially as µ→0+, so the integrand
+            # extends to 0 there; mpmath handles this cleanly).
+            def integrand_A(m, tau=tau_val):
+                return 2.0 * m * mpmath.exp(-tau / m)
+            T_00_num = float(mpmath.quad(integrand_A, [1e-30, 1]))
 
-        # Path B: mpmath direct evaluation of θ-integrand
-        # 2·cos θ·sin θ·exp(-τ/cos θ). Open near θ→π/2 (cos θ→0)
-        # for the same reason.
-        def integrand_B(t, tau=tau_val):
-            ct = mpmath.cos(t)
-            st = mpmath.sin(t)
-            return 2.0 * ct * st * mpmath.exp(-tau / ct)
-        P_ss_num = float(mpmath.quad(integrand_B, [0, mpmath.pi / 2]))
+            # Path B: mpmath direct evaluation of θ-integrand
+            # 2·cos θ·sin θ·exp(-τ/cos θ). Open near θ→π/2 (cos θ→0)
+            # for the same reason.
+            def integrand_B(t, tau=tau_val):
+                ct = mpmath.cos(t)
+                st = mpmath.sin(t)
+                return 2.0 * ct * st * mpmath.exp(-tau / ct)
+            P_ss_num = float(mpmath.quad(integrand_B, [0, mpmath.pi / 2]))
 
-        # Canonical: arbitrary-precision 2·E_3(τ).
-        canon_num = float(2.0 * mpmath.expint(3, tau_val))
+            # Canonical: arbitrary-precision 2·E_3(τ).
+            canon_num = float(2.0 * mpmath.expint(3, tau_val))
 
-        max_diff = max(
-            abs(T_00_num - canon_num),
-            abs(P_ss_num - canon_num),
-            abs(T_00_num - P_ss_num),
-        )
-        numerical_diffs.append({
-            "tau_L": tau_val,
-            "T_00": T_00_num,
-            "P_ss": P_ss_num,
-            "canonical": canon_num,
-            "max_abs_diff": max_diff,
-        })
-        if max_diff > 1e-12:
-            pass_numerical = False
+            max_diff = max(
+                abs(T_00_num - canon_num),
+                abs(P_ss_num - canon_num),
+                abs(T_00_num - P_ss_num),
+            )
+            numerical_diffs.append({
+                "tau_L": tau_val,
+                "T_00": T_00_num,
+                "P_ss": P_ss_num,
+                "canonical": canon_num,
+                "max_abs_diff": max_diff,
+            })
+            if max_diff > 1e-12:
+                pass_numerical = False
 
     return {
         "name": (

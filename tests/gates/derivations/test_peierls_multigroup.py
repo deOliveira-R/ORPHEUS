@@ -550,9 +550,9 @@ class TestSlabViaUnifiedRoutingInfrastructure:
 
     These tests verify the dispatch plumbing:
 
-    - ``_SLAB_VIA_UNIFIED`` defaults to True (as of 2026-04-24 after
-      Issue #131 resolved the 1.5 % gap; bit-exact parity restored).
-    - ``ORPHEUS_SLAB_VIA_E1=1`` env-var forces the native path for
+    - ``slab_route`` defaults to ``SlabRoute.UNIFIED`` (as of 2026-04-24
+      after Issue #131 resolved the 1.5 % gap; bit-exact parity restored).
+    - ``slab_route=SlabRoute.E1_NYSTROM`` takes the native path for
       bisection.
     - ``_build_peierls_slab_case_via_unified`` produces a valid
       :class:`ContinuousReferenceSolution` with the same name as the
@@ -562,50 +562,31 @@ class TestSlabViaUnifiedRoutingInfrastructure:
     :class:`TestSlabViaUnifiedDiscrepancyDiagnostic`.
     """
 
-    def test_default_flag_is_unified(self):
-        """Default routing is the unified multi-group path
-        (``_SLAB_VIA_UNIFIED is True``). Activated 2026-04-24 after
-        Issue #131 resolved the closed-form gap."""
-        import importlib
-        import os
-
+    @staticmethod
+    def _routed(monkeypatch, **route) -> object:
+        """Which slab builder ``build_two_surface_case("slab", ...)`` calls under ``route``: both builders are
+        replaced by recorders, and the dispatcher's withdrawal is lifted for the call only (#506)."""
         from orpheus.derivations.continuous.peierls_nystrom import cases as pc
+        from orpheus.derivations.continuous.peierls_nystrom import slab
 
-        # Clear any env-var the test runner might have set, reload,
-        # then confirm the default is True.
-        old = os.environ.pop("ORPHEUS_SLAB_VIA_E1", None)
-        try:
-            importlib.reload(pc)
-            assert pc._SLAB_VIA_UNIFIED is True, (
-                "_SLAB_VIA_UNIFIED must default to True now that "
-                "Phase G.5 parity is bit-exact (see Issue #131). "
-                "If this test fails, someone regressed the default."
-            )
-        finally:
-            if old is not None:
-                os.environ["ORPHEUS_SLAB_VIA_E1"] = old
-            importlib.reload(pc)
+        monkeypatch.setenv("ORPHEUS_RUN_WITHDRAWN", "506")
+        monkeypatch.setattr(pc, "_build_peierls_slab_case_via_unified", lambda ng, nr: "unified")
+        monkeypatch.setattr(slab, "_build_peierls_slab_case", lambda ng, nr: "e1_nystrom")
+        return pc.build_two_surface_case("slab", "2g", 2, **route)
 
-    def test_env_var_forces_native(self):
-        """``ORPHEUS_SLAB_VIA_E1=1`` forces the native path on
-        import. The only documented way to route back to the legacy
-        E₁ Nyström for bisection."""
-        import importlib
-        import os
+    def test_default_route_is_unified(self, monkeypatch):
+        """The default slab route is the unified multi-group path (activated 2026-04-24, after Issue #131
+        resolved the closed-form gap). Until 2026-10-04 this read a module flag set from the environment; the
+        route is now the argument ``slab_route`` (#405 P3)."""
+        assert self._routed(monkeypatch) == "unified"
 
-        from orpheus.derivations.continuous.peierls_nystrom import cases as pc
+    def test_e1_route_takes_the_native_path(self, monkeypatch):
+        """``slab_route=SlabRoute.E1_NYSTROM`` takes the native E₁ Nyström, the bisection route that the
+        environment variable ``ORPHEUS_SLAB_VIA_E1=1`` selected at import until 2026-10-04."""
+        from orpheus.derivations.continuous.peierls_nystrom.cases import SlabRoute
 
-        old = os.environ.get("ORPHEUS_SLAB_VIA_E1")
-        os.environ["ORPHEUS_SLAB_VIA_E1"] = "1"
-        try:
-            importlib.reload(pc)
-            assert pc._SLAB_VIA_UNIFIED is False
-        finally:
-            if old is None:
-                os.environ.pop("ORPHEUS_SLAB_VIA_E1", None)
-            else:
-                os.environ["ORPHEUS_SLAB_VIA_E1"] = old
-            importlib.reload(pc)
+        assert self._routed(monkeypatch, slab_route=SlabRoute.E1_NYSTROM) == "e1_nystrom"
+        assert self._routed(monkeypatch, slab_route=SlabRoute.UNIFIED) == "unified"
 
     @PEIERLS_NYSTROM_WITHDRAWN
     def test_unified_builder_produces_valid_reference(self):

@@ -804,10 +804,11 @@ not retired, as an independent cross-check implementation. Rationale:
    useful for future readers studying slab-specific numerics.
 3. **Low cost of retention.** The Phase G.5 routing switch
    (Issue #130, 2026-04-24) now **defaults to the unified path**
-   (:data:`_SLAB_VIA_UNIFIED = True`) after Issue #131 resolved the
-   multi-region closed-form gap; see the following subsection. The
-   ``ORPHEUS_SLAB_VIA_E1=1`` env-var override routes to the native
-   path for bisection. Both paths now agree bit-exactly on the
+   (:attr:`~orpheus.derivations.continuous.peierls_nystrom.cases.SlabRoute.UNIFIED`)
+   after Issue #131 resolved the multi-region closed-form gap; see the
+   following subsection. The argument
+   ``slab_route=SlabRoute.E1_NYSTROM`` routes to the native path for
+   bisection. Both paths now agree bit-exactly on the
    shipped reference, so retention is purely for cross-check
    robustness rather than a correctness backstop.
 4. **L0 error-catalog references.** The entries at
@@ -836,12 +837,16 @@ through the unified
 :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`.
 The routing is controlled by:
 
-- :data:`~orpheus.derivations.continuous.peierls_nystrom.cases._SLAB_VIA_UNIFIED` —
-  module-level boolean, **defaults to True**. The
-  :func:`~orpheus.derivations.continuous.peierls_nystrom.cases.build_two_surface_case`
-  dispatcher picks between native and unified based on its value.
-- ``ORPHEUS_SLAB_VIA_E1=1`` — environment-variable override that
-  forces the native path at import time (for bisection / testing).
+- :class:`~orpheus.derivations.continuous.peierls_nystrom.cases.SlabRoute` —
+  the argument ``slab_route`` of
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.cases.build_two_surface_case`,
+  **defaulting to** ``SlabRoute.UNIFIED``; ``SlabRoute.E1_NYSTROM``
+  takes the native path (for bisection / testing). Until 2026-10-04
+  the module read the environment variable ``ORPHEUS_SLAB_VIA_E1`` at
+  import instead. That made the reference's route ambient state,
+  which no cache key holds, so the traced memo of #405 P3 could have
+  served one route's answer to a caller of the other. The route is
+  now an argument of the call.
 - :func:`~orpheus.derivations.continuous.peierls_nystrom.cases._build_peierls_slab_case_via_unified`
   — the unified-path case builder (symmetric with the native
   ``_build_peierls_slab_case`` but uses ``solve_peierls_mg``).
@@ -1087,10 +1092,10 @@ independently-developed algorithm.
      - Only (a)
        :class:`~tests.gates.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`
        — the parity gate that keeps unified honest, and (b) anyone
-       who sets ``ORPHEUS_SLAB_VIA_E1=1`` (explicit bisection /
-       testing). Production references go through
+       who passes ``slab_route=SlabRoute.E1_NYSTROM`` (explicit
+       bisection / testing). Production references go through
        :func:`~orpheus.derivations.continuous.peierls_nystrom.cases.build_two_surface_case`
-       which dispatches on ``_SLAB_VIA_UNIFIED`` (default ``True``).
+       which dispatches on ``slab_route`` (default ``SlabRoute.UNIFIED``).
        If you find yourself importing ``solve_peierls_eigenvalue``
        from non-test code, you are writing something that should be
        refactored onto the unified path.
@@ -1165,7 +1170,7 @@ routes through the unified
 bit-exactly on k_eff (rel_diff ≈ 5 × 10\ :sup:`-16`); the native
 :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
 E\ :sub:`1` Nyström path is retained as an independent cross-check
-and can be forced via ``ORPHEUS_SLAB_VIA_E1=1``. See
+and can be forced with ``slab_route=SlabRoute.E1_NYSTROM``. See
 :ref:`theory-peierls-slab-polar-g5-routing` for the benchmark
 record and
 :ref:`theory-peierls-slab-polar-g5-diagnosis` for the

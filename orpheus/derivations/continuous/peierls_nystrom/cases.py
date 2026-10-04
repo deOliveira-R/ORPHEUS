@@ -56,9 +56,12 @@ when the integral has a closed form
 the unified path now matches native E₁ **bit-exactly** on the
 shipped ``peierls_slab_2eg_2rg`` fixture
 (``rel_diff = 5.4e-16`` at ``n_panels_per_region=2, p_order=3,
-dps=20``). The ``_SLAB_VIA_UNIFIED`` flag now **defaults to True**;
-set ``ORPHEUS_SLAB_VIA_E1=1`` to force the native path for
-bisection. Both paths remain exercised by the test suite: the
+dps=20``). The unified path is the default route
+(:attr:`SlabRoute.UNIFIED`); pass ``slab_route=SlabRoute.E1_NYSTROM``
+to :func:`build_two_surface_case` to take the native path for
+bisection. The route is an argument, never the environment: a
+reference whose answer followed an environment variable would answer
+by a value no cache key holds (#405 P3). Both paths remain exercised by the test suite: the
 unified path is the shipped registry route, and the native path is
 exercised by every gate that calls
 :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
@@ -72,21 +75,26 @@ now at ``rel_diff < 1e-10`` bound), and
 """
 from __future__ import annotations
 
-import os as _os
 from collections.abc import Callable
+from enum import Enum
 
 from .naming import ShippedReference
 from ...common.continuous_reference import ContinuousReferenceSolution
 from ...common.withdrawal import withdrawn_generator
 from . import PEIERLS_NYSTROM_WITHDRAWAL
 
-# Issue #130 Phase G.5 routing switch. Defaults to True (unified
-# path) as of 2026-04-24 — see module docstring for the benchmark
-# that unblocked activation. ``ORPHEUS_SLAB_VIA_E1=1`` overrides to
-# the native E₁ Nyström for bisection / testing.
-_SLAB_VIA_UNIFIED: bool = (
-    _os.environ.get("ORPHEUS_SLAB_VIA_E1", "0") != "1"
-)
+class SlabRoute(Enum):
+    """How the slab's Peierls kernel is assembled (Issue #130 Phase G.5): two routes to one answer.
+
+    The two agree bit-exactly on the shipped fixture since Issue #131 (the module docstring), so the
+    route is a bisection setting, an argument of :func:`build_two_surface_case`, never ambient state.
+    """
+
+    #: :func:`peierls_geometry.solve_peierls_mg` on observer-centred polar coordinates with adaptive
+    #: ``mpmath.quad``: the default since 2026-04-24.
+    UNIFIED = "unified"
+    #: The classical :math:`E_1` Nyström with singularity subtraction and product integration.
+    E1_NYSTROM = "e1_nystrom"
 
 
 # ---------------------------------------------------------------------
@@ -101,13 +109,15 @@ def build_two_surface_case(
     n_regions: int = 1,
     *,
     r0_over_R: float | None = None,
+    slab_route: SlabRoute = SlabRoute.UNIFIED,
 ) -> ContinuousReferenceSolution:
     r"""Build a Class-A (two-surface) continuous reference.
 
     Class A members share the F.4 scalar rank-2 per-face closure
     (:math:numref:`hebert-3-323`). Dispatch on ``shape``:
 
-    - ``"slab"`` — calls
+    - ``"slab"`` — by ``slab_route``: :attr:`SlabRoute.UNIFIED` calls
+      :func:`_build_peierls_slab_case_via_unified`, :attr:`SlabRoute.E1_NYSTROM`
       :func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_peierls_slab_case`.
       ``r0_over_R`` is ignored (slab has two parallel faces at
       :math:`x=0` and :math:`x=L`, not a cavity).
@@ -144,6 +154,10 @@ def build_two_surface_case(
            inert and invisible. Naming the ratio makes the intended
            quantity the one the signature accepts, and removes the
            division that was silently un-doing a unit error.
+    slab_route
+        The slab kernel's assembly, :class:`SlabRoute`; ignored for the
+        curvilinear shapes. Until 2026-10-04 (#405 P3) the environment
+        variable ``ORPHEUS_SLAB_VIA_E1`` chose it at import.
 
     Raises
     ------
@@ -153,12 +167,12 @@ def build_two_surface_case(
         for solid geometry.
     """
     if shape == "slab":
-        if _SLAB_VIA_UNIFIED:
-            return _build_peierls_slab_case_via_unified(ng_key, n_regions)
-        from .slab import _build_peierls_slab_case
-        return _build_peierls_slab_case(
-            ng_key, n_regions,
-        )
+        match slab_route:
+            case SlabRoute.UNIFIED:
+                return _build_peierls_slab_case_via_unified(ng_key, n_regions)
+            case SlabRoute.E1_NYSTROM:
+                from .slab import _build_peierls_slab_case
+                return _build_peierls_slab_case(ng_key, n_regions)
     if shape in ("cylinder-1d", "sphere-1d"):
         if r0_over_R is None:
             raise ValueError(
@@ -196,7 +210,7 @@ def build_two_surface_case(
 
 # ---------------------------------------------------------------------
 # Phase G.5 — slab routing through the unified adaptive-mpmath path
-# (Issue #130). Default-off; enabled by ``_SLAB_VIA_UNIFIED``.
+# (Issue #130). The default route, :attr:`SlabRoute.UNIFIED`.
 # ---------------------------------------------------------------------
 
 
@@ -225,11 +239,9 @@ def _build_peierls_slab_case_via_unified(
 
     **Withdrawn, as is the native path** (#506): neither path is a
     research-grade reference, and both refuse to run unless
-    ``ORPHEUS_RUN_WITHDRAWN=506`` is set. This path is also not the
-    default routing (Issue #130): at modest quadrature it differs from
-    the native path by about 1.5 % on the ``peierls_slab_2eg_2rg``
-    fixture. ``ORPHEUS_SLAB_VIA_UNIFIED=1`` selects it, for bisection
-    during the improvement work.
+    ``ORPHEUS_RUN_WITHDRAWN=506`` is set. This path is the default route
+    (:attr:`SlabRoute.UNIFIED`); since Issue #131 it matches the native
+    path bit-exactly on the ``peierls_slab_2eg_2rg`` fixture.
     """
     import numpy as _np
 

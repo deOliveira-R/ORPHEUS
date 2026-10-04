@@ -399,21 +399,13 @@ def derive_bessel_wronskian_identity() -> dict:
     pass_series = (sp.simplify(diff_series) == 0)
 
     # Numerical verification at multiple z (overkill for a sanity gate).
-    import math
     import mpmath as mp
-    mp.mp.dps = 30
-    pass_numeric = True
-    for z_val in [0.5, 1.0, 2.5, 10.0]:
-        K0_v = mp.besselk(0, z_val)
-        K1_v = mp.besselk(1, z_val)
-        I0_v = mp.besseli(0, z_val)
-        I1_v = mp.besseli(1, z_val)
-        expr_v = K1_v * I0_v + I1_v * K0_v
-        expected_v = mp.mpf(1) / z_val
-        rel_err = abs(expr_v - expected_v) / abs(expected_v)
-        if rel_err > 1e-25:
-            pass_numeric = False
-            break
+    with mp.workdps(30):
+        pass_numeric = all(
+            abs((mp.besselk(1, z_val) * mp.besseli(0, z_val) + mp.besseli(1, z_val) * mp.besselk(0, z_val))
+                - mp.mpf(1) / z_val) * z_val <= 1e-25
+            for z_val in [0.5, 1.0, 2.5, 10.0]
+        )
 
     return {
         "name": "V_se-cyl.3: Wronskian K_1·I_0 + I_1·K_0 = 1/z",
