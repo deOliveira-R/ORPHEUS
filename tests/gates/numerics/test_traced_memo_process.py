@@ -350,14 +350,19 @@ def test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry(package, t
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_16_the_generating_process_sees_no_orpheus_environment(package, monkeypatch):
-    """M3.16, the runtime backstop of M5.1: the child's environment carries no ``ORPHEUS_*`` variable, so a
-    generator that reads one answers its default under the memo whatever the caller set, and a withdrawn
-    generator (``ORPHEUS_RUN_WITHDRAWN``) refuses in the child rather than writing an entry a later caller
-    without the switch would be served. The control: under ``bypass()`` the same call sees the variable."""
+    """M3.16, the runtime backstop of M5.1: the child receives the DECLARED environment only (re-posed after
+    qa's second review, 2026-10-04: a variable outside every key served a stale value), so a generator that
+    reads an ``ORPHEUS_*`` switch, or any other undeclared variable, answers its default under the memo
+    whatever the caller set, and a withdrawn generator (``ORPHEUS_RUN_WITHDRAWN``) refuses in the child rather
+    than writing an entry a later caller without the switch would be served. A declared variable passes, and
+    ``PYTHONHASHSEED`` is fixed. The control: under ``bypass()`` the same call sees the caller's variable."""
     alpha = package.module("alpha")
     monkeypatch.setenv("ORPHEUS_P3_PROBE", "set-by-the-caller")
-    monkeypatch.setenv("P3_PROBE_OTHER", "kept")
+    monkeypatch.setenv("P3_PROBE_OTHER", "set-by-the-caller")
+    monkeypatch.setenv("OMP_NUM_THREADS", "3")
     assert alpha.environment_probe("ORPHEUS_P3_PROBE") == "<unset>"
-    assert alpha.environment_probe("P3_PROBE_OTHER") == "kept"
+    assert alpha.environment_probe("P3_PROBE_OTHER") == "<unset>"
+    assert alpha.environment_probe("OMP_NUM_THREADS") == "3"
+    assert alpha.environment_probe("PYTHONHASHSEED") == "0"
     with api.bypass():
         assert alpha.environment_probe("ORPHEUS_P3_PROBE") == "set-by-the-caller"

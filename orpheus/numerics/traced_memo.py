@@ -31,11 +31,12 @@ a recording sees only code that RUNS, so anything served from memory (a ``functo
 born for one call has nothing in memory, so the recording is complete without any discipline on how the
 rest of the package memoises. The cost is one interpreter start per miss, about 0.65 s ``[M]`` 2026-10-04.
 
-What no manifest can see, and how each is held: a file's absence probed without opening it
-(``os.path.exists``, ``stat``) raises no audit event; native state (a C library's own globals) and a file a
+What no manifest can see, and how each is held: a probe the recorder does not wrap (``os.access``,
+``os.scandir``'s entries); native state (a C library's own globals) and a file a
 C library opens itself (HDF5 through ``h5py``) are invisible, so a generator reading such a file takes the
-file's digest as an argument. A program the run starts is pinned by its executable's bytes; a run that starts a Python process, or a
-process whose program cannot be named, is refused (the code would run unrecorded).
+file's digest as an argument. A run may start only a declared machine query (``uname``), pinned by its executable's bytes; any other
+started process is refused, since its own reads and children are unrecorded. A run sees only a declared
+environment, which is pinned. A ``bypass()`` entered in one thread holds for every thread of the process.
 A test that monkeypatches anything a generation runs reads under :func:`bypass`.
 """
 from __future__ import annotations
@@ -72,7 +73,7 @@ from orpheus.numerics._traced_memo_boot import Recording, note_child, spawning
 from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
-    "Absent", "ChildPin", "Corrupt", "DataPin", "DefPin", "DistributionPin", "Hit", "InterpreterPin",
+    "Absent", "ChildPin", "Corrupt", "DataPin", "DefPin", "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "PresencePin",
     "ListingPin", "Manifest", "MemoPin", "ModulePin", "Pin", "Stale", "TracedMemo", "Unencodable",
     "Unpinnable", "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "decode_payload", "default_root",
     "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call",
@@ -338,8 +339,34 @@ def platform_tag() -> str:
 
 # ── the manifest ────────────────────────────────────────────────────────────────────────────────────
 
-#: The memo's own source: it wrote every entry, so an edit to it makes every entry stale.
-_MEMO_SOURCES = (Path(__file__).resolve(), Path(__file__).resolve().with_name("_traced_memo_boot.py"))
+#: The memo's own source and the code its write path runs after the recording stops (the payload's
+#: constructor form is :func:`~orpheus.numerics.content.constructor_arguments`): an edit to any of it makes
+#: every entry stale (qa finding 8, and its second review, 2026-10-04).
+_MEMO_SOURCES = tuple(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py", "content.py"))
+
+#: The programs a run may start, each pinned by its executable's bytes: queries whose answer the machine fixes.
+#: ``uname`` is run by ``platform.processor()`` during the imports of the P3 clients (``[M]`` 2026-10-04).
+#: SCOPE-BOUNDARY[guard] machinery: a recorder for a started program's own reads and children (a traced
+#: sub-process). ruling: the orchestrator, #405 P3, from qa's second review (a ``cat`` of an unpinned file, a
+#: ``shell=True`` and a ``/usr/bin/env python3`` each served a stale value when every program was admitted
+#: by its bytes). revisit: when a generator must start a program outside this table.
+_ADMITTED_PROGRAMS = frozenset({"uname"})
+
+#: The environment a generating process receives, and nothing else: its values are pinned
+#: (:class:`EnvironmentPin`), and ``PYTHONHASHSEED`` is fixed so that iteration over a set of strings is one
+#: order in every generation. A variable outside this list (an ``ORPHEUS_*`` switch, a shell's own) never
+#: reaches a generation, so no answer can follow a value no key holds (qa's second review, 2026-10-04).
+_CHILD_ENVIRONMENT = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "OMP_NUM_THREADS",
+                      "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS")
+_FIXED_ENVIRONMENT = {"PYTHONHASHSEED": "0"}
+
+#: The deepest chain of generations one call may start: a cycle through distinct keys (``f(n)`` calling
+#: ``f(n + 1)``) has no repeated key for the ancestry to catch.
+_MAX_GENERATION_DEPTH = 16
+
+
+def _child_environment() -> dict[str, str]:
+    return {k: os.environ[k] for k in _CHILD_ENVIRONMENT if k in os.environ} | _FIXED_ENVIRONMENT
 
 
 class _Checkout:
@@ -359,6 +386,15 @@ class _Checkout:
 def _file_digest(path: str) -> str:
     """The digest of a file's bytes, or ``"absent"``: a run that found no file there depended on that."""
     return _digest(Path(path).read_bytes()) if os.path.isfile(path) else "absent"
+
+
+def _presence(path: str) -> str:
+    """What a probe of ``path`` finds: a file, a directory, something else, or nothing."""
+    if os.path.isfile(path):
+        return "file"
+    if os.path.isdir(path):
+        return "directory"
+    return "other" if os.path.lexists(path) else "absent"
 
 
 def _listing_digest(path: str) -> str:
@@ -442,8 +478,28 @@ class ListingPin(NamedTuple):
         return f"listing {self.path} changed" if _listing_digest(self.path) != self.digest else None
 
 
+class PresencePin(NamedTuple):
+    """A path the run probed (``exists``, ``isfile``, ``stat``) without opening it, by what was there."""
+
+    path: str
+    kind: str
+
+    def stale(self, checkout: _Checkout) -> str | None:
+        return f"presence {self.path}: {self.kind} became {_presence(self.path)}" if _presence(self.path) != self.kind else None
+
+
+class EnvironmentPin(NamedTuple):
+    """The environment the generating process received (the declared variables only), by its digest."""
+
+    digest: str
+
+    def stale(self, checkout: _Checkout) -> str | None:
+        return "the generation's environment changed" if _environment_digest() != self.digest else None
+
+
 class WorkingDirectoryPin(NamedTuple):
-    """The working directory of a run that read a relative path (from another, the same path is another file)."""
+    """The working directory a run started in, when it read a relative path (from another, the same path is
+    another file); the starting one, since a run that changes directory does so deterministically from it."""
 
     path: str
 
@@ -476,7 +532,12 @@ class MemoPin(NamedTuple):
         return "the traced memo's own source changed" if _memo_digest() != self.digest else None
 
 
-Pin = DefPin | ModulePin | DistributionPin | InterpreterPin | DataPin | ListingPin | WorkingDirectoryPin | ChildPin | MemoPin
+Pin = (DefPin | ModulePin | DistributionPin | InterpreterPin | DataPin | PresencePin | ListingPin | EnvironmentPin
+       | WorkingDirectoryPin | ChildPin | MemoPin)
+
+
+def _environment_digest() -> str:
+    return _digest(json.dumps(sorted(_child_environment().items())).encode())
 _PIN_KINDS: Mapping[str, Callable[..., Pin]] = {kind.__name__: kind for kind in typing.get_args(Pin)}
 
 
@@ -546,7 +607,7 @@ def _def_pin(text: _SourceText, path: str, code: types.CodeType) -> DefPin | Non
 def _manifest(recording: Recording, store: Store) -> Manifest:
     """The manifest of a recorded run: every code object it started, file it read, directory it listed and
     memo entry it read, each pinned by its origin."""
-    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest())}
+    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest())}
     pins |= {_program_pin(program) for program in recording.spawned}
     pins |= {ChildPin(*child) for child in recording.children}
     by_file: dict[str, list[types.CodeType]] = {}
@@ -565,8 +626,8 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
         pins |= {pin for code in file_codes if (pin := _def_pin(text, path, code)) is not None}
     store_root = _real(str(store.root)) + os.sep
     for opened in recording.opened:
-        if opened.endswith((".py", ".pyc")) or _real(opened).startswith(store_root):
-            continue  # code is pinned where it ran; a store entry is a child
+        if _real(opened).startswith(store_root):
+            continue  # a store entry is a child
         match origin(opened):
             case Distribution(name):
                 pins.add(DistributionPin(name, importlib.metadata.version(name)))
@@ -574,21 +635,25 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
                 pins.add(DataPin(opened, _file_digest(opened)))
             case Dropped() | Interpreter():
                 pass
+    pins |= {PresencePin(probed, _presence(probed)) for probed in recording.probed if not _real(probed).startswith(store_root)}
     pins |= {ListingPin(listed, _listing_digest(listed)) for listed in recording.listed}
     if recording.relative:
-        pins.add(WorkingDirectoryPin(os.getcwd()))
+        pins.add(WorkingDirectoryPin(recording.directory))
     return Manifest(frozenset(pins))
 
 
 def _program_pin(program: str) -> DataPin:
-    """A program the run started, pinned by its executable's bytes (``uname``, which ``platform.processor``
-    runs, is replaced by an operating-system update). A Python interpreter is refused: the code it ran is
-    code no recording saw; so is a spawn whose program cannot be named (a ``fork``, an ``os.system`` line)."""
-    if not os.path.isabs(program):
-        raise Unpinnable(f"the run started a process ({program}) whose program cannot be named: its code ran unrecorded")
-    if os.path.basename(program).startswith("python") or program == _real(sys.executable):
-        raise Unpinnable(f"the run started a Python process ({program}): the code it ran is unrecorded")
-    return DataPin(program, _file_digest(program))
+    """A program the run started, pinned by its executable's bytes, when it is one of
+    :data:`_ADMITTED_PROGRAMS` (a query whose answer the machine fixes); any other start is refused: a
+    Python process (a process pool, ``env python3``) ran code no recording saw, a shell or another program
+    read files and started processes no recording saw, and a ``fork`` or an ``os.system`` line names no
+    program at all."""
+    if os.path.isabs(program) and os.path.basename(program) in _ADMITTED_PROGRAMS:
+        return DataPin(program, _file_digest(program))
+    raise Unpinnable(
+        f"the run started a process ({program}) whose own reads and children no recording sees; a generation may "
+        f"start only {sorted(_ADMITTED_PROGRAMS)} (a scope boundary of the traced memo)"
+    )
 
 
 def validate(manifest: Manifest, store: Store | None = None) -> tuple[str, ...]:
@@ -969,6 +1034,8 @@ class TracedMemo(Generic[P, R]):
         key = self._key(bound)
         if (self.function_id, key) in _ANCESTRY:
             raise RecursionError(f"traced_memo: {self.function_id} calls itself with the same arguments")
+        if len(_ANCESTRY) >= _MAX_GENERATION_DEPTH:
+            raise RecursionError(f"traced_memo: {self.function_id} would start a generation {_MAX_GENERATION_DEPTH + 1} deep")
         verdict = store.lookup(self.function_id, key)
         if not isinstance(verdict, Hit):
             self._generate(_Job(self, bound.args, bound.kwargs, key, str(store.root), (*_ANCESTRY, (self.function_id, key))))
@@ -980,8 +1047,8 @@ class TracedMemo(Generic[P, R]):
 
     def _generate(self, job: _Job) -> None:
         """Run ``job`` in a fresh interpreter with this process's ``-O`` level, ``sys.path`` and working
-        directory, and its environment without any ``ORPHEUS_*`` variable (a withdrawn generator therefore
-        always refuses there, and no variable selects an answer no key holds). The answer comes back on the
+        directory, and the declared environment only (:data:`_CHILD_ENVIRONMENT`: a withdrawn generator's
+        ``ORPHEUS_*`` switch never reaches it, and no variable selects an answer no pin holds). The answer comes back on the
         process's standard output, which the boot script reserves for it (qa finding 9)."""
         optimize = ["-" + "O" * sys.flags.optimize] if sys.flags.optimize else []
         with spawning():
@@ -989,7 +1056,7 @@ class TracedMemo(Generic[P, R]):
                 [sys.executable, *optimize, "-P", str(_BOOT)],
                 input=pickle.dumps({"sys_path": list(sys.path), "job": _constructor_pickle(job)}),
                 capture_output=True, cwd=os.getcwd(),
-                env={k: v for k, v in os.environ.items() if not k.startswith("ORPHEUS_")},
+                env=_child_environment(),
             )
         try:
             result = pickle.loads(run.stdout)

@@ -423,6 +423,7 @@ def test_q12_a_module_on_no_sys_path_entry_is_pinned_by_its_absolute_path(tmp_pa
     assert any("changed" in r for r in api.validate(manifest))
 
 
+@pytest.mark.timeout(600)
 def test_q13_a_memo_calling_itself_with_its_own_arguments_is_refused(make):
     """Finding 13: ``f(x)`` calling ``f(x)`` would start interpreters without end; the generating process
     knows the calls it is answering and refuses the cycle."""
@@ -438,9 +439,9 @@ def test_q13_a_memo_calling_itself_with_its_own_arguments_is_refused(make):
 
 
 def test_a_started_program_is_pinned_and_a_started_python_is_refused(make, tmp_path):
-    """A process the run starts: an external program is pinned by its executable's bytes (``platform``'s
-    processor query runs ``uname``, so every real client starts one); a Python interpreter is refused, since
-    the code it ran is code no recording saw."""
+    """A process the run starts: a declared machine query is pinned by its executable's bytes
+    (``platform``'s processor query runs ``uname``, so every real client starts one); a Python interpreter
+    is refused, since the code it ran is code no recording saw."""
     package = make(m=f'''
         import subprocess, sys
         from orpheus.numerics.traced_memo import traced_memo
@@ -459,5 +460,218 @@ def test_a_started_program_is_pinned_and_a_started_python_is_refused(make, tmp_p
     assert m.external(1.0) == 1.0
     (entry,) = api.entry_files(tmp_path / "cache")
     assert any(path.endswith("/uname") for path, _ in api.manifest_rows(api.read_entry(entry), "DataPin"))
-    with pytest.raises(api.name("Unpinnable"), match="Python process"):
+    with pytest.raises(api.name("Unpinnable"), match="may start only"):
         m.python(1.0)
+
+
+# ── qa's second review (2026-10-04, ``scratch/reference_architecture/p3/qa2/``) ─────────────────────────
+
+
+def test_r1_the_key_is_exact_all_the_way_up(make):
+    """Second review, finding 1: the key was exact at its leaves only, so a masked array and its plain twin,
+    two dict orders, a sparse matrix's explicit zero and its format, a ``NamedTuple`` and its tuple, and a
+    ``compare=False`` constructor field each shared one key and served the other call's answer. The key is
+    the exact encoding of what the generating process RECEIVES (each object's constructor form)."""
+    package = make(m='''
+        import dataclasses
+        from typing import NamedTuple
+        import numpy as np
+        from orpheus.numerics.traced_memo import traced_memo
+
+        class P(NamedTuple):
+            a: float
+            b: float
+
+        @dataclasses.dataclass(frozen=True)
+        class Spec:
+            n: int
+            label: str = dataclasses.field(default="a", compare=False)
+
+        @traced_memo
+        def anything(x) -> str:
+            return type(x).__name__
+    ''')
+    import scipy.sparse as sp
+
+    from orpheus.numerics.content import ContentlessError, FrozenMapping
+
+    m = package.module()
+    key = m.anything.key
+    with pytest.raises(ContentlessError):  # its state holds a type, which has no content
+        key(np.ma.masked_array(np.array([1.0, 2.0]), mask=[0, 1]))
+    from orpheus.data.emission_spectrum import EmissionSpectrum
+
+    assert key(EmissionSpectrum(np.array([0.6, 0.4]))) != key(np.array([0.6, 0.4]))  # a stateless subclass: its type
+    assert key({"fuel": 1, "mod": 2}) != key({"mod": 2, "fuel": 1})
+    assert key(FrozenMapping([("fuel", 1), ("mod", 2)])) != key(FrozenMapping([("mod", 2), ("fuel", 1)]))
+    plain = sp.csr_matrix(np.array([[1.0, 0.0], [0.0, 0.0]]))
+    stored_zero = sp.csr_matrix((np.array([1.0, 0.0]), np.array([0, 1]), np.array([0, 1, 2])), shape=(2, 2))
+    assert key(plain) != key(stored_zero)
+    assert key(plain) != key(plain.tocsc())
+    assert key((1.0, 2.0)) != key(m.P(1.0, 2.0))
+    assert key(m.Spec(1, "a")) != key(m.Spec(1, "b"))
+    assert m.anything(m.P(1.0, 2.0)) == "P" and m.anything((1.0, 2.0)) == "tuple"
+
+
+@pytest.mark.parametrize("starter", ["pool", "shell", "cat"])
+def test_r2_r3_only_a_declared_program_may_be_started(make, starter):
+    """Second review, findings 2 and 3: a spawn-context process pool ran Python nothing recorded, and a
+    started program was pinned by its launcher's bytes while the files it read went unpinned (``cat`` served
+    1.0 against 50.0; ``shell=True`` and ``env python3`` slipped past the Python refusal). A generation may
+    start only a declared machine query (``uname``); every other start is refused."""
+    package = make(m='''
+        import multiprocessing, subprocess
+        from orpheus.numerics.traced_memo import traced_memo
+
+        def _double(x):
+            return 2.0 * x
+
+        @traced_memo
+        def pool(a: float) -> float:
+            with multiprocessing.get_context("spawn").Pool(1) as workers:
+                return workers.map(_double, [a])[0]
+
+        @traced_memo
+        def shell(a: float) -> float:
+            return a + float(subprocess.run("echo 1", shell=True, capture_output=True, text=True).stdout)
+
+        @traced_memo
+        def cat(a: float) -> float:
+            return a + float(subprocess.run(["cat", __file__], capture_output=True, text=True).stdout.count("def"))
+    ''')
+    memo = getattr(package.module(), starter)
+    with pytest.raises(api.name("Unpinnable"), match="may start only"):
+        memo(1.0)
+    assert _kind(memo.lookup(1.0)) == "Absent"
+
+
+def test_r4_a_listing_made_by_a_module_body_during_its_import_is_pinned(make):
+    """Second review, finding 4: a directory listed by a module body while it was imported was exempt as the
+    import system's own (an import was on the stack), and served 11.0 against 22.0. Only the import system's
+    OWN calls are exempt."""
+    package = make(m='''
+        import os
+        from pathlib import Path
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def gen(a: float) -> float:
+            from . import lister
+            return a + lister.COUNT
+    ''', lister='''
+        import os
+        from pathlib import Path
+        COUNT = 10.0 * len(os.listdir(Path(__file__).parent / "tables"))
+    ''')
+    (package.dir / "tables").mkdir()
+    (package.dir / "tables" / "a.dat").write_text("1")
+    m = package.module()
+    assert m.gen(1.0) == 11.0
+    (package.dir / "tables" / "b.dat").write_text("1")
+    assert _kind(m.gen.lookup(1.0)) == "Stale" and m.gen(1.0) == 21.0
+
+
+def test_r5_a_python_file_read_as_data_is_pinned(make):
+    """Second review, finding 5: every ``.py`` read was skipped as code, so a generator reading a ``.py`` file
+    as data served 3.0 against 30.0. Only the import system's own reads are exempt."""
+    package = make(m='''
+        from pathlib import Path
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def gen(a: float) -> float:
+            return a * float((Path(__file__).parent / "table.py").read_text().split("=")[1])
+    ''')
+    (package.dir / "table.py").write_text("VALUE = 3")
+    m = package.module()
+    assert m.gen(1.0) == 3.0
+    (package.dir / "table.py").write_text("VALUE = 30")
+    assert _kind(m.gen.lookup(1.0)) == "Stale" and m.gen(1.0) == 30.0
+
+
+def test_r7_a_run_that_changes_directory_then_reads_a_relative_path_is_a_hit(make, tmp_path):
+    """Second review, finding 7: the working-directory pin held the run's FINAL directory, so a generator that
+    changed directory and read a relative path was stale on every call. It holds the directory the run
+    started in."""
+    package = make(m='''
+        import os
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def gen(a: float, where: str) -> float:
+            os.chdir(where)
+            with open("table.txt") as handle:
+                return a + float(handle.read())
+    ''')
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "table.txt").write_text("4")
+    m = package.module()
+    assert m.gen(1.0, str(tmp_path / "data")) == 5.0
+    assert _kind(m.gen.lookup(1.0, str(tmp_path / "data"))) == "Hit"
+
+
+def test_q5_absence_probed_by_exists_is_a_dependency(make):
+    """Finding 5, the half the first fix declared blind: an answer that depended on ``exists()`` finding no
+    file was served stale (1.0 against 99.0). The recorder wraps ``os.stat`` while a run is recorded, so a
+    probe's finding is pinned."""
+    package = make(m='''
+        from pathlib import Path
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def override(a: float) -> float:
+            path = Path(__file__).parent / "override.txt"
+            return float(path.read_text()) if path.exists() else a
+    ''')
+    m = package.module()
+    assert m.override(1.0) == 1.0
+    (package.dir / "override.txt").write_text("99")
+    assert _kind(m.override.lookup(1.0)) == "Stale" and m.override(1.0) == 99.0
+
+
+def test_q8_the_memo_pin_covers_the_write_path():
+    """Finding 8, its second half: the payload's constructor form (``content.constructor_arguments``) runs
+    on the write path after the recording stops, so the memo's pin covers ``content.py`` too."""
+    names = {path.name for path in api.name("_MEMO_SOURCES")}
+    assert names == {"traced_memo.py", "_traced_memo_boot.py", "content.py"}, names
+
+
+def test_q10_a_reader_never_sees_a_half_written_entry(tmp_path):
+    """Finding 10's reader leg (the second review: the writer-only gate was blind to an in-place write): while
+    four threads rewrite one key, every lookup is a ``Hit`` or ``Absent``, never ``Corrupt``."""
+    store = api.name("Store")(tmp_path / "cache")
+    manifest = api.name("Manifest")(frozenset())
+    stop = threading.Event()
+    seen: list[str] = []
+
+    def writer() -> None:
+        while not stop.is_set():
+            store.write("f:x", "key", manifest, (np.arange(20000.0),), set())
+
+    threads = [threading.Thread(target=writer) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    try:
+        for _ in range(300):
+            seen.append(_kind(store.lookup("f:x", "key")))
+    finally:
+        stop.set()
+        for thread in threads:
+            thread.join()
+    assert "Corrupt" not in seen and "Hit" in seen, sorted(set(seen))
+
+
+@pytest.mark.timeout(600)
+def test_q13_a_chain_of_generations_through_distinct_keys_is_bounded(make):
+    """Finding 13's bound (the second review: removing the cycle guard hung instead of failing): a chain
+    through DISTINCT keys (``f(n)`` calling ``f(n + 1)``) has no repeated key for the ancestry to catch, so
+    the depth of nested generations is bounded."""
+    package = make(m='''
+        from orpheus.numerics.traced_memo import traced_memo
+
+        @traced_memo
+        def f(n: int) -> int:
+            return f(n + 1)
+    ''')
+    with pytest.raises(RecursionError, match="deep"):
+        package.module().f(0)

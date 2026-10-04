@@ -1619,3 +1619,48 @@ The specification is `.claude/plans/reference_p3_spec.md`. It has 5 steps and 96
 - **Not a gate, by declaration:** an absence probed without opening the file (`exists`, `stat`) raises no audit event, and is stated in the module docstring.
 
 **Owed before P3 closes (2026-10-04):** the specification's §3 timing protocol (cold, warm and bypassed, three serial runs) on the shipped memo, since the per-file table in the spec is the prototype's. The archivist's one run on the shipped memo, best of 3, machine load about 6: cold 10.73 s, warm 0.022 s, in-process 4.32 s. A citation for "build systems with dynamic dependencies and early cutoff" (Mokhov, Mitchell and Peyton Jones 2018) is a W7 acquisition, filed as an issue.
+
+### P3 second review round (2026-10-04)
+
+qa's second review of `39ee20f2` (artefacts in `scratch/reference_architecture/p3/qa2/`) found the following:
+- 11 of the 13 first-round findings closed;
+- finding 5 half open: an absence probed by `exists()`;
+- finding 8 half open: `content.py` runs on the write path after the recording stops;
+- 8 new findings, 6 of them serving a wrong value;
+- the spy rows of M4.6 have their teeth back (14 of 14 red under the fixture; 15 of 15 green without it);
+- battery: 43 of 46 arms redden their target.
+
+Every finding was fixed at its root, in the light of standing rulings (Q2: the key separates what the function can tell apart; never serve a stale value):
+- **The exact key is exact all the way up.** `content._Exactly` now also decides:
+  - an object's PARTS, as its constructor form (`constructor_arguments`, or `__reduce__`'s arguments): exactly what the generating process receives, so a `compare=False` init field is keyed;
+  - a container's concrete type (a `NamedTuple` is not its tuple);
+  - mapping order (`FrozenMapping` declares order behaviour);
+  - sparse storage (format and stored arrays, explicit zeros included);
+  - and it refuses a subclass of `str`, `bytes` or `ndarray` (a masked array).
+
+  `_ByEquality` keeps every content digest bit-identical (`[M]` the S5.7 RECORD fingerprint and 244 content gates green).
+- **Started processes.** A generation may start only a declared machine query: `_ADMITTED_PROGRAMS = {uname}`, pinned by the executable's bytes, a `SCOPE-BOUNDARY` whose machinery is a recorder for a started program's own reads and children. Every other start is refused:
+  - a spawn-context process pool, which raises `_posixsubprocess.fork_exec` and not `subprocess.Popen` `[M]`;
+  - `shell=True`;
+  - `env python3`;
+  - `cat`.
+- **The import-system exemption** is decided by the IMMEDIATE caller frame, not by an import on the stack. So a module body's listing is pinned, and a `.py` file read as data is pinned (the blanket `.py`/`.pyc` skip is retired).
+- **`os.stat` and `os.lstat` are wrapped while a recording is active,** which gives a `PresencePin(path, kind)`: `exists()` is now a recorded dependency.
+- **The environment.** The generating process receives a declared environment only:
+  - `_CHILD_ENVIRONMENT`: PATH, HOME, TMPDIR, the locale, the BLAS thread counts;
+  - `PYTHONHASHSEED=0`, fixed;
+  - pinned by `EnvironmentPin`.
+
+  This retires the `ORPHEUS_*` scrub, which it subsumes. M3.16 is re-posed accordingly.
+- **Smaller fixes:**
+  - `WorkingDirectoryPin` holds the directory the run STARTED in;
+  - `MemoPin` covers `content.py`;
+  - nested generations are bounded at 16, so a chain through distinct keys raises.
+- **A defect found while fixing:** the audit event `exec` is the builtin `exec()` (dataclass construction), not a process start, so it is not a spawn event.
+- **Declared, not fixed:** a `bypass()` entered in one thread holds for every thread of the process (low; tests are single-threaded).
+- **Gates:** 10 more rows in `test_traced_memo_findings.py`, covering r1 to r7, q5's `exists`, q8's `content.py`, q10's reader leg and q13's bound.
+- **An instrument lesson.** qa's own reaper, `pkill -f _traced_memo_boot`, killed the concurrent full-suite run's generating processes: 5 of the 6 failures at `39ee20f2` were that. Kill a battery's orphans by process tree, never by name.
+- **Two more defects, found by the affected-suite run** (`[M]` 23 red, then 0):
+  - The exact key refused `EmissionSpectrum`, the stateless `ndarray` subclass held by `Mixture.chi`. A subclass is now its type and its own instance state beside its bytes.
+  - `importlib.metadata` lists every `sys.path` directory, and that listing pinned the working directory. The import system is now the frozen bootstrap AND the `importlib` package. The check compares raw filenames against prefixes computed once, because a `realpath` inside the `os.stat` probe recursed.
+- `[M]` The affected suites (numerics, reference, data, mesh, geometry, the trajectory and multi-region solver tests): 7487 passed, 0 failed.

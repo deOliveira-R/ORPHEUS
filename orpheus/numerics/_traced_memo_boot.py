@@ -10,16 +10,24 @@ definition of what a generation depends on.
 A recording holds, for the time it runs, across every thread of the process:
 
 * every code object that started (``sys.monitoring`` ``PY_START``; each reports once, then disables itself);
-* every path opened for reading, made absolute at the moment it was opened (a later change of working
-  directory cannot move it), a bytes path decoded, and a path that does not exist included (the run then
-  depended on its absence);
+* every path opened for reading and every path whose presence was probed (``os.stat``, ``os.lstat``, and so
+  ``os.path.exists``, ``isfile``, ``isdir`` and ``pathlib``'s ``exists``), each made absolute at the moment
+  it was touched, a bytes path decoded, a missing path included (the run then depended on its absence);
 * every directory listed (``os.listdir``, ``os.scandir``);
-* every process the run started: the program, or the event when no program can be named (a ``fork``, an
-  ``os.system`` command line);
+* every process the run started, by its program or, when none can be named, by its event;
+* the working directory the run started in, and whether it read a relative path;
 * the memo entries the run read, which :mod:`~orpheus.numerics.traced_memo` adds as it serves them.
 
+The import system's own reads, probes and listings are not recorded: they are how it finds a module, and the
+module it finds is pinned where its code runs. Recording them would make every new file in any ``sys.path``
+directory invalidate every entry. The import system is the frozen bootstrap and the ``importlib`` package
+(``importlib.metadata`` lists every ``sys.path`` directory to find the installed distributions, which are
+pinned by version). The exemption is decided by the IMMEDIATE caller (the import-system frame that made the
+call), never by an import being somewhere on the stack: a module body that lists a
+directory while it is imported is the run's own dependency (qa's second review, 2026-10-04).
+
 Audit hooks cannot be removed, so one hook is installed per process and serves the recordings active at the
-moment of each event.
+moment of each event; the ``os.stat`` probe is installed while a recording is active and removed after.
 """
 import os
 import sys
@@ -31,15 +39,17 @@ _LOCK = threading.Lock()
 _HOOKED = False
 #: Set while the memo itself starts a generating process, so that spawn is not the run's own.
 _SPAWNING = threading.local()
+#: ``os.stat`` and ``os.lstat`` as they were before the first recording replaced them.
+_STAT = {"stat": os.stat, "lstat": os.lstat}
 
 _READ_EVENTS = {"open"}
 _LIST_EVENTS = {"os.listdir", "os.scandir"}
-_SPAWN_EVENTS = {"subprocess.Popen", "os.fork", "os.forkpty", "os.posix_spawn", "os.spawn", "os.exec", "os.system"}
+_SPAWN_EVENTS = {"subprocess.Popen", "_posixsubprocess.fork_exec", "os.fork", "os.forkpty", "os.posix_spawn",
+                 "os.spawn", "os.exec", "os.system"}
 
 
 def _path(raw: object) -> tuple[str, bool] | None:
-    """A path made absolute now, and whether it was relative (the run then depended on the working
-    directory); ``None`` for a file descriptor."""
+    """A path made absolute now, and whether it was relative; ``None`` for a file descriptor."""
     if isinstance(raw, int):
         return None
     try:
@@ -47,6 +57,24 @@ def _path(raw: object) -> tuple[str, bool] | None:
     except TypeError:
         return None
     return os.path.abspath(text), not os.path.isabs(text)
+
+
+#: The import system's own code: its frozen bootstrap and the ``importlib`` package (``importlib.metadata``
+#: lists every ``sys.path`` directory to find the installed distributions, which are pinned by version).
+#: Both spellings of its directory, computed once at import: the check runs inside the ``os.stat`` probe, so it
+#: must not itself call ``os.stat`` (``realpath`` does).
+_IMPORTLIB = tuple({os.path.dirname(f) + os.sep for f in (__import__("importlib").__file__,
+                                                            os.path.realpath(__import__("importlib").__file__))})
+
+
+def _by_importer(depth: int) -> bool:
+    """Whether the Python frame ``depth`` levels up, the one that made the call, belongs to the import system."""
+    try:
+        frame = sys._getframe(depth)
+    except ValueError:
+        return False
+    filename = frame.f_code.co_filename
+    return filename.startswith(("<frozen importlib", *_IMPORTLIB))
 
 
 def _offer(field: str, raw: object) -> None:
@@ -59,16 +87,21 @@ def _offer(field: str, raw: object) -> None:
         recording.relative |= relative
 
 
-def _importing() -> bool:
-    """Whether the import system is the caller: its directory listings (``FileFinder`` filling its cache) are
-    how it finds a module, and the module it found is pinned where its code runs. Pinning them would make
-    every new file in any ``sys.path`` directory invalidate every entry."""
-    frame = sys._getframe(2)
-    while frame is not None:
-        if frame.f_code.co_filename.startswith("<frozen importlib"):
-            return True
-        frame = frame.f_back
-    return False
+def _program(event: str, args: tuple[object, ...]) -> str:
+    """The absolute path of the program a spawn event runs, or the event itself when none can be named."""
+    import shutil
+
+    name: object = None
+    if event == "subprocess.Popen":
+        executable, argv = (args + (None, None))[:2]
+        name = executable if executable is not None else (argv[0] if isinstance(argv, (list, tuple)) and argv else argv)
+    elif event == "_posixsubprocess.fork_exec" and len(args) > 1 and isinstance(args[1], (list, tuple)) and args[1]:
+        name = args[1][0]  # (the executable candidates, the argument list, ...): the program is argv[0]
+    if isinstance(name, (str, bytes, os.PathLike)):
+        found = shutil.which(os.fsdecode(name))
+        if found is not None:
+            return os.path.realpath(found)
+    return event
 
 
 def _audit(event: str, args: tuple[object, ...]) -> None:
@@ -76,9 +109,9 @@ def _audit(event: str, args: tuple[object, ...]) -> None:
         return
     if event in _READ_EVENTS:
         mode = args[1] if len(args) > 1 and isinstance(args[1], str) else "r"
-        if not any(c in mode for c in "wax+"):
+        if not any(c in mode for c in "wax+") and not _by_importer(2):
             _offer("opened", args[0] if args else None)
-    elif event in _LIST_EVENTS and not _importing():
+    elif event in _LIST_EVENTS and not _by_importer(2):
         _offer("listed", args[0] if args else None)
     elif event in _SPAWN_EVENTS and not getattr(_SPAWNING, "on", False):
         program = _program(event, args)
@@ -86,18 +119,15 @@ def _audit(event: str, args: tuple[object, ...]) -> None:
             recording.spawned.add(program)
 
 
-def _program(event: str, args: tuple[object, ...]) -> str:
-    """The absolute path of the program a spawn event runs, or the event itself when none can be named."""
-    import shutil
+def _probing(name: str):
+    original = _STAT[name]
 
-    if event == "subprocess.Popen":
-        executable, argv = (args + (None, None))[:2]
-        name = executable if executable is not None else (argv[0] if isinstance(argv, (list, tuple)) and argv else argv)
-        if isinstance(name, (str, bytes, os.PathLike)):
-            found = shutil.which(os.fsdecode(name))
-            if found is not None:
-                return os.path.realpath(found)
-    return event
+    def probe(path, *args, **kwargs):
+        if _ACTIVE and not _by_importer(2):
+            _offer("probed", path)
+        return original(path, *args, **kwargs)
+
+    return probe
 
 
 class Recording:
@@ -106,9 +136,11 @@ class Recording:
     def __init__(self) -> None:
         self.codes: set = set()
         self.opened: set[str] = set()
+        self.probed: set[str] = set()
         self.listed: set[str] = set()
         self.spawned: set[str] = set()
         self.relative = False
+        self.directory = os.getcwd()
         self.children: set[tuple[str, str, str]] = set()
         self._tool: int | None = None
 
@@ -132,6 +164,9 @@ class Recording:
 
             monitoring.register_callback(self._tool, monitoring.events.PY_START, started)
             monitoring.set_events(self._tool, monitoring.events.PY_START)
+            if not _ACTIVE:
+                os.stat, os.lstat = _probing("stat"), _probing("lstat")
+            self.directory = os.getcwd()
             _ACTIVE.append(self)
         return self
 
@@ -146,6 +181,8 @@ class Recording:
             monitoring.restart_events()
             self._tool = None
             _ACTIVE.remove(self)
+            if not _ACTIVE:
+                os.stat, os.lstat = _STAT["stat"], _STAT["lstat"]
 
 
 def note_child(child: tuple[str, str, str]) -> None:
@@ -165,7 +202,7 @@ class spawning:
 
 
 def main() -> None:
-    """Record from the first line, then run the job; answer through the result descriptor the parent passed.
+    """Record from the first line, then run the job; answer through the descriptor the parent reads.
 
     Standard output is redirected to standard error before the job runs, so a ``print`` in a generator
     cannot corrupt the answer (qa finding 9 of 2026-10-04).
