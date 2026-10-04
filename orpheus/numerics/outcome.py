@@ -83,6 +83,12 @@ class Measured:
 
     value: float
 
+    def __truediv__(self, other: Measured) -> Measured:
+        """The quotient of two measurements is a measurement (a ratio observable's production reading)."""
+        if not isinstance(other, Measured):
+            return NotImplemented
+        return Measured(self.value / other.value)
+
 
 @dataclass(frozen=True)
 class Asserted:

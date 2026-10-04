@@ -868,3 +868,77 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
     require(not hasattr(cls, "floor_holds"), "an uncertified comparison has a floor")
     a, b = _compare(1.0), _compare(1.0)
     require(a is not b, "the verb returned a stored object")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# R7.19-R7.20 — the ratio rule, spelled once (#405 P2 step 7b.2 prerequisite)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def test_r7_19_every_answer_reads_a_ratio_through_the_one_quotient(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ROUTE (the one-definition witness, X4): ``Ratio.quotient(read)`` is the
+    ratio rule for every answer. Rebinding it to a decoy that divides the
+    other way moves the readings of BOTH the production homogeneous answer and
+    the exact reference at once, each calling it once, so neither keeps a
+    private rule. Activation: honestly, both read the group-0/group-1 ratio
+    (not its reciprocal), and it is not 1."""
+    mixture = sf.fuel()
+    result = s7.solve_homogeneous(mixture)
+    reference = s6.exact_medium_reference(_medium(mixture))
+    Ratio = s5.c(s5.OBSERVABLE, "Ratio")
+    ratio = Ratio(s6.group_flux(0), s6.group_flux(1))
+    honest = (result.read(ratio).value, reference.read(ratio).value)
+    require(abs(honest[0] - float(result.flux[0]) / float(result.flux[1])) <= 4 * math.ulp(honest[0]) and honest[0] != 1.0,
+            f"activation: the production ratio {honest[0]!r}")
+    calls: list[str] = []
+
+    def reversed_quotient(self: Any, read: Any) -> Any:
+        calls.append(type(read.__self__).__name__)
+        return read(self.denominator) / read(self.numerator)
+
+    monkeypatch.setattr(Ratio, "quotient", reversed_quotient)
+    moved = (result.read(ratio).value, reference.read(ratio).value)
+    require(sorted(calls) == ["HomogeneousResult", "ReferenceSolution"], f"the quotient was called by {calls}")
+    for h, m, who in zip(honest, moved, ("production", "reference")):
+        require(abs(m * h - 1.0) <= 1e-14, f"the {who} reading did not move with the rule: {h!r} -> {m!r}")
+
+
+_MEASURED_QUOTIENTS = (
+    ("dyadic", lambda: Measured(3.0) / Measured(2.0), 1.5),
+    ("non-dyadic", lambda: Measured(1.0) / Measured(3.0), 1.0 / 3.0),
+    ("negative", lambda: Measured(-3.0) / Measured(2.0), -1.5),
+)
+
+
+@pytest.mark.parametrize("quotient, value", [r[1:] for r in _MEASURED_QUOTIENTS], ids=[r[0] for r in _MEASURED_QUOTIENTS])
+def test_r7_20_the_quotient_of_two_measurements_is_a_measurement(quotient: Any, value: float) -> None:
+    """A ratio observable's production reading: ``Measured / Measured`` is
+    ``Measured(a.value / b.value)``, the float quotient."""
+    q = quotient()
+    require(type(q) is Measured and q.value == value, f"{q!r}")
+
+
+def _untyped(value: Any) -> Any:
+    """A value the type checker does not narrow (the row tests a RUNTIME refusal)."""
+    return value
+
+
+_NOT_MEASURED_OPERANDS = (
+    ("over-an-enclosure", lambda: Measured(1.0) / s5.enclosure(2.0, 0.0)),
+    ("an-enclosure-over", lambda: s5.enclosure(2.0, 0.0) / Measured(1.0)),
+    ("over-an-uncertified", lambda: Measured(1.0) / s6.uncertified(2.0)),
+    ("over-a-bare-float", lambda: Measured(1.0) / _untyped(2.0)),
+)
+
+
+@pytest.mark.parametrize("quotient", [r[1] for r in _NOT_MEASURED_OPERANDS], ids=[r[0] for r in _NOT_MEASURED_OPERANDS])
+def test_r7_20_a_measurement_does_not_divide_by_a_reference_reading(quotient: Any) -> None:
+    """A production reading and a reference reading never combine (G3, the
+    disjoint sums): ``Measured / Enclosure`` and the reverse, ``Measured /
+    Uncertified`` and ``Measured / float`` are a ``TypeError``. Division by a
+    zero measurement raises ``ZeroDivisionError``."""
+    with pytest.raises(TypeError):
+        quotient()
+    with pytest.raises(ZeroDivisionError):
+        returned = Measured(1.0) / Measured(0.0)
+        require(False, f"a division by a zero measurement returned {returned!r}")

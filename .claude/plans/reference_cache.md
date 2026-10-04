@@ -1344,6 +1344,30 @@ Open: **7b** (the migration of the 4 `certify_agreement` files) waits for the us
 
 The user accepted the lean: "I think it's a good decision until we face something that might contradict it (if we face it)." A reference whose family cannot derive a bound reads an **`Uncertified(value)`**, a third member of `ReferenceReading` (`Enclosure | Printed | Uncertified`). The `VerificationCertificate` refuses it (it cannot anchor a verification); a test compares against it through an explicit uncertified comparison at its current tolerance, so the weaker claim is visible in the code. R6.5 (today: `NotCertified`) is re-posed with it. Revisit if a case contradicts it.
 
+### Step 7b.1 landed; step 7b.2 ruled (2026-10-03)
+
+**7b.1 `[LANDED 380c0109]`** (branch `feature/reference-uncertified-reading`): `Uncertified`; `Derivation.evaluate` (renamed from `establish`); `Uncertifiable`, `Exact`'s one cancellation refusal, which carries the value at the working precision; `ReadingUncertified`; `compare_uncertified`, which accepts exactly the readings the verbs cannot anchor on and refuses a reading a Valid reference encloses. Spec §1.7b.1; 377 gates and 1 strict xfail; battery 36 of 36. Filed #567 (Symbolic admits non-real or non-finite expressions) and #568 (certify a cancelling constant by SymPy's absolute accuracy record; the strict xfail cites it).
+
+**7b.2's specification** is spec §1.7b.2 (the test-architect, 2026-10-03). Its order:
+1. the trajectory-resolvent reference over the A|B|A `GeometrySpecification`: lazy, no certificate, every reading `Uncertified`, read as the transport integral of the emission density (one transport: the chord oracle carved so that the knots and the evaluation points are two separate arguments);
+2. the SN production reading `Solution.read`, with a mesh-tier cell co-vector of a mesh-free weight;
+3. the migration;
+4. the `verifies` markers dropped from the 7 migrated functions (the label's verifying rows go 9 → 3, homogeneous reduction only).
+
+**Rulings (the user, 2026-10-03):**
+1. **The cylinder's full extension reading:** measure it when it lands; if it costs more than about 10 minutes, the record row keeps its k keys and drops its shape keys.
+2. **The mesh carries region labels, not its geometry.** The mesher composed its cell → region map with region → material and kept only the composite (`mat_ids`), so a per-region weight could not be read. The user proposed holding the geometry as optional "mesh metadata" (hints: the symmetry group for the quadrature pick; no metadata, no hints), and objected to requiring it: a mesh from Gmsh or Ansys carries no originating geometry, and usually no coordinate system (Cartesian assumed). What an external mesh does carry is its cell labels (Gmsh physical volume groups) and boundary face tags (physical surface groups). So:
+   - `Mesh1D` holds `regions`, a region label on each cell. It is required; an unlabelled mesh is one region. The mesher writes the labels it knows.
+   - `Mesh1D` holds a region → material map, and `mat_ids` is derived from the labels and that map.
+   - The geometry is left out of the mesh: it is optional provenance, for later (symmetry hints).
+   - The region → material map moves to the system with the posing work (#522; the posing ruling "`material_at` = `region_at` composed with the system's region → material map, spelled once").
+   - This refines the posing plan's 2026-09-26 `Mesh1D(geometry, partition)`, refuted FOR external meshes. The FACT it keeps: the mesh refines a region partition.
+
+   It is the first carve of 7b.2 (W3: the test-architect's census and gates first).
+3. **Prerequisite fixes in 7b.2:**
+   - `FluxIntegral` refuses a weight that depends on direction (μ, or the azimuth), at construction: the observable is a functional of the scalar flux.
+   - "A ratio reads as the quotient of its operands' readings" is spelled once.
+
 ## ⏸ COMPACTION POINT — 2026-10-03, P2 through step 7a (supersedes the point after P1)
 
 State: `main` `698f367b` (plan-only tip; the last code tip `17782c7e`, CI `gates` run 37157022977 green), clean apart from `scratch/`. Full-suite baseline at `17782c7e`: 14 856 passed, 264 skipped, 55 xfailed; the 4 `test_write_guards` failures are worktree artefacts.

@@ -119,7 +119,7 @@ class ReferenceSolution:
 
     def _read(self, observable: Observable) -> Enclosure | Uncertified:
         if isinstance(observable, Ratio):
-            return self._read(observable.numerator) / self._read(observable.denominator)
+            return observable.quotient(self._read)
         match self._evaluate(observable):
             case Exact() | DerivedBound() as established:
                 return established.enclosure()

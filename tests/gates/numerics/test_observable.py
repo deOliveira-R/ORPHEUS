@@ -9,7 +9,9 @@ member. The closed sum is ``Observable = FluxIntegral | Ratio | Eigenvalue |
 PointValue``. The values are physics-free and live in ``numerics``; whether a
 weight fits a problem (its groups, its regions, the coordinates a symbolic
 weight may read) is the specification's admission at READ time, never a
-second admission here.
+second admission here. One law is the observable's own and is refused at
+CONSTRUCTION (step 7b.2's prerequisite, R3.7): a flux integral pairs with the
+scalar flux, which has no direction, so its weight may not depend on μ or φ.
 
 Every class is resolved on its module at run time (``_cls``), never captured
 at collection, so a rebinding battery arm reaches every row (lessons
@@ -268,6 +270,61 @@ def test_r3_3_a_ratio_refuses_a_nonlinear_operand(operands: Any, role: str) -> N
     numerator, denominator = operands()
     with pytest.raises(TypeError, match=rf"Ratio: the {role} is a linear observable"):
         _cls("Ratio")(numerator, denominator)
+
+
+# R3.7 — a flux integral's weight has no direction (#405 P2 step 7b.2 prerequisite)
+
+def _direction_weights() -> tuple[tuple[str, Any], ...]:
+    import sympy
+
+    r, mu, phi = Symbolic.r, Symbolic.mu, Symbolic.phi
+    return (
+        ("mu", mu),
+        ("phi", phi),
+        ("a-step-in-mu", sympy.Piecewise((1, mu > 0), (0, True))),
+        ("mixed-r-mu", r * mu),
+    )
+
+
+_DIRECTION_IDS = ("mu", "phi", "a-step-in-mu", "mixed-r-mu")
+
+
+@pytest.mark.parametrize("which", _DIRECTION_IDS)
+@pytest.mark.parametrize("group", [0, 1])
+def test_r3_7_a_weight_that_depends_on_the_direction_is_refused_at_construction(which: str, group: int) -> None:
+    """The scalar flux has no direction, so a weight reading μ or φ is a
+    functional of the ANGULAR flux, not a flux integral: refused at
+    construction (``ValueError``, "depends on the direction"), before any
+    specification exists, whichever group carries the dependence. ``[M]``
+    before the fix the 7b.2 probe admitted 4 of 4 such shapes on both
+    coordinate systems."""
+    expression = dict(_direction_weights())[which]
+    expressions = [Symbolic.r + 1, Symbolic.r + 1]
+    expressions[group] = expression
+    with pytest.raises(ValueError, match="depends on the direction"):
+        _cls("FluxIntegral")(Symbolic.of(*expressions))
+
+
+def _accepted_weights() -> tuple[tuple[str, Any], ...]:
+    import sympy
+
+    return (
+        ("r-only", lambda: Symbolic.of(1 + Symbolic.r, Symbolic.r**2)),
+        ("cancelling-direction", lambda: Symbolic.of(sympy.sin(Symbolic.phi) ** 2 + sympy.cos(Symbolic.phi) ** 2, 1)),
+        ("regionwise-constant", _table),
+    )
+
+
+@pytest.mark.parametrize("which", ["r-only", "cancelling-direction", "regionwise-constant"])
+def test_r3_7_a_direction_free_weight_constructs(which: str) -> None:
+    """Positive legs: an r-only weight, ``sin(φ)² + cos(φ)²`` (spelled with φ
+    and independent of it: ``depends_on`` decides, the one definition of
+    independence) and a ``RegionwiseConstant`` construct and keep the
+    weight. Activation: the cancelling weight's text names φ."""
+    weight = dict(_accepted_weights())[which]()
+    if which == "cancelling-direction":
+        require("phi" in weight.srepr[0], f"activation: the weight does not spell phi: {weight.srepr[0]}")
+    require(_cls("FluxIntegral")(weight).weight == weight, "the weight is kept")
 
 
 _BAD_POINTS = (

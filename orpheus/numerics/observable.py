@@ -16,7 +16,8 @@ The closed set (the user's ruling of 2026-10-03):
 * :class:`FluxIntegral` ``(weight)``: the linear functional
   :math:`\langle w, \phi\rangle = \sum_g \int w_g(\vec r)\,\phi_g(\vec r)\,dV`
   of the scalar flux, the weight a mesh-free function over position and
-  group. It is the primitive: a reaction rate :math:`\langle w, T\phi\rangle`
+  group (a weight that depends on the direction is refused at construction:
+  the scalar flux has none, #405 P2 step 7b.2). It is the primitive: a reaction rate :math:`\langle w, T\phi\rangle`
   is the flux integral of the weight :math:`T^\top w` (for a removal cell, the
   weight times its cross section; for an emission cell, the weight contracted
   with the emission spectrum). The spelling ``Rate(cells, weight)`` will be a
@@ -63,13 +64,20 @@ spellings of one observable are one value and an observable can key a cache.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeAlias, final, get_args
+from collections.abc import Callable
+from typing import Any, Protocol, TypeAlias, final, get_args
 
 from orpheus.numerics.content import ContentIdentity, content_digest
-from orpheus.numerics.mesh_free_function import MeshFreeFunction, parse_mesh_free_function
+from orpheus.numerics.mesh_free_function import MeshFreeFunction, Symbolic, parse_mesh_free_function
 from orpheus.numerics.scalars import parse_finite_real, parse_index, parse_member
 
 __all__ = ["Eigenvalue", "FluxIntegral", "Linear", "Observable", "PointValue", "Ratio"]
+
+
+class _SupportsQuotient(Protocol):
+    """A reading that divides by another reading of the same kind."""
+
+    def __truediv__(self, other: Any, /) -> Any: ...
 
 
 @final
@@ -81,6 +89,11 @@ class FluxIntegral(ContentIdentity):
 
     def __post_init__(self) -> None:
         parse_mesh_free_function(self.weight, "FluxIntegral", "the weight")
+        if isinstance(self.weight, Symbolic) and self.weight.depends_on(Symbolic.mu, Symbolic.phi):
+            raise ValueError(
+                "FluxIntegral: the weight depends on the direction (mu or phi), and the scalar flux it pairs "
+                "with has none; a functional of the angular flux is not a flux integral"
+            )
         content_digest(self)
 
 
@@ -96,6 +109,10 @@ class Ratio(ContentIdentity):
         for noun, operand in (("the numerator", self.numerator), ("the denominator", self.denominator)):
             parse_member(operand, get_args(Linear), "Ratio", noun, "a linear observable")
         content_digest(self)
+
+    def quotient[R: _SupportsQuotient](self, read: Callable[[Linear], R]) -> R:
+        """The ratio's reading: the quotient of its operands' readings under ``read``, for every answer alike."""
+        return read(self.numerator) / read(self.denominator)
 
 
 @final

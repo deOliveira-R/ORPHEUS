@@ -140,8 +140,8 @@ class HomogeneousResult:
             case FluxIntegral(weight=weight):
                 weights = np.array([float(w) for w in values_without_position(weight, self.flux.shape[0])])
                 return Measured(float(np.dot(weights, self.flux)))
-            case Ratio(numerator=numerator, denominator=denominator):
-                return Measured(self.read(numerator).value / self.read(denominator).value)
+            case Ratio() as ratio:
+                return ratio.quotient(self.read)
             case PointValue():
                 raise ValueError("HomogeneousResult: a point value names a position, and a 0-D answer has none")
             case _:
