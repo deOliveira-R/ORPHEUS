@@ -56,8 +56,14 @@ account. It has six modules:
   claim that disagrees with the derivation cannot be built, nor one the
   derivation leaves uncertified). Where a family cannot derive a bound the
   reading is :class:`~orpheus.reference.reading.Uncertified`. Every value but the
-  reference solution itself is a content value; the reference solution is
-  keyed by its derivation's execution trace in phase P3;
+  reference solution itself is a content value. The reference solution is
+  not itself cached: since phase P3 a derivation's ``evaluate`` may be a
+  traced memo keyed on the derivation's content and the observable, whose
+  entry is valid for as long as the code that ran to produce it is
+  unchanged (the trajectory resolvent's is; the exact infinite medium's,
+  cheaper than one interpreter start, is not), and the certificate is
+  re-checked against that evaluation where the solution is built
+  (:ref:`verification-reference-cache`);
 * :mod:`orpheus.reference.verification`: a production answer's reading put
   on trial against a ``Valid`` reference. A
   :class:`~orpheus.reference.verification.VerificationCertificate` reads both
@@ -85,7 +91,8 @@ and nothing above them, and :mod:`orpheus.derivations` imports it, never
 the converse (:ref:`architecture-layering`). Every value in it is a
 :class:`~orpheus.numerics.content.ContentIdentity`, admitted at
 construction, so two spellings of one value are one value and can key a
-cache (the reference solution excepted, until phase P3 keys it). The
+cache (the reference solution excepted: it is rebuilt where it is
+asked for, and what phase P3 caches is its derivation's evaluation). The
 theory, the design's reasons and the error ontology it rests on are
 :ref:`verification-reference-architecture`; the rulings are the plan of record
 ``.claude/plans/reference_cache.md`` (issue #405, phase P2), with the

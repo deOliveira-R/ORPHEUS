@@ -1570,7 +1570,7 @@ The specification is `.claude/plans/reference_p3_spec.md`. It has 5 steps and 96
   - **The answer to the certificate question**, from `orpheus/reference/solution.py`:
     - The memo sits BELOW the certificate. It caches what `derivation.evaluate` returns: an `Establishment` (`Exact` or `DerivedBound`, with its enclosure) or `Uncertified`. It never caches the certificate or a verdict.
     - The factory builds the certificate in the process that asks. `ReferenceSolution.__post_init__` re-checks every claimed observable against the evaluation, cached or computed, so a cached establishment that disagrees with the claim is refused at construction.
-    - A `ConvergedLadder` certificate's run, which is expensive, becomes a memo client in P4 (W5 H: the certificate is a traced memo of its certification run).
+    - A P4 family's certification run, which is expensive, becomes a memo client in P4 (W5 H: the certificate is a traced memo of its certification run). `[REFUTED 2026-10-04]` the earlier wording named it a `ConvergedLadder` run; P2 retired `ConvergedLadder` (step 5 ruling: no ladder certifies), and no such class exists in `orpheus/` (`[M]` grep, 0 hits).
 - **Q2:** the key adds the type tree of the top-level arguments. The solvers' six array parameters are declared canonical.
 - **Q4:** the data-file record (an audit hook on `open`) lands in P3 with M3.17. Its blind spot is stated where it is built: a C library that opens a file itself raises no audit event, so such a generator takes the file's digest as an argument.
 - **The rest, accepted as recommended:**
@@ -1617,3 +1617,5 @@ The specification is `.claude/plans/reference_p3_spec.md`. It has 5 steps and 96
   - **A defect found while fixing:** in the generating process the boot file runs as `__main__`, so the memo's import of it loaded a second copy whose list of active recordings was empty. It is aliased in `sys.modules`.
 - **Gates.** `tests/gates/numerics/test_traced_memo_findings.py` has one gate per finding, each the assertion form of qa's reproducer (18 rows). A fix battery of 8 arms reddened its gate in 8 of 8 (`scratch/reference_architecture/p3/fixbattery/run.log`). The cycle arm left 192 recursing processes, which were then killed: with the guard removed, the failure is unbounded, as predicted.
 - **Not a gate, by declaration:** an absence probed without opening the file (`exists`, `stat`) raises no audit event, and is stated in the module docstring.
+
+**Owed before P3 closes (2026-10-04):** the specification's §3 timing protocol (cold, warm and bypassed, three serial runs) on the shipped memo, since the per-file table in the spec is the prototype's. The archivist's one run on the shipped memo, best of 3, machine load about 6: cold 10.73 s, warm 0.022 s, in-process 4.32 s. A citation for "build systems with dynamic dependencies and early cutoff" (Mokhov, Mitchell and Peyton Jones 2018) is a W7 acquisition, filed as an issue.

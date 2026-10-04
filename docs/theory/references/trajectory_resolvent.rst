@@ -4203,7 +4203,9 @@ and whose certificate is ``None``. It answers the fundamental
 k-eigenvalue question on a layered solid sphere or cylinder with a
 specular outer law, it is **lazy** (construction solves nothing; the
 power iteration runs once, on the first reading, and is held by the
-derivation), and **every reading is**
+derivation; across processes the reading and its solve are traced-memo
+entries, generated once and served until the code that produced them
+changes, :ref:`verification-reference-cache`), and **every reading is**
 :class:`~orpheus.reference.reading.Uncertified`, because the family
 derives no bound on its distance to the exact answer (#566; the cylinder
 also #516). The architecture it plugs into, and why an uncertified

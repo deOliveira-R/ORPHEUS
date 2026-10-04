@@ -63,7 +63,9 @@ you where its theory lives.
        taxonomy, the test-harness tagging contract, the cross-method (L4)
        protocol, the reference-solution contract, the readings, claims and
        certificates a reference and a verification are made of
-       (:ref:`verification-reference-architecture`), and the
+       (:ref:`verification-reference-architecture`), the cache that serves a
+       reference reading again until something that produced it changes
+       (:ref:`verification-reference-cache`), and the
        auto-generated per-equation verification matrix.
      - Designing or tagging a test, auditing coverage, or asking "what
        pins this equation?"

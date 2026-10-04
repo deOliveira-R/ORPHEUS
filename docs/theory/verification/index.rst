@@ -81,6 +81,15 @@ The chapters
        error ontology.
      - Comparing a solver with a reference; adding a reference family;
        asking what a reference's number guarantees.
+   * - :doc:`reference_cache`
+     - The reference cache (#405 P3): the traced memo, a reference reading
+       memoised on disk under a key that misses exactly when something that
+       ran to produce it changed; the recorded execution as a generator's
+       identity, a fresh process per miss, the exact key, the manifest's
+       pins, the exact payload, the bypass, and the memo's place below the
+       certificate.
+     - Making a generator a cache client; a test that patches a generator;
+       asking why a cached reading was or was not served.
    * - :doc:`homogeneous`
      - The infinite-medium matrix eigenvalue — the shared analytical
        L1 anchor every solver family verifies against.
@@ -137,6 +146,7 @@ semi-analytical truth values are catalogued in the
    cross_method
    reference_solutions
    readings_and_certificates
+   reference_cache
    homogeneous
    sn
    collision_probability

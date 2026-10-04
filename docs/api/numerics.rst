@@ -542,6 +542,8 @@ refusals and the gates, is :ref:`structured-geometry-content-identity`.
 
 .. autofunction:: orpheus.numerics.content.encode
 
+.. autofunction:: orpheus.numerics.content.encode_exact
+
 .. autofunction:: orpheus.numerics.content.content_digest
 
 .. autofunction:: orpheus.numerics.content.name_digest
@@ -552,6 +554,42 @@ refusals and the gates, is :ref:`structured-geometry-content-identity`.
    :members: content_parts, content_digest
 
 .. autoclass:: orpheus.numerics.content.FrozenMapping
+
+.. autofunction:: orpheus.numerics.content.constructor_arguments
+
+The traced memo — :mod:`orpheus.numerics.traced_memo`, a pure function of
+content-identified arguments memoised on disk under ``.cache/references/``
+and keyed on what ran: on a miss the call is generated in a fresh
+interpreter that records, from its first line, every function that starts,
+every file it reads and every directory it lists
+(:mod:`orpheus.numerics._traced_memo_boot`); the entry keeps that
+:class:`~orpheus.numerics.traced_memo.Manifest` beside an exact payload,
+and a lookup validates the manifest against the checkout without importing
+or running anything. The key is
+:func:`~orpheus.numerics.content.encode_exact` of the function, its
+signature-bound arguments and the platform tag. The theory, with why the
+identity of a generator is its recorded execution, why a miss runs in a
+fresh process, each pin kind and what it guards, the payload, the bypass,
+the relation to the reference certificate, the clients, the limits no
+manifest can see and the review round's defects, is
+:ref:`verification-reference-cache`.
+
+.. automodule:: orpheus.numerics.traced_memo
+   :members: traced_memo, TracedMemo, bypass, cache_root, default_root,
+      Hit, Absent, Stale, Corrupt, Manifest, DefPin, ModulePin,
+      DistributionPin, InterpreterPin, DataPin, ListingPin,
+      WorkingDirectoryPin, ChildPin, MemoPin, validate, trace_call,
+      origin, function_digest, skeleton_digest, platform_tag,
+      encode_payload, decode_payload, Unpinnable, Unencodable
+
+.. autodata:: orpheus.numerics.traced_memo.Pin
+   :no-value:
+
+.. autodata:: orpheus.numerics.traced_memo.Verdict
+   :no-value:
+
+.. automodule:: orpheus.numerics._traced_memo_boot
+   :members: Recording, note_child, spawning, main
 
 Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
 source and the detector a specification states before any mesh exists:

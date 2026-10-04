@@ -685,7 +685,10 @@ ahead with these rulings"), each binding here:
 3. **Certification is decoupled from caching.** A family without a derived
    bound has no ``Valid`` certificate and cannot anchor a verification
    certificate; phase P3's cache stores its readings regardless, so the
-   development cadence improves now. Existing tests comparing against
+   development cadence improves now (landed:
+   :ref:`verification-reference-cache`, where the memo sits below the
+   certificate and a cached evaluation is re-checked against every claim
+   exactly as a computed one). Existing tests comparing against
    uncertified references keep their current tolerances until each family
    is certified in P4.
 4. **No python-flint dependency** until the first family needs rigorous
@@ -1371,7 +1374,7 @@ Declared limits and their issues
 
 Out of P2 by design: ``Estimated`` (no Monte Carlo consumer), a typed
 citation locator (no consumer compares locators), the reference cache
-(phase P3) and the certified families (phase P4).
+(phase P3, :ref:`verification-reference-cache`) and the certified families (phase P4).
 
 
 Development history
