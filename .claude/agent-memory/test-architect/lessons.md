@@ -205,6 +205,7 @@ only the ORPHEUS mechanisms they do not name.
 - **⛔ A rebinding arm cannot reach a row PARAMETRIZED OVER OBJECTS** — the parameter list is built at
   collection, before the per-test rebind, so the row reads the original class and stays green. Key a
   row a battery must reach by NAME, resolved on the module at run time. → `L100`
+- **⛔ Exec'ing a module that defines a class mints a second class that import-time UNIONS do not name** (`Evaluation = A | B | C`, a `get_args` tuple): rebinding names cannot reach a union object, so every arm reds for the identity, not the mutation. Patch the transformed METHODS onto the live class, and set the class name in the patched globals to the LIVE class (else the copied methods mint the mutant). → `L104`
 - **⛔ An arm that rewrites a field of a content value AFTER construction is blind on every identity row** — the
   constructor's eager `content_digest(self)` is cached by `id` (`content._DIGESTS`), so `==`/`hash`/digest keep
   reading the honest content: drop the cache entry in the arm. And key arms that must survive the real module to a
