@@ -6046,3 +6046,13 @@ rows were in fact live. Capturing `_orig = SC.parse_real` before the loop: 4
 reds, exactly the target rows. Not covered by `vv-principles` #17(e) (it says
 patch every rebinding site, not how the site list is computed) nor by the
 activation-count check (the count was non-zero, from the wrong callers).
+
+## L-096 — a battery reaper keyed on a process-name pattern kills every concurrent workload that spawns the same pattern, and its victim reads as a red (2026-10-04, W3 #405 P3 second QA, `39ee20f2`)
+
+The battery's `reap()` ran `pkill -9 -f _traced_memo_boot` after every arm (owed: a cycle arm had left 192
+recursing processes). In a SECOND worktree I ran the M4.6 demotion arm B concurrently; its memo children
+carry the same command-line token, and one was killed mid-generation. pytest reported 1 failed
+(`RuntimeError: the process generating … failed:` with an EMPTY stderr) on an arm whose prediction was all
+green. Re-run uncontended: 15 of 15 green. The empty stderr was the tell (a SIGKILL leaves none). Not covered
+by `process-discipline` "Mutation-testing an uncommitted file" (it covers the restore and the timeout, not
+the reaper's reach) nor by `vv-principles` #17 (it covers the arm's own process, not a neighbour's).

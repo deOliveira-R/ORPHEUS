@@ -59,3 +59,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Reflective albedo retirement blast](reflective_albedo_retirement_blast.md) — descriptor vs realized algebra; reflective_axes isinstance door; transcriptions break.
 - [Boundary-law method matrix](boundary_law_method_matrix.md) — typed laws skip the registry; admitted-but-mis-realized is a status; no law in all five.
 - [Content identity landscape](content_identity_landscape.md) — who hashes, who raises, Materials unpicklable; the eq/hash spy is the census.
+- [Traced-memo client census](traced_memo_client_census.md) — unpickle skips __post_init__ (untraced); MR result all-data; key needs bind.

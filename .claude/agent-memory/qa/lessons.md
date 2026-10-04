@@ -607,6 +607,10 @@ look forced. → L-090
 
 ---
 
+- **A reaper keyed on a process-name pattern owns every process with that pattern.** Run nothing that spawns
+  the pattern while a battery reaps, or reap by process group. check: a red whose child stderr is EMPTY is a
+  kill until shown otherwise; re-run it uncontended. → L-096
+
 ## I. Retired INTO the skills and rules — point, don't restate
 
 Each row was a digest rule until this pass; its correction now lives at the named

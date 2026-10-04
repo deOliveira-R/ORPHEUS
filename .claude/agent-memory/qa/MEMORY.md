@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W3 #405 P3 traced memo, second review (2026-10-04) | L-096 → H (reaper reach) |
 | W3 #405 P1 step 5 content identity (2026-10-02) | L-095 → A25 |
 | W3 reflective cleanup (2026-10-01) | L-094 → F27 |
 | W2 ERR-094 partial-reflector fixes (2026-09-30) | L-093 → F26 |

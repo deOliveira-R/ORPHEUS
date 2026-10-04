@@ -100,6 +100,9 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   needs an ACTIVATION leg. The DECOY must clear the PRODUCTION ADMISSION GUARDS
   of the arm the gate lives on, not merely discriminate — print its
   discriminating array first. → `L64a`, `L65c`, `L66b`
+  Rider: a claim seen THROUGH an indirection (a child reference, a delegate) owes a leg that the DIRECT route
+  is absent; on Python ≥ 3.12 `get_type_hints` runs generated `__annotate__` code at the def's line, which
+  silently pins a body that never ran. → `L105`
 - **⭐ Ship the arms designed to go GREEN, and read the ones that do not.** A
   DECLARED PARTIAL NULL arm is the only instrument that can state a flagship
   gate's own Mode-12 blindness. A DECLARED-BLIND arm that REDDENS is a finding
