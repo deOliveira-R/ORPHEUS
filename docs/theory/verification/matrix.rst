@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15764**
+Total tests collected: **15784**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 8.6%
+   L0, 1348, 8.5%
    L1, 2251, 14.3%
-   L2, 71, 0.5%
+   L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12067, 76.5%
+   foundation, 12087, 76.6%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15658
+   explicit, 15678
    class-name, 46
    func-name, 0
    case, 33
@@ -269,7 +269,7 @@ Module × level grid
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 14, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 18, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
-   derivations/test_trajectory_resolvent_reference, 0, 0, 0, 0, 46, 0
+   derivations/test_trajectory_resolvent_reference, 0, 0, 0, 0, 54, 0
    derivations/test_trajectory_resolvent_regionwise_source, 2, 0, 0, 0, 1, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_augmented_mesh, 0, 0, 0, 0, 10, 0
@@ -478,7 +478,7 @@ Module × level grid
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_traced_memo_clients, 0, 0, 0, 0, 13, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
-   numerics/test_traced_memo_findings, 0, 0, 0, 0, 18, 0
+   numerics/test_traced_memo_findings, 0, 0, 0, 0, 30, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 22, 0
    numerics/test_traced_memo_process, 0, 0, 0, 0, 27, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 18, 0
