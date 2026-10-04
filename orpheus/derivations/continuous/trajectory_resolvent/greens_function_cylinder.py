@@ -118,11 +118,13 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     _composite_per_region_gl,
+    emission_density,
 )
 from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
     CylinderChordOracle,
@@ -638,6 +640,11 @@ class CylinderGreensMRResult:
     region_at_node: np.ndarray
     iterations: int
     converged: bool
+    #: (G, n_r): the source the final iterate was transported from, q_g/(4π) per steradian.
+    last_emission_density: np.ndarray
+    #: The final iterate's normaliser: ``psi_g`` is the transport of
+    #: ``last_emission_density`` divided by this total fission rate, elementwise.
+    last_fission_rate: float
 
 
 def solve_greens_function_cylinder_mr(
@@ -870,8 +877,6 @@ def solve_greens_function_cylinder_mr(
         except (np.linalg.LinAlgError, ValueError):
             k_eff = 1.0
 
-    inv_4pi = 1.0 / (4.0 * np.pi)
-
     def total_fission_rate(phi_g_local: np.ndarray) -> float:
         """Per unit cylinder length: 2π ∫_0^R Σ_g νΣ_f,g(r) φ_g(r) r dr.
 
@@ -883,32 +888,16 @@ def solve_greens_function_cylinder_mr(
             2.0 * np.pi * np.sum(F_r * r_nodes * r_weights)
         )
 
+    last_source: dict[str, Any] = {}
+
     def _step(psi_iter, k_iter):
         phi_g = np.einsum(
             'grmp,m,p->gr', psi_iter, mu_axial_weights, phi_az_weights,
         )  # (G, n_r)
 
-        # Per-node σ_s, νΣ_f, χ
-        sigma_s_nodes = sigma_s[region_at_node, :, :]  # (n_r, G, G)
-        nuf_nodes = nu_sigma_f[region_at_node, :]      # (n_r, G)
-        chi_nodes = chi[region_at_node, :]             # (n_r, G)
-
-        # Scatter source per-group at each node:
-        # sum_{g'} σ_s[r, g', g] · φ_{g'}(r) → (n_r, G)
-        scatter_source = np.einsum(
-            'rsg,sr->rg', sigma_s_nodes, phi_g,
-        )
-
-        # Fission rate per node: F(r) = Σ_g' νΣ_f,g'(r) · φ_{g'}(r)
-        F_r = np.einsum('rg,gr->r', nuf_nodes, phi_g)  # (n_r,)
-
-        # Fission source per group: χ_g(r) · F(r) / k
-        fission_source = (chi_nodes / k_iter) * F_r[:, None]
-
-        # Per-group source profile: shape (G, n_r)
-        source_profile_g = inv_4pi * (
-            (scatter_source + fission_source).T
-        )
+        source_profile_g = emission_density(
+            sigma_s, nu_sigma_f, chi, region_at_node, phi_g, k_iter,
+        )  # (G, n_r), per steradian
 
         # Apply per-group multi-region cylinder operator
         psi_new = np.zeros_like(psi_iter)
@@ -932,10 +921,10 @@ def solve_greens_function_cylinder_mr(
         phi_g_new = np.einsum(
             'grmp,m,p->gr', psi_new, mu_axial_weights, phi_az_weights,
         )
-        return (
-            psi_new, total_fission_rate(phi_g),
-            total_fission_rate(phi_g_new),
-        )
+        fission_rate_new = total_fission_rate(phi_g_new)
+        last_source["emission_density"] = source_profile_g
+        last_source["fission_rate"] = fission_rate_new
+        return psi_new, total_fission_rate(phi_g), fission_rate_new
 
     pi_result = power_iterate_variant_alpha(
         _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
@@ -959,4 +948,6 @@ def solve_greens_function_cylinder_mr(
         region_at_node=region_at_node,
         iterations=iterations,
         converged=converged,
+        last_emission_density=last_source["emission_density"],
+        last_fission_rate=last_source["fission_rate"],
     )

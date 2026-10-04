@@ -526,6 +526,7 @@ class MultiRegionSphereChordOracle:
         sigma_t: float,
         *,
         n_traj_quad: int,
+        at: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""MR-sphere Variant α operator. See
         :meth:`ChordOracle.apply_operator`.
@@ -534,8 +535,16 @@ class MultiRegionSphereChordOracle:
         per-region :math:`\Sigma_{t,k}` carried by the oracle's
         :attr:`sigma_t_per_region` is used instead. The argument is
         present for Protocol conformance.
+
+        The emission density ``source_profile`` lives on the KNOTS,
+        :attr:`r_nodes`; ``at`` are the radii the transported angular flux
+        is evaluated at, ``(n_at,)``, the knots when omitted (the solver's
+        call). The two are separate arguments so that one transport serves
+        the power iteration (at its nodes) and the reference's reading of
+        the natural extension (anywhere, #405 P2 step 7b.2.2): the spline is
+        always built on the knots. Returns ``(n_at, n_mu)``.
         """
-        r_nodes = self.r_nodes
+        r_eval = self.r_nodes if at is None else np.asarray(at, dtype=float)
         mu_nodes = self.mu_nodes
         R = self.R
         radii = self.radii
@@ -543,18 +552,18 @@ class MultiRegionSphereChordOracle:
         alpha = self.alpha
 
         source_in_region = _regionwise_cubic_spline(
-            r_nodes, source_profile, self.region_at_node, len(radii),
+            self.r_nodes, source_profile, self.region_at_node, len(radii),
         )
         s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
         s_unit = 0.5 * (s_quad_raw + 1.0)
         w_unit = 0.5 * w_quad_raw
 
-        n_r = len(r_nodes)
+        n_r = len(r_eval)
         n_mu = len(mu_nodes)
         psi_new = np.zeros((n_r, n_mu))
 
         for i in range(n_r):
-            r = r_nodes[i]
+            r = r_eval[i]
             for q_idx in range(n_mu):
                 mu = mu_nodes[q_idx]
 
@@ -935,6 +944,7 @@ class MultiRegionCylinderChordOracle:
         sigma_t: float,
         *,
         n_traj_quad: int,
+        at: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""MR-cylinder Variant α operator. See
         :meth:`ChordOracle.apply_operator`.
@@ -955,8 +965,14 @@ class MultiRegionCylinderChordOracle:
         :func:`_regionwise_cubic_spline` (ERR-090), where the
         homogeneous oracle, whose density has no interface, uses one
         spline.
+
+        As on the sphere, ``source_profile`` lives on the knots
+        :attr:`r_nodes` and ``at`` are the evaluation radii, ``(n_at,)``,
+        the knots when omitted: one transport for the solver and the
+        reference's reading (#405 P2 step 7b.2.2). Returns
+        ``(n_at, n_mu_axial, n_phi_az)``.
         """
-        r_nodes = self.r_nodes
+        r_eval = self.r_nodes if at is None else np.asarray(at, dtype=float)
         mu_axial_nodes = self.mu_axial_nodes
         phi_az_nodes = self.phi_az_nodes
         R = self.R
@@ -965,20 +981,20 @@ class MultiRegionCylinderChordOracle:
         alpha = self.alpha
 
         source_in_region = _regionwise_cubic_spline(
-            r_nodes, source_profile, self.region_at_node, len(radii),
+            self.r_nodes, source_profile, self.region_at_node, len(radii),
         )
 
         s_quad_raw, w_quad_raw = np.polynomial.legendre.leggauss(n_traj_quad)
         s_unit = 0.5 * (s_quad_raw + 1.0)
         w_unit = 0.5 * w_quad_raw
 
-        n_r = len(r_nodes)
+        n_r = len(r_eval)
         n_mu = len(mu_axial_nodes)
         n_phi = len(phi_az_nodes)
         psi_new = np.zeros((n_r, n_mu, n_phi))
 
         for i in range(n_r):
-            r = r_nodes[i]
+            r = r_eval[i]
             for q_idx in range(n_mu):
                 mu_axial = mu_axial_nodes[q_idx]
                 s_in_plane = np.sqrt(max(1.0 - mu_axial * mu_axial, 1e-300))

@@ -95,6 +95,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -843,6 +844,41 @@ class GreensFunctionMRResult:
     region_at_node: np.ndarray  # (n_r,) — region index per radial node
     iterations: int
     converged: bool
+    #: (G, n_r): the source the final iterate was transported from, q_g/(4π) per steradian.
+    last_emission_density: np.ndarray
+    #: The final iterate's normaliser: ``psi_g`` is the transport of
+    #: ``last_emission_density`` divided by this total fission rate, elementwise.
+    last_fission_rate: float
+
+
+def emission_density(
+    sigma_s: np.ndarray,
+    nu_sigma_f: np.ndarray,
+    chi: np.ndarray,
+    region_at_node: np.ndarray,
+    phi_g: np.ndarray,
+    k: float,
+) -> np.ndarray:
+    r"""The isotropic emission density per steradian at the radial nodes, ``(G, n_r)``.
+
+    .. math::
+
+       \frac{q_g(r_i)}{4\pi} = \frac{1}{4\pi}\Big[\sum_{g'} \Sigma_{s,g'\to g}(r_i)\,\phi_{g'}(r_i)
+           + \chi_g(r_i)\,\frac{\sum_{g'} \nu\Sigma_{f,g'}(r_i)\,\phi_{g'}(r_i)}{k}\Big].
+
+    The one definition the multi-region sphere and cylinder power steps share
+    (``sigma_s[region, g_from, g_to]``; ``nu_sigma_f`` and ``chi``
+    ``(n_regions, G)``; ``phi_g`` ``(G, n_r)``). The source of a solve's final
+    iterate is its result's ``last_emission_density``, the reference's state
+    (:mod:`.reference`).
+    """
+    sigma_s_nodes = sigma_s[region_at_node, :, :]  # (n_r, G, G)
+    nuf_nodes = nu_sigma_f[region_at_node, :]      # (n_r, G)
+    chi_nodes = chi[region_at_node, :]             # (n_r, G)
+    scatter_source = np.einsum('rsg,sr->rg', sigma_s_nodes, phi_g)  # sum_g' sigma_s[r, g', g] phi_g'(r)
+    fission_rate = np.einsum('rg,gr->r', nuf_nodes, phi_g)  # F(r) = sum_g' nuSigma_f,g'(r) phi_g'(r)
+    fission_source = chi_nodes / k * fission_rate[:, None]  # chi_g(r) F(r) / k
+    return (1.0 / (4.0 * np.pi)) * ((scatter_source + fission_source).T)
 
 
 def solve_greens_function_sphere_mr(
@@ -1003,8 +1039,6 @@ def solve_greens_function_sphere_mr(
         except (np.linalg.LinAlgError, ValueError):
             k_eff = 1.0
 
-    inv_4pi = 1.0 / (4.0 * np.pi)
-
     def total_fission_rate(phi_g_local: np.ndarray) -> float:
         # Per-node νΣ_f from each node's region:
         #   nu_sigma_f_at_nodes[g, i] = nu_sigma_f[region_at_node[i], g]
@@ -1014,36 +1048,16 @@ def solve_greens_function_sphere_mr(
             4.0 * np.pi * np.sum(F_r * r_nodes ** 2 * r_weights)
         )
 
+    last_source: dict[str, Any] = {}
+
     def _step(psi_iter, k_iter):
         phi_g = 2.0 * np.pi * np.sum(
             psi_iter * mu_weights[None, None, :], axis=2,
         )  # (G, n_r)
 
-        # Per-node: sigma_s[region, :, :] · phi at node = scatter source
-        # into each group g at that node. nu_sigma_f and chi similar.
-        # Build per-node q_g(r)/(4π) source profile:
-        sigma_s_nodes = sigma_s[region_at_node, :, :]  # (n_r, G, G)
-        nuf_nodes = nu_sigma_f[region_at_node, :]      # (n_r, G)
-        chi_nodes = chi[region_at_node, :]             # (n_r, G)
-
-        # Scatter: sum_{g'} σ_s[r, g', g] · φ_{g'}(r) → (n_r, G)
-        # einsum 'rsg,sr->rg' over s = source group
-        scatter_source = np.einsum(
-            'rsg,sr->rg', sigma_s_nodes, phi_g,
-        )  # (n_r, G)
-
-        # Fission rate per node F(r) = Σ_g' νΣ_f,g'(r) · φ_{g'}(r)
-        F_r = np.einsum('rg,gr->r', nuf_nodes, phi_g)  # (n_r,)
-
-        # Fission source per group: χ_g(r) · F(r) / k
-        fission_source = (
-            chi_nodes / k_iter * F_r[:, None]
-        )  # (n_r, G)
-
-        # Per-group source profile: shape (G, n_r)
-        source_profile_g = inv_4pi * (
-            (scatter_source + fission_source).T
-        )
+        source_profile_g = emission_density(
+            sigma_s, nu_sigma_f, chi, region_at_node, phi_g, k_iter,
+        )  # (G, n_r), per steradian
 
         # Apply per-group multi-region operator
         psi_new = np.zeros_like(psi_iter)
@@ -1057,7 +1071,10 @@ def solve_greens_function_sphere_mr(
         phi_g_new = 2.0 * np.pi * np.sum(
             psi_new * mu_weights[None, None, :], axis=2,
         )
-        return psi_new, total_fission_rate(phi_g), total_fission_rate(phi_g_new)
+        fission_rate_new = total_fission_rate(phi_g_new)
+        last_source["emission_density"] = source_profile_g
+        last_source["fission_rate"] = fission_rate_new
+        return psi_new, total_fission_rate(phi_g), fission_rate_new
 
     pi_result = power_iterate_variant_alpha(
         _step, psi, initial_k=k_eff, max_iter=max_iter, tol=tol,
@@ -1080,6 +1097,8 @@ def solve_greens_function_sphere_mr(
         region_at_node=region_at_node,
         iterations=iterations,
         converged=converged,
+        last_emission_density=last_source["emission_density"],
+        last_fission_rate=last_source["fission_rate"],
     )
 
 

@@ -4180,6 +4180,59 @@ consumer, per the defer-until-two rule.
    **127**.
 
 
+.. _trajectory-resolvent-reference-reading:
+
+The reference's reading: the natural extension of the emission density
+-----------------------------------------------------------------------
+
+The multi-region sphere and cylinder are reference solutions
+(``trajectory_resolvent_reference`` in
+:mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`, #405
+P2 step 7b.2.2): lazy, with no certificate, every reading uncertified. The
+state a reading starts from is the emission density at the radial nodes,
+
+.. math::
+   :label: trajectory-resolvent-reading-emission-density
+
+   \frac{q_g(r_i)}{4\pi} = \frac{1}{4\pi}\Big[\sum_{g'} \Sigma_{s,g'\to g}(r_i)\,\phi_{g'}(r_i)
+       + \chi_g(r_i)\,\frac{\sum_{g'} \nu\Sigma_{f,g'}(r_i)\,\phi_{g'}(r_i)}{k}\Big],
+
+and the scalar flux at any radius is its transport integral, angle-integrated,
+
+.. math::
+   :label: trajectory-resolvent-reading-extension
+
+   \phi_g^{\rm ext}(r) = \int_{4\pi} \big(K_\alpha\,q_g/4\pi\big)(r, \Omega)\,d\Omega,
+
+with :math:`K_\alpha` the chord oracle's own body, evaluated at radii given
+apart from the density's knots (one transport). The angular integral is split
+at every tangency of a knot sphere or an interface; a flux integral is split
+radially at the interfaces, the knots, the region edges and the weight's
+steps.
+
+.. todo:: Archivist expansion needed.
+   The derivation lives in
+   :mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`
+   (``TrajectoryResolventDerivation``, ``trajectory_resolvent_reference``);
+   the transport is ``MultiRegionSphereChordOracle.apply_operator`` /
+   ``MultiRegionCylinderChordOracle.apply_operator`` with their ``at=``
+   argument. Gates: ``tests/gates/derivations/test_trajectory_resolvent_reference.py``
+   (R7b2.2–R7b2.7); spec ``.claude/plans/reference_p2_spec.md`` §1.7b.2.
+
+   Brief: why the reading is the natural extension and never the nodal
+   :math:`\phi` (the user's ruling 1 of 2026-10-03, one reference one
+   answer; E0, E1 and E2 of the step-7b.2 prototype and their measured
+   differences); why the emission density and not the flux is the state;
+   the split sets (a tangency is a square-root singularity in the angle; the
+   cylinder's axial cosine read as :math:`\cos\theta` because the 3-D lift
+   makes the integrand singular in :math:`\mu` at :math:`\pm 1`); the
+   quadrature orders and their measured errors; the cost (the sphere's 80
+   shape ratios, the cylinder's reading, and the RECORD consequence of the
+   user's 10-minute ruling); the refusals (anisotropic scattering, (n,2n),
+   every body outside the two multi-region arms, a scope boundary); and why
+   every reading is uncertified (#566, #516).
+
+
 .. _peierls-greens-valpha2-strengthening:
 
 V_α2 strengthening across geometries (sphere, cylinder, slab)

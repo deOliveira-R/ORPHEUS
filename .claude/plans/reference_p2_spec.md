@@ -551,6 +551,63 @@ New arms, each reddening its target row:
 | `read` keeps its own 2-D branch | 1 |
 | the no-mesh refusal dropped | 1 |
 
+#### 7b.2.2 The trajectory-resolvent reference (gates written 2026-10-03; the build landed in the working tree, then the review round)
+
+**The files.** Every production name is resolved once, in `tests/gates/derivations/_trajectory_resolvent_api.py`: the module path, the factory and its keywords, the oracle's `at=`, and `Symbolic.steps`. A renamed argument is therefore one edit.
+- `tests/gates/sn/verification/analytical/_aba_reference.py`: the A|B|A `GeometrySpecification`, sphere and cylinder, built from ISOTROPIC mixtures.
+- `test_aba_specification.py`: R7b2.1.
+- `tests/gates/derivations/test_trajectory_resolvent_reference.py`: R7b2.2–R7b2.7.
+
+**A finding, measured: the library mixtures carry a P1 moment.** `get_mixture("B", "2g")` has `SigS[1] = [[0.24, 0.108], [0, 1.17]]`, a mean cosine of 0.6. Both sides of the cross-check solve isotropic scattering: the trajectory resolvent always, the SN rows at `scattering_order=0`. A specification built from those mixtures would pose a problem neither side solves. So:
+- the specification is built from P0 rebuilds (`get_xs` without `sig_s1`);
+- the factory must refuse a specification with an anisotropic moment (R7b2.2, fragment "anisotropic").
+
+**The fixtures.** Both are at cheap resolutions: (8, 8) for the sphere, (8, 4, 8) for the cylinder; tolerance 1e-10.
+- The A|B|A body.
+- A UNIFORM two-region body: fuel A under material ids 0 and 1. It takes the multi-region route, and its solution is flat in space and in angle (the V_α1 identity). Every point therefore reads one value per group, and the group ratio is the infinite medium's, computed exactly in rational arithmetic (`exact_infinite_medium`), a structurally independent ground.
+
+| id | gate |
+|---|---|
+| R7b2.1 | the specification: breakpoints, material map, reflective law, isotropic materials, built once. The snapshot fixtures (sphere and cylinder) and the standoff and unified cylinder meshes put the specification's breakpoints at cell edges and map the regions to the same materials. The three material spellings carry identical isotropic transport data (`array_equal`). The library's P1 moment is pinned as the activation |
+| R7b2.2 | the factory returns a `ReferenceSolution` with no certificate and a `TrajectoryResolventDerivation`. Construction calls neither multi-region solver (a spy on the module attributes): the first reading solves once, later readings reuse the solve. Refusals before any solve: an infinite medium, a fixed source, an eigen question along scattering emission, a layered slab, anisotropic scattering |
+| R7b2.3 | every reading is `Uncertified` (an eigenvalue in (1, 1.6), a `Symbolic` and a regionwise flux integral, a point value, a ratio). `verify_agreement` and `verify_order` raise "no certificate" with 0 solves; `compare_uncertified` reads the same value |
+| R7b2.4 | k is bit-identical to a direct `solve_greens_function_*_mr` call with the specification's arrays and the gates' parameters |
+| R7b2.5 | one transport. `at=None` and `at=r_nodes` are bit-identical. A subset of evaluation points gives exactly those rows: the spline lives on its knots, which catches the naive reuse of `r_nodes`. THEOREM on the uniform body: the readings are flat at 4 off-node radii to 1e-9, and the group ratio and k equal the exact infinite medium's to 1e-9. This catches a transposed σ_s and a dropped 1/k |
+| R7b2.6 | `Symbolic.steps`: the steps of a box, of a box clipped by the range, and of `r² < 2`; none for a smooth weight; the sin step refused ("polynomial in r", one definition with production). On the uniform body the indicator of (0.6, 0.7) over the whole body reads its exact measure fraction, to 1e-9. Additivity over a split, to 1e-9. Route: the reading consults `Symbolic.steps` |
+| R7b2.7 | the module imports `orpheus.reference` (the positive control) and nothing at L2 or L3; no module of `orpheus/reference` imports `derivations` |
+
+**Declared stabiliser.** An eigen reference's readings are meaningful only as ratios, so a uniform scaling of its emission density (a dropped 1/(4π)) is invisible by design and harmless to every comparison.
+
+**First reds** (`[M]` 2026-10-03 on `65b0de93`, `python -O -m pytest`): 28 red, 7 green.
+- 22 rows fail on `ModuleNotFoundError` (the reference module).
+- 4 oracle rows fail on `TypeError` (no `at=` keyword).
+- 1 row fails on `AttributeError` (no `Symbolic.steps`).
+- 1 layer row fails on the missing module.
+- The 6 R7b2.1 rows pass on today's fixtures: their first red was the missing helper, written in this change. The 7th green row is R7b2.7's package row, an existing law re-read.
+- pyright: 0 errors on the 4 files.
+
+**Durations** (`[M]` 2026-10-03, `--durations=0`, after the build). Every cylinder case of a reading row takes 10–125 s and is `slow`; the solve is about 19 s, the rest is the reading's flux integrals. The factory row solves nothing and stays fast. The `not slow` subset ran 27 rows in 26.2 s, against 316 s for the whole file unmarked.
+
+**The review round's rows** (qa F1–F3, elegance B1; ids `R7b2.2.<n>`, because R7b2.8 and R7b2.9 already name the SN reading's gates):
+
+| id | gate |
+|---|---|
+| R7b2.2.1 | VALUE on the heterogeneous body (qa F1 a). The sphere reading at 0.31, 1.2 and 1.73 cm, both groups, against an unsplit 2000-point μ rule through the same oracle, to 1e-5 (`[M]` the brute's own error is about 2.7e-6 at 1.73 cm). The cylinder reading against an unsplit (96, 768) rule (`slow`). One cheap cylinder reading law in `not slow` (qa F2): at (4, 2, 4), 4 points per angular piece, against an unsplit (32, 256) rule, band 1e-3 (`[M]` 7.4e-5, the cheap reading's own error). The angular-measure mutations (μ over [0, 1] doubled; sinθ dropped) move these by 8–9 % |
+| R7b2.2.2 | the fixed-point identity on the heterogeneous body (qa F1 b). The oracle on the solve's knots and own angular rule, applied to the reference's emission density (the solve's LAST source, now hoisted onto its result), reproduces the solve's final ψ up to one scalar (the gauge), with a residual of at most 1e-12 relative to max\|ψ\|. It pins that the reference reads the density the solve used. It is structurally blind to the READING's angular rule, which it never calls |
+| R7b2.2.4 (rows) | the derivation's init fields hold no `rays` and no `billiard`; every R7b2.2 refusal also holds at the public constructor, with a homogeneous sphere added ("layered") |
+
+**The battery** (`[M]` 2026-10-03, `scratch/reference_architecture/p2/ta/step7b2/tr_battery/`). In-process textual mutants; `reference.py` diffed intact afterwards. Scope: `not slow`, 43 rows, baseline 43 green; `slow`, 9 rows, all green in 357.9 s.
+
+| arm | rows red |
+|---|---|
+| sphere μ over [0, 1], doubled | 1, R7b2.2.1 sphere |
+| cylinder sinθ replaced by its average 2/π (the total angular weight kept) | 1 in `not slow` (the cheap cylinder law); also the `slow` cylinder value row |
+| the reference's density with its groups swapped | 3: R7b2.2.2, R7b2.5 uniform, the cheap cylinder law |
+
+The old density arms (σ_s transposed, 1/k dropped) are no longer applicable: the reference forms no density of its own since the hoist, so a mutation there now changes the solve and the reference together (one definition).
+| R7b2.2.3 | steps at π/4 and √2/2 (qa F3); the mesh's cell integral of `r < π/4` on the A\|B\|A sphere mesh totals 4π/3·(π/4)³ to 64 ulp; the allow-list refuses `arg(r − 1)` and `atan2(r − 1, 0)` |
+| R7b2.2.4 | the public constructor derives its rays from the billiard: built directly on a sphere billiard it reads what the factory's reference reads, bit for bit. It refuses an anisotropic material and a homogeneous body, as the factory does (elegance B1) |
+
 **What part 2 is.** Under the user's ruling 3 (2026-10-03) no trajectory-resolvent reference has a derived bound (#566; the cylinder also #516), so none can anchor a `VerificationCertificate`, and under the step-5 ruling the sphere's ladder "bound" is no bound either: the sphere is uncertified too. Every row of the migration set either becomes an explicit `compare_uncertified` at its current tolerance, or stays a strict xfail whose expected failure is now the verbs' own refusal, or stays a RECORD. Nothing in part 2 is a verification claim.
 
 #### The census (question 1)

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import KW_ONLY, dataclass, field, replace
-from typing import TYPE_CHECKING, assert_never, cast
+from typing import assert_never
 
 import numpy as np
 
@@ -41,8 +41,6 @@ from orpheus.mesh.face_laws import FaceLaws, face_inventory
 from orpheus.numerics.content import ContentIdentity
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 
-if TYPE_CHECKING:
-    import sympy
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh1D
@@ -67,27 +65,6 @@ def _volume_ulps(coord: CoordSystem) -> int:
     """
     return 2 * coord.measure_coordinate.exponent + 5
 
-
-
-def _require_polynomial_steps(expression: "sympy.Expr", r: "sympy.Symbol", group: int) -> None:
-    """Refuse a non-smooth construct whose argument is not polynomial in ``r`` (see :meth:`Mesh1D.cell_integrals`)."""
-    import sympy
-
-    arguments: list[sympy.Basic] = []
-    for piecewise in expression.atoms(sympy.Piecewise):
-        for branch in piecewise.args:
-            condition = branch.args[1]
-            for relation in condition.atoms(sympy.core.relational.Relational):
-                arguments += [relation.lhs, relation.rhs]  # both sides polynomial: the step's boundary is a root set
-    for kind in (sympy.Heaviside, sympy.Abs, sympy.Max, sympy.Min, sympy.sign):
-        for atom in expression.atoms(kind):
-            arguments += list(atom.args)
-    for argument in arguments:
-        if not cast("sympy.Expr", argument).is_polynomial(r):
-            raise ValueError(
-                f"Mesh1D.cell_integrals: group {group}'s weight steps where {argument} changes sign; a step is "
-                f"integrated only where its argument is polynomial in r (a scope boundary of the exact integration)"
-            )
 
 
 @dataclass(frozen=True, eq=False)
@@ -280,14 +257,15 @@ class Mesh1D(ContentIdentity):
           against mpmath). A weight that depends on the direction is refused
           (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`).
 
-        SCOPE-BOUNDARY[guard] machinery: a quadrature split at the roots of any step condition.
-        ruling: the orchestrator, #405 P2 step 7b.2.1, spec §7b.2.1 (qa: `[M]` SymPy 1.14 integrates a sin step wrongly).
-        revisit: when a weight with a transcendental step is needed.
-        Qa's witness: ``Piecewise((1, sin(3r) > 0), (0, True))`` over [2, 3]
-        integrates to 0. A non-smooth construct (a ``Piecewise`` condition, ``Heaviside``,
-        ``Abs``, ``Max``, ``Min``, ``sign``) is admitted only with arguments
-        polynomial in :math:`r`, where SymPy's antiderivative is reliable;
-        any other failure of the integration is refused naming the weight.
+        The scope edge of the exact integration is the weight's step
+        locations, :meth:`~orpheus.numerics.mesh_free_function.Symbolic.steps`
+        (its SCOPE-BOUNDARY entry, one definition with every other reader):
+        a non-smooth construct (a ``Piecewise`` condition, ``Heaviside``,
+        ``Abs``, ``Max``, ``Min``, ``sign``) is admitted only with an argument
+        polynomial in :math:`r`, where SymPy's antiderivative is reliable
+        (qa's witness: ``Piecewise((1, sin(3r) > 0), (0, True))`` over [2, 3]
+        integrates to 0), and a floor-type jump is refused; any other
+        failure of the integration is refused naming the weight.
         """
         match weight:
             case RegionwiseConstant():
@@ -304,8 +282,9 @@ class Mesh1D(ContentIdentity):
                 measure = sympy.diff(r ** self.coord.measure_coordinate.exponent, r)
                 edges = [sympy.Rational(float(e)) for e in self.edges]
                 integrals = np.empty((weight.n_groups, self.N))
-                for g, w in enumerate(weight.without(Symbolic.mu, Symbolic.phi).expressions):
-                    _require_polynomial_steps(w, r, g)
+                scalar_weight = weight.without(Symbolic.mu, Symbolic.phi)
+                scalar_weight.steps((float(self.edges[0]), float(self.edges[-1])))  # the scope edge, refused here
+                for g, w in enumerate(scalar_weight.expressions):
                     try:
                         antiderivative = sympy.integrate(w * measure, r)
                         at_edges = [antiderivative.subs(r, e) for e in edges]

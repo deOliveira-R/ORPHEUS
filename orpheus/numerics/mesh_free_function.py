@@ -254,6 +254,61 @@ class Symbolic(ContentIdentity):
         eliminated = (q.subs({c: 0 for c in coordinates}, simultaneous=True) for q in self.expressions)
         return Symbolic.of(*eliminated)
 
+    def steps(self, r_range: tuple[float, float]) -> tuple[float, ...]:
+        r"""Where some group's value is not smooth in :math:`r` inside ``r_range``: sorted, each once.
+
+        The one definition of a weight's step locations, read by every
+        integrator that must split there (the mesh's exact cell integrals,
+        :meth:`orpheus.mesh.structured.Mesh1D.cell_integrals`; a reference's
+        float quadrature, #405 P2 step 7b.2.2). A step of a non-smooth
+        construct sits where its argument changes sign: a ``Piecewise``
+        condition's ``lhs − rhs``, the argument of ``Heaviside``, ``Abs`` and
+        ``sign``, and the pairwise differences of ``Max`` and ``Min``'s
+        arguments. Its locations are the real roots of that argument in the
+        closed interval ``r_range``.
+
+        SCOPE-BOUNDARY[guard] machinery: a root finder for a transcendental step argument, and the jump set of any other non-smooth head.
+        ruling: the orchestrator, #405 P2 steps 7b.2.1 and 7b.2.2 (qa: `[M]` SymPy 1.14 integrates a sin step wrongly).
+        revisit: when a weight with a transcendental step, or another non-smooth head, is needed.
+        An ALLOW-list (elegance review of 7b.2.2, S1): every node of the
+        expression is a smooth head (:func:`_is_smooth_head`) or a step
+        construct whose locations this finds; any other head (``floor``,
+        ``arg``, ``atan2``, ``Contains``, ...) is refused by name, since a
+        reader that missed its jumps would integrate across them silently. A
+        step is located only where its argument is polynomial in :math:`r`
+        (``Piecewise((1, sin(3r) > 0), (0, True))`` is refused), with real
+        coefficients of any kind (``r < pi/4``: exact roots where SymPy finds
+        them, else 30-digit numerical roots). A step whose location depends on
+        the direction (an argument in :math:`\mu` or :math:`\varphi`) is
+        refused as well.
+        """
+        import sympy
+
+        r = self.r
+        low, high = (float(bound) for bound in r_range)
+        locations: set[float] = set()
+        for g, expression in enumerate(self.expressions):
+            for node in sympy.preorder_traversal(expression):
+                if not (_is_smooth_head(node) or isinstance(node, _step_heads())):
+                    raise ValueError(
+                        f"Symbolic.steps: group {g} has {node} (head {type(node).__name__}), which is neither smooth nor a "
+                        f"step located here, so it cannot be integrated over the cells or split for a quadrature "
+                        f"(a scope boundary)"
+                    )
+            for argument in _step_arguments(expression):
+                if not argument.is_polynomial(r):
+                    raise ValueError(
+                        f"Symbolic.steps: group {g} steps where {argument} changes sign; a step is integrated "
+                        f"only where its argument is polynomial in r (a scope boundary of the exact integration)"
+                    )
+                if argument.free_symbols - {r}:
+                    raise ValueError(
+                        f"Symbolic.steps: group {g} steps where {argument} changes sign, a location that "
+                        f"depends on the direction; a step is located in r alone"
+                    )
+                locations |= _real_roots(argument, r)
+        return tuple(sorted(x for x in locations if low <= x <= high))
+
     @property
     def is_isotropic(self) -> bool:
         """Whether no group depends on the direction (``μ`` and ``φ``, :meth:`depends_on`)."""
@@ -355,6 +410,63 @@ def _admit(expression: "sympy.Basic", group: int, owned: dict[str, "sympy.Symbol
                 f"Symbolic: group {group} has a Piecewise with no otherwise branch, "
                 f"so it has no value outside its conditions"
             )
+
+
+def _is_smooth_head(node: "sympy.Basic") -> bool:
+    """Whether ``node`` is smooth wherever it is defined: a number, a symbol, a sum or product, a power with a
+    rational exponent (or a positive constant base), ``exp``, ``log``, a trigonometric or hyperbolic function."""
+    import sympy
+    from sympy.functions.elementary.hyperbolic import HyperbolicFunction
+    from sympy.functions.elementary.trigonometric import TrigonometricFunction
+
+    if isinstance(node, sympy.Pow):
+        base, exponent = node.args
+        return bool(exponent.is_Rational) or bool(base.is_number and base.is_positive)
+    return isinstance(node, (sympy.Number, sympy.NumberSymbol, sympy.Symbol, sympy.Add, sympy.Mul, sympy.exp,
+                             sympy.log, TrigonometricFunction, HyperbolicFunction))
+
+
+@cache
+def _step_heads() -> tuple[type, ...]:
+    """The step constructs :meth:`Symbolic.steps` locates, and the logic a ``Piecewise`` condition is built from."""
+    import sympy
+    from sympy.functions.elementary.piecewise import ExprCondPair
+    from sympy.logic.boolalg import BooleanAtom
+
+    return (sympy.Piecewise, ExprCondPair, sympy.Heaviside, sympy.Abs, sympy.sign, sympy.Max, sympy.Min,
+            sympy.core.relational.Relational, sympy.And, sympy.Or, sympy.Not, BooleanAtom)
+
+
+def _real_roots(argument: "sympy.Expr", r: "sympy.Symbol") -> set[float]:
+    """The real roots of a polynomial in ``r`` with real coefficients: exact where SymPy solves it, else numerical."""
+    import sympy
+
+    exact = sympy.solveset(argument, r, sympy.Reals)
+    if isinstance(exact, sympy.FiniteSet):
+        return {float(cast("sympy.Expr", root)) for root in exact}
+    if exact is sympy.S.EmptySet or exact == sympy.S.Reals:  # no root, or an identically zero argument (no step)
+        return set()
+    numerical = cast("list[sympy.Expr]", sympy.Poly(argument, r).nroots(n=30))
+    return {float(root) for root in numerical if root.is_real}
+
+
+def _step_arguments(expression: "sympy.Expr") -> list["sympy.Expr"]:
+    """The expressions whose sign changes are the steps of ``expression``'s non-smooth constructs."""
+    import sympy
+
+    arguments: list[sympy.Expr] = []
+    for piecewise in expression.atoms(sympy.Piecewise):
+        for branch in piecewise.args:
+            for relation in branch.args[1].atoms(sympy.core.relational.Relational):
+                arguments.append(cast("sympy.Expr", relation.lhs) - cast("sympy.Expr", relation.rhs))
+    for kind in (sympy.Heaviside, sympy.Abs, sympy.sign):
+        for atom in expression.atoms(kind):
+            arguments.append(cast("sympy.Expr", atom.args[0]))
+    for kind in (sympy.Max, sympy.Min):
+        for atom in expression.atoms(kind):
+            operands = [cast("sympy.Expr", operand) for operand in atom.args]
+            arguments += [a - b for i, a in enumerate(operands) for b in operands[i + 1:]]
+    return arguments
 
 
 MeshFreeFunction: TypeAlias = RegionwiseConstant | Symbolic
