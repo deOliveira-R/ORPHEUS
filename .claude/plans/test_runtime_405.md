@@ -265,3 +265,24 @@ Each item's commit, on `fix/krylov-sweep-preconditioner`:
 - **Note for the cadence work:** editing `orpheus/numerics/iteration.py` invalidated the cylinder A|B|A reference record (the traced memo pins the modules its generator read). The l1 file's next run regenerated it cold in 843 s. Expected behaviour, and a cost worth knowing before editing a module that references import.
 
 **Remaining:** item 6 (the merge of both branches with `--ff-only`, and CI), then item 7 (step 3: the chord-oracle hoist).
+
+## ⏸ COMPACTION POINT — 2026-10-05, #200 follow-up merged, the chord-oracle hoist next
+
+**State:** `main` is `27606b17` plus this plan commit. It holds steps 1 and 2 of the user's ruling "Gates, then #200, then oracle" and the whole "To do on this branch" list. CI is green on `c228cb18`, the last code commit; `main` differs from it only by plan and memory commits. The tree is clean apart from `scratch/`.
+
+**Read in order:**
+1. this file's section "The two files the memo could not shorten", the `trajectory_resolvent_reference` bullet (the cause and the measured prototype);
+2. item 7 of "To do on this branch" (in "Step 2 (#200) built; reviews in");
+3. the prototype `scratch/reference_architecture/p3/perf_traj/factored.py`, with the profiles beside it (`CYLINDRICAL_solve.txt`, `CYLINDRICAL_point.txt`, `CYLINDRICAL_brute.txt`, `prof1.py`, `teeth.py`);
+4. the oracle: `orpheus/derivations/continuous/trajectory_resolvent/chord_oracle.py`, `MultiRegionCylinderChordOracle.apply_operator` at line 941 (`[M]` `git grep`, 2026-10-05).
+
+**The next step, step 3:** hoist the in-plane segment and spline evaluation out of the per-axial-cosine loop. `[M]` 2026-10-04: the prototype agrees to 9e-16 relative (solve 20 → 5.2 s, reading 53 → 4.2 s, brute 7.7 → 0.19 s).
+- **Not bit-identical.** Before landing, find every consumer of frozen bytes: the traced-memo entries of the cylinder resolvent and of `TrajectoryResolventDerivation.evaluate`, any RECORD fingerprint, and any test pinning exact bytes. The memo regenerates its entries because the generator's source changes; budget minutes of cold regeneration (the cylinder A|B|A record took 843 s on 2026-10-05).
+- **Apply** the `vv-principles` three-condition rule for a non-bit-exact change.
+- `[R]` **Check the siblings first** (a twin-path question, Cardinal Rule 2): `CylinderChordOracle.apply_operator` (:667) and `AnnulusChordOracle.apply_operator` (:1455) may share the per-cosine rebuild. If they do, the hoist is one primitive, not three edits.
+- **Review the sphere brute's headroom,** about 4× (this file, "Open from this step").
+- **Mode:** the oracle lives in `derivations/`, as a Branch-1 reference. The change optimises reference code, with the user steering; the test-architect re-checks the trajectory file's gates.
+
+**Lessons from this stretch, already recorded:**
+- A `[skip ci]` tip silently skips CI for every commit of a push (memory `feedback_skip_ci_for_plan_commits.md`, rider 2026-10-05).
+- Editing a module that a traced reference's generator imports invalidates that reference (this file, "Note for the cadence work").
