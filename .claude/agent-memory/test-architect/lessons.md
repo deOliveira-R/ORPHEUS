@@ -430,6 +430,13 @@ shelf life — check it against a concrete row before trusting a green.
   row and the loose independent-reference row together, with the arm that separates them (a
   shared-operator mutant reds only the second). → `L97`
 
+- **⛔ A defect that only COSTS iterations under the default budget is a VALUE defect under the budget the honest
+  contract promises suffices** — a restart clamp converges anyway with 1308 cycles; at `max_inner = 1` (one
+  full-restart cycle spans the Krylov space) it misses the closed form by 1.3e-3. Gate the value at that budget, plus
+  an activation premise (honest steps > the clamp) asserted after the value leg. And a normaliser is gated with no
+  reference by a power-of-two scaling of the operand it normalises (iterates bit-identical, trajectory
+  `array_equal`). → `L107`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **State the law in the direction that IS a float theorem, and normalise a

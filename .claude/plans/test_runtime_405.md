@@ -188,6 +188,13 @@ The test-architect's evidence (each mutation table and the timings) is in `scrat
 **To do on this branch, in order:**
 
 1. **The preconditioner is an OPERATOR** (elegance S1 and S2; `scratch/reference_architecture/p3/elegance200/review.md`).
+
+   **Ruled (the user, 2026-10-04), superseding the sub-items below where they differ:**
+   - **The contract is a STATED choice, the identity allowed.** `preconditioner: LinearOperator` is keyword-only with NO default; plain Krylov is `preconditioner=IdentityOperator()`, written at the call site. No warning and no fallback.
+   - Why: a preconditioner is not mathematically required, and the sweep is the right one only for SN. Diffusion's `A.inverse()` is the whole solve, so an `A⁻¹` default is SN knowledge inside a numerics primitive. A silent identity default would hand the next model's Krylov path the #200 failure: iterations growing with the mesh, with nothing on screen. A warning could not have caught #200 either, since production passed an explicit identity. Unpreconditioned Krylov is legitimate in three cases: small well-conditioned systems; an operator that is already the preconditioned one (`M⁻¹A`, the common production transport form); and studies. So the identity is allowed but must be named.
+   - The SN guard against regressing to the identity is the gate file's route row and its mesh-flat rate row, not a warning.
+   - **`P = (I + C) M⁻¹`: Krylov only, plus a witness.** `_within_group_krylov` spells `(I + C) @ LC.inverse()` (`[M]` bitwise equal to the closure on 2 of 2 slabs, `scratch/reference_architecture/p3/operator_contract/probe_compose.py`). SI keeps applying `C` to the increment, byte-identical. A gate asserts SI's corrected step equals `ψ + P r`. The full merge waits for a second corrector (2-D DSA).
+   - **Census correction** `[M]` 2026-10-04, AST over `orpheus/` and `tests/`: **17 constructions** (1 production, 16 tests: 7 default, 7 lambda, 3 named), not 106. The 106 was the elegance spy's count of runtime constructions over parametrised tests.
    - `KrylovAcceleration`'s `preconditioner` becomes a `LinearOperator[V] | None`, a public attribute (`orpheus/numerics/iteration.py`: the `Preconditioner = Callable[[ndarray], ndarray]` alias at :223 is a false type, since the callable receives typed fields; the default is at :982-987).
    - `solve` wraps `self.preconditioner.apply`.
    - `_within_group_krylov` passes `LC.inverse()` (or the seeded form the default uses) with no corrector, and `(I + C) @ LC.inverse()` with one. Today the closure at `solver.py:956-959` is bitwise the `KrylovAcceleration` default (`[M]` 4 of 4 geometries), so there are two spellings.
@@ -212,6 +219,12 @@ The test-architect's evidence (each mutation table and the timings) is in `scrat
    - Reproducer `qa200/q1b.py`: a thin slab, 2G with upscatter. 4 of 7 inner records read not-converged; there is a false "hit max_inner" warning; `fully_converged=False`. All of this while scipy returned info = 0 and the true relative residual is ≤ 9.5e-9.
    - It also blinds `_check_convergence_claim`. The DSA posture already had the defect; #200 spreads it to every Krylov solve.
    - **Needs a ruling:** normalise by ‖M b‖, or record the TRUE residual (recommended: the record should hold what it claims). An ERR entry follows.
+   - **Ruled (the user, 2026-10-04): the true residual AND the scaled trajectory.** scipy's inner loop stops on `‖M r‖ ≤ rtol·‖M b‖`, while its callback reports `‖M r‖/‖b‖` and it ACCEPTS on the true `‖b − Ax‖ ≤ rtol·‖b‖`, tightening and continuing when the two disagree (`scipy/sparse/linalg/_isolve/iterative.py`, `gmres`). The record gets two criteria:
+     - `residual`: the final true relative residual, one matvec per solve; the record's verdict then equals scipy's acceptance;
+     - `pr_residual`: the per-step trajectory divided by `‖M b‖`, what scipy steers on, keeping the rate diagnostics; one preconditioner apply per solve.
+   - **[REFUTED 2026-10-04] the two-criterion form above, and RE-RULED the same day (the user):** `IterationRecord` requires co-indexed criteria (`orpheus/numerics/convergence.py:1037`, every trajectory the same length), and the true residual exists only at exit (scipy forms the iterate once per restart cycle, and SN runs one cycle), so a one-point `residual` criterion beside a per-step trajectory cannot be built. The true residual already has ONE home, `_check_convergence_claim` (`orpheus/sn/solver.py:819`), which re-measures `‖Aψ − q‖/‖q‖` for every claimed convergence; computing `‖b − Ax‖` inside `KrylovAcceleration` would be a second spelling of that quantity (X4).
+     - **The ruling:** ONE criterion, the per-step trajectory divided by `‖M b‖` (scipy's inner stopping quantity; one preconditioner apply per solve). This removes the false not-converged reading. The false-early reading (a small preconditioned residual with a large true one, for example when scipy exhausts its budget) is caught by the claim check, which now receives an honest claim.
+     - Known gap, not new: the claim check is skipped for the moment-tailed LD schemes (`_residual_is_expressible`), as it is for source iteration.
 4. **qa LOW:** add a 2-D Cartesian row to the gate file's `_GEOMS`. qa ran the three p200_1 rows on 2-D, a 3-cell cylinder and GL8: 12 of 12 pass.
 5. **The archivist's out-of-scope findings:**
    - drop "the Krylov sweep preconditioner of #200" from `orpheus/sn/loss_representation/assembly.py:22`: the preconditioner is `seeded_inverse(LC)` and no production module imports `assembly`;
@@ -236,3 +249,19 @@ The test-architect's evidence (each mutation table and the timings) is in `scrat
 4. qa's evidence in `scratch/reference_architecture/p3/qa200/`.
 
 **Then do "To do on this branch" in order.** It is a surgical carve in `orpheus/numerics/iteration.py` and `orpheus/sn/solver.py`: the main agent writes, the user steers, and the test-architect gates. Item 3 needs the user's ruling first.
+
+### The "To do on this branch" list, landed (2026-10-05)
+
+Each item's commit, on `fix/krylov-sweep-preconditioner`:
+- **Item 1, the preconditioner is an operator:** `[LANDED c1dc0c3d]`. The stated-choice contract (no default), `(I + C) @ LC.inverse()` under DSA, the SI-Richardson witness `test_p200_4`, the merged precond-safety row, and the shared fixtures `_full_space_states.py` / `_case_slab_reference.py`.
+- **Items 2, 3 and 4:** `[LANDED 90d7c337]`. ERR-053 re-gated (6 decayed markers removed; the value row `test_one_full_restart_cycle_solves_a_diffusive_infinite_medium`); the record rescaled to `‖P r‖/‖P b‖`; the 2-D Cartesian fixture.
+- **The reviews of those (qa, elegance), and the user's ruling "fold scipy's acceptance in" (2026-10-05):** `[LANDED acca2416]`.
+  - Both reviews found that the rescaled value is scipy's test in the FIRST restart cycle only, so a record could read converged on a solve scipy refused (60 of 400 random solves). `IterationRecord.accepted` now vetoes `converged`.
+  - Also landed here: qa's F2, the exact-breakdown carve-out trusting a 0.0 tail, now confirmed against the true residual (ERR-098, which predates #200); and `test_p200_4` deriving its geometries from DSA's admission.
+- **Docs:** `[LANDED 39b634a4]` (ERR-097, ERR-098, ERR-053 and ERR-050 updated; `acceleration.rst`) and `c228cb18` (the regenerated matrix and error index).
+- **Item 5:** the two production docstrings `[LANDED 90d7c337]`; the precond-safety docstrings `[LANDED c1dc0c3d]`. The optional `verifies` marker went onto `test_p200_4` instead, for the new `sn-krylov-dsa-richardson` equation.
+- **Issues filed:** #576 (vectorise the 1-D forward apply walk; `[M]` 46 % of the unpreconditioned GMRES time, not the "60 %" written above, and its share after #200 is not re-measured); #577 (the outer stagnates at |Δk| 3.6e-7 on qa's thick vacuum slab, identical under the identity preconditioner, so not #200's).
+- **Full suite** `[M]` 2026-10-05 at `90d7c337`: 15 261 passed, 4 failed (the 4 `test_write_guards` rows, the known worktree artefact), 264 skipped, 56 xfailed, in 47 min. The run at `c228cb18` is the merge gate.
+- **Note for the cadence work:** editing `orpheus/numerics/iteration.py` invalidated the cylinder A|B|A reference record (the traced memo pins the modules its generator read). The l1 file's next run regenerated it cold in 843 s. Expected behaviour, and a cost worth knowing before editing a module that references import.
+
+**Remaining:** item 6 (the merge of both branches with `--ff-only`, and CI), then item 7 (step 3: the chord-oracle hoist).

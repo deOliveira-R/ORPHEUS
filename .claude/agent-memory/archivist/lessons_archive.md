@@ -14074,3 +14074,15 @@ Third: my own one-line docs edit during a `-W` build reproduced the `vv_audit.js
 
 `[M]` 2026-10-02, #405 P1 step 6 docs pass. A numbers probe saved as `scratchpad/.../numbers.py` and run as a script failed inside `import numpy` with `ImportError: cannot import name 'ufunc' from partially initialized module 'numpy'`: the script's own directory is `sys.path[0]`, so numpy's `import numbers` imported the probe. `code-search` covers `sys.path[0]` beating `PYTHONPATH` for the CWD of `python -c`; it does not cover the script's own FILE NAME. Fix: prefix every probe file `archivist_` (L-115 already asks this for the shared scratchpad), which also rules out a stdlib collision.
 Same pass, a repeat of L-117's third finding: I fixed two markup spots while the verification build was in its reading phase, believing the files were not yet read; they had been (`foundations/` sorts before `methods/`), and the build reddened on the `vv_audit.json` input race. The rule stands as written: edit nothing while a build runs, whatever its progress line says.
+
+## L-119 — a per-row `catches` marker is invisible to the graph
+
+`[M]` 2026-10-05, ERR-097 docs pass (#200 follow-up). Two of four rows of
+`test_krylov_record_verdict_agrees_with_scipy_acceptance` catch ERR-097; the other two are controls that
+read the same under the defect. The marker went on the two rows through `pytest.param(*row, id=...,
+marks=pytest.mark.catches("ERR-097") if ... else ())`. pytest's collection (`item.iter_markers`, the
+`tests/conftest.py` registry) sees both rows; `nexus context vv:error:ERR-097` lists 3 catchers, the three
+FUNCTION-level ones, and the generated `error_index.md` says 3. The clause not covering it: `vv-testing`
+"Tagging & linking" says Nexus writes the `tests` edge from the marker, with no word on per-row marks.
+Correction: keep the row-level marker (a function-level one would claim the two controls), and report the
+graph's blindness as a tooling gap.

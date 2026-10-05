@@ -11656,3 +11656,18 @@ the brute at kinks it computes itself (closed form from the geometry, never the 
 convergence in the per-piece order, and that convergence is the witness that its kink set is complete.
 Harness: `pytest -k slab` on `test_l1_standoff_slab_cylinder.py` selected every row (the keyword matches the module
 path), so a scan-coefficient mutation ran the cylinder rows into a 15-minute stall; select by test-name prefix.
+
+## L107 — #200 follow-up gates (W3): a defect that only costs iterations, and a record normaliser gated by scaling (2026-10-05)
+
+ERR-053 (a `restart=min(50, n_dof)` clamp) decayed when the sweep preconditioner cut GMRES to 15–25 steps: 7 of 7 pre-existing
+value rows (six k_inf, one SI-vs-Krylov) stayed green under the re-dropped clamp. Driving a fixture to need more steps (c = 0.9999, 100 mfp,
+reflective both faces, 56 honest steps) was NOT enough: under the default cycle budget the clamped GMRES(50) still
+converges, in 280 steps, to 2.2e-9 (inside the tolerance), so the defect is a COST there, not a value. It became a
+value defect (1.3e-3 against the infinite-medium closed form) only at `max_inner = 1`, the budget the honest contract
+promises suffices ("one full-restart cycle spans the Krylov space"). Pair it with an activation premise read off
+the honest record (steps > 50), asserted AFTER the value leg so a clamp reds on the value message.
+The inner-record normaliser (`‖M r‖/‖M b‖`) was gated without a reference by a THEOREM row: scaling the
+preconditioner by a power of two leaves every GMRES iterate bit-identical, so the recorded trajectory must be
+`array_equal` across s = 1/16, 1, 16; the raw `‖M r‖/‖b‖` reading scales with s. The battery
+(`scratch/reference_architecture/p3/gates200b/`) also exhibited two ERR-053 markers on rows that guard the
+OPPOSITE direction (the exact-breakdown carve-out against over-warning), green under the defect.

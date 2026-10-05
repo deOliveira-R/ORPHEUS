@@ -33,6 +33,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **#405 P3 (the traced memo, W3)** — spec `.claude/plans/reference_p3_spec.md` (2026-10-04, gates M1.x–M5.x); prototype + gates + battery in `scratch/reference_architecture/p3/ta/` (`wt` prototype, `wt0` pristine first reds, `wt2` acceptance run). On resume: confirm landed; re-run the battery arms on the real module. → **`L105`**
 - **#405 follow-up, the two slow files' gates (W3, `test/slow-reference-gates`)** — repaired 2026-10-04, evidence `scratch/reference_architecture/p3/gates_repair/`. On resume: confirm landed; after #200 re-time the slab order row. → **`L106`**
 - **#200 sweep-preconditioned Krylov gates (W3, `fix/krylov-sweep-preconditioner`)** — delivered 2026-10-04, evidence `scratch/reference_architecture/p3/krylov200/`. On resume: confirm landed.
+- **#200 follow-up gates (W3, same branch)** — ERR-053 re-homed + value row, inner-record rows (L0 + SN), 2-D fixture row; delivered 2026-10-05, evidence `scratch/reference_architecture/p3/gates200b/`. On resume: confirm landed; tag the record rows with the new ERR id. → **`L107`**
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

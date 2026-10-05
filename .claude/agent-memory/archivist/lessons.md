@@ -539,6 +539,10 @@ match it VERBATIM, never paraphrase. → L-010
 - **A corpus-wide mechanical migration is dry-run-first and WHITELIST-scoped**; key any block
   remover
   to INDENTATION too, or it eats footnotes. → L-031
+- **A `catches` marker on ONE parametrize row (`pytest.param(..., marks=...)`) is seen by pytest's
+  registry and NOT by the Nexus graph**, which reads decorators: the catalogue index then counts
+  the function-level catchers only. Report the gap; never widen a row marker to the function to
+  make the graph see it (that credits the control rows). → L-119
 - **Self-check the V&V scan directly, not via the full audit** — `_scan_theory_equations` runs in
   <1 s, avoids pytest collection, and does not trip on a sibling batch's in-progress sentinels.
   → L-035, L-063, L-069
