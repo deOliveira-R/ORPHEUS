@@ -101,8 +101,13 @@ both :mod:`~orpheus.numerics.operator` (the algebra) and
 **#284 scope note.**  The Richardson driver feeds the preconditioner's
 sweep only source-shaped right-hand sides (:math:`q + B\,x_n` writes
 bulk/inflow rows), so the sweep-inverse's source-subspace contract holds on
-this path; feeding sign-indefinite RESIDUALS into sweep inverses is the
-GMRES-preconditioning case, decided with #200/#284.
+this path. Feeding sign-indefinite RESIDUALS into a sweep inverse is the
+GMRES-preconditioning case: since #200 (2026-10-04) the SN Krylov solve
+preconditions with the sweep on the full typed state, and its gates
+(``tests/gates/sn/solve/test_krylov_sweep_preconditioner.py``: linearity on
+full and boundary-only residuals, and the boundary round trip
+:math:`A M q_b = q_b`) witness that the sweep is a linear map on residuals,
+trace rows included.
 """
 from __future__ import annotations
 

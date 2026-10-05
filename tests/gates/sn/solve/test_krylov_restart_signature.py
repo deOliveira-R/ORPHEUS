@@ -35,9 +35,19 @@ error with refinement; a subspace defect produces DIVERGING error
 because the natural subspace grows past the cap.
 
 Post-fix (restart = full problem size) both inner solvers track at
-machine precision regardless of mesh.  Any future regression that
-re-introduces a hardcoded subspace cap (or any other structural
-defect that scales with the problem dimension) will surface here.
+machine precision regardless of mesh.
+
+Since #200 (2026-10-04) the within-group GMRES is preconditioned by the
+sweep and needs 15 to 25 steps on this fixture at every mesh, so a
+re-introduced ``restart=min(50, n_dof)`` clamp no longer bites here: the
+mesh-refinement rows stay green under it (``[M]`` qa 2026-10-04,
+``scratch/reference_architecture/p3/qa200/m1_restart50_full.log``; again
+2026-10-05, ``scratch/reference_architecture/p3/gates200b/arm53_*.log``).
+They keep the k_inf recovery claim and lost the ERR-053 one. ERR-053's
+catchers are now the value row at the end of this file, one restart cycle
+on a diffusive infinite medium whose honest solve needs more than 50
+steps, and the restart site gates of
+``test_krylov_curvilinear_precond_safety.py`` (``test_g_d3_3_*``).
 
 References
 ==========
@@ -99,24 +109,26 @@ def _solve_kinf(
 
 @pytest.mark.l1
 @pytest.mark.verifies("sn-curvilinear-homogeneous-kinf-recovery")
-@pytest.mark.catches("ERR-053")
 @pytest.mark.parametrize("n_cells", [5, 8, 10, 16, 20, 30])
 def test_krylov_kinf_independent_of_mesh_refinement(
     n_cells: int, _kinf_analytical: float,
 ) -> None:
     r"""Krylov ``keff`` on homogeneous reflective sphere == ``k_inf`` at every n_cells.
 
-    The structural pin for ERR-053: subspace-dimension defects produce
-    DIVERGING error with mesh refinement (the natural subspace grows
-    past the cap).  Tolerance defects produce uniform or
-    monotone-decreasing error with refinement.  This test catches both
-    classes — any future regression that re-introduces a hardcoded
-    ``restart=N`` for ``N < full_size`` will fail at the larger
-    ``n_cells`` rows even with a tight ``inner_tol``.
+    Subspace-dimension defects produce DIVERGING error with mesh refinement
+    (the natural subspace grows past a cap); tolerance defects produce
+    uniform or monotone-decreasing error.  Pre-ERR-053-fix this test
+    produced ``4.7e-01`` error at ``n_cells=20``, with the UNPRECONDITIONED
+    GMRES of the time, whose step count grew with the mesh.
 
-    Pre-ERR-053-fix: this test produced ``4.7e-01`` error at
-    ``n_cells=20`` (and worse at refinement).  Post-fix: machine
-    precision across the full sweep.
+    No longer an ERR-053 catcher (marker removed 2026-10-05): the
+    sweep-preconditioned solve needs 15 to 25 steps at every row, below
+    any clamp at 50, so a re-introduced ``restart=min(50, n_dof)`` leaves
+    all six rows green (``[M]``, the module docstring). What the rows
+    still test is the k_inf recovery of the production Krylov path at
+    every mesh, and a defect whose step count outgrows the restart at the
+    finer rows. ERR-053's value catcher is
+    :func:`test_one_full_restart_cycle_solves_a_diffusive_infinite_medium`.
 
     Note: parametrised on ``n_cells`` rather than tabulated inline so
     each refinement step is an independent test invocation in the
@@ -131,14 +143,17 @@ def test_krylov_kinf_independent_of_mesh_refinement(
     # ``[M]`` 2026-10-04 (scratch/reference_architecture/p3/krylov200/probes/
     # p3_restart_signature.log), |k − k_inf| at n_cells 5, 8, 10, 16, 20, 30:
     # sweep-preconditioned 8.4e-11, 2.2e-11, 2.4e-10, 9.9e-13, 6.8e-12, 5.1e-11;
-    # the identity, on today's tree, 1.6e-14 to 8.3e-14. The preconditioned
-    # solve stops on the PRECONDITIONED residual at inner_tol = 1e-8, so it is
-    # not the machine-precision arm on this flat problem; the 1e-9 band has 4x
-    # headroom over its worst row.
+    # the identity, on today's tree, 1.6e-14 to 8.3e-14. scipy's GMRES steers
+    # its inner loop on the preconditioned residual, ‖M r‖ ≤ rtol·‖M b‖, and
+    # accepts the solve on the TRUE residual, ‖b − A x‖ ≤ rtol·‖b‖ (``gmres``
+    # in scipy/sparse/linalg/_isolve/iterative.py); the sweep-preconditioned
+    # solve passes both at inner_tol = 1e-8 within 15 to 25 steps and stops
+    # there, so it is not the machine-precision arm on this flat problem; the
+    # 1e-9 band has 4x headroom over its worst row.
     assert err < 1e-9, (
         f"Krylov keff = {keff:.10f}, ref = {_kinf_analytical:.10f}, "
-        f"err = {err:.3e}.  ERR-053 signature: subspace truncation in "
-        f"GMRES (restart=min(50, full_size) clamp).  See "
+        f"err = {err:.3e}.  A Krylov k_inf error growing with refinement is "
+        f"the subspace-truncation signature (ERR-053's class).  See "
         f"``docs/theory/verification/error_catalog.rst`` ERR-053."
     )
 
@@ -167,3 +182,81 @@ def test_si_kinf_independent_of_mesh_refinement(
         f"err = {err:.3e}.  SI is the structural reference for "
         f"ERR-053; if THIS fails, the bug class has moved."
     )
+
+
+#: The value row's diffusive slab: an infinite medium posed as a 100 cm slab (100 mean free paths) reflective on
+#: both faces, one group, scattering ratio c = 0.9999, a flat isotropic source, 100 cells, Gauss-Legendre S8.
+_DIFFUSIVE_C = 0.9999
+_DIFFUSIVE_INNER_TOL = 1e-8
+#: An iterative result is held to ten times the tolerance that stopped it.
+_DIFFUSIVE_RTOL = 10.0 * _DIFFUSIVE_INNER_TOL
+#: The clamp the defect re-introduces; the row is live only while the honest solve needs more Arnoldi steps.
+_ERR053_CLAMP = 50
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-053")
+@pytest.mark.rests_on(
+    "tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::"
+    "test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse[slab_reflective]",
+    "tests/gates/sn/operators/test_sweep_inverse_identity.py::TestSweepInverseIdentity::"
+    "test_forward_of_inverse_is_identity_on_a_random_composite[slab_reflective]",
+)
+def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
+    r"""ERR-053's VALUE gate under the sweep preconditioner: one GMRES restart cycle (``max_inner = 1``) solves the
+    within-group system of a diffusive infinite medium to its closed form, :math:`\phi = W q / \Sigma_a` in every
+    cell (``W`` the quadrature's weight sum), because the full-size restart spans the whole Krylov space.
+
+    Since #200 the sweep-preconditioned solves of the rows above need 15 to 25 Arnoldi steps, so a
+    ``restart = min(50, n_dof)`` clamp never bites there (``[M]`` qa 2026-10-04, and this session: the six k_inf rows
+    and the consistency row stay green under it). Here the scattering ratio is near 1 on a slab 100 mean free paths
+    thick, and the honest solve needs 56 steps (``[M]`` 2026-10-05,
+    ``scratch/reference_architecture/p3/gates200b/probe_value53b.log``): relative error 4.9e-13 in one cycle. With
+    the clamp re-dropped into ``_within_group_krylov`` the cycle stops at 50 steps, scipy returns ``info = 1`` and
+    the flux is off by 1.3e-3, four orders above :data:`_DIFFUSIVE_RTOL`; with the discarded ``info`` added (the
+    defect's second half) the GMRES warning is gone and the value leg still reds. Under the default cycle budget
+    the clamp converges after 280 steps to 2.2e-9 (inside the tolerance), so the value moves only when the budget
+    is counted in restart cycles that the clamp shortens, which is ERR-053's mechanism.
+
+    One group and a flat solution null every spatial and group-coupling term; the row's threat is the Krylov
+    truncation, which they do not touch. The infinite-medium answer is the structurally independent reference."""
+    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.solver import solve_sn_fixed_source
+
+    sigma_t = 1.0
+    sigma_a = sigma_t * (1.0 - _DIFFUSIVE_C)
+    medium = make_mixture(
+        sig_t=np.array([sigma_t]), sig_c=np.array([sigma_a]), sig_f=np.array([0.0]),
+        nu=np.array([0.0]), chi=np.array([0.0]), sig_s=np.array([[sigma_t * _DIFFUSIVE_C]]),
+    )
+    n_cells = 100
+    geometry = StructuredGeometry.slab((0.0, 100.0), (0,), left=BC.reflective, right=BC.reflective)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_cells)).mesh
+    quadrature = Quadrature.gauss_legendre(n_ordinates=8)
+    source = 1.0
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        solution = solve_sn_fixed_source(
+            materials={0: medium}, mesh=mesh, quadrature=quadrature,
+            external_source=np.full((quadrature.N, 1, n_cells), source),
+            inner_solver="krylov", inner_tol=_DIFFUSIVE_INNER_TOL, max_inner=1,
+        )
+    exact = float(np.sum(quadrature.weights)) * source / sigma_a
+    phi = np.asarray(solution.scalar_flux.values, dtype=float)
+    error = float(np.max(np.abs(phi - exact))) / exact
+    assert error <= _DIFFUSIVE_RTOL, (
+        f"one restart cycle left the infinite-medium flux off by {error:.2e} (relative), above "
+        f"{_DIFFUSIVE_RTOL:.0e}: the restart no longer spans the Krylov space (ERR-053, a restart clamp)"
+    )
+    inner = [child for child in solution.record.children if child.label == "inner(gmres)"] or [solution.record]
+    steps = max(record.n_iterations for record in inner)
+    assert steps > _ERR053_CLAMP, (
+        f"the honest solve needed only {steps} Arnoldi steps, not more than {_ERR053_CLAMP}: a clamp at "
+        f"{_ERR053_CLAMP} would no longer bite and the row is blind"
+    )
+    convergence = [str(w.message)[:120] for w in caught if issubclass(w.category, RuntimeWarning)]
+    assert not convergence, f"the one-cycle solve warned: {convergence}"
+    assert solution.record.fully_converged, "the one-cycle solve does not read fully converged"

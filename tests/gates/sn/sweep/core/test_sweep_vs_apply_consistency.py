@@ -102,7 +102,6 @@ def test_carlson_seed_helper_is_linear_in_bc():
 
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-026")
-@pytest.mark.catches("ERR-053")
 def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     r"""SI and Krylov inner solvers agree on homogeneous reflective sphere.
 
@@ -117,6 +116,16 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     eigenvalue agreement on HETEROGENEOUS MR — pre-Phase-F such a
     pin would have caught ERR-026 manifestation #6.  See the Phase F
     closeout memo §9.
+
+    No longer a catcher of ERR-053 (the ``catches`` marker was removed on
+    2026-10-05): since #200 the sweep-preconditioned Krylov solve needs
+    fewer than 50 GMRES steps here, so the ``restart=min(50, n_dof)`` clamp
+    re-dropped into ``_within_group_krylov`` leaves this row green (``[M]``
+    qa 2026-10-04, ``scratch/reference_architecture/p3/qa200/
+    m1_restart50_full.log``, and 2026-10-05, ``.../gates200b/
+    arm53_*.log``). ERR-053's value catcher is
+    ``tests/gates/sn/solve/test_krylov_restart_signature.py::
+    test_one_full_restart_cycle_solves_a_diffusive_infinite_medium``.
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import BC, CoordSystem, StructuredGeometry

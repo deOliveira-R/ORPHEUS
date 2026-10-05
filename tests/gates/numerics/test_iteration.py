@@ -1061,13 +1061,22 @@ def _krylov_warnings(krylov: KrylovAcceleration, b: np.ndarray):
 
 
 @pytest.mark.foundation
-@pytest.mark.catches("ERR-053")
 def test_singular_consistent_exact_breakdown_solves_clean() -> None:
     r"""REAL scipy: the singular-consistent exact-breakdown solve returns
     the EXACT solution with a literal-``0.0`` residual tail and NO
     ERR-053 warning — the caller-visible contract of the carve-out
     (``tol=0.0`` = "solve to exactness" makes the breakdown the only
-    possible exit)."""
+    possible exit).
+
+    Carries no ``catches("ERR-053")``: this row guards the carve-out
+    against OVER-warning, the opposite direction of the defect, and the
+    defect re-dropped (the ``restart=min(50, n_dof)`` clamp, the discarded
+    ``info``, and both together) leaves it green (``[M]`` 2026-10-05,
+    ``scratch/reference_architecture/p3/gates200b/arm53_*.log``). The
+    catchers are :func:`test_info_warning_fires_on_genuine_nonconvergence`
+    and :func:`test_the_gmres_nonconvergence_warning_is_ESCALATABLE` (the
+    discarded ``info``), and the restart gates of
+    ``tests/gates/sn/solve/`` (the clamp)."""
     A_op, b = _singular_consistent()
     krylov = KrylovAcceleration(
         A_op, preconditioner=IdentityOperator(), tol=0.0, max_iter=30, restart=2,
@@ -1107,11 +1116,14 @@ def _stub_gmres_returning(info: int, pr_norm_tail: float):
 
 
 @pytest.mark.foundation
-@pytest.mark.catches("ERR-053")
 def test_exact_breakdown_guard_suppresses_the_info_warning(monkeypatch) -> None:
     r"""GUARD arm: ``info > 0`` WITH a literal-``0.0`` tail (the d1-observed
     breakdown stamping) must NOT warn — the carve-out recognizes the
-    collapsed-at-the-solution Krylov space as convergence."""
+    collapsed-at-the-solution Krylov space as convergence.
+
+    Carries no ``catches("ERR-053")``, for the reason given on
+    :func:`test_singular_consistent_exact_breakdown_solves_clean`: the
+    re-dropped defect leaves it green (``[M]`` 2026-10-05)."""
     import orpheus.numerics.iteration as iteration_mod
 
     monkeypatch.setattr(
@@ -1156,6 +1168,198 @@ def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
         )
     if "ERR-053" not in str(ours[0].message):
         pytest.fail(f"the warning lost its ERR-053 pointer: {ours[0].message}")
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Foundation: the inner GMRES record reads scipy's stopping quantity under a
+# preconditioner (qa's #200 review, item 3; the user's ruling 2026-10-04)
+# ───────────────────────────────────────────────────────────────────────
+#
+# scipy's left-preconditioned GMRES steers its inner loop on ‖M r_k‖ ≤
+# rtol·‖M b‖, reports ‖M r_k‖/‖b‖ to a ``pr_norm`` callback, and accepts the
+# solve on the true residual ‖b − A x‖ ≤ rtol·‖b‖ (``gmres`` in
+# ``scipy/sparse/linalg/_isolve/iterative.py``). The record's one criterion,
+# ``pr_residual``, is the callback reading rescaled by ‖b‖/‖M b‖, so it IS
+# the loop's own test, ‖M r_k‖/‖M b‖. Until 2026-10-04 it recorded the raw
+# reading, which is relative only when ‖M b‖ = ‖b‖: true of the identity and
+# false of the SN sweep (‖M b‖/‖b‖ from 0.04 to 21.7 on qa's slabs).
+#
+# The fixture: a 40-unknown non-symmetric tridiagonal with a varying diagonal
+# d, preconditioned by s·diag(1/d). Scaling M by a scalar s leaves every
+# GMRES iterate unchanged in exact arithmetic (the Arnoldi basis is
+# normalised; the Hessenberg entries, the rotated right-hand side and the
+# stopping threshold all scale by s), and for s a power of two the scaling is
+# exact in binary floating point, so the iterates are bit-identical. The two
+# scales 1/16 and 16 put ‖M b‖/‖b‖ at 0.020 and 5.1 (``[M]`` 2026-10-05,
+# ``scratch/reference_architecture/p3/gates200b/probe_l0.py``): far from 1 in
+# both directions, which is where the raw reading and the ruled one part.
+
+_PRECONDITIONER_SCALES = (1.0 / 16.0, 16.0)
+
+
+def _preconditioned_tridiagonal(
+    scale: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """``(A, M, b, x0)``: the non-symmetric tridiagonal, ``scale`` times its
+    Jacobi inverse, a source and a non-zero initial guess (the SN driver
+    always warm-starts, so the reference row must too)."""
+    rng = np.random.default_rng(5)
+    n = 40
+    diagonal = 2.0 + rng.uniform(0.0, 3.0, n)
+    A = (
+        np.diag(diagonal)
+        + np.diag(np.full(n - 1, -1.3), -1)
+        + np.diag(np.full(n - 1, -0.4), 1)
+    )
+    b = rng.normal(size=n)
+    x0 = 0.1 * rng.normal(size=n)
+    return A, scale * np.diag(1.0 / diagonal), b, x0
+
+
+def _gmres_spy(monkeypatch) -> list[int]:
+    """Wrap scipy's ``gmres`` as ``KrylovAcceleration.solve`` reaches it and
+    capture every returned ``info`` (the acceptance flag the record is held
+    to; the Mode-11 sentinel that the row ran the solve it reads)."""
+    import orpheus.numerics.iteration as iteration_mod
+
+    infos: list[int] = []
+    honest = iteration_mod.spla.gmres
+
+    def spy(*args, **kwargs):
+        x, info = honest(*args, **kwargs)
+        infos.append(int(info))
+        return x, info
+
+    monkeypatch.setattr(iteration_mod.spla, "gmres", spy)
+    return infos
+
+
+def _solve_preconditioned(
+    scale: float, *, tol: float, max_iter: int, restart: int, warm: bool,
+):
+    A, M, b, x0 = _preconditioned_tridiagonal(scale)
+    krylov = KrylovAcceleration(
+        MatrixOperator(A), preconditioner=MatrixOperator(M),
+        tol=tol, max_iter=max_iter, restart=restart,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        x, record = krylov.solve(b, initial_guess=x0 if warm else None)
+    return (A, M, b), x, record
+
+
+@pytest.mark.foundation
+def test_krylov_record_is_invariant_under_preconditioner_scaling() -> None:
+    r"""THEOREM: the recorded ``pr_residual`` trajectory does not depend on a
+    scalar scaling of the preconditioner. ``M`` and ``s·M`` drive GMRES
+    through the same iterates (exactly, for ``s`` a power of two), and the
+    ruled criterion ``‖M r_k‖/‖M b‖`` is homogeneous of degree zero in ``M``,
+    so the trajectories are bit-identical: ``[M]`` 21 iterations, ``array_equal``
+    at ``s`` = 1/16, 1 and 16. Reddens on the raw callback reading
+    ``‖M r_k‖/‖b‖`` (the trajectory scales with ``s``) and on any normaliser
+    that is not homogeneous of degree one in ``M``."""
+    _system, _x, reference = _solve_preconditioned(
+        1.0, tol=1e-8, max_iter=50, restart=40, warm=True,
+    )
+    expected = _trajectory(reference)
+    if not len(expected) > 5:
+        pytest.fail(f"the fixture converged in {len(expected)} iterations; "
+                    f"a trajectory that short gates nothing")
+    for scale in _PRECONDITIONER_SCALES:
+        _system, _x, record = _solve_preconditioned(
+            scale, tol=1e-8, max_iter=50, restart=40, warm=True,
+        )
+        np.testing.assert_array_equal(
+            np.asarray(_trajectory(record)), np.asarray(expected),
+            err_msg=f"s = {scale}: the inner record's pr_residual moved under "
+                    f"a scalar scaling of the preconditioner — it is not the "
+                    f"preconditioned RELATIVE residual ‖M r‖/‖M b‖",
+        )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("scale", _PRECONDITIONER_SCALES)
+def test_krylov_record_last_is_the_preconditioned_relative_residual(
+    scale: float,
+) -> None:
+    r"""REFERENCE: the record's last ``pr_residual`` equals
+    ``‖M (b − A x)‖ / ‖M b‖`` recomputed by dense numpy at the RETURNED
+    iterate ``x`` (a warm-started solve, so the normaliser ``‖M b‖`` is told
+    apart from the initial residual ``‖M r_0‖``). Left-preconditioned GMRES
+    minimises exactly that norm, so the two agree to the rounding of the
+    recomputation, bounded by ``n ε (‖M‖‖A‖‖x‖ + ‖M‖‖b‖)/‖M b‖``: ``[M]``
+    3.7e-17 against a bound of 5.2e-14, the value 7.0e-9. Reddens on the raw
+    reading (off by ‖M b‖/‖b‖), on the inverted factor, and on a normaliser
+    ‖M r_0‖."""
+    (A, M, b), x, record = _solve_preconditioned(
+        scale, tol=1e-8, max_iter=50, restart=40, warm=True,
+    )
+    last = _trajectory(record)[-1]
+    reference = np.linalg.norm(M @ (b - A @ x)) / np.linalg.norm(M @ b)
+    eps = np.finfo(float).eps
+    rounding = b.size * eps * np.linalg.norm(M, 2) * (
+        np.linalg.norm(A, 2) * np.linalg.norm(x) + np.linalg.norm(b)
+    ) / np.linalg.norm(M @ b)
+    if not reference < 1e-6:
+        pytest.fail(f"s = {scale}: the solve did not converge "
+                    f"(‖M r‖/‖M b‖ = {reference:.2e}); the row's premise broke")
+    if abs(last - reference) > rounding:
+        pytest.fail(
+            f"s = {scale}: the record's last pr_residual {last:.6e} is not the "
+            f"preconditioned relative residual at the returned iterate "
+            f"{reference:.6e} (|Δ| = {abs(last - reference):.2e} > rounding "
+            f"{rounding:.2e})"
+        )
+
+
+#: ``(label, scale, tol, max_iter, restart, scipy accepts)``. The ACCEPTED rows
+#: converge in one restart cycle; the EXHAUSTED rows stop after three Arnoldi
+#: steps (one cycle of restart 3) with ``‖M r‖/‖M b‖`` = 0.08, ``info = 1``.
+#: ``[M]`` Under the raw reading the s = 16 accepted row reads 3.4e-8 > tol (the false
+#: "not converged" qa measured on the thin slab) and the s = 1/1024 exhausted
+#: row reads 2.6e-5 < tol = 1e-3 (the false "converged"); the other two rows
+#: are the controls that read the same either way.
+_VERDICT_ROWS = (
+    ("accepted_s16", 16.0, 1e-8, 50, 40, True),
+    ("accepted_s1_16", 1.0 / 16.0, 1e-8, 50, 40, True),
+    ("exhausted_s1_1024", 1.0 / 1024.0, 1e-3, 1, 3, False),
+    ("exhausted_s1024", 1024.0, 1e-3, 1, 3, False),
+)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "label, scale, tol, max_iter, restart, accepted", _VERDICT_ROWS,
+    ids=[row[0] for row in _VERDICT_ROWS],
+)
+def test_krylov_record_verdict_agrees_with_scipy_acceptance(
+    label: str, scale: float, tol: float, max_iter: int, restart: int,
+    accepted: bool, monkeypatch,
+) -> None:
+    r"""The record reads converged exactly when scipy returned ``info = 0``, on
+    four rows: two accepted and two budget-exhausted, at preconditioner scales
+    on both sides of 1. Honest scope: the two predicates are different
+    quantities (the loop's ‖M r‖/‖M b‖ and scipy's true ‖r‖/‖b‖), and they
+    agree here because the fixture's residual is not concentrated where M is
+    small; a solve that clears the first and not the second is the claim
+    check's (``orpheus.sn.solver._check_convergence_claim``), not this
+    record's. Reddens on the raw reading at ``accepted_s16`` (false
+    not-converged) and at ``exhausted_s1_1024`` (false converged)."""
+    infos = _gmres_spy(monkeypatch)
+    _system, _x, record = _solve_preconditioned(
+        scale, tol=tol, max_iter=max_iter, restart=restart, warm=False,
+    )
+    if len(infos) != 1:
+        pytest.fail(f"{label}: expected one scipy gmres call, saw {len(infos)}")
+    if (infos[0] == 0) is not accepted:
+        pytest.fail(f"{label}: the fixture's premise moved — scipy returned "
+                    f"info = {infos[0]}")
+    if record.converged is not accepted:
+        pytest.fail(
+            f"{label}: scipy returned info = {infos[0]} but the inner record "
+            f"reads converged = {record.converged} (last pr_residual "
+            f"{_trajectory(record)[-1]:.3e}, tol {tol:.0e})"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

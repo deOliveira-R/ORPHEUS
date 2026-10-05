@@ -1015,10 +1015,15 @@ class KrylovAcceleration(Generic[V]):
             Converged solution, shape ``q_ext.shape``.
         record : IterationRecord
             What this level wanted, what it got, and why it stopped.  Its
-            criterion is the preconditioned residual at every GMRES inner
-            iteration (scipy's ``callback_type='pr_norm'``, which is
-            RELATIVE to ``‖b‖`` — measured 2026-08-09, so judging it against
-            ``rtol`` is dimensionally right).
+            criterion, ``pr_residual``, is the preconditioned relative
+            residual :math:`\lVert M r_k\rVert / \lVert M b\rVert` at every
+            GMRES inner iteration: the quantity scipy's inner loop stops on
+            (``‖M r‖ ≤ rtol·‖M b‖``), so judging it against ``tol`` reads the
+            loop's own test.  scipy ACCEPTS a solve on the true residual,
+            ``‖b − A x‖ ≤ rtol·‖b‖``; that quantity is not recorded here,
+            because the SN layer's end-of-solve claim check re-measures the
+            honest equation residual of every claimed convergence (its one
+            home; ``orpheus.sn.solver._check_convergence_claim``).
 
             An EMPTY trajectory means GMRES returned in zero iterations,
             i.e. the initial guess already satisfied the tolerance.  The
@@ -1071,15 +1076,29 @@ class KrylovAcceleration(Generic[V]):
 
         residual_history: list[float] = []
 
+        # scipy's inner loop stops on ‖M r‖ ≤ rtol·‖M b‖, but its ``pr_norm``
+        # callback reports ‖M r‖/‖b‖.  The two agree only when ‖M b‖ = ‖b‖:
+        # true of the identity (the SN preconditioner until #200), false of the
+        # sweep, whose ‖M b‖/‖b‖ ran from 0.04 to 21.7 on qa's slabs (``[M]``
+        # 2026-10-04, ``scratch/reference_architecture/p3/qa200/q1b_sweep.log``),
+        # so the record read inner solves scipy had accepted as unconverged.
+        # Each reading is rescaled by ‖b‖/‖M b‖, one preconditioner apply per
+        # solve, so the criterion IS scipy's stopping quantity.  A zero source
+        # has no relative residual and no callback (scipy returns at once).
+        source_norm = float(np.linalg.norm(b))
+        to_preconditioned_relative = (
+            source_norm / float(np.linalg.norm(M_scipy.matvec(b)))
+            if source_norm > 0.0
+            else 1.0
+        )
+
         def callback(rk: object) -> None:
             # scipy GMRES with callback_type='pr_norm' passes the
-            # preconditioned-residual norm (a scalar).  Older versions
+            # preconditioned-residual norm over ‖b‖ (a scalar).  Older versions
             # may pass the residual vector — handle both defensively.
             r = np.asarray(rk)
-            if r.ndim == 0:
-                residual_history.append(float(r))
-            else:
-                residual_history.append(float(np.linalg.norm(r)))
+            reading = float(r) if r.ndim == 0 else float(np.linalg.norm(r))
+            residual_history.append(reading * to_preconditioned_relative)
 
         # No try/except around the solve: a TypeError raised from inside the
         # wrapped carrier matvec (``loss_minus_gains`` / the preconditioner,
@@ -1161,13 +1180,12 @@ class KrylovAcceleration(Generic[V]):
             label="inner(gmres)",
             criteria=(
                 StoppingCriterion(
-                    # scipy's ``callback_type='pr_norm'`` reports the
-                    # preconditioned residual RELATIVE to ``‖b‖`` — measured
-                    # 2026-08-09 across three ‖b‖ scales, where the callback
-                    # value matched ``‖b − Ax‖/‖b‖`` exactly.  So judging it
-                    # against ``self.tol`` (an ``rtol``) is dimensionally
-                    # right, and the long-standing ``_claims_convergence``
-                    # comparison at the SN call sites was never a units bug.
+                    # ‖M r‖/‖M b‖, scipy's inner stopping quantity (the
+                    # rescaling above).  ⛔ Until 2026-10-04 this recorded the
+                    # raw callback, ‖M r‖/‖b‖, on the strength of a 2026-08-09
+                    # measurement that it matched ``‖b − Ax‖/‖b‖``: true then,
+                    # because every SN Krylov solve ran with the IDENTITY
+                    # preconditioner, and false from #200 on.
                     name="pr_residual",
                     trajectory=tuple(residual_history),
                     tolerance=self.tol,

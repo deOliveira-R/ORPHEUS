@@ -9,9 +9,11 @@ trace rows, and on a carrying mesh the ψ½ System-B blocks), which no physical
 right-hand side populates.
 
 * :data:`MESHES` / :data:`GEOMS`: a five-region slab with a vacuum or a
-  reflective left face, a folded-product cylinder whose rule carries
+  reflective left face, a 2-D Cartesian box (two materials, non-uniform edges,
+  reflective and vacuum faces), a folded-product cylinder whose rule carries
   bit-exact pure-azimuthal ordinates, and a Gauss-Legendre sphere. Every trace
-  row is live; the two curvilinear meshes carry System B.
+  row is live except the cylinder's tangential slots; the two curvilinear
+  meshes carry System B.
 * :func:`random_state`: a random SOURCE-role residual in an implicit
   operator's domain, every block populated.
 * :func:`random_source_composite`: a random SOURCE-role right-hand side on a
@@ -26,8 +28,8 @@ from typing import Any
 import numpy as np
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.mesh import CellEdges, CellsByCount, Mesher
+from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -65,6 +67,28 @@ def mesh_slab(left: str) -> SNProblem:
             CellEdges(np.array([6.0, 8.0])),
         )).mesh,
         Quadrature.gauss_legendre(n_ordinates=4),
+        mixtures(),
+    )
+
+
+def mesh_cart2d() -> SNProblem:
+    # The 2-D Cartesian row (qa's #200 review, item 4): a 3 x 2 box of two
+    # materials on non-uniform edges, reflective on xmin and ymax and vacuum
+    # on xmax and ymin (reflection is a coupling GAIN, never inside the bare
+    # (L+C), so both kinds of face carry live trace rows). The level-symmetric
+    # S4 rule has no ordinate tangent to a face: ``[M]`` 2026-10-05, 12 inflow
+    # and 12 outflow slots on each of the four faces, 24 ordinates (a 2-D
+    # ``product`` rule leaves half of each face's slots tangential). Seedless,
+    # so the implicit operator is the bare (L+C).
+    return SNProblem(
+        Mesh2D(
+            np.array([0.0, 0.4, 1.5, 2.0]), np.array([0.0, 0.7, 2.0]),
+            np.array([[0, 1], [1, 0], [0, 0]]),
+            face_laws={"xmin": BC("reflective"), "xmax": BC("vacuum"),
+                       "ymin": BC("vacuum"), "ymax": BC("reflective")},
+            coord=CoordSystem.CARTESIAN,
+        ),
+        Quadrature.level_symmetric(4),
         mixtures(),
     )
 
@@ -108,6 +132,7 @@ MESHES = {
     # the identity is bc-INDEPENDENT: B is a coupling GAIN, never inside
     # the bare (L+C) — a reflective wall must not change the round-trip
     "slab_reflective": lambda: mesh_slab("reflective"),
+    "cart2d": mesh_cart2d,
     "cyl_folded": mesh_cyl,
     "sphere_gl": mesh_sphere,
 }

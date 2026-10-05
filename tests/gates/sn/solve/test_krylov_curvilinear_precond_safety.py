@@ -303,10 +303,17 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     subspace and the poorly-conditioned curvilinear-eigenvalue inner STALLS
     (residual plateau, scipy ``info > 0``; measured 868 s vs SI ~1 s, and at
     a realistic outer cap it returns a WRONG keff).  The production solver now
-    sizes ``n_dof = initial_guess.to_flat().size`` — this gate pins the
-    deficit the fix closes so a revert reddens here (fast) instead of
-    stalling the sphere eigenvalue wall.  Distinct from issue #200 (the
-    preconditioner).  numerics-investigator 2026-07-04.
+    sizes ``n_dof = initial_guess.to_flat().size``.  numerics-investigator
+    2026-07-04.
+
+    What this row asserts is the PREMISE, from the spaces alone: the coupled
+    ravel exceeds the bulk count by exactly the trace plus System B. It
+    constructs no ``KrylovAcceleration``, so a revert of the production
+    sizing, or a re-introduced ``restart=min(50, n_dof)`` clamp, leaves it
+    green (``[M]`` qa 2026-10-04 and 2026-10-05,
+    ``scratch/reference_architecture/p3/gates200b/arm53_clamp.log``); the
+    production plumbing is pinned by the ``test_g_d3_3_*`` site gates
+    below, which redden on both.
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import CoordSystem

@@ -77,7 +77,11 @@ _SWEEP_IDENTITY = (
     "tests/gates/sn/operators/test_sweep_inverse_identity.py::TestSweepInverseIdentity::"
     "test_forward_of_inverse_is_identity_on_a_random_composite"
 )
-_GEOMS = GEOMS  # slab vacuum, slab reflective, folded cylinder, GL sphere: every trace row live
+#: Slab vacuum, slab reflective, 2-D Cartesian box, folded cylinder, GL sphere: every trace row live (the
+#: cylinder's tangential slots aside). The 2-D row was added on qa's #200 review (2026-10-05); ``[M]`` its three
+#: rows redden under the identity, boundary-drop and affine preconditioners
+#: (``scratch/reference_architecture/p3/gates200b/arm4_*.log``).
+_GEOMS = GEOMS
 
 
 # ── the production preconditioner, read off the production driver ─────────
@@ -324,3 +328,81 @@ def test_p200_4_a_dsa_source_iteration_step_is_richardson_on_the_krylov_precondi
     assert gap <= _RICHARDSON_RTOL, (
         f"{geom}: the DSA source-iteration step differs from Richardson on the Krylov preconditioner by {gap:.2e}"
     )
+
+
+# ── 5. the inner record reads the loop's own test under the sweep ────────────
+
+#: qa's thin slab (#200 review, item 3), shrunk to the smallest mesh that still shows the defect: two 10 cm
+#: regions of a 2-group mixture with upscatter, scaled to σ_t = 0.02 and 0.04 /cm (the second region at half
+#: density), vacuum faces, 2 cells per region, Gauss-Legendre S8. The sweep then amplifies the source,
+#: ‖M b‖/‖b‖ ≈ 26 (``[M]`` 2026-10-05, ``scratch/reference_architecture/p3/gates200b/probe_l1_size.log``: of
+#: five sizes the one where the raw reading misreads the most inner solves, 4 of 8, in 0.03 s).
+_THIN_SCALE = 0.02
+#: The activation the row needs: under the raw reading the record's residual is ‖M b‖/‖b‖ times the loop's, so
+#: an amplification below a few would leave the raw reading inside the tolerance and the row blind.
+_THIN_MIN_AMPLIFICATION = 10.0
+
+
+def _thin_mixture(scale: float):
+    from orpheus.derivations.common.xs_library import make_mixture
+
+    sig_t = np.array([1.0, 2.0]) * scale
+    sig_s = np.array([[0.5, 0.4], [0.05, 1.5]]) * scale
+    sig_f = np.array([0.02, 0.15]) * scale
+    return make_mixture(
+        sig_t=sig_t, sig_c=sig_t - sig_s.sum(axis=1) - sig_f, sig_f=sig_f,
+        nu=np.array([2.5, 2.5]), chi=np.array([1.0, 0.0]), sig_s=sig_s,
+    )
+
+
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_iteration.py::test_krylov_record_verdict_agrees_with_scipy_acceptance[accepted_s16]",
+    "tests/gates/numerics/test_iteration.py::test_krylov_record_is_invariant_under_preconditioner_scaling",
+    f"{_HERE}::test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse[slab_vacuum]",
+)
+def test_p200_5_no_inner_record_reads_unconverged_when_scipy_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On a thin slab, where the sweep amplifies the residual about 26 times, every inner (GMRES) record reads
+    converged when scipy accepted the solve (``info = 0``), no "inner(gmres) hit" budget warning fires, and the
+    solve reads fully converged. The record's criterion is ``‖M r‖/‖M b‖``, the quantity scipy's inner loop stops
+    on (the user's ruling, 2026-10-04). Reddens on the raw callback reading ``‖M r‖/‖b‖``: ``[M]`` 4 of 8 inner
+    records then read not-converged, the budget warning fires, ``fully_converged`` is False
+    (``scratch/reference_architecture/p3/gates200b/``). The opposite error, a record claiming a convergence the
+    true residual does not support, is the end-of-solve claim check's; on 72 slab configurations it never arose
+    beyond that check's safety factor (README, item 3)."""
+    import warnings
+
+    import orpheus.numerics.iteration as iteration_mod
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+
+    calls: list[tuple[int, float]] = []
+    honest = iteration_mod.spla.gmres
+
+    def spy(A: Any, b: np.ndarray, *args: Any, M: Any = None, **kwargs: Any) -> tuple[np.ndarray, int]:
+        x, info = honest(A, b, *args, M=M, **kwargs)
+        calls.append((int(info), float(np.linalg.norm(M.matvec(b)) / np.linalg.norm(b))))
+        return x, info
+
+    monkeypatch.setattr(iteration_mod.spla, "gmres", spy)
+    geometry = StructuredGeometry.slab((0.0, 10.0, 20.0), (0, 1), left=BC.vacuum, right=BC.vacuum)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(2)).mesh
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        solution = sn_solver.solve_sn(
+            {0: _thin_mixture(_THIN_SCALE), 1: _thin_mixture(_THIN_SCALE / 2)}, mesh, Quadrature.gauss_legendre(8),
+            inner_solver="krylov", keff_tol=1e-10, inner_tol=1e-8, max_outer=300,
+        )
+    inner = [child for child in solution.record.children if child.label == "inner(gmres)"]
+    assert inner and len(inner) == len(calls), f"{len(inner)} inner(gmres) records against {len(calls)} gmres calls"
+    amplification = min(ratio for _info, ratio in calls)
+    assert amplification > _THIN_MIN_AMPLIFICATION, (
+        f"the sweep no longer amplifies the residual (‖M b‖/‖b‖ ≥ {amplification:.1f}): the row is blind"
+    )
+    misread = [i for i, ((info, _r), child) in enumerate(zip(calls, inner)) if info == 0 and not child.converged]
+    assert not misread, (
+        f"inner solves {misread} of {len(inner)}: scipy accepted (info = 0) but the record reads not converged "
+        f"(last pr_residual {[inner[i].criteria[0].last for i in misread]}, tol {inner[0].criteria[0].tolerance:.0e})"
+    )
+    budget = [str(w.message) for w in caught if "inner(gmres) hit" in str(w.message)]
+    assert not budget, f"a false inner budget warning fired: {budget[0][:160]}"
+    assert solution.record.fully_converged, "the solve does not read fully converged"
