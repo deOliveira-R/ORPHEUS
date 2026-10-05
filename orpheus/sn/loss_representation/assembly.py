@@ -19,7 +19,7 @@ coupling lives in it), and the trace coupling ``A_bs`` (the inflow seed)
 is a separate composite block deliberately NOT emitted here — the
 consumers of this block (the walk-order triangularity gates, the sweep ≡
 forward-substitution discharge of #284, DSA's ``R·A·P`` moment
-reduction, #2/#200) all pose it at zero inflow. Scope: **Cartesian
+reduction, #2, the Krylov sweep preconditioner of #200) all pose it at zero inflow. Scope: **Cartesian
 only** — a curvilinear ordinate couples its angular neighbor through the
 Morel–Montry closure (and the #282 lagged pole seed is precisely a
 walk-order back edge), so the per-ordinate block factorization does not

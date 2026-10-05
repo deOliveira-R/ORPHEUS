@@ -125,16 +125,17 @@ def test_krylov_kinf_independent_of_mesh_refinement(
     keff = _solve_kinf(n_cells=n_cells, inner_solver="krylov")
     err = abs(keff - _kinf_analytical)
     # Gate: catches the ERR-053 subspace-truncation signature (pre-fix err was
-    # 4.7e-1 — SIX orders above this gate).  Relaxed 1e-9 → 1e-7 (2026-06-05):
-    # the UNPRECONDITIONED Krylov stopgap (issue #200) converges to ~1.6e-9 on
-    # a reflective sphere, NOT machine precision — the strict 1e-9 gate was
-    # marginally tight (FP noise near the GMRES inner_tol budget), failing at
-    # meshes 5/16/30 while passing at 8/10/20.  1e-7 still catches any
-    # re-introduction of a subspace-dimension cap while tolerating the
-    # unpreconditioned floor; when #200 lands the block-inverse face
-    # preconditioner (machine-precision convergence on curvilinear), re-tighten
-    # to 1e-9.  The SI companion below stays at 1e-9 (SI IS bit-flat).
-    assert err < 1e-7, (
+    # 4.7e-1 — EIGHT orders above this gate).  Relaxed 1e-9 → 1e-7 on
+    # 2026-06-05 for the then-unpreconditioned Krylov floor (~1.6e-9), and
+    # re-tightened to 1e-9 with #200 (2026-10-04), as the relaxation asked.
+    # ``[M]`` 2026-10-04 (scratch/reference_architecture/p3/krylov200/probes/
+    # p3_restart_signature.log), |k − k_inf| at n_cells 5, 8, 10, 16, 20, 30:
+    # sweep-preconditioned 8.4e-11, 2.2e-11, 2.4e-10, 9.9e-13, 6.8e-12, 5.1e-11;
+    # the identity, on today's tree, 1.6e-14 to 8.3e-14. The preconditioned
+    # solve stops on the PRECONDITIONED residual at inner_tol = 1e-8, so it is
+    # not the machine-precision arm on this flat problem; the 1e-9 band has 4x
+    # headroom over its worst row.
+    assert err < 1e-9, (
         f"Krylov keff = {keff:.10f}, ref = {_kinf_analytical:.10f}, "
         f"err = {err:.3e}.  ERR-053 signature: subspace truncation in "
         f"GMRES (restart=min(50, full_size) clamp).  See "

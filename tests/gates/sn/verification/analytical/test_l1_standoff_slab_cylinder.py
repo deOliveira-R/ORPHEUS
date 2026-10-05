@@ -11,14 +11,13 @@ Two algorithms agreeing is necessary but NOT sufficient — both can be
 equally wrong.  Post-D-K (commit ``dadf4e8``), ``solve_sn`` routes
 through ``StreamingOperator + CollisionOperator`` =
 :class:`StreamingCollisionOperator`; the Krylov path uses GMRES on
-``StreamingCollisionOperator.apply``, UNPRECONDITIONED today (an explicit
-identity in ``orpheus.sn.solver._within_group_krylov``; issue #200 re-enables
-the sweep as its preconditioner), so its inner iteration count grows with the
-mesh and its cost as about the cube of the cell count. The two paths share no
-cell kernel: the Krylov matvec's per-cell algebra is
-``DiamondDifference.residual_kernel_batch``, the sweep's is
-``affine_scan_coefficients``, so a defect in one moves one path's k only
-(a matvec defect also trips the sweep's convergence-claim guard, which
+``StreamingCollisionOperator.apply``, left-preconditioned by the sweep since
+#200 (2026-10-04; an identity before, when its inner iteration count grew with
+the mesh). The two paths' FIXED POINTS share no cell kernel: the Krylov
+matvec's per-cell algebra is ``DiamondDifference.residual_kernel_batch``, the
+sweep's is ``affine_scan_coefficients``; the preconditioner reads the sweep's
+but moves only GMRES's trajectory. So a defect in one kernel moves one path's
+k only (a matvec defect also trips the sweep's convergence-claim guard, which
 re-measures the sweep's residual through the matvec).
 
 References (semi-analytical pillar per ``vv-principles``):
@@ -210,7 +209,7 @@ def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
     the third level adds no reading the first two lack; a defect local to one
     cell (the axis cell, an interface cell) moves k in proportion to that
     cell's weight, which is largest on the coarsest mesh; and the nx = 80
-    Krylov solve cost 184 s of the row's 192 s, unpreconditioned (#200). The
+    Krylov solve cost 184 s of the row's 192 s, unpreconditioned (before #200). The
     refinement ladder that needs three levels is the reference half's "right
     rate to right limit", which keeps nx = 80.
 
@@ -243,7 +242,7 @@ def test_cylinder_l1_refinement_against_reference(nx: int) -> None:
 
     Each path is solved when its comparison is reached, not before: while the
     reference is uncertified the first comparison refuses, so the Krylov solve
-    (184 s at nx = 80, unpreconditioned, #200) is never paid for a refusal;
+    (184 s at nx = 80 before #200's preconditioner) is never paid for a refusal;
     once the family is certified every solve runs, as before.
     """
     for solve in (_solve_cyl_via_sweep, _solve_cyl_via_krylov_unified):

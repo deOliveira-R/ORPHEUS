@@ -922,12 +922,17 @@ def _within_group_krylov(
     the ONE coupled gain grid carrying); the matvec is
     ``M.apply − Σ Nᵢ.apply``.
 
-    Without a ``corrector``, GMRES is UNPRECONDITIONED (explicit identity)
-    per `issue #200 <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_
-    (the block-inverse face preconditioner re-enablement).  With one (the
-    consistent-DSA posture, issue #2), the left preconditioner is the
-    **transport-corrected** :math:`M^{-1} \approx (A - \Sigma g)^{-1}` of
-    Adams & Larsen §VI:
+    Without a ``corrector``, the left preconditioner is the sweep,
+    :math:`M^{-1} = (L+C)^{-1}` (``seeded_inverse(LC)``, issue #200): it
+    reads the residual's boundary block as well as its cells, which is what
+    makes it the block inverse of the typed state rather than a rank-deficient
+    map (a sweep that drops the boundary block is still linear, and converges
+    to a wrong answer at machine-zero residual; the boundary round trip
+    :math:`A M q_b = q_b` is its gate). The inner iteration count then no
+    longer grows with the mesh (``[M]`` 2026-10-04: slab, 40 cells per region,
+    5705 to 81 inner iterations). With a ``corrector`` (the consistent-DSA
+    posture, issue #2), the left preconditioner is the **transport-corrected**
+    :math:`M^{-1} \approx (A - \Sigma g)^{-1}` of Adams & Larsen §VI:
 
     .. math::
 
@@ -946,16 +951,11 @@ def _within_group_krylov(
     """
     from orpheus.numerics.iteration import KrylovAcceleration, seeded_inverse
 
-    if corrector is None:
-        # explicit identity — issue #200 tracks the face-preconditioner
-        # re-enablement; the DSA posture below is the first re-enabled M.
-        preconditioner = lambda q: q  # noqa: E731
-    else:
-        sweep = seeded_inverse(LC)
+    sweep = seeded_inverse(LC)
 
-        def preconditioner(q):
-            swept = sweep.apply(q)
-            return swept + corrector.apply(swept)
+    def preconditioner(q):
+        swept = sweep.apply(q)
+        return swept if corrector is None else swept + corrector.apply(swept)
 
     return KrylovAcceleration(
         LC, *gains,
@@ -2122,12 +2122,8 @@ class SNSolver:
         on typed :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
         composite ``L + C`` returns an
         :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (R-1 Step C);
-        its ``.solve`` IS the WDD sweep but R-1 ships GMRES
-        UNPRECONDITIONED (``preconditioner=None``) per user direction
-        ("consolidating the foundational architecture; the block-inverse
-        face preconditioner is `issue #200
-        <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_").  The
-        sweep-as-preconditioner reactivation lives there.
+        its inverse IS the WDD sweep, which preconditions GMRES
+        (:func:`_within_group_krylov`, issue #200).
 
         The within-group fission ``F`` is zero — the fission source
         comes in as the external ``q_{\rm ext}`` per the eigenvalue
@@ -3862,10 +3858,9 @@ def _solve_fixed_source_krylov(
 
     on typed :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
     composite ``L + C`` returns an
-    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`; its ``.solve``
-    IS the WDD sweep, but R-1 ships GMRES UNPRECONDITIONED
-    (explicit identity) — issue #200 tracks the block-inverse face
-    preconditioner re-enablement.
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`; its inverse
+    IS the WDD sweep, which preconditions GMRES (:func:`_within_group_krylov`,
+    issue #200).
 
     The outer Picard wrap on the scattering source dissolves at G1:
     typed ``KrylovAcceleration`` solves :math:`(L+C-S)\,\psi =

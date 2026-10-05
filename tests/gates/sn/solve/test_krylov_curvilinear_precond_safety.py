@@ -29,16 +29,18 @@ What this file pins
 ===================
 
 1. **Identity preconditioner** converges to the analytical ``k_inf``
-   on slab, sphere, and cylinder.  This is the production contract
-   (``SNSolver._solve_krylov`` ships ``preconditioner=lambda q: q``
-   until issue #200 lands the block-inverse face preconditioner).
-2. **Default sweep preconditioner** converges to ``k_inf`` on **slab**.
-   Slab has no curvilinear M-M closure, so the cold-start sweep IS a
-   strong preconditioner.  Sphere/cylinder default-sweep precond
-   convergence is a known limitation tracked by issue #200 — pinning
-   it as a passing L1 would lock-in the wrong production behaviour;
-   the right diagnostic for the curvilinear case is the block-inverse
-   face precond that #200 designs.
+   on slab, sphere, and cylinder.  Until #200 (2026-10-04) this was the
+   production contract; it is now the UNPRECONDITIONED reference arm.
+2. **Default sweep preconditioner** converges to ``k_inf`` on **slab**
+   (the ``preconditioner=None`` fallback of ``KrylovAcceleration``: the
+   silent-fallback sentinel, below).
+3. **The production preconditioner** (#200: the sweep, read off
+   ``orpheus.sn.solver._within_group_krylov`` itself) converges to
+   ``k_inf`` on slab, sphere AND cylinder: the curvilinear limitation
+   this file once recorded was healed by the direct curvilinear inverse
+   (#282, #280), so the sweep is a correct preconditioner on every
+   coordinate system (the route, the linearity and the rate are
+   ``test_krylov_sweep_preconditioner.py``).
 
 Why these two checks together
 -----------------------------
@@ -125,7 +127,10 @@ def _krylov_power_iteration_kinf(
       falls back to ``LC.solve`` — the WDD sweep with cold-start M-M
       seed post-Phase-1.2).
     * ``"identity"`` → explicit ``lambda q: q`` (the production default
-      until issue #200 ships the block-inverse face preconditioner).
+      until #200, 2026-10-04; now the unpreconditioned reference arm).
+    * ``"production"`` → the ``KrylovAcceleration`` that the production
+      driver ``orpheus.sn.solver._within_group_krylov`` builds (#200: the
+      sweep), so this harness follows production rather than restating it.
     """
     from dataclasses import replace
 
@@ -139,8 +144,7 @@ def _krylov_power_iteration_kinf(
     from orpheus.sn.solver import (
         SNSolver,
         _coupled_flux_state,
-        _coupled_source_state,
-        _radial_characteristic_source_from_per_ordinate,
+        _eigenvalue_driver_source,
     )
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import AngularSourceSink
@@ -159,7 +163,7 @@ def _krylov_power_iteration_kinf(
         max_inner=300, inner_tol=1e-12, inner_solver="krylov",
     )
 
-    if preconditioner_kind == "default_sweep":
+    if preconditioner_kind in ("default_sweep", "production"):
         precond = None
     elif preconditioner_kind == "identity":
         precond = lambda q: q  # noqa: E731 (closure required by KrylovAcceleration)
@@ -182,12 +186,20 @@ def _krylov_power_iteration_kinf(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     cold = _coupled_flux_state(zero, problem) if coupled else zero
-    krylov = KrylovAcceleration(
-        splitting.implicit, *splitting.explicit,
-        preconditioner=precond,
-        tol=1e-12, max_iter=300,
-        restart=int(cold.to_flat().size),
-    )
+    if preconditioner_kind == "production":
+        from orpheus.sn.solver import _within_group_krylov
+
+        krylov = _within_group_krylov(
+            splitting.implicit, *splitting.explicit,
+            n_dof=int(cold.to_flat().size), max_iter=300, tol=1e-12,
+        )
+    else:
+        krylov = KrylovAcceleration(
+            splitting.implicit, *splitting.explicit,
+            preconditioner=precond,
+            tol=1e-12, max_iter=300,
+            restart=int(cold.to_flat().size),
+        )
 
     phi = solver.initial_flux_distribution()
     keff = 1.0
@@ -198,23 +210,13 @@ def _krylov_power_iteration_kinf(
     psi_typed_warm: "FullField | None" = None
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
-        q_ext_per_ord = AngularSourceSink.from_isotropic(fis, problem)
-        # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
-        # re-wrap into AngularFlux.  On a carrying mesh (sphere) the coupled
-        # rhs pairs the 2-block source with the q½ fold of the (isotropic)
-        # fission source — System B's member, mirroring the production
-        # ``SNSolver._solve_krylov`` assembly (B.2d); the reflective B arms
-        # are folded by ``KrylovAcceleration`` internally (N is in the gains).
-        q_a = replace(zero, interior=q_ext_per_ord)
-        q_ext_typed = (
-            _coupled_source_state(
-                q_a,
-                _radial_characteristic_source_from_per_ordinate(
-                    q_ext_per_ord.values, problem,
-                ),
-                problem, context="test_krylov_precond_safety",
-            )
-            if coupled else q_a
+        # The production spelling of the eigenvalue driver's rhs (#200): the
+        # harness's own hand-build paired a SOURCE-role bulk with a FLUX-role
+        # boundary, which only the identity preconditioner (no arithmetic)
+        # tolerated; the sweep's coupled back-substitution refuses the mixed
+        # roles, as the typed fields should.
+        q_ext_typed = _eigenvalue_driver_source(
+            fis, problem, context="test_krylov_precond_safety",
         )
         psi_typed, _residuals = krylov.solve(
             q_ext_typed,
@@ -234,8 +236,8 @@ def _krylov_power_iteration_kinf(
 def test_identity_preconditioner_recovers_kinf(coord: str) -> None:
     r"""Identity preconditioner recovers analytical ``k_inf`` on every coord.
 
-    Pins the **production contract**: ``SNSolver._solve_krylov`` ships
-    GMRES with ``preconditioner=lambda q: q`` (explicit identity).
+    Pins the **unpreconditioned arm** (the production contract until #200,
+    2026-10-04): GMRES with ``preconditioner=lambda q: q``.
     The typed-AngularFlux Krylov inner solver embedded in a manual
     outer power iteration MUST converge to the homogeneous-reflective
     analytical reference at ``rtol < 1e-8`` on slab, sphere, and
@@ -253,9 +255,9 @@ def test_identity_preconditioner_recovers_kinf(coord: str) -> None:
     rel_err = abs(keff_recovered - case.k_eff) / case.k_eff
     assert rel_err < 1e-8, (
         f"{coord} / identity precond: keff={keff_recovered:.10f}, "
-        f"ref={case.k_eff:.10f}, rel_err={rel_err:.3e}.  Identity-precond "
-        f"convergence on all coords is the R-1 production contract — "
-        f"a failure here flags a regression in the typed Krylov path."
+        f"ref={case.k_eff:.10f}, rel_err={rel_err:.3e}.  The unpreconditioned "
+        f"arm must converge on all coords — a failure here flags a "
+        f"regression in the typed Krylov matvec path."
     )
 
 
@@ -278,13 +280,10 @@ def test_default_sweep_preconditioner_recovers_kinf_on_slab() -> None:
     still passes, the silent-fallback path has been re-introduced
     (e.g., a stateful read inside ``L.solve``).  See L19 + ERR-050.
 
-    **Why sphere / cylinder are NOT pinned here**: the curvilinear
-    M-M closure with cold-start zero seed is a poor preconditioner
-    for GMRES (numerical issue, not the bug-class structural fix).
-    Issue #200 designs the block-inverse face preconditioner that
-    restores sweep-as-preconditioner quality on curvilinear; pinning
-    a failing curvilinear default-sweep here would lock in the wrong
-    production state.
+    Sphere and cylinder are pinned by
+    :func:`test_production_preconditioner_recovers_kinf` (the production
+    driver's sweep, #200); this row stays the slab sentinel of the
+    ``preconditioner=None`` fallback.
     """
     case = _get_continuous_case("2eg")
     keff_recovered, _n_outer = _krylov_power_iteration_kinf(
@@ -299,6 +298,36 @@ def test_default_sweep_preconditioner_recovers_kinf_on_slab() -> None:
         f"fallback path structurally unreachable.  A failure here is "
         f"strong evidence that the structural fix has been reverted — "
         f"see L19 + ERR-050."
+    )
+
+
+@pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
+@pytest.mark.rests_on(
+    "tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse[slab_reflective]",
+    "tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse[sphere_gl]",
+    "tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse[cyl_folded]",
+)
+def test_production_preconditioner_recovers_kinf(coord: str) -> None:
+    r"""#200's acceptance on an independent reference: the production
+    preconditioned Krylov (the sweep, built by ``_within_group_krylov``)
+    recovers the analytical ``k_inf`` (closed form, 2 groups, reflective
+    faces, so the boundary block is live) to the same ``rtol < 1e-8`` as
+    the unpreconditioned arm, on slab, sphere and cylinder. A preconditioner
+    that ignores the boundary block (the issue's rank-deficient "natural
+    sweep outflow") gives k = 1.7528 on the cylinder, red at 6.5e-2, and
+    does not finish within 280 s on the slab (``[M]`` 2026-10-04,
+    ``scratch/reference_architecture/p3/krylov200/battery/``). Against the
+    identity this row is green by construction (the identity converges
+    too); ``test_krylov_sweep_preconditioner.py`` holds the route and the
+    rate."""
+    case = _get_continuous_case("2eg")
+    keff_recovered, _n_outer = _krylov_power_iteration_kinf(
+        coord=coord, ng_key="2eg", preconditioner_kind="production",
+    )
+    rel_err = abs(keff_recovered - case.k_eff) / case.k_eff
+    assert rel_err < 1e-8, (
+        f"{coord} / production precond: keff={keff_recovered:.10f}, "
+        f"ref={case.k_eff:.10f}, rel_err={rel_err:.3e}"
     )
 
 
@@ -319,7 +348,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     sizes ``n_dof = initial_guess.to_flat().size`` — this gate pins the
     deficit the fix closes so a revert reddens here (fast) instead of
     stalling the sphere eigenvalue wall.  Distinct from issue #200 (the
-    identity preconditioner).  numerics-investigator 2026-07-04.
+    preconditioner).  numerics-investigator 2026-07-04.
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import CoordSystem

@@ -503,7 +503,7 @@ class StreamingCollisionOperator(
       ``σ_r = σ_t - Σ_{s,0}^{g→g}`` is the removal cross-section that
       lets one fold the within-group self-scatter into the diagonal
       collision term (Adams & Larsen 2002 §III; tracked by issue
-      `#200 <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_).
+      `#575 <https://github.com/deOliveira-R/ORPHEUS/issues/575>`_).
 
     The two paths produce structurally identical objects — the choice
     only changes the call-site readability.
