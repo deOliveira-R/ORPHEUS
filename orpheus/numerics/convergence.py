@@ -1005,6 +1005,27 @@ class IterationRecord:
         distorting what :attr:`StoppingCriterion.cleared` means.
     children:
         The levels nested inside one iteration of this one.
+    accepted:
+        The producer's OWN acceptance verdict, when it runs an acceptance
+        test separate from its criteria; ``None`` (the default) means it runs
+        none, and the criteria decide alone.  It is an OBSERVATION the record
+        cannot derive, like :attr:`iterations_run`: only the producer saw the
+        test run.  ``False`` vetoes :attr:`converged`; ``True`` adds nothing
+        to it, because the criteria must still clear.
+
+        The one producer that sets it is
+        :class:`~orpheus.numerics.iteration.KrylovAcceleration`: scipy's GMRES
+        steers on the preconditioned residual but ACCEPTS on the true one, and
+        after its first restart cycle it tightens its inner threshold
+        internally, so the recorded preconditioned trajectory can clear while
+        scipy refuses the solve (``info != 0``).  ``[M]`` 2026-10-05: on 60 of
+        400 random preconditioned solves the record read converged against a
+        refusal, true relative residual up to 0.84
+        (``scratch/reference_architecture/p3/elegance200b/``), and qa's
+        anisotropic-preconditioner rows read converged at a true residual of
+        2e-4 to 7e-4 (``scratch/reference_architecture/p3/qa200b/``).  The
+        user's ruling (2026-10-05): a record cannot read converged when its
+        producer's own acceptance test failed.
     """
 
     label: str
@@ -1014,6 +1035,7 @@ class IterationRecord:
     iterations_run: int | None = None
     min_iterations: int = 0
     children: tuple[IterationRecord, ...] = ()
+    accepted: bool | None = None
 
     def __post_init__(self) -> None:
         if not self.label:
@@ -1164,7 +1186,11 @@ class IterationRecord:
 
     @property
     def converged(self) -> bool:
-        """Did THIS level meet all of its own criteria?
+        """Did THIS level meet all of its own criteria, and did its producer accept?
+
+        A producer that runs its own acceptance test and saw it fail
+        (:attr:`accepted` ``False``) vetoes the claim whatever the criteria
+        read.
 
         Says nothing about the levels beneath it — that is
         :attr:`fully_converged`, and keeping them separate is what lets a
@@ -1197,6 +1223,8 @@ class IterationRecord:
         wherever there IS a criterion, so widening to "no criterion was
         measured" loses nothing and closes the hole.
         """
+        if self.accepted is False:
+            return False
         if self.n_iterations < self.min_iterations:
             return False
         if self.iterated and not any(
@@ -1359,6 +1387,11 @@ class IterationRecord:
             f"({self.n_iterations}/{self.budget.in_iterations} "
             f"iterations{scale})"
         ]
+        if self.accepted is False:
+            lines.append(
+                f"{pad}  acceptance: REFUSED by the producer's own test "
+                f"(the criteria below may still read met)"
+            )
         binding = self.binding_criterion
         for criterion in self.criteria:
             tag = " <- binding" if criterion is binding else ""

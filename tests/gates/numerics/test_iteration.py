@@ -1100,16 +1100,20 @@ def test_singular_consistent_exact_breakdown_solves_clean() -> None:
         )
 
 
-def _stub_gmres_returning(info: int, pr_norm_tail: float):
+def _stub_gmres_returning(info: int, pr_norm_tail: float, solution=None):
     """A deterministic ``spla.gmres`` stand-in: feeds the callback one
-    ``pr_norm`` value and stamps ``info`` — pins the guard BRANCH
-    independent of scipy's version-dependent breakdown stamping."""
+    ``pr_norm`` value, stamps ``info`` and returns ``solution`` (zeros when
+    none is given) — pins the guard BRANCH independent of scipy's
+    version-dependent breakdown stamping."""
 
     def _stub(A, b, x0=None, M=None, rtol=None, atol=None, maxiter=None,
               restart=None, callback=None, callback_type=None):
         if callback is not None:
             callback(pr_norm_tail)
-        x = np.zeros_like(np.asarray(b))
+        x = (
+            np.zeros_like(np.asarray(b)) if solution is None
+            else np.asarray(solution, dtype=float)
+        )
         return x, info
 
     return _stub
@@ -1118,8 +1122,12 @@ def _stub_gmres_returning(info: int, pr_norm_tail: float):
 @pytest.mark.foundation
 def test_exact_breakdown_guard_suppresses_the_info_warning(monkeypatch) -> None:
     r"""GUARD arm: ``info > 0`` WITH a literal-``0.0`` tail (the d1-observed
-    breakdown stamping) must NOT warn — the carve-out recognizes the
-    collapsed-at-the-solution Krylov space as convergence.
+    breakdown stamping) AND an iterate that solves the system must NOT warn
+    — the carve-out recognizes the collapsed-at-the-solution Krylov space as
+    convergence.  Since 2026-10-05 the stub returns the true solution
+    ``(3, 0)``: the carve-out is confirmed against the true residual, so a
+    stub returning a non-solution now warns, correctly
+    (:func:`test_breakdown_on_an_inconsistent_system_warns_and_is_not_accepted`).
 
     Carries no ``catches("ERR-053")``, for the reason given on
     :func:`test_singular_consistent_exact_breakdown_solves_clean`: the
@@ -1127,7 +1135,8 @@ def test_exact_breakdown_guard_suppresses_the_info_warning(monkeypatch) -> None:
     import orpheus.numerics.iteration as iteration_mod
 
     monkeypatch.setattr(
-        iteration_mod.spla, "gmres", _stub_gmres_returning(info=7, pr_norm_tail=0.0),
+        iteration_mod.spla, "gmres",
+        _stub_gmres_returning(info=7, pr_norm_tail=0.0, solution=[3.0, 0.0]),
     )
     A_op, b = _singular_consistent()
     krylov = KrylovAcceleration(
@@ -1168,6 +1177,80 @@ def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
         )
     if "ERR-053" not in str(ours[0].message):
         pytest.fail(f"the warning lost its ERR-053 pointer: {ours[0].message}")
+
+
+@pytest.mark.foundation
+def test_breakdown_on_an_inconsistent_system_warns_and_is_not_accepted() -> None:
+    r"""qa's F2 (2026-10-05): scipy sets the preconditioned residual to a
+    literal 0.0 at EVERY Arnoldi breakdown, including on an INCONSISTENT
+    singular system, where ``A x = b`` has no solution.  ``A = diag(1, 0)``
+    with ``b = (1, 1)``: real scipy GMRES breaks down with a 0.0 tail and
+    ``info > 0`` at a true relative residual of 0.71.  Until 2026-10-05 the
+    carve-out accepted that tail alone, so the solve was SILENT and its
+    record read converged.  The carve-out now confirms the breakdown
+    against the true residual.  Reddens on the tail-only carve-out: no
+    warning, ``accepted`` True."""
+    A_op = MatrixOperator(np.diag([1.0, 0.0]))
+    b = np.array([1.0, 1.0])
+    krylov = KrylovAcceleration(
+        A_op, preconditioner=IdentityOperator(), tol=1e-8, max_iter=5, restart=2,
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        x, record = krylov.solve(b)
+    if not record.criteria[0].trajectory or record.criteria[0].trajectory[-1] != 0.0:
+        pytest.fail(
+            "premise broke: scipy no longer ends this solve on a literal-0.0 "
+            f"tail ({record.criteria[0].trajectory}); the row is blind"
+        )
+    true_relative = float(np.linalg.norm(b - A_op.matrix @ x) / np.linalg.norm(b))
+    assert true_relative > 0.5, f"the system became solvable: {true_relative:.2e}"
+    assert any(issubclass(w.category, RuntimeWarning) for w in caught), (
+        "a breakdown on an inconsistent system was silent: the carve-out "
+        "trusted the 0.0 tail without the true residual"
+    )
+    assert record.accepted is False and not record.converged, (
+        f"the record of a refused solve reads accepted={record.accepted}, "
+        f"converged={record.converged}"
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("seed", range(4))
+def test_krylov_record_is_not_converged_when_scipy_refuses_a_cleared_criterion(seed: int) -> None:
+    r"""The user's ruling (2026-10-05, ERR-097): a record cannot read
+    converged when its producer's own acceptance test failed.  scipy's GMRES
+    stops its inner loop on ``‖P r‖ ≤ rtol·‖P b‖`` and accepts on the TRUE
+    residual.  With a strongly anisotropic preconditioner
+    (``P = diag(logspace(-3, 3))``, qa's F1 fixture, n = 60, one cycle of
+    the full size) the recorded criterion clears (about 5e-9 against
+    ``tol = 1e-8``) while the true relative residual is 2e-4 to 7e-4 and
+    scipy returns ``info = 1`` (``[M]`` 2026-10-05,
+    ``scratch/reference_architecture/p3/operator_contract/probe_fold.py``).
+    The row asserts that premise (it is blind without it), then that the
+    record reads ``accepted=False`` and NOT converged.  Reddens when the
+    record ignores scipy's acceptance (``accepted`` left ``None``)."""
+    n = 60
+    rng = np.random.default_rng(seed)
+    A = MatrixOperator(np.eye(n) + 0.5 * rng.standard_normal((n, n)) / np.sqrt(n))
+    P = MatrixOperator(np.diag(np.logspace(-3, 3, n)))
+    b = rng.standard_normal(n)
+    krylov = KrylovAcceleration(A, preconditioner=P, tol=1e-8, max_iter=1, restart=n)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        x, record = krylov.solve(b)
+    true_relative = float(np.linalg.norm(b - A.matrix @ x) / np.linalg.norm(b))
+    if not (record.criteria[0].cleared and true_relative > 10 * krylov.tol):
+        pytest.fail(
+            f"premise broke: criterion cleared={record.criteria[0].cleared}, "
+            f"true residual {true_relative:.1e}; the row no longer exercises "
+            f"a criterion that clears on a refused solve"
+        )
+    assert record.accepted is False, f"scipy refused, the record says accepted={record.accepted}"
+    assert not record.converged, (
+        f"the record reads converged on a solve scipy refused (true relative "
+        f"residual {true_relative:.1e})"
+    )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -1249,6 +1332,7 @@ def _solve_preconditioned(
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-097")
 def test_krylov_record_is_invariant_under_preconditioner_scaling() -> None:
     r"""THEOREM: the recorded ``pr_residual`` trajectory does not depend on a
     scalar scaling of the preconditioner. ``M`` and ``s·M`` drive GMRES
@@ -1278,6 +1362,7 @@ def test_krylov_record_is_invariant_under_preconditioner_scaling() -> None:
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-097")
 @pytest.mark.parametrize("scale", _PRECONDITIONER_SCALES)
 def test_krylov_record_last_is_the_preconditioned_relative_residual(
     scale: float,
@@ -1326,11 +1411,21 @@ _VERDICT_ROWS = (
     ("exhausted_s1024", 1024.0, 1e-3, 1, 3, False),
 )
 
+#: The two rows on which the raw reading is wrong (ERR-097); the other two are
+#: its controls and catch nothing.
+_ERR_097_VERDICT_ROWS = frozenset({"accepted_s16", "exhausted_s1_1024"})
+
 
 @pytest.mark.foundation
 @pytest.mark.parametrize(
-    "label, scale, tol, max_iter, restart, accepted", _VERDICT_ROWS,
-    ids=[row[0] for row in _VERDICT_ROWS],
+    "label, scale, tol, max_iter, restart, accepted",
+    [
+        pytest.param(
+            *row, id=row[0],
+            marks=pytest.mark.catches("ERR-097") if row[0] in _ERR_097_VERDICT_ROWS else (),
+        )
+        for row in _VERDICT_ROWS
+    ],
 )
 def test_krylov_record_verdict_agrees_with_scipy_acceptance(
     label: str, scale: float, tol: float, max_iter: int, restart: int,

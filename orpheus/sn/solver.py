@@ -946,8 +946,9 @@ def _within_group_krylov(
     truth on :math:`R, A_{\rm low}^{-1} G, P`). Source iteration with the
     corrector is Richardson iteration preconditioned by this same :math:`P`,
     :math:`\psi_{n+1} = \psi_n + P\,(q - (M - N)\,\psi_n)`; it realises the
-    step through the increment instead of a residual, and a gate holds the
-    two equal.  The preconditioner
+    step through the increment instead of a residual, and
+    ``tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_4_*``
+    holds the two equal on every geometry DSA admits.  The preconditioner
     changes the Krylov TRAJECTORY only, never the converged fixed point
     (gated by D4; its effectiveness is the paired rate gate D13).
 

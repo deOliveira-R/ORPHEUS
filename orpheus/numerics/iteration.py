@@ -576,7 +576,13 @@ class SourceIteration(Generic[V]):
                 + \mathcal{C}\,(\psi_{n+1/2} - \psi_n),
 
         the correction consuming the sweep DISPLACEMENT.  ``None``
-        (default) is byte-identical to the un-accelerated loop.
+        (default) is byte-identical to the un-accelerated loop.  The step is
+        Richardson iteration preconditioned by
+        :math:`P = (I + \mathcal{C})\,A^{-1}`,
+        :math:`\psi_{n+1} = \psi_n + P\,(q - (A - \sum_i g_i)\,\psi_n)`,
+        the same :math:`P` the SN Krylov builder hands GMRES; the two
+        spellings are held equal by
+        ``tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_4_*``.
 
         The corrector is **correctness-safe by construction** only when
         its correction vanishes with the increment (a synthetic
@@ -856,9 +862,9 @@ class KrylovAcceleration(Generic[V]):
     ================================
 
     The GMRES PRECONDITIONER approximates the FULL within-group system
-    inverse, :math:`M \approx \bigl(A - \sum_i g_i\bigr)^{-1}` (for SN
+    inverse, :math:`P \approx \bigl(A - \sum_i g_i\bigr)^{-1}` (for SN
     within-group, :math:`(L+C-S-B)^{-1}`).  The natural choice for
-    transport problems is :math:`M = A^{-1}` (the sweep) — this is the
+    transport problems is :math:`P = A^{-1}` (the sweep) — this is the
     "transport-corrected" preconditioner from Adams & Larsen 2002 §III.
     When :math:`c` is small, the sweep is an excellent preconditioner;
     when :math:`c` is near unity, the sweep is diffusion-like and GMRES
@@ -887,7 +893,8 @@ class KrylovAcceleration(Generic[V]):
     * **Plain Krylov is still legitimate**, and is spelled
       ``preconditioner=IdentityOperator()``: for a small, well-conditioned
       system; for an operator that is already the preconditioned one
-      (``KrylovAcceleration(M.inverse() @ A, ...)``, the form in which
+      (``KrylovAcceleration(M.inverse() @ A, ...)``, ``M`` the implicit
+      part of a splitting ``A = M − N``: the form in which
       many production transport codes run GMRES on the sweep-transformed
       system); and for studies comparing the two.
 
@@ -910,7 +917,7 @@ class KrylovAcceleration(Generic[V]):
         decomposition).  Zero gains solves ``A\,\psi = q_{\rm ext}``.
     preconditioner : LinearOperator
         Keyword-only and REQUIRED: the GMRES left preconditioner
-        :math:`M \approx (A - \sum_i g_i)^{-1}`, an operator whose
+        :math:`P \approx (A - \sum_i g_i)^{-1}`, an operator whose
         ``apply`` maps a residual to a flux.  ``IdentityOperator()`` runs
         plain GMRES.  See "The ``preconditioner`` parameter" above.
     max_iter : int, optional
@@ -1016,14 +1023,20 @@ class KrylovAcceleration(Generic[V]):
         record : IterationRecord
             What this level wanted, what it got, and why it stopped.  Its
             criterion, ``pr_residual``, is the preconditioned relative
-            residual :math:`\lVert M r_k\rVert / \lVert M b\rVert` at every
-            GMRES inner iteration: the quantity scipy's inner loop stops on
-            (``‖M r‖ ≤ rtol·‖M b‖``), so judging it against ``tol`` reads the
-            loop's own test.  scipy ACCEPTS a solve on the true residual,
-            ``‖b − A x‖ ≤ rtol·‖b‖``; that quantity is not recorded here,
-            because the SN layer's end-of-solve claim check re-measures the
-            honest equation residual of every claimed convergence (its one
-            home; ``orpheus.sn.solver._check_convergence_claim``).
+            residual :math:`\lVert P r_k\rVert / \lVert P b\rVert` at every
+            GMRES inner iteration (``P`` the preconditioner): the quantity
+            scipy's inner loop stops on in its FIRST restart cycle
+            (``‖P r‖ ≤ rtol·‖P b‖``).  After that cycle scipy tightens the
+            threshold internally, so the criterion alone can clear on a solve
+            scipy refuses.  scipy ACCEPTS a solve on the true residual,
+            ``‖b − A x‖ ≤ rtol·‖b‖``, and the record carries that verdict as
+            :attr:`~orpheus.numerics.convergence.IterationRecord.accepted`
+            (``info == 0``, or a re-measured exact breakdown), which vetoes
+            ``converged`` when it fails (the user's ruling, 2026-10-05; ERR-097).
+            The true residual's VALUE is not recorded: the SN layer's
+            end-of-solve claim check re-measures the honest equation residual
+            of every claimed convergence (its one home;
+            ``orpheus.sn.solver._check_convergence_claim``).
 
             An EMPTY trajectory means GMRES returned in zero iterations,
             i.e. the initial guess already satisfied the tolerance.  The
@@ -1066,7 +1079,7 @@ class KrylovAcceleration(Generic[V]):
 
         A_scipy = _as_scipy_linop(loss_minus_gains, solution_template, n)
 
-        M_scipy = _as_scipy_linop(self.preconditioner.apply, q_ext, n)
+        P_scipy = _as_scipy_linop(self.preconditioner.apply, q_ext, n)
 
         x0 = (
             _ravel(initial_guess)
@@ -1076,29 +1089,35 @@ class KrylovAcceleration(Generic[V]):
 
         residual_history: list[float] = []
 
-        # scipy's inner loop stops on ‖M r‖ ≤ rtol·‖M b‖, but its ``pr_norm``
-        # callback reports ‖M r‖/‖b‖.  The two agree only when ‖M b‖ = ‖b‖:
+        # scipy's inner loop stops on ‖P r‖ ≤ rtol·‖P b‖ (its first restart
+        # cycle; later cycles tighten the threshold), but its ``pr_norm``
+        # callback reports ‖P r‖/‖b‖.  The two agree only when ‖P b‖ = ‖b‖:
         # true of the identity (the SN preconditioner until #200), false of the
-        # sweep, whose ‖M b‖/‖b‖ ran from 0.04 to 21.7 on qa's slabs (``[M]``
+        # sweep, whose ‖P b‖/‖b‖ ran from 0.04 to 21.7 on qa's slabs (``[M]``
         # 2026-10-04, ``scratch/reference_architecture/p3/qa200/q1b_sweep.log``),
         # so the record read inner solves scipy had accepted as unconverged.
-        # Each reading is rescaled by ‖b‖/‖M b‖, one preconditioner apply per
-        # solve, so the criterion IS scipy's stopping quantity.  A zero source
-        # has no relative residual and no callback (scipy returns at once).
+        # Each reading is rescaled by ‖b‖/‖P b‖, one preconditioner apply per
+        # solve.  A zero source has no relative residual and no callback
+        # (scipy returns at once).
         source_norm = float(np.linalg.norm(b))
-        to_preconditioned_relative = (
-            source_norm / float(np.linalg.norm(M_scipy.matvec(b)))
-            if source_norm > 0.0
-            else 1.0
+        preconditioned_source_norm = (
+            float(np.linalg.norm(P_scipy.matvec(b))) if source_norm > 0.0 else 1.0
         )
+        if preconditioned_source_norm == 0.0:
+            raise ValueError(
+                "KrylovAcceleration.solve: the preconditioner maps the source "
+                "to zero (‖P b‖ = 0 with b ≠ 0), so GMRES's preconditioned "
+                "relative residual is undefined; a preconditioner approximates "
+                "the system inverse and cannot annihilate a nonzero source."
+            )
+        to_preconditioned_relative = source_norm / preconditioned_source_norm
 
-        def callback(rk: object) -> None:
-            # scipy GMRES with callback_type='pr_norm' passes the
-            # preconditioned-residual norm over ‖b‖ (a scalar).  Older versions
-            # may pass the residual vector — handle both defensively.
-            r = np.asarray(rk)
-            reading = float(r) if r.ndim == 0 else float(np.linalg.norm(r))
-            residual_history.append(reading * to_preconditioned_relative)
+        def callback(preconditioned_over_source: float) -> None:
+            # scipy (>= 1.14, the floor) passes ‖P r‖/‖b‖ as a scalar under
+            # callback_type='pr_norm'.
+            residual_history.append(
+                float(preconditioned_over_source) * to_preconditioned_relative
+            )
 
         # No try/except around the solve: a TypeError raised from inside the
         # wrapped carrier matvec (``loss_minus_gains`` / the preconditioner,
@@ -1115,7 +1134,7 @@ class KrylovAcceleration(Generic[V]):
         iterations_per_cycle = min(self.restart, n)
 
         solution, info = spla.gmres(
-            A_scipy, b, x0=x0, M=M_scipy,
+            A_scipy, b, x0=x0, M=P_scipy,
             rtol=self.tol, atol=0.0,
             maxiter=self.max_iter,
             restart=iterations_per_cycle,
@@ -1136,11 +1155,8 @@ class KrylovAcceleration(Generic[V]):
         # callers that tolerate slow convergence and need the
         # best-effort iterate.  See ERR-053.
         # Exact-breakdown carve-out — a PERMANENT invariant of this
-        # boundary, not a special case: a final preconditioned residual of
-        # LITERAL 0.0 means the Krylov space collapsed AT the solution
-        # (``M⁻¹(b − Ax) = 0`` with a nonsingular preconditioner —
-        # identity / exact inverses — implies ``Ax = b`` exactly), yet
-        # scipy's breakdown path then stagnates to ``maxiter`` and stamps
+        # boundary, not a special case: when the Krylov space collapses AT the
+        # solution, scipy's breakdown path stagnates to ``maxiter`` and stamps
         # ``info > 0``.  That is CONVERGENCE, the opposite of the ERR-053
         # restart truncation this warning exists to surface — so it does
         # not warn.  The general trigger is any warm-started solve of a
@@ -1148,8 +1164,24 @@ class KrylovAcceleration(Generic[V]):
         # was the B.2d transitional coupled matvec (dead ψ_A ray padding,
         # gone at the d2 eviction) — that caller motivated the guard, it
         # is not the reason the guard exists.
-        exact_breakdown = bool(residual_history) and residual_history[-1] == 0.0
-        if info != 0 and not exact_breakdown:
+        # ⛔ Until 2026-10-05 the carve-out was granted on a final
+        # preconditioned residual of literal 0.0 alone.  scipy sets that
+        # value at EVERY breakdown (its Givens step on a zero subdiagonal),
+        # including on an inconsistent singular system, where ``A x = b`` has
+        # no solution: qa's ``diag(1, 0)``, ``b = (1, 1)`` read converged and
+        # silent at a true relative residual of 0.71 (``[M]``,
+        # ``scratch/reference_architecture/p3/qa200b/``).  The breakdown is
+        # now confirmed against the TRUE residual, one matvec on this rare
+        # path only, with scipy's own acceptance test.
+        exact_breakdown = (
+            info > 0
+            and bool(residual_history)
+            and residual_history[-1] == 0.0
+            and float(np.linalg.norm(b - A_scipy.matvec(solution)))
+            <= self.tol * source_norm
+        )
+        accepted = info == 0 or exact_breakdown
+        if not accepted:
             warnings.warn(
                 f"KrylovAcceleration.solve: scipy.sparse.linalg.gmres "
                 f"returned info={info} (not converged within "
@@ -1157,8 +1189,10 @@ class KrylovAcceleration(Generic[V]):
                 f"rtol={self.tol}).  Returning best-effort iterate; "
                 f"residual_history tail = "
                 f"{residual_history[-3:] if residual_history else '[]'}.  "
-                f"Tighten ``restart`` to ``n`` (full size) if the Krylov "
-                f"subspace is being truncated; see ERR-053.",
+                f"The recorded preconditioned residual can read below rtol "
+                f"while scipy's true-residual test fails (ERR-097).  Raise "
+                f"``restart`` to ``n`` (full size) if the Krylov subspace is "
+                f"being truncated; see ERR-053.",
                 # ⛔ A bare ``RuntimeWarning`` until 2026-08-10 (#340 R3),
                 # which put the tree's ONLY non-convergence announcement from
                 # inside ``numerics`` outside the escalation net: the published
@@ -1180,9 +1214,9 @@ class KrylovAcceleration(Generic[V]):
             label="inner(gmres)",
             criteria=(
                 StoppingCriterion(
-                    # ‖M r‖/‖M b‖, scipy's inner stopping quantity (the
-                    # rescaling above).  ⛔ Until 2026-10-04 this recorded the
-                    # raw callback, ‖M r‖/‖b‖, on the strength of a 2026-08-09
+                    # ‖P r‖/‖P b‖, scipy's first-cycle inner stopping quantity
+                    # (the rescaling above).  ⛔ Until 2026-10-04 this recorded
+                    # the raw callback, ‖P r‖/‖b‖, on the strength of a 2026-08-09
                     # measurement that it matched ``‖b − Ax‖/‖b‖``: true then,
                     # because every SN Krylov solve ran with the IDENTITY
                     # preconditioner, and false from #200 on.
@@ -1209,6 +1243,9 @@ class KrylovAcceleration(Generic[V]):
             # and reading this line as covering both is exactly the
             # misreading #349 rode in on.)
             iterations_run=len(residual_history),
+            # scipy's own acceptance (the true residual), which the criterion
+            # cannot stand in for after the first restart cycle (ERR-097).
+            accepted=accepted,
         )
 
 

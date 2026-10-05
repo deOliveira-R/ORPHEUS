@@ -290,20 +290,47 @@ def test_p200_3_inner_iterations_stay_flat_under_refinement(body: str) -> None:
 
 # ── 4. under DSA, source iteration is Richardson on the Krylov preconditioner ──
 
-#: ``[M]`` 2026-10-04 (``scratch/reference_architecture/p3/operator_contract/probe_witness.py``): 6.2e-16 and
-#: 4.3e-16 relative on the two slabs; with the corrector dropped from ``P``, 0.42 and 0.39.
+#: ``[M]`` 2026-10-05 (``scratch/reference_architecture/p3/operator_contract/probe_p200_4_gap.py``, the shipped
+#: seeds 7 and 11): 2.7e-16 and 1.8e-16 relative on the two slabs; with the corrector dropped from ``P``, 0.168 and
+#: 0.318. (The first figures, 0.42 and 0.39, came from a probe that drew ``q`` differently.)
 _RICHARDSON_RTOL = 1e-13
 
 
-@pytest.mark.parametrize("geom", ["slab_vacuum", "slab_reflective"])
-@pytest.mark.rests_on(f"{_SWEEP_IDENTITY}[slab_vacuum]", f"{_SWEEP_IDENTITY}[slab_reflective]")
+def _dsa_admits(geom: str) -> bool:
+    """Does consistent DSA admit a corrector on this fixture geometry? Read off the corrector's own admission
+    (``DSALowOrderSystem.from_problem``), never restated here, so the witness below extends itself to every
+    geometry a new corrector admits (2-D DSA, #314)."""
+    from orpheus.sn.acceleration.dsa import DSACorrection
+
+    try:
+        DSACorrection.from_problem(MESHES[geom]())
+    except NotImplementedError:
+        return False
+    return True
+
+
+#: The geometries the witness runs on: ``[M]`` 2026-10-05, 2 of the 5 fixtures (the two slabs).
+_DSA_GEOMS = [geom for geom in _GEOMS if _dsa_admits(geom)]
+
+
+def test_p200_4_runs_on_every_geometry_dsa_admits() -> None:
+    """The witness's geometry list is derived, so it cannot be empty without saying so: if DSA stops admitting
+    any fixture geometry, the witness below would collect nothing and pass in silence."""
+    assert _DSA_GEOMS, "consistent DSA admits none of the full-state fixtures: the P witness runs on nothing"
+
+
+@pytest.mark.parametrize("geom", _DSA_GEOMS)
+@pytest.mark.verifies("sn-krylov-dsa-richardson")
+@pytest.mark.rests_on(*(f"{_SWEEP_IDENTITY}[{g}]" for g in _DSA_GEOMS))
 def test_p200_4_a_dsa_source_iteration_step_is_richardson_on_the_krylov_preconditioner(geom: str) -> None:
     """One production source-iteration step with the consistent-DSA corrector, from a random flux ``ψ_n`` and a
     random source ``q`` (every block populated), equals ``ψ_n + P (q − (M − N) ψ_n)`` with ``P`` the preconditioner
     the production Krylov builder hands GMRES under the same corrector. The identity behind it is
     ``M⁻¹(q + Nψ_n) − ψ_n = M⁻¹ r_n``, so the row rests on the exact inverse (the supporting gate). Reddens when
-    either posture drops or alters the corrector: ``P`` without it misses by 0.42 and 0.39. Slab only: consistent
-    DSA is admitted on the 1-D Cartesian slab alone (``DSALowOrderSystem.from_problem``)."""
+    either posture drops or alters the corrector: ``P`` without it misses by 0.168 and 0.318. The geometries are
+    every full-state fixture on which consistent DSA admits a corrector (:data:`_DSA_GEOMS`, read off
+    ``DSALowOrderSystem.from_problem``): today the two slabs, and any geometry a second corrector admits (2-D DSA,
+    #314) joins without an edit, which is when the two spellings of ``P`` are likeliest to drift."""
     from orpheus.sn.acceleration.dsa import DSACorrection
 
     problem = MESHES[geom]()
@@ -355,6 +382,7 @@ def _thin_mixture(scale: float):
     )
 
 
+@pytest.mark.catches("ERR-097")
 @pytest.mark.rests_on(
     "tests/gates/numerics/test_iteration.py::test_krylov_record_verdict_agrees_with_scipy_acceptance[accepted_s16]",
     "tests/gates/numerics/test_iteration.py::test_krylov_record_is_invariant_under_preconditioner_scaling",
