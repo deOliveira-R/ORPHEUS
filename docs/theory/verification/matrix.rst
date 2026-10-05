@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15807**
+Total tests collected: **15830**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1348, 8.5%
-   L1, 2271, 14.4%
+   L1, 2278, 14.4%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12090, 76.5%
+   foundation, 12106, 76.5%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15701
+   explicit, 15724
    class-name, 46
    func-name, 0
    case, 33
@@ -426,7 +426,7 @@ Module × level grid
    numerics/test_invariance, 0, 0, 0, 0, 120, 0
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
-   numerics/test_iteration, 0, 3, 0, 0, 28, 0
+   numerics/test_iteration, 0, 3, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
@@ -543,7 +543,7 @@ Module × level grid
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 21, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 57, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
-   operators/test_sweep_inverse_identity, 0, 0, 0, 0, 9, 0
+   operators/test_sweep_inverse_identity, 0, 0, 0, 0, 11, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
@@ -593,9 +593,9 @@ Module × level grid
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
-   solve/test_krylov_curvilinear_precond_safety, 0, 13, 0, 0, 0, 0
-   solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
-   solve/test_krylov_sweep_preconditioner, 0, 16, 0, 0, 0, 0
+   solve/test_krylov_curvilinear_precond_safety, 0, 12, 0, 0, 0, 0
+   solve/test_krylov_restart_signature, 0, 13, 0, 0, 0, 0
+   solve/test_krylov_sweep_preconditioner, 0, 23, 0, 0, 0, 0
    solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
    solve/test_reflective_si_iteration_budget, 0, 3, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
@@ -692,8 +692,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``removal-matrix``, 76
    ``mm-weights``, 75
    ``flux-moments``, 70
-   ``transport-cartesian``, 65
    ``peierls-rank-n-bc-closure``, 64
+   ``transport-cartesian``, 64
    ``e3-def``, 61
    ``ki3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
@@ -711,7 +711,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
    ``azimuthal-angles``, 44
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 39
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
    ``cp-keff-update``, 34
    ``first-flight-kernel``, 34
@@ -859,6 +859,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``sn-direct-seed-augmented-composite``, 5
+   ``sn-dsa-sweep-inverse-identity``, 5
    ``sn-mms-nonvacuum-psi``, 5
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
@@ -877,7 +878,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-V-alpha-2``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
-   ``sn-dsa-sweep-inverse-identity``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
@@ -933,6 +933,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-dsa-consistent-fourier``, 2
    ``sn-dsa-restriction``, 2
    ``sn-dsa-synthesis``, 2
+   ``sn-krylov-dsa-richardson``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2

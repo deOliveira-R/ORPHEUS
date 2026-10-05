@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**96 entries · 345 catching tests · 0 uncaught · 5 dormant.**
+**98 entries · 346 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-097` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-097")`.
+Append a `.. error-entry:: ERR-099` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-099")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -95,10 +95,10 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-047 | 9 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
-| ERR-050 | 4 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
+| ERR-050 | 3 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
 | ERR-051 | 1 |  | GalerkinProjection.assert_galerkin_idempotency asserted :math:\Pi R = I instead of :math:\Pi R… |
 | ERR-052 | 1 |  | Power iteration without per-step flux renormalisation: subcritical cases underflow to denormali… |
-| ERR-053 | 8 |  | Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate… |
+| ERR-053 | 5 |  | Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate… |
 | ERR-054 | 1 |  | ordinate_scan Blelloch closed-form cumprod_a · (psi_0 + cumsum(b/cumprod_a)) produces NaN when… |
 | ERR-055 | 2 |  | Curvilinear sweep regression tests fed sig_t / Q in the obsolete (nx, ng, ny) layout after the… |
 | ERR-056 | 8 |  | Octant-group Gauss-Seidel schedule reflected a boundary face after only the FIRST octant group… |
@@ -142,3 +142,5 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-094 | 9 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |
 | ERR-095 | 1 |  | The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a pres… |
 | ERR-096 | 1 |  | Symbolic.without simplified each expression before substituting, and SymPy's simplify rewrote a… |
+| ERR-097 | 4 |  | The inner GMRES IterationRecord judged scipy's pr_norm callback, the preconditioned residual ov… |
+| ERR-098 | 1 |  | The GMRES exact-breakdown carve-out trusted a final preconditioned residual of literal 0.0, whi… |
