@@ -105,3 +105,39 @@ Step 1 (the measurement) is done and its fixes are merged (`62020ba5`, `dc5b2ad2
 - #504, the platform-bound bit gates.
 
 The durations workflow can be re-run at any time with `gh workflow run test-durations`; re-run it after step 2 lands, to measure the gain on the same runner stamp.
+
+## The two files the memo could not shorten (2026-10-04, after #405 P3)
+
+The P3 timing protocol (`reference_cache.md`, "P3 close-out") left two files slow when warm:
+- `test_l1_standoff_slab_cylinder.py`: 1049 s warm, a speed-up of 1.8×;
+- `test_trajectory_resolvent_reference.py`: 162 s warm, a speed-up of 2.5×.
+
+The user asked what makes them hard to shorten. Two numerics-investigators measured them `[M]`; their reports and probes are in `scratch/reference_architecture/p3/perf_l1/` and `perf_traj/`.
+
+**`l1_standoff`:**
+- **The cause is production:** the Krylov inner solve runs UNPRECONDITIONED (`orpheus/sn/solver.py:950` passes an identity). GMRES iterations equal the degrees of freedom, and the time grows as O(n³).
+- **The fix is issue #200, preconditioning with the sweep:**
+  - slab at n_per = 40: 18.2 s → 0.2 s, with 5705 → 81 inner iterations;
+  - cylinder at nx = 40: 46.4 s → 1.1 s;
+  - k moves by 1.6e-10 relative.
+- **Test design:**
+  - the slab solves run twice across rows, because the slab solves have no cache;
+  - the n_per = 160 rows stay green when a first-order step scheme replaces the matvec (error 1.06e-5 against a 2e-5 tolerance); the {10, 20, 40} ladder with p ≥ 1.8 reddens it;
+  - `catches("ERR-025")` on `krylov_via_unified_vs_case` is decayed: the Krylov k does not move under the ERR-025 mutation;
+  - three docstrings are stale: "O(h)" (measured O(h²)), "monkey-patched", and the tolerance comment.
+- **Secondary production item:** the 1-D apply walk `_loop_walk` → `visit` is a per-cell Python loop (60 % of unpreconditioned Krylov time); the DD outflow is a prefix scan.
+
+**`trajectory_resolvent_reference`:**
+- **The cause is production:** `MultiRegionCylinderChordOracle.apply_operator` (`chord_oracle.py:941`) rebuilds the in-plane segments and their spline values for every axial cosine, about 3.3M scalar `CubicSpline` calls per reading.
+- **A hoisted prototype** (`perf_traj/factored.py`) agrees to 9e-16 relative:
+  - solve 20 → 5.2 s;
+  - reading 53 → 4.2 s;
+  - brute 7.7 → 0.19 s.
+- **Test design:**
+  - the in-process spy rows check routing and run at the gates' resolution; at a minimal quadrature (4, 2, 4) they take 71 → 4 s and 20 → 3.3 s, and all three mutations still redden them;
+  - the fine-rule row's brute integral passes by NODE PLACEMENT: unsplit GL over the tangency kinks converges erratically in the azimuth count (1.2e-5, 1.25e-4, 3.7e-6 at 512, 640, 768 points); a reliably converging rule is (24, ≥ 3072).
+
+**Ruled (the user, 2026-10-04): "Gates, then #200, then oracle".**
+1. Repair the two files' gates (the test-architect), on branch `test/slow-reference-gates`.
+2. #200, the sweep-preconditioned Krylov, as a surgical SN carve.
+3. The chord-oracle hoist, plus an issue for vectorising the 1-D apply walk.
