@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15787**
+Total tests collected: **15807**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1348, 8.5%
-   L1, 2251, 14.3%
+   L1, 2271, 14.4%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12090, 76.6%
+   foundation, 12090, 76.5%
    unmarked, 27, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15681
+   explicit, 15701
    class-name, 46
    func-name, 0
    case, 33
@@ -57,7 +57,7 @@ Module × level grid
    analytical/test_crosscheck_harness, 0, 0, 0, 0, 5, 0
    analytical/test_kinf_homogeneous, 0, 43, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
-   analytical/test_l1_standoff_slab_cylinder, 0, 14, 0, 0, 0, 0
+   analytical/test_l1_standoff_slab_cylinder, 0, 15, 0, 0, 0, 0
    analytical/test_mms_declared_inflow, 0, 9, 0, 0, 0, 0
    analytical/test_mms_prescribed_inflow, 0, 3, 0, 0, 1, 0
    analytical/test_partial_reflector_resolvent, 0, 2, 0, 0, 0, 0
@@ -593,8 +593,9 @@ Module × level grid
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
-   solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
+   solve/test_krylov_curvilinear_precond_safety, 0, 13, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
+   solve/test_krylov_sweep_preconditioner, 0, 16, 0, 0, 0, 0
    solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
    solve/test_reflective_si_iteration_budget, 0, 3, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
@@ -691,8 +692,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``removal-matrix``, 76
    ``mm-weights``, 75
    ``flux-moments``, 70
+   ``transport-cartesian``, 65
    ``peierls-rank-n-bc-closure``, 64
-   ``transport-cartesian``, 62
    ``e3-def``, 61
    ``ki3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
@@ -710,8 +711,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
    ``azimuthal-angles``, 44
+   ``sn-curvilinear-homogeneous-kinf-recovery``, 39
    ``cp-kernel-differential-identities``, 36
-   ``sn-curvilinear-homogeneous-kinf-recovery``, 36
    ``cp-keff-update``, 34
    ``first-flight-kernel``, 34
    ``flat-source``, 34
@@ -1033,7 +1034,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **622** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **625** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1554,6 +1555,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-keff-old-bias``
 - ``sn-keff-old-n2n``
 - ``sn-kernel-mirror-blindness``
+- ``sn-krylov-boundary-round-trip``
+- ``sn-krylov-preconditioned-operator``
+- ``sn-krylov-sweep-block-inverse``
 - ``sn-ld-contamination-vector``
 - ``sn-loss-kernel-gauge-projection``
 - ``sn-mg-eigenvalue-posing-eq``

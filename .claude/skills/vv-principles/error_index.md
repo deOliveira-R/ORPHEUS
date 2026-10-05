@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**96 entries · 344 catching tests · 0 uncaught · 5 dormant.**
+**96 entries · 345 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -95,7 +95,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-047 | 9 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
-| ERR-050 | 3 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
+| ERR-050 | 4 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
 | ERR-051 | 1 |  | GalerkinProjection.assert_galerkin_idempotency asserted :math:\Pi R = I instead of :math:\Pi R… |
 | ERR-052 | 1 |  | Power iteration without per-step flux renormalisation: subcritical cases underflow to denormali… |
 | ERR-053 | 8 |  | Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate… |
