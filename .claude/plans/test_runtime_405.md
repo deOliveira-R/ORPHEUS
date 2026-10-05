@@ -141,3 +141,28 @@ The user asked what makes them hard to shorten. Two numerics-investigators measu
 1. Repair the two files' gates (the test-architect), on branch `test/slow-reference-gates`.
 2. #200, the sweep-preconditioned Krylov, as a surgical SN carve.
 3. The chord-oracle hoist, plus an issue for vectorising the 1-D apply walk.
+
+### Step 1 landed (2026-10-04): the two files' gates repaired
+
+The test-architect's evidence (each mutation table and the timings) is in `scratch/reference_architecture/p3/gates_repair/README.md`.
+
+**`l1_standoff`: 1821 → 100 s.**
+- The slab n_per = 160 rows are replaced by the {10, 20, 40} ladder: an order row (p ≥ 1.8) and the Case comparison at 40.
+  - The step-scheme mutation reddens both Krylov rows: p = 1.25 and 1.16, and 4.66e-5.
+  - The Σ_t × (1 + 1e-3) mutation reddens both Krylov rows: p ≈ −0.05, and 4.48e-4.
+- One cached `_slab_k(path, n_per)` per solve, so 6 solves and none repeated.
+- `catches("ERR-025")` moved to the new `test_slab_l1_sweep_vs_case`, which reddens at 7.23e-2.
+- The cylinder twin row drops nx = 80: its gap is mesh-independent, 4–5e-11.
+- Four stale docstrings fixed, and the pre-existing optional-`k_eff` pyright errors fixed.
+
+**`trajectory_resolvent_reference`: 564 → 27 s.**
+- The spy rows run at a minimal quadrature. Each of the 4 mutations reddens its row.
+- The cylinder fine-rule row's brute integral is split at the INTERFACE tangencies, computed in the test by arcsin from the radii, with θ = 32 and 64 points per piece. The row is renamed `…_against_an_independently_split_fine_angular_rule`.
+  - Why: the unsplit rule converged erratically at every affordable azimuth count (`[REFUTED 2026-10-04]` the investigator's "(24, ≥3072) converges reliably"; at 3584 it sat at 80 % of the band).
+  - The gap to the reading is at most 3.2e-6 against the 1e-5 band.
+  - A dropped tangency split in the reading reddens the row at 2.4e-5; a 2 % misplaced one reddens it at 4.7e-5.
+
+**Open from this step:**
+- **Why does ERR-025's coefficient mutation in the sweep not trip `ConvergenceClaimError`, when Σ_t × (1 + 1e-3) does?** `[R]` The residual re-check runs through the matvec, which reads the same DD coefficient as the sweep. The check sees whether the sweep solved ITS equation, not whether it solved the right one (X4: a shared upstream). This is a property of the guard, not a defect, and is recorded here.
+- **The sphere brute** (unsplit, 2000 points) has about 4× headroom; review it with the oracle hoist.
+- **Re-time the Krylov order row** (25 s) after #200.

@@ -15,7 +15,8 @@ First red on ``65b0de93``: ``ModuleNotFoundError`` for the reference module
 keyword (``TypeError``); ``Symbolic`` has no ``steps``.
 
 Fixtures, at the gates' resolutions (the sphere's rows take seconds; the cylinder's 10–125 s, mostly the
-reading's flux integrals, and are ``slow`` except one cheap reading law, R7b2.2.1):
+reading's flux integrals, and are ``slow`` except one cheap reading law, R7b2.2.1, and the ROUTE rows, which
+run at the smallest quadrature, :data:`_ROUTING_QUADRATURE`, since they count solves and read no value):
 
 * the A|B|A sphere and cylinder (:mod:`._aba_reference`, isotropic mixtures);
 * the UNIFORM two-region sphere and cylinder: fuel A under two material ids,
@@ -129,6 +130,23 @@ class _SolveSpy:
             monkeypatch.setattr(module, name, counting)
 
 
+#: The ROUTE rows' resolution: the smallest quadrature each body solves at. Those rows assert WHEN the solve runs
+#: and how often (a spy's count), never a value, so the resolution is not part of their claim. ``[M]`` 2026-10-04
+#: (``scratch/reference_architecture/p3/gates_repair/battery/``): the cylinder's construction and verbs rows took
+#: 71 s and 20 s at the gates' resolution, and take 3.9 s and 3.3 s here, so both bodies run in ``not slow``; each
+#: row still reddens under its mutation (a solve at construction, an uncached solve, a solve before refusing).
+_ROUTING_QUADRATURE = {
+    CoordSystem.SPHERICAL: {"n_r": 4, "n_mu": 4, "n_traj_quad": 16},
+    CoordSystem.CYLINDRICAL: {"n_r": 4, "n_mu_axial": 2, "n_phi_az": 4, "n_traj_quad": 16},
+}
+
+
+def _routing_reference(coord: CoordSystem):
+    """A FRESH, unsolved A|B|A reference at :data:`_ROUTING_QUADRATURE` (never cached: a ROUTE row observes its
+    construction and its first solve)."""
+    return api.reference(aba_specification(coord), quadrature=_ROUTING_QUADRATURE[coord])
+
+
 @pytest.fixture
 def in_process():
     """Every memoised call runs in this process for the test (:func:`~orpheus.numerics.traced_memo.bypass`):
@@ -154,17 +172,20 @@ def test_r7b2_2_the_factory_returns_an_uncertified_reference(coord) -> None:
     assert isinstance(ref.derivation, api.derivation_class())
 
 
-@pytest.mark.parametrize("coord", _COORDS_SOLVING, ids=_IDS)
+@pytest.mark.parametrize("coord", _COORDS, ids=_IDS)
 @pytest.mark.usefixtures("in_process")
 def test_r7b2_2_construction_solves_nothing_and_the_solve_is_cached(coord, monkeypatch: pytest.MonkeyPatch) -> None:
-    """ROUTE: building the reference calls no solver; the first reading solves once; a second reading reuses it."""
+    """ROUTE: building the reference calls no solver; the first reading solves once; a second reading reuses it.
+
+    At :data:`_ROUTING_QUADRATURE`; the second reading is a point value (it reads the solved answer as the group
+    total did, through one flux evaluation instead of a radial quadrature of them)."""
     spy = _SolveSpy(monkeypatch)
-    ref = api.reference(aba_specification(coord))
+    ref = _routing_reference(coord)
     assert spy.calls == 0, "the factory solved eagerly"
     ref.read(Eigenvalue())
     assert spy.calls == 1
     ref.read(Eigenvalue())
-    ref.read(_group_total(0))
+    ref.read(PointValue(1.2, 0))
     assert spy.calls == 1, "the solve was not cached on the derivation"
 
 
@@ -239,11 +260,13 @@ class _Answer:
         return Measured(1.25)
 
 
-@pytest.mark.parametrize("coord", _COORDS_SOLVING, ids=_IDS)
+@pytest.mark.parametrize("coord", _COORDS, ids=_IDS)
 @pytest.mark.usefixtures("in_process")
 def test_r7b2_3_the_verbs_refuse_before_any_solve(coord, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ROUTE: both verbs refuse the uncertified reference before it solves; the uncertified comparison reads it.
+    At :data:`_ROUTING_QUADRATURE`."""
     spy = _SolveSpy(monkeypatch)
-    ref = api.reference(aba_specification(coord))
+    ref = _routing_reference(coord)
     with pytest.raises(ReferenceNotValid, match="no certificate"):
         verify_agreement(_Answer(), Eigenvalue(), ref, 1e-3, NotYet(564, "no estimator"))
     with pytest.raises(ReferenceNotValid, match="no certificate"):
@@ -388,8 +411,9 @@ def test_r7b2_6_the_reading_is_additive_over_a_split(coord) -> None:
 
 @pytest.mark.usefixtures("in_process")
 def test_r7b2_6_the_reading_consults_symbolic_steps(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ROUTE: the derivation finds a weight's steps through ``Symbolic.steps``, the one definition."""
-    ref = _aba(CoordSystem.SPHERICAL)
+    """ROUTE: the derivation finds a weight's steps through ``Symbolic.steps``, the one definition. At
+    :data:`_ROUTING_QUADRATURE`: the row counts calls, and reads no value."""
+    ref = _routing_reference(CoordSystem.SPHERICAL)
     ref.read(Eigenvalue())  # solve first, outside the spy
     calls: list[tuple] = []
     original = getattr(Symbolic, "steps")  # the declared API (absent until the build lands)
@@ -467,14 +491,41 @@ def _brute_sphere(ref, group: int, r: float, n_mu: int = 2000) -> float:
     return float(2.0 * np.pi * (psi[0] @ w))
 
 
-def _brute_cylinder(ref, group: int, r: float, n_theta: int, n_azimuth: int) -> float:
-    """φ_g(r) = ∫ sinθ dθ ∫ ψ dφ by UNSPLIT Gauss–Legendre in θ ∈ [0, π] and φ ∈ [0, 2π], the reference's oracle."""
+def _interface_tangencies(r: float) -> np.ndarray:
+    """The azimuths in [0, 2π] at which a horizontal ray from radius ``r`` grazes a material interface,
+    ``r |sin φ| = R_k`` for each interface radius ``R_k < r``, with 0, π and 2π: the kinks of the azimuthal
+    integrand that matter (the chord through a region has an infinite derivative at its tangency), computed here
+    from the A|B|A radii in closed form, never from the oracle's or the reading's tangency code."""
+    from tests.gates.sn.verification.analytical._aba_reference import ABA_RADII
+
+    grazing = [math.asin(radius / r) for radius in ABA_RADII[:-1] if radius < r]
+    cuts = {0.0, math.pi, 2.0 * math.pi}
+    for angle in grazing:
+        cuts |= {angle, math.pi - angle, math.pi + angle, 2.0 * math.pi - angle}
+    return np.array(sorted(cuts))
+
+
+def _brute_cylinder(ref, group: int, r: float, n_theta: int, points_per_piece: int) -> float:
+    """φ_g(r) = ∫ sinθ dθ ∫ ψ dφ through the reference's OWN oracle and emission density: Gauss–Legendre UNSPLIT in
+    θ ∈ [0, π], and in φ ∈ [0, 2π] with ``points_per_piece`` points on each piece between the interface tangencies
+    (:func:`_interface_tangencies`). Independent of the reading's angular rule: its own kink set (the interfaces
+    only; the reading also splits at the spline's knots), its own θ count (never the reading's 16, whose nodes it
+    would share) and its own per-piece order.
+
+    Why split: the azimuthal integrand has an infinite derivative at each interface tangency, so an UNSPLIT
+    Gauss–Legendre rule converges erratically, by where its nodes fall (``[M]`` 2026-10-04,
+    ``scratch/reference_architecture/p3/gates_repair/probes/brute_ladder.log``: at θ = 24, the largest
+    |reading/brute − 1| over this module's six points reads 1.2e-5, 1.3e-4, 3.7e-6, 1.5e-5, 6.1e-6, 8.0e-6 at 512,
+    640, 768, 1536, 2048, 3584 azimuths); split at the tangencies it converges spectrally (``brute_ladder2.log``)."""
     import dataclasses
 
     x, wx = np.polynomial.legendre.leggauss(n_theta)
     theta, w_theta = 0.5 * np.pi * (x + 1.0), 0.5 * np.pi * wx
-    y, wy = np.polynomial.legendre.leggauss(n_azimuth)
-    azimuth, w_azimuth = np.pi * (y + 1.0), np.pi * wy
+    y, wy = np.polynomial.legendre.leggauss(points_per_piece)
+    cuts = _interface_tangencies(r)
+    half = 0.5 * np.diff(cuts)
+    azimuth = (cuts[:-1, None] + half[:, None] * (y[None, :] + 1.0)).ravel()
+    w_azimuth = (half[:, None] * wy[None, :]).ravel()
     rays = dataclasses.replace(api.oracle(ref, group), mu_axial_nodes=np.cos(theta), phi_az_nodes=azimuth)
     psi = rays.apply_operator(api.emission_density(ref)[group], 0.0, n_traj_quad=64, at=np.array([r]))
     return float((w_theta * np.sin(theta)) @ psi[0] @ w_azimuth)
@@ -495,13 +546,29 @@ def test_r7b2_2_1_the_sphere_reading_against_an_unsplit_fine_angular_rule() -> N
 
 
 @pytest.mark.slow
-def test_r7b2_2_1_the_cylinder_reading_against_an_unsplit_fine_angular_rule() -> None:
-    """qa F1 (a) on the cylinder, at the gates' resolution: dropping sinθ moves the A|B|A ratios by up to 8.7 %."""
+def test_r7b2_2_1_the_cylinder_reading_against_an_independently_split_fine_angular_rule() -> None:
+    """qa F1 (a) on the cylinder, at the gates' resolution: dropping sinθ moves the A|B|A ratios by up to 8.7 %.
+
+    The brute (:func:`_brute_cylinder`) at θ = 32 and 64 points per azimuthal piece is converged far below the
+    band: ``[M]`` 2026-10-04 (``scratch/reference_architecture/p3/gates_repair/probes/brute_ladder2.log``), its
+    deviations from the reading move by at most 1.3e-7 from 64 to 256 points per piece and 6e-8 from θ = 32 to
+    48; converged, the reading differs from it by at most 3.2e-6 (group 0, r = 0.31: the reading's own θ error),
+    a third of the band. Until 2026-10-04 the brute was unsplit at (96, 768) and passed by where its nodes fell.
+    Its θ rule is unsplit; its azimuth rule is split at the interface tangencies, found independently.
+
+    Independence, asked per axis (X4). The oracle is shared by design: the row tests the reading's angular RULE
+    and measure, not the transport. The kink set is derived separately, by arcsin from the A|B|A radii, never from
+    the reading's ``_tangency_radii`` or the knots, so a tangency the reading drops or misplaces shows as a
+    disagreement: ``[M]`` 2026-10-04 (``scratch/reference_architecture/p3/gates_repair/battery/trfine_*.log``),
+    dropping the interfaces from the reading's split moves group 0 at r = 1.2 by 2.4e-5, and moving them out by
+    2 % moves group 0 at r = 1.73 by 4.7e-5, each red here. The θ count (32, never the reading's 16) and the per-piece order
+    (64 against 16) differ, so no rule is shared. The brute's convergence in its per-piece order is the witness
+    that its kink set is complete: a missed kink would converge algebraically, not spectrally."""
     ref = _aba(CoordSystem.CYLINDRICAL)
     for g in range(2):
         for r in _OFF_NODE:
             reading = ref.read(PointValue(r, g)).value
-            brute = _brute_cylinder(ref, g, r, n_theta=96, n_azimuth=768)
+            brute = _brute_cylinder(ref, g, r, n_theta=32, points_per_piece=64)
             assert abs(reading / brute - 1.0) <= 1e-5, (g, r, reading, brute)
 
 
@@ -515,12 +582,15 @@ def _cheap_cylinder():
 
 def test_r7b2_2_1_a_cheap_cylinder_reading_law_runs_in_not_slow() -> None:
     """qa F2: one cylinder READING law in ``not slow`` (``_CylinderRays.scalar_flux`` ran 0 times there): at one
-    off-node radius, group 1, the cheap reading against an unsplit (32, 256) rule. ``[M]`` 2026-10-03: they differ by
-    7.4e-5, the cheap reading's own angular error (the brute moves 1e-6 to (96, 768)); the band 1e-3 is about ten
-    times that, and dropping sinθ (8.7 %) is far outside it."""
+    off-node radius, group 1, the cheap reading against the brute (:func:`_brute_cylinder`) at θ = 32 and 32 points
+    per azimuthal piece. ``[M]`` 2026-10-03: they differed by 7.4e-5 against the then-unsplit (32, 256) brute, the
+    cheap reading's own angular error; the band 1e-3 is about ten times that, and dropping sinθ (8.7 %) is far
+    outside it. Against the converged split brute the gap reads 7.48e-5 (``[M]`` 2026-10-04,
+    ``scratch/reference_architecture/p3/gates_repair/probes/cheap_row.log``: unmoved to 1e-7 from (32, 32) to
+    (96, 256)), so the brute's order here is not part of the reading."""
     ref = _cheap_cylinder()
     reading = ref.read(PointValue(1.2, 1)).value
-    brute = _brute_cylinder(ref, 1, 1.2, n_theta=32, n_azimuth=256)
+    brute = _brute_cylinder(ref, 1, 1.2, n_theta=32, points_per_piece=32)
     assert abs(reading / brute - 1.0) <= 1e-3, (reading, brute)
 
 
