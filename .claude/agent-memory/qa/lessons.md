@@ -343,6 +343,11 @@ node, so a frozen reference cannot even be NAMED. ⭐ `runtime_markers` (a
 `--collect-only` manifest) resolves what pytest resolves — module `pytestmark`,
 class and conftest marks — and is the instrument for any marker census. → L-070
 
+**E20. A production change that makes the SUT converge FASTER re-baselines every
+catcher whose defect needs the slow path to bite** (a restart cap, a budget, a
+stall). check: for each ERR the changed solver's catchers name, re-drop the defect
+on the new SUT and read the red set; a speed-up is a silent fixture change. → L-097
+
 ---
 
 ## E′. Auditing a rewrite, a distillation or a relocation

@@ -219,6 +219,8 @@ only the ORPHEUS mechanisms they do not name.
   so its zero violations and its unrostered content types read clean. The two registrations are the package's
   first reds: gate them in the package's own step (`EXCLUSION-IS-A-PREDICATE` names the class; these are the
   two hand lists). → `L102`
+- **⛔ `pytest -k <word>` matches the MODULE PATH too** — a word in the file name selects every row, so a battery
+  scoped by it runs the rows it meant to exclude. Select by the test-name prefix and print the collected count. → `L106`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`
@@ -415,6 +417,11 @@ shelf life — check it against a concrete row before trusting a green.
   angle moves with the node), the SN side read from the artefact that pins it,
   and the comparison on the SUT's own cells. → `L96`
 
+- **⛔ A brute-force rule is the SUT's rule when a resolution PARAMETER coincides** (θ = 16 against a reading with
+  16 points per piece agreed to 1e-10; 24/32/48 sat 3e-6 away) — run the brute at two counts, neither the SUT's,
+  and require them to agree with each other first. An UNSPLIT rule on a kinked integrand passes by node placement at
+  any count; split it at kinks the TEST computes in closed form, and read its spectral convergence in the per-piece
+  order as the witness that the kink set is complete. → `L106`
 - **⭐ A defect whose effect on the answer vanishes under refinement (a consistency error) is
   invisible against ANY reference at the interior, since an honest band covers the discretization
   error of the same order. Catch it at the EDGE where the honest answer equals a foundation

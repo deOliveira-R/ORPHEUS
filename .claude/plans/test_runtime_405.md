@@ -166,3 +166,73 @@ The test-architect's evidence (each mutation table and the timings) is in `scrat
 - **Why does ERR-025's coefficient mutation in the sweep not trip `ConvergenceClaimError`, when Σ_t × (1 + 1e-3) does?** `[R]` The residual re-check runs through the matvec, which reads the same DD coefficient as the sweep. The check sees whether the sweep solved ITS equation, not whether it solved the right one (X4: a shared upstream). This is a property of the guard, not a defect, and is recorded here.
 - **The sphere brute** (unsplit, 2000 points) has about 4× headroom; review it with the oracle hoist.
 - **Re-time the Krylov order row** (25 s) after #200.
+
+### Step 2 (#200) built; reviews in (2026-10-04)
+
+**Branch `fix/krylov-sweep-preconditioner`**, stacked on `test/slow-reference-gates`. NEITHER branch is merged to `main` (`main` is `6ffd1960`).
+- `dcc73bb1`: step 1, the two files' gates.
+- `ca7d9c21`: step 2, the code change. `_within_group_krylov` (`orpheus/sn/solver.py`) preconditions GMRES with `seeded_inverse(LC)`, plus the optional DSA corrector. The gates are in `tests/gates/sn/solve/test_krylov_sweep_preconditioner.py`:
+  - the route;
+  - linearity on full and boundary-only residuals;
+  - the boundary round trip `A M q_b = q_b`, which is the row that catches a trace-dropping sweep (such a sweep is linear, so the linearity rows cannot see it);
+  - the fixed point;
+  - the rate, flat across 10/20/40 cells, where the identity grows 3.7× and 4.0×.
+  
+  Also in this commit: the k_inf rows run the production preconditioner; `test_krylov_restart_signature` is re-tightened to 1e-9; #200's σ_r-fold stack is split to **#575** and the removal-form `xfail` is re-keyed to it. The commit carries `Closes #200`.
+- `58bb3000`: the archivist's docs, including a new section in `acceleration.rst` (label `sn-krylov-sweep-preconditioner`) and corrected #200 claims across 8 pages and ERR-050/052/071.
+- `6ccc531b`: the regenerated matrix and error index.
+- `[M]` The full non-slow suite at `ca7d9c21`: **15 248 passed, 0 failed**. The l1 file: 100 → 19.7 s.
+
+**The user's ruling (2026-10-04), on the elegance finding:** "We will do in this branch, but we will compact context first, so that you can do it with a cleaner context." So the work below lands on THIS branch before it merges.
+
+**To do on this branch, in order:**
+
+1. **The preconditioner is an OPERATOR** (elegance S1 and S2; `scratch/reference_architecture/p3/elegance200/review.md`).
+   - `KrylovAcceleration`'s `preconditioner` becomes a `LinearOperator[V] | None`, a public attribute (`orpheus/numerics/iteration.py`: the `Preconditioner = Callable[[ndarray], ndarray]` alias at :223 is a false type, since the callable receives typed fields; the default is at :982-987).
+   - `solve` wraps `self.preconditioner.apply`.
+   - `_within_group_krylov` passes `LC.inverse()` (or the seeded form the default uses) with no corrector, and `(I + C) @ LC.inverse()` with one. Today the closure at `solver.py:956-959` is bitwise the `KrylovAcceleration` default (`[M]` 4 of 4 geometries), so there are two spellings.
+   - Elegance measured `inv + C @ inv` as an `OperatorSum`, bitwise equal to the closure on 2 slabs; the DSA corrector refuses curvilinear meshes (`NotImplementedError`, its scope edge).
+   - Check what `seeded_inverse(A)` returns on a carrying mesh (`_SeededExactApply` / `CoupledSubstitutionOperator`) before choosing between `LC.inverse()` and `seeded_inverse(LC)`.
+   - Migrate the test constructions that pass `lambda q: q` and other callables (`[M]` 106 constructions pass their own preconditioner across the three Krylov files; 8 pass an identity lambda, which becomes `IdentityOperator(space)`).
+   - Remove the silent no-preconditioner fallback when `A` is not invertible (`iteration.py:986-987`): the identity becomes explicit.
+   - Elegance C5: source iteration with a corrector is Richardson with `P = (I + C) M⁻¹`. `iteration.py:793` applies `I + C` a second time; name `P` once so that SI and Krylov consume it.
+   - Elegance S3: `test_default_sweep_preconditioner_recovers_kinf_on_slab` and `test_production_preconditioner_recovers_kinf[slab]` now build the same object. Merge them, keeping the ERR-050 argument, and replace the string `preconditioner_kind` with an operator argument.
+   - Elegance C7, nits in the new test file:
+     - the one-line aliases `_system_a` / `_random_state`;
+     - the `solve_sn` keywords written twice;
+     - private builders imported from other test modules, which belong in a shared helper.
+2. **qa HIGH: the ERR-053 catchers have decayed.** With the sweep, GMRES needs 15–25 iterations, so a restart clamp of 50 never bites.
+   - Re-dropping `restart=min(50, n_dof)` leaves green: the 6 `test_krylov_kinf_independent_of_mesh_refinement` rows, `test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`, and `test_krylov_restart_covers_augmented_composite[5,10,20]`.
+   - Only the 3 `test_g_d3_3_*` restart-spy site gates go red.
+   - Re-home `catches("ERR-053")` onto the site gates, or add a value gate that needs more than 50 GMRES iterations (the identity arm, or a harder problem).
+   - Fix the restart-signature comment: the solve "stops on the PRECONDITIONED residual" is false, since scipy accepts on the TRUE residual.
+   - Evidence: `scratch/reference_architecture/p3/qa200/m1_restart50_full.log`.
+3. **qa MEDIUM-HIGH: the inner `IterationRecord` misreads convergence under a preconditioner.**
+   - scipy's `pr_norm` callback reports ‖M r‖/‖b‖, which is relative only when M = I. The record judges it against `tol`.
+   - Reproducer `qa200/q1b.py`: a thin slab, 2G with upscatter. 4 of 7 inner records read not-converged; there is a false "hit max_inner" warning; `fully_converged=False`. All of this while scipy returned info = 0 and the true relative residual is ≤ 9.5e-9.
+   - It also blinds `_check_convergence_claim`. The DSA posture already had the defect; #200 spreads it to every Krylov solve.
+   - **Needs a ruling:** normalise by ‖M b‖, or record the TRUE residual (recommended: the record should hold what it claims). An ERR entry follows.
+4. **qa LOW:** add a 2-D Cartesian row to the gate file's `_GEOMS`. qa ran the three p200_1 rows on 2-D, a 3-cell cylinder and GL8: 12 of 12 pass.
+5. **The archivist's out-of-scope findings:**
+   - drop "the Krylov sweep preconditioner of #200" from `orpheus/sn/loss_representation/assembly.py:22`: the preconditioner is `seeded_inverse(LC)` and no production module imports `assembly`;
+   - `orpheus/numerics/green_operator.py:105` says "decided with #200/#284", which is now decided;
+   - the docstrings of `test_krylov_curvilinear_precond_safety.py` (about :45-48 and :73) are stale;
+   - the commit's "1.6e-10 relative" is really 1.55e-10 absolute, 1.22e-10 relative (cylinder 1.8e-10 and 1.5e-10). The docs publish both correctly.
+   - Optional: `@pytest.mark.verifies("sn-krylov-boundary-round-trip")` on `test_p200_1_a_boundary_only_residual_round_trips`.
+6. Then the full suite, qa, merge both branches to `main` with `--ff-only`, and watch CI.
+7. **Step 3 of the user's ruling:** the chord-oracle hoist.
+   - `MultiRegionCylinderChordOracle.apply_operator`, `chord_oracle.py:941`; prototype `scratch/reference_architecture/p3/perf_traj/factored.py`, 9e-16 relative, not bit-identical, so grep frozen-byte consumers.
+   - Review the sphere brute's headroom (about 4×) with it.
+   - File an issue for vectorising the 1-D apply walk (`_loop_walk` → `visit`, about 60 % of unpreconditioned Krylov time; the DD outflow is a prefix scan).
+
+## ⏸ COMPACTION POINT — 2026-10-04, #200 built, the operator contract next
+
+**State:** branch `fix/krylov-sweep-preconditioner` at the docs commit after `6ccc531b`. It is stacked on `test/slow-reference-gates` (`dcc73bb1`), and neither branch is merged. `main` is `6ffd1960`, CI green.
+
+**Read in order:**
+1. this file's three sections from "The two files the memo could not shorten";
+2. issue #200 and the new #575;
+3. `scratch/reference_architecture/p3/elegance200/review.md`;
+4. qa's evidence in `scratch/reference_architecture/p3/qa200/`.
+
+**Then do "To do on this branch" in order.** It is a surgical carve in `orpheus/numerics/iteration.py` and `orpheus/sn/solver.py`: the main agent writes, the user steers, and the test-architect gates. Item 3 needs the user's ruling first.

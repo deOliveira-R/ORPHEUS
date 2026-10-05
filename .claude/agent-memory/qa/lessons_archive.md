@@ -6056,3 +6056,15 @@ carry the same command-line token, and one was killed mid-generation. pytest rep
 green. Re-run uncontended: 15 of 15 green. The empty stderr was the tell (a SIGKILL leaves none). Not covered
 by `process-discipline` "Mutation-testing an uncommitted file" (it covers the restore and the timeout, not
 the reaper's reach) nor by `vv-principles` #17 (it covers the arm's own process, not a neighbour's).
+
+## L-097 — a production speed-up decays every catcher whose defect needs the SLOW path to bite (2026-10-04, W3 #200 QA, `ca7d9c21`)
+
+#200 replaced GMRES's identity preconditioner by the sweep (inner iterations ~656 to ~15). ERR-053 is a
+restart truncation (`restart=min(50, n)`), which bites only when a solve needs more than 50 Arnoldi steps.
+Re-dropping the clamp under `-O`: the six `catches("ERR-053")` rows of `test_krylov_restart_signature.py`,
+`test_sweep_vs_apply_consistency::…homogeneous_sphere` and `test_krylov_restart_covers_augmented_composite[*]`
+all stayed GREEN; only the three restart-spy site gates reddened. Positive control (identity + clamp): row [10]
+red. Not covered by `vv-principles` "a catcher DECAYS when its fixture, tolerance or budget drifts": here
+nothing in the TEST drifted; the SUT got faster. Second fact from the same review: scipy's `pr_norm` callback
+is `‖M r‖/‖b‖`, not relative, so a record judged on it mis-reports once `M ≠ I` (thin slab: false
+"hit max_inner" warning while the true residual met tol).

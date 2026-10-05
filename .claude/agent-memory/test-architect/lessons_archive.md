@@ -11642,3 +11642,17 @@ The step-7a harness execs a transformed module source into the live module and r
 ## L105 — #405 P3 traced memo (W3 spec, gates + prototype before code): a witness "seen through a reference" passed through the direct route (2026-10-04)
 
 `[M]` on the P3 prototype (`scratch/reference_architecture/p3/ta/wt`). The recursive-validation witness (an edit only the CHILD entry traced must make the PARENT stale) was green on the first prototype, and green for the wrong reason: the parent's own manifest listed the child's def `inner`. Mechanism: the payload decoder calls `typing.get_type_hints(inner)` in the generating parent, and on Python 3.14 (PEP 649) that runs a generated `__annotate__` code object whose `co_firstlineno` is `inner`'s def line, so a "map each traced code object to the def spanning its line" rule pinned `inner`'s whole BODY in the parent. Only the row's NEGATIVE leg (`"inner" not in parent.functions`) caught it; the positive leg ("parent becomes stale") could not tell the two routes apart. Same family on 3.12+: PEP 695 `<generic parameters of f>` scopes have no def of their name at their line (the first prototype refused them and every generation died), and the editable install's `__editable___orpheus_*_finder.py` runs in every child from site-packages with no top-level-name distribution (an `importlib.metadata` file index costs 9.4–10.9 s per process; a raw RECORD-text search 0.23 s). Rule: a claim that X is observed THROUGH an indirection (a child reference, a delegate, a cache layer) owes a leg asserting the DIRECT route is absent, or its green is compatible with both routes; and a trace-to-source map on Python ≥ 3.12 must classify the interpreter's generated signature scopes (pin them by the skeleton, not the body).
+
+## L106 — #405 test-runtime gates repair (W3): a brute that shares the SUT's node count, and `-k` matching the module path (2026-10-04)
+
+`[M]` `scratch/reference_architecture/p3/gates_repair/probes/brute_ladder2.log`. The cylinder reading integrates θ with
+16 Gauss–Legendre points on [0, π] unsplit; an "independent" brute at θ = 16 reproduced it to 1e-10 at r = 0.31,
+while θ = 24, 32 and 48 all agreed with each other and sat 3.1e-6 away. The brute's agreement at 16 was the SAME
+RULE (identical nodes), not convergence; no AST comparison sees it, because the coincidence lives in a parameter
+value. Separately, the brief's "(24, ≥ 3072) converges reliably" for the unsplit azimuth brute was refuted by a
+denser scan (3584 azimuths read 8.0e-6 against a 1e-5 band, 1536 read 1.45e-5): an unsplit rule on a kinked
+integrand passes by node placement at every count, so one passing count, or three, is not convergence. Splitting
+the brute at kinks it computes itself (closed form from the geometry, never the SUT's kink code) gave spectral
+convergence in the per-piece order, and that convergence is the witness that its kink set is complete.
+Harness: `pytest -k slab` on `test_l1_standoff_slab_cylinder.py` selected every row (the keyword matches the module
+path), so a scan-coefficient mutation ran the cylinder rows into a 15-minute stall; select by test-name prefix.
