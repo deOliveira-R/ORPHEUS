@@ -28,20 +28,22 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.coupled_system import build_within_group_system
-from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
+from tests.gates.sn.operators._full_space_states import (
+    GEOMS as _GEOMS,
+    MESHES as _MESHES,
+    random_state as _random_state,
+    system_a as _system_a,
+    zero_source_composite as _zero_source_composite,
+)
 
 pytestmark = [
     pytest.mark.foundation,
@@ -50,84 +52,6 @@ pytestmark = [
     # System-B twin of ERR-071, caught by this file's coupled rows.
     pytest.mark.catches("ERR-078"),
 ]
-
-
-def _mixtures():
-    mix_a = make_mixture(
-        sig_t=np.array([1.0]), sig_c=np.array([0.1]),
-        sig_f=np.array([0.0]), nu=np.array([0.0]),
-        chi=np.array([0.0]), sig_s=np.array([[0.9]]),
-    )
-    mix_b = make_mixture(
-        sig_t=np.array([2.0]), sig_c=np.array([1.0]),
-        sig_f=np.array([0.0]), nu=np.array([0.0]),
-        chi=np.array([0.0]), sig_s=np.array([[1.0]]),
-    )
-    return {0: mix_a, 1: mix_b}
-
-
-def _mesh_slab(left: str) -> SNProblem:
-    geom = StructuredGeometry.slab(
-        (0.0, 0.5, 3.0, 5.0, 6.0, 8.0), (0, 1, 0, 1, 0),
-        left=BC(left), right=BC("vacuum"),
-    )
-    return SNProblem(
-        Mesher(geom).partition((
-            CellEdges(np.array([0.0, 0.5])),
-            CellEdges(np.array([0.5, 1.5, 3.0])),
-            CellEdges(np.array([3.0, 5.0])),
-            CellEdges(np.array([5.0, 6.0])),
-            CellEdges(np.array([6.0, 8.0])),
-        )).mesh,
-        Quadrature.gauss_legendre(n_ordinates=4),
-        _mixtures(),
-    )
-
-
-def _mesh_cyl() -> SNProblem:
-    # The #280 MANDATORY cylinder config, re-posed at the 6.3 flip onto
-    # the admitted family: ``folded_product(4, 6)`` — the staggered
-    # parent at n_φ ≡ 2 (mod 4) places φ = π/2 exactly, and the
-    # roots-of-unity circle (E3) makes those ordinates' μ_r = 0.0
-    # BIT-EXACT — so the rule carries degenerate pure-azimuthal
-    # ordinates AND (like every admitted cylinder rule) a live ψ½
-    # System B.  xmax-only trace layout — exercises the restore's
-    # per-face membership loop on the curvilinear face set.
-    return SNProblem(
-        Mesher(StructuredGeometry.cylinder(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
-        )).partition(CellsByCount.uniform_width(1)).mesh,
-        Quadrature.folded_product(n_mu=4, n_phi=6),
-        _mixtures(),
-    )
-
-
-def _mesh_sphere() -> SNProblem:
-    # The carrying SPHERE row — GL-4, one seed level; the same coupled
-    # round-trip as the cylinder row.  The sphere's seed-carrying
-    # inverse reciprocity was explicitly deferred pre-6.3 (the "#29
-    # domain" note in test_loss_transpose_solve.G3); ERR-078's fix
-    # covers both curvilinear arms, so both are gated here.
-    return SNProblem(
-        Mesher(StructuredGeometry.sphere(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
-        )).partition(CellsByCount.uniform_width(1)).mesh,
-        Quadrature.gauss_legendre(n_ordinates=4),
-        _mixtures(),
-    )
-
-
-_MESHES = {
-    # vacuum walls — every trace row live: inflow identities, outflow defects
-    "slab_vacuum": lambda: _mesh_slab("vacuum"),
-    # the identity is bc-INDEPENDENT: B is a coupling GAIN, never inside
-    # the bare (L+C) — a reflective wall must not change the round-trip
-    "slab_reflective": lambda: _mesh_slab("reflective"),
-    "cyl_folded": _mesh_cyl,
-    "sphere_gl": _mesh_sphere,
-}
-
-_GEOMS = list(_MESHES)
 
 
 def _lc_pair(geom: str):
@@ -153,58 +77,6 @@ def _lc_pair(geom: str):
             f"{geom}: a non-carrying mesh must carry the bare (L+C) arm"
         )
     return problem, lc, lc.inverse()
-
-
-def _zero_source_composite(problem: SNProblem) -> FullField:
-    """A zero SOURCE-role System-A carrier for the coupled arm's rhs.
-
-    Role-honest member algebra: a solve's rhs is a SOURCE, and the
-    substitution computes ``q_A − Seeding·ψ_B`` — cross-role arithmetic
-    is forbidden by the typed fields, so a flux-role rhs raises at the
-    block boundary (#289-F2)."""
-    from orpheus.transport.source_sinks import (
-        AngularBoundarySourceSink,
-        AngularSourceSink,
-    )
-
-    return FullField(
-        interior=AngularSourceSink(values=np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space),
-        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
-    )
-
-
-def _random_state(problem: SNProblem, lc, seed: int):
-    """A random rhs in ``lc``'s domain — the bare composite, or the
-    coupled (bulk ⊕ ψ½) SOURCE-role state with EVERY member block
-    populated (randomized through the coupled ``from_flat``, so the
-    ψ½ member's interior ⊕ boundary blocks are live too)."""
-    if not isinstance(lc, CoupledOperator):
-        return _random_composite(problem, seed)
-    template = CoupledField(systems=(
-        _zero_source_composite(problem),
-        RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
-    ))
-    flat = np.asarray(template.to_flat())
-    rng = np.random.default_rng(seed + 1)
-    return CoupledField.from_flat(rng.normal(size=flat.shape), template)
-
-
-def _system_a(x):
-    """Project the bulk (System-A) member of a possibly-coupled field."""
-    return x.systems[0] if isinstance(x, CoupledField) else x
-
-
-def _random_composite(problem: SNProblem, seed: int) -> FullField:
-    """Every block populated — bulk, inflow-trace, AND the outflow-trace
-    rows the old sweep dropped — with shapes read off the mesh (so the
-    same builder serves slab and the xmax-only curvilinear layout)."""
-    rng = np.random.default_rng(seed)
-    interior = AngularFlux(values=rng.normal(size=(problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space)
-    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
-    for face in boundary.layout.faces:
-        view = boundary.face_view(face)
-        view[...] = rng.normal(size=view.shape)
-    return FullField(interior=interior, boundary=boundary)
 
 
 class TestSweepInverseIdentity:
@@ -306,7 +178,7 @@ class TestSweepInverseIdentity:
                 "cyl_folded carries no tangential ordinates — the tree's "
                 "only catcher for the structural-zero trace row has gone "
                 "vacuous. Restore an n_phi ≡ 2 (mod 4) folded rule here "
-                "(see the #280 MANDATORY config on _mesh_cyl) rather than "
+                "(see the #280 MANDATORY config on _full_space_states.mesh_cyl) rather than "
                 "deleting this guard."
             )
 

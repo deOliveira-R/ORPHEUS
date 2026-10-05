@@ -903,7 +903,7 @@ def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
 
 
 def _within_group_krylov(
-    LC: "LinearOperator", *gains: "LinearOperator",
+    LC: "SupportsInverse[Any, Any]", *gains: "LinearOperator",
     n_dof: int, max_iter: int, tol: float,
     corrector: "LinearOperator | None" = None,
 ) -> "KrylovAcceleration[Any]":
@@ -922,8 +922,10 @@ def _within_group_krylov(
     the ONE coupled gain grid carrying); the matvec is
     ``M.apply − Σ Nᵢ.apply``.
 
-    Without a ``corrector``, the left preconditioner is the sweep,
-    :math:`M^{-1} = (L+C)^{-1}` (``seeded_inverse(LC)``, issue #200): it
+    The left preconditioner is an operator stated here, the one place it is
+    chosen (``KrylovAcceleration`` has no default: the user's ruling,
+    2026-10-04). Without a ``corrector`` it is the sweep,
+    :math:`M^{-1} = (L+C)^{-1}` (``LC.inverse()``, issue #200): it
     reads the residual's boundary block as well as its cells, which is what
     makes it the block inverse of the typed state rather than a rank-deficient
     map (a sweep that drops the boundary block is still linear, and converges
@@ -932,16 +934,20 @@ def _within_group_krylov(
     longer grows with the mesh (``[M]`` 2026-10-04: slab, 40 cells per region,
     5705 to 81 inner iterations). With a ``corrector`` (the consistent-DSA
     posture, issue #2), the left preconditioner is the **transport-corrected**
-    :math:`M^{-1} \approx (A - \Sigma g)^{-1}` of Adams & Larsen §VI:
+    :math:`P \approx (A - \Sigma g)^{-1}` of Adams & Larsen §VI:
 
     .. math::
 
-        M^{-1} v \;=\; t + \mathcal{C}\,t, \qquad t = (L+C)^{-1} v,
+        P \;=\; (I + \mathcal{C})\,(L+C)^{-1},
 
     one sweep followed by the DSA correction of the swept vector — the
     swept vector IS the increment from a zero iterate, so the SAME correction
     operator serves both the SI and Krylov postures (single source of
-    truth on :math:`R, A_{\rm low}^{-1} G, P`).  The preconditioner
+    truth on :math:`R, A_{\rm low}^{-1} G, P`). Source iteration with the
+    corrector is Richardson iteration preconditioned by this same :math:`P`,
+    :math:`\psi_{n+1} = \psi_n + P\,(q - (M - N)\,\psi_n)`; it realises the
+    step through the increment instead of a residual, and a gate holds the
+    two equal.  The preconditioner
     changes the Krylov TRAJECTORY only, never the converged fixed point
     (gated by D4; its effectiveness is the paired rate gate D13).
 
@@ -949,14 +955,13 @@ def _within_group_krylov(
     legacy ``min(50, …)`` clamp left GMRES structurally truncated on any
     mesh with ``n_dof > 50`` (ERR-053).
     """
-    from orpheus.numerics.iteration import KrylovAcceleration, seeded_inverse
+    from orpheus.numerics.iteration import KrylovAcceleration
+    from orpheus.numerics.operator import IdentityOperator
 
-    sweep = seeded_inverse(LC)
-
-    def preconditioner(q):
-        swept = sweep.apply(q)
-        return swept if corrector is None else swept + corrector.apply(swept)
-
+    sweep = LC.inverse()
+    preconditioner = (
+        sweep if corrector is None else (IdentityOperator() + corrector) @ sweep
+    )
     return KrylovAcceleration(
         LC, *gains,
         preconditioner=preconditioner,

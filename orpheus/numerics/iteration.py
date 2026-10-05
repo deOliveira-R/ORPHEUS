@@ -93,14 +93,13 @@ primitives APPLY it:
   the keyword; members with no use for a start accept and ignore it,
   documented per type).
 
-* :class:`KrylovAcceleration` takes an explicit ``preconditioner``
-  Callable hook (a GMRES left preconditioner approximating the FULL
-  system inverse is a different concept from the inverse step — the
-  previous ``inverter`` name was a category mistake).  Default
-  behaviour: if ``A`` is invertible
-  (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`), use
-  ``A.inverse().apply`` as the preconditioner; otherwise run
-  unpreconditioned.
+* :class:`KrylovAcceleration` takes the GMRES left ``preconditioner``
+  as a :class:`~orpheus.numerics.operator.LinearOperator` the caller
+  STATES (a preconditioner approximating the FULL system inverse is a
+  different concept from the inverse step — the previous ``inverter``
+  name was a category mistake).  There is no default: plain Krylov is
+  ``preconditioner=IdentityOperator()``, written at the call site, and
+  the SN posture passes its sweep ``(L+C).inverse()`` (issue #200).
 
 Carlson seed threading
 ======================
@@ -144,7 +143,6 @@ from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Protocol,
     TypeGuard,
@@ -217,10 +215,6 @@ class SupportsSeededApply(Protocol[V]):
     """
 
     def apply(self, rhs: V, /, *, initial_guess: V | None = None) -> V: ...
-
-
-# Type alias for the GMRES left-preconditioner hook M ≈ A⁻¹.
-Preconditioner = Callable[[np.ndarray], np.ndarray]
 
 
 class _SeededExactApply:
@@ -834,8 +828,9 @@ class KrylovAcceleration(Generic[V]):
     convergence at rate :math:`\rho(A^{-1}\sum_i g_i) \le
     \max\Sigma_s/\Sigma_t`).  :class:`KrylovAcceleration` builds the
     composed matvec :math:`\bigl(A - \sum_i g_i\bigr)\cdot` as a single
-    linear operator and solves it with GMRES, optionally preconditioned
-    by :math:`A^{-1}` (the sweep).  When the scattering ratio :math:`c =
+    linear operator and solves it with GMRES, left-preconditioned by the
+    operator the caller states (for SN, :math:`A^{-1}`, the sweep).  When
+    the scattering ratio :math:`c =
     \Sigma_s/\Sigma_t` approaches 1, GMRES converges in
     :math:`\mathcal{O}(\sqrt{\kappa})` matvecs vs source iteration's
     :math:`\mathcal{O}(1/(1-c))` — the standard transport-Krylov win
@@ -874,14 +869,31 @@ class KrylovAcceleration(Generic[V]):
     ``inverter`` (which would conflate the GMRES left preconditioner with
     the iteration's inverse step).
 
-    * ``preconditioner = None`` (default): if ``A`` is invertible
-      (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`),
-      use ``A.inverse().apply`` as the preconditioner; otherwise, no
-      preconditioner (identity ``M = I``).
-    * ``preconditioner = lambda q: sweep_preconditioner(q)``:
-      caller-supplied preconditioner.  Typically wraps a sweep that
-      consumes the same packed/structured layout the operators
-      consume.
+    The preconditioner is a :class:`~orpheus.numerics.operator.LinearOperator`
+    from the residual's (source) space to the solution's (flux) space,
+    and the caller STATES it: there is no default (the user's ruling,
+    2026-10-04).  The reasons:
+
+    * **No default is right for every model.** :math:`A^{-1}` is the sweep
+      for SN, an excellent preconditioner; for a diffusion operator it is
+      the whole solve, which leaves GMRES nothing to do.  A default would
+      put one method's knowledge into this method-agnostic primitive.
+    * **A silent identity default is a trap.** Without a preconditioner
+      the GMRES iteration count grows with the condition number, so with
+      mesh refinement: the SN inner solve ran unpreconditioned until
+      issue #200, at about one iteration per degree of freedom (5705
+      against 81 iterations on a 40-cell-per-region slab, ``[M]``
+      2026-10-04).
+    * **Plain Krylov is still legitimate**, and is spelled
+      ``preconditioner=IdentityOperator()``: for a small, well-conditioned
+      system; for an operator that is already the preconditioned one
+      (``KrylovAcceleration(M.inverse() @ A, ...)``, the form in which
+      many production transport codes run GMRES on the sweep-transformed
+      system); and for studies comparing the two.
+
+    For SN the within-group builder passes :math:`(L+C)^{-1}`, or
+    :math:`(I + \mathcal{C})(L+C)^{-1}` with a synthetic-acceleration
+    corrector :math:`\mathcal{C}` (``orpheus.sn.solver._within_group_krylov``).
 
     Parameters
     ----------
@@ -889,9 +901,6 @@ class KrylovAcceleration(Generic[V]):
         The FORWARD loss operator — the GMRES matvec applies it, so it
         must expose ``apply`` (contrast
         :class:`SourceIteration`, which consumes the pre-built INVERSE).
-        If ``A.is_invertible`` and no ``preconditioner`` is supplied,
-        ``A.inverse().apply`` (the sweep) becomes the default GMRES
-        preconditioner.
     *gains : LinearOperator
         The coupling operators :math:`g_i` subtracted from ``A`` in the
         matvec (each must expose ``apply``).  For SN within-
@@ -899,9 +908,11 @@ class KrylovAcceleration(Generic[V]):
         ``B`` (within-group fission is zero — it enters as the EXTERNAL
         :math:`q_{\rm ext}` per the eigenvalue outer / within-group
         decomposition).  Zero gains solves ``A\,\psi = q_{\rm ext}``.
-    preconditioner : callable or None, optional
-        GMRES left preconditioner.  See above.  When ``None`` and
-        ``A`` is not invertible, runs GMRES without preconditioner.
+    preconditioner : LinearOperator
+        Keyword-only and REQUIRED: the GMRES left preconditioner
+        :math:`M \approx (A - \sum_i g_i)^{-1}`, an operator whose
+        ``apply`` maps a residual to a flux.  ``IdentityOperator()`` runs
+        plain GMRES.  See "The ``preconditioner`` parameter" above.
     max_iter : int, optional
         Maximum GMRES **restart cycles** (``maxiter`` in scipy).  Default
         ``1000``.
@@ -922,15 +933,16 @@ class KrylovAcceleration(Generic[V]):
     restart : int, optional
         GMRES restart length — the Arnoldi steps ONE ``max_iter`` unit
         buys.  Default ``50``.  Clamped to ``n`` at :meth:`solve` time, and
-        the SN caller passes ``n_dof`` (``sn/solver.py:721``, the ERR-053
-        fix), so on that path one cycle admits the FULL problem dimension
+        the SN caller passes ``n_dof`` (``_within_group_krylov``, the
+        ERR-053 fix), so on that path one cycle admits the FULL problem dimension
         and ``max_iter`` effectively never binds.
 
     Raises
     ------
     TypeError
-        At construction time if ``A`` or any gain has no callable
-        ``apply`` (the eager composition-time guard, carve P4).
+        At construction time if ``A``, any gain, or the preconditioner
+        has no callable ``apply`` (the eager composition-time guard,
+        carve P4).
 
     Notes
     -----
@@ -945,7 +957,7 @@ class KrylovAcceleration(Generic[V]):
         self,
         A: LinearOperator[V],
         *gains: LinearOperator[V],
-        preconditioner: Preconditioner | None = None,
+        preconditioner: LinearOperator[Any],
         max_iter: int = 1000,
         tol: float = 1e-8,
         restart: int = 50,
@@ -963,28 +975,22 @@ class KrylovAcceleration(Generic[V]):
                     f"coupling operator; gain {i} ({type(g).__name__}) "
                     f"has none."
                 )
+        if not callable(getattr(preconditioner, "apply", None)):
+            raise TypeError(
+                f"KrylovAcceleration requires 'apply' on the preconditioner "
+                f"(a LinearOperator; plain GMRES is IdentityOperator()); "
+                f"{type(preconditioner).__name__} has none."
+            )
 
         self.A = A
         self.gains = gains
+        self.preconditioner = preconditioner
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         self.restart = int(restart)
         # See SourceIteration.__init__ — the caller's name for ``max_iter``,
         # so the ConvergenceWarning names a knob the reader can type (#340 N6).
         self.budget_name = str(budget_name)
-
-        # Pin the preconditioner choice at construction.  If caller
-        # supplied one, use it.  Otherwise, fall back to applying A's
-        # inverse OPERATOR when A is invertible (the runtime,
-        # instance-accurate query; the narrowing rationale lives on
-        # :func:`seeded_inverse`); if not, run GMRES without
-        # preconditioner.
-        if preconditioner is not None:
-            self._preconditioner: Preconditioner | None = preconditioner
-        elif A.is_invertible:
-            self._preconditioner = seeded_inverse(A).apply
-        else:
-            self._preconditioner = None
 
     def solve(
         self,
@@ -1055,11 +1061,7 @@ class KrylovAcceleration(Generic[V]):
 
         A_scipy = _as_scipy_linop(loss_minus_gains, solution_template, n)
 
-        M_scipy: spla.LinearOperator | None = (
-            _as_scipy_linop(self._preconditioner, q_ext, n)
-            if self._preconditioner is not None
-            else None
-        )
+        M_scipy = _as_scipy_linop(self.preconditioner.apply, q_ext, n)
 
         x0 = (
             _ravel(initial_guess)

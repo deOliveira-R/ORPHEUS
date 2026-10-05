@@ -41,6 +41,7 @@ from orpheus.numerics.iteration import (
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.posing import K_MAP, EigenPosing
 from orpheus.numerics.operator import (
+    IdentityOperator,
     InverseOperator,
     LinearOperator,
     NotInvertible,
@@ -222,8 +223,8 @@ def test_krylov_acceleration_recovers_direct_solve(rng):
 
     Same algebraic setup as
     :func:`test_source_iteration_recovers_direct_solve`.  GMRES on
-    the composed (A − S) matvec, with ``A.inverse().apply`` as the
-    default preconditioner.  Convergence to 1e-10 should take far fewer
+    the composed (A − S) matvec, preconditioned by ``A.inverse()`` (stated:
+    the preconditioner has no default).  Convergence to 1e-10 should take far fewer
     matvecs than source iteration because A − S is well-conditioned.
     """
     n = 4
@@ -238,7 +239,9 @@ def test_krylov_acceleration_recovers_direct_solve(rng):
     q = rng.standard_normal(n)
     expected = np.linalg.solve(A_mat - S_mat, q)
 
-    krylov = KrylovAcceleration(A, S, F, max_iter=200, tol=1e-12)
+    krylov = KrylovAcceleration(
+        A, S, F, preconditioner=A.inverse(), max_iter=200, tol=1e-12,
+    )
     psi, record = krylov.solve(q)
     residuals = _trajectory(record)
 
@@ -265,7 +268,9 @@ def test_krylov_acceleration_with_fission_term(rng):
     q = rng.standard_normal(n)
     expected = np.linalg.solve(A_mat - S_mat - F_mat, q)
 
-    krylov = KrylovAcceleration(A, S, F, max_iter=200, tol=1e-12)
+    krylov = KrylovAcceleration(
+        A, S, F, preconditioner=A.inverse(), max_iter=200, tol=1e-12,
+    )
     psi, _ = krylov.solve(q)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
@@ -273,12 +278,12 @@ def test_krylov_acceleration_with_fission_term(rng):
 
 @pytest.mark.foundation
 def test_krylov_acceleration_explicit_preconditioner():
-    """Caller-supplied ``preconditioner`` shadows the default inverse choice.
+    """The preconditioner is an operator independent of ``A``'s invertibility.
 
     R-1 Step B (2026-05-19) — the parameter name is ``preconditioner``
     (not ``inverter``).  Pass an ``A`` that is NOT invertible and
-    supply ``preconditioner`` — construction must succeed and GMRES
-    must converge using the supplied preconditioner.
+    supply a preconditioner OPERATOR — construction must succeed and GMRES
+    must converge using it.
     """
     n = 3
     A_mat = np.diag([5.0, 6.0, 7.0])
@@ -290,8 +295,7 @@ def test_krylov_acceleration_explicit_preconditioner():
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
 
-    inv_A = np.linalg.inv(A_mat)
-    preconditioner = lambda q: inv_A @ q
+    preconditioner = MatrixOperator(np.linalg.inv(A_mat))
 
     q = np.array([1.0, 2.0, 3.0])
     expected = np.linalg.solve(A_mat - S_mat, q)
@@ -305,11 +309,13 @@ def test_krylov_acceleration_explicit_preconditioner():
 
 @pytest.mark.foundation
 def test_krylov_acceleration_works_without_preconditioner():
-    """KrylovAcceleration runs unpreconditioned when A is not invertible.
+    """Plain GMRES is the STATED identity preconditioner, ``M = I``.
 
-    No ``preconditioner`` supplied, ``A`` not invertible — GMRES
-    still converges, just with more iterations (M = I, the identity
-    preconditioner).
+    ``A`` not invertible and ``preconditioner=IdentityOperator()``: GMRES
+    still converges, just with more iterations.  Until 2026-10-04 the same
+    run was reached by OMITTING the preconditioner, which silently chose
+    ``A⁻¹`` when ``A`` was invertible and the identity when it was not;
+    the choice is now always written at the call site (the user's ruling).
     """
     n = 5
     # Well-conditioned diagonal-dominant A so unpreconditioned GMRES
@@ -322,11 +328,11 @@ def test_krylov_acceleration_works_without_preconditioner():
     q = np.arange(1.0, n + 1.0)
     expected = q / 10.0
 
-    krylov = KrylovAcceleration(A, S, F, max_iter=50, tol=1e-12)
-    assert krylov._preconditioner is None, (
-        "Expected no preconditioner when A is not invertible and no "
-        "preconditioner is supplied."
+    identity = IdentityOperator()
+    krylov = KrylovAcceleration(
+        A, S, F, preconditioner=identity, max_iter=50, tol=1e-12,
     )
+    assert krylov.preconditioner is identity
     psi, _ = krylov.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-10)
 
@@ -355,7 +361,9 @@ def test_krylov_acceleration_high_scattering_beats_source_iteration():
     si = SourceIteration(A.inverse(), S, F, max_iter=500, tol=1e-10)
     _, si_record = si.solve(q)
 
-    krylov = KrylovAcceleration(A, S, F, max_iter=500, tol=1e-10)
+    krylov = KrylovAcceleration(
+        A, S, F, preconditioner=A.inverse(), max_iter=500, tol=1e-10,
+    )
     _, kr_record = krylov.solve(q)
 
     # GMRES should converge in well under SI's iteration count.  The
@@ -379,7 +387,10 @@ def test_krylov_acceleration_requires_apply_on_A():
         pass  # genuinely no apply — the eager guard rejects
 
     with pytest.raises(TypeError, match=r"requires 'apply' on A"):
-        KrylovAcceleration(BrokenA(), ZeroOperator(), ZeroOperator())
+        KrylovAcceleration(
+            BrokenA(), ZeroOperator(), ZeroOperator(),
+            preconditioner=IdentityOperator(),
+        )
 
 
 @pytest.mark.foundation
@@ -398,7 +409,9 @@ def test_krylov_acceleration_requires_apply_on_first_coupling():
         TypeError,
         match=r"requires 'apply' on every coupling operator; gain 0",
     ):
-        KrylovAcceleration(A, BrokenS(), ZeroOperator())
+        KrylovAcceleration(
+            A, BrokenS(), ZeroOperator(), preconditioner=IdentityOperator(),
+        )
 
 
 @pytest.mark.foundation
@@ -412,7 +425,38 @@ def test_krylov_acceleration_requires_apply_on_later_coupling():
         TypeError,
         match=r"requires 'apply' on every coupling operator; gain 1",
     ):
-        KrylovAcceleration(A, ZeroOperator(), BrokenF())
+        KrylovAcceleration(
+            A, ZeroOperator(), BrokenF(), preconditioner=IdentityOperator(),
+        )
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_requires_a_stated_preconditioner():
+    """The preconditioner has no default: omitting it is refused.
+
+    The user's ruling (2026-10-04): no default is right for every model
+    (``A⁻¹`` is SN's sweep but diffusion's whole solve), and a silent
+    identity default hands the next model's Krylov path iteration counts
+    that grow with the mesh, which is what issue #200 removed from SN.
+    Plain GMRES is spelled ``preconditioner=IdentityOperator()``.
+    """
+    A = MatrixOperator(np.eye(3), can_solve=True)
+    with pytest.raises(TypeError, match=r"preconditioner"):
+        KrylovAcceleration(A, ZeroOperator())  # type: ignore[call-arg]
+
+
+@pytest.mark.foundation
+def test_krylov_acceleration_requires_apply_on_the_preconditioner():
+    """A bare callable (the contract until 2026-10-04) is refused at construction.
+
+    The preconditioner is a ``LinearOperator``: GMRES applies it to typed
+    fields, and a callable typed ``ndarray -> ndarray`` misstated that.
+    """
+    A = MatrixOperator(np.eye(3), can_solve=True)
+    with pytest.raises(TypeError, match=r"requires 'apply' on the preconditioner"):
+        KrylovAcceleration(
+            A, ZeroOperator(), preconditioner=lambda q: q,  # type: ignore[arg-type]
+        )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -1026,7 +1070,7 @@ def test_singular_consistent_exact_breakdown_solves_clean() -> None:
     possible exit)."""
     A_op, b = _singular_consistent()
     krylov = KrylovAcceleration(
-        A_op, preconditioner=lambda q: q, tol=0.0, max_iter=30, restart=2,
+        A_op, preconditioner=IdentityOperator(), tol=0.0, max_iter=30, restart=2,
     )
     x, history, ours = _krylov_warnings(krylov, b)
     if not history or history[-1] != 0.0:
@@ -1075,7 +1119,7 @@ def test_exact_breakdown_guard_suppresses_the_info_warning(monkeypatch) -> None:
     )
     A_op, b = _singular_consistent()
     krylov = KrylovAcceleration(
-        A_op, preconditioner=lambda q: q, tol=1e-12, max_iter=30, restart=2,
+        A_op, preconditioner=IdentityOperator(), tol=1e-12, max_iter=30, restart=2,
     )
     _x, history, ours = _krylov_warnings(krylov, b)
     if history != [0.0]:
@@ -1101,7 +1145,7 @@ def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
     )
     A_op, b = _singular_consistent()
     krylov = KrylovAcceleration(
-        A_op, preconditioner=lambda q: q, tol=1e-12, max_iter=30, restart=2,
+        A_op, preconditioner=IdentityOperator(), tol=1e-12, max_iter=30, restart=2,
     )
     _x, _history, ours = _krylov_warnings(krylov, b)
     if not ours:
@@ -1304,7 +1348,7 @@ def test_the_gmres_nonconvergence_warning_is_ESCALATABLE(monkeypatch) -> None:
 
     def _fresh_krylov():
         return KrylovAcceleration(
-            A_op, preconditioner=lambda q: q,
+            A_op, preconditioner=IdentityOperator(),
             tol=1e-12, max_iter=30, restart=2,
         )
 
@@ -1362,7 +1406,7 @@ def test_a_CONVERGED_gmres_solve_did_not_exhaust_its_budget():
     max_iter, restart = 5, 30
 
     krylov = KrylovAcceleration(
-        A, ZeroOperator(), preconditioner=lambda q: q,
+        A, ZeroOperator(), preconditioner=IdentityOperator(),
         max_iter=max_iter, tol=1e-12, restart=restart,
     )
     _, record = krylov.solve(np.ones(n))
@@ -1407,7 +1451,7 @@ def test_a_gmres_solve_that_really_DID_run_out_still_says_so():
     max_iter = 4
 
     krylov = KrylovAcceleration(
-        A, ZeroOperator(), preconditioner=lambda q: q,
+        A, ZeroOperator(), preconditioner=IdentityOperator(),
         max_iter=max_iter, tol=1e-14, restart=1,
     )
     with warnings.catch_warnings():
@@ -1443,7 +1487,7 @@ def test_the_advice_names_a_setting_in_the_KNOBs_units_not_the_trajectorys():
     A = MatrixOperator(hard, can_solve=True)
 
     krylov = KrylovAcceleration(
-        A, ZeroOperator(), preconditioner=lambda q: q,
+        A, ZeroOperator(), preconditioner=IdentityOperator(),
         max_iter=2, tol=1e-14, restart=8,
     )
     with warnings.catch_warnings():

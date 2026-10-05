@@ -43,15 +43,11 @@ Sweep route (``inner_solver="source_iteration"``) routes through the
 """
 from __future__ import annotations
 
-import contextlib
 import functools
 import math
 
 import pytest
 
-from orpheus.derivations.reference_values import continuous_get
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.derivations._trajectory_resolvent_ladders import (
@@ -60,6 +56,7 @@ from tests.gates.derivations._trajectory_resolvent_ladders import (
 )
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.observable import Eigenvalue
+from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_k_ref, case_slab_mesh
 from tests.gates.sn.verification.analytical._aba_reference import (
     aba_materials,
     aba_reference,
@@ -268,31 +265,6 @@ def test_cylinder_l1_reference_record() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _build_slab_2region_mesh(n_per: int) -> tuple[Mesh1D, dict, int]:
-    r"""Build the ``sn_slab_1eg_2rg_S8`` Case singular-eigenfunction mesh.
-
-    Returns ``(mesh, materials, N_ord)`` for direct use by ``solve_sn``.
-    """
-    ref = continuous_get("sn_slab_1eg_2rg_S8")
-    geom = ref.problem.geometry_params
-    materials = ref.problem.materials
-    H_A = float(geom["fuel_height"])
-    H_B = float(geom["refl_height"])
-    N_ord = int(geom["n_ordinates"])
-    slab = StructuredGeometry.slab(
-        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
-    )
-    mesh = Mesher(slab).partition(CellsByCount.uniform_width(n_per)).mesh
-    return mesh, materials, N_ord
-
-
-def _slab_k_ref() -> float:
-    k_eff = continuous_get("sn_slab_1eg_2rg_S8").k_eff
-    if k_eff is None:
-        raise ValueError("sn_slab_1eg_2rg_S8 carries no eigenvalue: the slab reference answers the k question")
-    return float(k_eff)
-
-
 #: The inner tolerance of each inner solver on the slab: the Krylov solve (GMRES
 #: on the unified matvec) and the source iteration (the ``(L+C)`` sweep), the
 #: ones the rows always used; the outer tolerance is ``keff_tol = 1e-12`` for both.
@@ -307,7 +279,7 @@ def _slab_k(inner_solver: str, n_per: int) -> float:
     Cached as the cylinder solves are: each (path, mesh) is solved once per
     session, and every row reads the same solves, so no problem is solved twice.
     """
-    mesh, materials, N_ord = _build_slab_2region_mesh(n_per=n_per)
+    mesh, materials, N_ord = case_slab_mesh(n_per=n_per)
     sol = solve_sn(
         materials, mesh, Quadrature.gauss_legendre(N_ord),
         inner_solver=inner_solver, max_outer=500, max_inner=500,
@@ -373,7 +345,7 @@ def test_slab_l1_order_against_case(inner_solver: str) -> None:
     scheme, 1.25 and 1.16) and a wrong limit (the error stops falling) both
     redden here at every mesh size; neither can hide behind a finer mesh.
     """
-    k_ref = _slab_k_ref()
+    k_ref = case_slab_k_ref()
     errors = [abs(_slab_k(inner_solver, n) - k_ref) for n in _SLAB_LADDER]
     orders = [math.log2(coarse / fine) for coarse, fine in zip(errors, errors[1:])]
     assert min(orders) >= _SLAB_MIN_ORDER, (
@@ -396,7 +368,7 @@ def test_slab_l1_krylov_via_unified_vs_case() -> None:
     2026-10-04), inside :data:`_SLAB_REF_ABSTOL_AT_40`, which the step-scheme
     matvec (4.66e-5) and a matvec Σ_t off by 1e-3 (4.48e-4) both exceed.
     """
-    k_ref = _slab_k_ref()
+    k_ref = case_slab_k_ref()
     k_krylov = _slab_k("krylov", 40)
     abs_err = abs(k_krylov - k_ref)
     assert abs_err < _SLAB_REF_ABSTOL_AT_40, (
@@ -422,7 +394,7 @@ def test_slab_l1_sweep_vs_case() -> None:
     (``[M]``), while the Krylov rows do not move at all (their matvec does not
     read the scan coefficients), so the marker that sat on Leg 1 had decayed.
     """
-    k_ref = _slab_k_ref()
+    k_ref = case_slab_k_ref()
     k_sweep = _slab_k("source_iteration", 40)
     abs_err = abs(k_sweep - k_ref)
     assert abs_err < _SLAB_REF_ABSTOL_AT_40, (

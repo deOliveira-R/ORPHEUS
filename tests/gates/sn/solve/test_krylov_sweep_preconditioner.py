@@ -1,10 +1,12 @@
 r"""The within-group Krylov solve preconditioned by the sweep (#200): its acceptance gates.
 
 Since #200, :func:`orpheus.sn.solver._within_group_krylov` hands GMRES the
-sweep, ``seeded_inverse(LC).apply`` (the exact inverse of the within-group
+sweep, the operator ``LC.inverse()`` (the exact inverse of the within-group
 ``M`` of the splitting, block back-substitution on a carrying mesh), as its
 left preconditioner when no DSA corrector is posed; before, it handed it the
-identity. Three claims, one per acceptance item of the issue:
+identity. The preconditioner is the public ``KrylovAcceleration.preconditioner``
+operator, which the caller states (it has no default since 2026-10-04). Three
+claims, one per acceptance item of the issue:
 
 1. **The preconditioner is the full-space inverse, and linear on the full typed
    state.** GMRES feeds the preconditioner RESIDUAL vectors, which populate
@@ -29,6 +31,15 @@ identity. Three claims, one per acceptance item of the issue:
    reference).
 3. **The rate.** The largest inner iteration count of a solve stays flat as the
    mesh refines, where the identity's grows with the number of unknowns.
+4. **One preconditioner for both inner postures under DSA.** With a
+   consistent-DSA corrector :math:`\mathcal{C}`, the Krylov preconditioner is
+   :math:`P = (I + \mathcal{C})(L+C)^{-1}`, and a source-iteration step is
+   Richardson iteration preconditioned by the same :math:`P`:
+   :math:`\psi_{n+1} = \psi_n + P\,(q - (M - N)\,\psi_n)`. Source iteration
+   realises it through the increment, ``ψ½ + C(ψ½ − ψ_n)``, so the two postures
+   spell :math:`P` twice; the row holding them equal is the witness that keeps
+   the spellings from drifting (the user's ruling, 2026-10-04: the full merge
+   waits for a second corrector).
 
 Every row here is ``python -O``-safe (asserts in a collected module, or
 ``np.testing``). Evidence: ``scratch/reference_architecture/p3/krylov200/``.
@@ -45,11 +56,19 @@ import pytest
 import orpheus.sn.solver as sn_solver
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.coupled_system import CoupledField
+from orpheus.numerics.operator import IdentityOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.splitting import Splitting, resolve_schedule
-from tests.gates.sn.operators import test_sweep_inverse_identity as sweep_identity
+from tests.gates.sn.operators._full_space_states import (
+    GEOMS,
+    MESHES,
+    random_composite,
+    random_source_composite,
+    random_state,
+    system_a,
+)
 from tests.gates.sn.verification.analytical._aba_reference import aba_materials, aba_uniform_width_mesh
-from tests.gates.sn.verification.analytical.test_l1_standoff_slab_cylinder import _build_slab_2region_mesh
+from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_mesh
 
 pytestmark = [pytest.mark.l1]
 
@@ -58,7 +77,7 @@ _SWEEP_IDENTITY = (
     "tests/gates/sn/operators/test_sweep_inverse_identity.py::TestSweepInverseIdentity::"
     "test_forward_of_inverse_is_identity_on_a_random_composite"
 )
-_GEOMS = sweep_identity._GEOMS  # slab vacuum, slab reflective, folded cylinder, GL sphere: every trace row live
+_GEOMS = GEOMS  # slab vacuum, slab reflective, folded cylinder, GL sphere: every trace row live
 
 
 # ── the production preconditioner, read off the production driver ─────────
@@ -68,7 +87,7 @@ def _production_krylov(geom: str) -> tuple[Any, Any, Any]:
     """``(problem, M, Krylov)`` for ``geom``: the within-group splitting as the solver builds it, and the
     ``KrylovAcceleration`` the production driver ``_within_group_krylov`` builds on it (no corrector: the
     posture #200 changed)."""
-    problem = sweep_identity._MESHES[geom]()
+    problem = MESHES[geom]()
     system = problem.system
     splitting = Splitting.from_schedule(system, resolve_schedule(problem, "jacobi"))
     krylov = sn_solver._within_group_krylov(
@@ -77,27 +96,9 @@ def _production_krylov(geom: str) -> tuple[Any, Any, Any]:
     return problem, splitting.implicit, krylov
 
 
-def _preconditioner(krylov):
-    """The left preconditioner GMRES applies (``KrylovAcceleration._preconditioner``: the route gate reads it)."""
-    precondition = krylov._preconditioner
-    if precondition is None:
-        pytest.fail("the within-group Krylov solve carries no preconditioner")
-    return precondition
-
-
-def _system_a(x: Any) -> Any:
-    """The bulk (System-A) member of a possibly-coupled field (the supporting gate's projection)."""
-    return sweep_identity._system_a(x)
-
-
-def _random_state(problem: Any, implicit: Any, seed: int) -> Any:
-    """A random residual with every block populated (the supporting gate's builder)."""
-    return sweep_identity._random_state(problem, implicit, seed)
-
-
 def _boundary_only(q: Any) -> Any:
     """``q`` with its System-A bulk and every System-B block zeroed: a residual living on the trace alone."""
-    a = _system_a(q)
+    a = system_a(q)
     a_b = dataclasses.replace(a, interior=a.interior * 0.0)
     if not isinstance(q, CoupledField):
         return a_b
@@ -120,9 +121,9 @@ def test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse(geom: str) ->
     (outflow rows and ψ½ blocks included, ERR-071 / ERR-078) is the supporting gate's; this row says GMRES
     receives that object. Reddens on the identity (the pre-#200 production) and on any other preconditioner."""
     _problem, implicit, krylov = _production_krylov(geom)
-    q = _random_state(_problem, implicit, seed=29)
+    q = random_state(_problem, implicit, seed=29)
     np.testing.assert_array_equal(
-        _flat(_preconditioner(krylov)(q)), _flat(implicit.inverse().apply(q)),
+        _flat(krylov.preconditioner.apply(q)), _flat(implicit.inverse().apply(q)),
         err_msg=f"{geom}: the Krylov preconditioner is not the sweep inverse of the splitting's implicit part",
     )
 
@@ -144,8 +145,8 @@ def test_p200_1_the_preconditioner_is_linear_on_the_full_typed_state(geom: str) 
     through its non-vacuity check (the boundary-only residual is annihilated, scale 0), and the next row is the one
     that states it."""
     problem, implicit, krylov = _production_krylov(geom)
-    precondition = _preconditioner(krylov)
-    full = [_random_state(problem, implicit, seed=s) for s in (31, 37)]
+    precondition = krylov.preconditioner.apply
+    full = [random_state(problem, implicit, seed=s) for s in (31, 37)]
     pairs = {"full": full, "boundary-only": [_boundary_only(q) for q in full]}
     for label, (q1, q2) in pairs.items():
         m1, m2, m12 = _flat(precondition(q1)), _flat(precondition(q2)), _flat(precondition(q1 + q2))
@@ -166,9 +167,9 @@ def test_p200_1_a_boundary_only_residual_round_trips(geom: str) -> None:
     so does the identity (``A q_b ≠ q_b``). The tangential (μ_r = 0) trace slots of the folded cylinder are
     structural zero rows of the forward and are excluded, as in the supporting identity gate."""
     problem, implicit, krylov = _production_krylov(geom)
-    q_b = _boundary_only(_random_state(problem, implicit, seed=41))
-    back = implicit.apply(_preconditioner(krylov)(q_b))
-    q_a, back_a = _system_a(q_b), _system_a(back)
+    q_b = _boundary_only(random_state(problem, implicit, seed=41))
+    back = implicit.apply(krylov.preconditioner.apply(q_b))
+    q_a, back_a = system_a(q_b), system_a(back)
     np.testing.assert_allclose(
         np.asarray(back_a.interior.values), 0.0, atol=1e-12,
         err_msg=f"{geom}: a boundary-only residual must map back to a zero bulk",
@@ -202,7 +203,7 @@ def _problem(body: str, n: int):
     """``(materials, mesh, quadrature)``: the Case two-region slab (reflective both faces) with ``n`` cells per
     region, or the A|B|A cylinder (reflective outer face, 2 groups) with ``n`` cells."""
     if body == "slab":
-        mesh, materials, n_ordinates = _build_slab_2region_mesh(n)
+        mesh, materials, n_ordinates = case_slab_mesh(n)
         return materials, mesh, Quadrature.gauss_legendre(n_ordinates)
     return dict(aba_materials()), aba_uniform_width_mesh(CoordSystem.CYLINDRICAL, n), Quadrature.folded_product(n_mu=4, n_phi=8)
 
@@ -210,18 +211,23 @@ def _problem(body: str, n: int):
 def _identity_driver(*args, **kwargs):
     """``_within_group_krylov`` with its preconditioner replaced by the identity: the unpreconditioned solve."""
     krylov = _honest_driver(*args, **kwargs)
-    krylov._preconditioner = lambda q: q
+    krylov.preconditioner = IdentityOperator()
     return krylov
 
 
 _honest_driver = sn_solver._within_group_krylov
 
 
-@functools.cache
-def _production_solve(body: str, n: int):
+def _krylov_solve(body: str, n: int):
+    """The Krylov eigenvalue solve of :func:`_problem` at the gates' tolerances, through whatever driver
+    ``sn_solver._within_group_krylov`` currently names (the fixed-point row swaps in the identity)."""
     materials, mesh, quadrature = _problem(body, n)
     return sn_solver.solve_sn(materials, mesh, quadrature, inner_solver="krylov", max_outer=500, max_inner=500,
                               keff_tol=_KEFF_TOL, inner_tol=_INNER_TOL)
+
+
+#: The production solves, cached across the fixed-point and the rate rows.
+_production_solve = functools.cache(_krylov_solve)
 
 
 def _gauged_flux(solution) -> np.ndarray:
@@ -243,9 +249,7 @@ def test_p200_2_the_fixed_point_is_the_unpreconditioned_one(body: str, monkeypat
     construction: the rate row is what tells the two apart."""
     preconditioned = _production_solve(body, 10)
     monkeypatch.setattr(sn_solver, "_within_group_krylov", _identity_driver)
-    materials, mesh, quadrature = _problem(body, 10)
-    unpreconditioned = sn_solver.solve_sn(materials, mesh, quadrature, inner_solver="krylov", max_outer=500,
-                                          max_inner=500, keff_tol=_KEFF_TOL, inner_tol=_INNER_TOL)
+    unpreconditioned = _krylov_solve(body, 10)
     k_p, k_u = float(preconditioned.outcome.keff), float(unpreconditioned.outcome.keff)
     assert abs(k_p - k_u) <= _FIXED_POINT_RTOL * k_u, f"{body}: k {k_p!r} against {k_u!r}"
     phi_p, phi_u = _gauged_flux(preconditioned), _gauged_flux(unpreconditioned)
@@ -277,4 +281,46 @@ def test_p200_3_inner_iterations_stay_flat_under_refinement(body: str) -> None:
     assert fine <= _RATE_GROWTH * coarse, (
         f"{body}: the largest inner iteration count grows {fine / coarse:.2f}x over cells {_RATE_LADDER} "
         f"({largest}), above {_RATE_GROWTH}"
+    )
+
+
+# ── 4. under DSA, source iteration is Richardson on the Krylov preconditioner ──
+
+#: ``[M]`` 2026-10-04 (``scratch/reference_architecture/p3/operator_contract/probe_witness.py``): 6.2e-16 and
+#: 4.3e-16 relative on the two slabs; with the corrector dropped from ``P``, 0.42 and 0.39.
+_RICHARDSON_RTOL = 1e-13
+
+
+@pytest.mark.parametrize("geom", ["slab_vacuum", "slab_reflective"])
+@pytest.mark.rests_on(f"{_SWEEP_IDENTITY}[slab_vacuum]", f"{_SWEEP_IDENTITY}[slab_reflective]")
+def test_p200_4_a_dsa_source_iteration_step_is_richardson_on_the_krylov_preconditioner(geom: str) -> None:
+    """One production source-iteration step with the consistent-DSA corrector, from a random flux ``ψ_n`` and a
+    random source ``q`` (every block populated), equals ``ψ_n + P (q − (M − N) ψ_n)`` with ``P`` the preconditioner
+    the production Krylov builder hands GMRES under the same corrector. The identity behind it is
+    ``M⁻¹(q + Nψ_n) − ψ_n = M⁻¹ r_n``, so the row rests on the exact inverse (the supporting gate). Reddens when
+    either posture drops or alters the corrector: ``P`` without it misses by 0.42 and 0.39. Slab only: consistent
+    DSA is admitted on the 1-D Cartesian slab alone (``DSALowOrderSystem.from_problem``)."""
+    from orpheus.sn.acceleration.dsa import DSACorrection
+
+    problem = MESHES[geom]()
+    splitting = Splitting.from_schedule(problem.system, resolve_schedule(problem, "jacobi"))
+    implicit, gains = splitting.implicit, splitting.explicit
+    corrector = DSACorrection.from_problem(problem)
+    q, psi_n = random_source_composite(problem, seed=7), random_composite(problem, seed=11)
+
+    source_iteration, *_ = sn_solver._within_group_si(splitting, problem, max_iter=1, tol=0.0, corrector=corrector)
+    step, record = source_iteration.solve(q, initial_guess=psi_n)
+    assert record.iterations_run == 1, f"{geom}: expected one corrected step, ran {record.iterations_run}"
+
+    preconditioner = sn_solver._within_group_krylov(
+        implicit, *gains, n_dof=1, max_iter=1, tol=1e-12, corrector=corrector,
+    ).preconditioner
+    residual = q - implicit.apply(psi_n)
+    for gain in gains:
+        residual = residual + gain.apply(psi_n)
+    richardson = psi_n + preconditioner.apply(residual)
+
+    gap = np.max(np.abs(_flat(step) - _flat(richardson))) / np.max(np.abs(_flat(step)))
+    assert gap <= _RICHARDSON_RTOL, (
+        f"{geom}: the DSA source-iteration step differs from Richardson on the Krylov preconditioner by {gap:.2e}"
     )
