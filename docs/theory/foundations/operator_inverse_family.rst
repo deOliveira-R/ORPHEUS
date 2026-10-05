@@ -722,11 +722,15 @@ legitimately runs partial solves. So
 the *concept*, the inexact inner is its production *realization*.
 
 Green's consumers today are the invariant gates (see
-:ref:`green-verification`). Production consumers arrive later: the #200
-preconditioner algebra, a diffusion ``.inverse()`` realized as a
-CG-preconditioned Green (the taxonomy's *negative control* — an iterative
-inverse with no sweep), and future explicit normal-form spellings of the
-k-problem.
+:ref:`green-verification`). The S\ :sub:`N` Krylov preconditioner is not
+one of them: it is the direct sweep inverse, ``seeded_inverse(L + C)``,
+a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (or the
+coupled block substitution on a carrying mesh), applied to each GMRES
+residual (:ref:`sn-krylov-sweep-preconditioner`). The production
+consumers Green is designed for are a diffusion ``.inverse()`` realized as
+a CG-preconditioned Green (the taxonomy's *negative control* — an
+iterative inverse with no sweep) and explicit normal-form spellings of
+the k-problem; neither is built.
 
 
 The wrap-delegate mixin — extracted at the third sibling

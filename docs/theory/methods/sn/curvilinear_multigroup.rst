@@ -418,8 +418,11 @@ curvilinear problem with no new code path.
      the grounds that it exceeded the unpreconditioned GMRES iteration
      budget.  The cell now passes and is gated like every other, agreeing
      with the closed-form reference at :math:`\mathrm{rel} = 3.6\times
-     10^{-15}`.  The cure was **not** the preconditioner: #200 is still
-     open and ``_within_group_krylov`` still ships an explicit identity.
+     10^{-15}`.  The cure was **not** the preconditioner:
+     ``_within_group_krylov`` handed GMRES an explicit identity until
+     #200 made the sweep its preconditioner on 2026-10-04
+     (:ref:`sn-krylov-sweep-preconditioner`), eight weeks after the cell
+     passed.
      What healed it is the GMRES ``restart``-sizing lineage — ERR-053
      (2026-05-28) removing the ``restart=min(50, full_size)`` clamp, then
      #282 / #280 route (a) (2026-07-04) sizing ``restart`` from the full

@@ -42,6 +42,21 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-04
+     - **The sweep preconditions every within-group Krylov solve** —
+       ``_within_group_krylov`` hands GMRES ``seeded_inverse(L + C)``
+       where it handed the identity since the R-1 carve, so the
+       preconditioned operator is the source-iteration operator
+       :math:`I - (L+C)^{-1}N` and the inner count follows the
+       scattering ratio, not the mesh (slab, 40 cells per region: 5705
+       to 81 inner iterations).  No new operator: the full-space sweep
+       inverse of ERR-069/ERR-071 is the block inverse #200 had
+       designed, and the DSA posture composes onto it.  The gate that
+       sees a trace-dropping sweep is the boundary round trip, not the
+       issue's linearity check (:ref:`sn-krylov-sweep-preconditioner`).
+       The :math:`\sigma_r`-foldable preconditioner is split to #575.
+     - #200
+     - ``ca7d9c21`` on ``fix/krylov-sweep-preconditioner``
    * - 2026-10-02
      - **The adjoint fixed-source entry lifts its detector by the
        retraction's adjoint** —

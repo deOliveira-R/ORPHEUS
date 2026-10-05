@@ -4669,11 +4669,11 @@ older entries classify against.
 
       KrylovAcceleration(preconditioner=None) on a residual vector now
       invokes LC.solve(residual) — initial_guess=None → cold-start M-M
-      seed (deterministic zero).  The M-M closure is still a poor
-      preconditioner for curvilinear under cold-start (numerical issue
-      tracked by #200), but the path is no longer silent and no longer
-      stateful.  Identity-precond is the production choice until #200
-      ships the block-inverse face preconditioner.
+      seed (deterministic zero).  The M-M closure was then still a poor
+      preconditioner for curvilinear under cold-start (tracked then by
+      #200), but the path was no longer silent and no longer
+      stateful.  Identity-precond stayed the production choice until
+      #200 (2026-10-04) made the sweep the preconditioner.
 
       L1 kinf_homogeneous suite:           35 passed + 5 xfailed (unchanged)
       L1 bridge-regression (Phase 1.3):   10/10 PASS
@@ -4685,14 +4685,15 @@ older entries classify against.
    ``tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py`` (R-1 Step 4
    Phase 1.3 promotion from
    ``derivations/diagnostics/diag_r1_step_d_probe_b_identity_precond.py``).
-   Two test functions, ``@pytest.mark.l1
+   Three test functions, ``@pytest.mark.l1
    @pytest.mark.catches("ERR-050") @pytest.mark.verifies(
    "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery")``:
 
    1. ``test_identity_preconditioner_recovers_kinf`` — parametrised
-      over {slab, sphere, cylinder}.  Pins the production contract
-      that the typed Krylov inner solver with explicit identity
+      over {slab, sphere, cylinder}.  Pins the unpreconditioned arm:
+      the typed Krylov inner solver with an explicit identity
       preconditioner converges to analytical ``k_inf`` at rtol < 1e-8.
+      It was the production contract until #200 (2026-10-04).
 
    2. ``test_default_sweep_preconditioner_recovers_kinf_on_slab`` —
       slab only.  Pins the **structural-fix sentinel** for the
@@ -4722,13 +4723,21 @@ older entries classify against.
    no longer a seed channel with history semantics for a silent
    fallback to read.
 
-   **Why sphere/cylinder default-sweep is NOT pinned** by the L1
-   suite: the curvilinear M-M closure with cold-start zero seed is a
-   poor preconditioner for GMRES — a **numerical** issue, not the
-   structural bug-class fix.  Issue #200 designs the block-inverse
-   face preconditioner that restores sweep-as-preconditioner quality
-   on curvilinear; pinning a failing curvilinear default-sweep case
-   would lock in the wrong production state today.
+   3. ``test_production_preconditioner_recovers_kinf`` — parametrised
+      over {slab, sphere, cylinder}.  The production driver's
+      preconditioner, the sweep (#200), converges to the analytical
+      ``k_inf`` at rtol < 1e-8 on every coordinate system.
+
+   **Why sphere/cylinder default-sweep is pinned through the production
+   row, not the fallback row:** the curvilinear sweep is a correct
+   preconditioner since the direct curvilinear inverse (#282, #280) made
+   it a single-pass exact inverse, and the production driver hands it to
+   GMRES (:ref:`sn-krylov-sweep-preconditioner`).  The slab-only fallback
+   row stays the sentinel of the ``preconditioner=None`` path, the
+   silent-fallback class this entry records.  Until #200 the curvilinear
+   default-sweep case was deliberately unpinned, because the cold-start
+   M-M closure of that time was a poor preconditioner and the production
+   choice was the identity.
 
    **Lesson** (cf. ``.claude/lessons.md`` L19 + L21): default values for
    behavioural parameters MUST either advertise their preconditions in
@@ -4855,7 +4864,7 @@ older entries classify against.
 
    **Lesson.** **Every BC type needs its own L1 eigenvalue test at multi-group.** "Reflective passes" does NOT generalise — reflective is the easy case for power iteration (flux growth is bounded by the small iteration count needed for ``k > 1`` cases); vacuum, white, and albedo BCs exercise the subcritical regime where the growth ratio is ``< 1`` and the iterate decays. Coverage by BC type is a separate axis from coverage by mesh / multigroup / scattering order. The moment-space + layering plan's P3.4 verification programme will install an ``L1`` test matrix indexed by ``(BC, geometry, group count)`` — that matrix would have caught ERR-052 the first time vacuum BCs were exercised on a multiplying medium.
 
-   **Secondary surface — Krylov inner-iteration budget.** The unit-production-rate normalisation alters the GMRES initial guess at each outer step (the previous un-normalised trajectory inherited a warmed-up subspace; the normalised trajectory does not). On ``sphere-2eg-krylov`` this raised the per-outer-iter GMRES count from ~50 to ~600 — and the L1 test ``_TIGHT_KW`` budget of ``max_inner=300`` was no longer sufficient. The inner solve was hitting the cap, returning an under-converged result, and the outer iteration accumulated ~2.4e-7 keff drift before claiming convergence. The fix was ``max_inner=300 → 1000`` in ``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py::_TIGHT_KW``, restoring FP-precision keff for all 28 ``(coord, ng, inner_solver)`` variants. Issue #200 (block-inverse preconditioner for Krylov on the typed AngularFlux algebra) tracks the longer-term reduction. The production ``solve_sn`` default (``max_inner=200``) is unaffected — this is purely an L1 verification budget for the tightest reference-comparison gate.
+   **Secondary surface — Krylov inner-iteration budget.** The unit-production-rate normalisation alters the GMRES initial guess at each outer step (the previous un-normalised trajectory inherited a warmed-up subspace; the normalised trajectory does not). On ``sphere-2eg-krylov`` this raised the per-outer-iter GMRES count from ~50 to ~600 — and the L1 test ``_TIGHT_KW`` budget of ``max_inner=300`` was no longer sufficient. The inner solve was hitting the cap, returning an under-converged result, and the outer iteration accumulated ~2.4e-7 keff drift before claiming convergence. The fix was ``max_inner=300 → 1000`` in ``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py::_TIGHT_KW``, restoring FP-precision keff for all 28 ``(coord, ng, inner_solver)`` variants. Issue #200 then tracked the longer-term reduction; it landed on 2026-10-04 as the sweep preconditioner (:ref:`sn-krylov-sweep-preconditioner`), which removes the growth of the GMRES count with the mesh (on the Krylov path the ``max_inner`` budget counts restart cycles, ERR-053). The production ``solve_sn`` default (``max_inner=200``) is unaffected — this is purely an L1 verification budget for the tightest reference-comparison gate.
 
    Secondary lesson: **``IterationHistory.converged=True`` was hardcoded** in ``orpheus/sn/solver.py:992-996``, decoupled from the solver's actual convergence flag. This is a latent bug worth a follow-up fix (low severity — the keff value is correct post-ERR-052; only the ``converged`` field is misleading). Tracked as P3.4 close-out work.
 
@@ -5642,8 +5651,9 @@ older entries classify against.
    **end-of-solve certificate** (``_check_convergence_claim``) refused
    the claimed convergence: "the honest equation residual is 1.49" — the
    #290-era certificate machinery catching a genuinely new class. The
-   same singular M existed under the 3b P0 posture and the #200 identity
-   preconditioner era; nothing excited the kernel until so ≥ 1.
+   same singular M existed under the 3b P0 posture and in the era when
+   the production Krylov preconditioner was the identity (before #200);
+   nothing excited the kernel until so ≥ 1.
 
    **The diagnosis chain (recorded because the instrument order
    mattered).** (1) The corrector was probed directly — linear, healthy;

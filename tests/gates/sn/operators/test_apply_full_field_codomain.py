@@ -239,7 +239,8 @@ def test_c5b_driver_reattach_recovers_kinf(coord: str, inner_solver: str) -> Non
     closed-form reference (gate: ``rtol=1e-10``) and emits no
     :class:`~orpheus.numerics.convergence.ConvergenceWarning`.  The underlying
     sphere Krylov stall was cured by the GMRES ``restart``-sizing lineage
-    (ERR-053, then #282 / #280 route (a)), not by #200, which is still open;
+    (ERR-053, then #282 / #280 route (a)), not by #200, which landed later
+    (2026-10-04) as the sweep preconditioner;
     the "History" section of
     ``tests/gates/sn/verification/analytical/test_kinf_homogeneous.py`` carries the
     full account.  Any future exclusion here uses

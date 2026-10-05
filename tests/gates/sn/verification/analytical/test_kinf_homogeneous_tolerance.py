@@ -52,9 +52,9 @@ From 2026-05-19 (R-1 Step D) until 2026-08-10,
 the ``max_inner=100`` budget without converging", pending issue #200 (the
 block-inverse face preconditioner).
 
-Retired as healed 2026-08-10, and #200 was not what healed it — #200 is
-still open and GMRES here still runs with an explicit identity
-preconditioner.  The cure lives in the GMRES ``restart``-sizing lineage:
+Retired as healed 2026-08-10, and #200 was not what healed it — GMRES here
+ran with an explicit identity preconditioner until #200 made the sweep its
+preconditioner on 2026-10-04.  The cure lives in the GMRES ``restart``-sizing lineage:
 **ERR-053** (2026-05-28) removed the ``restart=min(50, full_size)`` clamp,
 and **#282 / #280 route (a)** (2026-07-04) sized ``restart`` from the full
 augmented ravel instead of the bulk alone.  See the "History" section of

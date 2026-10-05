@@ -5700,7 +5700,7 @@ The direct starting-direction ψ½ solve
    :math:`\Delta` from :math:`4.57\times10^{-2}` to :math:`0` **bitwise**.
    The cold solve is now a genuine single-pass exact inverse — the
    posture the DSA program (#2) and the curvilinear Krylov
-   preconditioner (#200) require, and the deliverable that lets the
+   preconditioner (#200, :ref:`sn-krylov-sweep-preconditioner`) require, and the deliverable that lets the
    #280 unified walk build a spherical ``sweep_transpose`` against a
    triangular forward operator.
 
@@ -6986,8 +6986,8 @@ represent the coupled iterate and the sphere within-group inner **stalled**
 (wrong
 :math:`k` under an outer cap, :math:`\sim 868` s).  Fixed at **both**
 solver Krylov drivers by sizing ``n_dof = initial_guess.to_flat().size``.
-Distinct from #200 (the identity preconditioner); this is a pure
-sizing bug.
+Distinct from the choice of preconditioner (the identity at the time;
+the sweep since #200); this is a pure sizing bug.
 
 **The product-cylinder solve consumed the iterate through the
 edge-extrapolation stencil — that data flow had to stay bit-exact.**

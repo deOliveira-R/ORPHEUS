@@ -748,16 +748,18 @@ collision diagonal,
 so the composite becomes :math:`\mathrm{StreamingCollisionOperator}(L(\sigma_t),
 C(\sigma_r))` with :math:`\sigma_C = \sigma_r \neq \sigma_t` (Adams & Larsen
 2002 §III — the within-group iteration framing in which the sweep
-:math:`(L+C)^{-1}` *is* the transport operator; #200). On this form the
+:math:`(L+C)^{-1}` *is* the transport operator; #575). On this form the
 sweep solves :math:`(L+C(\sigma_r))^{-1}`, and the matvec MUST realise the
 matching :math:`M(\sigma_r)\psi` — its inverse twin (L21). With
 :math:`\sigma_t \neq \sigma_r` the question "**which** :math:`\sigma` does the
 matvec realise?" finally has two different answers, and the override is the one
 that single-sources :math:`\sigma_r` from ``C`` exactly as :meth:`solve` does.
 
-There is **no production caller of the removal form yet**: the consumer that
-would build :math:`\sigma_r` is the within-group self-scatter fold of issue
-#200, which is not wired. The collision multiplier :math:`C = M[\sigma]`
+There is **no production caller of the removal form**: the consumer that
+would build :math:`\sigma_r` is the :math:`\sigma_r`-foldable Krylov
+preconditioner and its removal-form solver entry, issue #575, which is not
+built (the Krylov path is preconditioned by the :math:`\sigma_t` sweep,
+:ref:`sn-krylov-sweep-preconditioner`). The collision multiplier :math:`C = M[\sigma]`
 (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
 already accepts either :math:`\sigma_t` or :math:`\sigma_r` (it carries no
 interpretation flag — both are :math:`(\mathrm{ng}, \ldots)` arrays applied as
@@ -850,10 +852,10 @@ The eigenvalue cross-check (the closed-form :math:`\kinf = \nu\Sigma_f /
 self-scatter folded into :math:`\sigma_r`,
 ``test_removal_form_kinf_independent_reference_2g``) is the *structurally
 independent* reference required by vv criterion 2 for the removal regime; it is
-``xfail`` until the #200 solver entry exists. Since 2026-08-10 (issue #340,
-step R5) that deferral is a **declarative** ``@pytest.mark.xfail(strict=True)``
-over a capability probe rather than an imperative ``pytest.xfail()`` call: the
-strict marker turns the day #200's solver entry appears into an ``XPASS``, i.e.
+``xfail`` until the #575 solver entry exists. Since 2026-08-10 (issue #340,
+step R5) the deferral is a **declarative** ``@pytest.mark.xfail(strict=True)`` over a capability probe
+rather than an imperative ``pytest.xfail()`` call: the
+strict marker turns the day #575's solver entry appears into an ``XPASS``, i.e.
 a FAILURE, so the stub cannot outlive its blocker unnoticed. The blast-radius
 split is itself
 the structural-independence evidence that the apply re-baseline is principled:
@@ -1121,7 +1123,7 @@ lives in it), and the trace coupling :math:`A_{bs}` — the inflow seed —
 is a *separate composite block* deliberately NOT emitted here. Every
 consumer of this block (the triangularity gates, the #284
 forward-substitution discharge, DSA's :math:`R\,A\,P` moment reduction
-for #2 / #200) poses the problem at zero inflow, so the bulk block is
+for #2) poses the problem at zero inflow, so the bulk block is
 exactly what they need; the boundary law :math:`B` is the sibling
 operator that supplies the trace coupling in the full
 :math:`(L+C-S-N_{2n}-F-B)` algebra

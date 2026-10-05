@@ -3561,9 +3561,8 @@ class TestWithinGroupSystem:
 
         # The bulk walk beneath the substitution: SI enters through .solve
         # (the ray-DECOUPLED (L+C) leg of the substitution), Krylov through
-        # .apply (the (A,A) block matvec — its GMRES preconditioner is the
-        # explicit identity, #200, so .solve never fires there). Either
-        # entry IS the walk leg.
+        # .apply (the (A,A) block matvec) and, since #200, through the sweep
+        # that preconditions GMRES as well. Either entry IS the walk leg.
         real_walk_solve = StreamingCollisionOperator.solve
         real_walk_apply = StreamingCollisionOperator.apply
 

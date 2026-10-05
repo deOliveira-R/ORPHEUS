@@ -365,8 +365,9 @@ Streaming deep dive — in-sweep WDD recurrence (the retired per-direction split
    Wave-O adjoint propagation, DSA-class preconditioners, and
    per-direction debugging. **#238 retired it**: no production code ever
    applied the leaves separately (the #240 G-adjoint rides the fused
-   ``loss_action_transpose``; the open #200 block-inverse preconditioner
-   and #2 DSA never landed), so keeping the leaves alive solely to feed
+   ``loss_action_transpose``; the #200 block-inverse preconditioner
+   and #2 DSA had not landed then, and both later landed on the fused
+   sweep without wanting the leaves), so keeping the leaves alive solely to feed
    their own structural tests was the same orphan smell one level down.
    The streaming + curvilinear Morel–Montry angular redistribution is now
    computed **in-sweep** inside the fused matvec
@@ -620,8 +621,9 @@ what actually happened, is:
        in one pass). A spatial/angular block split of an operator whose
        inverse is already a single cheap pass would be **weaker, not
        cheaper** — a block preconditioner approximates an inverse that
-       the sweep computes exactly. #200 remains open and, when it lands,
-       has no reason to want the split.
+       the sweep computes exactly. The #200 preconditioner is that
+       sweep, applied whole to each GMRES residual
+       (:ref:`sn-krylov-sweep-preconditioner`), and uses no split.
    * - **Per-direction debugging**
      - Inspecting one sweep direction in isolation while debugging.
      - The fused walk is debuggable directly (the per-level / per-cell
@@ -689,7 +691,7 @@ and verified end-to-end by the anisotropic curvilinear MMS
 — the surviving structural-independence ground.
 
 .. note:: **If a future consumer genuinely needs a per-direction or
-   per-term leaf.** Should a #200 block-inverse preconditioner or a #2
+   per-term leaf.** Should a Krylov preconditioner variant or a #2
    DSA variant ever surface a *real* need for a separately-applicable
    spatial / angular leaf (one that does not re-run the full
    bidirectional sweep), the correct move is **not** to resurrect

@@ -37,10 +37,11 @@ grounds that unpreconditioned GMRES on the sphere pole "exceeds the
 ``max_inner=300`` budget without converging" and that issue #200 (the
 block-inverse face preconditioner) would re-enable it.
 
-That exclusion was **retired as healed**, and #200 was not what healed it.
-#200 is still open — :func:`orpheus.sn.solver._within_group_krylov` still
-runs GMRES with an explicit identity preconditioner. What cured the stall is
-the GMRES ``restart``-sizing lineage, in two steps, neither of them #200:
+That exclusion was **retired as healed**, and #200 was not what healed it:
+:func:`orpheus.sn.solver._within_group_krylov` ran GMRES with an explicit
+identity preconditioner until #200 made the sweep its preconditioner on
+2026-10-04, eight weeks later. What cured the stall is the GMRES
+``restart``-sizing lineage, in two steps, neither of them #200:
 
 * **ERR-053** (caught 2026-05-28) removed the ``restart=min(50, full_size)``
   clamp, which structurally truncated the Krylov subspace on any mesh with
@@ -174,8 +175,9 @@ _TIGHT_KW = dict(
     # variant reaches FP-precision; the rtol=1e-10 keff and rtol=1e-9
     # spectrum gates hold for all 30 cases (was 28 until 2026-08-10, when
     # the two sphere-4eg-krylov exclusions were retired as healed — see the
-    # module docstring's "History" section).  Issue #200 (block-inverse
-    # preconditioner) will eventually let us reduce this back to 300.
+    # module docstring's "History" section).  #200 (the sweep preconditioner,
+    # 2026-10-04) preconditions the krylov path only; it does not touch the
+    # SI path this budget serves.
     #
     # NOTE (2026-08-10) on the krylov path specifically: ``max_inner``
     # becomes scipy's ``maxiter``, which counts restart CYCLES, and
@@ -200,8 +202,8 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     symmetric-closure path and provides structural independence — the
     two paths must reach the SAME k_inf to better than ``rtol=1e-10``.
     """
-    # GMRES runs UNPRECONDITIONED on every mesh here (explicit identity —
-    # issue #200 tracks the block-inverse face preconditioner).  EVERY
+    # GMRES is preconditioned by the sweep on every mesh here (#200, the
+    # production driver's preconditioner since 2026-10-04).  EVERY
     # combination is gated, ``sphere-4eg-krylov`` included: see the module
     # docstring's "History" section for the exclusion that used to sit on
     # this line and why it was retired as healed.

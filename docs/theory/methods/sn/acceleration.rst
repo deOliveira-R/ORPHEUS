@@ -23,7 +23,8 @@ the restriction/prolongation pair that turns out to have already
 existed as the angular frame's :math:`\ell=0` faces; the f-form that
 makes the correction vanish at convergence (and the deep verification
 consequence of that vanishing); the P1 extension for anisotropic
-scattering; the two acceleration postures; the three consistency
+scattering; the two acceleration postures; the sweep that
+preconditions every Krylov solve; the three consistency
 discoveries the build surfaced; and the rate/stability evidence that
 pins every claim to a measured number.
 
@@ -40,8 +41,8 @@ pins every claim to a measured number.
    * **Consistent DSA caps the rate at** :math:`\rho_{\rm DSA} \le
      0.2247\,c` **for every mesh**, independent of cell optical
      thickness :math:`\sigma_t h` (:cite:`AdamsLarsen2002` eq. (3.65);
-     :eq:`sn-dsa-consistent-fourier`).  Measured production: 2110 SI
-     iterations :math:`\to` 16 with DSA at :math:`c = 0.99`
+     :eq:`sn-dsa-consistent-fourier`).  Measured production: 2111 SI
+     iterations :math:`\to` 17 with DSA at :math:`c = 0.99`
      (:ref:`sn-dsa-rate-and-stability`).
    * **"Consistent" = reduce-the-discrete, NOT
      discretize-the-reduced.**  The low-order operator is the two-moment
@@ -71,10 +72,18 @@ pins every claim to a measured number.
    * **Two postures, one operator.**  SI+DSA (the ``corrector`` hook on
      :class:`~orpheus.numerics.iteration.SourceIteration`) and the
      Krylov left-preconditioner :math:`M = (I + \mathcal{C}) \circ
-     (L+C)^{-1}` (:eq:`sn-dsa-krylov-preconditioner`; the first
-     re-enabled preconditioner, folding #200) consume the **same**
-     :class:`~orpheus.sn.acceleration.dsa.DSACorrection`
+     (L+C)^{-1}` (:eq:`sn-dsa-krylov-preconditioner`) consume the
+     **same** :class:`~orpheus.sn.acceleration.dsa.DSACorrection`
      (:ref:`sn-dsa-both-postures`).
+   * **Without DSA, GMRES is preconditioned by the sweep itself**,
+     :math:`(L+C)^{-1}` (issue #200): the preconditioned operator is
+     :math:`I - (L+C)^{-1}N`, the source-iteration operator, so the
+     inner iteration count follows the scattering ratio and not the
+     mesh (slab, 40 cells per region: 5705 :math:`\to` 81 inner
+     iterations).  It is correct only because the sweep is the exact
+     **block** inverse of :math:`L+C` on the whole typed state, trace
+     rows included; the gate that says so is the boundary round trip
+     (:ref:`sn-krylov-sweep-preconditioner`).
    * **Scope: 1-D slab, DD, within-group, P0 + P1** (arm 1).  The build
      refuses everything else loudly.  Deferred with reasons:
      the LD-consistent arm (structurally unspellable without the M4S
@@ -936,9 +945,11 @@ through the single generic body: byte-inert when ``corrector`` is
 ``None``, with the SI stop-identity's corrected-arm exemption
 documented.
 
-**Krylov + DSA** replaces the identity preconditioner (the #200 seam)
-with the Adams–Larsen transport-corrected **left** preconditioner
-(:cite:`AdamsLarsen2002` §VI):
+**Krylov + DSA** composes the DSA correction onto the sweep that
+preconditions every production Krylov solve
+(:ref:`sn-krylov-sweep-preconditioner`), giving the Adams–Larsen
+transport-corrected **left** preconditioner (:cite:`AdamsLarsen2002`
+§VI):
 
 .. math::
    :label: sn-dsa-krylov-preconditioner
@@ -947,8 +958,8 @@ with the Adams–Larsen transport-corrected **left** preconditioner
      = \text{sweep} + \text{correction-of-sweep} .
 
 .. vv-status: sn-dsa-krylov-preconditioner documented
-.. (structural — the DSA-preconditioned GMRES posture, the first
-..  re-enabled preconditioner (folds #200); exercised end-to-end by
+.. (structural — the DSA-preconditioned GMRES posture, the sweep
+..  preconditioner of #200 with the correction composed on; exercised end-to-end by
 ..  test_dsa_acceleration.py::TestD4FixedPointInvarianceKrylov and the
 ..  count gate test_dsa_rate.py::TestD13IterationCounts. A composition
 ..  identity, not a solver claim.)
@@ -963,54 +974,425 @@ operator and :math:`\mathrm{DSA} \equiv` preconditioned Richardson
 low-order operator".  A good DSA scheme already suppresses every mode,
 so the Krylov wrapper "generally reduces iteration counts by only one
 or two" (:cite:`AdamsLarsen2002` p. 110–111) — but it is invaluable
-where a scheme is slightly inconsistent, on unstructured grids, or (the
-ORPHEUS motivation) as the #200 preconditioner slot finally filled.
+where a scheme is slightly inconsistent, on unstructured grids, or, in
+ORPHEUS, where the sweep alone already preconditions GMRES and DSA is a
+second factor composed onto it.
 
-**Production iteration counts** (1g homogeneous, :math:`K = 40`,
-:math:`S_8`, tol :math:`10^{-11}`; the D13 evidence pack):
+**Production iteration counts** (1g homogeneous slab, :math:`K = 40`
+cells, :math:`S_8`, tolerance :math:`10^{-11}`, a uniform unit source;
+the fixtures of the D13 gates in
+:file:`tests/gates/sn/acceleration/test_dsa_rate.py`; ``[M]`` 2026-10-04,
+re-measured after #200 changed the Krylov column's preconditioner, the
+identity column obtained by putting the identity back into the
+production driver):
 
 .. list-table:: DSA iteration counts across the c → 1 corner
    :header-rows: 1
-   :widths: 16 10 14 14 16 20
+   :widths: 14 8 10 10 10 16 16 16
 
    * - BC
      - :math:`c`
      - :math:`\sigma_t h`
      - SI
      - SI+DSA
-     - Krylov / Krylov+DSA
+     - Krylov, identity (before #200)
+     - Krylov, sweep (production)
+     - Krylov+DSA
    * - vac / vac
      - 0.9
      - 0.5
-     - 225
-     - **15**
-     - 195 / **11**
-   * - vac / vac
-     - 0.99
-     - 1
-     - 2110
+     - 226
      - **16**
-     - 174 / **12**
+     - 194
+     - 20
+     - **10**
+   * - vac / vac
+     - 0.99
+     - 1
+     - 2111
+     - **17**
+     - 174
+     - 20
+     - **11**
    * - refl / refl
      - 0.9
      - 0.5
-     - 249
-     - **20**
-     - 218 / **12**
+     - 250
+     - **21**
+     - 217
+     - 21
+     - **11**
    * - refl / refl
      - 0.99
      - 1
-     - 2554
-     - **21**
-     - 197 / **13**
+     - 2555
+     - **22**
+     - 196
+     - 25
+     - **12**
 
-The 2110 :math:`\to` 16 and 2554 :math:`\to` 21 rows are the
+The D13 evidence pack of the DSA campaign (July 2026) measured the same
+fixtures one iteration lower in the SI and SI+DSA columns and one
+higher in the identity-Krylov and Krylov+DSA columns; the cause of that
+uniform one-count shift is not identified, and no conclusion here rests
+on it.  The sweep-preconditioned Krylov column is the source-iteration
+operator under GMRES (:ref:`sn-krylov-sweep-preconditioner`): it does
+not grow like :math:`1/(1-c)` as SI does, and DSA halves it again.
+
+The 2111 :math:`\to` 17 and 2555 :math:`\to` 22 rows are the
 c-independence gate (D13): the accelerated count barely moves as
 :math:`c \to 1` while SI blows up like :math:`1/(1-c)`.  With the
 :math:`\ell \ge 1` P1 arm on a 2g heterogeneous anisotropic problem the
 Krylov posture converges 287 :math:`\to` 12 (vacuum) / 305 :math:`\to`
 16 (reflective) — the ERR-071 fix (:ref:`sn-dsa-three-discoveries`) was
 what made the :math:`\ell \ge 1` Krylov posture converge at all.
+
+
+.. _sn-krylov-sweep-preconditioner:
+
+The sweep as the Krylov preconditioner
+======================================
+
+Every production Krylov solve of the within-group problem — the
+eigenvalue inner of :func:`~orpheus.sn.solver.solve_sn` and the
+fixed-source solve of :func:`~orpheus.sn.solver.solve_sn_fixed_source`,
+each with ``inner_solver="krylov"`` — hands GMRES a **left
+preconditioner**, and without a DSA corrector that preconditioner is the
+sweep, :math:`(L+C)^{-1}`.  The one site that builds it is
+``orpheus.sn.solver._within_group_krylov``: it takes
+``seeded_inverse(LC)`` (:func:`~orpheus.numerics.iteration.seeded_inverse`)
+of the splitting's implicit member and, when a corrector is posed (the
+fixed-source entry with ``acceleration="dsa"``), composes the correction
+onto it, which is :eq:`sn-dsa-krylov-preconditioner`.  There is one
+definition of the sweep preconditioner and the DSA posture is a second
+factor on it, not a second preconditioner.
+
+The preconditioned operator
+---------------------------
+
+The Krylov path labels the within-group terms with the Jacobi schedule
+on every geometry (``resolve_schedule(problem, "jacobi")``;
+:ref:`sn-splitting-is-a-strategy-value`).  The implicit member is the
+streaming-collision composite, and every gain, the boundary law
+included, is explicit:
+
+.. math::
+
+   M = L + C ,
+   \qquad
+   N = S + N_{2n} + B ,
+   \qquad
+   A = M - N ,
+
+the last by :eq:`sn-splitting-law`.  On a carrying (curvilinear) mesh :math:`M` is the System A
+:math:`\oplus` System B composite
+(:class:`~orpheus.numerics.coupled_system.CoupledOperator`) and
+:math:`N` its lagged coupled gain; nothing below changes.  Left
+preconditioning by :math:`M^{-1}` replaces :math:`A\psi = q` with
+
+.. math::
+   :label: sn-krylov-preconditioned-operator
+
+   M^{-1} A\,\psi = M^{-1} q ,
+   \qquad
+   M^{-1} A = I - M^{-1} N .
+
+.. (vv-status rationale) Algebraic identity: immediate from A = M - N
+   (sn-splitting-law) once M is invertible.  What makes it hold for the
+   object production builds — that the preconditioner IS M's exact
+   inverse on the whole composite — is gated by
+   tests/gates/sn/solve/test_krylov_sweep_preconditioner.py
+   (test_p200_1_the_preconditioner_is_the_full_space_sweep_inverse) over
+   tests/gates/sn/operators/test_sweep_inverse_identity.py.
+.. vv-status: sn-krylov-preconditioned-operator documented
+
+This is :cite:`AdamsLarsen2002` eq. (1.27), :math:`\mathcal{A} = I -
+L^{-1}S`, with their :math:`L` (streaming plus collision) our :math:`M`
+and their :math:`S` our :math:`N`.  Richardson iteration on it, their
+eq. (1.29), is source iteration; GMRES on it is the Krylov method
+applied to the operator source iteration already iterates with
+(:cite:`AdamsLarsen2002` §VI.D, eqs. (6.33)–(6.36)).  The eigenvalues
+of :math:`M^{-1}A` are :math:`1 - \lambda` for the eigenvalues
+:math:`\lambda` of the source-iteration operator :math:`M^{-1}N`, whose
+spectral radius is bounded by the scattering ratio whatever the mesh
+(:math:`\rho_{\rm SI} = c` in the infinite medium,
+:ref:`sn-dsa-the-fourier-story`).  So the GMRES count is set by
+:math:`c`, not by the cell count (``[R]``; measured below).  Without a
+preconditioner GMRES works on :math:`A` itself, whose streaming part
+has eigenvalues of size :math:`|\mu|/h` spreading without bound as the
+mesh refines (``[R]``); with ``restart`` sized to the full ravel
+(ERR-053) that GMRES converges only as its Krylov space approaches the
+number of unknowns, and its count grows with them.
+
+Why the sweep is the block inverse of the typed state
+-----------------------------------------------------
+
+GMRES feeds its preconditioner **residuals**
+:math:`r = q - A\psi`, and on the typed state a residual populates every
+block: the bulk flux, the inflow trace rows, the outflow trace rows and,
+on a carrying mesh, the :math:`\psi_{1/2}` System-B blocks.  A
+preconditioner is therefore a linear map on the whole composite, never
+on the bulk alone.  Order the System-A composite as (inflow trace
+:math:`\psi_{\rm in}`, bulk :math:`\psi_b`, outflow trace
+:math:`\psi_{\rm out}`).  The forward :math:`L+C` is block lower
+triangular:
+
+.. math::
+
+   \begin{pmatrix}
+     I & 0 & 0 \\
+     A_{b,\rm in} & A_{bb} & 0 \\
+     A_{{\rm out},\rm in} & A_{{\rm out},b} & -I
+   \end{pmatrix}
+   \begin{pmatrix} \psi_{\rm in} \\ \psi_b \\ \psi_{\rm out} \end{pmatrix}
+   =
+   \begin{pmatrix} q_{\rm in} \\ q_b \\ q_{\rm out} \end{pmatrix} .
+
+The inflow rows are the identity on the given inflow.  The bulk rows are
+the cell balances, which read the inflow trace as their upwind face data
+(:math:`A_{b,\rm in}`).  The outflow rows are the self-consistency
+defect, the streamed outflow minus the trace's own outflow value
+(:ref:`sn-dsa-three-discoveries`).  Forward substitution inverts the
+matrix exactly:
+
+.. math::
+   :label: sn-krylov-sweep-block-inverse
+
+   \psi_{\rm in} = q_{\rm in} ,
+   \qquad
+   \psi_b = A_{bb}^{-1}\bigl(q_b - A_{b,\rm in}\,q_{\rm in}\bigr) ,
+   \qquad
+   \psi_{\rm out} = A_{{\rm out},\rm in}\,q_{\rm in}
+                  + A_{{\rm out},b}\,\psi_b - q_{\rm out} .
+
+.. (vv-status rationale) Structural identity: the forward substitution of
+   a block lower-triangular matrix.  Its realization by the production
+   sweep is the composite round-trip identity sn-dsa-sweep-inverse-identity,
+   pinned by tests/gates/sn/operators/test_sweep_inverse_identity.py
+   (catches ERR-071) on a random composite with every block populated,
+   and the boundary-only leg is
+   tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_1_a_boundary_only_residual_round_trips.
+.. vv-status: sn-krylov-sweep-block-inverse documented
+
+:math:`A_{bb}^{-1}` is the sweep at zero inflow, and one seeded march
+computes the middle row and the marched outflow together: the march is
+seeded from the right-hand side's inflow rows (ERR-069), and the
+restore after it subtracts the right-hand side's outflow rows (ERR-071).
+That is the operator
+:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.inverse`
+returns, a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
+On a carrying mesh the implicit member is a
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` and its
+inverse a
+:class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`,
+the block back-substitution that adds the :math:`\psi_{1/2}` blocks
+(``[M]`` 2026-10-04: the types ``seeded_inverse`` returns on the four
+meshes of the gates below, two of each).  The identity
+:math:`(L+C)\circ(L+C)^{-1} = I` holds on the whole composite
+(:eq:`sn-dsa-sweep-inverse-identity`).  The two-block (cell, face)
+substitution that issue #200 proposed as "the proper preconditioner" is
+:eq:`sn-krylov-sweep-block-inverse`, so the preconditioner is no new
+operator: it is the production sweep, called with the residual.
+
+The failure a linearity check cannot see
+----------------------------------------
+
+A sweep that ignores the right-hand side's trace blocks, seeding the
+march from zero and keeping the marched outflow, computes
+:math:`P\,r = A_{bb}^{-1}\,\Pi_b\,r`: a projection onto the bulk followed
+by a sweep.  That map is **linear** and **rank-deficient**.  Every
+residual living on the trace alone maps to zero, so :math:`P A` is
+singular and GMRES can drive its preconditioned residual to machine
+zero on a wrong solution.  Issue #200 records the measurement: 9953
+iterations, a GMRES residual of :math:`2.2\times10^{-31}`, and
+:math:`k` between 0.57 and 0.86 against the analytical 1.875.
+
+Two consequences decide the gate design.  The additivity law
+:math:`P(q_1 + q_2) = P q_1 + P q_2`, which the issue named as the
+acceptance check, holds exactly for that map: rank deficiency lies
+inside the stabiliser of linearity, so a linearity gate is
+designed-green against it (``vv-principles`` test-design mode 12).  The
+row that sees it is the round trip of a residual living on the trace
+alone, :math:`q_{\partial}` (random on every inflow and outflow slot,
+zero bulk, zero :math:`\psi_{1/2}`):
+
+.. math::
+   :label: sn-krylov-boundary-round-trip
+
+   (L+C)\,\bigl(M^{-1} q_{\partial}\bigr) = q_{\partial}
+   \quad\text{on the live trace rows, with zero bulk and zero }
+   \psi_{1/2}\text{ output.}
+
+.. (vv-status rationale) The boundary-only leg of the composite
+   round-trip identity, stated for the object GMRES receives.  Gated by
+   tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_1_a_boundary_only_residual_round_trips
+   on four meshes (vacuum slab, reflective slab, folded cylinder, GL
+   sphere); it reddens on the identity, on a trace-dropping sweep and on
+   an affine sweep (the red table below).
+.. vv-status: sn-krylov-boundary-round-trip documented
+
+A trace-dropping map returns zero, and the identity returns
+:math:`(L+C)\,q_{\partial} \ne q_{\partial}`; both red.  The tangential
+slots of the folded cylinder (:math:`\mu_r = 0`) are structural zero
+rows of the forward and are excluded, as in the full-space identity
+gate.
+
+The gates and what each one sees
+--------------------------------
+
+The rows live in
+:file:`tests/gates/sn/solve/test_krylov_sweep_preconditioner.py` (16
+rows, four meshes for the operator rows, a slab and a cylinder for the
+solves), with the closed-form :math:`k_\infty` rows of
+:file:`tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py`
+(``test_production_preconditioner_recovers_kinf``, slab, sphere and
+cylinder) as the independent eigenvalue reference.  Each mutation arm
+was run against every row (``[M]`` 2026-10-04;
+``scratch/reference_architecture/p3/krylov200/battery/``): "identity"
+puts the identity back into the production driver, "boundary drop"
+is the trace-ignoring sweep above, and "affine" is a sweep carrying a
+seed between calls (the stateful-inverse class of ERR-050).
+
+.. list-table:: The sweep-preconditioner gates against three mutations
+   :header-rows: 1
+   :widths: 30 20 22 28
+
+   * - Row
+     - identity
+     - boundary drop
+     - affine
+   * - the preconditioner IS the sweep inverse, bit for bit (4 meshes)
+     - red
+     - red
+     - red
+   * - linearity, full and boundary-only residuals (4)
+     - green: the identity is linear
+     - red only through the row's non-vacuity check (boundary-only output
+       is zero)
+     - red, additivity defect :math:`6.9\times10^{-4}` to
+       :math:`9.4\times10^{-4}`
+   * - boundary-only round trip :eq:`sn-krylov-boundary-round-trip` (4)
+     - red
+     - red
+     - red
+   * - fixed point equals the unpreconditioned one (slab, cylinder)
+     - green by construction
+     - red: GMRES claims a running residual of 0 to
+       :math:`7\times10^{-34}`, and the convergence-claim check refuses
+       it (honest residual 0.23 and 0.52)
+     - red
+   * - inner count flat across 10, 20, 40 cells (slab, cylinder)
+     - red, growth 3.7 and 4.0
+     - red
+     - red
+   * - closed-form :math:`k_\infty` (cylinder)
+     - green by construction
+     - red, :math:`k = 1.7528` (error :math:`6.5\times10^{-2}`)
+     - not run
+
+The route row and the round trip red on every arm.  The linearity row
+is the issue's acceptance item, kept with its blindness stated.  The
+fixed-point row is green against the identity by construction, because
+the identity changes the trajectory and not the solution, and that is
+why the rate row exists: it is the only solve-level row that tells the
+sweep from the identity.
+
+The fixed point and the rate, measured
+--------------------------------------
+
+A preconditioner changes GMRES's trajectory and never its solution.
+Under an eigenvalue entry the two inner solvers sit inside power
+iteration, so the comparison is floor-equivalence, not bit-identity
+(``vv-principles``, "the entry point decides which claim class is
+available").  At inner tolerance :math:`10^{-10}` and 10 cells (per
+region on the slab), the preconditioned and identity solves agree on
+:math:`k` to :math:`8.5\times10^{-12}` (slab) and
+:math:`7.2\times10^{-12}` (cylinder) relative, and on the gauged scalar
+flux to :math:`9.2\times10^{-11}` and :math:`4.2\times10^{-11}`
+(``[M]`` 2026-10-04, ``krylov200/probes/p4_fixed_point.log``).
+
+The rate row's evidence is the largest inner (GMRES) count of a solve,
+on the Case two-region slab (reflective faces) and the A|B|A cylinder
+(reflective outer face, 2 groups), inner tolerance :math:`10^{-10}`
+(``[M]`` 2026-10-04, ``krylov200/probes/p1_measure.log``):
+
+.. list-table:: Largest inner iteration count of a solve under refinement
+   :header-rows: 1
+   :widths: 22 13 13 13 39
+
+   * - Problem, preconditioner
+     - 10 cells
+     - 20 cells
+     - 40 cells
+     - Growth 10 :math:`\to` 40
+   * - slab, sweep
+     - 15
+     - 15
+     - 15
+     - 1.0
+   * - slab, identity
+     - 176
+     - 336
+     - 656
+     - 3.7, as the unknowns
+   * - cylinder, sweep
+     - 23
+     - 24
+     - 22
+     - 1.0
+   * - cylinder, identity
+     - 238
+     - 490
+     - 950
+     - 4.0, as the unknowns
+
+Whole solves, at the inner tolerance :math:`10^{-9}` of the L1 standoff
+file and 40 cells (per region on the slab;
+``[M]`` 2026-10-04, ``scratch/reference_architecture/p3/perf_l1/p6_slab.log``
+and ``p6_cyl.log``): the slab goes from 5705 to 81 inner iterations
+summed over the solve and from 18.2 s to 0.2 s, and the cylinder from
+5224 to 102 and from 46.4 s to 1.1 s.  Its :math:`k` moves by
+:math:`1.6\times10^{-10}` absolute (:math:`1.2\times10^{-10}`
+relative) on the slab and :math:`1.8\times10^{-10}` absolute
+(:math:`1.5\times10^{-10}` relative) on the cylinder, inside the inner
+tolerance.  The L1 standoff file
+:file:`tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py`
+runs in 19.7 s instead of 100 s (warm).
+
+Gotchas
+-------
+
+* **The preconditioned GMRES stops on the preconditioned residual.**
+  Left preconditioning makes GMRES minimise
+  :math:`\lVert M^{-1}(q - A\psi)\rVert`, so at a fixed ``inner_tol``
+  the equation residual it leaves is not the one the identity left.  On
+  the homogeneous reflective sphere of
+  :file:`tests/gates/sn/solve/test_krylov_restart_signature.py`
+  (``inner_tol = 1e-8``) the :math:`k_\infty` error is
+  :math:`9.9\times10^{-13}` to :math:`2.4\times10^{-10}` over six meshes
+  with the sweep, against :math:`1.6\times10^{-14}` to
+  :math:`8.3\times10^{-14}` with the identity (``[M]`` 2026-10-04,
+  ``krylov200/probes/p3_restart_signature.log``).  A gate tolerance on a
+  Krylov :math:`k` is set against the inner tolerance, not against the
+  identity's machine-precision floor.  The end-of-solve convergence-claim
+  check still measures the assembled equation's residual.
+* **The Krylov path is Jacobi-only, and must stay so while the
+  Gauss–Seidel inverse is partial.**  The scheduled sibling's inverse is
+  exact only on :math:`\{y_{\rm out} = 0\}` (ERR-071 part 5;
+  :ref:`sn-dsa-honest-scope`), and a GMRES residual has outflow rows.
+  A Gauss–Seidel-preconditioned Krylov would hand GMRES exactly the
+  rank-deficient map above.
+* **The preconditioner leaves the Krylov fixed point independent of the
+  sweep's arithmetic.**  The Krylov :math:`k` is the fixed point of the
+  matvec :math:`A\psi`; the sweep only steers GMRES to it.  So a defect
+  in the sweep's coefficients alone (the ERR-025 mutation) does not move
+  the Krylov :math:`k`, although the sweep is now its preconditioner
+  (``[M]`` 2026-10-04, ``krylov200/battery/l1_*.log``); the SI-versus-Krylov
+  comparison keeps the independence it had under the identity.
+* **A tighter preconditioner is not built.**  The removal-form sweep
+  :math:`\bigl(L + C(\sigma_r)\bigr)^{-1}`, with the within-group
+  self-scatter folded into the collision diagonal, and the solver entry
+  it needs are issue #575; the Krylov path has no ``σ_r`` option.
 
 
 .. _sn-dsa-three-discoveries:
@@ -1492,6 +1874,15 @@ Phase 3 of the stencil-assembly campaign), consuming the assembly mode
 * **3c — the rate/stability tier** (commit ``cacabcd0``).  69 gates
   (D11–D13, S2 exactness, the WD partial-consistency negative control,
   the c :math:`\to` 1 corner findings, ERR-070) + the evidence pack.
+* **#200 — the sweep preconditions every Krylov solve** (2026-10-04,
+  commit ``ca7d9c21`` on branch ``fix/krylov-sweep-preconditioner``).
+  Without a corrector, ``_within_group_krylov`` had handed GMRES the
+  identity since the R-1 carve (2026-05), so the inner count grew with
+  the unknowns; it now takes ``seeded_inverse(LC)``, the full-space
+  sweep inverse that R6 had made exact, and the DSA posture composes
+  onto the same object (:ref:`sn-krylov-sweep-preconditioner`).  The
+  :math:`\sigma_r`-foldable preconditioner of #200's second stack is
+  split to #575.
 
 
 References
@@ -1507,7 +1898,9 @@ stability envelopes and the partial-consistency Table II in
 :cite:`McCoyLarsen1982` (Part II).  P1 (current) acceleration for
 anisotropic scattering follows :cite:`Morel1982`.  The consistency
 taxonomy, the :math:`\rho = 0.2247c` continuum bound, the discrete
-consistent-DD rate (3.65), and DSA-as-Krylov-preconditioner are the
+consistent-DD rate (3.65), the sweep-preconditioned operator
+:math:`I - L^{-1}S` (1.27) with the Krylov methods applied to it
+(§VI.D), and DSA-as-Krylov-preconditioner are the
 review :cite:`AdamsLarsen2002`; the M4S route for the deferred LD arm is
 :cite:`AdamsMartin1992`.  The restriction/prolongation frame theory is
 in :doc:`/theory/foundations/frame`; the :math:`\sigma_r`-fold mismatch
