@@ -4574,13 +4574,32 @@ older entries classify against.
    ``psi_half_seed`` strategy: ``StreamingCollisionOperator.solve(rhs, *,
    initial_guess=None)`` is now a pure function — the Carlson seed
    travels through the explicit ``initial_guess`` kwarg, not through
-   the lag-1 frame ``rhs(1)``.  ``KrylovAcceleration``'s
-   ``preconditioner=None`` default invokes ``L.solve(q)`` with
+   the lag-1 frame ``rhs(1)``.  From then on ``KrylovAcceleration``'s
+   ``preconditioner=None`` default invoked ``L.solve(q)`` with
    ``initial_guess=None``, which the M-M closure interprets as
    **explicit cold start** (deterministic zero seed via
    ``psi_half_seed`` cold-path).  The silent-fallback path no longer
-   exists; the capability-flag patch is unnecessary.  Issue #203
+   existed; the capability-flag patch was unnecessary.  Issue #203
    closed by supersession.
+
+   **The default itself retired on 2026-10-05** (``c1dc0c3d``, the #200
+   follow-up): :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+   takes its left preconditioner as a keyword-only
+   :class:`~orpheus.numerics.operator.LinearOperator` with no default,
+   checked for ``apply`` at construction, and plain GMRES is written
+   ``preconditioner=IdentityOperator()`` at the call site.  So
+   ``KrylovAcceleration(..., preconditioner=None)`` is now unspellable:
+   it raises ``TypeError`` at construction, and omitting the keyword
+   raises the interpreter's missing-argument ``TypeError``.  This entry's
+   bug class, a default that falls back silently to a primitive whose
+   precondition the caller does not know, has no default left to live in
+   (the lesson's second option below, "require explicit caller choice").
+   The user's reasons for no default (2026-10-04): no preconditioner is
+   right for every model (:math:`A^{-1}` is the sweep for SN and the whole
+   solve for diffusion), and a silent identity default would hand the
+   next model's Krylov path the failure of #200, an iteration count
+   growing with the mesh.  They are recorded on
+   :ref:`sn-krylov-sweep-preconditioner`.
 
    **Failure mode:** **#4 (wrong recursion / state)** — a "stateless"
    fallback path silently coupled to caller state that GMRES residual
@@ -4685,9 +4704,11 @@ older entries classify against.
    ``tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py`` (R-1 Step 4
    Phase 1.3 promotion from
    ``derivations/diagnostics/diag_r1_step_d_probe_b_identity_precond.py``).
-   Three test functions, ``@pytest.mark.l1
-   @pytest.mark.catches("ERR-050") @pytest.mark.verifies(
-   "transport-cartesian", "sn-curvilinear-homogeneous-kinf-recovery")``:
+   The marks are module-level, ``pytestmark = [pytest.mark.l1,
+   pytest.mark.verifies("transport-cartesian",
+   "sn-curvilinear-homogeneous-kinf-recovery"),
+   pytest.mark.catches("ERR-050")]``, so every row of the file carries the
+   ERR-050 claim; the two functions that bear it are:
 
    1. ``test_identity_preconditioner_recovers_kinf`` — parametrised
       over {slab, sphere, cylinder}.  Pins the unpreconditioned arm:
@@ -4695,15 +4716,20 @@ older entries classify against.
       preconditioner converges to analytical ``k_inf`` at rtol < 1e-8.
       It was the production contract until #200 (2026-10-04).
 
-   2. ``test_default_sweep_preconditioner_recovers_kinf_on_slab`` —
-      slab only.  Pins the **structural-fix sentinel** for the
-      silent-fallback bug class: slab default-sweep precond converges
-      to ``k_inf`` because slab is the geometry where preconditioner
-      quality (curvilinear M-M cold-start convergence) is NOT the
-      confound.  If the structural fix is reverted (e.g. a stateful
-      ``rhs(1)`` read re-introduced inside ``L.solve``), slab
-      default-sweep would also destabilise on residual inputs because
-      the residual carries no valid history.
+   2. ``test_production_preconditioner_recovers_kinf`` — parametrised
+      over {slab, sphere, cylinder}.  The production driver's
+      preconditioner, the sweep (#200, ``LC.inverse()`` stated by
+      ``orpheus.sn.solver._within_group_krylov``), converges to the
+      analytical ``k_inf`` at rtol < 1e-8 on every coordinate system.
+      Its ``[slab]`` row is the **structural-fix sentinel** for the
+      silent-fallback bug class: slab is the geometry where
+      preconditioner quality (curvilinear M-M cold-start convergence) is
+      NOT the confound.  If the structural fix is reverted (e.g. a
+      stateful ``rhs(1)`` read re-introduced inside ``L.solve``), the
+      slab sweep would destabilise on residual inputs because a residual
+      carries no valid history, while the unpreconditioned slab row of
+      item 1 stays green, which points directly at a stateful
+      preconditioner.
 
    The companion structural pin WAS
    ``TestSolve::test_solve_forwards_explicit_initial_guess_to_sweep``
@@ -4723,21 +4749,24 @@ older entries classify against.
    no longer a seed channel with history semantics for a silent
    fallback to read.
 
-   3. ``test_production_preconditioner_recovers_kinf`` — parametrised
-      over {slab, sphere, cylinder}.  The production driver's
-      preconditioner, the sweep (#200), converges to the analytical
-      ``k_inf`` at rtol < 1e-8 on every coordinate system.
+   Until 2026-10-05 a third function,
+   ``test_default_sweep_preconditioner_recovers_kinf_on_slab``, ran the
+   slab through the ``preconditioner=None`` default as the sentinel of
+   that path.  From #200 on, the default and the production driver built
+   bit for bit the same sweep, so the two slab rows tested one object;
+   the elegance review of #200 merged the default row into the
+   ``[slab]`` row of ``test_production_preconditioner_recovers_kinf``,
+   keeping its argument (``c1dc0c3d``), and the default it exercised was
+   retired in the same commit.
 
-   **Why sphere/cylinder default-sweep is pinned through the production
-   row, not the fallback row:** the curvilinear sweep is a correct
-   preconditioner since the direct curvilinear inverse (#282, #280) made
-   it a single-pass exact inverse, and the production driver hands it to
-   GMRES (:ref:`sn-krylov-sweep-preconditioner`).  The slab-only fallback
-   row stays the sentinel of the ``preconditioner=None`` path, the
-   silent-fallback class this entry records.  Until #200 the curvilinear
-   default-sweep case was deliberately unpinned, because the cold-start
-   M-M closure of that time was a poor preconditioner and the production
-   choice was the identity.
+   **Why the curvilinear sweep is pinned through the production rows:**
+   the curvilinear sweep is a correct preconditioner since the direct
+   curvilinear inverse (#282, #280) made it a single-pass exact inverse,
+   and the production driver hands it to GMRES
+   (:ref:`sn-krylov-sweep-preconditioner`).  Until #200 the curvilinear
+   sweep-preconditioned case was deliberately unpinned, because the
+   cold-start M-M closure of that time was a poor preconditioner and the
+   production choice was the identity.
 
    **Lesson** (cf. ``.claude/lessons.md`` L19 + L21): default values for
    behavioural parameters MUST either advertise their preconditions in
@@ -5018,9 +5047,25 @@ older entries classify against.
 
    **Lesson.** **Subspace-dimension caps are SILENT failure modes for iterative linear solvers.** Unlike tolerance caps (which fail with a residual signal), subspace truncation produces a structurally-wrong answer with no observable signal at the call site. The compounding bug (``_info`` discard) created a silent failure of a silent failure. The defense is twofold: (a) NEVER discard the convergence flag of a scipy iterative solver — promote it to at least a warning; (b) NEVER hardcode a subspace size below the natural problem dimension without an explicit MAX_INNER-shape verification gate.
 
-   **Secondary defense at the test level**: mesh-refinement convergence is the canonical structural signature for distinguishing tolerance defects from subspace-dimension defects. Tolerance defects produce uniform or monotone-decreasing error with refinement; subspace defects produce DIVERGING error with refinement (because the natural subspace grows past the cap). The new permanent regression test (``tests/gates/sn/solve/test_krylov_restart_signature.py``, promoted from ``diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py`` per the investigator's recommendation) pins this signature at L1.
+   **Secondary defense at the test level**: mesh-refinement convergence is the canonical structural signature for distinguishing tolerance defects from subspace-dimension defects. Tolerance defects produce uniform or monotone-decreasing error with refinement; subspace defects produce DIVERGING error with refinement (because the natural subspace grows past the cap). The new permanent regression test (``tests/gates/sn/solve/test_krylov_restart_signature.py``, promoted from ``diag_krylov_si_homogeneous_sphere_step5_mesh_scaling.py`` per the investigator's recommendation) pinned this signature at L1 until #200; the sweep preconditioner made its rows blind to the clamp (below).
 
-   **Test reference:** ``tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere`` (existing — pinned by inheritance), plus the new mesh-refinement regression catcher under ``tests/gates/sn/`` (this commit), plus the restart-sweep direct-scipy diagnostic that confirms ``info`` discard at the kernel boundary. All three carry ``@pytest.mark.catches("ERR-053")``.
+   **Which tests catch it** (re-gated 2026-10-05, ``90d7c337``). The defect has two halves, and each has its own catchers:
+
+   * **the discarded** ``info`` **flag**: ``tests/gates/numerics/test_iteration.py::test_info_warning_fires_on_genuine_nonconvergence`` and ``::test_the_gmres_nonconvergence_warning_is_ESCALATABLE``, which stub scipy's ``gmres`` to return ``info > 0`` with a non-zero residual tail and require the warning (the second requires it to be a :class:`~orpheus.numerics.convergence.ConvergenceWarning`, so ``-W error`` can make it fatal);
+   * **the restart clamp, at the call sites**: ``tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py::test_g_d3_3_production_sites_size_restart_from_the_coupled_ravel`` (``[eigenvalue]`` and ``[fixed_source]``: a spy on ``KrylovAcceleration`` captures the ``restart`` each production driver passes and requires it to equal the coupled ravel's size) and ``::test_g_d3_3_site_gate_has_teeth`` (the spy's own control: it forces the bulk-only degree count through ``_within_group_krylov`` and requires the captured ``restart`` to land on it exactly, so the clamp, which makes the capture read 50, reddens it too);
+   * **the restart clamp, by value**: ``tests/gates/sn/solve/test_krylov_restart_signature.py::test_one_full_restart_cycle_solves_a_diffusive_infinite_medium``. One group, scattering ratio :math:`c = 0.9999`, a reflective slab 100 cm thick in 100 cells, GL :math:`S_8`, a flat source, and one restart cycle (``max_inner = 1``): the honest solve needs 56 Arnoldi steps and reaches the closed form :math:`\phi = W q/\Sigma_a` (:math:`W` the quadrature's weight sum) to :math:`4.9\times10^{-13}` relative; the clamp stops the cycle at 50 steps with ``info = 1`` and an error of :math:`1.28\times10^{-3}`. The row also fails if the honest solve ever needs 50 steps or fewer, the condition under which a clamp at 50 would not bite.
+
+   `[M]` 2026-10-05 (``scratch/reference_architecture/p3/gates200b/README.md``, item 2; textual mutants of the live source, each refused when its target text is absent): re-dropping the clamp reddens the three ``test_g_d3_3_*`` rows and the value row; discarding ``info`` reddens the two warning rows; both together redden all six.
+
+   **Rows that no longer catch it, and why.** Issue #200 (``ca7d9c21``, 2026-10-04) made the sweep the left preconditioner of every within-group GMRES solve, and the preconditioned solve needs 15 to 25 Arnoldi steps on these fixtures at every mesh, so a restart of 50 is never reached. With the clamp re-dropped the following rows stay green, and their ``catches("ERR-053")`` markers were removed on 2026-10-05 with the reason in each docstring (`[M]` qa 2026-10-04, ``scratch/reference_architecture/p3/qa200/m1_restart50_full.log``; again in the README above):
+
+   * the six rows of ``tests/gates/sn/solve/test_krylov_restart_signature.py::test_krylov_kinf_independent_of_mesh_refinement``, the mesh-refinement signature promoted from the step-5 diagnostic; they keep the :math:`k_\infty` recovery claim;
+   * ``tests/gates/sn/sweep/core/test_sweep_vs_apply_consistency.py::test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere``, the row that first surfaced the defect; it keeps its ERR-026 marker;
+   * ``tests/gates/numerics/test_iteration.py::test_singular_consistent_exact_breakdown_solves_clean`` and ``::test_exact_breakdown_guard_suppresses_the_info_warning``, which guard the opposite direction (a warning on a solve that converged by exact breakdown) and stay green under both halves of the defect.
+
+   ``tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py::test_krylov_restart_covers_augmented_composite`` (``[5, 10, 20]``) asserts the premise of the restart sizing from the spaces and constructs no Krylov driver; it carries no ERR-053 marker. Under the default cycle budget the clamped, sweep-preconditioned solve still converges (25 to 978 steps on diffusive slabs, ``info = 0``, the flux moved by at most :math:`6.5\times10^{-9}`, inside ``inner_tol = 1e-8``): with the sweep the clamp costs iterations and changes no value, which is why the value row spends exactly one restart cycle.
+
+   The marking until 2026-10-05, kept as history: the consistency row above (pinned by inheritance), the mesh-refinement catcher of ``test_krylov_restart_signature.py``, and the restart-sweep direct-scipy diagnostic each carried ``@pytest.mark.catches("ERR-053")``, and they caught the defect while the within-group GMRES ran with the identity preconditioner.
 
    → Probe path: the bisection cascade ``diag_krylov_si_homogeneous_sphere_step{1..8}_*.py`` is no longer in the tree. ``step1``, ``step2``, ``step5`` and ``step6`` were retired at ``f36572c8`` (recover with ``git show f36572c8^:derivations/diagnostics/<file>``); ``step3``, ``step4``, ``step7`` and ``step8`` were deleted at ``d8843ba9`` (recover with ``git show d8843ba9^:derivations/diagnostics/<file>``; the #347 audit of 2026-08-09 read them as never tracked, which ``git log --all`` refutes). Step 5 survives as ``tests/gates/sn/solve/test_krylov_restart_signature.py``; the other rungs' findings live in this entry and in the investigator's memo.
 
@@ -9282,3 +9327,325 @@ older entries classify against.
    return any expression it judges equal on the domain it assumes, and a
    gate that samples only the first period of a periodic function cannot
    tell the two apart.
+
+.. error-entry:: ERR-097
+   :title: The inner GMRES IterationRecord judged scipy's pr_norm callback, the preconditioned residual over the UNpreconditioned source norm, against the tolerance: relative only while the preconditioner was the identity, so from #200 on solves scipy had accepted read unconverged
+
+   **Status:** ✅ **FIXED 2026-10-05** at ``90d7c337`` and ``acca2416``, on branch
+   ``fix/krylov-sweep-preconditioner`` (the #200 follow-up). Found by the
+   qa review of #200 (``scratch/reference_architecture/p3/qa200/``).
+
+   **Module:** ``orpheus/numerics/iteration.py``
+   (:meth:`~orpheus.numerics.iteration.KrylovAcceleration.solve`, the
+   ``pr_residual`` criterion of the ``inner(gmres)`` record); its readers
+   are the record's ``converged`` verdict, the SN budget warning
+   ("inner(gmres) hit max_inner"), ``fully_converged`` on the exit report,
+   and the end-of-solve convergence-claim check
+   (``orpheus.sn.solver._check_convergence_claim``), which runs only on a
+   record that claims convergence.
+
+   **Failure mode:** **#6 (convention drift)**: one quantity, two
+   normalisations, at two sites. Write :math:`P` for the left
+   preconditioner, :math:`b` for the right-hand side and
+   :math:`r_k = b - A x_k` for the residual at GMRES step :math:`k`.
+   scipy's ``gmres`` (``scipy/sparse/linalg/_isolve/iterative.py``,
+   read at scipy 1.17.1) uses the preconditioned residual in three places
+   with two different denominators:
+
+   * its inner Arnoldi loop **stops**, in the first restart cycle, on
+     :math:`\lVert P r_k\rVert \le \mathrm{rtol}\,\lVert P b\rVert`
+     (``ptol = Mb_nrm2 * min(ptol_max_factor, atol / bnrm2)``, with
+     ``atol = rtol * bnrm2``); a later cycle stops on a threshold scipy
+     rescales from the previous cycle's preconditioned and true residuals
+     (``ptol = presid * min(ptol_max_factor, atol / rnorm)``);
+   * its ``callback_type='pr_norm'`` callback **reports**
+     :math:`\lVert P r_k\rVert / \lVert b\rVert` (``callback(presid / bnrm2)``);
+   * the solve is **accepted** on the true residual,
+     :math:`\lVert b - A x\rVert \le \mathrm{rtol}\,\lVert b\rVert`
+     (``info = 0 if rnorm <= atol``); when the inner test passes and the
+     true one does not, scipy tightens the inner threshold and runs
+     another restart cycle.
+
+   The record stored the callback reading and compared it with ``tol``.
+   That comparison is the loop's own test only when
+   :math:`\lVert P b\rVert = \lVert b\rVert`. The reading is off by the
+   factor :math:`\lVert P b\rVert / \lVert b\rVert`, in either direction:
+   a factor above 1 makes a solve scipy accepted read unconverged, and a
+   factor below 1 makes the record read converged before scipy's own loop
+   would stop.
+
+   **What it did** (`[M]` 2026-10-04, qa's reproducer
+   ``scratch/reference_architecture/p3/qa200/q1b.py``: two-group slabs with
+   upscatter, ``inner_solver="krylov"``, ``inner_tol = 1e-8``; log
+   ``qa200/q1b_sweep.log``, with the sweep as the preconditioner):
+
+   .. list-table:: The raw reading against scipy's verdict, per slab
+      :header-rows: 1
+      :widths: 22 16 22 20 20
+
+      * - Slab, faces
+        - :math:`\lVert P b\rVert/\lVert b\rVert`
+        - inner records reading converged
+        - scipy ``info = 0``; largest true :math:`\lVert r\rVert/\lVert b\rVert`
+        - ``fully_converged``
+      * - thin, vacuum
+        - 21.7 to 21.8
+        - 3 of 7
+        - 7 of 7; :math:`9.54\times10^{-9}`
+        - False, with a false "inner(gmres) hit max_inner=1308" warning
+      * - thin, reflective
+        - 21.7
+        - 2 of 3
+        - 3 of 3; :math:`2.48\times10^{-9}`
+        - False, with the same warning
+      * - unit, vacuum
+        - 1.15 to 1.19
+        - 26 of 26
+        - 26 of 26; :math:`9.46\times10^{-9}`
+        - True
+      * - thick, reflective
+        - 0.0426
+        - 3 of 3 (largest reading :math:`9.5\times10^{-11}`)
+        - 3 of 3; :math:`4.07\times10^{-9}`
+        - True
+
+   On the thin slabs every inner solve scipy accepted with a true relative
+   residual at most :math:`9.54\times10^{-9}`, and the record still read
+   four of seven (vacuum) and one of three (reflective) as not converged,
+   because their readings sat between ``tol`` and about
+   :math:`21.8\,\mathrm{tol}` (largest :math:`7.49\times10^{-8}`). On the
+   thick slab the factor is 0.0426, the opposite direction: the raw reading
+   was about 24 times smaller than scipy's stopping quantity (largest
+   :math:`3.2\times10^{-10}` raw against :math:`7.7\times10^{-9}` after the
+   fix, on the thick vacuum slab). That direction reads converged early;
+   the dense L0 fixture below shows it reading a budget-exhausted solve
+   (``info = 1``) as converged, :math:`2.6\times10^{-5} < 10^{-3}`, at
+   :math:`\lVert P b\rVert/\lVert b\rVert \approx 1/1024`. The thick vacuum
+   row ran out of OUTER iterations (``max_outer = 300``) under every
+   preconditioner, the identity included, and is not part of this defect.
+
+   The identity control (``qa200/q1b_identity.log``): the same six slabs
+   with ``preconditioner=IdentityOperator()`` read
+   :math:`\lVert P b\rVert/\lVert b\rVert = 1.00` and every inner record
+   converged, with the record's last reading equal to the true relative
+   residual (thin vacuum: :math:`1.00\times10^{-8}` both).
+
+   **How it hid.** (a) The reading was measured once and was right when
+   measured: on 2026-08-09 (``3d076023``, the commit that made the drivers
+   return an ``IterationRecord``) the callback value was compared with
+   :math:`\lVert b - Ax\rVert/\lVert b\rVert` at three source scales and
+   matched exactly, and the record's comment and docstring said the
+   callback was "RELATIVE to ``‖b‖``". Every production SN Krylov solve
+   without a corrector then ran with the identity preconditioner, where
+   :math:`P r = r`; the measurement was true of the fixture and was written
+   as true of the quantity. (b) Issue #200 (``ca7d9c21``, 2026-10-04) made
+   the sweep the preconditioner of every Krylov solve, which changed the
+   factor from 1 to anything from 0.04 to 21.8 on qa's slabs and touched no
+   line of the record. (c) The consistent-DSA Krylov posture (the
+   fixed-source entry with ``acceleration="dsa"``) already ran with
+   :math:`P = (I + \mathcal{C})(L+C)^{-1}` since its landing
+   (``ab78a15f``), so it carried the defect before #200 (`[R]`, qa's
+   reading in the plan ``.claude/plans/test_runtime_405.md``, item 3);
+   its gates assert the fixed point and the iteration count, never the
+   inner record's verdict. (d) The defect is in a verdict, not in an
+   answer: scipy accepted on the true residual whatever the record read,
+   so :math:`k` and the flux were correct (the thin vacuum slab's
+   :math:`k = 0.039316754404` before and after the fix), and no value gate
+   could redden. Its symptoms were a warning and a ``False`` flag, both on
+   solves that ended correctly.
+
+   **Fix, part 1** (``90d7c337``). The record holds scipy's stopping quantity,
+   :math:`\lVert P r_k\rVert / \lVert P b\rVert`: each callback reading is
+   multiplied by :math:`\lVert b\rVert / \lVert P b\rVert`, computed once
+   per solve at the cost of one preconditioner apply. The criterion keeps
+   its name, ``pr_residual``, and its tolerance. The true residual is not
+   recorded here, by the user's ruling of 2026-10-04: its one home is the
+   SN end-of-solve claim check, which re-measures
+   :math:`\lVert A\psi - q\rVert / \lVert q\rVert` for every record that
+   claims convergence and raises beyond
+   ``_CONVERGENCE_CLAIM_SAFETY`` :math:`= 10` times the tolerance, so a
+   second computation of :math:`\lVert b - Ax\rVert` inside
+   ``KrylovAcceleration`` would be a second spelling of that quantity.
+   A first ruling of the same day, a second criterion holding the true
+   residual at exit beside the scaled trajectory, was refuted before it
+   was built: :class:`~orpheus.numerics.convergence.IterationRecord`
+   requires its criteria to be co-indexed (every trajectory the same
+   length), and scipy forms the true residual once per restart cycle, so a
+   one-point criterion beside a per-step trajectory cannot be stated.
+   After the fix (``scratch/reference_architecture/p3/operator_contract/q1b_after.log``):
+   7 of 7 and 3 of 3 inner records converged on the thin slabs, no budget
+   warning, ``fully_converged`` True, :math:`k` unchanged to the twelve
+   printed digits on all six slabs.
+
+   **Fix, part 2: scipy's acceptance vetoes the record's verdict**
+   (``acca2416``, 2026-10-05, the user's ruling of the same day). Part 1
+   left two verdicts on one solve. The record's predicate,
+   :math:`\lVert P r\rVert/\lVert P b\rVert \le \mathrm{tol}`, is scipy's
+   inner test only in the first restart cycle, and scipy's acceptance,
+   :math:`\lVert r\rVert/\lVert b\rVert \le \mathrm{tol}`, is a different
+   quantity, so the criterion could clear on a solve scipy refused. Both
+   reviews of ``90d7c337`` measured it (qa F1, elegance S1): `[M]`
+   2026-10-05, the elegance probe
+   (``scratch/reference_architecture/p3/elegance200b/probe1.py``: 400
+   random 30-unknown tridiagonal systems, a Jacobi preconditioner shrunk by
+   a factor between :math:`10^{-6}` and 1 on a random leading block,
+   restart 2 to 11, 1 to 5 cycles, tolerance :math:`10^{-10}` to
+   :math:`10^{-3}`) found 60 of 400 solves whose record read converged
+   while scipy returned ``info`` :math:`\ne 0`, true relative residual up
+   to 0.84, and 0 of 400 the other way; qa's anisotropic rows
+   (:math:`P = \mathrm{diag}(10^{-3}, \dots, 10^{3})`) read converged at a
+   true residual of :math:`2\times10^{-4}` to :math:`7\times10^{-4}`. On the
+   SN slabs the gap was small but present: over 72 slab configurations the
+   true relative residual at a GMRES exit was at most 9.88 times the
+   recorded one, and a 20-cell GL4 slab under one restart cycle returned
+   ``info = 1`` with the record converged
+   (``scratch/reference_architecture/p3/gates200b/README.md``, item 3).
+
+   :class:`~orpheus.numerics.convergence.IterationRecord` now carries
+   ``accepted: bool | None = None``, the producer's own acceptance verdict
+   when it runs a test separate from its criteria.
+   ``KrylovAcceleration.solve`` sets it to ``info == 0`` or a confirmed
+   exact breakdown (ERR-098). ``accepted = False`` vetoes ``converged``
+   whatever the criteria read, and the report prints the refusal;
+   ``None``, which every other producer leaves, changes nothing. The field
+   is an observation like the iteration count, so the verdict stays
+   derived. The SN end-of-solve claim check keeps its role for what scipy
+   cannot see, an equation residual assembled by the SN layer (the #282
+   lag class), and SN is the only production consumer (`[M]` 2026-10-05,
+   ``git grep "KrylovAcceleration(" -- orpheus``: 1 construction,
+   ``orpheus.sn.solver._within_group_krylov``). The claim check is skipped
+   for the moment-tailed (LD) schemes, as it is for source iteration
+   (``_residual_is_expressible``).
+
+   **Caught by.** `[M]` 2026-10-05, at ``acca2416``, re-dropped in process
+   under ``python -O -m pytest`` over the 17 rows of the record, warning
+   and breakdown families in ``test_iteration.py`` and ``test_p200_5``, three
+   arms: the original defect (the raw callback reading and no acceptance
+   veto) reddens 11 rows, the ten below and the ERR-098 row; the raw reading
+   alone reddens 9 (the ``[exhausted_s1_1024]`` row is then saved by the
+   veto, and the four fold rows red on their own premise check, because
+   their criterion no longer clears); the veto removed alone reddens the
+   four fold rows and the ERR-098 row. The control reddens none.
+
+   * ``tests/gates/numerics/test_iteration.py::test_krylov_record_is_invariant_under_preconditioner_scaling``
+     (the recorded trajectory is bit-identical under a scaling of
+     :math:`P` by 1/16, 1 and 16; the raw reading scales with it);
+   * ``tests/gates/numerics/test_iteration.py::test_krylov_record_last_is_the_preconditioned_relative_residual``
+     (both rows, ``[0.0625]`` and ``[16.0]``: the last reading equals
+     :math:`\lVert P(b - Ax)\rVert/\lVert P b\rVert` recomputed by dense
+     numpy at the returned iterate, :math:`|\Delta| = 3.7\times10^{-17}`
+     against a derived rounding bound of :math:`5.2\times10^{-14}`);
+   * ``tests/gates/numerics/test_iteration.py::test_krylov_record_verdict_agrees_with_scipy_acceptance[accepted_s16]``
+     (the false "not converged": :math:`3.4\times10^{-8} > 10^{-8}` with
+     ``info = 0``) and ``[exhausted_s1_1024]`` (the false "converged":
+     :math:`2.6\times10^{-5} < 10^{-3}` with ``info = 1``); the rows
+     ``[accepted_s1_16]`` and ``[exhausted_s1024]`` are controls that read
+     the same under either reading and carry no marker;
+   * ``tests/gates/numerics/test_iteration.py::test_krylov_record_is_not_converged_when_scipy_refuses_a_cleared_criterion``
+     (four seeds, part 2: a 60-unknown system, :math:`P =
+     \mathrm{diag}(10^{-3}, \dots, 10^{3})`, one full-size cycle; the row
+     asserts its premise, criterion cleared and true residual above
+     :math:`10\,\mathrm{tol}` with scipy refusing, then that the record
+     reads ``accepted`` False and not converged);
+   * ``tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_5_no_inner_record_reads_unconverged_when_scipy_accepted``
+     (the SN thin slab, :math:`\lVert P b\rVert/\lVert b\rVert \approx 26`:
+     under the raw reading inner solves 3 to 6 of 8 read not converged
+     while scipy accepted each).
+
+   No test that existed before part 1 reddens under its re-drop: of the
+   198 rows in the test-architect's scope
+   (``test_iteration.py``, ``test_iteration_record.py`` and the
+   sweep-preconditioner gate file, without its two solve rows), the 6
+   reds are all new rows.
+
+   **Lesson.** ⭐ **A measurement that a library's reading equals a
+   quantity is a measurement on its fixture: when the reading's formula
+   has a factor the fixture held at 1 (here the preconditioner, the
+   identity on every solve measured), record the formula, not the
+   coincidence, and gate the reading where the factor is far from 1 in
+   both directions.**
+
+.. error-entry:: ERR-098
+   :title: The GMRES exact-breakdown carve-out trusted a final preconditioned residual of literal 0.0, which scipy writes at EVERY Arnoldi breakdown, so a solve of an inconsistent singular system read converged and silent at a true relative residual of 0.71
+
+   **Status:** ✅ **FIXED 2026-10-05** at ``acca2416``, on branch
+   ``fix/krylov-sweep-preconditioner``. Found by the qa review of
+   ``90d7c337`` (finding F2, ``scratch/reference_architecture/p3/qa200b/``).
+   The defect predates #200: the carve-out was introduced at
+   ``c0f23f65`` (2026-07-11, B.2d-d1).
+
+   **Module:** ``orpheus/numerics/iteration.py``
+   (:meth:`~orpheus.numerics.iteration.KrylovAcceleration.solve`, the
+   exact-breakdown carve-out that decides whether ``info > 0`` warns and,
+   since ``acca2416``, whether the record is ``accepted``).
+
+   **Failure mode:** **#6 (convention drift)**: one reading, two meanings.
+   The carve-out exists for a real case: when the Krylov space collapses
+   AT the solution (a warm-started solve of a singular but consistent
+   system), scipy's ``gmres`` stagnates to ``maxiter`` and returns
+   ``info > 0`` on a solve that converged, and that must not warn as a
+   restart truncation (ERR-053). The carve-out recognised the case by its
+   last preconditioned-residual reading being literal 0.0. But scipy
+   writes that value at every breakdown, not only at a solution: when the
+   Arnoldi step produces a zero subdiagonal entry it sets
+   ``h[col, col+1] = 0`` and flags the breakdown, and the Givens rotation
+   that follows maps that column's residual estimate ``presid`` to 0
+   (``scipy/sparse/linalg/_isolve/iterative.py``, ``gmres``, read at
+   scipy 1.17.1). A breakdown means the Krylov space is invariant under
+   the operator; it says the least-squares problem on that space is
+   solved, not that :math:`Ax = b` is. On an inconsistent system,
+   where :math:`b` has a component outside the range of :math:`A`, the
+   space can collapse with that component still in the residual.
+
+   **What it did.** :math:`A = \mathrm{diag}(1, 0)`, :math:`b = (1, 1)`,
+   the identity preconditioner, ``tol = 1e-8``, restart 2, 5 cycles:
+   `[M]` 2026-10-05 (scipy 1.17.1, called directly) the callback reads
+   0.707 and then 0.0, the breakdown, and scipy returns ``info = 5`` with
+   :math:`x = (1,\ 1.27\times10^{16})`, the second component the
+   unbounded result of a singular triangular solve. The second row of
+   :math:`A` is zero, so the true residual is :math:`(0, 1)` whatever
+   :math:`x_2` is, and its relative norm is
+   :math:`1/\sqrt{2} \approx 0.71`. The carve-out read the 0.0 tail as
+   convergence, so no warning fired and the record read converged, on an
+   iterate with an entry of order :math:`10^{16}`.
+
+   **How it hid.** (a) The case that motivated the carve-out, the
+   transitional coupled matvec of B.2d with dead padding rows, was
+   consistent, so the 0.0 tail and the solution coincided on every solve
+   that reached it; the code comment named the consistent case and the
+   test rows exercised it alone
+   (``test_singular_consistent_exact_breakdown_solves_clean``,
+   ``test_exact_breakdown_guard_suppresses_the_info_warning``). (b) The
+   reading is the preconditioned residual, and a reading of 0.0 looks
+   like the strongest possible evidence; the inference "0.0 means
+   :math:`Ax = b`" needs the system to be consistent, which nothing
+   checked. (c) No production SN system is singular (`[R]`: the
+   within-group loss is invertible on every admitted problem), so the
+   defect had no production trigger; it was a hole in the
+   numerics-layer contract, reachable by any future consumer with a
+   singular operator.
+
+   **Fix.** The carve-out confirms the breakdown against the true
+   residual with scipy's own acceptance test: an ``info > 0`` solve is an
+   exact breakdown only if its last reading is 0.0 **and**
+   :math:`\lVert b - Ax\rVert \le \mathrm{tol}\,\lVert b\rVert`, one
+   matvec on that rare path only. Otherwise it warns, and the record's
+   ``accepted`` field (ERR-097, part 2) is False, which vetoes
+   ``converged``. The rescaling of ERR-097 part 1 is not involved: it
+   multiplies the readings by a positive factor and leaves a 0.0 at 0.0.
+
+   **Caught by:**
+   ``tests/gates/numerics/test_iteration.py::test_breakdown_on_an_inconsistent_system_warns_and_is_not_accepted``
+   (the system above; it asserts its premise, a literal-0.0 tail and a
+   true relative residual above 0.5, then a ``RuntimeWarning`` and a
+   record that is neither accepted nor converged). `[M]` 2026-10-05,
+   re-dropped in process under ``python -O -m pytest`` (the true-residual
+   condition removed from the carve-out): that row is the only red of the
+   17 rows in the record, warning and breakdown families of
+   ``test_iteration.py`` and ``test_p200_5``; the two consistent-breakdown
+   rows stay green, as they must.
+
+   **Lesson.** ⭐ **A sentinel value a library writes is evidence only of
+   the event that writes it: before reading "the residual estimate is 0"
+   as "solved", find every code path that sets it to 0, and confirm the
+   claim with the quantity the claim is about.**

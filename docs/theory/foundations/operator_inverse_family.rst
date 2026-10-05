@@ -359,10 +359,18 @@ The two eigenvalue-outer consumers pose the inverse explicitly:
   :func:`~orpheus.numerics.iteration.seeded_inverse`.
 * :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
   **forward** :math:`A` (its GMRES matvec is
-  :math:`A\cdot - \sum_i g_i\cdot`) and rewired its default-preconditioner
-  fallback from the old ``CAP_SOLVE`` probe (with a ``# type: ignore``) to
-  the honest ``A.is_invertible`` test + ``seeded_inverse(A).apply`` — the
-  transport-corrected sweep preconditioner (Adams & Larsen 2002 §III).
+  :math:`A\cdot - \sum_i g_i\cdot`) and takes its left preconditioner
+  :math:`P \approx \bigl(A - \sum_i g_i\bigr)^{-1}` as an operator the
+  caller states, keyword-only with no default; plain GMRES is
+  ``preconditioner=IdentityOperator()``.  The SN within-group builder
+  states the sweep, ``(L+C).inverse()``, the transport-corrected
+  preconditioner of Adams & Larsen 2002 §III, or the DSA-corrected
+  :math:`(I + \mathcal{C})(L+C)^{-1}`; why there is no default is
+  recorded at :ref:`sn-krylov-sweep-preconditioner`.  (At step 3 the
+  driver's default-preconditioner fallback was rewired from the old
+  ``CAP_SOLVE`` probe, with a ``# type: ignore``, to the honest
+  ``A.is_invertible`` test plus ``seeded_inverse(A).apply``; the default
+  itself retired on 2026-10-05, ``c1dc0c3d``.)
 
 
 Verification — the seed spy and the windowed×G-S corner
@@ -723,7 +731,7 @@ the *concept*, the inexact inner is its production *realization*.
 
 Green's consumers today are the invariant gates (see
 :ref:`green-verification`). The S\ :sub:`N` Krylov preconditioner is not
-one of them: it is the direct sweep inverse, ``seeded_inverse(L + C)``,
+one of them: it is the direct sweep inverse, ``(L + C).inverse()``,
 a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (or the
 coupled block substitution on a carrying mesh), applied to each GMRES
 residual (:ref:`sn-krylov-sweep-preconditioner`). The production

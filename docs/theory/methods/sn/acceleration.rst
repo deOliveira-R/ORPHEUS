@@ -71,7 +71,7 @@ pins every claim to a measured number.
      gates** (:ref:`sn-dsa-the-f-form`).
    * **Two postures, one operator.**  SI+DSA (the ``corrector`` hook on
      :class:`~orpheus.numerics.iteration.SourceIteration`) and the
-     Krylov left-preconditioner :math:`M = (I + \mathcal{C}) \circ
+     Krylov left-preconditioner :math:`P = (I + \mathcal{C}) \circ
      (L+C)^{-1}` (:eq:`sn-dsa-krylov-preconditioner`) consume the
      **same** :class:`~orpheus.sn.acceleration.dsa.DSACorrection`
      (:ref:`sn-dsa-both-postures`).
@@ -954,7 +954,7 @@ transport-corrected **left** preconditioner (:cite:`AdamsLarsen2002`
 .. math::
    :label: sn-dsa-krylov-preconditioner
 
-   M = (I + \mathcal{C}) \circ (L+C)^{-1}
+   P = (I + \mathcal{C}) \circ (L+C)^{-1}
      = \text{sweep} + \text{correction-of-sweep} .
 
 .. vv-status: sn-dsa-krylov-preconditioner documented
@@ -1057,15 +1057,21 @@ Every production Krylov solve of the within-group problem — the
 eigenvalue inner of :func:`~orpheus.sn.solver.solve_sn` and the
 fixed-source solve of :func:`~orpheus.sn.solver.solve_sn_fixed_source`,
 each with ``inner_solver="krylov"`` — hands GMRES a **left
-preconditioner**, and without a DSA corrector that preconditioner is the
-sweep, :math:`(L+C)^{-1}`.  The one site that builds it is
-``orpheus.sn.solver._within_group_krylov``: it takes
-``seeded_inverse(LC)`` (:func:`~orpheus.numerics.iteration.seeded_inverse`)
-of the splitting's implicit member and, when a corrector is posed (the
-fixed-source entry with ``acceleration="dsa"``), composes the correction
-onto it, which is :eq:`sn-dsa-krylov-preconditioner`.  There is one
-definition of the sweep preconditioner and the DSA posture is a second
-factor on it, not a second preconditioner.
+preconditioner** :math:`P`, and without a DSA corrector that
+preconditioner is the sweep, :math:`P = M^{-1} = (L+C)^{-1}`.  On this
+page :math:`P` always names the GMRES preconditioner and :math:`M` the
+splitting's implicit member (:math:`A = M - N`); scipy's documentation
+calls the preconditioner ``M``, and this page does not.  The one site
+that states :math:`P` is ``orpheus.sn.solver._within_group_krylov``: it
+passes ``LC.inverse()``, the inverse of the splitting's implicit member,
+and, when a corrector is posed (the fixed-source entry with
+``acceleration="dsa"``), ``(IdentityOperator() + corrector) @
+LC.inverse()``, which is :eq:`sn-dsa-krylov-preconditioner`.  Both are
+operators, built by the operator algebra and handed to
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` as its
+``preconditioner`` argument, which the driver keeps as a public
+attribute.  There is one definition of the sweep preconditioner and the
+DSA posture is a second factor on it, not a second preconditioner.
 
 The preconditioned operator
 ---------------------------
@@ -1186,8 +1192,10 @@ On a carrying mesh the implicit member is a
 inverse a
 :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`,
 the block back-substitution that adds the :math:`\psi_{1/2}` blocks
-(``[M]`` 2026-10-04: the types ``seeded_inverse`` returns on the four
-meshes of the gates below, two of each).  The identity
+(``[M]`` 2026-10-05: the types ``LC.inverse()`` returns on the five
+meshes of the gates below, a ``SweepOperator`` on the two slabs and the
+2-D Cartesian mesh and a ``CoupledSubstitutionOperator`` on the folded
+cylinder and the GL sphere).  The identity
 :math:`(L+C)\circ(L+C)^{-1} = I` holds on the whole composite
 (:eq:`sn-dsa-sweep-inverse-identity`).  The two-block (cell, face)
 substitution that issue #200 proposed as "the proper preconditioner" is
@@ -1241,9 +1249,12 @@ The gates and what each one sees
 --------------------------------
 
 The rows live in
-:file:`tests/gates/sn/solve/test_krylov_sweep_preconditioner.py` (16
-rows, four meshes for the operator rows, a slab and a cylinder for the
-solves), with the closed-form :math:`k_\infty` rows of
+:file:`tests/gates/sn/solve/test_krylov_sweep_preconditioner.py` (23
+rows, ``[M]`` collected 2026-10-05 after ``acca2416``: five meshes for the operator rows, a
+slab and a cylinder for the solves, two slabs for the DSA witness below,
+one row refusing an empty DSA list, and one thin slab for the inner
+record), with the closed-form
+:math:`k_\infty` rows of
 :file:`tests/gates/sn/solve/test_krylov_curvilinear_precond_safety.py`
 (``test_production_preconditioner_recovers_kinf``, slab, sphere and
 cylinder) as the independent eigenvalue reference.  Each mutation arm
@@ -1289,6 +1300,18 @@ seed between calls (the stateful-inverse class of ERR-050).
      - green by construction
      - red, :math:`k = 1.7528` (error :math:`6.5\times10^{-2}`)
      - not run
+
+The five operator meshes are the vacuum and the reflective slab, a
+folded cylinder, a GL sphere and, since 2026-10-05, a 2-D Cartesian mesh
+(3 by 2 cells, two materials, reflective on the low-:math:`x` and
+high-:math:`y` faces and vacuum on the other two, level-symmetric
+:math:`S_4`).  The table's battery was run on the first four; the 2-D
+Cartesian rows, three here and two in
+:file:`tests/gates/sn/operators/test_sweep_inverse_identity.py`, red the
+same way under the same three arms, and an arm that zeroes the right-hand
+side's outflow rows inside the sweep reddens the round trip, the
+identity and the pure-outflow rows (``[M]`` 2026-10-05,
+``scratch/reference_architecture/p3/gates200b/README.md``, item 4).
 
 The route row and the round trip red on every arm.  The linearity row
 is the issue's acceptance item, kept with its blindness stated.  The
@@ -1358,14 +1381,188 @@ relative) on the slab and :math:`1.8\times10^{-10}` absolute
 tolerance.  The L1 standoff file
 :file:`tests/gates/sn/verification/analytical/test_l1_standoff_slab_cylinder.py`
 runs in 19.7 s instead of 100 s (warm).
+The preconditioner is stated by the caller
+------------------------------------------
+
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` takes its left
+preconditioner as a keyword-only
+:class:`~orpheus.numerics.operator.LinearOperator` with **no default**,
+checks it for ``apply`` at construction, and applies it through the
+operator (the user's ruling, 2026-10-04; ``c1dc0c3d``).  Plain GMRES is
+written ``preconditioner=IdentityOperator()`` at the call site.  The
+reasons:
+
+* **No preconditioner is right for every model.**  :math:`A^{-1}`, the
+  natural default, is the sweep for SN and an excellent preconditioner;
+  for a diffusion operator it is the whole solve, which leaves GMRES
+  nothing to do.  A default would put one method's knowledge into the
+  method-agnostic primitive of ``orpheus.numerics``.
+* **A silent identity default is a trap.**  Without a preconditioner the
+  GMRES count grows with the mesh, as the rate table above shows.  That
+  is the failure #200 removed, and the SN inner solve had it from the
+  R-1 carve (2026-05) to #200 because production passed an explicit
+  identity, so a warning on a missing preconditioner would not have
+  caught it either.  A default of
+  the identity would hand the next model's Krylov path the same failure
+  with nothing on screen.
+* **Plain Krylov is still legitimate, and is named.**  It is right for a
+  small, well-conditioned system; for an operator that is already the
+  preconditioned one (``KrylovAcceleration(M.inverse() @ A, ...)``, the
+  form :eq:`sn-krylov-preconditioned-operator` in which many production
+  transport codes run GMRES); and for studies comparing the two.
+
+What stops SN from regressing to the identity is not a type check but the
+gates: the route row (the preconditioner the production driver builds IS
+the sweep inverse, bit for bit) and the rate row (the inner count stays
+flat under refinement), both of which red under the identity arm of the
+table above.  The ``preconditioner=None`` spelling of ERR-050 raises
+``TypeError`` at construction.  The silent choice the driver made before
+the ruling, and the closure that spelled the sweep a second time, are in
+the Development history at the end of this page.
+
+.. _sn-krylov-dsa-source-iteration-is-richardson:
+
+Source iteration under DSA is Richardson on the same preconditioner
+-------------------------------------------------------------------
+
+With the DSA corrector :math:`\mathcal{C}`, one source-iteration step
+from :math:`\psi_n` sweeps and then corrects the increment,
+:math:`\psi_{n+1} = \psi_n + (I + \mathcal{C})\bigl(M^{-1}(q + N\psi_n) -
+\psi_n\bigr)` (:ref:`sn-dsa-both-postures`).  Because :math:`M^{-1}` is
+the exact inverse of :math:`M`, the swept increment is the sweep of the
+residual,
+:math:`M^{-1}(q + N\psi_n) - \psi_n = M^{-1}\bigl(q - (M - N)\psi_n\bigr)`,
+so the step is
+
+.. math::
+   :label: sn-krylov-dsa-richardson
+
+   \psi_{n+1} = \psi_n + P\,\bigl(q - (M - N)\,\psi_n\bigr),
+   \qquad
+   P = (I + \mathcal{C})\,M^{-1} ,
+
+Richardson iteration preconditioned by the same :math:`P` that GMRES
+receives (:cite:`AdamsLarsen2002` (1.29)–(1.34)).
+
+.. Verified (not a vv-status sentinel): an algebraic identity from the
+   exactness of the sweep inverse (sn-dsa-sweep-inverse-identity), carried
+   by @pytest.mark.verifies("sn-krylov-dsa-richardson") on
+   tests/gates/sn/solve/test_krylov_sweep_preconditioner.py::test_p200_4_a_dsa_source_iteration_step_is_richardson_on_the_krylov_preconditioner.
+
+The two postures spell :math:`P` differently on purpose.  Source
+iteration applies :math:`I + \mathcal{C}` to the increment, which it has
+already (``SourceIteration``'s ``corrector`` hook), and Krylov applies
+the composed operator ``(IdentityOperator() + corrector) @
+LC.inverse()`` to a residual.  Merging them into one object waits for a
+second corrector to exist (2-D DSA, issue #314), the point at which the
+two spellings could start to differ; until then a witness holds them
+equal.  The witness is ``test_p200_4``: from a random flux and a random
+source with every block populated, one production source-iteration step
+with the corrector equals :eq:`sn-krylov-dsa-richardson` evaluated with
+the ``preconditioner`` attribute of the production Krylov driver, to
+:math:`2.7\times10^{-16}` and :math:`1.8\times10^{-16}` relative on the
+vacuum and the reflective slab, and carries
+``@pytest.mark.verifies("sn-krylov-dsa-richardson")``.  With the
+corrector dropped from :math:`P` the difference is 0.168 and 0.318
+(``[M]`` 2026-10-05, the shipped seeds 7 and 11,
+``scratch/reference_architecture/p3/operator_contract/probe_p200_4_gap.py``).
+The witness's geometry list is not written down: it is every full-state
+fixture on which ``DSACorrection.from_problem`` admits a corrector, read
+off the corrector's own admission (today the two slabs, 2 of the 5
+fixtures, since consistent DSA is admitted on the 1-D Cartesian slab
+alone).  So when 2-D DSA (issue #314) admits a mesh, the witness runs on
+it without an edit; a separate row,
+``test_p200_4_runs_on_every_geometry_dsa_admits``, fails if the derived
+list is ever empty.
+
+What the inner GMRES record measures
+------------------------------------
+
+Each Krylov solve returns an
+:class:`~orpheus.numerics.convergence.IterationRecord` labelled
+``inner(gmres)``, with one criterion, ``pr_residual``: the
+preconditioned relative residual
+
+.. math::
+
+   \frac{\lVert P\,r_k\rVert}{\lVert P\,q\rVert},
+   \qquad r_k = q - (M - N)\,\psi_k ,
+
+at every GMRES (Arnoldi) step :math:`k`, judged against ``inner_tol``.
+That is the quantity scipy's inner loop stops on **in its first restart
+cycle**, :math:`\lVert P r_k\rVert \le \mathrm{rtol}\,\lVert P q\rVert`;
+in a later cycle scipy stops on a threshold it tightens internally from
+the previous cycle's preconditioned and true residuals, so after the
+first cycle the criterion is no longer scipy's own test.
+scipy's ``pr_norm`` callback reports :math:`\lVert P r_k\rVert/\lVert
+q\rVert` instead, so the driver rescales each reading by
+:math:`\lVert q\rVert/\lVert P q\rVert`, computed once per solve with
+one preconditioner apply.  scipy then **accepts** the solve on the true
+residual, :math:`\lVert r\rVert \le \mathrm{rtol}\,\lVert q\rVert`, and
+runs another cycle with a tightened inner threshold when the two tests
+disagree.  The record therefore carries a second field beside its
+criterion, ``accepted``
+(:attr:`~orpheus.numerics.convergence.IterationRecord.accepted`):
+scipy's own acceptance, ``info == 0`` or an exact breakdown confirmed
+against the true residual (ERR-098: scipy writes a 0.0 reading at every
+breakdown, a solution or not).  ``accepted = False`` **vetoes**
+``converged`` whatever the criterion reads, and the record's report
+prints the refusal; every other producer leaves the field ``None``,
+which changes nothing (the user's ruling, 2026-10-05; ``acca2416``).  The
+field is an observation, like the iteration count, so the verdict stays
+derived and is never stored.  The record does not hold the true
+residual's value: its one home is
+the end-of-solve convergence-claim check
+(``orpheus.sn.solver._check_convergence_claim``), which re-measures
+:math:`\lVert A\psi - q\rVert/\lVert q\rVert` for every record that
+claims convergence and raises a ``ConvergenceClaimError`` beyond ten
+times the tolerance.  A second computation of the true residual inside
+the driver would be a second spelling of that quantity, and a one-point
+true-residual criterion cannot stand beside the per-step trajectory,
+because the record requires its criteria to be co-indexed.
+
+Until 2026-10-05 the record held the raw callback reading, which is
+relative only when :math:`\lVert P q\rVert = \lVert q\rVert`, true of the
+identity and false of the sweep; ERR-097 records what that did (inner
+solves scipy had accepted read unconverged on a thin slab, with a false
+budget warning).  Its gates are the three record rows of
+:file:`tests/gates/numerics/test_iteration.py` (the trajectory is
+invariant under a scaling of :math:`P`; its last value equals
+:math:`\lVert P(q - A\psi)\rVert/\lVert P q\rVert` recomputed densely;
+the verdict agrees with scipy's ``info`` at preconditioner scales far
+from 1) and, on the SN solve, ``test_p200_5``: on a thin slab, where
+:math:`\lVert P q\rVert/\lVert q\rVert \approx 26`, every inner record
+reads converged when scipy accepted.
+
+The veto closes the case in which the criterion clears on a solve
+scipy refused: after the first restart cycle, or with a strongly
+anisotropic preconditioner, :math:`\lVert P r\rVert/\lVert P q\rVert`
+can fall below ``inner_tol`` while the true residual does not
+(``[M]`` 2026-10-05: 60 of 400 random preconditioned solves, true
+relative residual up to 0.84).  The row
+``test_krylov_record_is_not_converged_when_scipy_refuses_a_cleared_criterion``
+(:file:`tests/gates/numerics/test_iteration.py`, four seeds, a
+preconditioner :math:`\mathrm{diag}(10^{-3}, \dots, 10^{3})`) asserts the
+premise, criterion cleared and true residual above ten times the
+tolerance with scipy refusing, and then that the record reads neither
+accepted nor converged.  What remains for the claim check is a solve
+scipy accepted whose equation residual, assembled by the SN layer, is
+still wrong (the #282 lag class); ERR-097's entry gives the populations.
+
 
 Gotchas
 -------
 
-* **The preconditioned GMRES stops on the preconditioned residual.**
-  Left preconditioning makes GMRES minimise
-  :math:`\lVert M^{-1}(q - A\psi)\rVert`, so at a fixed ``inner_tol``
-  the equation residual it leaves is not the one the identity left.  On
+* **The preconditioned GMRES steers on the preconditioned residual and
+  accepts on the true one.**  Left preconditioning makes GMRES minimise
+  :math:`\lVert P(q - A\psi)\rVert`, and its inner loop stops when that
+  norm falls below ``inner_tol`` times :math:`\lVert P q\rVert`; scipy
+  then accepts the solve only if the true residual satisfies
+  :math:`\lVert q - A\psi\rVert \le` ``inner_tol``
+  :math:`\lVert q\rVert`, and otherwise runs another cycle.  The two
+  minimisations reach the tolerance by different paths, so at a fixed
+  ``inner_tol`` the equation residual the sweep leaves is not the one the
+  identity left.  On
   the homogeneous reflective sphere of
   :file:`tests/gates/sn/solve/test_krylov_restart_signature.py`
   (``inner_tol = 1e-8``) the :math:`k_\infty` error is
@@ -1376,6 +1573,12 @@ Gotchas
   Krylov :math:`k` is set against the inner tolerance, not against the
   identity's machine-precision floor.  The end-of-solve convergence-claim
   check still measures the assembled equation's residual.
+* **The criterion can clear on a solve scipy refused.**  The recorded
+  preconditioned residual and scipy's true-residual acceptance are
+  different tests, and after the first restart cycle the first is not
+  even scipy's inner test.  The record's ``accepted`` field holds scipy's
+  verdict and vetoes ``converged``, so read ``converged`` (or the
+  report), never the criterion's last value alone.
 * **The Krylov path is Jacobi-only, and must stay so while the
   Gauss–Seidel inverse is partial.**  The scheduled sibling's inverse is
   exact only on :math:`\{y_{\rm out} = 0\}` (ERR-071 part 5;
@@ -1542,10 +1745,10 @@ The identity that must hold, and now does:
 ..  A structural inverse-contract identity, not a solver claim.)
 
 **How it surfaced.**  Nothing excited the kernel until the P1-DSA arm.
-The DSA-preconditioned GMRES posture builds :math:`M = (I +
+The DSA-preconditioned GMRES posture builds :math:`P = (I +
 \mathcal{C})\circ(L+C)^{-1}`; with the :math:`\ell \ge 1` gain active
 the Krylov residual acquired a pure outflow-row component (measured
-:math:`\|Mq\|/\|q\| = 1.07\times10^{-15}` on that vector — :math:`M`
+:math:`\|Pq\|/\|q\| = 1.07\times10^{-15}` on that vector — :math:`P`
 singular), so full-restart GMRES stalled at an :math:`O(1)` **true**
 residual while its *preconditioned* residual sat at
 :math:`10^{-31}`.  The **convergence-claim check**
@@ -1878,11 +2081,28 @@ Phase 3 of the stencil-assembly campaign), consuming the assembly mode
   commit ``ca7d9c21`` on branch ``fix/krylov-sweep-preconditioner``).
   Without a corrector, ``_within_group_krylov`` had handed GMRES the
   identity since the R-1 carve (2026-05), so the inner count grew with
-  the unknowns; it now takes ``seeded_inverse(LC)``, the full-space
-  sweep inverse that R6 had made exact, and the DSA posture composes
+  the unknowns; #200 made it take ``seeded_inverse(LC)``, the full-space
+  sweep inverse that R6 had made exact, with the DSA posture composed
   onto the same object (:ref:`sn-krylov-sweep-preconditioner`).  The
   :math:`\sigma_r`-foldable preconditioner of #200's second stack is
   split to #575.
+* **The preconditioner is a stated operator; the inner record reads
+  scipy's stopping quantity** (2026-10-05, commits ``c1dc0c3d``,
+  ``90d7c337`` and ``acca2416`` on the same branch, #200 follow-up).
+  ``KrylovAcceleration`` lost its default preconditioner (with none
+  passed it had chosen ``A.inverse()`` when ``A`` was invertible and no
+  preconditioner otherwise, in silence) and its ``Preconditioner``
+  callable alias; the SN builder's closure, a second spelling of the sweep
+  bit for bit equal to that default, retired, and ``_within_group_krylov``
+  passes ``LC.inverse()`` or ``(IdentityOperator() + corrector) @
+  LC.inverse()``, and the ``test_p200_4`` witness holds the DSA
+  source-iteration step equal to Richardson on that operator
+  (:ref:`sn-krylov-dsa-source-iteration-is-richardson`).  The ``inner(gmres)`` record's
+  criterion became :math:`\lVert P r\rVert/\lVert P q\rVert` and the
+  record gained ``accepted``, scipy's verdict, which vetoes ``converged``
+  (ERR-097); the exact-breakdown carve-out confirms the true residual
+  (ERR-098); and ERR-053 was re-gated, because the sweep-preconditioned solves no
+  longer reach a restart of 50.
 
 
 References

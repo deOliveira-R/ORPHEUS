@@ -1180,6 +1180,7 @@ def test_info_warning_fires_on_genuine_nonconvergence(monkeypatch) -> None:
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-098")
 def test_breakdown_on_an_inconsistent_system_warns_and_is_not_accepted() -> None:
     r"""qa's F2 (2026-10-05): scipy sets the preconditioned residual to a
     literal 0.0 at EVERY Arnoldi breakdown, including on an INCONSISTENT
@@ -1216,6 +1217,7 @@ def test_breakdown_on_an_inconsistent_system_warns_and_is_not_accepted() -> None
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-097")
 @pytest.mark.parametrize("seed", range(4))
 def test_krylov_record_is_not_converged_when_scipy_refuses_a_cleared_criterion(seed: int) -> None:
     r"""The user's ruling (2026-10-05, ERR-097): a record cannot read
@@ -1258,22 +1260,22 @@ def test_krylov_record_is_not_converged_when_scipy_refuses_a_cleared_criterion(s
 # preconditioner (qa's #200 review, item 3; the user's ruling 2026-10-04)
 # ───────────────────────────────────────────────────────────────────────
 #
-# scipy's left-preconditioned GMRES steers its inner loop on ‖M r_k‖ ≤
-# rtol·‖M b‖, reports ‖M r_k‖/‖b‖ to a ``pr_norm`` callback, and accepts the
+# scipy's left-preconditioned GMRES steers its inner loop on ‖P r_k‖ ≤
+# rtol·‖P b‖, reports ‖P r_k‖/‖b‖ to a ``pr_norm`` callback, and accepts the
 # solve on the true residual ‖b − A x‖ ≤ rtol·‖b‖ (``gmres`` in
 # ``scipy/sparse/linalg/_isolve/iterative.py``). The record's one criterion,
-# ``pr_residual``, is the callback reading rescaled by ‖b‖/‖M b‖, so it IS
-# the loop's own test, ‖M r_k‖/‖M b‖. Until 2026-10-04 it recorded the raw
-# reading, which is relative only when ‖M b‖ = ‖b‖: true of the identity and
-# false of the SN sweep (‖M b‖/‖b‖ from 0.04 to 21.7 on qa's slabs).
+# ``pr_residual``, is the callback reading rescaled by ‖b‖/‖P b‖, so it IS
+# the loop's own test, ‖P r_k‖/‖P b‖. Until 2026-10-04 it recorded the raw
+# reading, which is relative only when ‖P b‖ = ‖b‖: true of the identity and
+# false of the SN sweep (‖P b‖/‖b‖ from 0.04 to 21.7 on qa's slabs).
 #
 # The fixture: a 40-unknown non-symmetric tridiagonal with a varying diagonal
-# d, preconditioned by s·diag(1/d). Scaling M by a scalar s leaves every
+# d, preconditioned by s·diag(1/d). Scaling P by a scalar s leaves every
 # GMRES iterate unchanged in exact arithmetic (the Arnoldi basis is
 # normalised; the Hessenberg entries, the rotated right-hand side and the
 # stopping threshold all scale by s), and for s a power of two the scaling is
 # exact in binary floating point, so the iterates are bit-identical. The two
-# scales 1/16 and 16 put ‖M b‖/‖b‖ at 0.020 and 5.1 (``[M]`` 2026-10-05,
+# scales 1/16 and 16 put ‖P b‖/‖b‖ at 0.020 and 5.1 (``[M]`` 2026-10-05,
 # ``scratch/reference_architecture/p3/gates200b/probe_l0.py``): far from 1 in
 # both directions, which is where the raw reading and the ruled one part.
 

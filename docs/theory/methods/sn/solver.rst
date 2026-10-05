@@ -840,8 +840,9 @@ raw.  They consume a **splitting** of it — a decomposition
 :math:`N` is evaluated on the previous iterate (Hackbusch 2016, §11).
 Source iteration *is* that decomposition
 (:math:`\psi \leftarrow M^{-1}(q + \sum_i N_i\psi)`); Krylov uses
-:math:`M^{-1}` as its preconditioner and applies :math:`M - N`
-matrix-free.
+:math:`P = M^{-1}` as its left preconditioner (or :math:`P = (I +
+\mathcal{C})M^{-1}` under DSA, :ref:`sn-krylov-sweep-preconditioner`)
+and applies :math:`M - N` matrix-free.
 
 Choosing which leaf is inverted and which is lagged is a **solver**
 decision, not a property of the equation.  Since 2026-09-13 (the

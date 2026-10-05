@@ -1340,13 +1340,17 @@ records only the SN-specific consumption:
   WDD sweep of :doc:`slab_one_group`, reached as an operator;
 * :class:`~orpheus.numerics.iteration.KrylovAcceleration`'s
   ``preconditioner`` parameter (renamed from ``inverter`` — a GMRES
-  *left preconditioner* :math:`M \approx \bigl(A - \sum_i g_i\bigr)^{-1}`
+  *left preconditioner* :math:`P \approx \bigl(A - \sum_i g_i\bigr)^{-1}`
   approximates the FULL within-group system inverse over the variadic
   gains — for the SN within-group system,
   :math:`(L+C-S-N_{2n}-B)^{-1}` — a
   different object from the iteration's step inverse; the old name was
-  a category mistake) defaults to ``A.inverse().apply`` — the sweep —
-  when ``A`` is invertible.
+  a category mistake) has no default: it is a
+  :class:`~orpheus.numerics.operator.LinearOperator` the caller states.
+  The SN within-group Krylov builder states the sweep,
+  ``(L+C).inverse()``, the :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+  above (:ref:`sn-krylov-sweep-preconditioner`, which records why no
+  default is right for every model).
 
 .. note:: **Re-framed (2026-06-12, Issue #195).**
 

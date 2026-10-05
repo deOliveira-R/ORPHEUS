@@ -42,6 +42,27 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-05
+     - **The Krylov preconditioner is a stated operator, and the inner
+       GMRES record reads scipy's stopping quantity** —
+       ``KrylovAcceleration`` takes its left preconditioner :math:`P` as
+       a keyword-only operator with no default (plain GMRES is
+       ``IdentityOperator()``, written at the call site), and
+       ``_within_group_krylov`` states ``LC.inverse()`` or
+       ``(IdentityOperator() + corrector) @ LC.inverse()``; a gate holds
+       the DSA source-iteration step equal to Richardson on that
+       :math:`P`.  The ``inner(gmres)`` record's criterion is
+       :math:`\lVert P r\rVert/\lVert P q\rVert`, the quantity scipy's
+       inner loop stops on in its first restart cycle, where it had read
+       :math:`\lVert P r\rVert/\lVert q\rVert`, and the record's
+       ``accepted`` field, scipy's own verdict, vetoes ``converged``
+       (ERR-097); an exact breakdown is confirmed against the true
+       residual (ERR-098); ERR-053 is
+       re-gated on a one-cycle value row, since the sweep-preconditioned
+       solves no longer reach a restart of 50
+       (:ref:`sn-krylov-sweep-preconditioner`).
+     - #200
+     - ``c1dc0c3d``, ``90d7c337``, ``acca2416`` on ``fix/krylov-sweep-preconditioner``
    * - 2026-10-04
      - **The sweep preconditions every within-group Krylov solve** —
        ``_within_group_krylov`` hands GMRES ``seeded_inverse(L + C)``
