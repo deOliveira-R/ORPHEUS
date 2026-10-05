@@ -106,6 +106,8 @@ Open the file for the verdict; the hook only tells you whether to open it.
 ### Stochastic / Monte Carlo seam
 - [MC seam](mc_seam_feynman_kac_particle_frames.md) — MC = Strategy over the SAME system iff it yields a MARKOV VIEW (not `sample` on terms), admits IDENTITY axis factors, and the discretisation is a FRAME (M/R); MC state = empirical measure in V*; only stochastic layer-1 datum = the multiplicity LAW. Open before any MC / hybrid / CADIS / CMFD brief.
 
+- [geometric kernel seed](geometric_kernel_seed_pencil_crofton_frames.md) — rho = chart, pi = invariant ⇒ quadric pencil 3/3; lines = phase space/flow (Crofton pushforwards); Line=Plücker, Ray=phase pt; germ rule.
+
 ### Green's-function family / spatial closure / diffusion
 - [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
 - [trajectory foreign frames](trajectory_resolvent_foreign_frames.md) — the foreign-frame sweep behind that family (BIE / spectral / bundle verdicts).

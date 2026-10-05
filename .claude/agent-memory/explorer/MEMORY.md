@@ -59,4 +59,7 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Reflective albedo retirement blast](reflective_albedo_retirement_blast.md) — descriptor vs realized algebra; reflective_axes isinstance door; transcriptions break.
 - [Boundary-law method matrix](boundary_law_method_matrix.md) — typed laws skip the registry; admitted-but-mis-realized is a status; no law in all five.
 - [Content identity landscape](content_identity_landscape.md) — who hashes, who raises, Materials unpicklable; the eq/hash spy is the census.
+- [Trajectory-resolvent family inventory](trajectory_resolvent_family_inventory.md) — no production importer; twin map; tautology share.
+- [Ray/characteristic machinery map](ray_characteristic_machinery_map.md) — six chord bodies agree; chord_half_lengths straddles branches untested.
 - [Traced-memo client census](traced_memo_client_census.md) — unpickle skips __post_init__ (untraced); MR result all-data; key needs bind.
+- [Geometric computation census](geometric_computation_census.md) — RigidMotion typed, values absent; one quadratic; mesh metrics degenerate.
