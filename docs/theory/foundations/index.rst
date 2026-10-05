@@ -132,6 +132,15 @@ represented — not what collision, scattering, and fission *are*.
      - The angular basis and the addition theorem.
    * - :doc:`/theory/foundations/structured_geometry`
      - Meshes and structured geometry.
+   * - :doc:`/theory/foundations/chart_and_chord`
+     - The **geometric kernel** of a 1-D geometry: the coordinate map of a
+       coordinate system as the quotient by its symmetry group
+       :math:`G_c` (the spatial twin of the directional orbit spaces),
+       oriented lines in Plücker coordinates, the chord of a line through
+       the concentric level sets solved once in the orbit space with the
+       obliquity :math:`1/|P\Omega|` as the one factor of the three
+       charts, point location, and the invariant measure on lines with
+       Cauchy's mean chord.
    * - :doc:`/theory/foundations/infinite_medium`
      - The 0-D infinite-medium (:math:`k_\infty`) baseline — the analytical
        anchor every method must reproduce. **Not** spatial homogenization;
@@ -157,4 +166,5 @@ represented — not what collision, scattering, and fission *are*.
    discrete_measures
    spherical_harmonics
    structured_geometry
+   chart_and_chord
    infinite_medium

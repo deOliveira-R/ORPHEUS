@@ -332,6 +332,20 @@ in posing: the orbit partition bounds how coarse an admissible pose may
 be, and among admissible refinements the good ones respect it; refinement
 is the flow, symmetry the admissibility bound.
 
+The same construction acts on **positions**. A 1-D coordinate system is a
+**chart**: its coordinate :math:`c` (the slab's :math:`x`, the distance to
+the cylinder's axis or the sphere's centre) is the quotient map by its
+symmetry group :math:`G_c = \{g \in E(3) : c \circ g = c\}`, whose
+generic isotropy is the angular symmetry the problem spends and whose
+singular strata are the centre and the axis
+(:ref:`chart-and-chord-chart`; :class:`~orpheus.geometry.chart.Chart`).
+A straight line is a **line** in Plücker coordinates
+(:class:`~orpheus.geometry.line.Line`), and its **chord** through the
+level sets of :math:`c` is solved once in the orbit space, every 3-D
+length being an orbit-space length times the obliquity
+:math:`1/|P\Omega|` (:ref:`chart-and-chord-chord`;
+:class:`~orpheus.geometry.chord.ConcentricPartition`).
+
 
 The Solution half — splitting, resolvent, iteration, outcome
 ------------------------------------------------------------
@@ -452,6 +466,15 @@ The concept table
    * - Orbit space; quotient; descent
      - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
+   * - Chart (a coordinate system's orbit map and symmetry group); singular stratum
+     - :class:`~orpheus.geometry.chart.Chart` (derived from its kept columns and its linear group), :class:`~orpheus.geometry.chart.SingularStratum`; a line's image :class:`~orpheus.geometry.chart.RadialImage`, :class:`~orpheus.geometry.chart.AxialImage`
+     - :ref:`chart-and-chord-chart`, :eq:`geometry-radial-coordinate`, :ref:`chart-and-chord-isotropy`, :ref:`chart-and-chord-strata`
+   * - Line (Plücker coordinates); ray as a line with a start
+     - :class:`~orpheus.geometry.line.Line`
+     - :ref:`chart-and-chord-lines`
+   * - Concentric partition; chord; crossings; measure on lines
+     - :class:`~orpheus.geometry.chord.ConcentricPartition`, :class:`~orpheus.geometry.chord.Chord`, :class:`~orpheus.geometry.chord.Crossings`; :meth:`~orpheus.geometry.chart.Chart.beam_density`
+     - :ref:`chart-and-chord-chord`, :eq:`geometry-line-crossing-law`, :eq:`geometry-crossing-order`, :eq:`geometry-chord-segment-lengths`, :eq:`geometry-cylinder-axial-factor`, :ref:`chart-and-chord-location`, :eq:`geometry-measure-on-lines`, :eq:`geometry-cauchy-mean-chord`
    * - Mesh-free function; angular chart
      - :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, :class:`~orpheus.numerics.mesh_free_function.Symbolic`; :class:`~orpheus.geometry.coord.AngularChart` (:attr:`CoordSystem.angular_chart <orpheus.geometry.coord.CoordSystem.angular_chart>`)
      - :ref:`structured-geometry-mesh-free-functions`, :ref:`structured-geometry-angular-chart`, :ref:`structured-geometry-two-lifts-branch-1`
@@ -545,6 +568,14 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   sandwich rather than the leaf pullback (#558), and
   ``ScalarSourceSink.__add__`` adds a hand-written broadcast,
   :math:`\pi^{*}` outside its type.
+- **Chords, point location and the measure on lines are spelled outside
+  their kernel** (`[M]` 2026-10-05, the geometry census at ``a336bde4``,
+  :ref:`chart-and-chord-deferred`): 13 chord square roots and 14
+  geometric discriminants outside the SymPy origins, 8 point-location
+  spellings with two boundary conventions, and 3 realisations of the
+  measure on lines, none calling
+  :class:`~orpheus.geometry.chord.ConcentricPartition`, which has no
+  consumer yet (#405).
 - **Exit-report members still listed as not yet built** (the outcome
   module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen

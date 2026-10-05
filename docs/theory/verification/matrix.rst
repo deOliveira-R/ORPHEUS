@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15830**
+Total tests collected: **15948**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1348, 8.5%
-   L1, 2278, 14.4%
+   L0, 1387, 8.7%
+   L1, 2290, 14.4%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12106, 76.5%
-   unmarked, 27, 0.2%
+   foundation, 12166, 76.3%
+   unmarked, 34, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15724
+   explicit, 15835
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 27
+   unmarked, 34
 
 Module × level grid
 -------------------
@@ -310,11 +310,16 @@ Module × level grid
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
+   geometry/test_chart, 4, 0, 0, 0, 18, 0
+   geometry/test_chord, 35, 0, 0, 0, 30, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
+   geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 7
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
+   geometry/test_line, 0, 0, 0, 0, 9, 0
+   geometry/test_line_measure, 0, 12, 0, 0, 0, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
@@ -633,7 +638,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 442, 0
+   test_layer_imports, 0, 0, 0, 0, 445, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -746,6 +751,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-resolution-a``, 25
    ``peierls-white-bc-slab``, 25
    ``dc-slab``, 24
+   ``geometry-chord-segment-lengths``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
@@ -790,6 +796,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``two-group-roots``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
+   ``geometry-line-crossing-law``, 12
+   ``geometry-measure-on-lines``, 12
    ``kinf-1g``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
@@ -802,6 +810,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
    ``sn-homogenization-bilinear``, 11
+   ``geometry-cylinder-axial-factor``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -853,6 +862,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
+   ``geometry-crossing-order``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
@@ -958,6 +968,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``energy-condensation-chi-simplex-preservation``, 1
    ``energy-condensation-fractional-collapse``, 1
    ``gendf-mf6-yield``, 1
+   ``geometry-cauchy-mean-chord``, 1
+   ``geometry-radial-coordinate``, 1
    ``harmonic-discrete-orthogonality``, 1
    ``hebert-3-323``, 1
    ``ld-cartesian-2d-bilinear-coeffs``, 1
@@ -1712,7 +1724,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**27 tests** have no V&V level marker.
+**34 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1725,6 +1737,7 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/gates/numerics/test_riesz_legs.py``, 8
+   ``tests/gates/geometry/test_kernel_corroboration.py``, 7
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, 5
    ``tests/gates/numerics/test_iteration_record.py``, 4

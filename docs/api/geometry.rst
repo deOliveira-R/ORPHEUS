@@ -281,6 +281,55 @@ L0 / L1 verification suites.
    :show-inheritance:
    :noindex:
 
+Charts, lines and chords
+------------------------
+
+The geometric kernel of a 1-D geometry
+(:doc:`/theory/foundations/chart_and_chord`).
+:class:`~orpheus.geometry.chart.Chart` is a coordinate system read as the
+quotient of space by its symmetry group :math:`G_c`, every verb derived
+from its kept columns and its linear group: the orbit coordinate, the
+membership of a rigid motion in :math:`G_c`, the singular strata, the
+measure, the projected speed :math:`|P\Omega|`, the density of the
+measure on lines, and the image of a line in the orbit space
+(:class:`~orpheus.geometry.chart.RadialImage` or
+:class:`~orpheus.geometry.chart.AxialImage`). :class:`~orpheus.geometry.line.Line` is a batch of
+oriented lines in Plücker coordinates.
+:class:`~orpheus.geometry.chord.ConcentricPartition` is the level sets
+:math:`c = r_0 < \dots < r_n` posed in space by a rigid motion, built
+from a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
+by :meth:`~orpheus.geometry.chord.ConcentricPartition.of`; its
+:meth:`~orpheus.geometry.chord.ConcentricPartition.chord` returns a
+:class:`~orpheus.geometry.chord.Chord` (slots, lengths, crossings) and its
+:meth:`~orpheus.geometry.chord.ConcentricPartition.region_containing`
+locates a bare orbit coordinate, inner-owns on :math:`[r_0, r_n]`, with
+the exteriors as the out-of-range codes :math:`n` and :math:`n + 1`.
+
+These three are rendered without ``:noindex:``, so the roles above and on
+the theory page resolve to links.
+
+.. automodule:: orpheus.geometry.chart
+   :members:
+   :show-inheritance:
+
+.. automodule:: orpheus.geometry.line
+   :members:
+   :show-inheritance:
+   :exclude-members: Line
+
+.. The ``shape`` property is excluded: indexed, it collides with
+   ``Axis.shape`` for every unqualified ``shape`` cross-reference the api
+   pages already carry (``more than one target found``, `[M]` 2026-10-05).
+
+.. autoclass:: orpheus.geometry.line.Line
+   :members:
+   :show-inheritance:
+   :exclude-members: shape
+
+.. automodule:: orpheus.geometry.chord
+   :members:
+   :show-inheritance:
+
 The geometric extent
 --------------------
 
