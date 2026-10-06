@@ -176,6 +176,53 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 
 - **The import edge** `geometry` -> `numerics.manifold` is allowed by `tests/gates/test_layer_imports.py` (geometry sits above L1), but `numerics.symmetry` imports `geometry.transformation`, a known package cycle (the file's comment at line 208). The kernel imports submodules (`from orpheus.numerics.manifold import Sphere`), never `from orpheus.numerics import ...`; check by inject-and-run (`plan-authoring` §6d).
 
+## P0 API sketch (the main agent, 2026-10-05; checkpoint with the user before code)
+
+**`Chart`** (`orpheus/geometry/chart.py`), the 1-D charts only (ruled). For E's pair (coordinate system, kept coordinates), the kept coordinates are implied by the coordinate system in 1-D ({x}, {r}, {r}); E adds the field with the (r, z) and 2-D charts.
+- `orbit_coordinate(points)`: c(x) = x_0 (slab), sqrt(x_0^2 + x_1^2) (cylinder; the axis is e_z, the chart's column 2), |x| (sphere), in the canonical frame. Vectorised over (..., 3).
+- `contains(motion: RigidMotion) -> bool`: G_c = {g in E(3) : c o g = c}, decided in closed form: slab, Q e_x = e_x and t_x = 0; cylinder, Q e_z = +-e_z and the in-plane part of t is 0; sphere, t = 0. (E's attack decided it on 400 random points; the closed form is exact.)
+- `singular_strata`: the sphere's centre (isotropy O(3)), the cylinder's axis (D_inf_h); the slab has none. Each a value: the orbit-coordinate value 0.0 and its isotropy `SubgroupOfO3`.
+- `measure(edges)`: delegates to `CoordSystem.measure`, the one definition.
+- `obliquity(directions)`: 1/|P Omega| (1 on the sphere; 1/sqrt(Omega_x^2 + Omega_y^2) on the cylinder; 1/|Omega_x| on the slab), with |P Omega|^2 summed from components, never 1 - Omega_z^2.
+- `line_measure(...)`: the invariant measure on lines pushed to the chart (sphere 2 pi b db; cylinder db per unit height with the direction measure; slab |mu| d mu), integrated by the existing `chord_quadrature`.
+
+**`Line`** (`orpheus/geometry/line.py`): a batch of oriented lines in Plucker coordinates, `direction` (..., 3), unit, refused otherwise; `moment` (..., 3) = p x Omega. `Line.through(points, directions)`; `foot` (the point closest to the origin, Omega x m); `at(t)`; `moved_by(motion)`. Two base points on one line give one line.
+
+**`ConcentricPartition`** (`orpheus/geometry/chord.py`): a `Chart`, the breakpoints r_0 < ... < r_n, and its `pose: RigidMotion` (the identity by default; ruled). Built from a `StructuredGeometry` by `ConcentricPartition.of(geometry, pose=...)`; it reads only the coordinate system and the breakpoints.
+- `chord(line) -> Chord`: the line is moved into the canonical frame by the pose's inverse and projected into the orbit space.
+- `region_containing(rho)`: inner-owns on [r_0, r_n]; the cavity and the exterior as typed values.
+
+**`Chord`**, fixed shape, batch-friendly:
+- curvilinear charts: `impact_parameter` b (...,), `half_chords` h_k (..., n+1) in the conditioned form (absent, NaN-free masked, where b >= r_k, so a tangency is not a crossing), `obliquity`, and the 3-D parameter of the closest approach along the line. Crossings are at s = +-h_k * obliquity about it; each `Crossing` (parameter, breakpoint index, sense) carries the region it enters, from the crossing order. The orbit-space length of region k on one side is (r_{k+1}^2 - r_k^2)/(h_{k+1} + h_k) (no cancellation), or h_{k+1} for the innermost region crossed; the cavity of a hollow body is the segment |s| < h_0.
+- the slab: the orbit space is the x axis and the projection is monotone, so crossings are at s_k = (r_k - x_0)/Omega_x, segment lengths (r_{k+1} - r_k)/|Omega_x|; Omega_x = 0 gives the degenerate line (one segment, or on_interface when x_0 is a breakpoint).
+- `half_line(start_parameter)`: the crossings beyond a start, for a backward characteristic (the oracle's first leg) or a forward one.
+- `on_interface(k, k+1)`: P Omega = 0 with the line on a breakpoint (ruled).
+
+**Gates:** the test-architect's spec (`scratch/characteristic_architecture/seed_verification_spec.md`), with its directional-locator rows (L2, L3, L5, L6) re-posed onto `Crossing` and the typed regions, and its NEEDS answered by the rulings above.
+
+## P0 landed on its branch (2026-10-05)
+
+**Commits on `feature/geometric-kernel-seed`:** `fe0ca696` (the kernel `orpheus/geometry/{chart,line,chord}.py` and 114 gates in `tests/gates/geometry/test_{line,chart,chord,line_measure,kernel_corroboration}.py`), `82ae7013` (the theory page `docs/theory/foundations/chart_and_chord.rst`, API section, concept-table rows, regenerated matrix). Merge status: read git, not this line.
+
+**Evidence** (`[M]` 2026-10-05):
+- five gate files 114 passed under `-O`, also with `-W error::RuntimeWarning`; `tests/gates/geometry` 1297 passed; layer, docstring-xref and geometry gates 1790 passed; V&V harness audit 17 passed;
+- mutation battery 45 arms, each red on its target row (`scratch/characteristic_architecture/seed_gates/README.md`, v2 section); the subnormal gate's two rows red under the old forms (the main agent's in-process mutations);
+- Sphinx `-E -W --keep-going` 0 warnings; `dead_references` 0 of 66;
+- pyright 0 errors on `orpheus/geometry/`.
+
+**Review:** qa and elegance-enforcer, two rounds each, every finding resolved (`seed_qa.md`, `seed_elegance.md`). Defects found and fixed during the carve, each now gated: a NaN direction admitted; a NaN coordinate given a region index; an inf direction warning before refusal; posed chord parameters measured on the canonical line; negative exterior codes indexing a material table (the user's ruling: out-of-range codes); 0 * inf in untraversed slots and -inf * 0 in the impact parameter at subnormal |P Omega| (the radial image now carried in orbit-space units).
+
+**Design changes during the carve, ruled or by principle:** the directional locator retired (a `Crossings` entry carries the region entered); `Chart` derived from (kept columns, group) (ruled); `Chart.image` -> `RadialImage`/`AxialImage`, so `Chord` has no optional fields; slots derived from the crossings, `Crossings.region_entered` the one home of the crossing-order rule; the measure's quadrature over b is the consumer's (geometry may not import `derivations/`, where `chord_quadrature` lives) `[REFUTED 2026-10-05]` the sketch's "integrated by the existing chord_quadrature"; `beam_density` over b >= 0; `parallel` decided exactly, no band.
+
+**Deferred, each with its trigger:**
+- the beam density's sphere-area constants collapse onto the measure's table: with E's (r, z) chart (comment on #551);
+- caching `Chord.slot_length`/`interface` (each read recomputes `region_containing`): when P1 measures a cost;
+- the half-chord product over/underflows for radii beyond 1e+-154 (qa: not needed; a constructor refusal would be the type-level fix): no consumer near those scales;
+- the theory page's Cauchy and Santalo citations without equation numbers: #579 (W7);
+- the migration of the other spellings (13 chord square roots, 14 discriminants, 8 locators, 3 line measures): #578, which is phase P2.
+
+**Next:** P1's design exchange (the Variant-alpha references posed on `StructuredGeometry` through the kernel; one oracle; the closure rank derived; the attenuated integral as the reference's single implementation; the test roster C4), with the user, before any code. `a336bde4` (the hoist) stays on its branch as the speed target.
+
 ## Phases (`[HYPOTHESIS]` 2026-10-05, the main agent; the user rules when the plan is polished)
 
 - **P0, the seed (ruled design).** The kernel in `orpheus/geometry/`: the values, the posed concentric geometry, the orbit-space chord with the obliquity, `Crossing`, typed regions, `region_containing`, the measure on lines per chart. Gates: `scratch/characteristic_architecture/seed_verification_spec.md`, re-measured on the real kernel. Theory: a new section on the geometric kernel (the archivist), and a row in `docs/architecture/conceptual_view.rst`. Done when: the spec's gates are green, each with its first red recorded, and the L4 harness shows the kernel agreeing with today's independent spellings.
@@ -198,6 +245,9 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-05, the user, on the revised seed:** "Accept": crossings solved once in the orbit space, the obliquity 1/|P Omega| as the factor the three charts share; directions as points of `numerics.manifold.Sphere`; lines as (direction, moment) values; a `Crossing` produced by the step that hits a surface. This supersedes the first-pass design's crossing law, measure and directional locator (see "W5 review", refuted list).
 - **2026-10-05, the user, on placement:** "In the seed": a concentric geometry is posed by a `RigidMotion` from its canonical frame, the identity by default.
 - **2026-10-05, the user, on a line lying in an interface:** "Typed on_interface": on_interface(k, k+1), never folded into inner-owns.
+- **2026-10-05, the user, on the seed and Architecture E's `Chart`:** "P0 mints Chart (1-D charts)". E's `Chart` (#551; `scratch/boundary_ontology/orbifold_architecture_round2.md`: the pair (coordinate system, kept coordinates), realizing G_c, deriving the orbit map and its measure, the singular strata) is pulled forward for cartesian {x}, cylindrical {r}, spherical {r} only; the seed's crossings, obliquity and measure on lines are its verbs. E later adds (r, z), the deck group and the 26-site switch.
+- **2026-10-05, the user, on the exterior codes** (both P0 reviewers: -1/-2 are valid numpy indices, `[M]` a hollow sphere's optical depth 7.0 instead of 5.0): "Out-of-range codes n, n+1": regions 0..n-1, the inner exterior n, the outer exterior n+1; the interface in its own field.
+- **2026-10-05, the user, on the chart's form:** "Derive it now": `Chart` = (kept columns, linear group), its verbs derived; the five matches on the coordinate system go.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)

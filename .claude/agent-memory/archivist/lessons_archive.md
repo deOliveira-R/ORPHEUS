@@ -14086,3 +14086,20 @@ FUNCTION-level ones, and the generated `error_index.md` says 3. The clause not c
 "Tagging & linking" says Nexus writes the `tests` edge from the marker, with no word on per-row marks.
 Correction: keep the row-level marker (a function-level one would claim the two controls), and report the
 graph's blindness as a tooling gap.
+
+## L-120 — An indexed automodule reddens OTHER pages; napoleon Attributes mint no target (2026-10-05)
+
+`[M]` 2026-10-05, the geometric-kernel seed page (`docs/theory/foundations/chart_and_chord.rst`):
+adding `automodule:: orpheus.geometry.line` WITHOUT `:noindex:` (so the new page's roles link)
+produced 30+ `-W` warnings on pages I never touched (`docs/api/collision_probability.rst:18`,
+`mesh.rst`, `derivations.rst`, ...): "more than one target found for cross-reference 'shape':
+orpheus.geometry.line.Line.shape, orpheus.numerics.axis.Axis.shape". Unqualified `shape`
+references that resolved uniquely to the one indexed `Axis.shape` became ambiguous the moment a
+second indexed `shape` existed. Fix: `autoclass` the class with `:exclude-members: shape` (and
+`:exclude-members: Line` on the automodule). Separately, the same render tripped
+"Field list ends without a blank line" because `Line`'s docstring had a prose paragraph AFTER its
+numpy `Attributes` section (napoleon swallows it); the docstring is code, so it went to main.
+And napoleon's `Attributes` entries are NOT Python-domain targets in this corpus (0 `id=` for
+`Chord.line` in the built api page), so `:attr:` to a dataclass field documented only there renders
+plain text; my import probe also read it DEAD (a field with no class default has no class attribute,
+L-093), so use a literal.

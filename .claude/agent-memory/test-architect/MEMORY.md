@@ -35,7 +35,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **#200 sweep-preconditioned Krylov gates (W3, `fix/krylov-sweep-preconditioner`)** — delivered 2026-10-04, evidence `scratch/reference_architecture/p3/krylov200/`. On resume: confirm landed.
 - **#200 follow-up gates (W3, same branch)** — ERR-053 re-homed + value row, inner-record rows (L0 + SN), 2-D fixture row; delivered 2026-10-05, evidence `scratch/reference_architecture/p3/gates200b/`. On resume: confirm landed; tag the record rows with the new ERR id. → **`L107`**
 - **Chord-oracle hoist gates (W3, `refactor/chord-oracle-axial-lift`)** — delivered 2026-10-05: cylinder row retired, axial-cosine column law added; evidence `scratch/reference_architecture/p3/oracle_hoist/gates/`. On resume: confirm landed.
-- **Geometric kernel seed (W5→W1, `characteristic_reference_architecture.md`)** — verification spec delivered 2026-10-05: `scratch/characteristic_architecture/seed_verification_spec.md`, probes `seed_spec_probes/`. On resume: re-measure the prototype constants on the real kernel; answer its NEEDS 1-10.
+- **Geometric kernel seed (W5→W1, `characteristic_reference_architecture.md`)** — verification spec delivered 2026-10-05: `scratch/characteristic_architecture/seed_verification_spec.md`, probes `seed_spec_probes/`. Gates LANDED (uncommitted) 2026-10-05 on `feature/geometric-kernel-seed`: 5 files `tests/gates/geometry/test_{line,chart,chord,line_measure,kernel_corroboration}.py`, 34-arm battery + README `scratch/characteristic_architecture/seed_gates/`. On resume: confirm landed.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
