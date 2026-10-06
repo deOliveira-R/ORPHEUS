@@ -360,3 +360,31 @@ A reading at any point builds that point's measure and applies it to the converg
 **Deferred, each with its trigger:** a nodal basis is a precondition of the single-sign test (elegance C3): P1's panel basis must be nodal, or the test reads the mode's values through the basis's evaluation map; the 7 trajectory-resolvent k_inf-guess sites retire with P1's rebuild; Krein-Rutman and Perron-Frobenius theorem numbers are not on disk (a W7 task).
 
 **Next:** P1's API sketch, a checkpoint with the user, then code (surgical carve).
+
+## ⏸ COMPACTION POINT — 2026-10-06 (second), P0.5 merged, P1's API sketch next
+
+**State:** `main` is `d00a441b`, pushed. It holds P0 (the geometric kernel, `82ae7013`), P0.5 (the reference numerics kernel `56328fbd`, its docs `a5ba5c81`, CI `gates` run 37416616383 green), and the plan and memory commits. Full not-slow suite at `56328fbd`: 15 446 passed; the 4 failures are the `test_write_guards` worktree artefact. No branch is open apart from the parked hoist `refactor/chord-oracle-axial-lift` (`a336bde4`, P1's speed target: the cylinder A|B|A brute call 1.3 s -> 0.073 s). The tree is clean apart from `scratch/`.
+
+**Read in order:**
+1. the "Rulings ledger" entries dated 2026-10-06 (P1's design D1-D5 and every later ruling: the Krein boundary resolvent, Galerkin over lines with graded panels, the least solution, modes and adjoint in scope, voids admitted, a line in an interface refused, the 26 duplicated SymPy rows retired, references insulated from production, the gate's scope and width, the exact reducible least solution);
+2. "P1, first-pass design" (D1-D5; D1's rank and D3's collocation are superseded by the rulings);
+3. "P0.5 landed" (what the kernel is, its deferrals);
+4. the verification spec `scratch/characteristic_architecture/p1_verification_spec.md` (49 gates, the 298-row roster KEEP 122 / RE-POSE 99 / RETIRE 77, the SN consumers' carry-over rule, the performance protocol, X4); the assembly measurement `scratch/characteristic_architecture/p1_assembly/report.md` and its prototype `proto.py`, `cyl.py` (a working Galerkin-over-lines assembly on the sphere, slab and cylinder, numpy and scipy only); the W5 reports `p1_w5_attacker.md`, `p1_w5_elegance.md`;
+5. the kernels: `orpheus/geometry/{chart,line,chord}.py` and `orpheus/derivations/common/dense_pencil.py`, with `docs/theory/foundations/chart_and_chord.rst` and the "reference kernel" section of `docs/theory/verification/reference_solutions.rst`.
+
+**The next step, P1's API sketch (a checkpoint with the user before code; P1 is a surgical carve, the main agent writes it).** The objects the rulings imply, each to be named and placed in the sketch:
+- the transit: a maximal in-domain run of a line, read from `ConcentricPartition.chord`'s crossings (walls = crossings at the boundary points, keyed by breakpoint index, never tuple position; the albedo paired with the wall the BACKWARD path reflects at, `[M]` the elegance probe: the other pairing moves psi by 0.34);
+- the closure as the boundary resolvent P = P_0 + E (I - T)^{-1} X: line-diagonal for specular and partial specular (the period sum over {transit, reversed transit}, the least solution, exactly 0 on a lossless trapped line); one W x W block per group for a white wall (the wall's current couples every line); periodic through the laws' deck maps (rank 1, no reversal, on the periodic slab);
+- the basis: per-region nodal (Lagrange) panels graded toward walls and interfaces (#566), nodal because `DensePencil.fundamental`'s single-sign test reads coefficients as values;
+- the Galerkin assembly over the measure on lines (the chart's `beam_density`; b split at the radii with the cosine endpoint map; about n + 8 inner points per piece; exponential arc-length panels on thick cylinder chords), its symmetry defect gated as the under-integration alarm, the 1G Rayleigh-Ritz lower bound as a theorem row;
+- the questions on `DensePencil`: the k pencil (W - P S, P F), higher modes, the adjoint pencil, the fixed source as `least_solution`;
+- the reading at a point: the per-point transport of the converged emission (directions split at tangencies with the cosine map and grazing grading near a surface);
+- one reference posed from the `GeometrySpecification`, replacing the 7 oracle classes, the 15 `solve_greens_function_*` entries, the 8-case `geometry_kind`, `Billiard`'s routing and `reference._RAYS`; its home under `orpheus/derivations/continuous/` (a new package; name to be proposed), inside the insulation gate.
+Open for the sketch to settle: where the white wall's W x W block lives relative to the line-diagonal specular closure (one boundary-resolvent object with two realizations, or the laws' own responses); the cylinder's direction measure at a point (S^2 / Stab(x), absent from the orbit catalogue, elegance E6); the migration order (build beside the old family, corroborate with the 7 temporary L4 rows, re-point the 13 SN rows, then retire).
+
+**Lessons from this stretch:**
+- A refusal comparing a computed quantity with an exact threshold is undecidable at the threshold: give it a measured margin (473 of 4000 unit-radius draws were admitted by a bare comparison with 1).
+- A rounding band is a property of the problem, not a constant: derive it from the perturbation bound (a fixed 1e-10 refused 9 of 20 pencils at cond 1e8).
+- An import gate that reads only module paths misses `from package import submodule`: read the imported names.
+- Two types in different layers that share a name collide in the first module that needs both: grep the interface vocabulary before naming (`Fundamental`, `Mode`).
+- Measure a design choice the user asks to see measured before arguing it: the assembly question turned on a 28x-175x accuracy difference no review predicted.
