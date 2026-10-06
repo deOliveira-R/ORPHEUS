@@ -108,6 +108,8 @@ Open the file for the verdict; the hook only tells you whether to open it.
 
 - [geometric kernel seed](geometric_kernel_seed_pencil_crofton_frames.md) — rho = chart, pi = invariant ⇒ quadric pencil 3/3; lines = phase space/flow (Crofton pushforwards); Line=Plücker, Ray=phase pt; germ rule.
 
+- [characteristic reference: Krein + line Galerkin](characteristic_reference_krein_line_galerkin.md) — rank = dim of line boundary space mod deck G; white = rank-W block; tangency needs endpoint substitution; Galerkin over lines.
+
 ### Green's-function family / spatial closure / diffusion
 - [variant-α family](variant_alpha_family_hindsight.md) — the 6-geometry×2-orbit family: fiber bundle on top; MPO waits for the N≥3 tripwire.
 - [trajectory foreign frames](trajectory_resolvent_foreign_frames.md) — the foreign-frame sweep behind that family (BIE / spectral / bundle verdicts).
