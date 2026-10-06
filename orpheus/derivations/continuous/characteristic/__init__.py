@@ -9,10 +9,17 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   boundary point with what its law returns, read from the law's factors;
 - :mod:`~orpheus.derivations.continuous.characteristic.closure` — the
   period of each line's unfolded path and the least solution of its cycle,
-  the line part of the boundary resolvent.
+  the line part of the boundary resolvent;
+- :mod:`~orpheus.derivations.continuous.characteristic.basis` — the panel
+  basis the emission density and the flux are represented in;
+- :mod:`~orpheus.derivations.continuous.characteristic.transport` — the
+  transport along each line on that basis: the traversals' source
+  integrals, the Volterra block and the angular flux.
 """
 
+from .basis import PanelBasis
 from .closure import LinePeriod, TrappedSource
+from .transport import TraversalRule
 from .walls import Wall, Walls
 
-__all__ = ["LinePeriod", "TrappedSource", "Wall", "Walls"]
+__all__ = ["LinePeriod", "PanelBasis", "TrappedSource", "TraversalRule", "Wall", "Walls"]

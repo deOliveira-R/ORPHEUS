@@ -33,9 +33,12 @@ for ``test_the_period_matches_the_hand_counted_table`` and
 ``test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds``,
 ``test_every_amplitude_zero_adds_nothing``,
 ``test_the_least_solution_on_a_lossless_trapped_line`` and
-``test_a_nearly_lossless_line_keeps_its_digits``. Every other row is
-``foundation``; the optical-depth rows stay there because the page's
-segment-length equation carries no label.
+``test_a_nearly_lossless_line_keeps_its_digits``. The three optical-depth
+functions (12 rows) are ``l0`` with ``verifies("characteristic-traversal-integrals")``
+since rung 2 (`[M]` 2026-10-06, their witnesses: the depth scaled by 1 + 1e-12,
+the crossing mask dropped, and a void given a floor of Sigma; together they
+redden 12 of 12, ``scratch/characteristic_architecture/p1_step_b2/battery``
+arms O1-O3). Every other row is ``foundation``.
 """
 from __future__ import annotations
 
@@ -385,7 +388,8 @@ _DEPTH_ROWS = [  # (id, chart, b, wz, rank)
 ]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-traversal-integrals")
 @pytest.mark.parametrize(("chart", "b", "wz", "rank"), [r[1:] for r in _DEPTH_ROWS], ids=[r[0] for r in _DEPTH_ROWS])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table",
                       _CHORD + "test_every_slot_length_matches_the_closed_form")
@@ -415,7 +419,8 @@ def test_the_optical_depth_of_each_traversal_is_the_closed_form(chart: str, b: f
     np.testing.assert_array_equal(tau[rank:], 0.0)
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-traversal-integrals")
 @pytest.mark.parametrize("direction", [(0.6, 0.8, 0.0), (-0.3, 0.0, float(np.sqrt(0.91)))], ids=["rising", "falling"])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table")
 def test_the_slab_optical_depth_is_the_widths_over_the_cosine(direction) -> None:
@@ -427,7 +432,8 @@ def test_the_slab_optical_depth_is_the_widths_over_the_cosine(direction) -> None
     np.testing.assert_allclose(period.optical_depth(np.array(_SIGMA_SLAB)), [want, want], rtol=8 * _EPS, atol=0.0)
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-traversal-integrals")
 def test_a_parallel_line_has_no_optical_depth() -> None:
     """A rank-0 line's tau is 0 in both columns, never the infinite slot's inf x Sigma or a NaN."""
     period = _period(_body("cylinder_solid", outer=_spec(_A_OUT)), (0.7, 0.0, 0.0), (0.0, 0.0, 1.0))

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import NoReturn
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -50,6 +50,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.geometry.chart import Chart
+from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
@@ -143,6 +144,21 @@ class Walls:
             for declared, k in zip(geometry.boundaries, indices, strict=True)
         )
         return cls(walls, n, Chart(geometry.coord))
+
+    def on(self, partition: ConcentricPartition) -> "Walls":
+        r"""The same walls keyed on ``partition``, a refinement of the body's with the same ends.
+
+        A wall is an end of the domain, so breakpoint :math:`n` becomes the
+        refinement's last index and :math:`0` stays :math:`0`; a partner is
+        re-keyed with it. That the refinement keeps the body's ends is the
+        refinement's own invariant (:class:`~.basis.PanelBasis`).
+        """
+        if partition.chart != self.chart:
+            raise ValueError(f"walls on a {self.chart.coord} body are not re-keyed onto a {partition.chart.coord} partition")
+        n, m = self.n_regions, partition.n_regions
+        index = {0: 0, n: m}
+        rekeyed = tuple(replace(w, breakpoint=index[w.breakpoint], partner=index[w.partner]) for w in self.walls)
+        return Walls(rekeyed, m, self.chart)
 
     @property
     def _slot(self) -> np.ndarray:

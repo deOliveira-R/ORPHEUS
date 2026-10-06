@@ -143,6 +143,21 @@ class LinePeriod:
         """Whether each traversal reads its transit backward."""
         return self.present & (self.candidate >= 2)
 
+    def forward_traversal(self, transit: np.ndarray) -> np.ndarray:
+        r"""The traversal of the period that reads transit ``transit`` forward, ``(..., q)`` for ``transit`` ``(..., q)``.
+
+        Every transit a line makes is read forward by its period: the first
+        traversal is transit 0 forward, and the successor rule prefers a
+        forward candidate, so a line's second transit (through a cavity) is
+        reached forward. A point's flux lives on the forward reading; the
+        reversed traversals carry the cycle for the opposite line.
+        """
+        transit = np.asarray(transit)
+        forward = (self.candidate[..., None, :] == transit[..., None]) & (self.present & ~self.reversed)[..., None, :]
+        if not np.all(forward.any(axis=-1)):
+            raise RuntimeError("a transit of a line is not read forward by its period: the period and the chord disagree")
+        return np.argmax(forward, axis=-1)
+
     def _wall(self, table: np.ndarray) -> np.ndarray:
         walls = np.take_along_axis(table, self.candidate, axis=-1)
         return np.where(self.present, walls, self.chord.partition.no_interface)
