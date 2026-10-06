@@ -565,3 +565,39 @@ A2's tau half lands here; its B half waits for the assembly. The rows that read 
 - spec rows B2 (psi against explicitly reflected lines), A2's B half, A4, B4b/c, B5a, B5c, B6, B8, B9 and B10 land with the source integrals, the assembly and the reading.
 
 **Next:** the second rung, the source integrals B_k per traversal on the panel basis (`basis.py`) and `WallCoupling` (the white block). This is an API checkpoint with the user before code.
+
+## ⏸ COMPACTION POINT — 2026-10-06 (fourth), P1 step (b) rung 1 merged, rung 2 next
+
+**State.** `main` is `884ee4a8` and is pushed. CI `gates` is green on it. It holds P0, P0.5, P1 step (a) and P1 step (b) rung 1:
+- `72199f9d`: `walls.py`, `closure.py` and 175 gate rows;
+- `d3db5932`: the theory page `docs/theory/references/characteristic.rst`;
+- `884ee4a8`: the plan and agent memory.
+No branch is open apart from the parked hoist `a336bde4` (the speed target) and this compaction branch. The tree is clean apart from `scratch/`. Open issues from this stretch: #580, #581, #582 (with a comment on the axial overflow warning), #583.
+
+**Read in order:**
+1. The section "P1 API sketch", items 3-6. Item 3 is the boundary resolvent's two parts, item 4 the panel basis, item 5 the Galerkin assembly over lines, item 6 the questions on `DensePencil`.
+2. "P1 step (b), first rung: API sketch" and "P1 step (b), first rung landed": what exists and its names.
+3. The theory page `docs/theory/references/characteristic.rst`, sections "What this rung does not compute" and "Gotchas".
+4. The verification spec `scratch/characteristic_architecture/p1_verification_spec.md`. Read §0 and rows C, plus B2, B8, B9 and A2's B half.
+5. The prototype `scratch/characteristic_architecture/p1_assembly/proto.py`: `chord_psi` (the per-piece emission integral `E`, the attenuation chain `I`), `chord_galerkin`, `slab_mu`/`_finish` (the intra-piece triangle), and `exp_graded`/`graded_rule`. Also `cyl.py`.
+6. The reference kernel: `orpheus/derivations/common/{quadrature,dense_pencil}.py`.
+
+**The next step: P1 step (b), rung 2.** It is an API checkpoint with the user before any code, a surgical carve written by the main agent.
+- **`basis.py`:** `PanelBasis(geometry, degree, grading)`.
+  - Per-region polynomial panels, with nodal Lagrange functions at each panel's Gauss-Legendre points.
+  - Panels graded toward walls and interfaces, with no node on an interface.
+  - It records each node's region and panel, and gives the mass matrix W in the chart's measure.
+- **The source integrals B_k per traversal**, on the basis. They feed `LinePeriod.inflow`.
+- **`WallCoupling`:** the white W x W block per group, treating every diffuse wall as absorbing in the line part.
+  - U is the escape functional; T_w is the wall-to-wall transmission.
+  - K_g = K_line + U (I - T_w)^{-1} A U^T, as ruled.
+- **Then** `assembly.py`: the Galerkin double integral over lines, then the questions, the reading, the reference, corroboration, re-pointing and retirement.
+- **Open for the API sketch:** where B_k is computed (on `LinePeriod`, or in the assembly) and its arc-length quadrature (graded exponential panels on optically thick slots, as in the prototype). Also: the label for the traversal's optical depth (12 rows wait on it).
+
+**Lessons from this stretch:**
+- **Masking a product after forming it still raises.** `np.where(mask, a*b, 0)` evaluates inf·0 and warns, and under `-W error` it raises. Multiply with `where=` and `out=` so the product is never formed.
+- **Pad nothing that the kernel made out of range.** Padding a per-region table to cover the exterior codes made a wrong-length table silently valid (qa). Refuse the shape and mask the codes instead.
+- **Refuse what the parse does not declare.** A tag parameter the parse does not read was dropped silently in production (#583).
+- **Invariants belong in `__post_init__`, not only in the factory.** A directly built `Walls` spelled the states `Walls.of` refused (elegance S1).
+- **`np.flip` and `np.roll` agree on an axis of length 2.** A mutation swapping one for the other there is equivalent, so it is not a battery arm.
+- **A test can pick its expectation from the code under test.** One row chose its "absorbing traversal" from the code's own amplitudes and stayed green under the pairing mutation. Key expectations to independent data, such as the exit wall.
