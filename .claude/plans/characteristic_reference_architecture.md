@@ -442,3 +442,23 @@ A FluxIntegral of a weight in the basis space is a pairing with the converged an
 **Follow-ups from review, not done (nits):** the absent-wall code reuses the value of `no_interface` (a homonym); `_MAX_TRANSITS = 2` rests on the chord's slot layout, not derived from it.
 
 **Next:** migration step (b), the package `orpheus/derivations/continuous/characteristic/`, rung by rung: walls and the closure (spec rows A and B) first.
+
+## ⏸ COMPACTION POINT — 2026-10-06 (third), P1 step (a) merged, step (b) next
+
+**State:** `main` is `c5a629bc`, pushed, CI `gates` run green on it (the run before, on `cafdb163`, was red on my own SCOPE-BOUNDARY tag spanning more than three lines; fixed in `c5a629bc`). It holds P0, P0.5, the ruled P1 API sketch (`847e8bd9`) and P1 step (a): `Chord.transits` and `Chart.directions_at` (`2b2d7703`), their theory (`cafdb163`). No branch is open apart from the parked hoist `refactor/chord-oracle-axial-lift` (`a336bde4`, the speed target). The tree is clean apart from `scratch/`. Open issues from this stretch: #580, #581, #582.
+
+**Read in order:**
+1. the ledger entry "2026-10-06, the user, on P1's API sketch" and the section "P1 API sketch" (items 1-9: transits, walls, the boundary resolvent in two parts, the panel basis, the Galerkin assembly over lines, the questions on `DensePencil` with the flux coefficients as the unknown, the reading, the reference, the migration order);
+2. "P1 step (a) landed" (what exists; the grazing-band fact the reading must respect);
+3. the verification spec `scratch/characteristic_architecture/p1_verification_spec.md`, rows A and B (walls, transits, the closure) for step (b)'s first rung; the albedo-pairing rule in its §0;
+4. the prototype `scratch/characteristic_architecture/p1_assembly/proto.py` (`chord_psi`, `chord_galerkin`, the slab's closure) and `cyl.py`: the working Galerkin-over-lines assembly the package re-spells on the kernel;
+5. the kernels: `orpheus/geometry/{chart,chord,line}.py`, `orpheus/derivations/common/dense_pencil.py`, the boundary-law factors `orpheus/geometry/boundary/_factors.py` (`SelfPairedDeck`, `PairedDeck`, `ScalarResponse`, `SpecularReemission`, `LambertianReemission`).
+
+**The next step, P1 step (b), first rung (an API checkpoint with the user before code; surgical carve, the main agent writes it):** the package `orpheus/derivations/continuous/characteristic/`, inside the insulation gate. First rung: `walls.py` (a `Wall` per boundary point, keyed by breakpoint index, read from the law's own factors: specular amplitude, diffuse amplitude, deck mirror or wrap; `PrescribedInflow` refused as a SCOPE-BOUNDARY; a `LawSum` of specular and diffuse decided at build) and the line part of `closure.py` (`LinePeriod`: the backward period's directed transits from `Chord.transits`, each with the wall the BACKWARD path reflects at; the least solution, exactly 0 on a trapped line with no source; the periodic deck continues without reversal). Gates: the spec's A1-A6 and B1-B10 (the test-architect re-specifies them onto the built names first, as in step (a)). Then rungs: `WallCoupling` (white), `basis.py`, `assembly.py`, the questions, `reading.py`, `reference.py`, corroboration, re-pointing, retirement.
+
+**Lessons from this stretch:**
+- A ledger gate's format is a contract: run the CI gate set (`tests/gates/test_elegance_debt_is_tagged.py` and its siblings, the list in `.github/workflows`) locally before pushing any SCOPE-BOUNDARY or ELEGANCE-DEBT tag.
+- A shape decided by string labels at several sites fails silently where one site lacks a case (`tangencies` returned `[]` on an unknown name while `direction` raised): an Enum with an exhaustive match at each site.
+- A second computation of a quantity the kernel already computes (the impact parameter) disagrees in the last ulp on a third of samples: delegate to the kernel.
+- `git commit` in the same Bash command as `git switch -c` is refused by the hook, which reads the whole command before the branch exists: create the branch in its own command.
+- A product `(r - l)(r + l)` under a square root under- or overflows at extreme scales: form it from the ratio (`#582` holds the kernel's own instance).
