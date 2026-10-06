@@ -261,6 +261,7 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, on P1 step (b)'s first rung:** Q1, the tag arm: the user refused hoisting production's tag parse ("mixing tags from reference with production would cause reference churn during production development. but we do need a coherent way to parse tags for reference"); ruled "the registry is accepted": the reference keeps its OWN tag registry (vacuum, reflective, partial, white, periodic) mapping each kind, with the wall's context (axis x, outward sign -1 at breakpoint 0 and +1 at n), to a typed law, and `Walls.of` reads every wall, tag or law, through the factor table only; the registry and production's `_law_from_tag` are a declared cross-branch duplicate (conceptual view); a gate pins Walls(tag) == Walls(its law) per kind. Q2 "By its factors": `PrescribedInflow` with `NoSource` is a vacuum wall, a non-zero source refused. Q3 "Accept as sketched": the period chained through the walls' partners, rank derived; `inflow` on optical depths, the least solution.
 - **2026-10-06, the user, on P1 step (b)'s second rung:** all four recommendations accepted. Q1: the ladder is re-cut; rung 2 is the panel basis and the transport along one line (B, A, the Volterra triangle, psi on a line), and rung 3 is the line rule, the assembly and `WallCoupling`, all integrals over the measure on lines. Q2: the pieces come from the kernel's chord through the panel ends posed as a refined `ConcentricPartition`, with `Walls.on(partition)` re-keying the walls. Q3: B_k lives on a new `TraversalRule` in `transport.py`. Q4: the basis is discontinuous nodal panels graded toward walls and interfaces (not a singular stratum), and its volume density is derived inside the basis from `measure_constant` and `measure_coordinate`, gated against `Chart.measure`.
 - **2026-10-06, the user, on P1 step (b)'s third rung (after the re-measurement):** all four as recommended. Q1: an even basis at a singular stratum (Lagrange in c² on the panel touching the centre or axis; Schwarz's theorem), not a graded b rule. Q2: the line domain is a kernel verb on `Chart` (the orbit space of lines with its density, the lines' analogue of `directions_at`). Q3: C11 is re-posed as closed-body conservation K·1 = W·1/Σ_t, symmetry kept only as a declared-blind foundation row. Q4: the volume density moves to the kernel, the white block carries D = diag(A_w/4), and S and F move to rung 4.
+- **2026-10-06, the user, on P1 step (b)'s third rung API sketch:** both as recommended. `LineRule.transport` is per group (each chunk's geometry rebuilt per group; a cache only if measured worthwhile). A wall with both a specular and a diffuse part stays refused, as the SN realizer refuses it.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -806,3 +807,71 @@ The test-architect then re-specifies the rows, and the main agent writes the cod
   - the thick-slot carry: no slot was thicker than 128 mean free paths;
   - exit-wall rounding: no read at the crossing parameter.
   Each was a missing input region, not a weak tolerance.
+
+## P1 step (b), third rung: API sketch (the main agent, 2026-10-06; checkpoint with the user before code)
+
+Every item is a proposal until ruled. It spells what the fifth compaction point listed, on the names that exist at `e1faa622`. Rung 3 delivers the per-group transport block K_g (line part plus diffuse part) and nothing above it: no pencil, no point reading.
+
+**1. The measure density (kernel, `orpheus/geometry/coord.py` and `chart.py`).**
+- `MeasureCoordinate.derivative(r)`: T'(r) = p r^(p−1), the derivative of the one definition T(r) = r^p.
+- `CoordSystem.measure_density(r)`: c T'(r), beside `CoordSystem.measure(edges)` = c (T(b) − T(a)), which it differentiates; `Chart.measure_density` delegates, as `Chart.measure` does.
+- One function, two readings. It is the volume density in the orbit coordinate, and, by the coarea formula with |∇c| = 1 on all three charts, the area of the level set c = r: 4πr² (sphere), 2πr per unit height (cylinder), 1 per unit area (slab). The basis's mass matrix and the white wall's area both read it, and `PanelBasis.volume_density` retires onto it.
+- Gates: the closed forms on each chart; Gauss on [a, b] of the density equals `measure([a, b])` to a few ulp (the derivative and the definition cannot drift).
+
+**2. The line domain (kernel, `Chart.line_domain() -> LineDomain`).** The orbit space of oriented lines under the chart's group G_c, the lines' counterpart of `directions_at`.
+- A `LineShape` enum with an exhaustive match at each site (the step (a) lesson):
+  - sphere, `IMPACT`: b ∈ [0, ∞); the reversed line is in the same orbit;
+  - cylinder, `IMPACT_AXIAL`: b ∈ [0, ∞) × μ_z ∈ [0, 1]; the z-reflection and the C2 axes of D∞h fold μ_z and the orientation;
+  - slab, `COSINE`: μ = Ω_x ∈ [−1, 1]; the slab's group fixes the kept space, so μ and −μ are two orbits.
+- `density(coordinates)`: the invariant measure dA⊥ dΩ on oriented lines in those coordinates, per unit of the discarded measure (per unit height, per unit area): `beam_density(b, Ω)` times the direction measure the quotient folds (4π on the sphere; 2π × 2 on the cylinder; 2π on the slab). It is not normalised by 4π; that belongs to the consumer (item 5).
+- `lines(coordinates) -> Line`: representative lines, as `DirectionDomain.direction` gives representative directions; their impact parameter is `Chart.image`'s, bit for bit.
+- The domain is unbounded in b. Which lines meet the body is the partition's question, so the consumer truncates at the outer radius.
+- Gates: the density equals `beam_density` times the folded direction measure; and an independent row, Cauchy's formula: the integral of the chord length over the domain is 4π times the body's measure (4πV, per unit height or area), on every chart, which ties the density to the chord with no shared formula.
+
+**3. The even basis at a singular stratum (`PanelBasis`).**
+- `PanelBasis.even` (cached, ``(P,)``): true for the panel whose lower end is a singular stratum (`chart.singular_strata`), i.e. the centre panel of a solid sphere or cylinder.
+- On that panel the nodes are the same Gauss-Legendre points c_m, and the functions are the Lagrange polynomials in s = c² through s_m = c_m²: they span 1, c², ..., c^(2p), every function of c² of degree p and no odd mode. `values` evaluates the product form in the panel's coordinate (c or c²); everything downstream (`TraversalRule`, the mass) reads `values` and needs no change.
+- The mass rule takes 2p + 2 Gauss points on every panel (exact for the even panel's degree 4p + d − 1; one rule, no branch).
+- Gates: reproduction of even polynomials of degree 2p on that panel to a few ulp; a fit residual on c (the odd mode is absent); the mass against mpmath; the centre b-panel of the closed sphere converges geometrically where it converged algebraically (`[M]` today 3.5e-8, 1.6e-10, 7.0e-13 at 8, 16, 32 points).
+- Re-baseline owed: `tests/gates/derivations/_characteristic_mp.py` builds its own Lagrange functions in c; it gains an even Lagrange in c² for that panel, written independently (it does not call the basis).
+
+**4. `LinePeriod.inflow(optical_depth, outflow, arriving=None)`.**
+- `arriving`, ``(..., 2, *rest)``, is a flux injected at each traversal's entry from outside the line part (the diffuse re-entry). It is not multiplied by the wall's amplitude.
+- One expression still serves every rank: the flux entering traversal k is a_(k−1) B_(k−1) + s_k, and the inflow is (entering_k + g_(k−1) entering_(k−1)) / (1 − Π), with g the traversal's gain a e^(−τ). `arriving=None` is bitwise today's result.
+- The `TrappedSource` refusal covers an arriving flux on a lossless trapped line.
+- Gates: the rank-1 and rank-2 closed forms with an arriving flux; `arriving=0` bitwise equal to `None`.
+
+**5. `LineRule` (`assembly.py`): the quadrature over the line domain, in chunks.**
+- `LineRule.of(basis, walls, points, grazing_layers, chunk)`: coordinates and weights on `chart.line_domain()`, weight = quadrature weight × density / 4π (K is then the scalar-flux operator of an isotropic emission, the normalisation `[M]` in the premises).
+  - b (sphere, cylinder): `chord_quadrature` over the panel ends inside [0, r_n], the visibility-cone substitution on each piece (the square-root end at every radius and panel end); the even basis makes the centre piece smooth in b.
+  - μ (slab): geometric grading toward μ = 0, `grazing_layers` halvings on each sign (`[M]` 12 halvings: 5.8e-14 at 8 points).
+  - μ_z (cylinder): plain Gauss on [0, 1] (`[M]` no grading needed).
+- `chunks()`: the lines in batches of at most `chunk`, each with its `LinePeriod` (one chord per chunk through `basis.partition`).
+- `transport(sigma_t, points, inner_points) -> GroupTransport` for one group's `sigma_t` (n,): per chunk, one `TraversalRule(period, basis, ...)` through the dataclass constructor, accumulating:
+  - K_line = Σ_L w_L (V_L + Σ_(forward k) A_k ⊗ in_k);
+  - the escape U[i, w] = Σ_L w_L Σ_(forward traversals exiting at w) (e^(−τ_k) in_k + B_k)_i, at every diffuse wall;
+  - the wall transmission T_w[w′, w]: the current out at w′ per unit isotropic current in at w, through the line part (`arriving` = 1/(π A_w) on the traversals entering at w).
+- Per group, not all groups in one pass: the algebra is per group (ruled sketch item 5, `transport_block(g)`). The chunk's chord and period are rebuilt per group; the cost is measured at build, and a cache is added only if the geometry is a measured fraction of the time.
+
+**6. `WallCoupling` (`closure.py`, the diffuse part of the boundary resolvent).**
+- `WallCoupling(escape U, transmission T_w, area A_w, diffuse α)`: pure linear algebra; `update` = U D^(−1) α (I − T_w α)^(−1) Uᵀ with D = diag(A_w/4), A_w = `chart.measure_density(r_w)`.
+- `GroupTransport.block` = K_line + coupling update; with no diffuse wall the update is exactly zero and the block is K_line, bitwise.
+- Refused: I − T_w α singular (every wall diffuse with α = 1 and Σ_t = 0 throughout), the white analogue of `TrappedSource`.
+
+**7. The gates for the rung** (the test-architect re-specifies them onto these names, each with its first red):
+- **Closed-body conservation, the re-posed C11:** K·1 = W·1/Σ_t on closed homogeneous bodies, every chart, for the specular mirror, the white wall at α = 1, the periodic slab, the hollow sphere with an inner mirror and with an inner white wall. It reddens if D is dropped from the white update, and under every under-integration measured in the premises.
+- **Symmetry, a foundation row declared blind:** K = Kᵀ to 1e-14, stating that each line's rule is reversal-symmetric so the row cannot see under-integration.
+- **C9:** the escape probability of a homogeneous body from the vacuum block, against Hebert (sphere), 2E_3 (slab), Bickley (cylinder).
+- **The wall transmission against closed forms:** T_w = P_ss on the vacuum-interior sphere and cylinder, 2E_3(τ) face to face on the slab; independent of C9 because it goes through the surface lines and not the volume.
+- **C7, operator half:** splitting a region into 2, 3 and 5 equal-material regions leaves the region-to-region transfer rᵀ K q unchanged (piecewise-constant q).
+- **B4b and B5a, operator level:** a transparent cavity equals an inner mirror, and a void outer layer is invisible to the specular closure, on the blocks restricted to the material nodes.
+- **B8, operator half:** the white wall at α = 1 conserves; at α = 0.5 the white and the specular blocks differ by more than 100 times the ladder step; at 2G, a block built from one group's escape for every group reds.
+- **The self-convergence ladders,** in b, μ, μ_z and the inner points, sweeping resolutions below the working point (the rung-2 lesson).
+- **Chunk invariance:** the block is independent of the chunk size to 1e-15.
+- **Moved to rung 5:** C6 and C8 read the flux at a point, which rung 5 builds; at the operator level C8's reciprocity is the symmetry row, which is blind. D11 (the Rayleigh-Ritz bound) needs the pencil: rung 4.
+
+**A wall with both a specular and a diffuse part (a `LawSum` of the two laws) stays refused.** `[M]` 2026-10-06: the SN realizer refuses a `LawSum` tree too (`orpheus/sn/boundary/realizer.py:819`, "a LawSum/LawScaled tree, which composes laws but is not one, falls through to the loud dispatch-failure raise"), so production cannot pose the case and the reference has no consumer for it (verification conforms to production). `Wall` already carries both amplitudes, so serving it later is one arm of the reader plus its gates.
+
+**Ruled 2026-10-06** (see the ledger), both as recommended: `transport` runs per group, rebuilding each chunk's geometry, with a cache only if the geometry is a measured fraction of the time; the `LawSum` refusal stands. The sketch stands as written otherwise.
+
+**Next:** the test-architect re-specifies the rung's gates (item 7) onto these names, each with its first red; then the main agent writes the code in the order kernel verbs (items 1, 2), the even basis (3), `inflow` (4), `LineRule` and `WallCoupling` (5, 6).
