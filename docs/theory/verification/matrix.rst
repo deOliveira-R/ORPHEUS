@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **16174**
+Total tests collected: **16352**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1536, 9.5%
-   L1, 2290, 14.2%
+   L0, 1663, 10.2%
+   L1, 2290, 14.0%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12243, 75.7%
+   foundation, 12294, 75.2%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 16061
+   explicit, 16239
    class-name, 46
    func-name, 0
    case, 33
@@ -177,6 +177,8 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
+   derivations/test_characteristic_closure, 108, 0, 0, 0, 17, 0
+   derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
@@ -641,7 +643,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 470, 0
+   test_layer_imports, 0, 0, 0, 0, 473, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -695,6 +697,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``alpha-cylindrical``, 95
    ``collision-rate``, 91
    ``geometry-transits``, 88
+   ``characteristic-transit-rank``, 82
    ``multigroup``, 82
    ``peierls-unified``, 80
    ``fission-matrix``, 76
@@ -720,6 +723,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
+   ``characteristic-closure``, 45
    ``azimuthal-angles``, 44
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36

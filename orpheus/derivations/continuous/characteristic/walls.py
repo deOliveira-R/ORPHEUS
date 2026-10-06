@@ -13,7 +13,7 @@ with the three numbers the characteristic closure needs from its law:
 
 **One reader.** Every wall is read from its law's two factors, the deck
 (``geometry_map``) and the response (``response_kernel``), by one table
-(:func:`_wall_of`). A ``BC`` tag is first parsed into the typed law it names
+(``_wall_of``). A ``BC`` tag is first parsed into the typed law it names
 by the reference's own registry (:data:`TAG_REGISTRY`), so a tag and its law
 cannot be read differently.
 

@@ -64,6 +64,15 @@ Submodules
        spells in :mod:`orpheus.numerics.eigenvalue`, kept apart on purpose
        (:ref:`architecture-reference-insulation`); the theory is
        :ref:`verification-reference-kernel`.
+   * - :mod:`~orpheus.derivations.continuous.characteristic`
+     - The characteristic reference, built rung by rung: the walls of a
+       concentric body read from their laws' factors, with the reference's
+       own tag registry
+       (:mod:`~orpheus.derivations.continuous.characteristic.walls`), and
+       the line part of the boundary resolvent, the period of each line's
+       unfolded path and the least solution of its cycle
+       (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
+       theory is :ref:`theory-characteristic-reference`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
        :func:`chord_quadrature` (impact-parameter integrals on
@@ -187,6 +196,21 @@ The reference kernel's dense pencil
 -----------------------------------
 
 .. automodule:: orpheus.derivations.common.dense_pencil
+   :members:
+
+The characteristic reference
+----------------------------
+
+The package, built rung by rung beside the trajectory-resolvent family;
+the theory is :ref:`theory-characteristic-reference`. Its two modules
+are documented below; the package re-exports their public names.
+
+.. automodule:: orpheus.derivations.continuous.characteristic
+
+.. automodule:: orpheus.derivations.continuous.characteristic.walls
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.closure
    :members:
 
 Kernels

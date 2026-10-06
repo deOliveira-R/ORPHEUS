@@ -8,6 +8,12 @@ Trajectory-Resolvent Family — angle-resolved Green's function references
    :local:
    :depth: 2
 
+.. note::
+
+   This family is being replaced by :ref:`theory-characteristic-reference`,
+   built beside it rung by rung; until that reference answers its
+   questions, this page and its code are the reference every consumer reads.
+
 
 Key Facts
 =========

@@ -246,6 +246,12 @@ table is the canonical assignment.
      - Integral (Peierls form via trajectory tracking)
      - Bouncing characteristics + multi-bounce resolvent
        :math:`T = (I-S)^{-1}` (Sanchez 1986 Eq. A4 / PS-1982 Eq. 14).
+   * - :ref:`theory-characteristic-reference` (characteristic reference)
+     - Semi-analytical
+     - Integral (transport along the lines of the body)
+     - The re-architecture of the trajectory-resolvent family, built rung
+       by rung on the geometric kernel; its walls and the line part of its
+       boundary resolvent exist, and it answers no question yet.
    * - :ref:`theory-fn-method` (F_N method)
      - Semi-analytical
      - Differential transport (boundary-collocated)
@@ -310,6 +316,7 @@ Production reference solvers
    peierls
    peierls_nystrom
    trajectory_resolvent
+   characteristic
    fn_method
    singular_eigenfunction
    galerkin_spectral

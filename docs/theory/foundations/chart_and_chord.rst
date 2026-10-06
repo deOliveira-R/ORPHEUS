@@ -1242,10 +1242,11 @@ trace space (the user's ruling of 2026-10-06, P1 of the plan
 sketch", items 1 and 3). The backward characteristic from
 :math:`(x, \Omega)` runs to a wall, reflects, and continues; on a
 specular wall of the chart's group the reflected line has the same impact
-parameter, so the unfolded path is periodic with period
-{transit, reversed transit}, and the rank of the closure per line is the
-number of walls in that period after the boundary laws' deck maps
-identify them. Each leg of the period carries the albedo of the wall at
+parameter, so the unfolded path is periodic, a cycle of one or two
+traversals, each a transit read forward or reversed, and the rank of the
+closure per line is the length of that period, derived from the walls'
+partners after the boundary laws' deck maps identify them
+(:ref:`characteristic-period`). Each leg of the period carries the albedo of the wall at
 which the *backward* path reflects, and that pairing is made by the wall's
 breakpoint index; `[M]` 2026-10-06 (the elegance review's probe, recorded
 in the plan), the other pairing moved :math:`\psi` by 0.34. The transits

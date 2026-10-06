@@ -25,16 +25,17 @@ The albedo pairing (spec §0): the inflow to traversal k + 1 carries the
 amplitude of the wall traversal k EXITS at, which is the wall at which the
 backward path from k + 1 reflects.
 
-Rows to move from ``foundation`` to ``l0`` once the archivist mints the labels
-on the rewritten page: ``characteristic-transit-rank`` for
-``test_the_period_matches_the_hand_counted_table`` and
+Rows at ``l0`` with ``verifies`` (labels on
+``docs/theory/references/characteristic.rst``): ``characteristic-transit-rank``
+for ``test_the_period_matches_the_hand_counted_table`` and
 ``test_the_period_is_the_physically_unfolded_path``;
 ``characteristic-closure`` for ``test_the_inflow_is_the_unfolded_wall_by_wall_sum``,
 ``test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds``,
 ``test_every_amplitude_zero_adds_nothing``,
 ``test_the_least_solution_on_a_lossless_trapped_line`` and
-``test_a_nearly_lossless_line_keeps_its_digits``. The optical-depth row
-verifies the page's segment-length equation once it carries a label.
+``test_a_nearly_lossless_line_keeps_its_digits``. Every other row is
+``foundation``; the optical-depth rows stay there because the page's
+segment-length equation carries no label.
 """
 from __future__ import annotations
 
@@ -57,8 +58,6 @@ from orpheus.geometry.chart import RadialImage
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.line import Line
 from orpheus.geometry.structured_geometry import StructuredGeometry
-
-pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/derivations/test_characteristic_closure.py::"
 _WALLS = "tests/gates/derivations/test_characteristic_walls.py::"
@@ -151,6 +150,8 @@ def _table():
 _TABLE = _table()
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-transit-rank")
 @pytest.mark.parametrize(("geometry", "point", "direction", "expected"), [r[1:] for r in _TABLE],
                          ids=[r[0] for r in _TABLE])
 @pytest.mark.rests_on(_TRANSITS + "test_the_transits_match_the_hand_counted_walls",
@@ -186,6 +187,7 @@ def test_the_period_matches_the_hand_counted_table(geometry, point, direction, e
         np.testing.assert_array_equal(period.entry_wall[:m], walls.partner_at(np.roll(exits, 1)))
 
 
+@pytest.mark.foundation
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table")
 def test_a_batch_of_lines_reads_each_line_as_it_reads_alone() -> None:
     """The period of a batch equals the per-line periods, for a batch mixing ranks 0, 1 and 2."""
@@ -284,6 +286,8 @@ def _unit(v):
     return v / np.linalg.norm(v)
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-transit-rank")
 @pytest.mark.parametrize(("chart", "geometry", "point", "direction"), [r[1:] for r in _MARCH],
                          ids=[r[0] for r in _MARCH])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table",
@@ -381,6 +385,7 @@ _DEPTH_ROWS = [  # (id, chart, b, wz, rank)
 ]
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize(("chart", "b", "wz", "rank"), [r[1:] for r in _DEPTH_ROWS], ids=[r[0] for r in _DEPTH_ROWS])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table",
                       _CHORD + "test_every_slot_length_matches_the_closed_form")
@@ -410,6 +415,7 @@ def test_the_optical_depth_of_each_traversal_is_the_closed_form(chart: str, b: f
     np.testing.assert_array_equal(tau[rank:], 0.0)
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize("direction", [(0.6, 0.8, 0.0), (-0.3, 0.0, float(np.sqrt(0.91)))], ids=["rising", "falling"])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table")
 def test_the_slab_optical_depth_is_the_widths_over_the_cosine(direction) -> None:
@@ -421,6 +427,7 @@ def test_the_slab_optical_depth_is_the_widths_over_the_cosine(direction) -> None
     np.testing.assert_allclose(period.optical_depth(np.array(_SIGMA_SLAB)), [want, want], rtol=8 * _EPS, atol=0.0)
 
 
+@pytest.mark.foundation
 def test_a_parallel_line_has_no_optical_depth() -> None:
     """A rank-0 line's tau is 0 in both columns, never the infinite slot's inf x Sigma or a NaN."""
     period = _period(_body("cylinder_solid", outer=_spec(_A_OUT)), (0.7, 0.0, 0.0), (0.0, 0.0, 1.0))
@@ -474,6 +481,8 @@ def _period_with(amplitudes, m: int, batch: int) -> LinePeriod:
 _AMPLITUDES = [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.3, 0.6), (0.6, 0.3), (1.0, 0.85), (0.47, 1.0), (0.99, 0.12)]
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize("m", [1, 2])
 @pytest.mark.parametrize("amplitudes", _AMPLITUDES, ids=[f"a{a0}_{a1}" for a0, a1 in _AMPLITUDES])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table")
@@ -513,6 +522,8 @@ def test_the_inflow_is_the_unfolded_wall_by_wall_sum(amplitudes, m: int) -> None
 # ── 4. the exact edges [B3, B4a, B5b] ────────────────────────────────────
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize("case", ["slab_left_absorbing", "slab_right_absorbing", "hollow_inner_absorbing"])
 @pytest.mark.rests_on(_HERE + "test_the_inflow_is_the_unfolded_wall_by_wall_sum")
 def test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds(case: str) -> None:
@@ -549,6 +560,8 @@ def test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds(case: str) -> None
     np.testing.assert_array_equal(got[cut], outflow[fed])          # amplitude 1, nothing returns around
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize("geometry", [
     _body("slab", left=VacuumInflow(), right=AlbedoBoundary(0.0)),
     _body("sphere_hollow", inner=BC.vacuum, outer=BC.vacuum),
@@ -572,6 +585,8 @@ def test_every_amplitude_zero_adds_nothing(geometry) -> None:
     np.testing.assert_array_equal(got, 0.0)
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.rests_on(_HERE + "test_the_inflow_is_the_unfolded_wall_by_wall_sum",
                       _HERE + "test_the_optical_depth_of_each_traversal_is_the_closed_form")
 def test_the_least_solution_on_a_lossless_trapped_line() -> None:
@@ -607,6 +622,8 @@ def test_the_least_solution_on_a_lossless_trapped_line() -> None:
         mirrors.inflow(np.array([0.0, 0.0]), np.array([0.0, 2.0]))
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize(("amplitudes", "tau"), [
     ((1.0, 1.0), (1e-12, 2.5e-12)),
     ((1.0 - 1e-13, 1.0), (3e-13, 4e-13)),
@@ -617,7 +634,8 @@ def test_a_nearly_lossless_line_keeps_its_digits(amplitudes, tau) -> None:
     """1 - P is formed without cancellation: tau ~ 1e-12 against the exact closed form (mpmath), 4 ulp.
 
     First red: ``1 - exp(sum log a - sum tau)`` in place of ``-expm1(...)``,
-    which loses about 12 digits (relative error ~1e-4).
+    which loses about 5 digits on 1 - P (``[M]`` relative error 2.2e-5 at tau = 1e-12,
+    6.3e-6 on this row's period; both far above the 4-ulp band).
     """
     m = 1 if tau[1] is None else 2
     period = _period_with(np.array(amplitudes), m, 1)
@@ -635,6 +653,7 @@ def test_a_nearly_lossless_line_keeps_its_digits(amplitudes, tau) -> None:
     np.testing.assert_allclose(got[:m], [float(w) for w in want], rtol=4 * _EPS, atol=0.0)
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize("length", [2, 4], ids=["n_minus_1", "n_plus_1"])
 def test_a_sigma_t_of_the_wrong_length_is_refused(length: int) -> None:
     """``optical_depth`` takes one total cross section per region; a wrong length never broadcasts or truncates."""
@@ -643,6 +662,7 @@ def test_a_sigma_t_of_the_wrong_length_is_refused(length: int) -> None:
         period.optical_depth(np.linspace(0.3, 1.2, length))
 
 
+@pytest.mark.foundation
 @pytest.mark.rests_on(_HERE + "test_the_slab_optical_depth_is_the_widths_over_the_cosine")
 def test_a_subnormal_cosine_through_a_void_reads_infinite_depth_and_finite_inflow() -> None:
     """Omega_x = 5e-324 through the slab (0.5, 0, 0.9): every slot is infinitely long.
@@ -671,6 +691,7 @@ def test_a_subnormal_cosine_through_a_void_reads_infinite_depth_and_finite_inflo
     np.testing.assert_array_equal(trapped, [0.0, 0.0])
 
 
+@pytest.mark.foundation
 def test_a_chord_whose_walls_disagree_with_its_transits_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     """The two ``RuntimeError`` guards of ``LinePeriod.of``, each by its own fragment.
 

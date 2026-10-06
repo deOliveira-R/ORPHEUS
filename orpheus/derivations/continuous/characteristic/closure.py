@@ -84,7 +84,7 @@ class LinePeriod:
     chord:
         The chord whose lines are unfolded.
     candidate:
-        Each traversal as a candidate of :func:`_directed`: transit ``candidate % 2``,
+        Each traversal as a candidate of ``_directed``: transit ``candidate % 2``,
         read reversed when ``candidate >= 2``.
     amplitude:
         The specular amplitude of the wall the traversal exits at; 0 where absent.
@@ -193,7 +193,7 @@ class LinePeriod:
         one expression serves every rank: the inflow to :math:`k` is what
         traversal :math:`k - 1` returns, plus what traversal :math:`k - 2`
         returns carried once through :math:`k - 1`, over :math:`1 - \Pi`
-        (indices modulo :data:`_MAX_PERIOD`). :math:`1 - \Pi` is formed as
+        (indices modulo ``_MAX_PERIOD``). :math:`1 - \Pi` is formed as
         ``-expm1(log Pi)``, so a nearly lossless line keeps its digits.
         Raises :class:`TrappedSource` where :math:`\Pi = 1` and the outflow
         is not zero.

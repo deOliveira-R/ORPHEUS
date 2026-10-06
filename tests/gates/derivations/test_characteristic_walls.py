@@ -27,9 +27,10 @@ Declared blindness: a wall reads only amplitudes and the partner, so the
 registry's axis and outward sign (the white law's hemisphere) are invisible
 here; they matter to no reading of this reference.
 
-Rows to move from ``foundation`` to ``l0`` when the archivist mints the label
-``characteristic-closure`` on the rewritten page: the factor table and the
-tag-registry drift gate (they define what the closure's amplitudes ARE).
+Rows at ``l0`` with ``verifies("characteristic-closure")`` (the label on
+``docs/theory/references/characteristic.rst``): the factor table (the shipped
+laws and the served factor pairs) and the tag-registry drift gate, which
+define what the closure's amplitudes ARE. Every other row is ``foundation``.
 """
 from __future__ import annotations
 
@@ -55,8 +56,6 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
 )
 from orpheus.geometry.structured_geometry import StructuredGeometry
-
-pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/derivations/test_characteristic_walls.py::"
 _FACTORS = "tests/gates/geometry/test_boundary_factors.py::"
@@ -93,6 +92,8 @@ _FACTOR_ROWS = [
 ]
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize(("left", "right", "at_left", "at_right"),
                          [r[1:] for r in _FACTOR_ROWS], ids=[r[0] for r in _FACTOR_ROWS])
 @pytest.mark.rests_on(_FACTORS + "test_every_production_law_states_both_factors")
@@ -115,6 +116,7 @@ def test_every_law_reads_as_the_wall_its_physics_names(left, right, at_left, at_
     np.testing.assert_array_equal(walls.partner_at(bp), [at_left[2], at_right[2]])
 
 
+@pytest.mark.foundation
 @pytest.mark.rests_on(_HERE + "test_every_law_reads_as_the_wall_its_physics_names")
 def test_a_body_has_a_wall_at_each_boundary_point_and_none_elsewhere() -> None:
     """Walls sit at breakpoints 0 and n of a hollow body and at n alone on a solid one, inner first.
@@ -152,11 +154,14 @@ _TWINS = {
 }
 
 
+@pytest.mark.foundation
 def test_the_registry_admits_exactly_the_kinds_this_file_twins() -> None:
     """The drift gate ranges over the registry, not over a hand list: a new kind reds here until it is twinned."""
     assert set(walls_module.TAG_REGISTRY) == set(_TWINS)
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize("kind", sorted(_TWINS))
 @pytest.mark.rests_on(_HERE + "test_every_law_reads_as_the_wall_its_physics_names",
                       _HERE + "test_the_registry_admits_exactly_the_kinds_this_file_twins")
@@ -175,12 +180,14 @@ def test_a_tag_reads_the_same_walls_as_the_law_it_names(kind: str) -> None:
     assert by_tag == by_law, f"{kind}: {by_tag.walls} != {by_law.walls}"
 
 
+@pytest.mark.foundation
 def test_the_white_tag_without_an_albedo_is_a_full_return() -> None:
     """``BC("white")`` returns all of its outflow, as ``WhiteBoundary``'s default."""
     walls = Walls.of(_slab(BC.white, BC.white))
     assert walls.walls == (Wall(0, 0.0, 1.0, 0), Wall(3, 0.0, 1.0, 3))
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize("sign", [-1, +1])
 def test_the_registry_hands_the_white_law_the_walls_outward_sign(sign: int) -> None:
     """The white tag's law carries the wall's outward sign, by content equality (a ``Walls`` cannot see it).
@@ -227,6 +234,7 @@ _REFUSALS = [  # (id, geometry factory, fragment)
 _FRAGMENTS = sorted({r[2] for r in _REFUSALS})
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize(("make", "fragment"), [r[1:] for r in _REFUSALS], ids=[r[0] for r in _REFUSALS])
 def test_an_unserved_wall_is_refused_by_its_own_fragment(make, fragment: str) -> None:
     """Each refused declaration raises ``NotImplementedError`` with its fragment and no other's.
@@ -250,6 +258,7 @@ def test_an_unserved_wall_is_refused_by_its_own_fragment(make, fragment: str) ->
     assert not others, f"the refusal also carries {others}: {message}"
 
 
+@pytest.mark.foundation
 def test_an_unadmitted_tag_is_refused_naming_every_admitted_kind() -> None:
     """The refusal lists the admitted kinds, read from the registry."""
     with pytest.raises(NotImplementedError) as caught:
@@ -295,6 +304,8 @@ def _cells():
 _SERVED, _REFUSED_CELLS = _cells()
 
 
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize(("deck", "response", "expected"), [c[1:] for c in _SERVED], ids=[c[0] for c in _SERVED])
 @pytest.mark.rests_on(_HERE + "test_every_law_reads_as_the_wall_its_physics_names")
 def test_a_served_factor_pair_reads_its_wall(deck, response, expected) -> None:
@@ -302,6 +313,7 @@ def test_a_served_factor_pair_reads_its_wall(deck, response, expected) -> None:
     assert walls_module._wall_of(cast(BoundaryTraceLaw, _FactorLaw(deck, response)), 3, opposite=0) == expected
 
 
+@pytest.mark.foundation
 @pytest.mark.parametrize(("deck", "response"), [c[1:] for c in _REFUSED_CELLS], ids=[c[0] for c in _REFUSED_CELLS])
 def test_a_quotient_deck_returns_everything_and_a_shape_sits_on_the_identity(deck, response) -> None:
     """A mirror or a wrap admits only ScalarResponse(1); a re-emission shape only the identity deck.
@@ -314,6 +326,7 @@ def test_a_quotient_deck_returns_everything_and_a_shape_sits_on_the_identity(dec
         walls_module._wall_of(cast(BoundaryTraceLaw, _FactorLaw(deck, response)), 3, opposite=0)
 
 
+@pytest.mark.foundation
 def test_a_directly_built_walls_refuses_what_walls_of_refuses() -> None:
     """The invariants live on ``Walls`` itself: a wall off the ends, a repeated wall, an unpaired or radial wrap."""
     from orpheus.geometry.chart import Chart
