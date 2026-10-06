@@ -633,7 +633,7 @@ def derive_4g_continuous() -> ContinuousReferenceSolution:
             citation="Bell & Glasstone 1970, §7.4 (multigroup form)",
             derivation_notes=(
                 "Four-group reflective infinite medium with downscatter "
-                "cascade. Dense 4x4 A^{-1}·F solved via numpy.linalg.eig; "
+                "cascade. Dense 4x4 pencil F phi = k A phi solved by the reference kernel's DensePencil; "
                 "the dominant eigenvector gives the non-trivial flux "
                 "cascade shape."
             ),

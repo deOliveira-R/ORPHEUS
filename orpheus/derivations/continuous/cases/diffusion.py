@@ -62,6 +62,7 @@ from ...common.continuous_reference import (
     ProblemSpec,
     Provenance,
 )
+from ...common.dense_pencil import DensePencil
 from ...common.verification_case import VerificationCase
 
 
@@ -105,8 +106,7 @@ def derive_1rg(fuel_height: float = 50.0) -> VerificationCase:
     A = np.diag(D * B2 + xs["absorption"] + xs["scattering"]) \
         - np.array([[0.0, 0.0], [xs["scattering"][0], 0.0]])
     F = np.outer(xs["chi"], xs["production"])
-    M = np.linalg.solve(A, F)
-    k_val = float(np.max(np.real(np.linalg.eigvals(M))))
+    k_val = DensePencil(loss=A, production=F).fundamental().k
 
     latex = (
         rf"Bare slab H = {fuel_height} cm, zero-flux BCs. "
@@ -706,17 +706,8 @@ def _bare_slab_spectrum(xs_dict: dict, L: float) -> tuple[float, np.ndarray]:
     B2 = (np.pi / L) ** 2
     A = np.diag(D * B2 + absorption + scat_out) - _downscatter_matrix(xs_dict)
     F = np.outer(chi, production)
-    M = np.linalg.solve(A, F)
-
-    eigvals, eigvecs = np.linalg.eig(M)
-    real_vals = np.real(eigvals)
-    dominant = int(np.argmax(real_vals))
-    k_val = float(real_vals[dominant])
-    phi = np.real(eigvecs[:, dominant])
-    if phi.sum() < 0:
-        phi = -phi
-    phi = np.where(np.abs(phi) < 1e-14, 0.0, phi)
-    return k_val, phi / np.linalg.norm(phi)
+    fundamental = DensePencil(loss=A, production=F).fundamental()
+    return fundamental.k, fundamental.vector / np.linalg.norm(fundamental.vector)
 
 
 def derive_1rg_continuous(
@@ -770,7 +761,7 @@ def derive_1rg_continuous(
                 "variables gives phi_g(x) = c_g sin(pi x/L) for all groups, "
                 "reducing the PDE to the buckled 2x2 matrix eigenvalue "
                 "problem (A_rem + D·B^2) phi = (1/k) F phi with "
-                "B^2 = (pi/L)^2. Dominant eigenvalue via numpy.linalg.eig; "
+                "B^2 = (pi/L)^2. Fundamental mode via the reference kernel's DensePencil; "
                 "spectrum is the right eigenvector, l2-normalised and "
                 "sign-adjusted to non-negative."
             ),

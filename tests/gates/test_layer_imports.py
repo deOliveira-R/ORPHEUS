@@ -399,3 +399,186 @@ def test_the_linter_refuses_each_forbidden_edge(rel: str, source: str, edge: str
 @pytest.mark.parametrize(("rel", "source"), _ADMITTED_LEGS)
 def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
     assert _check_source(pathlib.PurePosixPath(rel), source) == []
+
+
+# ---------------------------------------------------------------------------
+# The closed references import only the interface vocabulary of numerics
+# ---------------------------------------------------------------------------
+#
+# The user's ruling of 2026-10-06 (`.claude/plans/characteristic_reference_
+# architecture.md`, rulings ledger): a continuous reference is closed, purpose
+# built and limited in scope, while production numerics is versatile and
+# changes as production grows, so churn must stay in production. A reference
+# under `derivations/continuous/` or `derivations/common/` imports from
+# `orpheus.numerics` only the vocabulary it shares with its consumers (the
+# question, the observables, the answer function, content identity, the
+# traced memo); its mathematics is the reference kernel's
+# (`orpheus/derivations/common/dense_pencil.py`, `quadrature.py`), on numpy,
+# scipy and mpmath. A change to this set is a contract change.
+
+REFERENCE_INTERFACE_NUMERICS: frozenset[str] = frozenset(
+    {"question", "observable", "mesh_free_function", "content", "traced_memo"}
+)
+
+_CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivations/common/")
+
+# The production machinery a closed reference never imports at all (the user's
+# ruling of 2026-10-06, "Add mesh and methods"): the discretization overlay,
+# the transport vocabulary and every method package. Its input and interface
+# vocabulary (data, geometry, the specification, the reference package) stays
+# importable.
+REFERENCE_FORBIDDEN_PACKAGES: frozenset[str] = MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES
+
+# Exempt by name, with the reason (the user's rulings on the gate's scope,
+# 2026-10-06): these modules pose a production method, so their subject is a
+# production object and they follow production's changes by nature.
+# `derivations/discrete/` is outside the roots for the same reason (an algebra
+# of record of a production discretization).
+_REFERENCE_INSULATION_EXEMPT: frozenset[str] = frozenset(
+    {
+        "derivations/continuous/mms/sn.py",  # the MMS harness that poses SN problems
+        "derivations/continuous/mms/moc.py",  # the MMS harness that poses MoC problems
+        "derivations/continuous/sood_registry/builders.py",  # builds production CP problems
+    }
+)
+
+
+def _imported_targets(rel_path: pathlib.PurePosixPath, src: str) -> list[str]:
+    """Every dotted name a module's imports bind, at any depth, ``TYPE_CHECKING`` included.
+
+    ``from orpheus.numerics import question`` binds ``orpheus.numerics.question``
+    and ``from orpheus import numerics`` binds ``orpheus.numerics``: the imported
+    NAME is part of the target when the module is a package the gate rules on, so
+    a package-level import cannot pass for an interface one, nor the reverse.
+    """
+    targets: list[str] = []
+    for node in ast.walk(ast.parse(src, filename=str(rel_path))):
+        if isinstance(node, ast.ImportFrom):
+            module = _absolute_module(rel_path, node)
+            if not module:
+                continue
+            if module in ("orpheus", "orpheus.numerics"):
+                targets.extend(f"{module}.{alias.name}" for alias in node.names)
+            else:
+                targets.append(module)
+        elif isinstance(node, ast.Import):
+            targets.extend(alias.name for alias in node.names)
+    return targets
+
+
+def _numerics_submodule(module_name: str) -> str | None:
+    """The `numerics` submodule a dotted name reads, ``""`` for the package itself."""
+    if module_name == "orpheus.numerics":
+        return ""
+    if module_name.startswith("orpheus.numerics."):
+        return module_name.split(".")[2]
+    return None
+
+
+def _dynamic_imports(src: str) -> list[str]:
+    """Module names passed as string LITERALS to ``importlib.import_module`` or ``__import__``.
+
+    A name built at run time (concatenated, formatted) is not decidable from the
+    source and is not seen: the gate's declared blind spot.
+    """
+    names: list[str] = []
+    for node in ast.walk(ast.parse(src)):
+        if not (isinstance(node, ast.Call) and node.args):
+            continue
+        func = node.func
+        called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+        argument = node.args[0]
+        if called in {"import_module", "__import__"} and isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+            names.append(argument.value)
+    return names
+
+
+def _reference_insulation_violations(rel: pathlib.PurePosixPath, src: str) -> list[str]:
+    """The non-interface `numerics` imports of one closed-reference module."""
+    rel_str = rel.as_posix()
+    if not rel_str.startswith(_CLOSED_REFERENCE_ROOTS) or rel_str in _REFERENCE_INSULATION_EXEMPT:
+        return []
+    imported = _imported_targets(rel, src) + _dynamic_imports(src)
+    violations: list[str] = []
+    for module_name in imported:
+        if module_name.startswith("orpheus.") and module_name.split(".")[1] in REFERENCE_FORBIDDEN_PACKAGES:
+            violations.append(
+                f"{rel} imports {module_name} (a closed reference never imports production "
+                f"machinery: {sorted(REFERENCE_FORBIDDEN_PACKAGES)})"
+            )
+            continue
+        submodule = _numerics_submodule(module_name)
+        if submodule is None or submodule in REFERENCE_INTERFACE_NUMERICS:
+            continue
+        violations.append(
+            f"{rel} imports {module_name} (a closed reference may import from numerics only "
+            f"{sorted(REFERENCE_INTERFACE_NUMERICS)})"
+        )
+    return violations
+
+
+@pytest.mark.foundation
+def test_closed_references_import_only_the_numerics_interface() -> None:
+    violations = [
+        violation
+        for module_path in _iter_python_modules(ORPHEUS_ROOT / "derivations")
+        for violation in _reference_insulation_violations(
+            pathlib.PurePosixPath(module_path.relative_to(ORPHEUS_ROOT).as_posix()),
+            module_path.read_text(encoding="utf-8"),
+        )
+    ]
+    assert not violations, "\n".join(violations)
+
+
+_INSULATION_REFUSED_LEGS = [
+    ("derivations/common/x.py", "from orpheus.numerics.eigenvalue import dominant_eigenpair\n"),
+    ("derivations/continuous/x/y.py", "import orpheus.numerics.quadrature.registry\n"),
+    ("derivations/common/x.py", "from ...numerics.eigenvalue import dominant_eigenpair\n"),
+    ("derivations/common/x.py", "def f():\n    from orpheus.numerics.pencil import OperatorPencil\n"),
+    ("derivations/common/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n"),
+    ("derivations/common/x.py", "from orpheus.numerics import power_iteration\n"),
+    ("derivations/common/x.py", "import importlib\nm = importlib.import_module('orpheus.numerics.eigenvalue')\n"),
+    ("derivations/common/x.py", "from orpheus import numerics\n"),
+    ("derivations/common/x.py", "from ... import numerics\n"),
+]
+
+_INSULATION_ADMITTED_LEGS = [
+    ("derivations/common/x.py", "from orpheus.numerics.question import Eigen\n"),
+    ("derivations/common/x.py", "from orpheus.numerics import question\n"),
+    ("derivations/continuous/x/y.py", "from orpheus.numerics.traced_memo import traced_memo\n"),
+    ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
+    ("derivations/discrete/sn/x.py", "from orpheus.numerics.roots_of_unity import roots_of_unity\n"),
+    ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
+    ("derivations/continuous/sood_registry/builders.py", "from orpheus.cp import CPParams\n"),
+    ("derivations/common/x.py", "from orpheus.geometry import StructuredGeometry\nfrom orpheus.data.materials import Materials\n"),
+    ("derivations/common/x.py", "from orpheus.specification import Specification\nfrom orpheus.reference import ReferenceSolution\n"),
+]
+
+
+_INSULATION_REFUSED_PRODUCTION_LEGS = [
+    ("derivations/continuous/x/y.py", "from orpheus.mesh import Mesh1D\n"),
+    ("derivations/common/x.py", "def f():\n    from orpheus.transport.fields import X\n"),
+    ("derivations/continuous/x/y.py", "from orpheus.cp import CPParams\n"),
+    ("derivations/continuous/x/y.py", "from orpheus import mesh\n"),
+    ("derivations/common/x.py", "from ...sn.problem import SNProblem\n"),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _INSULATION_REFUSED_LEGS)
+def test_reference_insulation_refuses_each_import_shape(rel: str, source: str) -> None:
+    violations = _reference_insulation_violations(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and "may import from numerics only" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _INSULATION_REFUSED_PRODUCTION_LEGS)
+def test_reference_insulation_refuses_production_machinery(rel: str, source: str) -> None:
+    violations = _reference_insulation_violations(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and "never imports production machinery" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _INSULATION_ADMITTED_LEGS)
+def test_reference_insulation_admits_the_interface_and_the_exempt(rel: str, source: str) -> None:
+    assert _reference_insulation_violations(pathlib.PurePosixPath(rel), source) == []

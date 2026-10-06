@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from orpheus.derivations.common.dense_pencil import DensePencil
+
 
 def _dense_transfer_matrix(m) -> np.ndarray:
     r"""Densify a group-transfer matrix: ndarray-like OR scipy-sparse.
@@ -62,6 +64,27 @@ def _infinite_medium_matrices(
     A = np.diag(np.asarray(sig_t, dtype=float)) - sig_s_eff.T
     F = np.outer(chi, nu_sig_f)
     return A, F
+
+
+def _infinite_medium_pencil(
+    sig_t: np.ndarray,
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    chi: np.ndarray,
+    sig_2: np.ndarray | None = None,
+) -> DensePencil:
+    r"""The 0-D pencil :math:`\mathbf{F}\varphi = k\,\mathbf{A}\varphi` on the group space.
+
+    The one-node case of the reference kernel's weak form: the group
+    space's pairing is Euclidean, so the adjoint pencil is the transposed
+    pair :math:`(\mathbf{A}^T, \mathbf{F}^T)`, spelled once by
+    :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.adjoint`, so the
+    factor-order trap of :func:`kinf_and_adjoint_spectrum_homogeneous` has no
+    spelling of its own (omitting the ``.adjoint()`` is the remaining error,
+    and the adjoint-spectrum gates redden on it).
+    """
+    A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
+    return DensePencil(loss=A, production=F)
 
 
 def kinf_homogeneous(
@@ -127,31 +150,8 @@ def kinf_and_spectrum_homogeneous(
     phi_spectrum : (ng,) ndarray
         Right eigenvector, :math:`\ell^{2}`-normalised, non-negative.
     """
-    A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
-    M = np.linalg.solve(A, F)
-
-    eigvals, eigvecs = np.linalg.eig(M)
-    real_vals = np.real(eigvals)
-    dominant = int(np.argmax(real_vals))
-    k = float(real_vals[dominant])
-    phi = np.real(eigvecs[:, dominant])
-
-    # Sign-normalise so the spectrum is non-negative (physical)
-    if phi.sum() < 0:
-        phi = -phi
-    # Safety: if numerical noise leaves tiny negatives, clamp to zero.
-    # For a well-posed downscatter problem the physical flux is
-    # strictly non-negative; any component < -1e-12 indicates a real
-    # numerical problem and is propagated as-is so the caller notices.
-    phi = np.where(np.abs(phi) < 1e-14, 0.0, phi)
-
-    norm = float(np.linalg.norm(phi))
-    if norm == 0:
-        raise ValueError(
-            "Dominant eigenvector of A^{-1}F is identically zero — "
-            "cross-section inputs are likely degenerate."
-        )
-    return k, phi / norm
+    fundamental = _infinite_medium_pencil(sig_t, sig_s, nu_sig_f, chi, sig_2).fundamental()
+    return fundamental.k, fundamental.vector / float(np.linalg.norm(fundamental.vector))
 
 
 def kinf_and_adjoint_spectrum_homogeneous(
@@ -205,12 +205,11 @@ def kinf_and_adjoint_spectrum_homogeneous(
 
     :math:`(\mathbf{A}, \mathbf{F})` come from the SAME assembly as the
     forward spectrum (:func:`_infinite_medium_matrices`), so the two
-    references pin the same operator pair.  Eigen-extraction rides
-    :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` — the shared
-    Perron–Frobenius primitive (structural independence from the SN
-    solver lives in the INPUT assembly: dense XS matrices here vs the
-    operator-algebra composition there, per the #276
-    ``direct_eigenvalue`` ruling).  The returned vector carries the same
+    references pin the same operator pair.  Eigen-extraction is the
+    reference kernel's :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.fundamental`
+    on the adjoint pencil, the transposed pair, so the factor-order trap
+    above has no spelling of its own; it shares no primitive with the SN solver's
+    eigen-extraction (the reference kernel's ruling of 2026-10-06).  The returned vector carries the same
     convention as the forward spectrum (:math:`\ell^2`-normalised,
     non-negative sum), so the two are directly comparable.
 
@@ -221,17 +220,8 @@ def kinf_and_adjoint_spectrum_homogeneous(
     phi_star_spectrum : (ng,) ndarray
         Left eigenvector (adjoint spectrum), :math:`\ell^{2}`-normalised.
     """
-    # Local import keeps this Branch-1 reference module numpy-only at
-    # import time; the shared extraction primitive is pulled on use.
-    from orpheus.numerics.eigenvalue import dominant_eigenpair
-
-    A, F = _infinite_medium_matrices(sig_t, sig_s, nu_sig_f, chi, sig_2)
-    # The DAGGERED resolvent (Aᵀ)⁻¹Fᵀ — NOT (A⁻¹F)ᵀ; see the warning above.
-    k, phi_star = dominant_eigenpair(np.linalg.solve(A.T, F.T))
-    # dominant_eigenpair contracts sign (sum >= 0) but leaves scale
-    # arbitrary — normalise explicitly, exactly as the forward sibling
-    # does, so the two spectra are comparable by construction.
-    return k, phi_star / float(np.linalg.norm(phi_star))
+    fundamental = _infinite_medium_pencil(sig_t, sig_s, nu_sig_f, chi, sig_2).adjoint().fundamental()
+    return fundamental.k, fundamental.vector / float(np.linalg.norm(fundamental.vector))
 
 
 def kinf_from_cp(
@@ -296,5 +286,4 @@ def kinf_from_cp(
                         * nu_sig_f_mats[j_reg][gp]
                     )
 
-    M = np.linalg.solve(A_mat, B_mat)
-    return float(np.max(np.real(np.linalg.eigvals(M))))
+    return DensePencil(loss=A_mat, production=B_mat).fundamental().k

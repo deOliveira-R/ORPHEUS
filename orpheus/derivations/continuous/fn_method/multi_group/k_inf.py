@@ -6,8 +6,8 @@ iteration, no matrix inversion beyond the formula's own algebra.
 That structural simplicity is what makes them a credible
 *structurally-independent* cross-check against
 :func:`orpheus.derivations.common.eigenvalue.kinf_homogeneous`, which
-solves the same problem via :func:`numpy.linalg.eig` of
-:math:`A^{-1}F`.
+solves the same problem as the dense pencil :math:`F\varphi = k\,A\varphi`
+of the reference kernel (:class:`~orpheus.derivations.common.dense_pencil.DensePencil`).
 
 ORPHEUS group convention is used throughout (``g=0`` fast → ``g=N-1``
 slow). The 2G entry points take ORPHEUS-ordered cross sections; the
