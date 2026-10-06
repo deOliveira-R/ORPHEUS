@@ -49,9 +49,10 @@ derived from (kept columns, group), not matched on the coordinate system.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import cached_property
 from math import gamma, pi
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 import numpy as np
 
@@ -62,7 +63,7 @@ from orpheus.numerics.symmetry import SubgroupOfO3
 if TYPE_CHECKING:
     from orpheus.geometry.line import Line
 
-__all__ = ["AxialImage", "Chart", "RadialImage", "SingularStratum"]
+__all__ = ["AxialImage", "Chart", "DirectionDomain", "DirectionShape", "RadialImage", "SingularStratum"]
 
 #: Tolerance on a motion's translation when deciding membership in
 #: :math:`G_c`; the orthogonal part is decided by the group's realization.
@@ -208,6 +209,21 @@ class Chart:
         sphere_area = 2.0 * pi ** ((k + 1) / 2.0) / gamma((k + 1) / 2.0)
         return sphere_area * np.asarray(impact_parameter, dtype=float) ** k * speed
 
+    def directions_at(self, orbit_coordinate: float) -> "DirectionDomain":
+        r"""The directions at a point modulo the point's stabiliser: :math:`S^2 / \mathrm{Stab}(x)` (:class:`DirectionDomain`).
+
+        The representative point is :math:`x = c\,\hat e_x` in the canonical
+        frame. Refused: a non-finite :math:`c`, and a negative one where the
+        chart's group acts on the kept space.
+        """
+        r = float(orbit_coordinate)
+        if not np.isfinite(r) or (self.acts_on_kept_space and r < 0.0):
+            raise ValueError(
+                f"a point's orbit coordinate is finite, and non-negative where the chart's group acts on the "
+                f"kept space; got {orbit_coordinate!r}"
+            )
+        return DirectionDomain(self, r)
+
     def image(self, line: "Line") -> "RadialImage | AxialImage":
         r"""The image of lines of the canonical frame in the orbit space.
 
@@ -234,6 +250,178 @@ class Chart:
             speed=speed,
             parameter_origin=np.zeros_like(speed),
         )
+
+
+class DirectionShape(Enum):
+    r"""The shapes of :math:`S^2 / \mathrm{Stab}(x)` the three charts produce, each a box of measure-uniform coordinates.
+
+    ``WHOLE``: the stabiliser is :math:`O(3)` (the sphere's centre), one
+    orbit, no coordinate. ``COSINE``: :math:`O(2)_x`, the cosine
+    :math:`\Omega_x \in [-1, 1]` (Archimedes: uniform). ``AXIAL_COSINE``:
+    :math:`D_{\infty h}` on the cylinder's axis, :math:`w = |\Omega_z| \in
+    [0, 1]`. ``ANGLE_AXIAL``: :math:`D_{1h} = \{e, \sigma_y, \sigma_z,
+    C_2(x)\}` off the cylinder's axis, the in-plane angle :math:`\alpha \in
+    [0, \pi]` between :math:`P\Omega` and :math:`\hat x` times :math:`w`, with
+    :math:`\mathrm{d}\Omega = \mathrm{d}w\,\mathrm{d}\alpha`.
+    """
+
+    WHOLE = ()
+    COSINE = ("cosine",)
+    AXIAL_COSINE = ("axial_cosine",)
+    ANGLE_AXIAL = ("angle", "axial_cosine")
+
+
+_SHAPE_BOUNDS: dict[str, tuple[float, float]] = {
+    "cosine": (-1.0, 1.0),
+    "axial_cosine": (0.0, 1.0),
+    "angle": (0.0, pi),
+}
+
+
+@dataclass(frozen=True, eq=False)
+class DirectionDomain:
+    r"""The directions at the point :math:`c\,\hat e_x` of a chart modulo its stabiliser (:meth:`Chart.directions_at`).
+
+    A box in the coordinates of its :attr:`shape` (:class:`DirectionShape`),
+    on which :math:`\mathrm{d}\Omega` is :attr:`density` times Lebesgue
+    measure and every orbit of the stabiliser meets the box once (its
+    boundary aside).
+
+    SCOPE-BOUNDARY[guard] machinery: the point-isotropy computation
+    :math:`L \cap \mathrm{Stab}(x)` and the orbit-space catalogue entry
+    :math:`S^2/D_{1h}`, which would derive the shape table below from the
+    group.
+    ruling: the user, 2026-10-06 (#581: the catalogue's barycentre lift is
+    not a right inverse on :math:`D_{1h}`'s non-linear chart).
+    revisit: when #581 lands, this table retires onto the catalogue.
+
+    Attributes
+    ----------
+    chart:
+        The chart the point is on.
+    orbit_coordinate:
+        The point's orbit coordinate :math:`c`.
+    """
+
+    chart: "Chart"
+    orbit_coordinate: float
+
+    @property
+    def point(self) -> np.ndarray:
+        r"""The representative point :math:`c\,\hat e_x`, ``(3,)``."""
+        return np.array([self.orbit_coordinate, 0.0, 0.0])
+
+    @cached_property
+    def shape(self) -> DirectionShape:
+        """The domain's shape, from the chart's pair and whether the point is on the singular stratum."""
+        chart = self.chart
+        on_stratum = any(s.orbit_value == self.orbit_coordinate for s in chart.singular_strata)
+        if not chart.acts_on_kept_space or chart.kept_columns == 3:
+            return DirectionShape.WHOLE if on_stratum else DirectionShape.COSINE
+        return DirectionShape.AXIAL_COSINE if on_stratum else DirectionShape.ANGLE_AXIAL
+
+    @property
+    def stabiliser(self) -> SubgroupOfO3:
+        """The point's linear isotropy in the chart's group: the whole group on the stratum."""
+        match self.shape:
+            case DirectionShape.WHOLE | DirectionShape.AXIAL_COSINE:
+                return self.chart.group
+            case DirectionShape.COSINE:
+                return SubgroupOfO3.O2("x")
+            case DirectionShape.ANGLE_AXIAL:
+                return SubgroupOfO3.Dnh(1)
+            case unreachable:
+                assert_never(unreachable)
+
+    @property
+    def axes(self) -> tuple[str, ...]:
+        """The coordinate names, in order (none at the sphere's centre)."""
+        return self.shape.value
+
+    @property
+    def bounds(self) -> tuple[tuple[float, float], ...]:
+        """One closed interval per axis."""
+        return tuple(_SHAPE_BOUNDS[axis] for axis in self.axes)
+
+    @property
+    def density(self) -> float:
+        r"""The constant density of :math:`\mathrm{d}\Omega`: :math:`4\pi` over the box's coordinate measure."""
+        return 4.0 * pi / float(np.prod([hi - lo for lo, hi in self.bounds]))
+
+    def direction(self, coordinates: np.ndarray) -> np.ndarray:
+        r"""Representative unit directions of the canonical frame at coordinates ``(..., len(axes))``, ``(..., 3)``.
+
+        Refused: coordinates of the wrong width, non-finite, or outside the box.
+        """
+        q = np.asarray(coordinates, dtype=float)
+        if q.shape[-1:] != (len(self.axes),):
+            raise ValueError(f"coordinates on the axes {self.axes} have shape (..., {len(self.axes)}); got {q.shape}")
+        for j, (lo, hi) in enumerate(self.bounds):
+            column = q[..., j]
+            if not np.all((column >= lo) & (column <= hi)):              # NaN fails both comparisons
+                raise ValueError(f"the {self.axes[j]} coordinate lies in [{lo}, {hi}]; got values outside it or not finite")
+        zero = np.zeros(q.shape[:-1])
+        match self.shape:
+            case DirectionShape.WHOLE:
+                return np.stack([zero + 1.0, zero, zero], axis=-1)
+            case DirectionShape.COSINE:
+                cosine = q[..., 0]
+                return np.stack([cosine, _sine(cosine), zero], axis=-1)
+            case DirectionShape.AXIAL_COSINE:
+                w = q[..., 0]
+                return np.stack([_sine(w), zero, w], axis=-1)
+            case DirectionShape.ANGLE_AXIAL:
+                alpha, w = q[..., 0], q[..., 1]
+                return np.stack([_sine(w) * np.cos(alpha), _sine(w) * np.sin(alpha), w], axis=-1)
+            case unreachable:
+                assert_never(unreachable)
+
+    def impact_parameter(self, coordinates: np.ndarray) -> np.ndarray:
+        r"""The impact parameter :math:`b` of the line through :attr:`point` in each direction, ``(...,)``.
+
+        The kernel's own :meth:`Chart.image` of that line, so the reading and
+        the chord agree bit for bit. A slab line has no impact parameter.
+        """
+        from orpheus.geometry.line import Line
+
+        directions = self.direction(coordinates)
+        image = self.chart.image(Line.through(np.broadcast_to(self.point, directions.shape), directions))
+        match image:
+            case RadialImage():
+                return image.impact_parameter
+            case AxialImage():
+                raise ValueError("a slab line has no impact parameter: the slab's group fixes the kept space")
+
+    def tangencies(self, level: float) -> np.ndarray:
+        r"""The values of the first axis where the line through :attr:`point` is tangent to :math:`c` = ``level``.
+
+        Defined where the chart's group acts on the kept space, for
+        :math:`0 < \ell \le c`, where :math:`b = \ell` has solutions:
+        :math:`\Omega_x = \pm\sqrt{(1 - \ell/c)(1 + \ell/c)}` on the sphere,
+        :math:`\alpha = \arcsin(\ell/c)` and :math:`\pi - \arcsin(\ell/c)` on
+        the cylinder, one value (the grazing direction) at :math:`\ell = c`.
+        Sorted; empty elsewhere, on the slab and on a stratum.
+        """
+        r, l = self.orbit_coordinate, float(level)
+        if not self.chart.acts_on_kept_space or not 0.0 < l <= r:
+            return np.empty(0)
+        ratio = l / r
+        match self.shape:
+            case DirectionShape.COSINE:
+                m = float(_sine(np.asarray(ratio)))
+                return np.unique([-m, m])
+            case DirectionShape.ANGLE_AXIAL:
+                a = float(np.arcsin(ratio))
+                return np.unique([a, pi - a])
+            case DirectionShape.WHOLE | DirectionShape.AXIAL_COSINE:
+                return np.empty(0)
+            case unreachable:
+                assert_never(unreachable)
+
+
+def _sine(cosine: np.ndarray) -> np.ndarray:
+    r""":math:`\sqrt{(1 - c)(1 + c)}`, without the cancellation of :math:`1 - c^2` near :math:`|c| = 1`."""
+    return np.sqrt(np.clip((1.0 - cosine) * (1.0 + cosine), 0.0, None))
 
 
 @dataclass(frozen=True, eq=False)

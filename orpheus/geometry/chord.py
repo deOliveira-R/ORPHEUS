@@ -66,7 +66,7 @@ from orpheus.geometry.transformation import RigidMotion
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry
 
-__all__ = ["Chord", "ConcentricPartition", "Crossings"]
+__all__ = ["Chord", "ConcentricPartition", "Crossings", "Transits"]
 
 
 @dataclass(frozen=True, eq=False)
@@ -337,6 +337,76 @@ class Chord:
     def orbit_coordinate_at(self, t: np.ndarray) -> np.ndarray:
         r"""The orbit coordinate at the caller's parameters ``t`` ``(..., q)``, ``(..., q)``."""
         return self.image.orbit_coordinate_at(t)
+
+    @property
+    def transits(self) -> "Transits":
+        r"""The maximal runs of each line inside the domain :math:`[r_0, r_n]`, at most two (:class:`Transits`).
+
+        A transit is a maximal run of slots in which every traversed slot
+        (length :math:`> 0`) lies in a region :math:`< n`; an untraversed
+        slot never breaks a run, so only a traversed exterior slot (a
+        hollow body's cavity) separates two transits. Its walls are the
+        breakpoints of the crossings that open its first traversed slot
+        and close its last one. A parallel line, inside a region or in a
+        surface, has none.
+        """
+        n = self.partition.n_regions
+        slots = self.slot_region.shape[-1]
+        traversed = (self.slot_length > 0.0) & ~self.parallel[..., None]
+        run = np.cumsum(traversed & (self.slot_region >= n), axis=-1)        # traversed exterior slots so far
+        inside = traversed & (self.slot_region < n)
+        member = inside[..., None, :] & (run[..., None, :] == np.arange(_MAX_TRANSITS)[:, None])
+        present = member.any(axis=-1)
+        first = np.argmax(member, axis=-1)
+        last = slots - 1 - np.argmax(member[..., ::-1], axis=-1)
+        breakpoint = np.broadcast_to(self.crossings.breakpoint[..., None, :], (*present.shape, slots + 1))
+        entry = np.take_along_axis(breakpoint, first[..., None], axis=-1)[..., 0]
+        exit_ = np.take_along_axis(breakpoint, (last + 1)[..., None], axis=-1)[..., 0]
+        absent_wall = self.partition.no_interface
+        return Transits(
+            first_slot=np.where(present, first, slots),
+            stop_slot=np.where(present, last + 1, slots),
+            entry_wall=np.where(present, entry, absent_wall),
+            exit_wall=np.where(present, exit_, absent_wall),
+            present=present,
+        )
+
+
+#: A concentric partition has one cavity at most, so a line has at most two transits.
+_MAX_TRANSITS = 2
+
+
+@dataclass(frozen=True, eq=False)
+class Transits:
+    r"""The transits of a batch of lines: the maximal runs inside the domain, in order along each line.
+
+    Every array is ``(..., 2)``, one column per possible transit in the
+    order the line meets them; ``present`` masks the ones it makes. A
+    wall is named by its breakpoint index (:math:`0` or :math:`n`), never by
+    position; an absent transit is the empty slot range at the end of the
+    chord (``first_slot == stop_slot ==`` the slot count) and carries the
+    wall code :math:`n + 1`, out of range for the breakpoints, so indexing
+    a per-wall table with it raises.
+
+    Attributes
+    ----------
+    first_slot:
+        The first traversed slot of each transit.
+    stop_slot:
+        One past its last traversed slot.
+    entry_wall:
+        The breakpoint index of the crossing that opens ``first_slot``.
+    exit_wall:
+        The breakpoint index of the crossing that closes ``stop_slot - 1``.
+    present:
+        Whether the line makes the transit.
+    """
+
+    first_slot: np.ndarray
+    stop_slot: np.ndarray
+    entry_wall: np.ndarray
+    exit_wall: np.ndarray
+    present: np.ndarray
 
 
 
