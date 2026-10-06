@@ -127,7 +127,8 @@ _CANDIDATES = [
 # ── the table and the smoke row ─────────────────────────────────────────────
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_CHART + "test_the_chart_is_derived_from_its_kept_columns_and_its_group",
                       _CHART + "test_the_singular_strata_and_their_isotropy")
 @pytest.mark.parametrize(("chart", "r", "axes", "bounds", "stabiliser"), [t[1:6] for t in _TABLE], ids=_IDS)
@@ -186,7 +187,8 @@ def _full_sphere_integral(name: str) -> float:
     return float(np.sum(wt[:, None] * _integrand(name, omega)) * (2.0 * math.pi / 128))
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_direction_domain_of_each_chart_and_point")
 @pytest.mark.parametrize(("chart", "r", "name"), _POINTS, ids=_IDS)
 def test_an_invariant_integrand_over_the_domain_is_its_integral_over_the_sphere(chart: Chart, r: float, name: str) -> None:
@@ -261,7 +263,8 @@ def _in_image(dom, axes, omega: np.ndarray) -> np.ndarray:
     return np.all(np.abs(rep - omega) <= 8 * _EPS, axis=-1)
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_direction_domain_of_each_chart_and_point")
 @pytest.mark.parametrize(("chart", "r", "name"), _POINTS, ids=_IDS)
 def test_the_domain_meets_every_orbit_of_the_stabiliser_once(chart: Chart, r: float, name: str) -> None:
@@ -308,7 +311,8 @@ def test_the_domain_meets_every_orbit_of_the_stabiliser_once(chart: Chart, r: fl
 # ── (iv) unit vectors, the coordinates round-trip, the sine is conditioned ─
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_direction_domain_of_each_chart_and_point")
 @pytest.mark.parametrize(("chart", "r", "name"), [p for p in _POINTS if p[2] != "O3"], ids=[i for i, p in zip(_IDS, _POINTS) if p[2] != "O3"])
 def test_the_representative_is_a_unit_vector_whose_coordinates_round_trip(chart: Chart, r: float, name: str) -> None:
@@ -380,7 +384,8 @@ def test_the_representative_sine_is_conditioned_near_the_pole(chart: Chart, r: f
 _RADIAL = [(_SPH, 1.5), (_SPH, 0.37), (_SPH, 0.0), (_CYL, 1.5), (_CYL, 2.0), (_CYL, 0.0)]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_representative_is_a_unit_vector_whose_coordinates_round_trip",
                       _CHART + "test_the_image_of_a_line_and_its_shift")
 @pytest.mark.parametrize(("chart", "r"), _RADIAL, ids=[f"{c.coord.name.lower()}_r{r}" for c, r in _RADIAL])
@@ -451,7 +456,8 @@ _BREAK_CASES = [  # (chart, breakpoints, r): the point inside a region, on an in
 _BREAK_IDS = [f"{c.coord.name.lower()}_{len(bp) - 1}reg{'_hollow' if bp[0] else ''}_r{r}" for c, bp, r in _BREAK_CASES]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.parametrize(("chart", "breakpoints", "r"), _BREAK_CASES, ids=_BREAK_IDS)
 def test_the_tangencies_are_the_closed_form_break_set(chart: Chart, breakpoints, r: float) -> None:
     """A5: ``tangencies(r_k)`` is the closed form, sorted, to 4 ulp of the axis scale; empty where none.
@@ -476,7 +482,8 @@ def test_the_tangencies_are_the_closed_form_break_set(chart: Chart, breakpoints,
             assert abs(mp.mpf(float(g)) - e) <= 4 * _EPS * scale, f"level {level}: {g!r} vs {mp.nstr(e, 20)}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.parametrize(("chart", "r"), [(_SLAB, 0.5), (_SPH, 0.0), (_CYL, 0.0)], ids=["slab", "sphere_centre", "cylinder_axis"])
 def test_no_tangency_on_the_slab_or_at_a_stratum(chart: Chart, r: float) -> None:
     """The slab's only break (``u = 0``) is the reference's own; at a stratum every line has ``b = 0``.
@@ -503,7 +510,8 @@ def _on_axis(dom, values: np.ndarray) -> np.ndarray:
     return values[:, None]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_tangencies_are_the_closed_form_break_set",
                       _CHORD + "test_a_tangency_is_not_a_crossing")
 @pytest.mark.parametrize(("chart", "breakpoints", "r"), _BREAK_CASES, ids=_BREAK_IDS)
@@ -563,7 +571,8 @@ def test_the_tangencies_are_where_the_kernels_crossings_change(chart: Chart, bre
 # ── (vi) the stabiliser, by membership; (vii) refusals ─────────────────────
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.rests_on(_HERE + "test_the_direction_domain_of_each_chart_and_point",
                       _CHART + "test_membership_in_the_symmetry_group_is_invariance_of_the_orbit_coordinate")
 @pytest.mark.parametrize(("chart", "r"), [p[:2] for p in _POINTS], ids=_IDS)
@@ -609,7 +618,8 @@ def test_a_point_off_the_charts_range_is_refused(chart: Chart) -> None:
 # ── qa review rows (2026-10-06) ─────────────────────────────────────────────
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-directions-at")
 @pytest.mark.parametrize("r", [0.7, 1.5])
 def test_a_line_along_the_cylinder_axis_has_the_points_impact_parameter(r: float) -> None:
     """At ``w = 1`` the line is parallel to the orbit space and keeps ``c = r``: its impact parameter is ``r``.

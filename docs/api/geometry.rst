@@ -291,16 +291,24 @@ quotient of space by its symmetry group :math:`G_c`, every verb derived
 from its kept columns and its linear group: the orbit coordinate, the
 membership of a rigid motion in :math:`G_c`, the singular strata, the
 measure, the projected speed :math:`|P\Omega|`, the density of the
-measure on lines, and the image of a line in the orbit space
+measure on lines, the image of a line in the orbit space
 (:class:`~orpheus.geometry.chart.RadialImage` or
-:class:`~orpheus.geometry.chart.AxialImage`). :class:`~orpheus.geometry.line.Line` is a batch of
+:class:`~orpheus.geometry.chart.AxialImage`), and the directions at a
+point, :meth:`~orpheus.geometry.chart.Chart.directions_at`: a
+:class:`~orpheus.geometry.chart.DirectionDomain`, the box of
+:math:`S^2/\mathrm{Stab}(x)` in measure-uniform coordinates with its
+density, representatives, impact parameters and tangencies, its shape a
+:class:`~orpheus.geometry.chart.DirectionShape`. :class:`~orpheus.geometry.line.Line` is a batch of
 oriented lines in Plücker coordinates.
 :class:`~orpheus.geometry.chord.ConcentricPartition` is the level sets
 :math:`c = r_0 < \dots < r_n` posed in space by a rigid motion, built
 from a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
 by :meth:`~orpheus.geometry.chord.ConcentricPartition.of`; its
 :meth:`~orpheus.geometry.chord.ConcentricPartition.chord` returns a
-:class:`~orpheus.geometry.chord.Chord` (slots, lengths, crossings) and its
+:class:`~orpheus.geometry.chord.Chord` (slots, lengths, crossings, and
+:attr:`~orpheus.geometry.chord.Chord.transits`, the
+:class:`~orpheus.geometry.chord.Transits` of each line, its maximal runs
+inside the domain with their walls) and its
 :meth:`~orpheus.geometry.chord.ConcentricPartition.region_containing`
 locates a bare orbit coordinate, inner-owns on :math:`[r_0, r_n]`, with
 the exteriors as the out-of-range codes :math:`n` and :math:`n + 1`.
@@ -311,6 +319,19 @@ the theory page resolve to links.
 .. automodule:: orpheus.geometry.chart
    :members:
    :show-inheritance:
+   :exclude-members: DirectionDomain
+
+.. ``DirectionDomain.shape`` is excluded for the reason ``Line.shape`` is
+   below: indexed, it collides with ``Axis.shape`` for every unqualified
+   ``shape`` cross-reference (`[M]` 2026-10-06, 25 ``more than one target
+   found`` warnings on a ``-W`` build). The shape is a
+   :class:`~orpheus.geometry.chart.DirectionShape`, decided from the
+   chart's pair and whether the point is on the singular stratum.
+
+.. autoclass:: orpheus.geometry.chart.DirectionDomain
+   :members:
+   :show-inheritance:
+   :exclude-members: shape
 
 .. automodule:: orpheus.geometry.line
    :members:

@@ -77,8 +77,28 @@ Key facts
   (:eq:`geometry-cauchy-mean-chord`) is reproduced on all three charts to
   :math:`10^{-15}` `[M]` 2026-10-05, and the quadrature rule over
   :math:`b` stays with the consumer (:ref:`chart-and-chord-measure`).
+- **A transit is a maximal run of a line inside the domain**
+  :math:`[r_0, r_n]` (:eq:`geometry-transits`): the slots in which every
+  traversed slot has an interior region code; an untraversed slot never
+  breaks a run, so only a hollow body's traversed cavity separates two,
+  and a line makes at most two. Its walls are breakpoint indices
+  (:math:`0` or :math:`n`), never positions; an absent transit carries the
+  out-of-range codes (slot count :math:`S`, wall :math:`n + 1`); a tangency
+  is not a crossing and a parallel line has none
+  (:ref:`chart-and-chord-transits`).
+- **The directions at a point are** :math:`S^2/\mathrm{Stab}(x)`, a box of
+  measure-uniform coordinates with the constant density :math:`4\pi/|B|`
+  (:eq:`geometry-directions-at`): the cosine to the radius under
+  :math:`O(2)_x` (sphere, slab; Archimedes), the axial cosine times the
+  in-plane angle under :math:`D_{1h}` off the cylinder's axis, one
+  coordinate or none on a stratum. The impact parameter is the kernel's
+  own :meth:`Chart.image <orpheus.geometry.chart.Chart.image>`; the
+  tangencies, the break set of a direction rule, are scale-free and
+  include the grazing value at the point's own level; within about
+  :math:`\sqrt\epsilon` of grazing there no double-precision :math:`b`
+  resolves the side (:ref:`chart-and-chord-directions`).
 - ⛔ **Capability, not a fix.** The three modules are a seed with no
-  consumer yet: `[M]` 2026-10-05, ``git grep`` over ``orpheus/`` finds no
+  consumer yet: `[M]` 2026-10-06, ``git grep`` over ``orpheus/`` finds no
   import of ``orpheus.geometry.chart``, ``.line`` or ``.chord`` outside the
   three modules themselves. Every chord, locator and measure on lines the
   tree computes is still its own spelling, counted in
@@ -111,13 +131,16 @@ Carlo (:ref:`chart-and-chord-deferred` has the census).
   group), :class:`~orpheus.geometry.chart.SingularStratum`, and the two
   images of a line in the orbit space,
   :class:`~orpheus.geometry.chart.RadialImage` and
-  :class:`~orpheus.geometry.chart.AxialImage`.
+  :class:`~orpheus.geometry.chart.AxialImage`, and the directions at a
+  point, :class:`~orpheus.geometry.chart.DirectionDomain` with its
+  :class:`~orpheus.geometry.chart.DirectionShape`.
 - :mod:`orpheus.geometry.line` holds :class:`~orpheus.geometry.line.Line`.
 - :mod:`orpheus.geometry.chord` holds
   :class:`~orpheus.geometry.chord.ConcentricPartition` (the level sets
   :math:`c = r_0 < \dots < r_n` posed in space),
-  :class:`~orpheus.geometry.chord.Chord` (the answer for a batch of lines)
-  and :class:`~orpheus.geometry.chord.Crossings`.
+  :class:`~orpheus.geometry.chord.Chord` (the answer for a batch of lines),
+  :class:`~orpheus.geometry.chord.Crossings` and
+  :class:`~orpheus.geometry.chord.Transits`.
 
 **Relation to the shape of a 1-D problem.** A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
@@ -1040,6 +1063,200 @@ column is the loaded control, the same instrument reading a motion
 outside the group.
 
 
+.. _chart-and-chord-transits:
+
+Transits — the runs of a line inside the domain
+===============================================
+
+A characteristic that reflects at the boundary of a 1-D body does not see
+the regions one by one; it sees the stretches it spends inside the domain
+:math:`[r_0, r_n]` between two walls. :attr:`Chord.transits
+<orpheus.geometry.chord.Chord.transits>` reads them off the chord as a
+:class:`~orpheus.geometry.chord.Transits` value.
+
+The definition
+--------------
+
+Number the slots of a chord :math:`i = 0, \dots, S - 1` in traversal order
+(:ref:`chart-and-chord-slots`), with region :math:`\rho_i` (the slot's
+``slot_region``) and length :math:`\ell_i` (``slot_length``), and let
+:math:`k_i` be the breakpoint index of crossing :math:`i`, which opens slot
+:math:`i`; crossing :math:`i + 1` closes it. The traversed slots are
+
+.. math::
+   :label: geometry-transits
+
+   \mathcal{T} \;=\; \{\, i : \ell_i > 0 \,\}
+   \quad (\text{empty on a parallel line}), \qquad
+   \text{a transit is a maximal } [a, z] \text{ with } a, z \in \mathcal{T}
+   \text{ and } \rho_i < n \text{ for every } i \in \mathcal{T} \cap [a, z],
+
+.. implements:: geometry-transits
+   :by: orpheus.geometry.chord.Chord.transits
+
+   **Implemented by** ``Chord.transits``, which reads the runs from the
+   chord's slot lengths, slot regions and crossing breakpoints.
+
+
+with **entry wall** :math:`k_a` and **exit wall** :math:`k_{z+1}`. In
+words: a transit is a maximal run of slots in which every *traversed*
+slot lies in an interior region (code :math:`< n`); an untraversed slot,
+of length 0, never breaks a run, so only a traversed exterior slot
+separates two transits; a transit begins and ends on a traversed slot;
+and a parallel line (:ref:`chart-and-chord-parallel`) has no transit,
+whether it lies inside a region (one infinite slot), in a surface, or
+outside the domain. The transits are ordered along the line.
+
+The value holds five arrays, each ``(..., 2)``, one column per possible
+transit in the order the line meets them: ``first_slot`` (:math:`a`),
+``stop_slot`` (:math:`z + 1`, one past the last traversed slot, so the
+transit is the slice ``first_slot:stop_slot``), ``entry_wall``,
+``exit_wall`` and ``present``. The slice may contain untraversed slots,
+of length 0: on the solid sphere at :math:`b = 0.7` the transit is slots
+0 to 6, and slots 2, 3 and 4 (region 0 inbound, the cavity code, region 0
+outbound) have length 0.
+
+Why at most two
+---------------
+
+A traversed exterior slot is the only separator, and a chord has at most
+one exterior slot. On the cylinder and the sphere the slots are the
+regions inbound :math:`n - 1, \dots, 0`, the inner exterior (code
+:math:`n`, the cavity), and the regions outbound :math:`0, \dots, n - 1`:
+the outer exterior :math:`n + 1` is entered by the last crossing, which
+opens no slot. On the slab the slots are the :math:`n` regions and there
+is no exterior slot at all. The cavity slot is traversed exactly when the
+body is hollow (:math:`r_0 > 0`) and :math:`b < r_0`; a concentric
+partition has one cavity, so a line makes 0, 1 or 2 transits, and the
+kernel's constant ``_MAX_TRANSITS = 2`` is that count.
+
+Why every wall is a boundary point
+----------------------------------
+
+A run begins on the first traversed slot either at the start of the
+line's stay in the domain or just after the cavity. On a curved chart the
+outermost slot is traversed whenever the line meets the body
+(:math:`b < r_n` gives it the length of :eq:`geometry-chord-segment-lengths`,
+which is positive), and it is opened by the crossing of :math:`r_n`; the
+slot after a traversed cavity is opened by the outward crossing of
+:math:`r_0`. The exits mirror the entries. On the slab the first slot is
+opened by the crossing of the wall the line meets first. So every wall is
+:math:`0` or :math:`n`, never an interface; the gate over 1500 lines per
+partition asserts it on every line it draws.
+
+Walls are breakpoint indices, never positions
+---------------------------------------------
+
+A wall is named by the breakpoint index of its crossing, :math:`0` (the
+inner wall: the cavity's surface, or the slab's :math:`r_0`) or :math:`n`
+(the outer wall), and never by where it sits in the value. A position
+does not name a wall: on a solid body the entry and the exit wall of the
+one transit are the same wall :math:`n`; on a hollow body crossed through
+its cavity, the first transit's exit and the second transit's entry are
+the same wall :math:`0`; on the slab the entry is :math:`0` rising and
+:math:`n` falling. The index names the same wall in every case, and it
+indexes a per-boundary-point table (an albedo per wall, a boundary law per
+breakpoint) directly. Reading the wall from the slot position instead
+(``entry_wall = first_slot``) gives the sphere's wall 0 for 3; it is the
+battery's arm T2 and the hand-counted row reds on it.
+
+The absent codes
+----------------
+
+An absent transit, the second column of a one-transit line or both
+columns of a line that misses the body, is the empty slot range at the
+end of the chord, ``first_slot == stop_slot ==`` :math:`S` (the slot
+count), with both walls :math:`n + 1`
+(:attr:`ConcentricPartition.no_interface
+<orpheus.geometry.chord.ConcentricPartition.no_interface>`). Both codes
+are out of range, for the same reason as the exterior codes
+(:ref:`chart-and-chord-crossing-order`): indexing a slot array with
+:math:`S`, or a per-breakpoint table of length :math:`n + 1` with
+:math:`n + 1`, raises ``IndexError`` instead of reading a real entry, and
+the slice ``first_slot:stop_slot`` of an absent transit is empty. The slot
+code is :math:`S`, not :math:`n + 1`: on a curved chart :math:`n + 1` is a
+real slot (slot 4 of the 7 on the solid sphere below is region 0
+outbound), and a consumer would read its length silently.
+
+Worked cases
+------------
+
+`[M]` 2026-10-06, the kernel at the branch head, each line through the
+point :math:`(b, 0, 0)` along :math:`\hat e_y` (the closest approach, so
+the impact parameter is :math:`b`); a transit is written
+``(first_slot, stop_slot, entry_wall, exit_wall)``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 26 40
+
+   * - Partition and line
+     - Transits
+     - Why
+   * - solid sphere :math:`(0, 0.3, 1.1, 2.0)`, :math:`b = 0.7`
+       (:math:`n = 3`, :math:`S = 7`)
+     - one, :math:`(0, 7, 3, 3)`; the second column
+       :math:`(7, 7, 4, 4)`
+     - a solid body has no traversed cavity: one transit, outer wall to
+       outer wall, whatever regions it misses (slots 2 to 4 are 0)
+   * - the same sphere, :math:`b = 0` and :math:`b = 1.1`
+     - one, :math:`(0, 7, 3, 3)`
+     - the centre is a stratum, never crossed; at the interior tangency
+       :math:`b = 1.1` only slots 0 and 6 are traversed (1.6703 each)
+   * - the same sphere, :math:`b = 2.0`
+     - none
+     - a tangency is not a crossing; every slot is 0
+   * - hollow sphere :math:`(0.4, 1.1, 2.0)`, :math:`b = 0.2`
+       (:math:`n = 2`, :math:`S = 5`)
+     - two, :math:`(0, 2, 2, 0)` and :math:`(3, 5, 0, 2)`
+     - the cavity slot 2 is traversed (length 0.6928); the first transit
+       ends on the inner wall, the second begins on it
+   * - the same hollow sphere, :math:`b = 0.4` exactly
+     - one, :math:`(0, 5, 2, 2)`
+     - :math:`b = r_0` is a tangency: the cavity slot has length 0 and
+       does not break the run
+   * - the hollow cylinder, :math:`b = 0.2`, direction
+       :math:`(0, 0.6, 0.8)`
+     - two, as the sphere
+     - the in-plane impact parameter decides; the axial tilt only scales
+       the lengths by :math:`1/|P\Omega|`
+   * - slab :math:`(-0.7, 0.3, 1.1, 2.0)`, :math:`\Omega_x = 0.6` and
+       :math:`-0.6`
+     - one, :math:`(0, 3, 0, 3)` rising, :math:`(0, 3, 3, 0)` falling
+     - the slab's slots are its regions in the order met; the walls swap
+       with the orientation
+   * - cylinder :math:`(0, 0.3, 1.1, 2.0)` along :math:`\hat e_z` at
+       :math:`c = 0.7`, at :math:`c = 1.1`; slab along :math:`\hat e_y` at
+       :math:`x = 0.5`
+     - none
+     - a parallel line meets no wall: inside a region it is one infinite
+       slot, in a surface every slot is 0
+
+Why the kernel carries transits
+-------------------------------
+
+The P1 design of the characteristic references closes a reflecting
+boundary with the boundary resolvent :math:`P = P_0 + E\,(I - T)^{-1} X` on the boundary
+trace space (the user's ruling of 2026-10-06, P1 of the plan
+``.claude/plans/characteristic_reference_architecture.md``, "P1 API
+sketch", items 1 and 3). The backward characteristic from
+:math:`(x, \Omega)` runs to a wall, reflects, and continues; on a
+specular wall of the chart's group the reflected line has the same impact
+parameter, so the unfolded path is periodic with period
+{transit, reversed transit}, and the rank of the closure per line is the
+number of walls in that period after the boundary laws' deck maps
+identify them. Each leg of the period carries the albedo of the wall at
+which the *backward* path reflects, and that pairing is made by the wall's
+breakpoint index; `[M]` 2026-10-06 (the elegance review's probe, recorded
+in the plan), the other pairing moved :math:`\psi` by 0.34. The transits
+are pure geometry, no albedo, no cross section, so they live in the
+kernel, where the reference and production can both read them (the
+ruling "Transits: in the kernel"). A line lying in a surface has no
+transit, and the chord's ``interface`` field names the surface; what to
+do with such a line is the consumer's decision (for the characteristic
+references the plan's ruling of 2026-10-06 is to refuse it).
+
+
 .. _chart-and-chord-location:
 
 Point location — three questions, three answers
@@ -1313,10 +1530,337 @@ that edge (the layering: :ref:`architecture-layering`). So
 gives the density and stops there.
 
 
+.. _chart-and-chord-directions:
+
+The directions at a point
+=========================
+
+A reading of the angular flux at a point :math:`x` integrates over the
+sphere of directions, and the problem's symmetry makes most of that
+sphere redundant: the stabiliser of :math:`x` in :math:`G_c` maps the
+problem at :math:`x` to itself, so the angular flux at :math:`x` is
+invariant under its linear part, and so is every integrand built from the
+chord of the line through :math:`x` (a rigid motion of :math:`G_c` fixing
+:math:`x` carries that line to a line through :math:`x` with the same
+chord). The integral over :math:`S^2` is then an integral over the orbit
+space :math:`S^2/\mathrm{Stab}(x)`. :meth:`Chart.directions_at
+<orpheus.geometry.chart.Chart.directions_at>` returns that orbit space as
+a :class:`~orpheus.geometry.chart.DirectionDomain`, for the representative
+point :math:`x = c\,\hat e_x` of the canonical frame (every point of the
+orbit :math:`c` is carried there by an element of :math:`G_c`).
+
+The definition
+--------------
+
+The domain is a box :math:`B` in at most two coordinates :math:`q`, each
+on a closed interval, with a map :math:`\omega(q)` to a representative
+unit direction, such that every orbit of :math:`\mathrm{Stab}(x)` on
+:math:`S^2` meets :math:`\omega(B)` once (the box's boundary aside, a set
+of measure zero) and the push-forward of :math:`\mathrm{d}\Omega` to the
+box is a constant multiple of Lebesgue measure:
+
+.. math::
+   :label: geometry-directions-at
+
+   \int_{S^2} f(\Omega)\,\mathrm{d}\Omega
+   \;=\; \rho \int_{B} f\bigl(\omega(q)\bigr)\,\mathrm{d}q,
+   \qquad
+   \rho \;=\; \frac{4\pi}{|B|},
+   \qquad
+   \text{for every } f \text{ with } f \circ Q = f
+   \ \text{for all } Q \in \mathrm{Stab}(x),
+
+.. implements:: geometry-directions-at
+   :by: orpheus.geometry.chart.Chart.directions_at
+
+   **Implemented by** ``Chart.directions_at``, which returns the
+   :class:`~orpheus.geometry.chart.DirectionDomain` of the point; its
+   ``direction`` is the representative map :math:`\omega` and its
+   ``density`` is :math:`\rho`.
+
+
+where :math:`|B|` is the box's coordinate measure (the product of its
+widths; 1 for the empty box) and :math:`\rho` is
+:attr:`DirectionDomain.density
+<orpheus.geometry.chart.DirectionDomain.density>`. Coordinates with a
+constant density are **measure-uniform**: a consumer puts any product rule
+on the box with the constant weight :math:`\rho` and no Jacobian, and
+splits it where the integrand has a kink (the tangencies below). The
+density is the size of a generic orbit times the local Jacobian, not the
+Jacobian alone: on the cylinder :math:`\mathrm{d}\Omega =
+\mathrm{d}w\,\mathrm{d}\alpha` locally, and :math:`\rho = 4` because four
+directions share each point of the box.
+
+The four shapes
+---------------
+
+:class:`~orpheus.geometry.chart.DirectionShape` names them; the shape is
+decided from the chart's pair (kept columns, group) and whether the point
+is on the singular stratum (:ref:`chart-and-chord-strata`):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 17 15 22 26 8 12
+
+   * - Chart and point
+     - :math:`\mathrm{Stab}(x)`
+     - Coordinates, box
+     - Representative :math:`\omega(q)`
+     - :math:`\rho`
+     - :math:`b(q)`
+   * - sphere, centre (``WHOLE``)
+     - :math:`O(3)`
+     - none; the empty box
+     - :math:`\hat e_x`
+     - :math:`4\pi`
+     - 0
+   * - sphere, :math:`c > 0`; slab, every point (``COSINE``)
+     - :math:`O(2)_x`
+     - ``cosine`` :math:`\mu = \Omega_x \in [-1, 1]`
+     - :math:`(\mu, \sqrt{(1-\mu)(1+\mu)}, 0)`
+     - :math:`2\pi`
+     - :math:`c\sqrt{(1-\mu)(1+\mu)}`; none on the slab
+   * - cylinder, axis (``AXIAL_COSINE``)
+     - :math:`D_{\infty h}`
+     - ``axial_cosine`` :math:`w = |\Omega_z| \in [0, 1]`
+     - :math:`(\sqrt{(1-w)(1+w)}, 0, w)`
+     - :math:`4\pi`
+     - 0
+   * - cylinder, :math:`c > 0` (``ANGLE_AXIAL``)
+     - :math:`D_{1h}`
+     - ``angle`` :math:`\alpha \in [0, \pi]`, ``axial_cosine``
+       :math:`w \in [0, 1]`
+     - :math:`(s\cos\alpha, s\sin\alpha, w)`,
+       :math:`s = \sqrt{(1-w)(1+w)}`
+     - 4
+     - :math:`c\sin\alpha` (:math:`w < 1`); :math:`c` at :math:`w = 1`
+
+`[M]` 2026-10-06, the kernel at the branch head: the four shapes, axes,
+bounds and stabilisers above, with densities :math:`4\pi`,
+:math:`2\pi`, :math:`4\pi` and 4 printed by ``density``.
+
+**The sphere off its centre, and the slab: Archimedes.** The stabiliser
+is :math:`O(2)_x` (:ref:`chart-and-chord-isotropy`); its orbits on the
+sphere of directions are the circles :math:`\Omega_x = \mu`, and the
+complete invariant is :math:`\mu`. In polar coordinates about
+:math:`\hat e_x`, :math:`\mathrm{d}\Omega = \mathrm{d}\mu\,\mathrm{d}\varphi`,
+so the zone between :math:`\mu_1` and :math:`\mu_2` has area
+:math:`2\pi(\mu_2 - \mu_1)`, independent of where the zone sits:
+Archimedes' hat-box theorem (the radial projection of a zone onto the
+circumscribed cylinder preserves its area). The push-forward of
+:math:`\mathrm{d}\Omega` to :math:`\mu` is therefore :math:`2\pi\,\mathrm{d}\mu`,
+the cosine is measure-uniform, and :math:`\rho = 4\pi/2`. The
+representative is the direction of the orbit in the half-plane
+:math:`\Omega_y \ge 0,\ \Omega_z = 0`. The slab and the sphere off its
+centre share this shape because they share the stabiliser; what differs
+is the impact parameter, which the slab does not have.
+
+**The sphere's centre.** The stabiliser is all of :math:`O(3)`, which is
+transitive on directions: one orbit, no coordinate, the empty box of
+measure 1, and :math:`\rho = 4\pi`, so an invariant integrand, a constant,
+integrates to :math:`4\pi f(\hat e_x)`.
+
+**The cylinder's axis.** The stabiliser is the whole linear group
+:math:`D_{\infty h}` (the axis is the stratum): the rotations about
+:math:`\hat e_z`, the mirrors containing it, and :math:`\sigma_z`. Its
+orbits are the pairs of circles :math:`\Omega_z = \pm w`, the invariant
+is :math:`w = |\Omega_z|`, and in polar coordinates about
+:math:`\hat e_z`, :math:`\mathrm{d}\Omega = \mathrm{d}\Omega_z\,\mathrm{d}\varphi`
+gives :math:`2 \cdot 2\pi\,\mathrm{d}w`: :math:`\rho = 4\pi` on
+:math:`[0, 1]`.
+
+**The cylinder off its axis: D**\ :sub:`1h`. At :math:`x = (c, 0, 0)` with
+:math:`c > 0`, a motion :math:`(Q, t)` of :math:`G_c` has
+:math:`t_x = t_y = 0` and :math:`Q\hat e_z = \pm\hat e_z`, so :math:`Q`
+maps the plane normal to the axis onto itself; fixing :math:`x` then
+forces :math:`t_z = 0` and :math:`Q\hat e_x = \hat e_x`, which leaves
+:math:`Q\hat e_y = \pm\hat e_y` and :math:`Q\hat e_z = \pm\hat e_z`. The
+stabiliser is the four diagonal sign matrices with first entry 1,
+
+.. math::
+
+   D_{1h} \;=\; \{\, e,\ \sigma_y,\ \sigma_z,\ C_2(x) \,\}
+   \;=\; \{\mathrm{diag}(1, \pm 1, \pm 1)\},
+
+``SubgroupOfO3.Dnh(1)`` in the subgroup lattice. `[M]` 2026-10-06, the
+realization of ``Dnh(1)`` contains :math:`e`, :math:`\sigma_y`,
+:math:`\sigma_z` and :math:`C_2(x)` and refuses :math:`\sigma_x`,
+:math:`C_2(z)`, :math:`C_2(y)`, the inversion and the rotation about
+:math:`\hat e_x` by :math:`\sqrt 2` rad; the same nine matrices tested as
+":math:`Q \in G_c` and :math:`Qx = x`" give the same nine answers. Its
+orbits on directions are :math:`(\Omega_x, \pm\Omega_y, \pm\Omega_z)`,
+with invariants :math:`\Omega_x`, :math:`|\Omega_y|`, :math:`|\Omega_z|`,
+and the fundamental domain is the quarter sphere
+:math:`\Omega_y \ge 0,\ \Omega_z \ge 0`. In polar coordinates about
+:math:`\hat e_z`, with :math:`w = \Omega_z` and the azimuth :math:`\alpha`
+the in-plane angle between :math:`P\Omega` and :math:`\hat e_x`,
+
+.. math::
+
+   \Omega = \bigl(s\cos\alpha,\ s\sin\alpha,\ w\bigr),
+   \quad s = \sqrt{(1-w)(1+w)},
+   \qquad
+   \mathrm{d}\Omega = \mathrm{d}w\,\mathrm{d}\alpha,
+
+and the quarter sphere is the box :math:`\alpha \in [0, \pi]`,
+:math:`w \in [0, 1]`, of measure :math:`\pi`; the four copies give
+:math:`\rho = 4\pi/\pi = 4`. The cylinder's generic stabiliser is smaller
+than the sphere's :math:`O(2)_x` (of the rotations about :math:`\hat e_x`
+it holds only the half turn), which is why its box has two coordinates
+where the sphere's has one.
+
+The impact parameter, the kernel's own
+--------------------------------------
+
+:meth:`DirectionDomain.impact_parameter
+<orpheus.geometry.chart.DirectionDomain.impact_parameter>` builds the
+lines through the point in the representative directions and returns
+:meth:`Chart.image <orpheus.geometry.chart.Chart.image>`'s impact
+parameter: one definition of :math:`b` for the reading and the chord
+(instrument doctrine X4), never a second closed form. The closed forms in
+the table follow from :eq:`geometry-line-crossing-law`: on the sphere
+:math:`b = |x \times \Omega| = c\sqrt{1 - \mu^2}`; on the cylinder the
+image in the plane normal to the axis passes through :math:`c\,\hat e_x`
+along :math:`(\cos\alpha, \sin\alpha)`, at distance
+:math:`c\sin\alpha` from the axis, whatever :math:`w`. At :math:`w = 1`
+the line is parallel to the axis and keeps :math:`c` for its whole length,
+so its impact parameter is :math:`c`, not :math:`c\sin\alpha`. A slab line
+has no impact parameter (its image is affine), and the call is refused
+with that message.
+
+How exactly the reading and a chord agree, `[M]` 2026-10-06 (2000 seeded
+directions at each of the sphere at :math:`c = 1.5` and :math:`0.37` and
+the cylinder at :math:`c = 1.5` and :math:`2.0`):
+
+- against ``Chart.image`` of the same lines, 8000 of 8000 bit for bit;
+- against the chord of an unposed
+  :class:`~orpheus.geometry.chord.ConcentricPartition`, 5320 of 8000 bit
+  for bit and the rest within :math:`2.7\,\epsilon c`, because
+  ``ConcentricPartition.chord`` first moves the line by the inverse of its
+  pose (the identity here), which recomputes the moment;
+- against partitions posed by a random rotation and a translation
+  :math:`t` (:math:`|t|` from 0 to :math:`2.1 \times 10^{6}`, four poses
+  per point, 32 000 lines), within
+  :math:`9.5\,\epsilon\,(c + |t|)/|P\Omega|`, the rounding of a moved base
+  point (the qa review measured the same growth with :math:`|t|`).
+
+The tangencies: where the chord changes
+---------------------------------------
+
+An integrand built from the chord of the line through :math:`x` has a
+kink wherever the line becomes tangent to a breakpoint's surface: the
+half-chord :math:`h_k = \sqrt{(r_k - b)(r_k + b)}` has an infinite
+derivative in :math:`b` at :math:`b = r_k`, and a pair of crossings
+appears or disappears. A direction rule at :math:`x` is split there.
+:meth:`DirectionDomain.tangencies
+<orpheus.geometry.chart.DirectionDomain.tangencies>` returns the values of
+the first axis where :math:`b = \ell` for a level :math:`\ell`, sorted:
+
+.. math::
+
+   \text{sphere: } \mu = \pm\sqrt{\bigl(1 - \tfrac{\ell}{c}\bigr)\bigl(1 + \tfrac{\ell}{c}\bigr)},
+   \qquad
+   \text{cylinder: } \alpha = \arcsin\tfrac{\ell}{c},\ \ \pi - \arcsin\tfrac{\ell}{c},
+   \qquad 0 < \ell \le c .
+
+Solving :math:`b(q) = \ell` with the closed forms above gives both. For
+:math:`0 < \ell < c` there are two values: directions with :math:`b < \ell`
+cross :math:`c = \ell` twice, those with :math:`b > \ell` miss it. At
+:math:`\ell = c`, the point's own level (the point on a surface), the two
+values merge into the single grazing value, :math:`\mu = 0` or
+:math:`\alpha = \pi/2`: every other line through the point crosses the
+surface at the point itself, and what changes at the grazing value is the
+sense of that crossing, outward for :math:`\Omega_x > 0`, so the backward
+characteristic switches the side of the surface it leaves into. The user
+ruled on 2026-10-06 that this value is in the break set. Elsewhere the set
+is empty: for :math:`\ell > c` every line through the point has
+:math:`b \le c < \ell` and crosses; for :math:`\ell \le 0` the level is the
+stratum or below it, never crossed; on the slab (no impact parameter; its
+one break, the parallel direction :math:`\mu = 0`, is the consumer's own);
+and at a stratum, where every line has :math:`b = 0`. On the cylinder the
+tangencies do not depend on :math:`w`, so they split the box along
+:math:`\alpha` only. `[M]` 2026-10-06: at :math:`c = 1.5`, the level
+1.1 gives :math:`\mu = \pm 0.67986927` and :math:`\alpha = 0.82321198,
+2.31838068`; the level 1.5 gives :math:`\mu = 0` and
+:math:`\alpha = \pi/2` alone.
+
+**Scale-free.** The tangencies depend on :math:`\ell/c` only, and are
+computed from the ratio, :math:`\sqrt{(1 - \ell/c)(1 + \ell/c)}`. The form
+:math:`\sqrt{(c - \ell)(c + \ell)}/c` underflows or overflows its product:
+`[M]` the qa review, at :math:`c = 10^{-200}` it gave :math:`[-0.0]` for
+the half level, and at :math:`c \ge 10^{160}` it gave :math:`\pm\infty`.
+The kernel's own half-chords still use the unscaled product
+(:ref:`chart-and-chord-deferred`, #582).
+
+Grazing at the point's own level is below double precision
+----------------------------------------------------------
+
+Near the grazing value at :math:`\ell = c`, a direction :math:`\delta`
+off grazing has :math:`b = c\cos\delta`, so :math:`c - b \approx
+c\,\delta^2/2`, second order in :math:`\delta`. Below
+:math:`\delta \approx \sqrt{2\epsilon} \approx 2 \times 10^{-8}` that is
+under an ulp of :math:`c`, and no double-precision :math:`b` resolves the
+side: the chord reads a tangency, makes no crossing of the surface and
+reports a length of 0 where the exact chord inside the surface is
+:math:`2c\sin\delta/|P\Omega|`. `[M]` 2026-10-06, the kernel at
+:math:`c = 2` on the partition :math:`(0, 0.3, 1.1, 2.0)`, the in-plane
+direction on the cylinder: for :math:`|\delta| \le 3 \times 10^{-9}` both
+charts read :math:`c - b = 0`, no transit and length 0 (exact
+:math:`1.2 \times 10^{-8}` at :math:`3 \times 10^{-9}`); at
+:math:`10^{-8}` the sphere resolves (:math:`c - b = 6.7 \times 10^{-16}`)
+and the cylinder does not; where resolved, the length carries the
+conditioning of :math:`h` near tangency (:ref:`chart-and-chord-conditioning`),
+:math:`1.03 \times 10^{-7}` for the exact :math:`4 \times 10^{-8}` at
+:math:`10^{-8}`, and within 1 % at :math:`10^{-7}`. The qa review's probe
+found the same band: the correctly rounded :math:`b` equals :math:`c`
+for :math:`|\delta| \le 10^{-8}` on both charts. This is the
+problem's conditioning, not an algorithm's: the cost is a lost chord of
+length about :math:`2c\delta/|P\Omega|` on a band of directions of width
+about :math:`\sqrt\epsilon`.
+
+The representative and its refusals
+-----------------------------------
+
+:meth:`DirectionDomain.direction
+<orpheus.geometry.chart.DirectionDomain.direction>` evaluates
+:math:`\omega(q)` on a batch ``(..., k)`` of coordinates. The transverse
+component is :math:`\sqrt{(1 - c)(1 + c)}` for a cosine :math:`c`, never
+:math:`\sqrt{1 - c^2}`, which loses about :math:`10^{-4}` relative at
+:math:`c = 1 - 10^{-12}`; a near-pole representative feeds every grazing
+chord, so a lost digit there is a wrong :math:`b`. The call refuses
+coordinates of the wrong width, non-finite ones and ones outside the box:
+a cosine of 2 would otherwise return the non-unit vector :math:`(2, 0, 0)`,
+and a NaN a NaN direction whose impact parameter read :math:`c` (`[M]` the
+qa review). :meth:`Chart.directions_at
+<orpheus.geometry.chart.Chart.directions_at>` refuses a non-finite orbit
+coordinate, and a negative one where the group acts on the kept space (the
+cylinder, the sphere); the slab accepts any finite coordinate.
+
+The shape table is a scope boundary
+-----------------------------------
+
+The four shapes are written by hand in ``DirectionDomain.shape`` and
+``DirectionDomain.stabiliser``, under a ``SCOPE-BOUNDARY[guard]`` tag. The
+machinery that would derive them is the point-isotropy computation
+:math:`L \cap \mathrm{Stab}(x)` and the orbit-space catalogue of
+``orpheus.numerics.manifold`` (:ref:`manifold-orbit-space`), which has
+:math:`S^2/O(2)_a` but no :math:`S^2/D_{1h}`. The entry was not built: the
+catalogue's lift is the orbit barycentre, the Reynolds projection onto the
+group's fixed subspace, which is a right inverse of the quotient map only
+when the chart is linear in the ambient coordinates; :math:`D_{1h}`'s
+invariants include :math:`\Omega_y^2` and :math:`\Omega_z^2`, its fixed
+subspace is the :math:`x` axis, and the barycentre :math:`(\Omega_x, 0, 0)`
+forgets the orbit (#581, ruled 2026-10-06). When #581 lands the table
+retires onto the catalogue rather than becoming its gate partner, since
+two hand-written copies agreeing in a gate would agree by construction.
+The gates check the table against :math:`D_{1h}` elements built
+independently in the test file.
+
+
 Verification
 ============
 
-The six labels on this page are what the kernel's gates under
+The eight labels on this page are what the kernel's gates under
 ``tests/gates/geometry/`` name in their ``verifies(...)`` markers; the
 design, with every fixture and the mutation each row must redden, is
 ``scratch/characteristic_architecture/seed_verification_spec.md``. Which
@@ -1340,6 +1884,25 @@ test carries which label is the generated matrix's to say
   agreement is a quadrature converging;
 - ``test_line.py``: the line's invariances and refusals, foundation gates
   with no label;
+- ``test_chord_transits.py``: :eq:`geometry-transits` at L0, by the hand
+  table of walls (every chart, solid and hollow, both sides of every
+  tangency, the cylinder at three axial tilts, parallel lines), the same
+  table as a mixed ``(2, k)`` batch, and the definition evaluated slot by
+  slot over 1500 seeded lines per partition, whose population must draw
+  lines with 0, 1 and (on a hollow body) 2 transits; the absent codes are
+  a foundation gate;
+- ``test_chart_directions.py``: :eq:`geometry-directions-at` at L0: the
+  shape table by hand, an invariant integrand over the box against a
+  full-sphere rule about :math:`\hat e_z` that shares no coordinate with
+  the box (the density is derived from the box's widths, so the
+  total-measure check alone is a smoke check), the fundamental-domain
+  legs against stabiliser elements built in the test, the round trip of
+  the coordinates, the stabiliser by membership, the impact parameter
+  against the kernel and the closed form, and the tangencies against the
+  closed form in mpmath and against the places where the kernel's
+  crossing set changes. The refusals, the conditioning of the
+  representative's sine and the scale-free tangencies are foundation
+  gates;
 - ``test_kernel_corroboration.py``: the kernel against today's
   independent spellings, code-to-code agreement, L4, with no correctness
   content. Its value is that a migration which changes an answer shows
@@ -1403,6 +1966,27 @@ zero calls while an old spelling runs, because the AST precondition
 misses an indirect import (`[M]` the qa review: 4 of 4 indirect shapes
 missed).
 
+The two verbs' gates (`[M]` 2026-10-06, the test-architect's battery
+``scratch/characteristic_architecture/p1_step_a/battery/``, each arm an
+in-process mutation of the kernel, run over both files): every arm but one
+reds at least one row. The transit arms: an untraversed exterior slot
+breaking a run (50 rows red), walls read by slot position (64), a parallel
+line taken as a transit (8), the absent slot code :math:`n + 1` (77), the
+exit wall read at the opening of the last slot (66). The direction arms:
+the density's 4 dropped (14), the cylinder's stabiliser taken as
+:math:`O(2)_x` (4), :math:`|P\Omega|` as :math:`\sqrt{1 - \Omega_z^2}`
+(2), the sine as :math:`\sqrt{1 - c^2}` (4), the reflection
+:math:`\pi - \arcsin` dropped (8), the grazing value dropped (8),
+:math:`\alpha` on :math:`[0, \pi/2]` (7), a negative coordinate accepted
+(2), :math:`\arccos` for :math:`\arcsin` (8), the slab's refusal removed
+(1). The positive controls (no transit at all; the sine replaced by the
+cosine) red 67 and 25 rows. The one arm green in both files, a tangency
+counted as a crossing (:math:`b \le r_k`), is designed-green here: the
+crossing pair it adds bounds a slot of length 0, which a transit ignores
+by definition; ``test_chord.py`` catches it (`[M]` the qa review, 4 rows
+red). The qa review added three rows its probes found missing (the
+impact parameter at :math:`w = 1`, the box refusal, the scale-free
+tangencies). 168 rows: 89 for the transits, 79 for the directions.
 
 .. _chart-and-chord-deferred:
 
@@ -1446,7 +2030,22 @@ with the kernel is the kernel compared with itself through a facade
 - the finite-volume metrics of unstructured meshes (centroids,
   centroid-to-face distance, non-orthogonality): #322, #335, #539;
 - the :math:`(r, z)` and 2-D charts, the deck group and the boundary laws
-  read through the chart: #551.
+  read through the chart: #551;
+- the directions at a point derived from the group: the shape table of
+  :class:`~orpheus.geometry.chart.DirectionDomain` is written by hand, a
+  declared scope boundary that retires onto the orbit catalogue's
+  :math:`S^2/D_{1h}` entry (#581, :ref:`chart-and-chord-directions`).
+
+**A limit at extreme radii (#582).** The chord's half-chord
+:math:`\sqrt{(r_k - b)(r_k + b)}` is formed unscaled, so its product
+underflows or overflows far from unit radii. `[M]` the qa review
+(``scratch/characteristic_architecture/p1_step_a/qa/probe2.log``): a solid
+sphere of radius :math:`10^{-200}` reports a line through its centre with
+total length 0 and no transit, one of radius :math:`10^{-160}` reports
+:math:`1.99999 R` for :math:`2R`, and one of radius :math:`10^{160}`
+overflows. The tangencies of :ref:`chart-and-chord-directions` are
+already scale-free; the chord is not. Reactor radii are far from these
+limits.
 
 
 .. _chart-and-chord-refuted:
@@ -1461,8 +2060,9 @@ cross-domain attacker and the elegance enforcer,
 ``scratch/characteristic_architecture/w5_cross_domain.md`` and
 ``w5_elegance.md``); the last four were in the first built kernel and
 were removed by the review of the code (qa, ``seed_qa.md``; the elegance
-enforcer, ``seed_elegance.md``). They are kept so that no later design
-re-derives them.
+enforcer, ``seed_elegance.md``); the last three belong to the transits
+and the directions at a point (2026-10-06). They are kept so that no
+later design re-derives them.
 
 .. list-table::
    :header-rows: 1
@@ -1560,6 +2160,29 @@ re-derives them.
        (``impact_parameter``, ``closest_approach``), so a chord rebuilt
        with one of them set to ``None`` was silently read as a slab. The
        image types answer it once.
+   * - A transit split at every exterior slot, traversed or not
+     - A solid body's chord has a cavity slot too (code :math:`n`, length
+       0), so every line with :math:`b < r_1` would read two transits, and
+       a hollow body at :math:`b = r_0` exactly, a tangency, would read
+       two. `[M]` the battery's arm T1: 50 rows red. Only a traversed
+       exterior slot separates.
+   * - A wall named by its position (the entry and exit of a transit, the
+       first and second transit)
+     - The same position is a different wall in different cases (a solid
+       body enters and leaves by wall :math:`n`; a hollow body's first
+       exit and second entry are wall :math:`0`), and no branch on
+       :math:`b` against :math:`r_0` is needed once the wall is its
+       breakpoint index (the W5 elegance review, E5: the transits read off
+       the P0 chord with no inner or outer tag). `[M]` arm T2, the slot
+       index read as the wall: 64 rows red.
+   * - The :math:`S^2/D_{1h}` entry of the orbit catalogue, lifted by the
+       orbit barycentre, as the cylinder's direction domain
+     - The barycentre is a right inverse of the quotient map only for a
+       chart linear in the ambient coordinates; :math:`D_{1h}`'s fixed
+       subspace is the :math:`x` axis, so the barycentre
+       :math:`(\Omega_x, 0, 0)` forgets :math:`\Omega_z^2` and does not
+       identify the orbit (#581). The kernel's box is the section the
+       catalogue lacks.
 
 Frames the cross-domain review found and refuted for the kernel (each
 refuted for the question "does the kernel need it?", not as
@@ -1617,6 +2240,34 @@ Gotchas
   breakpoint) reports an ``interface``.
 - **A line is not a value-equality key** (``eq=False``;
   :ref:`chart-and-chord-lines`).
+- **A transit's slice holds untraversed slots.** ``first_slot:stop_slot``
+  runs from the first traversed slot to the last, and every slot between
+  them is in it, including regions the line misses and a solid body's
+  cavity slot, all of length 0. Sum lengths over the slice; do not count
+  its slots as segments.
+- **Walls are breakpoint indices, and absent ones are out of range.**
+  ``entry_wall`` and ``exit_wall`` are :math:`0` or :math:`n` for a
+  present transit and :math:`n + 1` for an absent one; an absent
+  ``first_slot`` is the slot count. Index per-wall tables with them and
+  mask with ``present``, never with a sentinel test of your own.
+- **The density is not the local Jacobian.** On the cylinder off its axis
+  :math:`\mathrm{d}\Omega = \mathrm{d}w\,\mathrm{d}\alpha` locally,
+  and ``density`` is 4, because the box is a quarter of the sphere and an
+  invariant integrand is counted four times. It is correct only for an
+  integrand invariant under the point's stabiliser.
+- **The cylinder's impact parameter at** :math:`w = 1` **is** :math:`c`,
+  not :math:`c\sin\alpha`: the line is parallel to the axis. A rule
+  with a node at :math:`w = 1` sees the parallel line.
+- **Grazing at a point on a surface is unresolvable below about**
+  :math:`10^{-8}` **rad.** Within that band of the grazing direction the
+  chord reads a tangency and reports no length inside the surface
+  (:ref:`chart-and-chord-directions`); a direction rule should not put
+  nodes there.
+- **The reading's** :math:`b` **equals** ``Chart.image`` **bit for bit, not
+  a posed partition's chord.** A
+  :class:`~orpheus.geometry.chord.ConcentricPartition` moves the line by
+  its pose's inverse first, so its :math:`b` differs by a few ulp even
+  under the identity pose.
 
 
 Development history
@@ -1662,3 +2313,15 @@ Development history
        its parameter shift.
      - ``fe0ca696``
      - #405, #551
+   * - 2026-10-06
+     - The two verbs P1 of the characteristic references reads first,
+       each by ruling ("Transits: in the kernel", "Directions at a point:
+       chart verb"): :attr:`Chord.transits <orpheus.geometry.chord.Chord.transits>`,
+       with walls by breakpoint index and out-of-range absent codes, and
+       :meth:`Chart.directions_at <orpheus.geometry.chart.Chart.directions_at>`,
+       the box of :math:`S^2/\mathrm{Stab}(x)` with its density, the
+       kernel's impact parameter and the scale-free tangencies, the grazing
+       value included. The :math:`S^2/D_{1h}` catalogue entry was not built
+       (#581); the chord's own scale limit is #582.
+     - ``2b2d7703``
+     - #405, #581, #582

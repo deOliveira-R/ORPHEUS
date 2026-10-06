@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **16006**
+Total tests collected: **16174**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1387, 8.7%
-   L1, 2290, 14.3%
+   L0, 1536, 9.5%
+   L1, 2290, 14.2%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12224, 76.4%
+   foundation, 12243, 75.7%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15893
+   explicit, 16061
    class-name, 46
    func-name, 0
    case, 33
@@ -312,7 +312,9 @@ Module × level grid
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
    geometry/test_chart, 4, 0, 0, 0, 18, 0
+   geometry/test_chart_directions, 61, 0, 0, 0, 18, 0
    geometry/test_chord, 35, 0, 0, 0, 30, 0
+   geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
@@ -692,6 +694,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-white-cell-infinite-medium``, 102
    ``alpha-cylindrical``, 95
    ``collision-rate``, 91
+   ``geometry-transits``, 88
    ``multigroup``, 82
    ``peierls-unified``, 80
    ``fission-matrix``, 76
@@ -701,6 +704,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 64
    ``e3-def``, 61
+   ``geometry-directions-at``, 61
    ``ki3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55

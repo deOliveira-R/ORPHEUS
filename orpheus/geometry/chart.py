@@ -379,8 +379,10 @@ class DirectionDomain:
     def impact_parameter(self, coordinates: np.ndarray) -> np.ndarray:
         r"""The impact parameter :math:`b` of the line through :attr:`point` in each direction, ``(...,)``.
 
-        The kernel's own :meth:`Chart.image` of that line, so the reading and
-        the chord agree bit for bit. A slab line has no impact parameter.
+        The kernel's own :meth:`Chart.image` of that line, one definition of
+        :math:`b`: bit for bit equal to ``Chart.image`` of the same lines,
+        and within a few ulp of a partition's chord, which first moves the
+        line by its pose's inverse. A slab line has no impact parameter.
         """
         from orpheus.geometry.line import Line
 

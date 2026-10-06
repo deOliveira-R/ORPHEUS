@@ -172,7 +172,8 @@ def _assert_transits(tr, expected, n: int, slots: int, where: str) -> None:
         assert (int(tr.entry_wall[j]), int(tr.exit_wall[j])) == (n + 1, n + 1), f"{where}: absent wall code"
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-transits")
 @pytest.mark.rests_on(_CHORD + "test_the_crossings_carry_the_region_they_enter",
                       _CHORD + "test_a_tangency_is_not_a_crossing",
                       _CHORD + "test_the_centre_of_a_solid_body_is_never_crossed",
@@ -214,7 +215,8 @@ def _batch(part: ConcentricPartition, rows) -> tuple[Line, list]:
     return Line.through(pts, oms), [r[3] for r in rows]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-transits")
 @pytest.mark.rests_on(_HERE + "test_the_transits_match_the_hand_counted_walls")
 @pytest.mark.parametrize("part", [CYL_H, CYL, SLB], ids=["cylinder_hollow", "cylinder_solid", "slab"])
 def test_a_batch_of_mixed_lines_reads_each_line_as_it_reads_alone(part: ConcentricPartition) -> None:
@@ -265,7 +267,8 @@ def _runs_by_hand(slot_length: np.ndarray, slot_region: np.ndarray, breakpoint: 
     return [(a, b + 1, int(breakpoint[a]), int(breakpoint[b + 1])) for a, b in runs]
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-transits")
 @pytest.mark.rests_on(_HERE + "test_the_transits_match_the_hand_counted_walls")
 @pytest.mark.parametrize("part", [SPH, SPH_H, CYL, CYL_H, SLB], ids=["sphere", "sphere_hollow", "cylinder", "cylinder_hollow", "slab"])
 def test_the_transits_are_the_maximal_runs_of_traversed_interior_slots(part: ConcentricPartition) -> None:
