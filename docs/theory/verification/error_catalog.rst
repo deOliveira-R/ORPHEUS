@@ -9649,3 +9649,159 @@ older entries classify against.
    the event that writes it: before reading "the residual estimate is 0"
    as "solved", find every code path that sets it to 0, and confirm the
    claim with the quantity the claim is about.**
+
+.. error-entry:: ERR-099
+   :title: The characteristic reference resolved the orbit coordinate's branch points only on slots ending at a line's closest approach, so a slot starting at the crossing of a small radius kept them c/|PΩ| from its end and its source integrals converged to about 1e-7 instead of to rounding
+
+   **Status:** ✅ **FIXED 2026-10-06** in review, before the second rung
+   of the characteristic reference was first committed (branch
+   ``feature/characteristic-basis-transport``); no commit carries the
+   defect. Found by the qa review (``probe_branch.py`` under
+   ``scratch/characteristic_architecture/p1_step_b2/qa/``) after the
+   test-architect's turning-slot probes.
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/transport.py``
+   (:class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`:
+   the near end and branch distance of each slot, and the private
+   ``_branch_edges`` that grades toward it). Theory:
+   :ref:`characteristic-branch-grading`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a quadrature aimed at a singularity it located at one
+   distinguished point instead of where the singularity is. On a cylinder
+   or a sphere the orbit coordinate along a line is
+   :math:`c(t) = \sqrt{b^2 + |P\Omega|^2 (t - t^*)^2}`
+   (:eq:`geometry-line-crossing-law`), with branch points at
+   :math:`t^* \pm i\,b/|P\Omega|`, a distance :math:`c(t)/|P\Omega|` from
+   every real point of the line. Gauss–Legendre in arc length converges at
+   the rate set by the nearest singularity of the integrand
+   :cite:`Trefethen2008` (Theorem 4.5), and the singularity is nearest
+   each slot at its end of smaller orbit coordinate, the closest approach
+   on a turning slot and the crossing of a radius :math:`r_k` on a slot
+   that starts there. The step's design treated the turning slots alone,
+   first by the change of variable :math:`c = b + (c_{\rm far} - b)u^2`,
+   then by pieces halving toward the closest approach; a slot beyond the
+   crossing of a small cavity surface or a small inner region was one
+   Gauss rule with the branch points :math:`r_k/|P\Omega|` from its end.
+
+   **What it did.** qa measured a miss of :math:`8.5 \times 10^{-7}` in a
+   traversal's source integral on a hollow sphere of cavity radius 0.01
+   crossed through the cavity. `[M]` 2026-10-06, the exact defect
+   re-dropped in process on the present code (the grading restricted to
+   slots whose near end is the closest approach), :math:`B_k \cdot q` for
+   :math:`q = c` against mpmath: with one panel per region the misses are
+   :math:`4.1 \times 10^{-9}` (cavity 0.01), :math:`1.9 \times 10^{-8}`
+   (cavity 0.001), :math:`1.1 \times 10^{-7}` (a solid sphere whose inner
+   region has radius 0.01) and :math:`7.4 \times 10^{-9}` (a cylinder of
+   cavity 0.01); at the gates' resolution, :math:`5.3 \times 10^{-12}` at
+   cavity 0.001 and at most :math:`2.3 \times 10^{-14}` on the others. The
+   gates' band is :math:`10^{-13}`.
+
+   **How it hid.** (a) Every turning-slot gate placed the small distance
+   at the closest approach (:math:`b = 10^{-4}`, a tangency just outside a
+   shell), the one place the treatment covered; no gate had a small cavity
+   or a small inner region until qa's probe. (b) The basis grades its
+   panels toward every wall and interface, so the slot next to a small
+   radius is short, and the miss shows only where the radius is well
+   below the innermost panel's width: at the gates' resolution one of the
+   four small-radius rows sees it. (c) The gates run at 16 points per
+   piece, where a branch point a fraction of a piece away still converges
+   to about :math:`10^{-12}`, so even the turning slots' first treatment
+   read as nearly right (:math:`2.5 \times 10^{-12}` at
+   :math:`b = 10^{-4}`).
+
+   **Fix.** Each radial slot records its near end (the end of smaller
+   orbit coordinate) and the branch distance
+   :math:`c_{\rm near}/|P\Omega|`, and the pieces halve toward the near end
+   until a piece is no deeper than that distance, on every slot, turning
+   or not; the change of variable was retired. Every piece then sees the
+   branch points at a fixed multiple of its own width, and its ellipse
+   parameter is at least :math:`3 + 2\sqrt 2` whatever :math:`b` or
+   :math:`r_k` (:ref:`characteristic-branch-grading`).
+
+   **Caught by:**
+   ``tests/gates/derivations/test_characteristic_transport.py::test_a_slot_starting_at_a_small_radius_integrates_its_branch_point``,
+   five rows: four small-radius lines with one panel per region and the
+   cavity of radius 0.001 at the gates' resolution. `[M]` 2026-10-06, the
+   defect re-dropped in process under ``python -O -m pytest`` (battery arm
+   T17): every one of the five rows red. The three lines it leaves green at
+   the gates' resolution, for reason (b), are the declared controls,
+   ``test_a_small_radius_hidden_by_a_panel_end_is_the_err099_control``.
+
+   **Lesson.** ⭐ **A singularity of an integrand along a line is located
+   from its analytic structure (here, the zeros of the squared orbit
+   coordinate), and its distance is a function of the point, not a
+   property of one distinguished point: grade every piece toward where the singularity is
+   nearest to it, and gate a configuration where that place is not the
+   one the design had in mind.**
+
+.. error-entry:: ERR-100
+   :title: The characteristic reference integrated each piece's attenuated source integral on the piece's own Gauss nodes, so the integral carried out of a wide middle piece of an optically thick slot, which lives in that piece's last mean free path, was missed at order one: the flux just past it was off by 0.54 at 1000 mean free paths
+
+   **Status:** ✅ **FIXED 2026-10-06** in review, before the second rung
+   of the characteristic reference was first committed (branch
+   ``feature/characteristic-basis-transport``); no commit carries the
+   defect. Found by the qa review (finding 3, ``probe_thick_psi.py`` and
+   ``probe_thick_volterra.py`` under
+   ``scratch/characteristic_architecture/p1_step_b2/qa/``).
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/transport.py``
+   (:class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`:
+   the piece integrals attenuated to a piece's end and to its start, which
+   the outflow, the entry response, the carried flux, the Volterra block
+   and the angular flux are built from). Theory:
+   :ref:`characteristic-attenuated-integral`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a rule graded for one reading and reused for another.
+   The pieces of a slot are graded toward the slot's ends (1 to 64 mean
+   free paths), and the rest of each half of a thick slot is one middle
+   piece, hundreds of mean free paths wide at 1000 mean free paths. The
+   piece's integral attenuated to its own end,
+   :math:`\int u(c(s))\,e^{-\Sigma(s_{\rm hi} - s)}\,\mathrm{d}s`, is
+   concentrated in the piece's last mean free path, which ``points``
+   Gauss–Legendre nodes spread over the whole piece do not resolve. Only
+   the integral from a piece's start to a point inside it used the graded
+   rule.
+
+   **What it did.** qa, on that code (`[M]` 2026-10-06): the angular flux
+   just past the middle piece of a 1000-mean-free-path slab slot off by
+   0.54 relative, :math:`5.2 \times 10^{-6}` at 200 mean free paths, and
+   :math:`f \cdot V g` off by :math:`2.4 \times 10^{-3}`. `[M]` 2026-10-06,
+   the same defect re-dropped on the present piece layout (battery arm
+   T14, qa's ``probe_thick_psi.py``): at 1000 mean free paths
+   :math:`\psi` off by 0.25 half a mean free path past a piece start and
+   :math:`f \cdot V g` by :math:`1.3 \times 10^{-3}`; at 200,
+   :math:`9.0 \times 10^{-11}` and :math:`1.6 \times 10^{-12}`; at 100 and
+   fewer, at most :math:`3 \times 10^{-14}`.
+
+   **How it hid.** (a) The outflow and the entry response at a slot's
+   ends were right: a middle piece's contribution reaches the exit
+   attenuated by :math:`e^{-64}` or more, so the 1000-mean-free-path gate
+   on :math:`B \cdot 1` and :math:`A \cdot 1` held at 4 ulp. Only a
+   reading inside the slot, the flux past the middle piece or the Volterra
+   block at the next piece's nodes, carries that integral at full weight.
+   (b) A middle piece exists only on a half wider than 64 mean free paths,
+   a slot wider than 128, and no gate read the flux or the Volterra block
+   on a slot that thick; the thickest triangle row reached about 20.
+
+   **Fix.** One body, ``TraversalRule._attenuated``, integrates a panel's
+   functions between two distances along a slot attenuated to the second,
+   on a rule graded exponentially toward the second; a piece's integral to
+   its end, to its start and to a point inside it are three uses of it
+   (:ref:`characteristic-attenuated-integral`).
+
+   **Caught by:**
+   ``tests/gates/derivations/test_characteristic_transport.py::test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form``
+   (one panel over a slab of width 1 at :math:`\mu = 1`, 200 and 1000 mean
+   free paths, every reference a closed form in mpmath). `[M]` 2026-10-06,
+   re-dropped in process under ``python -O -m pytest`` over the transport
+   file without its six slow triangle rows (91 rows): 2 red, both rows of
+   that function and no other.
+
+   **Lesson.** ⭐ **A quadrature graded for the reading that motivated it
+   (the outflow at a slot's exit) is ungraded for every other reading of
+   the same integrals: when one integral is consumed at several points,
+   grade it toward the point it is attenuated to, in one body, and gate
+   the reading that weights it most, not the one that attenuates it
+   away.**

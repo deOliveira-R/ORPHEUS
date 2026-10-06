@@ -419,8 +419,8 @@ The concept table
      - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.numerics.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
    * - Basis
-     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`
-     - :ref:`spaces-basis`, :ref:`manifold-three-levels`
+     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`. On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces, with its Gram matrix in the chart's volume measure, the density derived from :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
+     - :ref:`spaces-basis`, :ref:`manifold-three-levels`; :ref:`characteristic-panel-basis`
    * - Cone
      - :meth:`~orpheus.numerics.field.Field.cone_violations`
      - :ref:`cone-ordered-vector-space`, :eq:`positive-cone-definition`, :ref:`cone-membership-is-a-predicate`
@@ -580,8 +580,11 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   geometric discriminants outside the SymPy origins, 8 point-location
   spellings with two boundary conventions, and 3 realisations of the
   measure on lines, none calling
-  :class:`~orpheus.geometry.chord.ConcentricPartition`, which has no
-  consumer yet (#405).
+  :class:`~orpheus.geometry.chord.ConcentricPartition`. Its one consumer
+  is the characteristic reference (:ref:`theory-characteristic-reference`),
+  which chords its lines through a body's partition and through the
+  panel partition refining it, and is built to replace the trajectory
+  resolvents that hold those spellings (#405).
 - **Exit-report members still listed as not yet built** (the outcome
   module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen
@@ -592,8 +595,10 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   generator-less (a gated contract); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
-- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs four times
-  under ``orpheus/``: the full-field carrier (#457); the lock on withdrawn
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs six times
+  under ``orpheus/`` (`[M]` 2026-10-06, ``grep -rn`` over the working
+  tree of ``feature/characteristic-basis-transport``): the full-field
+  carrier (#457); the lock on withdrawn
   reference generators in ``orpheus/derivations/common/withdrawal.py``
   (#506, retired when each reference family's generator returns a
   :class:`~orpheus.reference.certificate.ReferenceCertificate` whose
@@ -603,7 +608,12 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   with no citation (#405, retired when a published solution replaces the
   registry's case class); and the boundary composition's check on its
   direct children (#551, retired when the composition's operands are typed
-  as responses). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
+  as responses); the 2-D mesh's cell integrals, refused where the code
+  would go (#569, retired when ``Mesh2D`` carries region labels and the
+  mesh-free function owns its second coordinate); and the characteristic
+  reference's refusal of a traversed slot whose 3-D length overflowed
+  (#582, retired when the kernel's chord refuses or resolves a line within
+  an underflow of parallel to the level sets). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
   times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
   39 with it), the population a retirement audit walks (``[M]``
   2026-10-03, a line count over ``orpheus/**/*.py``).

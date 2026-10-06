@@ -71,8 +71,13 @@ Submodules
        (:mod:`~orpheus.derivations.continuous.characteristic.walls`), and
        the line part of the boundary resolvent, the period of each line's
        unfolded path and the least solution of its cycle
-       (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
-       theory is :ref:`theory-characteristic-reference`.
+       (:mod:`~orpheus.derivations.continuous.characteristic.closure`), the
+       panel basis the emission density and the flux are represented in
+       (:mod:`~orpheus.derivations.continuous.characteristic.basis`), and
+       the transport along each line on that basis: the traversal
+       integrals, the vacuum Volterra block and the angular flux
+       (:mod:`~orpheus.derivations.continuous.characteristic.transport`);
+       the theory is :ref:`theory-characteristic-reference`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
        :func:`chord_quadrature` (impact-parameter integrals on
@@ -202,7 +207,7 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its two modules
+the theory is :ref:`theory-characteristic-reference`. Its four modules
 are documented below; the package re-exports their public names.
 
 .. automodule:: orpheus.derivations.continuous.characteristic
@@ -211,6 +216,12 @@ are documented below; the package re-exports their public names.
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.closure
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.basis
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.transport
    :members:
 
 Kernels

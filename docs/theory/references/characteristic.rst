@@ -17,9 +17,9 @@ The characteristic reference — transport along the lines of a concentric body
    .. code-block:: yaml
 
       module: derivations
-      concept: characteristic reference, boundary resolvent, walls, line period, line closure
-      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors) and the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle)"
-      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure]
+      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, traversal integrals, Volterra block, hp grading
+      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle), its panel basis and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux)"
+      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
       related: [trajectory_resolvent, layering]
 
@@ -32,12 +32,17 @@ Key facts
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
   It is built rung by rung beside the trajectory-resolvent family
   (:ref:`theory-trajectory-resolvent`), the family it is built to
-  replace. What exists is its first rung: the **walls**
+  replace. Two rungs exist. The first is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
-  (:mod:`~orpheus.derivations.continuous.characteristic.closure`). There
-  is no source integral, no basis, no assembly, no question and no
-  reading yet, so the package answers no eigenvalue and no flux
+  (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
+  second is the **panel basis**
+  (:mod:`~orpheus.derivations.continuous.characteristic.basis`) and the
+  **transport along a line** on it
+  (:mod:`~orpheus.derivations.continuous.characteristic.transport`).
+  Nothing in the package integrates over the measure on lines: there is
+  no assembly, no diffuse part of the resolvent, no question and no
+  reading at a point, so the package answers no eigenvalue and no flux
   (:ref:`characteristic-what-is-not-built`).
 - **The boundary resolvent has two parts.** The closure of a reflecting
   boundary is :math:`P = P_0 + E\,(I - T)^{-1} X` on the boundary trace
@@ -77,11 +82,35 @@ Key facts
   expression serves every rank; :math:`1 - \Pi` is formed by ``expm1``;
   a lossless trapped line (:math:`\Pi = 1`) carries exactly 0 when it has
   no source and is refused when it has one (:ref:`characteristic-closure-section`).
-- **Evidence** `[M]` 2026-10-06: 175 gate rows in two files, 127 of them
-  claims on this page's two labels at L0 and 48 software invariants and
-  refusals; a 34-arm mutation battery with a positive control reddening
-  80 rows, every arm meant to redden reddening at least one row, and the
-  one arm declared null staying green (:ref:`characteristic-evidence`).
+- **The panel basis** is discontinuous: nodal Lagrange polynomials of
+  degree :math:`p` through each panel's Gauss–Legendre points, so a
+  coefficient is a value. The panels are graded geometrically (panel ends
+  at the depths :math:`w\rho^{j}`) toward every wall and interface and
+  never toward a singular stratum, and the mass matrix is exact in the
+  chart's volume measure, whose density :math:`\kappa\,d\,r^{d-1}` is
+  derived from the measure's one definition (:ref:`characteristic-panel-basis`).
+- **The transport along a line is one value**,
+  :class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`,
+  built from the lines, the basis and the walls. The kernel's chord through
+  the panel partition gives every piece of every line, and one graded
+  attenuated integral gives the traversal integrals :math:`\tau_k`,
+  :math:`B_k` and :math:`A_k` (:eq:`characteristic-traversal-integrals`),
+  the vacuum Volterra block and the angular flux on a line
+  (:ref:`characteristic-transport`).
+- **The pieces are graded twice.** Exponentially toward both ends of each
+  slot, at 1 to 64 mean free paths; and on a cylinder or a sphere by
+  halving toward the complex branch points of the orbit coordinate, which
+  lie :math:`c/|P\Omega|` from a point of orbit coordinate :math:`c`, so
+  that every piece converges at a rate independent of the impact parameter
+  (:ref:`characteristic-branch-grading`).
+- **Evidence** `[M]` 2026-10-06: for the walls and the closure, 175 gate
+  rows in two files, 127 of them claims on this page's first two labels at
+  L0, and a 34-arm mutation battery with a positive control reddening 80
+  rows; for the basis and the transport, 328 rows in two more files, all
+  ``foundation`` until their markers move under
+  :eq:`characteristic-traversal-integrals`, and a battery in which every
+  arm meant to redden reddens its target row. All 503 rows pass under
+  ``python -O -m pytest`` (:ref:`characteristic-evidence`).
 
 
 .. _characteristic-place:
@@ -476,7 +505,8 @@ built, not a defect.
 
 A line lying in an interface is refused by the reference (ruled
 2026-10-06); that refusal is not a wall's, and it belongs to the
-reading of a line, which this rung does not compute.
+reading at a point, which the package does not compute
+(:ref:`characteristic-what-is-not-built`).
 
 
 .. _characteristic-period:
@@ -993,28 +1023,818 @@ is part of what ``optical_depth`` implements under
 :eq:`characteristic-closure`.
 
 
+.. _characteristic-panel-basis:
+
+The panel basis
+===============
+
+The closure takes the outflows :math:`B_k` as data, and an outflow is the
+emission density integrated along a traversal. The density, and the flux
+the reference solves for, are represented on a basis over the orbit
+coordinate :math:`c` of the body (the radius on a sphere or a cylinder,
+the depth on a slab; :eq:`geometry-radial-coordinate`). The basis is
+:class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`,
+built by :meth:`PanelBasis.of
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.of>`
+from the body's partition and three numbers: the degree :math:`p`, the
+number of layers :math:`L` and the ratio :math:`\rho \in (0, 1)`. It reads
+nothing else. Two bodies that differ only in their materials or their
+boundary laws have one basis, bitwise, and a moved breakpoint changes it
+(``test_the_basis_reads_only_the_bodys_partition_and_the_resolution``).
+
+Panels graded toward walls and interfaces
+-----------------------------------------
+
+Each region :math:`[r_k, r_{k+1}]` is cut into **panels**. An end of the
+region is **graded** when it is a wall or an interface, and it is not
+graded when it is a singular stratum of the chart: the centre of a solid
+sphere or the axis of a solid cylinder (:ref:`chart-and-chord-strata`).
+Write :math:`w` for the half width of the region when both its ends are
+graded and for its whole width when one is. The interior panel ends lie
+at the depths
+
+.. math::
+
+   w\,\rho^{j}, \qquad j = 1, \dots, L,
+
+from each graded end: at :math:`r_k + w\rho^j` toward :math:`r_k` and at
+:math:`r_{k+1} - w\rho^j` toward :math:`r_{k+1}`. With :math:`L = 0` a
+region is one panel. The private function ``_graded_ends`` computes them;
+the gate ``test_panels_grade_toward_walls_and_interfaces_and_not_toward_a_singular_stratum``
+writes the same law by hand in mpmath and compares at 4 ulp of the outer
+radius, for :math:`L \in \{0, 1, 2, 4\}` and :math:`\rho \in \{0.3, 0.5\}`.
+
+**The law places depths, not widths.** Counting from a graded end, the
+first panel lies between the depths 0 and :math:`w\rho^{L}`, and the panel
+between the depths :math:`w\rho^{j}` and :math:`w\rho^{j-1}` has width
+:math:`w\rho^{j-1}(1 - \rho)`. The widths shrink by :math:`\rho` from one
+panel to the next except at the end itself: with :math:`\rho = 1/2` the
+two panels at the end have the same width :math:`w/2^{L}`. When both ends
+are graded, one middle panel :math:`[r_k + w\rho, r_{k+1} - w\rho]` of
+width :math:`2w(1 - \rho)` joins the two gradings; when one end is graded,
+the last panel, between the depths :math:`w\rho` and :math:`w`, reaches the
+ungraded end.
+
+`[M]` 2026-10-06, :meth:`PanelBasis.of
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.of>` at
+:math:`L = 2`, :math:`\rho = 1/2`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Body (breakpoints)
+     - Panel ends
+   * - solid sphere :math:`(0, 0.5, 1.5, 2.0)`
+     - 0, 0.25, 0.375, **0.5**, 0.625, 0.75, 1.25, 1.375, **1.5**,
+       1.5625, 1.625, 1.875, 1.9375, **2.0**: the centre is not graded,
+       so the first region is graded toward 0.5 alone, with :math:`w = 0.5`
+   * - hollow sphere :math:`(0.4, 0.5, 1.5, 2.0)`
+     - **0.4**, 0.4125, 0.425, 0.475, 0.4875, **0.5**, 0.625, …: the
+       cavity surface is a wall and is graded
+   * - solid sphere :math:`(0, 0.01, 1)`
+     - 0, 0.005, 0.0075, **0.01**, 0.13375, 0.2575, 0.7525, 0.87625,
+       **1.0**
+
+**Why grade, and why not at the centre.** The flux has its boundary layers
+and its derivative singularities at the walls and the interfaces, where
+the cross section or the boundary condition jumps, so a polynomial on a
+panel reaching such an end converges slowly; geometric panels toward the
+end confine the singular behaviour to panels that shrink with it. At a
+singular stratum nothing jumps: the chart's symmetry group fixes the
+centre, the flux is an even and smooth function of :math:`c` there, and
+grading would add panels and nothing else. The gate's arms B1 (the centre
+graded) and B2 (the inner wall not graded) redden 12 and 14 rows.
+
+**The panel ends are a partition.** They are a
+:class:`~orpheus.geometry.chord.ConcentricPartition` on the body's chart
+with the body's pose, a refinement of the body's: it contains every
+breakpoint of the body and has the same two ends. A directly constructed
+``PanelBasis`` checks it (``ValueError``, each case by its own fragment:
+another chart, other ends, a missing breakpoint), so each panel lies in
+one region, read from :attr:`PanelBasis.region_of_panel
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.region_of_panel>`,
+and a per-region table, the cross sections for instance, becomes a
+per-panel one with :meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.on_panels`,
+which refuses a table without one entry per region. Being a partition is
+what lets the geometric kernel chord a line through the panels
+(:ref:`characteristic-transport`).
+
+The functions
+-------------
+
+On a panel :math:`[a, b]` the basis has the :math:`p + 1` nodal Lagrange
+functions through the panel's Gauss–Legendre points: with
+:math:`\xi_0 < \dots < \xi_p` the Gauss–Legendre points of
+:math:`[-1, 1]` and :math:`x = (2c - (a + b))/(b - a)` the panel's local
+coordinate,
+
+.. math::
+
+   u_{P,m}(c) \;=\; \prod_{l \ne m} \frac{x - \xi_l}{\xi_m - \xi_l}
+   \quad (c \in [a, b]), \qquad u_{P,m}(c) = 0 \text{ elsewhere}.
+
+Function :math:`m` of panel :math:`P` is basis function
+:math:`i = P(p + 1) + m`, and its node is the :math:`m`-th Gauss–Legendre
+point of the panel; the nodes come from the reference kernel's
+:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`,
+in panel order, :math:`N = P_{\rm total}(p + 1)` of them. Three
+properties follow.
+
+- **A coefficient is a value.** :math:`u_i(c_j) = \delta_{ij}` at the
+  nodes, so a vector of coefficients is the vector of the represented
+  function's values at the nodes, and the dense pencil's single-sign test
+  on a fundamental mode reads coefficients as values
+  (:ref:`verification-reference-kernel`). The product form is evaluated
+  as written: it is exactly one-hot at a node and divides only by the
+  node spacings, never by :math:`x - \xi_l`.
+- **The basis is discontinuous.** Functions of different panels have
+  disjoint supports, and no node lies on a panel end, because the
+  Gauss–Legendre points are interior. So
+  :meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.values`
+  takes a panel as well as an orbit coordinate: at a panel end the panel
+  names the side. A discontinuous basis is what an emission density with
+  a jump at every interface needs.
+- **It reproduces each per-region polynomial of degree at most** :math:`p`.
+  The interpolant at the nodes of any function that is a polynomial of
+  degree :math:`p` on each region (jumping at every interface) is that
+  function; one of degree :math:`p + 1` is not reproduced, the gate's
+  loading control (``test_the_interpolant_reproduces_every_per_region_polynomial_of_degree_p``).
+
+The mass matrix and the volume density
+--------------------------------------
+
+The basis's metric is its Gram matrix in the chart's volume measure,
+:math:`W_{ij} = \int u_i u_j \,\mathrm{d}V`
+(:attr:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.mass`).
+The chart defines the measure once, by the measure of a cell,
+
+.. math::
+
+   m\bigl([r_j, r_{j+1}]\bigr) \;=\; \kappa\,\bigl(T(r_{j+1}) - T(r_j)\bigr),
+   \qquad T(r) = r^{d},
+
+(:meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`,
+read by :meth:`Chart.measure <orpheus.geometry.chart.Chart.measure>`),
+with the constant :math:`\kappa` (``measure_constant``) and the exponent
+:math:`d` (``measure_coordinate.exponent``) equal to :math:`(1, 1)` on the
+slab, :math:`(\pi, 2)` on the cylinder and :math:`(4\pi/3, 3)` on the
+sphere (`[M]` 2026-10-06, read from each chart's ``CoordSystem``). Its
+density in the orbit coordinate is the derivative of that one definition,
+
+.. math::
+
+   \frac{\mathrm{d}V}{\mathrm{d}r} \;=\; \kappa\,d\,r^{d-1}
+   \;\in\; \{\,1,\; 2\pi r,\; 4\pi r^{2}\,\},
+
+(:meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.volume_density`),
+so :math:`W_{ij} = \int u_i(r)\,u_j(r)\,\kappa\,d\,r^{d-1}\,\mathrm{d}r`. On
+a panel the integrand is a polynomial of degree :math:`2p + d - 1 \le
+2p + 2`, and Gauss–Legendre with :math:`p + 2` points is exact to degree
+:math:`2p + 3`, so each entry is integrated exactly up to rounding.
+:math:`W` is block-diagonal, one :math:`(p + 1) \times (p + 1)` block per
+panel, because the supports are disjoint.
+
+**Why the density is derived inside the basis.** The kernel exposes the
+cell measures and no density. The user ruled on 2026-10-06 (the plan's
+ledger, "on P1 step (b)'s second rung", Q4) that the basis derives the
+density from ``measure_constant`` and ``measure_coordinate`` rather than
+adding a verb ``Chart.volume_density`` to the stable kernel. The density
+is then the derivative of the measure's one definition, never a second
+spelling of it: the gate ``test_each_panels_mass_is_its_chart_measure``
+sums each panel's block, which with a partition of unity is the panel's
+volume, against :meth:`Chart.measure <orpheus.geometry.chart.Chart.measure>`
+and against the closed-form volume in mpmath. The first leg shares the
+upstream constant :math:`\kappa` with the code and is not independent; the
+second leg, and ``test_the_volume_density_is_the_charts_by_hand`` (the
+three densities written by hand), are. Arm B7 (the factor :math:`d`
+dropped) reddens 44 rows.
+
+The walls on the panel partition
+--------------------------------
+
+The period of a line (:ref:`characteristic-period`) is read from a chord
+and the walls, and the transport reads the chord through the panels, so
+the walls must be keyed on the panel partition.
+:meth:`Walls.on <orpheus.derivations.continuous.characteristic.walls.Walls.on>`
+re-keys them: a wall is an end of the domain, so breakpoint 0 stays 0 and
+breakpoint :math:`n` of the body becomes the panel partition's last index
+:math:`P_{\rm total}`, and each partner is re-keyed with it; the
+amplitudes are kept. It refuses a partition on another chart. It cannot
+refuse a partition that is not a refinement with the body's ends,
+because a ``Walls`` holds breakpoint indices and no positions; that
+invariant is the panel partition's own, checked by ``PanelBasis``, and
+:meth:`TraversalRule.of
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.of>`
+calls ``walls.on`` with the basis's own partition only
+(``test_the_walls_rekey_onto_the_panel_partition``; arms W1, the last
+index kept at :math:`n`, and W2, the wrap's partner not re-keyed, redden
+87 rows each).
+
+
+.. _characteristic-transport:
+
+The transport along a line
+==========================
+
+Along one line the transport equation is an ordinary differential
+equation in arc length, and on the panel basis every quantity the line
+closure and a Galerkin assembly need is a linear functional of the
+basis coefficients.
+:class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`
+computes them for a batch of lines.
+
+Building the rule
+-----------------
+
+:meth:`TraversalRule.of
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.of>`
+takes the lines, the basis, the body's walls, the total cross section of
+each **region** and two point counts, ``points`` (Gauss–Legendre points
+per piece) and ``inner_points`` (per interval of the attenuated
+integral). It chords the lines through the basis's panel partition
+(:meth:`ConcentricPartition.chord <orpheus.geometry.chord.ConcentricPartition.chord>`),
+reads their period through the walls re-keyed onto it,
+``LinePeriod.of(basis.partition.chord(lines), walls.on(basis.partition))``,
+and reads the cross sections onto the panels with ``basis.on_panels``. One
+chord then serves the period, the optical depths and every source
+integral: each slot of the chord lies in one panel, its length is the
+kernel's cancellation-free length (:eq:`geometry-chord-segment-lengths`),
+its panel is its region code in the panel partition, and the line's
+closest approach is already a slot end. There is no second crossing
+computation. The optical depth of a traversal on the panel chord equals
+its depth on the body's chord (the gate
+``test_the_panel_chord_unfolds_into_the_hand_counted_period``, 12 lines, 16
+ulp).
+
+The user ruled that the pieces come from the kernel's chord through the
+panel partition and that :math:`B_k` lives on this new value
+(2026-10-06, Q2 and Q3 of the second rung's sketch). The sketch proposed
+the factory ``of(period, basis, sigma_per_panel, resolution)``; the
+elegance review (its finding C2) showed that it left two constructions
+the types still spelled, a period chorded through some other partition
+and walls re-keyed onto a partition that is not the basis's, and the
+signature ``of(lines, basis, walls, sigma_t, ...)`` makes both
+unspellable through the factory. A directly constructed
+``TraversalRule`` still checks that its period's chord is through the
+basis's own partition object, that ``sigma`` holds one finite,
+non-negative value per panel and that each rule has at least one point.
+It also refuses a traversed slot whose 3-D length overflowed (a line
+within an underflow of parallel to the level sets), a guard tagged
+``ELEGANCE-DEBT[guard]`` that retires when the kernel's chord refuses or
+resolves such a line (`#582
+<https://github.com/deOliveira-R/ORPHEUS/issues/582>`_).
+
+.. _characteristic-traversal-integrals-section:
+
+The traversal integrals
+-----------------------
+
+Take traversal :math:`k` of a line's period (:ref:`characteristic-period`),
+with arc length :math:`s \in [0, L_k]` from its entry, orbit coordinate
+:math:`c(s)` and total cross section :math:`\Sigma_t(c)`, constant on each
+panel. Write :math:`\tau_k(s, s') = \int_s^{s'} \Sigma_t(c(s''))\,\mathrm{d}s''`
+for the optical depth between two points of the traversal. Its three
+integrals are
+
+.. math::
+   :label: characteristic-traversal-integrals
+
+   \tau_k \;=\; \tau_k(0, L_k), \qquad
+   B_k[u_i] \;=\; \int_0^{L_k} u_i\bigl(c(s)\bigr)\,e^{-\tau_k(s, L_k)}\,\mathrm{d}s,
+   \qquad
+   A_k[u_i] \;=\; \int_0^{L_k} u_i\bigl(c(s)\bigr)\,e^{-\tau_k(0, s)}\,\mathrm{d}s
+   \;=\; B_{\bar k}[u_i],
+
+with :math:`\bar k` the reversed traversal, the same transit read the
+other way.
+
+- :math:`\tau_k` is the traversal's **optical depth**, the sum over its
+  slots of :math:`\Sigma_t\,\ell` that :meth:`LinePeriod.optical_depth
+  <orpheus.derivations.continuous.characteristic.closure.LinePeriod.optical_depth>`
+  forms (:ref:`characteristic-closure-section`);
+  :attr:`TraversalRule.optical_depth
+  <orpheus.derivations.continuous.characteristic.transport.TraversalRule.optical_depth>`
+  is that method on the per-panel cross sections.
+- :math:`B_k` is the **outflow** of :eq:`characteristic-closure` per basis
+  function: an emission density :math:`q = \sum_i q_i u_i` has the outflow
+  :math:`\sum_i q_i B_k[u_i]`, by linearity, and the vector
+  :math:`(B_k[u_i])_i` is what
+  :meth:`~orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow`
+  takes on its trailing basis axis
+  (:meth:`TraversalRule.outflow
+  <orpheus.derivations.continuous.characteristic.transport.TraversalRule.outflow>`,
+  ``(..., 2, N)``, one row per traversal of the period, 0 where absent).
+- :math:`A_k` is the **entry response**: a unit intensity entering the
+  traversal produces the flux :math:`e^{-\tau_k(0, s)}` at :math:`s`, and
+  :math:`A_k[u_i]` is that flux paired with :math:`u_i`, the test against
+  which a Galerkin assembly pairs an inflow
+  (:meth:`TraversalRule.entry_response
+  <orpheus.derivations.continuous.characteristic.transport.TraversalRule.entry_response>`).
+
+**Why** :math:`A_k = B_{\bar k}`. Read traversal :math:`k` backward with
+:math:`s' = L_k - s`. The reversed traversal crosses the same slots in
+the opposite order, so :math:`c_{\bar k}(s') = c_k(L_k - s')` and
+:math:`\tau_{\bar k}(s', L_k) = \tau_k(0, L_k - s')`; substituting in
+:math:`B_{\bar k}[u_i]` gives :math:`A_k[u_i]`. The code computes each
+transit's two integrals once, read forward, and reading a transit
+backward swaps its exit and its entry, so ``entry_response`` is the
+outflow of the reversed traversal by selection: the identity holds
+bitwise by design, and the gate that asserts it
+(``test_the_entry_response_of_a_traversal_is_the_outflow_of_its_reverse``)
+only pins the design. The evidence about :math:`A_k` is
+``test_the_entry_response_is_the_integral_attenuated_from_the_entry``,
+against mpmath.
+
+.. implements:: characteristic-traversal-integrals
+   :by: orpheus.derivations.continuous.characteristic.transport.TraversalRule.outflow
+
+   **Implemented by** ``TraversalRule.outflow`` (:math:`B_k`),
+   ``TraversalRule.entry_response`` (:math:`A_k`, by selection of the
+   reversed reading), ``TraversalRule.optical_depth`` and
+   ``LinePeriod.optical_depth`` (:math:`\tau_k`).
+
+.. implements:: characteristic-traversal-integrals
+   :by: orpheus.derivations.continuous.characteristic.transport.TraversalRule.entry_response
+
+.. implements:: characteristic-traversal-integrals
+   :by: orpheus.derivations.continuous.characteristic.transport.TraversalRule.optical_depth
+
+.. implements:: characteristic-traversal-integrals
+   :by: orpheus.derivations.continuous.characteristic.closure.LinePeriod.optical_depth
+
+Every integral here is a polynomial in :math:`c(s)` times an exponential
+in :math:`s`, and Gauss–Legendre in arc length is exact only for
+polynomials in :math:`s`. Two features defeat one Gauss rule on a slot:
+the exponential, which varies over one mean free path, and on a cylinder
+or a sphere the orbit coordinate itself, which is not a polynomial in
+:math:`s`. The rule cuts each slot into **pieces** on which both are
+resolved, and evaluates every integral through one graded body.
+
+.. _characteristic-pieces:
+
+The pieces: exponential grading toward both ends of a slot
+----------------------------------------------------------
+
+A slot of the panel chord is a **member** when a transit traverses it,
+and it belongs to exactly one transit. Each member slot is cut at its
+midpoint, and each half is graded toward its own end of the slot: piece
+ends at the distances :math:`2^{k}/\Sigma`, :math:`k = 0, \dots, 6`
+(1, 2, 4, …, 64 mean free paths), clipped to the half, when the half's
+optical width exceeds 2 (the module constant ``_THIN``). A half of optical
+width at most 2 is one piece. So a slot of optical width at most 4 is two
+pieces, its halves, and the rest of a thick half beyond 64 mean free paths
+is one **middle piece**.
+
+`[M]` 2026-10-06, the piece ends in mean free paths from the slot's
+start, on a one-panel slab of width 1 crossed at :math:`\mu = 1`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 86
+
+   * - :math:`\Sigma l`
+     - Piece ends
+   * - 1, 3
+     - 0, :math:`\Sigma l/2`, :math:`\Sigma l`: the halves only
+   * - 5
+     - 0, 1, 2, 2.5, 3, 4, 5
+   * - 30
+     - 0, 1, 2, 4, 8, 15, 22, 26, 28, 29, 30
+   * - 1000
+     - 0, 1, 2, 4, 8, 16, 32, 64, 500, 936, 968, 984, 992, 996, 998, 999,
+       1000: two middle pieces of 436 mean free paths
+
+**Why these numbers.** Inside a slot the cross section is constant, and
+the flux an emission density produces there is a smooth part plus a
+multiple of :math:`e^{-\Sigma s}`, the transient of what entered at the
+slot's start; an integral attenuated to the slot's exit carries the
+weight :math:`e^{-\Sigma(\ell - s)}` toward the other end. So the integrands
+vary on the scale of one mean free path within a few mean free paths of
+either end, and slowly elsewhere. Pieces of one mean free path at each
+end, doubling inward, keep the fast variation on short pieces and the slow
+remainder on wide ones. The doublings stop at 64 mean free paths because
+the transient there is :math:`e^{-64} \approx 1.6 \times 10^{-28}` of its
+starting value, far below double precision. Both ends are graded because
+the transient and the exit weight sit at opposite ends. The Volterra
+block's outer rule integrates on these pieces; the integrals attenuated to
+a piece's end are the graded body of :ref:`characteristic-attenuated-integral`,
+which does not rely on the piece being narrow.
+
+.. _characteristic-branch-grading:
+
+The pieces: hp grading toward the orbit coordinate's branch points
+------------------------------------------------------------------
+
+On a cylinder or a sphere the orbit coordinate along a line is
+(:eq:`geometry-line-crossing-law`)
+
+.. math::
+
+   c(t)^{2} \;=\; b^{2} + |P\Omega|^{2}\,(t - t^{*})^{2},
+
+with :math:`b` the impact parameter, :math:`|P\Omega|` the projected speed
+and :math:`t^{*}` the parameter of the closest approach. Continued to
+complex :math:`t`, :math:`c(t)` has two branch points, where
+:math:`c^{2} = 0`:
+
+.. math::
+
+   t \;=\; t^{*} \pm i\,\frac{b}{|P\Omega|} .
+
+For real :math:`t`,
+:math:`|t - t^{*} \mp i b/|P\Omega||^{2} = (t - t^{*})^{2} + b^{2}/|P\Omega|^{2}
+= c(t)^{2}/|P\Omega|^{2}`, so the distance from a point of the line to the
+branch points is
+
+.. math::
+
+   \operatorname{dist}\bigl(t,\ \text{branch points}\bigr) \;=\; \frac{c(t)}{|P\Omega|} .
+
+A basis function is a general polynomial in :math:`c`, odd powers
+included, so the integrands are analytic in :math:`t` everywhere except at
+the branch points (the even powers of :math:`c` are polynomials in
+:math:`t`). On a slot :math:`c` is monotone, because the closest approach
+is a slot end, so the point of the slot nearest the branch points is the
+end with the smaller orbit coordinate, the slot's **near end**, at the
+distance
+
+.. math::
+
+   D \;=\; \frac{c_{\rm near}}{|P\Omega|}:
+
+:math:`D = b/|P\Omega|` on a slot ending at the closest approach, and
+:math:`D = r_k/|P\Omega|` on a slot starting at the crossing of a radius
+:math:`r_k`, a small cavity or a small inner region for instance.
+
+Gauss–Legendre converges at a rate set by the largest Bernstein ellipse
+around the interval, with foci at its ends, inside which the integrand is
+analytic: with the ellipse parameter :math:`\rho_E` (the sum of its
+semi-axes, the interval mapped to :math:`[-1, 1]`) and :math:`|f| \le M`
+inside, the rule with :math:`n + 1` points errs by at most
+:math:`64M / \bigl(15(1 - \rho_E^{-2})\,\rho_E^{2n+2}\bigr)`
+:cite:`Trefethen2008` (Theorem 4.5, eq. (4.14), p. 77). One piece of
+length :math:`\ell \gg D` sees the branch points almost at its end,
+:math:`\rho_E \to 1`, and converges slowly.
+
+So the pieces **halve toward the near end**: piece ends at the depths
+:math:`\ell\,2^{-k}`, :math:`k = 1, \dots, 52`, from the near end, kept while
+the depth exceeds :math:`D` (``TraversalRule._branch_edges``; 52 is
+``np.finfo(float).nmant``, below which a depth is under one ulp of the
+slot). A piece :math:`[\delta/2, \delta]` (depths from the near end) has
+the width :math:`\delta/2` and lies at least :math:`\delta/2` from the
+branch points, whatever :math:`b`; the innermost piece
+:math:`[0, \delta_{\min}]` has :math:`D < \delta_{\min} \le 2D`. The ellipse parameter of every piece
+is therefore bounded below independently of :math:`b`, each piece
+converges at a fixed geometric rate in its point count, and the number of
+pieces grows only like :math:`\log_2(\ell/D)`. This is **hp grading**:
+geometric refinement toward a singularity with a fixed rule per piece.
+
+`[M]` 2026-10-06, the worst ellipse parameter over every position of the
+branch points the grading admits, mapped onto each piece (a direct
+evaluation of :math:`\rho_E = |z \pm \sqrt{z^2 - 1}|`, the larger root):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 22 22 28
+
+   * - Grading
+     - Graded piece, :math:`\rho_E \ge`
+     - Innermost piece, :math:`\rho_E \ge`
+     - :math:`\rho_E^{-14}`, graded / innermost
+   * - halving (the code)
+     - :math:`3 + 2\sqrt2 \approx 5.83`
+     - 2.89
+     - :math:`1.9 \times 10^{-11}` / :math:`3.5 \times 10^{-7}`
+   * - quartering
+     - 3.00
+     - 2.08
+     - :math:`2.1 \times 10^{-7}` / :math:`3.5 \times 10^{-5}`
+
+The last column is the bound's decay factor at 7 points, before its
+constant: halving gains about four orders of magnitude on
+every graded piece. The bound's constant :math:`M` is small on the
+innermost piece, where :math:`c` itself is of the order of
+:math:`c_{\rm near}`, which is why the measured errors below sit far
+under the factor.
+
+Through the centre (:math:`b = 0`) the two slots that touch the closest
+approach have :math:`c_{\rm near} = 0`, so :math:`D = 0` and they are not
+graded: on each of them :math:`c = |P\Omega|\,|t - t^{*}|` is linear. The
+other slots of such a line are graded by the same rule toward the crossing
+of their smaller radius, which costs pieces and changes no value (on that
+line :math:`c` is linear on every slot). On the slab nothing is graded, and
+a cylinder line parallel to the axis has no transit.
+
+`[M]` 2026-10-06, :math:`\psi \cdot q` for :math:`q = c` against mpmath
+at 7 points per piece (``probe_ratio2.py`` of
+``scratch/characteristic_architecture/p1_step_b2/``, re-run here on the
+present code), worst relative error over five points on the line, solid
+bodies :math:`(0, 0.5, 1.5, 2.0)` at the resolution
+:math:`(p, L, \rho) = (3, 2, 1/2)`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Line
+     - :math:`\psi`, halving
+     - :math:`\psi`, quartering (arm T3b)
+   * - sphere, :math:`b = 10^{-2}`
+     - :math:`1.4 \times 10^{-14}`
+     - :math:`5.0 \times 10^{-13}`
+   * - cylinder, :math:`b = 10^{-2}`, :math:`\Omega_z = 0.8`
+     - :math:`2.8 \times 10^{-14}`
+     - :math:`8.9 \times 10^{-13}`
+   * - sphere, :math:`b = 3 \times 10^{-3}`
+     - :math:`3.9 \times 10^{-15}`
+     - :math:`2.1 \times 10^{-12}`
+   * - cylinder, :math:`b = 3 \times 10^{-3}`, :math:`\Omega_z = 0.8`
+     - :math:`6.3 \times 10^{-15}`
+     - :math:`3.9 \times 10^{-12}`
+
+The gate's band is :math:`10^{-13}`, so quartering fails it at 7 points.
+At 12 points both ratios meet it (``probe_ratio.py``, :math:`b = 10^{-2}`
+and :math:`10^{-3}`: at most :math:`3.4 \times 10^{-15}` either way), and
+at :math:`b = 10^{-4}` both stay below :math:`2 \times 10^{-15}` even at 7
+points. The ratio is visible only at a small point count, which is why
+``test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points``
+runs at 7, with the two :math:`b = 10^{-4}` lines as its declared
+controls. Each line keeps its live pieces in chord order (slot by slot,
+then along the slot), padded with dead pieces to the batch's largest
+count.
+
+.. dropdown:: First got wrong: a change of variable, and a coarser ratio
+   :color: muted
+
+   **The change of variable.** The step's design mapped each slot ending
+   at the closest approach by :math:`c = b + (c_{\rm far} - b)\,u^{2}`,
+   :math:`u \in [0, 1]`, so that :math:`c` is a polynomial in :math:`u`
+   (the prototype's turning map). The integrand's Jacobian keeps a branch
+   point: :math:`s \propto u\sqrt{(c_{\rm far} - b)(2b + (c_{\rm far} - b)u^{2})}`
+   vanishes under the root at
+   :math:`u = \pm i\sqrt{2b/(c_{\rm far} - b)}`, which at :math:`b = 10^{-4}`
+   lies about 0.03 from the end of :math:`[0, 1]` on a turning slot reaching
+   :math:`c_{\rm far} = 0.25`. One piece at 16 points missed by :math:`2.5 \times 10^{-12}` at :math:`b = 10^{-4}` and
+   :math:`6.5 \times 10^{-13}` at :math:`b = 10^{-3}` (`[M]` 2026-10-06, the
+   test-architect's ``probe_turn2.py``). The map also covered only the
+   slots ending at the closest approach: a hollow sphere of cavity radius
+   0.01 crossed through its cavity missed by :math:`8.5 \times 10^{-7}`
+   (qa's ``probe_branch.py``), because there the near end is the crossing
+   of the cavity surface, not a closest approach. The main agent retired
+   the map for the grading above, which locates the singularity from
+   :math:`c^{2} = 0` on every slot (recorded as ERR-099).
+
+   **The ratio.** Pieces shrinking by 4 toward the near end instead of 2
+   reach the branch point's scale in half as many pieces, and each piece
+   :math:`[\delta/4, \delta]` sees the branch points at a third of its own
+   width; the ellipse parameter falls from 5.83 to 3 and the error at 7
+   points from :math:`3 \times 10^{-14}` to :math:`9 \times 10^{-13}` (the
+   table above). At 12 points both meet the band, which is why the 16-point
+   gates could not tell the ratios apart.
+
+.. _characteristic-attenuated-integral:
+
+One attenuated integral
+-----------------------
+
+Every quantity of the rule is built from one body,
+``TraversalRule._attenuated``: the functions of a slot's panel integrated
+between two distances :math:`a` and :math:`z` along the slot, attenuated
+to the second,
+
+.. math::
+
+   I_m(a \to z) \;=\; \int_{[a, z]} u_m\bigl(c(s)\bigr)\,
+   e^{-\Sigma\,|z - s|}\,\mathrm{d}s ,
+
+on a rule graded exponentially toward :math:`z` (the same cut at
+:math:`2^{k}` mean free paths, applied to the whole interval, with
+``inner_points`` Gauss–Legendre points per interval). It has three uses:
+
+- a piece's integral attenuated to its **end**,
+  :math:`I(s_{\rm lo} \to s_{\rm hi})`, which the outflow and the carried
+  flux are made of;
+- a piece's integral attenuated to its **start**,
+  :math:`I(s_{\rm hi} \to s_{\rm lo})`, which the entry response is made of;
+- the integral from a piece's start to a point inside it,
+  :math:`I(s_{\rm lo} \to s)`, which the Volterra block (at the piece's
+  nodes) and the angular flux (at any point) need.
+
+**Why graded inside a piece.** A piece is graded toward the ends of its
+slot, not toward its own ends, and a middle piece of a thick slot is
+hundreds of mean free paths wide. Its integral attenuated to its own end
+lives in its last mean free path, and that integral is carried at full
+weight to the flux just past the piece, so an ungraded rule on the
+piece's own nodes misses it at order one. Grading each use toward the end
+it is attenuated to resolves every case with one body.
+
+.. dropdown:: First got wrong: the piece integrals on the piece's own nodes
+   :color: muted
+
+   The rule first integrated each piece's attenuated integrals on the
+   piece's own ``points`` Gauss–Legendre nodes, and graded only the
+   integral from a piece's start to a point inside it. The outflow read at
+   a slot's exit was right, because a middle piece's contribution reaches
+   the exit attenuated by :math:`e^{-64}` or more. The flux just past the
+   middle piece was not. `[M]` 2026-10-06, qa's ``probe_thick_psi.py`` on
+   that code: the flux just past the middle piece of a 1000-mean-free-path
+   slot off by 0.54 relative, :math:`5.2 \times 10^{-6}` at 200 mean free
+   paths, and :math:`f \cdot V g` off by :math:`2.4 \times 10^{-3}`. On the
+   present piece layout the same defect (battery arm T14, re-dropped here)
+   gives, at 1000 mean free paths, :math:`\psi` off by 0.25 half a mean free
+   path past a piece start and :math:`f \cdot V g` by :math:`1.3 \times 10^{-3}`;
+   at 200 mean free paths :math:`9.0 \times 10^{-11}` and
+   :math:`1.6 \times 10^{-12}`; at 100 and fewer, nothing above
+   :math:`3 \times 10^{-14}`. The main agent made every carried quantity one
+   graded body (recorded as ERR-100).
+
+Along a transit: the outflow, the entry response and the carried flux
+---------------------------------------------------------------------
+
+The pieces of a transit, in chord order, have optical depths
+:math:`\tau_J = \Sigma_J (s_{J,\rm hi} - s_{J,\rm lo})`. Write
+:math:`\tau^{\uparrow}_J` for the depth of the transit's pieces before
+:math:`J` and :math:`\tau^{\downarrow}_J` for the depth of those after it.
+Both are exclusive cumulative sums of non-negative terms, so no
+difference of depths is ever formed. Read forward, the transit's two
+integrals are
+
+.. math::
+
+   B[u] \;=\; \sum_J e^{-\tau^{\downarrow}_J}\, I(s_{J,\rm lo} \to s_{J,\rm hi}),
+   \qquad
+   A[u] \;=\; \sum_J e^{-\tau^{\uparrow}_J}\, I(s_{J,\rm hi} \to s_{J,\rm lo}),
+
+each piece's vector scattered into the columns of its panel's functions
+(:meth:`PanelBasis.columns
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.columns>`).
+A traversal of the period reads its transit forward or reversed, and
+reversing swaps the two, which is how ``outflow`` and ``entry_response``
+select their rows.
+
+What a transit's earlier pieces carry into the start of piece :math:`J`
+is the vector
+
+.. math::
+
+   C_{J+1} \;=\; e^{-\tau_J}\, C_J + I(s_{J,\rm lo} \to s_{J,\rm hi}),
+   \qquad C_{\rm first} = 0,
+
+a scan over the pieces in chord order, one per transit. The scan is a
+Python loop, and it is essential: the closed form
+:math:`e^{-\tau^{\uparrow}_J}\sum_{J' < J} e^{+\tau^{\uparrow}_{J'+1}} I_{J'}`
+overflows on a thick transit and cancels, while the recurrence multiplies
+only by transmissions at most 1.
+
+.. _characteristic-volterra:
+
+The Volterra block
+------------------
+
+On one line read forward, with nothing entering, basis function
+:math:`j` produces the flux
+
+.. math::
+
+   \psi_j(s) \;=\; \int_{\rm entry}^{s} u_j\bigl(c(s')\bigr)\,
+   e^{-\tau(s', s)}\,\mathrm{d}s'
+
+along each of the line's transits, a Volterra operator in arc length. Its
+Galerkin block, accumulated over a batch of lines with the caller's
+weights :math:`w_L`, is
+
+.. math::
+
+   V_{ij} \;=\; \sum_{L} w_L \sum_{\text{transits of } L}
+   \int u_i\bigl(c(s)\bigr)\,\psi_j(s)\,\mathrm{d}s ,
+
+(:meth:`TraversalRule.volterra
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.volterra>`,
+``(N, N)``, never stored per line). At the node :math:`s_q` of piece
+:math:`J`, at the distance :math:`s_q - s_{J,\rm lo}` past its start, the
+flux is what the earlier pieces carry in, attenuated from the start, plus
+the piece's own integral up to the node:
+
+.. math::
+
+   \psi_j(s_q) \;=\; e^{-\Sigma_J (s_q - s_{J,\rm lo})}\,C_{J,j}
+   \;+\; I_j(s_{J,\rm lo} \to s_q),
+
+and :math:`V` gains :math:`w_L \sum_q W_q\,u_i(s_q)\,\psi_j(s_q)` with the
+piece's ``points``-point Gauss–Legendre weights :math:`W_q`. The outer rule
+integrates the product :math:`u_i \psi_j`, smooth on a piece because the
+pieces are graded where :math:`\psi` has its layers; the inner integral is
+the graded one.
+
+Only the line's transits read forward enter: a line's flux lives on its
+own transits in its own direction, and the reversed traversals of its
+period carry its cycle and belong to the opposite line, which a batch
+that holds it weights on its own. The inflow part of a line's Galerkin
+block, :math:`\sum_k A_k \otimes \psi^{\rm in}_k` with :math:`\psi^{\rm in}`
+from :eq:`characteristic-closure` applied to the :math:`B_k`, is not in
+:math:`V`; composing the two over the measure on lines is the assembly
+(:ref:`characteristic-what-is-not-built`).
+
+**Reciprocity, and where it hides a transposition.** The block of the
+reversed line is the transpose, :math:`V(-\Omega) = V(\Omega)^{\mathsf T}`
+(``test_the_reversed_lines_triangle_is_the_transpose``, on the slab, where
+the gate also checks that :math:`V(\Omega)` is not symmetric). On a
+cylinder or a sphere the reversed line is the reflection of the line
+through its closest approach, which maps its path in the orbit space onto
+itself (:ref:`characteristic-period`), so :math:`V(-\Omega) = V(\Omega)`,
+and with reciprocity :math:`V` is **symmetric on every radial line**. A
+triangle with :math:`i` and :math:`j` transposed is then invisible on a
+radial chord; the battery's arm T8 reddens the slab rows of the triangle
+gate only, and the radial rows are declared in its stabiliser.
+
+.. _characteristic-angular-flux:
+
+The angular flux on a line
+--------------------------
+
+:meth:`TraversalRule.angular_flux
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.angular_flux>`
+reads the flux of every basis function at parameters :math:`t` on the
+lines, ``(..., q, N)``, given the inflow at each traversal's entry
+``(..., 2, N)`` that :meth:`LinePeriod.inflow
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow>`
+returns from the optical depths and the outflows. For a point at the
+distance :math:`d` from the start of its slot, in piece :math:`J` of a
+transit,
+
+.. math::
+
+   \psi(t) \;=\; e^{-(\tau^{\uparrow}_J + \Sigma_J (d - s_{J,\rm lo}))}\,
+   \psi^{\rm in}_{k_f}
+   \;+\; e^{-\Sigma_J (d - s_{J,\rm lo})}\,C_J
+   \;+\; I(s_{J,\rm lo} \to d),
+
+the inflow attenuated from the transit's entry, what the transit's
+earlier pieces carry in, and the piece's own integral up to the point.
+:math:`k_f` is the traversal that reads the point's transit forward,
+:meth:`LinePeriod.forward_traversal
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.forward_traversal>`:
+every transit a line makes is read forward by its period, since the first
+traversal is transit 0 forward and the successor rule of
+:eq:`characteristic-transit-rank` prefers a forward candidate, so a
+shell's second transit is reached forward. ``forward_traversal`` raises
+``RuntimeError`` if a transit is not read forward, which only a period
+and a chord that disagree can produce.
+
+The point's piece is the number of live piece starts at or before
+:math:`t`, minus one. A point that is not on a transit of its line (before
+its first piece, in a cavity, beyond a wall) is refused with
+``ValueError``. The exit test compares :math:`t` with the parameter of the
+slot's closing crossing, the kernel's own spelling of the wall, and the
+distance is clipped to the slot's length (:ref:`characteristic-gotchas`,
+the exit wall). The same function, the same
+pieces and the same attenuated integral serve this reading and the
+Volterra block, so the reading of a flux and the assembly share one rule.
+
+The gates compare :math:`\psi` with mpmath at five fractions of each
+transit with no inflow; at each transit's exit crossing, where with no
+inflow it is the outflow; and with the closure, on mirrors and polished
+walls of amplitudes 0.3 and 0.6, with the explicit backward march wall by
+wall that the closure's own gate uses
+(``test_the_closed_angular_flux_is_the_unfolded_backward_path``). With
+every amplitude 0 the inflow is exactly 0 and :math:`\psi` equals the
+no-inflow flux bitwise (``test_vacuum_walls_add_nothing_on_a_line``).
+
 .. _characteristic-what-is-not-built:
 
-What this rung does not compute
-===============================
+What the package does not compute
+=================================
 
-The closure needs the outflows :math:`B_k`, and this rung does not
-compute them: :math:`B_k` integrates the emission density along a
-traversal, so it needs the basis the emission is represented on and the
-Galerkin assembly over the measure on lines, the next rungs of the plan
-(``.claude/plans/characteristic_reference_architecture.md``, "P1 API
-sketch", items 4 and 5). ``inflow`` is tested on abstract :math:`B_k`,
-including a trailing basis axis, the shape an assembly over a basis
-hands it. Nothing in the package reads a flux at a point or answers a
-question; the first leg (from a point to the first wall) and the reading
-at a point are the plan's item 7.
+The package answers, for any batch of lines, each line's period and
+closure, the traversal integrals of every basis function, the vacuum
+Volterra block with the caller's line weights and the angular flux at
+points on the lines (:ref:`characteristic-transport`). It does not
+integrate over lines. The measure on lines
+(:eq:`geometry-measure-on-lines`,
+:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`)
+is read by nothing in the package, and three things need it:
 
-The diffuse part of the resolvent (the white and the Lambertian walls)
-is not built either. :class:`~orpheus.derivations.continuous.characteristic.walls.Walls`
-reads the diffuse amplitude and nothing consumes it. The design, the
-finite-rank update of :ref:`characteristic-resolvent`, is recorded in
-the plan (item 3, ``WallCoupling``) and in the ledger entry "the user, on
-P1's API sketch".
+- the **assembly**, the Galerkin operator of the line part: each line's
+  block :math:`V + \sum_k A_k \otimes \psi^{\rm in}_k`
+  (:ref:`characteristic-volterra`) integrated over the lines;
+- the **diffuse part of the resolvent**,
+  :math:`U\,(I - T_w)^{-1} A\,U^{\mathsf T}` (:ref:`characteristic-resolvent`),
+  whose escape functional :math:`U` and wall-to-wall transmission
+  :math:`T_w` are integrals over the same measure.
+  :class:`~orpheus.derivations.continuous.characteristic.walls.Walls`
+  reads the diffuse amplitude and nothing consumes it;
+- the **questions** on the dense pencil
+  (:ref:`verification-reference-kernel`) and the **reading** at a point,
+  whose first leg runs from the point to its first wall and is integrated
+  over directions.
+
+The user's ruling on the second rung's sketch (2026-10-06, Q1) put the
+line rule, the assembly and the diffuse part (``WallCoupling``) in one
+rung, the next, because all three are integrals over that measure. The
+plan is ``.claude/plans/characteristic_reference_architecture.md`` ("P1
+step (b), second rung: API sketch", item 0, and "P1 API sketch", items 3
+to 7); the campaign's issue is #405.
 
 The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`)
 is the reference every consumer reads today.
@@ -1097,6 +1917,44 @@ structural reason it fails, so that no later design re-derives it.
        :math:`6.3 \times 10^{-6}` on :math:`1 - \Pi` at
        :math:`\sum\tau = 3.5 \times 10^{-12}`
        (:ref:`characteristic-closure-section`).
+   * - The change of variable :math:`c = b + (c_{\rm far} - b)u^{2}` on a
+       slot ending at the closest approach (the second rung's sketch,
+       item 3)
+     - It makes :math:`c` a polynomial in :math:`u` and leaves the arc
+       length's branch point at :math:`u = \pm i\sqrt{2b/(c_{\rm far} - b)}`,
+       near the interval at small :math:`b` (:math:`2.5 \times 10^{-12}` at
+       :math:`b = 10^{-4}`, 16 points). It also covers only the slots
+       ending at the closest approach, while the branch points of
+       :math:`c(t)` sit :math:`c_{\rm near}/|P\Omega|` from every radial
+       slot's near end (:math:`8.5 \times 10^{-7}` beside a cavity of radius
+       0.01). The grading toward the near end replaces it
+       (:ref:`characteristic-branch-grading`, ERR-099).
+   * - Pieces shrinking by 4 toward the branch points
+     - A graded piece's ellipse parameter falls from 5.83 to 3, and the
+       error at 7 points rises from :math:`3 \times 10^{-14}` to
+       :math:`9 \times 10^{-13}`, outside the gates' band; at 12 points
+       the two ratios cannot be told apart
+       (:ref:`characteristic-branch-grading`).
+   * - Each piece's attenuated integrals on the piece's own Gauss–Legendre
+       nodes
+     - Misses the integral carried out of a wide middle piece at order one
+       (the flux just past it off by 0.54 at 1000 mean free paths), while
+       the outflow at the slot's exit, attenuated by :math:`e^{-64}` or
+       more from that piece, hides it. One graded body serves every
+       carried quantity (:ref:`characteristic-attenuated-integral`,
+       ERR-100).
+   * - ``TraversalRule.of(period, basis, sigma_per_panel, resolution)``
+       (the second rung's sketch)
+     - Leaves two constructions spellable: a period chorded through
+       another partition, and walls re-keyed onto a partition that is not
+       the basis's. ``of(lines, basis, walls, sigma_t, ...)`` chords
+       through the basis's own partition (the elegance review's finding
+       C2; :ref:`characteristic-transport`).
+   * - The flux at a wall located by the slot's start plus its length
+     - The sum rounds an ulp apart from the closing crossing's parameter,
+       which is how the kernel spells the wall, and refused 64 of 119
+       reads at an exit wall (qa, 2026-10-06). The exit test reads the
+       crossing parameter (:ref:`characteristic-angular-flux`).
 
 
 .. _characteristic-evidence:
@@ -1104,8 +1962,8 @@ structural reason it fails, so that no later design re-derives it.
 Numerical evidence
 ==================
 
-The gates
----------
+The gates of the walls and the closure
+--------------------------------------
 
 `[M]` 2026-10-06, ``.venv/bin/python -O -m pytest -p no:cacheprovider``
 over the two files at the branch ``feature/characteristic-walls-closure``:
@@ -1175,8 +2033,8 @@ division, at 16 ulp relative on 40 seeded draws per amplitude pair with
 exact zeros of :math:`\tau` mixed in. The walls rows compare with walls
 written by hand from each law's physics, not from its factors.
 
-The mutation battery
---------------------
+The mutation battery of the walls and the closure
+-------------------------------------------------
 
 `[M]` 2026-10-06, the test-architect's battery
 ``scratch/characteristic_architecture/p1_step_b1/battery/`` (driver
@@ -1261,6 +2119,236 @@ declared null (C7b) stays green, for the structural reason stated in
 :ref:`characteristic-closure-section`. The summary's line for C4 is
 blank; its log reads 92 failed, 83 passed.
 
+The gates of the basis and the transport
+----------------------------------------
+
+`[M]` 2026-10-06, ``.venv/bin/python -O -m pytest -p no:cacheprovider``
+over the package's four gate files on the branch
+``feature/characteristic-basis-transport``: 503 rows, all passing, in
+179 s. The two files of the second rung hold 328 of them,
+``test_characteristic_basis.py`` 225 and
+``test_characteristic_transport.py`` 103. Every row is ``foundation``:
+:eq:`characteristic-traversal-integrals` is the rung's label, and the
+verification specification
+(``scratch/characteristic_architecture/p1_step_b2/spec.md``) assigns the
+rows marked † to ``l0`` under it and the row marked ‡ to ``l0`` under
+:eq:`characteristic-closure`, once their markers move.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 56 8 36
+
+   * - Test (``tests/gates/derivations/``)
+     - Rows
+     - Reference
+   * - ``test_characteristic_basis.py::test_every_breakpoint_is_a_panel_end_and_each_panel_lies_in_one_region``
+     - 32
+     - the body's breakpoints
+   * - ``…basis.py::test_panels_grade_toward_walls_and_interfaces_and_not_toward_a_singular_stratum``
+     - 32
+     - the grading law written by hand in mpmath
+   * - ``…basis.py::test_the_nodes_are_each_panels_gauss_legendre_points``
+     - 32
+     - the roots of :math:`P_{p+1}` in mpmath
+   * - ``…basis.py::test_the_functions_are_cardinal_at_the_nodes_and_sum_to_one``
+     - 32
+     - the identity
+   * - ``…basis.py::test_the_interpolant_reproduces_every_per_region_polynomial_of_degree_p``
+     - 32
+     - mpmath; degree :math:`p + 1` as the loading control
+   * - ``…basis.py::test_the_volume_density_is_the_charts_by_hand``
+     - 8
+     - the three densities written by hand
+   * - ``…basis.py::test_the_mass_matrix_is_the_volume_integral_of_each_product``
+     - 18
+     - Lagrange products integrated in mpmath
+   * - ``…basis.py::test_each_panels_mass_is_its_chart_measure``
+     - 32
+     - ``Chart.measure`` and the closed-form volume
+   * - ``…basis.py``, the signature row, the refusals and the walls re-keyed
+       (four functions)
+     - 7
+     - the walls written by hand; the refusal fragments
+   * - ``test_characteristic_transport.py::test_the_panel_chord_unfolds_into_the_hand_counted_period``
+     - 12
+     - a hand-counted period; the body chord's depth
+   * - ``…transport.py::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit`` †
+     - 24
+     - mpmath line integrals, per-region cubics, two groups
+   * - ``…transport.py::test_each_basis_functions_outflow_is_its_line_integral`` †
+     - 3
+     - mpmath, each basis function
+   * - ``…transport.py::test_the_entry_response_is_the_integral_attenuated_from_the_entry`` †
+     - 12
+     - mpmath
+   * - ``…transport.py::test_the_entry_response_of_a_traversal_is_the_outflow_of_its_reverse``
+     - 3
+     - itself: the design identity, bitwise
+   * - ``…transport.py::test_a_thousand_mean_free_path_slot_integrates_to_the_closed_form`` †
+     - 2
+     - the closed form, 4 ulp; mpmath
+   * - ``…transport.py::test_a_void_region_integrates_its_source_unattenuated`` †
+     - 1
+     - the closed form :math:`q\ell`; mpmath
+   * - ``…transport.py::test_a_turning_slot_integrates_the_square_root_at_the_closest_approach`` †
+     - 4
+     - mpmath (tanh-sinh, split at :math:`t^{*}`)
+   * - ``…transport.py::test_a_slot_starting_at_a_small_radius_integrates_its_branch_point``
+     - 5
+     - mpmath; the rows the defect of ERR-099 reddens (four lines at one
+       panel per region, and cavity 0.001 at the gates' resolution)
+   * - ``…transport.py::test_a_small_radius_hidden_by_a_panel_end_is_the_err099_control``
+     - 3
+     - mpmath; the declared controls of ERR-099, where a panel end of the
+       basis sits at the small radius
+   * - ``…transport.py::test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points``
+     - 6
+     - mpmath, at 7 points per piece; two controls at :math:`b = 10^{-4}`
+   * - ``…transport.py::test_the_volterra_triangle_is_the_double_integral_along_the_line``
+     - 6
+     - an mpmath double integral, converged to :math:`10^{-18}` between 24
+       and 48 points per piece
+   * - ``…transport.py::test_the_reversed_lines_triangle_is_the_transpose``
+     - 2
+     - reciprocity, with a non-symmetry leg
+   * - ``…transport.py::test_the_triangle_of_a_batch_is_the_weighted_sum_of_its_lines``
+     - 1
+     - the per-line blocks
+   * - ``…transport.py::test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form``
+     - 2
+     - closed forms in mpmath, no quadrature
+   * - ``…transport.py::test_the_vacuum_angular_flux_is_the_source_integral_since_the_entry``
+     - 4
+     - mpmath at five fractions of each transit
+   * - ``…transport.py::test_the_angular_flux_is_read_at_a_transits_exit_crossing``
+     - 6
+     - mpmath outflow at the exit crossing
+   * - ``…transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path`` ‡
+     - 4
+     - the explicit backward march, wall by wall, in mpmath
+   * - ``…transport.py::test_vacuum_walls_add_nothing_on_a_line``
+     - 3
+     - itself, bitwise
+
+The references are written in ``tests/gates/derivations/_characteristic_mp.py``
+in mpmath, which imports nothing from ``orpheus``; every traversal a row
+reads is written by hand per fixture, never taken from the period under
+test. Two inputs come from the code and are declared: the panel ends (the
+space being tested, gated on their own by the first two basis rows) and
+the nodes, at which a per-region polynomial is sampled into coefficients
+(the interpolant reproduces it whatever the nodes, and the nodes are
+gated against mpmath roots). The tolerances on thin panels carry the
+factor :math:`1 + \kappa_P`, :math:`\kappa_P = \max(|a|, |b|)/(b - a)`,
+because the local coordinate of a panel 5e-6 wide at :math:`r = 2` loses
+five digits whatever the code does.
+
+The mutation battery of the basis and the transport
+---------------------------------------------------
+
+`[M]` 2026-10-06, the test-architect's battery
+``scratch/characteristic_architecture/p1_step_b2/battery/`` (plugin
+``battery_plugin.py``, results ``summary.txt``, round 3, run when the two
+files held 314 rows): 26 arms, each an in-process textual mutant of
+``basis.py`` (B), ``walls.py`` (W) or ``transport.py`` (T), the pristine
+copies matching the tree under ``diff -q`` afterwards. The honest run is
+green; every arm reddens its target row.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 8 46
+
+   * - Arm
+     - Reds
+     - Target rows reddened
+   * - B3 depth taken from the wrong end
+     - 190
+     - the grading law and everything downstream
+   * - B11 a panel straddling an interface (guards off)
+     - 158
+     - the partition, the interpolant, the transport rows
+   * - B4 nodes one short
+     - 155
+     - the nodes, the cardinal property, the interpolant
+   * - B5 reference nodes reversed; B6 local map reversed
+     - 118 each
+     - the cardinal property, the interpolant, each function's outflow
+   * - W1 breakpoint :math:`n` kept as the last index; W2 the wrap's partner
+       not re-keyed
+     - 87 each
+     - the re-keyed walls, the period on the panel chord, the transport
+       rows
+   * - T1 attenuated from the wrong end (the positive control)
+     - 62
+     - the outflow, each function's outflow, the entry response, the
+       angular flux
+   * - B9 mass blocks misplaced; B7 density without :math:`d`
+     - 49; 44
+     - the mass matrix; the density and the mass rows
+   * - B2 inner wall ungraded; B1 centre graded
+     - 14; 12
+     - the grading law
+   * - T12 carried term unattenuated
+     - 12
+     - the vacuum and closed angular flux, the small-point-count rows
+   * - B8 mass rule one point short
+     - 11
+     - the mass matrix and the panel measure
+   * - T3a the grading toward the branch points removed
+     - 10
+     - the turning rows at :math:`b = 10^{-4}`, the small-radius and the
+       small-point-count rows
+   * - T6 :math:`A` computed as :math:`B`
+     - 8
+     - the entry response and the design identity
+   * - T9 the carried rows of the triangle dropped
+     - 6
+     - the triangle
+   * - T11 inflow of the wrong traversal; T13 inflow over-attenuated
+     - 4 each
+     - the closed angular flux
+   * - T2 no exponential grading; T3b the branch grading's ratio 1/4; T8
+       triangle transposed
+     - 2 each
+     - the 1000-mean-free-path slot; the small-point-count rows at :math:`b = 10^{-2}`;
+       the triangle's slab rows (the radial rows are in its stabiliser)
+   * - B10 refinement unchecked; W3 chart unchecked; T7 inner rule from the
+       slot's start; T10 weights flipped
+     - 1 each
+     - the refusal; the chart refusal; the triangle's thick slab row; the
+       batch row
+
+Arms on rows added after round 3, re-dropped in this pass (`[M]`
+2026-10-06, the same plugin, ``test_characteristic_transport.py`` without
+the six slow triangle rows):
+
+- **T14**, each piece's attenuated integrals on the piece's own nodes
+  (the defect of ERR-100): 2 red of 91, both rows of
+  ``test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form``.
+- **T16**, the exit test by the slot's start plus its length: 3 red of 91,
+  of the 6 rows of ``test_the_angular_flux_is_read_at_a_transits_exit_crossing``.
+- **T3a** on the same file: 7 red of 91, the two turning rows at
+  :math:`b = 10^{-4}`, the four small-point-count rows of the time and one
+  small-radius row.
+- **The defect of ERR-099**, the branch grading restricted to the slots
+  ending at the closest approach. On the file as it first stood, with the
+  small-radius lines at the gates' resolution :math:`(3, 2, 1/2)` only, it
+  reddened 1 of 91 rows,
+  ``[sphere_cavity_1e-3_b_half_r0]`` (:math:`B_0` off by
+  :math:`5.3 \times 10^{-12}`): the basis's own grading toward the cavity
+  wall or the interface puts a panel end within a few :math:`r_k` of the
+  small radius, and the other three lines miss by at most
+  :math:`2.3 \times 10^{-14}`. With one panel per region all four miss, by
+  :math:`4 \times 10^{-9}` to :math:`1.1 \times 10^{-7}`. The test-architect
+  then split the small-radius gate: the five rows the defect reddens
+  (battery arm T17, the four one-panel rows and cavity 0.001 at the gates'
+  resolution) carry ``catches("ERR-099")``, and the three it leaves green
+  are its declared controls,
+  ``test_a_small_radius_hidden_by_a_panel_end_is_the_err099_control``.
+
+Rows no arm reddens, each declared in the specification: the design
+identity :math:`A_{\rm fwd} = B_{\rm rev}`, the reciprocity row, the void
+row's warning guards, the amplitude-0 row and the signature row.
+
 
 .. _characteristic-gotchas:
 
@@ -1292,6 +2380,34 @@ Gotchas
 - **Diffuse amplitudes are read and not consumed.** Until the diffuse
   part of the resolvent exists, a white wall's return is absent from
   every line closure; the line part alone treats it as absorbing.
+- **Read the flux at a wall at the kernel's crossing parameter.**
+  ``angular_flux`` locates a point by its slot's closing crossing. A
+  parameter formed as the slot's start plus its length can round an ulp
+  beyond the wall and is then refused as off the transit. The battery's
+  arm T16, which restores the test by start plus length, reddens 3 of the
+  6 rows of ``test_the_angular_flux_is_read_at_a_transits_exit_crossing``.
+- **A transposed triangle is invisible on a radial line.** The Volterra
+  block is symmetric on every cylinder and sphere line
+  (:ref:`characteristic-volterra`), so a gate of the triangle's
+  orientation needs a slab row.
+- **The entry response equals the reversed outflow by design.**
+  ``entry_response`` selects the reversed reading of the same two transit
+  integrals that ``outflow`` reads, so a bitwise comparison of the two
+  cannot fail on a wrong :math:`A_k`. The evidence about :math:`A_k` is
+  its comparison with mpmath.
+- **The cross sections are per region at the factory and per panel on the
+  value.** ``TraversalRule.of`` takes one total cross section per region
+  and reads it onto the panels; the direct constructor takes one per
+  panel.
+- ``Walls.on`` **trusts the refinement.** It re-keys breakpoint :math:`n`
+  to the panel count and holds no positions to check against; call it
+  with a basis's own partition, as ``TraversalRule.of`` does.
+- **A point read by** ``angular_flux`` **lies on a transit of its line.** A
+  point in a cavity, beyond a wall, or on a line with no transit is
+  refused.
+- **The thin threshold is per half slot.** Every slot is cut at its
+  midpoint, and each half is graded only when its optical width exceeds
+  2: a slot of optical width up to 4 is two pieces.
 
 
 .. _characteristic-history:
@@ -1317,3 +2433,16 @@ History
        derived period and the breakpoint-keyed walls.
      - ``72199f9d``
      - #405, #583
+   * - 2026-10-06
+     - The second rung: the panel basis (discontinuous nodal panels
+       graded toward walls and interfaces, the volume density derived
+       from the measure's one definition), the walls re-keyed onto the
+       panel partition, and the transport along a line
+       (``TraversalRule``: the traversal integrals, the Volterra block and
+       the angular flux, from one graded attenuated integral). In review
+       the sketch's change of variable at the closest approach gave way to
+       hp grading toward the branch points, and the piece integrals were
+       graded (ERR-099, ERR-100). The ladder was re-cut: the line rule,
+       the assembly and the diffuse part move to the next rung.
+     - ``ff979520``
+     - #405

@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**98 entries · 346 catching tests · 0 uncaught · 5 dormant.**
+**100 entries · 348 catching tests · 0 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-099` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-099")`.
+Append a `.. error-entry:: ERR-101` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-101")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -144,3 +144,5 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-096 | 1 |  | Symbolic.without simplified each expression before substituting, and SymPy's simplify rewrote a… |
 | ERR-097 | 4 |  | The inner GMRES IterationRecord judged scipy's pr_norm callback, the preconditioned residual ov… |
 | ERR-098 | 1 |  | The GMRES exact-breakdown carve-out trusted a final preconditioned residual of literal 0.0, whi… |
+| ERR-099 | 1 |  | The characteristic reference resolved the orbit coordinate's branch points only on slots ending… |
+| ERR-100 | 1 |  | The characteristic reference integrated each piece's attenuated source integral on the piece's… |
