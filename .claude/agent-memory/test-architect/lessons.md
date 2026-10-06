@@ -486,6 +486,12 @@ shelf life — check it against a concrete row before trusting a green.
   fingerprint). Certify an exact reference against its DEFINING equation when its derivation is the
   production's own theorem. → `L98`
 
+- **⛔ A change of variable that makes the COORDINATE polynomial need not make the INTEGRAND so** — the turning map
+  c = b + span u² left the Jacobian's branch point at u = ±i sqrt(2b/span), 2.5e-12 at 16 points for b = 1e-4, exact at
+  b = 0 and at b = 1e-2. Sweep the parameter that moves the branch point toward the real axis over decades, both
+  ends included, before believing a docstring's "polynomial in u". And a panel-local tolerance carries
+  (1 + max|a,b|/(b − a)): a thin panel far from the origin loses those digits in its own local map. → (2026-10-06, rung 2)
+
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
 Reference material, not a per-dispatch rule: moved to `lessons_archive.md`

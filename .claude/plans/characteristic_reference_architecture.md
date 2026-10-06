@@ -259,6 +259,7 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, on the P0.5 elegance review:** the source solve's refusal of a reducible gain: "Build it now". `DensePencil.least_solution` solves on the unknowns the source reaches (`DensePencil.reach`, the downstream closure of the source's support under the pencil's couplings, the Frobenius normal form's reached classes), zero outside, the radius check on the reached block only; a zero source reaches nothing. The insulation gate's width: "Add mesh and methods": closed references never import `mesh`, `transport` or a method package; `sood_registry/builders.py` joins the named exemptions (it builds production CP problems). Also from that review, by principle: `least_solution` became a method of the pencil (one QZ); `FundamentalMode` checks its own invariant; `Fundamental` and `Mode` renamed `FundamentalMode` and `SpectralMode` (homonyms of `numerics.question` names a reference may import); the production twin's over-claiming docstring filed as #580.
 - **2026-10-06, the user, on P1's API sketch:** all four recommendations accepted. White block: "One resolvent, two parts" (K_g = K_line + U (I - T_w)^{-1} A U^T, the diffuse walls as a symmetric finite-rank update of the line-diagonal block). Directions at a point: "Chart verb" (`Chart.directions_at(point)`, the fundamental domain of S^2 / Stab(x) with its density; the stabiliser is D_1h, `SubgroupOfO3.Dnh(1)`, already in the lattice; the S^2/D_1h catalogue entry is NOT built: ruled 2026-10-06 after the measurement that the catalogue's barycentre lift is not a right inverse for D_1h's non-linear chart, filed as #581). Transits: "In the kernel" (`Chord.transits`, gated in the kernel). Adjoint eigenpair: "Derivation API only" (no new observable; minting one is owed to #529; `Response` answered through the door). The rest of the sketch (package `characteristic/`, flux coefficients as the unknown, the migration order) stands as written.
 - **2026-10-06, the user, on P1 step (b)'s first rung:** Q1, the tag arm: the user refused hoisting production's tag parse ("mixing tags from reference with production would cause reference churn during production development. but we do need a coherent way to parse tags for reference"); ruled "the registry is accepted": the reference keeps its OWN tag registry (vacuum, reflective, partial, white, periodic) mapping each kind, with the wall's context (axis x, outward sign -1 at breakpoint 0 and +1 at n), to a typed law, and `Walls.of` reads every wall, tag or law, through the factor table only; the registry and production's `_law_from_tag` are a declared cross-branch duplicate (conceptual view); a gate pins Walls(tag) == Walls(its law) per kind. Q2 "By its factors": `PrescribedInflow` with `NoSource` is a vacuum wall, a non-zero source refused. Q3 "Accept as sketched": the period chained through the walls' partners, rank derived; `inflow` on optical depths, the least solution.
+- **2026-10-06, the user, on P1 step (b)'s second rung:** all four recommendations accepted. Q1: the ladder is re-cut; rung 2 is the panel basis and the transport along one line (B, A, the Volterra triangle, psi on a line), and rung 3 is the line rule, the assembly and `WallCoupling`, all integrals over the measure on lines. Q2: the pieces come from the kernel's chord through the panel ends posed as a refined `ConcentricPartition`, with `Walls.on(partition)` re-keying the walls. Q3: B_k lives on a new `TraversalRule` in `transport.py`. Q4: the basis is discontinuous nodal panels graded toward walls and interfaces (not a singular stratum), and its volume density is derived inside the basis from `measure_constant` and `measure_coordinate`, gated against `Chart.measure`.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -601,3 +602,104 @@ No branch is open apart from the parked hoist `a336bde4` (the speed target) and 
 - **Invariants belong in `__post_init__`, not only in the factory.** A directly built `Walls` spelled the states `Walls.of` refused (elegance S1).
 - **`np.flip` and `np.roll` agree on an axis of length 2.** A mutation swapping one for the other there is equivalent, so it is not a battery arm.
 - **A test can pick its expectation from the code under test.** One row chose its "absorbing traversal" from the code's own amplitudes and stayed green under the pairing mutation. Key expectations to independent data, such as the exit wall.
+
+## P1 step (b), second rung: API sketch (the main agent, 2026-10-06; checkpoint with the user before code)
+
+Every item is a proposal until it is ruled. It covers the panel basis and the transport along one line on that basis. It also proposes re-cutting the ladder.
+
+**Facts measured by reading (2026-10-06, at `5f1e9d25`).**
+- **The white block needs the line measure.** Its escape functional U (emission to the outgoing partial current at each diffuse wall) and its wall-to-wall transmission T_w are both integrals over the measure on lines (`Chart.beam_density`). The Galerkin assembly needs that same measure, and so does nothing else in this rung.
+- **A panel end is a level set like a breakpoint.** `ConcentricPartition(chart, breakpoints)` admits any strictly increasing breakpoints. The kernel's chord through a partition whose breakpoints are the basis's panel ends therefore yields every piece of every line: one slot per panel crossed, its length cancellation-free, its panel read from `slot_region`, and the closest approach already a slot end. The prototype computes these pieces with its own crossing arithmetic (`sphere_pieces`, `slab_pieces`).
+- **The volume density is not exposed.** The kernel has `Chart.measure(edges)` (cell measures, `measure_constant · (T(r_{j+1}) − T(r_j))` with T(r) = r^d) but no density in c.
+- **The prototype's per-line Galerkin block has three parts.** For one traversal, with the inflow at its entry written in:
+  - V, the Volterra triangle: the double integral of u_i(s) e^{−τ(s′→s)} u_j(s′) over s′ < s;
+  - A, the attenuated entry test: the integral of u_i(s) e^{−τ(entry→s)};
+  - B, the outflow: the integral of u_j(s′) e^{−τ(s′→exit)}.
+  The line's block is V + A ⊗ in, where in is `LinePeriod.inflow` of the B's. A of a traversal equals B of the reversed traversal, and V of the reversed traversal equals Vᵀ (reciprocity along one line).
+
+**0. Re-cutting the ladder (Q1).** The ruled ladder (P1 sketch item 9b) is "basis and assembly (C)". My compaction note put `WallCoupling` in this rung; that was my grouping, not a ruling. Proposed:
+- **Rung 2 (this sketch):** the basis and the transport along one line: B, A, V, and ψ along a line. Spec rows A2 (the B half), B5c, C2c, C3, C10 and C12, plus the reciprocity identities above.
+- **Rung 3:** the line rule (the measure on lines), the assembly K_line, and `WallCoupling` with it, since all three are integrals over that measure. Spec rows C6 to C9, C11, B4b, B5a and B8's operator half.
+
+**1. `PanelBasis` (`basis.py`).**
+- **Panels.** Each region [r_k, r_{k+1}] is cut into panels graded geometrically toward each end that is a wall or an interface: interior panel ends at the depths w·ratio^j, j = 1..`layers`, from each graded end, with w the half width of the region when both its ends are graded and the whole width when one is, the middle left whole (so the two panels at the end have equal width at ratio 1/2: the law places depths, not widths; corrected to the coded law 2026-10-06). An end that is a singular stratum (a solid body's centre or axis) is not graded, because the flux is even and smooth there.
+- **Functions.** Nodal Lagrange functions of degree p through each panel's p + 1 Gauss-Legendre points, from `composite_gauss_legendre` (the P0.5 kernel). They are discontinuous across panel ends, and no node lies on a panel end. Because the basis is nodal, `DensePencil.fundamental`'s single-sign test reads coefficients as values.
+- **Fields and verbs:**
+  - `partition`: the panel ends as a `ConcentricPartition`, a refinement of the geometry's;
+  - `region` and `panel` of each node, and `region_of_panel`;
+  - `values(c, panel) -> (..., p+1)`: the panel's functions at orbit coordinates;
+  - `mass`: W = ∫ u_i u_j dV, block-diagonal by panel, by Gauss with p + 2 points on each panel. The density is `measure_constant · d · c^{d−1}`, derived from the one definition of the measure. A gate checks that the density integrates to `Chart.measure` of each panel.
+- **Parameters** (degree, layers, ratio) live in the `Resolution` value. The basis is built from the geometry and that value alone, never from reading points (C6b).
+
+**2. The pieces come from the kernel (Q2).** Every line is chorded through `basis.partition`, not through the geometry's partition. `LinePeriod.of(panel_chord, walls)` then runs on that chord: the walls are the same two ends, re-keyed from breakpoint n to the panel count P. The proposed spelling is `Walls.on(partition)`, which re-checks the invariants. Σ_t per panel is `sigma_t[basis.region_of_panel]`. One chord serves the closure, τ and the source integrals, so no second crossing computation exists.
+
+**3. `TraversalRule` (`transport.py`, new) (Q3).** It is the quadrature along each traversal of a `LinePeriod`, built by `TraversalRule.of(period, basis, sigma_per_panel, resolution)`.
+- **Nodes.** Each traversed slot gets Gauss nodes in arc length:
+  - a slot ending at the closest approach is mapped by c = b + (c_end − b) u², so its integrand is polynomial in u (the prototype's turning map);
+  - a slot of optical length above 2 is cut into exponential panels toward its end (the prototype's `exp_graded`: widths 1/Σ, doubling up to 50 mean free paths).
+- **Storage.** Arrays (..., 2, Q), one row per traversal of the period. Q is a fixed maximum over the batch, and an unused node carries weight 0 from a zero-length piece; no out-of-range code is padded. Each node carries its panel and the optical depth from the traversal's entry.
+- **Verbs**, each linear in the basis:
+  - `outflow() -> (..., 2, N)`: B_k, the source integral attenuated to the traversal's exit. It feeds `LinePeriod.inflow`.
+  - `entry_response() -> (..., 2, N)`: A_k, the test u_i attenuated from the entry. Gate: it equals the reversed traversal's `outflow`.
+  - `volterra(line_weight) -> (N, N)`: Σ_L w_L Σ_k V_k, the triangle accumulated over the batch with the caller's line weights, never stored per line. The inner integral uses its own Gauss sub-rule from the piece start to each outer node, as the prototype's `chord_psi` does.
+  - `angular_flux(t, inflow) -> (..., N)`: ψ at parameters on the line, for the reading (rung 5). It is listed so that the reading reuses the same rule, which C6 requires.
+- **Void slots** (Σ = 0) integrate as q·ℓ with no division (B5c); the exponential cut applies only where Σ > 0, using `where=` multiplication as in rung 1.
+
+**4. The inflow argument for the white block (rung 3, named now).** `LinePeriod.inflow(optical_depth, outflow, arriving=0)` will gain the inflow arriving at each traversal's entry from outside the line's own cycle: a diffuse wall's re-emission now, a boundary source later. With an absorbing specular amplitude the outflow term vanishes, but the arriving term does not, so T_w for a pure white wall is spellable. It lands with `WallCoupling`.
+
+**5. The owed label.** The theory page gains the traversal integrals τ_k and B_k as one equation, labelled `characteristic-traversal-integrals`. The 12 optical-depth rows move from `foundation` to `l0` under it, with A2's B half.
+
+**Open for the user:**
+- **Q1, the ladder.** (a) Recommended: re-cut as in item 0, with `WallCoupling` in rung 3 beside the line rule. (b) Keep `WallCoupling` in rung 2 and build the line rule with it, so that rung 2 is the whole of C.
+- **Q2, where the pieces come from.** (a) Recommended: the panel ends as a refined partition, chorded by the kernel, with `Walls.on(partition)`. (b) Chord the geometry's partition and split each slot at the panel-end crossings inside the reference, which is a second crossing computation beside the kernel's.
+- **Q3, where B_k lives.** (a) Recommended: the new `TraversalRule`, because B needs the basis, Σ_t and a quadrature, which `LinePeriod` (geometry and walls) does not hold. (b) As methods on `LinePeriod`.
+- **Q4, the basis.** (a) Recommended: discontinuous nodal panels graded toward walls and interfaces and not toward a singular stratum, with the density derived inside the basis from `measure_constant` and `measure_coordinate`. (b) The same, with a kernel verb `Chart.volume_density(c)`, which changes the stable kernel and would need its own ruling.
+
+**Ruled 2026-10-06** (see the ledger): Q1 to Q4 as recommended. Rung 2 is the panel basis and the transport along one line. Rung 3 is the line rule, the assembly and `WallCoupling`. The pieces come from the kernel's chord through the panel partition, with `Walls.on(partition)`. B_k lives on the new `TraversalRule`. The density is derived inside the basis. Next: the test-architect re-specifies the rung's gates onto these names, and the main agent writes the code on `feature/characteristic-basis-transport`.
+
+## P1 step (b), second rung landed (2026-10-06)
+
+**Commits:** `ff979520` (basis, line transport, 328 gate rows) and `fc8ddbd4` (theory sections, label `characteristic-traversal-integrals`, ERR-099 and ERR-100). Read the merge status from git, not from this line.
+
+**What it is, as built:**
+- **`PanelBasis(regions, partition, degree)`, built by `of(regions, degree, layers, ratio)`.**
+  - Panel ends are at w·ρ^j from each graded end, where w is the half width when both ends are graded.
+  - A singular stratum is not graded.
+  - `region_of_panel` is derived, so "a panel in the wrong region" cannot be spelled.
+  - The mass density is `measure_constant · d · c^(d−1)`.
+- **`TraversalRule.of(lines, basis, walls, sigma_t, points, inner_points)`** (the user's ruling after the elegance review's C2). It chords the lines through `basis.partition` itself, and `__post_init__` requires that identity. Its verbs are `outflow`, `entry_response`, `volterra(line_weight)` (over each line's transits read forward) and `angular_flux(t, inflow)`.
+- **The internals:**
+  - each line keeps only its live pieces, in chord order;
+  - one graded body, `_attenuated(slot, start, stop)`, computes every carried integral;
+  - B and A are the exit and entry transmissions times the piece integrals;
+  - the carried integral is a scan.
+- **`LinePeriod.forward_traversal`; `Walls.on(partition)`.**
+
+**Decisions taken by the main agent (not user rulings; the user may overrule):**
+- The u-map on turning slots (c = b + (c_far − b)u²) is retired. With grading in place it changed no gated reading (the test-architect's F3). It also leaves a branch point in the Jacobian.
+- The grading toward branch points halves rather than quarters. Quartering drifted to 1.5e-14 at 12 points.
+- Grading covers every radial slot's end nearer the closest approach, down to c_near/|PΩ| (qa's finding: ERR-099).
+- Exit-wall reads are located by the crossing parameter.
+
+**Defects found in review and fixed in the session:**
+- ERR-099, the branch-point grading gap: 8.5e-7 on a hollow sphere with cavity radius 0.01.
+- ERR-100, the ungraded carry out of a thick slot's middle piece: ψ off by 0.54 at 1000 mfp, by 5.2e-6 at 200 mfp.
+- Exit-wall reads refused by rounding: 64 of 119.
+
+**Evidence** (`[M]` 2026-10-06):
+- the four characteristic gate files: 503 of 503 under `-O` (189 l0, 314 foundation);
+- battery: 30 of 30 arms red (`scratch/characteristic_architecture/p1_step_b2/battery/summary.txt`);
+- the ledger, layer and geometry gates: 1946 passed;
+- the CI gate set: 1420 passed;
+- Sphinx `-E -W` clean; `dead_references` 0 of 66 (a planted control read 1 of 67); pyright 0 errors.
+
+**Deferred, from review (not done):**
+- elegance N2: three geometric gradings (`_graded_ends`, the exponential `_toward`, `_branch_edges`), to collapse when rung 5's grazing grading arrives;
+- N5: a batched Gauss rule over arrays of intervals is missing from the reference kernel;
+- the reframing of B, A, V and ψ as one semiseparable Volterra operator per line (the sweep its matvec, a reversed traversal its transpose);
+- `MeasureCoordinate.derivative`, to make when the kernel next opens.
+
+**Next:** rung 3, as an API checkpoint with the user before code:
+- the line rule (the measure on lines through `Chart.beam_density`, with the cosine endpoint map);
+- the assembly K_line = Σ_L w_L (V_L + A_L ⊗ in_L) over forward traversals;
+- `WallCoupling` (U, T_w, and the `arriving` argument of `LinePeriod.inflow`).
