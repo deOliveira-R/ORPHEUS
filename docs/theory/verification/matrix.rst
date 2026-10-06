@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **15948**
+Total tests collected: **16006**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1387, 8.7%
-   L1, 2290, 14.4%
+   L1, 2290, 14.3%
    L2, 71, 0.4%
    L3, 0, 0.0%
-   foundation, 12166, 76.3%
+   foundation, 12224, 76.4%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 15835
+   explicit, 15893
    class-name, 46
    func-name, 0
    case, 33
@@ -254,6 +254,7 @@ Module × level grid
    derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
    derivations/test_quadrature, 7, 0, 0, 0, 44, 0
    derivations/test_reference_body, 0, 0, 0, 0, 59, 0
+   derivations/test_reference_kernel, 0, 0, 0, 0, 33, 0
    derivations/test_registry_citations_resolve, 0, 0, 0, 0, 326, 0
    derivations/test_singular_eigenfunction_cylinder, 0, 8, 0, 0, 14, 0
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
@@ -638,7 +639,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 445, 0
+   test_layer_imports, 0, 0, 0, 0, 470, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -822,6 +823,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``p-transpose-flux-balance``, 9
    ``peierls-greens-slab-architecture``, 9
    ``pole-mm-recurrence``, 9
+   ``reference-kernel-fundamental-contract``, 9
    ``tau-m``, 9
    ``tau-p``, 9
    ``cp-inner-integral-antiderivative``, 8
@@ -888,6 +890,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-V-alpha-2``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
+   ``reference-kernel-least-solution``, 4
+   ``reference-kernel-reach``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
@@ -1008,6 +1012,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``pi-r-equals-4pi-i``, 1
    ``real-spherical-harmonics``, 1
    ``real-spherical-harmonics-l1``, 1
+   ``reference-kernel-adjoint-pencil``, 1
+   ``reference-kernel-biorthogonality``, 1
+   ``reference-kernel-reciprocity``, 1
    ``resolvent-object-gate``, 1
    ``sh-addition-theorem-reconstruction``, 1
    ``sh-space-metric``, 1

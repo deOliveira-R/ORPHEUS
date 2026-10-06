@@ -2304,10 +2304,12 @@ via :func:`numpy.linalg.solve` and extracts the dominant eigenpair with
 :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
 (:func:`numpy.linalg.eig`, the largest-real eigenpair, a sign convention, and
 a refusal of a complex dominant eigenvalue).  The homogeneous route shares
-neither step with it, and `[M]` 2026-10-01 neither engine has a production
-caller: in ``orpheus/`` outside :mod:`orpheus.numerics.eigenvalue` itself, the
-only caller of ``dominant_eigenpair`` is the derivation oracle
-``kinf_and_adjoint_spectrum_homogeneous``, and ``direct_eigenvalue`` has none.
+neither step with it, and `[M]` 2026-10-06 neither engine has a caller in
+``orpheus/`` outside :mod:`orpheus.numerics` itself: the derivation oracle
+``kinf_and_adjoint_spectrum_homogeneous``, formerly the only caller of
+``dominant_eigenpair``, moved to the reference kernel
+(:class:`~orpheus.derivations.common.dense_pencil.DensePencil`) when the
+references were insulated from production numerics (2026-10-06).
 Both remain the dense members of the three-engine family
 (:ref:`three-eigenvalue-engines`), and ``direct_eigenvalue`` is the
 cross-engine oracle of

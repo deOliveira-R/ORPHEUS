@@ -6,7 +6,11 @@ The Layer Contract
 This page records the **layering criterion** that organizes the ORPHEUS
 package tree, the package-to-layer assignment that follows from it, the
 import-linter test that enforces it (:file:`tests/gates/test_layer_imports.py`),
-and the transitional exemptions captured in its ``WHITELIST``.
+the transitional exemptions captured in its ``WHITELIST``, and the second
+contract the same test enforces inside L0: the closed references import no
+production machinery, neither the mesh, the transport layer nor a method
+package, and of :mod:`orpheus.numerics` only its interface vocabulary,
+never its mathematics (:ref:`architecture-reference-insulation`).
 
 The contract is load-bearing. The whole point of organizing code by
 mathematical knowledge layer is to make a class of bugs — bugs of
@@ -157,7 +161,11 @@ A few notes the table is too compact to capture:
   solvers built from SymPy, ``mpmath``, or pure analytical closed forms.
   Production code that needs a structurally independent reference
   imports L0; the L3-uses-L0 pattern is documented in
-  :doc:`/theory/verification/index`.
+  :doc:`/theory/verification/index`. Inside L0, the closed references
+  (``derivations/continuous/`` and ``derivations/common/``) are held to a
+  stricter rule than the layer table: they never import
+  :mod:`orpheus.mesh`, and of :mod:`orpheus.numerics` they may import only
+  five interface modules (:ref:`architecture-reference-insulation`).
 
 * **L4** is permissible to import everything. It is the only layer
   where wiring a run can pull in transport types, method-specific
@@ -366,27 +374,209 @@ The linter ships with two tolerances:
   them. Every entry carries a ``RETIRE_IN_P3_FOLLOWUP`` comment naming
   its retirement trigger.
 
-  At the time of P3.1's landing, the whitelist contains three
-  ``derivations/`` → ``L3`` edges:
+  The whitelist holds three ``derivations/`` edges into L2 and L3:
 
   .. code-block:: python
 
      WHITELIST: frozenset[tuple[str, str]] = frozenset({
-         # RETIRE_IN_P3_FOLLOWUP — inline-import benchmark cross-check
-         ("derivations/continuous/cases/diffusion.py", "diffusion"),
          # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
          ("derivations/continuous/mms/moc.py", "moc"),
          # RETIRE_IN_P3_FOLLOWUP — sood_registry lazy-imports CPParams
          ("derivations/continuous/sood_registry/builders.py", "cp"),
+         # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
+         # its prescribed-inflow source from transport vocabulary
+         ("derivations/continuous/mms/sn.py", "transport"),
      })
 
-  Each entry is a Branch-1-uses-production-as-a-black-box benchmark —
-  the reference imports a production solver to *cross-check* a
-  reference value, NOT to share algebra. These are categorically
+  Each entry is a reference module that poses or builds a production
+  problem (a manufactured-solution harness for a method, the Sood
+  registry's collision-probability builder): it uses production as a
+  black box, NOT to share algebra. These are categorically
   different from algebra-sharing imports (which would be structurally
   contaminating per :doc:`/theory/verification/index`). The retirement
   trigger for each is the module's migration to a method-side test
   or to an external benchmark harness.
+
+
+.. _architecture-reference-insulation:
+
+The closed references import no production machinery
+----------------------------------------------------
+
+The layer table lets L0 import L1 whole and the mesh overlay. For the
+closed references both are narrowed, by the user's rulings of 2026-10-06,
+whose principle the user gave in these words:
+
+   "the reference methods (like Fn or trajectory resolvent) are highly
+   closed, purpose built and limited scope. They are fundamentally
+   different than production, which is versatile, generalist and large in
+   scope. So they ask for different things from their machinery and the
+   churn should be concentrated on production, whereas once references
+   reach a good architecture, churn should be extremely limited."
+
+**What the principle implies.** A reference is valuable because it stays
+put: a value it produced last month is comparable with the value it
+produces today. Production numerics is the opposite kind of code. The
+operator algebra, the pencil and the iteration family in
+:mod:`orpheus.numerics` are built to be general (any operator on any space,
+the adjoint derived through ``.H``) and they change whenever production
+grows. If a reference computed with that machinery, every production
+refactor would be a change to every reference, and agreement between a
+reference and a production solver would rest partly on shared code. So a
+reference depends only on slow-moving upstreams: numpy, scipy, mpmath, and
+the reference kernel of its own, which lives in
+``orpheus/derivations/common/`` and is small, closed and changed only by
+ruling. Its dense linear algebra, the module
+:mod:`orpheus.derivations.common.dense_pencil`, is derived on
+:ref:`verification-reference-kernel`; its composite Gauss rule is
+:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`.
+
+**What a closed reference may import.** Two rules, one per kind of
+upstream:
+
+* **No production machinery.** A closed reference never imports
+  :mod:`orpheus.mesh`, :mod:`orpheus.transport` or any method package
+  (the set ``REFERENCE_FORBIDDEN_PACKAGES`` in
+  :file:`tests/gates/test_layer_imports.py`, the mesh, L2 and L3 packages
+  of the layer table; the user's ruling "Add mesh and methods"). The layer
+  table already forbids L0 the transport layer and the methods; the new
+  member is the mesh, the discretisation overlay a reference has no use
+  for, since it poses its problem on the geometry and evaluates on its own
+  points. Its input vocabulary stays importable: :mod:`orpheus.data`,
+  :mod:`orpheus.geometry`, :mod:`orpheus.specification` and
+  :mod:`orpheus.reference`.
+* **Of numerics, only the interface.** Below.
+
+**Interface versus mathematics.** A reference still has to speak to its
+consumers: it receives a question, it is read through observables, it is
+keyed and memoised by content. That vocabulary is shared, so it is
+imported; what is computed is not. The allowlist is the set
+``REFERENCE_INTERFACE_NUMERICS`` in :file:`tests/gates/test_layer_imports.py`,
+five submodules of :mod:`orpheus.numerics`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 74
+
+   * - Submodule
+     - What a reference takes from it
+   * - :mod:`orpheus.numerics.question`
+     - the question asked of a system (:class:`~orpheus.numerics.question.Eigen`,
+       :class:`~orpheus.numerics.question.FixedSource`,
+       :class:`~orpheus.numerics.question.Response`) and the mode selector
+   * - :mod:`orpheus.numerics.observable`
+     - what is read off an answer (an eigenvalue, a flux integral, a point
+       value, a ratio)
+   * - :mod:`orpheus.numerics.mesh_free_function`
+     - the mesh-free functions a specification states (a per-region table,
+       a symbolic function)
+   * - ``orpheus.numerics.content``
+     - content identity, the one encoder of a persistent key
+   * - :mod:`orpheus.numerics.traced_memo`
+     - the traced memo, a pure function of content memoised on disk
+
+The test for membership is whether the module computes anything a
+reference's value depends on. The posed-question types
+:class:`~orpheus.numerics.pencil.OperatorPencil`,
+:class:`~orpheus.numerics.posing.EigenPosing` and
+:class:`~orpheus.numerics.posing.SourcePosing` fail it: they are built on
+:class:`~orpheus.numerics.operator.LinearOperator`, the production operator
+algebra, so they are mathematics, and the reference spells its own
+:class:`~orpheus.derivations.common.dense_pencil.DensePencil` instead.
+
+**The exemptions, and why.** The rule binds ``derivations/continuous/``
+and ``derivations/common/`` (the user's ruling on the gate's scope,
+2026-10-06: "Continuous references only"). Outside it, by design:
+
+* ``derivations/discrete/`` is outside the two roots. Its modules are
+  algebras of record of a production discretization, so their subject is
+  a production object and they follow production's changes by nature:
+  :mod:`orpheus.derivations.discrete.sn.balance` imports
+  :mod:`orpheus.numerics.roots_of_unity` on purpose.
+* Three modules under the roots build production objects and are exempt
+  by name, each entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
+  reason in the gate. The two manufactured-solution harnesses pose a
+  production method: ``derivations/continuous/mms/sn.py`` imports
+  :mod:`orpheus.mesh`, :mod:`orpheus.transport` and the production
+  :mod:`orpheus.numerics.quadrature` and
+  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` problems, and
+  ``derivations/continuous/mms/moc.py`` imports :mod:`orpheus.mesh` and
+  :mod:`orpheus.moc`. ``derivations/continuous/sood_registry/builders.py``
+  builds production collision-probability problems, importing
+  :mod:`orpheus.mesh` twice and ``orpheus.cp.solver`` once. The transport
+  and method imports of these three are also entries of the layer
+  linter's ``WHITELIST`` above.
+
+**The deliberate twins.** A primitive both branches need exists once on
+each side of the line: the Perron–Frobenius extraction is
+:meth:`DensePencil.fundamental <orpheus.derivations.common.dense_pencil.DensePencil.fundamental>`
+for the references and :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+for production. The duplicate is the point (each copy is verified on its
+own, so a reference agreeing with a production solver shares no
+eigen-extraction code with it), and it is recorded by name in the concept
+table of :ref:`architecture-conceptual-view` so that no later review merges
+the two.
+
+**The gate.** :file:`tests/gates/test_layer_imports.py`, section "The
+closed references import only the interface vocabulary of numerics",
+four ``foundation`` tests:
+
+* ``test_closed_references_import_only_the_numerics_interface`` walks every
+  module under ``orpheus/derivations/``, keeps those under the two roots
+  and not exempt, and fails on any import of a package in
+  ``REFERENCE_FORBIDDEN_PACKAGES``, and on any import of an
+  :mod:`orpheus.numerics` submodule outside the allowlist or of the
+  package itself; the two refusals carry different messages. It reads
+  imports with the same ``ast`` walker as the layer linter, plus the
+  string-literal argument of ``importlib.import_module`` and
+  ``__import__``. Unlike the layer linter's L1/L2 tolerance, an import
+  inside ``if TYPE_CHECKING:`` is refused here: a reference has no reason
+  to name a production type even for a type checker.
+* ``test_reference_insulation_refuses_each_import_shape`` feeds seven
+  synthetic sources, one per import shape (absolute, ``import a.b.c``,
+  relative, function-body, ``TYPE_CHECKING``, the bare package, and
+  ``importlib.import_module``), and requires exactly one numerics
+  violation from each.
+* ``test_reference_insulation_refuses_production_machinery`` feeds four:
+  an absolute import of the mesh, a function-body import from the
+  transport layer, a method package, and a relative import of a method
+  package, and requires exactly one production-machinery violation from
+  each.
+* ``test_reference_insulation_admits_the_interface_and_the_exempt``
+  requires no violation from eight sources: two interface imports, an
+  exempt harness, a module under ``derivations/discrete/``, numpy with
+  scipy, the exempt Sood builder importing a method, the geometry with the
+  data, and the specification with the reference package.
+
+Its first red is the tree before the reference kernel landed. `[M]`
+2026-10-06: the gate's own predicate, run on
+``orpheus/derivations/common/eigenvalue.py`` as committed at ``a15cb1b7``,
+returns one violation, the function-body import of
+:mod:`orpheus.numerics.eigenvalue` by the infinite-medium adjoint spectrum,
+which that module now takes from the dense pencil; on the reference
+kernel's tree it returns none. Every other non-interface import of
+:mod:`orpheus.numerics` under ``orpheus/derivations/`` is exempt (`[M]` the
+same day, ``git grep`` over the import lines of ``orpheus/derivations``,
+4 import lines in 2 files): ``Quadrature`` and ``moment_layout`` in
+``continuous/mms/sn.py``, and ``roots_of_unity`` in
+``discrete/sn/balance.py``. The production-machinery rule's first red is
+the Sood builder without its exemption (`[M]` 2026-10-06, the gate's
+predicate run with the entry removed): two violations for
+:mod:`orpheus.mesh` and one for ``orpheus.cp.solver``; on the tree with the
+exemption the whole gate returns none.
+
+**A change to the allowlist is a contract change.** The interface
+vocabulary is itself a channel through which production churn can reach a
+reference, so the allowlist is kept minimal. Adding a submodule to
+``REFERENCE_INTERFACE_NUMERICS``, removing a package from
+``REFERENCE_FORBIDDEN_PACKAGES``, or adding a module to
+``_REFERENCE_INSULATION_EXEMPT``, is reviewed as a change to this contract:
+the commit says why the module computes nothing a reference's value depends
+on (or, for an exemption, why its subject is a production object), and the
+same reasoning is written here. The geometric kernel both branches import
+(:mod:`orpheus.geometry.chart`, :mod:`orpheus.geometry.line`,
+:mod:`orpheus.geometry.chord`) is held to the same standard of stability by
+the same ruling; no gate enforces that, so it rests on review.
 
 
 When to break the rule
@@ -420,9 +610,11 @@ The layer contract was formalized in Phase 3 of the
 ``moment-space-and-layering`` plan (2026-05). The packages had largely
 converged on the contract *before* the linter landed (the discipline
 had been enforced by earlier waves of refactoring); the P3.1 commit
-only made the contract executable. The 3 ``derivations/`` whitelist
-entries above were the entirety of the violations across 243 Python
-modules.
+only made the contract executable. Three ``derivations/`` whitelist
+entries were the entirety of the violations across 243 Python modules:
+the two still listed for the MoC harness and the Sood builder, and the
+diffusion cases' benchmark cross-check, since retired; the S\ :sub:`N`
+harness's entry came later.
 
 The earlier waves that converged on the contract:
 
@@ -441,3 +633,9 @@ The earlier waves that converged on the contract:
 The Phase 3 refactor packages the convergence as an enforced contract;
 subsequent Phase 3 steps (P3.2 through P3.6) make further structural
 moves under the protection of the linter.
+
+The closed-reference contract (:ref:`architecture-reference-insulation`)
+was added on 2026-10-06 with the reference kernel, as the precursor of the
+characteristic references' rebuild (#405); its first red was the
+infinite-medium adjoint spectrum's import of the production
+eigen-extraction.

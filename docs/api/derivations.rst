@@ -50,6 +50,20 @@ Submodules
        :class:`~orpheus.derivations.common.quadrature.AdaptiveQuadrature1D`
        (no-fixed-nodes adaptive rule built via
        :func:`~orpheus.derivations.common.quadrature.adaptive_mpmath`).
+   * - :mod:`~orpheus.derivations.common.dense_pencil`
+     - The reference kernel's dense linear algebra:
+       :class:`~orpheus.derivations.common.dense_pencil.DensePencil`, the
+       pencil :math:`F c = k\,L c` in weak form, with its fundamental mode
+       (refused, :class:`~orpheus.derivations.common.dense_pencil.NoFundamentalMode`,
+       unless real, positive, strictly dominant and single-signed), its
+       full spectrum, its adjoint (the transposed pair) and the least
+       solution of :math:`L x = F x + s` on the unknowns the source
+       reaches (refused,
+       :class:`~orpheus.derivations.common.dense_pencil.NoLeastSolution`,
+       unless that reached part is subcritical; zero elsewhere). The references' own copy of what production
+       spells in :mod:`orpheus.numerics.eigenvalue`, kept apart on purpose
+       (:ref:`architecture-reference-insulation`); the theory is
+       :ref:`verification-reference-kernel`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
        :func:`chord_quadrature` (impact-parameter integrals on
@@ -167,6 +181,12 @@ Diffusion
 ---------
 
 .. automodule:: orpheus.derivations.continuous.cases.diffusion
+   :members:
+
+The reference kernel's dense pencil
+-----------------------------------
+
+.. automodule:: orpheus.derivations.common.dense_pencil
    :members:
 
 Kernels

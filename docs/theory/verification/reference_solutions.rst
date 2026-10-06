@@ -11,7 +11,9 @@ commits to; (iii) the :class:`ContinuousReferenceSolution` dataclass
 that carries mesh-independent analytical or semi-analytical
 solutions into tests; and (iv) the kernel-primitive identities that
 underpin the whole Phase-4 (Peierls) and Phase-5 (analytical
-transport) infrastructure.
+transport) infrastructure; and (v) the reference kernel's dense linear
+algebra, the eigen and source solves every matrix-reducing reference
+stands on (:ref:`verification-reference-kernel`).
 
 .. contents::
    :local:
@@ -401,6 +403,542 @@ The legacy-convention regression guards
 naming during Phase 0 through Phase B.3 were deleted alongside the
 class in commit 6badbe5; they are listed here only as a pointer for
 readers tracing through older commits in ``git log``.
+
+
+.. _verification-reference-kernel:
+
+The reference kernel's linear algebra — the dense pencil and the least solution
+-------------------------------------------------------------------------------
+
+A continuous reference that has reduced its transport problem to a few
+hundred unknowns asks two questions of the resulting matrices: the
+eigenpairs of a pencil (the fundamental mode, the higher modes, the
+adjoint modes), and the solution of a source problem. Both are answered by
+one small module, :mod:`orpheus.derivations.common.dense_pencil`, on numpy
+and scipy only. It is a kernel primitive in the same sense as
+:math:`E_n` and :math:`\mathrm{Ki}_n` above: every reference that reaches a
+matrix stands on it, so it is verified on its own, against manufactured
+matrices with chosen spectra, before any reference uses it.
+
+**Why the references carry their own.** Production has an eigen-extraction
+(:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`) and a pencil
+(:class:`~orpheus.numerics.pencil.OperatorPencil`), built for versatility
+and changed whenever production grows. A reference is closed, purpose
+built and limited in scope, and is useful only while it stays put, so it
+computes with machinery of its own that changes only by ruling; the
+principle, in the user's words, and the gate that enforces it are on
+:ref:`architecture-reference-insulation`. The Perron–Frobenius extraction
+therefore exists twice, once on each side of the branch line. The two
+copies are deliberately different in strength (below), and neither may be
+merged into the other: a reference agreeing with production would then
+share its extraction code, and the agreement would carry less information.
+
+The pencil and its weak form
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Let :math:`\{u_1, \dots, u_n\}` be the basis the reference assembled on, and
+let :math:`a_L(\cdot,\cdot)` and :math:`a_F(\cdot,\cdot)` be the bilinear
+forms of the loss operator :math:`\mathcal{L}` (streaming and collision,
+less in-group and down-scattering where they are counted as loss) and the
+production operator :math:`\mathcal{F}`, the first slot the test function
+and the second the trial function:
+:math:`a_L(v, w) = \langle v, \mathcal{L} w\rangle`. A
+:class:`~orpheus.derivations.common.dense_pencil.DensePencil` holds the two
+matrices of these forms,
+
+.. math::
+
+   L_{ij} = a_L(u_i, u_j), \qquad F_{ij} = a_F(u_i, u_j),
+
+which is what a Galerkin assembly produces. Writing the trial function as
+:math:`\phi = \sum_j c_j u_j` and testing
+:math:`\mathcal{F}\phi = k\,\mathcal{L}\phi` against each :math:`u_i` gives
+the generalised eigenproblem the kernel solves,
+
+.. math::
+
+   F\,c \;=\; k\,L\,c ,
+
+by the QZ reduction (``scipy.linalg.eig(F, L)``). Its eigenvalues are those
+of :math:`L^{-1}F`, the matrix of the operator
+:math:`\mathcal{L}^{-1}\mathcal{F}` restricted to the trial space, whatever
+the basis's Gram matrix is: the Gram matrix multiplies both sides and
+cancels.
+
+**Why weak form, and why the adjoint is then the transposed pair.** The
+adjoint operator is defined by swapping the slots of each form,
+:math:`a_{L^\dagger}(v, w) = a_L(w, v)`, and so on for :math:`F`. Its
+matrices on the same basis are therefore
+
+.. math::
+   :label: reference-kernel-adjoint-pencil
+
+   (L^\dagger)_{ij} = a_L(u_j, u_i) = L_{ji},
+   \qquad
+   (F^\dagger)_{ij} = F_{ji},
+   \qquad\text{so}\qquad
+   (L^\dagger, F^\dagger) = (L^{\mathsf T}, F^{\mathsf T}),
+
+with the same spectrum, since
+:math:`\det(F^{\mathsf T} - k L^{\mathsf T}) = \det(F - kL)`.
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.adjoint` returns
+exactly this pair, and no metric appears. Had the kernel stored the operator
+in strong form instead, as the coefficient matrix :math:`P = W^{-1}L` of
+:math:`\mathcal{L}` with :math:`W_{ij} = \langle u_i, u_j\rangle` the Gram
+matrix (or the quadrature weights of a nodal rule), the Euclidean transpose
+:math:`P^{\mathsf T}` would not be the adjoint: the adjoint of :math:`P` in
+the inner product :math:`x^{\mathsf T} W y` is :math:`W^{-1} P^{\mathsf T} W`,
+since :math:`(Px)^{\mathsf T} W y = x^{\mathsf T} W (W^{-1}P^{\mathsf T}W) y`.
+For :math:`P = W^{-1}L` that is :math:`W^{-1}L^{\mathsf T}`, whose weak form
+is :math:`L^{\mathsf T}` again. The weak form keeps the metric inside the
+forms, so the only adjoint spelling the kernel offers is the correct one.
+
+.. implements:: reference-kernel-adjoint-pencil
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.adjoint
+
+Two identities follow from :eq:`reference-kernel-adjoint-pencil`. Let
+:math:`F v_j = k_j L v_j` and :math:`F^{\mathsf T} w_i = k_i L^{\mathsf T}
+w_i`. Then :math:`w_i^{\mathsf T} F v_j` equals both
+:math:`k_j\, w_i^{\mathsf T} L v_j` and :math:`k_i\, w_i^{\mathsf T} L v_j`,
+so for distinct eigenvalues the forward and adjoint modes are
+biorthogonal in the loss form (and, multiplying through, in the production
+form):
+
+.. math::
+   :label: reference-kernel-biorthogonality
+
+   (k_i - k_j)\, w_i^{\mathsf T} L\, v_j = 0
+   \quad\Longrightarrow\quad
+   w_i^{\mathsf T} L\, v_j = 0 \;\;(k_i \ne k_j).
+
+And a source solve is reciprocal through the adjoint: if
+:math:`(L - F)\,x = s` and :math:`(L - F)^{\mathsf T} x^\dagger = d`, then
+
+.. math::
+   :label: reference-kernel-reciprocity
+
+   \langle d, x\rangle
+   = (x^\dagger)^{\mathsf T}(L - F)\,x
+   = \langle x^\dagger, s\rangle .
+
+**The nodal-basis requirement.** The sign test below reads the
+eigenvector's coefficients. On a nodal (Lagrange) basis a coefficient is
+the function's value at its node, so single-signed coefficients are
+single-signed node values. On a modal basis (Legendre polynomials, say) the
+coefficients' signs say nothing about the function's sign, in either
+direction, and the test would refuse or admit for the wrong reason. A
+reference that builds a :class:`~orpheus.derivations.common.dense_pencil.DensePencil`
+on a modal basis must change basis before asking for the fundamental mode.
+
+The fundamental mode and the basis of each refusal
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The fundamental mode of a criticality problem is defined by a theorem, not
+by a selection rule. For a compact operator :math:`K` on a Banach space
+ordered by a cone (here: non-negative functions), positive in the sense
+that it maps the cone into itself, the **Krein–Rutman theorem** states that
+the spectral radius :math:`\rho(K)`, if positive, is itself an eigenvalue
+with an eigenvector in the cone; in its strong form (:math:`K` maps every
+non-zero element of the cone into the cone's interior) the eigenvalue
+:math:`\rho(K)` is simple, it is the only eigenvalue with an eigenvector in
+the cone, and every other eigenvalue has modulus strictly below it. The
+finite-dimensional case is the **Perron–Frobenius theorem** for
+non-negative matrices: an irreducible one has a simple positive eigenvalue
+:math:`\rho` with a positive eigenvector, unique up to scale among the
+non-negative eigenvectors, and a primitive one (irreducible with period 1)
+has every other eigenvalue strictly inside :math:`|\lambda| < \rho`. For
+neutron transport :math:`K = \mathcal{L}^{-1}\mathcal{F}` is positive
+because the transport inverse and the fission production both preserve
+non-negative densities; Bell & Glasstone state the multigroup consequence
+(a real, positive :math:`k_0` larger in magnitude than any other
+eigenvalue, with a unique non-negative eigenfunction and adjoint
+eigenfunction) and rest it on that positivity :cite:`BellGlasstone1970`
+(§4.4c, pp. 189–190). Neither Krein and Rutman's paper nor a
+matrix-analysis text stating the Perron–Frobenius theorem is in the local
+literature folder, so the two statements above carry no theorem numbers;
+Bell & Glasstone's is the one checked against its source here.
+
+A discretisation inherits none of this automatically: the discrete
+:math:`L^{-1}F` is a positive matrix only if the scheme preserves
+positivity, and Bell & Glasstone point out that the multigroup
+:math:`P_1` difference equations (§4.4g, p. 197) and the diamond-difference
+discrete-ordinates equations (§5.2f, p. 225) need not. So
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.fundamental`
+does not *select* the fundamental mode; it reads the eigenvalue of largest
+modulus and checks that the matrix behaves as the theorem says a positive
+operator's must. Each check is one consequence of the theorem, and its
+failure is a :class:`~orpheus.derivations.common.dense_pencil.NoFundamentalMode`
+naming that consequence:
+
+.. math::
+   :label: reference-kernel-fundamental-contract
+
+   k_0 \in \mathbb{R},\qquad
+   k_0 > 0,\qquad
+   1 - \frac{|k_1|}{|k_0|} > \delta,\qquad
+   \min_i c_{0,i} \;\ge\; -\varepsilon\,\max_i |c_{0,i}|,
+
+with :math:`k_0, k_1` the two eigenvalues of largest modulus, :math:`c_0`
+the eigenvector of :math:`k_0` oriented so its coefficients sum to a
+non-negative number, :math:`\delta` =
+:data:`~orpheus.derivations.common.dense_pencil.DOMINANCE_GAP`
+(:math:`10^{-10}`) and :math:`\varepsilon` the pencil's own rounding band,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.sign_band`
+(below).
+
+.. implements:: reference-kernel-fundamental-contract
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.fundamental
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 38 40
+
+   * - Refusal (message fragment)
+     - The consequence it checks
+     - What a violation means
+   * - ``is complex``
+     - :math:`\rho` is an eigenvalue, so the eigenvalue of largest modulus
+       is real
+     - the matrix is not positive. QZ returns a real eigenvalue of a real
+       pencil with an exactly zero imaginary part, so the test is
+       ``imag != 0.0``. A complex dominant eigenvalue of a real pencil has
+       its conjugate at equal modulus, so the dominance check would refuse
+       it too; the complex check runs first and owns the message.
+   * - ``is not positive``
+     - :math:`\rho > 0` is an eigenvalue
+     - a negative eigenvalue leads in modulus (in the gate's fixture,
+       :math:`-3` ahead of :math:`2`), so :math:`\rho` is not an eigenvalue
+       and the matrix is not positive
+   * - ``is not strictly dominant``
+     - :math:`\rho` is simple and every other eigenvalue lies strictly
+       inside :math:`|\lambda| < \rho` (strong form; primitive matrix)
+     - two eigenvalues of equal modulus lead: a double one, as two
+       decoupled parts at the same :math:`k` give (the fixture
+       :math:`(2, 2, \dots)`), or a pair of opposite sign, as a periodic
+       (imprimitive) non-negative matrix gives (the fixture
+       :math:`(2, -2, \dots)`). No unique fundamental mode exists
+   * - ``is not single-signed``
+     - the eigenvector of :math:`\rho` lies in the cone
+     - the discretisation produced a sign-changing "fundamental", which is
+       the signature of a scheme that is not positivity-preserving
+
+**The bands.** The sign band is a rounding band, not a physical allowance.
+A coefficient that is zero in exact arithmetic (a group no fission or
+scattering reaches, a node on a vacuum wall) comes out of the QZ reduction
+at the level of the backward error, with either sign: in the gate's fixture
+an exact zero returns at :math:`-1.2\times10^{-16}`. How far it moves grows
+with the conditioning of the loss form and shrinks with the dominance gap,
+so the band is the pencil's own,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.sign_band`:
+:data:`~orpheus.derivations.common.dense_pencil.SIGN_SAFETY` (10) times the
+first-order error bound of the eigenvector of :math:`A = L^{-1}F` under a
+relative backward error :math:`\varepsilon_{\rm mach}` in each form,
+
+.. math::
+
+   \varepsilon \;=\; 10\,\frac{\varepsilon_{\rm mach}\left(\|L^{-1}\|\,\|F\|
+   + \kappa(L)\,\|A\|\right)}{|k_0| - |k_1|},
+
+with 2-norms (the eigenvector perturbation bound of a simple eigenvalue,
+Golub and Van Loan, *Matrix Computations*, 4th ed.; the section number is
+not checked against a local copy). `[M]` 2026-10-06: the first spelling, a
+fixed band of :math:`10^{-10}`, refused 9 of 20 pencils with
+:math:`\kappa(L)` near :math:`10^8`, whose exact zeros return at up to
+:math:`5.6\times10^{-9}` (qa); the derived band admits the exact zeros of
+20 of 20 pencils at each of :math:`\kappa(L) = 10^2, 10^6, 10^8` and
+refuses a sign change of :math:`-10^{-3}` in 20 of 20 at each; at
+:math:`\kappa(L) = 10^{10}` the rounding itself reaches :math:`10^{-4}` and
+a :math:`-10^{-3}` change is refused in 15 of 20, the honest limit of
+resolution (``scratch/characteristic_architecture/p05_probes/sign_band_probe.py``).
+A negative coefficient within the band is therefore set to exactly ``0.0``
+and the vector renormalised; outside it, the mode is refused. The returned
+:class:`~orpheus.derivations.common.dense_pencil.FundamentalMode` checks its
+own invariant at construction (:math:`k` finite and positive, the vector
+finite, non-negative and of unit Euclidean norm, and read-only), so a value
+of that type is a fundamental mode whoever built it; its scale is the
+caller's to set. :data:`~orpheus.derivations.common.dense_pencil.DOMINANCE_GAP`
+is the smallest relative gap in modulus between :math:`k_0` and
+:math:`k_1` that counts as strict dominance.
+
+**Higher modes.**
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.spectrum`
+returns every eigenpair as a
+:class:`~orpheus.derivations.common.dense_pencil.SpectralMode`, ordered by
+decreasing modulus, complex and sign-changing ones included, with no
+refusal: the theorem says nothing about them except that they are not
+the fundamental mode. It refuses only a singular loss form, which shows as
+an infinite or undefined eigenvalue of the QZ reduction.
+
+**The two twins, side by side.** Production's
+:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` takes the
+eigenvalue with the largest real part of a materialised resolvent
+:math:`A^{-1}F` and refuses only a complex one; it does not check
+positivity, dominance or the sign of the vector, although its docstring
+says the criticality contract is enforced
+(`#580 <https://github.com/deOliveira-R/ORPHEUS/issues/580>`_). For a
+well-posed problem the eigenvalue of largest real part and the eigenvalue
+of largest modulus coincide, so production answers correctly there; the
+reference kernel is the stricter of the two because a reference is the
+instrument that must refuse rather than answer when the posing is wrong.
+
+The least solution of a source problem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Read as a source problem, the same pencil is :math:`L x = F x + s`: the
+loss form is the form the unknown is measured in, the production form is
+the secondary production (scattering and fission), and :math:`s` is the
+external source.
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.least_solution`
+returns the sum of its Neumann series. With :math:`T = L^{-1}F`, the
+equation is :math:`x = L^{-1}s + T x`; substituting it into itself
+:math:`N` times gives
+:math:`x = \sum_{n<N} T^n L^{-1}s + T^N x`, the expansion in collision
+generations. The series
+
+.. math::
+   :label: reference-kernel-least-solution
+
+   x \;=\; \sum_{n=0}^{\infty} \bigl(L^{-1}F\bigr)^{n} L^{-1} s
+     \;=\; (L - F)^{-1} s
+   \qquad\text{when}\qquad \rho\bigl(L^{-1}F\bigr) < 1
+
+converges for every source exactly when :math:`\rho(T) < 1` (the Neumann
+series of a matrix converges iff its spectral radius is below 1), and its
+sum is :math:`(I - T)^{-1}L^{-1}s = (L(I - T))^{-1}s = (L - F)^{-1}s`. The
+radius of :math:`T` is the modulus of the leading eigenvalue of the pencil,
+the :math:`k` of the eigenproblem, so "subcritical" means the same thing in
+both readings. The kernel does not apply this condition to the whole
+system, though, but only to the part of it the source reaches.
+
+.. implements:: reference-kernel-least-solution
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.least_solution
+
+**The reach.** Say that unknown :math:`j` enters equation :math:`i` when
+:math:`L_{ij} \ne 0` or :math:`F_{ij} \ne 0`. The reach :math:`R(s)` of a
+source is the smallest set of unknowns that contains the support of
+:math:`s` and every unknown whose equation contains an unknown already in
+the set; :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.reach`
+returns it as a boolean mask, by a breadth-first closure. In the language
+of the Frobenius normal form (the unknowns permuted so that the coupling
+is block triangular, with its strongly connected classes as the diagonal
+blocks) it is the union of the source's classes and every class
+downstream of them. Write :math:`U` for the unknowns outside the reach. By
+construction no equation in :math:`U` contains an unknown in :math:`R`,
+so :math:`L_{UR} = F_{UR} = 0` and, ordering :math:`R` first,
+
+.. math::
+   :label: reference-kernel-reach
+
+   \begin{pmatrix} L_{RR} - F_{RR} & L_{RU} - F_{RU} \\
+                   0 & L_{UU} - F_{UU} \end{pmatrix}
+   \begin{pmatrix} x_R \\ x_U \end{pmatrix}
+   = \begin{pmatrix} s_R \\ 0 \end{pmatrix}.
+
+:math:`L` and :math:`F` are both block upper triangular, so :math:`L^{-1}`
+and :math:`T = L^{-1}F` are too, and a vector that vanishes on :math:`U`
+is mapped by :math:`T` to one that vanishes on :math:`U`, with
+:math:`(Tv)_R = L_{RR}^{-1}F_{RR}\,v_R`. Every term of the Neumann series
+therefore vanishes on :math:`U`, and the least solution is
+
+.. math::
+
+   x_U = 0, \qquad
+   x_R = \sum_{n=0}^{\infty} \bigl(L_{RR}^{-1}F_{RR}\bigr)^{n}
+         L_{RR}^{-1} s_R
+       = (L_{RR} - F_{RR})^{-1} s_R
+   \quad\text{when}\quad \rho\bigl(L_{RR}^{-1}F_{RR}\bigr) < 1 .
+
+That is what
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.least_solution`
+computes: it measures the radius of the reached block (the modulus of the
+leading eigenvalue of that block's own pencil, by the same QZ reduction
+as :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.spectrum`),
+refuses when it is not below 1, solves the reached block, and leaves the
+rest at zero. A class of radius at least 1 that the source does not reach
+is not a refusal: it carries zero. A source that reaches a class of radius
+at least 1 is refused, whether or not it also reaches subcritical classes.
+
+.. implements:: reference-kernel-reach
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.reach
+
+   **Implemented by** 2 sites: the closure itself, and the least solution
+   that restricts the solve to it.
+
+.. implements:: reference-kernel-reach
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.least_solution
+
+**Why it is the least solution.** When :math:`L^{-1}`, :math:`F` and
+:math:`s` are non-negative, every partial sum is non-negative and
+increasing, and any non-negative solution :math:`y` satisfies
+:math:`y = \sum_{n<N} T^n L^{-1}s + T^N y \ge \sum_{n<N} T^n L^{-1}s` for
+every :math:`N`. So the series' sum lies below every non-negative solution:
+it is the least one, and it is the physical one (the neutrons of every
+collision generation, counted once).
+
+**Why the radius is checked, not trusted to the solve.** When
+:math:`\rho(T) > 1` the matrix :math:`L - F` is usually still invertible,
+and a direct solve returns a finite vector without complaint; but for an
+irreducible :math:`T \ge 0` the matrix :math:`(I - T)^{-1}` is
+non-negative only when :math:`\rho(T) < 1`, and the vector has negative
+entries (the gate's control leg: :math:`\rho = 1.5`, a finite
+solve with a negative entry). Not a single partial sum of the series is
+negative, so that vector is not the limit of anything physical. The
+kernel refuses with
+:class:`~orpheus.derivations.common.dense_pencil.NoLeastSolution`, naming
+the measured radius.
+
+**An unreached class, and the zero source.** A zero source reaches
+nothing, so its least solution is zero whatever the radius, even where
+:math:`L - F` is singular; this is the empty case of the reach, not a
+special case in the code. The case that matters arises in transport along
+lines: a line that stays inside a void
+region between perfectly reflecting walls carries no loss at all, so its
+own :math:`T` has radius 1 and :math:`I - T` is singular, and it carries no
+source either. It is a class of its own that no source reaches, so its
+least solution is zero, the limit as the wall albedo tends to 1 from
+below, while every other line is solved. That is why the characteristic
+references' closure is ruled to be the least solution (the user's ruling
+"Least solution", 2026-10-06), and why the radius is checked on the reach
+and not on the whole system (the user's ruling of the same day): a check
+on the whole gain would refuse every source in a geometry holding one
+such line assembled into the same pencil.
+
+**The margin.** The radius is computed, so a system exactly at criticality
+reads 1 only to within the eigensolver's backward error, with either sign.
+`[M]` 2026-10-06, 4 × 4 gains with a chosen spectrum
+:math:`(1, 0.5, 0.2, -0.3)` built as :math:`V\Lambda V^{-1}`, 20 seeds of
+200 draws: the computed radius spans :math:`1 - 7.2\times10^{-13}` to
+:math:`1 + 1.8\times10^{-13}`, and a bare comparison ``radius < 1`` admits
+473 of the 4000 (between 18 and 31 per seed); on the gate's own draw
+stream it admits 23 of 200, of which 21 return a solution with entries up
+to :math:`9.8\times10^{16}` and 2 raise an untyped
+``numpy.linalg.LinAlgError`` on the singular :math:`I - G`. The kernel
+therefore refuses every radius not below
+:math:`1 -` :data:`~orpheus.derivations.common.dense_pencil.SUBCRITICAL_MARGIN`
+(:math:`10^{-10}`), about 140 times the worst draw's distance from 1. A
+system nearer to criticality than the margin would have a least solution
+amplified by more than :math:`10^{10}` along its fundamental mode, which no
+reference value survives.
+
+.. dropdown:: What the kernel replaced, and why it failed
+   :icon: history
+
+   **The largest-real-part extraction.** Before the kernel, four reference
+   sites formed the resolvent ``M = np.linalg.solve(A, F)`` and took its
+   eigenvalue with the largest real part (``kinf_and_spectrum_homogeneous``
+   and ``kinf_from_cp`` in :mod:`orpheus.derivations.common.eigenvalue`,
+   ``derive_1rg`` and ``_bare_slab_spectrum`` in
+   :mod:`orpheus.derivations.continuous.cases.diffusion`), and the two
+   spectrum variants zeroed coefficients below ``1e-14`` in absolute value
+   without refusing anything. That rule answers
+   when it should refuse: on the gate's fixture with eigenvalues
+   :math:`(-3, 2, 1, 0.5)` it returns :math:`k = 2`, the second eigenvalue
+   in modulus, as if it were the fundamental mode, and it never checks
+   dominance or the sign of the vector. The kernel reads the eigenvalue of
+   largest modulus and refuses, with one message per broken condition.
+
+   **The factor-order trap on the** :math:`k_\infty` **adjoint.** The
+   infinite-medium adjoint spectrum
+   (:func:`~orpheus.derivations.common.eigenvalue.kinf_and_adjoint_spectrum_homogeneous`)
+   must be the dominant eigenvector of
+   :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}`, not of
+   :math:`(A^{-1}F)^{\mathsf T} = F^{\mathsf T}A^{-\mathsf T}`. The two
+   matrices are similar (conjugate by :math:`A^{\mathsf T}`), so every
+   :math:`k`-level check passes on both; but the eigenvectors differ, and
+   for the rank-one :math:`F = \chi \otimes \nu\Sigma_f` the wrong product's
+   dominant eigenvector is exactly :math:`\widehat{\nu\Sigma_f}`, carrying
+   no information about :math:`A` at all. The first spelling used
+   :math:`\operatorname{eig}(M^{\mathsf T})`; the S\ :sub:`N` daggered solve
+   disagreed with it on first contact (campaign #276, gate P1.4), and the
+   law was corrected to :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` by hand,
+   with production's ``dominant_eigenpair`` doing the extraction. In the
+   kernel the adjoint is
+   :meth:`DensePencil.adjoint <orpheus.derivations.common.dense_pencil.DensePencil.adjoint>`,
+   the transposed pair :eq:`reference-kernel-adjoint-pencil`, and a
+   resolvent is never formed, so neither factor order can be written.
+
+The gates
+~~~~~~~~~
+
+The kernel's gates are :file:`tests/gates/derivations/test_reference_kernel.py`,
+every matrix in it domain-free (a pencil
+:math:`F = L V \Lambda V^{-1}` with a non-symmetric, well-conditioned
+:math:`L` and chosen eigenpairs, so :math:`F v_i = \lambda_i L v_i` holds by
+construction; a gain with a chosen spectrum), as ``instrument-doctrine``
+X4 requires of a primitive that references rest on: it is pinned against
+closed forms, never against an in-domain solver.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Claim
+     - Gate (``test_reference_kernel.py``)
+   * - fundamental mode = the chosen dominant eigenpair (:math:`n = 5, 40`,
+       band :math:`10^{-13}` relative on :math:`k`); the within-band clip
+     - ``test_k1_the_fundamental_is_the_chosen_dominant_eigenpair``,
+       ``test_k1_a_within_band_negative_coefficient_is_clipped_to_exactly_zero``
+   * - the four refusals of :eq:`reference-kernel-fundamental-contract`,
+       one input each, keyed to disjoint message fragments; a singular loss
+     - ``test_k1r_*``
+   * - :class:`~orpheus.derivations.common.dense_pencil.FundamentalMode`
+       refuses an instance that breaks its invariant
+     - ``test_a_fundamental_mode_holds_its_invariant_whoever_builds_it``
+   * - the full spectrum, ordered by modulus (a complex pair placed
+       between two reals, where an order by real part would misplace it)
+     - ``test_k5_the_spectrum_holds_every_mode_by_decreasing_modulus_with_no_refusal``
+   * - :eq:`reference-kernel-adjoint-pencil`,
+       :eq:`reference-kernel-biorthogonality`,
+       :eq:`reference-kernel-reciprocity`
+     - ``test_k6i_the_adjoint_has_the_same_spectrum``,
+       ``test_k6ii_adjoint_and_forward_modes_are_biorthogonal_in_the_loss_form``,
+       ``test_k6iii_the_source_solve_is_reciprocal_through_the_adjoint``
+   * - :eq:`reference-kernel-least-solution` against its closed form
+       (unit mass, :math:`\rho = 0.5, 0.9, 0.999`) and against the
+       explicitly summed series (non-identity mass)
+     - ``test_k2_the_least_solution_with_unit_mass``,
+       ``test_k2_the_least_solution_with_a_non_identity_mass_is_the_neumann_sum``
+   * - :eq:`reference-kernel-reach`: the reach is the downstream closure
+       of the source (a chain :math:`0 \to 1 \to 2` and an island); an
+       unreached class of radius 1 carries zero, both when it is
+       decoupled and when it feeds the reached class; a reached class of
+       radius 1 is refused, alone or beside a subcritical one
+     - ``test_k2_reach_is_the_downstream_closure_of_the_source``,
+       ``test_k2_an_unreached_supercritical_class_carries_zero``,
+       ``test_k2r_a_reached_supercritical_class_is_refused``
+   * - the supercritical refusal, the radius measured against the mass, the
+       margin on both sides, the unit radius, the zero source
+     - ``test_k2r_*``
+   * - the composite Gauss–Legendre rule
+       (:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`)
+       exact on a piecewise degree-7 polynomial that jumps at every
+       breakpoint; each panel's weights sum to its width
+     - ``test_k3_*``
+
+The biorthogonality gate is the adjoint's tooth: on its fixture
+:math:`L` is non-symmetric and the eigenvectors are not
+:math:`L`-orthogonal, so an adjoint that returned the untransposed pencil
+leaves off-diagonal entries of order :math:`10^{-1}`. The spectrum gate
+alone could not catch that mutation, since a pencil and its transpose have
+the same eigenvalues.
+
+`[M]` 2026-10-06, a mutation battery over the kernel's first spelling (the
+source solve then a free function of a mass, a gain and a source; textual
+mutants of the module patched onto the live objects, the production file
+unchanged by ``shasum``): picking the largest real part reddens the
+negative-dominant refusal; removing the dominance guard, the sign guard or
+the clip, or widening the then-fixed sign band to ``1e-2``, reddens its own row;
+ordering the spectrum by real part reddens three rows; an untransposed
+adjoint reddens the biorthogonality and reciprocity rows; removing the
+radius guard, the zero-source shortcut, or measuring the radius of the
+gain without the mass each reddens its ``k2r`` row; the positive control
+(solving :math:`L + F` for :math:`L - F`) reddens every least-solution
+row. The unreached-class rows' first red is the radius check over the
+whole gain, which refuses both of them. Two arms were blind by
+construction: removing the complex guard is
+caught only by the message fragment, because the dominance guard refuses
+a complex pair anyway, and removing the eigenvector normalisation changes
+nothing, because ``scipy.linalg.eig`` already returns unit-norm columns.
 
 
 .. _verification-pillar-2-hardening:
