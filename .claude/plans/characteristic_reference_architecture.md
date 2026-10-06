@@ -258,6 +258,7 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, on the insulation gate's scope:** "Continuous references only". The allowlist binds the closed references, `derivations/continuous/` and `derivations/common/`. Exempt by name, with the reason in the gate: `derivations/discrete/` (algebras of record whose subject is a production discretization; `discrete/sn/balance.py` rides production's `roots_of_unity` on purpose) and the MMS harnesses that pose a production method (`continuous/mms/sn.py`, `continuous/mms/moc.py`). Found while reading the import sites `[M]`: `OperatorPencil`, `EigenPosing` and `SourcePosing` are built on `numerics.operator.LinearOperator` (the production operator algebra), so they are NOT interface; the reference spells its own dense pencil (answers W5 elegance E1 the other way).
 - **2026-10-06, the user, on the P0.5 elegance review:** the source solve's refusal of a reducible gain: "Build it now". `DensePencil.least_solution` solves on the unknowns the source reaches (`DensePencil.reach`, the downstream closure of the source's support under the pencil's couplings, the Frobenius normal form's reached classes), zero outside, the radius check on the reached block only; a zero source reaches nothing. The insulation gate's width: "Add mesh and methods": closed references never import `mesh`, `transport` or a method package; `sood_registry/builders.py` joins the named exemptions (it builds production CP problems). Also from that review, by principle: `least_solution` became a method of the pencil (one QZ); `FundamentalMode` checks its own invariant; `Fundamental` and `Mode` renamed `FundamentalMode` and `SpectralMode` (homonyms of `numerics.question` names a reference may import); the production twin's over-claiming docstring filed as #580.
 - **2026-10-06, the user, on P1's API sketch:** all four recommendations accepted. White block: "One resolvent, two parts" (K_g = K_line + U (I - T_w)^{-1} A U^T, the diffuse walls as a symmetric finite-rank update of the line-diagonal block). Directions at a point: "Chart verb" (`Chart.directions_at(point)`, the fundamental domain of S^2 / Stab(x) with its density; the stabiliser is D_1h, `SubgroupOfO3.Dnh(1)`, already in the lattice; the S^2/D_1h catalogue entry is NOT built: ruled 2026-10-06 after the measurement that the catalogue's barycentre lift is not a right inverse for D_1h's non-linear chart, filed as #581). Transits: "In the kernel" (`Chord.transits`, gated in the kernel). Adjoint eigenpair: "Derivation API only" (no new observable; minting one is owed to #529; `Response` answered through the door). The rest of the sketch (package `characteristic/`, flux coefficients as the unknown, the migration order) stands as written.
+- **2026-10-06, the user, on P1 step (b)'s first rung:** Q1, the tag arm: the user refused hoisting production's tag parse ("mixing tags from reference with production would cause reference churn during production development. but we do need a coherent way to parse tags for reference"); ruled "the registry is accepted": the reference keeps its OWN tag registry (vacuum, reflective, partial, white, periodic) mapping each kind, with the wall's context (axis x, outward sign -1 at breakpoint 0 and +1 at n), to a typed law, and `Walls.of` reads every wall, tag or law, through the factor table only; the registry and production's `_law_from_tag` are a declared cross-branch duplicate (conceptual view); a gate pins Walls(tag) == Walls(its law) per kind. Q2 "By its factors": `PrescribedInflow` with `NoSource` is a vacuum wall, a non-zero source refused. Q3 "Accept as sketched": the period chained through the walls' partners, rank derived; `inflow` on optical depths, the least solution.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -462,3 +463,105 @@ A FluxIntegral of a weight in the basis space is a pairing with the converged an
 - A second computation of a quantity the kernel already computes (the impact parameter) disagrees in the last ulp on a third of samples: delegate to the kernel.
 - `git commit` in the same Bash command as `git switch -c` is refused by the hook, which reads the whole command before the branch exists: create the branch in its own command.
 - A product `(r - l)(r + l)` under a square root under- or overflows at extreme scales: form it from the ratio (`#582` holds the kernel's own instance).
+
+## P1 step (b), first rung: API sketch (the main agent, 2026-10-06; checkpoint with the user before code)
+
+Every item is a proposal until it is ruled. The rung covers `walls.py` and the line part of `closure.py`, in the new package `orpheus/derivations/continuous/characteristic/`. It answers the sketch's items 2 and 3 (the line half) and the one open point there: a `LawSum` on one wall.
+
+**Facts measured by reading (2026-10-06, at `3de4ea44`).**
+- **A `LawSum` cannot be declared on a geometry.** `parse_boundary_law` (`structured_geometry.py:547`) admits only a `BC` tag or a `BoundaryTraceLaw`. `LawSum` and `LawScaled` are `ContentIdentity` nodes, not laws (`_composition.py:143, 205`). So every wall has exactly one return shape today, and the sketch's "decided at build" question dissolves.
+- **What a tag means is spelled at three sites:**
+  - `BC.to_alpha` (`_tag.py:97`);
+  - `specular_albedo` (`reference_body.py`);
+  - `_law_from_tag` (`transport/method.py:268`). Only this one builds typed laws, using the face's axis and outward sign. It sits at L2, which the reference may not import.
+  The `"partial"` kind (partial specular) is known only to the first two.
+- **Every law reports a `source`.** It is `NoSource` by default (`_base.py:315`). Only `PrescribedInflow` overrides it.
+
+**1. `Wall` and `Walls` (`walls.py`).**
+- `Wall(breakpoint, specular, diffuse, partner)` is frozen:
+  - `breakpoint` is 0 or n;
+  - `specular` is the amplitude returned along the reflected (or, for a wrap, the translated) line;
+  - `diffuse` is the amplitude returned isotropically;
+  - `partner` is the breakpoint at which the returned path re-enters. It equals `breakpoint` for a mirror and for diffuse re-emission, and is the opposite wall for a wrap.
+- Two amplitude fields are kept, rather than a sum type, because a mixed wall is physically legitimate and the resolvent serves it unchanged (the line part reads `specular`, `WallCoupling` reads `diffuse`). It is undeclarable today, not illegal.
+- `Walls.of(geometry)` zips `geometry.boundaries` with the breakpoint indices of `geometry.boundary_points`. It reads each typed law through its two factors only:
+
+| response kernel | under a `SelfPairedDeck` mirror | under a `SelfPairedDeck` identity | under a `PairedDeck` wrap |
+|---|---|---|---|
+| `ScalarResponse(a)` | specular a | a = 0 is vacuum; a > 0 is refused (the shape is unstated, as SN refuses it) | specular a, partner the opposite wall |
+| `SpecularReemission(a)` | specular a | specular a (its own motion is the mirror) | refused |
+| `LambertianReemission(a)` | diffuse a | diffuse a | refused |
+
+- **Refusals, each a SCOPE-BOUNDARY:**
+  - a law whose `source` is not `NoSource`;
+  - a wrap whose partner does not wrap back (the deck is an involution);
+  - a wrap on a radial chart (a translation is not in the sphere's or the cylinder's group).
+- **Arrays.** `Walls` exposes `specular`, `diffuse` and `partner` as arrays indexed by breakpoint. Interior breakpoints, and a solid body's r_0 = 0, are absent. Indexing a non-wall raises, as `Transits`' absent code n + 1 already does.
+
+**2. `LinePeriod` (`closure.py`, the line part).**
+- **Built by `LinePeriod.of(chord, walls)`, batched like the chord.**
+- **Its traversals.** The period is the ordered sequence of directed traversals of the unfolded line. A traversal is one of the line's transits read forward or reversed. The traversal after one that exits at wall w is the one entering at `walls.partner[w]`, with a forward transit preferred over a reversed one; the two candidates that both enter there trace the same orbit-space path. The sequence closes when it returns to its first traversal.
+- **Its rank is derived, never tagged.** The rule gives m = 1 on a solid body, on a shell's ray that misses the cavity and on the periodic slab; m = 2 on a shell's ray through the cavity and on the mirrored slab; m = 0 on a parallel line. There is no branch on the chart or on b against r_0.
+- **Fields**, each of shape (..., 2): `transit` (the index into `chord.transits`), `reversed`, `amplitude` (the exit wall's specular amplitude), `present`.
+- **`optical_depth(sigma_t)`**: the optical depth of each traversal, given Sigma_t per region, as the sum of the slot lengths times Sigma_t over its slots.
+- **`inflow(optical_depth, outflow)`**: the least solution of the cycle in_{k+1} = a_k (e^{-tau_k} in_k + B_k), returning the inflow at each traversal's entry.
+  - B_k is the source integral attenuated to the traversal's exit. It is computed by the assembly, with trailing axes for the basis.
+  - The input is tau, not the transmission e^{-tau}, so that 1 - P (P the cycle product) is formed as `-expm1(sum(log a_k) - sum tau_k)` without cancellation on a nearly lossless line.
+  - Where P = 1 (every amplitude 1, every tau 0: a lossless trapped line), the answer is exactly 0 when the outflow is zero. Otherwise it is refused, which is the only refusal.
+  - With amplitude 0 at every wall the result is exactly 0, so the closure adds nothing to the vacuum operator (B4a, bitwise).
+- **The albedo pairing (spec §0) is the cycle's indexing**: the inflow to traversal k + 1 carries the amplitude of the wall where traversal k exits, which is the wall where the backward path from k + 1 reflects.
+
+**3. Gates at this rung.** The test-architect re-specifies onto these names the rows that need no basis:
+- A1 and A6: the rank, read as the period's length, and the walls;
+- A3: the reflection invariants;
+- B1: `inflow` against the unfolded wall-by-wall sum on abstract data;
+- B3: the pairing zero, at the closure level;
+- the least-solution legs of B5b at the closure level;
+- B4a's closure leg.
+A2's tau half lands here; its B half waits for the assembly. The rows that read psi on real geometry (A2's B half, A4, B2, B4b/c, B5a, B5c, B6, B8, B9, B10) land with the assembly and the reading.
+
+**Open for the user:**
+- **Q1, the tag arm.** The reference must read `BC` tags as well as typed laws.
+  - (a) Recommended. Move the parse body of `_law_from_tag` (everything after the method's admission check) down to `orpheus/geometry/boundary` as one function from (tag, axis, outward sign) to a typed law, with `"partial"` added as `AlbedoBoundary(a, SpecularReturn(axis))`. `transport.method` calls it, and `walls.py` reads factors only. One parse of a tag's meaning instead of three. `to_alpha` and `specular_albedo` retire with the old family.
+  - (b) `walls.py` reads tag kinds itself, as `specular_albedo` does. That is a fourth spelling of the tags' meaning.
+  - Sizing of (a): one production commit before the rung (the move, its gates, transport delegating).
+- **Q2, `PrescribedInflow`.**
+  - (a) Recommended. Read through its factors like every law, so a `PrescribedInflow` with `NoSource` is a vacuum wall, and only a non-zero source is refused.
+  - (b) Refuse the class outright, as the sketch wrote.
+
+**Ruled 2026-10-06** (see the ledger): Q1 the reference's own tag registry, tag to typed law, walls read from factors only (not the hoist); Q2 by its factors; Q3 the period and closure as sketched. Next: the test-architect re-specifies the rung's gates onto these names; then the code on `feature/characteristic-walls-closure`.
+
+
+## P1 step (b), first rung landed (2026-10-06)
+
+**Commits:** `72199f9d` (walls, line closure, 175 gate rows) and `d3db5932` (theory page `docs/theory/references/characteristic.rst`; labels `characteristic-transit-rank` and `characteristic-closure`; 127 rows moved to l0, 48 stay foundation). Read merge status from git, not from this line.
+
+**What it is, as built:**
+- **`Walls`** has the fields `walls`, `n_regions` and `chart`, and checks its own invariants: distinct walls at {0, n}, and a wrap only on the slab and only paired. `Wall` checks that its amplitudes lie in [0, 1].
+- **The factor table.** A wall is read by these pairs and no others:
+  - the identity deck with `ScalarResponse(0)` is vacuum;
+  - a mirror or a wrap with `ScalarResponse(1)`;
+  - the identity deck with `SpecularReemission(a)` or `LambertianReemission(a)`;
+  - every other pair is refused, an attenuated quotient deck included.
+- **`TAG_REGISTRY`** is public. Each tag kind takes exactly its declared parameters, so `BC("white", {"albedo": a})` is refused; partial white is spelled `WhiteBoundary(albedo=a)`.
+- **`LinePeriod`** has the fields `chord`, `candidate` (0..3), `amplitude` and `present`. `transit`, `reversed`, `rank`, `entry_wall` and `exit_wall` are derived properties.
+- **`optical_depth`** refuses a `sigma_t` that is not of shape (n,). It multiplies only on crossed slots with positive cross section, so no inf·0 is ever formed.
+- **`inflow`** is one `np.roll` expression for every rank, with 1 - Pi formed by `expm1`; `TrappedSource` is raised for a source on a lossless trapped line.
+
+**Review decisions taken by the main agent (not user rulings; the user may overrule):**
+- the elegance review's C1: a quotient deck is admitted only with amplitude 1, because production retired the attenuated mirror on 2026-10-01;
+- qa's tag-parameter finding: the reference refuses undeclared parameters. Production silently drops them, filed as #583.
+
+**Evidence** (`[M]` 2026-10-06):
+- the rung's gates, the geometry gates, the layer and ledger gates: 2119 passed, 5 skipped;
+- CI's remaining gate set: 97 passed;
+- the 34-arm battery reddened on every non-null arm (`scratch/characteristic_architecture/p1_step_b1/battery/summary.txt`);
+- Sphinx `-E -W` clean, `dead_references` 0 of 66, pyright 0 errors.
+
+**Filed:** #583 (production's tag parse drops undeclared parameters). The kernel's axial overflow warning on subnormal Omega_x is a comment on #582.
+
+**Owed:**
+- the 12 optical-depth rows stay `foundation` until a label for the traversal's optical depth exists;
+- spec rows B2 (psi against explicitly reflected lines), A2's B half, A4, B4b/c, B5a, B5c, B6, B8, B9 and B10 land with the source integrals, the assembly and the reading.
+
+**Next:** the second rung, the source integrals B_k per traversal on the panel basis (`basis.py`) and `WallCoupling` (the white block). This is an API checkpoint with the user before code.
