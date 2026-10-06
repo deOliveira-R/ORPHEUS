@@ -287,12 +287,8 @@ class DirectionDomain:
     measure and every orbit of the stabiliser meets the box once (its
     boundary aside).
 
-    SCOPE-BOUNDARY[guard] machinery: the point-isotropy computation
-    :math:`L \cap \mathrm{Stab}(x)` and the orbit-space catalogue entry
-    :math:`S^2/D_{1h}`, which would derive the shape table below from the
-    group.
-    ruling: the user, 2026-10-06 (#581: the catalogue's barycentre lift is
-    not a right inverse on :math:`D_{1h}`'s non-linear chart).
+    SCOPE-BOUNDARY[guard] machinery: the point-isotropy computation and the S^2/D_1h orbit-catalogue entry, deriving the shape table.
+    ruling: the user, 2026-10-06 (#581: the catalogue's barycentre lift is not a right inverse on D_1h's chart).
     revisit: when #581 lands, this table retires onto the catalogue.
 
     Attributes
