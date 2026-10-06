@@ -265,3 +265,26 @@ Candidate consumers: MoC tracks, Monte Carlo's distance to boundary, CP chords, 
 - 2026-10-05: scope widened by the user's ruling on C1; census of geometric computation dispatched.
 
 - 2026-10-05: plan opened on the user's ruling above.
+
+## ⏸ COMPACTION POINT — 2026-10-06, P0 merged, P1's design exchange next
+
+**State:** `main` is `3db74d59`, pushed. It holds P0: the kernel (`fe0ca696`) and the theory page (`82ae7013`, CI `gates` run 37394764313 green), plus this plan and agent memory (`3db74d59`, `[skip ci]`, pushed separately). The not-slow suite at `82ae7013`: 15 389 passed, 0 failed (`[M]` 2026-10-06, detached worktree). The branch `refactor/chord-oracle-axial-lift` (`a336bde4`, the bit-identical hoist of the old oracles) is parked unmerged as P1's speed target; nothing else is open. The tree is clean apart from `scratch/`.
+
+**Read in order:**
+1. this file's "Rulings ledger" (every ruling, dated);
+2. "The seed, revised", "P0 API sketch" and "P0 landed on its branch" (what exists, what was refuted, the deferrals);
+3. the inventory section and "Candidate architecture" C2-C4 (the reference family P1 rebuilds; `scratch/characteristic_architecture/inventory.md` holds the full inventory and the test classification);
+4. the kernel itself: `orpheus/geometry/chart.py`, `chord.py`, `line.py`, and `docs/theory/foundations/chart_and_chord.rst`.
+
+**The next step, P1 (design exchange with the user before any code; the ontology of the reference is still being searched):** the Variant-alpha references posed on `StructuredGeometry` through the kernel. Open questions to bring to the user:
+- one reference for all geometries, its rays from `ConcentricPartition.chord` (`lengths_beyond` for the backward first leg; the full chord for the bounce period), replacing the 7 oracle classes and the 8-case `geometry_kind` tag;
+- the closure rank derived from the reflecting surfaces a chord meets (rank 1: solid sphere and cylinder; rank 2: shells and the slab), where `billiard.py:299` tags rank 2 for the slab only;
+- the attenuated line integral (the reference form of the Volterra operator) as the reference's single implementation, reading the density per region from the chord's slots (exterior codes out of range: a cavity gets a void entry on purpose), with the axial factor through `projected_speed`;
+- the test roster (C4): keep the independent-value rows (Sood, WM-72, PS-1982, Garcia, case-truth, the first-leg line integral), retire the 17 delegation tautologies and the twin-class comparisons, re-pose "closed body gives k = k_inf" (holds for any geometry) and the 87 SymPy identities by what they verify;
+- performance: the hoist `a336bde4` measured the cylinder A|B|A brute call 1.3 s -> 0.073 s; the rebuild must meet it (the kernel's batch shape is built for it); the slow reference files (#405) are re-timed at P3.
+
+**Lessons from this stretch:**
+- A refusal written "any departure > tol" admits NaN; write "all within tol" (four NaN/overflow defects in one kernel, each found by a reviewer's hostile input, not by the closed-form gates).
+- Negative sentinel codes are valid numpy indices: an exterior code must be out of range so indexing a per-region table raises.
+- A value solved in a canonical frame must report parameters on the caller's object; the identity pose hides the defect.
+- At a subnormal scale, hold quantities as finite numerators over one division, so overflow gives a signed infinity and never inf - inf or 0 * inf.

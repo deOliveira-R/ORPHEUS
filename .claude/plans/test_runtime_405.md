@@ -286,3 +286,7 @@ Each item's commit, on `fix/krylov-sweep-preconditioner`:
 **Lessons from this stretch, already recorded:**
 - A `[skip ci]` tip silently skips CI for every commit of a push (memory `feedback_skip_ci_for_plan_commits.md`, rider 2026-10-05).
 - Editing a module that a traced reference's generator imports invalidates that reference (this file, "Note for the cadence work").
+
+## Step 3 moved (2026-10-05)
+
+The chord-oracle hoist was built bit-identically (`a336bde4`, branch `refactor/chord-oracle-axial-lift`, unmerged) and then stopped by the user's ruling: re-architect the Variant-alpha machinery before patching it. The work continues in `.claude/plans/characteristic_reference_architecture.md` (P0, the geometric kernel seed, merged `82ae7013`; P1, the reference rebuild, next). Step 3 of this plan is done when that plan's P3 re-times the slow reference files.
