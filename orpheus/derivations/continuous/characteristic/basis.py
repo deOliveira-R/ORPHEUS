@@ -9,6 +9,17 @@ through the panel's Gauss-Legendre points, so it is discontinuous across
 panel ends and no node lies on one; a coefficient is a value at a node, which
 is what lets the dense pencil's single-sign test read coefficients as values.
 
+**Even at a singular stratum.** On the panel whose lower end is the centre
+or the axis, the Lagrange functions are polynomials in :math:`c^2` through
+the squares of the same nodes: they span :math:`1, c^2, \dots, c^{2p}`.
+A smooth function invariant under the stratum's isotropy :math:`O(d)` is a
+smooth function of :math:`|x|^2` (Schwarz's theorem), so the flux there has
+no odd mode, and an odd mode is what the basis would add: the line integral
+of :math:`c^{2m+1}` is an Abel transform carrying a :math:`b^{2m+2}\log b`
+term, which held the closed sphere's centre panel to algebraic convergence
+in the impact parameter (measured 2026-10-06: 3.5e-8, 1.6e-10, 7.0e-13 at 8, 16,
+32 points; the user's ruling the same day).
+
 **The panel ends are a partition.** They are posed as a
 :class:`~orpheus.geometry.chord.ConcentricPartition`, a refinement of the
 body's with the same ends, so the geometric kernel's chord through it yields
@@ -17,13 +28,12 @@ cancellation-free length and its panel read from the slot's region code (the
 user's ruling of 2026-10-06, P1 step (b) second rung).
 
 **The mass matrix** is :math:`W_{ij} = \int u_i u_j\,\mathrm{d}V` in the
-chart's volume measure, whose density in the orbit coordinate is derived
-here from the one definition of the measure,
-:math:`m = c\,(T(r_{j+1}) - T(r_j))` with :math:`T(r) = r^d`
-(:meth:`~orpheus.geometry.coord.CoordSystem.measure`): the density is
-:math:`c\,d\,r^{d-1}`, a polynomial of degree :math:`d - 1 \le 2`, so
-Gauss-Legendre with :math:`p + 2` points per panel integrates every entry
-exactly.
+chart's volume measure, whose density in the orbit coordinate,
+:math:`c\,d\,r^{d-1}`, is the kernel's derivative of the one definition of
+the measure (:meth:`~orpheus.geometry.chart.Chart.measure_density`). The
+integrand is a polynomial of degree at most :math:`4p + d - 1` (on the even
+panel), so Gauss-Legendre with :math:`2p + 2` points on every panel
+integrates every entry exactly.
 """
 
 from __future__ import annotations
@@ -37,19 +47,12 @@ from scipy.linalg import block_diag
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.geometry.chord import ConcentricPartition
 
+from .grading import graded_ends
 
-def _graded_ends(a: float, b: float, toward_a: bool, toward_b: bool, layers: int, ratio: float) -> list[float]:
-    r"""The interior panel ends of :math:`[a, b]`, ``layers`` geometric layers toward each graded end.
 
-    A graded end at distance :math:`w\,\rho^j`, :math:`j = 1, \dots, L`, with
-    :math:`w` the half width when both ends are graded and the whole width
-    when one is.
-    """
-    width = (b - a) / 2.0 if toward_a and toward_b else b - a
-    depths = width * ratio ** np.arange(1, layers + 1)
-    lower = list(a + depths[::-1]) if toward_a else []
-    upper = list(b - depths) if toward_b else []
-    return lower + upper
+def _on_stratum(regions: ConcentricPartition, orbit_coordinate: np.ndarray) -> np.ndarray:
+    """Whether each orbit coordinate is a singular stratum of the body's chart (a solid body's centre or axis)."""
+    return np.isin(orbit_coordinate, [s.orbit_value for s in regions.chart.singular_strata])
 
 
 @dataclass(frozen=True, eq=False)
@@ -90,11 +93,10 @@ class PanelBasis:
         if layers < 0 or not 0.0 < ratio < 1.0:
             raise ValueError(f"grading takes layers >= 0 and a ratio in (0, 1); got {layers}, {ratio}")
         r = np.asarray(regions.breakpoints)
-        strata = {s.orbit_value for s in regions.chart.singular_strata}
-        graded = [value not in strata for value in r]
+        graded = ~_on_stratum(regions, r)
         ends = [r[0]]
         for k in range(len(r) - 1):
-            ends += _graded_ends(r[k], r[k + 1], graded[k], graded[k + 1], layers, ratio) + [r[k + 1]]
+            ends += graded_ends(r[k], r[k + 1], graded[k], graded[k + 1], layers, ratio) + [r[k + 1]]
         partition = ConcentricPartition(regions.chart, tuple(ends), regions.pose)
         return cls(regions, partition, degree)
 
@@ -126,6 +128,11 @@ class PanelBasis:
         return gauss_legendre(-1.0, 1.0, self.per_panel).pts
 
     @cached_property
+    def even(self) -> np.ndarray:
+        r"""Whether each panel's functions are polynomials in :math:`c^2`, ``(P,)``: the panel whose lower end is a singular stratum."""
+        return _on_stratum(self.regions, np.asarray(self.partition.breakpoints[:-1]))
+
+    @cached_property
     def nodes(self) -> np.ndarray:
         """The orbit coordinate of each node, ``(N,)``, in panel order."""
         return composite_gauss_legendre(self.partition.breakpoints, self.per_panel).pts
@@ -155,17 +162,22 @@ class PanelBasis:
     def values(self, orbit_coordinate: np.ndarray, panel: np.ndarray) -> np.ndarray:
         r"""The :math:`p + 1` functions of ``panel`` at ``orbit_coordinate``, ``(..., p + 1)``.
 
-        The Lagrange product form, which is exact at a node (one-hot) and
-        needs no division by a node distance.
+        The Lagrange product form in the panel's coordinate, which is exact
+        at a node (one-hot) and needs no division by a node distance. The
+        coordinate is the reference :math:`x \in [-1, 1]`, or on an
+        :attr:`even` panel :math:`[0, h]` its square :math:`(c/h)^2`, with the
+        nodes squared alike.
         """
         ends = np.asarray(self.partition.breakpoints)
         panel = np.asarray(panel)
         a, b = ends[panel], ends[panel + 1]
         x = (2.0 * np.asarray(orbit_coordinate, dtype=float) - (a + b)) / (b - a)
-        xi = self._reference_nodes
+        even = self.even[panel]
+        x = np.where(even, ((x + 1.0) / 2.0) ** 2, x)
+        xi = np.where(even[..., None], ((self._reference_nodes + 1.0) / 2.0) ** 2, self._reference_nodes)
         others = ~np.eye(self.per_panel, dtype=bool)
-        spread = np.where(others, xi[:, None] - xi[None, :], 1.0)
-        factors = np.where(others, (x[..., None, None] - xi[None, :]) / spread, 1.0)
+        spread = np.where(others, xi[..., :, None] - xi[..., None, :], 1.0)
+        factors = np.where(others, (x[..., None, None] - xi[..., None, :]) / spread, 1.0)
         return factors.prod(axis=-1)
 
     def columns(self, panel: np.ndarray) -> np.ndarray:
@@ -174,24 +186,15 @@ class PanelBasis:
 
     # ── the metric ───────────────────────────────────────────────────────
 
-    def volume_density(self, orbit_coordinate: np.ndarray) -> np.ndarray:
-        r"""The density :math:`c\,d\,r^{d-1}` of the chart's volume measure in the orbit coordinate.
-
-        The derivative of the one definition
-        :math:`m = c\,(T(r_{j+1}) - T(r_j))`, :math:`T(r) = r^d`.
-        """
-        coord = self.regions.chart.coord
-        d = coord.measure_coordinate.exponent
-        return coord.measure_constant * d * np.asarray(orbit_coordinate, dtype=float) ** (d - 1)
-
     @cached_property
     def mass(self) -> np.ndarray:
         r"""The Gram matrix :math:`W_{ij} = \int u_i u_j\,\mathrm{d}V`, ``(N, N)``, block-diagonal by panel."""
-        rule = composite_gauss_legendre(self.partition.breakpoints, self.per_panel + 1)
-        panel = np.repeat(np.arange(self.n_panels), self.per_panel + 1)
-        shape = (self.n_panels, self.per_panel + 1)
+        points = 2 * self.per_panel
+        rule = composite_gauss_legendre(self.partition.breakpoints, points)
+        panel = np.repeat(np.arange(self.n_panels), points)
+        shape = (self.n_panels, points)
         u = self.values(rule.pts, panel).reshape(*shape, self.per_panel)
-        weight = (rule.wts * self.volume_density(rule.pts)).reshape(shape)
+        weight = (rule.wts * self.regions.chart.measure_density(rule.pts)).reshape(shape)
         return block_diag(*np.einsum("Pqi,Pq,Pqj->Pij", u, weight, u))
 
 

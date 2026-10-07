@@ -63,7 +63,16 @@ from orpheus.numerics.symmetry import SubgroupOfO3
 if TYPE_CHECKING:
     from orpheus.geometry.line import Line
 
-__all__ = ["AxialImage", "Chart", "DirectionDomain", "DirectionShape", "RadialImage", "SingularStratum"]
+__all__ = [
+    "AxialImage",
+    "Chart",
+    "DirectionDomain",
+    "DirectionShape",
+    "LineDomain",
+    "LineShape",
+    "RadialImage",
+    "SingularStratum",
+]
 
 #: Tolerance on a motion's translation when deciding membership in
 #: :math:`G_c`; the orthogonal part is decided by the group's realization.
@@ -163,6 +172,10 @@ class Chart:
         r"""The measures of the cells between ``edges``: :meth:`CoordSystem.measure`, the one definition."""
         return self.coord.measure(edges)
 
+    def measure_density(self, orbit_coordinate: np.ndarray) -> np.ndarray:
+        r"""The density of :meth:`measure` in the orbit coordinate, and the area of its level set: :meth:`CoordSystem.measure_density`."""
+        return self.coord.measure_density(orbit_coordinate)
+
     def projected_speed(self, directions: np.ndarray) -> np.ndarray:
         r"""The length :math:`|P\Omega|` of the kept components of unit directions, ``(...,)``.
 
@@ -224,6 +237,13 @@ class Chart:
             )
         return DirectionDomain(self, r)
 
+    def line_domain(self) -> "LineDomain":
+        r"""The oriented lines of space modulo :math:`G_c`, with their invariant measure (:class:`LineDomain`).
+
+        The lines' counterpart of :meth:`directions_at`.
+        """
+        return LineDomain(self)
+
     def image(self, line: "Line") -> "RadialImage | AxialImage":
         r"""The image of lines of the canonical frame in the orbit space.
 
@@ -271,11 +291,27 @@ class DirectionShape(Enum):
     ANGLE_AXIAL = ("angle", "axial_cosine")
 
 
-_SHAPE_BOUNDS: dict[str, tuple[float, float]] = {
+#: The interval of every coordinate a direction or a line domain names; one table for both.
+_AXIS_BOUNDS: dict[str, tuple[float, float]] = {
     "cosine": (-1.0, 1.0),
     "axial_cosine": (0.0, 1.0),
     "angle": (0.0, pi),
+    "impact": (0.0, np.inf),
+    "polar_angle": (0.0, pi / 2.0),
 }
+
+
+def _in_box(coordinates: np.ndarray, axes: tuple[str, ...]) -> np.ndarray:
+    """``coordinates`` ``(..., len(axes))`` as floats; refused if of the wrong width, non-finite, or outside the box."""
+    q = np.asarray(coordinates, dtype=float)
+    if q.shape[-1:] != (len(axes),):
+        raise ValueError(f"coordinates on the axes {axes} have shape (..., {len(axes)}); got {q.shape}")
+    for j, axis in enumerate(axes):
+        lo, hi = _AXIS_BOUNDS[axis]
+        column = q[..., j]
+        if not np.all((column >= lo) & (column <= hi) & np.isfinite(column)):
+            raise ValueError(f"the {axis} coordinate lies in [{lo}, {hi}] and is finite; got values outside it or not finite")
+    return q
 
 
 @dataclass(frozen=True, eq=False)
@@ -337,7 +373,7 @@ class DirectionDomain:
     @property
     def bounds(self) -> tuple[tuple[float, float], ...]:
         """One closed interval per axis."""
-        return tuple(_SHAPE_BOUNDS[axis] for axis in self.axes)
+        return tuple(_AXIS_BOUNDS[axis] for axis in self.axes)
 
     @property
     def density(self) -> float:
@@ -349,13 +385,7 @@ class DirectionDomain:
 
         Refused: coordinates of the wrong width, non-finite, or outside the box.
         """
-        q = np.asarray(coordinates, dtype=float)
-        if q.shape[-1:] != (len(self.axes),):
-            raise ValueError(f"coordinates on the axes {self.axes} have shape (..., {len(self.axes)}); got {q.shape}")
-        for j, (lo, hi) in enumerate(self.bounds):
-            column = q[..., j]
-            if not np.all((column >= lo) & (column <= hi)):              # NaN fails both comparisons
-                raise ValueError(f"the {self.axes[j]} coordinate lies in [{lo}, {hi}]; got values outside it or not finite")
+        q = _in_box(coordinates, self.axes)
         zero = np.zeros(q.shape[:-1])
         match self.shape:
             case DirectionShape.WHOLE:
@@ -415,6 +445,141 @@ class DirectionDomain:
                 return np.empty(0)
             case unreachable:
                 assert_never(unreachable)
+
+
+class LineShape(Enum):
+    r"""The shapes of the orbit space of oriented lines under the three charts' groups, each a box.
+
+    ``IMPACT`` (the sphere, :math:`O(3)`): the impact parameter
+    :math:`b \in [0, \infty)`; a line and its reverse are one orbit.
+    ``IMPACT_POLAR`` (the cylinder, :math:`D_{\infty h}` with the axial
+    translations): :math:`b` and the polar angle :math:`\theta \in [0, \pi/2]`
+    between the line and the axis; the mirror normal to the axis folds
+    :math:`\theta` and :math:`\pi - \theta`. ``COSINE`` (the slab,
+    :math:`O(2)_x` with the transverse translations): the cosine
+    :math:`\mu = \Omega_x \in [-1, 1]`; the group fixes the kept space, so
+    :math:`\mu` and :math:`-\mu` are two orbits.
+    """
+
+    IMPACT = ("impact",)
+    IMPACT_POLAR = ("impact", "polar_angle")
+    COSINE = ("cosine",)
+
+
+@dataclass(frozen=True, eq=False)
+class LineDomain:
+    r"""The oriented lines of space modulo a chart's group, with the invariant measure (:meth:`Chart.line_domain`).
+
+    A box in the coordinates of its :attr:`shape` (:class:`LineShape`); every
+    orbit meets it once (its boundary aside). The invariant measure on
+    oriented lines is :math:`\mathrm{d}A_\perp\,\mathrm{d}\Omega`, counted
+    per unit measure of the discarded columns (per unit height on the
+    cylinder, per unit transverse area on the slab); :meth:`density` is its
+    density in the box's coordinates. Its integral of a line's chord length
+    through a body is :math:`4\pi` times the body's measure (Cauchy).
+
+    **Why the cylinder's angle is polar, not its cosine.** The beam's speed
+    :math:`|P\Omega| = \sin\theta = \sqrt{1 - \mu_z^2}` puts a square-root
+    end at :math:`\mu_z = 1` into every integrand over :math:`\mu_z`; in
+    :math:`\theta` the density :math:`8\pi\sin^2\theta` is analytic (the
+    user's ruling of 2026-10-06, after the escape probability missed
+    Bickley's closed form by 5.4e-4 at 8 points in :math:`\mu_z` and
+    reached 1.7e-12 at 32 in :math:`\theta`). :meth:`Chart.directions_at`
+    keeps :math:`\mu_z`: a point's direction measure is uniform in it.
+
+    The box is unbounded in :math:`b`: which lines meet a body is the
+    body's question, so a consumer truncates at its outer radius.
+
+    SCOPE-BOUNDARY[guard] machinery: the orbit space of oriented lines under a subgroup of E(3), deriving the shape table and its fold factors.
+    ruling: the user, 2026-10-06, P1 step (b) third rung (the line domain a kernel verb on `Chart`; the cylinder's polar angle).
+    revisit: when the line-orbit computation exists, the table and `density`'s folds retire onto it.
+
+    Attributes
+    ----------
+    chart:
+        The chart whose group the lines are taken modulo.
+    """
+
+    chart: "Chart"
+
+    @property
+    def shape(self) -> LineShape:
+        """The domain's shape, from the chart's pair."""
+        chart = self.chart
+        if not chart.acts_on_kept_space:
+            return LineShape.COSINE
+        return LineShape.IMPACT if chart.kept_columns == 3 else LineShape.IMPACT_POLAR
+
+    @property
+    def axes(self) -> tuple[str, ...]:
+        """The coordinate names, in order."""
+        return self.shape.value
+
+    @property
+    def bounds(self) -> tuple[tuple[float, float], ...]:
+        """One interval per axis; the impact parameter's is unbounded above."""
+        return tuple(_AXIS_BOUNDS[axis] for axis in self.axes)
+
+    def lines(self, coordinates: np.ndarray) -> "Line":
+        r"""Representative oriented lines at coordinates ``(..., len(axes))``.
+
+        Through :math:`b\,\hat e_y` along :math:`\hat e_x` on the sphere; through
+        :math:`b\,\hat e_y` along :math:`(\sin\theta, 0, \cos\theta)` on the
+        cylinder; through the origin along :math:`(\mu, \sqrt{1 - \mu^2}, 0)` on
+        the slab. Their impact parameter under :meth:`Chart.image` is
+        :math:`b` to an ulp: a :class:`~orpheus.geometry.line.Line` stores
+        its moment and returns its foot as :math:`\Omega \times m`, which
+        rounds (measured 2026-10-06: 1 ulp at :math:`b = 0.3`,
+        :math:`\theta = 0.2`; exact at :math:`\theta \in \{0, \pi/2\}`).
+        Refused: coordinates of the wrong width, non-finite, or outside the
+        box.
+        """
+        from orpheus.geometry.line import Line
+
+        q = _in_box(coordinates, self.axes)
+        zero = np.zeros(q.shape[:-1])
+        match self.shape:
+            case LineShape.IMPACT:
+                foot = np.stack([zero, q[..., 0], zero], axis=-1)
+                direction = np.stack([zero + 1.0, zero, zero], axis=-1)
+            case LineShape.IMPACT_POLAR:
+                theta = q[..., 1]
+                foot = np.stack([zero, q[..., 0], zero], axis=-1)
+                direction = np.stack([np.sin(theta), zero, np.cos(theta)], axis=-1)
+            case LineShape.COSINE:
+                cosine = q[..., 0]
+                foot = np.stack([zero, zero, zero], axis=-1)
+                direction = np.stack([cosine, _sine(cosine), zero], axis=-1)
+            case unreachable:
+                assert_never(unreachable)
+        return Line.through(foot, direction)
+
+    def density(self, coordinates: np.ndarray) -> np.ndarray:
+        r"""The density of :math:`\mathrm{d}A_\perp\,\mathrm{d}\Omega` in the box's coordinates, ``(...,)``.
+
+        :meth:`Chart.beam_density` of the representative lines times the
+        direction measure the quotient folds into one point of the box:
+        :math:`4\pi` on the sphere (every direction); :math:`2\pi \cdot 2
+        \sin\theta` on the cylinder (the azimuth, the two polar angles
+        :math:`\theta` and :math:`\pi - \theta`, and
+        :math:`\mathrm{d}\Omega = \sin\theta\,\mathrm{d}\theta\,\mathrm{d}\varphi`);
+        :math:`2\pi` on the slab (the azimuth about :math:`\hat e_x`). So
+        :math:`8\pi^2 b`, :math:`8\pi\sin^2\theta` and :math:`2\pi|\mu|`.
+        """
+        q = _in_box(coordinates, self.axes)
+        lines = self.lines(q)
+        impact = q[..., self.axes.index("impact")] if "impact" in self.axes else np.zeros(q.shape[:-1])
+        beam = self.chart.beam_density(impact, lines.direction)
+        match self.shape:
+            case LineShape.IMPACT:
+                folded = np.full(q.shape[:-1], 4.0 * pi)
+            case LineShape.IMPACT_POLAR:
+                folded = 4.0 * pi * np.sin(q[..., 1])
+            case LineShape.COSINE:
+                folded = np.full(q.shape[:-1], 2.0 * pi)
+            case unreachable:
+                assert_never(unreachable)
+        return beam * folded
 
 
 def _sine(cosine: np.ndarray) -> np.ndarray:

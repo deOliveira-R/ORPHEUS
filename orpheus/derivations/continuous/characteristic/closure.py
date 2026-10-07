@@ -197,21 +197,25 @@ class LinePeriod:
         depth = np.multiply(length, sigma, out=np.zeros(attenuating.shape), where=attenuating)
         return depth.sum(axis=-1)
 
-    def inflow(self, optical_depth: np.ndarray, outflow: np.ndarray) -> np.ndarray:
+    def inflow(self, optical_depth: np.ndarray, outflow: np.ndarray, arriving: np.ndarray | None = None) -> np.ndarray:
         r"""The inflow at each traversal's entry, the least solution of the period's cycle.
 
         ``optical_depth`` is :math:`\tau_k`, ``(..., 2)``; ``outflow`` is
         :math:`B_k`, the traversal's source integral attenuated to its exit,
         ``(..., 2, *rest)``. Returns ``(..., 2, *rest)``, 0 where absent.
 
+        ``arriving`` is :math:`s_k`, a flux injected at each traversal's
+        entry from outside the line part (a diffuse wall's re-entry), shape
+        as ``outflow``; it is not multiplied by the wall's amplitude.
+
         An absent traversal is the cycle's unit (gain 1, nothing returned), so
-        one expression serves every rank: the inflow to :math:`k` is what
-        traversal :math:`k - 1` returns, plus what traversal :math:`k - 2`
-        returns carried once through :math:`k - 1`, over :math:`1 - \Pi`
-        (indices modulo ``_MAX_PERIOD``). :math:`1 - \Pi` is formed as
-        ``-expm1(log Pi)``, so a nearly lossless line keeps its digits.
-        Raises :class:`TrappedSource` where :math:`\Pi = 1` and the outflow
-        is not zero.
+        one expression serves every rank: the flux entering :math:`k` is
+        :math:`e_k = a_{k-1} B_{k-1} + s_k`, and the inflow is
+        :math:`(e_k + g_{k-1} e_{k-1}) / (1 - \Pi)` with
+        :math:`g = a\,e^{-\tau}` (indices modulo ``_MAX_PERIOD``).
+        :math:`1 - \Pi` is formed as ``-expm1(log Pi)``, so a nearly lossless
+        line keeps its digits. Raises :class:`TrappedSource` where
+        :math:`\Pi = 1` and the entering flux is not zero.
         """
         outflow = np.asarray(outflow, dtype=float)
         rest = (1,) * (outflow.ndim - self.present.ndim)
@@ -225,8 +229,11 @@ class LinePeriod:
         one_minus_product = -np.expm1(log_gain.sum(axis=-1))
         one_minus_product = one_minus_product.reshape(one_minus_product.shape + (1,) + rest)
         returned = np.where(lifted(self.present), lifted(self.amplitude) * outflow, 0.0)
+        entering = np.roll(returned, 1, axis=axis)
+        if arriving is not None:
+            entering = entering + np.where(lifted(self.present), np.asarray(arriving, dtype=float), 0.0)
         gain = lifted(np.exp(log_gain))
-        around = np.roll(returned, 1, axis=axis) + np.roll(gain, 1, axis=axis) * np.roll(returned, 2, axis=axis)
+        around = entering + np.roll(gain, 1, axis=axis) * np.roll(entering, 1, axis=axis)
         numerator = np.where(lifted(self.present), around, 0.0)
         trapped = np.broadcast_to(one_minus_product == 0.0, numerator.shape)
         if np.any(trapped & (numerator != 0.0)):
@@ -236,4 +243,118 @@ class LinePeriod:
             )
         return np.divide(numerator, one_minus_product, out=np.zeros(numerator.shape), where=~trapped)
 
-__all__ = ["LinePeriod", "TrappedSource"]
+
+@dataclass(frozen=True, eq=False)
+class WallCoupling:
+    r"""The diffuse part of the boundary resolvent: the walls that re-emit isotropically, coupled through the line part.
+
+    With :math:`W` diffuse walls, of amplitudes :math:`\alpha`, the emission
+    leaves through them as the partial currents :math:`U^{\mathsf T} q`, each
+    wall returns :math:`\alpha` of what reaches it, the line part carries a
+    unit isotropic current entering at :math:`w` to the fraction
+    :math:`T_{w'w}` leaving at :math:`w'`, and a unit current entering at
+    :math:`w` produces the flux moments :math:`R_{:,w}`. The returned
+    currents solve :math:`j = \alpha(U^{\mathsf T} q + T j)`, so the block's
+    update is
+
+    .. math::
+
+        R\,\alpha\,(I - T\alpha)^{-1}\,U^{\mathsf T}.
+
+    Reciprocity makes :math:`R = U D^{-1}` on the emission support, with
+    :math:`D = \mathrm{diag}(A_w/4)` and :math:`A_w` the wall's area, so the
+    update is the symmetric :math:`U D^{-1}\alpha(I - T\alpha)^{-1}U^{\mathsf T}`
+    there; :math:`R` is computed directly because its rows cover every panel
+    while :math:`U`'s cover only the emission support.
+
+    **The loss, not the difference.** A current entering at :math:`w` is
+    absorbed, leaks through a wall that does not return it, or leaves at a
+    diffuse wall: :math:`\sum_{w'} T_{w'w} + \ell_w = 1`, with every term a
+    sum of non-negative parts. :math:`I - T\alpha` is formed from the loss
+    :math:`\ell` and the off-diagonal transmissions, so its diagonal
+    :math:`(1 - \alpha_w) + \alpha_w(\ell_w + \sum_{w' \ne w} T_{w'w})` is
+    never a difference of near-equal numbers, and the solve replaces one
+    row by the sum of all rows, the balance :math:`(1 - \alpha) + \alpha\ell`, so
+    the total current, the mode nearly singular when little is lost, is
+    read from the balance (measured 2026-10-06: with only the loss-formed
+    diagonal, two white walls still missed conservation by 7.7e-6 at
+    :math:`\Sigma_t = 10^{-12}`, through the rounded off-diagonal entries). The subtraction
+    :math:`1 - T_{ww}` amplified rounding by the inverse of the absorption
+    (measured 2026-10-06 by the elegance review on a closed white sphere:
+    conservation off by 1.7e-7 at :math:`\Sigma_t = 10^{-9}`, 1.3e-4 at
+    :math:`10^{-12}`), and on a body that absorbs nothing it missed
+    singularity by 1.1e-16, returning a flux of 2e16 for a source that has
+    none.
+
+    Attributes
+    ----------
+    response:
+        :math:`R`, the flux moments of a unit isotropic current entering at each wall, ``(N, W)``.
+    escape:
+        :math:`U`, the current leaving at each wall from each emission function, ``(M, W)``.
+    transmission:
+        :math:`T`, ``(W, W)``, the fraction of a current entering at the column's wall that leaves at the row's.
+        Its diagonal is not read by :attr:`returning`: the balance makes it :math:`1 - \ell_w - \sum_{w' \ne w}
+        T_{w'w}`, and the diagonal is formed from that, without the subtraction; it is kept for the gates.
+    loss:
+        :math:`\ell`, ``(W,)``, the fraction of a current entering at each wall that is absorbed or leaks.
+    diffuse:
+        :math:`\alpha`, the diffuse amplitude of each wall, ``(W,)``.
+    """
+
+    response: np.ndarray
+    escape: np.ndarray
+    transmission: np.ndarray
+    loss: np.ndarray
+    diffuse: np.ndarray
+
+    def __post_init__(self) -> None:
+        w = self.diffuse.shape[0]
+        if (
+            self.response.shape[1:] != (w,)
+            or self.escape.shape[1:] != (w,)
+            or self.transmission.shape != (w, w)
+            or self.loss.shape != (w,)
+        ):
+            raise ValueError(
+                f"a coupling of {w} walls has response (N, {w}), escape (M, {w}), transmission ({w}, {w}) and "
+                f"loss ({w},); got {self.response.shape}, {self.escape.shape}, {self.transmission.shape}, "
+                f"{self.loss.shape}"
+            )
+
+    @property
+    def returning(self) -> np.ndarray:
+        r""":math:`I - T\alpha`, ``(W, W)``, its diagonal formed from the loss."""
+        alpha = self.diffuse
+        passed_on = self.transmission - np.diag(np.diag(self.transmission))
+        kept = (1.0 - alpha) + alpha * (self.loss + passed_on.sum(axis=0))
+        return np.diag(kept) - passed_on * alpha[None, :]
+
+    @property
+    def update(self) -> np.ndarray:
+        r"""The block's diffuse update :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`, ``(N, M)``; zero with no diffuse wall.
+
+        Where every :math:`\alpha = 1` and every :math:`\ell = 0` the body
+        loses nothing and :math:`I - T\alpha` is exactly singular: a source
+        reaching the walls raises :class:`TrappedSource` (no finite flux
+        exists), and no source (an escape that is zero or empty) gives the
+        zero update.
+        """
+        alpha = self.diffuse
+        if alpha.size and np.all(alpha == 1.0) and np.all(self.loss == 0.0):
+            # I - T alpha is exactly singular: a source reaching the walls has no finite flux, and no source has none
+            if np.any(self.escape != 0.0):
+                raise TrappedSource(
+                    "a source in a body that absorbs nothing, behind walls that return everything, has no finite flux"
+                )
+            return np.zeros((self.response.shape[0], self.escape.shape[0]))
+        # The balance row: the column sums of I - T alpha are (1 - alpha) + alpha loss, known without
+        # cancellation; the sum of the rows replaces the last, so the total current, the mode that is
+        # nearly singular when little is lost, is solved from the balance and not from rounded entries.
+        balanced, sources = self.returning, self.escape.T.copy()
+        if alpha.size:
+            balanced[-1] = (1.0 - alpha) + alpha * self.loss
+            sources[-1] = self.escape.T.sum(axis=0)
+        return self.response @ (alpha[:, None] * np.linalg.solve(balanced, sources))
+
+__all__ = ["LinePeriod", "TrappedSource", "WallCoupling"]

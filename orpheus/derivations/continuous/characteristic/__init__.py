@@ -14,12 +14,26 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   basis the emission density and the flux are represented in;
 - :mod:`~orpheus.derivations.continuous.characteristic.transport` — the
   transport along each line on that basis: the traversals' source
-  integrals, the Volterra block and the angular flux.
+  integrals, the Volterra block and the angular flux;
+- :mod:`~orpheus.derivations.continuous.characteristic.assembly` — the
+  Galerkin assembly over lines: one group's transport block, its line part
+  and its diffuse walls' coupling.
 """
 
+from .assembly import GroupTransport, LineRule
 from .basis import PanelBasis
-from .closure import LinePeriod, TrappedSource
+from .closure import LinePeriod, TrappedSource, WallCoupling
 from .transport import TraversalRule
 from .walls import Wall, Walls
 
-__all__ = ["LinePeriod", "PanelBasis", "TrappedSource", "TraversalRule", "Wall", "Walls"]
+__all__ = [
+    "GroupTransport",
+    "LinePeriod",
+    "LineRule",
+    "PanelBasis",
+    "TrappedSource",
+    "TraversalRule",
+    "Wall",
+    "WallCoupling",
+    "Walls",
+]

@@ -72,6 +72,14 @@ _SIGMA = {0: (0.6, 1.3, 0.45), 1: (1.7, 0.35, 2.4)}
 #: Per-region source polynomials in the orbit coordinate, degree <= 3, jumping at every interface.
 _Q = [[1.0, 0.3, -0.2, 0.05], [0.25, 1.0, 0.5, -0.1], [3.0, -1.0, 0.1, 0.02]]
 _Q_LOW = [[1.0, 0.3], [0.25, 1.0], [3.0, -1.0]]
+#: ``_Q`` with region 0 even (rung 3, the spec's RB4): on a solid body region 0 holds the even panel at the
+#: stratum (Lagrange in c^2) beside ordinary cubic panels, so the region's exactness family is {1, c^2}.
+_Q_SOLID = [[1.0, 0.0, -0.2, 0.0], _Q[1], _Q[2]]
+
+
+def _q(body: str):
+    """The per-region source of the T1 family on ``body``: ``_Q``, with region 0 even on a solid body."""
+    return _Q_SOLID if body.endswith("_solid") else _Q
 _A_IN, _A_OUT = 0.3, 0.6
 _POINTS, _INNER = 16, 16
 _RES = (3, 2, 0.5)                 # (degree, layers, ratio): the rung's working point
@@ -221,18 +229,23 @@ def test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_
     exponential grading removed is GREEN here, declared (`[M]` battery arm T2:
     the grazing row's middle panels are within 16 points' reach; T7 is its
     witness).
+
+    Re-posed 2026-10-06 (rung 3, the spec's RB4): on a solid body region 0's
+    cubic is even ({1, c^2}, ``_Q_SOLID``), the family the even panel at the
+    centre shares with the region's other panels.
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[group])
-    x = case.coefficients(_Q)
+    x = case.coefficients(_q(body))
     B = case.rule.outflow()
     assert B.shape == (2, case.basis.size)
-    f = R.region_polynomial(_Q)
+    f = R.region_polynomial(_q(body))
     for k, trav in _traversals(case, expected):
         _close(float(B[k] @ x), R.outflow(case.mp, trav, f, _SIGMA[group]), _T1_TOL, f"B_{k}")
     np.testing.assert_array_equal(B[len(expected):], 0.0)
 
 
-_PER_FUNCTION = [r for r in _LINES if r[0] in ("sphere_solid_b0.7", "sphere_hollow_b0.2_cavity", "slab_rising")]
+_PER_FUNCTION = [r for r in _LINES if r[0] in ("sphere_solid_b0", "sphere_solid_b0.7", "sphere_hollow_b0.2_cavity",
+                                               "slab_rising")]
 
 
 @pytest.mark.l0
@@ -249,6 +262,12 @@ def test_each_basis_functions_outflow_is_its_line_integral(body, point, directio
     a panel's integral scattered onto its neighbour's columns (the
     per-region-polynomial row T1 can be blind to an exchange of two equal
     panels' columns; this row is not); the nodes of one panel reversed.
+
+    Rung 3 (the spec's RB4): ``sphere_solid_b0`` crosses the even panel at the
+    centre, whose functions the reference writes in c^2 (``R.panel_function_even``,
+    chosen here from the panel's lower end and the chart, never from
+    ``PanelBasis.even``): the line-level witness of the even basis (the rung-2
+    basis, Lagrange in c there, reds this row).
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[1], resolution=(1, 1, 0.5))
     B = case.rule.outflow()
@@ -258,9 +277,9 @@ def test_each_basis_functions_outflow_is_its_line_integral(body, point, directio
         want = np.zeros(case.basis.size)
         for p, (a, b) in enumerate(zip(ends[:-1], ends[1:])):
             nodes = R.gl_nodes(a, b, p1)
+            function = R.panel_function_even if (body.endswith("_solid") and a == 0.0) else R.panel_function
             for i in range(p1):
-                want[p * p1 + i] = float(R.outflow(case.mp, trav, R.panel_function(nodes, i, R.mpf(a), R.mpf(b)),
-                                                   _SIGMA[1]))
+                want[p * p1 + i] = float(R.outflow(case.mp, trav, function(nodes, i, R.mpf(a), R.mpf(b)), _SIGMA[1]))
         scale = np.max(np.abs(want))
         assert np.max(np.abs(B[k] - want)) <= 1e-13 * scale, np.max(np.abs(B[k] - want)) / scale
         np.testing.assert_array_equal(B[k][want == 0.0], 0.0)
@@ -275,12 +294,13 @@ def test_the_entry_response_is_the_integral_attenuated_from_the_entry(body, poin
 
     Gated on its own, not through the reversal identity T4 (which the code
     builds in, so it is no evidence about A). First reds: A attenuated to the
-    exit (A == B); the forward and backward sweeps exchanged.
+    exit (A == B); the forward and backward sweeps exchanged. Region 0 even on a
+    solid body (rung 3, RB4, as T1).
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[1])
-    x = case.coefficients(_Q)
+    x = case.coefficients(_q(body))
     A = case.rule.entry_response()
-    f = R.region_polynomial(_Q)
+    f = R.region_polynomial(_q(body))
     for k, trav in _traversals(case, expected):
         _close(float(A[k] @ x), R.entry_response(case.mp, trav, f, _SIGMA[1]), _T1_TOL, f"A_{k}")
 
@@ -370,29 +390,43 @@ def test_a_void_region_integrates_its_source_unattenuated() -> None:
                    _T1_TOL, f"{body} void B_{k}")
 
 
+#: A small cavity (rung 3, the spec's RB5): a line turning in the ordinary panel next to it, with b small against
+#: that panel. On a solid body a line turning near the centre now turns in the EVEN panel, whose functions are
+#: polynomials in c^2 = b^2 + |P Omega|^2 (s - s*)^2, polynomial in arc length: no branch point, so the turning
+#: grading has no subject there and its witnesses moved here.
+_CAVITY = (1e-5, 0.5, 1.5, 2.0)
+_CAVITY_FIRST_END = 0.06250875           # the first panel end at the working resolution (3, 2, 0.5), by hand: r_0 + 0.25 / 4
+
 _TURNING = [
-    ("sphere_b1e-4", "sphere_solid", *_in_plane(1e-4)),
-    ("cylinder_b1e-4_wz0.8", "cylinder_solid", *_in_plane(1e-4, 0.8)),
-    ("sphere_b_just_below_a_panel_end", "sphere_solid", *_in_plane(float(np.nextafter(0.25, 0.0)))),
-    ("sphere_hollow_b_just_above_r0", "sphere_hollow", *_in_plane(0.4 + 1e-7)),
+    # (id, body, breakpoints, point, direction)
+    ("sphere_cavity_b1e-4", "sphere_hollow", _CAVITY, *_in_plane(1e-4)),
+    ("cylinder_cavity_b1e-4_wz0.8", "cylinder_hollow", _CAVITY, *_in_plane(1e-4, 0.8)),
+    ("sphere_cavity_b_just_below_a_panel_end", "sphere_hollow", _CAVITY, *_in_plane(float(np.nextafter(_CAVITY_FIRST_END, 0.0)))),
+    ("sphere_hollow_b_just_above_r0", "sphere_hollow", None, *_in_plane(0.4 + 1e-7)),
 ]
 
 
 @pytest.mark.l0
 @pytest.mark.verifies("characteristic-traversal-integrals")
-@pytest.mark.parametrize(("body", "point", "direction"), [r[1:] for r in _TURNING], ids=[r[0] for r in _TURNING])
+@pytest.mark.parametrize(("body", "breakpoints", "point", "direction"), [r[1:] for r in _TURNING], ids=[r[0] for r in _TURNING])
 @pytest.mark.rests_on(_HERE + "test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit")
-def test_a_turning_slot_integrates_the_square_root_at_the_closest_approach(body, point, direction) -> None:
+def test_a_turning_slot_integrates_the_square_root_at_the_closest_approach(body, breakpoints, point, direction) -> None:
     """[T9, C10's analogue] A slot ending at the closest approach with b small against its panel, against mpmath.
 
     q = c (odd in c, so c(s) = sqrt(b^2 + s^2) is not polynomial in arc length
     and has branch points at s = +-i b, 1e-4 from the real segment, or
     1e-7 from a shell's tangency): pieces graded by halving toward the closest approach (down to the branch
     point's scale) make Gauss in arc length converge there. 1e-13 relative.
-    First red: the turning grading removed (battery arm T3a: the two b = 1e-4
-    rows).
+    First red: the turning grading removed (battery arm T3a).
+
+    Re-posed 2026-10-06 (rung 3, RB5): the rows that turned on a solid body's
+    centre panel moved to a hollow body with a cavity of radius 1e-5, where the
+    line turns in an ordinary panel (on the solid body the even panel makes the
+    integrand polynomial in arc length).
     """
-    case = _Case(body, point, direction, sigma_t=_SIGMA[0])
+    geometry = _geometry(body, breakpoints=breakpoints)
+    case = _Case(body, point, direction, sigma_t=_SIGMA[0], geometry=geometry)
+    assert int(case.period.rank) == 1, "the line misses the cavity"
     q = [[0.0, 1.0]] * 3
     x = case.coefficients(q)
     B = case.rule.outflow()
@@ -428,7 +462,9 @@ def _small_radius_outflow(chart, breakpoints, hollow, b, wz, resolution) -> None
     geometry = getattr(StructuredGeometry, chart)(breakpoints, tuple(range(n)), **laws)
     sigma = _SIGMA[0][:n]
     case = _Case(f"{chart}_x", *_in_plane(b, wz), sigma_t=sigma, geometry=geometry, resolution=resolution)
-    q = [[0.0, 1.0]] * n
+    # rung 3 (RB6): a solid body's region 0 is the even panel at the centre, so its source is even (c^2); the
+    # branch point ERR-099 is about sits at the start of region 1's slot, where q = c stays
+    q = [[0.0, 1.0]] * n if hollow else [[0.0, 0.0, 1.0]] + [[0.0, 1.0]] * (n - 1)
     x = case.coefficients(q)
     B = case.rule.outflow()
     transits = case.mp.transits()
@@ -474,12 +510,13 @@ def test_a_small_radius_hidden_by_a_panel_end_is_the_err099_control(resolution, 
 
 
 _HALVING = [
-    ("sphere_b1e-2", "sphere_solid", *_in_plane(1e-2)),
-    ("sphere_b3e-3", "sphere_solid", *_in_plane(3e-3)),
-    ("sphere_b1e-4_control", "sphere_solid", *_in_plane(1e-4)),
-    ("cylinder_b1e-2_wz0.8", "cylinder_solid", *_in_plane(1e-2, 0.8)),
-    ("cylinder_b3e-3_wz0.8", "cylinder_solid", *_in_plane(3e-3, 0.8)),
-    ("cylinder_b1e-4_wz0.8_control", "cylinder_solid", *_in_plane(1e-4, 0.8)),
+    # (id, body, point, direction): turning in the ordinary panel next to a cavity of radius 1e-5 (rung 3, RB5)
+    ("sphere_cavity_b1e-2", "sphere_hollow", *_in_plane(1e-2)),
+    ("sphere_cavity_b3e-3", "sphere_hollow", *_in_plane(3e-3)),
+    ("sphere_cavity_b1e-4_control", "sphere_hollow", *_in_plane(1e-4)),
+    ("cylinder_cavity_b1e-2_wz0.8", "cylinder_hollow", *_in_plane(1e-2, 0.8)),
+    ("cylinder_cavity_b3e-3_wz0.8", "cylinder_hollow", *_in_plane(3e-3, 0.8)),
+    ("cylinder_cavity_b1e-4_wz0.8_control", "cylinder_hollow", *_in_plane(1e-4, 0.8)),
 ]
 
 
@@ -491,18 +528,16 @@ def test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points(
 
     The witness for the grading's RATIO, which the 16-point rows cannot see:
     pieces shrinking by 4 instead of 2 toward the branch point leave each one
-    too close to it for 7 Gauss points. `[M]` 2026-10-06 on the round-3 code
-    (``p1_step_b2/probe_ratio2.py``), worst psi relative error at 7 points,
-    honest / ratio 1/4 with 26 layers: b = 1e-2, 1.4e-14 / 5.0e-13 (sphere),
-    2.8e-14 / 8.9e-13 (cylinder); b = 3e-3, 3.9e-15 / 2.1e-12 (sphere),
-    6.3e-15 / 3.9e-12 (cylinder). At b = 1e-4 both ratios stay below 2e-15:
-    the ``_control`` rows. Same 1e-13 band as T1. First red: the ratio
-    coarsened to 1/4 (battery arm T3b, the four non-control rows).
-    (The 8-point figures this row first quoted, 2.7e-12 and 5.0e-12, were
-    measured on the round-2 code; on round 3 the 8-point margin fell to 1.4x,
-    so the row moved to 7 points.)
+    too close to it for 7 Gauss points. Same 1e-13 band as T1. First red: the
+    ratio coarsened to 1/4 (battery arm T3b). Re-posed 2026-10-06 (rung 3, RB5)
+    from a solid body's centre (now the even panel, polynomial in arc length) to
+    a hollow body with a cavity of radius 1e-5; which rows the arm reds there,
+    and so which are controls, is in the rung-3 battery
+    (``scratch/characteristic_architecture/p1_step_b3/gates/battery/``).
     """
-    case = _Case(body, point, direction, sigma_t=_SIGMA[0], points=7, inner=7)
+    geometry = _geometry(body, breakpoints=_CAVITY)
+    case = _Case(body, point, direction, sigma_t=_SIGMA[0], points=7, inner=7, geometry=geometry)
+    assert int(case.period.rank) == 1, "the line misses the cavity"
     q = [[0.0, 1.0]] * 3
     x = case.coefficients(q)
     f = R.region_polynomial(q)

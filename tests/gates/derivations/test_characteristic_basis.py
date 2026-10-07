@@ -286,10 +286,19 @@ def test_the_functions_are_cardinal_at_the_nodes_and_sum_to_one(name, degree, la
 # ── P5: the exactness family (C12) ────────────────────────────────────────
 
 
-def _random_polynomial(n_regions: int, degree: int, seed: int) -> list[list[float]]:
+def _random_polynomial(n_regions: int, degree: int, seed: int, *, even_first: bool = False) -> list[list[float]]:
+    """A random polynomial of ``degree`` per region; with ``even_first`` region 0's odd coefficients are 0.
+
+    Region 0 of a solid body holds the even panel (Lagrange in c^2) beside
+    ordinary panels, so the region's common exactness family is the EVEN
+    polynomials of degree <= p (the spec's RB1).
+    """
     rng = np.random.default_rng(seed)
-    return [list(rng.uniform(-1.0, 1.0, degree + 1) + (2.0 * k + 0.5) * (np.arange(degree + 1) == 0))
-            for k in range(n_regions)]
+    out = [list(rng.uniform(-1.0, 1.0, degree + 1) + (2.0 * k + 0.5) * (np.arange(degree + 1) == 0))
+           for k in range(n_regions)]
+    if even_first:
+        out[0] = [a if m % 2 == 0 else 0.0 for m, a in enumerate(out[0])]
+    return out
 
 
 def _interpolant_error(basis: PanelBasis, coefficients, n_regions: int, *, conditioned: bool = True) -> float:
@@ -325,11 +334,16 @@ def test_the_interpolant_reproduces_every_per_region_polynomial_of_degree_p(name
     orders above the honest band there), so the row reads the degree. First reds:
     a panel straddling an interface (the jump smeared); the functions of degree
     p - 1; the reference interval's map reversed.
+
+    Re-posed 2026-10-06 (rung 3, the spec's RB1): on a solid body region 0's
+    polynomial is EVEN (its odd coefficients zeroed), the family the even panel
+    at the stratum and the region's other panels share; the even panel's own
+    family (degree 2p in c) is ``test_the_even_panel_spans_the_polynomials_in_c_squared``.
     """
     geometry = _BODIES[name]
     basis = _basis(geometry, degree, layers, ratio)
     n = len(geometry.breakpoints) - 1
-    assert _interpolant_error(basis, _random_polynomial(n, degree, 11), n) <= 64 * _EPS
+    assert _interpolant_error(basis, _random_polynomial(n, degree, 11, even_first=_solid(name)), n) <= 64 * _EPS
     loaded = _interpolant_error(basis, _random_polynomial(n, degree + 1, 13), n, conditioned=False)
     assert loaded > 1e-8, f"a degree-{degree + 1} polynomial is reproduced to {loaded:.1e}: the row cannot see the degree"
 
@@ -340,21 +354,29 @@ def test_the_interpolant_reproduces_every_per_region_polynomial_of_degree_p(name
 @pytest.mark.foundation
 @pytest.mark.parametrize("name", list(_BODIES))
 def test_the_volume_density_is_the_charts_by_hand(name) -> None:
-    """[P6] volume_density(c) = 1, 2 pi c, 4 pi c^2 (slab, cylinder per unit height, sphere), written here; 4 ulp.
+    """[P6] The basis's chart's ``measure_density(c)`` = 1, 2 pi c, 4 pi c^2 (slab, cylinder per unit height, sphere), written here; 4 ulp.
 
+    Re-pointed 2026-10-06 (rung 3, the spec's RB3): ``PanelBasis.volume_density``
+    retired onto the kernel's ``Chart.measure_density`` (the derivative of the
+    one measure, gated in ``tests/gates/geometry/test_measure_density.py``);
+    the mass reads it through the basis's own chart, which this row reads, and
+    the retirement's route (no second density on the basis) is
+    ``test_characteristic_assembly.py::test_the_mass_and_the_wall_area_read_the_one_density``.
     First reds: the density measure_constant c^(d-1) (the factor d dropped);
     measure_constant d c^d (one power too many).
     """
     basis = _basis(_BODIES[name], 2, 1, 0.5)
     c = np.array([0.0, 0.37, 1.1, 1.9])
     want = np.array([float(R.density(_chart_name(name), R.mpf(v))) for v in c])
-    np.testing.assert_allclose(basis.volume_density(c), want, rtol=4 * _EPS, atol=0.0)
+    np.testing.assert_allclose(basis.regions.chart.measure_density(c), want, rtol=4 * _EPS, atol=0.0)
 
 
 def _mass_reference(chart: str, a: float, b: float, degree: int) -> np.ndarray:
+    """The panel's mass block in mpmath; on a radial chart's panel starting at 0 (the stratum) the Lagrange functions are in c^2."""
     nodes = R.gl_nodes(a, b, degree + 1)
+    lagrange = R.lagrange_even if (chart != "slab" and a == 0.0) else R.lagrange
     with mp.workdps(R.DPS):
-        return np.array([[float(R.quad(lambda c: R.lagrange(nodes, i, c) * R.lagrange(nodes, j, c)
+        return np.array([[float(R.quad(lambda c: lagrange(nodes, i, c) * lagrange(nodes, j, c)
                                        * R.density(chart, c), [R.mpf(a), R.mpf(b)]))
                           for j in range(degree + 1)] for i in range(degree + 1)])
 
@@ -374,9 +396,12 @@ def test_the_mass_matrix_is_the_volume_integral_of_each_product(name, degree, la
     roots over the basis's panel ends and integrates with the density written
     in this file (sphere 4 pi c^2, cylinder 2 pi c, slab 1). 64 (1 + kappa) ulp
     of the block's largest entry (``_conditioning``). First reds: the density without the factor d; the
-    mass rule one point short of exact (p + 1 points: degree 2p + 1 < 2p + 2 on
-    the sphere); a block placed at the wrong panel's indices; the weights of
-    one panel scaled by its neighbour's width.
+    mass rule short of exact (re-posed 2026-10-06, rung 3, the spec's RB2: on
+    the even panel at a solid body's stratum the integrand has degree 4p + d - 1,
+    so the rule takes 2p + 2 points; the rung-2 rule of p + 2 points reds there);
+    a block placed at the wrong panel's indices; the weights of one panel scaled
+    by its neighbour's width. On the stratum panel the reference's Lagrange
+    functions are in c^2 (``R.lagrange_even``, written independently of the basis).
     """
     chart = _chart_name(name)
     basis = _basis(_BODIES[name], degree, layers, ratio)
@@ -419,6 +444,99 @@ def test_each_panels_mass_is_its_chart_measure(name, degree, layers, ratio) -> N
         np.testing.assert_allclose(total, measure[p], rtol=tol, atol=0.0, err_msg=f"panel {p}")
         np.testing.assert_allclose(total, float(R.volume(_chart_name(name), ends[p], ends[p + 1])), rtol=tol, atol=0.0)
     np.testing.assert_allclose(W.sum(), chart.measure(np.asarray(geometry.breakpoints)).sum(), rtol=tol, atol=0.0)
+
+
+# ── EB1-EB3: the even panel at a singular stratum (rung 3) ─────────────────
+#
+# P1 step (b), third rung (the plan's API sketch item 3 and the user's ruling of
+# 2026-10-06; spec ``scratch/characteristic_architecture/p1_step_b3/spec.md``
+# rows EB1-EB3): on the panel whose lower end is the centre or the axis, the
+# functions are Lagrange polynomials in c^2 through the squares of the same
+# Gauss points (Schwarz: a smooth O(d)-invariant function is a smooth function
+# of |x|^2), and the mass rule takes 2p + 2 points on every panel.
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("name", "degree", "layers", "ratio"), _ARGS, ids=_IDS)
+@pytest.mark.rests_on(_HERE + "test_every_breakpoint_is_a_panel_end_and_each_panel_lies_in_one_region")
+def test_the_even_panel_is_the_one_touching_a_singular_stratum(name, degree, layers, ratio) -> None:
+    """[EB1] ``even`` is true exactly on panel 0 of a solid sphere or cylinder; on no panel of a hollow body or a slab.
+
+    Written from the body (its first breakpoint and its chart), not from
+    ``singular_strata``. First red: ``even`` keyed on the first breakpoint being
+    0 whatever the chart (true on the slab, whose x = 0 is a face).
+    """
+    geometry = _BODIES[name]
+    basis = _basis(geometry, degree, layers, ratio)
+    want = np.zeros(basis.n_panels, dtype=bool)
+    want[0] = _solid(name)
+    np.testing.assert_array_equal(basis.even, want)
+
+
+_EVEN_CASES = [(f"{body}-p{p}", body, p) for body in ("sphere_solid", "cylinder_solid") for p in (0, 1, 3, 5)]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("name", "degree"), [c[1:] for c in _EVEN_CASES], ids=[c[0] for c in _EVEN_CASES])
+@pytest.mark.rests_on(_HERE + "test_the_even_panel_is_the_one_touching_a_singular_stratum",
+                      _HERE + "test_the_functions_are_cardinal_at_the_nodes_and_sum_to_one")
+def test_the_even_panel_spans_the_polynomials_in_c_squared(name, degree) -> None:
+    """[EB2] On the even panel an even polynomial of degree 2p, sampled at the nodes, is reproduced; c^(2p+1) is not.
+
+    The polynomial (seeded coefficients of 1, c^2, ..., c^2p) is read at both
+    panel ends, a hair inside them and seven random points, against mpmath: 64
+    ulp of its maximum (`[M]` 2026-10-06 on the spec's prototype: 0, 0.6, 5.7,
+    37.6 ulp at p = 0, 1, 3, 5). The odd leg: the interpolant of c^(2p+1) (c at
+    p = 0) misses it by more than 1e-3 (`[M]` 0.50, 0.19, 2.7e-2, 3.7e-3). First
+    red: the panel's functions Lagrange in c (the rung-2 basis): the even
+    polynomial misses (`[M]` 0.13, 9.1e-5, 1.5e-6 at p = 1, 3, 5) and the odd leg
+    is reproduced.
+    """
+    basis = _basis(_BODIES[name], degree, 0, 0.5)
+    a, b = basis.partition.breakpoints[:2]
+    rng = np.random.default_rng(40 + degree)
+    coefficients = rng.uniform(-1.0, 1.0, degree + 1)
+    even = [0.0] * (2 * degree + 1)
+    even[::2] = list(coefficients)
+    nodes = np.asarray(basis.nodes[:degree + 1])
+    c = a + (b - a) * np.concatenate([[0.0, 1.0, 1e-9, 1.0 - 1e-9], rng.random(7)])
+    panel = np.zeros(c.shape, dtype=int)
+
+    def value(poly, x):
+        return np.array([float(mp.polyval(list(reversed([R.mpf(v) for v in poly])), R.mpf(t))) for t in x])
+
+    got = basis.values(c, panel) @ value(even, nodes)
+    want = value(even, c)
+    assert np.max(np.abs(got - want)) <= 64 * _EPS * np.max(np.abs(want)), np.max(np.abs(got - want)) / np.max(np.abs(want)) / _EPS
+    odd = [0.0] * (2 * degree + 1) + [1.0]
+    miss = np.max(np.abs(basis.values(c, panel) @ value(odd, nodes) - value(odd, c))) / np.max(np.abs(value(odd, c)))
+    assert miss > 1e-3, f"c^{2 * degree + 1} is reproduced to {miss:.1e}: the panel holds an odd mode"
+
+
+_EVEN_MASS = [(f"{body}-p{p}", body, p) for body in ("sphere_solid", "cylinder_solid") for p in (1, 3, 5)]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("name", "degree"), [c[1:] for c in _EVEN_MASS], ids=[c[0] for c in _EVEN_MASS])
+@pytest.mark.rests_on(_HERE + "test_the_even_panel_spans_the_polynomials_in_c_squared",
+                      _HERE + "test_the_volume_density_is_the_charts_by_hand")
+def test_the_even_panels_mass_is_the_volume_integral_of_its_even_products(name, degree) -> None:
+    """[EB3] The even panel's mass block against mpmath products of ``R.lagrange_even`` and the hand-written density.
+
+    64 (1 + kappa) ulp of the block's largest entry (`[M]` 2026-10-06 on the
+    spec's prototype: 5.6 to 9.3 ulp). First red: the mass rule at p + 2 points
+    (the rung-2 rule): `[M]` red on the sphere at p = 1, 3, 5 and on the cylinder
+    at p = 3, 5; BLIND on the cylinder at p = 1 (degree 4p + 1 = 5 is exact at
+    3 points), declared, so the cylinder's catchers are p >= 3.
+    """
+    chart = _chart_name(name)
+    basis = _basis(_BODIES[name], degree, 0, 0.5)
+    p1 = degree + 1
+    a, b = basis.partition.breakpoints[:2]
+    got = np.asarray(basis.mass)[:p1, :p1]
+    want = _mass_reference(chart, a, b, degree)
+    scale = float(np.max(np.abs(want))) * (1.0 + _conditioning(a, b))
+    assert np.max(np.abs(got - want)) <= 64 * _EPS * scale, np.max(np.abs(got - want)) / scale / _EPS
 
 
 # ── P9: the basis reads only the partition and the resolution (C6b) ───────

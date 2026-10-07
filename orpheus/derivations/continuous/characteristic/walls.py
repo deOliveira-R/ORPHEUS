@@ -62,7 +62,11 @@ def _refuse(what: str, missing: str) -> NoReturn:
 
 @dataclass(frozen=True)
 class Wall:
-    r"""One boundary point and what its law returns.
+    r"""One boundary point and what its law returns: specular or diffuse, never both, never more than it receives.
+
+    SCOPE-BOUNDARY[guard] machinery: a wall returning both a specular and a diffuse part (a law sum's reader arm and its gates).
+    ruling: the user, 2026-10-06, P1 step (b) third rung (`.claude/plans/characteristic_reference_architecture.md`); the SN realizer refuses a LawSum too.
+    revisit: when production poses a specular-plus-diffuse wall, the reader reads it and this refusal goes; the white walls' balance (`LineRule.transport`) then counts a diffuse wall's specular return, which it now assumes is zero.
 
     Attributes
     ----------
@@ -82,11 +86,16 @@ class Wall:
     partner: int
 
     def __post_init__(self) -> None:
-        if not (0.0 <= self.specular <= 1.0 and 0.0 <= self.diffuse <= 1.0):
+        if not (0.0 <= self.specular <= 1.0 and 0.0 <= self.diffuse <= 1.0 and self.specular + self.diffuse <= 1.0):
             _refuse(
                 f"wall at breakpoint {self.breakpoint} returning (specular {self.specular}, "
                 f"diffuse {self.diffuse})",
-                "a returned amplitude outside [0, 1] is not a physical wall",
+                "a returned amplitude outside [0, 1], or returning more than it receives, is not a physical wall",
+            )
+        if self.specular > 0.0 and self.diffuse > 0.0:
+            _refuse(
+                f"wall at breakpoint {self.breakpoint} returning both specular {self.specular} and diffuse {self.diffuse}",
+                "a wall is specular or diffuse, as production poses it",
             )
 
 

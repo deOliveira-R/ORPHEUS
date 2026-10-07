@@ -721,3 +721,108 @@ def test_a_chord_whose_walls_disagree_with_its_transits_is_refused(monkeypatch: 
     monkeypatch.setattr(Walls, "partner_at", lambda self, bp, where=None: np.full(np.shape(bp), 3))
     with pytest.raises(RuntimeError, match="did not close"):
         LinePeriod.of(chord, mirrors)
+
+
+# ── 7. an arriving flux (rung 3) [IN1-IN4] ───────────────────────────────
+#
+# P1 step (b), third rung (the plan's API sketch item 4; spec
+# ``scratch/characteristic_architecture/p1_step_b3/spec.md`` rows IN1-IN4).
+# ``arriving`` is s_k, a flux injected at traversal k's entry from outside the
+# line part (a diffuse wall's re-entry), not multiplied by the wall's amplitude.
+# The cycle in_k = a_{k-1} (e^{-tau_{k-1}} in_{k-1} + B_{k-1}) + s_k is solved here
+# by hand, in mpmath: rank 1, in_0 = (a_0 B_0 + s_0) / (1 - g_0); rank 2,
+# in_0 = (a_1 B_1 + s_0 + g_1 (a_0 B_0 + s_1)) / (1 - g_0 g_1), g = a e^{-tau}.
+
+
+def _arriving_closed_form(amplitude, tau, outflow, arriving, m: int):
+    a = [mp.mpf(float(v)) for v in amplitude[:m]]
+    g = [a[i] * mp.exp(-mp.mpf(float(tau[i]))) for i in range(m)]
+    B = [mp.mpf(float(v)) for v in outflow[:m]]
+    s = [mp.mpf(float(v)) for v in arriving[:m]]
+    if m == 1:
+        return [(a[0] * B[0] + s[0]) / (1 - g[0])]
+    return [(a[(k + 1) % 2] * B[(k + 1) % 2] + s[k] + g[(k + 1) % 2] * (a[k] * B[k] + s[(k + 1) % 2])) / (1 - g[0] * g[1])
+            for k in range(2)]
+
+
+def _arriving_periods():
+    periodic = _body("slab", left=PeriodicBoundary(axis="x"), right=BC("periodic"))
+    partial = _body("slab", left=_spec(0.3), right=_spec(0.8))
+    return {
+        "sphere_solid_a0.6": (_period_with((0.6,), 1, 20), 1),
+        "slab_periodic_a1": (_period(periodic, [(0.5, 0.0, 0.0)] * 20, [(0.6, 0.8, 0.0)] * 20), 1),
+        "sphere_hollow_cavity_a0.3_0.8": (_period_with((0.3, 0.8), 2, 20), 2),
+        "slab_partial_mirrors_0.3_0.8": (_period(partial, [(0.5, 0.0, 0.0)] * 20, [(0.6, 0.8, 0.0)] * 20), 2),
+    }
+
+
+_ARRIVING = _arriving_periods()
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
+@pytest.mark.parametrize("name", list(_ARRIVING))
+@pytest.mark.rests_on(_HERE + "test_the_inflow_is_the_unfolded_wall_by_wall_sum")
+def test_an_arriving_flux_enters_the_cycle_at_its_traversal(name: str) -> None:
+    """[IN1, IN2] ``inflow(tau, B, arriving=s)`` is the cycle solved by hand, rank 1 and rank 2, 20 seeded draws, 8 ulp.
+
+    A trailing basis axis of 5; s_0 != s_1 in every rank-2 draw. `[M]` 2026-10-06
+    on the spec's prototype: 1.0, 1.6, 0.8, 0.9 ulp. First reds: (a) s_k injected at
+    traversal k + 1's entry (the shift dropped: `[M]` 0.25 hollow, 0.46 slab, and
+    BLIND at rank 1, where the shift is the identity: the rank-1 rows cannot see
+    it, declared); (b) s multiplied by the wall's amplitude (`[M]` 0.27 sphere, 0.31
+    hollow, 0.14 slab; BLIND on the periodic slab, amplitude 1, declared).
+    """
+    period, m = _ARRIVING[name]
+    rng = np.random.default_rng(20261006 + m + len(name))
+    draws = period.present.shape[0]
+    tau = rng.uniform(0.05, 3.0, size=(draws, 2)) * period.present
+    outflow = rng.uniform(0.1, 2.0, size=(draws, 2, 5)) * period.present[..., None]
+    arriving = rng.uniform(0.1, 2.0, size=(draws, 2, 5)) * period.present[..., None]
+    if m == 2:
+        assert np.all(arriving[:, 0] != arriving[:, 1])
+    got = period.inflow(tau, outflow, arriving)
+    np.testing.assert_array_equal(got[:, m:], 0.0)
+    for d in range(draws):
+        for c in range(5):
+            want = [float(v) for v in _arriving_closed_form(period.amplitude[d], tau[d], outflow[d, :, c], arriving[d, :, c], m)]
+            np.testing.assert_allclose(got[d, :m, c], want, rtol=8 * _EPS, atol=0.0, err_msg=f"draw {d}, column {c}")
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("name", list(_ARRIVING))
+@pytest.mark.rests_on(_HERE + "test_an_arriving_flux_enters_the_cycle_at_its_traversal")
+def test_a_zero_arriving_flux_is_no_arriving_flux_bitwise(name: str) -> None:
+    """[IN3] ``arriving=0`` returns ``arriving=None``'s result bit for bit (a zero added in floating point is exact).
+
+    ``arriving=None`` is gated against the rung-2 closed forms by every other
+    inflow row of this file, unchanged. First red: ``arriving=None`` routed
+    through an expression regrouped from the ``arriving`` path (the bits move).
+    """
+    period, _m = _ARRIVING[name]
+    rng = np.random.default_rng(7)
+    draws = period.present.shape[0]
+    tau = rng.uniform(0.05, 3.0, size=(draws, 2)) * period.present
+    outflow = rng.uniform(0.1, 2.0, size=(draws, 2, 3)) * period.present[..., None]
+    np.testing.assert_array_equal(period.inflow(tau, outflow, np.zeros_like(outflow)), period.inflow(tau, outflow))
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-closure")
+@pytest.mark.rests_on(_HERE + "test_the_least_solution_on_a_lossless_trapped_line")
+def test_an_arriving_flux_on_a_lossless_trapped_line_is_refused() -> None:
+    """[IN4] The ``TrappedSource`` refusal covers an arriving flux: a lossless trapped line with s != 0 and no source raises.
+
+    With s = 0 there the inflow is 0, no raise; the material line beside it is
+    finite. First red: the trapped test reading the outflow only (the arriving
+    flux added after the test): the first leg returns inf or a silent 0.
+    """
+    geometry = StructuredGeometry.sphere((0.0, 1.0, 2.0), (0, 1), outer=BC.reflective)
+    period = _period(geometry, [(0.5, 0.0, 0.0), (1.5, 0.0, 0.0)], [(0.0, 1.0, 0.0)] * 2)
+    tau = period.optical_depth(np.array([1.0, 0.0]))
+    no_source = np.zeros((2, 2, 1))
+    with pytest.raises(TrappedSource, match="lossless trapped line"):
+        period.inflow(tau, no_source, np.array([[[0.0], [0.0]], [[0.4], [0.0]]]))
+    got = period.inflow(tau, no_source, np.array([[[0.4], [0.0]], [[0.0], [0.0]]]))
+    np.testing.assert_array_equal(got[1], 0.0)
+    assert np.isfinite(got[0, 0, 0]) and got[0, 0, 0] > 0.0

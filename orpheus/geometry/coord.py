@@ -67,6 +67,11 @@ class MeasureCoordinate:
             case _:
                 return np.cbrt(t)
 
+    def derivative(self, r: np.ndarray) -> np.ndarray:
+        r"""The derivative :math:`T'(r) = p\,r^{p-1}`."""
+        r = np.asarray(r, dtype=float)
+        return self.exponent * r ** (self.exponent - 1)
+
 
 @dataclass(frozen=True)
 class AngularChart:
@@ -191,6 +196,17 @@ class CoordSystem(Enum):
     def measure(self, edges: np.ndarray) -> np.ndarray:
         r"""The measures :math:`c\,(T(r_{j+1}) - T(r_j))` of the cells between ``edges``."""
         return self.measure_constant * np.diff(self.measure_coordinate(edges))
+
+    def measure_density(self, r: np.ndarray) -> np.ndarray:
+        r"""The density :math:`c\,T'(r)` of :meth:`measure` in the position :math:`r`.
+
+        The derivative of the one definition, so the two cannot drift. It is
+        also the area of the level set at :math:`r` (the coarea formula, the
+        position having unit gradient): :math:`4\pi r^2` on a sphere,
+        :math:`2\pi r` per unit height on a cylinder, 1 per unit transverse
+        area on a slab.
+        """
+        return self.measure_constant * self.measure_coordinate.derivative(r)
 
 
 # ── 1-D formulas ─────────────────────────────────────────────────────

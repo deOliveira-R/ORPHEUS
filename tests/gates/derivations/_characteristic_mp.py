@@ -343,3 +343,137 @@ def panel_function(nodes: Sequence[Mpf], i: int, a: Mpf, b: Mpf) -> Source:
         return lagrange(nodes, i, c) if a <= c <= b else mp.mpf(0)
 
     return f
+
+
+# ── the even panel (rung 3): Lagrange functions in s = c^2 ──────────────────
+
+
+def lagrange_even(nodes: Sequence[Mpf], i: int, c: Mpf) -> Mpf:
+    """The i-th Lagrange cardinal function of ``nodes`` in the variable c^2: prod_{m != i} (c^2 - c_m^2) / (c_i^2 - c_m^2).
+
+    The functions of a panel whose lower end is a singular stratum (the centre or
+    the axis): they span 1, c^2, ..., c^(2p) and no odd power of c.
+    """
+    value = mp.mpf(1)
+    for m, x in enumerate(nodes):
+        if m != i:
+            value *= (c * c - x * x) / (nodes[i] * nodes[i] - x * x)
+    return value
+
+
+def panel_function_even(nodes: Sequence[Mpf], i: int, a: Mpf, b: Mpf) -> Source:
+    """The i-th even Lagrange function of a panel [a, b] (a = 0, the stratum), zero outside it (region-free)."""
+
+    def f(_k: int, c: Mpf) -> Mpf:
+        return lagrange_even(nodes, i, c) if a <= c <= b else mp.mpf(0)
+
+    return f
+
+
+# ── escape and transmission probabilities of a homogeneous body (rung 3) ──────
+#
+# Closed forms of the escape-probability theory, written from the chord-length
+# distributions, sharing no line integral with the code: tau = Sigma R (sphere,
+# cylinder) or Sigma L (slab, its width).
+
+
+def bickley_ki1(x) -> Mpf:
+    """Ki_1(x) = int_x^inf K_0 = pi/2 - (pi x / 2) [K_0(x) L_-1(x) + K_1(x) L_0(x)] (Struve's closed form of int_0^x K_0).
+
+    The two Struve terms grow as e^x and cancel to e^-x, so x / 2.3 extra digits are carried.
+    """
+    x = mpf(x)
+    if x == 0:
+        return mp.pi / 2
+    with mp.extradps(int(x / 2.3) + 10):
+        return +(mp.pi / 2 - mp.pi * x / 2 * (mp.besselk(0, x) * mp.struvel(-1, x) + mp.besselk(1, x) * mp.struvel(0, x)))
+
+
+def bickley_ki3(x) -> Mpf:
+    """Ki_3 by Bickley's recurrence n Ki_{n+1} = (n - 1) Ki_{n-1} + x (Ki_{n-2} - Ki_n), Ki_0 = K_0, Ki_{-1} = K_1."""
+    x = mpf(x)
+    if x == 0:
+        return mp.pi / 4
+    with mp.extradps(10):
+        k1 = bickley_ki1(x)
+        k2 = x * (mp.besselk(1, x) - k1)
+        return +(k1 + x * (mp.besselk(0, x) - k2)) / 2
+
+
+def transmission_probability(chart: str, tau) -> Mpf:
+    """P_ss: the uncollided transmission of an isotropic (cosine) incoming current, surface to surface.
+
+    sphere (1 - (1 + 2 tau) e^{-2 tau}) / (2 tau^2); cylinder (4/pi) int_0^{pi/2} cos(phi) Ki_3(2 tau cos phi) dphi;
+    slab, one face to the other, 2 E_3(tau).
+    """
+    tau = mpf(tau)
+    match chart:
+        case "sphere":
+            return (1 - (1 + 2 * tau) * mp.exp(-2 * tau)) / (2 * tau ** 2)
+        case "cylinder":
+            return 4 / mp.pi * mp.quad(lambda f: mp.cos(f) * bickley_ki3(2 * tau * mp.cos(f)), [0, mp.pi / 2])
+        case "slab":
+            return 2 * mp.expint(3, tau)
+    raise AssertionError(chart)
+
+
+def escape_probability(chart: str, tau) -> Mpf:
+    """P_esc of a uniform isotropic source: sphere 3/(8 tau^3) (2 tau^2 - 1 + (1 + 2 tau) e^{-2 tau}) (Hebert);
+    slab (1 - 2 E_3(tau)) / (2 tau); cylinder (1 - P_ss) / (2 tau) (the mean chord 2R, Cauchy)."""
+    tau = mpf(tau)
+    match chart:
+        case "sphere":
+            return 3 / (8 * tau ** 3) * (2 * tau ** 2 - 1 + (1 + 2 * tau) * mp.exp(-2 * tau))
+        case "slab":
+            return (1 - 2 * mp.expint(3, tau)) / (2 * tau)
+        case "cylinder":
+            return (1 - transmission_probability("cylinder", tau)) / (2 * tau)
+    raise AssertionError(chart)
+
+
+def white_total(chart: str, sigma, size, alpha) -> Mpf:
+    """1^T K 1 of a homogeneous body behind white walls of albedo alpha (every face), q = 1, K the flux over 4 pi.
+
+    The balance of one re-emission chain: of the emission Q, (1 - P_esc) collides at once; the escaping P_esc
+    comes back alpha times, and collides with probability (1 - T) per return, T the probability it crosses
+    uncollided to a wall (P_ss for one wall; 2 E_3, face to face, for a slab with both faces white). The
+    collision rate is Sigma 4 pi 1^T K 1, the emission 4 pi V.
+    """
+    sigma, size, alpha = mpf(sigma), mpf(size), mpf(alpha)
+    tau = sigma * size
+    volume = {"sphere": 4 * mp.pi * size ** 3 / 3, "cylinder": mp.pi * size ** 2, "slab": size}[chart]
+    pe, t = escape_probability(chart, tau), transmission_probability(chart, tau)
+    return volume / sigma * ((1 - pe) + alpha * pe * (1 - t) / (1 - alpha * t))
+
+
+def specular_sphere_total(sigma, R, a) -> Mpf:
+    """1^T K 1 of a homogeneous solid sphere behind a partial mirror of amplitude a: int_0^R 2 pi b db int psi ds.
+
+    Per line, chord l = 2 sqrt(R^2 - b^2), tau = Sigma l, B = (1 - e^{-tau}) / Sigma; psi_in = a B / (1 - a e^{-tau});
+    int psi ds = psi_in B + (l - B) / Sigma. The line weight 2 pi b is the line measure over 4 pi.
+    """
+    sigma, R, a = mpf(sigma), mpf(R), mpf(a)
+
+    def per_line(b):
+        length = 2 * mp.sqrt(R * R - b * b)
+        B = -mp.expm1(-sigma * length) / sigma
+        psi_in = a * B / (1 - a * mp.exp(-sigma * length))
+        return psi_in * B + (length - B) / sigma
+
+    return mp.quad(lambda b: 2 * mp.pi * b * per_line(b), [0, R])
+
+
+def slab_two_white_total(sigma, L, a1, a2) -> Mpf:
+    """1^T K 1 of a homogeneous slab of width L whose faces are white with albedos a1, a2 (q = 1, K the flux over 4 pi).
+
+    The escaping current E = L P_esc leaves half by each face; a face returns its albedo of what reaches it, and a
+    returned current crosses to the other face uncollided with T = 2 E_3 (it never reaches its own face). The
+    returned currents solve j1 = a1 (E/2 + T j2), j2 = a2 (E/2 + T j1); each collides with probability 1 - T.
+    """
+    sigma, L, a1, a2 = mpf(sigma), mpf(L), mpf(a1), mpf(a2)
+    tau = sigma * L
+    pe, T = escape_probability("slab", tau), transmission_probability("slab", tau)
+    E = L * pe
+    j1 = a1 * (E / 2 + T * a2 * E / 2) / (1 - a1 * a2 * T * T)
+    j2 = a2 * (E / 2 + T * j1)
+    return (L * (1 - pe) + (j1 + j2) * (1 - T)) / sigma

@@ -71,32 +71,9 @@ from orpheus.geometry.chord import RadialImage
 from orpheus.geometry.line import Line
 
 from .basis import PanelBasis
+from .grading import exponential_ends, halvings
 from .closure import LinePeriod
 from .walls import Walls
-
-#: Piece ends at 2^k mean free paths, k = 0..6, from a graded end: beyond 64, e^-64 is below double precision.
-_DOUBLINGS = 7
-
-#: An interval of optical width at most this is one Gauss panel: e^-2 is integrated to machine precision.
-_THIN = 2.0
-
-#: Halvings toward a branch point: depths 2^-k of the slot, k = 1..52 (np.finfo(float).nmant).
-_BRANCH_LAYERS = np.finfo(float).nmant
-
-
-def _toward(stop: np.ndarray, start: np.ndarray, sigma: np.ndarray) -> np.ndarray:
-    r"""The ends of the intervals of ``[start, stop]`` graded exponentially toward ``stop``, sorted, ``(..., K + 2)``.
-
-    Depths :math:`2^k/\Sigma` from ``stop``, clipped to the interval; none where
-    the interval's optical width is at most :data:`_THIN`.
-    """
-    width = np.abs(stop - start)
-    thick = sigma * width > _THIN
-    mean_free_path = 1.0 / np.where(thick, sigma, 1.0)
-    depth = np.where(thick[..., None], np.minimum(mean_free_path[..., None] * 2.0 ** np.arange(_DOUBLINGS), width[..., None]), 0.0)
-    inward = np.sign(start - stop)[..., None]
-    return np.sort(np.concatenate([start[..., None], stop[..., None] + inward * depth, stop[..., None]], axis=-1), axis=-1)
-
 
 @dataclass(frozen=True, eq=False)
 class _Slots:
@@ -274,8 +251,8 @@ class TraversalRule:
         On a slot ending at the closest approach the branch distance is
         :math:`b/|P\Omega|`; on one starting at the crossing of a small radius
         :math:`r_k` (a small cavity or a small inner region) it is
-        :math:`r_k/|P\Omega|`. The pieces halve toward that end until they
-        reach it. `[M]` 2026-10-06: one piece at 16 points missed by 2.5e-12
+        :math:`r_k/|P\Omega|`. The pieces halve toward that end until each is
+        no wider than its distance to the branch point (:func:`~.grading.halvings`). `[M]` 2026-10-06: one piece at 16 points missed by 2.5e-12
         at :math:`b = 10^{-4}` (the test-architect's ``probe_turn2.py``) and by
         8.5e-7 on a hollow sphere of cavity radius 0.01 (qa's ``probe_branch.py``).
 
@@ -285,11 +262,12 @@ class TraversalRule:
         and it covered only those slots.
         """
         s = self._slots
-        depth = s.length[..., None] * 0.5 ** np.arange(1, _BRANCH_LAYERS + 1)
-        scale = s.branch_distance[..., None]
-        graded = (s.near_end[..., None] != 0) & (scale > 0.0) & (depth > scale)
+        reach = (s.near_end != 0) & (s.branch_distance > 0.0)
+        layers = halvings(s.length, np.where(reach, s.branch_distance, s.length))   # 0 where ungraded
+        level = np.arange(1, np.finfo(float).nmant + 1)
+        depth = s.length[..., None] * 0.5**level
         at = np.where(s.near_end[..., None] > 0, s.length[..., None] - depth, depth)
-        return np.where(graded, at, 0.0)
+        return np.where(level <= layers[..., None], at, 0.0)
 
     # ── the pieces ───────────────────────────────────────────────────────
 
@@ -300,7 +278,7 @@ class TraversalRule:
         half = s.length / 2.0
         ends = np.sort(
             np.concatenate(
-                [_toward(np.zeros_like(half), half, sigma), _toward(s.length, half, sigma), self._branch_edges()], axis=-1
+                [exponential_ends(np.zeros_like(half), half, sigma), exponential_ends(s.length, half, sigma), self._branch_edges()], axis=-1
             ),
             axis=-1,
         )
@@ -327,6 +305,14 @@ class TraversalRule:
             transit=np.where(live_j, np.take_along_axis(s.transit, slot_j, axis=-1), 0),
             live=live_j,
         )
+
+    @property
+    def extent(self) -> int:
+        r"""The number of piece slots the rule's arrays hold: lines times the most live pieces on one line.
+
+        Every node array scales with it, so a caller bounds a batch's memory by it.
+        """
+        return int(self._pieces.live.size)
 
     @cached_property
     def _piece_sigma(self) -> np.ndarray:
@@ -378,7 +364,7 @@ class TraversalRule:
         slot = np.broadcast_to(slot, start.shape)
         panel = np.take_along_axis(self._slots.panel, slot.reshape(slot.shape[0], -1), axis=-1).reshape(slot.shape)
         sigma = self.sigma[panel]
-        ends = _toward(stop, start, sigma)
+        ends = exponential_ends(stop, start, sigma)
         lower, upper = ends[..., :-1], ends[..., 1:]
         used = (upper > lower).reshape(-1, upper.shape[-1]).any(axis=0)
         lower, upper = lower[..., used], upper[..., used]
